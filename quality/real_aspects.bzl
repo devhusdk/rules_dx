@@ -44,6 +44,7 @@ _REAL_TOOL_TABLE = {
     "flake8": {"capabilities": ["lint"], "shard": "py", "resources": "medium"},
     "fsharplint": {"capabilities": ["lint"], "shard": "dotnet", "resources": "heavy"},
     "gleam_format": {"capabilities": ["format"], "shard": "core", "resources": "light"},
+    "gofumpt": {"capabilities": ["format"], "shard": "go", "resources": "light"},
     "google_java_format": {"capabilities": ["format"], "shard": "jvm", "resources": "heavy"},
     "graphql_eslint": {"capabilities": ["lint"], "shard": "js", "resources": "heavy"},
     "hadolint": {"capabilities": ["lint"], "shard": "dockerfile", "resources": "light"},
@@ -104,6 +105,7 @@ _SHELL_FORMAT_TOOLS = _shard_tools("shell", "format")
 _DOCKERFILE_LINT_TOOLS = _shard_tools("dockerfile", "lint")
 _TEXT_LINT_TOOLS = _shard_tools("text", "lint")
 _TERRAFORM_FORMAT_TOOLS = _shard_tools("terraform", "format")
+_GO_FORMAT_TOOLS = _shard_tools("go", "format")
 _CUE_FORMAT_TOOLS = _shard_tools("cue", "format")
 _JSONNET_FORMAT_TOOLS = _shard_tools("jsonnet", "format")
 _PKL_FORMAT_TOOLS = _shard_tools("pkl", "format")
@@ -122,7 +124,7 @@ _YAML_LINT_TOOLS = _shard_tools("yaml", "lint")
 _POWERSHELL_LINT_TOOLS = _shard_tools("powershell", "lint")
 
 _WIRED_TOOLS = {
-    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
+    "format": sorted(set(_CC_FORMAT_TOOLS + _CORE_FORMAT_TOOLS + _JS_FORMAT_TOOLS + _JVM_FORMAT_TOOLS + _RUBY_FORMAT_TOOLS + _RUST_FORMAT_TOOLS + _SCALA_FORMAT_TOOLS + _SHELL_FORMAT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _GO_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _YAML_FORMAT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS)),
     "lint": sorted(set(_CC_LINT_TOOLS + _CORE_LINT_TOOLS + _DOTNET_LINT_TOOLS + _JS_LINT_TOOLS + _JVM_LINT_TOOLS + _RUBY_LINT_TOOLS + _PY_LINT_TOOLS + _RUST_LINT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _PROTOBUF_LINT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS)),
     "typecheck": sorted(set(_CORE_TYPECHECK_TOOLS + _RUST_TYPECHECK_TOOLS)),
 }
@@ -309,6 +311,28 @@ def _tool_files_to_run(target, flag, tool, what):
         return target[QualityToolsInfo].tools[tool]
     fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
 
+_GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
+
+def go_lang_version(sdk_version):
+    """Returns the gofumpt -lang value (go<major>.<minor>) for one Go SDK version."""
+    parts = sdk_version.removeprefix("go").split(".")
+    minor = ""
+    if len(parts) >= 2:
+        for c in parts[1].elems():
+            if not c.isdigit():
+                break
+            minor += c
+    if len(parts) < 2 or not parts[0].isdigit() or minor == "":
+        fail("gofumpt: cannot derive -lang from Go SDK version '" + sdk_version + "'")
+    return "go" + parts[0] + "." + minor
+
+def _gofumpt_lang(ctx, what):
+    """Derives gofumpt -lang from the resolved rules_go SDK."""
+    toolchain = ctx.toolchains[_GO_TOOLCHAIN_TYPE]
+    if toolchain == None:
+        fail(what + ": gofumpt needs a registered rules_go Go toolchain to derive -lang")
+    return go_lang_version(toolchain.sdk.version)
+
 def _real_resolved_stages(target, ctx, capability, what):
     """Resolves one target's pipeline stages for both the real shards and the probe."""
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -493,6 +517,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         tool_binaries["mix_format"] = mix_format
     if "zig_fmt" in stage_tools:
         tool_binaries["zig_fmt"] = _tool_files_to_run(target, ctx.attr._zig_fmt, "zig_fmt", what).executable
+    if "gofumpt" in stage_tools:
+        gofumpt = ctx.attr._gofumpt[DefaultInfo].files_to_run
+        if gofumpt == None or gofumpt.executable == None:
+            fail(what + ": gofumpt has no executable; set --@rules_dx//config:tool_gofumpt to a gofumpt binary")
+        tool_binaries["gofumpt"] = gofumpt.executable
     if "ruff" in stage_tools:
         tool_binaries["ruff"] = ctx.file._ruff
     if "csharpier" in stage_tools:
@@ -756,6 +785,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         run_tools.append(_tool_files_to_run(target, ctx.attr._zig_fmt, "zig_fmt", what))
     if "erlfmt" in stage_tools:
         run_tools.append(ctx.attr._erlfmt[DefaultInfo].files_to_run)
+    if "gofumpt" in stage_tools:
+        run_tools.append(ctx.attr._gofumpt[DefaultInfo].files_to_run)
     if "gleam_format" in stage_tools:
         run_tools.append(ctx.attr._gleam_format[DefaultInfo].files_to_run)
     if "mix_format" in stage_tools:
@@ -817,6 +848,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         edition = None
         if tool == "rustfmt":
             edition = rustfmt_edition
+        if tool == "gofumpt":
+            edition = _gofumpt_lang(ctx, what)
         config_rel = None
         if tool in configs_by_tool:
             hint = configs_by_tool[tool]
@@ -901,7 +934,7 @@ def real_allowed_tools_error():
         _CORE_LINT_TOOLS + _CORE_FORMAT_TOOLS + _CORE_TYPECHECK_TOOLS +
         _JS_LINT_TOOLS + _JS_FORMAT_TOOLS + _PY_LINT_TOOLS +
         _RUST_LINT_TOOLS + _RUST_FORMAT_TOOLS + _RUST_TYPECHECK_TOOLS +
-        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
+        _SCALA_FORMAT_TOOLS + _SCALA_LINT_TOOLS + _SHELL_LINT_TOOLS + _SHELL_FORMAT_TOOLS + _DOCKERFILE_LINT_TOOLS + _TEXT_LINT_TOOLS + _TERRAFORM_FORMAT_TOOLS + _GO_FORMAT_TOOLS + _CUE_FORMAT_TOOLS + _JSONNET_FORMAT_TOOLS + _PKL_FORMAT_TOOLS + _DOTNET_FORMAT_TOOLS + _DOTNET_LINT_TOOLS + _PROTOBUF_FORMAT_TOOLS + _PROTOBUF_LINT_TOOLS + _RUBY_FORMAT_TOOLS + _RUBY_LINT_TOOLS + _YAML_FORMAT_TOOLS + _YAML_LINT_TOOLS + _HTML_TEMPLATE_FORMAT_TOOLS + _HTML_TEMPLATE_LINT_TOOLS + _POWERSHELL_LINT_TOOLS +
         _JVM_LINT_TOOLS + _JVM_FORMAT_TOOLS + _CC_FORMAT_TOOLS + _CC_LINT_TOOLS
     )
     for tool in allowed:
@@ -1161,6 +1194,12 @@ _REAL_TOOL_ATTR_DEFS = {
         allow_single_file = True,
         cfg = "exec",
     ),
+    "gofumpt": attr.label(
+        default = "//config:tool_gofumpt",
+        allow_files = True,
+        cfg = "exec",
+        executable = True,
+    ),
     "terraform": attr.label(
         default = "//config:tool_terraform",
         allow_single_file = True,
@@ -1212,6 +1251,7 @@ _REAL_SHELL_FORMAT_ATTRS = _real_attrs_for(_SHELL_FORMAT_TOOLS)
 _REAL_DOCKERFILE_LINT_ATTRS = _real_attrs_for(_DOCKERFILE_LINT_TOOLS)
 _REAL_TEXT_LINT_ATTRS = _real_attrs_for(_TEXT_LINT_TOOLS)
 _REAL_TERRAFORM_FORMAT_ATTRS = _real_attrs_for(_TERRAFORM_FORMAT_TOOLS)
+_REAL_GO_FORMAT_ATTRS = _real_attrs_for(_GO_FORMAT_TOOLS)
 _REAL_CUE_FORMAT_ATTRS = _real_attrs_for(_CUE_FORMAT_TOOLS)
 _REAL_JSONNET_FORMAT_ATTRS = _real_attrs_for(_JSONNET_FORMAT_TOOLS)
 _REAL_PKL_FORMAT_ATTRS = _real_attrs_for(_PKL_FORMAT_TOOLS)
@@ -1226,6 +1266,7 @@ _REAL_SHARDS = {
     "real_dotnet_lint": {"attrs": _REAL_DOTNET_LINT_ATTRS, "capability": "lint", "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).", "has_rust": False, "suffix": "-dotnet", "tools": _DOTNET_LINT_TOOLS},
     "real_ruby_format": {"attrs": _REAL_RUBY_FORMAT_ATTRS, "capability": "format", "doc": "Additive Ruby format family aspect (Standard).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_FORMAT_TOOLS},
     "real_ruby_lint": {"attrs": _REAL_RUBY_LINT_ATTRS, "capability": "lint", "doc": "Additive Ruby lint family aspect (RuboCop).", "has_rust": False, "suffix": "-ruby", "tools": _RUBY_LINT_TOOLS},
+    "real_go_format": {"attrs": _REAL_GO_FORMAT_ATTRS, "capability": "format", "doc": "Additive Go format family aspect (gofumpt).", "has_rust": False, "suffix": "-go", "toolchains": [config_common.toolchain_type(_GO_TOOLCHAIN_TYPE, mandatory = False)], "tools": _GO_FORMAT_TOOLS},
     "real_html_template_format": {"attrs": _REAL_HTML_TEMPLATE_FORMAT_ATTRS, "capability": "format", "doc": "Additive HTML template format family aspect (djLint).", "has_rust": False, "suffix": "-html-template", "tools": _HTML_TEMPLATE_FORMAT_TOOLS},
     "real_html_template_lint": {"attrs": _REAL_HTML_TEMPLATE_LINT_ATTRS, "capability": "lint", "doc": "Additive HTML template lint family aspect (djLint).", "has_rust": False, "suffix": "-html-template", "tools": _HTML_TEMPLATE_LINT_TOOLS},
     "real_yaml_format": {"attrs": _REAL_YAML_FORMAT_ATTRS, "capability": "format", "doc": "Additive YAML format family aspect (yamlfmt).", "has_rust": False, "suffix": "-yaml", "tools": _YAML_FORMAT_TOOLS},
@@ -1293,6 +1334,7 @@ def _make_real_aspect(shard_name):
         implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
         attr_aspects = ["aspect_hints"],
         attrs = shard["attrs"],
+        toolchains = shard.get("toolchains", []),
     )
 
 RealShardProbeInfo = provider(
@@ -1409,6 +1451,8 @@ real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
+
+real_go_format_aspect = _make_real_aspect("real_go_format")
 
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 

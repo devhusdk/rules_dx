@@ -92,6 +92,16 @@ quality_family(
 )
 
 quality_family(
+    name = "default_go_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "go",
+    format = ["gofumpt"],
+)
+
+quality_family(
     name = "default_rust_family",
     family_id = "rust",
     format = ["rustfmt"],
@@ -269,6 +279,7 @@ workspace_policy(
         ":default_astro_family",
         ":default_cc_family",
         ":default_dockerfile_family",
+        ":default_go_family",
         ":default_graphql_family",
         ":default_html_family",
         ":default_java_family",

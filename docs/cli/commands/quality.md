@@ -186,6 +186,7 @@ workspace_policy(
 | `astro` | `prettier` | disabled | disabled |
 | `cc` | `clang_format` | disabled | disabled |
 | `dockerfile` | disabled | `hadolint` | disabled |
+| `go` | `gofumpt` | disabled | disabled |
 | `graphql` | `prettier` | disabled | disabled |
 | `html` | `prettier` | disabled | disabled |
 | `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | disabled |
@@ -281,12 +282,12 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `terraform`, `hadolint`, `qmlformat`, `qmllint`, `zig_fmt`,
-  `erlfmt`, `mix_format` and `gleam_format` have override flags.
+- `ruff`, `terraform`, `hadolint`, `gofumpt`, `qmlformat`, `qmllint`,
+  `zig_fmt`, `erlfmt`, `mix_format` and `gleam_format` have override flags.
 - The `ruff`, `terraform` and `hadolint` alternates must be a single
   executable file.
   Anything else fails the analysis with the tool named.
-- The `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`, `mix_format` and
+- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt`, `mix_format` and
   `gleam_format` alternates must be executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//elixir/tools:mix_format` and
@@ -783,6 +784,35 @@ findings keep the `terraform` tool ID.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//:tofu
+```
+
+### Go
+
+`gofumpt` formats Go. The default policy selects it for the `go` family, so
+`dx format` checks Go files with no extra setup. It is built from source with
+the rules_go toolchain, so it runs on every platform rules_go supports.
+
+```sh
+bazel run @rules_dx//:dx -- format //cmd/...
+bazel run @rules_dx//:dx -- format --apply //cmd/...
+```
+
+Own Go files with `go_library`, `go_binary` and `go_test` from
+`@rules_dx//go/rules:defs.bzl`. A check never writes. `--apply` rewrites only
+the files the selected targets own. An unformatted file is reported at the
+start of the file. A syntax error fails the run with the file, line and
+column. It never counts as clean.
+
+dx passes `-lang` from the Go SDK the rules_go toolchain resolves, for example
+`-lang=go1.26` for Go 1.26.6. The check and `--apply` use the same version, so
+rewrites that depend on the language version, such as `0644` to `0o644`, agree.
+`gofumpt` takes no config file.
+
+To use your own build, point `tool_gofumpt` at an executable target. The
+findings keep the `gofumpt` tool ID.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_gofumpt=//tools:gofumpt
 ```
 
 ### CSS, SCSS and Less

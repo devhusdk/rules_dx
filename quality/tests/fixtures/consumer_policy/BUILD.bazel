@@ -54,7 +54,7 @@ quality_family(
     name = "unwired_toml_family",
     disabled = ["typecheck"],
     family_id = "toml",
-    format = ["gofumpt"],
+    format = ["modfmt"],
     lint = ["taplo"],
 )
 

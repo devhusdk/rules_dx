@@ -54,6 +54,13 @@ pub(super) fn rustfmt_tool() -> RealTool {
     }
 }
 
+pub(super) fn gofumpt_tool() -> RealTool {
+    RealTool {
+        edition: Some("go1.26".to_owned()),
+        ..plain_tool()
+    }
+}
+
 pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
     let mut file = tempfile::Builder::new()
         .prefix(format!("dx-delegated-{name}-").as_str())

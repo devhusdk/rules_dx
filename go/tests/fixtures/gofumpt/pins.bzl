@@ -1,11 +1,11 @@
 """Gofumpt check plus fix wiring."""
 
-GOFUMPT_VERSION = "v0.11.0"
+GOFUMPT_VERSION = "v0.12.0"
 
-GOFUMPT_ARTIFACT = "standalone checksummed release artifact; strict superset of gofmt"
+GOFUMPT_ARTIFACT = "built from mvdan.cc/gofumpt through go_deps with the hermetic rules_go toolchain; strict superset of gofmt"
 
-GOFUMPT_CHECK = "gofumpt -d with unified diff on stdout (exit 0 clean with empty diff, exit 0 with diff headers when dirty)"
-GOFUMPT_FIX = "gofumpt -w in-place rewrite (re-read on exit 0, keep input otherwise)"
+GOFUMPT_CHECK = "gofumpt -lang=<sdk go1.N> -d with unified diff on stdout (exit 0 clean with empty diff, exit 1 with diff headers when dirty, exit 2 on a syntax error)"
+GOFUMPT_FIX = "gofumpt -lang=<sdk go1.N> -w in-place rewrite (re-read on exit 0, keep input otherwise)"
 GOFUMPT_CONFIG_POLICY = "strict superset of gofmt; whole-file rewrite with check/diff mode, no rule-set selection, no config file"
 
 GO_FIXTURE_HELLO = "//go/tests/fixtures/hello:hello_test"

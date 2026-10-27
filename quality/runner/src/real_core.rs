@@ -994,6 +994,51 @@ pub(super) fn rustfmt_without_edition_fails_the_action() {
     assert!(err.to_string().contains("request tool edition"));
 }
 
+pub(super) fn gofumpt_lang_passthrough(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(
+        argv.get(1),
+        Some(&OsString::from("-lang=go1.26")),
+        "the aspect's Go language version reaches gofumpt"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn gofumpt_check_and_fix_share_the_caller_lang() {
+    let backend = backend_for("gofumpt", gofumpt_tool(), gofumpt_lang_passthrough);
+    let findings = backend
+        .diagnose("gofumpt", "format", &single("a.go", "package a\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+    backend
+        .apply_fix("gofumpt", "a.go", "package a\n", "format")
+        .expect("fixed");
+}
+
+#[test]
+pub(super) fn gofumpt_without_lang_fails_the_action() {
+    let backend = backend_for("gofumpt", plain_tool(), gofumpt_lang_passthrough);
+    let err = backend
+        .diagnose("gofumpt", "format", &single("a.go", "package a\n"))
+        .expect_err("missing lang fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("--tool-edition"));
+    let err = backend
+        .apply_fix("gofumpt", "a.go", "package a\n", "format")
+        .expect_err("missing lang fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }));
+    assert!(err.to_string().contains("--tool-edition"));
+}
+
 pub(super) fn ktlint_defaults(
     argv: &[OsString],
     _cwd: &Path,

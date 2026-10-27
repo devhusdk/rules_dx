@@ -214,6 +214,20 @@ TERRAFORM_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+GO_GOFUMPT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["go"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "go",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "gofumpt",
+    "transport": "batched",
+}
+
 PROTOBUF_BUF_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -414,6 +428,7 @@ SUPPORT_RECORDS = [
     SHELL_SHFMT_SUPPORT,
     DOCKERFILE_HADOLINT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
+    GO_GOFUMPT_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,
@@ -538,6 +553,10 @@ def support_terraform_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Terraform family."""
     return _wiring_error(TERRAFORM_FORMAT_SUPPORT, wired_tools, "real_terraform_format_aspect")
 
+def support_go_wiring_error(wired_tools):
+    """Reports the actionable aspect gap for the Go family."""
+    return _wiring_error(GO_GOFUMPT_FORMAT_SUPPORT, wired_tools, "real_go_format_aspect")
+
 def support_protobuf_wiring_error(wired_tools):
     """Reports the actionable aspect gap for the Protocol Buffers family."""
     for record in [PROTOBUF_BUF_FORMAT_SUPPORT, PROTOBUF_BUF_LINT_SUPPORT]:
@@ -653,6 +672,10 @@ def support_terraform_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Terraform family."""
     return _cli_error(TERRAFORM_FORMAT_SUPPORT, cli_aspects, "real_terraform_format_aspect")
 
+def support_go_cli_error(cli_aspects):
+    """Reports the actionable CLI gap for the Go family."""
+    return _cli_error(GO_GOFUMPT_FORMAT_SUPPORT, cli_aspects, "real_go_format_aspect")
+
 def support_protobuf_cli_error(cli_aspects):
     """Reports the actionable CLI gap for the Protocol Buffers family."""
     for record in [PROTOBUF_BUF_FORMAT_SUPPORT, PROTOBUF_BUF_LINT_SUPPORT]:
@@ -734,6 +757,10 @@ def support_pkl_artifact_error():
 def support_terraform_artifact_error():
     """Reports the actionable artifact gap for the Terraform family."""
     return _artifact_error(TERRAFORM_FORMAT_SUPPORT)
+
+def support_go_artifact_error():
+    """Reports the actionable artifact gap for the Go family."""
+    return _artifact_error(GO_GOFUMPT_FORMAT_SUPPORT)
 
 def support_protobuf_artifact_error():
     """Reports the actionable artifact gap for the Protocol Buffers family."""

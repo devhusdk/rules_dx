@@ -166,7 +166,12 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "yamlfmt",
         "zig_fmt",
     ] {
-        let backend = backend_for(tool_id, plain_tool(), empty_report);
+        let tool = if tool_id == "gofumpt" {
+            gofumpt_tool()
+        } else {
+            plain_tool()
+        };
+        let backend = backend_for(tool_id, tool, empty_report);
         let fixed = backend
             .apply_fix(tool_id, "a.txt", "x\n", "format")
             .expect("fix round reaches the tool");

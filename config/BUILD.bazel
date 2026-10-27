@@ -26,6 +26,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_gofumpt",
+    build_setting_default = "@cc_mvdan_gofumpt//:gofumpt",
+)
+
+label_flag(
     name = "tool_terraform",
     build_setting_default = "@dx_tools//:terraform",
 )

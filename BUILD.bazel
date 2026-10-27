@@ -295,6 +295,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_siblings = [
         "//docs:README.md",
+        "//docs:adopting-existing-bazel.md",
         "//docs:cli/commands/README.md",
         "//docs:github-ci.md",
         "//examples:README.md",

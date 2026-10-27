@@ -44,6 +44,7 @@ and C toolchains. Only the root module's tags count.
 [patches/README.md](patches/README.md).
 
 Next: [docs index](docs/README.md),
+[adopting rules_dx in an existing Bazel repo](docs/adopting-existing-bazel.md),
 [command reference](docs/cli/commands/README.md),
 [examples](examples/README.md), [CI](docs/github-ci.md), and the
 [docs site](https://devhusdk.github.io/rules_dx/).

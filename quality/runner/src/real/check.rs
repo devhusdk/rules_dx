@@ -359,8 +359,19 @@ impl RealBackend {
                 parsed(tool_id, parsers::parse_ktfmt(&out.stdout, out.code, &strs))
             }
             "checkstyle" => {
-                let invocation = match config.as_ref() {
-                    Some(cfg) => commands::checkstyle_check(&tool.binary, &refs, cfg),
+                let (invocation, tab_width) = match config.as_ref() {
+                    Some(cfg) => {
+                        let bytes = std::fs::read(cfg).map_err(|err| {
+                            execution(
+                                tool_id,
+                                format!("cannot read checkstyle config {}: {err}", cfg.display()),
+                            )
+                        })?;
+                        (
+                            commands::checkstyle_check(&tool.binary, &refs, cfg),
+                            parsers::checkstyle_tab_width(&bytes),
+                        )
+                    }
                     None => {
                         return Err(execution(
                             tool_id,
@@ -371,7 +382,7 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,
-                    parsers::parse_checkstyle(&out.stdout, out.code, &strs),
+                    parsers::parse_checkstyle(&out.stdout, out.code, &strs, tab_width),
                 )
             }
             "pmd" => {

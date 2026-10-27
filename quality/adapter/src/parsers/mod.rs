@@ -58,7 +58,7 @@ pub mod zig_fmt;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
-pub use checkstyle::parse_checkstyle;
+pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
@@ -957,7 +957,7 @@ mod tests {
         let failed = br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"t"}},"results":[],"invocations":[{"executionSuccessful":false,"toolConfigurationNotifications":[{"level":"error","message":{"text":"missing class"}}]}]}]}"#;
         let files = ["/s/a.java"];
         let results = [
-            super::checkstyle::parse_checkstyle(failed, Some(0), &files),
+            super::checkstyle::parse_checkstyle(failed, Some(0), &files, 8),
             super::pmd::parse_pmd(failed, Some(0), &files),
             super::spotbugs::parse_spotbugs(failed, Some(0), &files),
             super::ktlint::parse_ktlint(failed, Some(0), &files),
@@ -1407,7 +1407,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::checkstyle::parse_checkstyle(input, code, files)
+        super::checkstyle::parse_checkstyle(input, code, files, 8)
     }
 
     fn fuzz_clang_format(

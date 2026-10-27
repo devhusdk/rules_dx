@@ -76,6 +76,10 @@ def _runner_matrix_test_impl(ctx):
     for i, tool in enumerate(ctx.attr.edition_tools):
         editions[tool] = ctx.attr.edition_values[i]
 
+    dialects = {}
+    for i, tool in enumerate(ctx.attr.dialect_tools):
+        dialects[tool] = ctx.attr.dialect_values[i]
+
     upstream = []
     upstream_src_targets = ctx.attr.upstream_srcs
     for i, tool in enumerate(ctx.attr.upstream_tools):
@@ -126,6 +130,10 @@ def _runner_matrix_test_impl(ctx):
         if tool not in manifest_tools:
             manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
         manifest_tools[tool]["edition"] = edition
+    for tool, dialect in dialects.items():
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["dialect"] = dialect
 
     launcher_env = []
     for launcher in ["pydoclint", "flake8", "pylint", "psscriptanalyzer"]:
@@ -231,6 +239,8 @@ _runner_matrix_test = rule(
         ),
         "edition_tools": attr.string_list(),
         "edition_values": attr.string_list(),
+        "dialect_tools": attr.string_list(),
+        "dialect_values": attr.string_list(),
         "tool_env": attr.string_list(),
         "upstream_tools": attr.string_list(),
         "upstream_srcs": attr.label_list(
@@ -305,6 +315,8 @@ def runner_matrix_suite(name, cases):
             config_files = case.get("config_files", []),
             edition_tools = case.get("edition_tools", []),
             edition_values = case.get("edition_values", []),
+            dialect_tools = case.get("dialect_tools", []),
+            dialect_values = case.get("dialect_values", []),
             tool_env = case.get("tool_env", []),
             upstream_tools = case.get("upstream_tools", []),
             upstream_srcs = case.get("upstream_srcs", []),

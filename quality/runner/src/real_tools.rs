@@ -963,6 +963,42 @@ fn biome_root_level_config_resolves_to_scratch_root() {
     assert_eq!(findings[0].rule_id, "lint/correctness/noUnusedVariables");
 }
 
+fn dialect_prettier(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let flags = argv
+        .iter()
+        .filter(|arg| *arg == "--dx-sql-dialect=postgresql")
+        .count();
+    assert_eq!(flags, 1, "check and fix both carry the dialect once");
+    roundtrip_prettier(argv, cwd, env)
+}
+
+#[test]
+fn prettier_check_and_fix_carry_the_sql_dialect() {
+    let tool = RealTool {
+        dialect: Some("postgresql".to_owned()),
+        ..plain_tool()
+    };
+    let backend = backend_for("prettier", tool, dialect_prettier);
+    let text = "select BADFMT;\n";
+    assert_eq!(
+        backend
+            .diagnose("prettier", "format", &single("src/a.sql", text))
+            .expect("diagnosed")
+            .len(),
+        1
+    );
+    assert_eq!(
+        backend
+            .apply_fix("prettier", "src/a.sql", text, "format")
+            .expect("fixed"),
+        "select 1;\n"
+    );
+}
+
 #[test]
 fn prettier_apply_fix_is_format_only() {
     let backend = backend_for("prettier", plain_tool(), roundtrip_prettier);

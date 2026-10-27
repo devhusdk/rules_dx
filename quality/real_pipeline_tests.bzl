@@ -1,6 +1,7 @@
 """Unit tests for real-adapter pipeline construction."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//sql/rules:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
@@ -760,6 +761,19 @@ def real_pipeline_unit_tests(name):
                 "real_request_tool omits unset binary config and edition",
                 real_request_tool(upstream = ["out/clippy.diag"]),
                 {"env": [], "files": [], "upstream": ["out/clippy.diag"]},
+            ),
+            expect_equal(
+                "real_request_tool carries a dialect only when set",
+                real_request_tool(binary_path = "bin/prettier", dialect = "postgresql"),
+                {"binary": "bin/prettier", "dialect": "postgresql", "env": [], "files": [], "upstream": []},
+            ),
+            expect_equal(
+                "sql_dialect_error accepts a matching suffix and ignores unknown segments",
+                [
+                    sql_dialect_error(["a.postgresql.sql", "b.sql", "foo.v2.sql"], "postgresql"),
+                    sql_dialect_error(["a.mysql.sql"], "postgresql"),
+                ],
+                [None, "a.mysql.sql has the mysql dialect suffix but dialect = postgresql"],
             ),
             expect_equal(
                 "real_request_tool keeps a declared binary",

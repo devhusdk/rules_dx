@@ -437,13 +437,13 @@ fn eslint_without_a_program_fails_before_any_spawn() {
 fn prettier_check_and_fix_are_hermetic() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
-    let check = prettier_check(&launch, &[file], None).expect("resolves");
+    let check = prettier_check(&launch, &[file], None, None).expect("resolves");
     assert_eq!(
         argv_strings(&check),
         vec![BIN, "--no-editorconfig", "--check", "/scratch/src/a.js"]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = prettier_fix(&launch, &[file], None).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], None, None).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
         vec![BIN, "--no-editorconfig", "--write", "/scratch/src/a.js"]
@@ -452,12 +452,32 @@ fn prettier_check_and_fix_are_hermetic() {
 }
 
 #[test]
+fn prettier_sql_dialect_is_one_dx_private_flag() {
+    let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
+    let file = Path::new("/scratch/src/a.sql");
+    let check = prettier_check(&launch, &[file], None, Some("postgresql")).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], None, Some("postgresql")).expect("resolves");
+    for (invocation, mode) in [(&check, "--check"), (&fix, "--write")] {
+        assert_eq!(
+            argv_strings(invocation),
+            vec![
+                BIN,
+                "--dx-sql-dialect=postgresql",
+                "--no-editorconfig",
+                mode,
+                "/scratch/src/a.sql"
+            ]
+        );
+    }
+}
+
+#[test]
 fn prettier_bound_config_is_one_dx_private_flag() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
     let cfg = Path::new("/scratch/cfg/.prettierrc.json");
-    let check = prettier_check(&launch, &[file], Some(cfg)).expect("resolves");
-    let fix = prettier_fix(&launch, &[file], Some(cfg)).expect("resolves");
+    let check = prettier_check(&launch, &[file], Some(cfg), None).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], Some(cfg), None).expect("resolves");
     for (invocation, mode) in [(&check, "--check"), (&fix, "--write")] {
         let argv = argv_strings(invocation);
         assert_eq!(

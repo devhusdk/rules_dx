@@ -13,6 +13,7 @@ pub struct RequestTool {
     pub binary: Option<PathBuf>,
     pub config_rel: Option<String>,
     pub edition: Option<String>,
+    pub dialect: Option<String>,
     pub files: Vec<(String, String)>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
@@ -113,6 +114,8 @@ struct ToolDoc {
     config: Option<String>,
     #[serde(default)]
     edition: Option<String>,
+    #[serde(default)]
+    dialect: Option<String>,
     #[serde(default)]
     files: Vec<ToolFileDoc>,
     #[serde(default)]
@@ -217,6 +220,12 @@ fn check_tool(
             });
         }
     }
+    if doc.dialect.as_deref() == Some("") {
+        return Err(RequestError::EmptyExec {
+            role: "tool dialect".to_owned(),
+            workspace: tool_id.to_owned(),
+        });
+    }
     let mut files = Vec::with_capacity(doc.files.len());
     for file in &doc.files {
         check_workspace("tool file", &file.mirror_rel)?;
@@ -267,6 +276,7 @@ fn check_tool(
         binary,
         config_rel: doc.config.clone(),
         edition: doc.edition.clone(),
+        dialect: doc.dialect.clone(),
         files,
         env,
         upstream,
@@ -723,6 +733,29 @@ mod tests {
                 path: "absent.py".to_owned()
             }
         );
+    }
+
+    #[test]
+    fn tools_carry_a_dialect_and_reject_an_empty_one() {
+        let doc = |dialect: &str| {
+            serde_json::to_vec(&json!({
+                "schema_version": 1,
+                "producer": "//pkg:target",
+                "capability": "format",
+                "stages": [{"tool": "prettier", "classes": ["sql"], "sources": ["a.sql"]}],
+                "sources": [{"workspace": "a.sql", "exec": "exec/a.sql"}],
+                "siblings": [],
+                "resolves": [],
+                "tools": {"prettier": {"binary": "bin/prettier", "dialect": dialect, "files": [], "env": [], "upstream": []}},
+            }))
+            .expect("encodes")
+        };
+        let request = parse_real_request(&doc("postgresql")).expect("parses");
+        assert_eq!(
+            request.tools["prettier"].dialect.as_deref(),
+            Some("postgresql")
+        );
+        assert!(parse_real_request(&doc("")).is_err());
     }
 
     #[test]

@@ -1671,8 +1671,11 @@ SQL files use the generic `sql` dialect. To pick a dialect, put it before the
 extension: `schema.postgresql.sql`. The dialects are `bigquery`, `clickhouse`,
 `db2`, `db2i`, `hive`, `mariadb`, `mysql`, `n1ql`, `plsql`, `postgresql`,
 `redshift`, `singlestoredb`, `snowflake`, `spark`, `sqlite`, `transactsql`,
-`trino` and `tsql`. The pinned options keep SQL keywords in the case you
-wrote them. XML namespaces, prefixes, attribute quotes, attribute order and
+`trino` and `tsql`. To format every file of a `sql_library` as one dialect,
+set `dialect = "postgresql"` (any name above). The attribute wins over a bound
+`prettier_config` `language`. A file whose suffix names a different dialect is an
+analysis error. Without the attribute, the suffix decides. The pinned options
+keep SQL keywords in the case you wrote them. XML namespaces, prefixes, attribute quotes, attribute order and
 text stay as written. Gherkin keeps its step text and tags. `.prettierrc`,
 `.editorconfig` and other user config files are ignored.
 

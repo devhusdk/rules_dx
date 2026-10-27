@@ -25,6 +25,7 @@ load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//sql/rules:providers.bzl", "SqlDialectInfo")
 
 _REAL_TOOL_TABLE = {
     "biome": {
@@ -868,6 +869,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": roslyn needs a csharp_* target compiled with the SDK analyzers")
         roslyn = target[RoslynInfo]
 
+    sql_dialect = None
+    if "prettier" in [stage["tool"] for stage in resolved] and SqlDialectInfo in target:
+        sql_dialect = target[SqlDialectInfo].dialect
+
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
         if not has_rust_toolchain:
@@ -1124,6 +1129,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             binary_path = binary_path,
             config_rel = config_rel,
             edition = edition,
+            dialect = sql_dialect if tool == "prettier" else None,
             files = tool_files,
             env = tool_env_entries.get(tool, []),
             upstream = upstream,

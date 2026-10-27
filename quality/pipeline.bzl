@@ -171,7 +171,7 @@ def real_request_tool_env(key, value):
     """Builds one tool env entry of the request document."""
     return {"key": key, "value": value}
 
-def real_request_tool(binary_path = None, config_rel = None, edition = None, files = [], env = [], upstream = [], search_paths = []):
+def real_request_tool(binary_path = None, config_rel = None, edition = None, files = [], env = [], upstream = [], search_paths = [], dialect = None):
     """Builds one tool entry of the versioned runner request document."""
     entry = {"env": env, "files": files, "upstream": upstream}
     if search_paths:
@@ -182,6 +182,8 @@ def real_request_tool(binary_path = None, config_rel = None, edition = None, fil
         entry["config"] = config_rel
     if edition != None:
         entry["edition"] = edition
+    if dialect != None:
+        entry["dialect"] = dialect
     return entry
 
 def real_request_doc(producer, capability, stages, sources, siblings, resolves, tools, scratch_parent = None):

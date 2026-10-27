@@ -78,6 +78,9 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := test.AttrString("node_modules"); got != rootNodeModules {
 		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
 	}
+	if got := test.Attr("package_json"); got != nil {
+		t.Errorf("test package_json = %v, want unset without a root package.json", got)
+	}
 	testImports := result.Imports[2].(targetImports)
 	if strings.Join(testImports.imports, ",") != "pkg/demo/helper" {
 		t.Errorf("test imports = %+v, want [pkg/demo/helper]", testImports)
@@ -886,5 +889,45 @@ func TestResolveIndexDottedAndAssets(t *testing.T) {
 	l.Resolve(cfg, index, nil, missing, targetImports{imports: []string{"pkg/demo/nope"}, local: map[string]bool{"pkg/demo/nope": true}}, label.New("", "pkg/demo", "missing"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
 		t.Errorf("missing errors = %v", l.errors)
+	}
+}
+
+func TestGenerateTestPackageJSONFollowsRootManifest(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"package.json":            "{\"type\": \"module\"}\n",
+		"pkg/demo/helper.js":      "export const helper = 1;\n",
+		"pkg/demo/helper_test.js": "import { helper } from \"./helper\";\n",
+	}, []string{"helper.js", "helper_test.js"})
+	var test *rule.Rule
+	for _, r := range result.Gen {
+		if r.Kind() == testKind {
+			test = r
+		}
+	}
+	if test == nil {
+		t.Fatalf("missing %s in %v", testKind, result.Gen)
+	}
+	if got := test.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("test package_json = %q, want %q", got, rootPackageJSON)
+	}
+}
+
+func TestMergeKeepsHandSetPackageJSON(t *testing.T) {
+	info := testKindInfo()
+	if info.MergeableAttrs["package_json"] {
+		t.Fatal("package_json must not be mergeable, or Gazelle overwrites a hand-set nearest manifest")
+	}
+	gen := rule.NewRule(testKind, "helper_test")
+	gen.SetAttr("package_json", rootPackageJSON)
+	hand := rule.NewRule(testKind, "helper_test")
+	hand.SetAttr("package_json", "//pkg:package_json")
+	rule.MergeRules(gen, hand, info.MergeableAttrs, "BUILD.bazel")
+	if got := hand.AttrString("package_json"); got != "//pkg:package_json" {
+		t.Errorf("merged package_json = %q, want the hand-set //pkg:package_json", got)
+	}
+	missing := rule.NewRule(testKind, "helper_test")
+	rule.MergeRules(gen, missing, info.MergeableAttrs, "BUILD.bazel")
+	if got := missing.AttrString("package_json"); got != rootPackageJSON {
+		t.Errorf("merged package_json = %q, want %q added to a rule without one", got, rootPackageJSON)
 	}
 }

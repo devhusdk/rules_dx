@@ -3,7 +3,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_test_rejection")
-load(":node_test.bzl", "node_test_env")
+load(":node_test.bzl", "node_test_env", "node_test_upstream_data")
 
 def javascript_wrapper_contract_tests(name):
     """Instantiates JavaScript wrapper contract tests."""
@@ -70,6 +70,26 @@ def javascript_wrapper_contract_tests(name):
                 "plain runner with empty kwargs is clean",
                 javascript_js_test_rejection({}),
                 None,
+            ),
+            expect_equal(
+                "unset package_json adds no manifest",
+                node_test_upstream_data(["a.js"], None, native.package_relative_label),
+                ["a.js"],
+            ),
+            expect_equal(
+                "set package_json is appended",
+                node_test_upstream_data(["a.js"], "//:package_json", native.package_relative_label),
+                ["a.js", "//:package_json"],
+            ),
+            expect_equal(
+                "package_json already in data is not added twice",
+                node_test_upstream_data(["a.js", "//:package_json"], "//:package_json", native.package_relative_label),
+                ["a.js", "//:package_json"],
+            ),
+            expect_equal(
+                "relative and absolute spellings of one manifest are not added twice",
+                node_test_upstream_data(["a.js", "//javascript/rules:package_json"], ":package_json", native.package_relative_label),
+                ["a.js", "//javascript/rules:package_json"],
             ),
             expect_equal(
                 "missing env gains the filter channel",

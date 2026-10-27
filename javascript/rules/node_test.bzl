@@ -63,14 +63,26 @@ def node_test_forward_rule(what, allow_files, quality_specs):
         ),
     )
 
-def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, upstream_attrs, env_inherit, visibility, kwargs):
+def node_test_upstream_data(upstream_data, package_json, label_key):
+    """Returns upstream data plus package_json when set."""
+    data = list(upstream_data)
+    if package_json == None:
+        return data
+    if type(package_json) != "string" and type(package_json) != "Label":
+        fail("package_json must be a single label string, got %s: %r" % (type(package_json), package_json))
+    key = label_key(package_json)
+    for item in data:
+        if label_key(item) == key:
+            return data
+    data.append(package_json)
+    return data
+
+def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, package_json, upstream_attrs, env_inherit, visibility, kwargs):
     """Declares the manual upstream Node test and its forwarder."""
     effective_env = node_test_env(env_inherit)
-    data = list(upstream_data)
+    data = node_test_upstream_data(upstream_data, package_json, native.package_relative_label)
     upstream_kwargs = dx_test_upstream_kwargs(kwargs)
     upstream_kwargs.pop("aspect_hints", None)
-    if "//:package_json" not in data:
-        data.append("//:package_json")
     upstream_rule(
         name = name + "_upstream",
         data = data,

@@ -311,7 +311,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     )
 
-def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, env_inherit = None, **kwargs):
+def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
@@ -323,9 +323,9 @@ def typescript_test(name, srcs, node_modules, data = None, deps = None, tsconfig
     if reporter_rejection != None:
         fail(reporter_rejection)
     _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
-    node_wrap_test(name, _jest_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), {"node_modules": node_modules}, env_inherit, visibility, kwargs)
+    node_wrap_test(name, _jest_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
 
-def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, visibility = None, env_inherit = None, **kwargs):
+def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over js_test for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
@@ -337,4 +337,4 @@ def typescript_js_test(name, srcs, entry_point, data = None, deps = None, tsconf
     if reporter_rejection != None:
         fail(reporter_rejection)
     _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs)
-    node_wrap_test(name, _js_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), {"entry_point": entry_point}, env_inherit, visibility, kwargs)
+    node_wrap_test(name, _js_test, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, {"entry_point": entry_point}, env_inherit, visibility, kwargs)

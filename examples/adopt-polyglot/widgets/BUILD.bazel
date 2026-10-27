@@ -21,6 +21,7 @@ javascript_test(
     data = [":widgets"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
 )
 
 real_source_target(

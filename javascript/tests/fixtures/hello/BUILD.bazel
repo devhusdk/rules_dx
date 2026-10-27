@@ -26,6 +26,7 @@ javascript_test(
     data = [":hello_lib"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
 )
 
 dx_hello_output_test(

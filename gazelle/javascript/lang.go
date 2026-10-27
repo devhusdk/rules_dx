@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -25,6 +26,7 @@ const (
 	plainTestKind   = "javascript_js_test"
 	binaryKind      = "javascript_binary"
 	rootNodeModules = "//:node_modules"
+	rootPackageJSON = "//:package_json"
 )
 
 var javascriptKinds = map[string]rule.KindInfo{
@@ -239,6 +241,7 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 	}
 
 	plain := handPlainTests(args.File, args.OtherGen)
+	hasRootPackageJSON := rootPackageJSONExists(args.Config.RepoRoot)
 	var result language.GenerateResult
 	for _, p := range plans {
 		if p.test {
@@ -248,6 +251,9 @@ func (l *javascriptLang) generateRules(args language.GenerateArgs) language.Gene
 			r := rule.NewRule(testKind, p.name)
 			r.SetAttr("srcs", []string{p.src})
 			r.SetAttr("node_modules", rootNodeModules)
+			if hasRootPackageJSON {
+				r.SetAttr("package_json", rootPackageJSON)
+			}
 			result.Gen = append(result.Gen, r)
 			result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
 			continue
@@ -427,3 +433,9 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
 
 func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
+
+// rootPackageJSONExists reports whether the repo root has a package.json file.
+func rootPackageJSONExists(repoRoot string) bool {
+	info, err := os.Stat(filepath.Join(repoRoot, "package.json"))
+	return err == nil && !info.IsDir()
+}

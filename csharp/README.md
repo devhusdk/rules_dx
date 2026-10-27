@@ -109,4 +109,4 @@ The command reference covers `dx generate`. The `examples/adopt-csharp` tree sho
 
 ## Coverage
 
-C# tests have no coverage collector yet. `dx coverage` fails with `no_coverage_collector` when one runs. Tag a test `no-coverage` to skip it under coverage.
+`bazel coverage` and `dx coverage` run C# tests under coverlet and write LCOV. Coverage covers the first-party assemblies that match `--instrumentation_filter`. The test assembly counts only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it under coverage.

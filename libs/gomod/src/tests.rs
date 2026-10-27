@@ -396,3 +396,52 @@ fn insert_require_rejects_declared_and_malformed_input() {
         Err(GoEditError::Invalid(_))
     ));
 }
+
+#[test]
+fn edits_change_only_the_target_entry_as_gomod_parser_reads_it() {
+    // Cross-check: what `gomod-parser` reads back from an edited file differs from the
+    // original only in the edited entry.
+    let inputs = [
+        "module m\nrequire \"example.com/a\" v1.0.0 // indirect\nrequire example.com/b v1.0.0\n",
+        "module m\nrequire (\n\texample.com/a v1.0.0// indirect\n\texample.com/b v1.0.0 // pinned\n)\n",
+        "module m\r\nrequire (\r\n\texample.com/a v1.0.0\r\n\texample.com/b v1.0.0 // indirect\r\n)\r\n",
+        "module m\nrequire example.com/a v1.0.0\nrequire (\n\texample.com/b v1.0.0\n)\n",
+    ];
+    for text in inputs {
+        let before = parse_mod(text).expect("parses");
+        let edited = set(text, "example.com/a").expect("edit");
+        let after = parse_mod(&edited).expect("reparses");
+        assert_eq!(before.require.len(), after.require.len(), "{text:?}");
+        for (old, new) in before.require.iter().zip(&after.require) {
+            assert_eq!(old.module, new.module, "{text:?}");
+            assert_eq!(old.marker, new.marker, "{text:?}");
+            assert_eq!(old.indirect, new.indirect, "{text:?}");
+            if old.module == "example.com/a" {
+                assert_eq!(new.version, "v1.2.0", "{text:?}");
+            } else {
+                assert_eq!(old.version, new.version, "{text:?}");
+            }
+        }
+        let inserted = insert_require(text, "example.com/new", "v1.2.3").expect("insert");
+        let after = parse_mod(&inserted).expect("reparses");
+        assert_eq!(after.require.len(), before.require.len() + 1, "{text:?}");
+        for old in &before.require {
+            let kept = after
+                .require
+                .iter()
+                .find(|r| r.module == old.module)
+                .unwrap();
+            assert_eq!(
+                (&kept.version, &kept.marker, kept.indirect),
+                (&old.version, &old.marker, old.indirect),
+                "{text:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn setting_the_current_version_is_a_byte_identical_no_op() {
+    let text = "module m\nrequire (\n\texample.com/a v1.2.0// indirect\r\n\t\"example.com/b\" v1.0.0 // x\n)\n";
+    assert_eq!(set(text, "example.com/a").unwrap(), text);
+}

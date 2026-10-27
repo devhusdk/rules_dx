@@ -1,5 +1,4 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//ruby/rules:defs.bzl", "ruby_library")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 load(":defs.bzl", "ruby_doc_runtime")
@@ -12,11 +11,8 @@ exports_files([
     "yard_dump.rb",
 ])
 
-# The driver is linted as Ruby; the shard rule runs the file itself.
-ruby_library(
-    name = "yard_dump",
-    srcs = ["yard_dump.rb"],
-)
+# The shard rule runs the driver itself with the pinned YARD on its load path.
+# gazelle:exclude yard_dump.rb
 
 ruby_doc_runtime(
     name = "ruby_runtime",
@@ -36,21 +32,21 @@ rust_test(
     size = "small",
     srcs = ["extract_test.rs"],
     data = [
-        ":fixture_yard_json",
         "yard_dump.rb",
+        ":fixture_yard_json",
+        ":ruby_runtime",
         "//tools/docs/ruby/extract:ruby_extract",
+        "//tools/docs/ruby/fixture:ext/square.rb",
         "//tools/docs/ruby/fixture:geometry_changed_docs",
         "//tools/docs/ruby/fixture:geometry_crlf_docs",
         "//tools/docs/ruby/fixture:geometry_docs",
         "//tools/docs/ruby/fixture:geometry_ext_docs",
-        "//tools/docs/ruby/fixture:ext/square.rb",
         "//tools/docs/ruby/fixture:lib/geometry.rb",
         "//tools/docs/ruby/fixture:lib/geometry/shapes.rb",
         "//tools/docs/ruby/fixture:testdata",
         "//tools/docs/ruby/fixture:testdata/broken.rb",
         "@dx_yard//:lib",
         "@dx_yard//:lib/yard.rb",
-        ":ruby_runtime",
     ],
     env = {
         "DX_FIXTURE_CHANGED_SHARD": "$(rootpath //tools/docs/ruby/fixture:geometry_changed_docs)",

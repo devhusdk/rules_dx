@@ -329,7 +329,12 @@ fn explain_selection_stop(
     let name_of = |line: &[u8]| {
         serde_json::from_slice::<Value>(line)
             .ok()
-            .and_then(|event| event.get("event").and_then(Value::as_str).map(str::to_owned))
+            .and_then(|event| {
+                event
+                    .get("event")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
     };
     if output == OutputMode::Json
         && phase_out
@@ -367,7 +372,11 @@ fn explain_selection_stop(
             Some("phase_finished" | "command_finished")
         )
     });
-    let keep = if closing { lines.len() - 1 } else { lines.len() };
+    let keep = if closing {
+        lines.len() - 1
+    } else {
+        lines.len()
+    };
     let mut rebuilt = Vec::new();
     for (index, existing) in lines.iter().enumerate() {
         if index == keep {
@@ -2746,7 +2755,10 @@ mod tests {
         assert_eq!(lines[2]["event"], "phase_finished");
         let message = lines[1]["message"].as_str().expect("message");
         assert!(message.contains("INFO: done"), "{message}");
-        assert!(message.contains("pass a Bazel label or package"), "{message}");
+        assert!(
+            message.contains("pass a Bazel label or package"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -2763,9 +2775,17 @@ mod tests {
     fn a_silent_text_selection_stop_writes_a_stderr_line() {
         let mut out = Vec::new();
         let mut err = Vec::new();
-        explain_selection_stop(OutputMode::Text { quiet: false }, "format", 2, (&mut out, &mut err));
+        explain_selection_stop(
+            OutputMode::Text { quiet: false },
+            "format",
+            2,
+            (&mut out, &mut err),
+        );
         let text = String::from_utf8(err).expect("utf8");
-        assert!(text.starts_with("dx: invalid_scope: format rejected"), "{text}");
+        assert!(
+            text.starts_with("dx: invalid_scope: format rejected"),
+            "{text}"
+        );
     }
 
     #[test]

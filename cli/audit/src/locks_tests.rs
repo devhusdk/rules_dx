@@ -123,9 +123,18 @@ fn pnpm_legacy_git_keys_take_identity_from_the_detail() {
 #[test]
 fn pnpm_unresolvable_keys_fail_closed_and_name_the_key() {
     for (text, key) in [
-        ("lockfileVersion: '6.0'\npackages:\n  /react: {}\n", "/react"),
-        ("lockfileVersion: 5.4\npackages:\n  /react/: {}\n", "/react/"),
-        ("lockfileVersion: 5.4\npackages:\n  /@scope/x: {}\n", "/@scope/x"),
+        (
+            "lockfileVersion: '6.0'\npackages:\n  /react: {}\n",
+            "/react",
+        ),
+        (
+            "lockfileVersion: 5.4\npackages:\n  /react/: {}\n",
+            "/react/",
+        ),
+        (
+            "lockfileVersion: 5.4\npackages:\n  /@scope/x: {}\n",
+            "/@scope/x",
+        ),
         (
             "lockfileVersion: 5.4\npackages:\n  github.com/o/r/sha: {}\n",
             "github.com/o/r/sha",
@@ -156,7 +165,15 @@ fn split_pnpm_v5_key_boundaries() {
         split_pnpm_v5_key("@a/b/1.0.0_c@2.0.0"),
         Some(pair("@a/b", "1.0.0"))
     );
-    for bad in ["react", "react/", "react/1.0.0/x", "@scope/x", "@scope/x/", "/1.0.0", "react/_abc"] {
+    for bad in [
+        "react",
+        "react/",
+        "react/1.0.0/x",
+        "@scope/x",
+        "@scope/x/",
+        "/1.0.0",
+        "react/_abc",
+    ] {
         assert_eq!(split_pnpm_v5_key(bad), None, "{bad}");
     }
 }

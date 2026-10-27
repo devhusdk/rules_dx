@@ -104,6 +104,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         identity: IdentityRule::Cargo,
     },
     NewLanguage {
+        name: "rust-android",
+        identity: IdentityRule::Cargo,
+    },
+    NewLanguage {
         name: "ruby",
         identity: IdentityRule::BazelModule,
     },
@@ -182,6 +186,12 @@ pub const RUST_WEB_WASM_BINDGEN_TEST_CRATE_VERSION: &str = "0.3.71";
 pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.74.0";
 pub const RUST_WEB_PLATFORMS_VERSION: &str = "1.1.0";
 pub const RUST_WEB_BAZEL_VERSION: &str = "9.2.0";
+
+/// The `minSdkVersion` the rust-android template writes; equal to rules_dx's API floor.
+pub const RUST_ANDROID_API_LEVEL: u32 = 31;
+
+/// The adb serial the rust-android launchers name: the first local emulator.
+pub const RUST_ANDROID_SERIAL: &str = "emulator-5554";
 
 const REMOVED_NEW_LANGUAGES: &[(&str, &str)] = &[
     ("cc", "cpp"),
@@ -498,7 +508,7 @@ fn rust_web_module_bazel(identity: &str) -> String {
 
 fn rust_web_readme(identity: &str) -> String {
     format!(
-        "# {identity}\n\nShared Rust core with a native binary and a browser build.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\n`bazel test //...` also runs `:{identity}_browser_test` in a browser and\ndriver that Bazel fetches; nothing needs to be installed by hand. The\nbrowser test is qualified on linux x86_64 only, where the host needs GTK 3.\nOther hosts skip it for now. Mobile templates are not included.\n"
+        "# {identity}\n\nShared Rust core with a native binary and a browser build.\n\n```sh\nbazel build //...\nbazel test //...\n```\n\n`bazel test //...` also runs `:{identity}_browser_test` in a browser and\ndriver that Bazel fetches; nothing needs to be installed by hand. The\nbrowser test is qualified on linux x86_64 only, where the host needs GTK 3.\nOther hosts skip it for now.\n"
     )
 }
 
@@ -514,6 +524,326 @@ fn rust_web_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
             format!("{}\n", RUST_WEB_BAZEL_VERSION),
         ),
         ("README.md".to_owned(), rust_web_readme(identity)),
+    ])
+}
+
+const JAVA_KEYWORDS: &[&str] = &[
+    "abstract",
+    "assert",
+    "boolean",
+    "break",
+    "byte",
+    "case",
+    "catch",
+    "char",
+    "class",
+    "const",
+    "continue",
+    "default",
+    "do",
+    "double",
+    "else",
+    "enum",
+    "extends",
+    "false",
+    "final",
+    "finally",
+    "float",
+    "for",
+    "goto",
+    "if",
+    "implements",
+    "import",
+    "instanceof",
+    "int",
+    "interface",
+    "long",
+    "native",
+    "new",
+    "null",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "short",
+    "static",
+    "strictfp",
+    "super",
+    "switch",
+    "synchronized",
+    "this",
+    "throw",
+    "throws",
+    "transient",
+    "true",
+    "try",
+    "void",
+    "volatile",
+    "while",
+];
+
+/// Returns the application ID `com.example.<crate>` or why the name cannot form one.
+fn rust_android_app_id(identity: &str) -> Result<String, AdoptError> {
+    let ident = rust_web_crate_ident(identity);
+    let refused = |reason: &str| AdoptError::NewInvalidIdentity {
+        language: "rust-android".to_owned(),
+        name: identity.to_owned(),
+        reason: reason.to_owned(),
+    };
+    if !ident.starts_with(|c: char| c.is_ascii_lowercase()) {
+        return Err(refused(
+            "rust-android names start with a letter so com.example.<name> is a valid application ID",
+        ));
+    }
+    if !ident
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
+        return Err(refused(
+            "rust-android names use [a-z0-9_-] only so com.example.<name> is a valid application ID",
+        ));
+    }
+    if JAVA_KEYWORDS.contains(&ident.as_str()) {
+        return Err(refused(
+            "rust-android names are not Java keywords so com.example.<name> is a valid application ID",
+        ));
+    }
+    Ok(format!("com.example.{ident}"))
+}
+
+fn rust_android_cargo_manifest(identity: &str) -> Result<String, AdoptError> {
+    let mut package = toml::Table::new();
+    package.insert("name".to_owned(), toml::Value::String(identity.to_owned()));
+    package.insert(
+        "version".to_owned(),
+        toml::Value::String("0.1.0".to_owned()),
+    );
+    package.insert(
+        "edition".to_owned(),
+        toml::Value::String(RUST_WEB_EDITION.to_owned()),
+    );
+    let mut lib = toml::Table::new();
+    lib.insert(
+        "crate-type".to_owned(),
+        toml::Value::Array(vec![toml::Value::String("staticlib".to_owned())]),
+    );
+    let mut root = toml::Table::new();
+    root.insert("package".to_owned(), toml::Value::Table(package));
+    root.insert("lib".to_owned(), toml::Value::Table(lib));
+    toml::to_string(&root).map_err(|e| AdoptError::NewInvalidIdentity {
+        language: "rust-android".to_owned(),
+        name: identity.to_owned(),
+        reason: e.to_string(),
+    })
+}
+
+const RUST_ANDROID_LIB_RS: &str = r#"//! Product core of the Android app; the activity in `activity.c` calls into it.
+
+use std::ffi::c_char;
+
+const GREETING: &[u8] = b"Hello from Rust on Android!\0";
+
+/// Returns the greeting the activity logs at startup.
+pub fn greeting() -> &'static str {
+    "Hello from Rust on Android!"
+}
+
+/// Returns the greeting as a NUL-terminated C string for the activity.
+#[no_mangle]
+pub extern "C" fn app_greeting() -> *const c_char {
+    GREETING.as_ptr().cast()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{app_greeting, greeting};
+    use std::ffi::CStr;
+
+    #[test]
+    fn c_greeting_matches_the_rust_greeting() {
+        // SAFETY: app_greeting returns a pointer to a static NUL-terminated string.
+        let text = unsafe { CStr::from_ptr(app_greeting()) };
+        assert_eq!(text.to_str(), Ok(greeting()));
+    }
+}
+"#;
+
+const RUST_ANDROID_ACTIVITY_C: &str = r#"#include <stddef.h>
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <android/native_activity.h>
+
+#define LOG(...) __android_log_print(ANDROID_LOG_INFO, "DxApp", __VA_ARGS__)
+#else
+typedef struct ANativeActivity ANativeActivity;
+
+#define LOG(...) ((void)0)
+#endif
+
+extern const char *app_greeting(void);
+
+__attribute__((visibility("default"))) void
+ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state,
+                         size_t saved_state_size) {
+  (void)activity;
+  (void)saved_state;
+  (void)saved_state_size;
+  LOG("greeting=%s", app_greeting());
+}
+"#;
+
+const RUST_ANDROID_BUILD: &str = r#"# gazelle:ignore
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "rust_android_apk")
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_static_library", "rust_test", "rustfmt_test")
+
+rust_static_library(
+    name = "@NAME@",
+    srcs = ["src/lib.rs"],
+    crate_name = "@CRATE@",
+    crate_root = "src/lib.rs",
+    edition = "@EDITION@",
+)
+
+rust_test(
+    name = "@NAME@_test",
+    crate = ":@NAME@",
+)
+
+rustfmt_test(
+    name = "@NAME@_fmt_test",
+    size = "small",
+    targets = [":@NAME@"],
+)
+
+rust_clippy_test(
+    name = "@NAME@_clippy_test",
+    size = "small",
+    targets = [":@NAME@"],
+)
+
+cc_library(
+    name = "@NAME@_activity",
+    srcs = ["activity.c"],
+    linkopts = [
+        "-landroid",
+        "-llog",
+    ],
+    tags = ["manual"],
+    deps = [":@NAME@"],
+    alwayslink = True,
+)
+
+rust_android_apk(
+    name = "@NAME@_apk",
+    abis = [
+        "arm64-v8a",
+        "x86_64",
+    ],
+    api_level = @API@,
+    app_id = "@APP_ID@",
+    resource_files = ["res/values/strings.xml"],
+    version_code = 1,
+    version_name = "1.0",
+    deps = [":@NAME@_activity"],
+)
+
+android_apk_check(
+    name = "@NAME@_check_test",
+    apk = ":@NAME@_apk_unsigned_file",
+    tags = ["manual"],
+)
+
+android_adb_install(
+    name = "@NAME@_install",
+    apk = ":@NAME@_apk_file",
+    serial = "@SERIAL@",
+)
+
+android_adb_start(
+    name = "@NAME@_start",
+    app_id = "@APP_ID@",
+    serial = "@SERIAL@",
+)
+
+android_adb_log(
+    name = "@NAME@_log",
+    serial = "@SERIAL@",
+)
+"#;
+
+fn rust_android_build_bazel(identity: &str, app_id: &str) -> String {
+    RUST_ANDROID_BUILD
+        .replace("@NAME@", identity)
+        .replace("@CRATE@", &rust_web_crate_ident(identity))
+        .replace("@EDITION@", RUST_WEB_EDITION)
+        .replace("@API@", &RUST_ANDROID_API_LEVEL.to_string())
+        .replace("@APP_ID@", app_id)
+        .replace("@SERIAL@", RUST_ANDROID_SERIAL)
+}
+
+fn rust_android_strings_xml(identity: &str) -> String {
+    format!(
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <string name=\"app_name\">{}</string>\n</resources>\n",
+        escape_xml(identity)
+    )
+}
+
+fn rust_android_module_bazel(identity: &str) -> String {
+    format!(
+        "{module}bazel_dep(name = \"rules_rust\", version = \"{rules_rust}\")\n\n# The Android Rust targets need the two Android triples in the root toolchain.\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    extra_target_triples = [\n        \"aarch64-linux-android\",\n        \"x86_64-linux-android\",\n    ],\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@rust_toolchains//:all\")\n\n# The NDK C toolchain reads ANDROID_SDK_ROOT and ANDROID_NDK_REVISION; without them it is empty.\nandroid_ndk_toolchain_repo = use_repo_rule(\"@rules_dx//android/toolchain:repos.bzl\", \"android_ndk_toolchain_repo\")\n\nandroid_ndk_toolchain_repo(\n    name = \"android_ndk_toolchain\",\n    api_level = {api},\n    cxx_runtime = \"static\",\n)\n",
+        module = consumer_module_bazel(identity, false),
+        rules_rust = crate::scaffold::CONSUMER_RULES_RUST_VERSION,
+        edition = crate::scaffold::CONSUMER_RUST_EDITION,
+        rustfmt = crate::scaffold::CONSUMER_RUSTFMT_VERSION,
+        rust = crate::scaffold::CONSUMER_RUST_VERSION,
+        api = RUST_ANDROID_API_LEVEL,
+    )
+}
+
+fn rust_android_bazelrc() -> String {
+    format!(
+        "{}build:android --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator\n",
+        consumer_bazelrc()
+    )
+}
+
+fn rust_android_readme(identity: &str, app_id: &str) -> String {
+    format!(
+        "# {identity}\n\nRust core packaged as a debug Android APK ({app_id}) for arm64-v8a and x86_64.\n\nThe host build and tests need no Android SDK:\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nThe APK and its launchers are tagged manual. They need an installed Android SDK\nwith platform android-34, build-tools 34.0.0 and an NDK:\n\n```sh\nexport ANDROID_HOME=$HOME/Android/Sdk\nexport ANDROID_SDK_ROOT=$ANDROID_HOME\nexport ANDROID_NDK_REVISION=<installed ndk version>\nbazel build --config=android :{identity}_apk_file\nbazel test --config=android :{identity}_check_test\nbazel run --config=android :{identity}_install\nbazel run --config=android :{identity}_start\nbazel run --config=android :{identity}_log\n```\n\nThe launchers name {serial}. The APK is debug-signed, so no keys are needed.\nThe app ID, ABIs and API level are attributes of `:{identity}_apk` in BUILD.bazel.\n",
+        serial = RUST_ANDROID_SERIAL,
+    )
+}
+
+fn rust_android_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    let app_id = rust_android_app_id(identity)?;
+    Ok(vec![
+        (
+            "Cargo.toml".to_owned(),
+            rust_android_cargo_manifest(identity)?,
+        ),
+        ("src/lib.rs".to_owned(), RUST_ANDROID_LIB_RS.to_owned()),
+        ("activity.c".to_owned(), RUST_ANDROID_ACTIVITY_C.to_owned()),
+        (
+            "res/values/strings.xml".to_owned(),
+            rust_android_strings_xml(identity),
+        ),
+        (
+            "BUILD.bazel".to_owned(),
+            rust_android_build_bazel(identity, &app_id),
+        ),
+        (
+            "MODULE.bazel".to_owned(),
+            rust_android_module_bazel(identity),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), rust_android_bazelrc()),
+        (
+            "README.md".to_owned(),
+            rust_android_readme(identity, &app_id),
+        ),
     ])
 }
 
@@ -1278,6 +1608,7 @@ fn new_language_files(
             ),
         ],
         "rust-web" => rust_web_files(identity)?,
+        "rust-android" => rust_android_files(identity)?,
         "python" => vec![
             ("pyproject.toml".to_owned(), python_manifest(identity)?),
             (
@@ -1818,6 +2149,123 @@ mod tests {
             .expect("readme");
         assert!(readme.content.contains("bazel test //..."), "{readme:?}");
         assert!(readme.content.contains("demo_browser_test"), "{readme:?}");
+    }
+
+    fn planned(files: &[ScaffoldFile], path: &str) -> String {
+        files
+            .iter()
+            .find(|file| file.path == path)
+            .unwrap_or_else(|| panic!("no {path}"))
+            .content
+            .clone()
+    }
+
+    #[test]
+    fn rust_android_template_writes_host_and_apk_files_with_explicit_policy() {
+        let files = plan_new_files("rust-android", "demo-app").expect("plans");
+        for wanted in [
+            "demo-app/Cargo.toml",
+            "demo-app/src/lib.rs",
+            "demo-app/activity.c",
+            "demo-app/res/values/strings.xml",
+            "demo-app/BUILD.bazel",
+            "demo-app/MODULE.bazel",
+            "demo-app/.bazelversion",
+            "demo-app/.bazelrc",
+            "demo-app/README.md",
+            "demo-app/.dx/version",
+        ] {
+            assert!(files.iter().any(|f| f.path == wanted), "no {wanted}");
+        }
+        let build = planned(&files, "demo-app/BUILD.bazel");
+        for wanted in [
+            "name = \"demo-app_apk\"",
+            "crate_name = \"demo_app\"",
+            "app_id = \"com.example.demo_app\"",
+            "api_level = 31,",
+            "\"arm64-v8a\",\n        \"x86_64\",",
+            "version_code = 1,",
+            "version_name = \"1.0\",",
+            "name = \"demo-app_install\"",
+            "name = \"demo-app_start\"",
+            "name = \"demo-app_log\"",
+            "name = \"demo-app_check_test\"",
+            "serial = \"emulator-5554\"",
+        ] {
+            assert!(build.contains(wanted), "{wanted}\n{build}");
+        }
+        let module = planned(&files, "demo-app/MODULE.bazel");
+        assert!(
+            module.starts_with(&consumer_module_bazel("demo-app", false)),
+            "{module}"
+        );
+        for wanted in [
+            "\"aarch64-linux-android\"",
+            "\"x86_64-linux-android\"",
+            "use_repo_rule(\"@rules_dx//android/toolchain:repos.bzl\", \"android_ndk_toolchain_repo\")",
+            "api_level = 31,",
+            "cxx_runtime = \"static\",",
+        ] {
+            assert!(module.contains(wanted), "{wanted}\n{module}");
+        }
+        for file in &files {
+            for refused in [
+                "accept_licenses",
+                "android_sdk.configure",
+                "release_sign",
+                "keystore",
+            ] {
+                assert!(
+                    !file.content.contains(refused),
+                    "{} carries {refused}",
+                    file.path
+                );
+            }
+        }
+        let bazelrc = planned(&files, "demo-app/.bazelrc");
+        assert!(bazelrc.starts_with(&consumer_bazelrc()), "{bazelrc}");
+        assert!(
+            bazelrc.contains("build:android --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator\n"),
+            "{bazelrc}"
+        );
+        assert_eq!(
+            planned(&files, "demo-app/.bazelversion"),
+            consumer_bazelversion()
+        );
+        let strings = planned(&files, "demo-app/res/values/strings.xml");
+        assert!(strings.contains(">demo-app</string>"), "{strings}");
+        let readme = planned(&files, "demo-app/README.md");
+        assert!(
+            readme.contains("bazel run --config=android :demo-app_install"),
+            "{readme}"
+        );
+    }
+
+    #[test]
+    fn rust_android_names_fold_to_valid_app_ids_or_are_refused() {
+        for (name, app_id) in [
+            ("demo", "com.example.demo"),
+            ("My App", "com.example.my_app"),
+            ("teams/Demo-App2", "com.example.demo_app2"),
+        ] {
+            let files = plan_new_files("rust-android", name).expect(name);
+            let build = files
+                .iter()
+                .find(|f| f.path == format!("{name}/BUILD.bazel"))
+                .expect("build");
+            assert!(
+                build.content.contains(&format!("app_id = \"{app_id}\"")),
+                "{name}: {}",
+                build.content
+            );
+        }
+        for name in ["1demo", "+", "class", "do"] {
+            let error = plan_new_files("rust-android", name).unwrap_err();
+            assert!(
+                matches!(error, AdoptError::NewInvalidIdentity { .. }),
+                "{name}: {error}"
+            );
+        }
     }
 
     #[test]

@@ -33,7 +33,7 @@ def _packaging_checks():
     checks.append(expect_equal(
         "abi platforms",
         ABI_PLATFORMS,
-        {"arm64-v8a": "//android/platforms:arm64-v8a", "x86_64": "//android/platforms:x86_64"},
+        {"arm64-v8a": str(Label("//android/platforms:arm64-v8a")), "x86_64": str(Label("//android/platforms:x86_64"))},
     ))
     checks.append(expect_equal("abis for tuples", abis_for(["device", "emulator"]), ["arm64-v8a", "x86_64"]))
     checks.append(expect_equal("abis skip unknown tuples", abis_for(["device", "watch"]), ["arm64-v8a"]))
@@ -80,7 +80,7 @@ def _packaging_checks():
     checks.append(expect_equal(
         "abi platforms keep order",
         abi_platforms(["arm64-v8a", "x86_64"]),
-        ["//android/platforms:arm64-v8a", "//android/platforms:x86_64"],
+        [str(Label("//android/platforms:arm64-v8a")), str(Label("//android/platforms:x86_64"))],
     ))
     checks.append(expect_equal(
         "valid apk errors",

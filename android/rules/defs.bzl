@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//android/platforms:defs.bzl", "triple_for", "tuple_errors", "tuples")
+load("//android/platforms:defs.bzl", "platform_label", "triple_for", "tuple_errors", "tuples")
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//rust/rules:defs.bzl", "rust_static_library")
 
@@ -11,10 +11,7 @@ AndroidNativeInfo = provider(
     fields = ["api_level", "shared_library", "triple", "tuple"],
 )
 
-_ANDROID_PLATFORMS = {
-    "device": "//android/platforms:android_device",
-    "emulator": "//android/platforms:android_emulator",
-}
+_ANDROID_PLATFORMS = {name: platform_label(name) for name in tuples()}
 
 def _android_transition_impl(_settings, attr):
     if attr.tuple not in _ANDROID_PLATFORMS:

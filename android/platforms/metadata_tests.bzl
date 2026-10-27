@@ -32,20 +32,20 @@ def _platform_checks():
     checks.append(expect_equal("device triple", triple_for("device"), "aarch64-linux-android"))
     checks.append(expect_equal("emulator triple", triple_for("emulator"), "x86_64-linux-android"))
     checks.append(expect_equal("unknown triple is empty", triple_for("watch"), ""))
-    checks.append(expect_equal("device cpu", cpu_for("device"), "@platforms//cpu:arm64"))
-    checks.append(expect_equal("emulator cpu", cpu_for("emulator"), "@platforms//cpu:x86_64"))
+    checks.append(expect_equal("device cpu", cpu_for("device"), str(Label("@platforms//cpu:arm64"))))
+    checks.append(expect_equal("emulator cpu", cpu_for("emulator"), str(Label("@platforms//cpu:x86_64"))))
     checks.append(expect_equal(
         "device constraints",
         constraint_list("device"),
-        ["@platforms//os:android", "@platforms//cpu:arm64"],
+        [str(Label("@platforms//os:android")), str(Label("@platforms//cpu:arm64"))],
     ))
     checks.append(expect_equal(
         "emulator constraints",
         constraint_list("emulator"),
-        ["@platforms//os:android", "@platforms//cpu:x86_64"],
+        [str(Label("@platforms//os:android")), str(Label("@platforms//cpu:x86_64"))],
     ))
     checks.append(expect_equal("unknown constraints are empty", constraint_list("watch"), []))
-    checks.append(expect_equal("device label", platform_label("device"), "//android/platforms:android_device"))
+    checks.append(expect_equal("device label", platform_label("device"), str(Label("//android/platforms:android_device"))))
     checks.append(expect_equal("rust triples", rust_triples(), ["aarch64-linux-android", "x86_64-linux-android"]))
     checks.append(expect_equal("api floor", api_floor(), 31))
     checks.append(expect_equal("zero api means the floor", effective_api_level(0), 31))

@@ -509,7 +509,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         scope_policy: "require",
         describe: "start a new project for one language (absent-only; check by default; --apply scaffolds)",
         usage: "Usage: dx new [--apply] <language> [name]",
-        scopes: "Scopes: <language> ({languages}) plus optional project name (defaults to my_project); rust-web scaffolds a shared Rust core with native and browser targets; absent-only, no --force; unknown languages fail with the supported list; extra positionals are usage failures.",
+        scopes: "Scopes: <language> ({languages}) plus optional project name (defaults to my_project); rust-web scaffolds a shared Rust core with native and browser targets; rust-android scaffolds a Rust core packaged as a debug APK with adb launchers; absent-only, no --force; unknown languages fail with the supported list; extra positionals are usage failures.",
         is_managed: false,
         is_adoption: true,
         supports_json: false,

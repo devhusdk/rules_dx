@@ -272,6 +272,11 @@ rust_test(
     data = [
         ":dx",
         "//:MODULE.bazel",
+        "//android/sdk:repos.bzl",
+        "//android/tests/fixtures/consumer_android:BUILD.bazel",
+        "//android/tests/fixtures/consumer_android:activity.c",
+        "//android/tests/fixtures/consumer_android:res/values/strings.xml",
+        "//android/tests/fixtures/consumer_android:src/lib.rs",
         "//docs:command_docs",
         "//modules:versions.bzl",
         "//rust/tests/fixtures/consumer_web:BUILD.bazel",

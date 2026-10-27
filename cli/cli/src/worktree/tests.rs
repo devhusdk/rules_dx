@@ -1095,6 +1095,16 @@ fn hand_made_checkouts_are_listed_as_external() {
         .expect("hand row");
     assert_eq!(row.state, State::External);
     assert_eq!(row.slot, None);
+    let detached = detached_checkout(&fixture, "by-hand-detached", "HEAD");
+    let listing = ops::list(&pool, &host, false).expect("list");
+    let row = listing
+        .rows
+        .iter()
+        .find(|row| row.path == detached)
+        .expect("detached row");
+    assert_eq!(row.branch, None);
+    assert_eq!(row.state, State::External);
+    assert_eq!(row.slot, None);
     assert_eq!(ops::path_of(&pool, "by-hand").expect("path"), hand);
     let refused =
         ops::add(&pool, &host, &who("s1", 10), &existing("by-hand")).expect_err("checked out");
@@ -2698,6 +2708,40 @@ fn hand_checkout(fixture: &Fixture, name: &str) -> PathBuf {
     hand
 }
 
+fn detached_checkout(fixture: &Fixture, name: &str, rev: &str) -> PathBuf {
+    let hand = fixture.cache.parent().expect("parent").join(name);
+    git(
+        &fixture.main,
+        &[
+            "worktree",
+            "add",
+            "--quiet",
+            "--detach",
+            &hand.to_string_lossy(),
+            rev,
+        ],
+    );
+    hand
+}
+
+/// Sets the times of the files git updates for `checkout` to `secs`.
+fn age_checkout(checkout: &Path, secs: u64) {
+    let admin = PathBuf::from(git(checkout, &["rev-parse", "--absolute-git-dir"]));
+    for name in ["HEAD", "index", "logs/HEAD"] {
+        let file = admin.join(name);
+        if file.exists() {
+            set_time(&file, secs);
+        }
+    }
+}
+
+fn kept_reason(plan: &ops::PrunePlan, path: &Path) -> Option<&'static str> {
+    plan.kept_externals
+        .iter()
+        .find(|item| item.path == path)
+        .map(|item| item.reason)
+}
+
 #[test]
 fn release_removes_a_clean_pushed_external_worktree() {
     let fixture = Fixture::new();
@@ -2862,6 +2906,16 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     let paths: Vec<&PathBuf> = plan.externals.iter().map(|item| &item.path).collect();
     assert_eq!(paths, vec![&merged]);
     assert!(merged.exists());
+    for (path, reason) in [
+        (&fresh, "local"),
+        (&open, "unmerged"),
+        (&dirty, "dirty"),
+        (&locked, "locked"),
+        (&serving, "server"),
+    ] {
+        assert_eq!(kept_reason(&plan, path), Some(reason), "{}", path.display());
+    }
+    assert_eq!(plan.kept_externals.len(), 5);
     ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
     assert!(!merged.exists());
     assert!(!base.exists());
@@ -2936,8 +2990,69 @@ fn prune_keeps_unpushed_branch_created_from_the_default_branch() {
     );
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
     assert!(plan.externals.is_empty());
+    assert_eq!(kept_reason(&plan, &fresh), Some("local"));
     ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
     assert!(fresh.exists());
+}
+
+#[test]
+fn prune_lists_detached_external_worktrees_as_removable_or_kept() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let old = detached_checkout(&fixture, "old", "origin/main");
+    let fresh = detached_checkout(&fixture, "fresh", "origin/main");
+    let ahead = detached_checkout(&fixture, "ahead", "origin/main");
+    std::fs::write(ahead.join("a2.txt"), "a").expect("a2");
+    git(&ahead, &["add", "."]);
+    git(&ahead, &["commit", "--quiet", "-m", "local"]);
+    let side = detached_checkout(&fixture, "side", "origin/main");
+    std::fs::write(side.join("s.txt"), "s").expect("s");
+    git(&side, &["add", "."]);
+    git(&side, &["commit", "--quiet", "-m", "side"]);
+    git(
+        &side,
+        &["push", "--quiet", "origin", "HEAD:refs/heads/side"],
+    );
+    let dirty = detached_checkout(&fixture, "dirty", "origin/main");
+    std::fs::write(dirty.join("wip.txt"), "x").expect("wip");
+    let roots = fixture.cache.join("bazel-root");
+    let base = roots.join("old-base");
+    std::fs::create_dir_all(&base).expect("base");
+    std::fs::write(
+        base.join("DO_NOT_BUILD_HERE"),
+        old.to_string_lossy().as_bytes(),
+    )
+    .expect("marker");
+    host.roots.lock().expect("roots").push(roots);
+    let two_days_ago = host.now() - 2 * 24 * 60 * 60;
+    for checkout in [&old, &ahead, &side, &dirty] {
+        age_checkout(checkout, two_days_ago);
+    }
+    age_checkout(&fresh, host.now() - 60 * 60);
+    let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
+    assert_eq!(plan.externals.len(), 1, "{plan:?}");
+    assert_eq!(plan.externals[0].path, old);
+    assert_eq!(plan.externals[0].branch, None);
+    for (path, reason) in [
+        (&fresh, "recent"),
+        (&ahead, "unpushed"),
+        (&side, "unmerged"),
+        (&dirty, "dirty"),
+    ] {
+        assert_eq!(kept_reason(&plan, path), Some(reason), "{}", path.display());
+    }
+    assert!(plan.kept_externals.iter().all(|item| item.branch.is_none()));
+    ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock")).expect("apply");
+    assert!(!old.exists());
+    assert!(!base.exists());
+    for path in [&fresh, &ahead, &side, &dirty] {
+        assert!(path.exists(), "{}", path.display());
+    }
+    assert!(ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
+        .expect("plan")
+        .externals
+        .is_empty());
 }
 
 fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {

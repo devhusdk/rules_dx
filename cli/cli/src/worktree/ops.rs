@@ -11,6 +11,7 @@ use super::pool::{Pool, Record, Who};
 use super::WorktreeError;
 
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
+const EXTERNAL_GRACE_SECS: u64 = 24 * 60 * 60;
 const FREE_LOCK_REASON: &str = "dx: free";
 
 /// What a slot is doing.
@@ -163,7 +164,7 @@ pub(crate) struct PruneExternal {
     pub(crate) bytes: u64,
 }
 
-/// One external worktree `prune --apply` kept because it changed after the plan.
+/// One external worktree `prune` keeps, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PruneKept {
     pub(crate) path: PathBuf,
@@ -212,6 +213,7 @@ pub(crate) struct PrunePlan {
     pub(crate) externals: Vec<PruneExternal>,
     pub(crate) bases: Vec<PruneBase>,
     pub(crate) kept_bases: Vec<PruneKeptBase>,
+    pub(crate) kept_externals: Vec<PruneKept>,
     pub(crate) downloads: Vec<PruneDownloads>,
 }
 
@@ -990,22 +992,65 @@ fn release_external(
     })
 }
 
-fn external_prunable(
+/// Why `prune` keeps an external checkout, or `None` when it may remove it.
+///
+/// A branch checkout is removable when its branch tracks `origin/<branch>` and is merged into `base` or its
+/// upstream is gone. A detached checkout is removable when HEAD is in `base` and git has not touched it for
+/// `EXTERNAL_GRACE_SECS`. Any git or file error keeps the checkout.
+fn external_plan_reason(
     pool: &Pool,
+    host: &dyn Host,
     checkout: &git::Checkout,
     base: Option<&str>,
     servers: &[Server],
-) -> bool {
-    if external_keep_reason(checkout, servers).is_some() {
-        return false;
+) -> Option<&'static str> {
+    if let Some(reason) = external_keep_reason(checkout, servers) {
+        return Some(reason);
     }
     let path = &checkout.path;
-    let branch = checkout.branch.as_deref();
-    let Some(branch) = branch.filter(|branch| git::tracks_own_remote(&pool.main, branch)) else {
-        return false;
+    let merged = || base.is_some_and(|base| git::is_ancestor(path, "HEAD", base));
+    match checkout.branch.as_deref() {
+        Some(branch) => {
+            if !git::tracks_own_remote(&pool.main, branch) {
+                Some("local")
+            } else if merged() || git::upstream_gone(&pool.main, branch) {
+                None
+            } else {
+                Some("unmerged")
+            }
+        }
+        None => {
+            if !merged() {
+                Some("unmerged")
+            } else if checkout_recent(host, path) {
+                Some("recent")
+            } else {
+                None
+            }
+        }
+    }
+}
+
+/// Whether git touched the checkout within `EXTERNAL_GRACE_SECS`, or its times cannot be read.
+fn checkout_recent(host: &dyn Host, checkout: &Path) -> bool {
+    let Some(admin) = git::admin_dir(checkout) else {
+        return true;
     };
-    let merged = base.is_some_and(|base| git::is_ancestor(path, "HEAD", base));
-    merged || git::upstream_gone(&pool.main, branch)
+    let newest = ["HEAD", "index", "logs/HEAD"]
+        .iter()
+        .filter_map(|name| file_modified(&admin.join(name)))
+        .max();
+    newest.is_none_or(|used| host.now().saturating_sub(used) < EXTERNAL_GRACE_SECS)
+}
+
+fn file_modified(path: &Path) -> Option<u64> {
+    std::fs::metadata(path)
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|elapsed| elapsed.as_secs())
 }
 
 fn external_keep_reason(checkout: &git::Checkout, servers: &[Server]) -> Option<&'static str> {
@@ -1251,8 +1296,8 @@ fn free_slot_bases<'a>(
         .collect()
 }
 
-/// Finds idle free slots, orphaned output bases, free slots' output bases when `trigger` selects them, and
-/// stale repository cache downloads.
+/// Finds idle free slots, removable external worktrees (and the reason it keeps each other one), orphaned
+/// output bases, free slots' output bases when `trigger` selects them, and stale repository cache downloads.
 pub(crate) fn prune_plan(
     pool: &Pool,
     host: &dyn Host,
@@ -1287,10 +1332,17 @@ pub(crate) fn prune_plan(
     }
     let default = git::default_base(&pool.main).ok();
     for checkout in pool.checkouts().unwrap_or_default() {
-        if same_path(&checkout.path, &pool.main)
-            || pool.slot_of(&checkout.path).is_some()
-            || !external_prunable(pool, &checkout, default.as_deref(), &servers)
+        if same_path(&checkout.path, &pool.main) || pool.slot_of(&checkout.path).is_some() {
+            continue;
+        }
+        if let Some(reason) =
+            external_plan_reason(pool, host, &checkout, default.as_deref(), &servers)
         {
+            plan.kept_externals.push(PruneKept {
+                path: checkout.path,
+                branch: checkout.branch,
+                reason,
+            });
             continue;
         }
         let mut bytes = measure(host, &checkout.path)?;

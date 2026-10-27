@@ -99,7 +99,7 @@ cache's `content_addressable` directory.
 - `removed`: `release` of an external worktree.
 - `free`: also `prune_base` for the output base of a free slot, with its
   `slot`.
-- `kept`: `prune --apply` for a worktree it skipped, and `prune_base` for an
+- `kept`: `prune` for an external worktree it keeps, and `prune_base` for an
   orphaned or nested-Bazel output base it keeps, with its `reason`.
 - `orphaned`: `prune_base` for an output base whose workspace is gone.
 - `nested`: `prune_base` for the output base of a test case in a free
@@ -221,11 +221,13 @@ pushed)`.
 `path <branch>` prints the path of the checkout that holds `<branch>`, and
 fails with exit `1` when none does.
 
-`prune` lists free slots idle for 30 days, `external` worktrees that are clean,
-fully pushed, not locked, without a running Bazel server, and on a branch that
-tracks `origin/<branch>` and is merged into the default branch, or whose
-`origin/<branch>` is deleted, and Bazel output bases of removed worktrees,
-including checkouts removed from `.claude/worktrees`. It also lists the output
+`prune` lists free slots idle for 30 days, removable `external` worktrees, and
+Bazel output bases of removed worktrees, including checkouts removed from
+`.claude/worktrees`. An external worktree is removable when it is clean, fully
+pushed, not locked, and without a running Bazel server, and either is on a
+branch that tracks `origin/<branch>` and is merged into the default branch or
+whose `origin/<branch>` is deleted, or is detached at a commit in the default
+branch and git has not touched it for 24 hours. It also lists the output
 bases of the other free slots whose disk is low, least recently used first, as
 `output base of free slot <n>, <size>: <dir>`. `--bases` lists the output bases of every free slot, whatever the disk state, least recently used first, except the slots already listed as idle. `--bases` works with `prune` only. It also lists the downloads in
 Bazel's repository cache that no build used for 30 days. Only the default
@@ -249,13 +251,21 @@ one per cache. With `--apply` the closing
 line is `dx worktree: pruned <size>`, and `dx worktree: nothing to prune`
 replaces everything when nothing qualifies.
 
+Every other external worktree is kept and printed as
+`kept external worktree <branch> (<reason>): <path>`, with `(detached)` for
+`<branch>` when no branch is checked out. The reason is `locked`, `server`
+(a Bazel server runs in it), `dirty`, `unpushed`, `local` (the branch does not
+track `origin/<branch>`), `unmerged` (not in the default branch, or there is no
+default branch), or `recent` (detached, and git touched it in the last 24
+hours). Kept lines print before the other lines and before
+`dx worktree: nothing to prune`, and do not change the exit code. JSON reports
+each as `prune` with state `kept` and that `reason`.
+
 `--apply` finds and deletes everything under the pool lock. It checks each
-external worktree again. One that
-became locked, got a Bazel server, uncommitted changes, or unpushed commits is
-kept and printed as `kept external worktree <branch> (<reason>): <path>`, with
-reason `locked`, `server`, `dirty`, `unpushed`, or `busy` (the delete failed and
-part of it is still on disk). JSON reports it with state
-`kept` and that `reason`. It still exits `0`.
+removable external worktree again right before it deletes it. One that became
+locked, got a Bazel server, uncommitted changes, or unpushed commits is kept
+the same way, as is one whose delete failed and that is still partly on disk,
+with reason `busy`. It still exits `0`.
 
 An output base whose workspace is gone but that a Bazel server still uses is
 kept and printed as `kept output base of removed <workspace> (server): <dir>`.

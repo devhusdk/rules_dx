@@ -242,6 +242,14 @@ pub(super) fn lock_digest(repo: &Path, reference: &str) -> Option<String> {
     .filter(|id| !id.is_empty())
 }
 
+/// The checkout's own git directory, such as `<repo>/.git/worktrees/<name>`.
+pub(super) fn admin_dir(checkout: &Path) -> Option<PathBuf> {
+    line(checkout, &["rev-parse", "--absolute-git-dir"])
+        .ok()
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+}
+
 /// Whether `rev` is reachable from `base`.
 pub(super) fn is_ancestor(repo: &Path, rev: &str, base: &str) -> bool {
     succeeds(repo, &["merge-base", "--is-ancestor", rev, base])

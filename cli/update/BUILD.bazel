@@ -28,7 +28,6 @@ dx_rust_crate(
         "//cli/process:dx_process",
     ],
     deps = [
-        "regex",
         "thiserror",
     ],
 )

@@ -1,5 +1,5 @@
 {
-  "checksum": "e210841653193f3aced2b7d70eaeb03960992e125b0498fcc342ee7fbebd5c9e",
+  "checksum": "8ae315e38b2baf67e65ce2829bf09fb79d41e68dea41152afc575c2000c5583d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6371,10 +6371,6 @@
       "common_attrs": {
         "deps": [
           {
-            "id": "regex 1.13.1",
-            "target": "regex"
-          },
-          {
             "id": "saphyr-parser 0.2.2",
             "target": "saphyr_parser"
           },
@@ -7357,10 +7353,6 @@
     "dx_update 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "regex 1.13.1",
-            "target": "regex"
-          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"

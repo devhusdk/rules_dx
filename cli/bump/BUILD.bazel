@@ -32,7 +32,6 @@ dx_rust_crate(
         "//libs/module_bazel:dx_module_bazel",
     ],
     deps = [
-        "regex",
         "saphyr-parser",
         "semver",
         "serde_json",

@@ -1,6 +1,4 @@
-use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::LazyLock;
 
 use super::sets::SetId;
 
@@ -66,15 +64,7 @@ pub fn parse_selector(text: &str) -> Result<Selector, SelectorError> {
     })
 }
 
-fn target_shape_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^(//|@)|[/.]").ok());
-    RE.as_ref()
-}
-
 fn is_target_shape(text: &str) -> bool {
-    if let Some(re) = target_shape_re() {
-        return text == "..." || re.is_match(text);
-    }
     text.starts_with("//")
         || text.starts_with('@')
         || text.contains('/')
@@ -197,35 +187,10 @@ pub fn owning_sets(target: &str) -> Vec<SetId> {
 }
 
 fn is_recursive(target: &str) -> bool {
-    if let Some(re) = recursive_suffix_re() {
-        return re.is_match(target);
-    }
     target.ends_with("/...")
 }
 
-fn recursive_suffix_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"/\.\.\.$").ok());
-    RE.as_ref()
-}
-
-fn trailing_slash_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"/+$").ok());
-    RE.as_ref()
-}
-
-fn dot_slash_prefix_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^(?:\./)+").ok());
-    RE.as_ref()
-}
-
 fn strip_recursive_suffix(text: &str) -> Option<String> {
-    if let Some(re) = recursive_suffix_re() {
-        if re.is_match(text) {
-            let stripped = re.replacen(text, 1, "");
-            return Some(stripped.into_owned());
-        }
-        return None;
-    }
     text.strip_suffix("/...").map(str::to_owned)
 }
 
@@ -243,26 +208,11 @@ fn package_path(target: &str) -> String {
         return String::new();
     }
     let mut path = target.to_owned();
-    if let Some(re) = dot_slash_prefix_re() {
-        if re.is_match(&path) {
-            path = re.replacen(&path, 1, "").into_owned();
-        }
-    } else {
-        while let Some(rest) = path.strip_prefix("./") {
-            path = rest.to_owned();
-        }
+    while let Some(rest) = path.strip_prefix("./") {
+        path = rest.to_owned();
     }
-    if let Some(re) = trailing_slash_re() {
-        if path.len() > 1 && re.is_match(&path) {
-            path = re.replacen(&path, 1, "").into_owned();
-            if path.is_empty() {
-                path = "/".to_owned();
-            }
-        }
-    } else {
-        while path.ends_with('/') && path.len() > 1 {
-            path.pop();
-        }
+    while path.ends_with('/') && path.len() > 1 {
+        path.pop();
     }
     if let Some(prefix) = strip_recursive_suffix(&path) {
         return prefix;
@@ -270,32 +220,7 @@ fn package_path(target: &str) -> String {
     path
 }
 
-fn root_npm_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(
-            r"(?i)package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|node_modules|package_json",
-        )
-        .ok()
-    });
-    RE.as_ref()
-}
-
-fn root_cargo_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"(?i)cargo-bazel-lock\.json|cargo\.toml|cargo\.lock").ok());
-    RE.as_ref()
-}
-
 fn root_owning_sets(target: &str) -> Vec<SetId> {
-    if let (Some(npm), Some(cargo)) = (root_npm_re(), root_cargo_re()) {
-        if npm.is_match(target) {
-            return vec![SetId::Npm];
-        }
-        if cargo.is_match(target) {
-            return vec![SetId::Cargo];
-        }
-        return vec![];
-    }
     let lower = target.to_ascii_lowercase();
     if lower.contains("package.json")
         || lower.contains("pnpm-lock.yaml")
@@ -805,7 +730,7 @@ mod tests {
     }
 
     #[test]
-    fn regex_package_path_normalizes_dotslash_and_suffixes() {
+    fn package_path_normalizes_dotslash_and_suffixes() {
         assert_eq!(
             package_path("./go/tests/fixtures/hello"),
             "go/tests/fixtures/hello"
@@ -820,12 +745,29 @@ mod tests {
         );
         assert_eq!(package_path("//:target"), "");
         assert_eq!(package_path("@crates//:lock"), "");
+        assert_eq!(package_path("././go/x"), "go/x");
+        assert_eq!(package_path("go/x///"), "go/x");
+        assert_eq!(package_path("///"), "/");
+        assert_eq!(package_path("go/x/..."), "go/x");
+        assert_eq!(package_path("./"), "");
     }
 
     #[test]
-    fn regex_root_owning_sets_match_case_insensitively() {
+    fn root_owning_sets_match_case_insensitively() {
         assert_eq!(owning_sets("PACKAGE.JSON"), vec![SetId::Npm]);
         assert_eq!(owning_sets("Cargo.TOML"), vec![SetId::Cargo]);
+        assert_eq!(owning_sets("PNPM-LOCK.YAML"), vec![SetId::Npm]);
+        assert_eq!(owning_sets("Cargo-Bazel-Lock.JSON"), vec![SetId::Cargo]);
         assert!(owning_sets("libs/starlark/defs.bzl").is_empty());
+    }
+
+    #[test]
+    fn target_shape_and_recursive_checks() {
+        for yes in ["...", "foo.bzl", "a/b", "//x", "@r//:t"] {
+            assert!(is_target_shape(yes), "{yes}");
+        }
+        assert!(!is_target_shape("go"));
+        assert!(is_recursive("//a/..."));
+        assert!(!is_recursive("//a/.."));
     }
 }

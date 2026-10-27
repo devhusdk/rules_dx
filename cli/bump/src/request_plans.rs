@@ -1,6 +1,4 @@
 use super::*;
-use regex::Regex;
-use std::sync::LazyLock;
 
 pub(super) fn plan_bazelversion(
     content: &str,
@@ -610,17 +608,8 @@ pub(super) fn plan_github_workflow(
     }
 }
 
-pub(super) fn target_prefix_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^(//|@)").ok());
-    RE.as_ref()
-}
-
 pub(super) fn is_target_shape(text: &str) -> bool {
-    if let Some(re) = target_prefix_re() {
-        if re.is_match(text) {
-            return true;
-        }
-    } else if text.starts_with("//") || text.starts_with('@') {
+    if text.starts_with("//") || text.starts_with('@') {
         return true;
     }
     if text.contains('/') && !text.contains(':') {

@@ -143,6 +143,9 @@ fn package_validation_rejects_invalid_ecosystem_identities() {
         }
     }
     assert!(is_target_shape("unknown:a/b"));
+    assert!(is_target_shape("//x"));
+    assert!(is_target_shape("@r//:t"));
+    assert!(!is_target_shape("cargo:anyhow"));
 }
 
 #[test]
@@ -885,7 +888,7 @@ fn github_actions_needs_sha_for_tags() {
 }
 
 #[test]
-fn regex_cargo_boundary_prefers_exact_table_key() {
+fn cargo_boundary_prefers_exact_table_key() {
     let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     let cargo = "[dependencies]\nmy-anyhow = \"1\"\n";
     assert!(matches!(

@@ -5,16 +5,25 @@ use dx_process::{
 use super::{
     bazel_argv, bep_guards, bep_options, download_flag, download_guards,
     registry::{spec, CommandSpec},
-    BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
+    rules_dx_label, BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
+    SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
 use std::collections::BTreeSet;
 
+fn joined_labels<'a>(aspects: impl IntoIterator<Item = &'a str>) -> String {
+    aspects
+        .into_iter()
+        .map(rules_dx_label)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 #[cfg(test)]
 fn required_options(entry: &CommandSpec, bazel_options: &[String], bep_path: &str) -> Vec<String> {
     shaped_options(
-        &entry.aspects.join(","),
+        &joined_labels(entry.aspects.iter().copied()),
         OUTPUT_GROUP,
         bazel_options,
         bep_path,
@@ -145,7 +154,7 @@ pub fn plan_build_with(
     shards: Option<&BTreeSet<String>>,
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
-    let aspects = select_aspects(&entry, shards).join(",");
+    let aspects = joined_labels(select_aspects(&entry, shards));
     shaped_plan(
         command,
         resolved,
@@ -171,7 +180,12 @@ pub fn plan_probe(
         resolved,
         bazel_options,
         startup_options,
-        &shaped_options(probe, SHARD_OUTPUT_GROUP, bazel_options, bep_path),
+        &shaped_options(
+            &rules_dx_label(probe),
+            SHARD_OUTPUT_GROUP,
+            bazel_options,
+            bep_path,
+        ),
     )
     .map(Some)
 }
@@ -550,12 +564,15 @@ mod tests {
                 .zip(&probe.argv)
                 .filter(|(left, right)| left != right)
                 .collect();
-            let probe_label = spec(command).probe.expect("probe label");
+            let probe_label = rules_dx_label(spec(command).probe.expect("probe label"));
             assert_eq!(
                 differing,
                 vec![
                     (
-                        &format!("--aspects={}", spec(command).aspects.join(",")),
+                        &format!(
+                            "--aspects={}",
+                            joined_labels(spec(command).aspects.iter().copied())
+                        ),
                         &format!("--aspects={probe_label}")
                     ),
                     (
@@ -585,19 +602,19 @@ mod tests {
         assert_eq!(
             select_aspects(&lint, Some(&rust)),
             vec![
-                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "quality:real_aspects.bzl%real_lint_aspect",
+                "quality:real_aspects.bzl%real_rust_lint_aspect",
             ]
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
             select_aspects(&lint, Some(&unknown)),
-            vec!["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]
+            vec!["quality:real_aspects.bzl%real_lint_aspect"]
         );
         let format = spec(Command::Format);
         assert_eq!(
             select_aspects(&format, Some(&BTreeSet::new())),
-            vec!["@rules_dx//quality:real_aspects.bzl%real_format_aspect"]
+            vec!["quality:real_aspects.bzl%real_format_aspect"]
         );
     }
 

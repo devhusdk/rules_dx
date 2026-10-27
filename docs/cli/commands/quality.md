@@ -1706,7 +1706,10 @@ is passed as is, and `Invoke-Formatter` runs only the formatter rules it
 configures under `Rules`. A config that configures none of them (for example a
 lint-only `IncludeRules` list) fails the format run with the cause named,
 instead of formatting nothing. Add a formatter rule such as `PSPlaceOpenBrace`
-under `Rules`, or unbind the config.
+under `Rules`, or unbind the config. Lint and format share the one config, so
+a formatter rule enabled under `Rules` is also reported by lint. A config that
+names formatter rules only with `Enable = $false` passes this check and
+formats nothing.
 
 An invalid config or a tool that fails to run fails the run with the cause
 named. It never counts as clean. To change the rules, bind a

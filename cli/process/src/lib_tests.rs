@@ -1,7 +1,6 @@
 use super::*;
 
 use std::collections::{HashMap, HashSet};
-use std::time::{Duration, Instant};
 
 struct FakeFs {
     files: HashSet<PathBuf>,
@@ -884,117 +883,14 @@ fn default_withdrawable_run_checks_withdraw_only_before_launch() {
     assert_eq!(withdrawn, None);
 }
 
-fn probe_strings(flags: &[&str]) -> Vec<String> {
-    let mut argv = vec![dx_testing::process_probe().to_string_lossy().into_owned()];
-    argv.extend(flags.iter().map(ToString::to_string));
-    argv
-}
-
-fn probe_bound(timeout: Duration) -> TimeBound {
-    TimeBound {
-        timeout,
-        max_bytes: 65536,
-    }
-}
-
 #[test]
-fn system_runner_bounded_run_reports_the_probe_code() {
-    let outcome = SystemRunner
-        .run_bounded(
-            &probe_strings(&["--exit-code=3"]),
-            &std::env::temp_dir(),
-            &[],
-            probe_bound(Duration::from_secs(10)),
-        )
-        .expect("probe runs");
-    assert_eq!(outcome, BoundedOutcome::Finished { code: Some(3) });
-}
-
-#[test]
-fn system_runner_bounded_run_kills_a_hanging_probe_within_a_bound() {
-    let started = Instant::now();
-    let outcome = SystemRunner
-        .run_bounded(
-            &probe_strings(&["--sleep-ms=30000"]),
-            &std::env::temp_dir(),
-            &[],
-            probe_bound(Duration::from_millis(200)),
-        )
-        .expect("timeout is an outcome");
-    assert_eq!(outcome, BoundedOutcome::TimedOut);
-    assert!(
-        started.elapsed() < Duration::from_secs(15),
-        "timed out after {:?}",
-        started.elapsed()
-    );
-}
-
-#[test]
-fn system_runner_bounded_run_reaps_a_hanging_descendant() {
-    let scratch = dx_testing::mkscratch("dx-bounded-descendant").expect("scratch");
-    let marker = scratch.join("descendant.finished");
-    let started = Instant::now();
-    let outcome = SystemRunner
-        .run_bounded(
-            &probe_strings(&[
-                "--spawn-descendant",
-                "--descendant-sleep-ms=1500",
-                "--descendant-stdout-bytes=1048576",
-                &format!("--descendant-marker={}", marker.display()),
-            ]),
-            &std::env::temp_dir(),
-            &[],
-            probe_bound(Duration::from_millis(500)),
-        )
-        .expect("timeout is an outcome");
-    assert_eq!(outcome, BoundedOutcome::TimedOut);
-    assert!(
-        started.elapsed() < Duration::from_secs(20),
-        "descendant must not hold the run past {:?}",
-        started.elapsed()
-    );
-    let deadline = started + Duration::from_millis(1900);
-    loop {
-        assert!(
-            !marker.exists(),
-            "the descendant survived the run: {}",
-            marker.display()
-        );
-        if Instant::now() >= deadline {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
-}
-
-#[test]
-fn unbounded_fakes_keep_working_through_the_bounded_default() {
-    let runner = FakeRunner {
-        status: ChildStatus::exited(0),
-    };
-    let outcome = runner
-        .run_bounded(
-            &["tool".to_owned()],
-            Path::new("."),
-            &[],
-            probe_bound(Duration::from_secs(1)),
-        )
-        .expect("default delegates");
-    assert_eq!(outcome, BoundedOutcome::Finished { code: Some(0) });
-}
-
-#[test]
-fn system_runner_preserves_exit_codes() {
-    let runner = SystemRunner;
+fn spawn_output_preserves_exit_codes() {
     let cwd = std::env::temp_dir();
-    let ok = runner
-        .run(&probe_argv(&["--exit-code=0"]), &cwd, &[])
-        .expect("probe");
-    assert_eq!(ok.code, Some(0));
-    let fail = runner
-        .run(&probe_argv(&["--exit-code=1"]), &cwd, &[])
-        .expect("probe");
-    assert_eq!(fail.code, Some(1));
+    for code in [0, 1] {
+        let flag = format!("--exit-code={code}");
+        let out = spawn_output(&probe_argv(&[&flag]), &cwd, &[], false).expect("probe");
+        assert_eq!(out.status.code(), Some(code));
+    }
 }
 
 #[test]
@@ -1024,16 +920,14 @@ fn child_status_from_exit_keeps_the_code_or_the_known_signal() {
 
 #[cfg(unix)]
 #[test]
-fn system_runner_reports_the_signal_that_ended_the_child() {
+fn spawn_output_reports_the_signal_that_ended_the_child() {
     let argv: Vec<String> = ["/bin/sh", "-c", "kill -SEGV $$"]
         .iter()
         .map(|arg| (*arg).to_owned())
         .collect();
-    let status = SystemRunner
-        .run(&argv, &std::env::temp_dir(), &[])
-        .expect("sh runs");
+    let output = spawn_output(&argv, &std::env::temp_dir(), &[], false).expect("sh runs");
     assert_eq!(
-        status,
+        ChildStatus::from(lifecycle::exit_of(&output.status)),
         ChildStatus {
             code: None,
             signal: Some(11)
@@ -1049,38 +943,35 @@ fn probe_argv(flags: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn system_runner_forwards_extra_environment() {
-    let runner = SystemRunner;
+fn spawn_output_forwards_extra_environment() {
     let cwd = std::env::temp_dir();
-    let probed = runner
-        .run(
-            &probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]),
-            &cwd,
-            &[("DX_RUNNER_PROBE", "forwarded")],
-        )
-        .expect("probe");
-    assert_eq!(probed.code, Some(0));
-    let rejected = runner
-        .run(
-            &probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]),
-            &cwd,
-            &[("DX_RUNNER_PROBE", "other")],
-        )
-        .expect("probe");
-    assert_eq!(rejected.code, Some(70), "a wrong value must not pass");
+    let argv = probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]);
+    let probed =
+        spawn_output(&argv, &cwd, &[("DX_RUNNER_PROBE", "forwarded")], false).expect("probe");
+    assert_eq!(probed.status.code(), Some(0));
+    let rejected =
+        spawn_output(&argv, &cwd, &[("DX_RUNNER_PROBE", "other")], false).expect("probe");
+    assert_eq!(
+        rejected.status.code(),
+        Some(70),
+        "a wrong value must not pass"
+    );
 }
 
 #[test]
-fn system_runner_rejects_bad_invocations() {
-    let runner = SystemRunner;
-    assert!(runner.run(&[], Path::new("."), &[]).is_err());
-    assert!(runner
-        .run(&["/nonexistent-dx-tool".to_owned()], Path::new("."), &[])
-        .is_err());
+fn spawn_output_rejects_bad_invocations() {
+    assert!(spawn_output(&[], Path::new("."), &[], false).is_err());
+    assert!(spawn_output(
+        &["/nonexistent-dx-tool".to_owned()],
+        Path::new("."),
+        &[],
+        false
+    )
+    .is_err());
 }
 
 #[test]
-fn hermetic_runner_clears_the_parent_environment() {
+fn spawn_output_clears_the_parent_environment() {
     let cwd = std::env::temp_dir();
     let inherited = std::env::var("TEST_SRCDIR").expect("Bazel sets TEST_SRCDIR for every test");
     let argv = probe_argv(&[
@@ -1106,42 +997,30 @@ fn hermetic_runner_clears_the_parent_environment() {
 }
 
 #[test]
-fn hermetic_runner_forwards_extra_environment() {
-    let runner = SystemRunner;
+fn cleared_spawn_output_forwards_extra_environment() {
     let cwd = std::env::temp_dir();
-    let kept = runner
-        .run_hermetic(
-            &probe_argv(&["--require-env=DX_HERMETIC_PROBE=kept"]),
-            &cwd,
-            &[("DX_HERMETIC_PROBE", "kept")],
-        )
-        .expect("probe");
-    assert_eq!(kept.code, Some(0));
-    let missing = runner
-        .run_hermetic(
-            &probe_argv(&["--require-env=DX_HERMETIC_PROBE=kept"]),
-            &cwd,
-            &[],
-        )
-        .expect("probe");
-    assert_eq!(missing.code, Some(70), "an unset variable must not pass");
+    let argv = probe_argv(&["--require-env=DX_HERMETIC_PROBE=kept"]);
+    let kept = spawn_output(&argv, &cwd, &[("DX_HERMETIC_PROBE", "kept")], true).expect("probe");
+    assert_eq!(kept.status.code(), Some(0));
+    let missing = spawn_output(&argv, &cwd, &[], true).expect("probe");
+    assert_eq!(
+        missing.status.code(),
+        Some(70),
+        "an unset variable must not pass"
+    );
 }
 
 #[test]
-fn hermetic_runner_sets_no_path() {
-    let runner = SystemRunner;
+fn cleared_spawn_output_sets_no_path() {
     let cwd = std::env::temp_dir();
-    let no_path = runner
-        .run_hermetic(&probe_argv(&["--forbid-env=PATH"]), &cwd, &[])
-        .expect("probe");
-    assert_eq!(no_path.code, Some(0));
-    let inherited = runner
-        .run(&probe_argv(&["--forbid-env=PATH"]), &cwd, &[])
-        .expect("probe");
+    let argv = probe_argv(&["--forbid-env=PATH"]);
+    let no_path = spawn_output(&argv, &cwd, &[], true).expect("probe");
+    assert_eq!(no_path.status.code(), Some(0));
+    let inherited = spawn_output(&argv, &cwd, &[], false).expect("probe");
     assert_eq!(
-        inherited.code,
+        inherited.status.code(),
         Some(71),
-        "only the hermetic runner clears PATH"
+        "only a cleared environment drops PATH"
     );
 }
 

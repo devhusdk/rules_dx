@@ -8,12 +8,11 @@
     )
 )]
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicI32, Ordering};
-use std::time::Duration;
 
 pub mod groups;
 pub mod lifecycle;
@@ -595,41 +594,8 @@ impl From<lifecycle::Exit> for ChildStatus {
     }
 }
 
-/// Deadline and capture bound for one child run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TimeBound {
-    /// Monotonic bound for the child to exit on its own.
-    pub timeout: Duration,
-    /// Per-stream byte bound for captured output.
-    pub max_bytes: usize,
-}
-
-/// What one bounded child run produced.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BoundedOutcome {
-    /// The child exited on its own inside the bound.
-    Finished { code: Option<i32> },
-    /// The child and its descendants were stopped at the deadline.
-    TimedOut,
-    /// A captured stream passed the caller limit.
-    OutputTooLarge { limit: usize },
-}
-
 pub trait Runner {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus>;
-
-    /// Runs one child that must exit inside `bound`, stopping its tree at the deadline.
-    fn run_bounded(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-        bound: TimeBound,
-    ) -> io::Result<BoundedOutcome> {
-        let _ = bound;
-        self.run(argv, cwd, env)
-            .map(|status| BoundedOutcome::Finished { code: status.code })
-    }
 
     fn run_hermetic(
         &self,
@@ -826,66 +792,6 @@ pub fn spawn_output(
     }
     command.envs(env.iter().copied());
     command.output()
-}
-
-pub struct SystemRunner;
-
-impl Runner for SystemRunner {
-    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        let output = spawn_output(argv, cwd, env, false)?;
-        Ok(lifecycle::exit_of(&output.status).into())
-    }
-
-    fn run_hermetic(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-    ) -> io::Result<ChildStatus> {
-        let output = spawn_output(argv, cwd, env, true)?;
-        Ok(lifecycle::exit_of(&output.status).into())
-    }
-
-    fn run_bounded(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-        bound: TimeBound,
-    ) -> io::Result<BoundedOutcome> {
-        let spec = lifecycle::SpawnSpec {
-            argv: argv.iter().map(OsString::from).collect(),
-            cwd: cwd.to_path_buf(),
-            env: lifecycle::EnvPolicy::Inherited {
-                extra: env
-                    .iter()
-                    .map(|(key, value)| (OsString::from(key), OsString::from(value)))
-                    .collect(),
-            },
-            capture: lifecycle::CapturePolicy {
-                max_bytes: bound.max_bytes,
-            },
-            timeout: bound.timeout,
-            descendants: lifecycle::Descendants::Owned,
-        };
-        match lifecycle::run(&spec)? {
-            lifecycle::ChildOutcome::Finished { exit, .. } => {
-                Ok(BoundedOutcome::Finished { code: exit.code() })
-            }
-            lifecycle::ChildOutcome::TimedOut => Ok(BoundedOutcome::TimedOut),
-            lifecycle::ChildOutcome::OutputTooLarge { limit } => {
-                Ok(BoundedOutcome::OutputTooLarge { limit })
-            }
-        }
-    }
-
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
-        pinned_env_path(var)
-    }
-
-    fn tool_version(&self, path: &Path) -> Option<String> {
-        version_line(path)
-    }
 }
 
 #[cfg(test)]

@@ -121,17 +121,6 @@ impl dx_process::Runner for SlotEnv<'_> {
             .run(argv, cwd, &slot_env(env, self.share.as_deref()))
     }
 
-    fn run_bounded(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-        bound: dx_process::TimeBound,
-    ) -> io::Result<dx_process::BoundedOutcome> {
-        self.inner
-            .run_bounded(argv, cwd, &slot_env(env, self.share.as_deref()), bound)
-    }
-
     fn run_hermetic(
         &self,
         argv: &[String],
@@ -1909,17 +1898,6 @@ mod tests {
             Ok(dx_process::ChildStatus::exited(0))
         }
 
-        fn run_bounded(
-            &self,
-            _argv: &[String],
-            _cwd: &Path,
-            env: &[(&str, &str)],
-            _bound: dx_process::TimeBound,
-        ) -> io::Result<dx_process::BoundedOutcome> {
-            self.record("run_bounded", env);
-            Ok(dx_process::BoundedOutcome::TimedOut)
-        }
-
         fn run_hermetic(
             &self,
             _argv: &[String],
@@ -1957,15 +1935,7 @@ mod tests {
         let argv = ["bazel".to_owned()];
         let cwd = scratch.path();
         let env = [("KEEP", "yes")];
-        let bound = dx_process::TimeBound {
-            timeout: Duration::from_secs(1),
-            max_bytes: 1,
-        };
         assert_eq!(held.run(&argv, cwd, &env).expect("run").code, Some(0));
-        assert_eq!(
-            held.run_bounded(&argv, cwd, &env, bound).expect("bounded"),
-            dx_process::BoundedOutcome::TimedOut
-        );
         assert_eq!(
             held.run_withdrawable(&argv, cwd, &env, &|| true)
                 .expect("withdrawable")
@@ -1986,7 +1956,6 @@ mod tests {
             *inner.seen.borrow(),
             vec![
                 ("run", marked.clone()),
-                ("run_bounded", marked.clone()),
                 ("run_withdrawable", marked),
                 ("run_hermetic", plain),
             ]

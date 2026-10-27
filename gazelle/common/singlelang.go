@@ -256,10 +256,10 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 			l.fail("%s: %s: import %q has both an exact resolve mapping and ignore", l.spec.LanguageName, from, name)
 		},
 		FailUnresolved: func(from label.Label, name string) {
-			l.fail("%s: %s: unresolved import %q; %s", l.spec.LanguageName, from, name, l.spec.UnresolvedHint)
+			l.fail("%s", UnresolvedImport(c, l.spec.LanguageName, from, name, l.spec.UnresolvedHint))
 		},
 		FailAmbiguous: func(from label.Label, name string, matches string) {
-			l.fail("%s: %s: ambiguous import %q resolves to %s", l.spec.LanguageName, from, name, matches)
+			l.fail("%s", AmbiguousImport(c, l.spec.LanguageName, from, name, matches))
 		},
 	})
 }

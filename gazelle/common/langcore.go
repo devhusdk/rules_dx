@@ -388,7 +388,6 @@ type ResolveSpec struct {
 	LanguageName   string
 	WantKind       string
 	Attr           string
-	UnresolvedHint string
 	Unwrap         func(raw any) ([]string, bool)
 	// UnwrapRefs, when set and matching, takes precedence over Unwrap and
 	// gives import refs whose relative entries may use Fallback.

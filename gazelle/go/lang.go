@@ -420,9 +420,9 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 					continue
 				}
 			}
-			l.fail("go: %s: unresolved import %q; add a go_library with that importpath or an exact # gazelle:resolve mapping", from, name)
+			l.fail("%s", common.UnresolvedImport(c, "go", from, name, "add a go_library with that importpath or an exact # gazelle:resolve mapping"))
 		default:
-			l.fail("go: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
+			l.fail("%s", common.AmbiguousImport(c, "go", from, name, formatMatches(matches)))
 		}
 	}
 	if len(deps) == 0 {

@@ -361,9 +361,9 @@ func (l *javascriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *rep
 			if imports.asset[name] {
 				continue
 			}
-			l.fail("javascript: %s: unresolved import %q; add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)", from, name)
+			l.fail("%s", common.UnresolvedImport(c, "javascript", from, name, "add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)"))
 		default:
-			l.fail("javascript: %s: ambiguous import %q resolves to %s", from, name, formatMatches(matches))
+			l.fail("%s", common.AmbiguousImport(c, "javascript", from, name, formatMatches(matches)))
 		}
 	}
 	if len(deps) == 0 {

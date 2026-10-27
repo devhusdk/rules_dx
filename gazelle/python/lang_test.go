@@ -366,7 +366,7 @@ func TestResolveBranches(t *testing.T) {
 	}
 
 	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "unknown"), targetImports{imports: []string{"unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import python unknown" to app/BUILD.bazel`) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
@@ -392,6 +392,9 @@ func TestResolveAmbiguous(t *testing.T) {
 	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), targetImports{imports: []string{"same"}}, label.New("", "app", "app"))
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") || !strings.Contains(l.errors[0], "//one:same") || !strings.Contains(l.errors[0], "//two:same") {
 		t.Errorf("ambiguity = %v", l.errors)
+	}
+	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve python same <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
 	}
 }
 

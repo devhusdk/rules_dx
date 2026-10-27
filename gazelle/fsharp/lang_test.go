@@ -543,7 +543,7 @@ func TestResolveBranches(t *testing.T) {
 	}
 
 	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "unknown"), common.WrapImportSet([]string{"Unknown"}), label.New("", "app", "unknown"))
-	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "unresolved import") {
+	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "unresolved import") || !strings.Contains(errs[0], `or add "# gazelle:dx_ignore_import fsharp Unknown" to app/BUILD.bazel`) {
 		t.Errorf("unresolved errors = %v", errs)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
@@ -623,8 +623,12 @@ func TestResolveAmbiguousFails(t *testing.T) {
 	)
 	cfg := resolverConfig(t, nil)
 	l.Resolve(cfg, index, nil, rule.NewRule(LibraryKind, "app"), common.WrapImportSet([]string{"Dup"}), label.New("", "app", "app"))
-	if errs := takeErrors(l); len(errs) != 1 || !strings.Contains(errs[0], "ambiguous import") {
+	errs := takeErrors(l)
+	if len(errs) != 1 || !strings.Contains(errs[0], "ambiguous import") {
 		t.Errorf("ambiguous errors = %v", errs)
+	}
+	if len(errs) == 1 && !strings.Contains(errs[0], `; add "# gazelle:resolve fsharp Dup <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", errs[0])
 	}
 }
 

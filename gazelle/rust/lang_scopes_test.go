@@ -42,6 +42,9 @@ func TestResolveAmbiguous(t *testing.T) {
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") || !strings.Contains(l.errors[0], "//one:same") || !strings.Contains(l.errors[0], "//two:same") {
 		t.Errorf("ambiguity = %v", l.errors)
 	}
+	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve rust same <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
+	}
 }
 
 func TestLookupOverrideNilConfig(t *testing.T) {

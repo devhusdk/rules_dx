@@ -14,7 +14,7 @@ import (
 )
 
 // UnresolvedHint tells users how to settle an import no rule owns.
-const UnresolvedHint = "add a pwsh_library that owns that module, an exact # gazelle:resolve powershell mapping, or # gazelle:dx_ignore_import powershell <name>; module names match case-sensitively"
+const UnresolvedHint = "add a pwsh_library that owns that module, an exact # gazelle:resolve powershell mapping; module names match case-sensitively"
 
 var pwshKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),

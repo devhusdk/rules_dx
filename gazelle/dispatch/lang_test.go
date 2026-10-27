@@ -509,7 +509,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const csharp = "add a local library that declares the namespace or a # gazelle:resolve mapping on the full namespace"
 	hints := map[string]string{
 		"astro":  oneSourceRelative,
-		"cc":     "add a local one-header library or an exact # gazelle:resolve mapping",
+		"cc":     "includes with a directory resolve by workspace or package-relative path; otherwise add a local one-header library or an exact # gazelle:resolve mapping",
 		"csharp": csharp,
 		"fsharp": oneSource,
 		"java":   jvm,
@@ -560,7 +560,8 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		from := label.New("", "app", "app")
 		lang.Resolve(resolverCfg, emptyIndex, nil, rule.NewRule(kind, "app"),
 			common.WrapImportSet([]string{"Missing"}), from)
-		want := name + ": " + from.String() + ": unresolved import \"Missing\"; " + hints[name]
+		want := name + ": " + from.String() + ": unresolved import \"Missing\"; " + hints[name] +
+			"; or add \"# gazelle:dx_ignore_import " + name + " Missing\" to app/BUILD.bazel"
 		lang.AfterResolvingDeps(context.Background())
 		if got := common.Errors.Take(); len(got) != 1 || got[0].Message != want {
 			t.Errorf("%s unresolved import = %#v, want %q", name, got, want)

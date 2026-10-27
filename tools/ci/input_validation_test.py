@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -52,7 +53,14 @@ GATE_JOBS = (
     "preflight",
     "workflow-check",
 )
-CONSUMER_JOBS = ("validate", "advisory-snapshots", *CHECKS)
+CONSUMER_JOBS = (
+    "validate",
+    "checks",
+    "security-audit",
+    "advisory-snapshots",
+    "coverage",
+)
+REPORT_TOKEN = re.compile(r"[a-z]+=[A-Za-z0-9_.-]+")
 RESULTS = ("success", "failure", "skipped", "cancelled")
 PLAIN_OUTPUTS = (
     "artifact_suffix",
@@ -115,7 +123,7 @@ def run_script(tmp_path, name, script, inputs):
     path = tmp_path / name
     path.write_text(script, encoding="utf-8")
     env = dict(os.environ)
-    for name in INPUTS:
+    for name in (*INPUTS, "CHECKS"):
         env.pop(name, None)
     for key, value in inputs.items():
         env[key] = value if isinstance(value, str) else json.dumps(value)
@@ -158,6 +166,7 @@ def test_every_fixture_states_one_expected_outcome():
             "min_changed_line_coverage",
             "snapshot_artifact",
             "artifact_suffix",
+            "checks",
         }, f"{case} expects an unknown output {sorted(outputs)}"
         assert (status == 0) == bool(outputs), (
             f"{case} pairs status {status} with {outputs}"
@@ -209,9 +218,7 @@ def test_every_aggregate_fixture_states_one_expected_outcome():
         assert not outputs, f"{case} expects job outputs from the aggregate: {outputs}"
         needs = inputs["NEEDS"]
         assert "validate" in needs, f"{case} drops the validate job: {needs}"
-        assert set(needs) <= {"validate", "advisory-snapshots", *CHECKS}, (
-            f"{case} needs {sorted(needs)}"
-        )
+        assert set(needs) <= set(CONSUMER_JOBS), f"{case} needs {sorted(needs)}"
         assert needs["validate"]["result"] in RESULTS, (
             f"{case} leaves the validate job undecided: {needs['validate']}"
         )
@@ -223,7 +230,7 @@ def test_every_aggregate_fixture_states_one_expected_outcome():
 def test_aggregate_fixtures_report_the_expected_verdict(tmp_path):
     for case in fixture_names(AGGREGATE_FIXTURE_DIR):
         inputs, status, says, _ = expectation(AGGREGATE_FIXTURE_DIR, case)
-        assert sorted(inputs) == ["DISABLED", "NEEDS"], (
+        assert sorted(inputs) == ["CHECKS", "DISABLED", "NEEDS"], (
             f"{case} passes {sorted(inputs)}"
         )
         done = run_script(tmp_path, "aggregate.py", embedded_aggregate(), inputs)
@@ -293,6 +300,11 @@ def payload_drops(jobs):
     return lambda inputs: set(jobs) - set(inputs["NEEDS"])
 
 
+def payload_lists_checks(listed):
+    """Returns a check that the validator wrote exactly this checks list."""
+    return lambda inputs: inputs["CHECKS"] == listed
+
+
 def test_the_result_truth_table_covers_every_aggregate_state(tmp_path):
     table = {
         AGGREGATE_FIXTURE_DIR: (
@@ -305,6 +317,8 @@ def test_the_result_truth_table_covers_every_aggregate_state(tmp_path):
                 ("disabled_check_stays_green", 0, payload_disabled_and_skipped),
                 ("skipped_without_disabled_fails", 1, payload_skipped_undisabled),
                 ("missing_check_fails", 1, payload_drops(CONSUMER_JOBS)),
+                ("all_matrix_checks_disabled", 0, payload_lists_checks("[]")),
+                ("validator_without_checks_output", 1, payload_lists_checks("")),
             ),
         ),
         CI_GATE_FIXTURE_DIR: (
@@ -443,13 +457,33 @@ def test_evidence_rejects_bad_test_timeout(tmp_path):
         assert_rejected(test_timeout, status, output, written, "whole seconds")
 
 
-def validator_platforms():
-    """Returns the PLATFORMS table input_validation.py declares, without running its main."""
+def validator_module():
+    """Returns input_validation.py loaded as a module, without running its main."""
     spec = importlib.util.spec_from_file_location("input_validation", ROOT / VALIDATOR)
     assert spec is not None and spec.loader is not None, f"{VALIDATOR} does not load"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.PLATFORMS
+    return module
+
+
+def validator_platforms():
+    """Returns the PLATFORMS table input_validation.py declares."""
+    return validator_module().PLATFORMS
+
+
+def test_matrix_checks_are_gated_ids():
+    """Every matrix row is a unique gated check with well-formed reports and timeout."""
+    rows = validator_module().MATRIX_CHECKS
+    ids = [row["id"] for row in rows]
+    assert len(ids) == len(set(ids)), f"MATRIX_CHECKS repeats an id: {ids}"
+    assert set(ids) <= set(CHECKS), f"MATRIX_CHECKS names ungated ids: {ids}"
+    assert not {"security-audit", "coverage"} & set(ids), ids
+    for row in rows:
+        assert sorted(row) == ["args", "id", "passthrough", "reports", "timeout"], row
+        assert row["args"] and all(" " not in arg for arg in row["args"]), row
+        assert all(REPORT_TOKEN.fullmatch(token) for token in row["reports"]), row
+        assert isinstance(row["passthrough"], bool), row
+        assert isinstance(row["timeout"], int) and row["timeout"] > 0, row
 
 
 def test_evidence_runners_match_the_validator_platforms(tmp_path):

@@ -1465,14 +1465,14 @@ fn help_doc_anchors_resolve() {
     }
 }
 
-fn gated_check_ids(workflow: &str) -> Vec<String> {
-    let mut ids: Vec<String> = workflow
+fn gated_check_ids(validator: &str) -> Vec<String> {
+    let mut ids: Vec<String> = validator
         .lines()
-        .filter_map(|line| {
-            line.split_once("outputs.disabled), ',")
-                .and_then(|(_, tail)| tail.split_once(",')"))
-                .map(|(id, _)| id.to_owned())
-        })
+        .skip_while(|line| line.trim() != "CHECKS = (")
+        .skip(1)
+        .take_while(|line| line.trim() != ")")
+        .filter_map(|line| line.trim().strip_prefix('"')?.split_once('"'))
+        .map(|(id, _)| id.to_owned())
         .collect();
     ids.sort();
     ids.dedup();
@@ -1481,6 +1481,8 @@ fn gated_check_ids(workflow: &str) -> Vec<String> {
 
 const RUNNER_LOOKUP: &str =
     "runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}";
+
+const PLATFORM_MATRIX: &str = "platform: ${{ fromJSON(needs.validate.outputs.platforms) }}";
 
 const PLATFORM_TABLE: &str = "tools/ci/input_validation.py";
 
@@ -1517,15 +1519,14 @@ fn every_platform_job_maps_labels_through_one_runner_table() {
     let workflow =
         std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
             .expect("reusable-consumer.yml ships as test data");
-    let gated = gated_check_ids(&workflow);
     let jobs: Vec<(String, Vec<&str>)> = job_blocks(&workflow)
         .into_iter()
-        .filter(|(id, _)| gated.contains(id))
+        .filter(|(_, body)| body.iter().any(|line| line.trim() == PLATFORM_MATRIX))
         .collect();
     assert_eq!(
-        jobs.len(),
-        gated.len(),
-        "every gated check must be a job of the workflow"
+        jobs.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(),
+        ["checks", "security-audit", "coverage"],
+        "the checks matrix, security-audit and coverage expand over the validated platforms"
     );
     for (id, body) in jobs {
         assert!(
@@ -1630,13 +1631,12 @@ fn workflow_call_inputs(workflow: &str) -> Vec<String> {
 
 #[test]
 fn github_ci_page_matches_the_consumer_workflow() {
-    let workflow =
-        std::fs::read_to_string(workspace_root().join(".github/workflows/reusable-consumer.yml"))
-            .expect("reusable-consumer.yml ships as test data");
     let page = std::fs::read_to_string(workspace_root().join("docs/github-ci.md"))
         .expect("docs/github-ci.md ships as test data");
 
-    let ids = gated_check_ids(&workflow);
+    let validator = std::fs::read_to_string(workspace_root().join(PLATFORM_TABLE))
+        .expect("input_validation.py ships as test data");
+    let ids = gated_check_ids(&validator);
     assert_eq!(ids.len(), 9, "consumer workflow gates nine checks");
     for id in &ids {
         assert!(
@@ -1753,6 +1753,7 @@ fn workflow_check_names(workflow: &str) -> Vec<String> {
     }
     jobs.into_iter()
         .map(|(id, name)| name.unwrap_or(id))
+        .filter(|name| !name.contains("${{"))
         .collect()
 }
 

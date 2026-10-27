@@ -68,6 +68,7 @@ jobs:
       runners: ${{ steps.validate.outputs.runners }}
       snapshot_artifact: ${{ steps.validate.outputs.snapshot_artifact }}
       artifact_suffix: ${{ steps.validate.outputs.artifact_suffix }}
+      checks: ${{ steps.validate.outputs.checks }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -109,16 +110,18 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:input_validation_bin
-  lint:
+  checks:
+    name: ${{ matrix.check.id }} (${{ matrix.platform }})
     needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',lint,') }}
-    timeout-minutes: 30
+    if: ${{ needs.validate.outputs.checks != '[]' }}
+    timeout-minutes: ${{ matrix.check.timeout }}
     defaults:
       run:
         shell: bash
     strategy:
       fail-fast: false
       matrix:
+        check: ${{ fromJSON(needs.validate.outputs.checks) }}
         platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
     runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
     permissions:
@@ -145,150 +148,73 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - run: |
+      - name: Stamp the restored Bazel repository cache
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == matrix.check.id && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        shell: bash
+        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
+      - name: Run ${{ matrix.check.id }}
+        env:
+          DX_CHECK: ${{ matrix.check.id }}
+          DX_ARGS: ${{ join(matrix.check.args, ' ') }}
+          DX_REPORTS: ${{ join(matrix.check.reports, ' ') }}
+          DX_PASSTHROUGH: ${{ matrix.check.passthrough }}
+        run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/lint"
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/$DX_CHECK"
           mkdir -p "$reports"
-          bazel run "$@" @rules_dx//:dx -- lint --check --report "sarif=$reports/lint.sarif" //... -- "$@"
-      - name: Upload the lint reports
-        if: ${{ always() }}
+          read -ra args <<< "$DX_ARGS"
+          read -ra tokens <<< "$DX_REPORTS"
+          for token in "${tokens[@]}"; do
+            args+=(--report "${token%%=*}=$reports/${token#*=}")
+          done
+          args+=(//...)
+          if [ "$DX_PASSTHROUGH" = "true" ]; then
+            args+=(-- "$@")
+          fi
+          bazel run "$@" @rules_dx//:dx -- "${args[@]}"
+      - name: Upload the ${{ matrix.check.id }} reports
+        if: ${{ always() && join(matrix.check.reports, '') != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: dx-reports-lint-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
-          path: ${{ runner.temp }}/dx-reports/lint
+          name: dx-reports-${{ matrix.check.id }}-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
+          path: ${{ runner.temp }}/dx-reports/${{ matrix.check.id }}
           if-no-files-found: warn
           retention-days: 14
-  typecheck:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',typecheck,') }}
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
+      - name: Prove dx run works noninteractively in CI
+        if: ${{ matrix.check.id == 'build' }}
         run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/typecheck"
-          mkdir -p "$reports"
-          bazel run "$@" @rules_dx//:dx -- typecheck --check --report "sarif=$reports/typecheck.sarif" //... -- "$@"
-      - name: Upload the typecheck reports
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dx-reports-typecheck-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
-          path: ${{ runner.temp }}/dx-reports/typecheck
-          if-no-files-found: warn
-          retention-days: 14
-  format:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',format,') }}
-    timeout-minutes: 30
-    defaults:
-      run:
+          bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
+      - name: Prune the Bazel repository cache to this run's downloads
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == matrix.check.id && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
+        env:
+          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
         run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
+          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
+          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
+            exit 0
+          fi
+          pruned=0
+          for entry in "$DX_REPO_CACHE"/*/*/; do
+            entry="${entry%/}"
+            [ -d "$entry" ] || continue
+            if [ ! "$entry/file" -nt "$stamp" ]; then
+              rm -rf "$entry"
+              pruned=$((pruned + 1))
+            fi
+          done
+          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
+          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Save the Bazel repository cache
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == matrix.check.id && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- format --check //... -- "$@"
-  generate:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',generate,') }}
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- generate --check //... -- "$@"
+          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   advisory-snapshots:
     name: advisory snapshots (one run, every platform)
     needs: [validate]
@@ -398,216 +324,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- security //...
-  license-audit:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',license-audit,') }}
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      # Audit backends run no Bazel and take no passthrough flags.
-      - run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- license //...
-  test:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',test,') }}
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/test"
-          mkdir -p "$reports"
-          bazel run "$@" @rules_dx//:dx -- test --report "junit=$reports/junit.xml" --report "failures=$reports/failures.json" --report "results=$reports/results.json" //... -- "$@"
-      - name: Upload the test reports
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dx-reports-test-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
-          path: ${{ runner.temp }}/dx-reports/test
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        env:
-          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
-        run: |
-          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
-          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
-          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
-            exit 0
-          fi
-          pruned=0
-          for entry in "$DX_REPO_CACHE"/*/*/; do
-            entry="${entry%/}"
-            [ -d "$entry" ] || continue
-            if [ ! "$entry/file" -nt "$stamp" ]; then
-              rm -rf "$entry"
-              pruned=$((pruned + 1))
-            fi
-          done
-          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
-          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
-  build:
-    needs: [validate]
-    if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',build,') }}
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJSON(needs.validate.outputs.platforms) }}
-    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
-        with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
-          cache-save: ${{ github.event_name != 'pull_request' }}
-      - name: Locate the Bazel repository cache
-        id: repo-cache
-        shell: bash
-        run: |
-          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
-          echo "path=$path" >> "$GITHUB_OUTPUT"
-      - name: Restore the Bazel repository cache
-        id: repo-cache-restore
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
-      - run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          reports="${RUNNER_TEMP:-/tmp}/dx-reports/build"
-          mkdir -p "$reports"
-          bazel run "$@" @rules_dx//:dx -- build --report "failures=$reports/failures.json" //... -- "$@"
-      - name: Upload the build reports
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dx-reports-build-${{ matrix.platform }}${{ needs.validate.outputs.artifact_suffix }}
-          path: ${{ runner.temp }}/dx-reports/build
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Prove dx run works noninteractively in CI
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
-      - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        shell: bash
-        env:
-          DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
-        run: |
-          # Bazel touches an entry on each hit, so entries older than the stamp went unused.
-          stamp="$RUNNER_TEMP/dx-repo-cache.stamp"
-          if [ ! -f "$stamp" ] || [ ! -d "$DX_REPO_CACHE" ]; then
-            exit 0
-          fi
-          pruned=0
-          for entry in "$DX_REPO_CACHE"/*/*/; do
-            entry="${entry%/}"
-            [ -d "$entry" ] || continue
-            if [ ! "$entry/file" -nt "$stamp" ]; then
-              rm -rf "$entry"
-              pruned=$((pruned + 1))
-            fi
-          done
-          size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
-          echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.validate.outputs.cache_saver == github.job && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
-          key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
   coverage:
     needs: [validate]
     if: ${{ !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
@@ -805,7 +521,7 @@ jobs:
 
   dx-ci:
     name: dx-ci (aggregate)
-    needs: [validate, lint, typecheck, format, generate, security-audit, advisory-snapshots, license-audit, test, build, coverage]
+    needs: [validate, checks, security-audit, advisory-snapshots, coverage]
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -818,7 +534,7 @@ jobs:
           python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
           python3 - <<'EOF'
           import json, os, sys
-          required = ["lint", "typecheck", "format", "generate", "security-audit", "advisory-snapshots", "license-audit", "test", "build", "coverage"]
+          required = ["checks", "security-audit", "advisory-snapshots", "coverage"]
           needs = json.loads(os.environ["NEEDS"])
           disabled = {name for name in os.environ["DISABLED"].split(",") if name}
           if "security-audit" in disabled:
@@ -828,6 +544,12 @@ jobs:
           if results.get("validate") != "success":
               print("dx-ci: input validation failed; see the validate job")
               sys.exit(1)
+          listed = os.environ["CHECKS"]
+          if listed == "":
+              print("dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit")
+              sys.exit(1)
+          if listed == "[]":
+              disabled.add("checks")
           checks = {name: result for name, result in results.items() if name != "validate"}
           missing = sorted(name for name in required if name not in results)
           bad = sorted(
@@ -850,3 +572,4 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           DISABLED: ${{ needs.validate.outputs.disabled }}
+          CHECKS: ${{ needs.validate.outputs.checks }}

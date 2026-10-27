@@ -26,7 +26,6 @@ pub mod upgrade;
 pub mod version;
 pub mod watch;
 
-// The facade lists only names other crates import; in-crate code uses module paths.
 pub use defaults::join_quality_baseline;
 pub use error::AdoptError;
 pub use git_changes::{
@@ -41,7 +40,7 @@ pub use load_graph::{bzl_impact, module_inputs, BzlImpact};
 pub use migrate::plan_migrate;
 pub use new::{
     apply_new, default_new_name, new_is_known_language, new_language_name_list, plan_new_files,
-    removed_new_language, NEW_LANGUAGES, SUPPORTED_NEW_LANGUAGES,
+    removed_new_language, validate_new_destination, NEW_LANGUAGES, SUPPORTED_NEW_LANGUAGES,
 };
 pub use scaffold::{
     apply_init, bazelignore_covers_dx, plan_init_files, render_consumer_module_setup,

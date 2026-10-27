@@ -2,6 +2,7 @@
 
 use serde_json::{json, Value};
 
+use ci_workflow::{document, job, scripts, steps};
 use dx_testing::read_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/reusable-docs.yml";
@@ -45,54 +46,14 @@ const FETCH: &str =
 
 const PAGE_URL: &str = "${{ steps.deploy.outputs.page_url }}";
 
-/// Returns the parsed workflow, which must be valid Actions YAML.
-fn document() -> Value {
-    let text = read_runfiles(WORKFLOW);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{WORKFLOW} is not valid workflow YAML: {error}"))
-}
-
-/// Returns one job of the parsed workflow.
-fn job(name: &str) -> Value {
-    let found = document()["jobs"][name].clone();
-    assert!(
-        found.is_object(),
-        "{WORKFLOW} names no {name:?} job: {}",
-        document()["jobs"]
-    );
-    found
-}
-
-/// Returns the steps of one job, which must declare some.
-fn steps(name: &str) -> Vec<Value> {
-    let found = job(name)["steps"].as_array().cloned();
-    found.unwrap_or_else(|| panic!("{WORKFLOW} job {name} declares no steps"))
-}
-
-/// Returns the `run` scripts of one job, joined.
-fn scripts(name: &str) -> String {
-    steps(name)
-        .iter()
-        .filter_map(|step| step["run"].as_str())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 /// Returns one string field of a step, or an empty string when it has none.
 fn field<'a>(step: &'a Value, key: &str) -> &'a str {
     step[key].as_str().unwrap_or_default()
 }
 
-/// Returns the parsed caller workflow, which must be valid Actions YAML.
-fn caller() -> Value {
-    let text = read_runfiles(CALLER);
-    yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{CALLER} is not valid workflow YAML: {error}"))
-}
-
 /// Returns the first step of a job whose name is exactly `name`.
 fn named_step(job_name: &str, name: &str) -> Value {
-    steps(job_name)
+    steps(WORKFLOW, job_name)
         .into_iter()
         .find(|step| field(step, "name") == name)
         .unwrap_or_else(|| panic!("{WORKFLOW} job {job_name} has no step named {name:?}"))
@@ -100,7 +61,7 @@ fn named_step(job_name: &str, name: &str) -> Value {
 
 /// Returns the index of the first step of a job naming `needle`.
 fn step_index(name: &str, needle: &str) -> usize {
-    let found = steps(name).iter().position(|step| {
+    let found = steps(WORKFLOW, name).iter().position(|step| {
         ["name", "run", "uses"]
             .into_iter()
             .any(|key| field(step, key).contains(needle))
@@ -110,7 +71,7 @@ fn step_index(name: &str, needle: &str) -> usize {
 
 #[test]
 fn the_docs_check_renders_and_validates_the_artifact_without_deploying() {
-    let script = scripts(CHECK);
+    let script = scripts(WORKFLOW, CHECK);
     for needle in [
         RENDER,
         DECLARED_SITE,
@@ -130,7 +91,7 @@ fn the_docs_check_renders_and_validates_the_artifact_without_deploying() {
     }
     for action in [PAGE_ARTIFACT, PAGE_DEPLOY] {
         assert!(
-            !steps(CHECK)
+            !steps(WORKFLOW, CHECK)
                 .iter()
                 .any(|step| field(step, "uses").contains(action)),
             "{WORKFLOW} job {CHECK} must never run {action}"
@@ -141,7 +102,7 @@ fn the_docs_check_renders_and_validates_the_artifact_without_deploying() {
         "{WORKFLOW} job {CHECK} must not stage an artifact for upload: {script}"
     );
     assert_eq!(
-        job(PUBLISH)["needs"],
+        job(WORKFLOW, PUBLISH)["needs"],
         json!([CHECK]),
         "{WORKFLOW} job {PUBLISH} must wait for {CHECK}"
     );
@@ -149,7 +110,7 @@ fn the_docs_check_renders_and_validates_the_artifact_without_deploying() {
 
 #[test]
 fn the_publish_job_reads_the_declared_site_instead_of_a_guessed_path() {
-    let script = scripts(PUBLISH);
+    let script = scripts(WORKFLOW, PUBLISH);
     assert!(
         script.contains(DECLARED_SITE),
         "{WORKFLOW} job {PUBLISH} must read the declared site: {script}"
@@ -170,7 +131,7 @@ fn the_publish_job_reads_the_declared_site_instead_of_a_guessed_path() {
 
 #[test]
 fn the_publish_job_validates_the_staged_tree_before_it_uploads() {
-    let script = scripts(PUBLISH);
+    let script = scripts(WORKFLOW, PUBLISH);
     for needle in [STAGED_CHECK, "--rendered \"$PAGES_STAGE\""] {
         assert!(
             script.contains(needle),
@@ -194,7 +155,7 @@ fn the_publish_job_validates_the_staged_tree_before_it_uploads() {
 
 #[test]
 fn the_publish_job_smokes_the_page_url_it_deployed_before_the_clean_proof() {
-    let publish_steps = steps(PUBLISH);
+    let publish_steps = steps(WORKFLOW, PUBLISH);
     let smoke_step = publish_steps
         .iter()
         .find(|step| field(step, "run").contains("curl "))
@@ -252,7 +213,7 @@ fn the_docs_scope_reaches_the_shell_only_through_the_environment() {
         !text.contains("${{ inputs.docs_scope }} --"),
         "{WORKFLOW} must not interpolate docs_scope into a script"
     );
-    let step = steps(CHECK)
+    let step = steps(WORKFLOW, CHECK)
         .into_iter()
         .find(|step| field(step, "name") == "Lint the docs scope")
         .unwrap_or_else(|| panic!("{WORKFLOW} job {CHECK} has no scope lint step"));
@@ -265,7 +226,10 @@ fn the_docs_scope_reaches_the_shell_only_through_the_environment() {
         !field(&step, "run").contains("${{"),
         "{WORKFLOW} scope step must not interpolate expressions into its script"
     );
-    for (name, job_steps) in [(CHECK, steps(CHECK)), (PUBLISH, steps(PUBLISH))] {
+    for (name, job_steps) in [
+        (CHECK, steps(WORKFLOW, CHECK)),
+        (PUBLISH, steps(WORKFLOW, PUBLISH)),
+    ] {
         for other in job_steps {
             assert!(
                 !field(&other, "run").contains("inputs.docs_scope"),
@@ -278,7 +242,7 @@ fn the_docs_scope_reaches_the_shell_only_through_the_environment() {
             );
         }
     }
-    let env = &document()["env"];
+    let env = &document(WORKFLOW)["env"];
     for (var, input) in INPUTS {
         assert_eq!(
             env[var],
@@ -290,7 +254,7 @@ fn the_docs_scope_reaches_the_shell_only_through_the_environment() {
 
 #[test]
 fn the_rules_dx_caller_keeps_its_own_site_values() {
-    let with = &caller()["jobs"]["docs"]["with"];
+    let with = &document(CALLER)["jobs"]["docs"]["with"];
     for (key, value) in [
         ("site", "//tools/docs/site:user_site"),
         ("site_check", "//tools/docs/site:user_site_check"),
@@ -328,7 +292,7 @@ fn the_docs_inputs_are_checked_before_any_step_reads_the_site() {
             "{WORKFLOW} step {INPUT_CHECK:?} must check {var}: {run}"
         );
     }
-    for (index, step) in steps(CHECK).iter().enumerate() {
+    for (index, step) in steps(WORKFLOW, CHECK).iter().enumerate() {
         if index != check && field(step, "run").contains("DX_DOCS_SITE") {
             assert!(
                 check < index,

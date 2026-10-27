@@ -33,6 +33,7 @@ const TMPDIR_ENV: &str = "TMPDIR";
 const TEST_TMPDIR_ENV: &str = "TEST_TMPDIR";
 const TEST_SRCDIR_ENV: &str = "TEST_SRCDIR";
 const TEST_SRCDIR_TOKEN: &str = "$TEST_SRCDIR";
+const SCRATCH_TOKEN: &str = "$SCRATCH";
 const MAX_DIFF_LINES: usize = 60;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -804,6 +805,7 @@ fn run() -> Result<(), HarnessError> {
                     runner_out.status, runner_out.stderr
                 ),
             })?;
+        let actual = normalize_scratch(&actual, &display(&paths.scratch_parent));
         return compare_golden(&resolved, &name, actual.as_bytes());
     }
     if !runner_out.status.starts_with("exit 0") {
@@ -832,6 +834,22 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
     let line = stderr.lines().rev().find(|line| line.contains(MARKER))?;
     let (_, message) = line.rsplit_once(MARKER)?;
     Some(format!("{}\n", message.trim_end()))
+}
+
+/// Replaces each per-run scratch directory under `scratch_parent` with a stable token.
+pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
+    let prefix = format!("{scratch_parent}/");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find(&prefix) {
+        out.push_str(&rest[..start]);
+        out.push_str(SCRATCH_TOKEN);
+        let after = &rest[start + prefix.len()..];
+        let end = after.find(['/', ' ', ':', '\n']).unwrap_or(after.len());
+        rest = &after[end..];
+    }
+    out.push_str(rest);
+    out
 }
 
 fn compare_golden(resolved: &Resolved, name: &str, actual: &[u8]) -> Result<(), HarnessError> {
@@ -958,6 +976,16 @@ mod tests {
                 "accepted {key:?}"
             );
         }
+    }
+
+    #[test]
+    fn normalize_scratch_replaces_the_per_run_directory() {
+        let text = "Error reading /t/scratch/dx-scratch-Ab12/cfg/.clang-format: Unsuitable\n";
+        assert_eq!(
+            normalize_scratch(text, "/t/scratch"),
+            "Error reading $SCRATCH/cfg/.clang-format: Unsuitable\n"
+        );
+        assert_eq!(normalize_scratch("no path\n", "/t/scratch"), "no path\n");
     }
 
     #[test]

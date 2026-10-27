@@ -215,7 +215,7 @@ to.
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
 | `checkstyle` | lint | java |
-| `clang_format` | format | cc, cuda |
+| `clang_format` | format | cc, cuda, objc |
 | `clang_tidy` | lint | cc |
 | `clippy` | lint | rust |
 | `cppcheck` | lint | cc |
@@ -635,6 +635,67 @@ fsharp_library(
 A syntax error is reported by both tools as an error at its line and column
 with its `FS` compiler code. It never counts as clean. A tool that fails to
 run, or prints output dx cannot read, fails the run with the cause named.
+
+### Objective-C
+
+`clang_format` formats Objective-C from the same managed pin as C and C++.
+Select it in an `objc` family. The family has two classes: `objc` for `.m`
+files and `objcpp` for `.mm` files. A `.h` file stays in the `cc` family. No
+lint tool is wired for Objective-C yet. The `objc` family is not in
+`default_workspace_policy`, so add it to your own policy.
+
+```python
+load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+quality_family(
+    name = "objc_family",
+    family_id = "objc",
+    disabled = ["lint", "typecheck"],
+    format = ["clang_format"],
+)
+
+workspace_policy(
+    name = "my_policy",
+    families = [":objc_family"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format --check //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
+bazel run @rules_dx//:dx -- format --apply //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
+```
+
+Own the files with `objc_library` from `@rules_dx//cc/rules:defs.bzl`. The
+files in `srcs`, `non_arc_srcs` and `hdrs` are checked. A plain upstream
+`objc_library` is checked the same way. A check never writes. `--apply`
+rewrites only the files the selected targets own. An unformatted file is
+reported at the start of the file.
+
+To change the style, bind a `clang_format_config` to the targets with
+`aspect_hints`. The file is your `.clang-format`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "clang_format_config")
+
+clang_format_config(
+    name = "objc_style",
+    src = ".clang-format",
+    visibility = ["//visibility:public"],
+)
+
+objc_library(
+    name = "greeter",
+    aspect_hints = ["//:objc_style"],
+    srcs = ["Greeter.m"],
+    hdrs = ["Greeter.h"],
+)
+```
+
+The config needs a `Language: ObjC` section or a section with no `Language`
+key. A config with only a `Language: Cpp` section fails the run with the
+cause named. It never counts as clean. A `.h` file with Objective-C content
+is checked in the `cc` family, and clang-format reads it as Objective-C. Under
+a `cc` config with only a `Language: Cpp` section, that file fails the run.
 
 ### Protocol Buffers
 

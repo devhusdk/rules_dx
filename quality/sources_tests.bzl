@@ -126,6 +126,11 @@ def sources_registry_tests(name):
                 ["cuda", "cuda"],
             ),
             expect_equal(
+                "upstream m and mm map to objc and objcpp while h stays c",
+                [upstream_source_class("m"), upstream_source_class("mm"), upstream_source_class("h")],
+                ["objc", "objcpp", "c"],
+            ),
+            expect_equal(
                 "upstream proto extension maps to protobuf",
                 upstream_source_class("proto"),
                 "protobuf",

@@ -1,15 +1,18 @@
-"""Wrapper conformance tests for C/C++."""
+"""Wrapper conformance tests for C, C++ and Objective-C."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
+load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":defs.bzl", "cc_coverage_features")
 
 def cc_wrapper_contract_tests(name):
-    """Instantiates C/C++ wrapper contract tests."""
+    """Instantiates C, C++ and Objective-C wrapper contract tests."""
     dx_wrapper_contract_tests(
         name,
-        file_classes = ["c", "cpp"],
+        file_classes = ["c", "cpp", "objc", "objcpp"],
         extra_checks = [
             expect_equal("coverage off keeps features", cc_coverage_features(["a"], False), ["a"]),
             expect_equal("coverage on adds llvm maps", cc_coverage_features(["a"], True), ["a", "llvm_coverage_map_format", "-gcc_coverage_map_format"]),
@@ -45,3 +48,17 @@ def cc_coverage_env_tests(name, target):
     _coverage_env_on_test(name = name + "_on", size = "small", target_under_test = target)
     _coverage_env_off_test(name = name + "_off", size = "small", tags = ["no-coverage"], target_under_test = target)
     native.test_suite(name = name, tests = [name + "_on", name + "_off"])
+
+def _objc_forward_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.true(env, ObjcInfo in target, "objc_library forwarder dropped ObjcInfo")
+    asserts.true(env, CcInfo in target, "objc_library forwarder dropped CcInfo")
+    asserts.equals(env, ["c", "objc", "objcpp"], sorted(target[QualitySourcesInfo].direct_sources.keys()))
+    return analysistest.end(env)
+
+_objc_forward_test = analysistest.make(_objc_forward_impl)
+
+def objc_forward_tests(name, target, **kwargs):
+    """Asserts an objc_library forwarder keeps ObjcInfo and CcInfo and owns srcs, non_arc_srcs and hdrs."""
+    _objc_forward_test(name = name, size = "small", target_under_test = target, **kwargs)

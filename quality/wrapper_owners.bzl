@@ -31,6 +31,7 @@ WRAPPER_OWNERS = {
     "lua": "//lua/rules:defs.bzl",
     "markdown": "other",
     "mdx": "//mdx/rules:defs.bzl",
+    "objc": "//cc/rules:defs.bzl",
     "ocaml": "//ocaml/rules:defs.bzl",
     "perl": "//perl/rules:defs.bzl",
     "pkl": "//pkl/rules:defs.bzl",

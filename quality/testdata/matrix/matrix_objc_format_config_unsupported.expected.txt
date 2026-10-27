@@ -1,0 +1,1 @@
+pipeline failed: invalid tool output for clang_format: clang_format output is outside the pinned grammar: malformed violation: Error reading $SCRATCH/quality/testdata/clang_format_cpp_only_cfg/.clang-format: Unsuitable

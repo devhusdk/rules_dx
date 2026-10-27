@@ -172,12 +172,15 @@ def upstream_direct_sources(target, ctx):
     if is_cc:
         cc_srcs = getattr(ctx.rule.files, "srcs", None)
         cc_hdrs = getattr(ctx.rule.files, "hdrs", None)
-        if cc_srcs == None and cc_hdrs == None:
-            return (True, {}, "upstream cc target has no readable srcs or hdrs; unsupported ownership is unchecked, not clean")
+        cc_non_arc_srcs = getattr(ctx.rule.files, "non_arc_srcs", None)
+        if cc_srcs == None and cc_hdrs == None and cc_non_arc_srcs == None:
+            return (True, {}, "upstream cc target has no readable srcs, hdrs or non_arc_srcs; unsupported ownership is unchecked, not clean")
         if cc_srcs != None:
             files.extend(cc_srcs)
         if cc_hdrs != None:
             files.extend(cc_hdrs)
+        if cc_non_arc_srcs != None:
+            files.extend(cc_non_arc_srcs)
     buckets = {}
     for f in files:
         if not f.is_source:

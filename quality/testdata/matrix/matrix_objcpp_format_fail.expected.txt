@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_objcpp_format_fail
+capability FORMAT
+stages 1
+stage clang_format classes=objcpp sources=matrix/clang_format_dirty.mm
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING clang_format - matrix/clang_format_dirty.mm 213 213 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/clang_format_dirty.mm 213 310 "\n  return [name stringByAppendingString:@\"!\"];\n}\n@end\n\nint DXCount(const char *name) { return name ? 1 : 0; "

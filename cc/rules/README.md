@@ -1,10 +1,12 @@
 # C/C++ rules
 
-`defs.bzl` wraps `cc_library`, `cc_binary` and `cc_test`.
+`defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `objc_library`.
 
 ```starlark
-load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test", "objc_library")
 ```
+
+`objc_library` passes `srcs`, `non_arc_srcs`, `hdrs` and `select()` values to the upstream rule unchanged.
 
 ## Options
 

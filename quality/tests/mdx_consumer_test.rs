@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested::{self, Case};
+use dx_nested::{self as nested, Case};
 use dx_testing::{mkscratch, resolve_runfiles, Run};
 
 const HELLO_MDX: &str = "import { Chart } from \"./chart.js\";\n\nexport const meta = { title: \"Report\" };\n\n# Quarterly report\n\nRevenue grew in _this_ quarter, see **below**.\n\n* First item\n* Second item\n\n<Chart data={[1, 2, 3]} label=\"Revenue\">\n  The chart shows the trend.\n</Chart>\n\n```js\nconst total = 1 + 2;\n```\n";

@@ -371,10 +371,7 @@ mod launcher {
             .map(|event| event["event"].as_str().unwrap_or_default())
             .collect();
         assert_eq!(kinds, ["command_started"], "{}", run.stdout);
-        assert!(
-            text.contains("dx: cancelled: stopped by signal 2"),
-            "{text}"
-        );
+        assert!(!text.contains("dx: cancelled"), "{text}");
         let gone = Instant::now() + Duration::from_secs(60);
         while alive(pid) {
             assert!(Instant::now() < gone, "the test process {pid} leaked");

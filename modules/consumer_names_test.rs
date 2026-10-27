@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use dx_testing::nested;
+use dx_nested as nested;
 use dx_testing::resolve_runfiles;
 
 const COMMON_NAMES: &[(&str, &str)] = &[

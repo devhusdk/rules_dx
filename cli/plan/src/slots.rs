@@ -397,6 +397,7 @@ impl Ticket {
     fn leave(&mut self, between: impl FnOnce()) {
         if let Some(file) = self.file.take() {
             let _ = std::fs::remove_file(&self.path);
+            let _ = std::fs::remove_file(want_path(&self.path));
             between();
             drop(file);
         }
@@ -410,16 +411,124 @@ impl Drop for Ticket {
 }
 
 impl Ticket {
-    /// Marks the ticket live and counts the live tickets ahead of it.
-    fn ahead(&self, dir: &Path) -> usize {
+    /// Marks the ticket live, counts the live tickets ahead of it, and lists the
+    /// slot indices those tickets could use right now.
+    fn ahead(&self, dir: &Path) -> (usize, Vec<Range<usize>>) {
         if let Some(file) = &self.file {
             let _ = file.set_modified(SystemTime::now());
         }
-        tickets(dir)
-            .into_iter()
-            .filter(|(number, path)| *number < self.number && waiting(path))
-            .count()
+        let mut count = 0;
+        let mut forbidden: Vec<Range<usize>> = Vec::new();
+        for (number, path) in tickets(dir) {
+            if number >= self.number || !waiting(&path) {
+                continue;
+            }
+            count += 1;
+            let want = Want::read(&want_path(&path));
+            forbidden.push(want.reserve.clone());
+            if want.ready(dir) {
+                forbidden.push(want.base.clone());
+                if want.remote {
+                    forbidden.push(want.extras.clone());
+                }
+            }
+        }
+        (count, forbidden)
     }
+}
+
+/// The slot indices a waiter may take, published next to its ticket so later
+/// waiters can pass it when it cannot use a free slot. A missing or unreadable
+/// record wants every index, which keeps the line strict.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Want {
+    base: Range<usize>,
+    reserve: Range<usize>,
+    extras: Range<usize>,
+    remote: bool,
+}
+
+impl Want {
+    fn everything() -> Self {
+        Self {
+            base: 0..usize::MAX,
+            reserve: 0..usize::MAX,
+            extras: 0..usize::MAX,
+            remote: true,
+        }
+    }
+
+    fn of(layout: &Layout, remote: bool) -> Self {
+        Self {
+            base: 0..layout.count,
+            reserve: layout.reserve.clone(),
+            extras: layout.extras.clone(),
+            remote,
+        }
+    }
+
+    fn render(&self) -> String {
+        let range = |r: &Range<usize>| format!("{}..{}", r.start, r.end);
+        format!(
+            "v=1 base={} reserve={} extras={} remote={}\n",
+            range(&self.base),
+            range(&self.reserve),
+            range(&self.extras),
+            u8::from(self.remote)
+        )
+    }
+
+    fn parse(text: &str) -> Option<Self> {
+        let range = |value: &str| -> Option<Range<usize>> {
+            let (start, end) = value.split_once("..")?;
+            Some(start.parse().ok()?..end.parse().ok()?)
+        };
+        let (mut base, mut reserve, mut extras, mut remote, mut version) =
+            (None, None, None, None, false);
+        for field in text.split_whitespace() {
+            let (key, value) = field.split_once('=')?;
+            match key {
+                "v" => version = value == "1",
+                "base" => base = range(value),
+                "reserve" => reserve = range(value),
+                "extras" => extras = range(value),
+                "remote" => remote = Some(value == "1"),
+                _ => {}
+            }
+        }
+        version.then_some(())?;
+        Some(Self {
+            base: base?,
+            reserve: reserve?,
+            extras: extras?,
+            remote: remote?,
+        })
+    }
+
+    fn read(path: &Path) -> Self {
+        std::fs::read_to_string(path)
+            .ok()
+            .and_then(|text| Self::parse(&text))
+            .unwrap_or_else(Self::everything)
+    }
+
+    /// Whether every reserve index can take a shared lock now. The probe locks
+    /// are dropped at once.
+    fn ready(&self, dir: &Path) -> bool {
+        self.reserve.end < usize::MAX
+            && self
+                .reserve
+                .clone()
+                .all(|index| !matches!(lock_slot(&slot_path(dir, index), true), Ok(None)))
+    }
+}
+
+fn want_path(ticket: &Path) -> PathBuf {
+    ticket.with_extension("want")
+}
+
+fn is_forbidden(forbidden: &[Range<usize>], index: usize) -> bool {
+    forbidden.iter().any(|range| range.contains(&index))
 }
 
 fn waiting(path: &Path) -> bool {
@@ -430,7 +539,13 @@ fn waiting(path: &Path) -> bool {
 }
 
 /// Takes the next ticket, sweeping tickets whose waiter is gone.
+#[cfg(test)]
 fn enqueue(dir: &Path, label: &str) -> io::Result<Ticket> {
+    enqueue_wanting(dir, label, &Want::everything())
+}
+
+/// Takes the next ticket and publishes what the waiter wants beside it.
+fn enqueue_wanting(dir: &Path, label: &str, want: &Want) -> io::Result<Ticket> {
     let _lock = dx_atomic_fs::lease::acquire_exclusive_at(
         &queue_dir(dir).join("lock"),
         Duration::from_secs(5),
@@ -440,11 +555,14 @@ fn enqueue(dir: &Path, label: &str) -> io::Result<Ticket> {
         match dx_atomic_fs::lease::try_lock_file(&path, false) {
             Ok(Some(_dead)) => {
                 let _ = std::fs::remove_file(&path);
+                let _ = std::fs::remove_file(want_path(&path));
             }
             _ => next = next.max(number + 1),
         }
     }
+    sweep_orphan_wants(dir);
     let path = queue_dir(dir).join(format!("ticket-{next:020}.lock"));
+    let _ = std::fs::write(want_path(&path), want.render());
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -461,9 +579,24 @@ fn enqueue(dir: &Path, label: &str) -> io::Result<Ticket> {
     Ok(ticket)
 }
 
+/// Removes want records whose ticket file is gone. Runs under the queue lock.
+fn sweep_orphan_wants(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(queue_dir(dir)) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|ext| ext == "want")
+            && !path.with_extension("lock").exists()
+        {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
+
 /// Takes a free slot without waiting; ignores the line of waiters.
 pub fn try_take(dir: &Path, count: usize, label: &str) -> io::Result<Option<Slot>> {
-    scan(dir, 0..count, label).0
+    scan(dir, 0..count, label, &|_| true).0
 }
 
 /// Takes a free slot like `try_take` and lists the slot files it could not use.
@@ -471,10 +604,11 @@ fn scan(
     dir: &Path,
     indices: Range<usize>,
     label: &str,
+    allowed: &dyn Fn(usize) -> bool,
 ) -> (io::Result<Option<Slot>>, Vec<(PathBuf, io::Error)>) {
     let mut skipped: Vec<(PathBuf, io::Error)> = Vec::new();
     let mut opened = false;
-    for index in indices {
+    for index in indices.filter(|&index| allowed(index)) {
         let path = slot_path(dir, index);
         match lock_slot(&path, false) {
             Ok(Some(file)) => {
@@ -573,13 +707,50 @@ fn take_extra(
     extras: Range<usize>,
     label: &str,
     pressure: &dyn Pressure,
+    allowed: &dyn Fn(usize) -> bool,
 ) -> Option<Slot> {
     if extras.is_empty() || extra_recent(dir) || pressure.high() != Some(false) {
         return None;
     }
-    let (taken, _) = scan(dir, extras, label);
+    let (taken, _) = scan(dir, extras, label, allowed);
     let slot = taken.ok().flatten()?;
     let _ = std::fs::write(extra_mark(dir), label);
+    Some(slot)
+}
+
+/// One all-or-nothing try by a waiter that is not first in line. Takes shared
+/// locks on its reserve and one base or extra slot, all outside `allowed`'s
+/// refusals, and keeps nothing when any step fails.
+fn pass_ahead(
+    dir: &Path,
+    layout: &Layout,
+    pressure: Option<&dyn Pressure>,
+    label: &str,
+    allowed: &dyn Fn(usize) -> bool,
+    on_skip: &mut dyn FnMut(&Path, &io::Error),
+) -> Option<Slot> {
+    let mut held: Vec<File> = Vec::new();
+    for index in layout.reserve.clone() {
+        if !allowed(index) {
+            return None;
+        }
+        let path = slot_path(dir, index);
+        match lock_slot(&path, true) {
+            Ok(Some(file)) => held.push(file),
+            Ok(None) => return None,
+            Err(error) => on_skip(&path, &error),
+        }
+    }
+    let (taken, skipped) = scan(dir, 0..layout.count, label, allowed);
+    for (path, error) in &skipped {
+        on_skip(path, error);
+    }
+    let taken = taken.ok().flatten().or_else(|| {
+        pressure
+            .and_then(|pressure| take_extra(dir, layout.extras.clone(), label, pressure, allowed))
+    });
+    let mut slot = taken?;
+    slot._reserve = held;
     Some(slot)
 }
 
@@ -592,13 +763,21 @@ fn acquire_reserving(
     on_poll: &mut dyn FnMut(),
     on_skip: &mut dyn FnMut(&Path, &io::Error),
 ) -> io::Result<Slot> {
-    let ticket = enqueue(dir, label).ok();
+    let ticket = enqueue_wanting(dir, label, &Want::of(layout, pressure.is_some())).ok();
     let mut pending: Vec<usize> = layout.reserve.clone().collect();
     let mut held: Vec<File> = Vec::new();
     let mut announced = false;
     loop {
-        let ahead = ticket.as_ref().map_or(0, |ticket| ticket.ahead(dir));
-        if ahead == 0 {
+        let (ahead, forbidden) = ticket
+            .as_ref()
+            .map_or((0, Vec::new()), |ticket| ticket.ahead(dir));
+        if ahead > 0 {
+            // Pass waiters ahead only through slots none of them can use now.
+            let allowed = |index: usize| !is_forbidden(&forbidden, index);
+            if let Some(slot) = pass_ahead(dir, layout, pressure, label, &allowed, on_skip) {
+                return Ok(slot);
+            }
+        } else {
             pending.retain(|&index| {
                 let path = slot_path(dir, index);
                 match lock_slot(&path, true) {
@@ -614,14 +793,14 @@ fn acquire_reserving(
                 }
             });
             if pending.is_empty() {
-                let (taken, skipped) = scan(dir, 0..layout.count, label);
+                let (taken, skipped) = scan(dir, 0..layout.count, label, &|_| true);
                 let taken = taken?;
                 for (path, error) in &skipped {
                     on_skip(path, error);
                 }
                 let taken = taken.or_else(|| {
                     pressure.and_then(|pressure| {
-                        take_extra(dir, layout.extras.clone(), label, pressure)
+                        take_extra(dir, layout.extras.clone(), label, pressure, &|_| true)
                     })
                 });
                 if let Some(mut slot) = taken {
@@ -1726,7 +1905,7 @@ mod tests {
         let fill = try_take(&dir, 1, "fill").expect("try").expect("fill");
         let extras: Vec<Slot> = (1..3)
             .map(|index| {
-                scan(&dir, index..index + 1, &format!("extra-{index}"))
+                scan(&dir, index..index + 1, &format!("extra-{index}"), &|_| true)
                     .0
                     .expect("scan")
                     .expect("extra")
@@ -1754,7 +1933,7 @@ mod tests {
             .extra(4, false)
             .layout();
         let take = |index: usize| {
-            scan(&dir, index..index + 1, "other")
+            scan(&dir, index..index + 1, "other", &|_| true)
                 .0
                 .expect("scan")
                 .expect("slot")
@@ -2554,9 +2733,9 @@ mod tests {
     fn a_leaving_ticket_never_deletes_the_next_waiters_ticket() {
         let scratch = dx_test_scratch::scratch("dx-slots-leave-");
         let dir = scratch.path().join("slots");
-        let mut first = enqueue(&dir).expect("first");
+        let mut first = enqueue(&dir, "").expect("first");
         let mut next = None;
-        first.leave(|| next = Some(enqueue(&dir).expect("next")));
+        first.leave(|| next = Some(enqueue(&dir, "").expect("next")));
         let next = next.expect("next ticket");
         drop(first);
         assert!(next.path.exists());
@@ -2569,7 +2748,7 @@ mod tests {
     fn a_dropped_ticket_leaves_no_file() {
         let scratch = dx_test_scratch::scratch("dx-slots-drop-");
         let dir = scratch.path().join("slots");
-        drop(enqueue(&dir).expect("ticket"));
+        drop(enqueue(&dir, "").expect("ticket"));
         assert!(tickets(&dir).is_empty());
     }
 
@@ -2878,6 +3057,95 @@ mod tests {
     }
 
     #[test]
+    fn a_want_round_trips_and_garbage_wants_everything() {
+        let want = Want {
+            base: 0..3,
+            reserve: 3..5,
+            extras: 5..7,
+            remote: true,
+        };
+        assert_eq!(Want::parse(&want.render()), Some(want));
+        for garbage in [
+            "",
+            "base=0..1",
+            "v=1 base=x",
+            "v=2 base=0..1 reserve=1..1 extras=1..1 remote=0",
+        ] {
+            assert_eq!(Want::parse(garbage), None, "{garbage}");
+        }
+        let scratch = dx_test_scratch::scratch("dx-slots-want-garbage-");
+        assert_eq!(
+            Want::read(&scratch.path().join("missing.want")),
+            Want::everything()
+        );
+    }
+
+    #[test]
+    fn a_dropped_ticket_removes_its_want_and_the_sweep_removes_orphans() {
+        let scratch = dx_test_scratch::scratch("dx-slots-want-drop-");
+        let dir = scratch.path().join("slots");
+        std::fs::create_dir_all(queue_dir(&dir)).expect("queue");
+        let want = Want::of(
+            &Layout {
+                count: 1,
+                reserve: 1..2,
+                extras: 2..2,
+            },
+            false,
+        );
+        let ticket = enqueue_wanting(&dir, "", &want).expect("ticket");
+        let path = want_path(&ticket.path);
+        assert_eq!(Want::read(&path), want);
+        drop(ticket);
+        assert!(!path.exists());
+        let orphan = queue_dir(&dir).join("ticket-00000000000000000099.want");
+        std::fs::write(&orphan, "x").expect("orphan");
+        drop(enqueue(&dir, "").expect("ticket"));
+        assert!(!orphan.exists());
+    }
+
+    #[test]
+    fn a_consumer_passes_a_rules_dx_head_blocked_on_its_reserve() {
+        let scratch = dx_test_scratch::scratch("dx-slots-pass-head-");
+        let dir = scratch.path().join("slots");
+        let fill = try_take(&dir, 2, "fill").expect("try").expect("fill");
+        let consumer = try_take(&dir, 2, "consumer")
+            .expect("try")
+            .expect("consumer");
+        assert_eq!(consumer.index, 1);
+        drop(fill);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let head_dir = dir.clone();
+        let head = std::thread::spawn(move || {
+            let layout = Layout {
+                count: 1,
+                reserve: 1..2,
+                extras: 2..2,
+            };
+            acquire_reserving(
+                &head_dir,
+                &layout,
+                None,
+                "r",
+                &mut |holder| {
+                    sender.send(holder.to_owned()).expect("send");
+                },
+                &mut || {},
+                &mut |_, _| {},
+            )
+            .map(|slot| slot.index)
+        });
+        receiver
+            .recv_timeout(Duration::from_secs(30))
+            .expect("head waits");
+        let behind = acquire(&dir, 2, "behind", &mut |_| {}).expect("behind passes");
+        assert_eq!(behind.index, 0);
+        drop(behind);
+        drop(consumer);
+        assert_eq!(head.join().expect("join").expect("head"), 0);
+    }
+
+    #[test]
     fn a_queued_consumer_does_not_take_the_reserve_behind_a_rules_dx_run() {
         let scratch = dx_test_scratch::scratch("dx-slots-reserve-line-");
         let dir = scratch.path().join("slots");
@@ -2911,6 +3179,9 @@ mod tests {
             .recv_timeout(Duration::from_secs(30))
             .expect("notice");
         assert_eq!(notice, "consumer");
+        drop(consumer);
+        let held = rules_dx.join().expect("join");
+        assert_eq!(held.index, 0);
         let (sender, receiver) = std::sync::mpsc::channel();
         let late_dir = dir.clone();
         let late = std::thread::spawn(move || {
@@ -2923,10 +3194,7 @@ mod tests {
         let notice = receiver
             .recv_timeout(Duration::from_secs(30))
             .expect("notice");
-        assert_eq!(notice, "consumer, 1 ahead in line");
-        drop(consumer);
-        let held = rules_dx.join().expect("join");
-        assert_eq!(held.index, 0);
+        assert_eq!(notice, "r");
         std::thread::sleep(Duration::from_millis(600));
         assert!(
             !late.is_finished(),

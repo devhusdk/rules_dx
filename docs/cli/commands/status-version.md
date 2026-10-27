@@ -45,7 +45,8 @@ Inside a worktree slot there is also `lease`.
 - `bazel`: reads `.bazelversion` and looks for `bazel` or `bazelisk` on `PATH`.
 - `module`: compares the `rules_dx` version in `MODULE.bazel`, or in a file it `include()`s, with the `dx` version. It reports `error` with the parser message when either cannot be read or parsed.
   A `single_version_override` version wins over `bazel_dep`. An override
-  without a version is `warn`.
+  without a version falls back to the `bazel_dep` version. The check is `warn`
+  only when neither declares a version.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
   linux_arm64, macos_arm64, or windows_x86_64. The target platform never
   selects tools. This is not native qualification.

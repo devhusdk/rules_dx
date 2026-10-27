@@ -24,6 +24,15 @@ NESTED_BAZEL_ENV = {
     "DX_NESTED_BAZEL_SHIM": "$(rlocationpath " + _NESTED_BAZEL_SHIM + ")",
 }
 
+_CONSUMER_MAVEN_LOCK = str(Label("//tools/testing/fixtures/consumer_maven:maven_install.json"))
+
+# The pinned Maven lock that nested consumers copy into their workspace.
+CONSUMER_MAVEN_DATA = [_CONSUMER_MAVEN_LOCK]
+
+CONSUMER_MAVEN_ENV = {
+    "DX_CONSUMER_MAVEN_LOCK": "$(rlocationpath " + _CONSUMER_MAVEN_LOCK + ")",
+}
+
 # The host variables a nested Bazel client needs on Linux, macOS and Windows.
 NESTED_BAZEL_ENV_INHERIT = [
     "APPDATA",

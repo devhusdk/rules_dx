@@ -50,13 +50,7 @@ bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "rules_rust", version = "0.74.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    artifacts = ["com.google.guava:guava:32.0.1-jre"],
-    known_contributing_modules = ["protobuf", "rules_dx"],
-    repositories = ["https://repo1.maven.org/maven2"],
-)
-use_repo(maven, "maven")
+MAVEN_BLOCK
 "#;
 
 const BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "buf_config")
@@ -115,8 +109,11 @@ fn consumer() -> Case {
     );
     write(
         &root.join("MODULE.bazel"),
-        &MODULE.replace("RULES_DX", &rules.display().to_string()),
+        &MODULE
+            .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
+            .replace("RULES_DX", &rules.display().to_string()),
     );
+    nested::stage_consumer_maven_lock(&root);
     write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
     write(&root.join("BUILD.bazel"), BUILD);
     write(&root.join("buf.yaml"), BUF_YAML);

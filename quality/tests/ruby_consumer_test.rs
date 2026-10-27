@@ -29,13 +29,7 @@ bazel_dep(name = "rules_rust", version = "0.74.0")
 bazel_dep(name = "rules_ruby", version = "0.28.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    artifacts = ["com.google.guava:guava:32.0.1-jre"],
-    known_contributing_modules = ["protobuf", "rules_dx"],
-    repositories = ["https://repo1.maven.org/maven2"],
-)
-use_repo(maven, "maven")
+MAVEN_BLOCK
 
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
 ruby.toolchain(
@@ -144,6 +138,7 @@ fn consumer_with(extra_rc: &str) -> Case {
     write(
         &root.join("MODULE.bazel"),
         &MODULE
+            .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
             .replace("RULES_DX", &rules.display().to_string())
             .replace("GEM_CHECKSUMS", &gem_checksums(&rules)),
     );
@@ -160,6 +155,7 @@ fn consumer_with(extra_rc: &str) -> Case {
         &format!("common --enable_bzlmod\nbuild --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\n{TOOL_FLAGS}{extra_rc}"),
     );
     write(&root.join("BUILD.bazel"), BUILD);
+    nested::stage_consumer_maven_lock(&root);
     write(&root.join("relaxed.rubocop.yml"), RELAXED);
     write(
         &root.join("core/BUILD.bazel"),

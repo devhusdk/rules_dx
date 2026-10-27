@@ -25,13 +25,7 @@ scala_deps.scala()
 
 register_toolchains("@rules_dx//scala/toolchain:semanticdb")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    artifacts = ["com.google.guava:guava:32.0.1-jre"],
-    known_contributing_modules = ["protobuf", "rules_dx"],
-    repositories = ["https://repo1.maven.org/maven2"],
-)
-use_repo(maven, "maven")
+MAVEN_BLOCK
 "#;
 
 const MODULE_WITHOUT_SEMANTICDB: &str =
@@ -101,8 +95,11 @@ fn consumer() -> Case {
     );
     write(
         &root.join("MODULE.bazel"),
-        &MODULE.replace("RULES_DX", &rules.display().to_string()),
+        &MODULE
+            .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
+            .replace("RULES_DX", &rules.display().to_string()),
     );
+    nested::stage_consumer_maven_lock(&root);
     write(&root.join(".bazelrc"), "common --enable_bzlmod\nbuild --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\n");
     write(&root.join("BUILD.bazel"), BUILD);
     write(

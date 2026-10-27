@@ -31,13 +31,7 @@ use_repo(dotnet, "dotnet_toolchains")
 nuget = use_extension("@rules_dx//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
 use_repo(nuget, "paket.main")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    artifacts = ["com.google.guava:guava:32.0.1-jre"],
-    known_contributing_modules = ["protobuf", "rules_dx"],
-    repositories = ["https://repo1.maven.org/maven2"],
-)
-use_repo(maven, "maven")
+MAVEN_BLOCK
 "#;
 
 const BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "fsharplint_config")
@@ -102,8 +96,11 @@ fn consumer() -> Case {
     );
     write(
         &root.join("MODULE.bazel"),
-        &MODULE.replace("RULES_DX", &rules.display().to_string()),
+        &MODULE
+            .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
+            .replace("RULES_DX", &rules.display().to_string()),
     );
+    nested::stage_consumer_maven_lock(&root);
     write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
     write(&root.join("BUILD.bazel"), BUILD);
     write(

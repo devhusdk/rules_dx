@@ -1292,7 +1292,7 @@ haskell_library(
     name = "IDENTITY",
     srcs = ["src/Hello.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["@rules_dx//haskell/toolchain:base"],
 )
 
 haskell_binary(
@@ -1301,7 +1301,7 @@ haskell_binary(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":IDENTITY",
-        "@dx_haskell_toolchains//:base",
+        "@rules_dx//haskell/toolchain:base",
     ],
 )
 
@@ -1311,7 +1311,7 @@ haskell_test(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":IDENTITY",
-        "@dx_haskell_toolchains//:base",
+        "@rules_dx//haskell/toolchain:base",
     ],
 )
 "#

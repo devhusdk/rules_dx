@@ -1,5 +1,5 @@
 {
-  "checksum": "8ae315e38b2baf67e65ce2829bf09fb79d41e68dea41152afc575c2000c5583d",
+  "checksum": "e36edde83fa84d993b61c681c3025876af68ccc83adcfb59dc8307899fef5b39",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6114,14 +6114,12 @@
             "target": "flate2"
           },
           {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
-          }
-        ],
-        "deps_dev": [
-          {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
           }
         ],
         "edition": "2021"

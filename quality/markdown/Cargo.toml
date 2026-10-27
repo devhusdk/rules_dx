@@ -9,7 +9,9 @@ pulldown-cmark = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 tracing = "0.1"
-unicode-properties = { version = "0.1.4", default-features = false, features = ["general-category"] }
+unicode-properties = { version = "0.1.4", default-features = false, features = [
+  "general-category",
+] }
 
 [dev-dependencies]
 serde_json = "1"

@@ -462,6 +462,19 @@ def dx_upstream_tags(tags):
         out = out + ["manual"]
     return out
 
+def dx_src_path(package, src):
+    """Returns the repo-relative path of a string src, or None."""
+    if type(src) != "string" or src.startswith("@"):
+        return None
+    if src.startswith("//"):
+        pkg, sep, target = src[2:].partition(":")
+        if not sep:
+            target = pkg.split("/")[-1]
+        return pkg + "/" + target if pkg else target
+    if src.startswith(":"):
+        src = src[1:]
+    return package + "/" + src if package else src
+
 def dx_test_upstream_kwargs(kwargs, srcs = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)

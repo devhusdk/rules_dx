@@ -1,0 +1,66 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library", "haskell_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/haskell-app:__subpackages__"])
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "VERSION",
+        "cbits/checksum.c",
+        "cbits/checksum.h",
+        "src/Stock.hs",
+        "test/StockTest.hs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "version_hs",
+    srcs = ["VERSION"],
+    outs = ["Stock/Version.hs"],
+    cmd = "printf 'module Stock.Version (version) where\\n\\nversion :: String\\nversion = \"%s\"\\n' \"$$(tr -d '\\n' < $<)\" > $@",
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)
+
+cc_library(
+    name = "checksum",
+    srcs = ["cbits/checksum.c"],
+    hdrs = ["cbits/checksum.h"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)
+
+haskell_library(
+    name = "stock",
+    srcs = [
+        "src/Stock.hs",
+        ":version_hs",
+    ],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    visibility = ["//examples/haskell-app:__subpackages__"],
+    deps = [
+        ":checksum",
+        "@haskell_app_split//:split",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+haskell_test(
+    name = "stock_test",
+    size = "small",
+    srcs = ["test/StockTest.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":stock",
+        "@dx_haskell_toolchains//:base",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

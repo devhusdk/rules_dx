@@ -1038,6 +1038,14 @@ _http_archive(
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
 )
 
+_http_archive(
+    name = "haskell_app_split",
+    build_file = "//examples/haskell-app:split.BUILD.bazel",
+    sha256 = "18adb60f7f12d08601c382d47c2bacbbd4de4b9233f09683889d15b64b6420d6",
+    strip_prefix = "split-0.2.5.1",
+    urls = ["https://hackage.haskell.org/package/split-0.2.5.1/split-0.2.5.1.tar.gz"],
+)
+
 _hex_package = use_repo_rule("//elixir/rules:hex.bzl", "hex_package")
 
 _hex_package(

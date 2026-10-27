@@ -116,6 +116,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/cpp-app
 # gazelle:exclude examples/elixir-app
 # gazelle:exclude examples/erlang-app
+# gazelle:exclude examples/haskell-app
 # gazelle:exclude examples/qt-app
 # gazelle:exclude examples/java-app/cli/Main.java
 # gazelle:exclude examples/java-app/diagnostics

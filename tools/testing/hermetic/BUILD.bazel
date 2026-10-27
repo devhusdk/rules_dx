@@ -304,6 +304,28 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "haskell",
+    failures = {"//examples/haskell-app/cli:report_without_split": "Could not find module"},
+    files = {
+        "//examples/haskell-app:split.BUILD.bazel": "examples/haskell-app/stock/split.build",
+        "//examples/haskell-app/stock:BUILD.bazel": "examples/haskell-app/stock/BUILD.bazel",
+        "//examples/haskell-app/stock:VERSION": "examples/haskell-app/stock/VERSION",
+        "//examples/haskell-app/stock:cbits/checksum.c": "examples/haskell-app/stock/cbits/checksum.c",
+        "//examples/haskell-app/stock:cbits/checksum.h": "examples/haskell-app/stock/cbits/checksum.h",
+        "//examples/haskell-app/stock:src/Stock.hs": "examples/haskell-app/stock/src/Stock.hs",
+        "//examples/haskell-app/stock:test/StockTest.hs": "examples/haskell-app/stock/test/StockTest.hs",
+        "//examples/haskell-app/cli:BUILD.bazel": "examples/haskell-app/cli/BUILD.bazel",
+        "//examples/haskell-app/cli:src/Cli.hs": "examples/haskell-app/cli/src/Cli.hs",
+        "//examples/haskell-app/cli:src/Main.hs": "examples/haskell-app/cli/src/Main.hs",
+        "//examples/haskell-app/cli:src/ReportWithoutSplit.hs": "examples/haskell-app/cli/src/ReportWithoutSplit.hs",
+        "//examples/haskell-app/cli:test/CliTest.hs": "examples/haskell-app/cli/test/CliTest.hs",
+    },
+    languages = ["haskell"],
+    module_fragment = "consumers/haskell/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "qt_tasks",
     srcs = ["//qt:module_srcs"],
     files = {

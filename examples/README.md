@@ -44,6 +44,7 @@ workspace below records exact commands and expected evidence in its own
 - [cuda-app](cuda-app/) multi-package CUDA app with three kernels behind a C ABI header, a C++ binary with a CPU fallback and checks on the compiled device code.
 - [elixir-app](elixir-app/) multi-package Elixir application with a generated unit table, a supervised ledger, a pinned `jason` Hex package and an escript.
 - [erlang-app](erlang-app/) multi-package Erlang/OTP key-value store with a leex and yecc parser, a supervised application, a pinned `thoas` dependency and an escript.
+- [haskell-app](haskell-app/) Haskell stock tool with a pinned Hackage `split` dependency, a generated module, a C foreign call and a string flag.
 - [java-app](java-app/) multi-package Java invoice CLI with pinned `gson` and `guava` dependencies, a generated class and a packaged resource.
 - [kotlin-app](kotlin-app/) multi-package Kotlin gradebook CLI with pinned `gson` and `guava` dependencies, a generated object and a packaged resource.
 - [msix-app](msix-app/) Windows console app with a DLL and a packaged resource, built as an MSIX, installed and signed in tests.

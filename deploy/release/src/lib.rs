@@ -12,6 +12,7 @@ use std::io;
 use std::path::Path;
 
 pub mod candidate;
+mod provenance;
 mod publish;
 mod spdx;
 
@@ -695,7 +696,12 @@ pub fn release_run(
     Ok(out)
 }
 
-pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::Result<String> {
+pub fn sbom_verify_files(
+    artifact: &Path,
+    spdx_path: &Path,
+    prov: &Path,
+    builder: &str,
+) -> io::Result<String> {
     let digest = dx_digest::sha256_file_hex(artifact)?;
     let base = basename(artifact)?;
     let spdx_text = std::fs::read_to_string(spdx_path)?;
@@ -707,32 +713,14 @@ pub fn sbom_verify_files(artifact: &Path, spdx_path: &Path, prov: &Path) -> io::
         )
     })?;
     spdx::document_error(&document, &base, &digest).map_err(io::Error::other)?;
-    if !prov_text.contains("\"_type\": \"https://in-toto.io/Statement/v1\"") {
-        return Err(io::Error::new(
+    let statement: provenance::Statement = serde_json::from_str(&prov_text).map_err(|error| {
+        io::Error::new(
             io::ErrorKind::InvalidData,
-            "provenance missing in-toto Statement v1",
-        ));
-    }
-    if !prov_text.contains("\"predicateType\": \"https://slsa.dev/provenance/v1\"") {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "provenance missing SLSA v1 predicate",
-        ));
-    }
-    if !prov_text.contains(&digest) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("provenance missing subject digest {digest}"),
-        ));
-    }
-    if !prov_text.contains(PROVENANCE_BUILDER_DRY_RUN)
-        && !prov_text.contains(PROVENANCE_BUILDER_RELEASE)
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "provenance builder.id is not an allowlisted workflow identity (forged builders fail closed)",
-        ));
-    }
+            format!("provenance is not an in-toto statement: {error}"),
+        )
+    })?;
+    provenance::statement_error(&statement, &base, &digest, builder)
+        .map_err(|problem| io::Error::new(io::ErrorKind::InvalidData, problem))?;
     Ok(format!("sbom OK: SPDX-2.3 + SLSA v1 bind {digest}\n"))
 }
 
@@ -1496,11 +1484,12 @@ mod tests {
         write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
         write_provenance(&artifact, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("prov");
-        let ok = sbom_verify_files(&artifact, &spdx, &prov).expect("verify");
+        let ok =
+            sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("verify");
         assert!(ok.contains("sbom OK: SPDX-2.3 + SLSA v1 bind"));
         assert!(ok.contains(&digest));
         std::fs::write(&spdx, b"{\"spdxVersion\": \"SPDX-3.0\"}").expect("rewrite");
-        assert!(sbom_verify_files(&artifact, &spdx, &prov).is_err());
+        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).is_err());
     }
 
     #[test]
@@ -1531,7 +1520,8 @@ mod tests {
             ),
         ] {
             std::fs::write(&spdx_path, text.as_bytes()).expect("rewrite");
-            let result = sbom_verify_files(&artifact, &spdx_path, &others);
+            let result =
+                sbom_verify_files(&artifact, &spdx_path, &others, PROVENANCE_BUILDER_DRY_RUN);
             assert_eq!(result.is_ok(), ok, "{label}: {result:?}");
         }
     }
@@ -1551,6 +1541,107 @@ mod tests {
             })
             .collect();
         format!("{{\n{}\n}}", entries.join(",\n"))
+    }
+
+    #[test]
+    fn sbom_verify_reads_provenance_fields_not_text() {
+        let scratch = scratch_dir();
+        let artifact = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
+        let digest = dx_digest::sha256_file_hex(&artifact).expect("digest");
+        let spdx = scratch.path().join("artifact.spdx.json");
+        write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
+        let prov = scratch.path().join("artifact.prov.json");
+        let base = render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_DRY_RUN);
+        let value: serde_json::Value = serde_json::from_str(&base).expect("json");
+        let with = |edit: &dyn Fn(&mut serde_json::Value)| {
+            let mut copy = value.clone();
+            edit(&mut copy);
+            serde_json::to_string(&copy).expect("compact")
+        };
+        let release = PROVENANCE_BUILDER_RELEASE;
+        let evil = format!("{release}.evil");
+        let duplicate = base.replacen(
+            "\"_type\"",
+            "\"_type\": \"https://in-toto.io/Statement/v1\",\n  \"_type\"",
+            1,
+        );
+        let cases: Vec<(&str, String, &str, Result<(), &str>)> = vec![
+            ("compact", with(&|_| {}), PROVENANCE_BUILDER_DRY_RUN, Ok(())),
+            (
+                "reordered",
+                reordered_spdx(&value),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Ok(()),
+            ),
+            (
+                "prefix builder",
+                with(&|v| v["predicate"]["runDetails"]["builder"]["id"] = evil.clone().into()),
+                release,
+                Err("is not an allowlisted"),
+            ),
+            (
+                "builder only in externalParameters",
+                with(&|v| {
+                    v["predicate"]["runDetails"]["builder"]["id"] = "https://evil.example".into();
+                    v["predicate"]["buildDefinition"]["externalParameters"]["b"] = release.into();
+                }),
+                release,
+                Err("is not an allowlisted"),
+            ),
+            (
+                "digest only in externalParameters",
+                with(&|v| {
+                    v["predicate"]["buildDefinition"]["externalParameters"]["d"] =
+                        digest.clone().into();
+                    v["subject"][0]["digest"]["sha256"] = "0".repeat(64).into();
+                }),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("missing subject digest"),
+            ),
+            (
+                "other subject name",
+                with(&|v| v["subject"][0]["name"] = "other.bin".into()),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("missing subject digest"),
+            ),
+            (
+                "dry-run provenance for release check",
+                with(&|_| {}),
+                release,
+                Err("want"),
+            ),
+            (
+                "missing _type",
+                with(&|v| {
+                    v.as_object_mut().expect("object").remove("_type");
+                }),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("missing in-toto Statement v1"),
+            ),
+            (
+                "not json",
+                "not json".to_owned(),
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("not an in-toto statement"),
+            ),
+            (
+                "duplicate _type",
+                duplicate,
+                PROVENANCE_BUILDER_DRY_RUN,
+                Err("not an in-toto statement"),
+            ),
+        ];
+        for (label, text, builder, want) in cases {
+            std::fs::write(&prov, text.as_bytes()).expect("write");
+            let result = sbom_verify_files(&artifact, &spdx, &prov, builder);
+            match want {
+                Ok(()) => assert!(result.is_ok(), "{label}: {result:?}"),
+                Err(part) => {
+                    let err = result.expect_err(label).to_string();
+                    assert!(err.contains(part), "{label}: want {part}, got {err}");
+                }
+            }
+        }
     }
 
     fn replaced_digest(
@@ -1586,7 +1677,7 @@ mod tests {
         let prov = scratch.path().join("forged.prov.json");
         let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID);
         std::fs::write(&prov, forged.as_bytes()).expect("write forged");
-        assert!(sbom_verify_files(&artifact, &spdx, &prov).is_err());
+        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).is_err());
     }
 
     #[test]
@@ -1768,7 +1859,8 @@ mod tests {
             render_spdx("artifact.bin", &zeros, "dx", "rules_dx"),
         )
         .expect("spdx bad");
-        let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok).expect_err("spdx digest");
+        let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_DRY_RUN)
+            .expect_err("spdx digest");
         assert!(
             err.to_string().contains("SPDX missing artifact digest"),
             "got {err}"
@@ -1796,7 +1888,8 @@ mod tests {
         ] {
             let path = scratch.path().join("variant.prov.json");
             std::fs::write(&path, variant).expect("variant");
-            let err = sbom_verify_files(&artifact, &spdx_ok, &path).expect_err(want);
+            let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_DRY_RUN)
+                .expect_err(want);
             assert!(err.to_string().contains(want), "want {want}, got {err}");
         }
     }

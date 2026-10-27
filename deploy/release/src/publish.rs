@@ -78,8 +78,13 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         .map_err(|error| format!("publish dry-run: cannot hash staged binary: {error}"))?;
     let archive_digest = dx_digest::sha256_file_hex(&inputs.archive)
         .map_err(|error| format!("publish dry-run: cannot hash staged archive: {error}"))?;
-    sbom_verify_files(&inputs.sbom_artifact, &inputs.spdx, &inputs.provenance)
-        .map_err(|error| format!("publish dry-run: SBOM validation failed: {error}"))?;
+    sbom_verify_files(
+        &inputs.sbom_artifact,
+        &inputs.spdx,
+        &inputs.provenance,
+        super::PROVENANCE_BUILDER_DRY_RUN,
+    )
+    .map_err(|error| format!("publish dry-run: SBOM validation failed: {error}"))?;
     notice_verify_files(
         &inputs.notice,
         &inputs.notice_manifest,

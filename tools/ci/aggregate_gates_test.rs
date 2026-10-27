@@ -141,6 +141,46 @@ fn the_consumer_gate_requires_every_declared_check() {
     }
 }
 
+/// Keeps every native platform in the dogfood and preflight matrices at full coverage.
+#[test]
+fn the_native_matrix_keeps_all_five_platforms() {
+    let document = document(CI_WORKFLOW);
+    let wanted = json!([
+        "linux_x86_64",
+        "linux_arm64",
+        "macos_arm64",
+        "windows_x86_64",
+        "windows_arm64"
+    ]);
+    let raw = document["jobs"]["dogfood"]["with"]["platforms"].clone();
+    let raw = raw.as_str().unwrap_or_else(|| {
+        panic!("{CI_WORKFLOW} job dogfood with.platforms is not a string: {raw}")
+    });
+    let platforms: Value = serde_json::from_str(raw).unwrap_or_else(|error| {
+        panic!("{CI_WORKFLOW} job dogfood with.platforms {raw:?} is not a JSON array: {error}")
+    });
+    assert_eq!(
+        platforms, wanted,
+        "{CI_WORKFLOW} job dogfood with.platforms must list every native platform"
+    );
+    let preflight: Vec<Value> = document["jobs"]["preflight"]["strategy"]["matrix"]["include"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{CI_WORKFLOW} job preflight declares no matrix.include"))
+        .iter()
+        .map(|cell| cell["platform"].clone())
+        .collect();
+    assert_eq!(
+        json!(preflight),
+        wanted,
+        "{CI_WORKFLOW} job preflight strategy.matrix.include must list every native platform"
+    );
+    assert_eq!(
+        document["jobs"]["dogfood"]["with"]["min_coverage"],
+        json!("100"),
+        "{CI_WORKFLOW} job dogfood with.min_coverage must stay at 100"
+    );
+}
+
 /// Returns the trigger table of a workflow, whichever way the parser keys `on`.
 fn triggers(workflow: &str) -> Value {
     let document = document(workflow);

@@ -272,6 +272,8 @@ consumer_archive(
   sit under a directory named after its target. Defaults to `[]`.
 - `notice`: required. Exactly one file, stored as `NOTICE`.
 - `tags`: Bazel tags for every generated target.
+- `target_compatible_with`: platform constraints for every generated target,
+  so an archive for another OS or CPU is skipped instead of built.
 
 `IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
 Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`

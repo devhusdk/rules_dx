@@ -1431,3 +1431,18 @@ fn uv_lock_package_without_a_version_is_kept_for_unassessed_reporting() {
     assert_eq!(packages.len(), 1);
     assert_eq!(packages[0].version, "");
 }
+
+#[test]
+fn cargo_manifest_license_reads_the_package_table() {
+    let manifest = "[package]\nname = \"bytes\"\nlicense = \" MIT \"\n";
+    assert_eq!(cargo_manifest_license(manifest).as_deref(), Some("MIT"));
+    for text in [
+        "not toml [",
+        "[dependencies]\n",
+        "[package]\nname = \"x\"\n",
+        "[package]\nlicense = 1\n",
+        "[package]\nlicense = \" \"\n",
+    ] {
+        assert_eq!(cargo_manifest_license(text), None, "{text}");
+    }
+}

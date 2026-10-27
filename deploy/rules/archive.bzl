@@ -326,8 +326,11 @@ _consumer_tarball = rule(
     },
 )
 
-def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, format = "tar.gz", tags = None):
-    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file."""
+def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, format = "tar.gz", tags = None, target_compatible_with = None):
+    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file.
+
+    `target_compatible_with` limits the stage, archive and checksum targets to the platforms that can build them.
+    """
     (tarball, checksum) = archive_filenames(name, format)
     stage_target = name + "_stage"
     archive_target = name + "_archive"
@@ -346,6 +349,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         resources = resources,
         runtime = runtime,
         tags = tags,
+        target_compatible_with = target_compatible_with,
     )
 
     _consumer_tarball(
@@ -353,6 +357,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         stage = ":" + stage_target,
         tags = tags,
         tarball_name = tarball,
+        target_compatible_with = target_compatible_with,
     )
 
     native.genrule(
@@ -360,6 +365,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         srcs = [":" + archive_target],
         outs = [checksum],
         tags = tags,
+        target_compatible_with = target_compatible_with,
         tools = [_HASHER],
         cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
     )

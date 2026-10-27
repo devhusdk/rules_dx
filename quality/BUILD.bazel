@@ -564,6 +564,7 @@ rust_test(
         "//cli/atomic_fs:src/lib.rs",
         "//cli/audit:src/lib.rs",
         "//cli/bep:src/lib.rs",
+        "//cli/binfmt:src/lib.rs",
         "//cli/bump:src/lib.rs",
         "//cli/clean:src/lib.rs",
         "//cli/cli:src/bin_man.rs",

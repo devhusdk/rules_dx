@@ -245,7 +245,8 @@ fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-fn holder_alive(host: &dyn Host, record: &Record) -> bool {
+/// Whether the lease holder still runs.
+pub(crate) fn holder_alive(host: &dyn Host, record: &Record) -> bool {
     !record.gone && record.pid.is_some_and(|pid| host.process_alive(pid))
 }
 

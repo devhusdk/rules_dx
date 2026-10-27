@@ -382,8 +382,9 @@ event that runs it.
   that name. A new branch starts from the default branch. If only `origin` has
   `worktree-<name>`, it uses `worktree-<name>-2` (or the next free number).
   Subagent worktrees get no `remove` hook, so `create` first frees
-  the session's earlier `worktree-*` slots that are at least a minute old,
-  clean, fully pushed, and not running a `dx` command. A slot freed this way goes to a later `create`,
+  the session's earlier `worktree-*` slots whose holder is gone, and that are
+  clean, fully pushed, and not running a `dx` command. A slot whose holder
+  still runs is kept, however old. A slot freed this way goes to a later `create`,
   never the one that freed it. A slot that another agent leased in the
   meantime is left alone. The slot is held by `worktree-<name>` until the
   first `dx worktree add` or `release` that the same session runs inside the
@@ -392,7 +393,7 @@ event that runs it.
   pool are ignored.
 - `stop` reads `agent_id` for the `SubagentStop` event. It marks the slots
   that agent holds as held by a gone holder. Slots no agent has claimed are
-  not marked; a later `create` frees them. Cursor's `subagentStop` input has
+  not marked; they stay held until the session ends. Cursor's `subagentStop` input has
   no `agent_id`; `stop` does nothing for it and exits `0`.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
   when the command runs `git worktree add`, `remove`, or `prune`. It tells
@@ -468,7 +469,8 @@ different holders, and `list` shows each one. Under Cursor and Gemini CLI, only 
 has none and is refused in a slot that a session holds. A slot from `hook create` goes
 to the first agent of the same session that runs `dx worktree add` or
 `release` inside it. A holder is gone when its process
-exits or `hook stop` marks it. Any other `dx` command run inside a slot leased
+exits or `hook stop` marks it. A slot no agent has claimed stays held until its
+session ends. Any other `dx` command run inside a slot leased
 to a different session exits `2` and names the holder. It also exits `2` when
 another agent of the same session holds the slot. A caller with no agent, a
 slot from `hook create` that no agent has claimed, and a holder that is gone

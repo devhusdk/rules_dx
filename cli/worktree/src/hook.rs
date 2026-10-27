@@ -180,9 +180,7 @@ fn free_branch(main: &Path, name: &str) -> String {
         .unwrap_or(stem)
 }
 
-const RECYCLE_AFTER_SECS: u64 = 60;
-
-fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
+fn recycle_gone(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
     let Some(session) = who.session.as_deref() else {
         return Vec::new();
     };
@@ -195,7 +193,7 @@ fn recycle_finished(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
         if record.held
             && agent
             && record.session.as_deref() == Some(session)
-            && host.now().saturating_sub(record.leased_at) >= RECYCLE_AFTER_SECS
+            && !ops::holder_alive(host, &record)
             && ops::release_lease(
                 pool,
                 host,
@@ -221,7 +219,7 @@ pub fn create(
     input: &Value,
 ) -> Result<Added, WorktreeError> {
     let name = field(input, "name").ok_or_else(|| missing(HookKind::Create, "name"))?;
-    let freed = recycle_finished(pool, host, who);
+    let freed = recycle_gone(pool, host, who);
     let warnings = ops::refresh(pool);
     let branch = free_branch(&pool.main, &name);
     ops::check_branch(pool, &branch)?;

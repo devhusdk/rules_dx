@@ -1,0 +1,6 @@
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
+
+svelte_library(
+    name = "Button",
+    srcs = ["Button.svelte"],
+)

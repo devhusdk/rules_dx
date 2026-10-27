@@ -16,6 +16,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
@@ -487,8 +488,8 @@ func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
 					}
 					return strings.ReplaceAll(trimmed, "-", "_"), nil
 				},
-				ParseImports: func([]byte, string) []string { return nil },
-				Wrap:         WrapImportSet,
+				ParseImports: func([]byte, string) []ImportRef { return nil },
+				Wrap:         WrapRefImportSet,
 			}, rep)
 		}
 		l := NewSingleLang(spec)
@@ -890,8 +891,8 @@ func TestGenerateStripsBOM(t *testing.T) {
 		LibraryKind:  dotKind,
 		IsSource:     isSource,
 		TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
-		ParseImports: func(content []byte, _ string) []string { seen = content; return nil },
-		Wrap:         WrapImportSet,
+		ParseImports: func(content []byte, _ string) []ImportRef { seen = content; return nil },
+		Wrap:         WrapRefImportSet,
 	}
 	GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, fileSpec, NewSingleLang(dotSpec()))
 	if string(seen) != "import x" {
@@ -1013,7 +1014,8 @@ func TestGeneratorsKeepMappedStdLibRoots(t *testing.T) {
 		file := GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleFileSpec{
 			LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2,
 			TargetName:   func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
-			ParseImports: func(c []byte, _ string) []string { return parse(c) }, IsStdLib: isDotStdLib, Wrap: WrapImportSet,
+			ParseImports: func(c []byte, _ string) []ImportRef { return bareRefs(parse(c)) }, IsStdLib: isDotStdLib,
+			Wrap: func(refs []ImportRef) any { return WrapImportSet(RefRoots(refs)) },
 		}, newDotLang())
 		for kind, res := range map[string]language.GenerateResult{"dir": single, "file": file} {
 			if len(res.Imports) != 1 {
@@ -1085,5 +1087,271 @@ filegroup(name = "other")
 	}
 	if got := empties(MergeStale(file, gen, kinds)); got != want {
 		t.Errorf("MergeStale empties = %q, want %q", got, want)
+	}
+}
+
+func bareRefs(names []string) []ImportRef {
+	var refs []ImportRef
+	for _, name := range names {
+		refs = append(refs, ImportRef{Spec: name, Root: name})
+	}
+	return refs
+}
+
+// fakeIndexLang indexes rules of its kind under the "imp" attribute, standing
+// in for the typescript and javascript languages in fallback tests.
+type fakeIndexLang struct {
+	name, kind string
+}
+
+func (f fakeIndexLang) Name() string { return f.name }
+
+func (f fakeIndexLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
+	var specs []resolve.ImportSpec
+	for _, imp := range r.AttrStrings("imp") {
+		specs = append(specs, resolve.ImportSpec{Lang: f.name, Imp: imp})
+	}
+	return specs
+}
+
+func (fakeIndexLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
+
+func (fakeIndexLang) Resolve(*config.Config, *resolve.RuleIndex, *repo.RemoteCache, *rule.Rule, interface{}, label.Label) {
+}
+
+var (
+	fakeTS = fakeIndexLang{name: "typescript", kind: "ts_project"}
+	fakeJS = fakeIndexLang{name: "javascript", kind: "js_library"}
+)
+
+func newWebDotLang() *SingleLang {
+	spec := dotSpec()
+	spec.PathIdentity = true
+	spec.IsStdLib = IsNodeBuiltin
+	spec.Fallback = []string{"typescript", "javascript"}
+	return NewSingleLang(spec)
+}
+
+type indexEntry struct{ kind, pkg, name, imp string }
+
+// fallbackIndex indexes dot rules (srcs <name>.dot) and fake typescript and
+// javascript rules (indexed under imp).
+func fallbackIndex(lang *SingleLang, entries ...indexEntry) *resolve.RuleIndex {
+	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
+		switch r.Kind() {
+		case dotKind:
+			return lang
+		case fakeTS.kind:
+			return fakeTS
+		case fakeJS.kind:
+			return fakeJS
+		}
+		return nil
+	})
+	for _, e := range entries {
+		r := rule.NewRule(e.kind, e.name)
+		if e.kind == dotKind {
+			r.SetAttr("srcs", []string{e.name + ".dot"})
+		} else {
+			r.SetAttr("imp", []string{e.imp})
+		}
+		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join(e.pkg, "BUILD.bazel"), e.pkg))
+	}
+	index.Finish()
+	return index
+}
+
+func relRef(root, moduleExt, ext string) ImportRef {
+	return ImportRef{Spec: "./" + path.Base(root) + moduleExt + ext, Root: root, Ext: ext, ModuleExt: moduleExt, Relative: true}
+}
+
+func resolveRefs(t *testing.T, l *SingleLang, cfg *config.Config, ix *resolve.RuleIndex, refs ...ImportRef) []string {
+	t.Helper()
+	r := rule.NewRule(dotKind, "main")
+	l.Resolve(cfg, ix, nil, r, WrapRefImportSet(refs), label.New("", "app", "main"))
+	return r.AttrStrings("deps")
+}
+
+func TestResolveRelativeFallsBackToTypescript(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "app", "store", "app/store"})
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/store", ".ts", ""))
+	if strings.Join(got, ",") != ":store" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveRelativeFallsBackToJavascript(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l, indexEntry{fakeJS.kind, "lib", "util", "lib/util"})
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("lib/util", ".js", ""))
+	if strings.Join(got, ",") != "//lib:util" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveFallbackUsesIndexCandidate(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "app/lib", "lib", "app/lib/index"})
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/lib", "", ""))
+	if strings.Join(got, ",") != "//app/lib" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveTSExtSkipsOwnIndex(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l,
+		indexEntry{dotKind, "app", "store", ""},
+		indexEntry{fakeTS.kind, "app", "store_ts", "app/store"},
+	)
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/store", ".ts", ""))
+	if strings.Join(got, ",") != ":store_ts" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveNoExtPrefersOwn(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l,
+		indexEntry{dotKind, "app", "store", ""},
+		indexEntry{fakeTS.kind, "app", "store_ts", "app/store"},
+	)
+	for _, ext := range []string{"", ".dot"} {
+		got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/store", ext, ""))
+		if strings.Join(got, ",") != ":store" || len(l.errors) != 0 {
+			t.Errorf("ext %q: deps = %v, errors = %v", ext, got, l.errors)
+		}
+	}
+}
+
+func TestResolveAmbiguousAcrossFallback(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l,
+		indexEntry{fakeTS.kind, "app", "store_ts", "app/store"},
+		indexEntry{fakeJS.kind, "app", "store_js", "app/store"},
+	)
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/store", "", ""))
+	if len(got) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveFallbackOverride(t *testing.T) {
+	l := newWebDotLang()
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "typescript app/store //mapped:store"}})
+	got := resolveRefs(t, l, cfg, fallbackIndex(l), relRef("app/store", ".ts", ""))
+	if strings.Join(got, ",") != "//mapped:store" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveOwnOverrideBeatsFallback(t *testing.T) {
+	l := newWebDotLang()
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "dot app/store //own:store"}})
+	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "app", "store", "app/store"})
+	got := resolveRefs(t, l, cfg, ix, relRef("app/store", ".ts", ""))
+	if strings.Join(got, ",") != "//own:store" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveAssetMissIsSkipped(t *testing.T) {
+	l := newWebDotLang()
+	got := resolveRefs(t, l, resolverConfig(t, nil), fallbackIndex(l), relRef("app/app.css", "", ".css"))
+	if len(got) != 0 || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveAssetHitAddsDep(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "app", "styles", "app/app.css"})
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/app.css", "", ".css"))
+	if strings.Join(got, ",") != ":styles" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestResolveRelativeIgnoreMarksUsed(t *testing.T) {
+	for _, ref := range []ImportRef{relRef("app/gone", ".ts", ""), relRef("app/gone.css", "", ".css")} {
+		l := newWebDotLang()
+		l.Before(context.Background())
+		cfg := resolverConfig(t, nil)
+		file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot "+ref.Root+"\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		l.Configure(cfg, "app", file)
+		if got := resolveRefs(t, l, cfg, fallbackIndex(l), ref); len(got) != 0 {
+			t.Errorf("%s: deps = %v", ref.Root, got)
+		}
+		l.AfterResolvingDeps(context.Background())
+		if len(l.errors) != 0 {
+			t.Errorf("%s: errors = %v", ref.Root, l.errors)
+		}
+	}
+}
+
+func TestResolveRelativeNodeNameIsNotStdlib(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "", "fs", "fs"})
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, ImportRef{Spec: "./fs", Root: "fs", Relative: true})
+	if strings.Join(got, ",") != "//:fs" || len(l.errors) != 0 {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+	l = newWebDotLang()
+	resolveRefs(t, l, resolverConfig(t, nil), fallbackIndex(l), ImportRef{Spec: "./fs", Root: "fs", Relative: true})
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+		t.Errorf("errors = %v, want unresolved", l.errors)
+	}
+}
+
+func TestResolveBareRefNoFallback(t *testing.T) {
+	l := newWebDotLang()
+	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "", "react", "react"})
+	got := resolveRefs(t, l, resolverConfig(t, nil), ix, ImportRef{Spec: "react", Root: "react"}, ImportRef{Spec: "fs", Root: "fs"})
+	if len(got) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0], `"react"`) {
+		t.Errorf("deps = %v, errors = %v", got, l.errors)
+	}
+}
+
+func TestGenerateSingleFileKeepsRelativeNodeName(t *testing.T) {
+	root := t.TempDir()
+	dotFile(t, root, "main.dot", "")
+	args := language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, Rel: "", RegularFiles: []string{"main.dot"}}
+	result := GenerateSingleFile(args, map[string]rule.KindInfo{dotKind: LibraryKindInfo()}, SingleFileSpec{
+		LanguageName: dotLanguage, LibraryKind: dotKind, IsSource: isDot2,
+		TargetName: func(name string) (string, error) { return strings.TrimSuffix(name, ".dot"), nil },
+		ParseImports: func([]byte, string) []ImportRef {
+			return []ImportRef{{Spec: "fs", Root: "fs"}, {Spec: "./fs", Root: "fs", Relative: true}, {Spec: "./fs.ts", Root: "fs", ModuleExt: ".ts", Relative: true}}
+		},
+		IsStdLib: IsNodeBuiltin,
+		Wrap:     WrapRefImportSet,
+	}, newWebDotLang())
+	if len(result.Imports) != 1 {
+		t.Fatalf("imports = %v", result.Imports)
+	}
+	got, _ := UnwrapRefImportSet(result.Imports[0])
+	want := []ImportRef{{Spec: "./fs", Root: "fs", Relative: true}, {Spec: "./fs.ts", Root: "fs", ModuleExt: ".ts", Relative: true}}
+	if !slices.Equal(got, want) {
+		t.Errorf("imports = %+v, want %+v", got, want)
+	}
+}
+
+func TestWrapAndUnwrapRefImportSet(t *testing.T) {
+	refs := []ImportRef{{Spec: "./a.ts", Root: "a", ModuleExt: ".ts", Relative: true}, {Spec: "b", Root: "b"}}
+	got, ok := UnwrapRefImportSet(WrapRefImportSet(refs))
+	if !ok || !slices.Equal(got, refs) {
+		t.Errorf("round trip = %+v, %v", got, ok)
+	}
+	if _, ok := UnwrapRefImportSet(WrapImportSet([]string{"a"})); ok {
+		t.Error("UnwrapRefImportSet accepted an ImportSet")
+	}
+	if _, ok := UnwrapImportSet(WrapRefImportSet(refs)); ok {
+		t.Error("UnwrapImportSet accepted a RefImportSet")
+	}
+	if got := (RefImportSet{Refs: refs}).Roots(); !slices.Equal(got, []string{"a", "b"}) {
+		t.Errorf("Roots = %v", got)
 	}
 }

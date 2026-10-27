@@ -503,7 +503,7 @@ func sortedKeys(m map[string]string) []string {
 
 func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 	const oneSource = "add a local one-source library or an exact # gazelle:resolve mapping"
-	const oneSourceRelative = oneSource + " (relative imports use the workspace path without extension)"
+	const oneSourceRelative = oneSource + " (relative imports use the workspace path without extension and also search TypeScript and JavaScript targets)"
 	const jvm = "add a local library or a # gazelle:resolve mapping on the qualified import or its package"
 	const csharp = "add a local library that declares the namespace or a # gazelle:resolve mapping on the full namespace"
 	hints := map[string]string{
@@ -715,5 +715,28 @@ func TestAfterResolvingDepsFailsOnLangWithoutDispatch(t *testing.T) {
 	}
 	if _, err := os.Stat(out); !os.IsNotExist(err) {
 		t.Fatalf("manifest stat = %v, want no manifest written", err)
+	}
+}
+
+func TestFallbackLanguagesAreComposed(t *testing.T) {
+	names := make(map[string]bool)
+	for _, lang := range composedLanguages() {
+		names[lang.Name()] = true
+	}
+	checked := 0
+	for _, lang := range composedLanguages() {
+		fb, ok := lang.(interface{ Fallback() []string })
+		if !ok {
+			continue
+		}
+		for _, name := range fb.Fallback() {
+			checked++
+			if !names[name] {
+				t.Errorf("%s: fallback language %q is not composed", lang.Name(), name)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no language declares a fallback")
 	}
 }

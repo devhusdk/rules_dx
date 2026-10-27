@@ -1,0 +1,24 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+
+javascript_library(
+    name = "util",
+    srcs = ["util.js"],
+)
+
+mdx_library(
+    name = "main",
+    srcs = ["main.mdx"],
+    deps = [
+        ":store",
+        ":util",
+        "//a:Button",
+        "//b:Button",
+    ],
+)
+
+typescript_project(
+    name = "store",
+    srcs = ["store.ts"],
+)

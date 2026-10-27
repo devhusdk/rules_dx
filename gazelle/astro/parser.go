@@ -5,7 +5,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-func ParseImports(content []byte, dir string) []string {
+func ParseImports(content []byte, dir string) []common.ImportRef {
 	body := content
 	var regions [][]byte
 	if fenced, front, rest, ok := splitFence(content); fenced {
@@ -17,11 +17,11 @@ func ParseImports(content []byte, dir string) []string {
 	}
 	scripts := common.ExtractScripts(body, common.Anywhere)
 	regions = append(regions, scripts...)
-	set := common.SpecSet{Dir: dir}
+	set := common.RefSet{Dir: dir}
 	for _, region := range regions {
 		common.ScanEmbedded(region, set.Add)
 	}
-	return set.Roots()
+	return set.Refs()
 }
 
 // splitFence only frames the frontmatter; ScanEmbedded reads its imports.

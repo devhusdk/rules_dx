@@ -1,0 +1,6 @@
+load("@rules_dx//vue/rules:defs.bzl", "vue_library")
+
+vue_library(
+    name = "Button",
+    srcs = ["Button.vue"],
+)

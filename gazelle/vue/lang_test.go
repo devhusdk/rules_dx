@@ -70,12 +70,12 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := strings.Join(helper.AttrStrings("srcs"), ","); got != "helper.vue" {
 		t.Errorf("helper srcs = %q", got)
 	}
-	libImports := result.Imports[0].(common.ImportSet)
-	if strings.Join(libImports.Names, ",") != "pkg/demo/helper" {
+	libImports := result.Imports[0].(common.RefImportSet)
+	if strings.Join(libImports.Roots(), ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v, want [pkg/demo/helper]", libImports)
 	}
-	helperImports := result.Imports[1].(common.ImportSet)
-	if len(helperImports.Names) != 0 {
+	helperImports := result.Imports[1].(common.RefImportSet)
+	if len(helperImports.Roots()) != 0 {
 		t.Errorf("helper imports = %+v, want empty", helperImports)
 	}
 }

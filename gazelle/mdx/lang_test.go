@@ -73,12 +73,12 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := strings.Join(helper.AttrStrings("srcs"), ","); got != "helper.mdx" {
 		t.Errorf("helper srcs = %q", got)
 	}
-	libImports := result.Imports[0].(common.ImportSet)
-	if strings.Join(libImports.Names, ",") != "pkg/demo/helper" {
+	libImports := result.Imports[0].(common.RefImportSet)
+	if strings.Join(libImports.Roots(), ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v, want [pkg/demo/helper]", libImports)
 	}
-	helperImports := result.Imports[1].(common.ImportSet)
-	if len(helperImports.Names) != 0 {
+	helperImports := result.Imports[1].(common.RefImportSet)
+	if len(helperImports.Roots()) != 0 {
 		t.Errorf("helper imports = %+v, want empty", helperImports)
 	}
 }
@@ -92,8 +92,8 @@ func TestGenerateFencedCodeInert(t *testing.T) {
 	if len(result.Gen) != 2 || len(result.Imports) != 2 {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
-	libImports := result.Imports[0].(common.ImportSet)
-	if strings.Join(libImports.Names, ",") != "pkg/demo/helper" {
+	libImports := result.Imports[0].(common.RefImportSet)
+	if strings.Join(libImports.Roots(), ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v, want [pkg/demo/helper]", libImports)
 	}
 }
@@ -107,8 +107,8 @@ func TestGenerateHeadingBoundary(t *testing.T) {
 	if len(result.Gen) != 2 || len(result.Imports) != 2 {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
-	libImports := result.Imports[0].(common.ImportSet)
-	if strings.Join(libImports.Names, ",") != "pkg/demo/helper" {
+	libImports := result.Imports[0].(common.RefImportSet)
+	if strings.Join(libImports.Roots(), ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v, want [pkg/demo/helper]", libImports)
 	}
 }
@@ -121,8 +121,8 @@ func TestGenerateParagraphContinuationInert(t *testing.T) {
 	if len(result.Gen) != 1 || len(result.Imports) != 1 {
 		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
 	}
-	libImports := result.Imports[0].(common.ImportSet)
-	if len(libImports.Names) != 0 {
+	libImports := result.Imports[0].(common.RefImportSet)
+	if len(libImports.Roots()) != 0 {
 		t.Errorf("paragraph-continuation imports = %+v, want empty", libImports)
 	}
 }
@@ -140,8 +140,8 @@ func TestGenerateMultiImportAndExport(t *testing.T) {
 	if result.Gen[1].Name() != "demo" {
 		t.Fatalf("middle rule = %s, want demo", result.Gen[1].Name())
 	}
-	libImports := result.Imports[1].(common.ImportSet)
-	if strings.Join(libImports.Names, ",") != "pkg/demo/client,pkg/demo/server" {
+	libImports := result.Imports[1].(common.RefImportSet)
+	if strings.Join(libImports.Roots(), ",") != "pkg/demo/client,pkg/demo/server" {
 		t.Errorf("library imports = %+v, want [client server]", libImports)
 	}
 	for idx, want := range []string{"client", "server"} {
@@ -149,7 +149,7 @@ func TestGenerateMultiImportAndExport(t *testing.T) {
 		if got := result.Gen[ruleIdx].Name(); got != want {
 			t.Fatalf("rule[%d] = %s, want %s", ruleIdx, got, want)
 		}
-		if neighbor := result.Imports[ruleIdx].(common.ImportSet); len(neighbor.Names) != 0 {
+		if neighbor := result.Imports[ruleIdx].(common.RefImportSet); len(neighbor.Roots()) != 0 {
 			t.Errorf("%s imports = %+v, want empty", want, neighbor)
 		}
 	}

@@ -57,10 +57,14 @@ func Scan(src []byte, add func(string)) {
 }
 
 type ImportRef struct {
-	Spec     string
-	Root     string
-	Ext      string
-	Relative bool
+	Spec string
+	Root string
+	// Ext is an asset extension (such as .json or .css) kept in Root.
+	Ext string
+	// ModuleExt is the module extension (such as .ts or .svelte) stripped
+	// from Root. It is empty when the spec named no module extension.
+	ModuleExt string
+	Relative  bool
 }
 
 // JSModuleExts are the extensions stripped from a relative JavaScript or
@@ -68,14 +72,14 @@ type ImportRef struct {
 var JSModuleExts = []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
 
 // relativeRef returns the workspace-relative identity of a relative spec with
-// any extension in exts stripped, and any other extension (such as .json or
-// .prod) left in the root and returned as ext.
-func relativeRef(dir, spec string, exts []string) (root, ext string) {
+// any extension in exts stripped and returned as moduleExt, and any other
+// extension (such as .json or .prod) left in the root and returned as ext.
+func relativeRef(dir, spec string, exts []string) (root, ext, moduleExt string) {
 	spec = strings.TrimSpace(spec)
 	trimmed := strings.TrimSuffix(spec, "/")
 	switch path.Base(trimmed) {
 	case "", ".", "..", "/":
-		return "", ""
+		return "", "", ""
 	}
 	var joined string
 	if strings.HasPrefix(spec, "/") {
@@ -86,12 +90,12 @@ func relativeRef(dir, spec string, exts []string) (root, ext string) {
 	base := path.Base(joined)
 	e := path.Ext(base)
 	if e == "" || e == "." || e == base {
-		return joined, ""
+		return joined, "", ""
 	}
 	if slices.Contains(exts, e) {
-		return strings.TrimSuffix(joined, e), ""
+		return strings.TrimSuffix(joined, e), "", e
 	}
-	return joined, e
+	return joined, e, ""
 }
 
 func ModuleIdentity(pkg, stem string) string {
@@ -111,9 +115,9 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 			return
 		}
 		relative := isRelativeSpec(spec)
-		root, ext := spec, ""
+		root, ext, moduleExt := spec, "", ""
 		if relative {
-			root, ext = relativeRef(dir, spec, JSModuleExts)
+			root, ext, moduleExt = relativeRef(dir, spec, JSModuleExts)
 		}
 		if root == "" {
 			return
@@ -121,7 +125,7 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 		if prev, ok := refs[root]; ok && (prev.Relative || !relative) {
 			return
 		}
-		refs[root] = ImportRef{Spec: spec, Root: root, Ext: ext, Relative: relative}
+		refs[root] = ImportRef{Spec: spec, Root: root, Ext: ext, ModuleExt: moduleExt, Relative: relative}
 	})
 	out := make([]ImportRef, 0, len(refs))
 	for _, ref := range refs {
@@ -131,34 +135,65 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 	return out
 }
 
-var specSetExts = append(slices.Clone(JSModuleExts), ".vue", ".svelte", ".astro", ".mdx")
+var refSetExts = append(slices.Clone(JSModuleExts), ".vue", ".svelte", ".astro", ".mdx")
 
-type SpecSet struct {
-	Dir   string
-	roots map[string]struct{}
+// RefSet collects the imports of a web component (Svelte, Vue, Astro, MDX)
+// source in Dir. Relative specs get their workspace path as Root, with any
+// JavaScript, TypeScript or web component extension stripped into ModuleExt
+// and any other extension kept in Root and recorded as Ext.
+type RefSet struct {
+	Dir  string
+	refs map[refKey]ImportRef
 }
 
-func (s *SpecSet) Add(spec string) {
+type refKey struct{ root, moduleExt string }
+
+func (s *RefSet) Add(spec string) {
 	spec = strings.TrimSpace(spec)
-	root := spec
-	if isRelativeSpec(spec) {
-		root, _ = relativeRef(s.Dir, spec, specSetExts)
+	relative := isRelativeSpec(spec)
+	root, ext, moduleExt := spec, "", ""
+	if relative {
+		root, ext, moduleExt = relativeRef(s.Dir, spec, refSetExts)
 	}
 	if root == "" {
 		return
 	}
-	if s.roots == nil {
-		s.roots = make(map[string]struct{})
+	key := refKey{root, moduleExt}
+	if prev, ok := s.refs[key]; ok && (prev.Relative || !relative) {
+		return
 	}
-	s.roots[root] = struct{}{}
+	if s.refs == nil {
+		s.refs = make(map[refKey]ImportRef)
+	}
+	s.refs[key] = ImportRef{Spec: spec, Root: root, Ext: ext, ModuleExt: moduleExt, Relative: relative}
 }
 
-func (s *SpecSet) Roots() []string {
-	var out []string
-	for root := range s.roots {
-		out = append(out, root)
+// Refs returns the collected imports sorted by Root, then ModuleExt.
+func (s *RefSet) Refs() []ImportRef {
+	var out []ImportRef
+	for _, ref := range s.refs {
+		out = append(out, ref)
 	}
-	sort.Strings(out)
+	SortRefs(out)
+	return out
+}
+
+// SortRefs orders refs by Root, then ModuleExt.
+func SortRefs(refs []ImportRef) {
+	sort.Slice(refs, func(i, j int) bool {
+		if refs[i].Root != refs[j].Root {
+			return refs[i].Root < refs[j].Root
+		}
+		return refs[i].ModuleExt < refs[j].ModuleExt
+	})
+}
+
+// RefRoots returns the Root of each ref, in order.
+func RefRoots(refs []ImportRef) []string {
+	var out []string
+	for _, ref := range refs {
+		out = append(out, ref.Root)
+	}
 	return out
 }
 

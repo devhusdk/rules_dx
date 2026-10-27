@@ -187,10 +187,10 @@ type SingleFileSpec struct {
 	LibraryKind  string
 	IsSource     func(name string) bool
 	TargetName   func(name string) (string, error)
-	ParseImports func(content []byte, dir string) []string
+	ParseImports func(content []byte, dir string) []ImportRef
 	IsStdLib     func(name string) bool
 	Candidates   func(name string) []string
-	Wrap         func(imports []string) any
+	Wrap         func(imports []ImportRef) any
 }
 
 func mappedByOverride(c *config.Config, lang string, candidates func(string) []string, name string) bool {
@@ -227,7 +227,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	type plan struct {
 		name    string
 		src     string
-		imports []string
+		imports []ImportRef
 	}
 	var plans []plan
 	for _, src := range sources {
@@ -242,15 +242,16 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 			continue
 		}
 		p := plan{name: name, src: src}
-		seen := make(map[string]bool)
-		for _, root := range spec.ParseImports(content, path.Dir(path.Join(args.Rel, src))) {
-			if skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) || seen[root] {
+		seen := make(map[refKey]bool)
+		for _, ref := range spec.ParseImports(content, path.Dir(path.Join(args.Rel, src))) {
+			key := refKey{ref.Root, ref.ModuleExt}
+			if seen[key] || (!ref.Relative && skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, ref.Root)) {
 				continue
 			}
-			seen[root] = true
-			p.imports = append(p.imports, root)
+			seen[key] = true
+			p.imports = append(p.imports, ref)
 		}
-		sort.Strings(p.imports)
+		SortRefs(p.imports)
 		plans = append(plans, p)
 	}
 	if rep.Failed() {
@@ -269,7 +270,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		r := rule.NewRule(spec.LibraryKind, p.name)
 		r.SetAttr("srcs", []string{p.src})
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, spec.Wrap(append([]string(nil), p.imports...)))
+		result.Imports = append(result.Imports, spec.Wrap(append([]ImportRef(nil), p.imports...)))
 	}
 	if IsFixturePath(args.Rel) {
 		for _, r := range result.Gen {
@@ -435,6 +436,12 @@ type ResolveSpec struct {
 	Attr           string
 	UnresolvedHint string
 	Unwrap         func(raw any) ([]string, bool)
+	// UnwrapRefs, when set and matching, takes precedence over Unwrap and
+	// gives import refs whose relative entries may use Fallback.
+	UnwrapRefs func(raw any) ([]ImportRef, bool)
+	// Fallback lists the languages whose rule index and overrides a relative
+	// import searches, in order, when the own language has no match.
+	Fallback       []string
 	IsStdLib       func(name string) bool
 	Candidates     func(name string) []string
 	MarkUsed       func(name string) bool
@@ -444,7 +451,7 @@ type ResolveSpec struct {
 }
 
 func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw any, from label.Label, spec ResolveSpec) {
-	imports, ok := spec.Unwrap(raw)
+	refs, ok := unwrapRefs(raw, spec)
 	if !ok {
 		return
 	}
@@ -452,10 +459,11 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 		return
 	}
 	deps := make(map[string]bool)
-	for _, name := range imports {
+	for _, ref := range refs {
+		name := ref.Root
 		imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
 		override, found := resolve.FindRuleWithOverride(c, imp, spec.LanguageName)
-		if !found && spec.IsStdLib != nil && spec.IsStdLib(name) {
+		if !found && !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
 			continue
 		}
 		if found {
@@ -466,8 +474,14 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			deps[override.Rel(from.Repo, from.Pkg).String()] = true
 			continue
 		}
-		matches := ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)
-		if len(matches) == 0 {
+		// A relative import naming a JavaScript or TypeScript extension can
+		// never be a source of this language, so it skips the own index.
+		ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
+		var matches []resolve.FindResult
+		if ownIndex {
+			matches = ix.FindRulesByImportWithConfig(c, imp, spec.LanguageName)
+		}
+		if len(matches) == 0 && ownIndex {
 			var cands []string
 			if spec.Candidates != nil {
 				cands = spec.Candidates(name)
@@ -487,6 +501,23 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			if mapped {
 				continue
 			}
+		}
+		if len(matches) == 0 && ref.Relative && len(spec.Fallback) > 0 {
+			fb, mapped := findFallback(c, ix, spec.Fallback, name, from)
+			if mapped {
+				deps[fb.Override.Rel(from.Repo, from.Pkg).String()] = true
+				continue
+			}
+			matches = fb.Matches
+			if len(matches) == 0 && fb.SelfMatch {
+				continue
+			}
+		}
+		if len(matches) == 0 && ref.Relative && ref.Ext != "" && len(spec.Fallback) > 0 {
+			// An asset no target owns is left to the bundler. A matching
+			// ignore is still marked used so it never reads as stale.
+			spec.MarkUsed(name)
+			continue
 		}
 		switch len(matches) {
 		case 1:
@@ -514,4 +545,59 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 	sort.Strings(labels)
 	r.SetAttr(spec.Attr, UnionStrings(r.AttrStrings(spec.Attr), labels))
+}
+
+func unwrapRefs(raw any, spec ResolveSpec) ([]ImportRef, bool) {
+	if spec.UnwrapRefs != nil {
+		if refs, ok := spec.UnwrapRefs(raw); ok {
+			return refs, true
+		}
+	}
+	if spec.Unwrap == nil {
+		return nil, false
+	}
+	names, ok := spec.Unwrap(raw)
+	if !ok {
+		return nil, false
+	}
+	refs := make([]ImportRef, 0, len(names))
+	for _, name := range names {
+		refs = append(refs, ImportRef{Spec: name, Root: name})
+	}
+	return refs, true
+}
+
+type fallbackLookup struct {
+	Override  label.Label
+	Matches   []resolve.FindResult
+	SelfMatch bool
+}
+
+// findFallback looks a relative import up in each fallback language. The first
+// override, in fallback order, wins. Otherwise index matches from every
+// fallback language are combined with from itself left out; SelfMatch reports
+// that from was the only match.
+func findFallback(c *config.Config, ix *resolve.RuleIndex, langs []string, name string, from label.Label) (fallbackLookup, bool) {
+	var out fallbackLookup
+	seen := make(map[label.Label]bool)
+	for _, lang := range langs {
+		found := FindJSImport(c, ix, lang, name, true)
+		if found.HasOverride {
+			return fallbackLookup{Override: found.Override}, true
+		}
+		for _, m := range found.Matches {
+			if m.Label == from {
+				out.SelfMatch = true
+				continue
+			}
+			if !seen[m.Label] {
+				seen[m.Label] = true
+				out.Matches = append(out.Matches, m)
+			}
+		}
+	}
+	if len(out.Matches) > 0 {
+		out.SelfMatch = false
+	}
+	return out, false
 }

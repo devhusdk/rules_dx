@@ -1,0 +1,6 @@
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+
+mdx_library(
+    name = "Button",
+    srcs = ["Button.mdx"],
+)

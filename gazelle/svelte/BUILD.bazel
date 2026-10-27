@@ -53,6 +53,7 @@ real_source_target(
         "testdata/entries/README.md",
         "testdata/merge/README.md",
         "testdata/nested_script/README.md",
+        "testdata/relative_imports/README.md",
         "testdata/source_only/README.md",
     ],
     tags = ["corpus"],

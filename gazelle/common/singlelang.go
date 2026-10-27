@@ -31,6 +31,25 @@ func UnwrapImportSet(raw any) ([]string, bool) {
 	return set.Names, true
 }
 
+// RefImportSet carries the import refs of one generated rule for languages
+// that resolve relative imports with a fallback.
+type RefImportSet struct {
+	Refs []ImportRef
+}
+
+func WrapRefImportSet(refs []ImportRef) any { return RefImportSet{Refs: refs} }
+
+func UnwrapRefImportSet(raw any) ([]ImportRef, bool) {
+	set, ok := raw.(RefImportSet)
+	if !ok {
+		return nil, false
+	}
+	return set.Refs, true
+}
+
+// Roots returns the Root of each ref, in order.
+func (s RefImportSet) Roots() []string { return RefRoots(s.Refs) }
+
 type SingleLangSpec struct {
 	LanguageName string
 	DisplayName  string
@@ -49,7 +68,10 @@ type SingleLangSpec struct {
 	UnresolvedHint string
 	QualifiedIDs   func(path string) []string
 	Candidates     func(name string) []string
-	Generate       func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
+	// Fallback lists the languages a relative import also searches when the
+	// own index has no match.
+	Fallback []string
+	Generate func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 
 	// KindDefs maps a kind to the defs package that exports it. Kinds without
 	// an entry load from DefsPackage.
@@ -115,6 +137,9 @@ func (l *SingleLang) AfterResolvingDeps(context.Context) {
 }
 
 func (l *SingleLang) Name() string { return l.spec.LanguageName }
+
+// Fallback returns the languages a relative import also searches.
+func (l *SingleLang) Fallback() []string { return l.spec.Fallback }
 
 func (l *SingleLang) Kinds() map[string]rule.KindInfo { return l.spec.Kinds }
 
@@ -214,6 +239,8 @@ func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Re
 		WantKind:     want,
 		Attr:         "deps",
 		Unwrap:       UnwrapImportSet,
+		UnwrapRefs:   UnwrapRefImportSet,
+		Fallback:     l.spec.Fallback,
 		IsStdLib:     l.spec.IsStdLib,
 		Candidates:   l.spec.Candidates,
 		MarkUsed: func(name string) bool {

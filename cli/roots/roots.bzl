@@ -11,9 +11,11 @@ repository_roots_file = rule(
     doc = "Writes repository-root candidates to a text file, one per line.",
     attrs = {
         "roots": attr.string_list(
+            doc = "Repository-root candidates written one per line.",
             mandatory = True,
         ),
         "out": attr.output(
+            doc = "Output text file that receives the root candidates.",
             mandatory = True,
         ),
     },

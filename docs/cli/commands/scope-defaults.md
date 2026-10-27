@@ -123,7 +123,8 @@ exit `2`).
   `*.lock` file, an added or deleted lock, a lock dx cannot read, or a
   crate_universe lockfile change in another key outside `crates` (such as
   `conditions`) widens to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
-  not widen; it selects its owners like any other file.
+  not widen; it selects its owners like any other file. A patch or
+  `additive_build_file` named in a `crate.annotation` tag widens to `//...`.
 - A root `MODULE.bazel` change that only edits `bazel_dep` version strings,
   with the matching `MODULE.bazel.lock` change, selects the targets in the
   repos of the changed modules and of every module that depends on them, plus

@@ -429,9 +429,14 @@ impl ModuleInputPaths {
     }
 }
 
-fn is_crate_extension(extension: &Option<(String, String)>) -> bool {
+/// Lock and manifest inputs of the crate extension are handled by the lock
+/// narrowing; other tags (such as `crate.annotation` patches and
+/// `additive_build_file`) change repo contents and widen like any input.
+fn is_crate_lock_input(extension: &Option<(String, String)>, tag: &str) -> bool {
     extension.as_ref().is_some_and(|(bzl, name)| {
-        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL) && name == "crate"
+        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL)
+            && name == "crate"
+            && matches!(tag, "from_cargo" | "from_specs")
     })
 }
 
@@ -457,7 +462,7 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
                     None => segments_ok = false,
                 }
             }
-            if is_crate_extension(&file.extension) {
+            if is_crate_lock_input(&file.extension, &file.tag) {
                 continue;
             }
             let sibling = match file_name_of(&file.path) {
@@ -1569,6 +1574,22 @@ mod tests {
             "deps/go.MODULE.bazel",
         ] {
             write(workspace, changed, "x\n");
+            widens_as_workspace_input(workspace, changed);
+        }
+    }
+
+    #[test]
+    fn crate_annotation_patches_and_build_files_widen() {
+        let scratch = crate_workspace("dx-changed-crate-annotation-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.annotation(crate = \"serde\", patches = [\"//third_party:serde.patch\"], additive_build_file = \"//third_party:serde.BUILD\")\n",
+        );
+        write(workspace, "third_party/serde.patch", "x\n");
+        write(workspace, "third_party/serde.BUILD", "x\n");
+        for changed in ["third_party/serde.patch", "third_party/serde.BUILD"] {
             widens_as_workspace_input(workspace, changed);
         }
     }

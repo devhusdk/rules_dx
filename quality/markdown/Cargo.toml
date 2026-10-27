@@ -5,12 +5,13 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-deunicode = "1.6.2"
 pulldown-cmark = { version = "0.13", default-features = false }
 serde = { version = "1", features = ["derive"] }
-slug = "0.1.6"
 thiserror = "2"
 tracing = "0.1"
+unicode-properties = { version = "0.1.4", default-features = false, features = [
+  "general-category",
+] }
 
 [dev-dependencies]
 serde_json = "1"

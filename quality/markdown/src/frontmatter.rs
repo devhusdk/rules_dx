@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd};
+use unicode_properties::{GeneralCategory, UnicodeGeneralCategory};
 
 use super::check::{push_finding, CheckOutcome, FindingKind};
 
@@ -64,7 +65,7 @@ pub(crate) fn slugs_in(content: &str) -> BTreeSet<String> {
 
 pub(crate) fn headings(text: &str, starts: &[usize]) -> Vec<Heading> {
     let mut out = Vec::new();
-    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut slugger = Slugger::default();
     let mut depth = 0usize;
     let mut open: Option<(usize, u32, bool, String)> = None;
     for (event, range) in Parser::new_ext(text, Options::empty()).into_offset_iter() {
@@ -93,19 +94,7 @@ pub(crate) fn headings(text: &str, starts: &[usize]) -> Vec<Heading> {
             }
             Event::End(TagEnd::Heading(_)) => {
                 if let Some((level, line, top_level, buf)) = open.take() {
-                    let base = slug(&buf);
-                    let slug = if base.is_empty() {
-                        base
-                    } else {
-                        let count = counts.entry(base.clone()).or_insert(0);
-                        let s = if *count == 0 {
-                            base.clone()
-                        } else {
-                            format!("{base}-{}", *count)
-                        };
-                        *count += 1;
-                        s
-                    };
+                    let slug = slugger.slug(&buf);
                     out.push(Heading {
                         level,
                         line,
@@ -205,6 +194,49 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
     regions
 }
 
+/// Slug a heading the way GitHub does: lowercase, keep letters, marks, digits, `-` and `_`, and turn each space into `-`.
 pub fn slug(text: &str) -> String {
-    slug::slugify(deunicode::deunicode(text))
+    text.to_lowercase()
+        .chars()
+        .filter_map(|c| match c {
+            ' ' => Some('-'),
+            '-' => Some(c),
+            _ if c.is_alphabetic() => Some(c),
+            _ => match c.general_category() {
+                GeneralCategory::UppercaseLetter
+                | GeneralCategory::LowercaseLetter
+                | GeneralCategory::TitlecaseLetter
+                | GeneralCategory::ModifierLetter
+                | GeneralCategory::OtherLetter
+                | GeneralCategory::NonspacingMark
+                | GeneralCategory::SpacingMark
+                | GeneralCategory::EnclosingMark
+                | GeneralCategory::DecimalNumber
+                | GeneralCategory::LetterNumber
+                | GeneralCategory::ConnectorPunctuation => Some(c),
+                _ => None,
+            },
+        })
+        .collect()
+}
+
+#[derive(Default)]
+struct Slugger {
+    occurrences: BTreeMap<String, usize>,
+    taken: BTreeSet<String>,
+}
+
+impl Slugger {
+    fn slug(&mut self, text: &str) -> String {
+        let base = slug(text);
+        let mut candidate = base.clone();
+        while self.taken.contains(&candidate) {
+            let n = self.occurrences.entry(base.clone()).or_insert(0);
+            *n += 1;
+            candidate = format!("{base}-{n}");
+        }
+        self.occurrences.entry(base).or_insert(0);
+        self.taken.insert(candidate.clone());
+        candidate
+    }
 }

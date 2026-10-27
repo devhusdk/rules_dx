@@ -33,6 +33,7 @@ build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --@rules_rust//rust/settings:clippy.toml=//:clippy.toml
 build:linux --@rules_rust//rust/settings:pipelined_compilation=true
 build:macos --@rules_rust//rust/settings:pipelined_compilation=true
+build:windows --@rules_rust//rust/settings:pipelined_compilation=true
 
 build --javacopt=-Werror
 build --javacopt=-Xlint:all

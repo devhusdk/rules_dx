@@ -29,6 +29,8 @@ const BAZEL_GC_IDLE_DELAY_SECS: u64 = 300;
 pub struct RcPolicy {
     pub read_user_rc: bool,
     pub disk_cache: Option<String>,
+    /// The disk cache a plain `build` uses: the rc value when an rc sets one, else dx's own.
+    pub bazel_disk_cache: Option<PathBuf>,
     pub local_cpu: bool,
     pub local_memory: bool,
     /// Whether dx bounds its disk cache with the gc max size and max age pair.
@@ -40,6 +42,7 @@ pub struct RcPolicy {
 static HERMETIC: RcPolicy = RcPolicy {
     read_user_rc: false,
     disk_cache: None,
+    bazel_disk_cache: None,
     local_cpu: false,
     local_memory: false,
     disk_cache_gc: false,
@@ -110,11 +113,17 @@ impl RcPolicy {
             return RcPolicy::hermetic();
         }
         let roots = rc_roots(env_get, workspace);
-        let disk_cache = if rc_sets_disk_cache(&roots, workspace, read_file) {
-            None
+        let settings = disk_cache_settings(&roots, workspace, read_file);
+        let (disk_cache, bazel_disk_cache) = if settings.is_empty() {
+            let default = user_cache_dir(env_get).map(|cache| default_disk_cache(&cache));
+            (
+                default
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().into_owned()),
+                default,
+            )
         } else {
-            user_cache_dir(env_get)
-                .map(|cache| default_disk_cache(&cache).to_string_lossy().into_owned())
+            (None, resolve_disk_cache(&settings, env_get, workspace))
         };
         let disk_cache_gc =
             disk_cache.is_some() && !rc_sets_disk_cache_gc(&roots, workspace, read_file);
@@ -126,6 +135,7 @@ impl RcPolicy {
         RcPolicy {
             read_user_rc: true,
             disk_cache,
+            bazel_disk_cache,
             local_cpu: !rc_sets_local_resource(&roots, workspace, read_file, "cpu"),
             local_memory: !rc_sets_local_resource(&roots, workspace, read_file, "memory"),
             disk_cache_gc,
@@ -285,32 +295,99 @@ pub fn default_disk_cache(cache: &Path) -> PathBuf {
     cache.join("dx").join("disk-cache")
 }
 
-fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
+/// The home directory Bazel expands `~` and finds the user rc in.
+fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    let mut roots = vec![workspace.join(".bazelrc")];
-    if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
-        roots.push(PathBuf::from(home).join(".bazelrc"));
-    }
+    non_empty("HOME")
+        .or_else(|| non_empty("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+/// The rc files in the order Bazel reads them: system, workspace, then home. Later files win.
+fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
     if cfg!(windows) {
-        if let Some(data) = non_empty("ProgramData") {
+        if let Some(data) = env_get("ProgramData").filter(|value| !value.is_empty()) {
             roots.push(PathBuf::from(data).join("bazel.bazelrc"));
         }
     } else {
         roots.push(PathBuf::from("/etc/bazel.bazelrc"));
     }
+    roots.push(workspace.join(".bazelrc"));
+    if let Some(home) = home_dir(env_get) {
+        roots.push(home.join(".bazelrc"));
+    }
     roots
 }
 
-/// Whether any rc file reachable from `roots` mentions a disk cache flag.
-pub fn rc_sets_disk_cache(
+/// One `--disk_cache` or `--nodisk_cache` token in an rc file, with the line it came from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Setting {
+    /// The first token of the line: the command, optionally with a `:config` suffix.
+    command: String,
+    /// The flag token itself.
+    flag: String,
+    /// The token after the flag, for the split `--disk_cache /x` form.
+    next: Option<String>,
+}
+
+/// Every disk cache flag in the rc files reachable from `roots`, in the order Bazel reads them.
+fn disk_cache_settings(
     roots: &[PathBuf],
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
-) -> bool {
-    let sets = |token: &str, _: Option<&str>| {
-        token.starts_with("--disk_cache") || token.starts_with("--nodisk_cache")
+) -> Vec<Setting> {
+    let mut settings = Vec::new();
+    let mut visit = |tokens: &[&str]| {
+        let command = tokens.first().copied().unwrap_or_default();
+        for (index, token) in tokens.iter().enumerate() {
+            if token.starts_with("--disk_cache") || token.starts_with("--nodisk_cache") {
+                settings.push(Setting {
+                    command: command.to_owned(),
+                    flag: (*token).to_owned(),
+                    next: tokens.get(index + 1).map(|next| (*next).to_owned()),
+                });
+            }
+        }
+        false
     };
-    scan_roots(roots, workspace, read_file, &sets)
+    visit_roots(roots, workspace, read_file, &mut visit);
+    settings
+}
+
+/// The disk cache a plain `build` uses: `build` beats `common`, and the last line read wins.
+/// Config groups and other commands are ignored.
+fn resolve_disk_cache(
+    settings: &[Setting],
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+) -> Option<PathBuf> {
+    let mut winner: Option<(u8, Option<&str>)> = None;
+    for setting in settings {
+        let tier = match setting.command.as_str() {
+            "build" => 2,
+            "common" | "always" => 1,
+            _ => continue,
+        };
+        let value = if sets_flag(&setting.flag, "--nodisk_cache") {
+            None
+        } else if sets_flag(&setting.flag, "--disk_cache") {
+            flag_value(&setting.flag, setting.next.as_deref(), "--disk_cache")
+        } else {
+            continue;
+        };
+        if winner.is_none_or(|(best, _)| tier >= best) {
+            winner = Some((tier, value));
+        }
+    }
+    let value = winner?.1.filter(|value| !value.is_empty())?;
+    let expanded = match (value.strip_prefix('~'), home_dir(env_get)) {
+        (Some(rest), Some(home)) if rest.is_empty() || rest.starts_with('/') => {
+            home.join(rest.trim_start_matches('/'))
+        }
+        _ => PathBuf::from(value),
+    };
+    Some(import_path(&expanded.to_string_lossy(), workspace))
 }
 
 /// Whether any rc file reachable from `roots` sets the gc max size or max age.
@@ -419,7 +496,8 @@ fn scan(
         if line.starts_with('#') {
             continue;
         }
-        let tokens: Vec<&str> = line.split_whitespace().map(unquote).collect();
+        let owned = tokenize(line);
+        let tokens: Vec<&str> = owned.iter().map(String::as_str).collect();
         let first = tokens.first().copied().unwrap_or_default();
         if matches!(first, "import" | "try-import") {
             let rest = line[first.len()..].trim();
@@ -434,6 +512,38 @@ fn scan(
         }
     }
     false
+}
+
+/// Splits an rc line on whitespace outside quotes, removing the quotes.
+fn tokenize(line: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_token = false;
+    let mut quote: Option<char> = None;
+    for ch in line.chars() {
+        match quote {
+            Some(open) if ch == open => quote = None,
+            Some(_) => current.push(ch),
+            None if ch == '"' || ch == '\'' => {
+                quote = Some(ch);
+                in_token = true;
+            }
+            None if ch.is_whitespace() => {
+                if in_token {
+                    tokens.push(std::mem::take(&mut current));
+                    in_token = false;
+                }
+            }
+            None => {
+                current.push(ch);
+                in_token = true;
+            }
+        }
+    }
+    if in_token {
+        tokens.push(current);
+    }
+    tokens
 }
 
 pub(crate) fn unquote(token: &str) -> &str {

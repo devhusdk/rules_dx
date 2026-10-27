@@ -454,8 +454,7 @@ impl Host for SystemHost {
     }
 
     fn disk_cache(&self) -> Option<PathBuf> {
-        dx_process::user_cache_dir(&|name| std::env::var(name).ok())
-            .map(|cache| dx_process::default_disk_cache(&cache))
+        dx_process::current().bazel_disk_cache.clone()
     }
 
     fn nested_root(&self) -> Option<PathBuf> {

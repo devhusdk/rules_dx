@@ -22,8 +22,14 @@ fn the_aarch64_deployment_archives_the_aarch64_app_and_runs_on_the_host() {
 
     let out = std::env::temp_dir().join(format!("dx-cross-release-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out);
-    let run = dx_testing::run(&program, &[out.to_string_lossy().as_ref()], &[])
-        .expect("the deployment program runs on the execution platform");
+    let config = std::path::absolute(release_file("/cross_release_config.deploy.json"))
+        .expect("absolute config path");
+    let run = dx_testing::run(
+        &program,
+        &[out.to_string_lossy().as_ref()],
+        &[("DX_DEPLOY_CONFIG", config.to_string_lossy().as_ref())],
+    )
+    .expect("the deployment program runs on the execution platform");
     assert!(run.status.success(), "{}", run.combined());
 
     let tarball = out.join("cross_release.tar.gz");

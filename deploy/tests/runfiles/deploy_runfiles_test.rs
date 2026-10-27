@@ -42,9 +42,16 @@ fn plant(root: &Path, key: &str, body: &[u8]) -> PathBuf {
     path
 }
 
-fn launch(program: &Path, out: &Path, envs: &[(&str, &Path)]) -> Output {
-    let mut command = std::process::Command::new(program);
+fn config_for(program_var: &str) -> PathBuf {
+    let config_var = program_var.replace("_PROGRAM", "_CONFIG");
+    let config = program(&config_var);
+    std::path::absolute(&config).expect("absolute config path")
+}
+
+fn launch(program_var: &str, out: &Path, envs: &[(&str, &Path)]) -> Output {
+    let mut command = std::process::Command::new(program(program_var));
     command.arg(out);
+    command.env("DX_DEPLOY_CONFIG", config_for(program_var));
     for name in ["RUNFILES_MANIFEST_FILE", "RUNFILES_DIR", "TEST_SRCDIR"] {
         command.env_remove(name);
     }
@@ -115,10 +122,12 @@ fn an_archive_launcher_releases_what_its_own_runfiles_name() {
         plant(&decoy, &real.key, b"decoy");
     }
     let out = scratch("own");
+    let config = config_for("DX_ARCHIVE_PROGRAM");
     let run = dx_testing::run(
         &program("DX_ARCHIVE_PROGRAM"),
         &[out.to_string_lossy().as_ref()],
         &[
+            ("DX_DEPLOY_CONFIG", config.to_string_lossy().as_ref()),
             ("RUNFILES_DIR", decoy.to_string_lossy().as_ref()),
             ("TEST_SRCDIR", decoy.to_string_lossy().as_ref()),
         ],
@@ -135,11 +144,7 @@ fn an_archive_launcher_reads_the_tree_it_is_handed() {
         plant(&tree, &real.key, &bytes(&real.path));
     }
     let out = scratch("tree-out");
-    let run = launch(
-        &program("DX_ARCHIVE_PROGRAM"),
-        &out,
-        &[("RUNFILES_DIR", &tree)],
-    );
+    let run = launch("DX_ARCHIVE_PROGRAM", &out, &[("RUNFILES_DIR", &tree)]);
     assert!(run.status.success(), "{}", stderr(&run));
     assert_released_the_real_archive(&out);
 
@@ -149,11 +154,7 @@ fn an_archive_launcher_reads_the_tree_it_is_handed() {
     }
     let tarball = decoy.join(input("DX_TARBALL").key);
     let out = scratch("decoy-out");
-    let run = launch(
-        &program("DX_ARCHIVE_PROGRAM"),
-        &out,
-        &[("RUNFILES_DIR", &decoy)],
-    );
+    let run = launch("DX_ARCHIVE_PROGRAM", &out, &[("RUNFILES_DIR", &decoy)]);
     assert!(!run.status.success(), "a decoy tree must not release");
     let text = stderr(&run);
     assert!(text.contains("checksum mismatch"), "{text}");
@@ -186,7 +187,7 @@ fn an_archive_launcher_reads_escaped_manifest_entries() {
     let manifest = write_manifest(&root, &borrowed);
     let out = scratch("escaped-out");
     let run = launch(
-        &program("DX_ARCHIVE_PROGRAM"),
+        "DX_ARCHIVE_PROGRAM",
         &out,
         &[("RUNFILES_MANIFEST_FILE", &manifest)],
     );
@@ -207,7 +208,7 @@ fn an_archive_launcher_names_a_missing_key_and_releases_nothing() {
     );
     let out = scratch("missing-out");
     let run = launch(
-        &program("DX_ARCHIVE_PROGRAM"),
+        "DX_ARCHIVE_PROGRAM",
         &out,
         &[("RUNFILES_MANIFEST_FILE", &manifest)],
     );
@@ -245,10 +246,12 @@ fn a_github_launcher_stages_an_external_input_without_publishing() {
         &std::env::var_os("PATH").unwrap_or_default(),
     )))
     .expect("PATH");
+    let config = config_for("DX_GITHUB_PROGRAM");
     let run = dx_testing::run(
         &program("DX_GITHUB_PROGRAM"),
         &[out.to_string_lossy().as_ref()],
         &[
+            ("DX_DEPLOY_CONFIG", config.to_string_lossy().as_ref()),
             ("GH_RELEASE_DRY_RUN", "1"),
             ("PATH", path.to_string_lossy().as_ref()),
         ],
@@ -276,7 +279,7 @@ fn a_github_launcher_names_a_missing_external_key() {
     let manifest = write_manifest(&root, &[(tarball.key.as_str(), tarball.path.as_path())]);
     let out = root.join("out");
     let run = launch(
-        &program("DX_GITHUB_PROGRAM"),
+        "DX_GITHUB_PROGRAM",
         &out,
         &[("RUNFILES_MANIFEST_FILE", &manifest)],
     );

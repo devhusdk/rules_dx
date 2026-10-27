@@ -31,8 +31,8 @@ pub struct PagesLaunch<'a> {
     pub project: &'a str,
     pub branch: &'a str,
     pub production_branch: &'a str,
-    /// Names the runfile that holds the site directory's rlocation.
-    pub site_ref_rloc: &'a str,
+    /// Names the site directory's runfiles rlocation.
+    pub site_rloc: &'a str,
     pub wrangler_rloc: &'a str,
 }
 
@@ -582,21 +582,7 @@ fn pages_site(
     launch: &PagesLaunch<'_>,
     resolve: &dyn Fn(&str) -> std::io::Result<PathBuf>,
 ) -> std::io::Result<PathBuf> {
-    let reference = resolve(launch.site_ref_rloc)?;
-    let text = std::fs::read_to_string(&reference).map_err(|error| {
-        std::io::Error::new(
-            error.kind(),
-            format!("cannot read site ref '{}': {error}", launch.site_ref_rloc),
-        )
-    })?;
-    let rloc = text.trim_end_matches(['\n', '\r']);
-    if rloc.is_empty() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("site ref '{}' is empty", launch.site_ref_rloc),
-        ));
-    }
-    resolve(rloc)
+    resolve(launch.site_rloc)
 }
 
 fn pages_main_with(
@@ -724,7 +710,7 @@ mod tests {
             project: "my-site",
             branch,
             production_branch: "main",
-            site_ref_rloc: "",
+            site_rloc: "",
             wrangler_rloc: "",
         }
     }
@@ -1119,10 +1105,7 @@ exit 7
                 .find(|(name, _)| name == key)
                 .map(|(_, value)| OsString::from(value))
         };
-        let reference = tempfile::NamedTempFile::new().expect("site ref");
-        std::fs::write(reference.path(), "site\n").expect("write site ref");
         let resolve = |rloc: &str| match rloc {
-            "site_ref" => Ok(reference.path().to_path_buf()),
             "site" => Ok(site_dir.to_path_buf()),
             "wrangler" => Ok(wrangler.to_path_buf()),
             other => Err(std::io::Error::new(
@@ -1131,7 +1114,7 @@ exit 7
             )),
         };
         let mut pinned = launch("feature/x");
-        pinned.site_ref_rloc = "site_ref";
+        pinned.site_rloc = "site";
         pinned.wrangler_rloc = "wrangler";
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let code = pages_main_with(&pinned, &argv, &lookup, &resolve, &mut out, &mut err);
@@ -1287,7 +1270,7 @@ exit 7
     #[test]
     fn main_reports_unresolved_runfiles() {
         let mut bare = launch("main");
-        bare.site_ref_rloc = "";
+        bare.site_rloc = "";
         let resolve = |_: &str| -> std::io::Result<PathBuf> {
             Err(std::io::Error::new(std::io::ErrorKind::NotFound, "gone"))
         };
@@ -1302,51 +1285,6 @@ exit 7
         );
         assert_eq!(code, 1);
         assert!(String::from_utf8_lossy(&err).ends_with(": gone\n"));
-    }
-
-    fn run_with_ref(reference: &Path) -> (i32, String, String) {
-        let mut pinned = launch("main");
-        pinned.site_ref_rloc = "site_ref";
-        let resolve = |rloc: &str| match rloc {
-            "site_ref" => Ok(reference.to_path_buf()),
-            other => Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("runfile not found for '{other}'"),
-            )),
-        };
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        let code = pages_main_with(
-            &pinned,
-            &["prog".to_owned()],
-            &|_| None,
-            &resolve,
-            &mut out,
-            &mut err,
-        );
-        (
-            code,
-            String::from_utf8_lossy(&out).into_owned(),
-            String::from_utf8_lossy(&err).into_owned(),
-        )
-    }
-
-    #[test]
-    fn main_rejects_an_empty_site_ref() {
-        let reference = tempfile::NamedTempFile::new().expect("site ref");
-        std::fs::write(reference.path(), "\n").expect("write site ref");
-        let (code, out, err) = run_with_ref(reference.path());
-        assert_eq!(code, 1);
-        assert!(out.is_empty(), "{out}");
-        assert!(err.contains("site ref 'site_ref' is empty"), "{err}");
-    }
-
-    #[test]
-    fn main_reports_an_unreadable_site_ref() {
-        let dir = tempfile::TempDir::new().expect("dir");
-        let (code, out, err) = run_with_ref(dir.path());
-        assert_eq!(code, 1);
-        assert!(out.is_empty(), "{out}");
-        assert!(err.contains("cannot read site ref 'site_ref'"), "{err}");
     }
 
     #[test]

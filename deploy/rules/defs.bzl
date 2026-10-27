@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
+load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
 
 DxDeployInfo = provider(
     doc = "Deploy entrypoint identity and default profile for dx deploy dispatch.",
@@ -35,6 +36,14 @@ def _dx_deployment_impl(ctx):
         runfiles = runfiles.merge(info.default_runfiles)
     for target in ctx.attr.data:
         runfiles = runfiles.merge(ctx.runfiles(files = target[DefaultInfo].files.to_list()))
+    extra = []
+    if ctx.attr.config:
+        config = ctx.attr.config[DxDeployConfigInfo]
+        runfiles = runfiles.merge(ctx.attr.config[DefaultInfo].default_runfiles)
+        runfiles = runfiles.merge(ctx.runfiles(files = [config.file]))
+        extra.append(RunEnvironmentInfo(
+            environment = {"DX_DEPLOY_CONFIG": rlocation_path(ctx, config.file)},
+        ))
     app_label = None
     app_text = ""
     if ctx.attr.app:
@@ -56,7 +65,7 @@ def _dx_deployment_impl(ctx):
             "artifacts": ",".join(artifact_labels),
             "profile": ctx.attr.profile,
         }),
-    ]
+    ] + extra
 
 dx_deployment = rule(
     implementation = _dx_deployment_impl,
@@ -75,6 +84,12 @@ dx_deployment = rule(
             allow_files = True,
             cfg = "target",
             mandatory = False,
+        ),
+        "config": attr.label(
+            cfg = "target",
+            mandatory = False,
+            providers = [DxDeployConfigInfo],
+            doc = "Deploy config the shared deploy_tool reads through DX_DEPLOY_CONFIG.",
         ),
         "data": attr.label_list(
             allow_files = True,

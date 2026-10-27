@@ -1,8 +1,7 @@
 """Draft-only GitHub Release publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
@@ -14,8 +13,7 @@ def github_tag_error(tag):
                 "': want a non-empty tag (for example 'v0.0.0-dryrun')")
     if not only_chars(tag, _VALID_TAG_CHARS):
         return ("github_deploy: invalid tag '" + tag +
-                "': want only [A-Za-z0-9._-] so the tag embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def github_asset_collision_error(assets):
@@ -28,9 +26,11 @@ def github_asset_collision_error(assets):
         seen[base] = label
     return ""
 
-def _github_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one draft release."""
+def _github_config_impl(ctx):
+    """Writes the deploy config for one draft release."""
     asset_rlocs = []
+    asset_files = []
+    runfiles = ctx.runfiles()
     asset_names = []
     for target in ctx.attr.artifacts:
         info = target[DefaultInfo]
@@ -44,25 +44,28 @@ def _github_launcher_impl(ctx):
                      "(executables resolve to their binary)")
             f = files[0]
         asset_rlocs.append(rlocation_path(ctx, f))
+        asset_files.append(f)
+        runfiles = runfiles.merge(info.default_runfiles)
         asset_names.append((str(target.label), f.basename))
 
     collision_error = github_asset_collision_error(asset_names)
     if collision_error != "":
         fail("github_deploy " + str(ctx.label) + ": " + collision_error)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const ASSET_RLOCS: &str = \"" + ";".join(asset_rlocs) + "\";\n" +
-                  "const DEPLOY_NAME: &str = \"" + ctx.attr.deploy_name + "\";\n" +
-                  "const TAG: &str = \"" + ctx.attr.tag + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::github_main(ASSET_RLOCS, DEPLOY_NAME, TAG, &std::env::args().collect::<Vec<_>>())); }\n",
+    return deploy_config(
+        ctx,
+        "github",
+        {
+            "asset_rlocs": asset_rlocs,
+            "deploy_name": ctx.attr.deploy_name,
+            "tag": ctx.attr.tag,
+        },
+        ctx.runfiles(files = asset_files).merge(runfiles),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-github_launcher = rule(
-    doc = "Expands the Rust launcher source for one draft release.",
-    implementation = _github_launcher_impl,
+github_config = rule(
+    doc = "Writes the deploy config for one draft release.",
+    implementation = _github_config_impl,
     attrs = {
         "artifacts": attr.label_list(mandatory = True, doc = "Files to attach as release assets."),
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
@@ -79,27 +82,19 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
         fail("github_deploy " + native.package_name() + ":" + name +
              ": need at least one artifact")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    github_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    github_config(
+        name = config_target,
         artifacts = artifacts,
         deploy_name = name,
         tag = tag,
         tags = tags,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = artifacts,
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-        tags = tags,
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
         tags = tags,
     )

@@ -86,7 +86,7 @@ const GH_CHILD_ENV_EXTRA: &[&str] = &[
 ];
 
 /// Runs the GitHub deploy launcher.
-pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
+pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "github_deploy",
         "the release is exactly the artifacts pinned at analysis time",
@@ -96,7 +96,7 @@ pub fn github_main(asset_rlocs: &str, deploy_name: &str, tag: &str, argv: &[Stri
     };
     let outdir = run.outdir();
     let mut assets = Vec::new();
-    for rloc in asset_rlocs.split(';').filter(|s| !s.is_empty()) {
+    for rloc in asset_rlocs {
         let Some(path) = run.resolve(rloc) else {
             return 1;
         };

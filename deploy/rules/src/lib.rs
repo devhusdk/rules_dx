@@ -10,6 +10,7 @@
 
 mod archive;
 mod cloudflare;
+mod config;
 mod crates;
 mod github;
 pub mod http;
@@ -27,6 +28,7 @@ pub(crate) mod test_support;
 
 pub use archive::*;
 pub use cloudflare::*;
+pub use config::*;
 pub use crates::*;
 pub use github::*;
 pub use maven::*;
@@ -78,7 +80,7 @@ mod tests {
             1
         );
         assert_eq!(crates_main("a", "b", "1.0.0", &argv), 1);
-        assert_eq!(github_main("a", "b", "v1.0.0", &argv), 1);
+        assert_eq!(github_main(&["a".to_owned()], "b", "v1.0.0", &argv), 1);
         assert_eq!(
             maven_main(
                 "a",
@@ -134,7 +136,7 @@ mod tests {
                     1
                 );
                 assert_eq!(crates_main(missing, "demo", "1.0.0", &argv), 1);
-                assert_eq!(github_main(missing, "demo", "v1.0.0", &argv), 1);
+                assert_eq!(github_main(&[missing.to_owned()], "demo", "v1.0.0", &argv), 1);
                 assert_eq!(
                     maven_main(
                         missing,
@@ -312,7 +314,7 @@ mod tests {
                 ("GH_RELEASE_APPROVED", Some("1")),
             ],
             || {
-                assert_eq!(github_main(missing, "demo", "v0.0.0-dryrun", &argv), 1);
+                assert_eq!(github_main(&[missing.to_owned()], "demo", "v0.0.0-dryrun", &argv), 1);
             },
         );
         with_env(
@@ -565,7 +567,7 @@ mod tests {
                     0
                 );
                 assert_eq!(
-                    github_main("release_demo.tar.gz", "github_demo", "v1.0.0", &argv),
+                    github_main(&["release_demo.tar.gz".to_owned()], "github_demo", "v1.0.0", &argv),
                     0
                 );
                 assert_eq!(
@@ -641,7 +643,7 @@ mod tests {
             ],
             || {
                 assert_eq!(
-                    github_main("release_demo.tar.gz", "demo", "v1.0.0", &argv),
+                    github_main(&["release_demo.tar.gz".to_owned()], "demo", "v1.0.0", &argv),
                     0
                 );
             },
@@ -697,7 +699,7 @@ mod tests {
                 ],
                 || {
                     assert_eq!(
-                        github_main("release_demo.tar.gz", "demo", "v1.0.0", &argv),
+                        github_main(&["release_demo.tar.gz".to_owned()], "demo", "v1.0.0", &argv),
                         0
                     );
                 },
@@ -771,7 +773,7 @@ mod tests {
         let pypi: Main4 = crate::pypi_main;
         let nuget: Main5 = crate::nuget_main;
         let crates: Main3 = crate::crates_main;
-        let github: Main3 = crate::github_main;
+        let github: fn(&[String], &str, &str, &[String]) -> i32 = crate::github_main;
         let maven: Main6 = crate::maven_main;
         let oci: Main5 = crate::oci_main;
         let promotion: Main5 = crate::promotion_main;
@@ -799,7 +801,7 @@ mod tests {
             project: "",
             branch: "",
             production_branch: "",
-            site_ref_rloc: "",
+            site_rloc: "",
             wrangler_rloc: "",
         };
     }

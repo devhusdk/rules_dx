@@ -105,12 +105,12 @@ def _program_closure_test_impl(ctx):
     asserts.true(
         env,
         Label("//deploy/rules:dx_deploy_tools") in labels,
-        "program closure misses //deploy/rules:dx_deploy_tools",
+        "deploy tool closure misses //deploy/rules:dx_deploy_tools",
     )
     asserts.false(
         env,
         Label("//deploy/rules:cloudflare_demo_site") in labels,
-        "program closure builds //deploy/rules:cloudflare_demo_site in its own config",
+        "deploy tool closure reaches //deploy/rules:cloudflare_demo_site",
     )
     return analysistest.end(env)
 
@@ -124,44 +124,32 @@ def _write_content(env):
     asserts.equals(env, 1, len(writes), "want one FileWrite action")
     return writes[0].content if writes else ""
 
-def _launcher_ref_test_impl(ctx):
+def _config_content_test_impl(ctx):
     env = analysistest.begin(ctx)
     content = _write_content(env)
     asserts.true(
         env,
-        "site_ref_rloc: \"_main/deploy/rules/cloudflare_demo_site_ref.txt\"," in content,
-        "launcher must name the site ref rlocation: " + content,
+        "\"site_rloc\":\"_main/deploy/rules/cloudflare_demo_site\"" in content,
+        "config must name the site rlocation: " + content,
     )
-    asserts.false(env, "site_rloc" in content, "launcher must not name the site: " + content)
+    asserts.true(env, "\"kind\":\"cloudflare_pages\"" in content, "config must name its kind: " + content)
     return analysistest.end(env)
 
-_launcher_ref_test = analysistest.make(_launcher_ref_test_impl)
-
-def _site_ref_content_test_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.equals(env, "_main/deploy/rules/cloudflare_demo_site", _write_content(env))
-    return analysistest.end(env)
-
-_site_ref_content_test = analysistest.make(_site_ref_content_test_impl)
+_config_content_test = analysistest.make(_config_content_test_impl)
 
 def cloudflare_program_closure_tests(name):
-    """Checks that the deploy program reaches the site only through its ref file."""
+    """Checks that the deploy tool never builds the site and the config names it."""
     _program_closure_test(
         name = name + "_deps",
         size = "small",
-        target_under_test = ":cloudflare_demo_program",
+        target_under_test = ":deploy_tool",
     )
-    _launcher_ref_test(
-        name = name + "_launcher",
+    _config_content_test(
+        name = name + "_config",
         size = "small",
-        target_under_test = ":cloudflare_demo_program_launcher",
-    )
-    _site_ref_content_test(
-        name = name + "_site_ref",
-        size = "small",
-        target_under_test = ":cloudflare_demo_site_ref",
+        target_under_test = ":cloudflare_demo_config",
     )
     native.test_suite(
         name = name,
-        tests = [name + "_deps", name + "_launcher", name + "_site_ref"],
+        tests = [name + "_deps", name + "_config"],
     )

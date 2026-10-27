@@ -8,13 +8,13 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_unit_tests", "consumer_archive_unit_tests")
-load(":cloudflare.bzl", "cloudflare_pages_deploy", "cloudflare_site_ref")
+load(":cloudflare.bzl", "cloudflare_config", "cloudflare_pages_deploy")
 load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_test", "deploy_unit_tests")
-load(":github.bzl", "github_deploy", "github_launcher")
+load(":deploy_tests.bzl", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
+load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
 load(":maven_tests.bzl", "maven_unit_tests")
@@ -42,6 +42,7 @@ exports_files([
     "archive_tests.bzl",
     "cloudflare.bzl",
     "cloudflare_tests.bzl",
+    "config.bzl",
     "crates.bzl",
     "crates_tests.bzl",
     "defs.bzl",
@@ -66,9 +67,11 @@ exports_files([
     "src/archive.rs",
     "src/bin_archiver.rs",
     "src/bin_cloudflare_verify.rs",
+    "src/bin_deploy_tool.rs",
     "src/bin_hasher.rs",
     "src/bin_npm_pack.rs",
     "src/cloudflare.rs",
+    "src/config.rs",
     "src/crates.rs",
     "src/github.rs",
     "src/http.rs",
@@ -93,6 +96,7 @@ rust_library(
     srcs = [
         "src/archive.rs",
         "src/cloudflare.rs",
+        "src/config.rs",
         "src/crates.rs",
         "src/github.rs",
         "src/http.rs",
@@ -171,6 +175,20 @@ rust_binary(
 )
 
 rust_binary(
+    name = "deploy_tool",
+    srcs = ["src/bin_deploy_tool.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "deploy_tool",
+    crate_root = "src/bin_deploy_tool.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = [":dx_deploy_tools"],
+)
+
+rust_binary(
     name = "hasher",
     srcs = ["src/bin_hasher.rs"],
     aliases = aliases(
@@ -226,6 +244,7 @@ rustfmt_test(
         ":cloudflare_verify",
         ":deploy_app",
         ":deploy_program",
+        ":deploy_tool",
         ":dx_deploy_tools",
         ":hasher",
         ":npm_packer",
@@ -240,6 +259,7 @@ rust_clippy_test(
         ":cloudflare_verify",
         ":deploy_app",
         ":deploy_program",
+        ":deploy_tool",
         ":dx_deploy_tools",
         ":hasher",
         ":npm_packer",
@@ -376,6 +396,21 @@ failure_test(
     name = "deploy_non_executable_tool_fails",
     expected_failure_substring = "has no executable",
     target = ":deploy_non_executable_tool",
+)
+
+deploy_config_tests(name = "deploy_config")
+
+dx_deployment(
+    name = "deploy_untyped_config",
+    config = ":web_dir",
+    deploy = ":deploy_program",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "deploy_untyped_config_fails",
+    expected_failure_substring = "DxDeployConfigInfo",
+    target = ":deploy_untyped_config",
 )
 
 sh_binary(
@@ -632,10 +667,12 @@ test_suite(
         ":crates_unit",
         ":deploy_analysis",
         ":deploy_app_analysis",
+        ":deploy_config",
         ":deploy_debug_analysis",
         ":deploy_empty_artifact_fails",
         ":deploy_non_executable_tool_fails",
         ":deploy_unit",
+        ":deploy_untyped_config_fails",
         ":deploy_web_analysis",
         ":dx_deploy_tools_test",
         ":github_analysis",
@@ -703,8 +740,8 @@ genrule(
     tags = ["manual"],
 )
 
-github_launcher(
-    name = "github_dup_launcher",
+github_config(
+    name = "github_dup_config",
     artifacts = [
         ":github_dup_a",
         ":github_dup_b",
@@ -717,17 +754,21 @@ github_launcher(
 failure_test(
     name = "github_duplicate_basename_fails",
     expected_failure_substring = "share the asset name 'app.txt'",
-    target = ":github_dup_launcher",
+    target = ":github_dup_config",
 )
 
 # keep
 rust_test(
     name = "github_demo_verify",
     srcs = ["verify_test.rs"],
-    data = [":github_demo_program"],
+    data = [
+        ":github_demo",
+        ":github_demo_config",
+    ],
     env = {
         "DX_GITHUB_ASSETS": "release_demo.tar.gz release_demo.tar.gz.sha256",
-        "DX_GITHUB_PROG": "$(rootpath :github_demo_program)",
+        "DX_GITHUB_CONFIG": "$(rootpath :github_demo_config)",
+        "DX_GITHUB_PROG": "$(rootpath :github_demo)",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
         "DX_VERIFY_MODE": "github",
     },
@@ -885,16 +926,22 @@ cloudflare_pages_deploy(
     wrangler = ":cloudflare_demo_wrangler",
 )
 
-cloudflare_site_ref(
-    name = "cloudflare_not_a_directory_site_ref",
+cloudflare_config(
+    name = "cloudflare_not_a_directory_config",
+    account_id = "0123456789abcdef0123456789abcdef",
+    branch = "feature/demo",
+    deploy_name = "cloudflare_not_a_directory",
+    production_branch = "main",
+    project = "dx-demo",
     site = "cloudflare_demo/site/index.html",
     tags = ["manual"],
+    wrangler = ":cloudflare_demo_wrangler",
 )
 
 failure_test(
     name = "cloudflare_not_a_directory_fails",
     expected_failure_substring = "must provide exactly one directory",
-    target = ":cloudflare_not_a_directory_site_ref",
+    target = ":cloudflare_not_a_directory_config",
 )
 
 rust_test(
@@ -902,11 +949,17 @@ rust_test(
     srcs = ["verify_test.rs"],
     data = [
         ":cloudflare_default_wrangler",
+        ":cloudflare_default_wrangler_config",
         ":cloudflare_demo",
+        ":cloudflare_demo_config",
         ":cloudflare_demo_production",
+        ":cloudflare_demo_production_config",
     ],
     env = {
+        "DX_CLOUDFLARE_CONFIG": "$(rootpath :cloudflare_demo_config)",
+        "DX_CLOUDFLARE_DEFAULT_CONFIG": "$(rootpath :cloudflare_default_wrangler_config)",
         "DX_CLOUDFLARE_DEFAULT_PROG": "$(rootpath :cloudflare_default_wrangler)",
+        "DX_CLOUDFLARE_PRODUCTION_CONFIG": "$(rootpath :cloudflare_demo_production_config)",
         "DX_CLOUDFLARE_PRODUCTION_PROG": "$(rootpath :cloudflare_demo_production)",
         "DX_CLOUDFLARE_PROG": "$(rootpath :cloudflare_demo)",
         "DX_VERIFY_MODE": "cloudflare",
@@ -1116,6 +1169,7 @@ real_source_target(
         "archive_tests.bzl",
         "cloudflare.bzl",
         "cloudflare_tests.bzl",
+        "config.bzl",
         "crates.bzl",
         "crates_tests.bzl",
         "defs.bzl",

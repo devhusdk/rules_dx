@@ -27,8 +27,7 @@ def github_unit_tests(name):
             expect_equal(
                 "github_tag_error rejects shell-unsafe tag characters",
                 github_tag_error("v1.0;curl evil"),
-                "github_deploy: invalid tag 'v1.0;curl evil': want only " +
-                "[A-Za-z0-9._-] so the tag embeds safely in the deploy launcher",
+                "github_deploy: invalid tag 'v1.0;curl evil': want only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "github_asset_collision_error accepts unique asset names",

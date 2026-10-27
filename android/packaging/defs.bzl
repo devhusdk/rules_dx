@@ -3,6 +3,7 @@
 load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
+load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
@@ -511,6 +512,59 @@ _sign_selection = rule(
     },
 )
 
+def _rel(path):
+    if path.startswith("/") or path.startswith("../"):
+        return path
+    if path.startswith("external/"):
+        return "../" + path.removeprefix("external/")
+    return "../" + path
+
+def _sign_launcher_impl(ctx):
+    env = {}
+    runfiles = [ctx.runfiles(files = [ctx.file.input, ctx.file.script])]
+    if ctx.attr.kind == "apk":
+        java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+        env["DX_SIGN_APK"] = ctx.file.input.short_path
+        env["DX_SIGN_JAVA"] = _rel(java.java_executable_runfiles_path)
+        env["DX_SIGN_ZIPALIGN"] = ctx.file.zipalign.short_path
+        env["DX_SIGN_APKSIGNER_JAR"] = ctx.file.apksigner_jar.short_path
+        env["DX_SIGN_MIN_SDK"] = str(ctx.attr.min_sdk) if ctx.attr.min_sdk != 0 else ""
+        env["DX_SIGN_SCHEMES"] = ",".join(ctx.attr.schemes)
+        runfiles.append(ctx.runfiles(files = [ctx.file.zipalign, ctx.file.apksigner_jar]))
+    else:
+        java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+        env["DX_SIGN_AAB"] = ctx.file.input.short_path
+        env["DX_SIGN_BUNDLETOOL"] = ctx.executable.bundletool.short_path
+        env["DX_SIGN_JAVABASE"] = _rel(java.java_home_runfiles_path)
+        runfiles.append(ctx.attr.bundletool[DefaultInfo].default_runfiles)
+        runfiles.append(ctx.runfiles(files = [ctx.executable.bundletool]))
+    runfiles.append(ctx.runfiles(transitive_files = ctx.attr._java_runtime[DefaultInfo].files))
+    out = ctx.actions.declare_file(ctx.label.name)
+    lines = ["#!/bin/sh"]
+    for key, value in sorted(env.items()):
+        lines.append("export {0}=\"${{{0}-{1}}}\"".format(key, value))
+    lines.append("exec \"$PWD/{}\" \"$@\"".format(ctx.file.script.short_path))
+    ctx.actions.write(out, "\n".join(lines) + "\n", is_executable = True)
+    return [DefaultInfo(executable = out, runfiles = ctx.runfiles().merge_all(runfiles))]
+
+_sign_launcher = rule(
+    implementation = _sign_launcher_impl,
+    doc = "Signing launcher whose tools (zipalign, apksigner, bundletool, JDK) are built for the execution platform.",
+    executable = True,
+    attrs = {
+        "apksigner_jar": attr.label(cfg = "exec", allow_single_file = True),
+        "bundletool": attr.label(cfg = "exec", executable = True),
+        "input": attr.label(allow_single_file = True, mandatory = True),
+        "kind": attr.string(mandatory = True, values = ["apk", "aab"]),
+        "min_sdk": attr.int(default = 0),
+        "schemes": attr.string_list(),
+        "script": attr.label(allow_single_file = True, mandatory = True),
+        "selection": attr.label(),
+        "zipalign": attr.label(cfg = "exec", allow_single_file = True),
+        "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
+    },
+)
+
 def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 0, visibility = None):
     """Declares an explicit release signing launcher; builds never sign or read keys."""
     _sign_selection(
@@ -521,20 +575,17 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    sh_binary(
+    _sign_launcher(
         name = name,
-        srcs = [Label("//android/packaging:sign_apk.sh")],
-        data = [apk, ":" + name + "_selection", _ZIPALIGN, _APKSIGNER_JAR, _JAVA_RUNTIME],
-        env = {
-            "DX_SIGN_APK": "$(rootpath " + apk + ")",
-            "DX_SIGN_APKSIGNER_JAR": "$(rootpaths " + str(_APKSIGNER_JAR) + ")",
-            "DX_SIGN_JAVA": "$(JAVA_ROOTPATH)",
-            "DX_SIGN_MIN_SDK": str(min_sdk) if min_sdk != 0 else "",
-            "DX_SIGN_SCHEMES": ",".join(schemes),
-            "DX_SIGN_ZIPALIGN": "$(rootpaths " + str(_ZIPALIGN) + ")",
-        },
+        kind = "apk",
+        input = apk,
+        script = Label("//android/packaging:sign_apk.sh"),
+        selection = ":" + name + "_selection",
+        min_sdk = min_sdk,
+        schemes = schemes,
+        zipalign = _ZIPALIGN,
+        apksigner_jar = _APKSIGNER_JAR,
         tags = ["manual"],
-        toolchains = [_JAVA_RUNTIME],
         visibility = visibility,
     )
 
@@ -567,17 +618,14 @@ def android_aab_release_sign(name, aab, visibility = None):
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    sh_binary(
+    _sign_launcher(
         name = name,
-        srcs = [Label("//android/packaging:sign_aab.sh")],
-        data = [aab, ":" + name + "_selection", _BUNDLETOOL, _JAVA_RUNTIME],
-        env = {
-            "DX_SIGN_AAB": "$(rootpath " + aab + ")",
-            "DX_SIGN_BUNDLETOOL": "$(rootpath " + str(_BUNDLETOOL) + ")",
-            "DX_SIGN_JAVABASE": "$(JAVABASE_ROOTPATH)",
-        },
+        kind = "aab",
+        input = aab,
+        script = Label("//android/packaging:sign_aab.sh"),
+        selection = ":" + name + "_selection",
+        bundletool = _BUNDLETOOL,
         tags = ["manual"],
-        toolchains = [_JAVA_RUNTIME],
         visibility = visibility,
     )
 

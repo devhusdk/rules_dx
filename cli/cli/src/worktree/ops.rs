@@ -1153,10 +1153,7 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
         });
     }
     let disk_cache_bytes = if disk {
-        Some(match host.disk_cache().filter(|dir| dir.is_dir()) {
-            Some(dir) => measure(host, &dir)?,
-            None => 0,
-        })
+        Some(disk_cache_bytes(host)?)
     } else {
         None
     };
@@ -1167,6 +1164,14 @@ pub(crate) fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, 
         disk_bytes: disk.then_some(slot_disk),
         disk_cache_bytes,
     })
+}
+
+/// The size of the disk cache Bazel uses for `build`; 0 when it is off or missing.
+pub(crate) fn disk_cache_bytes(host: &dyn Host) -> Result<u64, WorktreeError> {
+    match host.disk_cache().filter(|dir| dir.is_dir()) {
+        Some(dir) => measure(host, &dir),
+        None => Ok(0),
+    }
 }
 
 fn stop_check(host: &dyn Host) -> Result<(), WorktreeError> {

@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseImportsSingleRequire(t *testing.T) {
-	got := ParseImports([]byte("require \"acme/widget\"\nrequire \"json\"\n"))
+	got := ParseImports([]byte("require \"acme/widget\"\nrequire \"json\"\n"), "")
 	want := []string{"acme/widget", "json"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
@@ -14,23 +14,43 @@ func TestParseImportsSingleRequire(t *testing.T) {
 }
 
 func TestParseImportsSingleQuotes(t *testing.T) {
-	got := ParseImports([]byte("require 'rspec'\n"))
+	got := ParseImports([]byte("require 'rspec'\n"), "")
 	want := []string{"rspec"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
 }
 
-func TestParseImportsRequireRelativeInert(t *testing.T) {
-	got := ParseImports([]byte("require_relative \"helper\"\nrequire \"rspec\"\n"))
-	want := []string{"rspec"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseImports = %v, want %v", got, want)
+func TestParseImportsRequireRelative(t *testing.T) {
+	cases := []struct {
+		src  string
+		want []string
+	}{
+		{"require_relative \"../lib/foo\"\n", []string{"//pkg/lib/foo"}},
+		{"require_relative \"../lib/foo.rb\"\n", []string{"//pkg/lib/foo"}},
+		{"require_relative 'sub/x'\n", []string{"//pkg/app/sub/x"}},
+		{"require_relative(\"sub/x\") if true\n", []string{"//pkg/app/sub/x"}},
+		{"require_relative \"helper\"\nrequire \"rspec\"\n", []string{"rspec"}},
+		{"require_relative \"./helper.rb\"\n", nil},
+		{"require_relative \"/abs/x\"\n", nil},
+		{"require_relative \"../../../x\"\n", nil},
+		{"require_relative \"#{dir}/x\"\n", nil},
+		{"# require_relative \"../lib/foo\"\n", nil},
+		{"X = <<~T\n  require_relative \"../lib/foo\"\nT\n", nil},
+	}
+	for _, c := range cases {
+		got := ParseImports([]byte(c.src), "pkg/app")
+		if len(got) == 0 && len(c.want) == 0 {
+			continue
+		}
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("ParseImports(%q) = %v, want %v", c.src, got, c.want)
+		}
 	}
 }
 
 func TestParseImportsCommentsInert(t *testing.T) {
-	got := ParseImports([]byte("# require \"acme/commented\"\nrequire \"json\"\n"))
+	got := ParseImports([]byte("# require \"acme/commented\"\nrequire \"json\"\n"), "")
 	want := []string{"json"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
@@ -38,7 +58,7 @@ func TestParseImportsCommentsInert(t *testing.T) {
 }
 
 func TestParseImportsDedupedSorted(t *testing.T) {
-	got := ParseImports([]byte("require \"zeta\"\nrequire \"alpha\"\nrequire \"zeta\"\n"))
+	got := ParseImports([]byte("require \"zeta\"\nrequire \"alpha\"\nrequire \"zeta\"\n"), "")
 	want := []string{"alpha", "zeta"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
@@ -46,15 +66,15 @@ func TestParseImportsDedupedSorted(t *testing.T) {
 }
 
 func TestParseImportsBlockCommentsAndEmptyInert(t *testing.T) {
-	got := ParseImports([]byte("=begin\nrequire \"acme/hidden\"\n=end\nrequire \"json\"\n"))
+	got := ParseImports([]byte("=begin\nrequire \"acme/hidden\"\n=end\nrequire \"json\"\n"), "")
 	want := []string{"json"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports = %v, want %v", got, want)
 	}
-	if got := ParseImports([]byte("require \" \"\nrequire \"json\"\n")); !reflect.DeepEqual(got, want) {
+	if got := ParseImports([]byte("require \" \"\nrequire \"json\"\n"), ""); !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports blank require = %v, want %v", got, want)
 	}
-	if got := ParseImports([]byte("require \"./local\"\nrequire \"json\"\n")); !reflect.DeepEqual(got, want) {
+	if got := ParseImports([]byte("require \"./local\"\nrequire \"json\"\n"), ""); !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseImports relative require = %v, want %v", got, want)
 	}
 }
@@ -81,21 +101,25 @@ func TestDefinesMain(t *testing.T) {
 }
 
 func TestIsStdLib(t *testing.T) {
-	for _, imp := range []string{"json", "yaml", "net/http", "fileutils"} {
+	for _, imp := range []string{"json", "yaml", "net/http", "fileutils", "securerandom", "open3", "io/console", "rbconfig", "English", "tempfile", "socket", "zlib", "json/add/core", "enumerator", "win32ole"} {
 		if !IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = false, want true", imp)
 		}
 	}
-	for _, imp := range []string{"rspec", "acme/widget", "rake"} {
+	for _, imp := range []string{"rspec", "acme/widget", "rake", "net/ssh", "bigdecimal", "base64", "csv", "json/nonexistent"} {
 		if IsStdLib(imp) {
 			t.Errorf("IsStdLib(%q) = true, want false", imp)
 		}
 	}
 }
 
+func TestNormalizeImportStripsSo(t *testing.T) {
+	checkImports(t, "require \"etc.so\"\n", []string{"etc"})
+}
+
 func checkImports(t *testing.T, src string, want []string) {
 	t.Helper()
-	got := ParseImports([]byte(src))
+	got := ParseImports([]byte(src), "")
 	if len(got) == 0 && len(want) == 0 {
 		return
 	}

@@ -1,13 +1,14 @@
 package ruby
 
 import (
+	"path"
 	"regexp"
 	"sort"
 	"strings"
 )
 
 var (
-	requireRe = regexp.MustCompile(`(?m)^[ \t]*require[ \t]*\(?[ \t]*["']([^"']+)["'][ \t]*\)?[ \t]*(?:(?:if|unless)\b.*)?$`)
+	requireRe = regexp.MustCompile(`(?m)^[ \t]*(require(?:_relative)?)[ \t]*\(?[ \t]*["']([^"']+)["'][ \t]*\)?[ \t]*(?:(?:if|unless)\b.*)?$`)
 	mainRe    = regexp.MustCompile(`__FILE__\s*==\s*\$0|__FILE__\s*==\s*\$PROGRAM_NAME`)
 )
 
@@ -207,12 +208,21 @@ func maskHeredoc(out []byte, i int, h heredoc, mask func(int, int)) int {
 	return min(j, n)
 }
 
-func ParseImports(content []byte) []string {
+// ParseImports returns the require specs of content. rel is the repo-relative
+// directory of the file; require_relative specs resolve against it into
+// "//<repo path>" keys (see RelativeKey).
+func ParseImports(content []byte, rel string) []string {
 	stripped := stripNonCode(content)
 	set := make(map[string]struct{})
 	for _, m := range requireRe.FindAllSubmatch(stripped, -1) {
-		req := strings.TrimSpace(string(m[1]))
+		req := strings.TrimSpace(string(m[2]))
 		if req == "" || strings.Contains(req, "#{") {
+			continue
+		}
+		if string(m[1]) == "require_relative" {
+			if id := relativeImport(rel, req); id != "" {
+				set[id] = struct{}{}
+			}
 			continue
 		}
 		if strings.HasPrefix(req, ".") {
@@ -230,12 +240,28 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
+// relativeImport resolves a require_relative spec to its RelativeKey. It
+// returns "" for absolute specs, specs escaping the repo, and specs in the
+// same directory: generation is SingleDir, so same-dir files share one library.
+func relativeImport(rel, spec string) string {
+	if strings.HasPrefix(spec, "/") {
+		return ""
+	}
+	id := path.Clean(path.Join(rel, strings.TrimSuffix(spec, ".rb")))
+	if id == "." || id == ".." || strings.HasPrefix(id, "../") || path.Dir(id) == path.Clean(rel) {
+		return ""
+	}
+	return "//" + id
+}
+
 func ParsePackage(content []byte) (string, error) {
 	return "", nil
 }
 
 func normalizeImport(req string) string {
-	return strings.TrimSuffix(strings.TrimSpace(req), ".rb")
+	req = strings.TrimSpace(req)
+	req = strings.TrimSuffix(req, ".rb")
+	return strings.TrimSuffix(req, ".so")
 }
 
 func DefinesMain(content []byte) bool {

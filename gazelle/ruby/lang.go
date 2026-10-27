@@ -47,7 +47,8 @@ func (l *rubyLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resol
 		if !isSupported(src) || IsTestSource(src) {
 			continue
 		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: LoadPath(pkg, src)})
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: LoadPath(pkg, src)},
+			resolve.ImportSpec{Lang: languageName, Imp: RelativeKey(pkg, src)})
 	}
 	return specs
 }
@@ -65,7 +66,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		DefinesMain:  DefinesMain,
 		MainRule:     "ruby_binary",
 		MainPhrase:   "main-bearing sources",
-		ParseImports: ParseImports,
+		ParseImports: func(c []byte) []string { return ParseImports(c, args.Rel) },
 		IsStdLib:     IsStdLib,
 		Wrap:         common.WrapImportSet,
 	}, rep)

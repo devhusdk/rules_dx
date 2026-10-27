@@ -241,7 +241,7 @@ impl RealBackend {
         tool.edition.as_deref().ok_or_else(|| {
             execution(
                 TOOL_ID,
-                "missing tool edition: the quality aspect must pass the CrateInfo edition via --tool-edition".to_owned(),
+                "missing tool edition: the quality aspect must pass the CrateInfo edition as the request tool edition".to_owned(),
             )
         })
     }

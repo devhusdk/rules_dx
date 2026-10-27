@@ -25,7 +25,8 @@ use dx_path::Resolver;
 use quality_result::{decode_validated, proto};
 
 pub const MANIFEST_ENV: &str = "MATRIX_HARNESS_MANIFEST";
-pub const MANIFEST_VERSION: u32 = 1;
+pub const MANIFEST_VERSION: u32 = 2;
+const REQUEST_SCHEMA_VERSION: u32 = 1;
 const UPDATE_ENV: &str = "UPDATE_EXPECT";
 const UNDECLARED_ENV: &str = "TEST_UNDECLARED_OUTPUTS_DIR";
 const TMPDIR_ENV: &str = "TMPDIR";
@@ -87,6 +88,14 @@ pub struct EnvEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ManifestStage {
+    pub tool: String,
+    pub classes: Vec<String>,
+    pub sources: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ManifestTool {
     #[serde(default)]
     pub binary_key: Option<String>,
@@ -109,7 +118,7 @@ pub struct Manifest {
     pub name: String,
     pub producer: String,
     pub capability: String,
-    pub stages: Vec<String>,
+    pub stages: Vec<ManifestStage>,
     pub sources: Vec<Mapping>,
     pub siblings: Vec<Mapping>,
     #[serde(default)]
@@ -238,75 +247,134 @@ pub fn substitute_test_srcdir(value: &str, test_srcdir: &str) -> String {
     value.replace(TEST_SRCDIR_TOKEN, test_srcdir)
 }
 
-pub fn runner_argv(
+#[derive(serde::Serialize)]
+struct RequestStage<'a> {
+    tool: &'a str,
+    classes: &'a [String],
+    sources: &'a [String],
+}
+
+#[derive(serde::Serialize)]
+struct RequestMapping {
+    workspace: String,
+    exec: String,
+}
+
+#[derive(serde::Serialize)]
+struct RequestToolFile {
+    mirror_rel: String,
+    exec: String,
+}
+
+#[derive(serde::Serialize)]
+struct RequestEnv {
+    key: String,
+    value: String,
+}
+
+#[derive(serde::Serialize)]
+struct RequestTool {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    binary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    edition: Option<String>,
+    files: Vec<RequestToolFile>,
+    env: Vec<RequestEnv>,
+    upstream: Vec<String>,
+    search_paths: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+struct Request<'a> {
+    schema_version: u32,
+    producer: &'a str,
+    capability: &'a str,
+    stages: Vec<RequestStage<'a>>,
+    sources: Vec<RequestMapping>,
+    siblings: Vec<RequestMapping>,
+    resolves: Vec<RequestMapping>,
+    tools: BTreeMap<&'a str, RequestTool>,
+    scratch_parent: String,
+}
+
+fn request_mappings(mappings: &[(String, PathBuf)]) -> Vec<RequestMapping> {
+    mappings
+        .iter()
+        .map(|(workspace, path)| RequestMapping {
+            workspace: workspace.clone(),
+            exec: display(path),
+        })
+        .collect()
+}
+
+/// Encodes the resolved case as a quality_runner `--request` document.
+pub fn build_request(
     resolved: &Resolved,
-    out_pb: &Path,
     scratch_parent: &Path,
     test_srcdir: &str,
-) -> Vec<String> {
+) -> Result<Vec<u8>, HarnessError> {
     let manifest = &resolved.manifest;
-    let mut argv = vec![
-        "--producer".to_owned(),
-        manifest.producer.clone(),
-        "--capability".to_owned(),
-        manifest.capability.clone(),
-        "--output".to_owned(),
-        display(out_pb),
-    ];
-    for stage in &manifest.stages {
-        argv.push("--stage".to_owned());
-        argv.push(stage.clone());
-    }
-    for (workspace, path) in &resolved.sources {
-        argv.push("--source".to_owned());
-        argv.push(format!("{workspace}={}", display(path)));
-    }
-    for (workspace, path) in &resolved.siblings {
-        argv.push("--sibling".to_owned());
-        argv.push(format!("{workspace}={}", display(path)));
-    }
-    argv.push("--real".to_owned());
-    argv.push("--scratch-parent".to_owned());
-    argv.push(display(scratch_parent));
-    for (tool, entry) in &resolved.tools {
-        if let Some(binary) = &entry.binary {
-            argv.push("--tool-binary".to_owned());
-            argv.push(format!("{tool}={}", display(binary)));
-        }
-    }
+    let mut tools = BTreeMap::new();
     for (tool, entry) in &manifest.tools {
-        if let Some(config) = &entry.config {
-            argv.push("--tool-config".to_owned());
-            argv.push(format!("{tool}={config}"));
-        }
-        if let Some(edition) = &entry.edition {
-            argv.push("--tool-edition".to_owned());
-            argv.push(format!("{tool}={edition}"));
-        }
+        let paths = resolved.tools.get(tool);
+        tools.insert(
+            tool.as_str(),
+            RequestTool {
+                binary: paths.and_then(|paths| paths.binary.as_deref()).map(display),
+                config: entry.config.clone(),
+                edition: entry.edition.clone(),
+                files: paths
+                    .map(|paths| paths.files.as_slice())
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|(mirror_rel, path)| RequestToolFile {
+                        mirror_rel: mirror_rel.clone(),
+                        exec: display(path),
+                    })
+                    .collect(),
+                env: entry
+                    .env
+                    .iter()
+                    .map(|env| RequestEnv {
+                        key: env.key.clone(),
+                        value: substitute_test_srcdir(&env.value, test_srcdir),
+                    })
+                    .collect(),
+                upstream: paths
+                    .map(|paths| paths.upstream.as_slice())
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|path| display(path))
+                    .collect(),
+                search_paths: Vec::new(),
+            },
+        );
     }
-    for (tool, entry) in &resolved.tools {
-        for (mirror_rel, path) in &entry.files {
-            argv.push("--tool-file".to_owned());
-            argv.push(format!("{tool}={mirror_rel}={}", display(path)));
-        }
-    }
-    for (tool, entry) in &manifest.tools {
-        for env in &entry.env {
-            argv.push("--tool-env".to_owned());
-            argv.push(format!(
-                "{tool}={}={}",
-                env.key,
-                substitute_test_srcdir(&env.value, test_srcdir)
-            ));
-        }
-    }
-    for (tool, entry) in &resolved.tools {
-        for path in &entry.upstream {
-            argv.push("--upstream-diagnostics".to_owned());
-            argv.push(format!("{tool}={}", display(path)));
-        }
-    }
-    argv
+    let request = Request {
+        schema_version: REQUEST_SCHEMA_VERSION,
+        producer: &manifest.producer,
+        capability: &manifest.capability,
+        stages: manifest
+            .stages
+            .iter()
+            .map(|stage| RequestStage {
+                tool: &stage.tool,
+                classes: &stage.classes,
+                sources: &stage.sources,
+            })
+            .collect(),
+        sources: request_mappings(&resolved.sources),
+        siblings: request_mappings(&resolved.siblings),
+        resolves: Vec::new(),
+        tools,
+        scratch_parent: display(scratch_parent),
+    };
+    serde_json::to_vec(&request).map_err(|error| HarnessError::UnwritableWorkdir {
+        path: "request.json".to_owned(),
+        detail: error.to_string(),
+    })
 }
 
 pub struct ChildOutput {
@@ -575,6 +643,7 @@ pub fn stage_update(actual: &[u8], update_file: &str) -> Result<PathBuf, Harness
 
 struct Paths {
     out_pb: PathBuf,
+    request: PathBuf,
     scratch_parent: PathBuf,
 }
 
@@ -588,6 +657,7 @@ fn work_paths() -> Result<Paths, HarnessError> {
     })?;
     Ok(Paths {
         out_pb: work.join("out.pb"),
+        request: work.join("request.json"),
         scratch_parent,
     })
 }
@@ -709,12 +779,17 @@ fn run() -> Result<(), HarnessError> {
     let manifest_ref = &resolved.manifest;
     let paths = work_paths()?;
     plant_ambient_files(&paths.scratch_parent, &manifest_ref.ambient_files)?;
-    let argv = runner_argv(
-        &resolved,
-        &paths.out_pb,
-        &paths.scratch_parent,
-        &test_srcdir(&resolver),
-    );
+    let request = build_request(&resolved, &paths.scratch_parent, &test_srcdir(&resolver))?;
+    std::fs::write(&paths.request, request).map_err(|error| HarnessError::UnwritableWorkdir {
+        path: display(&paths.request),
+        detail: error.to_string(),
+    })?;
+    let argv = [
+        "--request".to_owned(),
+        display(&paths.request),
+        "--output".to_owned(),
+        display(&paths.out_pb),
+    ];
     let runner_out = run_child(&resolved.runner, &argv, "runner")?;
     if manifest_ref.runner_failure {
         if runner_out.status.starts_with("exit 0") {
@@ -810,11 +885,11 @@ mod tests {
 
     fn skeleton(extra: serde_json::Value) -> Vec<u8> {
         let mut doc = serde_json::json!({
-            "schema_version": 1,
+            "schema_version": 2,
             "name": "matrix_probe",
             "producer": "//quality/testdata:matrix_probe",
             "capability": "format",
-            "stages": ["rustfmt;rust;matrix/dirty.rs"],
+            "stages": [{"tool": "rustfmt", "classes": ["rust"], "sources": ["matrix/dirty.rs"]}],
             "sources": [mapping("matrix/dirty.rs", "rules_dx/quality/testdata/matrix_dirty.rs")],
             "siblings": [],
             "tools": {
@@ -897,15 +972,29 @@ mod tests {
 
     #[test]
     fn manifest_version_is_pinned_and_unknown_fields_rejected() {
-        let error = parse_manifest(
-            &skeleton(serde_json::json!({"schema_version": 2})),
-            "skeleton",
-        )
-        .expect_err("v2 must fail");
-        assert!(
-            error.to_string().contains("unsupported manifest schema 2"),
-            "{error}"
-        );
+        for version in [1, 3] {
+            let error = parse_manifest(
+                &skeleton(serde_json::json!({"schema_version": version})),
+                "skeleton",
+            )
+            .expect_err("other versions must fail");
+            assert!(
+                error
+                    .to_string()
+                    .contains(&format!("unsupported manifest schema {version}")),
+                "{error}"
+            );
+        }
+        for stages in [
+            serde_json::json!(["rustfmt;rust;matrix/dirty.rs"]),
+            serde_json::json!([{"tool": "rustfmt", "classes": ["rust"], "sources": ["matrix/dirty.rs"], "bogus": 1}]),
+        ] {
+            assert!(
+                parse_manifest(&skeleton(serde_json::json!({"stages": stages})), "skeleton")
+                    .is_err(),
+                "a string or unknown-field stage must fail"
+            );
+        }
 
         let mut raw: serde_json::Value =
             serde_json::from_slice(&skeleton(serde_json::json!({}))).expect("decodes");
@@ -959,6 +1048,148 @@ mod tests {
         assert_eq!(
             substitute_test_srcdir("$TEST_SRCDIR/x=$TEST_SRCDIR", "/r"),
             "/r/x=/r"
+        );
+    }
+
+    fn resolved_fixture(manifest: Manifest) -> Resolved {
+        let tools = BTreeMap::from([
+            (
+                "rustfmt".to_owned(),
+                ResolvedTool {
+                    binary: Some(PathBuf::from("/runfiles/rustfmt")),
+                    files: vec![(
+                        "rustfmt.toml".to_owned(),
+                        PathBuf::from("/runfiles/rustfmt.toml"),
+                    )],
+                    upstream: Vec::new(),
+                },
+            ),
+            (
+                "clippy".to_owned(),
+                ResolvedTool {
+                    binary: None,
+                    files: Vec::new(),
+                    upstream: vec![PathBuf::from("/runfiles/clippy.diag")],
+                },
+            ),
+        ]);
+        Resolved {
+            manifest,
+            runner: PathBuf::from("/runfiles/quality_runner"),
+            printer: PathBuf::from("/runfiles/print_result"),
+            expected: PathBuf::from("/runfiles/expected.txt"),
+            sources: vec![(
+                "matrix/dirty.rs".to_owned(),
+                PathBuf::from("/runfiles/matrix_dirty.rs"),
+            )],
+            siblings: vec![(
+                "matrix/lib.rs".to_owned(),
+                PathBuf::from("/runfiles/matrix_lib.rs"),
+            )],
+            tools,
+        }
+    }
+
+    fn two_tool_manifest() -> Manifest {
+        parse_manifest(
+            &skeleton(serde_json::json!({
+                "stages": [
+                    {"tool": "rustfmt", "classes": ["rust"], "sources": ["matrix/dirty.rs"]},
+                    {"tool": "clippy", "classes": ["rust"], "sources": ["matrix/dirty.rs"]},
+                ],
+                "tools": {
+                    "rustfmt": {
+                        "binary_key": "rules_dx/rustfmt",
+                        "files": [{"mirror_rel": "rustfmt.toml", "key": "rules_dx/rustfmt.toml"}],
+                        "config": "rustfmt.toml",
+                        "edition": "2021",
+                        "env": [
+                            {"key": "B", "value": "$TEST_SRCDIR/b"},
+                            {"key": "A", "value": "1"},
+                        ],
+                        "upstream_keys": [],
+                    },
+                    "clippy": {"upstream_keys": ["rules_dx/clippy.diag"]},
+                },
+            })),
+            "skeleton",
+        )
+        .expect("two-tool manifest")
+    }
+
+    #[test]
+    fn build_request_passes_the_runner_parser() {
+        let resolved = resolved_fixture(two_tool_manifest());
+        let bytes =
+            build_request(&resolved, Path::new("/tmp/scratch"), "/runfiles").expect("request");
+        let request = quality_runner::request::parse_real_request(&bytes).expect("runner parses");
+        assert_eq!(request.producer, "//quality/testdata:matrix_probe");
+        assert_eq!(request.capability, "format");
+        let stages: Vec<(&str, &[String], &[String])> = request
+            .stages
+            .iter()
+            .map(|stage| {
+                (
+                    stage.tool_id.as_str(),
+                    stage.class_ids.as_slice(),
+                    stage.source_paths.as_slice(),
+                )
+            })
+            .collect();
+        let rust = ["rust".to_owned()];
+        let dirty = ["matrix/dirty.rs".to_owned()];
+        assert_eq!(
+            stages,
+            [
+                ("rustfmt", &rust[..], &dirty[..]),
+                ("clippy", &rust[..], &dirty[..])
+            ]
+        );
+        assert_eq!(
+            request.sources,
+            [(
+                "matrix/dirty.rs".to_owned(),
+                "/runfiles/matrix_dirty.rs".to_owned()
+            )]
+        );
+        assert_eq!(
+            request.siblings,
+            [(
+                "matrix/lib.rs".to_owned(),
+                "/runfiles/matrix_lib.rs".to_owned()
+            )]
+        );
+        assert!(request.resolves.is_empty());
+        assert_eq!(request.scratch_parent.as_deref(), Some("/tmp/scratch"));
+        let rustfmt = &request.tools["rustfmt"];
+        assert_eq!(rustfmt.binary, Some(PathBuf::from("/runfiles/rustfmt")));
+        assert_eq!(rustfmt.config_rel.as_deref(), Some("rustfmt.toml"));
+        assert_eq!(rustfmt.edition.as_deref(), Some("2021"));
+        assert_eq!(
+            rustfmt.files,
+            [(
+                "rustfmt.toml".to_owned(),
+                "/runfiles/rustfmt.toml".to_owned()
+            )]
+        );
+        assert!(rustfmt.upstream.is_empty());
+        assert!(rustfmt.search_paths.is_empty());
+        let clippy = &request.tools["clippy"];
+        assert_eq!(clippy.binary, None);
+        assert_eq!(clippy.upstream, [PathBuf::from("/runfiles/clippy.diag")]);
+    }
+
+    #[test]
+    fn build_request_substitutes_test_srcdir_in_env() {
+        let resolved = resolved_fixture(two_tool_manifest());
+        let bytes = build_request(&resolved, Path::new("/s"), "/runfiles").expect("request");
+        let request = quality_runner::request::parse_real_request(&bytes).expect("runner parses");
+        assert_eq!(
+            request.tools["rustfmt"].env,
+            [
+                ("B".to_owned(), "/runfiles/b".to_owned()),
+                ("A".to_owned(), "1".to_owned())
+            ]
         );
     }
 

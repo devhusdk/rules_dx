@@ -176,6 +176,7 @@ rust_test(
         ],
         package_name = "quality/quality_runner",
     ) + [
+        ":quality_runner_lib",
         "//cli/path:dx_path",
         "//quality/result:quality_result",
         "@rules_rust_prost//private/3rdparty/crates:prost",

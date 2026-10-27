@@ -393,6 +393,15 @@ pub fn terminal_foreground() -> bool {
     backend::terminal_foreground()
 }
 
+/// The group a streamed child joins: the terminal foreground when this process holds it, else its own.
+pub fn stream_group() -> StreamGroup {
+    if terminal_foreground() {
+        StreamGroup::Terminal
+    } else {
+        StreamGroup::Owned
+    }
+}
+
 struct Forwarding {
     target: i32,
 }

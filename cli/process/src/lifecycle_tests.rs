@@ -1373,3 +1373,10 @@ fn streamed_held_tree_dies_with_parent_crash() {
     assert_released(&alive);
     wait_lease_free(&lease);
 }
+
+#[test]
+fn stream_group_is_owned_without_a_terminal() {
+    if !terminal_foreground() {
+        assert!(matches!(stream_group(), StreamGroup::Owned));
+    }
+}

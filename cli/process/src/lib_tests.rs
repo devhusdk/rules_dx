@@ -936,7 +936,7 @@ fn spawn_output_reports_the_signal_that_ended_the_child() {
 }
 
 /// A probe argv that runs the Bazel-built probe with the given flags.
-fn probe_argv(flags: &[&str]) -> Vec<String> {
+pub(crate) fn probe_argv(flags: &[&str]) -> Vec<String> {
     let mut argv = vec![dx_testing::process_probe().to_string_lossy().into_owned()];
     argv.extend(flags.iter().map(|flag| (*flag).to_owned()));
     argv

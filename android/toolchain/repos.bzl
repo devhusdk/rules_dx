@@ -202,9 +202,21 @@ android_ndk_toolchain_repo = repository_rule(
     implementation = _android_ndk_toolchain_repo_impl,
     environ = ["ANDROID_NDK_REVISION", "ANDROID_SDK_ROOT"],
     attrs = {
-        "api_level": attr.int(default = 31),
-        "cxx_runtime": attr.string(default = "shared"),
-        "local_path": attr.string(default = ""),
-        "ndk_revision": attr.string(default = ""),
+        "api_level": attr.int(
+            doc = "Android API level for the NDK toolchain, or zero for the floor.",
+            default = 31,
+        ),
+        "cxx_runtime": attr.string(
+            doc = "C++ runtime linkage for the NDK toolchain, shared by default.",
+            default = "shared",
+        ),
+        "local_path": attr.string(
+            doc = "Installed Android SDK root, falling back to the ANDROID_SDK_ROOT environment variable.",
+            default = "",
+        ),
+        "ndk_revision": attr.string(
+            doc = "Android NDK revision the toolchain repository expects.",
+            default = "",
+        ),
     },
 )

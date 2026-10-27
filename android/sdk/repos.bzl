@@ -598,12 +598,24 @@ def _android_sdk_local_repo_impl(ctx):
     ]))
 
 NDK_REPOSITORY_ATTRS = {
-    "anchor": attr.string(mandatory = True),
-    "archive": attr.string(mandatory = True),
-    "canonical_id": attr.string(mandatory = True),
-    "directory": attr.string(mandatory = True),
-    "sha256": attr.string(mandatory = True),
-    "url": attr.string(mandatory = True),
+    "anchor": attr.string(
+        doc = "Path inside the extracted archive that must exist.",
+        mandatory = True,
+    ),
+    "archive": attr.string(
+        doc = "Archive file name, reported when the anchor is missing.",
+        mandatory = True,
+    ),
+    "canonical_id": attr.string(
+        doc = "Stable cache identity for the downloaded archive.",
+        mandatory = True,
+    ),
+    "directory": attr.string(
+        doc = "Top-level directory stripped when extracting the archive.",
+        mandatory = True,
+    ),
+    "sha256": attr.string(doc = "Expected SHA-256 of the downloaded archive.", mandatory = True),
+    "url": attr.string(doc = "Download URL of the archive.", mandatory = True),
 }
 
 _android_ndk_repo = repository_rule(
@@ -634,21 +646,48 @@ _android_emulator_repo = repository_rule(
 _android_sdk_hub_repo = repository_rule(
     implementation = _android_sdk_hub_repo_impl,
     attrs = {
-        "build_tools_repos": attr.string(mandatory = True),
-        "bundletool_repo": attr.string(default = ""),
-        "emulator_repos": attr.string(default = "{}"),
-        "ndk_repos": attr.string(mandatory = True),
-        "platform_repo": attr.string(default = ""),
-        "platform_tools_repos": attr.string(default = "{}"),
+        "build_tools_repos": attr.string(
+            doc = "JSON map of build-tools repository names by platform.",
+            mandatory = True,
+        ),
+        "bundletool_repo": attr.string(
+            doc = "Repository name that provides the bundletool jar.",
+            default = "",
+        ),
+        "emulator_repos": attr.string(
+            doc = "JSON map of emulator repository names by host.",
+            default = "{}",
+        ),
+        "ndk_repos": attr.string(
+            doc = "JSON map of NDK repository names by platform.",
+            mandatory = True,
+        ),
+        "platform_repo": attr.string(
+            doc = "Repository name of the default platform package.",
+            default = "",
+        ),
+        "platform_tools_repos": attr.string(
+            doc = "JSON map of platform-tools repository names by host.",
+            default = "{}",
+        ),
     },
 )
 
 _android_sdk_local_repo = repository_rule(
     implementation = _android_sdk_local_repo_impl,
     attrs = {
-        "api_level": attr.int(default = 0),
-        "extra_packages": attr.string_list(default = []),
-        "local_path": attr.string(mandatory = True),
+        "api_level": attr.int(
+            doc = "Platform API level required, zero uses the default level.",
+            default = 0,
+        ),
+        "extra_packages": attr.string_list(
+            doc = "Extra SDK packages required locally, such as platform-tools or emulator.",
+            default = [],
+        ),
+        "local_path": attr.string(
+            doc = "Existing Android SDK directory used instead of downloads.",
+            mandatory = True,
+        ),
     },
 )
 
@@ -741,12 +780,30 @@ android_sdk = module_extension(
     implementation = _android_sdk_impl,
     tag_classes = {
         "configure": tag_class(attrs = {
-            "accept_licenses": attr.string_list(default = []),
-            "api_level": attr.int(default = 0),
-            "enabled": attr.bool(default = True),
-            "extra_packages": attr.string_list(default = []),
-            "local_path": attr.string(default = ""),
-            "mirror": attr.string(default = ""),
+            "accept_licenses": attr.string_list(
+                doc = "License identifiers the Android SDK configuration accepts.",
+                default = [],
+            ),
+            "api_level": attr.int(
+                doc = "Platform API level to configure, zero for the default.",
+                default = 0,
+            ),
+            "enabled": attr.bool(
+                doc = "Whether to download the configured SDK packages.",
+                default = True,
+            ),
+            "extra_packages": attr.string_list(
+                doc = "Extra SDK packages to fetch, such as platform-tools or emulator.",
+                default = [],
+            ),
+            "local_path": attr.string(
+                doc = "Existing Android SDK directory used instead of downloading.",
+                default = "",
+            ),
+            "mirror": attr.string(
+                doc = "Https base URL that SDK archives are downloaded from.",
+                default = "",
+            ),
         }),
     },
 )

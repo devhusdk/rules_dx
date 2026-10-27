@@ -1468,17 +1468,15 @@ mod tests {
     }
 
     #[test]
-    fn test_events_reject_a_bad_line_mid_stream() {
+    fn test_events_skip_a_bad_line_mid_stream_and_report_it() {
         let stream = format!(
             "not json\n{}",
             test_result("//a:t", &[("test.xml", &out_uri("a.xml"))])
         );
-        let err = collect_test_events(Cursor::new(stream), || None).expect_err("must fail");
-        let BepError::MalformedEvent { line, reason } = err else {
-            panic!("want MalformedEvent, got {err:?}");
-        };
-        assert_eq!(line, 1);
-        assert!(reason.starts_with("invalid JSON"), "{reason}");
+        let events = collect_test_events(Cursor::new(stream), || None).expect("events");
+        assert_eq!(events.results.len(), 1);
+        let problem = events.problem.expect("problem");
+        assert!(problem.starts_with("line 1: invalid JSON"), "{problem}");
     }
 
     #[test]

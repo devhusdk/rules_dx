@@ -546,26 +546,22 @@ mod tests {
     }
 
     #[test]
-    fn account_rejects_a_bad_line_mid_stream() {
+    fn account_skips_a_bad_line_mid_stream_and_reports_it() {
         let stream = format!("not json\n{}", one_target_stream());
-        let err = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
-            .expect_err("must fail");
-        let BepError::MalformedEvent { line, reason } = err else {
-            panic!("want MalformedEvent, got {err:?}");
-        };
-        assert_eq!(line, 1);
-        assert!(reason.starts_with("invalid JSON"), "{reason}");
+        let account = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect("account");
+        assert_eq!(account.targets.len(), 1);
+        let problem = account.problem.expect("problem");
+        assert!(problem.starts_with("line 1: invalid JSON"), "{problem}");
     }
 
     #[test]
-    fn account_rejects_a_blank_line_mid_stream() {
+    fn account_skips_a_blank_line_mid_stream() {
         let stream = format!("\n{}", one_target_stream());
-        let err = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
-            .expect_err("must fail");
-        assert!(
-            matches!(err, BepError::MalformedEvent { line: 1, .. }),
-            "{err:?}"
-        );
+        let account = collect_account(Cursor::new(stream), &config(), &no_artifacts(), None)
+            .expect("account");
+        assert_eq!(account.targets.len(), 1);
+        assert_eq!(account.problem, None);
     }
 
     #[test]

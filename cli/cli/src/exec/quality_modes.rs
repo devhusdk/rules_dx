@@ -355,14 +355,16 @@ fn signalled_bazel_is_operational() {
 }
 
 #[test]
-fn malformed_bep_stream_is_operational() {
+fn garbled_bep_line_is_incomplete_results() {
     let harness = Harness {
         raw_bep: Some(vec!["{not json".to_owned()]),
+        unterminated_bep: true,
         ..Harness::new("bad-bep")
     };
     let (code, _, err) = harness.run(&["lint", "--output=text"]);
     assert_eq!(code, 1);
-    assert!(err.contains("dx: invalid_bep: invalid build events"));
+    assert!(err.contains("dx: incomplete_results:"), "{err}");
+    assert!(err.contains("build events cut off at line 1"), "{err}");
 }
 
 #[test]

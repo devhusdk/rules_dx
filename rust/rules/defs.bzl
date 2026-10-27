@@ -262,14 +262,16 @@ def rust_clippy_test(name, targets, size = "small", **kwargs):
         **kwargs
     )
 
+_COVERAGE = "//command_line_option:collect_code_coverage"
+
 def _no_coverage_transition_impl(_settings, _attr):
     """Turns off coverage instrumentation on one dependency edge."""
-    return {"//command_line_option:collect_code_coverage": False}
+    return {_COVERAGE: False}
 
 _no_coverage_transition = transition(
     implementation = _no_coverage_transition_impl,
     inputs = [],
-    outputs = ["//command_line_option:collect_code_coverage"],
+    outputs = [_COVERAGE],
 )
 
 def _rust_wasm_input_impl(ctx):
@@ -325,14 +327,13 @@ _BROWSER_CELLS = {
 
 def _browser_transition_impl(settings, attr):
     """Pins the managed test browser for the qualified platform cell."""
-    if attr.browser:
-        return {_TEST_BROWSER: attr.browser}
-    return {_TEST_BROWSER: settings[_TEST_BROWSER]}
+    browser = attr.browser or settings[_TEST_BROWSER]
+    return {_TEST_BROWSER: browser, _COVERAGE: False}
 
 _browser_transition = transition(
     implementation = _browser_transition_impl,
     inputs = [_TEST_BROWSER],
-    outputs = [_TEST_BROWSER],
+    outputs = [_TEST_BROWSER, _COVERAGE],
 )
 
 def _rust_wasm_bindgen_browser_test_impl(ctx):
@@ -370,6 +371,8 @@ def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
     overrides any value given on the command line. Every other cell reports
     the test as incompatible and skips it. The test runs locally only
     (`no-remote-exec`), since the browser needs a display-capable host.
+    The whole test subgraph builds without coverage instrumentation, so
+    `bazel coverage` runs the test but reports no Wasm coverage.
     """
     forward = dx_forwarded_test_kwargs(kwargs)
     upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}

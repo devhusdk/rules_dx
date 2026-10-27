@@ -74,7 +74,10 @@ emits the JavaScript bindings. Guard browser-only code with
 `rust_wasm_bindgen` bundle in a browser that Bazel fetches. It runs on
 linux x86_64 with Firefox, where the host needs GTK 3, and only runs
 locally. Other platforms skip it as incompatible. On linux x86_64 the
-wrapper overrides `@rules_rust_wasm_bindgen//settings:test_browser`.
+wrapper overrides `@rules_rust_wasm_bindgen//settings:test_browser`. Wasm
+builds and browser tests run without coverage instrumentation, so
+`bazel coverage` runs them but reports no Wasm coverage. Only these wrappers
+guarantee that until upstream rules_rust does.
 
 ## WASI
 

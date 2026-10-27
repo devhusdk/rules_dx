@@ -18,6 +18,7 @@ pub(crate) fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
         audit_today: _,
         actions: _,
         proc_root: _,
+        bump_commit_json: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

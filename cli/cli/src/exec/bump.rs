@@ -1,5 +1,6 @@
 use super::common::*;
 use super::dep_edit;
+pub use dx_bump::gha::COMMIT_JSON_ENV;
 use dx_output::{
     command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
@@ -16,6 +17,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         runner,
         out,
         err,
+        bump_commit_json,
         ..
     } = env;
     match plan_reports(
@@ -52,7 +54,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             Ok(request) => request,
             Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         };
-    let request = match resolve_gha_tag_request(&request) {
+    let request = match resolve_gha_tag_request(&request, bump_commit_json) {
         Ok(request) => request,
         Err(message) => {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
@@ -357,15 +359,17 @@ fn plan_widens(
     Ok(planned)
 }
 
-fn resolve_gha_tag_request(request: &dx_bump::BumpRequest) -> Result<dx_bump::BumpRequest, String> {
+fn resolve_gha_tag_request(
+    request: &dx_bump::BumpRequest,
+    commit_json: Option<&str>,
+) -> Result<dx_bump::BumpRequest, String> {
     let is_gha_tag = matches!(&request.version, dx_bump::WidenVersion::GitTag(_))
         && request.set == dx_bump::BumpSet::GithubActions;
     if !is_gha_tag {
         return Ok(request.clone());
     }
-    let path = match std::env::var(dx_bump::gha::COMMIT_JSON_ENV) {
-        Ok(path) => path,
-        Err(_) => return Ok(request.clone()),
+    let Some(path) = commit_json else {
+        return Ok(request.clone());
     };
     let text = std::fs::read_to_string(&path).map_err(|_| {
         format!(
@@ -1358,7 +1362,6 @@ scopes = ["tools"]
 
     #[test]
     fn live_github_tag_resolution_matrix() {
-        std::env::remove_var(dx_bump::gha::COMMIT_JSON_ENV);
         let harness = Harness::new("bump-live-gha-tag");
         harness.write_source(
             ".github/workflows/ci.yml",
@@ -1372,7 +1375,7 @@ scopes = ["tools"]
 
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let commit_json = format!("{{\"sha\": \"{sha}\", \"commit\": {{\"message\": \"v5\"}}}}");
-        let harness = Harness::new("bump-live-gha-resolved");
+        let mut harness = Harness::new("bump-live-gha-resolved");
         harness.write_source(
             ".github/workflows/ci.yml",
             "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
@@ -1386,10 +1389,8 @@ scopes = ["tools"]
             "jobs:\n  b:\n    steps:\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
         harness.write_source("commit.json", &commit_json);
-        std::env::set_var(
-            dx_bump::gha::COMMIT_JSON_ENV,
-            harness.workspace.join("commit.json"),
-        );
+        harness.bump_commit_json =
+            Some(harness.workspace.join("commit.json").display().to_string());
         let (code, out, err) = harness.run(&[
             "bump",
             "github-actions:actions/checkout",
@@ -1424,16 +1425,14 @@ scopes = ["tools"]
         );
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
 
-        let harness = Harness::new("bump-live-gha-nochange");
+        let mut harness = Harness::new("bump-live-gha-nochange");
         harness.write_source(
             ".github/workflows/ci.yml",
             &format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{sha} # v5\n"),
         );
         harness.write_source("commit.json", &commit_json);
-        std::env::set_var(
-            dx_bump::gha::COMMIT_JSON_ENV,
-            harness.workspace.join("commit.json"),
-        );
+        harness.bump_commit_json =
+            Some(harness.workspace.join("commit.json").display().to_string());
         let (code, out, err) = harness.run(&[
             "bump",
             "github-actions:actions/checkout",
@@ -1468,7 +1467,7 @@ scopes = ["tools"]
             ("missing-sha", Some("{\"commit\": {}}")),
             ("invalid-sha", Some("{\"sha\": \"v5\"}")),
         ] {
-            let harness = Harness::new(&format!("bump-live-gha-fail-{name}"));
+            let mut harness = Harness::new(&format!("bump-live-gha-fail-{name}"));
             harness.write_source(
                 ".github/workflows/ci.yml",
                 "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
@@ -1476,16 +1475,12 @@ scopes = ["tools"]
             match body {
                 Some(body) => {
                     harness.write_source("commit.json", body);
-                    std::env::set_var(
-                        dx_bump::gha::COMMIT_JSON_ENV,
-                        harness.workspace.join("commit.json"),
-                    );
+                    harness.bump_commit_json =
+                        Some(harness.workspace.join("commit.json").display().to_string());
                 }
                 None => {
-                    std::env::set_var(
-                        dx_bump::gha::COMMIT_JSON_ENV,
-                        harness.workspace.join("absent.json"),
-                    );
+                    harness.bump_commit_json =
+                        Some(harness.workspace.join("absent.json").display().to_string());
                 }
             }
             let (code, out, err) =
@@ -1499,7 +1494,6 @@ scopes = ["tools"]
                 "{name}: failed lookup must not widen"
             );
         }
-        std::env::remove_var(dx_bump::gha::COMMIT_JSON_ENV);
     }
 
     #[test]

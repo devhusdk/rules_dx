@@ -36,6 +36,7 @@ fn run_app(invocation: &Invocation, env: Env<'_>, withdraw: Option<&dyn Fn() -> 
         audit_today: _,
         actions: _,
         proc_root: _,
+        bump_commit_json: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,

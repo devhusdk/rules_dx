@@ -428,6 +428,7 @@ fn run() -> i32 {
     }
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
+    let bump_commit_json = std::env::var(dx_cli::exec::BUMP_COMMIT_JSON_ENV).ok();
     let actions = ActionTally::default();
     let code = dx_plan::slots::with_gate(gate, || {
         execute(
@@ -445,6 +446,7 @@ fn run() -> i32 {
                 audit_today: audit_today.as_deref(),
                 actions: &actions,
                 proc_root: std::path::Path::new("/proc"),
+                bump_commit_json: bump_commit_json.as_deref(),
             },
         )
     });

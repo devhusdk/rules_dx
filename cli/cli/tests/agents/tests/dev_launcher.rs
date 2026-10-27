@@ -823,6 +823,114 @@ mod sh {
     }
 
     #[test]
+    fn worktree_add_and_release_run_the_built_dx_without_bazel() {
+        let repo = source_repo("dx-launcher-fast-");
+        repo.run_ok();
+        repo.touch_build_file();
+        let files = repo.state_files();
+        for sub in ["add", "release"] {
+            let (code, out, err) = repo.run_in(&repo.root(), &["worktree", sub, "x"]);
+            assert_eq!(
+                (code, out.as_str()),
+                (Some(0), format!("ran worktree {sub} x\n").as_str()),
+                "{err}"
+            );
+            assert!(!err.contains("dx: building"), "{err}");
+        }
+        assert_eq!(repo.builds(), 1);
+        assert_eq!(repo.state_files(), files);
+        repo.run_ok();
+        assert_eq!(repo.builds(), 2, "a plain run still rebuilds");
+    }
+
+    #[test]
+    fn worktree_add_prefers_the_copy_then_the_bazel_bin_dx() {
+        let repo = source_repo("dx-launcher-fast-copy-");
+        repo.run_ok();
+        let root = repo.root();
+        let bin = root.join("bazel-bin/cli/cli/dx");
+        std::fs::write(&bin, "#!/bin/sh\necho bin \"$@\"\n").expect("bin payload");
+        let (_, out, err) = repo.run_in(&root, &["worktree", "add", "x"]);
+        assert_eq!(out, "ran worktree add x\n", "{err}");
+        std::fs::remove_file(root.join(".dx/launcher/dx")).expect("remove the copy");
+        let (_, out, err) = repo.run_in(&root, &["worktree", "add", "x"]);
+        assert_eq!(out, "bin worktree add x\n", "{err}");
+        assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
+    fn worktree_add_without_a_dx_builds_once() {
+        let repo = source_repo("dx-launcher-fast-first-");
+        let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "add", "x"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(0), "ran worktree add x\n"),
+            "{err}"
+        );
+        assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
+    fn worktree_add_does_not_wait_for_a_running_build() {
+        let repo = source_repo("dx-launcher-fast-hold-");
+        repo.run_ok();
+        repo.touch_build_file();
+        let hold = repo.base.join("hold");
+        let child = spawn(repo.command().env("STUB_BUILD_HOLD", &hold));
+        let started = repo.base.join("hold.started");
+        for _ in 0..600 {
+            if started.exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert!(started.exists(), "stub build never started");
+        let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "add", "x"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(0), "ran worktree add x\n"),
+            "{err}"
+        );
+        assert!(!hold.exists(), "the build is still held");
+        assert_eq!(repo.builds(), 2, "only the held build ran");
+        std::fs::write(&hold, "").expect("release the build");
+        child.wait_with_output().expect("launcher exits");
+    }
+
+    #[test]
+    fn other_worktree_commands_still_rebuild_when_stale() {
+        let repo = source_repo("dx-launcher-fast-other-");
+        repo.run_ok();
+        for (i, args) in [vec!["worktree", "list"], vec!["status", "worktree", "add"]]
+            .iter()
+            .enumerate()
+        {
+            repo.touch_build_file();
+            let (code, _, err) = repo.run_in(&repo.root(), args);
+            assert_eq!(code, Some(0), "{err}");
+            assert_eq!(repo.builds(), 2 + i, "{args:?}");
+        }
+    }
+
+    #[test]
+    fn worktree_add_from_a_slot_runs_the_slot_dx_without_building() {
+        let repo = source_repo("dx-launcher-fast-slot-");
+        let slot = repo.base.join("slot");
+        checkout(&slot);
+        std::fs::write(slot.join("payload"), "#!/bin/sh\necho slot \"$@\"\n")
+            .expect("slot payload");
+        repo.run_in(&slot, &["status"]);
+        assert_eq!(repo.builds(), 1);
+        let (code, out, err) = repo.run_in(&slot, &["worktree", "add", "x"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(0), "slot worktree add x\n"),
+            "{err}"
+        );
+        assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
     fn source_launcher_without_a_previous_dx_reports_the_failed_build() {
         let repo = source_repo("dx-launcher-no-fallback-");
         repo.break_build();
@@ -1574,6 +1682,28 @@ mod cmd {
         assert!(!out.contains("dx: building"), "{out}");
         assert_eq!(repo.builds(), 1, "a hook runs the copy without Bazel");
         assert!(!root.join("bazel-bin/cli/cli/dx.exe").exists());
+    }
+
+    #[test]
+    fn cmd_worktree_add_and_release_skip_the_rebuild() {
+        let repo = source_repo("dx-launcher-cmd-fast-");
+        let root = repo.root();
+        let (code, out) = repo.run(&[]);
+        assert_eq!(code, Some(0), "{out}");
+        touch_preset(&root);
+        for sub in ["add", "release"] {
+            let (code, out) = repo.run(&["worktree", sub, "x"]);
+            assert_eq!(code, Some(0), "{out}");
+            assert!(!out.contains("dx: building"), "{out}");
+            assert_eq!(
+                repo.builds(),
+                1,
+                "worktree {sub} runs the copy without Bazel"
+            );
+        }
+        let (code, out) = repo.run(&["status"]);
+        assert_eq!(code, Some(0), "{out}");
+        assert_eq!(repo.builds(), 2, "a plain run still rebuilds");
     }
 
     #[test]

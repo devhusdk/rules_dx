@@ -563,6 +563,35 @@ pub fn stdout_io_code(error: &io::Error) -> i32 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChildStatus {
     pub code: Option<i32>,
+    /// The signal that ended the child, when it died by a known signal.
+    pub signal: Option<i32>,
+}
+
+impl ChildStatus {
+    /// A child that exited with `code`.
+    pub fn exited(code: i32) -> Self {
+        Self {
+            code: Some(code),
+            signal: None,
+        }
+    }
+
+    /// A child that died by `signal`; `None` or 0 means the signal is unknown.
+    pub fn signalled(signal: Option<i32>) -> Self {
+        Self {
+            code: None,
+            signal: signal.filter(|signo| *signo != 0),
+        }
+    }
+}
+
+impl From<lifecycle::Exit> for ChildStatus {
+    fn from(exit: lifecycle::Exit) -> Self {
+        match exit {
+            lifecycle::Exit::Code(code) => Self::exited(code),
+            lifecycle::Exit::Signal(signo) => Self::signalled(Some(signo)),
+        }
+    }
 }
 
 /// Deadline and capture bound for one child run.
@@ -791,9 +820,7 @@ pub struct SystemRunner;
 impl Runner for SystemRunner {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         let output = spawn_output(argv, cwd, env, false)?;
-        Ok(ChildStatus {
-            code: output.status.code(),
-        })
+        Ok(lifecycle::exit_of(&output.status).into())
     }
 
     fn run_hermetic(
@@ -803,9 +830,7 @@ impl Runner for SystemRunner {
         env: &[(&str, &str)],
     ) -> io::Result<ChildStatus> {
         let output = spawn_output(argv, cwd, env, true)?;
-        Ok(ChildStatus {
-            code: output.status.code(),
-        })
+        Ok(lifecycle::exit_of(&output.status).into())
     }
 
     fn run_bounded(

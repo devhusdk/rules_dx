@@ -564,18 +564,18 @@ fn backend_and_runner_statuses_keep_their_wording() {
         )
     );
     assert_eq!(
-        super::runner_status(Ok(ChildStatus { code: Some(0) }), "update", "go", ok()),
+        super::runner_status(Ok(ChildStatus::exited(0)), "update", "go", ok()),
         ok()
     );
     assert_eq!(
-        super::runner_status(Ok(ChildStatus { code: Some(3) }), "update", "go", ok()),
+        super::runner_status(Ok(ChildStatus::exited(3)), "update", "go", ok()),
         (
             S::Failed,
             "failed to update go: updater exited 3".to_owned()
         )
     );
     assert_eq!(
-        super::runner_status(Ok(ChildStatus { code: None }), "check", "go", ok()),
+        super::runner_status(Ok(ChildStatus::signalled(None)), "check", "go", ok()),
         (
             S::Failed,
             "failed to check go: updater terminated by signal".to_owned()

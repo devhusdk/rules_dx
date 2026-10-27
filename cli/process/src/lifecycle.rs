@@ -231,7 +231,7 @@ fn apply_env(command: &mut Command, env: &EnvPolicy) {
     }
 }
 
-fn exit_of(status: &ExitStatus) -> Exit {
+pub(crate) fn exit_of(status: &ExitStatus) -> Exit {
     if let Some(code) = status.code() {
         Exit::Code(code)
     } else {

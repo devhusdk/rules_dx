@@ -161,7 +161,7 @@ impl Launcher<'_> {
         out: &mut dyn Write,
         err: &mut dyn Write,
         argv: &[String],
-    ) -> Result<Option<i32>, i32> {
+    ) -> Result<Option<AppExit>, i32> {
         match self.withdraw {
             Some(withdraw) => run_bazel_app_withdrawable(
                 self.invocation,
@@ -240,13 +240,13 @@ fn emit_run_operations(out: &mut dyn Write, command: &str, targets: &[String]) -
 fn application_failed_event(
     target: &str,
     code: i32,
+    signal: Option<i32>,
 ) -> Result<serde_json::Value, dx_output::OutputError> {
-    let event = bazel_exit_event(
-        CODE_APPLICATION_FAILED,
-        &format!("bazel run {target} exited {code} (see stderr diagnostics)"),
-        code,
-        "execute",
-    )?;
+    let message = match signal {
+        Some(signo) => format!("bazel run {target} terminated by signal {signo}"),
+        None => format!("bazel run {target} exited {code} (see stderr diagnostics)"),
+    };
+    let event = bazel_exit_event(CODE_APPLICATION_FAILED, &message, code, "execute")?;
     Ok(dx_output::with_correlation(event.clone(), &format!("run:{target}")).unwrap_or(event))
 }
 
@@ -256,13 +256,17 @@ fn finish_run(
     out: &mut dyn Write,
     err: &mut dyn Write,
     failed: Option<&str>,
-    code: i32,
+    exit: AppExit,
 ) -> i32 {
+    let AppExit { code, signal } = exit;
     if invocation.output != OutputMode::Json {
+        if let (Some(target), Some(signo)) = (failed, signal) {
+            app_signalled_line(err, target, signo);
+        }
         return code;
     }
     if let Some(target) = failed {
-        if let Err(exit) = emit_built(out, application_failed_event(target, code)) {
+        if let Err(exit) = emit_built(out, application_failed_event(target, code, signal)) {
             return kept_child(err, code, exit);
         }
     }
@@ -302,16 +306,20 @@ fn run_targets(
         if !json && !invocation.quiet {
             let _ = writeln!(err, "{}", plan.summary);
         }
-        let code = match launcher.launch_app(out, err, &plan.argv) {
-            Ok(Some(code)) => code,
+        let app = match launcher.launch_app(out, err, &plan.argv) {
+            Ok(Some(app)) => app,
             Ok(None) => return withdrawn(invocation, out, err),
             Err(exit) => return exit,
         };
-        if code != 0 {
-            return finish_run(invocation, out, err, Some(target), code);
+        if app.code != 0 {
+            return finish_run(invocation, out, err, Some(target), app);
         }
     }
-    finish_run(invocation, out, err, None, 0)
+    let success = AppExit {
+        code: 0,
+        signal: None,
+    };
+    finish_run(invocation, out, err, None, success)
 }
 
 #[cfg(test)]
@@ -369,9 +377,9 @@ mod tests {
             self.seen
                 .borrow_mut()
                 .push((argv.to_vec(), free.is_none(), marked));
-            Ok(dx_process::ChildStatus {
-                code: Some(self.codes[launch.min(self.codes.len() - 1)]),
-            })
+            Ok(dx_process::ChildStatus::exited(
+                self.codes[launch.min(self.codes.len() - 1)],
+            ))
         }
     }
 
@@ -746,6 +754,21 @@ mod tests {
     }
 
     #[test]
+    fn run_signalled_app_exits_128_plus_the_signal_and_stops() {
+        let mut harness = Harness::new("run-app-signal");
+        harness.app_signal = Some(11);
+        let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin"]);
+        assert_eq!(code, 139, "{err}");
+        assert!(
+            err.contains("dx: application_failed: bazel run //a:bin terminated by signal 11"),
+            "{err}"
+        );
+        assert!(!err.contains("bazel_signalled"), "{err}");
+        assert!(!err.contains("Running run for //b:bin"), "{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 2, "build and one app");
+    }
+
+    #[test]
     fn run_multi_target_runs_sequential_single_plans() {
         let harness = Harness::new("run-multi");
         let (code, _, err) = harness.run(&["run", "//a:bin", "//b:bin"]);
@@ -920,10 +943,11 @@ mod tests {
     #[test]
     fn json_multirun_covers_success_and_process_failures() {
         for multiple in [false, true] {
-            for scenario in ["success", "exit", "signal", "spawn"] {
+            for scenario in ["success", "exit", "signal", "app_signal", "spawn"] {
                 let mut harness = Harness::new("run-json-matrix");
                 harness.bazel_code = if scenario == "exit" { 7 } else { 0 };
                 harness.signalled = scenario == "signal";
+                harness.app_signal = (scenario == "app_signal").then_some(11);
                 harness.io_error = scenario == "spawn";
                 let mut words = vec!["run", "//a:one", "--output=json"];
                 if multiple {
@@ -932,6 +956,7 @@ mod tests {
                 let (code, out, err) = harness.run(&words);
                 let expected = match scenario {
                     "exit" => 7,
+                    "app_signal" => 139,
                     "signal" | "spawn" => 1,
                     _ => 0,
                 };
@@ -944,6 +969,20 @@ mod tests {
                 assert_eq!(events.last().expect("finished")["exit_code"], expected);
                 if expected != 0 {
                     assert!(events.iter().any(|event| event["event"] == "error"));
+                }
+                if scenario == "app_signal" {
+                    let errors = events_of_kind(&events, "error");
+                    assert_eq!(errors.len(), 1, "{out}");
+                    assert_eq!(errors[0]["code"], "application_failed", "{out}");
+                    assert_eq!(errors[0]["cause"], "application", "{out}");
+                    assert_eq!(errors[0]["status"], 139, "{out}");
+                    assert_eq!(errors[0]["correlation"], "run://a:one", "{out}");
+                    assert_eq!(
+                        errors[0]["message"], "bazel run //a:one terminated by signal 11",
+                        "{out}"
+                    );
+                    assert!(!out.contains("bazel_signalled"), "{out}");
+                    assert_eq!(harness.seen_env.borrow().len(), 2, "{words:?}");
                 }
             }
         }

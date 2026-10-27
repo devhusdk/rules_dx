@@ -28,7 +28,10 @@ Outside a terminal, every process dx started gets it too, and any still running 
 10 seconds is killed. A stopped run prints `dx: cancelled: stopped by signal N`, exits `128` plus the signal number, and emits no
 `command_finished` event. The shared Bazel server keeps running. If Bazel
 dies by a signal dx did not get, dx reports a `bazel_signalled` error and
-exits `1`.
+exits `1`. Under `dx run` and `dx deploy --apply`, an app that dies by its own
+signal is an app failure instead: dx prints
+`dx: application_failed: bazel run <label> terminated by signal N` and exits
+`128` plus the signal number.
 
 Outside a terminal, if dx is killed with `SIGKILL`, Linux stops the process dx
 started. Anything else in that process group keeps running until the next dx
@@ -286,13 +289,15 @@ the app starts.
 Output: `--output text|json`. `dx run` has no report format. With
 `--output=json`, an app that exits nonzero emits an `error` with code
 `application_failed`, cause `application`, the app's exit code as `status`,
-and `correlation` `run:<label>`.
+and `correlation` `run:<label>`. An app that dies by a signal emits the same
+`error`, with its signal exit code from the list below as `status`.
 A failed build emits an `error` with code `bazel_failed` and starts no app.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or
 a launch failure, or a file or directory scope that matches more than one runnable
 target (ambiguous). A failed build keeps Bazel's exit code. The app's own code
-is the exit code, and the first app that exits nonzero stops the later targets.
+is the exit code, and an app that dies by a signal exits `128` plus the signal
+number. The first app that exits nonzero or dies by a signal stops the later targets.
 
 ```sh
 bazel run @rules_dx//:dx -- run @rules_dx//:dx -- --help
@@ -314,7 +319,8 @@ Args after `--` go to the app, and only reach it on an `--apply` launch.
 Output: text only.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a build or launch
-failure. The target's own code is the exit code. A passing check names
+failure. The target's own code is the exit code, and a target that dies by a
+signal exits `128` plus the signal number. A passing check names
 the `--apply` command that publishes.
 
 ## `dx coverage`

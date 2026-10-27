@@ -320,7 +320,8 @@ configurations appear once, with a `count`.
   `application`, `tool_unavailable`, `collection`, `report`, `host`,
   `operational`, or `unknown`. `bazel_failed` has cause `bazel`; `tests_failed`
   has cause `test`; `application_failed` is a
-  `dx run` application that exited nonzero and has cause `application`.
+  `dx run` application that exited nonzero or died by a signal, and has cause
+  `application`. For a signal, `status` is `128` plus the signal number.
   `disk_full` has cause `host`: a Bazel run or query exited 36 and a disk it
   writes to has under 1 GiB free. dx keeps exit 36 and prints a `next:` line suggesting
   `dx worktree prune --apply`.

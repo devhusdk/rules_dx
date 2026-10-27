@@ -41,6 +41,8 @@ pub(crate) struct Harness {
     pub(crate) failed_labels: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) signalled: bool,
+    /// The signal a `bazel run` app dies by; the build still exits `bazel_code`.
+    pub(crate) app_signal: Option<i32>,
     pub(crate) skip_bep: bool,
     pub(crate) raw_bep: Option<Vec<String>>,
     pub(crate) unterminated_bep: bool,
@@ -134,6 +136,7 @@ impl Harness {
             failed_labels: Vec::new(),
             io_error: false,
             signalled: false,
+            app_signal: None,
             skip_bep: false,
             raw_bep: None,
             unterminated_bep: false,
@@ -308,6 +311,7 @@ impl Harness {
             return FakeRunner {
                 code: Some(self.bazel_code),
                 generate_code: self.generate_code,
+                app_signal: self.app_signal,
                 bep_lines: lines,
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
@@ -363,6 +367,7 @@ impl Harness {
                 Some(self.bazel_code)
             },
             generate_code: self.generate_code,
+            app_signal: self.app_signal,
             bep_lines: lines,
             io_error: self.io_error,
             skip_bep: self.skip_bep,
@@ -540,6 +545,7 @@ impl Runner for ArgvProbe {
         );
         Ok(ChildStatus {
             code: self.codes[launch.min(last)],
+            signal: None,
         })
     }
 }
@@ -547,6 +553,7 @@ impl Runner for ArgvProbe {
 pub(crate) struct FakeRunner {
     pub(crate) code: Option<i32>,
     pub(crate) generate_code: Option<i32>,
+    pub(crate) app_signal: Option<i32>,
     pub(crate) bep_lines: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) skip_bep: bool,
@@ -592,11 +599,27 @@ impl Runner for FakeRunner {
                 std::fs::write(path, witness).expect("intended witness");
             }
             if let Some(code) = self.generate_code {
-                return Ok(ChildStatus { code: Some(code) });
+                return Ok(ChildStatus::exited(code));
             }
         }
-        Ok(ChildStatus { code: self.code })
+        if let Some(signo) = self.app_signal {
+            if bazel_subcommand(argv) == Some("run") {
+                return Ok(ChildStatus::signalled(Some(signo)));
+            }
+        }
+        Ok(ChildStatus {
+            code: self.code,
+            signal: None,
+        })
     }
+}
+
+/// The Bazel subcommand in `argv`: the first word after the binary that is not a startup option.
+fn bazel_subcommand(argv: &[String]) -> Option<&str> {
+    argv.iter()
+        .skip(1)
+        .map(String::as_str)
+        .find(|word| !word.starts_with('-'))
 }
 
 pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored: &str) -> Vec<u8> {

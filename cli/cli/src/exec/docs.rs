@@ -476,7 +476,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 self.seen.borrow_mut().push(argv.to_vec());
-                Ok(dx_process::ChildStatus { code: Some(0) })
+                Ok(dx_process::ChildStatus::exited(0))
             }
         }
         let harness = Harness::new("docs-serve-bind");
@@ -547,7 +547,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus { code: Some(0) })
+                    Ok(dx_process::ChildStatus::exited(0))
                 } else {
                     Err(io::Error::other("fake bind failure: address in use"))
                 }
@@ -692,7 +692,7 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 self.seen.borrow_mut().push(argv.to_vec());
-                Ok(dx_process::ChildStatus { code: Some(0) })
+                Ok(dx_process::ChildStatus::exited(0))
             }
         }
         fn serve_directory(calls: &[Vec<String>]) -> String {
@@ -824,9 +824,9 @@ mod tests {
                 _env: &[(&str, &str)],
             ) -> io::Result<dx_process::ChildStatus> {
                 if argv.first().is_some_and(|first| first == "bazel") {
-                    Ok(dx_process::ChildStatus { code: Some(0) })
+                    Ok(dx_process::ChildStatus::exited(0))
                 } else {
-                    Ok(dx_process::ChildStatus { code: Some(3) })
+                    Ok(dx_process::ChildStatus::exited(3))
                 }
             }
         }

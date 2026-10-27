@@ -21,7 +21,7 @@ use dx_cli::plan::{create_run_temp_dir, remove_on_stop};
 use dx_cli::{execute, Env, QueryResult, QueryRunner};
 use dx_output::OutputMode;
 use dx_process::lifecycle::{
-    self, CleanupBudget, EnvPolicy, Exit, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
+    self, CleanupBudget, EnvPolicy, StreamGroup, StreamOutcome, StreamOutput, StreamSpec,
     StreamStdin,
 };
 use dx_process::{
@@ -126,11 +126,10 @@ fn stream_group() -> StreamGroup {
 
 fn child_status(outcome: StreamOutcome) -> Option<ChildStatus> {
     match outcome {
-        StreamOutcome::Exited(Exit::Code(code)) => Some(ChildStatus { code: Some(code) }),
-        StreamOutcome::Exited(Exit::Signal(_)) => Some(ChildStatus { code: None }),
+        StreamOutcome::Exited(exit) => Some(exit.into()),
         StreamOutcome::Cancelled { signal } => {
             die_by_signal(signal);
-            Some(ChildStatus { code: None })
+            Some(ChildStatus::signalled(None))
         }
         StreamOutcome::Withdrawn => None,
     }
@@ -145,7 +144,7 @@ fn spawn_streamed(
 ) -> io::Result<ChildStatus> {
     let spec = stream_spec(argv, cwd, env, clear_env, inherit_stdout);
     let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &dx_process::interrupted)?;
-    Ok(child_status(outcome).unwrap_or(ChildStatus { code: None }))
+    Ok(child_status(outcome).unwrap_or(ChildStatus::signalled(None)))
 }
 
 impl Runner for BinaryRunner {

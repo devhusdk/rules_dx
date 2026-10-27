@@ -58,7 +58,10 @@ impl Runner for AuditRunner {
                 }
             }
         }
-        Ok(ChildStatus { code: self.code })
+        Ok(ChildStatus {
+            code: self.code,
+            signal: None,
+        })
     }
 
     fn run_hermetic(

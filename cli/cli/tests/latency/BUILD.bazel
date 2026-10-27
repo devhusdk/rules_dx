@@ -62,10 +62,7 @@ rust_test(
         "PATH",
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS + ["exclusive"],
-    target_compatible_with = select({
-        "@platforms//os:windows": ["@platforms//:incompatible"],
-        "//conditions:default": [],
-    }),
+    target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",

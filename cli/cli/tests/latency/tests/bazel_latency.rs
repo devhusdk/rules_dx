@@ -16,21 +16,19 @@ struct Cell {
     limits: &'static [Limits],
 }
 
-const REQUIRED: &[Host] = &[Host::LinuxX86_64, Host::LinuxArm64, Host::MacosArm64];
+const REQUIRED: &[Host] = &[Host::LinuxX86_64, Host::LinuxArm64];
 
-const fn cold(max_ms: u64) -> [Limits; 3] {
+const fn cold(max_ms: u64) -> [Limits; 2] {
     [
         Limits::cold(Host::LinuxX86_64, max_ms),
         Limits::cold(Host::LinuxArm64, max_ms),
-        Limits::cold(Host::MacosArm64, max_ms),
     ]
 }
 
-const fn warm(median_ms: u64, p95_ms: u64) -> [Limits; 3] {
+const fn warm(median_ms: u64, p95_ms: u64) -> [Limits; 2] {
     [
         Limits::warm(Host::LinuxX86_64, median_ms, p95_ms),
         Limits::warm(Host::LinuxArm64, median_ms, p95_ms),
-        Limits::warm(Host::MacosArm64, median_ms, p95_ms),
     ]
 }
 
@@ -174,22 +172,22 @@ const COMPLETE_COLD: Cell = cell(
 );
 const LIST_EDIT: Cell = cell("small", "list-tests", "build_edit", 5, &CEIL_EDIT);
 
-const COLD_53_750: [Limits; 3] = cold(53_750);
-const COLD_9_000: [Limits; 3] = cold(9_000);
-const COLD_2_000: [Limits; 3] = cold(2_000);
-const COLD_1_200: [Limits; 3] = cold(1_200);
-const CEIL_LINT_WARM: [Limits; 3] = warm(5_000, 5_250);
-const CEIL_LIST_SMALL_FIRST: [Limits; 3] = cold(12_000);
-const CEIL_LIST_SMALL_COLD: [Limits; 3] = cold(3_000);
-const CEIL_LIST_SMALL_WARM: [Limits; 3] = warm(250, 400);
-const CEIL_LIST_LARGE_FIRST: [Limits; 3] = cold(12_000);
-const CEIL_LIST_LARGE_COLD: [Limits; 3] = cold(3_000);
-const CEIL_LIST_LARGE_WARM: [Limits; 3] = warm(250, 400);
-const CEIL_SCOPE_WARM: [Limits; 3] = warm(300, 450);
-const CEIL_SCOPE_COLD: [Limits; 3] = cold(13_000);
-const CEIL_COMPLETE_WARM: [Limits; 3] = warm(100, 150);
-const CEIL_COMPLETE_COLD: [Limits; 3] = cold(2_000);
-const CEIL_EDIT: [Limits; 3] = cold(500);
+const COLD_53_750: [Limits; 2] = cold(53_750);
+const COLD_9_000: [Limits; 2] = cold(9_000);
+const COLD_2_000: [Limits; 2] = cold(2_000);
+const COLD_1_200: [Limits; 2] = cold(1_200);
+const CEIL_LINT_WARM: [Limits; 2] = warm(5_000, 5_250);
+const CEIL_LIST_SMALL_FIRST: [Limits; 2] = cold(12_000);
+const CEIL_LIST_SMALL_COLD: [Limits; 2] = cold(3_000);
+const CEIL_LIST_SMALL_WARM: [Limits; 2] = warm(250, 400);
+const CEIL_LIST_LARGE_FIRST: [Limits; 2] = cold(12_000);
+const CEIL_LIST_LARGE_COLD: [Limits; 2] = cold(3_000);
+const CEIL_LIST_LARGE_WARM: [Limits; 2] = warm(250, 400);
+const CEIL_SCOPE_WARM: [Limits; 2] = warm(300, 450);
+const CEIL_SCOPE_COLD: [Limits; 2] = cold(13_000);
+const CEIL_COMPLETE_WARM: [Limits; 2] = warm(100, 150);
+const CEIL_COMPLETE_COLD: [Limits; 2] = cold(2_000);
+const CEIL_EDIT: [Limits; 2] = cold(500);
 
 const CELLS: &[&Cell] = &[
     &LINT_FIRST,

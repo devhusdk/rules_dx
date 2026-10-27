@@ -3780,10 +3780,7 @@ fn age(host: &FakeHost, workspace: &Path, days: u64) {
         .expect("set mtime");
 }
 
-/// Holds a nested slot's lock the way a running test does. It waits for the
-/// lock to be free first: a child process forked by another test thread can
-/// briefly keep a copy of a lock that was already released (flock locks
-/// follow the open file description).
+/// Waits for, then holds, a nested slot's lock the way a running test does.
 fn hold_nested(slot: &Path) -> std::fs::File {
     crate::test_support::eventually(
         "nested slot lock",
@@ -3838,8 +3835,7 @@ fn prune_lists_nested_cases_idle_for_30_days_and_apply_deletes_them() {
     let (fresh, fresh_ws) = nested_case(&slot, "fresh", "bbb");
     age(&host, &old_ws, 31);
     age(&host, &fresh_ws, 29);
-    // The planning probe and apply's lock can see a lock copy that a child
-    // of another test thread briefly keeps, so retry until they see it free.
+    // A forked child can briefly keep the lock.
     let dry = crate::test_support::eventually(
         "nested slot idle for planning",
         std::time::Duration::from_secs(30),

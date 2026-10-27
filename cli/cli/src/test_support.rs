@@ -68,8 +68,7 @@ pub(crate) fn events_of_kind<'a>(
 }
 
 /// Retries `probe` every 25ms until it returns `Some`, or panics once
-/// `deadline` has passed. Another copy lives in `cli/atomic_fs/src/lease.rs`
-/// until a shared test-utils crate exists.
+/// `deadline` has passed.
 pub(crate) fn eventually<T>(
     what: &str,
     deadline: std::time::Duration,

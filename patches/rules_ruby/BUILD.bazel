@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "coverage.patch",
     "reproducible.patch",
 ])
 

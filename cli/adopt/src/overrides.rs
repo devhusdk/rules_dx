@@ -92,10 +92,16 @@ pub const OVERRIDES: &[Override] = &[
         module: "rules_ruby",
         version: "0.28.0",
         patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "reproducible.patch",
-            content: include_str!("../../../patches/rules_ruby/reproducible.patch"),
-        }],
+        patches: &[
+            OverridePatch {
+                file: "reproducible.patch",
+                content: include_str!("../../../patches/rules_ruby/reproducible.patch"),
+            },
+            OverridePatch {
+                file: "coverage.patch",
+                content: include_str!("../../../patches/rules_ruby/coverage.patch"),
+            },
+        ],
     },
     Override {
         module: "aspect_rules_py",

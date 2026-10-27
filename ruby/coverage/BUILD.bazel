@@ -1,0 +1,35 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(["pins.bzl"])
+
+config_setting(
+    name = "coverage_on",
+    values = {"collect_code_coverage": "true"},
+)
+
+filegroup(
+    name = "none",
+    srcs = [],
+)
+
+# The pinned SimpleCov gems under `bazel coverage`, nothing otherwise, so
+# `bazel test` never fetches them (#3954).
+alias(
+    name = "gems",
+    actual = select({
+        ":coverage_on": "@dx_ruby_coverage_gems//:lib",
+        "//conditions:default": ":none",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "pins.bzl",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+)

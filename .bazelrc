@@ -2,7 +2,7 @@ import %workspace%/tools/bazelrc/preset.bazelrc
 
 # Keep the preset's -no-coverage and also skip tests of languages with no
 # coverage collector yet (dx-no-coverage-collector, #2308), so this repo's own
-# coverage runs keep going. Follow-ups: #3954 (Ruby), #3955 (C#/F#).
+# coverage runs keep going. Follow-up: #3955 (C#/F#).
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
 test:retry --flaky_test_attempts=3

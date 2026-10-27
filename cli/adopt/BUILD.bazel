@@ -37,6 +37,7 @@ dx_rust_crate(
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
         "//patches/rules_ruby:reproducible.patch",
+        "//patches/rules_ruby:coverage.patch",
         "//patches/rules_rust:lld_link.patch",
         "//patches/rules_rust:msvc_stdlib_linkflags.patch",
         "//patches/rules_rust_wasm_bindgen:no_wasm_coverage.patch",

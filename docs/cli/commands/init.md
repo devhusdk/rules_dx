@@ -127,9 +127,12 @@ when they exist.
 
 `tools/dx` (sh) and `tools/dx.cmd` run dx without Bazel. They read `.dx/version`,
 download the matching standalone binary and its `.sha256` file from the GitHub
-release into `~/.cache/dx/bin/<version>/` (`%USERPROFILE%\.cache\dx\bin\<version>\`
-on Windows), check the binary against that sha256, and run it. A cached binary
-is only run. No Bazel server starts.
+release into `<cache>/bin/<version>/`, check the binary against that sha256,
+and run it. A cached binary is only run. No Bazel server starts.
+
+`<cache>` is `DX_CACHE_DIR`, else `$XDG_CACHE_HOME/dx`, else `~/.cache/dx`
+(`%USERPROFILE%\.cache\dx` on Windows). The [global shim](README.md#global-shim)
+uses the same cache, so each runs binaries the other downloaded.
 
 ```text
 tools/dx version

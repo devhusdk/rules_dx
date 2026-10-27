@@ -1,0 +1,26 @@
+[package]
+name = "dx_shim"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_shim"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dx"
+path = "src/main.rs"
+
+[dependencies]
+semver = "1"
+sha2 = "0.10"
+ureq = "3"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Console",
+] }
+
+[dev-dependencies]
+tempfile = "3"

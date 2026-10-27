@@ -115,6 +115,19 @@ fn every_removed_command_is_a_usage_error_with_its_tip() {
 }
 
 #[test]
+fn reserved_commands_are_usage_errors_with_their_tip() {
+    for (name, tip) in crate::args::tokenizer::RESERVED_COMMANDS {
+        for words in [vec![*name], vec![*name, "version"], vec![*name, "where"]] {
+            assert_usage(
+                &words,
+                parse(&strings(&words)).unwrap_err(),
+                &["reserved command", tip],
+            );
+        }
+    }
+}
+
+#[test]
 fn check_selects_check_mode() {
     let got = parse(&strings(&["format", "--check"])).expect("parse");
     assert_eq!(got.command, Command::Format);

@@ -676,6 +676,7 @@ crate.from_cargo(
         "//cli/binfmt:Cargo.toml",
         "//cli/plan:Cargo.toml",
         "//cli/worktree:Cargo.toml",
+        "//cli/shim:Cargo.toml",
         "//deploy/rules:Cargo.toml",
         "//deploy/offline/bootstrap:Cargo.toml",
         "//deploy/release:Cargo.toml",

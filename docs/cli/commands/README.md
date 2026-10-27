@@ -384,6 +384,42 @@ Any other non-empty value is a usage error. An empty value is unset.
 A `DX_OUTPUT` or `DX_FAIL_ON` value that a command does not support is ignored
 for that command, as in the config file.
 
+## Global Shim
+
+The shim is a small `dx` binary for PATH, built from `//cli/shim`. It runs the
+dx version a workspace pins without Bazel and never edits the workspace.
+
+1. The version is `DX_VERSION` when set, otherwise the first line of the
+   nearest `.dx/version` above the current directory (CR and spaces stripped).
+   Both must be plain semver.
+2. The binary is `<cache>/bin/<version>/dx-<os>-<arch>` (`.exe` on Windows),
+   the same file `tools/dx` uses. A cached binary runs with no network access.
+3. A missing binary is downloaded from the GitHub release, checked against the
+   release's `.sha256` file, and moved into place. A binary that does not match
+   is deleted and never run.
+4. The shim runs the binary with the same arguments, stdin, stdout and stderr,
+   and sets `DX_SHIM=1`.
+
+`dx shim version` prints `dx-shim <version>`. `dx shim where` prints the
+version, where it came from, the binary path, and whether it is cached. It
+never downloads. The dx binary rejects `shim` as a command name.
+
+Environment:
+
+- `DX_VERSION=<semver>`: run this version instead of the `.dx/version` pin.
+- `DX_CACHE_DIR=<dir>`: cache root. Otherwise `$XDG_CACHE_HOME/dx`, then
+  `~/.cache/dx` (`%USERPROFILE%\.cache\dx` on Windows). Empty values are unset.
+- `DX_RELEASE_BASE_URL=<url>`: download from `<url>/v<version>/<asset>`
+  instead of the GitHub release. Must be `https://`, or `http://` to
+  `127.0.0.1`, `[::1]` or `localhost`. The shim trusts this server and its
+  `.sha256` files fully.
+
+Errors print one `dx: ` line on stderr. Exit codes: `0` success, `2` usage
+errors (bad `DX_VERSION`, bad `DX_RELEASE_BASE_URL`, unknown `dx shim`
+command), `1` other failures (no `.dx/version`, no binary for the platform,
+download failure, sha256 mismatch, cache not writable). Otherwise the exit code
+or signal is the dx binary's own.
+
 ## Config File
 
 `dx.toml` (committed) and `dx.local.toml` (local-only, gitignored) set the

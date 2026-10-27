@@ -459,7 +459,12 @@ impl Host for SystemHost {
 
     fn nested_root(&self) -> Option<PathBuf> {
         let env = std::env::var_os(dx_path::nested_bazel::ROOT_ENV);
-        Some(dx_path::nested_bazel::root(env.as_deref(), current_uid()))
+        let profile = std::env::var_os("USERPROFILE").map(PathBuf::from);
+        Some(dx_path::nested_bazel::root(
+            env.as_deref(),
+            current_uid(),
+            profile.as_deref(),
+        ))
     }
 
     fn interrupted(&self) -> Option<i32> {

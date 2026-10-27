@@ -54,6 +54,8 @@ pub struct DepInfo {
     pub raw: String,
     pub peer: bool,
     pub sha256: String,
+    /// Lock name when the dependency is renamed, empty otherwise.
+    pub package: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

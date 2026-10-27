@@ -91,6 +91,7 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                         raw: requirement.name,
                         peer: false,
                         sha256: String::new(),
+                        package: String::new(),
                     },
                 );
             }
@@ -116,6 +117,7 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                             raw: requirement.name,
                             peer: false,
                             sha256: String::new(),
+                            package: String::new(),
                         },
                     );
                 }
@@ -143,6 +145,7 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
                         raw: requirement.name,
                         peer: false,
                         sha256: String::new(),
+                        package: String::new(),
                     },
                 );
             }

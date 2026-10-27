@@ -85,13 +85,18 @@ fn check_maps(
 ) -> i32 {
     let mut failures = Vec::new();
     for (name, info) in deps {
-        let alt = if name.contains('_') {
-            name.replace('_', "-")
+        let key = if info.package.is_empty() {
+            name
         } else {
-            name.replace('-', "_")
+            &info.package
+        };
+        let alt = if key.contains('_') {
+            key.replace('_', "-")
+        } else {
+            key.replace('-', "_")
         };
         let locked = pkgs
-            .get(name)
+            .get(key)
             .filter(|v| !v.is_empty())
             .or_else(|| pkgs.get(&alt).filter(|v| !v.is_empty()));
         let Some(locked) = locked else {

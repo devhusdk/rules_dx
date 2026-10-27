@@ -68,6 +68,7 @@ pub fn parse_js_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
                     raw: name.clone(),
                     peer: false,
                     sha256: String::new(),
+                    package: String::new(),
                 },
             );
         }
@@ -83,6 +84,7 @@ pub fn parse_js_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
                 raw: name.clone(),
                 peer: true,
                 sha256: String::new(),
+                package: String::new(),
             });
         }
     }

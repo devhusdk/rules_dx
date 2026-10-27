@@ -27,6 +27,7 @@ pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
                 raw: requirement.module,
                 peer: false,
                 sha256: String::new(),
+                package: String::new(),
             },
         );
     }

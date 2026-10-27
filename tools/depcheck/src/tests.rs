@@ -1812,6 +1812,60 @@ fn consistency_stale_lists_all_locked_versions() {
     assert!(err.contains("lock has 1.0.109, 2.0.48"), "{err}");
 }
 
+const RENAMED_MANIFEST: &str =
+    "[dependencies]\njson = { package = \"serde_json\", version = \"1\" }\n";
+
+#[test]
+fn rust_manifest_keeps_alias_for_renamed_crate() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    write_file(
+        &man,
+        "[dependencies]\njson = { package = \"serde_json\", version = \"1\" }\n\n[target.'cfg(unix)'.dependencies]\npm2 = { package = \"Proc-Macro2\", version = \"1\" }\n",
+    );
+    let deps = parse_rust_manifest(&man).expect("parse");
+    assert_eq!(deps["json"].raw, "json");
+    assert_eq!(deps["json"].package, "serde_json");
+    assert_eq!(deps["pm2"].raw, "pm2");
+    assert_eq!(deps["pm2"].package, "proc-macro2");
+}
+
+#[test]
+fn consistency_finds_renamed_crate() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    let lock = dir.path().join("Cargo.lock");
+    write_file(&man, RENAMED_MANIFEST);
+    write_file(
+        &lock,
+        "[[package]]\nname = \"serde_json\"\nversion = \"1.0.100\"\n",
+    );
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 0, "{err}");
+    write_file(
+        &lock,
+        "[[package]]\nname = \"serde_json\"\nversion = \"0.9.0\"\n",
+    );
+    let mut err = String::new();
+    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(code, 1);
+    assert!(err.contains("stale lock entry for 'json'"), "{err}");
+}
+
+#[test]
+fn usage_matches_renamed_crate_by_alias() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let man = dir.path().join("Cargo.toml");
+    write_file(&man, RENAMED_MANIFEST);
+    write_file(&dir.path().join("src/lib.rs"), "use json::Value;\n");
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = cmd_usage(Ecosystem::Rust, &man, dir.path(), None, &mut out, &mut err);
+    assert_eq!(code, 0, "{err}");
+}
+
 #[test]
 fn consistency_stale_cc_sha_fails() {
     let dir = tempfile::tempdir().expect("scratch");

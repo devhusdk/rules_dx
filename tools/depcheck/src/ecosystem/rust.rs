@@ -10,6 +10,13 @@ pub fn normalize_rs(name: &str) -> String {
     name.to_lowercase().replace('-', "_")
 }
 
+fn package_name(t: &toml::map::Map<String, toml::Value>) -> String {
+    t.get("package")
+        .and_then(toml_string)
+        .unwrap_or_default()
+        .to_lowercase()
+}
+
 pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = parse_toml_file(path)?;
     let mut deps = BTreeMap::new();
@@ -20,17 +27,17 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
     ] {
         if let Some(tbl) = data.get(key).and_then(|v| v.as_table()) {
             for (name, val) in tbl {
-                let (spec, optional) = match val {
-                    toml::Value::String(s) => (s.clone(), false),
+                let (spec, optional, package) = match val {
+                    toml::Value::String(s) => (s.clone(), false, String::new()),
                     toml::Value::Table(t) => {
                         let spec = t
                             .get("version")
                             .and_then(toml_string)
                             .unwrap_or_else(|| "*".to_owned());
                         let optional = t.get("optional").map(toml_bool).unwrap_or(false);
-                        (spec, optional)
+                        (spec, optional, package_name(t))
                     }
-                    _ => ("*".to_owned(), false),
+                    _ => ("*".to_owned(), false, String::new()),
                 };
                 put(
                     &mut deps,
@@ -43,6 +50,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                         raw: name.clone(),
                         peer: false,
                         sha256: String::new(),
+                        package,
                     },
                 );
             }
@@ -65,13 +73,15 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                     "build"
                 };
                 for (name, val) in tbl {
-                    let spec = match val {
-                        toml::Value::String(s) => s.clone(),
-                        toml::Value::Table(t) => t
-                            .get("version")
-                            .and_then(toml_string)
-                            .unwrap_or_else(|| "*".to_owned()),
-                        _ => "*".to_owned(),
+                    let (spec, package) = match val {
+                        toml::Value::String(s) => (s.clone(), String::new()),
+                        toml::Value::Table(t) => (
+                            t.get("version")
+                                .and_then(toml_string)
+                                .unwrap_or_else(|| "*".to_owned()),
+                            package_name(t),
+                        ),
+                        _ => ("*".to_owned(), String::new()),
                     };
                     put(
                         &mut deps,
@@ -84,6 +94,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
                             raw: name.clone(),
                             peer: false,
                             sha256: String::new(),
+                            package,
                         },
                     );
                 }

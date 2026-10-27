@@ -957,7 +957,7 @@ impl ReportSink<'_> {
         complete: bool,
     ) -> Result<bool, i32> {
         if let Err(error) = write_report_document(self.out, self.workspace, destination, document) {
-            self.failed(&format!("failed to write {name} report to {error}"))?;
+            self.failed(&format!("failed to write {name} report to {error}"), None)?;
             return Ok(false);
         }
         if self.output == OutputMode::Json {
@@ -975,9 +975,9 @@ impl ReportSink<'_> {
         Ok(true)
     }
 
-    /// Reports one report that could not be produced.
-    fn failed(&mut self, detail: &str) -> Result<(), i32> {
-        report_failed(self.out, self.err, self.output, detail)
+    /// Reports one report that could not be produced, with the next step for its cause.
+    fn failed(&mut self, detail: &str, next: Option<&str>) -> Result<(), i32> {
+        report_failed_with_next(self.out, self.err, self.output, detail, next)
     }
 }
 
@@ -1356,8 +1356,10 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             Ok(document) => document,
             Err(reason) => {
                 reports_ok = false;
-                if let Err(exit) = sink.failed(&format!("failed to render {name} report: {reason}"))
-                {
+                let message = format!("failed to render {name} report: {reason}");
+                let next = (!detail.is_empty() && reason == detail)
+                    .then_some(super::guidance::EVIDENCE_GAP_NEXT);
+                if let Err(exit) = sink.failed(&message, next) {
                     return kept_child(err, bazel_code, exit);
                 }
                 continue;
@@ -2523,6 +2525,25 @@ mod tests {
         let (code, _, err) = harness.run(&["coverage", "--output=text"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("no coverage.dat"), "{err}");
+    }
+
+    #[test]
+    fn coverage_report_without_lcov_names_the_gap_not_the_destination() {
+        let harness = Harness::new("cov-gap-report");
+        let xml = write_bep_artifact(&harness, "x.xml", MINIMAL_TEST_XML.as_bytes());
+        let harness = Harness {
+            raw_bep: Some(vec![test_result_line(
+                "//a:t",
+                &[(String::from("test.xml"), xml)],
+            )]),
+            ..harness
+        };
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--report=lcov=out.lcov"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("report_failed"), "{err}");
+        assert!(err.contains("no coverage.dat"), "{err}");
+        assert!(err.contains("fix the test or coverage problem"), "{err}");
+        assert!(!err.contains("writable"), "{err}");
     }
 
     #[test]

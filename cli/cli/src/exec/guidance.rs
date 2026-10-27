@@ -114,6 +114,10 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
     })
 }
 
+/// The next step when a report cannot render because the run left no coverage evidence.
+pub(crate) const EVIDENCE_GAP_NEXT: &str =
+    "next: fix the test or coverage problem reported above and run the command again.";
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7001,7 +7001,8 @@ mod tests {
         let mut tagged = Vec::new();
         for tag in ["one", "two"] {
             let mut descriptor = image.clone();
-            descriptor["annotations"] = serde_json::json!({"org.opencontainers.image.ref.name": tag});
+            descriptor["annotations"] =
+                serde_json::json!({"org.opencontainers.image.ref.name": tag});
             tagged.push(descriptor);
         }
         let tagged_index = oci_index_body(&tagged);

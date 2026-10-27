@@ -1,7 +1,6 @@
 """TypeScript API reference shards built from the pinned TypeDoc JSON."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _TYPEDOC = Label("//quality/tools/javascript/bin:typedoc")
@@ -56,23 +55,19 @@ def _check_options(where, options):
             fail(where + ": option '" + option + "' is set by the rule and cannot be overridden")
 
 def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs):
-    """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard."""
+    """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
+
+    TypeDoc runs through an isolated launcher. Only the compiler options of the given
+    tsconfig are read; `typedocOptions` (also inherited ones), `typedoc.json` and
+    `package.json` are ignored, and plugins are never loaded. Extra flags go in `options`.
+    """
     where = "typescript_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
         fail(where + ": need at least one entry point")
     if package == "":
         fail(where + ": package is required")
     _check_options(where, options)
-    empty_options = name + "_typedoc_options.json"
-    write_file(
-        name = name + "_typedoc_options",
-        out = empty_options,
-        content = ["{}", ""],
-        visibility = ["//visibility:private"],
-    )
     arguments = [
-        "--options",
-        empty_options,
         "--tsconfig",
         tsconfig,
         "--name",
@@ -93,7 +88,7 @@ def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [],
     arguments.extend(options)
     js_run_binary(
         name = name + "_typedoc",
-        srcs = srcs + [tsconfig, empty_options] + deps,
+        srcs = srcs + [tsconfig] + deps,
         args = arguments,
         chdir = native.package_name(),
         mnemonic = "DxTypedoc",

@@ -1,0 +1,20 @@
+load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
+
+# gazelle:resolve go example.test/ext/helper @other//pkg:helper
+# gazelle:resolve go example.test/ext/other @other//different:helper
+
+go_library(
+    name = "pkg",
+    srcs = ["pkg.go"],
+    importpath = "example.test/demo/pkg",
+)
+
+go_test(
+    name = "pkg_test",
+    srcs = ["pkg_test.go"],
+    embed = [":pkg"],
+    deps = [
+        "@other//different:helper",
+        "@other//pkg:helper",
+    ],
+)

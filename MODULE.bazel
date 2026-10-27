@@ -721,6 +721,12 @@ _consumer_cc_repo(
     name = "consumer_cc",
 )
 
+_go_samepkg_repo = use_repo_rule("//go/tests/fixtures/samepkg:repos.bzl", "go_samepkg_repo")
+
+_go_samepkg_repo(
+    name = "go_samepkg_helper",
+)
+
 _consumer_resources_repo = use_repo_rule("//deploy/tests/fixtures/consumer_resources:repos.bzl", "consumer_resources_repo")
 
 _consumer_resources_repo(

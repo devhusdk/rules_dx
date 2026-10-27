@@ -9,6 +9,7 @@ load(":arithmetic_tests.bzl", "arithmetic_load_tests", "arithmetic_unit_tests")
 load(":aspect_tests.bzl", "aspect_subject_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
+load(":launcher_tests.bzl", "launcher_unit_tests")
 load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
@@ -72,6 +73,8 @@ config_subject_tests(name = "config_subject_analysis")
 
 fixture_execution_tests(name = "fixture_execution")
 
+launcher_unit_tests(name = "launcher_unit")
+
 matcher_unit_tests(name = "matcher_unit")
 
 toolchain_unit_tests(name = "toolchain_unit")
@@ -131,6 +134,7 @@ test_suite(
         ":aspect_subject_analysis",
         ":config_subject_analysis",
         ":fixture_execution",
+        ":launcher_unit",
         ":matcher_unit",
         ":matrix_validation",
         ":output_group_unit",
@@ -161,6 +165,7 @@ real_source_target(
         "config_tests.bzl",
         "direct_sources.bzl",
         "execution_tests.bzl",
+        "launcher_tests.bzl",
         "matcher_tests.bzl",
         "matrix_tests.bzl",
         "output_group_tests.bzl",

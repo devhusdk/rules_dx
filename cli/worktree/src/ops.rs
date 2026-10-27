@@ -74,6 +74,8 @@ pub struct Warning {
 pub(crate) struct Reclaim {
     pub(crate) warning: Warning,
     pub(crate) removed: bool,
+    /// Whether a free slot's output base was kept because its Bazel server would not stop.
+    pub(crate) skipped: bool,
 }
 
 /// The slot a `release` freed.
@@ -1974,6 +1976,7 @@ pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option
         Err(error) => Some(Reclaim {
             warning: reclaim_failed(&error),
             removed: false,
+            skipped: false,
         }),
     }
 }
@@ -2032,6 +2035,7 @@ fn reclaim_host_wide(
     let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
+    let mut kept: Vec<u32> = Vec::new();
     for base in bases.iter().filter(|base| {
         !base.workspace.exists()
             && !under(nested_root.as_deref(), &base.dir)
@@ -2080,6 +2084,7 @@ fn reclaim_host_wide(
         for (slot, owned) in picked {
             let path = pool.slot_path(slot);
             if stop_server(host, &path) {
+                kept.push(slot);
                 continue;
             }
             if drop_bases(host, &owned) {
@@ -2116,6 +2121,13 @@ fn reclaim_host_wide(
             size(after.free)
         ));
     }
+    if !kept.is_empty() {
+        let numbers: Vec<String> = kept.iter().map(u32::to_string).collect();
+        message.push_str(&format!(
+            "; kept the output bases of free slot(s) {} (server would not stop)",
+            numbers.join(", ")
+        ));
+    }
     if is_low(after) {
         message.push_str("; run dx worktree prune --apply");
     }
@@ -2125,6 +2137,7 @@ fn reclaim_host_wide(
             message,
         },
         removed: reclaimed,
+        skipped: !kept.is_empty(),
     }
 }
 

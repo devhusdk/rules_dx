@@ -10,7 +10,7 @@ use dx_process::lifecycle::{
 use clap_complete::engine::{ArgValueCompleter, CompletionCandidate, ValueCompleter};
 
 use super::command::{Command, FirstSlot, COMMANDS};
-use super::grammar::VALUE_OPTIONS;
+use super::grammar::consumes_next;
 use super::ArgsError;
 
 pub const COMPLETION_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
@@ -133,8 +133,8 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
             break;
         }
         if word.starts_with('-') {
-            let name = word.split_once('=').map_or(word.as_str(), |(name, _)| name);
-            if !word.contains('=') && VALUE_OPTIONS.contains(&name) {
+            let next = words.get(index).map(|next| next.to_string_lossy());
+            if consumes_next(&word, next.as_deref()) {
                 index += 1;
             }
             continue;
@@ -594,6 +594,12 @@ mod tests {
         std::fs::write(root.join("BUILD.bazel"), "").expect("marker");
         std::fs::write(root.join("pkg/BUILD.bazel"), "").expect("marker");
         scratch
+    }
+
+    #[test]
+    fn a_short_cluster_value_is_not_a_prior_scope() {
+        let words: Vec<OsString> = ["lint", "-qo", "json", "pkg", "x"].map(OsString::from).to_vec();
+        assert_eq!(prior_scopes(&words), vec!["pkg".to_owned()]);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 
 use super::command::Command;
-use super::grammar::{Cli, VALUE_OPTIONS};
+use super::grammar::{Cli, consumes_next};
 use super::ArgsError;
 
 fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {
@@ -29,8 +29,8 @@ pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
             return None;
         }
         if arg.starts_with('-') {
-            let name = arg.split_once('=').map_or(arg, |(name, _)| name);
-            if !arg.contains('=') && VALUE_OPTIONS.contains(&name) {
+            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
+            if consumes_next(arg, next) {
                 index = skip_value_payload(args, index);
                 continue;
             }
@@ -54,8 +54,8 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             break;
         }
         if arg.starts_with('-') {
-            let name = arg.split_once('=').map_or(arg, |(name, _)| name);
-            if !arg.contains('=') && VALUE_OPTIONS.contains(&name) {
+            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
+            if consumes_next(arg, next) {
                 index = skip_value_payload(args, index);
                 continue;
             }
@@ -80,8 +80,8 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             break;
         }
         if arg.starts_with('-') {
-            let name = arg.split_once('=').map_or(arg, |(name, _)| name);
-            if !arg.contains('=') && VALUE_OPTIONS.contains(&name) {
+            let next = args.get(scan + 1).and_then(|next| next.as_ref().to_str());
+            if consumes_next(arg, next) {
                 scan = skip_value_payload(args, scan);
                 continue;
             }
@@ -279,6 +279,16 @@ mod tests {
     use super::super::{assert_usage, parse, ArgsError, Command};
     use super::{render_command_help, usage_banner};
     use crate::test_support::strings;
+
+    #[test]
+    fn the_help_command_scan_skips_the_value_after_a_short_cluster() {
+        use super::super::Command;
+        assert_eq!(
+            super::help_command_in(&["-qo", "json", "lint"]),
+            Some(Command::Lint)
+        );
+        assert_eq!(super::help_command_in(&["-qo", "lint"]), None);
+    }
 
     #[test]
     fn every_command_has_a_help_subcommand() {

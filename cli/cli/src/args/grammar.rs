@@ -1000,6 +1000,17 @@ pub(crate) fn short_cluster(
     None
 }
 
+/// Whether `word` is a value option whose value is the separate word `next`.
+pub(crate) fn consumes_next(word: &str, next: Option<&str>) -> bool {
+    if word.contains('=') {
+        return false;
+    }
+    if word.starts_with("--") {
+        return VALUE_OPTIONS.contains(&word);
+    }
+    short_cluster(word, next).is_some_and(|(_, _, used_next)| used_next)
+}
+
 /// The long names the grammar gives the flags that belong to some commands only.
 pub(crate) fn advertised_flags(command: super::command::Command) -> Vec<String> {
     let sub = subcommand_args(command);
@@ -1224,6 +1235,13 @@ mod tests {
             Some(('o', None, false))
         );
         assert_eq!(short_cluster("-qo", Some("")), Some(('o', None, false)));
+        assert!(consumes_next("--output", Some("json")));
+        assert!(!consumes_next("--output=json", Some("json")));
+        assert!(consumes_next("-o", Some("json")));
+        assert!(consumes_next("-qo", Some("json")));
+        assert!(!consumes_next("-qo", Some("--quiet")));
+        assert!(!consumes_next("-q", Some("json")));
+        assert!(!consumes_next("--check", Some("json")));
         assert_eq!(short_cluster("-q=false", None), None);
         assert_eq!(short_cluster("-json", None), None);
         assert_eq!(short_cluster("-qv", Some("json")), None);

@@ -154,7 +154,8 @@ fn verb_after_command<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
             return None;
         }
         if word.starts_with('-') {
-            if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
+            if super::grammar::consumes_next(word, next) {
                 index += 1;
             }
         } else {
@@ -216,7 +217,7 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
         {
             return true;
         }
-        if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+        if super::grammar::consumes_next(word, words.get(index + 1).copied()) {
             index += 1;
         }
         index += 1;
@@ -1265,6 +1266,7 @@ mod startup_tests {
             vec!["help", "lint"],
             vec!["lint", "--help"],
             vec!["lint", "--output", "json", "--help"],
+            vec!["lint", "-qo", "json", "-h"],
             vec!["version", "--workspace=/repo", "--help"],
         ] {
             assert!(is_help_request(&strings(&words)), "{words:?} asks for help");

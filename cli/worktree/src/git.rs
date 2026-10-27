@@ -230,6 +230,28 @@ pub(super) fn unpushed(
     Ok(text.trim().parse().unwrap_or(0))
 }
 
+/// Branches on origin named `stem` or `stem-*`, read from the remote itself.
+pub(super) fn remote_heads(
+    repo: &Path,
+    stem: &str,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Result<std::collections::HashSet<String>, WorktreeError> {
+    let exact = format!("refs/heads/{stem}");
+    let suffixed = format!("refs/heads/{stem}-*");
+    let text = run_until(
+        repo,
+        &["ls-remote", "origin", &exact, &suffixed],
+        READ_TIMEOUT,
+        stop,
+    )?;
+    Ok(text
+        .lines()
+        .filter_map(|row| row.split_once('\t'))
+        .filter_map(|(_, name)| name.strip_prefix("refs/heads/"))
+        .map(str::to_owned)
+        .collect())
+}
+
 /// The branch the checkout has switched to, if any.
 pub(super) fn current_branch(checkout: &Path) -> Option<String> {
     line(checkout, &["symbolic-ref", "--quiet", "--short", "HEAD"])

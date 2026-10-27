@@ -407,7 +407,7 @@ fn first_quiet<'a>(
 }
 
 /// Finds the held record on a branch.
-fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
+pub(crate) fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
     records
         .iter()
         .find(|record| record.held && record.branch.as_deref() == Some(branch))
@@ -496,6 +496,7 @@ pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Result<Vec<Warning>, Work
     let mut warnings = Vec::new();
     stop_check(host)?;
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
+        // No `--prune`: `git::unpushed` relies on stale remote refs of deleted branches.
         let fetched = git::run_until(
             &pool.main,
             &["fetch", "--quiet", "origin"],
@@ -520,10 +521,23 @@ pub(crate) fn lease(
     who: &Who,
     request: &AddRequest,
     skip: &[u32],
+    warnings: Vec<Warning>,
+) -> Result<Added, WorktreeError> {
+    let lock = pool.lock()?;
+    lease_locked(pool, host, who, request, skip, warnings, lock)
+}
+
+/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`.
+pub(crate) fn lease_locked(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    request: &AddRequest,
+    skip: &[u32],
     mut warnings: Vec<Warning>,
+    lock: dx_atomic_fs::lease::ExclusiveLease,
 ) -> Result<Added, WorktreeError> {
     let branch = request.branch.as_str();
-    let lock = pool.lock()?;
     pool.forget_missing();
     let now = host.now();
     let records = pool.records();

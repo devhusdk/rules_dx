@@ -548,7 +548,10 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
             .unwrap_or(line.len());
         let name = pip_name(&line[..end]);
         if !name.is_empty() {
-            out.entry(name).or_default().push_str(&format!("{line}\n"));
+            let rest = &line[end..];
+            out.entry(name.clone())
+                .or_default()
+                .push_str(&format!("{name}{rest}\n"));
         }
     };
     for raw in text.lines() {

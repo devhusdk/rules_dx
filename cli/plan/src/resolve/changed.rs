@@ -1581,7 +1581,6 @@ mod tests {
             "third_party/go/go.mod",
             "third_party/go/go.sum",
             "third_party/jvm/maven_install.json",
-            "requirements_lock.txt",
             "py/requirements_linux.txt",
             "deps/go.MODULE.bazel",
         ] {

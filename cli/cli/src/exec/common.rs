@@ -329,6 +329,7 @@ pub struct Env<'a> {
     pub actions: &'a ActionTally,
     /// The process table `dx clean` observes for live leases; `/proc` in production.
     pub proc_root: &'a Path,
+    pub bump_commit_json: Option<&'a str>,
 }
 
 /// Sums the Bazel action counts of every build in one run.

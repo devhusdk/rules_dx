@@ -62,6 +62,7 @@ fn execute_checked(
         audit_today: _,
         actions,
         proc_root: _,
+        bump_commit_json: _,
     } = env;
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build

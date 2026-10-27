@@ -112,8 +112,8 @@ cache's `content_addressable` directory.
 - `stale`: `prune_downloads` for repository cache downloads unused for 30
   days.
 
-`summary` fields: `slots`, `servers`, `servers_rss_bytes`, plus `disk_bytes` and
-`disk_cache_bytes` with `--disk`.
+`summary` fields: `slots`, `servers`, `servers_rss_bytes`, and
+`disk_cache_bytes`, plus `disk_bytes` with `--disk`.
 
 Exit codes: `0` success, `2` usage errors (unknown subcommand or hook name,
 wrong arguments, an invalid branch name (`invalid_branch`), a path that is not
@@ -203,7 +203,10 @@ The columns are slot, branch, holder, state, server, disk use, and path. The
 disk column shows `-` unless you pass `--disk`, which measures each slot and
 its output base and adds the total to the last line, followed by the size of
 the shared disk cache (`0 B` when it does not exist). It is slow on a large
-pool.
+pool. The disk cache is the one Bazel uses for `build`: the `--disk_cache` an
+rc file sets (lines in `--config` groups do not count), otherwise
+`<cache>/dx/disk-cache`. It is `0 B` when the cache is turned off, and under
+`CI=true`.
 
 ```text
 $ dx worktree list --disk
@@ -314,6 +317,8 @@ another. `dx build`, `test`, `coverage`, `run`, and `deploy` add
 the workspace `.bazelrc`, a file it imports, `~/.bazelrc`, or the system rc
 sets `--disk_cache` or `--nodisk_cache`. Under `CI=true` and inside Bazel
 tests no disk cache is added. Turn it off for one run with `-- --disk_cache=`.
+`dx worktree list --disk` and the JSON summary measure the cache Bazel uses for
+`build`, which is the rc value when an rc file sets one.
 
 ```sh
 bazel run @rules_dx//:dx -- build //... -- --disk_cache=

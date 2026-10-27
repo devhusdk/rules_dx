@@ -115,18 +115,81 @@ fn disk_cache_only_follows_build_verbs() {
 #[test]
 fn any_rc_disk_cache_setting_skips_the_default() {
     let cases = [
-        ("/ws/.bazelrc", "build --disk_cache=/d\n"),
-        ("/ws/.bazelrc", "build:remote --disk_cache=\n"),
-        ("/ws/.bazelrc", "common --nodisk_cache\n"),
-        ("/ws/.bazelrc", "build \"--disk_cache=/d d\"\n"),
-        ("/home/u/.bazelrc", "common --disk_cache=~/c\n"),
-        ("/etc/bazel.bazelrc", "build --disk_cache=/c\n"),
+        ("/ws/.bazelrc", "build --disk_cache=/d\n", Some("/d")),
+        ("/ws/.bazelrc", "build:remote --disk_cache=\n", None),
+        ("/ws/.bazelrc", "common --nodisk_cache\n", None),
+        (
+            "/ws/.bazelrc",
+            "build \"--disk_cache=/d d\"\n",
+            Some("/d d"),
+        ),
+        (
+            "/home/u/.bazelrc",
+            "common --disk_cache=~/c\n",
+            Some("/home/u/c"),
+        ),
+        ("/etc/bazel.bazelrc", "build --disk_cache=/c\n", Some("/c")),
+        ("/ws/.bazelrc", "test --disk_cache=/t\n", None),
     ];
-    for (path, text) in cases {
+    for (path, text, resolved) in cases {
         let policy = Machine::local().file(path, text).policy();
         assert!(policy.read_user_rc, "{path}: {text}");
         assert_eq!(policy.disk_cache, None, "{path}: {text}");
+        assert_eq!(
+            policy.bazel_disk_cache,
+            resolved.map(PathBuf::from),
+            "{path}: {text}"
+        );
     }
+}
+
+fn resolved(machine: Machine) -> Option<PathBuf> {
+    machine.policy().bazel_disk_cache
+}
+
+#[test]
+fn disk_cache_precedence_follows_bazel_read_order() {
+    let all = Machine::local()
+        .file("/etc/bazel.bazelrc", "build --disk_cache=/sys\n")
+        .file("/ws/.bazelrc", "build --disk_cache=/ws-cache\n")
+        .file("/home/u/.bazelrc", "build --disk_cache=/home\n");
+    assert_eq!(resolved(all), Some(PathBuf::from("/home")));
+    let ws = Machine::local()
+        .file("/etc/bazel.bazelrc", "build --disk_cache=/sys\n")
+        .file("/ws/.bazelrc", "build --disk_cache=/ws-cache\n");
+    assert_eq!(resolved(ws), Some(PathBuf::from("/ws-cache")));
+    let build_over_common = Machine::local()
+        .file("/etc/bazel.bazelrc", "build --disk_cache=/sys\n")
+        .file("/home/u/.bazelrc", "common --disk_cache=/home\n");
+    assert_eq!(resolved(build_over_common), Some(PathBuf::from("/sys")));
+    let last_line = Machine::local().file(
+        "/ws/.bazelrc",
+        "build --disk_cache=/one\nbuild --disk_cache=/two\n",
+    );
+    assert_eq!(resolved(last_line), Some(PathBuf::from("/two")));
+}
+
+#[test]
+fn disk_cache_forms_and_config_groups_resolve() {
+    let split = Machine::local().file("/ws/.bazelrc", "build --disk_cache /x\n");
+    assert_eq!(resolved(split), Some(PathBuf::from("/x")));
+    for value in ["c", "%workspace%/c"] {
+        let machine =
+            Machine::local().file("/ws/.bazelrc", &format!("build --disk_cache={value}\n"));
+        assert_eq!(resolved(machine), Some(PathBuf::from("/ws/c")), "{value}");
+    }
+    let config = Machine::local().file(
+        "/ws/.bazelrc",
+        "build:ci --disk_cache=/x\ncommon --disk_cache=/y\n",
+    );
+    assert_eq!(resolved(config), Some(PathBuf::from("/y")));
+}
+
+#[test]
+fn no_rc_setting_reports_the_dx_default() {
+    let policy = Machine::local().policy();
+    assert_eq!(policy.bazel_disk_cache, local_cache().map(PathBuf::from));
+    assert_eq!(RcPolicy::hermetic().bazel_disk_cache, None);
 }
 
 #[test]
@@ -137,6 +200,7 @@ fn imported_rc_disk_cache_skips_the_default() {
         .file("/home/u/shared.bazelrc", "build --disk_cache=/shared\n")
         .policy();
     assert_eq!(policy.disk_cache, None);
+    assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/shared")));
 }
 
 #[test]
@@ -232,6 +296,7 @@ fn local_policy() -> RcPolicy {
     RcPolicy {
         read_user_rc: true,
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
+        bazel_disk_cache: Some(std::path::PathBuf::from("/c/dx/disk-cache")),
         local_cpu: true,
         local_memory: true,
         disk_cache_gc: true,

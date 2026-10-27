@@ -12,6 +12,7 @@ fn local() {
     dx_process::configure(RcPolicy {
         read_user_rc: true,
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
+        bazel_disk_cache: Some(std::path::PathBuf::from("/c/dx/disk-cache")),
         local_cpu: true,
         local_memory: true,
         disk_cache_gc: true,

@@ -3481,6 +3481,17 @@ fn list_reports_the_shared_disk_cache_size_with_disk() {
     );
 }
 
+#[test]
+fn disk_cache_bytes_is_zero_for_a_missing_directory_and_measured_otherwise() {
+    let fixture = Fixture::new();
+    let host = FakeHost::new();
+    let cache = fixture.cache.join("dx").join("disk-cache");
+    *host.disk_cache.lock().expect("disk cache") = Some(cache.clone());
+    assert_eq!(ops::disk_cache_bytes(&host).expect("bytes"), 0);
+    std::fs::create_dir_all(&cache).expect("cache dir");
+    assert_eq!(ops::disk_cache_bytes(&host).expect("bytes"), 4096);
+}
+
 fn two_stale_slots(pool: &Pool, host: &FakeHost) -> Vec<PathBuf> {
     host.live(10);
     host.live(11);

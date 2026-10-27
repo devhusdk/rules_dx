@@ -390,6 +390,10 @@ fn list(
     let listing = ops::list(&pool, host, invocation.disk)?;
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
+        let disk_cache_bytes = match listing.disk_cache_bytes {
+            Some(bytes) => bytes,
+            None => ops::disk_cache_bytes(host)?,
+        };
         for row in &listing.rows {
             emit_event(out, &row_event("list", row))?;
         }
@@ -400,7 +404,7 @@ fn list(
                 servers: listing.servers,
                 servers_rss_bytes: listing.servers_rss_bytes,
                 disk_bytes: listing.disk_bytes,
-                disk_cache_bytes: listing.disk_cache_bytes,
+                disk_cache_bytes: Some(disk_cache_bytes),
             }),
         )?;
     } else {

@@ -1085,6 +1085,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
         let local = RcPolicy {
             read_user_rc: true,
             disk_cache: None,
+            bazel_disk_cache: None,
             local_cpu: true,
             local_memory: true,
             disk_cache_gc: false,
@@ -1121,6 +1122,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
             RcPolicy {
                 read_user_rc: true,
                 disk_cache: Some("/h/.cache/dx/disk-cache".to_string()),
+                bazel_disk_cache: Some("/h/.cache/dx/disk-cache".into()),
                 local_cpu: true,
                 local_memory: true,
                 disk_cache_gc: true,
@@ -1140,6 +1142,7 @@ while [ ! -e "$1/ready" ]; do sleep 0.05; done"#;
         let shared = RcPolicy {
             read_user_rc: true,
             disk_cache: Some("/h/disk".to_string()),
+            bazel_disk_cache: Some("/h/disk".into()),
             local_cpu: true,
             local_memory: true,
             disk_cache_gc: true,

@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV")
+load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV")
 
 # keep
 rust_test(
@@ -11,11 +11,11 @@ rust_test(
         "service_consumer_test.rs",
         "//cli/cli:dx",
         "//examples/python-service:consumer_srcs",
-    ] + NESTED_BAZEL_DATA,
+    ] + NESTED_BAZEL_DATA + CONSUMER_MAVEN_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
+    } | NESTED_BAZEL_NETWORK_ENV | CONSUMER_MAVEN_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
     tags = NESTED_BAZEL_CI_NETWORK_TAGS,
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
@@ -43,4 +43,9 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+exports_files(
+    ["service_consumer_test.rs"],
+    visibility = ["//quality/tests:__pkg__"],
 )

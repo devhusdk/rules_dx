@@ -34,13 +34,7 @@ uv.project(
 )
 use_repo(uv, "shop_pypi")
 
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    artifacts = [],
-    known_contributing_modules = ["protobuf", "rules_dx"],
-    repositories = ["https://repo1.maven.org/maven2"],
-)
-use_repo(maven, "maven")
+MAVEN_BLOCK
 "#;
 
 const ROOT_BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "ruff_config")
@@ -191,6 +185,7 @@ fn consumer() -> Case {
     write(
         &root.join("MODULE.bazel"),
         &MODULE
+            .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
             .replace("RULES_DX", &rules.display().to_string())
             .replace("RULES_PYTHON", &pin(&versions, "FLOOR_RULES_PYTHON"))
             .replace(
@@ -200,6 +195,7 @@ fn consumer() -> Case {
     );
     write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
+    nested::stage_consumer_maven_lock(&root);
     write(&root.join("ruff.toml"), "[lint]\nselect = [\"E\", \"F\"]\n");
     for file in ["pyproject.toml", "uv.lock"] {
         copy_source(&format!("examples/python-service/{file}"), &root.join(file));

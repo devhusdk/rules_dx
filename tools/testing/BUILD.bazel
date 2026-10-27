@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -222,6 +222,22 @@ rust_test(
 
 # keep
 rust_test(
+    name = "consumer_maven_lock_test",
+    size = "small",
+    srcs = ["consumer_maven_lock_test.rs"],
+    data = CONSUMER_MAVEN_DATA,
+    env = CONSUMER_MAVEN_ENV,
+    deps = [
+        ":dx_nested",
+        ":dx_testing",
+    ] + crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ),
+)
+
+# keep
+rust_test(
     name = "nested_bazel_pinned_test",
     size = "large",
     srcs = ["nested_bazel_pinned_test.rs"],
@@ -239,6 +255,7 @@ rustfmt_test(
     name = "dx_testing_fmt_test",
     size = "small",
     targets = [
+        ":consumer_maven_lock_test",
         ":dx_lsp",
         ":dx_nested",
         ":dx_testing",
@@ -257,6 +274,7 @@ rust_clippy_test(
     name = "dx_testing_clippy_test",
     size = "small",
     targets = [
+        ":consumer_maven_lock_test",
         ":dx_lsp",
         ":dx_nested",
         ":dx_testing",

@@ -1442,7 +1442,8 @@ fn low_disk_add_leases_the_warmest_slot_and_drops_other_free_bases_oldest_first(
     assert_eq!(
         warnings[0].message,
         format!(
-            "low disk: 5.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}, {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}, {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             slots[0].slot, slots[1].slot
         )
     );
@@ -1938,7 +1939,8 @@ fn reclaim_keeps_the_workspace_slot() {
     assert_eq!(
         message,
         format!(
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             b.slot
         )
     );
@@ -1989,8 +1991,11 @@ fn reclaim_for_build_without_a_pool_drops_orphans_and_creates_no_pool() {
     let orphan = output_base(&roots, "orphan", &fixture.main.join("gone"));
     host.script_space(&[LOW, LOW, OK]);
     assert_eq!(
-        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host).as_deref(),
-        Some("low disk: 5.0 GiB free; removed 1 orphaned output base(s); 50.0 GiB free now")
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        Some(format!(
+            "low disk at {}: 5.0 GiB free; removed 1 orphaned output base(s); 50.0 GiB free now",
+            fixture.cache.display()
+        ))
     );
     assert!(!orphan.exists());
     assert!(!fixture.cache.exists());
@@ -2100,7 +2105,8 @@ fn reclaim_for_build_reports_a_removed_free_base() {
     assert_eq!(
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         Some(format!(
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             a.slot
         ))
     );
@@ -2164,7 +2170,10 @@ fn low_disk_keeps_orphan_bases_a_server_still_uses() {
     assert!(!reclaimed.removed);
     assert_eq!(
         reclaimed.warning.message,
-        "low disk: 5.0 GiB free; nothing to reclaim; run dx worktree prune --apply"
+        format!(
+            "low disk at {}: 5.0 GiB free; nothing to reclaim; run dx worktree prune --apply",
+            fixture.cache.join("repo").display()
+        )
     );
 }
 
@@ -2200,7 +2209,8 @@ fn release_on_low_disk_drops_the_least_recently_used_free_base_first() {
     assert_eq!(
         released.warnings[0].message,
         format!(
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             b.slot
         )
     );
@@ -2235,7 +2245,8 @@ fn low_disk_on_another_output_root_reclaims_bases_on_that_root() {
     assert_eq!(
         reclaimed.warning.message,
         format!(
-            "low disk: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            "low disk at {}: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            roots.display(),
             a.slot
         )
     );
@@ -2277,7 +2288,8 @@ fn low_disk_on_another_output_root_keeps_bases_on_a_root_with_room() {
     assert_eq!(
         reclaimed.warning.message,
         format!(
-            "low disk: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            "low disk at {}: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            low.display(),
             b.slot
         )
     );
@@ -2326,7 +2338,8 @@ fn low_disk_on_another_output_root_reclaims_before_a_build() {
     assert_eq!(
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         Some(format!(
-            "low disk: 3.0 GiB free; removed the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            "low disk at {}: 3.0 GiB free; removed the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            roots.display(),
             a.slot
         ))
     );
@@ -4535,7 +4548,7 @@ fn reclaim_drops_stale_downloads_before_free_slot_bases() {
     assert!(base.exists(), "the free slot keeps its output base");
     assert_eq!(
         reclaimed.warning.message,
-        "low disk: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now"
+        format!("low disk at {}: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now", fixture.cache.join("repo").display())
     );
 }
 
@@ -4871,7 +4884,7 @@ fn reclaim_drops_nested_cases_when_the_nested_root_disk_is_low() {
     assert!(busy.exists(), "a held nested slot keeps its cases");
     assert_eq!(
         reclaimed.warning.message,
-        "low disk: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply"
+        format!("low disk at {}: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply", root.display())
     );
 }
 

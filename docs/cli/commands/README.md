@@ -209,7 +209,7 @@ output base of the workspace being built. dx prints one of these lines to
 stderr only when it removed something or could not reclaim:
 
 ```text
-dx: low disk: <free> free; removed <what>; <free> free now
+dx: low disk at <path>: <free> free; removed <what>; <free> free now
 dx: low disk, cannot reclaim output bases: <error>
 ```
 

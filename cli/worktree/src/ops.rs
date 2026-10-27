@@ -2093,7 +2093,7 @@ fn reclaim_host_wide(
         }
     }
     let after = host.disk_space(&disk).unwrap_or(before);
-    let mut message = format!("low disk: {} free", size(before.free));
+    let mut message = format!("low disk at {}: {} free", disk.display(), size(before.free));
     let mut removed = Vec::new();
     if orphans > 0 {
         removed.push(format!("{orphans} orphaned output base(s)"));

@@ -34,39 +34,37 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, workspace, module, out, err);
     }
-    if let Err(error) = super::wiring::preflight(workspace) {
-        return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string());
+    if let Err(message) = super::wiring::preflight(workspace, "") {
+        return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
-    match dx_adopt::apply_init(workspace, module) {
-        Ok(entries) => {
-            for entry in entries {
-                if entry == "---" {
-                    continue;
-                }
-                if let Some(path) = entry.strip_prefix("refused:") {
-                    let _ = writeln!(err, "dx: {path} (absent-only, left untouched)");
-                    if path == ".bazelignore"
-                        && !std::fs::read_to_string(workspace.join(path))
-                            .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
-                    {
-                        let _ = writeln!(
-                            err,
-                            "dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base"
-                        );
-                    }
-                } else if !summaries_suppressed(invocation) {
-                    if let Err(exit) = check_stdout_write(writeln!(out, "wrote {entry}")) {
-                        return exit;
-                    }
-                }
+    let mut applied = dx_adopt::Applied::default();
+    let mut notes = Vec::new();
+    let result = match dx_adopt::apply_init(workspace, module, &mut applied) {
+        Ok(()) => {
+            if applied.refused.iter().any(|path| path == ".bazelignore")
+                && !std::fs::read_to_string(workspace.join(".bazelignore"))
+                    .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
+            {
+                notes.push(
+                    ".bazelignore lacks .dx; add it so Bazel skips the IDE output base".to_owned(),
+                );
             }
-            match super::wiring::apply(invocation, workspace, "", CODE_INIT_FAILED, out, err) {
-                Ok(()) => 0,
-                Err(code) => code,
-            }
+            super::wiring::apply(workspace, "", &mut applied, &mut notes)
         }
-        Err(error) => invalid_module_code(invocation, out, err, &error),
-    }
+        Err(error @ dx_adopt::AdoptError::InitInvalidModule { .. }) => {
+            return invalid_module_code(invocation, out, err, &error);
+        }
+        Err(error) => Err(error.to_string()),
+    };
+    super::wiring::report(
+        invocation,
+        &applied,
+        &notes,
+        result,
+        CODE_INIT_FAILED,
+        out,
+        err,
+    )
 }
 
 fn check_init(
@@ -80,23 +78,19 @@ fn check_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    let mut paths: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
-    paths.push(dx_adopt::LAUNCHER_SH_REL);
-    paths.push(dx_adopt::LAUNCHER_CMD_REL);
-    let missing: Vec<String> = paths
-        .into_iter()
+    let wiring = super::wiring::drift(workspace);
+    let mut missing: Vec<String> = files
+        .iter()
+        .map(|file| file.path.clone())
         .filter(|path| !workspace.join(path).exists())
-        .map(str::to_owned)
         .collect();
-    let stale: Vec<String> =
-        dx_adopt::stale_launchers(workspace, &super::wiring::launcher_pin(workspace))
-            .into_iter()
-            .map(|(rel, _)| rel)
-            .collect();
+    missing.extend(wiring.missing);
+    let stale = wiring.stale;
+    let other = wiring.other;
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
         .filter(|pin| !dx_adopt::pin_is_valid(pin));
-    if missing.is_empty() && stale.is_empty() && invalid_pin.is_none() {
+    if missing.is_empty() && stale.is_empty() && other.is_empty() && invalid_pin.is_none() {
         if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
                 return exit;
@@ -109,6 +103,7 @@ fn check_init(
         .into_iter()
         .filter(|(_, paths)| !paths.is_empty())
         .map(|(kind, paths)| format!("{kind} {}", paths.join(", ")))
+        .chain(other)
         .collect();
     let has_entries = !clauses.is_empty();
     if let Some(pin) = &invalid_pin {
@@ -130,8 +125,77 @@ fn check_init(
 
 #[cfg(test)]
 mod tests {
-    use crate::adopt::test_support::{invocation, run};
+    use crate::adopt::test_support::{env, invocation, run, Truncated};
     use dx_process::pre_exec_code;
+
+    #[test]
+    fn init_check_names_missing_hooks_and_agents_block() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-check-wiring-");
+        let root = scratch.path().to_path_buf();
+        let apply = invocation(&["init", "--apply"]);
+        let check = invocation(&["init"]);
+        assert_eq!(run(&apply, &root).0, 0);
+        assert_eq!(run(&check, &root).0, 0);
+        std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("missing .claude/settings.json"), "{err}");
+        std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("empty");
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains(".claude/settings.json lacks hooks: "), "{err}");
+        assert_eq!(run(&apply, &root).0, 0);
+        std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
+        assert_eq!(run(&apply, &root).0, 0);
+        assert_eq!(run(&check, &root).0, 0);
+        std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("no block");
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("stale AGENTS.md"), "{err}");
+        assert_eq!(run(&apply, &root).0, 0);
+        std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("no import");
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("CLAUDE.md lacks @AGENTS.md"), "{err}");
+        assert_eq!(run(&apply, &root).0, 0);
+        let (code, out, _err) = run(&check, &root);
+        assert_eq!(code, 0, "{out}");
+    }
+
+    #[test]
+    fn init_apply_with_a_vscode_file_writes_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-vscode-file-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join(".vscode"), "file\n").expect("blocker");
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 1);
+        assert!(out.is_empty(), "{out}");
+        assert!(err.contains("init_failed"), "{err}");
+        assert!(err.contains(".vscode is not a directory"), "{err}");
+        for path in [".dx", "tools", ".claude", "AGENTS.md", "CLAUDE.md"] {
+            assert!(!root.join(path).exists(), "{path}");
+        }
+    }
+
+    #[test]
+    fn init_apply_finishes_every_write_when_stdout_closes() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-closed-stdout-");
+        let root = scratch.path().to_path_buf();
+        let inv = invocation(&["init", "--apply"]);
+        let mut out = Truncated::after_lines(1);
+        let mut err = Vec::new();
+        let code = super::super::execute_adoption(&inv, env(&root, &mut out, &mut err));
+        assert_eq!(code, 141);
+        for path in [
+            "tools/dx",
+            ".claude/settings.json",
+            "AGENTS.md",
+            "CLAUDE.md",
+        ] {
+            assert!(root.join(path).exists(), "{path}");
+        }
+        assert_eq!(run(&invocation(&["init"]), &root).0, 0);
+    }
 
     #[test]
     fn a_non_semver_pin_fails_init_before_any_write() {

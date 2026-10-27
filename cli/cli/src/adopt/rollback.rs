@@ -262,7 +262,8 @@ mod tests {
         let root = scratch.path().to_path_buf();
         dx_adopt::write_version_pin(&root, "9.9.9").expect("pin");
         dx_adopt::record_pin_operation(&root, Some("0.0.1"), Some("9.9.9")).expect("record");
-        dx_adopt::write_launcher_files(&root, "9.9.9").expect("launchers");
+        dx_adopt::write_launcher_files(&root, "9.9.9", &mut dx_adopt::Applied::default())
+            .expect("launchers");
         std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
         let (code, out, err) = run(&invocation(&["rollback", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
@@ -297,7 +298,8 @@ mod tests {
         dx_adopt::write_version_pin(&root, "9.9.9").expect("pin");
         dx_adopt::record_pin_operation(&root, Some("not-semver"), Some("9.9.9")).expect("record");
         let before = std::fs::read(root.join(dx_adopt::VERSION_HISTORY_REL)).expect("history");
-        dx_adopt::write_launcher_files(&root, "9.9.9").expect("launchers");
+        dx_adopt::write_launcher_files(&root, "9.9.9", &mut dx_adopt::Applied::default())
+            .expect("launchers");
         let (code, _out, err) = run(&invocation(&["rollback", "--apply"]), &root);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("rollback refused: launcher version"), "{err}");
@@ -321,7 +323,8 @@ mod tests {
         let root = scratch.path().to_path_buf();
         dx_adopt::write_version_pin(&root, "9.9.9").expect("pin");
         dx_adopt::record_pin_operation(&root, Some("0.0.1"), Some("9.9.9")).expect("record");
-        dx_adopt::write_launcher_files(&root, "9.9.9").expect("launchers");
+        dx_adopt::write_launcher_files(&root, "9.9.9", &mut dx_adopt::Applied::default())
+            .expect("launchers");
         let tools = root.join("tools");
         std::fs::set_permissions(&tools, std::fs::Permissions::from_mode(0o555)).expect("lock");
         let (code, _out, err) = run(&invocation(&["rollback", "--apply"]), &root);

@@ -1394,8 +1394,13 @@ fn new_language_files(
     Ok(files)
 }
 
-pub fn apply_new(root: &Path, language: &str, name: &str) -> Result<Vec<String>, AdoptError> {
-    crate::scaffold::apply_scaffold(root, &plan_new_files(language, name)?)
+pub fn apply_new(
+    root: &Path,
+    language: &str,
+    name: &str,
+    applied: &mut crate::scaffold::Applied,
+) -> Result<(), AdoptError> {
+    crate::scaffold::apply_scaffold(root, &plan_new_files(language, name)?, applied)
 }
 
 #[cfg(test)]
@@ -1803,8 +1808,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("new-parent-collision-");
         std::fs::write(scratch.path().join("demo"), "foreign").expect("collision");
         assert!(matches!(
-            apply_new(scratch.path(), "rust", "demo"),
-            Err(AdoptError::CreateParent { .. })
+            crate::scaffold::entries(|a| apply_new(scratch.path(), "rust", "demo", a)),
+            Err(AdoptError::NotADirectory { .. })
         ));
         assert_eq!(
             std::fs::read_to_string(scratch.path().join("demo")).expect("foreign"),
@@ -1838,7 +1843,7 @@ mod tests {
     fn python_scaffold_greet_interpolates_name() {
         let scratch = dx_test_scratch::scratch("dx-new-python-");
         let root = scratch.path().to_path_buf();
-        apply_new(&root, "python", "demo").expect("new");
+        crate::scaffold::entries(|a| apply_new(&root, "python", "demo", a)).expect("new");
         let dir = root.join("demo");
         let python = std::env::var("DX_PYTHON").expect("DX_PYTHON");
         let python = std::fs::canonicalize(python).expect("python path");
@@ -1866,11 +1871,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-new-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
-        let first = apply_new(&root, "go", "demo").expect("new");
+        let first = crate::scaffold::entries(|a| apply_new(&root, "go", "demo", a)).expect("new");
         assert!(first.iter().any(|p| p == "demo/go.mod"));
         assert!(root.join("demo/go.mod").exists());
         assert!(root.join("demo/.dx/version").exists());
-        let second = apply_new(&root, "go", "demo").expect("new again");
+        let second =
+            crate::scaffold::entries(|a| apply_new(&root, "go", "demo", a)).expect("new again");
         assert!(second.iter().any(|p| p == "refused:demo/go.mod"));
         scratch.close().expect("cleanup");
     }
@@ -2051,7 +2057,7 @@ mod tests {
             let root = scratch.path().to_path_buf();
             std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
             assert!(
-                apply_new(&root, "rust", hostile).is_err(),
+                crate::scaffold::entries(|a| apply_new(&root, "rust", hostile, a)).is_err(),
                 "{hostile:?} must fail"
             );
             let mut entries: Vec<String> = Vec::new();
@@ -2091,7 +2097,7 @@ mod tests {
         std::fs::create_dir_all(&root).expect("root");
         std::fs::create_dir_all(&outside).expect("outside");
         std::os::unix::fs::symlink(&outside, root.join("demo")).expect("symlink");
-        assert!(apply_new(&root, "rust", "demo").is_err());
+        assert!(crate::scaffold::entries(|a| apply_new(&root, "rust", "demo", a)).is_err());
         assert_eq!(std::fs::read_dir(&outside).expect("read").count(), 0);
         scratch.close().expect("cleanup");
     }

@@ -324,16 +324,52 @@ fn ensure_physically_within(root: &Path, relative: &str) -> Result<(), AdoptErro
     Ok(())
 }
 
-pub fn apply_scaffold(root: &Path, files: &[ScaffoldFile]) -> Result<Vec<String>, AdoptError> {
+/// Fails when a destination escapes the root or has a parent that is not a directory.
+pub fn preflight_destinations(root: &Path, relatives: &[&str]) -> Result<(), AdoptError> {
+    for relative in relatives {
+        scaffold_dest_within_root(root, relative)?;
+        let parts: Vec<_> = Path::new(relative).components().collect();
+        let mut current = root.to_path_buf();
+        let mut shown = std::path::PathBuf::new();
+        for part in &parts[..parts.len().saturating_sub(1)] {
+            current.push(part);
+            shown.push(part);
+            match std::fs::metadata(&current) {
+                Ok(meta) if meta.is_dir() => {}
+                Ok(_) => {
+                    return Err(AdoptError::NotADirectory {
+                        path: shown.to_string_lossy().replace('\\', "/"),
+                    });
+                }
+                Err(_) => break,
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Files a run wrote and files it left alone, recorded as each lands.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Applied {
+    pub wrote: Vec<String>,
+    pub refused: Vec<String>,
+}
+
+/// Checks every destination, then writes each absent file and records it in `applied` as it lands.
+pub fn apply_scaffold(
+    root: &Path,
+    files: &[ScaffoldFile],
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
+    let relatives: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
+    preflight_destinations(root, &relatives)?;
     let mut staged = Vec::with_capacity(files.len());
     for file in files {
         staged.push(scaffold_dest_within_root(root, &file.path)?);
     }
-    let mut written = Vec::new();
-    let mut refused = Vec::new();
     for (file, dest) in files.iter().zip(staged.iter()) {
         if dest.exists() {
-            refused.push(format!("refused:{}", file.path));
+            applied.refused.push(file.path.clone());
             continue;
         }
         if let Some(parent) = dest.parent() {
@@ -348,25 +384,41 @@ pub fn apply_scaffold(root: &Path, files: &[ScaffoldFile]) -> Result<Vec<String>
                 detail: e.to_string(),
             }
         })?;
-        written.push(file.path.clone());
+        applied.wrote.push(file.path.clone());
     }
-    written.push("---".to_owned());
-    written.extend(refused);
-    Ok(written)
+    Ok(())
 }
 
-pub fn apply_init(root: &Path, module_name: &str) -> Result<Vec<String>, AdoptError> {
+pub fn apply_init(root: &Path, module_name: &str, applied: &mut Applied) -> Result<(), AdoptError> {
     let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
     apply_scaffold(
         root,
         &plan_init_files_with(module_name, cfg!(windows), cuda)?,
+        applied,
     )
+}
+
+/// Test view of a run: written paths, then `refused:` paths.
+#[cfg(test)]
+pub(crate) fn entries(
+    run: impl FnOnce(&mut Applied) -> Result<(), AdoptError>,
+) -> Result<Vec<String>, AdoptError> {
+    let mut applied = Applied::default();
+    run(&mut applied)?;
+    let mut entries = applied.wrote;
+    entries.extend(
+        applied
+            .refused
+            .into_iter()
+            .map(|path| format!("refused:{path}")),
+    );
+    Ok(entries)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_init, plan_init_files, plan_init_files_for_host, plan_init_files_with,
+        apply_init, entries, plan_init_files, plan_init_files_for_host, plan_init_files_with,
         render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
         CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
         CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
@@ -523,11 +575,11 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-");
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(&root).expect("tmp");
-        let first = apply_init(&root, "demo").expect("init");
+        let first = entries(|a| apply_init(&root, "demo", a)).expect("init");
         assert!(first.iter().any(|p| p == ".dx/version"));
         assert!(root.join(".dx/version").exists());
         std::fs::write(root.join(".dx/version"), "custom\n").expect("custom");
-        let second = apply_init(&root, "demo").expect("init again");
+        let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
         assert!(second.iter().any(|p| p == "refused:.dx/version"));
         assert_eq!(
             std::fs::read_to_string(root.join(".dx/version")).expect("read"),
@@ -804,7 +856,7 @@ mod tests {
     fn init_snippet_is_a_complete_consumer_setup() {
         let scratch = dx_test_scratch::scratch("dx-adopt-consumer-setup-");
         let root = scratch.path().to_path_buf();
-        apply_init(&root, "demo").expect("init");
+        entries(|a| apply_init(&root, "demo", a)).expect("init");
         let text =
             std::fs::read_to_string(root.join("MODULE.bazel.snippet")).expect("emitted snippet");
         assert!(text.contains(&format!(
@@ -899,7 +951,7 @@ mod tests {
     #[test]
     fn apply_init_adds_the_stanza_only_for_cuda_workspaces() {
         let plain = dx_test_scratch::scratch("dx-adopt-init-nocuda-");
-        apply_init(plain.path(), "demo").expect("init");
+        entries(|a| apply_init(plain.path(), "demo", a)).expect("init");
         let text =
             std::fs::read_to_string(plain.path().join("MODULE.bazel.snippet")).expect("read");
         assert!(!text.contains("rules_cuda"));
@@ -907,7 +959,7 @@ mod tests {
         let with = dx_test_scratch::scratch("dx-adopt-init-cuda-");
         std::fs::create_dir_all(with.path().join("k")).expect("mkdir");
         std::fs::write(with.path().join("k/a.cu"), "").expect("write");
-        apply_init(with.path(), "demo").expect("init");
+        entries(|a| apply_init(with.path(), "demo", a)).expect("init");
         let text = std::fs::read_to_string(with.path().join("MODULE.bazel.snippet")).expect("read");
         assert!(text.contains("bazel_dep(name = \"rules_cuda\""), "{text}");
         with.close().expect("cleanup");
@@ -917,10 +969,10 @@ mod tests {
     fn apply_init_snippet_is_absent_only() {
         let scratch = dx_test_scratch::scratch("dx-adopt-snippet-absent-");
         let root = scratch.path().to_path_buf();
-        apply_init(&root, "demo").expect("init");
+        entries(|a| apply_init(&root, "demo", a)).expect("init");
         let snippet = root.join("MODULE.bazel.snippet");
         std::fs::write(&snippet, "custom\n").expect("custom");
-        let second = apply_init(&root, "demo").expect("init again");
+        let second = entries(|a| apply_init(&root, "demo", a)).expect("init again");
         assert!(
             second.iter().any(|p| p == "refused:MODULE.bazel.snippet"),
             "snippet must stay absent-only: {second:?}"
@@ -960,7 +1012,10 @@ mod tests {
             let scratch = dx_test_scratch::scratch("dx-adopt-init-reject-");
             let root = scratch.path().to_path_buf();
             std::fs::write(root.join("sentinel"), "stay").expect("sentinel");
-            assert!(apply_init(&root, hostile).is_err(), "{hostile:?} must fail");
+            assert!(
+                entries(|a| apply_init(&root, hostile, a)).is_err(),
+                "{hostile:?} must fail"
+            );
             let mut entries: Vec<String> = Vec::new();
             for entry in std::fs::read_dir(&root).expect("read") {
                 entries.push(
@@ -977,12 +1032,35 @@ mod tests {
     }
 
     #[test]
+    fn apply_scaffold_refuses_a_file_parent_before_writing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-file-parent-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join(".vscode"), "file\n").expect("blocker");
+        let mut applied = super::Applied::default();
+        let err = apply_init(&root, "demo", &mut applied).expect_err("file parent refused");
+        assert_eq!(
+            err,
+            crate::AdoptError::NotADirectory {
+                path: ".vscode".to_owned()
+            }
+        );
+        assert_eq!(err.to_string(), ".vscode is not a directory");
+        assert_eq!(applied, super::Applied::default());
+        let names: Vec<String> = std::fs::read_dir(&root)
+            .expect("read")
+            .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec![".vscode".to_owned()]);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn init_and_new_share_absent_only_collision_behavior() {
         let scratch = dx_test_scratch::scratch("dx-adopt-shared-collision-");
         let root = scratch.path().join("root");
         std::fs::create_dir_all(&root).expect("root");
         std::fs::write(root.join(".envrc"), "mine\n").expect("handwritten");
-        let init = apply_init(&root, "demo").expect("init");
+        let init = entries(|a| apply_init(&root, "demo", a)).expect("init");
         assert!(init.contains(&"refused:.envrc".to_owned()), "{init:?}");
         assert!(init.contains(&".dx/version".to_owned()), "{init:?}");
         assert_eq!(
@@ -991,7 +1069,7 @@ mod tests {
         );
         std::fs::create_dir_all(root.join("app")).expect("app");
         std::fs::write(root.join("app/Cargo.toml"), "# mine\n").expect("manual build");
-        let new = super::super::apply_new(&root, "rust", "app").expect("new");
+        let new = entries(|a| super::super::apply_new(&root, "rust", "app", a)).expect("new");
         assert!(
             new.contains(&"refused:app/Cargo.toml".to_owned()),
             "{new:?}"
@@ -1005,7 +1083,7 @@ mod tests {
 
     #[cfg(unix)]
     mod symlinks {
-        use crate::scaffold::{apply_init, scaffold_dest_within_root};
+        use crate::scaffold::{apply_init, entries as applied, scaffold_dest_within_root};
         use std::os::unix::fs::symlink;
 
         fn entries(dir: &std::path::Path) -> Vec<String> {
@@ -1025,7 +1103,7 @@ mod tests {
             std::fs::create_dir_all(&root).expect("root");
             std::fs::create_dir_all(&outside).expect("outside");
             symlink(&outside, root.join(".github")).expect("symlink");
-            let err = apply_init(&root, "demo").expect_err("escape refused");
+            let err = applied(|a| apply_init(&root, "demo", a)).expect_err("escape refused");
             assert!(
                 err.to_string().contains(".github/workflows/ci.yml"),
                 "{err}"
@@ -1051,7 +1129,7 @@ mod tests {
             let root = scratch.path().join("root");
             std::fs::create_dir_all(root.join("real")).expect("real");
             symlink(root.join("real"), root.join(".github")).expect("symlink");
-            let written = apply_init(&root, "demo").expect("internal link allowed");
+            let written = applied(|a| apply_init(&root, "demo", a)).expect("internal link allowed");
             assert!(written.contains(&".github/workflows/ci.yml".to_owned()));
             assert!(root.join("real/workflows/ci.yml").is_file());
             scratch.close().expect("cleanup");

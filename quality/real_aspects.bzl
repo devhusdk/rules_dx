@@ -773,6 +773,10 @@ def _real_resolved_stages(target, ctx, capability, what):
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources
     else:
+        # The dx wrapper's native "<name>_upstream" target shares its sources with the
+        # forwarder, which is the sole origin; skip it to avoid duplicate findings.
+        if target.label.name.endswith("_upstream"):
+            return ([], None, None)
         (recognized, derived, ownership_error) = upstream_direct_sources(target, ctx)
         if ownership_error != "":
             fail(what + ": " + ownership_error)

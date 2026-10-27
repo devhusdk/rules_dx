@@ -15,7 +15,7 @@ use std::fmt;
 use object::elf;
 use object::macho;
 use object::pe;
-use object::read::elf::{Dyn as _, ProgramHeader as _, SectionHeader as _};
+use object::read::elf::{Dyn as _, ProgramHeader as _};
 use object::read::macho::{FatArch, LoadCommandVariant, MachHeader};
 use object::read::pe::{ImageNtHeaders, ImageOptionalHeader as _, PeFile};
 use object::{FileKind, LittleEndian};
@@ -213,27 +213,56 @@ fn inspect_elf<H: object::read::elf::FileHeader<Endian = object::Endianness>>(
         Some(path) if path.contains("musl") => Abi::Musl,
         Some(_) => Abi::Gnu,
     };
-    let sections = header
-        .sections(endian, bytes)
-        .map_err(|error| fail("bad ELF section headers", error))?;
+    let segments = header
+        .program_headers(endian, bytes)
+        .map_err(|error| fail("bad ELF program headers", error))?;
     let mut needed = Vec::new();
-    for section in sections.iter() {
-        let Some((entries, link)) = section
+    for segment in segments {
+        let Some(entries) = segment
             .dynamic(endian, bytes)
-            .map_err(|error| fail("bad ELF dynamic section", error))?
+            .map_err(|error| fail("bad ELF dynamic segment", error))?
         else {
             continue;
         };
-        let strings = sections
-            .strings(endian, bytes, link)
-            .map_err(|error| fail("bad ELF dynamic strings", error))?;
+        let (mut strtab, mut strsz) = (None, 0u64);
         for entry in entries {
-            if entry.tag32(endian) == Some(elf::DT_NEEDED) {
-                let name = entry
-                    .string(endian, strings)
-                    .map_err(|error| fail("bad ELF needed entry", error))?;
-                needed.push(utf8(name));
+            let tag: u64 = entry.d_tag(endian).into();
+            if tag == u64::from(elf::DT_NULL) {
+                break;
+            } else if tag == u64::from(elf::DT_STRTAB) {
+                strtab = Some(entry.d_val(endian).into());
+            } else if tag == u64::from(elf::DT_STRSZ) {
+                strsz = entry.d_val(endian).into();
             }
+        }
+        let mut wanted = entries
+            .iter()
+            .take_while(|entry| entry.tag32(endian) != Some(elf::DT_NULL))
+            .filter(|entry| entry.tag32(endian) == Some(elf::DT_NEEDED))
+            .peekable();
+        if wanted.peek().is_none() {
+            continue;
+        }
+        let address =
+            strtab.ok_or_else(|| Error("ELF dynamic segment has no string table".to_owned()))?;
+        let table = segments
+            .iter()
+            .find_map(|load| {
+                (load.p_type(endian) == elf::PT_LOAD)
+                    .then(|| {
+                        load.data_range(endian, bytes, address, strsz)
+                            .ok()
+                            .flatten()
+                    })
+                    .flatten()
+            })
+            .ok_or_else(|| Error("ELF dynamic string table is outside the file".to_owned()))?;
+        let strings = object::read::StringTable::new(table, 0, table.len() as u64);
+        for entry in wanted {
+            let name = entry
+                .string(endian, strings)
+                .map_err(|error| fail("bad ELF needed entry", error))?;
+            needed.push(utf8(name));
         }
     }
     Ok(Image {

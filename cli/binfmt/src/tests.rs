@@ -8,6 +8,10 @@ fn put(image: &mut Vec<u8>, at: usize, bytes: &[u8]) {
 }
 
 fn elf(machine: u16, interp: Option<&str>, needed: &[&str]) -> Vec<u8> {
+    elf_with(machine, interp, needed, true)
+}
+
+fn elf_with(machine: u16, interp: Option<&str>, needed: &[&str], sections: bool) -> Vec<u8> {
     let mut image = vec![0u8; 64];
     put(&mut image, 0, &[0x7f, b'E', b'L', b'F', 2, 1, 1, 0]);
     put(&mut image, 16, &2u16.to_le_bytes());
@@ -16,16 +20,23 @@ fn elf(machine: u16, interp: Option<&str>, needed: &[&str]) -> Vec<u8> {
     put(&mut image, 52, &64u16.to_le_bytes());
     put(&mut image, 54, &56u16.to_le_bytes());
     put(&mut image, 58, &64u16.to_le_bytes());
+    let phnum = usize::from(interp.is_some()) + if needed.is_empty() { 0 } else { 2 };
+    put(&mut image, 32, &64u64.to_le_bytes());
+    put(&mut image, 56, &(phnum as u16).to_le_bytes());
+    let mut next = 0usize;
+    let mut header = |image: &mut Vec<u8>, kind: u32, at: u64, size: u64| {
+        let base = 64 + next * 56;
+        next += 1;
+        put(image, base, &kind.to_le_bytes());
+        put(image, base + 8, &at.to_le_bytes());
+        put(image, base + 16, &at.to_le_bytes());
+        put(image, base + 32, &size.to_le_bytes());
+        put(image, base + 40, &size.to_le_bytes());
+    };
     if let Some(path) = interp {
-        put(&mut image, 32, &64u64.to_le_bytes());
-        put(&mut image, 56, &1u16.to_le_bytes());
         let text = format!("{path}\0");
-        let at = 128u64;
-        put(&mut image, 64, &elf::PT_INTERP.to_le_bytes());
-        put(&mut image, 64 + 8, &at.to_le_bytes());
-        put(&mut image, 64 + 32, &(text.len() as u64).to_le_bytes());
-        put(&mut image, 64 + 40, &(text.len() as u64).to_le_bytes());
-        put(&mut image, at as usize, text.as_bytes());
+        header(&mut image, elf::PT_INTERP, 256, text.len() as u64);
+        put(&mut image, 256, text.as_bytes());
     }
     if needed.is_empty() {
         return image;
@@ -37,7 +48,7 @@ fn elf(machine: u16, interp: Option<&str>, needed: &[&str]) -> Vec<u8> {
         strings.extend_from_slice(name.as_bytes());
         strings.push(0);
     }
-    let strings_at = 256usize;
+    let strings_at = 512usize;
     let dynamic_at = (strings_at + strings.len()).div_ceil(8) * 8;
     put(&mut image, strings_at, &strings);
     let mut dynamic = Vec::new();
@@ -45,8 +56,23 @@ fn elf(machine: u16, interp: Option<&str>, needed: &[&str]) -> Vec<u8> {
         dynamic.extend_from_slice(&u64::from(elf::DT_NEEDED).to_le_bytes());
         dynamic.extend_from_slice(&offset.to_le_bytes());
     }
+    dynamic.extend_from_slice(&u64::from(elf::DT_STRTAB).to_le_bytes());
+    dynamic.extend_from_slice(&(strings_at as u64).to_le_bytes());
+    dynamic.extend_from_slice(&u64::from(elf::DT_STRSZ).to_le_bytes());
+    dynamic.extend_from_slice(&(strings.len() as u64).to_le_bytes());
     dynamic.extend_from_slice(&[0u8; 16]);
     put(&mut image, dynamic_at, &dynamic);
+    let end = (dynamic_at + dynamic.len()) as u64;
+    header(&mut image, elf::PT_LOAD, 0, end);
+    header(
+        &mut image,
+        elf::PT_DYNAMIC,
+        dynamic_at as u64,
+        dynamic.len() as u64,
+    );
+    if !sections {
+        return image;
+    }
     let headers_at = (dynamic_at + dynamic.len()).div_ceil(8) * 8;
     let mut section = |index: usize, kind: u32, at: usize, size: usize, link: u32, entsize: u64| {
         let base = headers_at + index * 64;
@@ -352,4 +378,103 @@ fn machine_reads_thin_macho_headers_in_both_orders() {
     assert_eq!(machine(&odd).as_deref(), Some("x86"));
     odd[4] = 0x55;
     assert_eq!(machine(&odd).as_deref(), Some("macho-0x55"));
+}
+
+#[test]
+fn elf_reads_needed_without_section_headers() {
+    let image = elf_with(
+        elf::EM_X86_64,
+        Some("/lib64/ld-linux-x86-64.so.2"),
+        &["libm.so.6", "libc.so.6"],
+        false,
+    );
+    let images = inspect(&image).unwrap();
+    assert_eq!(images[0].needed, ["libc.so.6", "libm.so.6"]);
+    assert_eq!(images[0].abi, Abi::Gnu);
+}
+
+#[test]
+fn elf_rejects_dynamic_segment_without_string_table() {
+    let mut image = elf_with(elf::EM_X86_64, None, &["libc.so.6"], false);
+    // Turn DT_STRTAB (second entry after the one DT_NEEDED) into DT_DEBUG.
+    let at = 512 + "\0libc.so.6\0".len();
+    let dynamic_at = at.div_ceil(8) * 8;
+    put(&mut image, dynamic_at + 16, &elf::DT_DEBUG.to_le_bytes());
+    assert!(inspect(&image).is_err());
+}
+
+#[test]
+fn macho_names_other_apple_platforms() {
+    for (platform, name) in [
+        (macho::PLATFORM_TVOS, "tvos"),
+        (macho::PLATFORM_WATCHOS, "watchos"),
+        (macho::PLATFORM_MACCATALYST, "maccatalyst"),
+        (macho::PLATFORM_IOSSIMULATOR, "iossimulator"),
+        (99, "platform-99"),
+    ] {
+        let image = inspect(&macho(macho::CPU_TYPE_ARM64, platform, 0x000e_0000, &[])).unwrap();
+        assert_eq!(image[0].abi.name(), format!("{name} 14.0"));
+    }
+}
+
+#[test]
+fn macho_reads_version_min_macosx() {
+    let mut image = macho(macho::CPU_TYPE_X86_64, macho::PLATFORM_MACOS, 0, &[]);
+    // Replace the 24-byte LC_BUILD_VERSION with a 16-byte LC_VERSION_MIN_MACOSX.
+    let mut commands = Vec::new();
+    commands.extend_from_slice(&macho::LC_VERSION_MIN_MACOSX.to_le_bytes());
+    commands.extend_from_slice(&16u32.to_le_bytes());
+    commands.extend_from_slice(&0x000a_0e00u32.to_le_bytes());
+    commands.extend_from_slice(&0u32.to_le_bytes());
+    image.truncate(32);
+    image.extend_from_slice(&commands);
+    put(&mut image, 20, &16u32.to_le_bytes());
+    let images = inspect(&image).unwrap();
+    assert_eq!(images[0].abi.name(), "macos 10.14");
+}
+
+#[test]
+fn macho_without_build_version_is_rejected() {
+    let mut image = macho(macho::CPU_TYPE_X86_64, macho::PLATFORM_MACOS, 0, &[]);
+    image.truncate(32);
+    put(&mut image, 16, &0u32.to_le_bytes());
+    put(&mut image, 20, &0u32.to_le_bytes());
+    let error = inspect(&image).unwrap_err();
+    assert_eq!(error.to_string(), "Mach-O image has no build version");
+}
+
+#[test]
+fn fat_rejects_empty_and_non_macho_slices() {
+    let mut empty = fat(&[]);
+    empty.resize(32, 0);
+    assert_eq!(
+        inspect(&empty).unwrap_err().to_string(),
+        "Mach-O fat binary has no slices"
+    );
+    let mut with_elf = fat(&[macho(
+        macho::CPU_TYPE_X86_64,
+        macho::PLATFORM_MACOS,
+        0x000a_0f00,
+        &[],
+    )]);
+    let slice = elf(elf::EM_X86_64, None, &[]);
+    put(&mut with_elf, 4096, &slice);
+    assert!(inspect(&with_elf)
+        .unwrap_err()
+        .to_string()
+        .contains("fat slice"));
+}
+
+#[test]
+fn error_display_and_format_names() {
+    assert_eq!(Error("boom".to_owned()).to_string(), "boom");
+    assert_eq!(Format::Elf.name(), "elf");
+    assert_eq!(Abi::Gnu.name(), "gnu");
+}
+
+#[test]
+fn inspect_rejects_unsupported_formats() {
+    let error = inspect(b"!<arch>\n\0\0\0\0\0\0\0\0").unwrap_err();
+    let text = error.to_string();
+    assert!(text.contains("binary format"), "{text}");
 }

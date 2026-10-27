@@ -44,10 +44,17 @@ const RULES_DX: &str = "rules_dx";
 
 static RULES_DX_REPO: OnceLock<String> = OnceLock::new();
 
-/// Records the name the workspace MODULE.bazel gives rules_dx.
+/// Records the name the workspace MODULE.bazel (and the files it includes) gives rules_dx.
 pub fn set_rules_dx_repo(workspace: &Path) {
-    let repo = std::fs::read_to_string(workspace.join("MODULE.bazel"))
-        .map_or_else(|_| RULES_DX.to_owned(), |text| rules_dx_repo_of(&text));
+    let read_include = |label: &str| {
+        dx_module_bazel::label_path(label)
+            .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
+            .map_err(|_| format!("workspace input {label}"))
+    };
+    let repo = std::fs::read_to_string(workspace.join("MODULE.bazel")).map_or_else(
+        |_| RULES_DX.to_owned(),
+        |text| rules_dx_repo_with(&text, &read_include),
+    );
     let _ = RULES_DX_REPO.set(repo);
 }
 
@@ -56,22 +63,37 @@ pub(crate) fn rules_dx_repo() -> &'static str {
     RULES_DX_REPO.get().map_or(RULES_DX, String::as_str)
 }
 
-/// Returns the name a MODULE.bazel source gives rules_dx.
+/// Returns the name a MODULE.bazel source gives rules_dx, ignoring any includes.
 pub fn rules_dx_repo_of(module_text: &str) -> String {
-    let Ok(file) = dx_module_bazel::ModuleFile::parse(module_text) else {
-        return RULES_DX.to_owned();
+    rules_dx_repo_with(module_text, &|_| Err("no includes".to_owned()))
+}
+
+/// Returns the name rules_dx gets across a MODULE.bazel and its includes, in include order.
+/// When the includes cannot be loaded, falls back to the root file alone.
+fn rules_dx_repo_with(
+    module_text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+) -> String {
+    let repo = match dx_module_bazel::load_with_includes(module_text, read_include) {
+        Ok(files) => files.iter().find_map(repo_in_file).map(str::to_owned),
+        Err(_) => dx_module_bazel::ModuleFile::parse(module_text)
+            .ok()
+            .and_then(|file| repo_in_file(&file).map(str::to_owned)),
     };
-    let root = file
+    match repo {
+        Some(repo) if valid_repo_name(&repo) => repo,
+        _ => RULES_DX.to_owned(),
+    }
+}
+
+/// The repo name one module file gives rules_dx, if the file declares rules_dx.
+fn repo_in_file(file: &dx_module_bazel::ModuleFile) -> Option<&str> {
+    match file
         .calls_named("module")
-        .find(|call| call.str("name") == Some(RULES_DX));
-    let repo = match root {
-        Some(call) => call.str("repo_name").unwrap_or(RULES_DX),
-        None => file.repo_name(RULES_DX).unwrap_or(RULES_DX),
-    };
-    if valid_repo_name(repo) {
-        repo.to_owned()
-    } else {
-        RULES_DX.to_owned()
+        .find(|call| call.str("name") == Some(RULES_DX))
+    {
+        Some(call) => Some(call.str("repo_name").unwrap_or(RULES_DX)),
+        None => file.repo_name(RULES_DX),
     }
 }
 
@@ -278,7 +300,64 @@ pub struct BuildPlan {
 
 #[cfg(test)]
 mod tests {
-    use super::{rules_dx_label, rules_dx_repo_of, settings_for, BAZEL_SETTINGS};
+    use super::{
+        rules_dx_label, rules_dx_repo_of, rules_dx_repo_with, settings_for, BAZEL_SETTINGS,
+    };
+
+    const DX_DEP: &str =
+        "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"my_dx\")\n";
+
+    fn missing(label: &str) -> Result<String, String> {
+        Err(format!("workspace input {label}"))
+    }
+
+    #[test]
+    fn repo_name_comes_from_an_included_module_file() {
+        let root = "module(name = \"consumer\")\ninclude(\"//deps:dx.MODULE.bazel\")\n";
+        let read = |label: &str| match label {
+            "//deps:dx.MODULE.bazel" => Ok(DX_DEP.to_owned()),
+            _ => missing(label),
+        };
+        assert_eq!(rules_dx_repo_with(root, &read), "my_dx");
+    }
+
+    #[test]
+    fn root_bazel_dep_wins_over_an_included_one() {
+        let root = format!("{DX_DEP}include(\"//deps:dx.MODULE.bazel\")\n");
+        let read = |_: &str| Ok("bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n".to_owned());
+        assert_eq!(rules_dx_repo_with(&root, &read), "my_dx");
+    }
+
+    #[test]
+    fn nested_includes_are_followed() {
+        let root = "module(name = \"consumer\")\ninclude(\"//deps:a.MODULE.bazel\")\n";
+        let read = |label: &str| match label {
+            "//deps:a.MODULE.bazel" => Ok("include(\"//deps:b.MODULE.bazel\")\n".to_owned()),
+            "//deps:b.MODULE.bazel" => Ok(DX_DEP.to_owned()),
+            _ => missing(label),
+        };
+        assert_eq!(rules_dx_repo_with(root, &read), "my_dx");
+    }
+
+    #[test]
+    fn unreadable_include_falls_back_to_the_root_file() {
+        let root = format!("{DX_DEP}include(\"//deps:gone.MODULE.bazel\")\n");
+        assert_eq!(rules_dx_repo_with(&root, &missing), "my_dx");
+        let bare = "module(name = \"consumer\")\ninclude(\"//deps:gone.MODULE.bazel\")\n";
+        assert_eq!(rules_dx_repo_with(bare, &missing), "rules_dx");
+    }
+
+    #[test]
+    fn included_repo_name_must_be_valid() {
+        let root = "module(name = \"consumer\")\ninclude(\"//deps:dx.MODULE.bazel\")\n";
+        let read = |_: &str| {
+            Ok(
+                "bazel_dep(name = \"rules_dx\", version = \"0.0.0\", repo_name = \"a//b\")\n"
+                    .to_owned(),
+            )
+        };
+        assert_eq!(rules_dx_repo_with(root, &read), "rules_dx");
+    }
 
     #[test]
     fn settings_use_the_given_repo_name() {

@@ -541,4 +541,136 @@ scopes = ["apps/web"]
         assert!(out.contains("react"), "{code} {out}{err}");
         assert!(out.contains("UNKNOWN"), "{out}");
     }
+
+    const PINNED_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+"#;
+
+    const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";
+
+    const PSGALLERY_LOCK: &str =
+        "{\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\"\n    }\n  }\n}\n";
+
+    const RACK_ADVISORY: &str = r#"[{
+        "id": "GHSA-rack-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "RubyGems", "name": "rack"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "2.0.0"}, {"fixed": "2.2.8"}]}]
+        }]
+    }]"#;
+
+    fn pinned_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, PINNED_TOML, false);
+        harness.write_source(
+            "apps/rb/Gemfile",
+            "source \"https://rubygems.org\"\ngem \"rack\"\n",
+        );
+        harness.write_source("apps/rb/Gemfile.lock", GEMFILE_LOCK);
+        harness.write_source(
+            "tools/ps/PSGallery.requirements.psd1",
+            "@{ Pester = '5.7.1' }\n",
+        );
+        harness.write_source("tools/ps/PSGallery.lock.json", PSGALLERY_LOCK);
+        harness
+    }
+
+    #[test]
+    fn consumer_ruby_set_reads_its_gemfile_lock_and_the_rubygems_snapshot() {
+        let harness = pinned_harness("ruby-vuln");
+        write_advisory(&harness, "rubygems", RACK_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security", "--output=json", "gems"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("vuln/GHSA-rack-0001"), "{out}");
+        assert!(out.contains("apps/rb/Gemfile.lock"), "{out}");
+        assert!(!out.contains("pypi"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-rack-0001\"\n\
+             package = \"rack\"\nset = \"gems\"\nversions = \">= 2.0.0\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) = run_with(&["security", "--output=json", "gems"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
+    #[test]
+    fn consumer_ruby_missing_snapshot_fails_and_is_never_clean() {
+        for extra in [None, Some("--offline")] {
+            let harness = pinned_harness("ruby-missing");
+            write_advisory(&harness, "pypi", NO_ADVISORIES);
+            let runner = clean_runner();
+            let mut argv = vec!["security", "--output=json"];
+            argv.extend(extra);
+            argv.push("gems");
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{extra:?} {out}{err}");
+            assert!(out.contains("failed to assess gems"), "{out}{err}");
+            assert!(out.contains(".dx/advisory/rubygems.json"), "{out}{err}");
+            assert!(!out.contains("no advisory coverage"), "{out}");
+            assert!(!out.contains("audit_security_clean"), "{out}");
+            if extra.is_some() {
+                assert!(out.contains("offline_required"), "{out}{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn consumer_powershell_set_with_modules_needs_an_uncovered_acceptance() {
+        let harness = pinned_harness("powershell-uncovered");
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "modules"], &runner, &harness);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("failed to assess modules"), "{out}{err}");
+        assert!(out.contains("no advisory backend"), "{out}{err}");
+        assert!(!out.contains("audit_security_clean"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n\n[[uncovered]]\nset = \"modules\"\n\
+             reason = \"No Gallery advisory source.\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "modules"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("failed to assess modules"), "{out}");
+    }
+
+    #[test]
+    fn consumer_pinned_license_uses_the_ecosystem_inventory_keys() {
+        let harness = pinned_harness("pinned-license");
+        let runner = clean_runner();
+        let (_, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
+        assert!(out.contains("rack"), "{out}{err}");
+        assert!(out.contains("Pester"), "{out}{err}");
+        assert!(out.contains("UNKNOWN"), "{out}");
+        assert!(!out.contains("failed to assess"), "{out}");
+        harness.write_source(
+            "licenses.toml",
+            "[policy.distributed]\nallow = [\"MIT\", \"Apache-2.0\"]\nreview = []\ndeny = []\n\n\
+             [[inventory]]\npackage = \"rack\"\nset = \"ruby\"\nlicense = \"MIT\"\n\
+             versions = \"2.2.0\"\ntext_present = true\n\n\
+             [[inventory]]\npackage = \"Pester\"\nset = \"powershell\"\nlicense = \"Apache-2.0\"\n\
+             versions = \"5.7.1\"\ntext_present = true\n",
+        );
+        let (code, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("UNKNOWN"), "{out}");
+    }
 }

@@ -195,10 +195,15 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
             && security.contains(".dx/advisory/pypi.json"),
         "audit checks configured uv sets against the PyPI snapshot: {security}"
     );
-    assert!(
-        !security.contains("no advisory coverage"),
-        "configured uv sets have advisory coverage: {security}"
-    );
+    for covered in ["frontend", "gems", "web", "worker"] {
+        assert!(
+            !security
+                .split("no advisory coverage for ")
+                .skip(1)
+                .any(|tail| tail.split('"').next().unwrap_or_default().contains(covered)),
+            "configured {covered} has advisory coverage: {security}"
+        );
+    }
     let license = read("DX_SETS_LICENSE");
     assert!(
         license.contains("audit_license_clean"),
@@ -208,6 +213,28 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     assert!(
         bump.contains("bump is not supported for ecosystem uv set frontend"),
         "bump names the unsupported operation: {bump}"
+    );
+    let pinned = read("DX_SETS_UPDATE_PINNED");
+    assert!(
+        pinned.contains("gems pins are manual") && pinned.contains("modules pins are manual"),
+        "configured ruby and powershell sets check as pinned: {pinned}"
+    );
+    let ruby = read("DX_SETS_SECURITY_RUBY");
+    assert!(
+        ruby.contains("failed to assess gems") && ruby.contains(".dx/advisory/rubygems.json"),
+        "audit checks configured ruby sets against the RubyGems snapshot: {ruby}"
+    );
+    assert!(
+        !ruby.contains("no advisory coverage"),
+        "configured ruby sets have advisory coverage: {ruby}"
+    );
+    let bump = read("DX_SETS_BUMP_PINNED");
+    assert!(
+        bump.contains(
+            "bump is not supported for ecosystem ruby set gems \
+(supported operations: audit; check and update report pinned)"
+        ),
+        "bump names the pinned operations: {bump}"
     );
 }
 

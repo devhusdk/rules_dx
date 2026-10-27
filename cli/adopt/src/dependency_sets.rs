@@ -11,7 +11,15 @@ pub const ECOSYSTEM_NPM: &str = "npm";
 
 pub const ECOSYSTEM_BAZEL: &str = "bazel";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel";
+pub const ECOSYSTEM_RUBY: &str = "ruby";
+
+pub const ECOSYSTEM_POWERSHELL: &str = "powershell";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell";
+
+pub const GEMFILE_LOCK: &str = "Gemfile.lock";
+
+pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
 
 pub const PNPM_LOCK: &str = "pnpm-lock.yaml";
 
@@ -22,6 +30,8 @@ pub enum Ecosystem {
     Uv,
     Npm,
     Bazel,
+    Ruby,
+    PowerShell,
 }
 
 impl Ecosystem {
@@ -30,6 +40,8 @@ impl Ecosystem {
             Ecosystem::Uv => ECOSYSTEM_UV,
             Ecosystem::Npm => ECOSYSTEM_NPM,
             Ecosystem::Bazel => ECOSYSTEM_BAZEL,
+            Ecosystem::Ruby => ECOSYSTEM_RUBY,
+            Ecosystem::PowerShell => ECOSYSTEM_POWERSHELL,
         }
     }
 
@@ -38,6 +50,8 @@ impl Ecosystem {
             ECOSYSTEM_UV => Some(Ecosystem::Uv),
             ECOSYSTEM_NPM => Some(Ecosystem::Npm),
             ECOSYSTEM_BAZEL => Some(Ecosystem::Bazel),
+            ECOSYSTEM_RUBY => Some(Ecosystem::Ruby),
+            ECOSYSTEM_POWERSHELL => Some(Ecosystem::PowerShell),
             _ => None,
         }
     }
@@ -45,20 +59,38 @@ impl Ecosystem {
     pub fn supported_check(self) -> &'static str {
         match self {
             Ecosystem::Uv | Ecosystem::Npm => "check",
-            Ecosystem::Bazel => "pinned",
+            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
             Ecosystem::Uv | Ecosystem::Npm => "update",
-            Ecosystem::Bazel => "pinned",
+            Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
+        }
+    }
+
+    /// Lists what dx does for this ecosystem, folding pinned check and update into one clause.
+    pub fn supported_operations(self) -> String {
+        let (check, update, audit) = (
+            self.supported_check(),
+            self.supported_update(),
+            self.supported_audit(),
+        );
+        if check == "pinned" && update == "pinned" {
+            format!("{audit}; check and update report pinned")
+        } else {
+            format!("{check}, {update}, {audit}")
         }
     }
 
     pub fn supported_audit(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Bazel => "audit",
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Bazel
+            | Ecosystem::Ruby
+            | Ecosystem::PowerShell => "audit",
         }
     }
 
@@ -67,7 +99,8 @@ impl Ecosystem {
         match self {
             Ecosystem::Uv => Some("pypi"),
             Ecosystem::Npm => Some("npm"),
-            Ecosystem::Bazel => None,
+            Ecosystem::Ruby => Some("rubygems"),
+            Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
 
@@ -77,6 +110,8 @@ impl Ecosystem {
             Ecosystem::Uv => "pyproject.toml",
             Ecosystem::Npm => "package.json",
             Ecosystem::Bazel => "MODULE.bazel",
+            Ecosystem::Ruby => "Gemfile",
+            Ecosystem::PowerShell => "PSGallery.requirements.psd1",
         }
     }
 }
@@ -234,6 +269,12 @@ pub enum DependencySetsError {
         name: String,
         dir: String,
         detail: String,
+    },
+    #[error("dependency set {name:?} must declare {path} in locks; dx reads the {ecosystem} lock beside its manifest")]
+    MissingPinnedLock {
+        name: String,
+        path: String,
+        ecosystem: &'static str,
     },
 }
 
@@ -553,6 +594,10 @@ const BAZEL_PACKAGE_CHARSET: &str = "bazel module names use [A-Za-z0-9_.-] only"
 
 const UV_PACKAGE_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
 
+const RUBY_PACKAGE_CHARSET: &str = "gem names use [A-Za-z0-9_.-] only";
+
+const POWERSHELL_PACKAGE_CHARSET: &str = "PowerShell module names use [A-Za-z0-9_.-] only";
+
 const NPM_PACKAGE_CHARSET: &str =
     "npm package names are [@scope/]name with lowercase [a-z0-9._-] parts";
 
@@ -584,9 +629,11 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Err(NPM_PACKAGE_CHARSET)
             }
         }
-        Ecosystem::Uv | Ecosystem::Bazel => {
+        Ecosystem::Uv | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
             let charset = match ecosystem {
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
+                Ecosystem::Ruby => RUBY_PACKAGE_CHARSET,
+                Ecosystem::PowerShell => POWERSHELL_PACKAGE_CHARSET,
                 _ => UV_PACKAGE_CHARSET,
             };
             if package.is_empty() {
@@ -869,7 +916,21 @@ pub fn check_backend_settings(
         Ecosystem::Uv => check_uv_settings(workspace, set),
         Ecosystem::Npm => check_npm_layout(workspace, set),
         Ecosystem::Bazel => Ok(()),
+        Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
+        Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
     }
+}
+
+fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySetsError> {
+    let lock = in_dir(&set.dir, file);
+    if set.locks.contains(&lock) {
+        return Ok(());
+    }
+    Err(DependencySetsError::MissingPinnedLock {
+        name: set.name.clone(),
+        path: lock,
+        ecosystem: set.ecosystem.name(),
+    })
 }
 
 fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
@@ -1489,7 +1550,7 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Npm.supported_check(), "check");
         assert_eq!(Ecosystem::Npm.supported_update(), "update");
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
-        assert_eq!(SUPPORTED_ECOSYSTEMS, "uv, npm, bazel");
+        assert_eq!(SUPPORTED_ECOSYSTEMS, "uv, npm, bazel, ruby, powershell");
     }
 
     #[test]
@@ -1497,6 +1558,8 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Uv.advisory_family(), Some("pypi"));
         assert_eq!(Ecosystem::Npm.advisory_family(), Some("npm"));
         assert_eq!(Ecosystem::Bazel.advisory_family(), None);
+        assert_eq!(Ecosystem::Ruby.advisory_family(), Some("rubygems"));
+        assert_eq!(Ecosystem::PowerShell.advisory_family(), None);
         let registry = load_text(TWO_NPM_SETS);
         for set in &registry.sets {
             assert_eq!(set.ecosystem.advisory_family(), Some("npm"), "{}", set.name);
@@ -1513,6 +1576,13 @@ scopes = ["services/worker"]
             ("npm", "a/package.json5", "package.json"),
             ("npm", "package.yaml", "package.json"),
             ("bazel", "a/package.json", "MODULE.bazel"),
+            ("ruby", "a/gems.rb", "Gemfile"),
+            ("ruby", "a/Gemfile.lock", "Gemfile"),
+            (
+                "powershell",
+                "a/requirements.psd1",
+                "PSGallery.requirements.psd1",
+            ),
         ] {
             let text = format!(
                 "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"{ecosystem}\"\nmanifests = [\"{manifest}\"]\nlocks = [\"a/lock\"]\nscopes = [\"a\"]\n"
@@ -1631,5 +1701,139 @@ scopes = ["services/worker"]
                     .to_owned(),
             })
         );
+    }
+
+    const PINNED_SETS: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+"#;
+
+    #[test]
+    fn ruby_and_powershell_sets_load_as_pinned_ecosystems() {
+        let registry = load_text(PINNED_SETS);
+        assert_eq!(registry.names(), vec!["gems", "modules"]);
+        let gems = registry.find("gems").expect("gems");
+        assert_eq!(gems.ecosystem, Ecosystem::Ruby);
+        assert_eq!(ResolvedSet::of(gems).dir, "apps/rb");
+        let modules = registry.find("modules").expect("modules");
+        assert_eq!(modules.ecosystem, Ecosystem::PowerShell);
+        for (ecosystem, name, manifest) in [
+            (Ecosystem::Ruby, "ruby", "Gemfile"),
+            (
+                Ecosystem::PowerShell,
+                "powershell",
+                "PSGallery.requirements.psd1",
+            ),
+        ] {
+            assert_eq!(Ecosystem::parse(name), Some(ecosystem));
+            assert_eq!(ecosystem.name(), name);
+            assert_eq!(ecosystem.manifest_name(), manifest);
+            assert_eq!(ecosystem.supported_check(), "pinned");
+            assert_eq!(ecosystem.supported_update(), "pinned");
+            assert_eq!(ecosystem.supported_audit(), "audit");
+            assert_eq!(
+                ecosystem.supported_operations(),
+                "audit; check and update report pinned"
+            );
+        }
+        assert_eq!(Ecosystem::Uv.supported_operations(), "check, update, audit");
+        assert_eq!(
+            Ecosystem::Npm.supported_operations(),
+            "check, update, audit"
+        );
+        assert_eq!(Ecosystem::parse("rubygems"), None);
+        assert_eq!(Ecosystem::parse("PowerShell"), None);
+    }
+
+    #[test]
+    fn pinned_sets_must_declare_the_lock_beside_their_manifest() {
+        let registry = load_text(PINNED_SETS);
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-pinned-");
+        let workspace = scratch.path().to_path_buf();
+        for name in ["gems", "modules"] {
+            let set = ResolvedSet::of(registry.find(name).expect("set"));
+            assert_eq!(check_backend_settings(&workspace, &set), Ok(()), "{name}");
+        }
+        for (ecosystem, manifest, lock, want) in [
+            (
+                "ruby",
+                "apps/rb/Gemfile",
+                "apps/rb/gems.locked",
+                "apps/rb/Gemfile.lock",
+            ),
+            ("ruby", "Gemfile", "other/Gemfile.lock", "Gemfile.lock"),
+            (
+                "powershell",
+                "tools/ps/PSGallery.requirements.psd1",
+                "tools/ps/lock.json",
+                "tools/ps/PSGallery.lock.json",
+            ),
+        ] {
+            let text = format!(
+                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"{ecosystem}\"\nmanifests = [\"{manifest}\"]\nlocks = [\"{lock}\"]\nscopes = [\".\"]\n"
+            );
+            let registry = parse(&text, DX_TOML_REL).expect("valid").expect("registry");
+            let set = ResolvedSet::of(registry.find("a").expect("a"));
+            let error = check_backend_settings(&workspace, &set).expect_err("missing lock");
+            assert_eq!(
+                error,
+                DependencySetsError::MissingPinnedLock {
+                    name: "a".to_owned(),
+                    path: want.to_owned(),
+                    ecosystem: Ecosystem::parse(ecosystem).expect("known").name(),
+                },
+                "{ecosystem} {lock}"
+            );
+            assert!(error.to_string().contains(want), "{error}");
+        }
+    }
+
+    #[test]
+    fn pinned_packages_use_the_plain_charset() {
+        let registry = load_text(PINNED_SETS);
+        for (set, package) in [
+            ("gems", "rspec-core"),
+            ("gems", "nokogiri"),
+            ("gems", "Ruby_Gem.2"),
+            ("modules", "Pester"),
+            ("modules", "Az.Accounts"),
+        ] {
+            let resolved = resolve(&registry, &[format!("{set}:{package}")])
+                .unwrap_or_else(|error| panic!("{set}:{package}: {error}"));
+            assert_eq!(
+                resolved[0].request,
+                Selection::Packages(vec![package.to_owned()])
+            );
+        }
+        for (set, package, reason) in [
+            ("gems", "a b", RUBY_PACKAGE_CHARSET),
+            ("gems", "rails@7", RUBY_PACKAGE_CHARSET),
+            ("gems", "a;rm", RUBY_PACKAGE_CHARSET),
+            ("modules", "Az/Accounts", POWERSHELL_PACKAGE_CHARSET),
+            ("modules", "Az Accounts", POWERSHELL_PACKAGE_CHARSET),
+        ] {
+            assert_eq!(
+                resolve(&registry, &[format!("{set}:{package}")]),
+                Err(DependencySetsError::InvalidPackage {
+                    set: set.to_owned(),
+                    package: package.to_owned(),
+                    reason,
+                }),
+                "{set}:{package}"
+            );
+        }
     }
 }

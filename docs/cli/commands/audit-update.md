@@ -419,9 +419,11 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`, `npm`, or `bazel`), workspace-relative `manifests`, `locks`, and
-owning `scopes`. Manifests are named for the ecosystem: `pyproject.toml` for
-`uv`, `package.json` for `npm`, `MODULE.bazel` for `bazel`; any other name
+(`uv`, `npm`, `bazel`, `ruby`, or `powershell`), workspace-relative
+`manifests`, `locks`, and owning `scopes`. Manifests are named for the
+ecosystem: `pyproject.toml` for `uv`, `package.json` for `npm`,
+`MODULE.bazel` for `bazel`, `Gemfile` for `ruby`,
+`PSGallery.requirements.psd1` for `powershell`; any other name
 fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
 the workspace fails `security` and `license` for that set with exit `1`.
@@ -530,6 +532,40 @@ workspace holds a `pnpm-workspace.yaml`.
 `failed to assess <name>`. `dx license` reports `UNKNOWN` for npm packages
 unless `licenses.toml` declares them with `[[inventory]]` and `set = "npm"`.
 
+A `ruby` set and a `powershell` set are pinned: dx reads their committed
+locks and never resolves them.
+
+```toml
+[[dependency_set]]
+name = "gems"
+ecosystem = "ruby"
+manifests = ["apps/rb/Gemfile"]
+locks = ["apps/rb/Gemfile.lock"]
+scopes = ["apps/rb"]
+
+[[dependency_set]]
+name = "modules"
+ecosystem = "powershell"
+manifests = ["tools/ps/PSGallery.requirements.psd1"]
+locks = ["tools/ps/PSGallery.lock.json"]
+scopes = ["tools/ps"]
+```
+
+`locks` must list the lock beside the manifest, `<set directory>/Gemfile.lock`
+or `<set directory>/PSGallery.lock.json`; otherwise `dx update` reports the
+set unsupported and names the missing path. `dx update --check` and
+`dx update --apply` report both as pinned, also under `--offline` and
+`--frozen`, and start no process. A `set:package` selector is unsupported:
+regenerate `Gemfile.lock` with `bundle lock`, or `PSGallery.lock.json` by
+hand. `dx security` matches every `Gemfile.lock` gem against
+`.dx/advisory/rubygems.json`; a missing snapshot fails the set with
+`failed to assess <name>`, and `--offline` fails it with `offline_required`.
+No advisory source covers PowerShell Gallery modules, so a `powershell` set
+whose lock lists modules fails `dx security` unless `security.toml` accepts
+it with an `[[uncovered]]` entry naming the set. `dx license` reports
+`UNKNOWN` for gems and modules unless `licenses.toml` declares them with
+`[[inventory]]` and `set = "ruby"` or `set = "powershell"`.
+
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
 selects every configured set. A scope selects every set whose scope covers
@@ -571,7 +607,8 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` refuses configured `uv` and `npm` sets;
+PEP 440 `versions` range. `dx bump` refuses configured `uv`, `npm`, `ruby`, and
+`powershell` sets;
 configured `bazel` sets widen as described under `dx bump`.
 
 ```sh

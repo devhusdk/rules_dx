@@ -501,6 +501,10 @@ fn parse_locked_for_configured(
                 Some("yarn.lock") => dx_audit::locks::parse_yarn_lock(text),
                 _ => dx_audit::locks::parse_pnpm_lock(text),
             },
+            dx_adopt::dependency_sets::Ecosystem::Ruby => dx_audit::locks::parse_gemfile_lock(text),
+            dx_adopt::dependency_sets::Ecosystem::PowerShell => {
+                dx_audit::locks::parse_psgallery_lock(text)
+            }
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
         }
         .map_err(|detail| AuditError::LockParse {
@@ -1077,10 +1081,7 @@ fn collect_target(
     })?;
     let exception_set = match target {
         AuditTarget::Builtin(_) => label.clone(),
-        AuditTarget::Configured(set) => match set.ecosystem {
-            dx_adopt::dependency_sets::Ecosystem::Npm => "npm".to_owned(),
-            _ => "uv".to_owned(),
-        },
+        AuditTarget::Configured(set) => set.ecosystem.name().to_owned(),
     };
     Ok(Some(Assessable {
         label,

@@ -312,6 +312,21 @@ fn configured_pnpm_argv(
     .concat()
 }
 
+/// Refuses a package update in a pinned set; dx never rewrites its lock.
+fn pinned_selective(set: &ResolvedSet) -> BackendError {
+    BackendError::Unsupported {
+        set: set.name.clone(),
+        reason: match set.ecosystem {
+            Ecosystem::Ruby => {
+                "dx does not resolve gems; edit Gemfile and regenerate Gemfile.lock with `bundle lock`"
+            }
+            _ => {
+                "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
+            }
+        },
+    }
+}
+
 pub fn plan_configured(
     workspace: &Path,
     set: &ResolvedSet,
@@ -327,6 +342,10 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
+        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Full) => Ok(BackendPlan::Noop),
+        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Packages(_)) => {
+            Err(pinned_selective(set))
+        }
         (Ecosystem::Uv, Selection::Full) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -390,6 +409,10 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
+        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Full) => Ok(CheckPlan::Pinned),
+        (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Packages(_)) => {
+            Err(pinned_selective(set))
+        }
         (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
             argv: configured_uv_argv(set, closure, true, offline)?,
             env: vec![],
@@ -1231,6 +1254,102 @@ mod tests {
                 ),
                 "{error:?}"
             );
+        }
+    }
+
+    fn pinned_sets() -> Vec<(ResolvedSet, &'static str, &'static str)> {
+        vec![
+            (
+                ResolvedSet {
+                    name: "gems".to_owned(),
+                    ecosystem: Ecosystem::Ruby,
+                    dir: "apps/rb".to_owned(),
+                    manifests: vec!["apps/rb/Gemfile".to_owned()],
+                    locks: vec!["apps/rb/Gemfile.lock".to_owned()],
+                    writable: true,
+                },
+                "rspec-core",
+                "`bundle lock`",
+            ),
+            (
+                ResolvedSet {
+                    name: "modules".to_owned(),
+                    ecosystem: Ecosystem::PowerShell,
+                    dir: "tools/ps".to_owned(),
+                    manifests: vec!["tools/ps/PSGallery.requirements.psd1".to_owned()],
+                    locks: vec!["tools/ps/PSGallery.lock.json".to_owned()],
+                    writable: true,
+                },
+                "Pester",
+                "PSGallery.lock.json by hand",
+            ),
+        ]
+    }
+
+    #[test]
+    fn configured_pinned_sets_never_run_and_check_as_pinned_under_every_flag() {
+        for (set, _, _) in pinned_sets() {
+            for offline in [false, true] {
+                for frozen in [false, true] {
+                    assert_eq!(
+                        plan_configured(
+                            ws(),
+                            &set,
+                            &Selection::Full,
+                            offline,
+                            frozen,
+                            &no_head(),
+                            &closure()
+                        ),
+                        Ok(BackendPlan::Noop),
+                        "{} offline={offline} frozen={frozen}",
+                        set.name
+                    );
+                    assert_eq!(
+                        check_configured(
+                            ws(),
+                            &set,
+                            &Selection::Full,
+                            offline,
+                            frozen,
+                            &no_head(),
+                            &UvClosure::default()
+                        ),
+                        Ok(CheckPlan::Pinned),
+                        "{} offline={offline} frozen={frozen}",
+                        set.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn configured_pinned_selective_names_the_lock_to_regenerate() {
+        for (set, package, regenerate) in pinned_sets() {
+            let request = Selection::Packages(vec![package.to_owned()]);
+            let planned =
+                plan_configured(ws(), &set, &request, false, false, &no_head(), &closure())
+                    .expect_err("pinned sets resolve nothing");
+            let checked =
+                check_configured(ws(), &set, &request, false, false, &no_head(), &closure())
+                    .expect_err("pinned sets check nothing per package");
+            let manifest = set.manifests[0].rsplit('/').next().expect("file");
+            let lock = set.locks[0].rsplit('/').next().expect("file");
+            for error in [planned, checked] {
+                assert!(
+                    matches!(
+                        error,
+                        BackendError::Unsupported { set: ref name, reason }
+                            if *name == set.name
+                                && reason.contains(manifest)
+                                && reason.contains(lock)
+                                && reason.contains(regenerate)
+                    ),
+                    "{error:?}"
+                );
+                assert_eq!(error.code(), "unsupported");
+            }
         }
     }
 

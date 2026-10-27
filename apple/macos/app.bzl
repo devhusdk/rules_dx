@@ -255,6 +255,26 @@ def _runfiles_path(ctx, file):
 def _lines(names):
     return "\n".join(names)
 
+def _framework_names(frameworks):
+    return [framework[AppleBundleInfo].bundle_name for framework in frameworks]
+
+def _plugin_names(plugins):
+    names = []
+    for plugin in plugins:
+        if AppleBundleInfo in plugin:
+            info = plugin[AppleBundleInfo]
+            names.append(info.bundle_name + info.bundle_extension)
+            continue
+        package = plugin.label.package
+        for file in plugin.files.to_list():
+            path = file.short_path
+            if path.startswith("../"):
+                path = path[3:].partition("/")[2]
+            if package and path.startswith(package + "/"):
+                path = path[len(package) + 1:]
+            names.append(path)
+    return sorted(names)
+
 def _macos_app_check_impl(ctx):
     bundle = ctx.attr.app[0]
     info = bundle[AppleBundleInfo]
@@ -277,8 +297,8 @@ def _macos_app_check_impl(ctx):
         ctx.attr.arch,
         xcode,
         str(xcode_config.sdk_version_for_platform(apple_common.platform.macos)),
-        _lines([label.name for label in ctx.attr.frameworks]),
-        _lines(sorted([file.basename for file in ctx.files.plugins])),
+        _lines(_framework_names(ctx.attr.frameworks)),
+        _lines(_plugin_names(ctx.attr.plugins)),
         _lines(flat_resources(ctx.files.resources)),
     ])
     env = {"PATH": TOOL_PATH}
@@ -327,7 +347,10 @@ _macos_app_check = rule(
         ),
         "arch": attr.string(doc = "Architecture every Mach-O file of the app must carry.", mandatory = True),
         "deployment": attr.string(doc = "Minimum macOS version the app supports.", mandatory = True),
-        "frameworks": attr.label_list(doc = "Frameworks the bundle must embed under Frameworks."),
+        "frameworks": attr.label_list(
+            doc = "Frameworks the bundle must embed under Frameworks.",
+            providers = [AppleBundleInfo],
+        ),
         "plugins": attr.label_list(doc = "Plugins the bundle must hold under PlugIns.", allow_files = True),
         "resources": attr.label_list(doc = "Resource files the bundle must hold.", allow_files = True),
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),

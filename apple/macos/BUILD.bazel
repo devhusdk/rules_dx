@@ -1,4 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_apple//apple:macos.bzl", "macos_bundle", "macos_dynamic_framework")
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("//apple/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load("//apple/signing:defs.bzl", "apple_macos_sign")
 load("//libs/starlark:failure_test.bzl", "failure_test")
@@ -249,6 +251,49 @@ build_test(
     name = "demo_build_test",
     target_compatible_with = ["@platforms//os:macos"],
     targets = [":demo"],
+)
+
+objc_library(
+    name = "parts_lib",
+    srcs = ["part.m"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+macos_dynamic_framework(
+    name = "Helper",
+    bundle_id = "com.example.helper",
+    infoplists = ["helper_Info.plist"],
+    minimum_os_version = "14.0",
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+    deps = [":parts_lib"],
+)
+
+macos_bundle(
+    name = "Extra",
+    bundle_id = "com.example.extra",
+    infoplists = ["extra_Info.plist"],
+    minimum_os_version = "14.0",
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+    deps = [":parts_lib"],
+)
+
+apple_macos_app(
+    name = "parts",
+    srcs = ["main.m"],
+    bundle_id = "com.example.parts",
+    deployment = "14.0",
+    frameworks = [":Helper"],
+    plugins = [":Extra"],
+    version = "1.0",
+)
+
+build_test(
+    name = "parts_build_test",
+    target_compatible_with = ["@platforms//os:macos"],
+    targets = [":parts"],
 )
 
 apple_macos_sign(

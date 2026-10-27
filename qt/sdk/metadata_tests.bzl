@@ -287,6 +287,7 @@ def _cell(layout, runtime = None):
         constraints = ["@platforms//os:macos", "@platforms//cpu:arm64"],
         directory = "mac_x64/desktop",
         layout = layout,
+        needs = None,
         release = "6.11.3-0-1",
         runtime = runtime,
     )
@@ -374,10 +375,10 @@ def _request_checks():
 
 def _build_checks():
     hub = hub_build({cell: cell_repository_name(cell) for cell in qualified_cells()}, "//qt/rules:defs.bzl")
-    arm64 = cell_build("linux_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
-    base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
-    full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
-    tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl")
+    arm64 = cell_build("linux_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
+    tools = cell_build("linux_x86_64", ["qtbase", "qtdeclarative", "qttools"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     return [
         expect_equal("hub name", HUB_NAME, "dx_qt"),
         expect_equal("cell repository", cell_repository_name("linux_x86_64"), "dx_qt_linux_x86_64"),
@@ -391,6 +392,7 @@ def _build_checks():
             "lrelease",
             "metatypes",
             "moc",
+            "needs",
             "network",
             "platforms",
             "plugins_imageformats",
@@ -414,6 +416,10 @@ def _build_checks():
         expect_contains("hub loads the Rust runtime rule", hub, 'load("//qt/rules:defs.bzl", "qt_rust_runtime")\n'),
         expect_contains("hub declares the CXX-Qt runtime", hub, 'qt_rust_runtime(\n    name = "cxx_qt",\n    core = ":core",\n'),
         expect_contains("hub routes qmllint", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:qmllint"'),
+        expect_contains("hub routes needs", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:needs"'),
+        expect_contains("base cell loads qt_needs", base, 'load("//qt/sdk:needs.bzl", "qt_needs")\n'),
+        expect_contains("base cell publishes its needs", base, 'qt_needs(\n    name = "needs",'),
+        expect_contains("base cell needs carry the library table", base, '"libxcb.so.1": ["libXau.so.6"]'),
         expect_contains("hub routes arm64 qmllint", hub, '":linux_arm64": "@dx_qt_linux_arm64//:qmllint"'),
         expect_contains("arm64 core closure links zlib-ng", arm64, '"lib/libz.so.1"'),
         expect_false("arm64 core closure skips pcre", '"lib/libpcre.so.1"' in arm64),
@@ -553,6 +559,15 @@ def _consumer_checks():
     fontless["runtime"].pop("font")
     url = _spec()
     url["runtime"]["packages"][0]["url"] = "https://example.com/x.rpm"
+    needless = _spec()
+    needless.pop("needs")
+    bare = effective_cells(consumer_cells([_tag(needless, "custom_x86_64")])[0])
+    table = _spec()
+    table["needs"]["library"] = ["libxcb.so.1"]
+    listed = _spec()
+    listed["needs"]["plugin"] = {"a.so": "libxcb.so.1"}
+    partial = _spec()
+    partial["needs"].pop("plugin")
     pinned = [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]
     macos = effective_cells(consumer_cells([_tag(_spec(), "macos_arm64", ["@platforms//os:macos", "@platforms//cpu:arm64"])])[0])
     custom = effective_cells(consumer_cells([_tag(_spec(), "custom_x86_64")])[0])
@@ -571,6 +586,13 @@ def _consumer_checks():
         expect_equal("consumer spec fields are typed", _errors(typed), ["cell 'custom' spec 'directory' is not a string"]),
         expect_equal("consumer runtime needs a font", _errors(fontless), ["cell 'custom' spec runtime is missing 'font'"]),
         expect_equal("consumer packages take no url", _errors(url), ["cell 'custom' spec runtime.packages[0] has unknown key 'url'"]),
+        expect_equal("consumer needs are optional", _errors(needless), []),
+        expect_equal("consumer needs tables are typed", _errors(table), ["cell 'custom' spec needs 'library' is not an object of string lists"]),
+        expect_equal("consumer needs entries are string lists", _errors(listed), ["cell 'custom' spec needs 'plugin' is not an object of string lists"]),
+        expect_equal("consumer needs carry every table", _errors(partial), ["cell 'custom' spec needs is missing 'plugin'"]),
+        expect_equal("consumer cell names avoid needs", consumer_cells([_tag(_spec(), "needs")])[1], ["cell 'needs' name is taken by a @dx_qt target"]),
+        expect_contains("consumer cell publishes its needs", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", custom), 'qt_needs(\n    name = "needs",'),
+        expect_contains("a needless consumer cell refuses bundling", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", bare), "qt_unsupported(\n    name = \"needs\",\n    reason = \"cell 'custom_x86_64' spec carries no needs tables; qt_bundle cannot package it\","),
         expect_equal("consumer spec is JSON", _errors("{"), ["cell 'custom' spec is not a JSON object"]),
         expect_equal("consumer cell names are plain", consumer_cells([_tag(_spec(), "Bad-Name")])[1], ["cell 'Bad-Name' name is not made of lowercase letters, digits and '_'"]),
         expect_equal("consumer cell names avoid hub targets", consumer_cells([_tag(_spec(), "core")])[1], ["cell 'core' name is taken by a @dx_qt target"]),
@@ -583,5 +605,5 @@ def _consumer_checks():
         expect_equal("a new consumer cell joins the qualified cells", active, ["custom_x86_64", "linux_arm64", "linux_x86_64"]),
         expect_contains("hub routes the consumer cell", hub, '":custom_x86_64": "@dx_qt_custom_x86_64//:core"'),
         expect_contains("hub matches the consumer constraint", hub, '        "%s",\n' % str(Label("//qt/sdk:custom"))),
-        expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),
+        expect_contains("consumer cell builds core", cell_build("custom_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl", custom), '    srcs = ["lib/libQt6Core.so.6"],'),
     ]

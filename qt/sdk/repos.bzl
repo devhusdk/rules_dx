@@ -17,7 +17,7 @@ load(
 
 HUB_NAME = "dx_qt"
 
-SHARED_TARGETS = ["licenses", "runtime", "sbom"]
+SHARED_TARGETS = ["licenses", "needs", "runtime", "sbom"]
 
 TOOLS = {
     "lrelease": struct(data = [], path = "bin/lrelease"),
@@ -45,9 +45,14 @@ _KINDS = {
     "runtime": "an object or null",
     "string": "a string",
     "strings": "a list of strings",
+    "table": "an object of string lists",
 }
 
 _SPEC_FIELDS = {"archives": "object", "directory": "string", "release": "string", "runtime": "runtime"}
+
+_SPEC_OPTIONAL = {"needs": "object"}
+
+_NEEDS_FIELDS = {"library": "table", "plugin": "table", "runtime_plugin": "table"}
 
 _ARCHIVE_FIELDS = {"archive": "string", "sha256": "string"}
 
@@ -350,18 +355,26 @@ def request_errors(request):
 
 def cell_spec(entry):
     """Returns the JSON spec of one cell entry, without its layout, constraints and blocker."""
-    return {
+    spec = {
         "archives": entry.archives,
         "directory": entry.directory,
         "release": entry.release,
         "runtime": entry.runtime,
     }
+    if entry.needs != None:
+        spec["needs"] = entry.needs
+    return spec
+
+def _strings(value):
+    return type(value) == "list" and all([type(item) == "string" for item in value])
 
 def _kind_ok(value, kind):
     if kind == "strings":
-        return type(value) == "list" and all([type(item) == "string" for item in value])
+        return _strings(value)
     if kind == "object":
         return type(value) == "dict"
+    if kind == "table":
+        return type(value) == "dict" and all([_strings(item) for item in value.values()])
     if kind == "runtime":
         return value == None or type(value) == "dict"
     return type(value) == kind
@@ -412,7 +425,7 @@ def cell_from_json(name, data, constraints, layout):
     """Returns one cell entry decoded from its JSON spec, and one error string per rejected field."""
     errors = []
     where = "cell '" + name + "' spec"
-    spec = _decode(where, data, _SPEC_FIELDS, {}, errors)
+    spec = _decode(where, data, _SPEC_FIELDS, _SPEC_OPTIONAL, errors)
     if spec == None:
         return None, errors
     archives = {}
@@ -423,6 +436,11 @@ def cell_from_json(name, data, constraints, layout):
     runtime = None
     if spec["runtime"] != None:
         runtime = _runtime_from_json(where + " runtime", spec["runtime"], errors)
+    needs = None
+    if "needs" in spec:
+        decoded = _decode(where + " needs", spec["needs"], _NEEDS_FIELDS, {}, errors)
+        if decoded != None:
+            needs = struct(**decoded)
     if len(errors) > 0:
         return None, errors
     return struct(
@@ -431,6 +449,7 @@ def cell_from_json(name, data, constraints, layout):
         constraints = list(constraints),
         directory = spec["directory"],
         layout = layout,
+        needs = needs,
         release = spec["release"],
         runtime = runtime,
     ), []
@@ -623,17 +642,32 @@ def _filegroup(name, srcs):
         "",
     ]
 
-def cell_build(cell, modules, rules_cc, unsupported, cells = CELLS):
+def _needs(cell, needs):
+    if needs == None:
+        return _unsupported("needs", "cell '" + cell + "' spec carries no needs tables; qt_bundle cannot package it")
+    return [
+        "qt_needs(",
+        '    name = "needs",',
+        "    library = %r," % needs.library,
+        "    plugin = %r," % needs.plugin,
+        "    runtime_plugin = %r," % needs.runtime_plugin,
+        ")",
+        "",
+    ]
+
+def cell_build(cell, modules, rules_cc, unsupported, needs, cells = CELLS):
     """Returns the BUILD file of one acquired cell for the enabled modules."""
     entry = cells[cell]
     layout = entry.layout
     lines = [
         'load("%s", "cc_binary", "cc_library")' % rules_cc,
+        'load("%s", "qt_needs")' % needs,
         'load("%s", "qt_unsupported")' % unsupported,
         "",
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
+    lines.extend(_needs(cell, entry.needs))
     lines.extend(_filegroup("runtime", 'glob(["%s"])' % layout.runtime_glob))
     lines.extend(_filegroup("licenses", 'glob(["licenses/**"])'))
     lines.extend(_filegroup("sbom", 'glob(["sbom/*.spdx.json"])'))
@@ -806,6 +840,7 @@ def _qt_cell_repo_impl(ctx):
         ctx.attr.modules,
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/sdk:unsupported.bzl")),
+        str(Label("//qt/sdk:needs.bzl")),
         cells,
     ))
     return ctx.repo_metadata(reproducible = True)

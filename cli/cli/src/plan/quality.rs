@@ -228,6 +228,33 @@ fn provenance_env_names() -> &'static [&'static str] {
     ]
 }
 
+fn provenance_keyed_names() -> &'static [&'static str] {
+    &["define", "build_metadata"]
+}
+
+/// Matches user-chosen names (define keys, Starlark flag targets) by `_`-separated segment.
+fn secret_key(name: &str) -> bool {
+    let normalized = name.to_lowercase().replace(['-', '.'], "_");
+    normalized.split('_').any(|segment| {
+        let word = segment.strip_suffix('s').unwrap_or(segment);
+        [segment, word].iter().any(|candidate| {
+            matches!(*candidate, "key" | "pat") || provenance_secret_names().contains(candidate)
+        })
+    })
+}
+
+/// Returns the target name of a Starlark flag such as `//pkg:flag` or `no@repo//:flag`.
+fn starlark_target(name: &str) -> Option<&str> {
+    let rest = match name.strip_prefix("no") {
+        Some(rest) if rest.starts_with("//") || rest.starts_with('@') => rest,
+        _ => name,
+    };
+    if !(rest.starts_with("//") || rest.starts_with('@')) {
+        return None;
+    }
+    Some(rest.rsplit([':', '/']).next().unwrap_or(rest))
+}
+
 fn provenance_option_name(option: &str) -> &str {
     let bare = option.strip_prefix("--").unwrap_or(option);
     bare.split('=').next().unwrap_or(bare)
@@ -240,10 +267,17 @@ fn env_assignment(value: &str) -> String {
     }
 }
 
+fn keyed_secret(assignment: &str) -> bool {
+    assignment
+        .split_once('=')
+        .is_some_and(|(key, _)| secret_key(key))
+}
+
 enum Pending {
     None,
     Secret,
     Env(String),
+    Keyed(String),
 }
 
 /// Splits Bazel options into ones safe to echo and redacted stand-ins for secrets.
@@ -261,7 +295,16 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
                 withheld.push(format!("--{name} {}", env_assignment(option)));
                 continue;
             }
-            Pending::Env(name) => safe.push(format!("--{name}")),
+            Pending::Keyed(name) if !option.starts_with('-') => {
+                if keyed_secret(option) {
+                    withheld.push(format!("--{name} {}", env_assignment(option)));
+                } else {
+                    safe.push(format!("--{name}"));
+                    safe.push(redact_url_credentials(option));
+                }
+                continue;
+            }
+            Pending::Env(name) | Pending::Keyed(name) => safe.push(format!("--{name}")),
             _ => {}
         }
         let name = provenance_option_name(option).to_lowercase();
@@ -272,6 +315,24 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
                 }
                 Some(_) => safe.push(redact_url_credentials(option)),
                 None => pending = Pending::Env(name),
+            }
+            continue;
+        }
+        if provenance_keyed_names().contains(&name.as_str()) {
+            match option.split_once('=') {
+                Some((flag, value)) if keyed_secret(value) => {
+                    withheld.push(format!("{flag}={}", env_assignment(value)));
+                }
+                Some(_) => safe.push(redact_url_credentials(option)),
+                None => pending = Pending::Keyed(name),
+            }
+            continue;
+        }
+        if let Some(target) = starlark_target(&name) {
+            if secret_key(target) {
+                withheld.push(format!("--{}", provenance_option_name(option)));
+            } else {
+                safe.push(redact_url_credentials(option));
             }
             continue;
         }
@@ -287,7 +348,7 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
             pending = Pending::Secret;
         }
     }
-    if let Pending::Env(name) = pending {
+    if let Pending::Env(name) | Pending::Keyed(name) = pending {
         safe.push(format!("--{name}"));
     }
     (safe, withheld)
@@ -298,6 +359,113 @@ mod tests {
     use super::*;
     use crate::args::{parse, ArgsError};
     use crate::plan::BAZEL_SETTINGS;
+
+    #[test]
+    fn partition_provenance_options_cases() {
+        let cases: &[(&[&str], &[&str], &[&str])] = &[
+            (
+                &["--define=API_TOKEN=hunter2"],
+                &[],
+                &["--define=API_TOKEN=(value)"],
+            ),
+            (
+                &["--define", "API_TOKEN=hunter2"],
+                &[],
+                &["--define API_TOKEN=(value)"],
+            ),
+            (
+                &["--define=DB_PASSWORD=hunter2"],
+                &[],
+                &["--define=DB_PASSWORD=(value)"],
+            ),
+            (
+                &["--define=AWS_SECRET_ACCESS_KEY=hunter2"],
+                &[],
+                &["--define=AWS_SECRET_ACCESS_KEY=(value)"],
+            ),
+            (
+                &["--define=GH_PAT=hunter2"],
+                &[],
+                &["--define=GH_PAT=(value)"],
+            ),
+            (&["--define=version=1.2"], &["--define=version=1.2"], &[]),
+            (
+                &["--define", "version=1.2"],
+                &["--define", "version=1.2"],
+                &[],
+            ),
+            (
+                &["--define=DB=postgres://u:hunter2@h"],
+                &["--define=DB=postgres://(credentials)@h"],
+                &[],
+            ),
+            (
+                &["--build_metadata=AUTH_TOKEN=hunter2"],
+                &[],
+                &["--build_metadata=AUTH_TOKEN=(value)"],
+            ),
+            (&["--//pkg:token=hunter2"], &[], &["--//pkg:token"]),
+            (&["--@repo//:secret=hunter2"], &[], &["--@repo//:secret"]),
+            (
+                &["--@repo//pkg:api-token=hunter2"],
+                &[],
+                &["--@repo//pkg:api-token"],
+            ),
+            (&["--//pkg/token=hunter2"], &[], &["--//pkg/token"]),
+            (&["--no//pkg:token"], &[], &["--no//pkg:token"]),
+            (
+                &["--//pkg:token", "//target"],
+                &["//target"],
+                &["--//pkg:token"],
+            ),
+            (
+                &["--@rules_dx//config:workspace=//consumer:policy"],
+                &["--@rules_dx//config:workspace=//consumer:policy"],
+                &[],
+            ),
+            (
+                &["--@rules_dx//config:validate=false"],
+                &["--@rules_dx//config:validate=false"],
+                &[],
+            ),
+            (
+                &["--remote_header=A=Bearer hunter2"],
+                &[],
+                &["--remote_header"],
+            ),
+            (
+                &["--bes_header", "x=hunter2"],
+                &[],
+                &["--bes_header", "(value)"],
+            ),
+            (
+                &["--action_env=API_KEY=hunter2"],
+                &[],
+                &["--action_env=API_KEY=(value)"],
+            ),
+            (
+                &["--test_env", "DB=hunter2"],
+                &[],
+                &["--test_env DB=(value)"],
+            ),
+            (&["--repo_env=HOME"], &["--repo_env=HOME"], &[]),
+            (
+                &["--remote_cache=grpcs://ci:hunter2@cache.example"],
+                &["--remote_cache=grpcs://(credentials)@cache.example"],
+                &[],
+            ),
+            (&["--token=abc"], &[], &["--token"]),
+            (&["--define"], &["--define"], &[]),
+        ];
+        for (input, want_safe, want_withheld) in cases {
+            let options: Vec<String> = input.iter().map(|s| (*s).to_owned()).collect();
+            let (safe, withheld) = partition_provenance_options(&options);
+            assert_eq!(&safe, want_safe, "safe for {input:?}");
+            assert_eq!(&withheld, want_withheld, "withheld for {input:?}");
+            let all = format!("{safe:?}{withheld:?}");
+            assert!(!all.contains("hunter2"), "{input:?}: {all}");
+        }
+    }
     use crate::resolve::{resolve, QueryResult, QueryRunner};
     use crate::test_support::{graph_rule, graph_stdout, strings};
     use dx_process::Scope;

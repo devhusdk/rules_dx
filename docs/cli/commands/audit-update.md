@@ -742,8 +742,14 @@ crate_universe then fails the set with `updater exited <code>` when the lock
 no longer matches the manifest. Both variables are always set, so a `REPIN`
 exported in the shell does not turn a check into a write. `--check --offline`
 adds `--repository_disable_download`, `--apply --offline` fails with
-`offline_required`, and `--apply --frozen` fails with `frozen_locked`. A
-`set:package` selector is unsupported: select the set without a package.
+`offline_required`, and `--apply --frozen` fails with `frozen_locked`.
+`--apply <set>:<crate>` sets `CARGO_BAZEL_REPIN` and `REPIN` to the crate name,
+which crate_universe runs as `cargo update --package <crate>` before it
+regenerates the cargo-bazel lock. Select one crate per cargo set per run;
+crate names crate_universe reads as repin modes (`all`, `workspace`, `false`,
+`0`, `off`, and similar) are refused, and a name with several locked versions
+fails with `updater exited <code>`. `--check` with a package is unsupported:
+select the set without a package.
 `--bazel-startup-option` values reach the `bazel` call. Bazel evaluates
 every `crate.from_cargo` hub of the workspace together, so a stale hub fails
 the check and update of every `cargo` set; update the stale set first.

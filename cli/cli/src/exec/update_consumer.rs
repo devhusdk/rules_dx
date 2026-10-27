@@ -1701,6 +1701,60 @@ repository = "tool_crates"
     }
 
     #[test]
+    fn consumer_cargo_apply_package_repins_one_crate() {
+        let harness = cargo_harness("cargo-apply-package");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "crates:serde"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("updated crates:serde (consumer-rs/crates/Cargo.lock, consumer-rs/crates/cargo-bazel-lock.json)"),
+            "{out}"
+        );
+        assert_eq!(
+            *runner.launches.borrow(),
+            vec![Launch {
+                argv: cargo_call(&[], false, "crates"),
+                cwd: harness.workspace.clone(),
+                env: cargo_env("serde", "crates"),
+                hermetic: false,
+            }]
+        );
+    }
+
+    #[test]
+    fn consumer_cargo_package_and_full_sets_in_one_run() {
+        let harness = cargo_harness("cargo-package-and-full");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "crates:serde", "tools"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 2);
+        assert_eq!(launches[0].argv, cargo_call(&[], false, "crates"));
+        assert_eq!(launches[0].env, cargo_env("serde", "crates"));
+        assert_eq!(launches[1].argv, cargo_call(&[], false, "tool_crates"));
+        assert_eq!(launches[1].env, cargo_env("workspace", "tool_crates"));
+    }
+
+    #[test]
+    fn consumer_cargo_package_failure_stays_with_its_own_set() {
+        let harness = cargo_harness("cargo-package-fail");
+        let runner = ScriptRunner::new(&[("consumer-cargo:crates", Some(1))]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "crates:serde", "tools"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("updater exited 1"), "{err}");
+        assert!(out.contains("updated tools"), "{out}");
+        assert_eq!(runner.calls.borrow().len(), 2);
+    }
+
+    #[test]
     fn consumer_cargo_failure_stays_with_its_own_set() {
         let harness = cargo_harness("cargo-fail");
         let runner = ScriptRunner::new(&[("consumer-cargo:tool_crates", Some(1))]);
@@ -1735,11 +1789,42 @@ repository = "tool_crates"
         );
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
-        for mode in ["--apply", "--check"] {
-            let (code, out, err) = run_with(&["update", mode, "crates:serde"], &runner, &harness);
-            assert_eq!(code, 1, "{mode}: {out}{err}");
+        let (code, out, err) =
+            run_with(&["update", "--check", "crates:serde"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(err.contains("select the set without a package"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--frozen", "crates:serde"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--offline", "crates:serde"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "crates:serde", "crates:tokio"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(err.contains("one crate per run"), "{err}");
+        for name in ["off", "all"] {
+            let (code, _, err) = run_with(
+                &["update", "--apply", &format!("crates:{name}")],
+                &runner,
+                &harness,
+            );
+            assert_eq!(code, 1, "{name}: {err}");
             assert!(err.contains("update_set_unsupported"), "{err}");
-            assert!(err.contains("select the set without a package"), "{err}");
+            assert!(err.contains("repin mode"), "{err}");
         }
         assert!(runner.calls.borrow().is_empty());
         assert_eq!(cargo_bytes(&harness), before);

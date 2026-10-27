@@ -193,7 +193,7 @@ fn a_renamed_rules_dx_checks_a_consumer_cloudflare_site() {
     let root = consumer();
     let token = "dx-test-token-123";
 
-    let built = root.bazel(&["build", "//:pages_check", "//:pages_program", "//:pages"]);
+    let built = root.bazel(&["build", "//:pages_check", "//:pages_config", "//:pages"]);
     assert_eq!(built.status.code(), Some(0), "{}", built.combined());
 
     let ran = root.bazel_with(

@@ -356,6 +356,18 @@ fn readme_docs_site_link_targets_the_devhusdk_host() {
 }
 
 #[test]
+fn docs_and_examples_indexes_link_the_starlark_rule_reference() {
+    const RULES: &str = "https://devhusdk.github.io/rules_dx/rules/";
+    for index in ["docs/README.md", "examples/README.md"] {
+        let hits = markdown_links(&read_runfiles(index))
+            .into_iter()
+            .filter(|link| link == RULES)
+            .count();
+        assert_eq!(hits, 1, "{index} must link the Starlark rule reference once");
+    }
+}
+
+#[test]
 fn the_supported_surface_lists_every_documented_load() {
     let surface = supported_surface();
     let missing: Vec<String> = documented_loads()

@@ -1,7 +1,7 @@
 """Application packaging selection coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "aab_check_errors", "aab_sign_errors", "apk_manifest_errors", "release_sign_errors", "rust_android_apk_errors")
+load(":defs.bzl", "aab_check_errors", "aab_sign_errors", "apk_manifest_errors", "apk_set_errors", "release_sign_errors", "rust_android_apk_errors")
 load(
     ":repos.bzl",
     "ABI_PLATFORMS",
@@ -168,6 +168,15 @@ def _packaging_checks():
         "no aab sign",
         aab_sign_errors("//:app", 0),
         ["android_aab_release_sign: '//:app' built 0 aab files, want exactly one"],
+    ))
+    checks.append(expect_equal("one aab and spec apk set", apk_set_errors("//:set", 1, 1), []))
+    checks.append(expect_equal(
+        "missing aab and spec apk set",
+        apk_set_errors("//:set", 0, 2),
+        [
+            "android_apk_set: '//:set' aab built 0 aab files, want exactly one",
+            "android_apk_set: '//:set' device_spec names 2 json files, want exactly one",
+        ],
     ))
     return checks
 

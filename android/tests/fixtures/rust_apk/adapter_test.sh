@@ -11,6 +11,8 @@ export DX_ADB_SERIAL="$serial"
 export DX_ADB_OP="$op"
 if [ "$op" = "install" ]; then
     export DX_ADB_APK="$4"
+elif [ "$op" = "install-multiple" ]; then
+    export DX_ADB_APKS="$4"
 elif [ "$op" = "start" ]; then
     app="${4:-com.example.dxrustapk}"
     export DX_ADB_APP="$app"
@@ -56,6 +58,26 @@ case "$op" in
                 ;;
             *)
                 echo "install argv '$captured' misses '$prefix'" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    install-multiple)
+        prefix="-s $serial install-multiple -r "
+        case "$captured" in
+            "$prefix"*)
+                set -- ${captured#$prefix}
+                [ "$#" -ge 1 ] || { echo "install-multiple names no apk" >&2; exit 1; }
+                for apk in "$@"; do
+                    case "$apk" in
+                        *.apk) ;;
+                        *) echo "install-multiple names a non-apk: $apk" >&2; exit 1 ;;
+                    esac
+                    [ -f "$apk" ] || { echo "install-multiple names no apk file: $apk" >&2; exit 1; }
+                done
+                ;;
+            *)
+                echo "install-multiple argv '$captured' misses '$prefix'" >&2
                 exit 1
                 ;;
         esac

@@ -170,6 +170,14 @@ custom_app() {
     grep "asset=ok name=message.txt bytes=$bytes" "$evidence/logcat-custom.txt"
 }
 
+apk_set_app() {
+    device logcat -c
+    tools/dx run "$pkg:install_set" "$pkg:start"
+    wait_log "lifecycle=resume" 1
+    tools/dx run "$pkg:log" > "$evidence/logcat-set.txt"
+    tools/dx run "$pkg:device_check" -- logcat "$evidence/logcat-set.txt" "$bytes"
+}
+
 record() {
     echo "== $1"
     shift
@@ -200,5 +208,6 @@ versions
 step no-effect no_effect
 step default-app default_app
 step custom-app custom_app
+step apk-set apk_set_app
 cat "$evidence/exit-codes.txt"
 exit "$failed"

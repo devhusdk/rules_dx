@@ -1,13 +1,6 @@
-"""Shared deploy-launcher helpers."""
+"""Shared deploy-launcher helpers, re-exported from config.bzl until every kind reads a deploy config."""
 
-def rlocation_path(ctx, f):
-    """Returns the runfiles rlocation for one file."""
-    sp = f.short_path
-    if sp.startswith("../"):
-        return sp[3:]
-    return ctx.workspace_name + "/" + sp
+load(":config.bzl", _package_rlocation = "package_rlocation", _rlocation_path = "rlocation_path")
 
-def package_rlocation(ctx, name):
-    """Returns the runfiles rlocation for one file name in the rule's package."""
-    repo = ctx.label.repo_name or ctx.workspace_name
-    return repo + "/" + (ctx.label.package + "/" if ctx.label.package else "") + name
+rlocation_path = _rlocation_path
+package_rlocation = _package_rlocation

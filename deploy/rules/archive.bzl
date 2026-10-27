@@ -1,7 +1,7 @@
 """Credential-free release archives for dx deploy."""
 
 load("//libs/starlark:defs.bzl", "display_label")
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":resources.bzl", "resource_path_error")
 
@@ -50,37 +50,37 @@ _archive_app_name = rule(
     },
 )
 
-def _archive_launcher_impl(ctx):
-    """Expands the rust_binary launcher source from names alone."""
-    repo = ctx.label.repo_name or ctx.workspace_name
-    prefix = repo + "/" + (ctx.label.package + "/" if ctx.label.package else "")
-    app_rloc = prefix + ctx.attr.app_name
-    archive_rloc = prefix + ctx.attr.tarball
-    checksum_rloc = prefix + ctx.attr.checksum
+def _single_file(ctx, target):
+    """Returns the one file a target provides."""
+    files = target[DefaultInfo].files.to_list()
+    if len(files) != 1:
+        fail("archive_deploy " + str(ctx.label) + ": " + str(target.label) +
+             " provides " + str(len(files)) + " files, want exactly one")
+    return files[0]
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const APP_RLOC: &str = \"" + app_rloc + "\";\n" +
-                  "const TARBALL_RLOC: &str = \"" + archive_rloc + "\";\n" +
-                  "const CHECKSUM_RLOC: &str = \"" + checksum_rloc + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::archive_main(APP_RLOC, TARBALL_RLOC, CHECKSUM_RLOC, &std::env::args().collect::<Vec<_>>())); }\n",
+def _archive_config_impl(ctx):
+    """Writes the archive deploy config."""
+    app = _single_file(ctx, ctx.attr.app_name)
+    tarball = _single_file(ctx, ctx.attr.tarball)
+    checksum = _single_file(ctx, ctx.attr.checksum)
+    return deploy_config(
+        ctx,
+        "archive",
+        {
+            "app_rloc": rlocation_path(ctx, app),
+            "checksum_rloc": rlocation_path(ctx, checksum),
+            "tarball_rloc": rlocation_path(ctx, tarball),
+        },
+        ctx.runfiles(files = [app, tarball, checksum]),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_archive_launcher = rule(
-    implementation = _archive_launcher_impl,
-    doc = "Writes the archive deploy launcher Rust source.",
+_archive_config = rule(
+    implementation = _archive_config_impl,
+    doc = "Writes the archive deploy config.",
     attrs = {
-        "app_name": attr.string(
-            doc = "Generated text file naming the app executable.",
-            mandatory = True,
-        ),
-        "checksum": attr.string(doc = "Generated sha256 file for the archive.", mandatory = True),
-        "tarball": attr.string(
-            doc = "Generated archive file the launcher deploys.",
-            mandatory = True,
-        ),
+        "app_name": attr.label(mandatory = True, doc = "Text file with the app basename."),
+        "checksum": attr.label(mandatory = True, doc = "Tarball sha256 file."),
+        "tarball": attr.label(mandatory = True, doc = "Release tarball."),
     },
 )
 
@@ -93,7 +93,6 @@ def archive_deploy(name, app, profile = "release"):
     (tarball, checksum) = archive_filenames(name)
     archive_target = name + "_archive"
     checksum_target = name + "_checksum"
-    program_target = name + "_program"
     stage_target = name + "_stage"
 
     _archive_stage(
@@ -123,18 +122,12 @@ def archive_deploy(name, app, profile = "release"):
         app = app,
     )
 
-    launcher_target = program_target + "_launcher"
-    _archive_launcher(
-        name = launcher_target,
-        app_name = app_name_target + ".txt",
-        checksum = checksum,
-        tarball = tarball,
-    )
-
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
+    config_target = name + "_config"
+    _archive_config(
+        name = config_target,
+        app_name = ":" + app_name_target,
+        checksum = ":" + checksum_target,
+        tarball = ":" + archive_target,
     )
 
     dx_deployment(
@@ -145,7 +138,8 @@ def archive_deploy(name, app, profile = "release"):
             ":" + archive_target,
             ":" + checksum_target,
         ],
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )
 

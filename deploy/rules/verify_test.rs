@@ -8,6 +8,19 @@ fn data(name: &str) -> PathBuf {
     dx_testing::resolve_runfiles(&rel)
 }
 
+fn run_deploy(
+    prog: &Path,
+    config_var: &str,
+    args: &[&str],
+    env: &[(&str, &str)],
+) -> std::io::Result<dx_testing::Run> {
+    let config = data(config_var);
+    let config = config.to_string_lossy();
+    let mut env = env.to_vec();
+    env.push(("DX_DEPLOY_CONFIG", config.as_ref()));
+    dx_testing::run(prog, args, &env)
+}
+
 fn archive_case() {
     let tarball = data("DX_ARCHIVE_TARBALL");
     let checksum = data("DX_ARCHIVE_CHECKSUM");
@@ -63,8 +76,13 @@ fn github_case() {
     let want_tag = std::env::var("DX_GITHUB_TAG").expect("DX_GITHUB_TAG must name the tag");
     let assets = std::env::var("DX_GITHUB_ASSETS").expect("DX_GITHUB_ASSETS must list assets");
 
-    let run =
-        dx_testing::run(&prog, &[], &[("GH_RELEASE_DRY_RUN", "1")]).expect("dry run must execute");
+    let run = run_deploy(
+        &prog,
+        "DX_GITHUB_CONFIG",
+        &[],
+        &[("GH_RELEASE_DRY_RUN", "1")],
+    )
+    .expect("dry run must execute");
     let out = run.combined();
     assert!(
         out.lines()
@@ -86,6 +104,16 @@ fn github_case() {
             .any(|line| line.ends_with("--draft --verify-tag")),
         "github would-run command missing draft-only flags '--draft --verify-tag'\n{out}"
     );
+
+    let bare = dx_testing::run(&prog, &[], &[("GH_RELEASE_DRY_RUN", "1")])
+        .expect("unconfigured run must execute");
+    assert_eq!(bare.status.code(), Some(2), "{}", bare.combined());
+    assert!(
+        bare.stderr
+            .contains("DX_DEPLOY_CONFIG not set: run with bazel run or dx deploy"),
+        "{}",
+        bare.stderr
+    );
 }
 
 fn cloudflare_case() {
@@ -100,7 +128,8 @@ fn cloudflare_case() {
         ("DX_PROFILE", "release"),
     ];
 
-    let preview = dx_testing::run(&prog, &[], &env).expect("preview deploy must execute");
+    let preview =
+        run_deploy(&prog, "DX_CLOUDFLARE_CONFIG", &[], &env).expect("preview deploy must execute");
     let out = preview.combined();
     assert!(preview.status.success(), "preview deploy failed\n{out}");
     for want in [
@@ -117,8 +146,9 @@ fn cloudflare_case() {
     }
     assert!(!out.contains(token), "token leaked\n{out}");
 
-    let live = dx_testing::run(
+    let live = run_deploy(
         &production,
+        "DX_CLOUDFLARE_PRODUCTION_CONFIG",
         &[],
         &[
             ("CLOUDFLARE_PAGES_LIVE", "1"),
@@ -133,8 +163,9 @@ fn cloudflare_case() {
     assert!(out.contains("url: https://main.dx-demo.pages.dev"), "{out}");
 
     let pinned = data("DX_CLOUDFLARE_DEFAULT_PROG");
-    let real = dx_testing::run(
+    let real = run_deploy(
         &pinned,
+        "DX_CLOUDFLARE_DEFAULT_CONFIG",
         &[],
         &[
             ("CLOUDFLARE_PAGES_LIVE", "1"),
@@ -152,8 +183,9 @@ fn cloudflare_case() {
     assert!(out.contains("wrangler failed with exit"), "{out}");
     assert!(!out.contains("bogus-token"), "token leaked\n{out}");
 
-    let missing = dx_testing::run(
+    let missing = run_deploy(
         &prog,
+        "DX_CLOUDFLARE_CONFIG",
         &[],
         &[
             ("CLOUDFLARE_PAGES_LIVE", "1"),
@@ -169,8 +201,9 @@ fn cloudflare_case() {
         missing.stderr
     );
 
-    let denied = dx_testing::run(
+    let denied = run_deploy(
         &prog,
+        "DX_CLOUDFLARE_CONFIG",
         &[],
         &[
             ("CLOUDFLARE_PAGES_LIVE", "1"),
@@ -187,8 +220,9 @@ fn cloudflare_case() {
     );
     assert!(denied.stderr.contains("[redacted]"), "{}", denied.stderr);
 
-    let checked = dx_testing::run(
+    let checked = run_deploy(
         &prog,
+        "DX_CLOUDFLARE_CONFIG",
         &[],
         &[("CLOUDFLARE_API_TOKEN", token), ("DX_PROFILE", "release")],
     )
@@ -204,8 +238,9 @@ fn cloudflare_case() {
     assert!(!out.contains("deployment:"), "{out}");
     assert!(!out.contains(token), "token leaked\n{out}");
 
-    let unapproved = dx_testing::run(
+    let unapproved = run_deploy(
         &prog,
+        "DX_CLOUDFLARE_CONFIG",
         &[],
         &[
             ("CLOUDFLARE_PAGES_LIVE", "1"),
@@ -222,9 +257,11 @@ fn cloudflare_case() {
     assert!(unapproved.stdout.is_empty(), "{}", unapproved.combined());
 
     for removed in [
-        dx_testing::run(&prog, &["--dry-run"], &env).expect("removed flag must execute"),
-        dx_testing::run(
+        run_deploy(&prog, "DX_CLOUDFLARE_CONFIG", &["--dry-run"], &env)
+            .expect("removed flag must execute"),
+        run_deploy(
             &prog,
+            "DX_CLOUDFLARE_CONFIG",
             &[],
             &[
                 ("CLOUDFLARE_PAGES_DRY_RUN", "1"),

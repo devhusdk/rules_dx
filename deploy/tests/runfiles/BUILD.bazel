@@ -29,7 +29,7 @@ child_runfiles(
 
 child_runfiles(
     name = "github_child",
-    binary = ":identity_github_program",
+    binary = ":identity_github",
 )
 
 # keep
@@ -40,18 +40,22 @@ rust_test(
     data = [
         ":archive_child",
         ":github_child",
-        ":identity_github_program",
+        ":identity_github",
+        ":identity_github_config",
         "//deploy/rules:release_demo",
         "//deploy/rules:release_demo_app_name",
         "//deploy/rules:release_demo_archive",
         "//deploy/rules:release_demo_checksum",
+        "//deploy/rules:release_demo_config",
         "@consumer_archive_repo//:NOTICE.txt",
     ],
     env = {
         "DX_APP": "$(rootpath //deploy/rules:release_demo_app_name)",
+        "DX_ARCHIVE_CONFIG": "$(rootpath //deploy/rules:release_demo_config)",
         "DX_ARCHIVE_PROGRAM": "$(rootpath //deploy/rules:release_demo)",
         "DX_CHECKSUM": "$(rootpath //deploy/rules:release_demo_checksum)",
-        "DX_GITHUB_PROGRAM": "$(rootpath :identity_github_program)",
+        "DX_GITHUB_CONFIG": "$(rootpath :identity_github_config)",
+        "DX_GITHUB_PROGRAM": "$(rootpath :identity_github)",
         "DX_NOTICE": "$(rootpath @consumer_archive_repo//:NOTICE.txt)",
         "DX_TARBALL": "$(rootpath //deploy/rules:release_demo_archive)",
     },

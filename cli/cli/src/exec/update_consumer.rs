@@ -1,6 +1,7 @@
 use super::super::common::{
     check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, Env,
 };
+use super::super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError, QueryBazel};
 use super::{
     record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
     SlotGate,
@@ -19,6 +20,7 @@ pub(super) fn execute_configured(
     let Env {
         workspace,
         runner,
+        query_runner,
         out,
         err,
         ..
@@ -50,12 +52,19 @@ pub(super) fn execute_configured(
         events: &mut *out,
         phase: dx_plan::slots::Phase::new(invocation.command),
     };
+    let bazel = QueryBazel {
+        query_runner,
+        workspace,
+        startup: &invocation.bazel_startup_options,
+    };
+    let mut tools = UvTools::new(runner, &bazel, invocation.offline);
     for target in &resolved {
         if let Err(signo) = run_configured_target(
             &mut attempted,
             &mut details,
             target,
             runner,
+            &mut tools,
             workspace,
             invocation,
             &mut gate,
@@ -92,6 +101,7 @@ fn run_configured_target(
     details: &mut BTreeMap<String, SetDetail>,
     target: &ResolvedTarget,
     runner: &dyn dx_process::Runner,
+    tools: &mut UvTools<'_>,
     workspace: &std::path::Path,
     invocation: &Invocation,
     gate: &mut SlotGate<'_>,
@@ -148,19 +158,12 @@ fn run_configured_target(
         );
         return Ok(());
     }
+    // An apply the plan rejects anyway never needs the tools, so skip Bazel.
+    let rejected = mode == RunMode::Update && (invocation.offline || invocation.frozen);
     let closure = match set.ecosystem {
-        Ecosystem::Uv => dx_update::backend::UvClosure {
-            uv: pinned(runner, dx_update::backend::UV_BIN_VAR).filter(|path| {
-                runner
-                    .tool_version(std::path::Path::new(path))
-                    .is_some_and(|line| {
-                        let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
-                        name_and_version.join(" ") == dx_update::backend::UV_VERSION_LINE
-                    })
-            }),
-            python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
-        },
-        Ecosystem::Npm
+        Ecosystem::Uv if !rejected => tools.closure(),
+        Ecosystem::Uv
+        | Ecosystem::Npm
         | Ecosystem::Bazel
         | Ecosystem::Ruby
         | Ecosystem::PowerShell
@@ -320,10 +323,81 @@ impl CheckGuard {
     }
 }
 
-fn pinned(runner: &dyn dx_process::Runner, var: &str) -> Option<String> {
-    runner
-        .pinned_tool(var)
-        .map(|path| path.to_string_lossy().into_owned())
+/// One resolved tool: its path and, when Bazel was tried and failed, why.
+type Resolved = (Option<String>, Option<String>);
+
+/// Resolves uv and its interpreter at most once per run, from the environment
+/// first and Bazel second. `PATH` is never searched.
+struct UvTools<'a> {
+    runner: &'a dyn dx_process::Runner,
+    bazel: &'a dyn dx_tool_resolve::Bazel,
+    offline: bool,
+    uv: Option<Resolved>,
+    python: Option<Resolved>,
+}
+
+impl<'a> UvTools<'a> {
+    fn new(
+        runner: &'a dyn dx_process::Runner,
+        bazel: &'a dyn dx_tool_resolve::Bazel,
+        offline: bool,
+    ) -> Self {
+        UvTools {
+            runner,
+            bazel,
+            offline,
+            uv: None,
+            python: None,
+        }
+    }
+
+    fn resolve(&self, var: &str, label: &str) -> Resolved {
+        let tool = PinnedTool { var, label };
+        match resolve_pinned(self.runner, self.bazel, &tool, self.offline) {
+            Ok(path) => (Some(path.to_string_lossy().into_owned()), None),
+            Err(PinnedToolError::Invalid) => (None, None),
+            Err(PinnedToolError::Unresolved { detail }) => (None, Some(detail)),
+        }
+    }
+
+    fn closure(&mut self) -> dx_update::backend::UvClosure {
+        use dx_update::backend as be;
+        let runner = self.runner;
+        let (uv, uv_detail) = match self.uv.take() {
+            Some(done) => done,
+            None => {
+                let (path, detail) = self.resolve(be::UV_BIN_VAR, be::UV_LABEL);
+                let path = path.filter(|path| {
+                    runner
+                        .tool_version(std::path::Path::new(path))
+                        .is_some_and(|line| {
+                            let name_and_version: Vec<&str> =
+                                line.split_whitespace().take(2).collect();
+                            name_and_version.join(" ") == be::UV_VERSION_LINE
+                        })
+                });
+                (path, detail)
+            }
+        };
+        self.uv = Some((uv.clone(), uv_detail.clone()));
+        // A missing uv already fails the set, so skip resolving the interpreter.
+        let (python, python_detail) = if uv.is_some() {
+            let done = match self.python.take() {
+                Some(done) => done,
+                None => self.resolve(be::UV_PYTHON_VAR, be::UV_PYTHON_LABEL),
+            };
+            self.python = Some(done.clone());
+            done
+        } else {
+            (None, None)
+        };
+        be::UvClosure {
+            uv,
+            python,
+            uv_detail,
+            python_detail,
+        }
+    }
 }
 
 fn display_summary(resolved: &[ResolvedTarget], mode: RunMode) -> String {
@@ -522,6 +596,114 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(!out.contains("updated worker"), "{out}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    /// Scripts one Bazel resolution of `rel` under a fresh output base.
+    fn script_resolution(harness: &Harness, base: &std::path::Path, rel: &str) {
+        let file = base.join(rel);
+        std::fs::create_dir_all(file.parent().expect("parent")).expect("dir");
+        std::fs::write(&file, b"").expect("tool");
+        harness
+            .query
+            .outputs
+            .borrow_mut()
+            .push(dx_plan::resolve::QueryResult {
+                code: Some(0),
+                stdout: format!("{rel}\n").into_bytes(),
+                stderr: Vec::new(),
+            });
+        harness.query.script_info(&base.to_string_lossy());
+    }
+
+    #[test]
+    fn consumer_unset_uv_resolves_through_bazel_once_for_every_set() {
+        let base = super::super::super::test_support::temp_dir("uv-fallback");
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let harness = consumer_harness("fallback", DX_TOML, true);
+        script_resolution(&harness, base.path(), "external/x/uv");
+        script_resolution(&harness, base.path(), "external/x/python3");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 2, "one cquery per tool: {calls:?}");
+        assert!(calls[0].contains(&"@dx_tools//:uv".to_owned()), "{calls:?}");
+        assert!(!calls[0]
+            .iter()
+            .any(|arg| arg.contains("repository_disable")));
+        let launched = runner.calls.borrow();
+        assert_eq!(launched.len(), 2, "{launched:?}");
+        let uv = base.path().join("external/x/uv");
+        assert_eq!(launched[0][0], uv.to_string_lossy());
+        assert_eq!(launched[1][0], uv.to_string_lossy());
+    }
+
+    #[test]
+    fn consumer_offline_check_disables_repository_downloads_for_resolution() {
+        let base = super::super::super::test_support::temp_dir("uv-offline");
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let harness = consumer_harness("offline", DX_TOML, true);
+        script_resolution(&harness, base.path(), "external/x/uv");
+        script_resolution(&harness, base.path(), "external/x/python3");
+        let (code, out, err) = run_with(&["update", "--check", "--offline"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let calls = harness.query.calls.borrow();
+        assert!(!calls.is_empty());
+        for call in calls.iter() {
+            assert!(
+                call.contains(&"--repository_disable_download".to_owned()),
+                "{call:?}"
+            );
+            assert!(!call.contains(&"--nofetch".to_owned()), "{call:?}");
+        }
+    }
+
+    #[test]
+    fn consumer_failed_resolution_is_unavailable_with_the_detail_and_queried_once() {
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let harness = consumer_harness("resolve-fails", DX_TOML, true);
+        harness
+            .query
+            .script_failure(1, "ERROR: no such repository '@dx_tools'\n");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("backend_unavailable"), "{err}");
+        assert!(err.contains("DX_UV_BIN"), "{err}");
+        assert!(err.contains("PATH is never searched"), "{err}");
+        assert!(err.contains("no such repository"), "{err}");
+        assert_eq!(harness.query.calls.borrow().len(), 1);
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_resolved_uv_with_the_wrong_version_is_rejected() {
+        let base = super::super::super::test_support::temp_dir("uv-wrong-version");
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        runner.version = Some("uv 0.1.0".to_owned());
+        let harness = consumer_harness("wrong-version", DX_TOML, true);
+        script_resolution(&harness, base.path(), "external/x/uv");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("backend_unavailable"), "{err}");
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_rejected_applies_never_query_bazel() {
+        for flag in ["--offline", "--frozen"] {
+            let mut runner = ScriptRunner::new(&[]);
+            runner.pinned = false;
+            let harness = consumer_harness("rejected", DX_TOML, true);
+            let (_, out, err) = run_with(&["update", "--apply", flag, "worker"], &runner, &harness);
+            assert!(
+                harness.query.calls.borrow().is_empty(),
+                "{flag}: {out}{err}"
+            );
+            assert!(harness.query.info_calls.borrow().is_empty());
+        }
     }
 
     #[test]

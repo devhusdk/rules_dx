@@ -20,13 +20,22 @@ pub enum BackendError {
     OfflineRequired { set: String },
     #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
     FrozenLocked { set: String },
-    #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
+    #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched{}", resolution_suffix(.detail))]
     BackendUnavailable {
         set: String,
         tool: &'static str,
         var: &'static str,
         what: &'static str,
+        /// Why the Bazel fallback could not resolve the tool, when it was tried.
+        detail: Option<String>,
     },
+}
+
+fn resolution_suffix(detail: &Option<String>) -> String {
+    detail
+        .as_ref()
+        .map(|detail| format!("; Bazel resolution failed: {detail}"))
+        .unwrap_or_default()
 }
 
 impl BackendError {
@@ -46,6 +55,16 @@ pub const UV_BIN_VAR: &str = "DX_UV_BIN";
 
 pub const UV_PYTHON_VAR: &str = "DX_UV_PYTHON";
 
+pub const UV_LABEL: &str = "@dx_tools//:uv";
+
+pub const UV_PYTHON_LABEL: &str = "@rules_dx//cli/update:python_interpreter";
+
+/// Shell command that exports the pinned uv path for a local run.
+pub const UV_RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)\"";
+
+/// Shell command that exports the pinned uv Python interpreter path for a local run.
+pub const UV_PYTHON_RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)\"";
+
 pub const UV_VERSION_LINE: &str = "uv 0.12.23";
 
 const UV_BIN_WHAT: &str = "the pinned uv 0.12.23 from @dx_tools//:uv";
@@ -56,6 +75,10 @@ const UV_PYTHON_WHAT: &str = "a pinned Python interpreter";
 pub struct UvClosure {
     pub uv: Option<String>,
     pub python: Option<String>,
+    /// Why the Bazel fallback could not resolve uv, when it was tried.
+    pub uv_detail: Option<String>,
+    /// Why the Bazel fallback could not resolve the interpreter, when it was tried.
+    pub python_detail: Option<String>,
 }
 
 pub fn plan(
@@ -512,6 +535,7 @@ pub fn check_configured(
 fn closure_path(
     set: &ResolvedSet,
     path: &Option<String>,
+    detail: &Option<String>,
     var: &'static str,
     what: &'static str,
 ) -> Result<String, BackendError> {
@@ -522,6 +546,7 @@ fn closure_path(
             tool: "uv",
             var,
             what,
+            detail: detail.clone(),
         }),
     }
 }
@@ -532,8 +557,20 @@ fn configured_uv_argv(
     check: bool,
     offline: bool,
 ) -> Result<Vec<String>, BackendError> {
-    let uv = closure_path(set, &closure.uv, UV_BIN_VAR, UV_BIN_WHAT)?;
-    let python = closure_path(set, &closure.python, UV_PYTHON_VAR, UV_PYTHON_WHAT)?;
+    let uv = closure_path(
+        set,
+        &closure.uv,
+        &closure.uv_detail,
+        UV_BIN_VAR,
+        UV_BIN_WHAT,
+    )?;
+    let python = closure_path(
+        set,
+        &closure.python,
+        &closure.python_detail,
+        UV_PYTHON_VAR,
+        UV_PYTHON_WHAT,
+    )?;
     let mut argv = vec![uv, "lock".to_owned()];
     if check {
         argv.push("--check".to_owned());
@@ -1082,10 +1119,29 @@ mod tests {
                 tool: "uv",
                 var: UV_BIN_VAR,
                 what: "uv",
+                detail: None,
             },
         ] {
             assert!(error.to_string().starts_with(error.code()), "{error}");
         }
+    }
+
+    #[test]
+    fn unavailable_renders_the_bazel_detail_and_keeps_the_pin_text() {
+        let error = BackendError::BackendUnavailable {
+            set: "s".to_owned(),
+            tool: "uv",
+            var: UV_BIN_VAR,
+            what: "uv",
+            detail: Some("exit 1: boom".to_owned()),
+        };
+        let text = error.to_string();
+        assert!(text.contains("set DX_UV_BIN"), "{text}");
+        assert!(text.contains("PATH is never searched"), "{text}");
+        assert!(
+            text.ends_with("; Bazel resolution failed: exit 1: boom"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -1152,6 +1208,7 @@ mod tests {
         UvClosure {
             uv: Some(abs("uv")),
             python: Some(abs("python3")),
+            ..UvClosure::default()
         }
     }
 
@@ -1245,6 +1302,7 @@ mod tests {
                 UvClosure {
                     uv: Some("uv".to_owned()),
                     python: Some(abs("python3")),
+                    ..UvClosure::default()
                 },
                 UV_BIN_VAR,
             ),
@@ -1252,6 +1310,7 @@ mod tests {
                 UvClosure {
                     uv: Some(abs("uv")),
                     python: None,
+                    ..UvClosure::default()
                 },
                 UV_PYTHON_VAR,
             ),
@@ -1259,6 +1318,7 @@ mod tests {
                 UvClosure {
                     uv: Some(abs("uv")),
                     python: Some("python3".to_owned()),
+                    ..UvClosure::default()
                 },
                 UV_PYTHON_VAR,
             ),

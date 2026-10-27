@@ -167,7 +167,11 @@ impl QueryRunner for ScriptQuery {
         };
         self.expressions.borrow_mut().push(expression);
         self.calls.borrow_mut().push(argv.to_vec());
-        Ok(self.outputs.borrow_mut().remove(0))
+        let mut outputs = self.outputs.borrow_mut();
+        if outputs.is_empty() {
+            return Err(io::Error::other("unscripted query"));
+        }
+        Ok(outputs.remove(0))
     }
 
     fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {

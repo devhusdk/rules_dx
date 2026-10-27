@@ -117,7 +117,8 @@ A value that is not ten digits and dashes is ignored.
 
 `dx security` scans secrets with the pinned `@rules_dx//quality/artifacts:gitleaks` artifact.
 When `DX_GITLEAKS_BIN` holds an absolute path, dx runs that file. When it is
-unset, dx resolves the label through Bazel in the workspace. A relative path is
+unset, dx resolves the label through Bazel in the workspace; under `--offline`
+that resolution adds `--repository_disable_download`. A relative path is
 rejected and `PATH` is never searched. If no artifact is found, the run exits
 `1` with `secrets auditor unavailable` and prints this command, which exports
 the path in the current shell:
@@ -751,16 +752,23 @@ selects every configured set. A scope selects every set whose scope covers
 it; overlapping scopes select every owner and the run names them all.
 Unknown names and unowned paths fail with exit `2`.
 
-`dx update` and `dx update --check` run the pinned uv `0.12.23`. Set
-`DX_UV_BIN` to the absolute path of the `@dx_tools//:uv` artifact and
-`DX_UV_PYTHON` to the absolute path of the `@rules_dx//cli/update:python_interpreter`
-interpreter. A relative path is rejected and `PATH` is never searched. A uv
-that does not report `0.12.23` is rejected. Without a usable `DX_UV_BIN` or
-`DX_UV_PYTHON` the set fails with `backend_unavailable` and the run exits `1`;
-JSON reports an `error` event with that code. It is never reported current. In CI, `bazel run @rules_dx//cli/tool_resolve --
---label @dx_tools//:uv --var DX_UV_BIN` exports the uv path and the same
-command with `--label @rules_dx//cli/update:python_interpreter --var
-DX_UV_PYTHON` exports the interpreter.
+`dx update` and `dx update --check` run the pinned uv `0.12.23` and the pinned
+interpreter. When `DX_UV_BIN` holds an absolute path, dx runs that file; when
+it is unset, dx resolves `@dx_tools//:uv` through Bazel in the workspace.
+`DX_UV_PYTHON` works the same way for
+`@rules_dx//cli/update:python_interpreter`. A relative path is rejected and
+never falls back to Bazel, and `PATH` is never searched. A uv that does not
+report `0.12.23` is rejected. When neither source gives a usable tool the set
+fails with `backend_unavailable` and the run exits `1`; JSON reports an
+`error` event with that code. It is never reported current. Under `--offline`
+the Bazel resolution adds `--repository_disable_download`, so cached
+repositories still resolve. Runs with no uv set and rejected applies launch no
+Bazel. These commands export the paths in the current shell:
+
+```text
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)"
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)"
+```
 
 `dx update --apply` runs `uv lock` in the set directory and writes that set's
 lock only. `dx update --check` runs `uv lock --check`, writes nothing, and

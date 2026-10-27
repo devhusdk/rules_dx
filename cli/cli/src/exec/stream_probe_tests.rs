@@ -664,6 +664,8 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         std::thread::sleep(Duration::from_millis(300));
         run.signal(libc::SIGKILL);
         let _ = run.exit();
+        let leftover_dirs = run_dirs(&run);
+        assert_eq!(leftover_dirs.len(), 1, "{leftover_dirs:?}");
         assert!(group_alive(build), "the descendant should outlive dx");
         let next_words: Vec<&str> = words
             .iter()
@@ -676,6 +678,9 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         kill_group(build);
         assert_eq!(next.status.code(), Some(0), "{next:?}");
         assert!(gone, "{words:?}: leftovers survived the next run");
+        for dir in &leftover_dirs {
+            assert!(!dir.exists(), "{} must be swept", dir.display());
+        }
         let stderr = String::from_utf8_lossy(&next.stderr);
         assert!(
             stderr.contains("stopped leftover process group"),

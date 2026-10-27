@@ -480,7 +480,8 @@ fn run() -> i32 {
         }
     }
     let pid = std::process::id();
-    let (temp_dir, nonce) = match create_run_temp_dir(&std::env::temp_dir()) {
+    let temp_base = std::env::temp_dir();
+    let (temp_dir, nonce) = match create_run_temp_dir(&temp_base, pid) {
         Ok(run) => {
             remove_on_stop(run.0.path());
             run
@@ -504,6 +505,7 @@ fn run() -> i32 {
     if workspace.join("MODULE.bazel").is_file() {
         dx_process::groups::set_lease_root(&workspace.join(".dx"));
     }
+    dx_cli::plan::remove_stale_run_dirs(&temp_base);
     let reaped = dx_process::groups::reap_orphans();
     let runner = BinaryRunner { inherit_stdout };
     let query_runner = BinaryQueryRunner;

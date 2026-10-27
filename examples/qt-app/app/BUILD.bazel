@@ -1,4 +1,4 @@
-load("//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_test")
+load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 qt_cc_binary(
@@ -7,10 +7,7 @@ qt_cc_binary(
     modules = ["qml"],
     resource_prefix = "/tally",
     resources = ["banner.txt"],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//examples/qt-app/tally"],
 )
 
@@ -23,10 +20,7 @@ qt_cc_test(
         "qml",
         "test",
     ],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//examples/qt-app/tally"],
 )
 
@@ -40,10 +34,7 @@ qt_cc_test(
         "test",
         "widgets",
     ],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//examples/qt-app/tally"],
 )
 
@@ -53,10 +44,7 @@ qt_cc_test(
     srcs = ["tally_quick_test.cc"],
     data = ["tst_tally.qml"],
     modules = ["quick_test"],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//examples/qt-app/tally"],
 )
 

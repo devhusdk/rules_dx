@@ -179,8 +179,9 @@ rust_test(
     ],
     # Fetches the Qt SDK.
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [
+        ":qt_board_support",
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
     ],
@@ -258,7 +259,7 @@ rust_test(
     ],
     # Fetches the Qt SDK.
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [
         ":qt_board_support",
         "//tools/testing:dx_testing",
@@ -285,7 +286,7 @@ rust_test(
         "XDG_RUNTIME_DIR",
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [
         ":qt_board_support",
         "//tools/testing:dx_testing",
@@ -406,7 +407,7 @@ rust_test(
         "PATH",
     ],
     tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [
         ":qt_board_support",
         "//tools/testing:dx_nested",
@@ -529,7 +530,7 @@ qt_bundle(
     binary = "//examples/qt-tasks/app:tasks",
     licenses = ["probe.cc"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 qt_bundle(
@@ -537,7 +538,7 @@ qt_bundle(
     binary = "//examples/qt-tasks/app:tasks",
     qml_modules = ["Tasks.Missing"],
     tags = ["manual"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
 )
 
 cc_library(

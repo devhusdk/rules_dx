@@ -158,6 +158,21 @@ build --use_target_platform_for_tests
 
 On Linux arm64, use `@rules_dx//qt/platforms:linux_arm64`.
 
+Gate Qt targets to the qualified cells with `QT_COMPATIBLE_WITH` from
+`@rules_dx//qt/rules:defs.bzl`. It selects on the os and cpu of each
+qualified cell, so the targets build on every qualified cell and are skipped
+elsewhere:
+
+```python
+load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_cc_binary")
+
+qt_cc_binary(
+    name = "app",
+    srcs = ["main.cc"],
+    target_compatible_with = QT_COMPATIBLE_WITH,
+)
+```
+
 The rules compile with `-fPIC` and link executables dynamically.
 
 | Rule | Wraps | Default `modules` |
@@ -301,7 +316,7 @@ resource:
 
 ```python
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "qt_bundle")
+load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
 
 qt_bundle(
     name = "runtime",
@@ -312,13 +327,17 @@ qt_bundle(
 consumer_archive(
     name = "app_release",
     app = ":app",
-    arch = "x86_64",
-    min_runtime = "glibc-2.34",
+    arch = QT_CONSUMER_ARCH,
+    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
     os = "linux",
     resources = [":runtime"],
 )
 ```
+
+`QT_CONSUMER_ARCH` and `QT_CONSUMER_MIN_RUNTIME` select the archive identity
+of the targeted cell: `x86_64` and `glibc-2.34` on `linux_x86_64`, `aarch64`
+and `glibc-2.39` on `linux_arm64`.
 
 - `binary`: the `qt_cc_binary`.
 - `qml_modules`: import modules to ship. Defaults to `["QML", "QtQml"]` when
@@ -370,7 +389,7 @@ newer on x86_64, 2.39 or newer on arm64.
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
-| `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`. Not qualified: `qt_bundle` archives, `qt_rust_library`, `xcb` and `wayland` plugins, a real display, GPU rendering |
+| `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `macos_arm64` | Not qualified |
 | `windows_x86_64` | Not qualified |
 

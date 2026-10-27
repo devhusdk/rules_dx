@@ -1,7 +1,7 @@
 # Qt app example
 
 A headless Qt 6 app with a QML module, a C++ QML type, a Qt resource, a
-Widgets form and QtTest and Qt Quick Test suites. It builds against the pinned `@dx_qt` SDK on Linux x86_64.
+Widgets form and QtTest and Qt Quick Test suites. It builds against the pinned `@dx_qt` SDK on Linux x86_64 and Linux arm64.
 
 | Package | Role |
 | --- | --- |

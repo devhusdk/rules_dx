@@ -11,7 +11,7 @@ fn the_app_builds_tests_and_persists_through_a_renamed_repository() {
     let browser = read_text(&consumer.path("examples/qt-tasks/browser/BUILD.bazel"));
     assert_has(
         &browser,
-        "load(\"@my_dx//qt/rules:defs.bzl\", \"qt_qml_module\")",
+        "load(\"@my_dx//qt/rules:defs.bzl\", \"QT_COMPATIBLE_WITH\", \"qt_qml_module\")",
     );
     assert!(!browser.contains("@rules_dx//"), "{browser}");
 
@@ -133,10 +133,14 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
     let resources = elsewhere.join("resources");
     assert_eq!(
         read_text(&elsewhere.join("IDENTITY.txt")),
-        "name: tasks_release\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.34\n"
+        identity("tasks_release")
     );
     assert_has(&read_text(&elsewhere.join("NOTICE")), "bundles Qt 6.11.3");
-    for license in ["qt", "icu", "openssl-libs", "libstdc++", "fmt", "llvm"] {
+    let mut licenses = vec!["qt", "icu", "libstdc++", "fmt", "llvm"];
+    if HOST_CELL == "linux_x86_64" {
+        licenses.push("openssl-libs");
+    }
+    for license in licenses {
         let dir = resources.join("licenses").join(license);
         let count = std::fs::read_dir(&dir)
             .unwrap_or_else(|error| panic!("{dir:?}: {error}"))
@@ -179,10 +183,10 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
             std::fs::symlink_metadata(&path).unwrap_or_else(|error| panic!("{member}: {error}"));
         assert!(meta.file_type().is_file(), "{member} is not a regular file");
     }
-    assert_eq!(machine(&app).as_deref(), Some("x86_64"));
+    assert_eq!(machine(&app).as_deref(), Some(HOST_MACHINE));
     assert_eq!(
         machine(&resources.join("lib/libQt6Core.so.6")).as_deref(),
-        Some("x86_64")
+        Some(HOST_MACHINE)
     );
     let image = std::fs::read(&app).expect("app bytes");
     assert!(
@@ -256,7 +260,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
     let resources = board_dir.join("resources");
     assert_eq!(
         read_text(&board_dir.join("IDENTITY.txt")),
-        "name: board_release\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.34\n"
+        identity("board_release")
     );
     assert_has(&read_text(&board_dir.join("NOTICE")), "bundles Qt 6.11.3");
     for member in [
@@ -304,7 +308,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
     ] {
         assert_eq!(
             machine(&resources.join("plugins").join(plugin)).as_deref(),
-            Some("x86_64"),
+            Some(HOST_MACHINE),
             "{plugin}"
         );
     }
@@ -315,7 +319,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
     ] {
         assert_eq!(
             machine(&resources.join("lib").join(library)).as_deref(),
-            Some("x86_64"),
+            Some(HOST_MACHINE),
             "{library}"
         );
     }

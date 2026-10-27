@@ -3,6 +3,7 @@ use std::path::Path;
 
 use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, rules_dx_source, Run};
+use qt_board_support::HOST_CELL;
 
 const POLICY: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -398,7 +399,7 @@ fn consumer() -> Case {
     );
     write(
         &root.join(".bazelrc"),
-        "common --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --platforms=@rules_dx//qt/platforms:linux_x86_64\nbuild --use_target_platform_for_tests\nbuild --remote_download_outputs=all\n",
+        &format!("common --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --platforms=@rules_dx//qt/platforms:{HOST_CELL}\nbuild --use_target_platform_for_tests\nbuild --remote_download_outputs=all\n"),
     );
     write(&root.join("BUILD.bazel"), POLICY);
     write(&root.join("shelf/BUILD.bazel"), SHELF_BUILD);

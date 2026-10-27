@@ -1,4 +1,4 @@
-load("//qt/rules:defs.bzl", "qt_qml_module")
+load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 
 qt_qml_module(
@@ -9,10 +9,7 @@ qt_qml_module(
         "Badge.qml",
         "Main.qml",
     ],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Tally",
     visibility = [
         "//examples/qt-app:__subpackages__",

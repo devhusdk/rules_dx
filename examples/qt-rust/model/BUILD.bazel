@@ -1,3 +1,4 @@
+load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH")
 load("@rules_dx//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -14,10 +15,7 @@ qt_rust_library(
     bridges = ["ledger_model.rs"],
     crate_name = "ledger_qt",
     crate_root = "lib.rs",
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Ledger.Model",
     visibility = _VISIBILITY,
     deps = ["//examples/qt-rust/ledger"],

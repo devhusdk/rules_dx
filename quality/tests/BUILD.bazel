@@ -2,6 +2,12 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
+_LINUX = select({
+    "@platforms//cpu:arm64": ["@platforms//os:linux"],
+    "@platforms//cpu:x86_64": ["@platforms//os:linux"],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 _LINUX_X86_64 = [
     "@platforms//os:linux",
     "@platforms//cpu:x86_64",
@@ -36,7 +42,7 @@ rust_test(
         "DX_QMLLINT_FIXTURE_DIRTY": "$(rootpath //quality/tests/fixtures/qmllint:check_dirty.json)",
     },
     tags = ["block-network"],
-    target_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX,
     deps = [
         "//quality/adapter:quality_adapter",
         "//tools/testing:dx_testing",

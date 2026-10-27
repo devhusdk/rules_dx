@@ -1,19 +1,14 @@
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
-
-_COMPATIBLE = [
-    "@platforms//cpu:x86_64",
-    "@platforms//os:linux",
-]
 
 qt_cc_binary(
     name = "ledger",
     srcs = ["main.cc"],
     modules = ["qml"],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//examples/qt-rust/ui"],
 )
 
@@ -26,7 +21,7 @@ qt_cc_test(
         "qml",
         "test",
     ],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//examples/qt-rust/model",
         "//examples/qt-rust/ui",
@@ -44,14 +39,14 @@ qt_bundle(
         "QML",
         "QtQml",
     ],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 consumer_archive(
     name = "ledger_release",
     app = ":ledger",
-    arch = "x86_64",
-    min_runtime = "glibc-2.34",
+    arch = QT_CONSUMER_ARCH,
+    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
     os = "linux",
     resources = [":runtime"],

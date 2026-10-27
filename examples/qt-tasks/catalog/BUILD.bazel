@@ -1,4 +1,4 @@
-load("@rules_dx//qt/rules:defs.bzl", "qt_qml_module")
+load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -11,10 +11,7 @@ qt_qml_module(
     moc_hdrs = ["asset_catalog.h"],
     resource_prefix = "/catalog",
     resources = ["assets.json"],
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
+    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Tasks.Catalog",
     visibility = _VISIBILITY,
 )

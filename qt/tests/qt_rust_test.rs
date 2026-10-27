@@ -199,7 +199,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
     let resources = elsewhere.join("resources");
     assert_eq!(
         read_text(&elsewhere.join("IDENTITY.txt")),
-        "name: ledger_release\narch: x86_64\nos: linux\nlinkage: dynamic\nmin_runtime: glibc-2.34\n"
+        identity("ledger_release")
     );
     assert_has(
         &read_text(&elsewhere.join("NOTICE")),
@@ -232,7 +232,7 @@ fn the_relocated_archive_runs_without_the_source_tree_or_an_installed_qt() {
             "{unwanted} is bundled: {libraries:?}"
         );
     }
-    assert_eq!(machine(&app).as_deref(), Some("x86_64"));
+    assert_eq!(machine(&app).as_deref(), Some(HOST_MACHINE));
     let image = std::fs::read(&app).expect("app bytes");
     for symbol in [
         b"cxxbridge1$202$LedgerModel$add".as_slice(),

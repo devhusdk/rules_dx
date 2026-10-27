@@ -2,7 +2,7 @@
 
 A Qt 6 task browser. Four QML modules, C++ models, a Qt Quick board, a pinned
 `fmt` dependency, a German translation and JSON storage. It builds against the
-pinned `@dx_qt` SDK on Linux x86_64 and packages into relocatable archives.
+pinned `@dx_qt` SDK on Linux x86_64 and Linux arm64 and packages into relocatable archives.
 
 | Package | Role |
 | --- | --- |

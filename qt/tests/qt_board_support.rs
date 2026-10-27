@@ -6,6 +6,28 @@ use dx_testing::{resolve_runfiles, Run};
 
 pub const APP: &str = "//examples/qt-tasks/app:tasks";
 
+/// The qualified Qt cell the nested consumers build for: the host's.
+pub const HOST_CELL: &str = if cfg!(target_arch = "aarch64") {
+    "linux_arm64"
+} else {
+    "linux_x86_64"
+};
+
+/// The ELF machine and consumer_archive arch of the host cell.
+pub const HOST_MACHINE: &str = std::env::consts::ARCH;
+
+/// The consumer_archive min_runtime of the host cell.
+pub const MIN_RUNTIME: &str = if cfg!(target_arch = "aarch64") {
+    "glibc-2.39"
+} else {
+    "glibc-2.34"
+};
+
+/// The IDENTITY.txt one consumer_archive of the host cell records.
+pub fn identity(name: &str) -> String {
+    format!("name: {name}\narch: {HOST_MACHINE}\nos: linux\nlinkage: dynamic\nmin_runtime: {MIN_RUNTIME}\n")
+}
+
 pub fn manifest(variable: &str) -> hermetic::Manifest {
     let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} names the manifest"));
     let text = std::fs::read_to_string(resolve_runfiles(&rel)).expect("manifest is readable");
@@ -40,6 +62,13 @@ impl Consumer {
         }
         let root = scratch.join(&manifest.workspace_dir);
         hermetic::materialize(&manifest, &root, &source, "cc").expect("consumer materializes");
+        let rc = root.join(".bazelrc");
+        let mut config = read_text(&rc);
+        if !config.ends_with('\n') {
+            config.push('\n');
+        }
+        config.push_str(&format!("build --platforms=//:qt_{HOST_CELL}\n"));
+        write(&rc, &config);
         let dx = std::fs::canonicalize(&manifest.dx).expect("dx resolves");
         Consumer {
             dx,
@@ -180,6 +209,7 @@ pub fn assert_board_pixels(image: &[u8]) {
 }
 
 pub const HOST_RUNTIME: &[&str] = &[
+    "ld-linux-aarch64.so.1",
     "ld-linux-x86-64.so.2",
     "libc.so.6",
     "libdl.so.2",

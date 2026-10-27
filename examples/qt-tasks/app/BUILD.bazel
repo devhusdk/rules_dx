@@ -1,19 +1,14 @@
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
-
-_COMPATIBLE = [
-    "@platforms//cpu:x86_64",
-    "@platforms//os:linux",
-]
 
 qt_cc_binary(
     name = "tasks",
     srcs = ["main.cc"],
     modules = ["qml"],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//examples/qt-tasks/browser",
         "//examples/qt-tasks/catalog",
@@ -31,7 +26,7 @@ qt_cc_test(
         "qml",
         "test",
     ],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//examples/qt-tasks/browser",
         "//examples/qt-tasks/catalog",
@@ -43,7 +38,7 @@ qt_cc_binary(
     name = "board",
     srcs = ["board.cc"],
     modules = ["quick"],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//examples/qt-tasks/board",
         "//examples/qt-tasks/store",
@@ -57,7 +52,7 @@ qt_cc_test(
     data = ["tst_board.qml"],
     moc_hdrs = ["board_quick_test.h"],
     modules = ["quick_test"],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//examples/qt-tasks/board",
         "//examples/qt-tasks/store",
@@ -75,14 +70,14 @@ qt_bundle(
         "QML",
         "QtQml",
     ],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 consumer_archive(
     name = "tasks_release",
     app = ":tasks",
-    arch = "x86_64",
-    min_runtime = "glibc-2.34",
+    arch = QT_CONSUMER_ARCH,
+    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "NOTICE",
     os = "linux",
     resources = [":runtime"],
@@ -102,14 +97,14 @@ qt_bundle(
         "QtQml",
         "QtQuick",
     ],
-    target_compatible_with = _COMPATIBLE,
+    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 consumer_archive(
     name = "board_release",
     app = ":board",
-    arch = "x86_64",
-    min_runtime = "glibc-2.34",
+    arch = QT_CONSUMER_ARCH,
+    min_runtime = QT_CONSUMER_MIN_RUNTIME,
     notice = "BOARD_NOTICE",
     os = "linux",
     resources = [":board_runtime"],

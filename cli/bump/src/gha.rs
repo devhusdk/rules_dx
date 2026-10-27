@@ -184,6 +184,7 @@ pub fn parse_workflow_pins(content: &str) -> Result<WorkflowPins, WorkflowYamlEr
     Ok(found)
 }
 
+// Framing only: trims quote delimiters off the span; the YAML event parser reads the pins.
 fn scalar_span(content: &str, start: usize, end: usize, style: ScalarStyle) -> Range<usize> {
     let quote = match style {
         ScalarStyle::SingleQuoted => '\'',

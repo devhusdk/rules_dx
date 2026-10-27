@@ -120,6 +120,7 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
 }
 
 /// Reads a `go.sum` into module paths and their highest hashed version.
+// go.sum is a line grammar (`module version[/go.mod] hash`), so it is split by line, not parsed.
 pub fn parse_sum(text: &str) -> BTreeMap<String, String> {
     let mut hashed: BTreeMap<String, String> = BTreeMap::new();
     let mut manifest_only: BTreeMap<String, String> = BTreeMap::new();
@@ -425,6 +426,7 @@ struct VersionSpan {
     quote: Quote,
 }
 
+// Framing only: locates byte spans in lines `gomod-parser` already read; it does not decide entries.
 fn tokenize(line: &str, base: usize) -> Vec<Token> {
     let bytes = line.as_bytes();
     let mut tokens = Vec::new();
@@ -491,6 +493,7 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
 }
 
 /// Name and version tokens of every `require` entry.
+// Framing only: spans for editing; `gomod-parser` is the reader of record.
 fn require_entries(text: &str) -> Vec<(Token, Token)> {
     let mut block: Option<String> = None;
     let mut found = Vec::new();
@@ -528,6 +531,7 @@ fn require_entries(text: &str) -> Vec<(Token, Token)> {
 
 /// Inserts a space where a require version runs straight into `//`, which
 /// `gomod-parser` would otherwise read as part of the version.
+// Framing only: shim owned by #4008; delete it once gomod-parser handles glued comments.
 fn pad_glued_comments(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 8);
     let mut copied = 0;
@@ -587,6 +591,7 @@ fn replacement(entry: ModuleReplacement) -> GoReplacement {
 }
 
 /// Pairs every `require` line with the comment that line carries.
+// Framing only: `gomod-parser` is the reader of record for the require list; see #4008.
 fn requirement_markers(text: &str) -> BTreeMap<String, VecDeque<String>> {
     let mut markers: BTreeMap<String, VecDeque<String>> = BTreeMap::new();
     let mut block: Option<&str> = None;

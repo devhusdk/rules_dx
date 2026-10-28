@@ -60,14 +60,17 @@ COMPUTED_CONSTRAINTS = {
 def _hello(lang):
     return ["//" + lang + "/tests/fixtures/hello:hello_test"]
 
+def _starter_consumers(*starters):
+    return ["//tools/testing/starters:" + starter for starter in starters]
+
 # consumer_tests rule: the test must build and test a target of the row's rules in a
 # module other than rules_dx. Hermetic qualifications qualify; they are manual, and CI
 # selects them by the hermetic-consumer tag, which the reader resolves per job.
 ROWS = [
-    {"ci_tests": _hello("astro"), "name": "astro", "section": "languages", "starters": ["astro"], "title": "Astro"},
+    {"ci_tests": _hello("astro"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "starters": ["astro"], "title": "Astro"},
     {
         "ci_tests": _hello("cc"),
-        "consumer_tests": ["//cc/tests/consumer:app_consumer_test", "//cc/tests/starter:starter_test"],
+        "consumer_tests": ["//cc/tests/consumer:app_consumer_test", "//cc/tests/starter:starter_test"] + _starter_consumers("c", "cpp"),
         "name": "cc",
         "section": "languages",
         "starters": ["c", "cpp"],
@@ -82,11 +85,11 @@ ROWS = [
         "starters": ["cuda"],
         "title": "CUDA",
     },
-    {"ci_tests": ["//d/tests/fixtures/hello:greet_test"], "name": "d", "section": "languages", "starters": ["d"], "title": "D"},
+    {"ci_tests": ["//d/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "starters": ["d"], "title": "D"},
     {"ci_tests": ["//dart/tests/runtime:greet_test"], "name": "dart", "section": "languages", "title": "Dart"},
     {
         "ci_tests": ["//elixir/tests/runtime:probe_test"],
-        "consumer_tests": ["//elixir/tests/starter:starter_test"],
+        "consumer_tests": ["//elixir/tests/starter:starter_test"] + _starter_consumers("elixir"),
         "name": "elixir",
         "section": "languages",
         "starters": ["elixir"],
@@ -94,26 +97,26 @@ ROWS = [
     },
     {
         "ci_tests": ["//erlang/tests/runtime:eunit"],
-        "consumer_tests": ["//erlang/tests/starter:starter_test"],
+        "consumer_tests": ["//erlang/tests/starter:starter_test"] + _starter_consumers("erlang"),
         "name": "erlang",
         "section": "languages",
         "starters": ["erlang"],
         "title": "Erlang",
     },
-    {"ci_tests": ["//fortran/tests/runtime:stats_test"], "name": "fortran", "section": "languages", "starters": ["fortran"], "title": "Fortran"},
+    {"ci_tests": ["//fortran/tests/runtime:stats_test"], "consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "starters": ["fortran"], "title": "Fortran"},
     {"ci_tests": _hello("fsharp"), "name": "fsharp", "section": "languages", "starters": ["fsharp"], "title": "F#"},
     {"ci_tests": _hello("go"), "name": "go", "section": "languages", "starters": ["go"], "title": "Go"},
-    {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"], "name": "haskell", "section": "languages", "starters": ["haskell"], "title": "Haskell"},
+    {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"] + _starter_consumers("haskell"), "name": "haskell", "section": "languages", "starters": ["haskell"], "title": "Haskell"},
     {"ci_tests": _hello("java"), "name": "java", "section": "languages", "starters": ["java"], "title": "Java"},
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "starters": ["javascript"], "title": "JavaScript"},
-    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": ["//julia/tests/starter:starter_test"], "name": "julia", "section": "languages", "starters": ["julia"], "title": "Julia"},
+    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": ["//julia/tests/starter:starter_test"] + _starter_consumers("julia"), "name": "julia", "section": "languages", "starters": ["julia"], "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "starters": ["kotlin"], "title": "Kotlin"},
-    {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"], "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
-    {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},
-    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"], "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
-    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"], "name": "perl", "section": "languages", "starters": ["perl"], "title": "Perl"},
-    {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "name": "php", "section": "languages", "starters": ["php"], "title": "PHP"},
-    {"ci_tests": _hello("powershell"), "name": "powershell", "section": "languages", "starters": ["powershell"], "title": "PowerShell"},
+    {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
+    {"ci_tests": ["//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},
+    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
+    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "starters": ["perl"], "title": "Perl"},
+    {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "starters": ["php"], "title": "PHP"},
+    {"ci_tests": _hello("powershell"), "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "starters": ["powershell"], "title": "PowerShell"},
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
         "consumer_tests": ["//python/tests/consumer:service_consumer_test"],
@@ -122,7 +125,7 @@ ROWS = [
         "starters": ["python"],
         "title": "Python",
     },
-    {"ci_tests": _hello("ruby"), "name": "ruby", "section": "languages", "starters": ["ruby"], "title": "Ruby"},
+    {"ci_tests": _hello("ruby"), "consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "starters": ["ruby"], "title": "Ruby"},
     {
         "ci_tests": ["//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
         "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"],
@@ -132,10 +135,10 @@ ROWS = [
         "title": "Rust",
     },
     {"ci_tests": _hello("scala"), "consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "starters": ["scala"], "title": "Scala"},
-    {"ci_tests": _hello("svelte"), "name": "svelte", "section": "languages", "starters": ["svelte"], "title": "Svelte"},
+    {"ci_tests": _hello("svelte"), "consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "starters": ["svelte"], "title": "Svelte"},
     {"ci_tests": _hello("typescript"), "name": "typescript", "section": "languages", "starters": ["typescript"], "title": "TypeScript"},
-    {"ci_tests": _hello("vue"), "name": "vue", "section": "languages", "starters": ["vue"], "title": "Vue"},
-    {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"], "name": "zig", "section": "languages", "starters": ["zig"], "title": "Zig"},
+    {"ci_tests": _hello("vue"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "starters": ["vue"], "title": "Vue"},
+    {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "starters": ["zig"], "title": "Zig"},
     {
         "ci_tests": [
             "//android/tests/fixtures/rust_apk:check_unsigned_test",

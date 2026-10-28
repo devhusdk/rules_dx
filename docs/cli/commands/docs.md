@@ -241,6 +241,35 @@ bazel run @rules_dx//:dx -- docs //lib:api_docs
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
 failure. Bazel failures keep Bazel's code.
 
+## Python API reference
+
+`python_doc_shard` documents one top-level Python package of a `python_library`
+without importing it. griffe reads the sources statically.
+
+```starlark
+load("@dx//tools/docs/python:defs.bzl", "python_doc_shard")
+
+python_doc_shard(
+    name = "mylib_docs",
+    library = ":mylib",
+    package = "mylib",   # defaults to the library name
+    docstyle = "google", # or "numpy", "sphinx"
+)
+```
+
+Pass the shard to `docs_site` like any other language. Symbol ids have the form
+`python:<package>:<module path>.<name>`.
+
+Supported shapes are flat and `src` layouts (through `imports`), regular
+packages, generated modules and a package split across libraries. All files of
+`<package>` are staged into one import root, so generated and source halves of
+one package load together. Namespace packages, compiled modules and `.pth`
+files are not supported.
+
+The public API is `__all__` when a module defines it, otherwise every name
+without a leading underscore. A package with no source, a syntax error or a
+missing package fails the build and produces no shard and no page.
+
 ## PowerShell API reference
 
 `powershell_doc_shard` from `@rules_dx//tools/docs/powershell:defs.bzl` reads one

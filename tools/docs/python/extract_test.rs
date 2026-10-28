@@ -23,8 +23,8 @@ fn the_fixture_shard_lists_the_public_api() {
     assert_eq!(shard.package, "mylib");
     let mut ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
     ids.sort_unstable();
-    assert!(ids.contains(&"python:mylib:area"), "{ids:?}");
-    assert!(ids.contains(&"python:mylib:generated_name"), "{ids:?}");
+    assert!(ids.contains(&"python:mylib:shapes.area"), "{ids:?}");
+    assert!(ids.contains(&"python:mylib:gen.generated_name"), "{ids:?}");
     assert!(!ids.iter().any(|id| id.contains("_private")), "{ids:?}");
 }
 
@@ -34,7 +34,7 @@ fn signatures_keep_the_bare_star() {
     let area = shard
         .symbols
         .iter()
-        .find(|s| s.id == "python:mylib:area")
+        .find(|s| s.id == "python:mylib:shapes.area")
         .expect("area");
     assert!(
         area.signature_text.contains("width, *, height"),
@@ -63,7 +63,7 @@ fn sources_are_repo_relative_and_generated_modules_are_flagged() {
             source.file
         );
         assert_eq!(source.generated, source.file.ends_with("/gen.py"));
-        if symbol.id == "python:mylib:area" {
+        if symbol.id == "python:mylib:shapes.area" {
             assert_eq!(source.line, line);
         }
     }

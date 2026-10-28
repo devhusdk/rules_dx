@@ -554,6 +554,9 @@ fn python_symbols_render_with_a_python_fence_and_title() {
         page.contains("```python\ndef greet(name: str) -> str\n```\n"),
         "{page}"
     );
-    let all: String = rendered.pages.values().cloned().collect();
-    assert!(all.contains("Python package `mylib`"), "{all}");
+    assert!(
+        rendered.api.contains("## Python package `mylib`"),
+        "{}",
+        rendered.api
+    );
 }

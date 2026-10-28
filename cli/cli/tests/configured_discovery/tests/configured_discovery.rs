@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case, FakeBazel, Reply};
-use dx_testing::{mkscratch, resolve_runfiles, Run};
+use dx_test_scratch::{scratch, TempDir};
+use dx_testing::{resolve_runfiles, Run};
 
 const BAZELRC: &str = "common:dx_dev --define=dx=dev\ncommon:dx_release --define=dx=release\n";
 
@@ -105,18 +106,20 @@ const ANALYSIS_ERROR: &str = "ERROR: pkg/BUILD.bazel:3:9: in bad_test rule //pkg
 struct Recorded {
     fake: FakeBazel,
     workspace: PathBuf,
+    _dir: TempDir,
 }
 
 fn recorded(replies: &[Reply]) -> Recorded {
-    let dir = mkscratch("configured-discovery").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let workspace = dir.join("ws");
+    let dir = scratch("configured-discovery");
+    let workspace = dir.path().join("ws");
     write(
         &workspace.join("MODULE.bazel"),
         &nested::rules_dx_module("", ""),
     );
     Recorded {
-        fake: FakeBazel::new(&dir.join("fake"), replies),
+        fake: FakeBazel::new(&dir.path().join("fake"), replies),
         workspace,
+        _dir: dir,
     }
 }
 

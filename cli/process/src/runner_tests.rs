@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::*;
-use std::path::PathBuf;
 use crate::lib_tests::probe_argv;
+use std::path::PathBuf;
 
 fn runner() -> BinaryRunner {
     BinaryRunner {
@@ -161,8 +161,8 @@ fn detached_descendant_argv() -> Vec<String> {
 #[cfg(unix)]
 #[test]
 fn run_app_hands_held_lock_to_detached_descendant() {
-    let scratch = dx_testing::mkscratch("dx-run-app-held").expect("scratch");
-    let path = scratch.join("busy");
+    let scratch = dx_test_scratch::scratch("dx-run-app-held");
+    let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
         .expect("lock")
         .expect("free");
@@ -183,8 +183,8 @@ fn run_app_hands_held_lock_to_detached_descendant() {
 #[cfg(unix)]
 #[test]
 fn holding_run_does_not_inherit_held() {
-    let scratch = dx_testing::mkscratch("dx-holding-run").expect("scratch");
-    let path = scratch.join("busy");
+    let scratch = dx_test_scratch::scratch("dx-holding-run");
+    let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
         .expect("lock")
         .expect("free");

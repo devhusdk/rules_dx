@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use dx_test_scratch::{scratch, TempDir};
 use dx_testing::latency::{
     judge, missing, record, Class, Host, Limits, Phase, Recorder, Stats, Verdict,
 };
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::resolve_runfiles;
 
 const SAMPLES: usize = 40;
 const WARMUP: usize = 3;
@@ -84,6 +85,7 @@ const OPERATIONS: &[Operation] = &[
 
 struct Sandbox {
     root: PathBuf,
+    _guard: TempDir,
     bin: PathBuf,
     marker: PathBuf,
 }
@@ -94,7 +96,8 @@ fn dx() -> PathBuf {
 }
 
 fn sandbox() -> Sandbox {
-    let root = mkscratch("latency").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let guard = scratch("latency");
+    let root = guard.path().to_path_buf();
     let bin = root.join("bin");
     std::fs::create_dir_all(&bin).unwrap_or_else(|error| panic!("mkdir: {error}"));
     let marker = root.join("bazel_invoked");
@@ -104,7 +107,12 @@ fn sandbox() -> Sandbox {
     make_executable(&fake);
     let work = root.join("outside");
     std::fs::create_dir_all(&work).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    Sandbox { root, bin, marker }
+    Sandbox {
+        root,
+        bin,
+        marker,
+        _guard: guard,
+    }
 }
 
 #[cfg(unix)]

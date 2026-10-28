@@ -4,7 +4,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_test_scratch::{scratch, TempDir};
+use dx_testing::resolve_runfiles;
 
 struct Out {
     code: i32,
@@ -127,8 +128,9 @@ fn init(root: &Path, env: &Env) {
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
 }
 
-fn scratch_env(name: &str) -> (PathBuf, Env) {
-    let base = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+fn scratch_env(name: &str) -> (TempDir, PathBuf, Env) {
+    let guard = scratch(name);
+    let base = guard.path().to_path_buf();
     let home = base.join("home");
     std::fs::create_dir_all(&home).expect("home");
     let root = base.join("app");
@@ -139,12 +141,12 @@ fn scratch_env(name: &str) -> (PathBuf, Env) {
         session: "session-a",
         project: root.clone(),
     };
-    (root, env)
+    (guard, root, env)
 }
 
 #[test]
 fn rules_dx_commits_what_dx_init_writes() {
-    let (root, env) = scratch_env("dx-agents-drift-");
+    let (_guard, root, env) = scratch_env("dx-agents-drift-");
     init(&root, &env);
     assert_eq!(
         read(&root.join(".claude/settings.json")),
@@ -198,7 +200,7 @@ fn cache_dx(env: &Env) {
 
 #[test]
 fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
-    let (root, env) = scratch_env("dx-agents-consumer-");
+    let (_guard, root, env) = scratch_env("dx-agents-consumer-");
     let origin = root.parent().expect("base").join("origin.git");
     git(
         root.parent().expect("base"),
@@ -407,8 +409,8 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     );
 }
 
-fn hook_repo(name: &str) -> (PathBuf, Env) {
-    let (root, env) = scratch_env(name);
+fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
+    let (guard, root, env) = scratch_env(name);
     let origin = root.parent().expect("base").join("origin.git");
     git(
         root.parent().expect("base"),
@@ -429,12 +431,12 @@ fn hook_repo(name: &str) -> (PathBuf, Env) {
         &["remote", "add", "origin", origin.to_str().expect("utf8")],
     );
     git(&root, &["push", "--quiet", "-u", "origin", "main"]);
-    (root, env)
+    (guard, root, env)
 }
 
 #[test]
 fn hooks_ignore_bad_defaults_and_bad_input() {
-    let (root, env) = hook_repo("dx-agents-hooks-");
+    let (_guard, root, env) = hook_repo("dx-agents-hooks-");
     write(&root.join("dx.toml"), "[dx]\nfail_on = \"error\"\n");
 
     let dx = env_path("DX_BIN");
@@ -494,7 +496,7 @@ fn hooks_ignore_bad_defaults_and_bad_input() {
 
 #[test]
 fn hooks_fall_back_to_the_bazel_run_working_directory() {
-    let (root, env) = hook_repo("dx-agents-hooks-bazel-run-");
+    let (_guard, root, env) = hook_repo("dx-agents-hooks-bazel-run-");
     let base = root.parent().expect("base");
     let runfiles = base.join("runfiles");
     std::fs::create_dir_all(&runfiles).expect("runfiles");

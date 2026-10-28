@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
+use dx_test_scratch::{scratch, TempDir};
 use dx_testing::http::{requests, serve, Reply, RequestLog};
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_testing::{resolve_runfiles, run, Run};
 
 const DX_TOML: &str = r#"schema_version = 1
 
@@ -116,11 +117,14 @@ struct Consumer {
     root: PathBuf,
     ambient: PathBuf,
     index: Index,
+    /// Declared last so it drops after the index server stops.
+    _guard: TempDir,
 }
 
 impl Consumer {
     fn new(name: &str) -> Consumer {
-        let base = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+        let guard = scratch(name);
+        let base = guard.path().to_path_buf();
         let root = base.join("ws");
         let ambient = base.join("ambient");
         let python = runfile("UV_SETS_PYTHON");
@@ -181,6 +185,7 @@ impl Consumer {
             root,
             ambient,
             index,
+            _guard: guard,
         }
     }
 

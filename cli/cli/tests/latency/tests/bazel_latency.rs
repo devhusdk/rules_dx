@@ -2,10 +2,11 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use dx_nested::{self as nested, Case, FakeBazel};
+use dx_test_scratch::scratch;
 use dx_testing::latency::{
     judge, missing, record, Class, Host, Limits, Phase, Recorder, Stats, Verdict,
 };
-use dx_testing::{mkscratch, resolve_runfiles, Run};
+use dx_testing::{resolve_runfiles, Run};
 
 struct Cell {
     workload: &'static str,
@@ -477,10 +478,10 @@ enum Reply {
 }
 
 fn expected(case: &Case) -> Expected {
-    let scratch = mkscratch("bazel-latency").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let workspace = scratch.join("ws");
+    let scratch = scratch("bazel-latency");
+    let workspace = scratch.path().join("ws");
     write_tiny_workspace(&workspace);
-    let fake = FakeBazel::new(&scratch.join("fake"), &[]);
+    let fake = FakeBazel::new(&scratch.path().join("fake"), &[]);
     let workspace_text = workspace.to_string_lossy().into_owned();
     let path = fake.path();
     let failing = dx_testing::run(
@@ -614,8 +615,8 @@ fn completion_falls_back_quietly_when_the_server_is_busy() {
     let _stop = Shutdown(&case);
     let mut rec = recorder(&case, "completion_busy");
     let expected = expected(&case);
-    let signals =
-        mkscratch("bazel-latency-hold").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let signals_dir = scratch("bazel-latency-hold");
+    let signals = signals_dir.path();
     let started = signals.join("started");
     let stop = signals.join("stop");
     write(

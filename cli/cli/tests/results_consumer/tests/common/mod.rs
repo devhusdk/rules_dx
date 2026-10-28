@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, resolve_runfiles, serde_json, Run};
+use dx_test_scratch::{scratch, TempDir};
+use dx_testing::{resolve_runfiles, serde_json, Run};
 
 /// Writes `$XML_OUTPUT_FILE` in one mode; the mode only reaches the action under `--config=consumer`.
 pub const DEFS: &str = r##"_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -206,6 +207,7 @@ pub fn dx_bin() -> PathBuf {
 pub struct Tamper {
     pub dir: PathBuf,
     pub log: PathBuf,
+    _guard: TempDir,
 }
 
 impl Default for Tamper {
@@ -216,13 +218,14 @@ impl Default for Tamper {
 
 impl Tamper {
     pub fn new() -> Tamper {
-        let dir = mkscratch("results-tamper").unwrap_or_else(|error| panic!("scratch: {error}"));
-        let bin = dir.join("bin");
+        let guard = scratch("results-tamper");
+        let bin = guard.path().join("bin");
         write(&bin.join("bazel"), TAMPER_BAZEL);
         make_executable(&bin.join("bazel"));
         Tamper {
-            log: dir.join("tamper.log"),
+            log: guard.path().join("tamper.log"),
             dir: bin,
+            _guard: guard,
         }
     }
 

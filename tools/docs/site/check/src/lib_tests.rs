@@ -1,6 +1,6 @@
 //! Tests for the site checker helpers.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use documentation_ir::proto::{DocIr, Symbol};
 use documentation_ir::{encode_shard, SCHEMA_MAJOR};
@@ -12,10 +12,6 @@ use super::{
 
 fn args(list: &[&str]) -> Vec<String> {
     list.iter().map(|s| s.to_string()).collect()
-}
-
-fn scratch(name: &str) -> PathBuf {
-    dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
 }
 
 fn write(dir: &Path, name: &str, body: &str) {
@@ -152,40 +148,43 @@ fn the_required_arguments_are_checked_in_order() {
 
 #[test]
 fn a_shard_without_symbols_names_no_symbols() {
-    let dir = scratch("empty-ids");
-    write(&dir, "book.toml", "title = \"demo\"\n");
-    write(&dir, "api.md", "# API\n");
-    write_shard(&dir, &[]);
-    write(&dir, "guide.md", "# Guide\n");
-    assert_eq!(check(&inputs(&dir)), "shard names no symbols");
+    let guard = dx_test_scratch::scratch("empty-ids");
+    let dir = guard.path();
+    write(dir, "book.toml", "title = \"demo\"\n");
+    write(dir, "api.md", "# API\n");
+    write_shard(dir, &[]);
+    write(dir, "guide.md", "# Guide\n");
+    assert_eq!(check(&inputs(dir)), "shard names no symbols");
 }
 
 #[test]
 fn a_shard_that_does_not_decode_is_refused() {
-    let dir = scratch("bad-shard");
-    write(&dir, "book.toml", "title = \"demo\"\n");
-    write(&dir, "api.md", "# API\n");
-    write(&dir, "shard.ir.pb", "schema_major: 1\n");
-    write(&dir, "guide.md", "# Guide\n");
-    let refusal = check(&inputs(&dir));
+    let guard = dx_test_scratch::scratch("bad-shard");
+    let dir = guard.path();
+    write(dir, "book.toml", "title = \"demo\"\n");
+    write(dir, "api.md", "# API\n");
+    write(dir, "shard.ir.pb", "schema_major: 1\n");
+    write(dir, "guide.md", "# Guide\n");
+    let refusal = check(&inputs(dir));
     assert!(refusal.contains("is not a valid DocIr shard"), "{refusal}");
 }
 
 fn anchor_site(name: &str, guide_links: &str) -> String {
-    let dir = scratch(name);
-    write(&dir, "book.toml", "title = \"demo\"\n");
+    let guard = dx_test_scratch::scratch(name);
+    let dir = guard.path();
+    write(dir, "book.toml", "title = \"demo\"\n");
     write(
-        &dir,
+        dir,
         "api.md",
         "# API Reference\n\n## dx_rust_crate\n\n- [`demo::T`](api/rust/demo/T.md)\n",
     );
-    write_shard(&dir, &["rust:demo:T"]);
+    write_shard(dir, &["rust:demo:T"]);
     write(
-        &dir,
+        dir,
         "guide.md",
         &format!("# Guide\n\n## `--affected`\n\n## 中文\n\n{guide_links}\n"),
     );
-    check(&inputs(&dir))
+    check(&inputs(dir))
 }
 
 #[test]
@@ -227,16 +226,17 @@ fn a_percent_encoded_anchor_resolves() {
 
 #[test]
 fn a_site_with_nothing_linked_holds_together() {
-    let dir = scratch("plain");
-    write(&dir, "book.toml", "title = \"demo\"\n");
+    let guard = dx_test_scratch::scratch("plain");
+    let dir = guard.path();
+    write(dir, "book.toml", "title = \"demo\"\n");
     write(
-        &dir,
+        dir,
         "api.md",
         "# API Reference\n\n- [`demo::T`](api/rust/demo/T.md)\n",
     );
-    write_shard(&dir, &["rust:demo:T"]);
-    write(&dir, "guide.md", "# Guide\n\nPlain prose with no links.\n");
-    assert_eq!(check(&inputs(&dir)), "");
+    write_shard(dir, &["rust:demo:T"]);
+    write(dir, "guide.md", "# Guide\n\nPlain prose with no links.\n");
+    assert_eq!(check(&inputs(dir)), "");
 }
 
 #[test]

@@ -1,0 +1,12 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library")
+
+perl_binary(
+    name = "tool",
+    srcs = ["bin/tool.pl"],
+    deps = [":pkg"],
+)
+
+perl_library(
+    name = "pkg",
+    srcs = ["lib/Keep.pm"],
+)

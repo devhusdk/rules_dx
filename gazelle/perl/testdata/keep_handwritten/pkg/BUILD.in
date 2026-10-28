@@ -1,0 +1,7 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_binary")
+
+perl_binary(
+    name = "tool",
+    srcs = ["bin/tool.pl"],
+    deps = [":pkg"],
+)

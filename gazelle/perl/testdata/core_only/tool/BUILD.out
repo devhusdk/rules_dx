@@ -1,0 +1,6 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_library")
+
+perl_library(
+    name = "tool",
+    srcs = ["lib/Tool.pm"],
+)

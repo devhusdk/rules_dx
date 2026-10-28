@@ -487,6 +487,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"javascript": oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
 		"kotlin": jvm,
 		"mdx":    oneSourceRelative,
+		"perl":   oneSource,
 		"python": oneSource,
 		"ruby":   oneSource,
 		"scala":  jvm,

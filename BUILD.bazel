@@ -97,6 +97,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude fortran/tests/runtime
 # gazelle:exclude ocaml/tests/runtime
+# gazelle:exclude perl/tests/runtime
 # gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
 # gazelle:exclude fsharp/tests/fixtures/layouts

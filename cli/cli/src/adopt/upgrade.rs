@@ -130,6 +130,10 @@ pub(crate) fn execute_upgrade(
         Ok(wrote) => wrote,
         Err(error) => return landed(out, err, &format!("launchers not refreshed: {error}")),
     };
+    match dx_adopt::refresh_preset(workspace) {
+        Ok(paths) => wrote.extend(paths),
+        Err(error) => return landed(out, err, &format!("preset not refreshed: {error}")),
+    }
     match agents::write(workspace, false) {
         Ok(true) => wrote.push("AGENTS.md".to_owned()),
         Ok(false) => {}

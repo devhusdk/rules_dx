@@ -67,8 +67,11 @@ directory cannot be opened.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
   linux_arm64, macos_arm64, windows_x86_64, or windows_arm64. The target platform never
   selects tools. This is not native qualification.
-- `exec_tools`: reads `.bazelrc` and the vendored preset. `warn` when
+- `exec_tools`: reads `.bazelrc` and the preset files it imports. `warn` when
   `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.
+- `preset`: reads `.bazelrc` and `.dx/bazelrc`. `warn` naming each layer file that
+  is missing, stale or not imported; a commented-out import is an opt-out and `ok`.
+  `not applicable` in rules_dx itself. The hint is `tools/dx init --apply`.
 - `tools`: reads the managed tools `dx env --apply` selected under
   `.dx/setups/current`. `warn` when none is selected. `error` when the
   selection is foreign, its environment or `values.json` is missing or
@@ -93,7 +96,7 @@ directory cannot be opened.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version> --apply`.
-The `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`, and `tools` detail text starts with
+The `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`, `preset`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
 

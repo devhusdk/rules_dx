@@ -410,7 +410,7 @@ version of this `dx` (run the `--to` binary with
 `bazel run @rules_dx//:dx -- upgrade ...`), when `.dx/version` is missing or
 empty (run `dx init --apply`), when the pin is neither `--from` nor `--to`,
 or when a launcher could not be refreshed. A pin already at `--to` is a rerun:
-it refreshes the launchers and the block and leaves the record alone.
+it refreshes the launchers, the block and stale Bazel preset layers and leaves the record alone.
 
 The check prints `upgrade current: <to>` and exits `0` when the pin is
 already `--to`. Otherwise it changes nothing and exits `1`:
@@ -479,7 +479,7 @@ removed pin <v> (rollback)
 After restoring a pin, `--apply` rewrites each existing dx-written launcher
 (`tools/dx`, `tools/dx.cmd`) whose version differs, and prints
 `wrote <path>` for each one. It never creates a launcher, never touches one
-without a `VERSION` line, and leaves launchers alone when it removes the pin.
+without a `VERSION` line, and leaves launchers alone when it removes the pin. When the previous pin is this dx it also rewrites stale generated `.dx/bazelrc` layers; for another version it prints a hint to run `tools/dx init --apply` under the restored pin.
 A previous pin that is not semver refuses before anything is written when a
 launcher would change. If the refresh fails, the pin and its record stay
 restored and it refuses with:

@@ -22,6 +22,7 @@ dx_rust_crate(
         "src/new.rs",
         "src/new_locks.rs",
         "src/overrides.rs",
+        "src/preset.rs",
         "src/preset_fragment.rs",
         "src/scaffold.rs",
         "src/status.rs",

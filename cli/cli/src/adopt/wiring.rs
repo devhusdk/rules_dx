@@ -51,6 +51,7 @@ pub(super) fn preflight(
     dx_adopt::plan_launcher_files(root, &launcher_pin(root), true)
         .map_err(|error| adopt_message(prefix, &error))?;
     dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
+    dx_adopt::preflight_preset(root).map_err(|error| adopt_message(prefix, &error))?;
     if !agents {
         return Ok(());
     }
@@ -84,6 +85,16 @@ pub(super) fn apply(
             None => applied.wrote.push(format!("{prefix}{entry}")),
         }
     }
+    let mut preset = Applied::default();
+    let mut preset_notes = Vec::new();
+    let written = dx_adopt::write_preset(root, &mut preset, &mut preset_notes);
+    applied.wrote.extend(prefixed(preset.wrote));
+    notes.extend(
+        preset_notes
+            .into_iter()
+            .map(|note| format!("{prefix}{note}")),
+    );
+    written.map_err(|error| adopt_message(prefix, &error))?;
     if !agents {
         return Ok(());
     }
@@ -171,6 +182,10 @@ pub(super) fn drift(root: &Path, agents: bool) -> Drift {
             .into_iter()
             .map(|(rel, _)| rel),
     );
+    let preset = dx_adopt::preset_drift(root);
+    drift.missing.extend(preset.missing);
+    drift.stale.extend(preset.stale);
+    drift.other.extend(preset.other);
     if !agents {
         return drift;
     }
@@ -330,6 +345,37 @@ mod tests {
     }
 
     #[test]
+    fn drift_names_preset_gaps_and_apply_clears_them() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-wiring-preset-");
+        let root = scratch.path();
+        let drift = super::drift(root, false);
+        assert!(drift.missing.contains(&".bazelrc".to_owned()), "{drift:?}");
+        assert_eq!(init(root).0, 0);
+        assert!(super::drift(root, false).missing.is_empty());
+        let layer = root.join(".dx/bazelrc/resources.bazelrc");
+        std::fs::remove_file(&layer).expect("rm");
+        let drift = super::drift(root, false);
+        assert_eq!(
+            drift.missing,
+            vec![".dx/bazelrc/resources.bazelrc".to_owned()]
+        );
+        std::fs::write(
+            root.join(".dx/bazelrc/performance.bazelrc"),
+            format!("{}edited\n", dx_adopt::preset_fragment::HEADER_MARKER),
+        )
+        .expect("edit");
+        let drift = super::drift(root, false);
+        assert_eq!(
+            drift.stale,
+            vec![".dx/bazelrc/performance.bazelrc".to_owned()]
+        );
+        assert_eq!(init(root).0, 0);
+        assert!(super::drift(root, false).missing.is_empty());
+        assert!(super::drift(root, false).stale.is_empty());
+        assert!(layer.exists());
+    }
+
+    #[test]
     fn a_prefix_reaches_every_report_line() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-prefix-");
         let root = scratch.path();
@@ -338,7 +384,7 @@ mod tests {
         assert_eq!(code, 0);
         assert_eq!(
             out,
-            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
+            format!("wrote demo/tools/dx\nwrote demo/tools/dx.cmd\n{overrides}wrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.bazelrc\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\n",
             overrides = dx_adopt::overrides::render_overrides()
                 .iter()
                 .map(|(path, _)| format!("wrote demo/{path}\n"))

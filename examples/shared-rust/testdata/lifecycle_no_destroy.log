@@ -1,0 +1,8 @@
+10-28 10:00:00.001  100  100 I DxSharedTasks: lifecycle=create
+10-28 10:00:00.002  100  100 I DxSharedTasks: board=loaded tasks=4
+10-28 10:00:00.003  100  100 I DxSharedTasks: lifecycle=start
+10-28 10:00:00.004  100  100 I DxSharedTasks: lifecycle=resume
+10-28 10:00:01.000  100  100 I DxSharedTasks: input=touch ok
+10-28 10:00:02.000  100  100 I DxSharedTasks: input=key ok
+10-28 10:00:03.000  100  100 I DxSharedTasks: lifecycle=pause
+10-28 10:00:03.001  100  100 I DxSharedTasks: lifecycle=stop

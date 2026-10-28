@@ -4,6 +4,8 @@ pub enum AdoptError {
     CreateParent { parent: String, detail: String },
     #[error("write {path}: {detail}")]
     WriteFile { path: String, detail: String },
+    #[error("read {path}: {detail}")]
+    ReadFile { path: String, detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
     #[error("read MODULE.bazel: {detail}")]

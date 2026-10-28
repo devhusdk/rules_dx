@@ -21,11 +21,12 @@ Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks b
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Writes each file only when it is missing. The exceptions are the marked
-block in `AGENTS.md` and stale launchers (see below).
+block in `AGENTS.md`, stale launchers and stale Bazel preset layers (see below).
 
 By default it writes only the essentials: `.dx/version`, `.gitignore`,
 `.bazelignore`, `MODULE.bazel.snippet`, the launcher (`tools/dx` and
-`tools/dx.cmd`) and the [rules_dx overrides](#rules_dx-overrides). Add optional
+`tools/dx.cmd`), the [rules_dx overrides](#rules_dx-overrides) and the
+[Bazel preset](#bazel-preset). Add optional
 parts with `--with=<parts>`, a comma-separated list that can repeat, or all of
 them with `--full`:
 
@@ -101,7 +102,7 @@ Output: text only. Check mode looks for the essentials (`.dx/version`,
 `--with` or `--full`. With no record and no flag it checks the essentials only,
 so a tree from an older full `dx init` is not flagged for optional files it
 dropped.
-It also flags a dx-written launcher whose version differs from `.dx/version`
+It also flags a missing or stale Bazel preset layer and a missing preset import. It flags a dx-written launcher whose version differs from `.dx/version`
 and an empty or non-semver `.dx/version`. With the `agents` part it flags
 missing `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`,
 an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
@@ -236,3 +237,25 @@ Enforce the same check in CI. See [GitHub CI](../../github-ci.md).
 
 To adopt `rules_dx` in a repo that already uses upstream rules, see
 [Adopting rules_dx In An Existing Bazel Repo](../../adopting-existing-bazel.md).
+
+## Bazel preset
+
+`dx init --apply` writes the execution preset as three generated layers,
+`.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc` and `resources.bazelrc`,
+and puts three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines at the top
+of the root `.bazelrc` (created when missing; its other bytes, BOM and line
+endings stay as they are). `dx new` writes the same files.
+
+- A layer file is created when missing and rewritten when it carries the dx
+  header and differs from this dx. A file without the header, or a symlink, is
+  left alone with a note.
+- Opt out of a layer by commenting its import out (`# import ...`). Commenting
+  out all three drops the preset; the files may then be deleted. Imports are added
+  only when no line, active or commented, names a `.dx/bazelrc` layer. If some
+  are present and one is missing, check mode reports it and apply prints a note.
+- If the root `.bazelrc` repeats lines the preset owns, or is a symlink, apply
+  prints a note and adds no imports.
+- In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.
+- `dx upgrade` refreshes existing stale layers. `dx rollback` refreshes them only
+  when the restored pin is this dx; otherwise it prints a hint to run
+  `tools/dx init --apply` under the restored pin.

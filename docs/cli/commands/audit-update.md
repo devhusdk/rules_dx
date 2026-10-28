@@ -355,6 +355,7 @@ top of the root `.bazelrc`, so later lines in `.bazelrc` override them:
 Every flag has a one-line comment above it. Verify the files with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate them
 with `bazel run //tools/bazelrc:preset_update`.
+Consumer workspaces get the same files under `.dx/bazelrc/` from `dx init --apply`.
 
 `resources.bazelrc` sets these defaults:
 

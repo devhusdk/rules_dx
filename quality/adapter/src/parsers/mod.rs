@@ -9,6 +9,7 @@ pub mod checkstyle;
 pub mod clang_format;
 pub mod clang_syntax;
 pub mod clang_tidy;
+pub mod cmakelint;
 pub mod cppcheck;
 pub mod credo;
 pub mod csharpier;
@@ -110,6 +111,7 @@ pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_syntax::parse_clang_syntax;
 pub use clang_tidy::parse_clang_tidy;
+pub use cmakelint::parse_cmakelint;
 pub use cppcheck::parse_cppcheck;
 pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
@@ -2269,6 +2271,14 @@ mod tests {
         super::checkmake::parse_checkmake(input, input, code, files, None)
     }
 
+    fn fuzz_cmakelint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::cmakelint::parse_cmakelint(input, input, code, files)
+    }
+
     fn fuzz_gplint(
         input: &[u8],
         code: Option<i32>,
@@ -2549,6 +2559,7 @@ mod tests {
         ("checkmake", fuzz_checkmake),
         ("gersemi", fuzz_gersemi),
         ("checkstyle", fuzz_checkstyle),
+        ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
         ("clang_format", fuzz_clang_format),
         ("clang_syntax", fuzz_clang_syntax),
@@ -2663,6 +2674,7 @@ mod tests {
         ("checkmake", include_str!("checkmake.rs")),
         ("gersemi", include_str!("gersemi.rs")),
         ("checkstyle", include_str!("checkstyle.rs")),
+        ("cmakelint", include_str!("cmakelint.rs")),
         ("tflint", include_str!("tflint.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_syntax", include_str!("clang_syntax.rs")),

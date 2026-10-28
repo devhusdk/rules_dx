@@ -1683,6 +1683,30 @@ fn ansible_lint_check_puts_collection_roots_first() {
 }
 
 #[test]
+fn cmakelint_check_always_passes_the_config_and_ends_flags() {
+    let a = Path::new("a/CMakeLists.txt");
+    let b = Path::new("b.cmake");
+    let argv = argv_strings(&cmakelint_check(
+        Path::new(BIN),
+        &[a, b],
+        Path::new("/scratch/.cmakelintrc"),
+    ));
+    assert_eq!(
+        argv,
+        [
+            BIN,
+            "--config=/scratch/.cmakelintrc",
+            "--",
+            "a/CMakeLists.txt",
+            "b.cmake"
+        ]
+    );
+    for banned in ["--spaces", "--linelength", "--filter", "--quiet"] {
+        assert!(!argv.iter().any(|arg| arg.starts_with(banned)), "{banned}");
+    }
+}
+
+#[test]
 fn cfn_lint_check_always_passes_the_config_and_no_spec_or_region_flags() {
     let a = Path::new("/scratch/a.yaml");
     let b = Path::new("/scratch/b.template");

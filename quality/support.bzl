@@ -132,6 +132,20 @@ CMAKE_GERSEMI_SUPPORT = {
     "transport": "batched",
 }
 
+CMAKE_CMAKELINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["cmake"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "cmake",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "cmakelint",
+    "transport": "batched",
+}
+
 SHELL_SHFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -964,6 +978,7 @@ SUPPORT_RECORDS = [
     CLOUDFORMATION_CFN_LINT_SUPPORT,
     MAKE_CHECKMAKE_SUPPORT,
     CMAKE_GERSEMI_SUPPORT,
+    CMAKE_CMAKELINT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
     TERRAFORM_TFLINT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,

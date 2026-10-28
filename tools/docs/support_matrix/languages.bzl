@@ -273,7 +273,6 @@ GAP_ISSUES = {
     "consumer:*": 4436,
     "format:*": 4439,
     "lint:apple": 4616,
-    "lint:cmake": 4620,
     "lint:cuda": 4616,
     "lint:julia": 4623,
     "lint:lua": 4612,

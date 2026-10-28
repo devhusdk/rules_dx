@@ -18,6 +18,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "cfn_lint",
     "checkmake",
     "checkstyle",
+    "cmakelint",
     "clang_format",
     "clang_syntax",
     "clang_tidy",
@@ -717,6 +718,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
 
 mod cfn_lint;
 mod check;
+mod cmakelint;
 mod delegated;
 mod helm;
 mod kubeconform;

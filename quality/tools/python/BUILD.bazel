@@ -122,6 +122,28 @@ py_binary(
 )
 
 py_binary(
+    name = "cmakelint",
+    srcs = [
+        "cmakelint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "cmakelint_main.py",
+    deps = ["@pypi//cmakelint"],
+)
+
+py_unittest_test(
+    name = "cmakelint_main_test",
+    srcs = [
+        "cmakelint_main.py",
+        "cmakelint_main_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//cmakelint"],
+)
+
+py_binary(
     name = "ansible_lint",
     srcs = [
         "ansible_lint_main.py",

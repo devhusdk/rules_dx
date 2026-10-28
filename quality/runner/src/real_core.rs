@@ -154,6 +154,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "cfn_lint",
             "checkmake",
             "checkstyle",
+            "cmakelint",
             "clang_format",
             "clang_syntax",
             "clang_tidy",

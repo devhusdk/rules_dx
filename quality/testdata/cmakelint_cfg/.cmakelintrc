@@ -1,0 +1,2 @@
+# Suppress the mixed-case rule.
+filter=-readability/mixedcase

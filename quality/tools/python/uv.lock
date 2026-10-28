@@ -395,6 +395,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cmakelint"
+version = "1.4.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/46/9b6c39837be138179347611ec8cb79bf00ff3b54966ee8b63e031a05cf76/cmakelint-1.4.3.tar.gz", hash = "sha256:98a1e485318b41eeaf4dee3469ca3039d4745985353ecea208d6dd2c1204c71d", size = 69578, upload-time = "2024-05-12T10:43:36.391Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/53/24/60911dd02598ef4e1b38ff545d1eca33c66158cdca03b20b85575acc5588/cmakelint-1.4.3-py3-none-any.whl", hash = "sha256:d812accc44d4b34bdf115c5be230c7d80566f333c9a4a60e81fd5a54bf953f9e", size = 13083, upload-time = "2024-05-12T10:43:34.374Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -584,6 +593,7 @@ dependencies = [
     { name = "ansible-lint" },
     { name = "cfn-lint" },
     { name = "check-jsonschema" },
+    { name = "cmakelint" },
     { name = "djlint" },
     { name = "docutils" },
     { name = "flake8" },
@@ -599,6 +609,7 @@ requires-dist = [
     { name = "ansible-lint", specifier = ">=26.10.1" },
     { name = "cfn-lint", specifier = ">=1.58.0,<2" },
     { name = "check-jsonschema", specifier = ">=0.39.0" },
+    { name = "cmakelint", specifier = ">=1.4.3" },
     { name = "djlint", specifier = ">=1.45.0,<1.46" },
     { name = "docutils", specifier = ">=0.23" },
     { name = "flake8", specifier = ">=7.3.0" },

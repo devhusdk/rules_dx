@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cmake_lint_fail
+capability LINT
+stages 1
+stage cmakelint classes=cmake sources=matrix/cmake_lint_dirty/CMakeLists.txt
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR cmakelint readability/mixedcase matrix/cmake_lint_dirty/CMakeLists.txt 37 37 fixable=false "Do not mix upper and lower case commands"
+terminal 1
+terminal ERROR cmakelint readability/mixedcase matrix/cmake_lint_dirty/CMakeLists.txt 37 37 fixable=false "Do not mix upper and lower case commands"
+replacements 0

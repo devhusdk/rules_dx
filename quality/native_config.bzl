@@ -42,6 +42,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "checkstyle": [".xml"],
     "clang_format": [".clang-format"],
     "clang_tidy": [".clang-tidy"],
+    "cmakelint": [".cmakelintrc"],
     "cppcheck": [".txt"],
     "csharpier": [".yaml"],
     "djlint": ["djlint.toml", ".djlintrc"],
@@ -278,6 +279,7 @@ hadolint_config = _make_native_config_rule("hadolint")
 regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 gersemi_config = _make_native_config_rule("gersemi")
+cmakelint_config = _make_native_config_rule("cmakelint")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
 

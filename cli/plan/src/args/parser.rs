@@ -1222,11 +1222,7 @@ mod startup_tests {
             ),
             ("env", &json_env, &empty_file),
         ] {
-            for words in [
-                &["completion"][..],
-                &["new"][..],
-                &["deploy"][..],
-            ] {
+            for words in [&["completion"][..], &["new"][..], &["deploy"][..]] {
                 assert!(
                     !json_output_intent(&strings(words), env, file, false),
                     "{words:?} {label}"

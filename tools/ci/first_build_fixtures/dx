@@ -9,6 +9,11 @@ new)
 test)
   [ "${FAKE_DX_COLD:-1}" = 1 ] && echo "dx: first run in this workspace; Bazel will fetch toolchains" >&2
   echo "Analyzing"
+  if [ -n "$FAKE_DX_RO" ]; then
+    mkdir -p "$HOME/ro/inner" && echo x > "$HOME/ro/inner/f" && chmod a-w "$HOME/ro/inner" "$HOME/ro"
+  fi
+  d="$HOME/.cache/bazel/x/cache/repos/v1"
+  mkdir -p "$d/content_addressable" "$d/contents" && head -c 1000 /dev/zero > "$d/content_addressable/a" && head -c 5000 /dev/zero > "$d/contents/b"
   sleep "${FAKE_DX_SLEEP:-1}"
   echo "//:demo PASSED"
   exit "${FAKE_DX_TEST_EXIT:-0}"

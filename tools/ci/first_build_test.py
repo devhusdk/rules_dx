@@ -157,6 +157,17 @@ def test_measure_run_records_gap_notice_and_cleans_up(tmp_path, monkeypatch):
     assert list(scratch.iterdir()) == []
 
 
+def test_read_only_dirs_under_home_are_removed(tmp_path, monkeypatch):
+    run, scratch = run_fake(tmp_path, monkeypatch, FAKE_DX_SLEEP="0", FAKE_DX_RO="1")
+    assert run["notice_seen"]
+    assert list(scratch.iterdir()) == []
+
+
+def test_download_mb_counts_content_addressable_only(tmp_path, monkeypatch):
+    run, _ = run_fake(tmp_path, monkeypatch, FAKE_DX_SLEEP="0")
+    assert run["download_mb"] == pytest.approx(0.001)
+
+
 def test_measure_run_in_a_pty(tmp_path, monkeypatch):
     run, _ = run_fake(tmp_path, monkeypatch, tty=True, FAKE_DX_SLEEP="1")
     assert run["notice_seen"]

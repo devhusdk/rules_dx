@@ -42,8 +42,9 @@ cache, disk cache and dx cache all start empty. The table shows the median.
 
 Bazel version: pending. Not counted: the Bazel binary download (Bazelisk cache), the build of dx itself, and the time to start the runner.
 
-Download MB is the size of Bazel's repository cache after the run. Downloads
-without a hash bypass that cache, so it is a lower bound.
+Download MB is the size of the downloaded files in Bazel's repository cache
+(content_addressable) after the run. Unpacked repository trees are not
+counted. Downloads without a hash bypass that cache, so it is a lower bound.
 
 ## Ceilings
 

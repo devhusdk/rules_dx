@@ -189,8 +189,15 @@ def point_at_checkout(demo, rules):
 
 
 def _rmtree(path):
+    # Bazel leaves read-only directories behind; make the whole tree writable first.
+    for root, dirs, _files in os.walk(path):
+        for name in [""] + dirs:
+            target = os.path.join(root, name) if name else root
+            if not os.path.islink(target):
+                os.chmod(target, os.stat(target).st_mode | stat.S_IRWXU)
+
     def fix(func, target, _exc):
-        os.chmod(target, stat.S_IRWXU)
+        os.chmod(os.path.dirname(target), stat.S_IRWXU)
         func(target)
 
     shutil.rmtree(path, onerror=fix)
@@ -240,10 +247,13 @@ def measure_run(language, dx, rules, tty, dx_source, scratch):
 
 
 def tree_bytes_of_repos(home):
-    """Bytes in the repository cache under the scratch HOME."""
+    """Bytes of real downloads (content_addressable) under the scratch HOME.
+
+    The repo contents cache (cache/repos/v1/contents) holds unpacked trees, not downloads.
+    """
     return sum(
         tree_bytes(path)
-        for path in glob.glob(str(home / ".cache" / "bazel" / "*" / "cache" / "repos"))
+        for path in glob.glob(str(home / ".cache" / "bazel" / "*" / "cache" / "repos" / "v1" / "content_addressable"))
     )
 
 
@@ -351,8 +361,9 @@ def render(data):
         "",
         f"Bazel version: {data['bazel_version']}. Not counted: {data['excludes']}",
         "",
-        "Download MB is the size of Bazel's repository cache after the run. Downloads",
-        "without a hash bypass that cache, so it is a lower bound.",
+        "Download MB is the size of the downloaded files in Bazel's repository cache",
+        "(content_addressable) after the run. Unpacked repository trees are not",
+        "counted. Downloads without a hash bypass that cache, so it is a lower bound.",
         "",
         "## Ceilings",
         "",

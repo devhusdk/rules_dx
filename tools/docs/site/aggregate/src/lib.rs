@@ -231,10 +231,10 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
         return Err("the shards name no symbols".to_string());
     }
     let mut lowered: BTreeMap<String, &str> = BTreeMap::new();
-    // Existing languages (Rust `Plan` and `plan`) already collide, so only the JVM languages
-    // are checked until `api_path` encodes case.
+    // Existing languages (Rust `Plan` and `plan`) already collide, so only the JVM and .NET
+    // languages are checked until `api_path` encodes case.
     for id in pages.keys().filter(|id| {
-        ["java:", "kotlin:", "scala:"]
+        ["java:", "kotlin:", "scala:", "csharp:", "fsharp:"]
             .iter()
             .any(|prefix| id.starts_with(prefix))
     }) {

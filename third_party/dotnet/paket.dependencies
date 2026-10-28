@@ -39,3 +39,6 @@ source https://api.nuget.org/v3/index.json
 framework: net10.0
 
 nuget Docfx.Dotnet 2.81.0
+nuget Microsoft.Build = 18.9.6
+nuget Microsoft.Build.Framework = 18.9.6
+nuget Microsoft.NET.StringTools = 18.9.6

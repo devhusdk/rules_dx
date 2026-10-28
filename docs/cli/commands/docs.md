@@ -453,3 +453,58 @@ The build fails, and writes no shard and no page, when:
 - a manifest key the rule reads is not a constant value.
 
 Exit codes are the same as for TypeScript: Bazel failures keep Bazel's code.
+
+## C# API reference
+
+`csharp_doc_shard` from `@rules_dx//tools/docs/dotnet:defs.bzl` reads one C# library's
+public API with docfx's Roslyn reader and produces a docs IR shard with language
+`csharp`. The sources are parsed, never run or changed. Pass the shard to `docs_site`
+beside other shards.
+
+```starlark
+load("@rules_dx//csharp/rules:defs.bzl", "csharp_library")
+load("@rules_dx//tools/docs/dotnet:defs.bzl", "csharp_doc_shard")
+
+csharp_library(
+    name = "ledger",
+    srcs = ["Account.cs"],
+)
+
+csharp_doc_shard(
+    name = "ledger_docs",
+    library = ":ledger",
+    package = "Ledger",
+)
+```
+
+Attributes:
+
+- `library`: the documented `csharp_library` from `@rules_dx//csharp/rules:defs.bzl`. Its own `.cs` `srcs` are documented; its `deps` are only references.
+- `package`: the package segment of the symbol ids. Defaults to the assembly name of `library`.
+
+Symbol ids have the form `csharp:<package>:<Namespace.Type.Member>`, for example
+`csharp:Ledger:Ledger.Account.Deposit~~1a2b3c4d`. Overloads add `~~` and eight hex
+digits taken from the documentation comment id. Characters other than letters, digits
+and `_` are written as `~` and two hex digits, so `Larger<T>` becomes `Larger~3CT~3E`.
+
+Public and protected namespaces, types, methods, constructors, properties, indexers,
+events, fields, constants, enum members and delegates are documented, with the
+`summary`, `remarks`, `param`, `returns`, `example` and `inheritdoc` text and the
+`cref` links. Internal and private members are left out.
+
+The compile settings come from `library`: `defines` select the members behind `#if`,
+`allow_unsafe_blocks` is passed on, and `deps` become reference assemblies. Nullable
+annotations are read only from `#nullable enable` in the sources; a library that sets
+`nullable = "enable"` fails the build. One target framework is read: the library's
+first.
+
+The build fails, and writes no shard and no page, when:
+
+- a source has a compile error or docfx reports a warning.
+- the library has no public API.
+- the member list docfx read differs from the compiled reference assembly.
+- two documented symbols differ only by case.
+
+The F# group, other target frameworks and Visual Basic are not supported yet.
+
+Exit codes are the same as for Java: Bazel failures keep Bazel's code.

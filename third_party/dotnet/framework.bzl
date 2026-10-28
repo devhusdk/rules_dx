@@ -23,3 +23,5 @@ framework_pinned = rule(
         "actual": attr.label(mandatory = True, cfg = _pin, doc = "The .NET target to forward."),
     },
 )
+
+dotnet_tool_pin = _pin

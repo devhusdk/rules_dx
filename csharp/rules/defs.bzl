@@ -98,10 +98,10 @@ def csharp_library(name, srcs, visibility = None, **kwargs):
     upstream = csharp_tfm_with_defaults(kwargs)
     dx_wrap(name, _csharp_library, _csharp_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), **kwargs)
 
-def csharp_binary(name, srcs = None, visibility = None, **kwargs):
+def csharp_binary(name, srcs = None, visibility = None, upstream_visibility = None, **kwargs):
     """Minimal wrapper over csharp_binary; srcs is optional, target_frameworks defaults to net10.0 and warnings are errors."""
     upstream = csharp_tfm_with_defaults(kwargs)
-    dx_wrap_binary(name, _csharp_binary, _csharp_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), **kwargs)
+    dx_wrap_binary(name, _csharp_binary, _csharp_binary_forward, srcs, visibility = visibility, upstream_visibility = upstream_visibility, upstream_kwargs = upstream, extra_forward_kwargs = csharp_tfm_forward_kwargs(name, upstream), **kwargs)
 
 def csharp_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over csharp_test; target_frameworks defaults to net10.0 and warnings are errors."""

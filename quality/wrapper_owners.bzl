@@ -9,6 +9,7 @@ WRAPPER_OWNERS = {
     "ansible": "//ansible/rules:defs.bzl",
     "api_spec": "//api_spec/rules:defs.bzl",
     "astro": "//astro/rules:defs.bzl",
+    "bicep": "//bicep/rules:defs.bzl",
     "cc": "//cc/rules:defs.bzl",
     "csharp": "//csharp/rules:defs.bzl",
     "cloudformation": "//cloudformation/rules:defs.bzl",

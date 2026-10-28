@@ -141,6 +141,7 @@ REAL_CLASS_TO_FAMILY = {
     "api_spec": "api_spec",
     "api_spec_ref": "api_spec",
     "astro": "astro",
+    "bicep": "bicep",
     "c": "cc",
     "cpp": "cc",
     "csharp": "csharp",

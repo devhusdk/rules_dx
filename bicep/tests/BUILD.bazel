@@ -1,0 +1,51 @@
+load("//bicep/rules:defs.bzl", "bicep_module")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "owns_bicep_class_test", "transitive_context_test")
+
+bicep_module(
+    name = "lib",
+    srcs = ["fixtures/lib.bicep"],
+    data = ["fixtures/data.json"],
+)
+
+bicep_module(
+    name = "app",
+    srcs = ["fixtures/app.bicep"],
+    deps = [":lib"],
+)
+
+owns_bicep_class_test(
+    name = "owns_bicep_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+transitive_context_test(
+    name = "transitive_context_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+bicep_module(
+    name = "bad_src",
+    srcs = ["fixtures/notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "non_bicep_src_fails",
+    expected_failure_substring = "notes.txt",
+    target = ":bad_src",
+)
+
+bicep_module(
+    name = "config_in_data",
+    data = ["fixtures/bicepconfig.json"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "config_in_data_fails",
+    expected_failure_substring = "bind it with bicep_config",
+    target = ":config_in_data",
+)

@@ -29,6 +29,7 @@ PYTHON_CASES = [
         "expected_file": ":matrix/matrix_python_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {

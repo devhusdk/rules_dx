@@ -25,6 +25,7 @@ astro_library(
 mdx_library(
     name = "mdx_lib",
     srcs = ["Hello.mdx"],
+    deps = [":helper_lib"],
 )
 
 javascript_library(

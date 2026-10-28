@@ -437,7 +437,7 @@ mod tests {
         (
             "mdx",
             "demo-app",
-            &["Hello.mdx", "helper.js", "hello.test.js", "pnpm-lock.yaml"],
+            &["Hello.mdx", "helper.js", "pnpm-lock.yaml"],
         ),
         (
             "zig",
@@ -509,7 +509,12 @@ mod tests {
             }
             let build =
                 std::fs::read_to_string(root.join(name).join("BUILD.bazel")).expect("build");
-            for target in ["\"demo-app\"", "\"demo-app_test\""] {
+            let check_target = if *language == "mdx" {
+                "\"demo-app_check\""
+            } else {
+                "\"demo-app_test\""
+            };
+            for target in ["\"demo-app\"", check_target] {
                 assert!(build.contains(target), "{language}: {build}");
             }
             assert_eq!(

@@ -81,6 +81,7 @@ pub mod scalafmt;
 pub mod shellcheck;
 pub mod shfmt;
 pub mod spotbugs;
+pub mod sqlfluff;
 pub mod standardrb;
 pub mod staticcheck;
 pub mod statix;
@@ -178,6 +179,7 @@ pub use scalafmt::parse_scalafmt;
 pub use shellcheck::parse_shellcheck;
 pub use shfmt::parse_shfmt;
 pub use spotbugs::parse_spotbugs;
+pub use sqlfluff::parse_sqlfluff;
 pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
 pub use statix::parse_statix;
@@ -2224,6 +2226,14 @@ mod tests {
         super::cfn_lint::parse_cfn_lint(input, input, code, files)
     }
 
+    fn fuzz_sqlfluff(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::sqlfluff::parse_sqlfluff(input, input, code, files)
+    }
+
     fn fuzz_kubeconform(
         input: &[u8],
         code: Option<i32>,
@@ -2572,6 +2582,7 @@ mod tests {
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("ansible_lint", fuzz_ansible_lint),
         ("cfn_lint", fuzz_cfn_lint),
+        ("sqlfluff", fuzz_sqlfluff),
         ("check_jsonschema", fuzz_check_jsonschema),
         ("kubeconform", fuzz_kubeconform),
         ("latexindent", fuzz_latexindent),
@@ -2680,6 +2691,7 @@ mod tests {
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ansible_lint", include_str!("ansible_lint.rs")),
         ("cfn_lint", include_str!("cfn_lint.rs")),
+        ("sqlfluff", include_str!("sqlfluff.rs")),
         ("kubeconform", include_str!("kubeconform.rs")),
         ("latexindent", include_str!("latexindent.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),

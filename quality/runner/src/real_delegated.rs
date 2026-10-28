@@ -191,6 +191,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "qmlformat",
         "scalafmt",
         "shfmt",
+        "sqlfluff",
         "standardrb",
         "stylua",
         "terraform",

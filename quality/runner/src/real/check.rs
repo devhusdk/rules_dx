@@ -1635,6 +1635,33 @@ impl RealBackend {
                 )
             }
             "cfn_lint" => self.check_cfn_lint(tool_id, tool, staged, config.as_deref()),
+            "sqlfluff" => {
+                if !tool.upstream_diagnostics.is_empty() {
+                    return Err(execution(
+                        tool_id,
+                        "sqlfluff has no delegated mode".to_owned(),
+                    ));
+                }
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| {
+                        Ok(if capability == "format" {
+                            commands::sqlfluff_format_check(&tool.binary, files)
+                        } else {
+                            commands::sqlfluff_check(&tool.binary, files)
+                        })
+                    },
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_sqlfluff(&out.stdout, &out.stderr, out.code, names),
+                        )
+                    },
+                )
+            }
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "helm" => self.check_helm(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {

@@ -1,0 +1,12 @@
+producer //quality/testdata:matrix_sql_sqlfluff_format_fail
+capability FORMAT
+stages 1
+stage sqlfluff classes=sql sources=matrix/sqlfluff_format_dirty.sql
+completed_rounds 2
+convergence STABLE
+initial 2
+initial ERROR sqlfluff LT09 matrix/sqlfluff_format_dirty.sql 0 10 fixable=true "Select targets should be on a new line unless there is only one select target."
+initial ERROR sqlfluff LT01 matrix/sqlfluff_format_dirty.sql 9 10 fixable=true "Expected single whitespace between comma ',' and naked identifier."
+terminal 0
+replacements 1
+replacement matrix/sqlfluff_format_dirty.sql 6 11 "\n    a,\n    b\n"

@@ -1825,6 +1825,53 @@ pub fn cfn_lint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
     }
 }
 
+/// The rules `sqlfluff format` applies.
+pub const SQLFLUFF_FORMAT_RULES: &str = "capitalisation,layout,ambiguous.union,convention.not_equal,convention.coalesce,convention.select_trailing_comma,convention.is_null,jinja.padding,structure.distinct";
+
+const SQLFLUFF_LINT_ARGS: &[&str] = &[
+    "lint",
+    "--format",
+    "json",
+    "--nocolor",
+    "--disable-progress-bar",
+    "--",
+];
+
+const SQLFLUFF_FORMAT_CHECK_ARGS: &[&str] = &[
+    "lint",
+    "--format",
+    "json",
+    "--nocolor",
+    "--disable-progress-bar",
+    "--rules",
+    SQLFLUFF_FORMAT_RULES,
+    "--",
+];
+
+const SQLFLUFF_FIX_ARGS: &[&str] = &["fix", "--nocolor", "--disable-progress-bar", "--"];
+
+const SQLFLUFF_FORMAT_FIX_ARGS: &[&str] = &["format", "--nocolor", "--disable-progress-bar", "--"];
+
+/// `sqlfluff lint` with JSON output; config comes from `.sqlfluff` files above each file.
+pub fn sqlfluff_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, SQLFLUFF_LINT_ARGS, files, "")
+}
+
+/// `sqlfluff lint` limited to the rules `sqlfluff format` applies.
+pub fn sqlfluff_format_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, SQLFLUFF_FORMAT_CHECK_ARGS, files, "")
+}
+
+/// `sqlfluff fix` in place.
+pub fn sqlfluff_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, SQLFLUFF_FIX_ARGS, files, "")
+}
+
+/// `sqlfluff format` in place.
+pub fn sqlfluff_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, SQLFLUFF_FORMAT_FIX_ARGS, files, "")
+}
+
 /// `check-jsonschema` for one (schema, filetype) group, offline.
 ///
 /// `--dx-ref-map` is read by dx's wrapper, which serves pinned `$ref` targets from disk and
@@ -2207,7 +2254,7 @@ pub enum ArgTransport {
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
-        | "deadnix" | "check_jsonschema" => ArgTransport::Batched,
+        | "deadnix" | "check_jsonschema" | "sqlfluff" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

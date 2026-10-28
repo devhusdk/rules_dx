@@ -844,6 +844,13 @@ uv.project(
     lock = "//tools/ci/tooling:uv.lock",
     pyproject = "//tools/ci/tooling:pyproject.toml",
 )
+uv.override_package(
+    name = "sqlfluff",
+    lock = "//quality/tools/python:uv.lock",
+    post_install_patch_strip = 1,
+    post_install_patches = ["//patches/sqlfluff:nested_templater_configs.patch"],
+    version = "4.4.0",
+)
 use_repo(uv, pypi = "dx_pypi")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")

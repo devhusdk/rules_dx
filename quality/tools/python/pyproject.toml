@@ -17,7 +17,10 @@ dependencies = [
   "ansible-core>=2.21.5",
   "docutils>=0.23",
   "cfn-lint>=1.58.0,<2",
+  "sqlfluff==4.4.0",
 ]
 
 [tool.uv]
 constraint-dependencies = ["cryptography<50"]
+# sqlfluff 4.4.0 caps click below 8.5; its next release lifts the cap.
+override-dependencies = ["click>=8.5,<9"]

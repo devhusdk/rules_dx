@@ -274,6 +274,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: Some(quality_adapter::parsers::rubocop_crash),
     },
     FixSpec {
+        tool: "sqlfluff",
+        config: FixConfig::Optional,
+        keep_exit_one: true,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "djlint",
         config: FixConfig::Optional,
         keep_exit_one: true,
@@ -390,6 +396,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             format: capability == "format",
             placeholders: &["py", "pyi"],
         }),
+        "sqlfluff" => spec(capability == "format"),
         "scalafix" => Ok(Route::Scalafix),
         "ansible_lint" => Ok(Route::AnsibleLint),
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
@@ -955,6 +962,11 @@ impl super::RealBackend {
                     },
                     "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config.as_deref())),
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
+                    "sqlfluff" => Ok(if format {
+                        commands::sqlfluff_format_fix(&tool.binary, refs)
+                    } else {
+                        commands::sqlfluff_fix(&tool.binary, refs)
+                    }),
                     "djlint" => Ok(commands::djlint_format_fix(
                         &tool.binary,
                         refs,

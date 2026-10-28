@@ -44,3 +44,12 @@ instead, or drop the `include()` and own the override yourself.
 ## rules_d, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml
 
 No action. `rules_dx` applies these patches in its own repository rules.
+
+## Python packages
+
+No action. `rules_dx` patches these wheels with `uv.override_package` in its own
+`MODULE.bazel`.
+
+| Package | Version | Patches | Why |
+| --- | --- | --- | --- |
+| `sqlfluff` | 4.4.0 | `nested_templater_configs.patch` | A nested `.sqlfluff` can switch the templater. Backport of [sqlfluff#8301](https://github.com/sqlfluff/sqlfluff/pull/8301) and the runner change it builds on ([sqlfluff#8769](https://github.com/sqlfluff/sqlfluff/pull/8769)). Drop it once a sqlfluff release includes #8301. |

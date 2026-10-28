@@ -4682,3 +4682,61 @@ fn cue_typecheck_vets_per_package_from_the_module_root() {
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].path, "app/main.cue");
 }
+
+fn sqlfluff_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let home = env
+        .iter()
+        .find(|(key, _)| key == "DX_SQLFLUFF_HOME")
+        .map(|(_, value)| PathBuf::from(value))
+        .expect("sqlfluff gets a scratch home");
+    let defaults = std::fs::read_to_string(home.join(".config/sqlfluff/.sqlfluff"))?;
+    assert_eq!(defaults, "[sqlfluff]\ndialect = postgres\n");
+    assert!(!argv.iter().any(|arg| arg == "--config"));
+    if argv.get(1).is_some_and(|arg| arg == "fix") {
+        std::fs::write(argv.last().expect("file"), "SELECT 1\n")?;
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    let file = argv.last().expect("file").to_string_lossy().into_owned();
+    let report = serde_json::json!([{
+        "filepath": file,
+        "violations": [{
+            "start_line_no": 1,
+            "start_line_pos": 1,
+            "code": "CP01",
+            "description": "Keywords must be consistently upper case.",
+            "warning": false
+        }]
+    }]);
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: report.to_string().into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn sqlfluff_lints_with_the_library_dialect_as_the_default() {
+    let tool = RealTool {
+        dialect: Some("postgresql".to_owned()),
+        ..plain_tool()
+    };
+    let backend = backend_for("sqlfluff", tool, sqlfluff_fake);
+    let findings = backend
+        .diagnose("sqlfluff", "lint", &single("db/q.sql", "select 1\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "db/q.sql");
+    assert_eq!(findings[0].rule_id, "CP01");
+    let fixed = backend
+        .apply_fix("sqlfluff", "db/q.sql", "select 1\n", "lint")
+        .expect("fixed");
+    assert_eq!(fixed, "SELECT 1\n");
+}

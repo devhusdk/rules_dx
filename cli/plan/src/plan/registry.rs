@@ -40,6 +40,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_shell_lint_aspect",
                 "quality:real_aspects.bzl%real_text_lint_aspect",
                 "quality:real_aspects.bzl%real_html_template_lint_aspect",
+                "quality:real_aspects.bzl%real_sql_lint_aspect",
                 "quality:real_aspects.bzl%real_yaml_lint_aspect",
                 "quality:real_aspects.bzl%real_nix_lint_aspect",
                 "quality:real_aspects.bzl%real_kubernetes_lint_aspect",
@@ -94,6 +95,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_typst_format_aspect",
                 "quality:real_aspects.bzl%real_latex_format_aspect",
                 "quality:real_aspects.bzl%real_html_template_format_aspect",
+                "quality:real_aspects.bzl%real_sql_format_aspect",
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_format_probe_aspect"),
@@ -303,6 +305,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_shell_lint_aspect",
                 "quality:real_aspects.bzl%real_text_lint_aspect",
                 "quality:real_aspects.bzl%real_html_template_lint_aspect",
+                "quality:real_aspects.bzl%real_sql_lint_aspect",
                 "quality:real_aspects.bzl%real_yaml_lint_aspect",
                 "quality:real_aspects.bzl%real_nix_lint_aspect",
                 "quality:real_aspects.bzl%real_kubernetes_lint_aspect",
@@ -357,6 +360,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_typst_format_aspect",
                 "quality:real_aspects.bzl%real_latex_format_aspect",
                 "quality:real_aspects.bzl%real_html_template_format_aspect",
+                "quality:real_aspects.bzl%real_sql_format_aspect",
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
             ]
         );

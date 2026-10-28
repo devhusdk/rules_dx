@@ -306,6 +306,7 @@ to.
 | `shellcheck` | lint | shell |
 | `shfmt` | format | shell |
 | `spotbugs` | lint | java |
+| `sqlfluff` | format, lint | sql |
 | `standardrb` | format | ruby |
 | `staticcheck` | lint | go |
 | `statix` | lint | nix |
@@ -2612,6 +2613,54 @@ analysis error. Without the attribute, the suffix decides. The pinned options
 keep SQL keywords in the case you wrote them. XML namespaces, prefixes, attribute quotes, attribute order and
 text stay as written. Gherkin keeps its step text and tags. `.prettierrc`,
 `.editorconfig` and other user config files are ignored.
+
+### SQL with sqlfluff
+
+`sqlfluff` lints and formats SQL from a managed 4.4.0 pin on Linux x86_64,
+Linux arm64, macOS arm64 and Windows x86_64, on the Python 3.12 that the Python
+tools share. It is opt-in: select it in the `sql` family.
+
+```python
+quality_family(
+    name = "sql_family",
+    family_id = "sql",
+    format = ["sqlfluff"],
+    lint = ["sqlfluff"],
+)
+```
+
+Lint runs `sqlfluff lint` and keeps each rule code, line and column. Format
+reports the layout and capitalisation rules that `sqlfluff format` applies.
+`--apply` runs `sqlfluff fix` for lint and `sqlfluff format` for format. A
+parse error is a `PRS` finding.
+
+sqlfluff reads the `.sqlfluff` files in the directories above each SQL file,
+so a subdirectory can set its own dialect, templater or rules. Bind them with a
+`sqlfluff_config`: `src` is one `.sqlfluff` file and `data` lists the others.
+Each file keeps its workspace path. Config files that are not bound, and the
+user config in your home directory, are ignored.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "sqlfluff_config")
+
+sqlfluff_config(
+    name = "sqlfluff",
+    src = ".sqlfluff",
+    data = ["reports/.sqlfluff"],
+    visibility = ["//visibility:public"],
+)
+
+sql_library(
+    name = "db",
+    aspect_hints = ["//:sqlfluff"],
+    srcs = glob(["**/*.sql"]),
+)
+```
+
+When no `.sqlfluff` file sets a dialect, sqlfluff uses the `sql_library`
+`dialect` attribute, and `ansi` without one. The `postgresql`, `plsql`, `spark`,
+`db2i`, `transactsql` and `tsql` names map to sqlfluff's `postgres`, `oracle`,
+`sparksql`, `db2`, `tsql` and `tsql`. `n1ql` and `singlestoredb` use `ansi`.
 
 ### PowerShell
 

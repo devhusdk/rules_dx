@@ -89,6 +89,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "shellcheck",
     "shfmt",
     "spotbugs",
+    "sqlfluff",
     "standardrb",
     "staticcheck",
     "statix",
@@ -614,6 +615,9 @@ impl RealBackend {
                 state.join("config").into_os_string(),
             ));
         }
+        if tool_id == "sqlfluff" {
+            env.push(sqlfluff::sqlfluff_home(tool_id, tool, scratch)?);
+        }
         if tool_id == "dart" {
             // The host HOME stays unset (dart format needs none); analytics stay off.
             env.push((
@@ -698,6 +702,7 @@ mod kubeconform;
 mod pipeline;
 mod redocly;
 mod rustfmt;
+mod sqlfluff;
 mod staging;
 
 pub use pipeline::{

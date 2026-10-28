@@ -220,6 +220,14 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "html_template",
     },
+    "sqlfluff": {
+        "attr": attr.label(default = "//quality/tools/python:sqlfluff", cfg = "exec", executable = True),
+        "capabilities": ["format", "lint"],
+        "kind": "executable",
+        "resources": "medium",
+        "runfiles_env": True,
+        "shard": "sql",
+    },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -1272,7 +1280,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         clang_syntax = target[ClangSyntaxInfo]
 
     sql_dialect = None
-    if "prettier" in [stage["tool"] for stage in resolved] and SqlDialectInfo in target:
+    if ("prettier" in [stage["tool"] for stage in resolved] or "sqlfluff" in [stage["tool"] for stage in resolved]) and SqlDialectInfo in target:
         sql_dialect = target[SqlDialectInfo].dialect
 
     rustfmt_edition = None
@@ -1646,7 +1654,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             binary_path = binary_path,
             config_rel = config_rel,
             edition = edition,
-            dialect = sql_dialect if tool == "prettier" else None,
+            dialect = sql_dialect if tool in ("prettier", "sqlfluff") else None,
             files = tool_files,
             env = tool_env_entries.get(tool, []),
             upstream = upstream,
@@ -1834,6 +1842,18 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive HTML template lint family aspect (djLint).",
         "shard": "html_template",
         "suffix": "-html-template",
+    },
+    "real_sql_format": {
+        "capability": "format",
+        "doc": "Additive SQL format family aspect (sqlfluff).",
+        "shard": "sql",
+        "suffix": "-sql",
+    },
+    "real_sql_lint": {
+        "capability": "lint",
+        "doc": "Additive SQL lint family aspect (sqlfluff).",
+        "shard": "sql",
+        "suffix": "-sql",
     },
     "real_yaml_format": {
         "capability": "format",
@@ -2256,6 +2276,10 @@ real_ruby_lint_aspect = _make_real_aspect("real_ruby_lint")
 real_html_template_format_aspect = _make_real_aspect("real_html_template_format")
 
 real_html_template_lint_aspect = _make_real_aspect("real_html_template_lint")
+
+real_sql_format_aspect = _make_real_aspect("real_sql_format")
+
+real_sql_lint_aspect = _make_real_aspect("real_sql_lint")
 
 real_yaml_format_aspect = _make_real_aspect("real_yaml_format")
 

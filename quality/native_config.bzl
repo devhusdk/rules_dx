@@ -73,6 +73,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "scalafix": [".conf"],
     "scalafmt": [".conf"],
     "shellcheck": [".shellcheckrc", "shellcheckrc"],
+    "sqlfluff": [".sqlfluff"],
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
     "statix": [".toml"],
@@ -270,6 +271,8 @@ yamllint_config = _make_native_config_rule("yamllint")
 ansible_lint_config = _make_native_config_rule("ansible_lint")
 
 cfn_lint_config = _make_native_config_rule("cfn_lint")
+
+sqlfluff_config = _make_native_config_rule("sqlfluff")
 
 hadolint_config = _make_native_config_rule("hadolint")
 regal_config = _make_native_config_rule("regal")

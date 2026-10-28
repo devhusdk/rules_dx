@@ -2739,3 +2739,32 @@ fn check_jsonschema_argv_is_offline_and_verbose() {
     );
     assert_eq!(transport_for("check_jsonschema"), ArgTransport::Batched);
 }
+
+#[test]
+fn sqlfluff_builders_pass_no_config_so_nested_files_apply() {
+    let a = Path::new("/scratch/a.sql");
+    let b = Path::new("/scratch/sub/b.sql");
+    let tail = ["--nocolor", "--disable-progress-bar"];
+    let lint = argv_strings(&sqlfluff_check(Path::new(BIN), &[a, b]));
+    assert_eq!(lint[..4], [BIN, "lint", "--format", "json"]);
+    assert_eq!(lint[4..6], tail);
+    assert_eq!(lint[6..], ["--", "/scratch/a.sql", "/scratch/sub/b.sql"]);
+    let format = argv_strings(&sqlfluff_format_check(Path::new(BIN), &[a]));
+    assert_eq!(
+        format[6..],
+        ["--rules", SQLFLUFF_FORMAT_RULES, "--", "/scratch/a.sql"]
+    );
+    let fix = argv_strings(&sqlfluff_fix(Path::new(BIN), &[a]));
+    assert_eq!(fix, [BIN, "fix", tail[0], tail[1], "--", "/scratch/a.sql"]);
+    let format_fix = argv_strings(&sqlfluff_format_fix(Path::new(BIN), &[a]));
+    assert_eq!(
+        format_fix,
+        [BIN, "format", tail[0], tail[1], "--", "/scratch/a.sql"]
+    );
+    for argv in [lint, format, fix, format_fix] {
+        assert!(!argv
+            .iter()
+            .any(|arg| arg == "--config" || arg.starts_with("--dialect")));
+    }
+    assert!(matches!(transport_for("sqlfluff"), ArgTransport::Batched));
+}

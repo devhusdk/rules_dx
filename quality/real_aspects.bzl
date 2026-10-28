@@ -219,7 +219,7 @@ _REAL_TOOL_TABLE = {
     },
     "flatc": {
         "attr": attr.label(default = "//config:tool_flatc", allow_files = True, cfg = "exec", executable = True),
-        "capabilities": ["lint"],
+        "capabilities": ["lint", "typecheck"],
         "fallback": " to a flatc binary",
         "kind": "setting",
         "resources": "light",
@@ -1731,6 +1731,12 @@ _REAL_SHARD_SPECS = {
         "shard": "flatbuffers",
         "suffix": "-flatbuffers",
     },
+    "real_flatbuffers_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive FlatBuffers typecheck family aspect (flatc errors only).",
+        "shard": "flatbuffers",
+        "suffix": "-flatbuffers",
+    },
     "real_protobuf_format": {
         "capability": "format",
         "doc": "Additive Protocol Buffers format family aspect (buf format).",
@@ -2093,6 +2099,7 @@ real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 
 real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
+real_flatbuffers_typecheck_aspect = _make_real_aspect("real_flatbuffers_typecheck")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")

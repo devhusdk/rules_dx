@@ -67,11 +67,7 @@ mod tests {
         Command::Install,
     ];
 
-    const WARN: &[Command] = &[
-        Command::Check,
-        Command::Security,
-        Command::License,
-    ];
+    const WARN: &[Command] = &[Command::Check, Command::Security, Command::License];
 
     const REFUSE: &[Command] = &[
         Command::Build,

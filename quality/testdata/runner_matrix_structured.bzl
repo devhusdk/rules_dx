@@ -64,6 +64,42 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_flatbuffers_lint_pass.expected.txt",
     },
     {
+        "name": "matrix_flatbuffers_typecheck_pass",
+        "generated": {
+            "quality/testdata/matrix/flatbuffers_pass/main.fbs": "include \"common.fbs\";\n\nnamespace fixtures;\n\ntable Sample {\n  common:Common;\n}\n",
+        },
+        "siblings": [
+            ":matrix/flatbuffers_pass/common.fbs",
+        ],
+        "capability": "typecheck",
+        "stages": ["flatc;flatbuffers;quality/testdata/matrix/flatbuffers_pass/main.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_typecheck_pass.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_typecheck_semantic_fail",
+        "generated": {
+            "matrix/flatbuffers_semantic.fbs": "table Sample {\n  x:Nope;\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_semantic.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_typecheck_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_typecheck_warning_clean",
+        "generated": {
+            "matrix/flatbuffers_warning.fbs": "table Sample {\n  camelCase:int;\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_warning.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_typecheck_warning_clean.expected.txt",
+    },
+    {
         "name": "matrix_flatbuffers_lint_warning_fail",
         "generated": {
             "matrix/flatbuffers_warning.fbs": "table Sample {\n  camelCase:int;\n}\n",

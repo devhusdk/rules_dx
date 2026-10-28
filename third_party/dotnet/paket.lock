@@ -303,6 +303,30 @@ NUGET
     System.Threading.Tasks.Extensions (4.6.3)
     YamlDotNet (18.1)
 
+GROUP docs_fsharp
+RESTRICTION: == net10.0
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    FSharp.Compiler.Service (43.12.204)
+      FSharp.Core (10.1.204)
+      System.Buffers (>= 4.6)
+      System.Collections.Immutable (>= 9.0)
+      System.Diagnostics.DiagnosticSource (>= 9.0)
+      System.Memory (>= 4.6)
+      System.Reflection.Emit (>= 4.7)
+      System.Reflection.Metadata (>= 9.0)
+      System.Runtime.CompilerServices.Unsafe (>= 6.1)
+    FSharp.Core (10.1.204)
+    FSharp.Formatting (22.2)
+      FSharp.Compiler.Service (43.12.204)
+    System.Buffers (4.6.1)
+    System.Collections.Immutable (10.0.14)
+    System.Diagnostics.DiagnosticSource (10.0.14)
+    System.Memory (4.6.3)
+    System.Reflection.Emit (4.7)
+    System.Reflection.Metadata (10.0.14)
+    System.Runtime.CompilerServices.Unsafe (6.1.2)
+
 GROUP fsharplint
 RESTRICTION: == net10.0
 NUGET

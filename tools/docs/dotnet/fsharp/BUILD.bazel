@@ -1,0 +1,25 @@
+load("//fsharp/rules:defs.bzl", "fsharp_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+fsharp_binary(
+    name = "fsharp_api",
+    srcs = ["Program.fs"],
+    target_frameworks = [DOTNET_TOOL_FRAMEWORK],
+    upstream_visibility = ["//tools/docs/dotnet:__pkg__"],
+    deps = [
+        "@paket.docs_fsharp//fsharp.compiler.service",
+        "@paket.docs_fsharp//fsharp.core",
+        "@paket.docs_fsharp//fsharp.formatting",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -800,7 +800,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["codegen", "--output=diff"],
         vec!["env", "--output=diff"],
         vec!["run", "//app:bin", "--output=diff"],
-        vec!["init", "--output=json"],
         vec!["init", "proj", "--output=diff"],
         vec!["new", "rust", "--output=json"],
         vec!["new", "rust", "demo", "--output=diff"],

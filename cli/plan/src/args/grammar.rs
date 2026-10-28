@@ -1015,7 +1015,7 @@ command_args! {
     /// The flags `dx env` accepts.
     Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, { apply: ScaffoldApplyFlag, own: InitPartsArgs, };
+    Init => 20, NoPassthroughTail, { output: ReadOutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx new` accepts.
     New => 21, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx upgrade` accepts.

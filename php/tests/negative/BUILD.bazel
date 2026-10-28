@@ -15,6 +15,7 @@ rust_test(
     ],
     # A tampered phar pin must reach the network to fail its checksum.
     tags = NESTED_BAZEL_NETWORK_TAGS,
+    # Linux x86_64 only: this nested Bazel run is too costly to repeat per cell.
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

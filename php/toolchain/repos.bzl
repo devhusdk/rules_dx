@@ -1,6 +1,5 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
-load("//erlang/toolchain:pins.bzl", "CELLS")
 load(":pins.bzl", "COMPOSER", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION")
 
 HUB_NAME = "dx_php_toolchains"
@@ -55,7 +54,7 @@ def hub_build(cells):
     for cell in sorted(cells):
         content.append(_TOOLCHAINS.format(
             cell = cell,
-            constraints = repr(CELLS[cell].exec_compatible_with),
+            constraints = repr(PHP_CELLS[cell].exec_compatible_with),
             exec_toolchain_type = EXEC_TOOLCHAIN_TYPE,
             repo = RUNTIME_PREFIX + cell,
             toolchain_type = TOOLCHAIN_TYPE,

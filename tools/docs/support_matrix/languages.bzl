@@ -259,6 +259,9 @@ PLATFORM_NOT_APPLICABLE = {
         "windows_x86_64": "AppImage is a Linux format",
         "windows_arm64": "AppImage is a Linux format",
     },
+    "perl": {
+        "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
+    },
 }
 
 # A platform a quality tool cannot run on, keyed by tool name, with the reason.
@@ -276,7 +279,6 @@ GAP_ISSUES = {
     "build:julia:*": 4548,
     "build:msix:*": 4549,
     "build:ocaml:*": 4550,
-    "build:perl:*": 4551,
     "build:php:*": 4552,
     "build:powershell:*": 4553,
     "build:qt:*": 4554,

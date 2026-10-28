@@ -77,6 +77,17 @@ py_binary(
 )
 
 py_binary(
+    name = "mbake",
+    srcs = [
+        "mbake_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "mbake_main.py",
+    deps = ["@pypi//mbake"],
+)
+
+py_binary(
     name = "yamllint",
     srcs = [
         "tool_bootstrap.py",

@@ -1170,6 +1170,29 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/CMakeLists.txt"
         ]
     );
+    let make = Path::new("/scratch/Makefile");
+    let mbake_config = Path::new("/scratch/.bake.toml");
+    assert_eq!(
+        argv_strings(&mbake_check(Path::new(BIN), &[make], mbake_config)),
+        vec![
+            BIN,
+            "format",
+            "--check",
+            "--config",
+            "/scratch/.bake.toml",
+            "/scratch/Makefile"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&mbake_fix(Path::new(BIN), &[make], mbake_config)),
+        vec![
+            BIN,
+            "format",
+            "--config",
+            "/scratch/.bake.toml",
+            "/scratch/Makefile"
+        ]
+    );
     let lua = Path::new("/scratch/sample.lua");
     let stylua_config = Path::new("/scratch/stylua.toml");
     assert_eq!(

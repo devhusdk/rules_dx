@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_make_format_pass
+capability FORMAT
+stages 1
+stage mbake classes=make sources=matrix/make_format_clean/Makefile
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

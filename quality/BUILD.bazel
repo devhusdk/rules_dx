@@ -483,6 +483,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_cmake",
         },
         {
+            "case": "make_formatted",
+            "expected_dx_results": [
+                "clean_make-real-format-make.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:make_format_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_make",
+        },
+        {
             "case": "make_linted",
             "expected_dx_results": [
                 "clean_make-real-lint-make.pb",
@@ -640,6 +648,7 @@ test_suite(
         ":consumer_policy_helm_linted_test",
         ":consumer_policy_cmake_formatted_test",
         ":consumer_policy_cmake_linted_test",
+        ":consumer_policy_make_formatted_test",
         ":consumer_policy_make_linted_test",
         ":consumer_policy_latex_formatted_test",
         ":consumer_policy_nix_linted_test",

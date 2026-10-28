@@ -58,6 +58,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "fsharplint": [".json"],
     "gersemi": [".gersemirc", ".yaml", ".yml"],
     "gplint": [".gplintrc", ".json"],
+    "mbake": [".bake.toml", ".toml"],
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
     "kubeconform": [".kubeconform.json"],
@@ -289,6 +290,7 @@ regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 gersemi_config = _make_native_config_rule("gersemi")
 cmakelint_config = _make_native_config_rule("cmakelint")
+mbake_config = _make_native_config_rule("mbake")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
 

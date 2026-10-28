@@ -259,6 +259,10 @@ const CMAKELINT_TAIL: &[&str] = &["--"];
 const GERSEMI_CHECK_PREFIX: &[&str] = &["--check", "--diff", "--no-cache", "--no-color", "-w", "1"];
 const GERSEMI_FIX_PREFIX: &[&str] = &["-i", "--no-cache", "--no-color", "-w", "1"];
 const GERSEMI_TAIL: &[&str] = &["--"];
+// No `--diff` (it exits 0 for files that would change), no `--validate` (it runs the host
+// `make`), and never `update`.
+const MBAKE_CHECK_PREFIX: &[&str] = &["format", "--check"];
+const MBAKE_FIX_PREFIX: &[&str] = &["format"];
 const REGAL_LINT_PREFIX: &[&str] = &[
     "lint",
     "--format",
@@ -1553,6 +1557,32 @@ pub fn gersemi_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation 
         "--config",
         Some(config),
         GERSEMI_TAIL,
+        files,
+        "",
+    )
+}
+
+/// Always `--config <config>`: mbake otherwise reads `~/.bake.toml` or the working directory's
+/// `.bake.toml`.
+pub fn mbake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        MBAKE_CHECK_PREFIX,
+        "--config",
+        Some(config),
+        &[],
+        files,
+        "",
+    )
+}
+
+pub fn mbake_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        MBAKE_FIX_PREFIX,
+        "--config",
+        Some(config),
+        &[],
         files,
         "",
     )

@@ -2088,6 +2088,30 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_make_format_pass",
+        "generated": {
+            "matrix/make_format_clean/Makefile": "CC = gcc\n\nall:\n\techo hi\n",
+        },
+        "capability": "format",
+        "stages": ["mbake;make;matrix/make_format_clean/Makefile"],
+        "tool_names": ["mbake"],
+        "tool_binaries": ["//quality/tools/python:mbake"],
+        "tool_env": ["mbake=RUNFILES_DIR=$TEST_SRCDIR"],
+        "expected_file": ":matrix/matrix_make_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_make_format_fail",
+        "generated": {
+            "matrix/make_format_dirty/Makefile": "CC=gcc\n\nall:\n    echo hi  \n",
+        },
+        "capability": "format",
+        "stages": ["mbake;make;matrix/make_format_dirty/Makefile"],
+        "tool_names": ["mbake"],
+        "tool_binaries": ["//quality/tools/python:mbake"],
+        "tool_env": ["mbake=RUNFILES_DIR=$TEST_SRCDIR"],
+        "expected_file": ":matrix/matrix_make_format_fail.expected.txt",
+    },
+    {
         "name": "matrix_dockerfile_lint_pass",
         "generated": {
             "matrix/hadolint_clean.Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n",

@@ -233,6 +233,14 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "html_template",
     },
+    "mbake": {
+        "attr": attr.label(default = "//quality/tools/python:mbake", cfg = "exec", executable = True),
+        "capabilities": ["format"],
+        "kind": "executable",
+        "resources": "light",
+        "runfiles_env": True,
+        "shard": "make",
+    },
     "eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -2168,6 +2176,12 @@ _REAL_SHARD_SPECS = {
         "shard": "make",
         "suffix": "-make",
     },
+    "real_make_format": {
+        "capability": "format",
+        "doc": "Additive Makefile format family aspect (mbake).",
+        "shard": "make",
+        "suffix": "-make",
+    },
     "real_cue_format": {
         "capability": "format",
         "doc": "Additive CUE format family aspect (cue fmt).",
@@ -2438,6 +2452,7 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+real_make_format_aspect = _make_real_aspect("real_make_format")
 real_make_lint_aspect = _make_real_aspect("real_make_lint")
 
 real_nix_format_aspect = _make_real_aspect("real_nix_format")

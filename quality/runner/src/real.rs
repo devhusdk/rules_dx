@@ -64,6 +64,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "ktlint",
     "luals",
     "markdown_check",
+    "mbake",
     "mix_format",
     "modfmt",
     "nixfmt",
@@ -159,6 +160,10 @@ const REGAL_DEFAULTS_BYTES: &[u8] = b"";
 const GERSEMI_DEFAULTS_REL: &str = "dx-gersemi-default/.gersemirc";
 /// An empty config loads and keeps every option at its default.
 const GERSEMI_DEFAULTS_BYTES: &[u8] = b"";
+const MBAKE_DEFAULTS_REL: &str = "dx-mbake-default/.bake.toml";
+/// mbake strips the final newline unless told to keep it; everything else stays at its default
+/// (no `.PHONY` insertion, grouping, or variable alignment).
+const MBAKE_DEFAULTS_BYTES: &[u8] = b"[formatter]\nensure_final_newline = true\n";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
@@ -633,6 +638,13 @@ impl RealBackend {
         }
         if tool_id == "typstyle" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+        }
+        if tool_id == "mbake" {
+            // rich and typer emit ANSI codes unless told otherwise, and rich wraps a long line
+            // at 80 columns when stdout is not a terminal, which splits a path from its message.
+            env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+            env.push((OsString::from("TERM"), OsString::from("dumb")));
+            env.push((OsString::from("COLUMNS"), OsString::from("100000")));
         }
         if tool_id == "cue" {
             // HOME is unset; module loads need a cache and config dir, kept in the scratch.

@@ -118,6 +118,20 @@ MAKE_CHECKMAKE_SUPPORT = {
     "transport": "batched",
 }
 
+MAKE_MBAKE_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["make"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "make",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "mbake",
+    "transport": "batched",
+}
+
 CMAKE_GERSEMI_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -991,6 +1005,7 @@ SUPPORT_RECORDS = [
     ANSIBLE_ANSIBLE_LINT_SUPPORT,
     CLOUDFORMATION_CFN_LINT_SUPPORT,
     MAKE_CHECKMAKE_SUPPORT,
+    MAKE_MBAKE_SUPPORT,
     CMAKE_GERSEMI_SUPPORT,
     CMAKE_CMAKELINT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,

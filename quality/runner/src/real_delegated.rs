@@ -181,6 +181,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "julia_format",
         "latexindent",
         "ktlint",
+        "mbake",
         "mix_format",
         "modfmt",
         "nixfmt",

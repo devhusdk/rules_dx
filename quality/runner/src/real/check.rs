@@ -1587,6 +1587,17 @@ impl RealBackend {
                     parsers::parse_gersemi(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "mbake" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "mbake needs a config path".to_owned()));
+                };
+                let invocation = commands::mbake_check(&tool.binary, &refs, config);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_mbake(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "stylua" => {
                 let invocation = commands::stylua_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

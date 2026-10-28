@@ -253,7 +253,7 @@ to.
 | `eslint` | lint | astro, javascript, mdx, svelte, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
-| `flatc` | lint | flatbuffers |
+| `flatc` | lint, typecheck | flatbuffers |
 | `fortitude` | lint | fortran |
 | `fsharplint` | lint | fsharp |
 | `gersemi` | format | cmake |

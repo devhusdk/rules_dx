@@ -51,7 +51,7 @@ REAL_ADAPTERS = {
     "eslint": {"lint": ["astro", "javascript", "jsx", "mdx", "svelte", "vue"]},
     "fantomas": {"format": ["fsharp"]},
     "flake8": {"lint": ["python", "python_stub"]},
-    "flatc": {"lint": ["flatbuffers"]},
+    "flatc": {"lint": ["flatbuffers"], "typecheck": ["flatbuffers"]},
     "fortitude": {"lint": ["fortran"]},
     "fsharplint": {"lint": ["fsharp"]},
     "gofumpt": {"format": ["go"]},

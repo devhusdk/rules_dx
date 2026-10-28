@@ -211,7 +211,8 @@ fn qmllint_syntax_error_is_a_located_finding() {
 #[test]
 fn qmllint_reports_every_file_of_a_batch() {
     let (_clean_dir, clean) = scratch_file("A.qml", CLEAN);
-    let (_dirty_dir, dirty) = scratch_file("B.qml", "import QtQuick\nItem { property string s: foo }\n");
+    let (_dirty_dir, dirty) =
+        scratch_file("B.qml", "import QtQuick\nItem { property string s: foo }\n");
     let (out, parsed) = lint(&[clean.as_path(), dirty.as_path()], &[], false);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let found = parsed.expect("parsed");

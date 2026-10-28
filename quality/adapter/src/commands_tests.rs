@@ -1287,6 +1287,23 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/lib/a.dart"
         ]
     );
+    assert_eq!(
+        argv_strings(&dart_analyze(
+            Path::new(BIN),
+            Path::new("/scratch/.dx-dart-analysis"),
+            Path::new("/scratch/analysis_options.yaml"),
+            &[dart]
+        )),
+        vec![
+            BIN,
+            "--suppress-analytics",
+            "analyze",
+            "--format=json",
+            "--cache=/scratch/.dx-dart-analysis",
+            "/scratch/analysis_options.yaml",
+            "/scratch/lib/a.dart"
+        ]
+    );
     let zig = Path::new("/scratch/sample.zig");
     assert_eq!(
         argv_strings(&zig_fmt_check(Path::new(BIN), &[zig])),

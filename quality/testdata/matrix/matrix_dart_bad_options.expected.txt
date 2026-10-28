@@ -1,0 +1,1 @@
+pipeline failed: invalid tool output for dart: dart output is outside the pinned grammar: analysis_options.yaml is unusable: undefined_lint: 'no_such_lint_rule' isn't a recognized lint rule. Try using the name of a recognized lint rule.

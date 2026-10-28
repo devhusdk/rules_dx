@@ -376,6 +376,14 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 Ok(Route::Keep)
             }
         }
+        // The analyzer has no fixer here; only the formatter rewrites Dart sources.
+        "dart" => {
+            if capability == "format" {
+                spec(false)
+            } else {
+                Ok(Route::Keep)
+            }
+        }
         "rustfmt" => Ok(Route::Rustfmt),
         "notebook_outputs" => Ok(Route::Rewrite(commands::notebook_outputs_fix)),
         "ruff" => Ok(Route::Spec {

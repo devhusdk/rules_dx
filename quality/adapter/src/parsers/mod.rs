@@ -10,6 +10,7 @@ pub mod cppcheck;
 pub mod credo;
 pub mod csharpier;
 pub mod cue;
+pub mod dart_analyze;
 pub mod dart_format;
 pub mod deadnix;
 pub mod dfmt;
@@ -100,6 +101,7 @@ pub use cppcheck::parse_cppcheck;
 pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
+pub use dart_analyze::{parse_dart_analyze, DartAnalyzeView};
 pub use dart_format::parse_dart_format;
 pub use deadnix::parse_deadnix;
 pub use dfmt::parse_dfmt;
@@ -2060,6 +2062,21 @@ mod tests {
         super::dart_format::parse_dart_format(input, input, code, files)
     }
 
+    fn fuzz_dart_analyze(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dart_analyze::parse_dart_analyze(
+            input,
+            b"",
+            code,
+            files,
+            "/s/analysis_options.yaml",
+            super::dart_analyze::DartAnalyzeView::Lint,
+        )
+    }
+
     fn fuzz_julia_format(
         input: &[u8],
         code: Option<i32>,
@@ -2439,6 +2456,7 @@ mod tests {
         ("jsonnet_lint", fuzz_jsonnet_lint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("dart", fuzz_dart_format),
+        ("dart_analyze", fuzz_dart_analyze),
         ("julia_format", fuzz_julia_format),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
@@ -2539,6 +2557,7 @@ mod tests {
         ("jsonnet_lint", include_str!("jsonnet_lint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("dart", include_str!("dart_format.rs")),
+        ("dart_analyze", include_str!("dart_analyze.rs")),
         ("julia_format", include_str!("julia_format.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ansible_lint", include_str!("ansible_lint.rs")),

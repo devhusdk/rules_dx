@@ -14,7 +14,7 @@ DART_COMPATIBLE_WITH = select({
     "//conditions:default": [Label("@platforms//:incompatible")],
 })
 
-DART_DEFERRED_SKIP_TAGS = ["no-lint", "no-typecheck"]
+DART_DEFERRED_SKIP_TAGS = []
 
 DART_QUALITY_TOOLS = {"dart": Label("//dart/tools:dart")}
 

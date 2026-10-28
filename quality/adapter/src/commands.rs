@@ -1224,6 +1224,30 @@ pub fn dart_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DART_FORMAT_CHECK_ARGS, files, "")
 }
 
+/// One analyzer run over the options file and the sources, all absolute. The options file is
+/// listed so a broken `include:` or unknown lint surfaces, and `--cache` keeps the analyzer off
+/// the (unset) HOME.
+pub fn dart_analyze(
+    binary: &Path,
+    cache_dir: &Path,
+    options: &Path,
+    files: &[&Path],
+) -> Invocation {
+    let mut argv = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--suppress-analytics"),
+        OsString::from("analyze"),
+        OsString::from("--format=json"),
+        OsString::from(format!("--cache={}", cache_dir.display())),
+        options.as_os_str().to_owned(),
+    ];
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn dart_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DART_FORMAT_FIX_ARGS, files, "")
 }

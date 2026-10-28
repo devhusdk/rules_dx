@@ -449,7 +449,6 @@ not need to be on `PATH`:
       "Bash(tools/dx check *)",
       "Bash(tools/dx test *)",
       "Bash(tools/dx build *)",
-      "Bash(tools/dx list-tests *)",
       "Bash(tools/dx status *)",
       "Bash(tools/dx version *)"
     ]

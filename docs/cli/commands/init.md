@@ -75,7 +75,7 @@ See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a G
 creating the file when it is missing (see below). It writes `CLAUDE.md` with an
 `@AGENTS.md` import when the import is missing, so Claude Code reads the block.
 The new `.claude/settings.json` also carries a `permissions.allow` list for the
-read-only commands `tools/dx check *`, `test *`, `build *`, `list-tests *`,
+read-only commands `tools/dx check *`, `test *`, `build *`,
 `status *` and `version *`. If a hooks file
 already exists, it is left alone and the missing hook and allow entries are printed to
 stderr. Without the `agents` part, init never reads or writes these files.

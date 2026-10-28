@@ -66,7 +66,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 13] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
     ("--with", &["--with=vscode"], &["init"]),
     ("--full", &["--full"], &["init"]),
     (
@@ -79,8 +79,6 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 13] = [
         &["--include-edits", "--output=json"],
         &["lint", "typecheck", "format", "check", "fix"],
     ),
-    ("--configured", &["--configured"], &["list-tests"]),
-    ("--cases", &["--cases"], &["list-tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
     (
         "--min-changed-line-coverage",
@@ -886,19 +884,14 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 }
 
 #[test]
-fn version_rollback_check_and_configured_parse() {
+fn version_rollback_and_check_parse() {
     let got = parse(&strings(&["version", "--check"])).expect("parse");
     assert!(got.check);
-    let got = parse(&strings(&["list-tests", "--configured", "//a:one"])).expect("parse");
-    assert_eq!(got.command, Command::ListTests);
-    assert!(got.configured);
     for words in [
         vec!["status", "--serve"],
         vec!["status", "--check"],
-        vec!["list-tests", "//a:one", "--from=0.1.0"],
-        vec!["build", "//a:one", "--configured"],
+        vec!["test", "//a:one", "--from=0.1.0"],
         vec!["lint", "--serve"],
-        vec!["check", "//...", "--configured"],
         vec!["status", "--from=0.1.0"],
     ] {
         assert!(
@@ -1086,8 +1079,6 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         vec!["env", "--fail-on=error"],
         vec!["codegen", "--report=sarif=out.sarif"],
         vec!["env", "--from=0.1.0"],
-        vec!["codegen", "--configured"],
-        vec!["env", "--configured"],
     ] {
         assert!(
             matches!(

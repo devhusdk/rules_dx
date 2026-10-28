@@ -186,7 +186,7 @@ example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
 `version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
 - Runs anyway: `version`, `status`, `rollback`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
-- Warns and runs: `check`, `security`, `license`, `list-tests`.
+- Warns and runs: `check`, `security`, `license`.
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it

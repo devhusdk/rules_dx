@@ -255,7 +255,6 @@ pub struct Invocation {
     pub(super) bazel_options: Vec<String>,
     pub(super) app_args: Vec<String>,
     pub prune_unobserved: bool,
-    pub configured: bool,
     pub from: Option<String>,
     pub to: Option<String>,
     pub here: bool,
@@ -639,7 +638,6 @@ mod tests {
             bazel_options: Vec::new(),
             app_args: Vec::new(),
             prune_unobserved: false,
-            configured: false,
             from: None,
             to: None,
             here: true,
@@ -999,7 +997,7 @@ mod tests {
             .quality_request()
             .expect("request");
         let debug = format!("{request:?}");
-        for unrelated in ["serve", "offline", "frozen", "min_coverage", "configured"] {
+        for unrelated in ["serve", "offline", "frozen", "min_coverage"] {
             assert!(
                 !debug.contains(unrelated),
                 "typed quality request cannot represent {unrelated}: {debug}"

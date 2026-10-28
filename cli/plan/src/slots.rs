@@ -231,7 +231,6 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Security
             | Command::License
             | Command::Docs
-            | Command::ListTests
     )
 }
 
@@ -2717,7 +2716,6 @@ mod tests {
             Command::Security,
             Command::License,
             Command::Docs,
-            Command::ListTests,
         ] {
             assert!(needs_slot(command));
         }
@@ -3850,47 +3848,6 @@ mod tests {
                 assert!(lines.is_empty());
             }
         }
-    }
-
-    #[test]
-    fn list_tests_waits_for_a_slot() {
-        let command = Command::ListTests;
-        let scratch = dx_test_scratch::scratch("dx-slots-list-tests-");
-        let cache = scratch.path().to_string_lossy().into_owned();
-        let dir = scratch.path().join("dx").join("slots");
-        let count = slot_count(available_memory().expect("memory"), 0);
-        let held: Vec<Slot> = (0..count)
-            .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
-            .collect();
-        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
-        let (mut err, rx) = Announce::new();
-        let releaser = std::thread::spawn(move || released_after_wait(&rx, held));
-        let mut events = Vec::new();
-        let slot = hold(
-            command,
-            Path::new("/ws"),
-            &get,
-            &mut err,
-            false,
-            &mut events,
-        );
-        assert!(
-            releaser.join().expect("join"),
-            "waiter never announced a wait"
-        );
-        assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
-        let text = err.text();
-        assert!(text.contains(&wait_message(&busy(count))), "{text}");
-        let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
-        let slot = hold(
-            command,
-            Path::new("/ws"),
-            &nested,
-            &mut Vec::new(),
-            false,
-            &mut Vec::new(),
-        );
-        assert!(matches!(slot, Ok(None)));
     }
 
     #[test]

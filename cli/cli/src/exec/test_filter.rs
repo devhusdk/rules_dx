@@ -1,8 +1,9 @@
 use std::path::Path;
 
-use crate::exec::test_inventory::{parse_label_kind, SUPPORTED_CASE_KINDS};
 use dx_codegen::quote_label;
 use dx_plan::resolve::{QueryFailure, QueryRunner, ResolveError, SelectionContext};
+
+pub(crate) const SUPPORTED_CASE_KINDS: [&str; 2] = ["rust_test", "_rust_forward_test"];
 
 const ARG_TOLERANT_KINDS: [&str; 2] = ["rust_clippy_test", "rustfmt_test"];
 
@@ -122,6 +123,31 @@ pub(crate) fn without_libtest_harness(
         .collect())
 }
 
+pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, String> {
+    let text = std::str::from_utf8(stdout).map_err(|_| "query output is not UTF-8".to_owned())?;
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(kind), Some(rule), Some(label)) if rule == "rule" && label.starts_with("//") => {
+                pairs.push((kind.to_owned(), label.to_owned()));
+            }
+            _ => {
+                return Err(format!(
+                    "query returned a malformed test observation: {line}"
+                ));
+            }
+        }
+    }
+    pairs.sort_by(|left, right| left.1.cmp(&right.1).then(left.0.cmp(&right.0)));
+    pairs.dedup_by(|left, right| left.1 == right.1);
+    Ok(pairs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -153,5 +179,24 @@ mod tests {
             Some("tests(\"//a/...\" + \"//b:t\" - \"//a/skip/...\")")
         );
         assert_eq!(tests_expression(&strings(&["-//a/..."])), None);
+    }
+
+    #[test]
+    fn parse_label_kind_reads_sorted_deduped_pairs() {
+        let got = parse_label_kind(b"py_test rule //b:two\nrust_test rule //a:one\n\n")
+            .expect("parse");
+        assert_eq!(
+            got,
+            vec![
+                ("rust_test".to_owned(), "//a:one".to_owned()),
+                ("py_test".to_owned(), "//b:two".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_label_kind_rejects_malformed_rows() {
+        let err = parse_label_kind(b"not a kind line\n").expect_err("malformed");
+        assert!(err.contains("malformed test observation"), "{err}");
     }
 }

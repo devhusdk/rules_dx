@@ -28,7 +28,6 @@ pub enum Command {
     Watch,
     Completion,
     Docs,
-    ListTests,
     Rollback,
     Worktree,
     Explain,
@@ -105,7 +104,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 33] = [
+pub static COMMANDS: [CommandMeta; 32] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -639,25 +638,6 @@ pub static COMMANDS: [CommandMeta; 33] = [
         labels: LabelsPolicy::Always,
     },
     CommandMeta {
-        command: Command::ListTests,
-        name: "list-tests",
-        scope_policy: "default-//...",
-        describe: "list configured test targets without building or running them (non-mutating; --cases builds and runs supported test binaries to list cases)",
-        usage: "Usage: dx list-tests [--cases] [--configured] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected lists only the affected tests, not their reverse dependencies; it cannot be combined with scopes or --here.",
-        is_managed: false,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: true,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
         command: Command::Rollback,
         name: "rollback",
         scope_policy: "reject",
@@ -867,8 +847,8 @@ pub(crate) mod owners {
     pub(crate) const CHECK_OWNERS: [Command; 12] = [
         Lint, Typecheck, Format, Generate, Check, Fix, Clean, Update, Codegen, Env, Version, Docs,
     ];
-    pub(crate) const AFFECTED_OWNERS: [Command; 11] = [
-        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check, Fix, ListTests,
+    pub(crate) const AFFECTED_OWNERS: [Command; 10] = [
+        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check, Fix,
     ];
 }
 
@@ -963,7 +943,6 @@ mod tests {
             Command::Watch,
             Command::Completion,
             Command::Docs,
-            Command::ListTests,
             Command::Rollback,
             Command::Worktree,
             Command::Explain,
@@ -1070,7 +1049,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|rollback|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }

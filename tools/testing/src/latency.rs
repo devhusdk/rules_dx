@@ -418,7 +418,7 @@ mod tests {
         let stats = Stats::of(millis(&[1, 2, 3]), false);
         let table = [Limits::cold(Host::LinuxX86_64, 1000)];
         let line = record_on(
-            "list-tests",
+            "lint",
             Class::BuildsAndExecutes,
             "small",
             "cold",
@@ -436,7 +436,7 @@ mod tests {
         assert!(line.contains("ceiling_max=1000.0ms"), "{line}");
         assert!(line.ends_with("verdict=enforced"), "{line}");
         let unknown = record_on(
-            "list-tests",
+            "lint",
             Class::Metadata,
             "small",
             "cold",

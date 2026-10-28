@@ -66,7 +66,6 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
-    pub(crate) configured: bool,
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
@@ -521,14 +520,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Use cquery instead of query.
-    ConfiguredFlag, {
-        #[arg(long, overrides_with = "configured")]
-        configured: bool,
-    }
-}
-
-flag_group! {
     /// Migrate from this version.
     FromFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "from", value_parser = non_empty)]
@@ -634,14 +625,6 @@ composite_group! {
     FloorArgs, {
         floor: FloorFlag,
         reason: ReasonFlag,
-    }
-}
-
-flag_group! {
-    /// Enumerate supported test cases via the test runtime.
-    CasesFlag, {
-        #[arg(long = "cases", overrides_with = "cases")]
-        cases: bool,
     }
 }
 
@@ -1067,18 +1050,10 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx list-tests` accepts.
-    ListTests => 28, BazelTail, {
-        output: ReadOutputFlag,
-        own: CasesFlag,
-        configured: ConfiguredFlag,
-        here: HereFlag,
-        affected: AffectedFlag,
-    };
     /// The flags `dx rollback` accepts.
-    Rollback => 29, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
+    Rollback => 28, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 30, NoPassthroughTail, {
+    Worktree => 29, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,
@@ -1087,9 +1062,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 31, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
+    Explain => 30, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 32, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 31, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]

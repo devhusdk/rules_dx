@@ -248,16 +248,16 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: macos_arm64
             runner: macos-15
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: windows_x86_64
             runner: windows-latest
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: windows_arm64
             runner: windows-11-arm
             quality: ""
@@ -318,7 +318,7 @@ jobs:
           RUNNER_LABEL: ${{ matrix.runner }}
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools, and the Zig example and hello fixture on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python, JavaScript, and YAML tools, and the Zig example and hello fixture on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
       - name: Prune the Bazel repository cache to this run's downloads
         if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash

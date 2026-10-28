@@ -7,7 +7,7 @@ load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
-load("//android/sdk:repos.bzl", "SDK_PLATFORM")
+load("//android/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
@@ -636,6 +636,7 @@ def _sign_launcher_impl(ctx):
         env["DX_SIGN_APK"] = ctx.file.input.short_path
         env["DX_SIGN_JAVA"] = _rel(java.java_executable_runfiles_path)
         env["DX_SIGN_ZIPALIGN"] = ctx.file.zipalign.short_path
+        env["DX_SIGN_BUILD_TOOLS"] = BUILD_TOOLS
         env["DX_SIGN_APKSIGNER_JAR"] = ctx.file.apksigner_jar.short_path
         env["DX_SIGN_MIN_SDK"] = str(ctx.attr.min_sdk) if ctx.attr.min_sdk != 0 else ""
         env["DX_SIGN_SCHEMES"] = ",".join(ctx.attr.schemes)

@@ -44,7 +44,10 @@ exists. Pass `mirror` to override the download host.
 downloading. The NDK must be present. An explicit `api_level` or a requested
 extra package must exist in the SDK, otherwise the error names the missing
 path. Without them a missing android-34 platform leaves `android_jar` empty.
-The qualified host is Linux x86_64 with NDK r27 targeting API 31.
+Build-tools are only used for signing, so a missing build-tools package does
+not fail the fetch; signing then exits 127 and names the
+`sdk/build-tools/<version>` path to install. The qualified host is Linux
+x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms
 
@@ -187,6 +190,8 @@ only then writes `DX_SIGN_OUT`. Set `--java_runtime_version`, for
 example to `remotejdk_21`; the default `local_jdk` is the host JDK.
 Neither `ANDROID_HOME` nor `PATH` supplies a tool. Missing inputs exit
 2. Missing build-tools (no `configure` tag) or no Java runtime exit 127.
+With `local_path`, the 127 error names the `sdk/build-tools/<version>` path
+to install into that SDK, where `<version>` is the pinned build-tools release.
 A wrong password, wrong alias or malformed package exits 1 without
 writing an APK. Apksigner enables the schemes the
 minimum SDK needs, so an API 31 package carries a v3 signature.

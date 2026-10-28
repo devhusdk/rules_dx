@@ -23,6 +23,28 @@ cc_test(
     deps = [":shapes_cc"],
 )
 
+# The same libraries with the object API: both variants over one shared library
+# must not declare conflicting actions, even in one binary.
+flatbuffers_cc_library(
+    name = "shapes_cc_obj",
+    gen_object_api = True,
+    deps = [
+        "//flatbuffers/tests/api",
+        "//flatbuffers/tests/base",
+    ],
+)
+
+cc_test(
+    name = "cc_both_variants_test",
+    size = "small",
+    srcs = ["cc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [
+        ":shapes_cc",
+        ":shapes_cc_obj",
+    ],
+)
+
 flatbuffers_codegen_shard(
     name = "shapes_cc_shard",
     entries = [
@@ -81,6 +103,7 @@ flatbuffers_codegen_failure_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",

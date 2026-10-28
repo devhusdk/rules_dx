@@ -215,6 +215,63 @@ impl RealBackend {
         Ok(findings)
     }
 
+    pub(super) fn check_clang_syntax_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let workspaces: Vec<&str> = pairs
+            .iter()
+            .map(|(workspace, _)| workspace.as_str())
+            .collect();
+        if tool.upstream_diagnostics.is_empty() {
+            return Err(execution(
+                tool_id,
+                "clang_syntax requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"
+                    .to_owned(),
+            ));
+        }
+        let mut findings = Vec::new();
+        for path in &tool.upstream_diagnostics {
+            let bytes = std::fs::read(path)
+                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+            let stem = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!("clang_syntax log {} has no name", path.display()),
+                    )
+                })?;
+            let key = format!("dx-clang-syntax/{stem}/exit");
+            let code = tool
+                .tool_files
+                .iter()
+                .find(|(rel, _)| *rel == key)
+                .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
+                .and_then(|text| text.trim().parse::<i32>().ok())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "clang_syntax needs the compiler exit status for {stem}; the clang_syntax aspect did not supply it"
+                        ),
+                    )
+                })?;
+            findings.extend(parsed(
+                tool_id,
+                parsers::parse_clang_syntax(&bytes, Some(code), &workspaces),
+            )?);
+        }
+        for found in &mut findings {
+            let absolute = reanchor(tool_id, pairs, &found.file)?;
+            found.file = absolute.to_string_lossy().into_owned();
+        }
+        Ok(findings)
+    }
+
     pub(super) fn check_cppcheck_delegated(
         &self,
         tool_id: &str,

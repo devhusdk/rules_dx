@@ -236,6 +236,7 @@ to.
 | `checkmake` | lint | make |
 | `checkstyle` | lint | java |
 | `clang_format` | format | cc, cuda, objc |
+| `clang_syntax` | typecheck | cc, objc |
 | `clang_tidy` | lint | cc |
 | `clippy` | lint | rust |
 | `cppcheck` | lint | cc |
@@ -316,6 +317,8 @@ to.
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
 | `zig_fmt` | format | zig |
+
+C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clang_syntax"]` on the `cc` family). It replays each compile action of the target with `-fsyntax-only`, using the exact command line, inputs and environment Bazel configured, so includes, defines and copts match the real build. The compiler is whatever the action names, so a GCC toolchain also works; a toolchain without a readable command line (clang-cl/MSVC, params files) fails with an explicit error. Headers are checked only when the target compiles them (`--features=parse_headers`); a header-only library without that feature fails instead of passing unchecked. The tool has no fix support. CUDA is not covered yet (nvcc has no syntax-only mode).
 
 Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format` and `no-typecheck`, so `dx format` and `dx typecheck` skip them. The `fortitude` linter is described under Fortran below.
 

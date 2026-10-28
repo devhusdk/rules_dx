@@ -5,6 +5,7 @@ pub mod buildifier;
 pub mod checkmake;
 pub mod checkstyle;
 pub mod clang_format;
+pub mod clang_syntax;
 pub mod clang_tidy;
 pub mod cppcheck;
 pub mod credo;
@@ -98,6 +99,7 @@ pub use buildifier::parse_buildifier;
 pub use checkmake::parse_checkmake;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
+pub use clang_syntax::parse_clang_syntax;
 pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
 pub use credo::parse_credo;
@@ -1620,6 +1622,14 @@ mod tests {
         super::clang_format::parse_clang_format(input, code, files)
     }
 
+    fn fuzz_clang_syntax(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::clang_syntax::parse_clang_syntax(input, code, files)
+    }
+
     fn fuzz_clang_tidy(
         input: &[u8],
         code: Option<i32>,
@@ -2451,6 +2461,7 @@ mod tests {
         ("checkstyle", fuzz_checkstyle),
         ("tflint", fuzz_tflint),
         ("clang_format", fuzz_clang_format),
+        ("clang_syntax", fuzz_clang_syntax),
         ("clang_tidy", fuzz_clang_tidy),
         ("cppcheck", fuzz_cppcheck),
         ("csharpier", fuzz_csharpier),
@@ -2557,6 +2568,7 @@ mod tests {
         ("checkstyle", include_str!("checkstyle.rs")),
         ("tflint", include_str!("tflint.rs")),
         ("clang_format", include_str!("clang_format.rs")),
+        ("clang_syntax", include_str!("clang_syntax.rs")),
         ("clang_tidy", include_str!("clang_tidy.rs")),
         ("cppcheck", include_str!("cppcheck.rs")),
         ("csharpier", include_str!("csharpier.rs")),

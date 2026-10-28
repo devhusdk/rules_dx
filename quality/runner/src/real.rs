@@ -18,6 +18,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "checkmake",
     "checkstyle",
     "clang_format",
+    "clang_syntax",
     "clang_tidy",
     "clippy",
     "cppcheck",

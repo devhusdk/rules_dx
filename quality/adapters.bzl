@@ -33,6 +33,7 @@ REAL_ADAPTERS = {
     "buildifier": {"format": ["starlark"], "lint": ["starlark"]},
     "checkstyle": {"lint": ["java"]},
     "clang_format": {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
+    "clang_syntax": {"typecheck": ["c", "cpp", "objc", "objcpp"]},
     "clang_tidy": {"lint": ["c", "cpp"]},
     "clippy": {"lint": ["rust"]},
     "cppcheck": {"lint": ["c", "cpp"]},

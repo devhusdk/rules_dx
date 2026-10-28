@@ -23,6 +23,7 @@ load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_config
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
+load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
@@ -71,6 +72,12 @@ _REAL_TOOL_TABLE = {
         "capabilities": ["format"],
         "kind": "file",
         "resources": "light",
+        "shard": "cc",
+    },
+    "clang_syntax": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
         "shard": "cc",
     },
     "clang_tidy": {
@@ -1218,6 +1225,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": roslyn and csc need a csharp_* target compiled with the SDK analyzers")
         roslyn = target[RoslynInfo]
 
+    clang_syntax = None
+    if "clang_syntax" in [stage["tool"] for stage in resolved]:
+        if ClangSyntaxInfo not in target:
+            fail(what + ": clang_syntax needs a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
+        clang_syntax = target[ClangSyntaxInfo]
+
     sql_dialect = None
     if "prettier" in [stage["tool"] for stage in resolved] and SqlDialectInfo in target:
         sql_dialect = target[SqlDialectInfo].dialect
@@ -1573,6 +1586,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(roslyn.sarifs[i])
                 tool_files.append(real_request_tool_file("dx-roslyn/" + roslyn.tfms[i] + "/exit", roslyn.statuses[i].path))
                 inputs.append(roslyn.statuses[i])
+        if tool == "clang_syntax":
+            for i in range(len(clang_syntax.diagnostics)):
+                upstream.append(clang_syntax.diagnostics[i].path)
+                inputs.append(clang_syntax.diagnostics[i])
+                stem = clang_syntax.diagnostics[i].basename.rpartition(".")[0]
+                tool_files.append(real_request_tool_file("dx-clang-syntax/" + stem + "/exit", clang_syntax.statuses[i].path))
+                inputs.append(clang_syntax.statuses[i])
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -1704,6 +1724,13 @@ _REAL_SHARD_SPECS = {
     "real_cc_lint": {
         "capability": "lint",
         "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).",
+        "shard": "cc",
+        "suffix": "-cc",
+    },
+    "real_cc_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive C/C++/Objective-C typecheck family aspect (compiler -fsyntax-only replay).",
+        "requires": [clang_syntax_aspect],
         "shard": "cc",
         "suffix": "-cc",
     },
@@ -2150,6 +2177,8 @@ real_typecheck_aspect = _make_real_aspect("real_typecheck")
 real_cc_format_aspect = _make_real_aspect("real_cc_format")
 
 real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
+
+real_cc_typecheck_aspect = _make_real_aspect("real_cc_typecheck")
 
 real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 

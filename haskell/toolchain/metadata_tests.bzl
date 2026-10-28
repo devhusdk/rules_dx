@@ -65,6 +65,8 @@ def _checks():
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),
+        expect_equal("darwin ships the gmp license", CELLS["macos_arm64"].gmp_license.sha256, "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"),
+        expect_true("darwin fetches the gmp license over https", CELLS["macos_arm64"].gmp_license.url.startswith("https://")),
         expect_true("arm64 mac runs the macos cell", cell_matches_host("macos_arm64", "mac os x", "aarch64")),
         expect_false("linux never runs the macos cell", cell_matches_host("macos_arm64", "linux", "aarch64")),
         expect_true("amd64 host runs the amd64 cell", cell_matches_host("linux_amd64", "Linux", "amd64")),

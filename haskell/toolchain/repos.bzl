@@ -377,6 +377,13 @@ def _ghc_repo_impl(rctx):
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings")), executable = False)
     if cell.runtime:
         _gmp_registration(rctx)
+    gmp_license = getattr(cell, "gmp_license", None)
+    if gmp_license:
+        rctx.download(
+            url = gmp_license.url,
+            output = CLOSURE_DIR + "/licenses/" + gmp_license.name,
+            sha256 = gmp_license.sha256,
+        )
     _execute(rctx, ["bin/ghc-pkg", "recache", "--global"])
     version = _execute(rctx, ["bin/ghc", "--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:

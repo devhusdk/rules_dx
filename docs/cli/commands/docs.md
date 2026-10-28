@@ -85,7 +85,18 @@ library. It builds the crate's rustdoc JSON with the pinned nightly rustdoc, not
 your compiler, and produces a docs IR shard with language `rust`. Only public
 items get pages. Symbol ids have the form `rust:<crate>:<path>`, where `<path>`
 joins the module path with `.`, for example `rust:mylib:shapes.Circle`. Pass the
-shard to `docs_site`. Source links use `source_url` plus the file's path in its
+shard to `docs_site`.
+
+Rust keeps types, values and macros in separate namespaces, so two public items
+can share a name. The item that comes first by namespace (types, then values,
+then macros, and for members fields and variants, then associated types, then
+methods and constants) and then by source position keeps the plain id. Each
+other item gets `@<tag>`, for example `rust:mylib:foo@fn` or
+`rust:mylib:Point.x@method`, and `@<tag>-2`, `@<tag>-3` when several share a
+tag. A glob re-export of a module outside the crate becomes one symbol with the
+id `rust:mylib:<module>@glob`. Glob names follow Rust's shadowing rules: an
+explicit name wins, and a name given by two globs is dropped. Ids of crates
+without collisions never change. Source links use `source_url` plus the file's path in its
 repository.
 
 ```starlark

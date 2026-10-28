@@ -90,9 +90,22 @@ pub fn title(id: &str) -> String {
     let package = parts.next().unwrap_or_default();
     let qualified = parts.next().unwrap_or_default();
     if language == "rust" {
+        // `name@tag` and `name@tag-N` disambiguate items that share a name.
+        let (qualified, note) = match qualified.rsplit_once('@') {
+            Some((name, tag)) => {
+                let note = match tag.rsplit_once('-') {
+                    Some((tag, n)) if n.bytes().all(|b| b.is_ascii_digit()) => {
+                        format!(" ({tag} {n})")
+                    }
+                    _ => format!(" ({tag})"),
+                };
+                (name, note)
+            }
+            None => (qualified, String::new()),
+        };
         let mut path = vec![package.to_string()];
         path.extend(qualified.split('.').map(str::to_string));
-        return path.join("::");
+        return format!("{}{note}", path.join("::"));
     }
     format!("{package}.{qualified}")
 }

@@ -13,14 +13,14 @@ pub const RULE_ROOT: &str = "dx/cloudformation-root";
 /// The largest template dx hands to cfn-lint.
 pub const MAX_TEMPLATE_BYTES: usize = 2 * 1024 * 1024;
 
-/// Config keys that load code, read paths dx never stages, or expand globs outside owned files.
-const FORBIDDEN_CONFIG_KEYS: &[&str] = &[
-    "templates",
-    "ignore_templates",
-    "append_rules",
-    "custom_rules",
-    "override_spec",
-    "update_specs",
+/// The only cfn-lint config keys dx accepts; everything else could load code, read or write unstaged paths, or hide failures.
+const ALLOWED_CONFIG_KEYS: &[&str] = &[
+    "regions",
+    "ignore_checks",
+    "include_checks",
+    "mandatory_checks",
+    "configure_rules",
+    "include_experimental",
 ];
 
 /// One problem the preflight found, placed on the file it was checking.
@@ -114,7 +114,22 @@ fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
                     value_done(&mut stack);
                 }
             }
-            Event::Alias(_) => value_done(&mut stack),
+            Event::Alias(_) => {
+                if matches!(
+                    stack.last(),
+                    Some(Frame::Map {
+                        expecting_key: true,
+                        ..
+                    })
+                ) {
+                    return Err(syntax(
+                        span.start.line(),
+                        span.start.col(),
+                        "an alias used as a mapping key",
+                    ));
+                }
+                value_done(&mut stack);
+            }
             Event::MappingStart(..) | Event::SequenceStart(..) => {
                 if matches!(
                     stack.last(),
@@ -237,7 +252,7 @@ pub fn check_template(path: &str, bytes: &[u8]) -> Option<Problem> {
     ))
 }
 
-/// Refuses a cfn-lint config that loads code or names paths outside the staged files.
+/// Refuses a cfn-lint config with any key outside the allowlist.
 pub fn check_config(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let scanned = scan_yaml(text)
@@ -246,9 +261,10 @@ pub fn check_config(text: &str) -> Result<(), String> {
         return Err("cfn_lint config must be a YAML mapping".to_owned());
     }
     for key in &scanned.root_keys {
-        if FORBIDDEN_CONFIG_KEYS.contains(&key.as_str()) {
+        if !ALLOWED_CONFIG_KEYS.contains(&key.as_str()) {
             return Err(format!(
-                "cfn_lint config key `{key}` is not allowed: it loads code or reads files dx does not stage"
+                "cfn_lint config key `{key}` is not allowed: dx accepts only {}",
+                ALLOWED_CONFIG_KEYS.join(", ")
             ));
         }
     }
@@ -363,14 +379,37 @@ mod tests {
     }
 
     #[test]
+    fn config_accepts_every_allowed_key() {
+        for key in ALLOWED_CONFIG_KEYS {
+            assert!(check_config(&format!("{key}: [x]\n")).is_ok(), "{key}");
+        }
+    }
+
+    #[test]
     fn config_accepts_regions_and_ignore_checks() {
         assert!(check_config("regions: [us-east-1]\nignore_checks: [W2001]\n").is_ok());
         assert!(check_config("").is_ok());
     }
 
     #[test]
-    fn config_rejects_each_forbidden_key() {
-        for key in FORBIDDEN_CONFIG_KEYS {
+    fn config_rejects_each_unlisted_key() {
+        for key in [
+            "templates",
+            "ignore_templates",
+            "append_rules",
+            "custom_rules",
+            "override_spec",
+            "update_specs",
+            "output_file",
+            "non_zero_exit_code",
+            "ignore_bad_template",
+            "format",
+            "merge_configs",
+            "deployment_files",
+            "parameter_files",
+            "registry_schemas",
+            "debug",
+        ] {
             let err = check_config(&format!("{key}: [x]\n")).expect_err(key);
             assert!(err.contains(key), "{err}");
         }
@@ -379,6 +418,12 @@ mod tests {
     #[test]
     fn config_ignores_nested_forbidden_names() {
         assert!(check_config("configure_rules:\n  templates: x\n").is_ok());
+    }
+
+    #[test]
+    fn config_rejects_alias_as_key() {
+        let err = check_config("regions: &k output_file\n*k : include_checks\n").unwrap_err();
+        assert!(err.contains("alias"), "{err}");
     }
 
     #[test]

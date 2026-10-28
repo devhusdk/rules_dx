@@ -114,7 +114,22 @@ fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
                     value_done(&mut stack);
                 }
             }
-            Event::Alias(_) => value_done(&mut stack),
+            Event::Alias(_) => {
+                if matches!(
+                    stack.last(),
+                    Some(Frame::Map {
+                        expecting_key: true,
+                        ..
+                    })
+                ) {
+                    return Err(syntax(
+                        span.start.line(),
+                        span.start.col(),
+                        "an alias used as a mapping key",
+                    ));
+                }
+                value_done(&mut stack);
+            }
             Event::MappingStart(..) | Event::SequenceStart(..) => {
                 if matches!(
                     stack.last(),
@@ -403,6 +418,12 @@ mod tests {
     #[test]
     fn config_ignores_nested_forbidden_names() {
         assert!(check_config("configure_rules:\n  templates: x\n").is_ok());
+    }
+
+    #[test]
+    fn config_rejects_alias_as_key() {
+        let err = check_config("regions: &k output_file\n*k : include_checks\n").unwrap_err();
+        assert!(err.contains("alias"), "{err}");
     }
 
     #[test]

@@ -441,38 +441,68 @@ pub fn vale_check(binary: &Path, ini: &Path, files: &[&Path], ini_dir_rel: &str)
     assemble(binary, head, files, ini_dir_rel)
 }
 
-fn ruff_base(binary: &Path, subcommand: &str, config: Option<&Path>) -> Vec<OsString> {
+/// Inline `src` override so sibling modules next to the checked files classify as
+/// first party even though `--isolated` disables config discovery.
+fn ruff_src_override(files: &[&Path]) -> Option<OsString> {
+    let mut dirs: Vec<String> = files
+        .iter()
+        .filter_map(|file| file.parent())
+        .map(|dir| dir.to_string_lossy().into_owned())
+        .filter(|dir| !dir.is_empty())
+        .collect();
+    dirs.sort();
+    dirs.dedup();
+    if dirs.is_empty() {
+        return None;
+    }
+    let quoted: Vec<String> = dirs
+        .iter()
+        .map(|dir| format!("\"{}\"", dir.replace('\\', "\\\\").replace('"', "\\\"")))
+        .collect();
+    Some(OsString::from(format!("src = [{}]", quoted.join(", "))))
+}
+
+fn ruff_base(
+    binary: &Path,
+    subcommand: &str,
+    config: Option<&Path>,
+    files: &[&Path],
+) -> Vec<OsString> {
     let mut argv = vec![binary.as_os_str().to_owned(), OsString::from(subcommand)];
     if let Some(path) = config {
         argv.push(OsString::from("--config"));
         argv.push(path.as_os_str().to_owned());
     } else {
         argv.push(OsString::from("--isolated"));
+        if let Some(src) = ruff_src_override(files) {
+            argv.push(OsString::from("--config"));
+            argv.push(src);
+        }
     }
     argv.extend(RUFF_HERMETIC_TAIL.iter().map(OsString::from));
     argv
 }
 
 pub fn ruff_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config);
+    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_CHECK_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }
 
 pub fn ruff_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config);
+    let mut head = ruff_base(binary, RUFF_CHECK_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FIX_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }
 
 pub fn ruff_format_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config);
+    let mut head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
     head.extend(RUFF_FORMAT_CHECK_TAIL.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }
 
 pub fn ruff_format_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config);
+    let head = ruff_base(binary, RUFF_FORMAT_SUBCOMMAND[0], config, files);
     assemble(binary, head, files, "")
 }
 

@@ -1261,6 +1261,9 @@ fn worktree_page_shows_every_allow_rule() {
 #[test]
 fn allowlisted_commands_are_read_only() {
     for rule in dx_worktree::setup::allow_rules() {
+        if rule.starts_with("Bash(export DX_WORKTREE_") {
+            continue;
+        }
         let name = rule
             .strip_prefix("Bash(tools/dx ")
             .and_then(|r| r.strip_suffix(" *)"))

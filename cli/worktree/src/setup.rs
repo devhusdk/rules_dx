@@ -77,11 +77,20 @@ fn entry_value(matcher: Option<&str>, command: &str) -> Value {
 /// Read-only commands Claude Code may run without asking. Never add a writer.
 const ALLOW: [&str; 5] = ["check", "test", "build", "status", "version"];
 
+/// Variables the guard hook exports ahead of a dx command; each export is its own
+/// segment, so Manual mode would prompt for it without a rule.
+const EXPORT_ALLOW: [&str; 2] = ["DX_WORKTREE_SESSION", "DX_WORKTREE_HOLDER"];
+
 /// The `permissions.allow` rules a fresh settings file carries.
 pub fn allow_rules() -> Vec<String> {
     ALLOW
         .into_iter()
         .map(|command| format!("Bash(tools/dx {command} *)"))
+        .chain(
+            EXPORT_ALLOW
+                .into_iter()
+                .map(|var| format!("Bash(export {var}=*)")),
+        )
         .collect()
 }
 
@@ -325,7 +334,7 @@ mod tests {
         apply(dir.path()).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert!(missing_allow(&settings).is_empty());
-        assert_eq!(allow_rules().len(), 5);
+        assert_eq!(allow_rules().len(), 7);
         for file in [&CODEX, &GEMINI] {
             let text = std::fs::read_to_string(dir.path().join(file.path)).expect("file");
             assert!(!text.contains("permissions"), "{}", file.path);

@@ -69,6 +69,15 @@ message IgnoredImport {
   reserved 5 to 15;
 }
 
+// One generation failure reported by a language extension.
+message GenerationError {
+  string language = 1;
+  // Unset when the failing package is unknown; "" is the root package.
+  optional string package = 2;
+  string message = 3;
+  reserved 4 to 7;
+}
+
 message GenerationManifest {
   uint32 schema_major = 1;
   uint32 schema_minor = 2;
@@ -76,5 +85,6 @@ message GenerationManifest {
   repeated Scope scopes = 4;
   repeated FileResult files = 5;
   repeated IgnoredImport ignored_imports = 6;
-  reserved 7 to 24;
+  repeated GenerationError errors = 7;
+  reserved 8 to 24;
 }

@@ -38,3 +38,23 @@ func TestErrorSinkTakeEmpties(t *testing.T) {
 		t.Fatalf("Take() after Reset = %#v, want nil", got)
 	}
 }
+
+func TestSortErrorsDedups(t *testing.T) {
+	in := []GenerationError{
+		{Language: "go", Package: "b", Message: "x"},
+		{Language: "cc", Message: "y"},
+		{Language: "go", Package: "b", Message: "x"},
+		{Language: "go", Package: "a", Message: "z"},
+	}
+	want := []GenerationError{
+		{Language: "cc", Message: "y"},
+		{Language: "go", Package: "a", Message: "z"},
+		{Language: "go", Package: "b", Message: "x"},
+	}
+	if got := SortErrors(in); !reflect.DeepEqual(got, want) {
+		t.Fatalf("SortErrors = %+v, want %+v", got, want)
+	}
+	if got := SortErrors(nil); got != nil {
+		t.Fatalf("SortErrors(nil) = %+v, want nil", got)
+	}
+}

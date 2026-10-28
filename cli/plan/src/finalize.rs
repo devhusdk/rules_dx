@@ -1,6 +1,6 @@
 use generation_result::proto::{
-    file_result, Edit, FileResult, GenerationManifest, IgnoredImport, Mode, Modification, Scope,
-    WriteOutcome,
+    file_result, Edit, FileResult, GenerationError, GenerationManifest, IgnoredImport, Mode,
+    Modification, Scope, WriteOutcome,
 };
 use serde::Deserialize;
 use std::path::Path;
@@ -34,6 +34,7 @@ pub struct Finalized {
 pub enum IntendedResult {
     Clean,
     DiffFound,
+    Failed,
 }
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -84,6 +85,17 @@ struct IntendedPayload {
     files: Vec<IntendedFile>,
     #[serde(default)]
     ignored_imports: Vec<IntendedIgnored>,
+    #[serde(default)]
+    errors: Vec<IntendedError>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IntendedError {
+    language: String,
+    #[serde(default)]
+    package: Option<String>,
+    message: String,
 }
 
 #[derive(Deserialize)]
@@ -191,6 +203,24 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
         )));
     }
     match (payload.result, payload.files.is_empty()) {
+        (IntendedResult::Failed, _) if payload.errors.is_empty() => {
+            return Err(FinalizeError::Malformed(
+                "result failed lists no errors".to_owned(),
+            ));
+        }
+        (IntendedResult::Failed, false) => {
+            return Err(FinalizeError::Malformed(format!(
+                "result failed lists {} files",
+                payload.files.len(),
+            )));
+        }
+        (IntendedResult::Clean | IntendedResult::DiffFound, _) if !payload.errors.is_empty() => {
+            return Err(FinalizeError::Malformed(format!(
+                "result {:?} lists {} errors",
+                payload.result,
+                payload.errors.len(),
+            )));
+        }
         (IntendedResult::DiffFound, true) => {
             return Err(FinalizeError::Malformed(
                 "result diff_found lists no files".to_owned(),
@@ -204,9 +234,18 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
         }
         _ => {}
     }
+    if !payload.errors.is_empty() && input.bazel_code == 0 {
+        return Err(FinalizeError::Malformed(
+            "generation errors reported but gazelle exited successfully".to_owned(),
+        ));
+    }
     let witnessed_complete = payload.scopes.iter().all(|s| s.results_complete);
     let gazelle = gazelle_status(input, payload.result, witnessed_complete);
-    if input.check && !witnessed_complete && gazelle != GazelleStatus::Completed {
+    if input.check
+        && payload.errors.is_empty()
+        && !witnessed_complete
+        && gazelle != GazelleStatus::Completed
+    {
         return Err(FinalizeError::IncompleteCheck);
     }
     for file in &payload.files {
@@ -290,6 +329,20 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
         })
         .collect();
 
+    let mut errors: Vec<GenerationError> = payload
+        .errors
+        .into_iter()
+        .map(|e| GenerationError {
+            language: e.language,
+            package: e.package,
+            message: e.message,
+        })
+        .collect();
+    errors.sort_by(|a, b| {
+        (&a.language, &a.package, &a.message).cmp(&(&b.language, &b.package, &b.message))
+    });
+    errors.dedup();
+
     let manifest = GenerationManifest {
         schema_major: generation_result::SCHEMA_MAJOR,
         schema_minor: generation_result::SCHEMA_MINOR,
@@ -301,6 +354,7 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
         scopes,
         files,
         ignored_imports,
+        errors,
     };
     generation_result::validate(&manifest).map_err(FinalizeError::Invalid)?;
     Ok(Finalized { manifest, gazelle })
@@ -888,5 +942,106 @@ mod tests {
             .ignored_imports
             .iter()
             .any(|ignored| ignored.scope_index > 0));
+    }
+
+    fn failed_payload(mode: &str, files: bool, errors: bool) -> Vec<u8> {
+        let files = if files {
+            r#"[{"path":"a/BUILD.bazel","create_content":"YQ=="}]"#
+        } else {
+            "[]"
+        };
+        let errors = if errors {
+            r#"[{"language":"go","package":"pkg","message":"bad"},{"language":"cc","message":"boom"},{"language":"cc","message":"boom"}]"#
+        } else {
+            "[]"
+        };
+        format!(
+            r#"{{"schema_major":1,"schema_minor":2,"mode":"{mode}","result":"failed","scopes":[{{"value":"//...","results_complete":false}}],"files":{files},"errors":{errors}}}"#
+        )
+        .into_bytes()
+    }
+
+    fn run_failed(json: &[u8], check: bool, bazel_code: i32) -> Result<Finalized, FinalizeError> {
+        let dir = dx_test_scratch::scratch("dx-finalize-test-");
+        finalize(&FinalizeInput {
+            intended_json: json,
+            workspace: dir.path(),
+            check,
+            bazel_code,
+            patch_written: false,
+        })
+    }
+
+    #[test]
+    fn failed_payload_finalizes_with_errors() {
+        for check in [true, false] {
+            let mode = if check { "check" } else { "default" };
+            let finalized = run_failed(&failed_payload(mode, false, true), check, 1).unwrap();
+            assert_eq!(finalized.gazelle, GazelleStatus::Failed(1));
+            let manifest = finalized.manifest;
+            assert!(manifest.files.is_empty());
+            assert_eq!(manifest.scopes[0].results_complete, Some(false));
+            let got: Vec<_> = manifest
+                .errors
+                .iter()
+                .map(|e| {
+                    (
+                        e.language.as_str(),
+                        e.package.as_deref(),
+                        e.message.as_str(),
+                    )
+                })
+                .collect();
+            assert_eq!(got, vec![("cc", None, "boom"), ("go", Some("pkg"), "bad")]);
+        }
+    }
+
+    #[test]
+    fn failed_requires_errors_and_no_files() {
+        for json in [
+            failed_payload("default", false, false),
+            failed_payload("default", true, true),
+        ] {
+            assert!(matches!(
+                run_failed(&json, false, 1),
+                Err(FinalizeError::Malformed(_))
+            ));
+        }
+        let clean_with_errors = String::from_utf8(failed_payload("default", false, true))
+            .unwrap()
+            .replace(r#""result":"failed""#, r#""result":"clean""#);
+        assert!(matches!(
+            run_failed(clean_with_errors.as_bytes(), false, 1),
+            Err(FinalizeError::Malformed(_))
+        ));
+    }
+
+    #[test]
+    fn errors_with_exit_zero_rejected() {
+        assert!(matches!(
+            run_failed(&failed_payload("default", false, true), false, 0),
+            Err(FinalizeError::Malformed(_))
+        ));
+    }
+
+    #[test]
+    fn go_emitted_failed_golden_finalizes() {
+        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
+        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
+        let path = Path::new(&root)
+            .join(workspace)
+            .join("gazelle/common/testdata/intended_manifest_failed.json");
+        let json = std::fs::read(&path).unwrap_or_else(|err| panic!("{}: {err}", path.display()));
+        for check in [true, false] {
+            let mode = if check { "check" } else { "default" };
+            let json = String::from_utf8(json.clone())
+                .unwrap()
+                .replace(r#""mode": "check""#, &format!(r#""mode": "{mode}""#))
+                .replace(r#""mode":"check""#, &format!(r#""mode":"{mode}""#));
+            let finalized = run_failed(json.as_bytes(), check, 1)
+                .unwrap_or_else(|err| panic!("Go-emitted failure does not finalize: {err}"));
+            assert_eq!(finalized.gazelle, GazelleStatus::Failed(1));
+            assert!(!finalized.manifest.errors.is_empty());
+        }
     }
 }

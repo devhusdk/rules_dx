@@ -262,6 +262,27 @@ func TestCollectUsedIgnoresMergesUsers(t *testing.T) {
 	}
 }
 
+func readFailedManifest(t *testing.T, path string) common.IntendedManifest {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile manifest: %v", err)
+	}
+	var manifest common.IntendedManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("Unmarshal manifest: %v", err)
+	}
+	if manifest.Result != common.IntendedResultFailed || len(manifest.Files) != 0 {
+		t.Fatalf("manifest = %+v, want a failed result without files", manifest)
+	}
+	for _, scope := range manifest.Scopes {
+		if scope.ResultsComplete {
+			t.Fatalf("scope %+v is complete in a failure manifest", scope)
+		}
+	}
+	return manifest
+}
+
 func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
 	t.Setenv(common.EnvIntendedManifest, out)
@@ -285,8 +306,24 @@ func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 	if !strings.HasPrefix(errOut.String(), "Generation failed:\n") || strings.Count(errOut.String(), "\n") < 2 {
 		t.Fatalf("stderr = %q, want the scope mismatch under one header", errOut.String())
 	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Fatalf("manifest stat = %v, want no manifest written", err)
+	manifest := readFailedManifest(t, out)
+	if len(manifest.Errors) == 0 || manifest.Errors[0].Language != languageName {
+		t.Fatalf("manifest errors = %+v, want the scope error", manifest.Errors)
+	}
+}
+
+func TestAfterResolvingDepsWithoutManifestEnvWritesNothing(t *testing.T) {
+	t.Setenv(common.EnvIntendedManifest, "")
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	common.Errors.Add("go", "", "go: boom")
+	code, _ := stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
+	}
+	if l.manifest != nil {
+		t.Fatalf("manifest recorder = %+v, want nil", l.manifest)
 	}
 }
 
@@ -364,7 +401,8 @@ func stubExit(t *testing.T) (*int, *bytes.Buffer) {
 }
 
 func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
-	t.Setenv(common.EnvIntendedManifest, "")
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
 	l := &dispatchLang{}
 	l.Before(context.Background())
 	common.Errors.Add("go", "", "go: //b:b: unresolved import \"x\"")
@@ -380,6 +418,10 @@ func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
 	}
 	if got := common.Errors.Take(); got != nil {
 		t.Fatalf("sink after report = %#v, want empty", got)
+	}
+	manifest := readFailedManifest(t, out)
+	if len(manifest.Errors) != 2 || manifest.Errors[0].Language != "cc" || manifest.Errors[1].Language != "go" {
+		t.Fatalf("manifest errors = %+v, want cc then go", manifest.Errors)
 	}
 }
 
@@ -631,9 +673,7 @@ func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) || !strings.Contains(errOut.String(), `unknown language "pyton"`) {
 		t.Fatalf("errors = %v, stderr = %q, want the unknown language", l.errors, errOut.String())
 	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Fatalf("manifest stat = %v, want no manifest written", err)
-	}
+	readFailedManifest(t, out)
 }
 
 func langFile(value string) *rule.File {
@@ -690,9 +730,7 @@ func TestAfterResolvingDepsFailsOnLangWithoutDispatch(t *testing.T) {
 	if *code != 1 {
 		t.Fatalf("exit code = %d, want 1", *code)
 	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Fatalf("manifest stat = %v, want no manifest written", err)
-	}
+	readFailedManifest(t, out)
 }
 
 func TestFallbackLanguagesAreComposed(t *testing.T) {
@@ -864,7 +902,8 @@ func TestAndroidNilFile(t *testing.T) {
 }
 
 func TestAfterResolvingDepsRestoresBuildFilesOnFailure(t *testing.T) {
-	t.Setenv(common.EnvIntendedManifest, "")
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
 	dir := t.TempDir()
 	existing := filepath.Join(dir, "BUILD.bazel")
 	created := filepath.Join(dir, "BUILD")
@@ -894,4 +933,5 @@ func TestAfterResolvingDepsRestoresBuildFilesOnFailure(t *testing.T) {
 	if _, err := os.Stat(created); !os.IsNotExist(err) {
 		t.Fatalf("created BUILD stat = %v, want removed", err)
 	}
+	readFailedManifest(t, out)
 }

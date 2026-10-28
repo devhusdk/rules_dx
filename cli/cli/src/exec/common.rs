@@ -215,6 +215,7 @@ pub(crate) const CODE_CLEAN_PRUNED: &str = "clean_pruned";
 pub(crate) const CODE_CLEAN_PRESERVED_LEASED: &str = "clean_preserved_leased";
 pub(crate) const CODE_CLEAN_PRESERVED_UNOBSERVED: &str = "clean_preserved_unobserved";
 pub(crate) const CODE_INVALID_RESULT: &str = "invalid_result";
+pub(crate) const CODE_GENERATION_FAILED: &str = "generation_failed";
 pub(crate) const CODE_MANAGED_COMMIT_FAILED: &str = "managed_commit_failed";
 pub(crate) const CODE_MANAGED_NO_CAPABILITY: &str = "no_capability";
 pub(crate) const CODE_AUDIT_FAILED: &str = "audit_failed";

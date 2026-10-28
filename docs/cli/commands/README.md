@@ -1,6 +1,6 @@
 # Command Reference
 
-Every `dx` command runs through Bazel. Put `dx` flags after the command,
+Every `dx` command except [`dx install`](install.md) runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
 checkout `//:dx` is the same target.
 
@@ -21,6 +21,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx docs`](docs.md)
 - [`dx explain`](explain.md)
 - [`dx init`](init.md)
+- [`dx install`](install.md)
 - [`dx status`, `dx version`](status-version.md)
 - [`dx list-tests`](list-tests.md)
 - [`dx completion`](completion.md)

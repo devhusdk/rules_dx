@@ -118,6 +118,7 @@ fn required_words(command: Command) -> Vec<String> {
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
+        "install" => &["--tag", "v1.2.3", "--archive", "a.tar.gz"],
         _ => &[],
     };
     strings(required)

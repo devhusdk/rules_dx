@@ -24,6 +24,7 @@ mod generate;
 mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
+mod install;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -90,7 +91,11 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
 fn slot_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Worktree | Command::Version | Command::Completion | Command::Explain
+        Command::Worktree
+            | Command::Version
+            | Command::Completion
+            | Command::Explain
+            | Command::Install
     )
 }
 
@@ -274,6 +279,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Explain => explain::execute_explain(invocation, env),
+        Command::Install => install::execute_install(invocation, env),
     }
 }
 
@@ -673,6 +679,7 @@ mod tests {
             Command::Version,
             Command::Completion,
             Command::Explain,
+            Command::Install,
         ] {
             assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
         }
@@ -706,6 +713,7 @@ mod tests {
             Command::Version,
             Command::Completion,
             Command::Explain,
+            Command::Install,
         ] {
             assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
         }

@@ -66,6 +66,7 @@ USER_BOOK = [
         "//docs:cli/commands/new-upgrade.md",
     ),
     mdbook_page("Explain", "docs/cli/commands/explain.md", "//docs:cli/commands/explain.md"),
+    mdbook_page("Install", "docs/cli/commands/install.md", "//docs:cli/commands/install.md"),
     mdbook_page(
         "Offline Bundle",
         "docs/cli/commands/offline-bundle.md",

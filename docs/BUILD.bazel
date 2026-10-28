@@ -40,6 +40,7 @@ real_source_target(
         "cli/commands/generate.md",
         "cli/commands/explain.md",
         "cli/commands/init.md",
+        "cli/commands/install.md",
         "cli/commands/migrate.md",
         "cli/commands/new-upgrade.md",
         "cli/commands/offline-bundle.md",

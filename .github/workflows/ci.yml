@@ -188,6 +188,64 @@ jobs:
         run: |
           echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+  hermetic-arm64:
+    name: hermetic-arm64 (rust_wasi qualification on native linux_arm64)
+    timeout-minutes: 90
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Allow unprivileged user namespaces
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Qualify rust_wasi without installs or network
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          targets=//tools/testing/hermetic:rust_wasi
+          echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $targets
+      - name: Verify the evidence
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
+          done < "$RUNNER_TEMP/hermetic-targets"
+      - name: Collect the evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
+            cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+          done < "$RUNNER_TEMP/hermetic-targets"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: hermetic-evidence-linux_arm64
+          path: ${{ runner.temp }}/hermetic-evidence
+          retention-days: 7
+      - name: Write job summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          echo "### hermetic-arm64 (linux_arm64, rust_wasi) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Qualified the WASI Rust consumer on a native aarch64 Linux runner with the network denied. Evidence is in the hermetic-evidence-linux_arm64 artifact." >> "$GITHUB_STEP_SUMMARY"
   network:
     name: network (requires-network nested consumer tests)
     timeout-minutes: 75

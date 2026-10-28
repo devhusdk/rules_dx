@@ -8,6 +8,9 @@ registers the Lua toolchain, so there is no toolchain setup in
 
 ## Start
 
+`dx new lua` scaffolds a standalone consumer with a library, a binary and a
+test on Linux x86_64.
+
 Load the rules from `@rules_dx//lua/rules:defs.bzl`.
 
 ```python

@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, or `cuda`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, `cuda`, or `lua`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -124,6 +124,7 @@ language rule:
 - `ocaml` takes Bazel module names.
 - `haskell` takes Bazel module names.
 - `cuda` takes Bazel module names.
+- `lua` takes Bazel module names.
 
 A `rust-android` name must also start with a letter and must not be a Java
 keyword, so that `com.example.<name>` is a valid application ID.
@@ -504,3 +505,16 @@ rollback was refused.
 bazel run @rules_dx//:dx -- rollback
 bazel run @rules_dx//:dx -- rollback --apply
 ```
+
+## `dx new lua`
+
+```text
+dx new [--apply] lua [name]
+```
+
+Scaffolds a standalone Lua consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `hello.lua`, `main.lua`, `hello_test.lua` and
+`README.md`. `BUILD.bazel` loads `lua_library`, `lua_binary` and `lua_test` from
+`@rules_dx//lua/rules:defs.bzl`, and `main.lua` loads `hello` with `require`.
+rules_dx registers the Lua toolchain, so nothing is installed on the host. The
+targets need Linux x86_64.

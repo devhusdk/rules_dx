@@ -32,6 +32,7 @@ by `tools/ci/first_build.py render`. Do not edit it by hand.
 | `ocaml` | pending | pending | pending | pending | pending | pending |
 | `haskell` | pending | pending | pending | pending | pending | pending |
 | `cuda` | pending | pending | pending | pending | pending | pending |
+| `lua` | pending | pending | pending | pending | pending | pending |
 
 ## Method
 

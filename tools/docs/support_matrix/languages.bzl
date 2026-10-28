@@ -100,7 +100,7 @@ ROWS = [
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "starters": ["javascript"], "title": "JavaScript"},
     {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "starters": ["kotlin"], "title": "Kotlin"},
-    {"ci_tests": ["//lua/tests/runtime:probe_test"], "name": "lua", "section": "languages", "title": "Lua"},
+    {"ci_tests": ["//lua/tests/runtime:probe_test"], "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
     {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
     {"ci_tests": ["//perl/tests/runtime:probe_test"], "name": "perl", "section": "languages", "title": "Perl"},

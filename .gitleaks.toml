@@ -20,3 +20,11 @@ condition = "AND"
 paths = ["qt/sdk/linux_arm64\\.bzl$", "qt/sdk/linux_x86_64\\.bzl$"]
 regexes = ["libxcb-keysyms\\.so"]
 regexTarget = "match"
+
+[[allowlists]]
+description = "Signing scripts read a throwaway keychain password from a generated file at runtime; the line holds a command substitution, not a secret"
+condition = "AND"
+paths = ["apple/ios/export_ops\\.sh$", "apple/signing/codesign_app\\.sh$"]
+regexes = ["^\\s*keychain_pass=\"\\$\\(cat \"\\$work/keychain\\.pass\"\\)\"$"]
+regexTarget = "line"
+expires = "2027-01-28"

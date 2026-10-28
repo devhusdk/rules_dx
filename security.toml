@@ -44,3 +44,19 @@ set = "cargo"
 versions = "=0.5.5"
 reason = "Pulled by elliptic-curve 0.13.8 and cx448 0.1.1, which need crypto-bigint 0.5; the fix needs 0.7."
 expires = "2027-01-24"
+
+[[exception]]
+advisory = "GHSA-7mx3-vvmw-hjmv"
+package = "@graphql-tools/utils"
+set = "npm"
+versions = "=10.11.0"
+reason = "Pulled only by @graphql-eslint/eslint-plugin 4.4.2, the latest release, which requires ^10; lint-time tool over repo-owned schemas, not shipped; the fix exists only in 12.x."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-c4qx-w738-7hr3"
+package = "@graphql-tools/utils"
+set = "npm"
+versions = "=10.11.0"
+reason = "Pulled only by @graphql-eslint/eslint-plugin 4.4.2, the latest release, which requires ^10; lint-time tool over repo-owned schemas, not shipped; the fix exists only in 12.x."
+expires = "2027-01-28"

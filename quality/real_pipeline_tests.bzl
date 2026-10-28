@@ -174,7 +174,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("prettier", "format"),
                     real_supported_classes("prettier", "typecheck"),
                 ],
-                [[], ["ansible", "api_spec", "api_spec_ref", "astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "kubernetes", "less", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"], []],
+                [[], ["ansible", "api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "kubernetes", "less", "php", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"], []],
             ),
             expect_equal(
                 "real_supported_classes returns buildifier lint support",

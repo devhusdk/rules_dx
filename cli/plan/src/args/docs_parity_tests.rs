@@ -1336,6 +1336,33 @@ fn check_page_lists_every_incomplete_result_cause() {
     );
 }
 
+#[test]
+fn coverage_page_names_every_forced_flag() {
+    use crate::plan::workflow::COVERAGE_COMBINED_REPORT_FLAG;
+    use crate::plan::{
+        BEP_FLAG_NAME, CLIPPY_DIAGNOSTICS_FLAG, DOWNLOAD_TOPLEVEL_FLAG, RUSTC_DIAGNOSTICS_FLAG,
+        SKIP_INCOMPATIBLE_FLAG,
+    };
+    let page = std::fs::read_to_string(docs_dir().join("build-test-coverage.md"))
+        .expect("build-test-coverage.md");
+    let named = backticked(&page);
+    let bep_flag = format!("--{BEP_FLAG_NAME}");
+    let forced = [
+        SKIP_INCOMPATIBLE_FLAG,
+        CLIPPY_DIAGNOSTICS_FLAG,
+        RUSTC_DIAGNOSTICS_FLAG,
+        DOWNLOAD_TOPLEVEL_FLAG,
+        COVERAGE_COMBINED_REPORT_FLAG,
+        bep_flag.as_str(),
+    ];
+    for flag in forced {
+        assert!(
+            named.iter().any(|token| token == flag),
+            "build-test-coverage.md never names forced flag `{flag}` in backticks"
+        );
+    }
+}
+
 fn command_index(readme: &str) -> Vec<(Vec<String>, String)> {
     let mut rows: Vec<(Vec<String>, String)> = Vec::new();
     for line in readme.lines() {

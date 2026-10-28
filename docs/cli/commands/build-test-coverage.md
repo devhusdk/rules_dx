@@ -83,8 +83,8 @@ dx writes its build event file with
 value. A rejected flag fails before Bazel starts with exit `2`.
 
 dx forces these flags and treats them as protected: `--skip_incompatible_explicit_targets`
-(build, test and coverage), the three `--@rules_dx//config:` settings for validation and
-rustc and clippy diagnostics, `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
+(build, test and coverage), the `--@rules_dx//config:clippy_output_diagnostics=true` and
+`--@rules_dx//config:rustc_output_diagnostics=true` settings, `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
 `--combined_report=lcov` (coverage), and `--build_event_json_file`. Another value
 for one of them, and Bazel startup options after `--`, exit `2`.
 

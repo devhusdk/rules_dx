@@ -25,6 +25,7 @@ load(
 )
 load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_with_tag", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":providers.bzl", "OCamlCmtInfo", "bin_annot_opts", "cmt_entries")
 
 ocamllex = _ocamllex
 
@@ -82,9 +83,16 @@ _toolchain = transition(
     outputs = [OCAML_TOOLCHAIN_FLAG],
 )
 
-def _library_forward_rule(provider, name):
+def _cmt_providers(ctx, upstream):
+    groups = upstream[OutputGroupInfo]
+    cmts = groups.cmt.to_list() if hasattr(groups, "cmt") else []
+    cmtis = groups.cmti.to_list() if hasattr(groups, "cmti") else []
+    return [OCamlCmtInfo(owned = cmt_entries(ctx.files.srcs, cmts, cmtis))]
+
+def _library_forward_rule(provider, name, extra_providers = None):
     return dx_library_forward_rule(
-        provides = [provider, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+        extra_providers = extra_providers,
+        provides = [provider, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo] + ([OCamlCmtInfo] if extra_providers else []),
         required_providers = [(provider, name), (_OCamlDepsProvider, "OCamlDepsProvider")],
         quality_specs = _OCAML,
         what = "ocaml_*",
@@ -95,9 +103,9 @@ def _library_forward_rule(provider, name):
         upstream_cfg = _toolchain,
     )
 
-_module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider")
+_module_forward = _library_forward_rule(_OCamlModuleProvider, "OCamlModuleProvider", _cmt_providers)
 
-_signature_forward = _library_forward_rule(_OCamlSignatureProvider, "OCamlSignatureProvider")
+_signature_forward = _library_forward_rule(_OCamlSignatureProvider, "OCamlSignatureProvider", _cmt_providers)
 
 _library_forward = _library_forward_rule(_OCamlLibraryProvider, "OCamlLibraryProvider")
 
@@ -270,10 +278,12 @@ def ocaml_module(name, struct, sig = None, visibility = None, **kwargs):
         module_name = default_module_name(name, sig)
         if module_name != None:
             kwargs["module_name"] = module_name
+    kwargs["opts"] = bin_annot_opts(kwargs.get("opts"))
     _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct))
 
 def ocaml_signature(name, src, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_signature rule."""
+    kwargs["opts"] = bin_annot_opts(kwargs.get("opts"))
     _library_shape(name, _ocaml_signature, _signature_forward, owned_sources(src), visibility, dict(kwargs, src = src))
 
 def ocaml_library(name, visibility = None, **kwargs):

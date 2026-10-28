@@ -36,6 +36,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "yaml",
     "ansible",
     "api_spec",
+    "api_spec_ref",
     "java",
     "kotlin",
     "scala",

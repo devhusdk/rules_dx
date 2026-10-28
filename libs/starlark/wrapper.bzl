@@ -110,9 +110,10 @@ def dx_quality_sources(files, specs, label):
         key = spec[0]
         exts = spec[1] if type(spec[1]) == "list" else [spec[1]]
         excludes = spec[2] if len(spec) > 2 else []
+        spec_files = spec[3] if len(spec) > 3 else files
         matched = [
             f
-            for f in files
+            for f in spec_files
             if f.extension in exts and not _has_excluded_suffix(f.basename, excludes)
         ]
         if key not in buckets:

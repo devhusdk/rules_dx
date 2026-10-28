@@ -16,6 +16,7 @@ quality_family(
     name = "api_spec_family",
     family_id = "api_spec",
     lint = ["redocly"],
+    format = ["prettier"],
 )
 ```
 

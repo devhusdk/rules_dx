@@ -271,7 +271,7 @@ to.
 | `perltidy` | format | perl |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
-| `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
+| `prettier` | format | api_spec, astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
 | `psscriptanalyzer` | format, lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
@@ -1678,6 +1678,7 @@ quality_family(
     name = "api_spec_family",
     family_id = "api_spec",
     lint = ["redocly"],
+    format = ["prettier"],
 )
 ```
 
@@ -1685,6 +1686,10 @@ Declare specs with `api_spec_library`. `srcs` are the roots that get linted.
 `refs` are files the roots reach through `$ref`. `deps` are other
 `api_spec_library` targets whose files a root may refer to. Each accepts
 `.yaml`, `.yml` and `.json`.
+
+Format is opt-in with `format = ["prettier"]` on the `api_spec` family.
+Prettier formats both `srcs` and `refs`; Redocly lints only `srcs`. Files owned
+by `api_spec_library` should not also sit in a `yaml_library`.
 
 ```python
 load("@rules_dx//api_spec/rules:defs.bzl", "api_spec_library")

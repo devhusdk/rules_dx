@@ -1,0 +1,16 @@
+#!/bin/sh
+# Fake dx: new creates a starter, test prints the notice and sleeps in two stretches.
+case "$1" in
+--version) echo "dx 0.0.0-fake" ;;
+new)
+  mkdir -p "$4" && printf 'module(name = "demo")\n' > "$4/MODULE.bazel"
+  [ -n "$HOME" ] && echo "$HOME" > "$4/home.txt"
+  ;;
+test)
+  [ "${FAKE_DX_COLD:-1}" = 1 ] && echo "dx: first run in this workspace; Bazel will fetch toolchains" >&2
+  echo "Analyzing"
+  sleep "${FAKE_DX_SLEEP:-1}"
+  echo "//:demo PASSED"
+  exit "${FAKE_DX_TEST_EXIT:-0}"
+  ;;
+esac

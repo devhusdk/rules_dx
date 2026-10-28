@@ -99,8 +99,7 @@ pub(crate) fn execute_new(
     }
 }
 
-const FIRST_TEST_NOTE: &str =
-    "the first dx test fetches toolchains and dependencies and can take several minutes";
+const FIRST_TEST_NOTE: &str = "the first dx test fetches toolchains and dependencies and can take several minutes; times and download sizes: https://github.com/devhusdk/rules_dx/blob/main/docs/first-build.md";
 
 /// `word` quoted for a POSIX shell when it holds anything beyond plain path characters.
 fn shell_word(word: &str) -> String {

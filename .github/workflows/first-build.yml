@@ -1,0 +1,161 @@
+name: first-build
+
+on:
+  schedule:
+    - cron: "23 5 * * 0"
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: "Comma separated dx new languages to measure. Empty measures all."
+        required: false
+        default: ""
+      runs:
+        description: "Cold runs per language; the median is kept."
+        required: false
+        default: "3"
+      tty:
+        description: "Run dx test on a pseudo terminal instead of a pipe."
+        required: false
+        type: boolean
+        default: false
+      dx_source:
+        description: "checkout builds dx from this commit. launcher is not implemented yet."
+        required: false
+        default: "checkout"
+        type: choice
+        options:
+          - checkout
+          - launcher
+
+permissions:
+  contents: read
+
+concurrency:
+  group: first-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # The hosted image ships Bazelisk. No job here restores a repository or disk cache,
+  # so the measured runs start cold and the dx build below is a cold build too.
+  build-dx:
+    name: build dx
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build dx
+        shell: bash
+        run: |
+          bazel build //cli/cli:dx
+          mkdir -p "$RUNNER_TEMP/dx-bin"
+          cp -L "$(bazel cquery --output=files //cli/cli:dx 2>/dev/null)" "$RUNNER_TEMP/dx-bin/dx"
+          "$RUNNER_TEMP/dx-bin/dx" --version
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: first-build-dx
+          path: ${{ runner.temp }}/dx-bin/dx
+          retention-days: 1
+
+  matrix:
+    name: language matrix
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: List languages
+        id: matrix
+        env:
+          FIRST_BUILD_LANGUAGES: ${{ inputs.languages }}
+        run: |
+          matrix="$(python3 tools/ci/first_build.py matrix --languages "$FIRST_BUILD_LANGUAGES")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  measure:
+    name: measure ${{ matrix.language }}
+    needs: [build-dx, matrix]
+    timeout-minutes: 150
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: first-build-dx
+          path: ${{ runner.temp }}/dx-bin
+      - name: Measure cold first builds
+        env:
+          FIRST_BUILD_LANGUAGE: ${{ matrix.language }}
+          FIRST_BUILD_RUNS: ${{ inputs.runs || '3' }}
+          FIRST_BUILD_TTY: ${{ inputs.tty && 'yes' || 'no' }}
+          FIRST_BUILD_DX_SOURCE: ${{ inputs.dx_source || 'checkout' }}
+        run: |
+          chmod +x "$RUNNER_TEMP/dx-bin/dx"
+          mkdir -p "$RUNNER_TEMP/first-build" "$RUNNER_TEMP/scratch"
+          tty=""
+          if [ "$FIRST_BUILD_TTY" = yes ]; then tty="--tty"; fi
+          python3 tools/ci/first_build.py measure \
+            --language "$FIRST_BUILD_LANGUAGE" \
+            --runs "$FIRST_BUILD_RUNS" \
+            --dx "$RUNNER_TEMP/dx-bin/dx" \
+            --dx-source "$FIRST_BUILD_DX_SOURCE" \
+            --scratch "$RUNNER_TEMP/scratch" \
+            $tty \
+            --out "$RUNNER_TEMP/first-build/first-build-$FIRST_BUILD_LANGUAGE.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: first-build-part-${{ matrix.language }}
+          path: ${{ runner.temp }}/first-build/first-build-${{ matrix.language }}.json
+          retention-days: 14
+
+  report:
+    name: report
+    needs: [measure]
+    if: ${{ !cancelled() && needs.measure.result != 'skipped' }}
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: first-build-part-*
+          path: ${{ runner.temp }}/parts
+          merge-multiple: true
+      - name: Merge, render and check
+        shell: bash
+        run: |
+          out="$RUNNER_TEMP/report"
+          mkdir -p "$out"
+          python3 tools/ci/first_build.py merge docs/first-build.json "$RUNNER_TEMP"/parts/*.json \
+            --date "$(date -u +%F)" --out "$out/first-build.json"
+          python3 tools/ci/first_build.py render --json "$out/first-build.json" --out "$out/first-build.md"
+          {
+            echo "## First build times"
+            echo
+            cat "$out/first-build.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: first-build-report
+          path: ${{ runner.temp }}/report
+          retention-days: 30
+      - name: Check ceilings
+        run: python3 tools/ci/first_build.py check --json "$RUNNER_TEMP/report/first-build.json"

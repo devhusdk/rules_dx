@@ -987,3 +987,43 @@ rust_test(
         "@crates//:serde_json",
     ],
 )
+
+filegroup(
+    name = "first_build_fixtures",
+    srcs = glob(["first_build_fixtures/**"]),
+)
+
+# keep
+python_library(
+    name = "first_build",
+    srcs = ["first_build.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_binary(
+    name = "first_build_bin",
+    main = "first_build.py",
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":first_build"],
+)
+
+# keep
+python_test(
+    name = "first_build_test",
+    size = "small",
+    srcs = ["first_build_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "first_build.py",
+        ":first_build_fixtures",
+        "//docs:first_build_data",
+    ],
+    dep_group = "hello",
+    deps = [
+        ":first_build",
+        ":workflow_testing",
+        "@pypi//pytest",
+    ],
+)

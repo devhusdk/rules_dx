@@ -854,6 +854,10 @@ To run another `flatc`, point the flag at it:
 `--@rules_dx//config:tool_flatc=//tools:flatc`. A target without an
 executable fails with `set --@rules_dx//config:tool_flatc to a flatc binary`.
 
+C++ code generation uses the pinned `flatc` through `flatbuffers_cc_library`
+and does not read this flag. See the codegen pairs in
+[generate](generate.md#codegen-pairs).
+
 ### CUE
 
 `cue fmt` runs from the managed pin for format. Select it in a `cue` family.

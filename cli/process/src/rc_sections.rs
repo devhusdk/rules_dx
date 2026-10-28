@@ -38,6 +38,74 @@ pub fn remote_execution(
     last_value(&options, "--remote_executor").is_some_and(|value| !value.is_empty())
 }
 
+/// The Bazel startup output paths in effect, as written (relative paths joined to the workspace).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct StartupPaths {
+    pub output_user_root: Option<PathBuf>,
+    pub output_base: Option<PathBuf>,
+}
+
+/// The `--output_user_root` and `--output_base` startup options Bazel would use: rc files in
+/// read order, then `startup` (the command line), last one wins and an empty value clears it.
+///
+/// Applies `startup` and `startup:<host os>` lines; named `startup:<config>` lines are ignored,
+/// as Bazel does. `startup:<os>` needs Bazel 9.0.2 or later; on older Bazel the guess is wrong
+/// and the only effect is that keep-warm finds no server.
+pub fn startup_output_paths(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup: &[String],
+) -> StartupPaths {
+    startup_output_paths_for_os(
+        env_get,
+        workspace,
+        read_file,
+        read_user_rc,
+        startup,
+        std::env::consts::OS,
+    )
+}
+
+fn startup_output_paths_for_os(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup: &[String],
+    host_os: &str,
+) -> StartupPaths {
+    let lines = load_rc(env_get, workspace, read_file, read_user_rc, startup);
+    let mut tokens: Vec<&str> = Vec::new();
+    for line in &lines {
+        if line.command == "startup"
+            && line
+                .config
+                .as_deref()
+                .is_none_or(|config| config == host_os)
+        {
+            tokens.extend(line.tokens.iter().map(String::as_str));
+        }
+    }
+    tokens.extend(startup.iter().map(String::as_str));
+    let last = |name: &str| {
+        let mut found: Option<&str> = None;
+        for (index, token) in tokens.iter().enumerate() {
+            if let Some(value) = flag_value(token, tokens.get(index + 1).copied(), name) {
+                found = Some(value);
+            }
+        }
+        found
+            .filter(|value| !value.is_empty())
+            .map(|value| workspace.join(value))
+    };
+    StartupPaths {
+        output_user_root: last("--output_user_root"),
+        output_base: last("--output_base"),
+    }
+}
+
 const NESTED_BAZEL_TAG: &str = "resources:nested_bazel";
 
 /// Whether the effective `test` options leave `resources:nested_bazel` tests selected by `--test_tag_filters`.

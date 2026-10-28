@@ -273,3 +273,79 @@ fn test_tag_filters_decide_whether_nested_bazel_tests_run() {
         "build --test_tag_filters=-resources:nested_bazel\n"
     ));
 }
+
+fn paths(host: &Host, os: &str, startup: &[&str], env: &[(&str, &str)]) -> StartupPaths {
+    let env = |name: &str| {
+        env.iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, value)| (*value).to_owned())
+    };
+    let read = |path: &Path| host.files.get(path).cloned();
+    let startup: Vec<String> = startup.iter().map(|opt| (*opt).to_owned()).collect();
+    startup_output_paths_for_os(&env, Path::new(WS), &read, host.read_user_rc, &startup, os)
+}
+
+fn root(host: &Host) -> Option<PathBuf> {
+    paths(host, "linux", &[], &[("HOME", "/home/u")]).output_user_root
+}
+
+#[test]
+fn startup_root_reads_both_forms_and_last_wins() {
+    let eq = Host::new().file(WS_RC, "startup --output_user_root=/a\n");
+    assert_eq!(root(&eq), Some(PathBuf::from("/a")));
+    let split = Host::new().file(WS_RC, "startup --output_user_root /b\n");
+    assert_eq!(root(&split), Some(PathBuf::from("/b")));
+    let home = Host::new()
+        .file(WS_RC, "startup --output_user_root=/a\n")
+        .file(HOME_RC, "startup --output_user_root=/h\n");
+    assert_eq!(root(&home), Some(PathBuf::from("/h")));
+}
+
+#[test]
+fn startup_argv_beats_rc() {
+    let host = Host::new().file(WS_RC, "startup --output_base=/a\n");
+    let got = paths(&host, "linux", &["--output_base=/c"], &[]);
+    assert_eq!(got.output_base, Some(PathBuf::from("/c")));
+}
+
+#[test]
+fn startup_os_lines_apply_only_on_the_host_os() {
+    let host = Host::new().file(
+        WS_RC,
+        "startup:linux --output_user_root=/l\nstartup:foo --output_user_root=/f\n",
+    );
+    assert_eq!(root(&host), Some(PathBuf::from("/l")));
+    assert_eq!(paths(&host, "windows", &[], &[]).output_user_root, None);
+}
+
+#[test]
+fn startup_follows_try_import_and_bazelrc_env() {
+    let host = Host::new()
+        .file(WS_RC, "try-import /x/extra.rc\n")
+        .file("/x/extra.rc", "startup --output_user_root=/imp\n")
+        .file("/y/env.rc", "startup --output_base=/envb\n");
+    assert_eq!(root(&host), Some(PathBuf::from("/imp")));
+    let got = paths(&host, "linux", &[], &[("BAZELRC", "/y/env.rc")]);
+    assert_eq!(got.output_base, Some(PathBuf::from("/envb")));
+}
+
+#[test]
+fn startup_hermetic_skips_home_and_build_lines_are_ignored() {
+    let host = Host::new()
+        .file(HOME_RC, "startup --output_user_root=/h\n")
+        .file(WS_RC, "build --output_base=/nope\n")
+        .hermetic();
+    let got = paths(&host, "linux", &[], &[("HOME", "/home/u")]);
+    assert_eq!(got, StartupPaths::default());
+}
+
+#[test]
+fn startup_relative_joins_workspace_and_empty_clears() {
+    let rel = Host::new().file(WS_RC, "startup --output_user_root=out\n");
+    assert_eq!(root(&rel), Some(PathBuf::from("/ws/out")));
+    let empty = Host::new().file(
+        WS_RC,
+        "startup --output_user_root=/a\nstartup --output_user_root=\n",
+    );
+    assert_eq!(root(&empty), None);
+}

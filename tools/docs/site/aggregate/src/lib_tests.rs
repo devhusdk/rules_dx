@@ -472,6 +472,11 @@ fn dx_links_resolve_to_relative_pages_and_unknown_ids_become_code() {
     assert!(page.contains("`[x](dx:java:demo:a.Shape)`"), "{page}");
     assert!(page.contains("\n[y](dx:java:demo:a.Shape)\n"), "{page}");
     assert!(page.contains("```java\npublic class Circle\n```"), "{page}");
+    assert!(
+        rendered.api.contains("## Java library `demo`"),
+        "{}",
+        rendered.api
+    );
 }
 
 #[test]

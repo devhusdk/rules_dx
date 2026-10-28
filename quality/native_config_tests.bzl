@@ -146,6 +146,11 @@ def native_config_unit_tests(name):
                 [".json", "djlint.toml", ".yaml", ".yaml", ".json"],
             ),
             expect_equal(
+                "native_config_extension pins the gplint JSON transport",
+                native_config_extension("gplint"),
+                ".gplintrc",
+            ),
+            expect_equal(
                 "native_config_extension pins the graphql_eslint JSON transport",
                 native_config_extension("graphql_eslint"),
                 ".json",
@@ -218,7 +223,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "ansible_lint, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cppcheck, credo, csharpier, dart, djlint, elvis, eslint, fsharplint, gersemi, graphql_eslint, hadolint, kubeconform, latexindent, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
+                "ansible_lint, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cppcheck, credo, csharpier, dart, djlint, elvis, eslint, fsharplint, gersemi, gplint, graphql_eslint, hadolint, kubeconform, latexindent, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",

@@ -51,6 +51,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "dart": [".yaml"],
     "fsharplint": [".json"],
     "gersemi": [".gersemirc", ".yaml", ".yml"],
+    "gplint": [".gplintrc", ".json"],
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
     "kubeconform": [".kubeconform.json"],
@@ -251,6 +252,8 @@ qmllint_config = _make_native_config_rule("qmllint")
 prettier_config = _make_native_config_rule("prettier")
 
 stylelint_config = _make_native_config_rule("stylelint")
+
+gplint_config = _make_native_config_rule("gplint")
 
 graphql_eslint_config = _make_native_config_rule("graphql_eslint")
 

@@ -265,6 +265,7 @@ to.
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
+| `gplint` | lint | gherkin |
 | `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
 | `jsonnet_lint` | lint | jsonnet |
@@ -2612,6 +2613,30 @@ analysis error. Without the attribute, the suffix decides. The pinned options
 keep SQL keywords in the case you wrote them. XML namespaces, prefixes, attribute quotes, attribute order and
 text stay as written. Gherkin keeps its step text and tags. `.prettierrc`,
 `.editorconfig` and other user config files are ignored.
+
+### Gherkin lint
+
+`gplint` 2.6.0 runs from the managed pin for lint in the `gherkin` family. It
+runs on Linux x86_64 and never writes. Prettier owns layout, so the default
+rules cover meaning only: unnamed features and scenarios, empty files and
+backgrounds, outlines without examples, unused variables, duplicate, superfluous
+and homogenous tags, and scenario names repeated inside one feature.
+
+```python
+quality_family(
+    name = "gherkin_family",
+    family_id = "gherkin",
+    format = ["prettier"],
+    lint = ["gplint"],
+)
+```
+
+A syntax error is reported as a finding on its line. A crash, a missing report
+or an invalid config fails the run with the cause named. It never counts as
+clean. To change the rules, bind a `gplint_config` to the library with
+`aspect_hints`. The file is a `.gplintrc` or `.json` rule map and replaces the
+default rules. Rules that compare files, such as `no-dupe-feature-names`, give
+results that depend on which files share a batch, so avoid them.
 
 ### PowerShell
 

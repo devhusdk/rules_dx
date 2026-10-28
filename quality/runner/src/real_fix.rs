@@ -358,7 +358,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
         | "clippy" | "roslyn" | "csc" | "fsharplint" | "checkstyle" | "dscanner" | "fortitude"
         | "perlcritic" | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy"
-        | "cppcheck" | "staticcheck" | "govet" | "errcheck" | "stylelint" | "rubocop"
+        | "cppcheck" | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint" | "rubocop"
         | "yamllint" | "shellcheck" | "hadolint" | "redocly" | "kubeconform" | "helm"
         | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "credo" | "dialyzer" | "elvis"
         | "phpcs" | "phpstan" | "regal" | "tsc" => Ok(Route::Keep),

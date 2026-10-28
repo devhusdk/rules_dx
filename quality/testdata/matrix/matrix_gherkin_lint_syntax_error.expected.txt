@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_gherkin_lint_syntax_error
+capability LINT
+stages 1
+stage gplint classes=gherkin sources=matrix/gplint_broken.feature
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR gplint unexpected-error matrix/gplint_broken.feature 0 16 fixable=false "(1:1): expected: #EOF, #Language, #TagLine, #FeatureLine, #Comment, #Empty, got 'Given a greeting'"
+terminal 1
+terminal ERROR gplint unexpected-error matrix/gplint_broken.feature 0 16 fixable=false "(1:1): expected: #EOF, #Language, #TagLine, #FeatureLine, #Comment, #Empty, got 'Given a greeting'"
+replacements 0

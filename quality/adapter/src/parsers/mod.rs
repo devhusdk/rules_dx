@@ -36,6 +36,7 @@ pub mod go_analysis;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
+pub mod gplint;
 pub mod hadolint;
 pub mod helm;
 pub mod jsonnet_lint;
@@ -134,6 +135,7 @@ pub use go_analysis::{parse_go_analysis, parse_gotype};
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
+pub use gplint::parse_gplint;
 pub use hadolint::parse_hadolint;
 pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, RenderedFile};
 pub use jsonnet_lint::parse_jsonnet_lint;
@@ -2265,6 +2267,14 @@ mod tests {
         super::checkmake::parse_checkmake(input, input, code, files, None)
     }
 
+    fn fuzz_gplint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::gplint::parse_gplint(input, code, files)
+    }
+
     fn fuzz_gersemi(
         input: &[u8],
         code: Option<i32>,
@@ -2561,6 +2571,7 @@ mod tests {
         ("google_java_format", fuzz_google_java_format),
         ("graphql_eslint", fuzz_graphql_eslint),
         ("govet", fuzz_govet),
+        ("gplint", fuzz_gplint),
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
         ("jsonnet_lint", fuzz_jsonnet_lint),
@@ -2670,6 +2681,7 @@ mod tests {
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("govet", include_str!("govet.rs")),
+        ("gplint", include_str!("gplint.rs")),
         ("hadolint", include_str!("hadolint.rs")),
         ("helm", include_str!("helm.rs")),
         ("jsonnet_lint", include_str!("jsonnet_lint.rs")),

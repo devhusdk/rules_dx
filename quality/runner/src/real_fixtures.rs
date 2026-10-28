@@ -731,6 +731,49 @@ pub(super) fn biome_hinted(
     roundtrip_biome(argv, cwd, env)
 }
 
+/// A fake gplint: it checks the argv contract, then reports on the realpath of the file.
+pub(super) fn roundtrip_gplint(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(cwd.is_dir());
+    let value = |flag: &str| {
+        argv.windows(2)
+            .find(|pair| pair[0] == flag)
+            .map(|pair| PathBuf::from(&pair[1]))
+            .expect("gplint takes -c and -f")
+    };
+    assert_eq!(value("-f"), PathBuf::from("json"));
+    assert!(value("-c").is_file(), "config is materialized");
+    let config = std::fs::read_to_string(value("-c")).expect("config is readable");
+    let file = last_file(argv);
+    let real = std::fs::canonicalize(&file).expect("checked file is materialized");
+    let text = std::fs::read_to_string(&file).expect("checked file is readable");
+    if text.contains("BROKEN") {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: b"Error running gplint\n".to_vec(),
+        });
+    }
+    let mut messages = String::new();
+    if text.contains("Feature:\n") && config.contains("no-unnamed-features") {
+        messages = r#"{"level":2,"message":"Missing Feature name","rule":"no-unnamed-features","line":1,"column":1}"#
+            .to_owned();
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!messages.is_empty())),
+        stdout: format!(
+            r#"[{{"filePath":"{}","errors":[{messages}]}}]"#,
+            json_escape(&real.to_string_lossy())
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
 pub(super) fn roundtrip_graphql_eslint(
     argv: &[OsString],
     cwd: &Path,

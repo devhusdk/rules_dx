@@ -806,6 +806,72 @@ fn graphql_eslint_usage_errors_are_never_clean() {
     assert!(err.to_string().contains("matches no file"), "{err}");
 }
 
+fn gplint_tool() -> RealTool {
+    plain_tool()
+}
+
+#[test]
+fn gplint_reports_findings_with_the_default_config_and_never_fixes() {
+    let backend = backend_for("gplint", gplint_tool(), roundtrip_gplint);
+    let findings = backend
+        .diagnose(
+            "gplint",
+            "lint",
+            &single(
+                "features/a.feature",
+                "Feature:\n  Scenario: s\n    Given x\n",
+            ),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "gplint");
+    assert_eq!(findings[0].rule_id, "no-unnamed-features");
+    assert_eq!(findings[0].path, "features/a.feature");
+    assert!(backend
+        .diagnose(
+            "gplint",
+            "lint",
+            &single("features/a.feature", "Feature: a\n  Scenario: s\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+    let dirty = "Feature:\n  Scenario: s\n    Given x\n";
+    assert_eq!(
+        backend
+            .apply_fix("gplint", "features/a.feature", dirty, "lint")
+            .expect("check-only"),
+        dirty
+    );
+}
+
+#[test]
+fn gplint_consumer_config_replaces_the_defaults() {
+    let tool = RealTool {
+        config_rel: Some("cfg/gplint.json".to_owned()),
+        tool_files: vec![("cfg/gplint.json".to_owned(), b"{}".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("gplint", tool, roundtrip_gplint);
+    assert!(backend
+        .diagnose(
+            "gplint",
+            "lint",
+            &single("features/a.feature", "Feature:\n  Scenario: s\n")
+        )
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn gplint_crashes_are_never_clean() {
+    let backend = backend_for("gplint", gplint_tool(), roundtrip_gplint);
+    let err = backend
+        .diagnose("gplint", "lint", &single("features/a.feature", "BROKEN\n"))
+        .expect_err("empty stdout fails");
+    assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
+    assert!(err.to_string().contains("Error running gplint"), "{err}");
+}
+
 fn recording_eslint(
     argv: &[OsString],
     cwd: &Path,

@@ -1258,6 +1258,30 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&julia_format_fix(Path::new(BIN), &[julia])),
         vec![BIN, "--apply", "/scratch/sample.jl"]
     );
+    let pm = Path::new("/scratch/sample.pm");
+    assert_eq!(
+        argv_strings(&perltidy_check(Path::new(BIN), pm)),
+        vec![
+            BIN,
+            "--noprofile",
+            "--standard-output",
+            "--standard-error-output",
+            "--output-line-ending=unix",
+            "/scratch/sample.pm"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&perltidy_fix(Path::new(BIN), &[pm])),
+        vec![
+            BIN,
+            "--noprofile",
+            "-b",
+            "-bext=/",
+            "--standard-error-output",
+            "--output-line-ending=unix",
+            "/scratch/sample.pm"
+        ]
+    );
     let erl = Path::new("/scratch/sample.erl");
     assert_eq!(
         argv_strings(&erlfmt_check(Path::new(BIN), &[erl])),

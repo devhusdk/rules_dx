@@ -4,6 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -31,6 +32,9 @@ _D_LINT_POLICY = _CANONICAL + "//quality/testdata:d_lint_policy"
 _JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
 _JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
 _JULIA_FORMAT_TOOL = _CANONICAL + "//julia/tools:julia_format"
+_PERL_POLICY = _CANONICAL + "//quality/testdata:perl_policy"
+_PERLTIDY_SETTING = _CANONICAL + "//config:tool_perltidy"
+_PERLTIDY_TOOL = _CANONICAL + "//perl/tools:perltidy"
 _ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
@@ -119,6 +123,29 @@ d_subject = rule(
     implementation = _d_subject_impl,
     attrs = {
         "_dfmt": attr.label(default = "//config:tool_dfmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _perl_subject_impl(ctx):
+    """Exposes the resolved perltidy binary and the format results beside the real aspect."""
+    tool = ctx.attr._perltidy[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["perltidy"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "perltidy": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+perl_subject = rule(
+    implementation = _perl_subject_impl,
+    attrs = {
+        "_perltidy": attr.label(default = "//config:tool_perltidy"),
         "target": attr.label(
             aspects = [real_format_aspect],
             mandatory = True,
@@ -392,6 +419,51 @@ def dscanner_flag_tests(name, subject):
         name = name + "_set_test",
         size = "small",
         target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+
+def _perltidy_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's perltidy."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["perltidy"])
+    asserts.true(env, fields["wrapper"].endswith("/Perl-Tidy_bin_perltidy") or fields["wrapper"].endswith("/Perl-Tidy_bin_perltidy.exe"), "want perltidy, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
+    return analysistest.end(env)
+
+_perltidy_default_test = analysistest.make(
+    _perltidy_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _PERL_POLICY},
+)
+
+def _perltidy_wired_impl(ctx):
+    """Asserts the flag wires perltidy and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["perltidy"].endswith("/perltidy") or fields["perltidy"].endswith("/perltidy.exe") or fields["perltidy"].endswith("/Perl-Tidy_bin_perltidy"), "want perltidy, got " + fields["perltidy"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
+    return analysistest.end(env)
+
+_perltidy_set_test = analysistest.make(
+    _perltidy_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _PERL_POLICY,
+        _PERLTIDY_SETTING: _PERLTIDY_TOOL,
+    },
+)
+
+def perltidy_flag_tests(name, subject):
+    """Instantiates the perltidy flag proofs; Perl targets build only on rules_perl platforms."""
+    _perltidy_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = PERL_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _perltidy_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
 

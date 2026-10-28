@@ -4,6 +4,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 perl_library(
     name = "dx_probe",
     srcs = ["lib/DxProbe.pm"],
+    visibility = ["//quality/testdata:__pkg__"],
 )
 
 perl_binary(

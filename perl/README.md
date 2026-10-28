@@ -90,9 +90,12 @@ under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
 
 ## Quality
 
-Perl sources form the `perl` class, so `dx check` sees them. No Perl
-formatter or linter runs yet. Until one does, the Perl rules add the
-`no-format`, `no-lint` and `no-typecheck` tags to every target.
+Perl sources form the `perl` class, so `dx check` sees them. The Perl
+wrappers carry perltidy 20260826, which `dx check` and `dx fix` run as the
+formatter with its default style, LF line endings and no profile, so
+`.perltidyrc` and `$PERLTIDY` are never read. No Perl linter runs yet. Until one
+does, the Perl rules add the `no-lint` and `no-typecheck` tags to every target.
+Set `--@rules_dx//config:tool_perltidy` to use another perltidy.
 
 ## Platforms
 

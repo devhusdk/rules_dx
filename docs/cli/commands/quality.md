@@ -268,6 +268,7 @@ to.
 | `notebook_outputs` | lint | jupyter |
 | `ormolu` | format | haskell |
 | `opa` | format, typecheck | rego |
+| `perltidy` | format | perl |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
 | `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
@@ -318,15 +319,18 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `erlfmt`, `mix_format`, `credo`, `ormolu`
+  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `mix_format`,
+  `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
-  `dscanner`, `erlfmt`, `mix_format` and `credo` alternates must be executable targets, such as
+  `dscanner`, `perltidy`, `erlfmt`, `mix_format` and `credo` alternates must be
+  executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
+  `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
@@ -454,6 +458,31 @@ dx runs `dscanner --styleCheck` with the upstream default checks, so findings
 include its documentation and style rules. It ignores `dscanner.ini` files for
 now. A file with a syntax error reports an error at its line and column. There
 is no `--apply` fix.
+
+### Perl formatting
+
+`perltidy` uses the pinned Perl::Tidy 20260826 that `perl_library`,
+`perl_binary` and `perl_test` carry. Select `perltidy` in a `perl` family. No
+flag is needed. Lint and typecheck stay deferred for Perl.
+
+```python
+quality_family(
+    name = "perl_family",
+    family_id = "perl",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["perltidy"],
+)
+```
+
+To use your own perltidy, set
+`--@rules_dx//config:tool_perltidy=@rules_dx//perl/tools:perltidy`.
+
+The check formats each file to standard output, compares it with the file and
+never writes. `--apply` runs `perltidy -b -bext=/`, so no backup or `.ERR` file
+is left. A file perltidy cannot parse reports a syntax error and stays
+untouched. dx runs perltidy with its default style and LF line endings and
+always passes `--noprofile`, so `.perltidyrc` and `$PERLTIDY` are ignored.
+
 
 ### Erlang formatting
 

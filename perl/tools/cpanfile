@@ -1,0 +1,1 @@
+requires 'Perl::Tidy', '== 20260826';

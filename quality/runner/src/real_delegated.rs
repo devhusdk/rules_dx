@@ -182,6 +182,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "nixfmt",
         "ormolu",
         "opa",
+        "perltidy",
         "pkl",
         "psscriptanalyzer",
         "qmlformat",
@@ -415,6 +416,75 @@ pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
         .apply_fix("dfmt", "a.d", "void f(){} // warned\n", "format")
         .expect("fix round");
     assert_eq!(fixed, "void f()\n{} // warned\n");
+}
+
+fn perltidy_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--noprofile"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let inplace = argv.contains(&OsString::from("-b"));
+    if text.contains("broken") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: if inplace {
+                Vec::new()
+            } else {
+                text.into_bytes()
+            },
+            stderr: format!("{file}:1: final indentation level: 1\n").into_bytes(),
+        });
+    }
+    let formatted = text.replace("f{", "f {");
+    if inplace {
+        std::fs::write(&file, &formatted).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: formatted.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn perltidy_checks_one_file_at_a_time_and_reports_a_syntax_error() {
+    let backend = backend_for("perltidy", plain_tool(), perltidy_behavior);
+    let clean = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f {}\n"))
+        .expect("check");
+    assert!(clean.is_empty());
+    let dirty = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f{}\n"))
+        .expect("check");
+    assert_eq!(dirty.len(), 1);
+    let broken = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f { broken\n"))
+        .expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+}
+
+#[test]
+pub(super) fn perltidy_fix_keeps_a_file_it_could_not_parse() {
+    let backend = backend_for("perltidy", plain_tool(), perltidy_behavior);
+    let fixed = backend
+        .apply_fix("perltidy", "a.pm", "sub f{}\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "sub f {}\n");
+    let broken = "sub f { broken\n";
+    let kept = backend
+        .apply_fix("perltidy", "a.pm", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
 }
 
 fn opa_behavior(

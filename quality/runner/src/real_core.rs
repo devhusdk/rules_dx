@@ -190,6 +190,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "notebook_outputs",
             "ormolu",
             "opa",
+            "perltidy",
             "pkl",
             "pmd",
             "prettier",

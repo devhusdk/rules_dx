@@ -894,6 +894,23 @@ impl RealBackend {
                     parsers::parse_typstyle(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "perltidy" => {
+                // One process per file: --standard-output takes a single file.
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    let invocation = commands::perltidy_check(&tool.binary, absolute.as_path());
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let input = std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                    let name = absolute.to_string_lossy();
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_perltidy(&out.stdout, &out.stderr, out.code, &input, &name),
+                    )?;
+                    findings.extend(found);
+                }
+                Ok(findings)
+            }
             "erlfmt" => {
                 let invocation = commands::erlfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

@@ -497,6 +497,14 @@ cpan.install(
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
+perl_tools_cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
+perl_tools_cpan.install(
+    name = "dx_perl_cpan",
+    bins = {"Perl-Tidy": ["bin/perltidy"]},
+    lock = "//perl/tools:cpanfile.snapshot.lock.json",
+)
+use_repo(perl_tools_cpan, "dx_perl_cpan")
+
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.component(
     name = "cuda_cccl",
@@ -796,7 +804,10 @@ register_toolchains("@rust_toolchains//:all")
 dx_rustdoc = use_extension("//tools/docs/rust:extensions.bzl", "dx_rustdoc", dev_dependency = True)
 use_repo(dx_rustdoc, "dx_rustdoc_toolchains")
 
-register_toolchains("@dx_rustdoc_toolchains//:all", dev_dependency = True)
+register_toolchains(
+    "@dx_rustdoc_toolchains//:all",
+    dev_dependency = True,
+)
 
 wasm_bindgen = use_extension("@rules_rust_wasm_bindgen//:extensions.bzl", "rust_ext")
 use_repo(
@@ -990,23 +1001,38 @@ _consumer_hub_repo(
 
 _docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
 
-_docs_consumer_repo(name = "dx_docs_consumer", dev_dependency = True)
+_docs_consumer_repo(
+    name = "dx_docs_consumer",
+    dev_dependency = True,
+)
 
 _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
 
-_consumer_dx_repo(name = "dx_consumer_entry", dev_dependency = True)
+_consumer_dx_repo(
+    name = "dx_consumer_entry",
+    dev_dependency = True,
+)
 
 _consumer_sets_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_sets_repo")
 
-_consumer_sets_repo(name = "dx_consumer_sets", dev_dependency = True)
+_consumer_sets_repo(
+    name = "dx_consumer_sets",
+    dev_dependency = True,
+)
 
 _consumer_scaffold_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_scaffold_repo")
 
-_consumer_scaffold_repo(name = "dx_consumer_scaffold", dev_dependency = True)
+_consumer_scaffold_repo(
+    name = "dx_consumer_scaffold",
+    dev_dependency = True,
+)
 
 _consumer_completion_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_completion_repo")
 
-_consumer_completion_repo(name = "dx_consumer_completion", dev_dependency = True)
+_consumer_completion_repo(
+    name = "dx_consumer_completion",
+    dev_dependency = True,
+)
 
 _consumer_cc_repo = use_repo_rule("//cc/tests/fixtures/consumer_cc:repos.bzl", "consumer_cc_repo")
 
@@ -1285,12 +1311,12 @@ use_repo(
     "dx_mdbook_macos_arm64",
     "dx_mdbook_windows_x86_64",
     "dx_nixfmt_linux_x86_64",
-    "dx_ormolu_linux_x86_64",
-    "dx_ormolu_windows_x86_64",
     "dx_opa_linux_arm64",
     "dx_opa_linux_x86_64",
     "dx_opa_macos_arm64",
     "dx_opa_windows_x86_64",
+    "dx_ormolu_linux_x86_64",
+    "dx_ormolu_windows_x86_64",
     "dx_pkl_linux_arm64",
     "dx_pkl_linux_x86_64",
     "dx_pkl_macos_arm64",
@@ -1326,11 +1352,11 @@ use_repo(
     "dx_terraform_macos_arm64",
     "dx_terraform_windows_arm64",
     "dx_terraform_windows_x86_64",
-    "dx_tools",
     "dx_tflint_linux_arm64",
     "dx_tflint_linux_x86_64",
     "dx_tflint_macos_arm64",
     "dx_tflint_windows_x86_64",
+    "dx_tools",
     "dx_ty_linux_arm64",
     "dx_ty_linux_x86_64",
     "dx_ty_macos_arm64",
@@ -1393,9 +1419,9 @@ _hub_fixture_repo = use_repo_rule("//quality/artifacts/hub_test:repos.bzl", "hub
 
 _hub_fixture_repo(
     name = "dx_hub_fixture_taplo_linux_x86_64",
+    dev_dependency = True,
     platform = "linux_x86_64",
     tool = "taplo",
-    dev_dependency = True,
 )
 
 _hub_fixture_repo(

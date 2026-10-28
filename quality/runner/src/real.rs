@@ -54,6 +54,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "notebook_outputs",
     "ormolu",
     "opa",
+    "perltidy",
     "pkl",
     "pmd",
     "prettier",

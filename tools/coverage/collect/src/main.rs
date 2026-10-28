@@ -192,6 +192,7 @@ fn export(ctx: &Context, pair: &Pair, profile: &Path) -> String {
     collect::rewrite_paths(&report, &ctx.execroot)
 }
 
+// LCOV_EXCL_START - reason: process orchestration over env and external llvm tools, covered by native_coverage_test, issue: 3460, policy: docs/cli/commands/build-test-coverage.md
 fn main() {
     let coverage_dir = PathBuf::from(required("COVERAGE_DIR"));
     let execroot = PathBuf::from(required("ROOT"));
@@ -320,3 +321,4 @@ fn main() {
         fs::remove_file(&file).ok();
     }
 }
+// LCOV_EXCL_STOP

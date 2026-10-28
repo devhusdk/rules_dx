@@ -58,5 +58,17 @@ class KubeconformPinTest(unittest.TestCase):
             self.assertIn("/v%s/" % version, platform["url"])
 
 
+class HelmPinTest(unittest.TestCase):
+    def test_every_platform_uses_the_per_asset_checksum_file(self):
+        spec = update.TOOLS["helm"]
+        self.assertEqual(
+            sorted(spec["platforms"]),
+            ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+        )
+        for platform in spec["platforms"].values():
+            self.assertEqual(platform["checksums_url"], platform["url"] + ".sha256sum")
+            self.assertIn("/helm-v%s-" % spec["upstream_version"], platform["url"])
+
+
 if __name__ == "__main__":
     unittest.main()

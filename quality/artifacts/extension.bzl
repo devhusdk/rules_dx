@@ -42,6 +42,10 @@ load("//quality/artifacts:jsonnetfmt.linux_arm64.bzl", _jsonnetfmt_linux_arm64 =
 load("//quality/artifacts:jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:jsonnetfmt.macos_arm64.bzl", _jsonnetfmt_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:jsonnetfmt.windows_x86_64.bzl", _jsonnetfmt_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:helm.linux_arm64.bzl", _helm_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:helm.linux_x86_64.bzl", _helm_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:helm.macos_arm64.bzl", _helm_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:helm.windows_x86_64.bzl", _helm_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
@@ -162,6 +166,10 @@ _ARTIFACTS = [
     _jsonnetfmt_linux_arm64,
     _jsonnetfmt_macos_arm64,
     _jsonnetfmt_windows_x86_64,
+    _helm_linux_x86_64,
+    _helm_linux_arm64,
+    _helm_macos_arm64,
+    _helm_windows_x86_64,
     _keep_sorted_linux_x86_64,
     _keep_sorted_linux_arm64,
     _keep_sorted_macos_arm64,

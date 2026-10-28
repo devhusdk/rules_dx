@@ -65,6 +65,17 @@ py_binary(
 )
 
 py_binary(
+    name = "check_jsonschema",
+    srcs = [
+        "check_jsonschema_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "check_jsonschema_main.py",
+    deps = ["@pypi//check_jsonschema"],
+)
+
+py_binary(
     name = "ansible_lint",
     srcs = [
         "ansible_lint_main.py",

@@ -31,6 +31,7 @@ guides below.
 - [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.
 - [Worktree](cli/commands/worktree.md): worktree slots.
+- [Module families](module-families.md): the plan for splitting core and family modules.
 
 ## CI And Examples
 

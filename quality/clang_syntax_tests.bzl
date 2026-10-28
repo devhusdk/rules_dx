@@ -1,7 +1,7 @@
 """Unit tests for the clang_syntax argv rewrite."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":clang_syntax.bzl", "clang_syntax_argv", "clang_syntax_source")
+load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source")
 
 _CLANG = "external/llvm/bin/clang"
 
@@ -13,6 +13,11 @@ def clang_syntax_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "clang-tidy gets the source then -- then the compile flags",
+                clang_tidy_argv("tidy", [_CLANG, "-DX=1", "-c", "a.c", "-o", "a.o"], "a.c").argv,
+                ["tidy", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],
+            ),
             expect_equal(
                 "-c becomes -fsyntax-only and output flags are dropped",
                 _rewrite([_CLANG, "-MD", "-MF", "a.d", "-DX=1", "-c", "a.c", "-o", "a.o"]).argv,

@@ -7,9 +7,9 @@ pub use dx_release_tools::{
     PROVENANCE_BUILDER_RELEASE, RELEASE_REPOSITORY, SIGNING_ISSUER_DEFAULT,
 };
 
-/// Checksum manifest every release publishes next to its archives.
+/// Checksum manifest every release publishes: the raw `dx-<cell>` binaries and the archives.
 pub const MANIFEST_NAME: &str = "dx-sha256sums.txt";
-/// Provenance bundle whose subjects are every archive in the manifest.
+/// Provenance bundle whose subjects are every line of the manifest (raw binaries and archives).
 pub const BUNDLE_NAME: &str = "dx-sha256sums.txt.sigstore.json";
 
 /// One release matrix cell; mirrors deploy/release/matrix.bzl.
@@ -120,10 +120,12 @@ pub fn validate_tag(tag: &str) -> Result<&str, String> {
     Ok(version)
 }
 
-/// Parses `<64 lowercase hex>  <asset>` lines; only known archive names, no duplicates.
+/// Parses `<64 lowercase hex>  <asset>` lines; only known archive or raw binary names, no
+/// duplicates. Raw binary lines are accepted but not returned: install uses archives only.
 pub fn parse_sha256sums(text: &str) -> Result<BTreeMap<String, String>, String> {
     let known: Vec<String> = CELLS.iter().map(Cell::archive_name).collect();
     let mut sums = BTreeMap::new();
+    let mut seen_raw = std::collections::BTreeSet::new();
     for (index, line) in text.lines().enumerate() {
         let at = index + 1;
         let Some((digest, name)) = line.split_once("  ") else {
@@ -140,8 +142,17 @@ pub fn parse_sha256sums(text: &str) -> Result<BTreeMap<String, String>, String> 
                 "{MANIFEST_NAME} line {at}: digest must be 64 lowercase hex characters"
             ));
         }
-        if !known.iter().any(|known| known == name) {
+        let raw = CELLS.iter().any(|cell| cell.name == name);
+        if !raw && !known.iter().any(|known| known == name) {
             return Err(format!("{MANIFEST_NAME} line {at}: unknown asset {name:?}"));
+        }
+        if raw {
+            if !seen_raw.insert(name.to_owned()) {
+                return Err(format!(
+                    "{MANIFEST_NAME} line {at}: duplicate asset {name:?}"
+                ));
+            }
+            continue;
         }
         if sums.insert(name.to_owned(), digest.to_owned()).is_some() {
             return Err(format!(
@@ -254,6 +265,26 @@ mod tests {
         let sums = parse_sha256sums(&text).expect("parse");
         assert_eq!(sums.len(), 2);
         assert_eq!(sums["dx-windows-arm64.zip"], "a".repeat(64));
+    }
+
+    #[test]
+    fn manifest_accepts_raw_binaries_and_archives() {
+        let mut lines = Vec::new();
+        for cell in CELLS {
+            lines.push(line(cell.name));
+            lines.push(line(&cell.archive_name()));
+        }
+        let sums = parse_sha256sums(&format!("{}\n", lines.join("\n"))).expect("parse");
+        assert_eq!(sums.len(), 5);
+        assert!(!sums.contains_key("dx-linux-x86_64"));
+        for text in [
+            format!("{}\n{}", line("dx-linux-x86_64"), line("dx-linux-x86_64")),
+            line("dx-linux-x86_64.zip"),
+            line("dx-windows-x86_64.tar.gz"),
+            line("dx-macos-x86_64"),
+        ] {
+            assert!(parse_sha256sums(&text).is_err(), "{text:?}");
+        }
     }
 
     #[test]

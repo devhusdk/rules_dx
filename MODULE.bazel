@@ -1472,7 +1472,7 @@ use_repo(
     "dx_yamlfmt_windows_x86_64",
 )
 
-yard = use_extension("//tools/docs/ruby:repos.bzl", "yard")
+yard = use_extension("//tools/docs/ruby:repos.bzl", "yard", dev_dependency = True)
 use_repo(yard, "dx_yard")
 
 firefox = use_extension("//tools/docs/site/browser:repos.bzl", "firefox", dev_dependency = True)

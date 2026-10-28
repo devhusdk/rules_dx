@@ -83,6 +83,7 @@ fn real_tool(
         extra_env: entry.env.clone(),
         config_rel: entry.config_rel.clone(),
         edition: entry.edition.clone(),
+        dialect: entry.dialect.clone(),
         tool_files,
         upstream_diagnostics: entry
             .upstream
@@ -302,6 +303,7 @@ mod tests {
             binary: Some(PathBuf::from("bin/ruff")),
             config_rel: Some("ruff.toml".to_owned()),
             edition: Some("3.9".to_owned()),
+            dialect: None,
             files: vec![("ruff.toml".to_owned(), file.display().to_string())],
             env: vec![
                 ("B".to_owned(), "2".to_owned()),
@@ -334,6 +336,7 @@ mod tests {
             binary: None,
             config_rel: None,
             edition: None,
+            dialect: None,
             files: Vec::new(),
             env: Vec::new(),
             upstream: vec![PathBuf::from("/abs/ty.diag")],

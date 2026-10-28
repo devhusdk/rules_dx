@@ -186,6 +186,7 @@ pub struct RealTool {
     pub extra_env: Vec<(String, String)>,
     pub config_rel: Option<String>,
     pub edition: Option<String>,
+    pub dialect: Option<String>,
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,

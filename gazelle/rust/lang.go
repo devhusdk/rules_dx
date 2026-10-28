@@ -92,7 +92,7 @@ func kindInfo() rule.KindInfo {
 
 type rustLang struct {
 	language.BaseLang
-	errors         []string
+	errors         []common.GenerationError
 	ignores        []*common.IgnoreEntry
 	generated      common.GeneratedRels
 	workspaceRoots map[string]*cargoManifest
@@ -153,7 +153,7 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 			if directive.Key == corpusDirective {
 				enabled, err := parseCorpusDirective(directive.Value)
 				if err != nil {
-					l.fail("%v", err)
+					l.fail(common.InPackage(rel), "%v", err)
 					continue
 				}
 				corpus = enabled
@@ -164,7 +164,7 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 			}
 			selected, err := parseNativeToolsDirective(directive.Value)
 			if err != nil {
-				l.fail("%v", err)
+				l.fail(common.InPackage(rel), "%v", err)
 				continue
 			}
 			tools = selected
@@ -172,7 +172,7 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	}
 	declared, errs := common.DeclaredIgnores(languageName, rel, file)
 	for _, msg := range errs {
-		l.fail("%s", msg)
+		l.fail(common.InPackage(rel), "%s", msg)
 	}
 	l.ignores = append(l.ignores, declared...)
 	inherited := common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)
@@ -187,15 +187,13 @@ func corpusEnabled(c *config.Config) bool {
 	return ok && cfg.corpus
 }
 
-func (l *rustLang) fail(format string, args ...interface{}) {
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
+func (l *rustLang) fail(pkg common.PackageRef, format string, args ...interface{}) {
+	l.errors = append(l.errors, common.GenerationError{Language: languageName, Package: pkg, Message: fmt.Sprintf(format, args...)})
 }
 
 func (l *rustLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
-		l.fail("%s", msg)
-	}
-	common.Errors.Add(languageName, "", l.errors...)
+	l.errors = append(l.errors, common.StaleIgnores(languageName, l.ignores, l.generated)...)
+	common.Errors.Add(l.errors...)
 }
 
 func (*rustLang) Name() string { return languageName }
@@ -261,12 +259,12 @@ func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateRe
 func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateResult {
 	plan, err := planNativeConfig(args.Config, args)
 	if err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	files, err := sourceFiles(args.Dir, args.Rel)
 	if err != nil {
-		l.fail("rust: %s: %v", args.Rel, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 	for _, name := range args.RegularFiles {
@@ -299,18 +297,18 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		}
 		tree, loadErr := LoadCrate(root, read, exists)
 		if loadErr != nil {
-			l.fail("%v", loadErr)
+			l.fail(common.InPackage(args.Rel), "%v", loadErr)
 			return language.GenerateResult{}
 		}
 		trees[root] = tree
 		if err := claimSources(owners, root, root != roots.LibRoot && root != roots.BinRoot, tree); err != nil {
-			l.fail("%v", err)
+			l.fail(common.InPackage(args.Rel), "%v", err)
 			return language.GenerateResult{}
 		}
 	}
 	shape, err := ShapeCrate(roots, hasUnitTests(trees[roots.LibRoot]), hasUnitTests(trees[roots.BinRoot]))
 	if err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 
@@ -365,7 +363,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 	renamed := adoptExistingNames(args.File, result.Gen)
 	inherited, err := inheritCrateAttrs(args.File, result.Gen)
 	if err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	for i, r := range result.Gen {
@@ -409,7 +407,7 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 		}
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, generatedClaims(args.Rel, result.Gen), rustClaimAliases); err != nil {
-		l.fail("rust: %s: %v", args.Rel, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 	merged := mergeStale(args.File, result)

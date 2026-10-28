@@ -269,7 +269,7 @@ func TestResolveSingleExternal(t *testing.T) {
 		t.Errorf("ignore was not marked used: %+v", entry)
 	}
 	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"com.split.shared.X", "org.nothing.Y"}), from)
-	if len(l.errors) != 2 || !strings.Contains(l.errors[0], "ambiguous import") || !strings.Contains(l.errors[0], "@maven//:com_split_one, @maven//:com_split_two_x") || !strings.Contains(l.errors[1], `unresolved import "org.nothing.Y"`) {
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0].Message, "ambiguous import") || !strings.Contains(l.errors[0].Message, "@maven//:com_split_one, @maven//:com_split_two_x") || !strings.Contains(l.errors[1].Message, `unresolved import "org.nothing.Y"`) {
 		t.Errorf("errors = %v", l.errors)
 	}
 }

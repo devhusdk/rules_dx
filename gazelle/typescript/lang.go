@@ -238,12 +238,12 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	for _, src := range all {
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
-			rep.Fail("typescript: %s: read %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "typescript: %s: read %s: %v", args.Rel, src, err)
 			continue
 		}
 		name, err := TargetName(src)
 		if err != nil {
-			rep.Fail("typescript: %s: %v", args.Rel, err)
+			rep.Fail(common.InPackage(args.Rel), "typescript: %s: %v", args.Rel, err)
 			continue
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
@@ -268,7 +268,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, claimants, claimAliases); err != nil {
-		rep.Fail("typescript: %s: %v", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "typescript: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 

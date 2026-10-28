@@ -18,7 +18,7 @@ import (
 )
 
 type Reporter interface {
-	Fail(format string, args ...interface{})
+	Fail(pkg PackageRef, format string, args ...interface{})
 	Failed() bool
 }
 
@@ -205,12 +205,12 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	for _, src := range sources {
 		content, err := ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
-			rep.Fail("%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
 			continue
 		}
 		name, err := spec.TargetName(src)
 		if err != nil {
-			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 			continue
 		}
 		p := plan{name: name, src: src}
@@ -234,7 +234,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: spec.LibraryKind})
 	}
 	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
-		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
 	var result language.GenerateResult
@@ -316,7 +316,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		name, err = spec.DirName(args.Rel)
 	}
 	if err != nil {
-		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
 	isMain := spec.IsMainFile
@@ -330,18 +330,18 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	for _, file := range append(append([]string{}, sources...), headers...) {
 		content, err := ReadSource(filepath.Join(args.Dir, file))
 		if err != nil {
-			rep.Fail("%s: %s: read %s: %v", spec.LanguageName, args.Rel, file, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: read %s: %v", spec.LanguageName, args.Rel, file, err)
 			continue
 		}
 		contents[file] = content
 		if isMain(file) && spec.DefinesMain(content) {
-			rep.Fail("%s: %s: %s defines main; thin %s entries stay handwritten, so split %s into their own directory before adopting generation", spec.LanguageName, args.Rel, file, spec.MainRule, spec.MainPhrase)
+			rep.Fail(InPackage(args.Rel), "%s: %s: %s defines main; thin %s entries stay handwritten, so split %s into their own directory before adopting generation", spec.LanguageName, args.Rel, file, spec.MainRule, spec.MainPhrase)
 			continue
 		}
 		if spec.CheckPackage {
 			pkg, err := spec.ParsePackage(content)
 			if err != nil {
-				rep.Fail("%s: %s: parse package %s: %v", spec.LanguageName, args.Rel, file, err)
+				rep.Fail(InPackage(args.Rel), "%s: %s: parse package %s: %v", spec.LanguageName, args.Rel, file, err)
 				continue
 			}
 			packages[pkg] = true
@@ -363,7 +363,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			names = append(names, pkg)
 		}
 		sort.Strings(names)
-		rep.Fail("%s: %s: mixed packages %s in one directory; split the directory before adopting generation", spec.LanguageName, args.Rel, strings.Join(names, ", "))
+		rep.Fail(InPackage(args.Rel), "%s: %s: mixed packages %s in one directory; split the directory before adopting generation", spec.LanguageName, args.Rel, strings.Join(names, ", "))
 		return language.GenerateResult{}
 	}
 	sort.Strings(imports)
@@ -371,12 +371,12 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	if spec.OrderSrcs != nil {
 		ordered, err = spec.OrderSrcs(name, sources, contents)
 		if err != nil {
-			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 			return language.GenerateResult{}
 		}
 	}
 	if err := CheckClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: spec.LibraryKind}}, nil); err != nil {
-		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
 	result := language.GenerateResult{}
@@ -391,7 +391,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	lib := makeRule(name, ordered, headers)
 	if spec.Extend != nil {
 		if err := spec.Extend(lib, args.RegularFiles, contents); err != nil {
-			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 			return language.GenerateResult{}
 		}
 	}

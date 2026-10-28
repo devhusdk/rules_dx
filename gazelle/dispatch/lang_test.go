@@ -316,7 +316,7 @@ func TestAfterResolvingDepsWithoutManifestEnvWritesNothing(t *testing.T) {
 	t.Setenv(common.EnvIntendedManifest, "")
 	l := &dispatchLang{}
 	l.Before(context.Background())
-	common.Errors.Add("go", "", "go: boom")
+	common.Errors.Add(common.GenerationError{Language: "go", Message: "go: boom"})
 	code, _ := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
 	if *code != 1 {
@@ -385,7 +385,7 @@ func TestCollectUsedIgnoresCoversEveryIgnoreLanguage(t *testing.T) {
 
 type failingLanguage interface {
 	Before(context.Context)
-	Fail(string, ...interface{})
+	Fail(common.PackageRef, string, ...interface{})
 	AfterResolvingDeps(context.Context)
 }
 
@@ -405,8 +405,8 @@ func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
 	t.Setenv(common.EnvIntendedManifest, out)
 	l := &dispatchLang{}
 	l.Before(context.Background())
-	common.Errors.Add("go", "", "go: //b:b: unresolved import \"x\"")
-	common.Errors.Add("cc", "", "cc: //a:a: unresolved import \"y\"")
+	common.Errors.Add(common.GenerationError{Language: "go", Message: "go: //b:b: unresolved import \"x\""})
+	common.Errors.Add(common.GenerationError{Language: "cc", Message: "cc: //a:a: unresolved import \"y\""})
 	code, errOut := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
 	if *code != 1 {
@@ -453,7 +453,7 @@ func TestBeforeFailsClosedOnBadGenerateMode(t *testing.T) {
 	t.Setenv(common.EnvGenerateMode, "bogus")
 	l := &dispatchLang{}
 	l.Before(context.Background())
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "must be") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "must be") {
 		t.Fatalf("errors = %v, want one generate-mode rejection", l.errors)
 	}
 	if l.manifest != nil {
@@ -615,12 +615,12 @@ func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
 			}
 			continue
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) || !strings.Contains(l.errors[0], "//pkg") {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, tc.want) || !strings.Contains(l.errors[0].Message, "//pkg") {
 			t.Errorf("%q: errors = %v, want one containing %q", tc.value, l.errors, tc.want)
 			continue
 		}
-		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0], "use one of: astro, cc,") {
-			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0])
+		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0].Message, "use one of: astro, cc,") {
+			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0].Message)
 		}
 	}
 	l := &dispatchLang{}
@@ -670,7 +670,7 @@ func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
 	if *code != 1 {
 		t.Fatalf("exit code = %d, want 1", *code)
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) || !strings.Contains(errOut.String(), `unknown language "pyton"`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `unknown language "pyton"`) || !strings.Contains(errOut.String(), `unknown language "pyton"`) {
 		t.Fatalf("errors = %v, stderr = %q, want the unknown language", l.errors, errOut.String())
 	}
 	readFailedManifest(t, out)
@@ -706,7 +706,7 @@ func TestConfigureRejectsLangWithoutDispatch(t *testing.T) {
 			}
 			continue
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], "//pkg") || !strings.Contains(l.errors[0], languageName) {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "//pkg") || !strings.Contains(l.errors[0].Message, languageName) {
 			t.Errorf("%s: errors = %v, want one naming //pkg and %s", tc.name, l.errors, languageName)
 		}
 	}
@@ -818,8 +818,8 @@ func wantAndroidErrors(t *testing.T, l *dispatchLang, want ...string) {
 		t.Fatalf("errors = %q, want %d", l.errors, len(want))
 	}
 	for i, w := range want {
-		if !strings.Contains(l.errors[i], w) {
-			t.Errorf("error %d = %q, want containing %q", i, l.errors[i], w)
+		if !strings.Contains(l.errors[i].Message, w) {
+			t.Errorf("error %d = %q, want containing %q", i, l.errors[i].Message, w)
 		}
 	}
 }
@@ -921,7 +921,7 @@ func TestAfterResolvingDepsRestoresBuildFilesOnFailure(t *testing.T) {
 	if err := os.WriteFile(created, []byte("# generated\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	common.Errors.Add("go", "", "go: unresolved import")
+	common.Errors.Add(common.GenerationError{Language: "go", Message: "go: unresolved import"})
 	code, _ := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
 	if *code != 1 {
@@ -934,4 +934,30 @@ func TestAfterResolvingDepsRestoresBuildFilesOnFailure(t *testing.T) {
 		t.Fatalf("created BUILD stat = %v, want removed", err)
 	}
 	readFailedManifest(t, out)
+}
+
+func TestFailureManifestCarriesPackages(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateScope, `[{"element":"//a:one","dirs":["a"]}]`)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	l.fail(common.InPackage(""), "lang: root")
+	l.fail(common.InPackage("a"), "lang: a")
+	l.fail(common.UnknownPackage, "lang: unknown")
+	stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	var got []string
+	for _, e := range readFailedManifest(t, out).Errors {
+		switch {
+		case e.Package == nil:
+			got = append(got, e.Message+"=unset")
+		default:
+			got = append(got, e.Message+"="+*e.Package)
+		}
+	}
+	want := []string{"lang: unknown=unset", "lang: root=", "lang: a=a"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("manifest error packages = %v, want %v", got, want)
+	}
 }

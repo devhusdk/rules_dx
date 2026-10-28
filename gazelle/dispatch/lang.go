@@ -104,7 +104,7 @@ var ignoreLanguages = sync.OnceValue(func() []string { return ignoreLanguageName
 
 type dispatchLang struct {
 	language.BaseLang
-	errors   []string
+	errors   []common.GenerationError
 	manifest *common.ManifestRecorder
 	configs  []*config.Config
 	snapshot common.BuildSnapshot
@@ -124,7 +124,7 @@ func (l *dispatchLang) Before(context.Context) {
 	l.configs = nil
 	l.manifest = nil
 	if rec, err := common.LoadManifestRecorder("dispatch"); err != nil {
-		l.fail("%v", err)
+		l.fail(common.UnknownPackage, "%v", err)
 	} else {
 		l.manifest = rec
 	}
@@ -149,7 +149,7 @@ func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 	if c != nil && len(c.Langs) > 0 && !containsString(c.Langs, languageName) {
 		for _, d := range f.Directives {
 			if d.Key == "lang" {
-				l.fail("lang: //%s: # gazelle:lang %s drops %s; add %s to the list", rel, strings.Join(c.Langs, ","), languageName, languageName)
+				l.fail(common.InPackage(rel), "lang: //%s: # gazelle:lang %s drops %s; add %s to the list", rel, strings.Join(c.Langs, ","), languageName, languageName)
 				break
 			}
 		}
@@ -161,12 +161,12 @@ func (l *dispatchLang) Configure(c *config.Config, rel string, f *rule.File) {
 		}
 		fields := strings.Fields(d.Value)
 		if len(fields) == 0 {
-			l.fail("dx_ignore_import: //%s: malformed # gazelle:dx_ignore_import %s; want <language> <import>", rel, d.Value)
+			l.fail(common.InPackage(rel), "dx_ignore_import: //%s: malformed # gazelle:dx_ignore_import %s; want <language> <import>", rel, d.Value)
 			continue
 		}
 		idx := sort.SearchStrings(known, fields[0])
 		if idx == len(known) || known[idx] != fields[0] {
-			l.fail("dx_ignore_import: //%s: unknown language %q in # gazelle:dx_ignore_import %s; use one of: %s", rel, fields[0], d.Value, strings.Join(known, ", "))
+			l.fail(common.InPackage(rel), "dx_ignore_import: //%s: unknown language %q in # gazelle:dx_ignore_import %s; use one of: %s", rel, fields[0], d.Value, strings.Join(known, ", "))
 		}
 	}
 }
@@ -180,8 +180,8 @@ func containsString(list []string, want string) bool {
 	return false
 }
 
-func (l *dispatchLang) fail(format string, args ...interface{}) {
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
+func (l *dispatchLang) fail(pkg common.PackageRef, format string, args ...interface{}) {
+	l.errors = append(l.errors, common.GenerationError{Language: languageName, Package: pkg, Message: fmt.Sprintf(format, args...)})
 }
 
 func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
@@ -233,11 +233,11 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 // BUILD files are written, so the restore keeps failed runs side-effect free.
 // A kill between the write and the restore is not covered.
 func (l *dispatchLang) AfterResolvingDeps(context.Context) {
-	common.Errors.Add(languageName, "", l.errors...)
+	common.Errors.Add(l.errors...)
 	all := common.Errors.Take()
 	if len(all) == 0 && l.manifest != nil {
 		if err := l.manifest.Emit(l.collectUsedIgnores()); err != nil {
-			common.Errors.Add(languageName, "", err.Error())
+			common.Errors.Add(common.GenerationError{Language: languageName, Package: common.UnknownPackage, Message: err.Error()})
 			all = common.Errors.Take()
 		}
 	}
@@ -269,7 +269,7 @@ func (l *dispatchLang) GenerateRules(args language.GenerateArgs) language.Genera
 		l.configs = append(l.configs, args.Config)
 	}
 	for _, msg := range checkAndroid(args) {
-		l.fail("%s", msg)
+		l.fail(common.InPackage(args.Rel), "%s", msg)
 	}
 	if args.Config != nil {
 		l.snapshot.RecordDir(args.Dir, args.Config.ValidBuildFileNames)

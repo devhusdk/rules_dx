@@ -131,14 +131,18 @@ func (g GeneratedRels) Has(rel string) bool {
 }
 
 // StaleIgnores reports unused entries declared in generated packages, so a scoped run only checks its own directives.
-func StaleIgnores(languageName string, declared []*IgnoreEntry, generated GeneratedRels) []string {
-	var errs []string
+func StaleIgnores(languageName string, declared []*IgnoreEntry, generated GeneratedRels) []GenerationError {
+	var errs []GenerationError
 	for _, ignore := range declared {
 		if ignore == nil || ignore.Used() || !generated.Has(ignore.Path) {
 			continue
 		}
-		errs = append(errs, fmt.Sprintf("%s: //%s: stale # gazelle:dx_ignore_import %s %s matches no literal reference",
-			languageName, ignore.Path, languageName, ignore.Value))
+		errs = append(errs, GenerationError{
+			Language: languageName,
+			Package:  InPackage(ignore.Path),
+			Message: fmt.Sprintf("%s: //%s: stale # gazelle:dx_ignore_import %s %s matches no literal reference",
+				languageName, ignore.Path, languageName, ignore.Value),
+		})
 	}
 	return errs
 }

@@ -179,12 +179,12 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 	manifestPath := path.Join(args.Rel, "Cargo.toml")
 	content, err := os.ReadFile(filepath.Join(args.Dir, "Cargo.toml"))
 	if err != nil {
-		l.fail("rust: %s: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return language.GenerateResult{}
 	}
 	manifest, err := parseCargoManifest(manifestPath, content)
 	if err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	if manifest.virtual {
@@ -195,15 +195,15 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		existsSet[name] = true
 	}
 	if err := manifest.withImplicitTargets(existsSet, args.Rel); err != nil {
-		l.fail("rust: %s: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return language.GenerateResult{}
 	}
 	if err := l.inheritWorkspace(args, manifestPath, manifest); err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	if err := l.checkPathDepVersions(args, manifestPath, manifest); err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	l.resolveRenamedProviders(args, manifest)
@@ -219,17 +219,17 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			if (target.kind == libraryKind && target.path == "src/lib.rs") || (target.kind == binaryKind && target.path == "src/main.rs") {
 				continue
 			}
-			l.fail("rust: %s: Cargo target %s(%s) root %s does not exist", manifestPath, target.kind, target.name, target.path)
+			l.fail(common.InPackage(args.Rel), "rust: %s: Cargo target %s(%s) root %s does not exist", manifestPath, target.kind, target.name, target.path)
 			continue
 		}
 		tree, loadErr := LoadCrate(root, read, func(name string) bool { return existsSet[name] })
 		if loadErr != nil {
-			l.fail("%v", loadErr)
+			l.fail(common.InPackage(args.Rel), "%v", loadErr)
 			continue
 		}
 		includeDev := target.kind == testKind || target.kind == exampleKind || target.kind == benchKind
 		if err := claimSources(owners, target.name, includeDev, tree); err != nil {
-			l.fail("%v", err)
+			l.fail(common.InPackage(args.Rel), "%v", err)
 			continue
 		}
 		splitTests := excludesTestOnly(target) && hasTestOnly(tree)
@@ -241,11 +241,11 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		imports := importsForEdition(tree, manifest.edition, root)
 		if target.kind == exampleKind || target.kind == benchKind {
 			if err := validateExampleImports(args.Config, manifest, imports); err != nil {
-				l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
+				l.fail(common.InPackage(args.Rel), "rust: %s: target %s: %v", manifestPath, target.name, err)
 				continue
 			}
 		} else if err := validateCargoImports(args.Config, manifest, target.kind, imports); err != nil {
-			l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
+			l.fail(common.InPackage(args.Rel), "rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
 		setCargoAttrs(r, args.Rel, manifest, includeDev)
@@ -327,26 +327,26 @@ func wantsUnitTest(target cargoTarget, tree map[string]*FileFacts) bool {
 func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath string, manifest *cargoManifest, existsSet map[string]bool, read func(string) ([]byte, error), owners map[string]sourceOwner, result *language.GenerateResult) {
 	scriptName, err := BuildScriptName(manifest.packageName)
 	if err != nil {
-		l.fail("rust: %s: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return
 	}
 	root := path.Join(args.Rel, manifest.build.path)
 	if !existsSet[root] {
-		l.fail("rust: %s: build script %s does not exist", manifestPath, manifest.build.path)
+		l.fail(common.InPackage(args.Rel), "rust: %s: build script %s does not exist", manifestPath, manifest.build.path)
 		return
 	}
 	tree, loadErr := LoadCrate(root, read, func(name string) bool { return existsSet[name] })
 	if loadErr != nil {
-		l.fail("%v", loadErr)
+		l.fail(common.InPackage(args.Rel), "%v", loadErr)
 		return
 	}
 	if err := claimSources(owners, scriptName, false, tree); err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return
 	}
 	imports := importsForEdition(tree, manifest.edition, root)
 	if err := validateBuildImports(args.Config, manifest, imports); err != nil {
-		l.fail("rust: %s: build script: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: build script: %v", manifestPath, err)
 		return
 	}
 	r := rule.NewRule(scriptKind, scriptName)

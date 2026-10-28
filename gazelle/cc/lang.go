@@ -46,7 +46,7 @@ func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Report
 		}
 		archs := strings.Fields(d.Value)
 		if len(archs) == 0 {
-			rep.Fail("cc: %s: # gazelle:%s needs at least one arch", rel, archsDirective)
+			rep.Fail(common.InPackage(rel), "cc: %s: # gazelle:%s needs at least one arch", rel, archsDirective)
 			continue
 		}
 		c.Exts[archsDirective] = archs

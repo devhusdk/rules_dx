@@ -128,12 +128,12 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	for _, src := range sources {
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
-			rep.Fail("javascript: %s: read %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "javascript: %s: read %s: %v", args.Rel, src, err)
 			continue
 		}
 		name, err := TargetName(src)
 		if err != nil {
-			rep.Fail("javascript: %s: %v", args.Rel, err)
+			rep.Fail(common.InPackage(args.Rel), "javascript: %s: %v", args.Rel, err)
 			continue
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
@@ -157,7 +157,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, claimants, claimAliases); err != nil {
-		rep.Fail("javascript: %s: %v", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "javascript: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 

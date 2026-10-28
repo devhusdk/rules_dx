@@ -134,7 +134,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		return language.GenerateResult{}
 	}
 	fail := func(format string, a ...any) language.GenerateResult {
-		rep.Fail("elixir: %s: "+format, append([]any{args.Rel}, a...)...)
+		rep.Fail(common.InPackage(args.Rel), "elixir: %s: "+format, append([]any{args.Rel}, a...)...)
 		return language.GenerateResult{}
 	}
 	manifest, err := common.ReadSource(filepath.Join(args.Dir, MixFile))

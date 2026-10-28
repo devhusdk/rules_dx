@@ -373,7 +373,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		}
 		rel := match.Label.Rel(from.Repo, from.Pkg).String()
 		if prev, dup := aliases[rel]; dup && prev != name {
-			l.fail("rust: %s: %s is imported under conflicting aliases %q and %q", from, rel, prev, name)
+			l.fail(common.InPackage(from.Pkg), "rust: %s: %s is imported under conflicting aliases %q and %q", from, rel, prev, name)
 			return
 		}
 		aliases[rel] = name
@@ -383,7 +383,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)
-				l.fail("rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
+				l.fail(common.InPackage(from.Pkg), "rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
 			addDep(name, override.Rel(from.Repo, from.Pkg).String())
@@ -406,12 +406,12 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				continue
 			}
 			if crate, renamed := imports.renames[name]; renamed {
-				l.fail("%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
+				l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
 				continue
 			}
-			l.fail("%s", common.UnresolvedImport(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
+			l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
 		default:
-			l.fail("%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
+			l.fail(common.InPackage(from.Pkg), "%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
 		}
 	}
 	for _, name := range imports.mirrorPaths {

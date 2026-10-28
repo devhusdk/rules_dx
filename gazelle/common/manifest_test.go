@@ -779,9 +779,9 @@ func failedRecorder(t *testing.T, out string) *ManifestRecorder {
 
 func failedErrors() []GenerationError {
 	return []GenerationError{
-		{Language: "go", Package: "a/pkg", Message: "go broke"},
+		{Language: "go", Package: InPackage("a/pkg"), Message: "go broke"},
 		{Language: "cc", Message: "cc exploded"},
-		{Language: "go", Package: "a/pkg", Message: "go broke"},
+		{Language: "go", Package: InPackage("a/pkg"), Message: "go broke"},
 	}
 }
 
@@ -873,5 +873,23 @@ func TestEmitOmitsErrorsOnSuccess(t *testing.T) {
 	}
 	if strings.Contains(string(raw), `"errors"`) {
 		t.Errorf("success manifest %s carries errors", raw)
+	}
+}
+
+func TestEmitFailedRootAndUnknownPackage(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	errs := []GenerationError{
+		{Language: "go", Package: InPackage(""), Message: "root"},
+		{Language: "go", Package: UnknownPackage, Message: "unknown"},
+	}
+	if err := failedRecorder(t, out).EmitFailed(errs); err != nil {
+		t.Fatalf("EmitFailed: %v", err)
+	}
+	got := readIntended(t, out).Errors
+	if len(got) != 2 || got[0].Message != "unknown" || got[0].Package != nil {
+		t.Fatalf("errors = %+v, want unknown first with no package", got)
+	}
+	if got[1].Message != "root" || got[1].Package == nil || *got[1].Package != "" {
+		t.Fatalf("errors = %+v, want root with an empty package", got)
 	}
 }

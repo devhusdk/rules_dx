@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_api_spec_format_pass
+capability FORMAT
+stages 1
+stage prettier classes=api_spec sources=matrix/prettier_api_spec_clean.yaml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

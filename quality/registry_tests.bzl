@@ -62,6 +62,8 @@ def registry_unit_tests(name):
                     not_applicable_error({"typecheck": {"nope": "data"}}, _A, _C),
                     not_applicable_error({"typecheck": {"yaml": ""}}, _A, _C),
                     not_applicable_error({"typecheck": {"python": "x"}}, _A, _C),
+                    not_applicable_error({"format": {"yaml": "data"}}, _A, _C),
+                    not_applicable_error({"format": {"python": "x"}}, {"ruff": {"format": ["python"]}}, _C),
                 ],
                 [
                     "",
@@ -69,6 +71,8 @@ def registry_unit_tests(name):
                     "not applicable: unknown family 'nope' for typecheck",
                     "not applicable: empty reason for typecheck:yaml",
                     "not applicable: typecheck:python contradicts tool 'ty'",
+                    "",
+                    "not applicable: format:python contradicts tool 'ruff'",
                 ],
             ),
             expect_equal(

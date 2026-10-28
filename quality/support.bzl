@@ -441,6 +441,34 @@ API_SPEC_PRETTIER_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+ANSIBLE_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["ansible"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "ansible",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
+KUBERNETES_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["kubernetes"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "kubernetes",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
 SQL_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -799,6 +827,8 @@ SUPPORT_RECORDS = [
     API_SPEC_REDOCLY_LINT_SUPPORT,
     MDX_REMARK_FORMAT_SUPPORT,
     API_SPEC_PRETTIER_FORMAT_SUPPORT,
+    ANSIBLE_PRETTIER_FORMAT_SUPPORT,
+    KUBERNETES_PRETTIER_FORMAT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,

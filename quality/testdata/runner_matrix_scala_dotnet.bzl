@@ -15,6 +15,10 @@ SCALA_DOTNET_CASES = [
         "config_tools": ["scalafmt"],
         "config_files": [":scalafmt_cfg/.scalafmt.conf"],
         "expected_file": ":matrix/matrix_scala_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_scala_format_fail",
@@ -28,6 +32,10 @@ SCALA_DOTNET_CASES = [
         "config_tools": ["scalafmt"],
         "config_files": [":scalafmt_cfg/.scalafmt.conf"],
         "expected_file": ":matrix/matrix_scala_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_scala_lint_pass",

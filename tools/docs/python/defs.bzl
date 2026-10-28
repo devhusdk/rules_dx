@@ -2,6 +2,7 @@
 
 load("@aspect_rules_py//py:defs.bzl", "PyInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
+load("//tools/docs/site:site.bzl", "docs_site")
 
 def _where(ctx):
     return "python_doc_shard " + str(ctx.label)
@@ -115,4 +116,26 @@ def python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
         package = package,
         docstyle = docstyle,
         **kwargs
+    )
+
+def python_docs(name, library, book_toml, prose, package = "", docstyle = "google", prose_route = "prose.md", source_url = "", **kwargs):
+    """Declares the shard of one Python library and the mdBook site that renders it.
+
+    The shard is `<name>_shard`; `bazel run //pkg:<name>` style builds use the
+    `docs_site` targets `<name>`, `<name>_docs` and `<name>_SUMMARY`.
+    """
+    python_doc_shard(
+        name = name + "_shard",
+        library = library,
+        package = package,
+        docstyle = docstyle,
+        **kwargs
+    )
+    docs_site(
+        name = name,
+        book_toml = book_toml,
+        prose = prose,
+        prose_route = prose_route,
+        shards = [":" + name + "_shard"],
+        source_url = source_url,
     )

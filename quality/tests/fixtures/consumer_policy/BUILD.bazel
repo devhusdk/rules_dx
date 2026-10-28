@@ -323,11 +323,9 @@ real_source_target(
 
 quality_family(
     name = "nix_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "nix",
+    format = ["nixfmt"],
     lint = [
         "deadnix",
         "statix",
@@ -341,7 +339,10 @@ workspace_policy(
 
 filegroup(
     name = "nix_module",
-    srcs = ["nix_module/clean.nix"],
+    srcs = [
+        "nix_module/clean.nix",
+        "nix_module/greeting.nix",
+    ],
 )
 
 quality_family(

@@ -112,6 +112,7 @@ const TYPSTYLE_FIX_ARGS: &[&str] = &["-i"];
 const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
+const NIXFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ORMOLU_CHECK_ARGS: &[&str] = &[
     "--mode",
     "check",
@@ -1032,6 +1033,16 @@ pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {
 }
 
 pub fn mix_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, &[], files, "")
+}
+
+/// Explicit owned `.nix` paths only: the default RFC style at width 100, no `--follow-symlinks`
+/// (which would write through a link into the source tree) and no style flags.
+pub fn nixfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, NIXFMT_CHECK_ARGS, files, "")
+}
+
+pub fn nixfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
 }
 

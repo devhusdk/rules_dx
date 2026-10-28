@@ -14,6 +14,11 @@ const UNUSED: &str = "let\n  a = 1;\n  b = 2;\nin\na\n";
 
 const UNUSED_FIXED: &str = "let\n  a = 1;\nin\na\n";
 
+// nixfmt rewrites this to `{ a = 1; }`.
+const SQUASHED: &str = "{a=1;}\n";
+
+const SQUASHED_FIXED: &str = "{ a = 1; }\n";
+
 const BROKEN: &str = "{ a = 1;\n";
 
 // deadnix leaves this file alone, so only statix has an opinion about it.
@@ -39,9 +44,9 @@ quality_family(
     family_id = "nix",
     disabled = [
         "audit",
-        "format",
         "typecheck",
     ],
+    format = ["nixfmt"],
     lint = [
         "deadnix",
         "statix",
@@ -211,4 +216,65 @@ fn a_parse_error_is_reported_and_never_clean() {
     let applied = dx(&root, "lint", &["--apply"]);
     assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
     assert_eq!(read(&extra), BROKEN);
+}
+
+#[test]
+fn clean_packages_pass_a_multi_file_format_check() {
+    let root = consumer();
+    let out = dx(&root, "format", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+    assert_eq!(read(&root.join("app/default.nix")), APP);
+    assert_eq!(read(&root.join("app/extra.nix")), BASE);
+    assert_eq!(read(&root.join("lib/base.nix")), BASE);
+}
+
+#[test]
+fn format_check_keeps_bytes_apply_edits_owned_files_and_recheck_passes() {
+    let root = consumer();
+    let extra = root.join("app/extra.nix");
+    let unowned = root.join("docs/unowned.nix");
+    write(&extra, SQUASHED);
+    write(&unowned, SQUASHED);
+
+    let dirty = dx(&root, "format", &[]);
+    let text = dirty.combined();
+    assert_eq!(dirty.status.code(), Some(1), "{text}");
+    assert!(text.contains("app/extra.nix"), "{text}");
+    assert!(!text.contains("docs/unowned.nix"), "{text}");
+    assert_eq!(read(&extra), SQUASHED);
+    assert_eq!(read(&unowned), SQUASHED);
+
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&extra), SQUASHED_FIXED);
+    assert_eq!(read(&unowned), SQUASHED);
+    assert_eq!(read(&root.join("app/default.nix")), APP);
+
+    let again = dx(&root, "format", &[]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn a_format_syntax_error_is_reported_and_never_clean() {
+    let root = consumer();
+    let extra = root.join("app/extra.nix");
+    write(&extra, BROKEN);
+    let out = dx(&root, "format", &[]);
+    let text = out.combined();
+    assert_eq!(out.status.code(), Some(1), "{text}");
+    assert!(text.contains("app/extra.nix"), "{text}");
+    assert_eq!(read(&extra), BROKEN);
+
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&extra), BROKEN);
+}
+
+#[test]
+fn lint_and_format_run_together_on_the_same_tree() {
+    let root = consumer();
+    let lint = dx(&root, "lint", &[]);
+    assert_eq!(lint.status.code(), Some(0), "{}", lint.combined());
+    let format = dx(&root, "format", &[]);
+    assert_eq!(format.status.code(), Some(0), "{}", format.combined());
 }

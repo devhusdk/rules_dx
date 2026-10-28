@@ -30,6 +30,7 @@ pub mod kubeconform;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
+pub mod nixfmt;
 pub mod opa;
 pub mod ormolu;
 pub mod pkl;
@@ -99,6 +100,7 @@ pub use kubeconform::{parse_kubeconform, KubeconformTarget};
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
+pub use nixfmt::parse_nixfmt;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use pkl::parse_pkl;
@@ -1767,6 +1769,14 @@ mod tests {
         super::modfmt::parse_modfmt(input, code, files)
     }
 
+    fn fuzz_nixfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::nixfmt::parse_nixfmt(input, input, code, files)
+    }
+
     fn fuzz_ormolu(
         input: &[u8],
         code: Option<i32>,
@@ -2208,6 +2218,7 @@ mod tests {
         ("parse_markdown_findings", fuzz_markdown_findings),
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
+        ("nixfmt", fuzz_nixfmt),
         ("ormolu", fuzz_ormolu),
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
@@ -2285,6 +2296,7 @@ mod tests {
         ("markdown", include_str!("markdown.rs")),
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
+        ("nixfmt", include_str!("nixfmt.rs")),
         ("ormolu", include_str!("ormolu.rs")),
         ("opa", include_str!("opa.rs")),
         ("pkl", include_str!("pkl.rs")),

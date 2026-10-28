@@ -268,6 +268,14 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "core",
     },
+    "nixfmt": {
+        "attr": attr.label(default = "//config:tool_nixfmt", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "fallback": "=<label of a nixfmt executable>",
+        "kind": "file",
+        "resources": "light",
+        "shard": "nix",
+    },
     "ormolu": {
         "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1534,6 +1542,12 @@ _REAL_SHARD_SPECS = {
         "shard": "dockerfile",
         "suffix": "-dockerfile",
     },
+    "real_nix_format": {
+        "capability": "format",
+        "doc": "Additive Nix format family aspect (nixfmt).",
+        "shard": "nix",
+        "suffix": "-nix",
+    },
     "real_nix_lint": {
         "capability": "lint",
         "doc": "Additive Nix lint family aspect (statix, deadnix).",
@@ -1762,6 +1776,8 @@ real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
 real_make_lint_aspect = _make_real_aspect("real_make_lint")
+
+real_nix_format_aspect = _make_real_aspect("real_nix_format")
 
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 

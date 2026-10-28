@@ -62,6 +62,7 @@ REAL_ADAPTERS = {
     "markdown_check": {"lint": ["markdown"]},
     "mix_format": {"format": ["elixir"]},
     "modfmt": {"format": ["go_module"]},
+    "nixfmt": {"format": ["nix"]},
     "ormolu": {"format": ["haskell"]},
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
     "pkl": {"format": ["pkl"]},

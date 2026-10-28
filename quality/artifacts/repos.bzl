@@ -53,6 +53,7 @@ DX_TOOL_REPOS = [
     "dx_mdbook_linux_x86_64",
     "dx_mdbook_macos_arm64",
     "dx_mdbook_windows_x86_64",
+    "dx_nixfmt_linux_x86_64",
     "dx_ormolu_linux_x86_64",
     "dx_ormolu_windows_x86_64",
     "dx_opa_linux_arm64",

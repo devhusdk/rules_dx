@@ -37,7 +37,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | OCaml | `linux_x86_64` | `linux_x86_64` | `ocaml` |
 | Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `perl` |
 | PHP | `linux_x86_64` | `linux_x86_64` | `php` |
-| PowerShell | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `powershell` |
+| PowerShell | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` | `powershell` |
 | Python | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `python` |
 | Ruby | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `ruby` |
 | Rust | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `rust`, `rust-android`, `rust-web` |

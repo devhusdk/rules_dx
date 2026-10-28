@@ -337,6 +337,7 @@ nested_bazel_test(
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",

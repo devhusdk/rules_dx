@@ -60,6 +60,20 @@ KUBERNETES_KUBECONFORM_SUPPORT = {
     "transport": "batched",
 }
 
+MAKE_CHECKMAKE_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["make"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "make",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "checkmake",
+    "transport": "batched",
+}
+
 SHELL_SHFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -570,6 +584,7 @@ SUPPORT_RECORDS = [
     SHELL_SHFMT_SUPPORT,
     DOCKERFILE_HADOLINT_SUPPORT,
     KUBERNETES_KUBECONFORM_SUPPORT,
+    MAKE_CHECKMAKE_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,

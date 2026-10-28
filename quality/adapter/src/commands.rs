@@ -157,6 +157,8 @@ const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
+const CHECKMAKE_PREFIX: &[&str] = &["--debug", "--output", "json"];
+const CHECKMAKE_TAIL: &[&str] = &["--"];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
 const STATIX_FIX_PREFIX: &[&str] = &["fix"];
@@ -1290,6 +1292,20 @@ pub fn statix_check(binary: &Path, file: &Path, config: &Path) -> Invocation {
         config,
         END_OF_FLAGS,
         &[file],
+        "",
+    )
+}
+
+/// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.
+/// `--debug` makes it log the config it loaded, which the parser requires.
+pub fn checkmake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        CHECKMAKE_PREFIX,
+        "--config",
+        Some(config),
+        CHECKMAKE_TAIL,
+        files,
         "",
     )
 }

@@ -1939,6 +1939,145 @@ fn hadolint_bound_config_reaches_the_tool() {
     assert_eq!(findings[0].rule_id, "DL4006");
 }
 
+fn checkmake_config_arg(argv: &[OsString]) -> PathBuf {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("checkmake always gets --config");
+    PathBuf::from(&argv[at + 1])
+}
+
+fn checkmake_report(
+    argv: &[OsString],
+    env: &[(OsString, OsString)],
+    confirm_config: bool,
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for key in ["HOME", "XDG_CONFIG_HOME"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches checkmake"
+        );
+    }
+    assert_eq!(&argv[1..4], ["--debug", "--output", "json"]);
+    let file = last_file(argv);
+    assert_eq!(argv[argv.len() - 2], OsString::from("--"));
+    let dirty = std::fs::read_to_string(&file)
+        .expect("read staged Makefile")
+        .contains("all:");
+    let stdout = if dirty {
+        serde_json::json!([{
+            "rule": "minphony",
+            "violation": "Required target \"all\" must be declared PHONY.",
+            "file_name": file,
+            "line_number": 1,
+        }])
+        .to_string()
+    } else {
+        String::new()
+    };
+    let stderr = if confirm_config {
+        format!(
+            "2026/10/28 00:00:00 Using configuration file: {:?}\n",
+            checkmake_config_arg(argv)
+        )
+    } else {
+        "2026/10/28 00:00:00 Unable to parse config file \"checkmake.ini\", running with defaults\n"
+            .to_owned()
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(dirty)),
+        stdout: stdout.into_bytes(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+fn checkmake_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let config = checkmake_config_arg(argv);
+    assert!(
+        config.ends_with("dx-checkmake-default/checkmake.ini"),
+        "unbound checkmake uses the scratch default, got {config:?}"
+    );
+    assert_eq!(
+        std::fs::read(&config).expect("default config is staged"),
+        b""
+    );
+    checkmake_report(argv, env, true)
+}
+
+fn checkmake_bound(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let config = checkmake_config_arg(argv);
+    assert!(config.ends_with("cfg/checkmake.ini"), "{config:?}");
+    assert_eq!(
+        std::fs::read(&config).expect("bound config is staged"),
+        b"[default]\n"
+    );
+    checkmake_report(argv, env, true)
+}
+
+fn checkmake_ignores_config(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    checkmake_report(argv, env, false)
+}
+
+const CHECKMAKE_DIRTY: &str = "all:\n\t@true\n";
+
+#[test]
+fn checkmake_unbound_config_uses_the_scratch_default_and_is_check_only() {
+    let backend = backend_for("checkmake", plain_tool(), checkmake_defaults);
+    let findings = backend
+        .diagnose("checkmake", "lint", &single("Makefile", CHECKMAKE_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "checkmake");
+    assert_eq!(findings[0].rule_id, "minphony");
+    assert_eq!(findings[0].path, "Makefile");
+    assert!(backend
+        .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
+        .expect("diagnosed")
+        .is_empty());
+    assert_eq!(
+        backend
+            .apply_fix("checkmake", "Makefile", CHECKMAKE_DIRTY, "lint")
+            .expect("check-only"),
+        CHECKMAKE_DIRTY
+    );
+}
+
+#[test]
+fn checkmake_bound_config_reaches_the_tool() {
+    let tool = RealTool {
+        config_rel: Some("cfg/checkmake.ini".to_owned()),
+        tool_files: vec![("cfg/checkmake.ini".to_owned(), b"[default]\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("checkmake", tool, checkmake_bound);
+    let findings = backend
+        .diagnose("checkmake", "lint", &single("Makefile", CHECKMAKE_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+fn checkmake_config_fallback_is_an_error_not_a_clean_run() {
+    let backend = backend_for("checkmake", plain_tool(), checkmake_ignores_config);
+    assert!(backend
+        .diagnose("checkmake", "lint", &single("Makefile", "X = 1\n"))
+        .is_err());
+}
+
 const REDOCLY_ROOT: &str = "openapi: 3.1.0\ninfo:\n  title: Pets\n  version: '1'\npaths: {}\n";
 
 fn redocly_files(root: &str) -> BTreeMap<String, String> {

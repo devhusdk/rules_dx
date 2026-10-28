@@ -31,6 +31,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "less",
     "scss",
     "dockerfile",
+    "make",
     "javascript",
     "jsx",
     "typescript",
@@ -146,6 +147,35 @@ def dockerfile_name_error(basename):
     if is_dockerfile_name(basename):
         return ""
     return "'" + basename + "' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)
+
+# Classes whose files are recognised by exact basename or suffix. Matching is
+# case-sensitive. Add a row here to onboard a new name-matched class.
+NAMED_SOURCE_CLASSES = {
+    "make": {
+        "names": ["GNUmakefile", "Makefile", "makefile"],
+        "suffixes": [".mk"],
+    },
+}
+
+def is_named_source(class_id, basename):
+    """Reports whether a basename belongs to a name-matched class (case-sensitive)."""
+    row = NAMED_SOURCE_CLASSES.get(class_id)
+    if row == None:
+        return False
+    if basename in row["names"]:
+        return True
+    for suffix in row["suffixes"]:
+        if basename.endswith(suffix) and len(basename) > len(suffix):
+            return True
+    return False
+
+def named_source_class_error(class_id, basename):
+    """Returns the error for a basename the class matcher rejects, or ""."""
+    if is_named_source(class_id, basename):
+        return ""
+    row = NAMED_SOURCE_CLASSES[class_id]
+    accepted = row["names"] + ["*" + s for s in row["suffixes"]]
+    return "'" + basename + "' is not a " + class_id + " file name; accepted names: " + ", ".join(accepted)
 
 def is_known_semantic_class(class_id):
     """Reports whether a class ID is in the versioned registry."""

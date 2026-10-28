@@ -41,6 +41,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
     "kubeconform": [".kubeconform.json"],
+    "checkmake": [".ini"],
     "pmd": [".xml"],
     "prettier": [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
     "psscriptanalyzer": [".psd1"],
@@ -231,6 +232,7 @@ shellcheck_config = _make_native_config_rule("shellcheck")
 yamllint_config = _make_native_config_rule("yamllint")
 
 hadolint_config = _make_native_config_rule("hadolint")
+checkmake_config = _make_native_config_rule("checkmake")
 
 rubocop_config = _make_native_config_rule("rubocop")
 

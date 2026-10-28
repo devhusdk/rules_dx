@@ -457,6 +457,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "checkmake": {
+        "upstream_version": "0.3.2",
+        "release_page": "https://github.com/checkmake/checkmake/releases/tag/v0.3.2",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/checkmake/checkmake/blob/v0.3.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "checkmake-v0.3.2.linux.amd64",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.linux.amd64",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.linux.amd64",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "checkmake-v0.3.2.linux.arm64",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.linux.arm64",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.linux.arm64",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "checkmake-v0.3.2.darwin.arm64",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.darwin.arm64",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.darwin.arm64",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "checkmake-v0.3.2.windows.amd64.exe",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.amd64.exe",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.windows.amd64.exe",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+        },
+    },
     "hadolint": {
         "upstream_version": "2.15.1",
         "release_page": "https://github.com/hadolint/hadolint/releases/tag/v2.15.1",
@@ -1492,7 +1540,7 @@ def _collect(tool, platform_key, spec, workdir):
                     # BSD style: SHA256 (name) = digest
                     published[parts[1].strip("()")] = parts[3]
                 elif len(parts) == 2:
-                    published[parts[1].lstrip("*")] = parts[0]
+                    published[os.path.basename(parts[1].lstrip("*"))] = parts[0]
         expected = published.get(spec["asset"])
         if expected != digest:
             sys.exit(

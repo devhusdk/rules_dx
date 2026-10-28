@@ -224,6 +224,7 @@ to.
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
+| `checkmake` | lint | make |
 | `checkstyle` | lint | java |
 | `clang_format` | format | cc, cuda, objc |
 | `clang_tidy` | lint | cc |
@@ -2269,6 +2270,67 @@ schema is an error, not a skip. Findings keep the line and column of the
 offending field. `kubeconform` is check-only: `lint --apply` never rewrites a
 manifest. Missing schemas, malformed output and a non-zero exit with no result
 are errors and never count as clean.
+
+### Make
+
+`checkmake` lints Makefiles. It runs from a managed pin on Linux x86_64, Linux
+arm64, macOS arm64 and Windows x86_64. It is opt-in: no default policy selects
+it, because its `minphony` rule fires on most real Makefiles. dx never runs
+`make`. There is no formatter.
+
+```python
+quality_family(
+    name = "make_family",
+    family_id = "make",
+    lint = ["checkmake"],
+)
+```
+
+Own Makefiles with `make_library` from `@rules_dx//make/rules:defs.bzl`. List
+the files of the package in `srcs`. Accepted names are `Makefile`, `makefile`,
+`GNUmakefile` and `*.mk`, matched case-sensitively. Any other name fails the
+analysis with the accepted names listed. `Makefile.am`, `Makefile.in` and
+`*.mak` are not accepted.
+
+```python
+load("@rules_dx//make/rules:defs.bzl", "make_library")
+
+make_library(
+    name = "build",
+    srcs = ["Makefile"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //...
+```
+
+`checkmake` is check-only: `lint --apply` never rewrites a Makefile. Findings
+keep the rule name and line. A finding without a line is reported at line 1.
+checkmake stops at the first Makefile it cannot parse, so that file is reported
+as a `parse-error` and the findings of the other Makefiles in the same batch
+are not shown until it is fixed.
+
+`checkmake` never reads `$HOME/checkmake.ini` or a `checkmake.ini` from the
+workspace. To change the rules, bind a `checkmake_config` to the target with
+`aspect_hints`. checkmake silently falls back to its defaults when it cannot
+read the config, so dx requires checkmake to confirm the exact config path it
+was given and reports anything else as an error.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "checkmake_config")
+
+checkmake_config(
+    name = "checkmake",
+    src = "checkmake.ini",
+)
+
+make_library(
+    name = "build",
+    aspect_hints = [":checkmake"],
+    srcs = ["Makefile"],
+)
+```
 
 ### Shell
 

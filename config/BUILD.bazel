@@ -36,6 +36,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_kubeconform",
+    build_setting_default = "@dx_tools//:kubeconform",
+)
+
+label_flag(
     name = "tool_jsonschema",
     build_setting_default = "@dx_tools//:jsonschema",
 )

@@ -81,6 +81,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "go_module",
     "zig",
     "nix",
+    "kubernetes",
 ]
 
 RUST = "rust"

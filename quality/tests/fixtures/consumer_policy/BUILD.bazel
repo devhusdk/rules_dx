@@ -1,3 +1,4 @@
+load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
@@ -317,6 +318,39 @@ filegroup(
 real_source_target(
     name = "clean_nix",
     nix_srcs = [":nix_module"],
+)
+
+quality_family(
+    name = "kubernetes_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "kubernetes",
+    lint = ["kubeconform"],
+)
+
+workspace_policy(
+    name = "kubernetes_policy",
+    families = [":kubernetes_family"],
+)
+
+kubernetes_schemas(
+    name = "kubernetes_schemas",
+    kubernetes_version = "1.32.0",
+    schemas = ["//quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
+
+filegroup(
+    name = "kubernetes_module",
+    srcs = ["kubernetes_module/clean.yaml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_kubernetes",
+    aspect_hints = [":kubernetes_schemas"],
+    kubernetes_srcs = [":kubernetes_module"],
 )
 
 quality_family(

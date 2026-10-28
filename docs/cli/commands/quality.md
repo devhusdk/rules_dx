@@ -248,6 +248,7 @@ to.
 | `keep_sorted` | lint | text |
 | `ktfmt` | format | kotlin |
 | `ktlint` | lint | kotlin |
+| `kubeconform` | lint | kubernetes |
 | `markdown_check` | lint | markdown |
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
@@ -2103,6 +2104,68 @@ dockerfile_library(
 ```
 
 Inline `# hadolint ignore=DL3008` comments are honoured.
+
+### Kubernetes
+
+`kubeconform` validates Kubernetes manifests against JSON schemas. It runs from
+a managed v0.8.0 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
+x86_64. Select it in a `kubernetes` family. There is no
+formatter, and plain YAML stays in the `yaml` family.
+
+```python
+quality_family(
+    name = "kubernetes_family",
+    family_id = "kubernetes",
+    lint = ["kubeconform"],
+)
+```
+
+Own manifests with `kubernetes_manifests` from
+`@rules_dx//kubernetes/rules:defs.bzl`. It accepts `.yaml`, `.yml` and `.json`
+files. A file is checked as a manifest because the rule owns it, not because of
+its name. Every non-empty document needs `apiVersion` and `kind`, or the run
+reports `dx/kubernetes-not-manifest` at that document's line. A file that does
+not parse is `dx/kubernetes-syntax`.
+
+Schemas are offline. Declare them with `kubernetes_schemas` and bind it with
+`aspect_hints`. A `kubernetes_manifests` target without that hint fails the
+analysis and names `kubernetes_schemas`.
+
+```python
+load("@rules_dx//kubernetes/rules:defs.bzl", "kubernetes_manifests", "kubernetes_schemas")
+
+kubernetes_schemas(
+    name = "schemas",
+    kubernetes_version = "1.32.0",
+    schemas = ["deployment-apps-v1.json", "service-v1.json"],
+    crd_schemas = {"widget_v1.json": "example.com"},
+    strict = True,
+    skip_kinds = ["Widget"],
+)
+
+kubernetes_manifests(
+    name = "manifests",
+    aspect_hints = [":schemas"],
+    srcs = ["deploy.yaml"],
+)
+```
+
+`kubernetes_version` is required and must look like `X.Y.Z`. `schemas` are
+core schema files named like the yannh/kubernetes-json-schema files, for
+example `deployment-apps-v1.json`. `crd_schemas` maps each `<kind>_<version>.json`
+file to its API group. Duplicate names fail the analysis. `strict` defaults to
+true and rejects duplicate keys in a manifest. It does not reject unknown
+fields: that needs the `-standalone-strict` variants of the schema files in
+`schemas`, because the schema decides which fields are allowed.
+`kubernetes_version` only labels the run; the declared schema files decide
+which Kubernetes version is checked. `skip_kinds` lists kinds that are not
+checked.
+
+`kubeconform` never reaches a network schema location, and a kind with no
+schema is an error, not a skip. Findings keep the line and column of the
+offending field. `kubeconform` is check-only: `lint --apply` never rewrites a
+manifest. Missing schemas, malformed output and a non-zero exit with no result
+are errors and never count as clean.
 
 ### Shell
 

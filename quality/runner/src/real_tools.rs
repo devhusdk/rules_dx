@@ -2540,3 +2540,201 @@ fn deadnix_garbage_fails_the_action() {
         .diagnose("deadnix", "lint", &single("a.nix", DEADNIX_DIRTY))
         .expect_err("garbage is never clean");
 }
+
+const KUBECONFORM_CONFIG_REL: &str = "k8s/schemas.kubeconform.json";
+const KUBECONFORM_MANIFEST: &str = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: a\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  replicas: \"2\"\n";
+
+static KUBECONFORM_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn kubeconform_tool(config: &str) -> RealTool {
+    RealTool {
+        config_rel: Some(KUBECONFORM_CONFIG_REL.to_owned()),
+        tool_files: vec![
+            (
+                KUBECONFORM_CONFIG_REL.to_owned(),
+                config.as_bytes().to_vec(),
+            ),
+            (
+                "k8s/schemas.kubeconform/core/pod-v1.json".to_owned(),
+                b"{}".to_vec(),
+            ),
+        ],
+        ..plain_tool()
+    }
+}
+
+fn kubeconform_bound() -> RealTool {
+    kubeconform_tool(
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","strict":true,"skip_kinds":[],"core_dir":"schemas.kubeconform/core","crd_dir":"schemas.kubeconform/crd"}"#,
+    )
+}
+
+fn kubeconform_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    KUBECONFORM_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        args[..4],
+        ["-output", "json", "-summary=false", "-kubernetes-version"]
+    );
+    assert!(!args
+        .iter()
+        .any(|arg| arg.contains("ignore-missing-schemas")));
+    let locations: Vec<&String> = args
+        .iter()
+        .zip(args.iter().skip(1))
+        .filter(|(flag, _)| *flag == "-schema-location")
+        .map(|(_, value)| value)
+        .collect();
+    assert_eq!(locations.len(), 2);
+    let core = locations[0]
+        .strip_suffix("/{{.ResourceKind}}{{.KindSuffix}}.json")
+        .expect("core template");
+    assert!(
+        Path::new(core).join("pod-v1.json").is_file(),
+        "schemas are staged beside the config: {core}"
+    );
+    let docs: Vec<&String> = args
+        .iter()
+        .filter(|arg| arg.contains("dx-kubeconform"))
+        .collect();
+    assert!(!docs.is_empty());
+    let mut resources = Vec::new();
+    for doc in docs {
+        let body = std::fs::read_to_string(doc).expect("read staged document");
+        assert!(!body.contains("\n---"), "one document per file: {body:?}");
+        if body.contains("replicas: \"2\"") {
+            resources.push(serde_json::json!({
+                "filename": doc,
+                "kind": "Deployment",
+                "name": "web",
+                "version": "apps/v1",
+                "status": "statusInvalid",
+                "msg": format!("jsonschema: does not validate with file://{core}/deployment-apps-v1.json"),
+                "validationErrors": [{"path": "/spec/replicas", "msg": "expected integer, but got string"}],
+            }));
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!resources.is_empty())),
+        stdout: serde_json::json!({ "resources": resources })
+            .to_string()
+            .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn kubeconform_exit_zero_with_failures(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let mut out = kubeconform_fake(argv, cwd, env)?;
+    out.code = Some(0);
+    Ok(out)
+}
+
+#[test]
+fn kubeconform_validates_every_document_in_one_run() {
+    let backend = backend_for("kubeconform", kubeconform_bound(), kubeconform_fake);
+    let mut files = single("k8s/app.yaml", KUBECONFORM_MANIFEST);
+    files.insert("k8s/notes.yaml".to_owned(), "title: hi\n".to_owned());
+    files.insert(
+        "k8s/broken.yaml".to_owned(),
+        "apiVersion: v1\nkind: [\n".to_owned(),
+    );
+    let before = KUBECONFORM_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let mut findings = backend
+        .diagnose("kubeconform", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(
+        KUBECONFORM_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
+        1
+    );
+    findings.sort_by(|a, b| a.path.cmp(&b.path));
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|found| (found.path.as_str(), found.rule_id.as_str()))
+        .collect();
+    assert_eq!(
+        seen,
+        vec![
+            ("k8s/app.yaml", "invalid"),
+            ("k8s/broken.yaml", "dx/kubernetes-syntax"),
+            ("k8s/notes.yaml", "dx/kubernetes-not-manifest"),
+        ]
+    );
+    let invalid = &findings[0];
+    assert_eq!(invalid.tool_id, "kubeconform");
+    let replicas = KUBECONFORM_MANIFEST.find("replicas").expect("key") as u64;
+    assert_eq!(invalid.start_byte, Some(replicas));
+    assert!(!invalid.message.contains("file://"), "{}", invalid.message);
+    assert_eq!(
+        backend
+            .apply_fix("kubeconform", "k8s/app.yaml", KUBECONFORM_MANIFEST, "lint")
+            .expect("check-only"),
+        KUBECONFORM_MANIFEST
+    );
+}
+
+#[test]
+fn kubeconform_clean_manifests_are_clean() {
+    let backend = backend_for("kubeconform", kubeconform_bound(), kubeconform_fake);
+    let findings = backend
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/pod.yaml", "apiVersion: v1\nkind: Pod\n"),
+        )
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn kubeconform_needs_a_local_config() {
+    let backend = backend_for("kubeconform", plain_tool(), kubeconform_fake);
+    let err = backend
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/pod.yaml", "kind: Pod\n"),
+        )
+        .expect_err("no config");
+    assert!(err.to_string().contains("kubernetes_schemas"), "{err}");
+    let remote = kubeconform_tool(
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"default","crd_dir":"c"}"#,
+    );
+    let backend = backend_for("kubeconform", remote, kubeconform_fake);
+    let err = backend
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/pod.yaml", "kind: Pod\n"),
+        )
+        .expect_err("remote schemas");
+    assert!(err.to_string().contains("local directory"), "{err}");
+}
+
+#[test]
+fn kubeconform_exit_zero_with_failures_fails_the_action() {
+    let backend = backend_for(
+        "kubeconform",
+        kubeconform_bound(),
+        kubeconform_exit_zero_with_failures,
+    );
+    backend
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/app.yaml", KUBECONFORM_MANIFEST),
+        )
+        .expect_err("exit 0 with failures is never clean");
+}

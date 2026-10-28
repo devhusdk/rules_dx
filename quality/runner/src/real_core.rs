@@ -172,6 +172,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "hadolint",
             "jsonnetfmt",
             "keep_sorted",
+            "kubeconform",
             "ktfmt",
             "ktlint",
             "markdown_check",

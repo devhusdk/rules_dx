@@ -1,5 +1,5 @@
 use std::ffi::{OsStr, OsString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::launch::{LaunchError, ResolvedTool};
 
@@ -1312,6 +1312,152 @@ pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DEADNIX_FIX_ARGS, files, "")
+}
+
+/// The suffix of a kubeconform config file.
+pub const KUBECONFORM_CONFIG_SUFFIX: &str = ".kubeconform.json";
+const KUBECONFORM_CORE_TEMPLATE: &str = "{{.ResourceKind}}{{.KindSuffix}}.json";
+const KUBECONFORM_CRD_TEMPLATE: &str = "{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json";
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct KubeconformConfigFile {
+    schema_version: u32,
+    kubernetes_version: String,
+    #[serde(default)]
+    strict: bool,
+    #[serde(default)]
+    skip_kinds: Vec<String>,
+    core_dir: String,
+    crd_dir: String,
+}
+
+/// A parsed `<name>.kubeconform.json` with its schema directories resolved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KubeconformConfig {
+    pub kubernetes_version: String,
+    pub strict: bool,
+    pub skip_kinds: Vec<String>,
+    pub core_dir: PathBuf,
+    pub crd_dir: PathBuf,
+}
+
+fn remote_location(location: &str) -> bool {
+    location == "default" || location.contains("://")
+}
+
+fn schema_dir(base: &Path, key: &str, rel: &str) -> Result<PathBuf, String> {
+    if remote_location(rel) {
+        return Err(format!(
+            "kubeconform {key} must be a local directory, got {rel:?}"
+        ));
+    }
+    let bad = rel.is_empty()
+        || rel.starts_with('/')
+        || rel.contains('\\')
+        || rel.contains(':')
+        || rel
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..");
+    if bad {
+        return Err(format!(
+            "kubeconform {key} must be a relative forward-slash path below the config, got {rel:?}"
+        ));
+    }
+    Ok(rel
+        .split('/')
+        .fold(base.to_path_buf(), |dir, part| dir.join(part)))
+}
+
+/// Parses a kubeconform config; its schema directories resolve against the config's directory.
+pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConfig, String> {
+    let name = config
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    if !name.ends_with(KUBECONFORM_CONFIG_SUFFIX) {
+        return Err(format!(
+            "kubeconform config {} must end with {KUBECONFORM_CONFIG_SUFFIX}",
+            config.display()
+        ));
+    }
+    let raw: KubeconformConfigFile = serde_json::from_slice(bytes)
+        .map_err(|err| format!("kubeconform config {}: {err}", config.display()))?;
+    if raw.schema_version != 1 {
+        return Err(format!(
+            "kubeconform config schema_version must be 1, got {}",
+            raw.schema_version
+        ));
+    }
+    let version = &raw.kubernetes_version;
+    if version.is_empty()
+        || !version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-'))
+    {
+        return Err(format!(
+            "kubeconform kubernetes_version is not a version: {version:?}"
+        ));
+    }
+    for kind in &raw.skip_kinds {
+        if kind.is_empty() || kind.contains(',') || kind.chars().any(char::is_whitespace) {
+            return Err(format!(
+                "kubeconform skip_kinds entry is not a kind: {kind:?}"
+            ));
+        }
+    }
+    let base = config.parent().unwrap_or(Path::new(""));
+    Ok(KubeconformConfig {
+        core_dir: schema_dir(base, "core_dir", &raw.core_dir)?,
+        crd_dir: schema_dir(base, "crd_dir", &raw.crd_dir)?,
+        kubernetes_version: raw.kubernetes_version,
+        strict: raw.strict,
+        skip_kinds: raw.skip_kinds,
+    })
+}
+
+fn schema_location(dir: &Path, template: &str) -> Result<String, String> {
+    let dir = dir
+        .to_str()
+        .ok_or_else(|| format!("kubeconform schema dir is not UTF-8: {}", dir.display()))?;
+    let location = format!("{}/{template}", dir.trim_end_matches(['/', '\\']));
+    if dir.is_empty() || remote_location(dir) {
+        return Err(format!(
+            "kubeconform schema location must be local, got {location:?}"
+        ));
+    }
+    Ok(location)
+}
+
+/// Exactly two local schema locations; never `-ignore-missing-schemas`.
+pub fn kubeconform_check(
+    binary: &Path,
+    config: &KubeconformConfig,
+    files: &[&Path],
+) -> Result<Invocation, String> {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("-output"),
+        OsString::from("json"),
+        OsString::from("-summary=false"),
+        OsString::from("-kubernetes-version"),
+        OsString::from(&config.kubernetes_version),
+    ];
+    if config.strict {
+        head.push(OsString::from("-strict"));
+    }
+    if !config.skip_kinds.is_empty() {
+        head.push(OsString::from("-skip"));
+        head.push(OsString::from(config.skip_kinds.join(",")));
+    }
+    for (dir, template) in [
+        (&config.core_dir, KUBECONFORM_CORE_TEMPLATE),
+        (&config.crd_dir, KUBECONFORM_CRD_TEMPLATE),
+    ] {
+        head.push(OsString::from("-schema-location"));
+        head.push(OsString::from(schema_location(dir, template)?));
+    }
+    Ok(assemble(binary, head, files, ""))
 }
 
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {

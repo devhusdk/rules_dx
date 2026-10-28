@@ -36,6 +36,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "hadolint",
     "jsonnetfmt",
     "keep_sorted",
+    "kubeconform",
     "ktfmt",
     "ktlint",
     "markdown_check",
@@ -446,6 +447,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
 
 mod check;
 mod delegated;
+mod kubeconform;
 mod pipeline;
 mod redocly;
 mod rustfmt;

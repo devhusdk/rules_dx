@@ -108,6 +108,7 @@ def sources_registry_tests(name):
                 [c for c in FROZEN_SEMANTIC_FILE_CLASSES if not is_known_semantic_class(c)],
                 [],
             ),
+            expect_equal("kubernetes class is known", is_known_semantic_class("kubernetes"), True),
             expect_equal("RUST class ID", RUST, "rust"),
             expect_equal(
                 "upstream rust extension maps to rust",

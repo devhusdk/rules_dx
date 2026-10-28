@@ -45,5 +45,18 @@ class HadolintShellcheckGuardTest(unittest.TestCase):
         )
 
 
+class KubeconformPinTest(unittest.TestCase):
+    def test_every_platform_uses_the_upstream_checksums_file(self):
+        spec = update.TOOLS["kubeconform"]
+        version = spec["upstream_version"]
+        self.assertEqual(
+            sorted(spec["platforms"]),
+            ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+        )
+        for platform in spec["platforms"].values():
+            self.assertTrue(platform["checksums_url"].endswith("/v%s/CHECKSUMS" % version))
+            self.assertIn("/v%s/" % version, platform["url"])
+
+
 if __name__ == "__main__":
     unittest.main()

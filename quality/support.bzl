@@ -312,6 +312,20 @@ PROTOBUF_BUF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+FLATBUFFERS_FLATC_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["flatbuffers"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "flatbuffers",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "flatc",
+    "transport": "batched",
+}
+
 CSS_STYLELINT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -565,6 +579,7 @@ JUPYTER_RUFF_LINT_SUPPORT = {
 }
 
 SUPPORT_RECORDS = [
+    FLATBUFFERS_FLATC_LINT_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
     CSHARP_CSHARPIER_SUPPORT,

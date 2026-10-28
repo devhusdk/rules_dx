@@ -897,6 +897,25 @@ fn buf(
     }
 }
 
+/// Validates one schema with `flatc -M --cpp`, which parses it, prints its
+/// dependency list and writes nothing. Includes resolve next to the schema
+/// first, then under `root`.
+pub fn flatc_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invocation {
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            OsString::from("-M"),
+            OsString::from("--cpp"),
+            OsString::from("-o"),
+            out.as_os_str().to_owned(),
+            OsString::from("-I"),
+            root.as_os_str().to_owned(),
+            file.as_os_str().to_owned(),
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn buf_lint_check(
     binary: &Path,
     files: &[&Path],

@@ -679,6 +679,44 @@ impl RealBackend {
                     Ok(owned)
                 }
             }
+            "flatc" => {
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let out_dir = root.join(".dx-flatc-out");
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    // flatc prints realpaths, so check and report the canonical one.
+                    let file = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    let invocation = commands::flatc_check(&tool.binary, &file, &root, &out_dir);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    if !matches!(out.code, Some(0 | 1)) {
+                        let code = out
+                            .code
+                            .map_or_else(|| "signal".to_owned(), |code| code.to_string());
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        return Err(execution(
+                            tool_id,
+                            format!("exit {code}: {}", stderr.trim()),
+                        ));
+                    }
+                    let name = file.to_string_lossy().into_owned();
+                    let report = parsed(
+                        tool_id,
+                        parsers::parse_flatc(&out.stdout, &out.stderr, out.code, &[name.as_str()]),
+                    )?;
+                    declared_input_escape(tool_id, workspace, &root, &report.dependencies)?;
+                    let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+                    for mut item in report.findings {
+                        item.file = absolute.to_string_lossy().into_owned();
+                        // Messages name other schemas by scratch path; keep them workspace-relative.
+                        item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                        findings.push(item);
+                    }
+                }
+                Ok(findings)
+            }
             "qmlformat" => {
                 let mut findings = Vec::new();
                 for (workspace, absolute) in pairs {
@@ -1104,6 +1142,43 @@ fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
     }
 }
 
+/// Lexically resolves `.` and `..` without touching the filesystem.
+fn lexical_normal(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for part in path.components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Fails when a dependency a tool reports from a read-only dependency scan
+/// lies outside the canonical scratch `root`, so a lookup that escaped the
+/// declared inputs is never reported clean.
+fn declared_input_escape(
+    tool_id: &str,
+    source: &str,
+    root: &Path,
+    dependencies: &[String],
+) -> Result<(), RunnerError> {
+    for dependency in dependencies {
+        let normal = lexical_normal(Path::new(dependency));
+        let inside = std::fs::canonicalize(&normal).is_ok_and(|real| real.starts_with(root));
+        if !inside {
+            return Err(execution(
+                tool_id,
+                format!("include '{dependency}' is outside the declared inputs of {source}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn import_path_copy(
     tool_id: &str,
     workspace: &str,
@@ -1197,5 +1272,32 @@ mod clamp_tests {
             let (_, byte) = clamped(&format!("{text}\t\r"), encoding);
             assert_eq!(byte, Some(text.len() as u64 + 2), "{encoding:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod declared_input_tests {
+    use super::declared_input_escape;
+
+    #[test]
+    fn dependencies_inside_the_root_pass_and_escapes_fail() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let root = std::fs::canonicalize(dir.path()).expect("root");
+        std::fs::create_dir_all(root.join("root/pkg")).expect("pkg");
+        std::fs::write(root.join("root/pkg/a.fbs"), "table A {}").expect("a");
+        std::fs::write(root.join("outside.fbs"), "table O {}").expect("outside");
+        let inner = root.join("root");
+        let ok = vec![inner.join("pkg/a.fbs").to_string_lossy().into_owned()];
+        declared_input_escape("flatc", "pkg/a.fbs", &inner, &ok).expect("inside");
+        let up = vec![inner
+            .join("pkg/../../outside.fbs")
+            .to_string_lossy()
+            .into_owned()];
+        let err = declared_input_escape("flatc", "pkg/a.fbs", &inner, &up).expect_err("escape");
+        assert!(err
+            .to_string()
+            .contains("is outside the declared inputs of pkg/a.fbs"));
+        let missing = vec![inner.join("pkg/none.fbs").to_string_lossy().into_owned()];
+        assert!(declared_input_escape("flatc", "pkg/a.fbs", &inner, &missing).is_err());
     }
 }

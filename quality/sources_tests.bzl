@@ -44,6 +44,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "cue",
     "elixir",
     "erlang",
+    "flatbuffers",
     "fortran",
     "gherkin",
     "go",

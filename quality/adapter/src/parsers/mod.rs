@@ -15,6 +15,7 @@ pub mod errcheck;
 pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
+pub mod flatc;
 pub mod fsharplint;
 pub mod gofumpt;
 pub mod google_java_format;
@@ -80,6 +81,7 @@ pub use errcheck::parse_errcheck;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
+pub use flatc::{parse_flatc, FlatcReport};
 pub use fsharplint::parse_fsharplint;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
@@ -1456,6 +1458,7 @@ mod tests {
         "/s/a.txt",
         "/s/a.pp",
         "/s/a.mdx",
+        "/s/a.fbs",
     ];
 
     const FUZZ_SEEDS: &[&[u8]] = &[
@@ -1481,6 +1484,9 @@ mod tests {
         br#"{"diagnostics":[{"file":"/s/a.qml","line":1,"message":"m"}]}"#,
         br#"{"path":"/s/a.scala","line":1,"column":1,"rule":"r","message":"m","severity":"error"}"#,
         b"path:1:1: E100 message\n",
+        b"\nerror:\n  /s/a.fbs:1: 19: error: msg\n\n",
+        b"\nerror:\n  /s/a.fbs(1, 19): error: msg\n",
+        b"/s/o/a_generated.h: \\\n /s/a.fbs\n",
         b"error: bad\n  \xe2\x94\x8c\xe2\x94\x80 /s/x.toml:1:5\n",
         b"Diff in /s/x.rs:1:\n-fn  main(){}\n+fn main() {}\n",
         b"--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n",
@@ -1656,6 +1662,15 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::flake8::parse_flake8(input, code, files)
+    }
+
+    fn fuzz_flatc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let both = super::flatc::parse_flatc(input, input, code, files)?;
+        Ok(both.findings)
     }
 
     fn fuzz_fsharplint(
@@ -2126,6 +2141,7 @@ mod tests {
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
+        ("flatc", fuzz_flatc),
         ("fsharplint", fuzz_fsharplint),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
@@ -2200,6 +2216,7 @@ mod tests {
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
+        ("flatc", include_str!("flatc.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),

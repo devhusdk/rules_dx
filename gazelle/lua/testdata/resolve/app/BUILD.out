@@ -1,0 +1,12 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_library")
+
+# gazelle:resolve lua inspect @lua_app_inspect//:inspect
+
+lua_library(
+    name = "app",
+    srcs = ["main.lua"],
+    deps = [
+        "//widgets",
+        "@lua_app_inspect//:inspect",
+    ],
+)

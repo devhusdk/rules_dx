@@ -93,6 +93,12 @@ var conformanceRows = map[string]conformanceRow{
 		symbols:    []string{"kotlin_library"},
 		extraLoads: map[string][]string{"@rules_dx//android/rules:defs.bzl": {"kotlin_android_library"}},
 	},
+	"lua": {
+		files: map[string]string{"demo.lua": "return {}\n"},
+		kind:  "lua_library", target: "demo", defs: "lua/rules:defs.bzl",
+		symbols: []string{"lua_library", "lua_test"},
+		inert:   []string{"demo.txt"},
+	},
 	"mdx": {
 		files: map[string]string{"demo.mdx": webScript + "\n# Demo\n\nContent.\n"},
 		kind:  "mdx_library", target: "demo", defs: "mdx/rules:defs.bzl",

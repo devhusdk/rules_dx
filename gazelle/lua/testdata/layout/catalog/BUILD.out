@@ -1,0 +1,16 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_library", "lua_test")
+
+lua_library(
+    name = "catalog",
+    srcs = [
+        "init.lua",
+        "parse.lua",
+    ],
+)
+
+lua_test(
+    name = "catalog_test",
+    srcs = ["catalog_test.lua"],
+    main = "catalog_test.lua",
+    deps = [":catalog"],
+)

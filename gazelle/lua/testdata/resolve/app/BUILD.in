@@ -1,0 +1,1 @@
+# gazelle:resolve lua inspect @lua_app_inspect//:inspect

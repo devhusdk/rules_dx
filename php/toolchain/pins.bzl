@@ -24,3 +24,9 @@ PHPUNIT = struct(
     sha256 = "f9f8f986f2b6e862187a04619eb01b5960cea77bb39bd1e38d3e396a99eae516",
     urls = ["https://phar.phpunit.de/phpunit-13.4.3.phar"],
 )
+
+PHPSTAN = struct(
+    version = "2.3.3",
+    sha256 = "aa5cc7543f0de0ae7997deb24f654a3b2454b6ba4ba2c4552957a175886b60b1",
+    urls = ["https://github.com/phpstan/phpstan/releases/download/2.3.3/phpstan.phar"],
+)

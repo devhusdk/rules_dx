@@ -48,6 +48,9 @@ _ERLANG_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:erlang_typecheck_pol
 _ELIXIR_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:elixir_typecheck_policy"
 _DIALYZER_SETTING = _CANONICAL + "//config:tool_dialyzer"
 _DIALYZER_TOOL = _CANONICAL + "//erlang/tools:dialyzer"
+_PHP_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:php_typecheck_policy"
+_PHPSTAN_SETTING = _CANONICAL + "//config:tool_phpstan"
+_PHPSTAN_TOOL = _CANONICAL + "//php/tools:phpstan"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/tools:mix_format"
@@ -262,6 +265,22 @@ erlang_typecheck_subject = rule(
     implementation = _erlang_typecheck_subject_impl,
     attrs = {
         "_dialyzer": attr.label(default = "//config:tool_dialyzer"),
+        "target": attr.label(
+            aspects = [real_typecheck_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _php_typecheck_subject_impl(ctx):
+    """Exposes the phpstan request files beside the real aspect."""
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = {"results": ",".join([f.short_path for f in results])})]
+
+php_typecheck_subject = rule(
+    implementation = _php_typecheck_subject_impl,
+    attrs = {
+        "_phpstan": attr.label(default = "//config:tool_phpstan"),
         "target": attr.label(
             aspects = [real_typecheck_aspect],
             mandatory = True,
@@ -944,6 +963,42 @@ def dialyzer_elixir_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_dialyzer",
     )
     _dialyzer_elixir_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_phpstan_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _PHP_TYPECHECK_POLICY},
+)
+
+def _phpstan_wired_impl(ctx):
+    """Asserts the flag wires a typecheck stage result for the php target."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["results"] != "", "want a typecheck stage result for the php target")
+    return analysistest.end(env)
+
+_phpstan_set_test = analysistest.make(
+    _phpstan_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _PHP_TYPECHECK_POLICY,
+        _PHPSTAN_SETTING: _PHPSTAN_TOOL,
+    },
+)
+
+def phpstan_flag_tests(name, subject):
+    """Instantiates the phpstan flag proofs."""
+    _phpstan_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_phpstan",
+    )
+    _phpstan_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

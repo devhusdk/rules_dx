@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":php.bzl", "TOOLCHAIN_TYPE")
-load(":pins.bzl", "COMPOSER", "PHPUNIT", "PHP_CELLS", "PHP_VERSION", "STATIC_PHP")
+load(":pins.bzl", "COMPOSER", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION", "STATIC_PHP")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
 PHP_TEST_COMPATIBLE_WITH = [
@@ -25,6 +25,9 @@ def _checks():
         expect_equal("phpunit version", PHPUNIT.version, "13.4.3"),
         expect_equal("phpunit digest", len(PHPUNIT.sha256), 64),
         expect_true("phpunit urls name the version", all([PHPUNIT.version in url for url in PHPUNIT.urls])),
+        expect_equal("phpstan version", PHPSTAN.version, "2.3.3"),
+        expect_equal("phpstan digest", len(PHPSTAN.sha256), 64),
+        expect_true("phpstan urls name the version", all([PHPSTAN.version in url for url in PHPSTAN.urls])),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),
         expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "8.5.12",'),
         expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2),

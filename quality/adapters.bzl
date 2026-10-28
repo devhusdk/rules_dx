@@ -79,6 +79,7 @@ REAL_ADAPTERS = {
     "perltidy": {"format": ["perl"]},
     "pkl": {"format": ["pkl"]},
     "regal": {"lint": ["rego"]},
+    "phpstan": {"typecheck": ["php"]},
     "pmd": {"lint": ["java"]},
     "prettier": {"format": ["ansible", "api_spec", "api_spec_ref", "astro", "css", "dockerfile", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "kubernetes", "less", "php", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"]},
     "psscriptanalyzer": {"format": ["powershell"], "lint": ["powershell"]},

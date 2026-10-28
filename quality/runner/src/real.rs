@@ -64,6 +64,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "opa",
     "perltidy",
     "pkl",
+    "phpstan",
     "pmd",
     "prettier",
     "psscriptanalyzer",

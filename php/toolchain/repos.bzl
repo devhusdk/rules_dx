@@ -1,7 +1,7 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
 load("//erlang/toolchain:pins.bzl", "CELLS")
-load(":pins.bzl", "COMPOSER", "PHPUNIT", "PHP_CELLS", "PHP_VERSION")
+load(":pins.bzl", "COMPOSER", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION")
 
 HUB_NAME = "dx_php_toolchains"
 
@@ -120,6 +120,7 @@ def _php_impl(mctx):
     _hub(name = HUB_NAME)
     php_phar(name = "dx_composer", file = "composer.phar", sha256 = COMPOSER.sha256, urls = COMPOSER.urls)
     php_phar(name = "dx_phpunit", file = "phpunit.phar", sha256 = PHPUNIT.sha256, urls = PHPUNIT.urls)
+    php_phar(name = "dx_phpstan", file = "phpstan.phar", sha256 = PHPSTAN.sha256, urls = PHPSTAN.urls)
     return mctx.extension_metadata(reproducible = True)
 
 php = module_extension(

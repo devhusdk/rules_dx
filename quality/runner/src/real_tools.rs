@@ -4181,6 +4181,89 @@ fn dialyzer_is_check_only() {
     );
 }
 
+fn phpstan_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let config = text.iter().position(|a| a == "-c").expect("config flag");
+    let neon = std::fs::read_to_string(&text[config + 1]).expect("generated neon");
+    assert!(neon.contains("maximumNumberOfProcesses: 1"), "{neon}");
+    assert!(neon.contains("tmpDir"), "{neon}");
+    assert!(neon.contains("dx-phpstan/scan"), "{neon}");
+    assert!(neon.contains("dx-phpstan/pkg"), "{neon}");
+    assert!(neon.contains("level: 5"), "{neon}");
+    let sep = text.iter().position(|a| a == "--").expect("separator");
+    let paths = &text[sep + 1..];
+    assert_eq!(paths.len(), 1, "{paths:?}");
+    let clean = paths[0].ends_with("clean.php");
+    let body = if clean {
+        r#"{"totals":{"errors":0,"file_errors":0},"files":[],"errors":[]}"#.to_owned()
+    } else {
+        format!(
+            r#"{{"totals":{{"errors":0,"file_errors":2}},"files":{{"{0}":{{"errors":1,"messages":[{{"message":"Method f() should return int.","line":3,"ignorable":true,"identifier":"return.type"}}]}},"/elsewhere/dep.php":{{"errors":1,"messages":[{{"message":"x","line":1,"ignorable":true}}]}}}},"errors":[]}}"#,
+            paths[0]
+        )
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(!clean)),
+        stdout: body.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn phpstan_tool() -> RealTool {
+    RealTool {
+        tool_files: vec![
+            (
+                "dx-phpstan/scan/lib/Dep.php".to_owned(),
+                b"<?php\n".to_vec(),
+            ),
+            (
+                "dx-phpstan/pkg/vendor/x/X.php".to_owned(),
+                b"<?php\n".to_vec(),
+            ),
+        ],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn phpstan_writes_its_config_keeps_owned_findings_and_maps_paths_back() {
+    let backend = backend_for("phpstan", phpstan_tool(), phpstan_report);
+    let findings = backend
+        .diagnose(
+            "phpstan",
+            "typecheck",
+            &single("lib/bad.php", "<?php\nfunction f(): int { return 'a'; }\n"),
+        )
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(seen, vec![("lib/bad.php", "phpstan/return.type")]);
+    assert!(backend
+        .diagnose("phpstan", "typecheck", &single("lib/clean.php", "<?php\n"))
+        .expect("clean")
+        .is_empty());
+}
+
+#[test]
+fn phpstan_is_check_only() {
+    let backend = backend_for("phpstan", phpstan_tool(), phpstan_report);
+    assert_eq!(
+        backend
+            .apply_fix("phpstan", "lib/a.php", "<?php\n", "typecheck")
+            .expect("check-only"),
+        "<?php\n"
+    );
+}
+
 const ANSIBLE_CLEAN_SARIF: &str =
     r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ansible-lint"}},"results":[]}]}"#;
 

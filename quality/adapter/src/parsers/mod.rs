@@ -53,6 +53,7 @@ pub mod notebook_outputs;
 pub mod opa;
 pub mod ormolu;
 pub mod perltidy;
+pub mod phpstan;
 pub mod pkl;
 pub mod pmd;
 pub mod prettier;
@@ -144,6 +145,7 @@ pub use notebook_outputs::parse_notebook_outputs;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use perltidy::parse_perltidy;
+pub use phpstan::parse_phpstan;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
@@ -1930,6 +1932,14 @@ mod tests {
         super::pkl::parse_pkl(input, input, code, files)
     }
 
+    fn fuzz_phpstan(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::phpstan::parse_phpstan(input, code, files)
+    }
+
     fn fuzz_pmd(
         input: &[u8],
         code: Option<i32>,
@@ -2494,6 +2504,7 @@ mod tests {
         ("opa_check", fuzz_opa_check),
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
+        ("phpstan", fuzz_phpstan),
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
         ("psscriptanalyzer", fuzz_psscriptanalyzer),
@@ -2593,6 +2604,7 @@ mod tests {
         ("ormolu", include_str!("ormolu.rs")),
         ("opa", include_str!("opa.rs")),
         ("perltidy", include_str!("perltidy.rs")),
+        ("phpstan", include_str!("phpstan.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),
         ("prettier", include_str!("prettier.rs")),

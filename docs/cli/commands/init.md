@@ -151,6 +151,9 @@ and writes nothing. Sections:
   <https://bazel.build/extending/toolchains>. A `python.toolchain` of yours is advisory:
   rules_dx registers Python only as a dependency module, so yours always wins. Registrations
   of repos dx cannot link to an ecosystem are never flagged.
+- `bazelrc conflicts`: a line in the root `.bazelrc`, or a file it imports through
+  `%workspace%/`, that exactly repeats a flag line the dx preset layers own. Advisory; dx
+  does not import the layers while the root file repeats them, so drop the line.
 
 Each finding names the file and line, including `include()`d `.MODULE.bazel` files. The
 plan covers declared deps only, so transitive raises are not shown. Hard findings add an

@@ -52,6 +52,9 @@ func TestManifestName(t *testing.T) {
 		{"number", ".{ .name = 12 }", ""},
 		{"absent", ".{ .version = \"1\" }", ""},
 		{"empty", "", ""},
+		{"truncated", ".{ .name = .demo", "demo"},
+		{"truncatedString", ".{ .name = \"demo", ""},
+		{"escapedQuote", ".{ .name = \"a\\\"b\" }", "a\"b"},
 		{"bom", "\xEF\xBB\xBF.{ .name = .demo }", "demo"},
 	}
 	for _, tc := range cases {

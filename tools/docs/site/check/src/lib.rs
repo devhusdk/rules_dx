@@ -20,6 +20,7 @@ use std::path::Path;
 pub struct Inputs {
     pub book: Option<String>,
     pub api: Option<String>,
+    pub records: Option<String>,
     pub shards: Vec<String>,
     pub prose: Vec<String>,
     pub data: Vec<String>,
@@ -28,7 +29,7 @@ pub struct Inputs {
 /// The usage line shown for a rejected invocation.
 pub fn usage() -> String {
     let mut line = String::from("usage: site_check --book FILE --api FILE --shard FILE");
-    line.push_str(" [--shard FILE] [--prose FILE] [--data FILE]");
+    line.push_str(" [--shard FILE] [--prose FILE] [--data FILE] [--records FILE]");
     line
 }
 
@@ -39,13 +40,14 @@ pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
     while index < args.len() {
         let flag = args[index].as_str();
         match flag {
-            "--book" | "--api" | "--shard" | "--prose" | "--data" => {
+            "--book" | "--api" | "--records" | "--shard" | "--prose" | "--data" => {
                 let Some(value) = args.get(index + 1) else {
                     return Err((format!("{flag} needs a FILE"), usage()));
                 };
                 match flag {
                     "--book" => inputs.book = Some(value.clone()),
                     "--api" => inputs.api = Some(value.clone()),
+                    "--records" => inputs.records = Some(value.clone()),
                     "--shard" => inputs.shards.push(value.clone()),
                     "--prose" => inputs.prose.push(value.clone()),
                     _ => inputs.data.push(value.clone()),
@@ -117,6 +119,15 @@ pub fn check(inputs: &Inputs) -> String {
     }
     let api_paths: BTreeSet<String> = id_paths.into_iter().map(|(_, path)| path).collect();
 
+    if let Some(records) = &inputs.records {
+        for url in record_urls(&read(records)) {
+            let page = url.strip_suffix(".html").map(|stem| format!("{stem}.md"));
+            if !page.is_some_and(|page| api_paths.contains(&page)) {
+                return format!("search record url '{url}' has no rendered page");
+            }
+        }
+    }
+
     if pages().iter().any(|text| has_empty_link_target(text)) {
         return "empty link target".to_string();
     }
@@ -162,6 +173,24 @@ pub fn check(inputs: &Inputs) -> String {
         }
     }
     String::new()
+}
+
+/// The `url` string values of a search records JSON array.
+fn record_urls(text: &str) -> Vec<String> {
+    let mut urls = Vec::new();
+    let mut rest = text;
+    while let Some(at) = rest.find("\"url\"") {
+        rest = &rest[at + 5..];
+        let Some(open) = rest.trim_start().strip_prefix(':') else {
+            continue;
+        };
+        let Some(open) = open.trim_start().strip_prefix('"') else {
+            continue;
+        };
+        let end = open.find('"').unwrap_or(open.len());
+        urls.push(open[..end].to_string());
+    }
+    urls
 }
 
 fn read(path: &str) -> String {

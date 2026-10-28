@@ -120,12 +120,13 @@ def _docs_api_impl(ctx):
     check.add(checked)
     check.add("--book", ctx.file.book_toml)
     check.add("--api", api)
+    check.add("--records", records)
     check.add_all(shards, before_each = "--shard")
     check.add_all(ctx.files.prose, before_each = "--prose")
     ctx.actions.run_shell(
         command = "check=$1; out=$2; shift 2; \"$check\" \"$@\" && : > \"$out\"",
         arguments = [check],
-        inputs = shards + ctx.files.prose + [ctx.file.book_toml, api],
+        inputs = shards + ctx.files.prose + [ctx.file.book_toml, api, records],
         tools = [ctx.executable._check],
         outputs = [checked],
         mnemonic = "DxDocsCheck",

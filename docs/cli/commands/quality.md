@@ -1358,8 +1358,9 @@ is reported at the start of the file. A syntax error fails the run and never
 counts as clean. dx places it at the line and column in the original file by
 matching the compiler's code frame against the file. When the frame matches no
 single place, the error is reported at line 1, column 1. `.prettierrc`,
-`.editorconfig` and other user config files are ignored. `svelte-check` and the
-Svelte compiler are not run.
+`.editorconfig` and other user config files are ignored. `dx check` does not run
+`svelte-check` or the Svelte compiler. See "Building and checking a Svelte app"
+below for the Bazel targets that do.
 
 `eslint` lint is opt-in. Select it in the `svelte` family and bind an
 `eslint_config` to the library with `aspect_hints`.
@@ -1406,6 +1407,65 @@ export default [
 Findings point at the line and column in the `.svelte` file, including findings
 in `<script lang="ts">` blocks. A `.svelte` file that no config entry matches
 fails the run. It never counts as clean.
+
+#### Building and checking a Svelte app
+
+`svelte_build` and `svelte_check` are Bazel targets. They run `vite`,
+`@sveltejs/vite-plugin-svelte`, `svelte-check` and `typescript` from your own `node_modules`.
+`dx check` does not run them.
+
+```python
+load("@rules_dx//javascript/rules:web.bzl", "javascript_web_server")
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_check")
+
+svelte_build(
+    name = "site",
+    srcs = glob(["src/**"]) + ["index.html"],
+    config = "vite.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    public = glob(["public/**"]),
+    ssr_entry = "src/entry-server.ts",
+    deps = ["//:node_modules/clsx"],
+)
+
+svelte_check(
+    name = "check",
+    srcs = glob(["src/**"]),
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    tsconfig = "tsconfig.json",
+    deps = ["//:node_modules/clsx"],
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":site",
+)
+```
+
+```sh
+bazel build //web:site //web:site_ssr
+bazel test //web:check
+bazel run //web:serve
+```
+
+`svelte_build` runs a Vite client build into a `site/` tree. The build fails when
+the tree has no `index.html`. `javascript_web_server` serves it. With
+`ssr_entry`, a second Vite SSR build writes `site_ssr/`. The SSR bundle keeps
+`svelte` and other packages as imports, so code that loads it needs them at run
+time.
+
+`svelte_check` runs `svelte-check --tsconfig <tsconfig> --output machine` once into
+`check.svelte_check.txt`. The file starts with `exit_code: <n>` and holds the
+machine-format diagnostics without timestamps, for example
+`ERROR "src/App.svelte" 5:11 "Type 'string' is not assignable to type 'number'."`
+The test fails and prints the report when the exit code is not 0. svelte-check exits 1 on both diagnostics and a crash, so the
+report is written only when the output has a `COMPLETED` summary line. A crash or a
+missing package fails the build. It never counts as clean.
+
+Tested with `svelte` 5.57.0, `vite` 8.3.5, `@sveltejs/vite-plugin-svelte` 7.3.1, `svelte-check`
+4.7.7 and `typescript` 6.0.3.
 
 ### Astro
 

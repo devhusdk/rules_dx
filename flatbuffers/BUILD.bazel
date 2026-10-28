@@ -21,7 +21,10 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "bitflags.BUILD.bazel",
+        "java_runtime.BUILD.bazel",
         "pins.bzl",
+        "rust_runtime.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

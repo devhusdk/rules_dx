@@ -4,6 +4,7 @@ load("//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java/rules:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":failure_tests.bzl", "flatbuffers_codegen_failure_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -78,6 +79,16 @@ codegen_shard_argv_test(
 flatbuffers_rust_library(
     name = "shapes_rs",
     library = "//flatbuffers/tests/api",
+)
+
+rust_test(
+    name = "rs_roundtrip_test",
+    size = "small",
+    srcs = ["rs_roundtrip_test.rs"],
+    deps = [
+        ":shapes_rs",
+        "//flatbuffers:runtime_rust",
+    ],
 )
 
 flatbuffers_codegen_shard(

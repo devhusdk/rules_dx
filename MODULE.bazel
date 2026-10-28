@@ -249,6 +249,9 @@ use_repo(dotnet_nuget, "paket.main")
 dotnet_fsharplint = use_extension("//third_party/dotnet/deps:paket.fsharplint_extension.bzl", "fsharplint_extension")
 use_repo(dotnet_fsharplint, "paket.fsharplint")
 
+dotnet_docs_csharp = use_extension("//third_party/dotnet/deps:paket.docs_csharp_extension.bzl", "docs_csharp_extension")
+use_repo(dotnet_docs_csharp, "paket.docs_csharp")
+
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 single_version_override(

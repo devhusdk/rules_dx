@@ -69,7 +69,8 @@ data once per run for every `security-audit` cell. `dx-ci (aggregate)` passes
 only when every check that should run succeeds.
 
 On `windows_arm64`, tools without a native build run their `windows_x86_64`
-binary under Windows x64 emulation. The platform is selectable but not
+binary under Windows x64 emulation; those tools are listed in `EMULATED_TOOLS`
+(`quality/artifacts/hub.bzl`). The platform is selectable but not
 qualified.
 
 Inputs:

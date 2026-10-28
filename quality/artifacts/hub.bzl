@@ -27,6 +27,28 @@ PLATFORM_FALLBACKS = {
     "windows_arm64": "windows_x86_64",
 }
 
+# Inventory of tools whose upstream release ships no native build for a
+# fallback platform, so they run emulated there. Inventory only: resolution
+# stays in PLATFORM_FALLBACKS. A test requires every tool with a pin on the
+# fallback target to be either natively pinned on the key platform or listed
+# here (sorted), so a new upstream build forces this list to shrink.
+EMULATED_TOOLS = {
+    "windows_arm64": [
+        "hadolint",
+        "keep_sorted",
+        "latexindent",
+        "mdbook",
+        "opa",
+        "ormolu",
+        "pkl",
+        "scalafmt",
+        "shellcheck",
+        "shfmt",
+        "stylua",
+        "tflint",
+    ],
+}
+
 # Tools pinned on only some qualified platforms (upstream ships no build for the
 # rest). The hub renders a default branch to an empty file set for them instead
 # of failing analysis, so unrelated builds on other platforms keep working;

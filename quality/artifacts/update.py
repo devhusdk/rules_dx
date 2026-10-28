@@ -66,6 +66,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "raw",
                 "executable": "buildifier-windows-amd64.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "buildifier-windows-arm64.exe",
+                "url": "https://github.com/bazel-contrib/buildtools/releases/download/v8.5.1/buildifier-windows-arm64.exe",
+                "kind": "raw",
+                "executable": "buildifier-windows-arm64.exe",
+            },
         },
     },
     "biome": {
@@ -114,6 +122,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "raw",
                 "executable": "biome-win32-x64.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "biome-win32-arm64.exe",
+                "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-win32-arm64.exe",
+                "kind": "raw",
+                "executable": "biome-win32-arm64.exe",
+            },
         },
     },
     "taplo": {
@@ -155,6 +171,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "taplo-windows-x86_64.zip",
                 "url": "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-x86_64.zip",
+                "kind": "zip",
+                "executable": "taplo.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "taplo-windows-aarch64.zip",
+                "url": "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-aarch64.zip",
                 "kind": "zip",
                 "executable": "taplo.exe",
             },
@@ -206,6 +230,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "vale.exe",
                 "checksums_url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_checksums.txt",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "vale_3.20.0_Windows_arm64.zip",
+                "url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_Windows_arm64.zip",
+                "kind": "zip",
+                "executable": "vale.exe",
+                "checksums_url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_checksums.txt",
+            },
         },
     },
     "ruff": {
@@ -253,6 +286,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "zip",
                 "executable": "ruff.exe",
                 "checksums_url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-x86_64-pc-windows-msvc.zip.sha256",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "ruff-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "ruff.exe",
+                "checksums_url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-aarch64-pc-windows-msvc.zip.sha256",
             },
         },
     },
@@ -363,6 +405,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "gitleaks.exe",
                 "checksums_url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "gitleaks_8.30.1_windows_arm64.zip",
+                "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_arm64.zip",
+                "kind": "zip",
+                "executable": "gitleaks.exe",
+                "checksums_url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt",
+            },
         },
     },
     "actionlint": {
@@ -407,6 +458,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "actionlint_1.7.12_windows_amd64.zip",
                 "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "actionlint.exe",
+                "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "actionlint_1.7.12_windows_arm64.zip",
+                "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_arm64.zip",
                 "kind": "zip",
                 "executable": "actionlint.exe",
                 "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
@@ -501,6 +561,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.amd64.exe",
                 "kind": "raw",
                 "executable": "checkmake-v0.3.2.windows.amd64.exe",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "checkmake-v0.3.2.windows.arm64.exe",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.arm64.exe",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.windows.arm64.exe",
                 "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
             },
         },
@@ -647,6 +716,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "windows-amd64/helm.exe",
                 "checksums_url": "https://get.helm.sh/helm-v4.3.1-windows-amd64.zip.sha256sum",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "helm-v4.3.1-windows-arm64.zip",
+                "url": "https://get.helm.sh/helm-v4.3.1-windows-arm64.zip",
+                "kind": "zip",
+                "executable": "windows-arm64/helm.exe",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-windows-arm64.zip.sha256sum",
+            },
         },
     },
     "kubeconform": {
@@ -695,6 +773,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "kubeconform.exe",
                 "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "kubeconform-windows-arm64.zip",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-arm64.zip",
+                "kind": "zip",
+                "executable": "kubeconform.exe",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
         },
     },
     "ty": {
@@ -739,6 +826,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "ty-x86_64-pc-windows-msvc.zip",
                 "url": "https://github.com/astral-sh/ty/releases/download/0.0.80/ty-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "ty.exe",
+                "checksums_url": "https://github.com/astral-sh/ty/releases/download/0.0.80/sha256.sum",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "ty-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/ty/releases/download/0.0.80/ty-aarch64-pc-windows-msvc.zip",
                 "kind": "zip",
                 "executable": "ty.exe",
                 "checksums_url": "https://github.com/astral-sh/ty/releases/download/0.0.80/sha256.sum",
@@ -830,6 +926,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-pc-windows-msvc.exe",
                 "kind": "raw",
                 "executable": "typstyle-x86_64-pc-windows-msvc.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "typstyle-aarch64-pc-windows-msvc.exe",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-pc-windows-msvc.exe",
+                "kind": "raw",
+                "executable": "typstyle-aarch64-pc-windows-msvc.exe",
             },
         },
     },
@@ -923,6 +1027,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "buf-Windows-x86_64.exe",
                 "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "buf-Windows-arm64.exe",
+                "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Windows-arm64.exe",
+                "kind": "raw",
+                "executable": "buf-Windows-arm64.exe",
+                "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
+            },
         },
     },
     "cue": {
@@ -964,6 +1077,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "cue_v0.17.1_windows_amd64.zip",
                 "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "cue.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "cue_v0.17.1_windows_arm64.zip",
+                "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_arm64.zip",
                 "kind": "zip",
                 "executable": "cue.exe",
             },
@@ -1011,6 +1132,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "tar.gz",
                 "executable": "jsonnetfmt.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnetfmt.exe",
+            },
         },
     },
     "yamlfmt": {
@@ -1052,6 +1181,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "yamlfmt_0.21.0_Windows_x86_64.tar.gz",
                 "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_x86_64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "yamlfmt_0.21.0_Windows_arm64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_arm64.tar.gz",
                 "kind": "tar.gz",
                 "executable": "yamlfmt.exe",
             },
@@ -1191,6 +1328,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "terraform_1.16.1_windows_amd64.zip",
                 "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "terraform.exe",
+                "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "terraform_1.16.1_windows_arm64.zip",
+                "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_arm64.zip",
                 "kind": "zip",
                 "executable": "terraform.exe",
                 "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
@@ -1467,6 +1613,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "zip",
                 "executable": "wasmtime-v49.0.2-x86_64-windows/wasmtime.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "wasmtime-v49.0.2-aarch64-windows.zip",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-windows.zip",
+                "kind": "zip",
+                "executable": "wasmtime-v49.0.2-aarch64-windows/wasmtime.exe",
+            },
             "macos_x86_64": {
                 "os": "macos",
                 "cpu": "x86_64",
@@ -1685,11 +1839,50 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buf", "buildifier", "helm", "keep_sorted", "kubeconform", "shfmt", "terraform"):
+    if tool in (
+        "buf",
+        "buildifier",
+        "helm",
+        "keep_sorted",
+        "kubeconform",
+        "shfmt",
+        "terraform",
+    ):
         linkage = "static"
     else:
         linkage = "dynamic"
     return linkage, None, [], {"kernel": None, "libc": None, "libstdcxx": None}
+
+
+PE_MACHINES = {"x86_64": 0x8664, "arm64": 0xAA64}
+
+
+def _pe_machine(path):
+    """Returns the COFF machine field of a PE file, or exits if it is not a PE."""
+    with open(path, "rb") as handle:
+        head = handle.read(0x40)
+        if len(head) < 0x40 or head[:2] != b"MZ":
+            sys.exit("update: %s is not a PE file (no MZ header)" % path)
+        offset = int.from_bytes(head[0x3C:0x40], "little")
+        handle.seek(offset)
+        coff = handle.read(6)
+    if len(coff) < 6 or coff[:4] != b"PE\0\0":
+        sys.exit("update: %s is not a PE file (no PE signature)" % path)
+    return int.from_bytes(coff[4:6], "little")
+
+
+def _check_pe_machine(asset, spec, exe_path):
+    expected = PE_MACHINES.get(spec["cpu"])
+    if expected is None:
+        sys.exit(
+            "update: %s: no PE machine type known for cpu %r" % (asset, spec["cpu"])
+        )
+    machine = _pe_machine(exe_path)
+    if machine != expected:
+        sys.exit(
+            "update: %s: PE machine 0x%04X, expected 0x%04X for %s"
+            % (asset, machine, expected, spec["cpu"])
+        )
 
 
 def _starlark(value, indent=4):
@@ -1782,6 +1975,9 @@ def _collect(tool, platform_key, spec, workdir):
         archive = {"format": "zip", "members": members}
     else:
         sys.exit("update: unknown asset kind %r" % kind)
+
+    if spec["os"] == "windows":
+        _check_pe_machine(spec["asset"], spec, exe_path)
 
     if spec["os"] == "linux":
         linkage, interpreter, needed = _elf_linkage(exe_path)

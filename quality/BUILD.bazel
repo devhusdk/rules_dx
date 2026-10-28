@@ -200,10 +200,10 @@ quality_family(
 
 quality_family(
     name = "default_typescript_family",
-    disabled = ["typecheck"],
     family_id = "typescript",
     format = ["biome"],
     lint = ["biome"],
+    typecheck = ["tsc"],
 )
 
 quality_family(
@@ -703,6 +703,7 @@ real_source_target(
         "support_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
+        "tsc.bzl",
     ],
     tags = ["corpus"],
 )

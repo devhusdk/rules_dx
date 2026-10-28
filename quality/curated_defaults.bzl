@@ -145,7 +145,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome"],
-        "typecheck": [],
+        "typecheck": ["tsc"],
     },
     "vue": {
         "audit": [],

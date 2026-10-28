@@ -52,7 +52,8 @@ _TYPECHECK_SELECTIONS = {
     "rust": ["rustc"],
     "starlark": [],
     "toml": [],
-    "typescript": [],
+    "tsx": ["tsc"],
+    "typescript": ["tsc"],
 }
 
 _WIRED_FORMAT_TOOLS = [
@@ -229,6 +230,15 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("vale", "format"),
                 ],
                 [["markdown", "rst"], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns tsc typecheck support only",
+                [
+                    real_supported_classes("tsc", "typecheck"),
+                    real_supported_classes("tsc", "lint"),
+                    real_supported_classes("tsc", "format"),
+                ],
+                [["tsx", "typescript"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns rustc typecheck support only",
@@ -421,7 +431,7 @@ def real_pipeline_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "pipeline_stages builds no typescript typecheck stage",
+                "pipeline_stages builds one tsc typecheck stage",
                 pipeline_stages(
                     ["typescript", "tsx"],
                     "typecheck",
@@ -429,7 +439,7 @@ def real_pipeline_unit_tests(name):
                     REAL_CLASS_TO_FAMILY,
                     REAL_ADAPTERS,
                 ),
-                [],
+                [{"classes": ["tsx", "typescript"], "tool": "tsc"}],
             ),
             expect_equal(
                 "pipeline_stages omits eslint for typescript with no matching configuration",

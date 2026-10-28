@@ -45,13 +45,13 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "typescript curated defaults stay Biome-only",
+                "typescript curated defaults are Biome plus tsc typecheck",
                 CURATED_DEFAULTS["typescript"],
                 {
                     "audit": [],
                     "format": ["biome"],
                     "lint": ["biome"],
-                    "typecheck": [],
+                    "typecheck": ["tsc"],
                 },
             ),
             expect_equal(

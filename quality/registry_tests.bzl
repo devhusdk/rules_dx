@@ -76,9 +76,9 @@ def registry_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "tsc is not a registry tool",
+                "tsc is a registry tool",
                 is_registry_tool("tsc"),
-                False,
+                True,
             ),
         ],
     )

@@ -95,6 +95,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "taplo",
     "terraform",
     "tflint",
+    "tsc",
     "ty",
     "typstyle",
     "vale",

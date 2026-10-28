@@ -219,7 +219,7 @@ workspace_policy(
 | `svelte` | `prettier` | disabled | disabled |
 | `text` | disabled | `keep_sorted` | disabled |
 | `toml` | `taplo` | `taplo` | disabled |
-| `typescript` | `biome` | `biome` | disabled |
+| `typescript` | `biome` | `biome` | `tsc` |
 | `vue` | `prettier` | disabled | disabled |
 
 ### Wired tools
@@ -312,6 +312,7 @@ to.
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
 | `tflint` | lint | terraform |
+| `tsc` | typecheck | typescript, tsx |
 | `ty` | typecheck | python |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
@@ -664,6 +665,20 @@ an error at its line with the rule as `phpstan/<identifier>`, or `phpstan/error`
 when PHPStan names none. Only findings in the target's own sources are
 reported. PHPStan never fixes, so `--apply` changes nothing. The platform is
 `linux_x86_64`, the only one with a pinned PHP.
+
+### TypeScript typechecking
+
+`tsc` typechecks every `typescript_project`. It runs the project's own
+TypeScript (the `tsc` its `ts_project` uses) with its tsconfig, so `dx typecheck`
+and `bazel build` agree on the version, the module resolution and the
+`.d.ts` files of the dependencies. `skipLibCheck` follows
+`--@aspect_rules_ts//ts:skipLibCheck`. The run only reports: a type error is a
+`tsc/TS<code>` error at its line and column in the project's own sources, and
+errors in dependencies or a failed run with no error in the project's sources
+fail the run instead of passing it. `tsc` never fixes, so `--apply` changes
+nothing. It adds a second `tsc --noEmit` run on top of `<name>_typecheck_test`,
+but only under `dx typecheck`; `bazel build` is unchanged. `typescript_test`
+sources and `javascript` (`checkJs`) are not typechecked yet.
 
 ### Elixir formatting
 

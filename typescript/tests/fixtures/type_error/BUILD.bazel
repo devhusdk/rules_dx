@@ -1,0 +1,16 @@
+load("//typescript/rules:defs.bzl", "typescript_project")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(
+    ["bad.ts", "tsconfig.json"],
+)
+
+# Deliberately fails to typecheck; consumed by quality/tests/tsc_consumer_test.rs, never built by //....
+typescript_project(
+    name = "type_error",
+    srcs = ["bad.ts"],
+    declaration = True,
+    tags = ["manual"],
+    tsconfig = "tsconfig.json",
+)

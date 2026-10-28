@@ -87,6 +87,7 @@ pub mod stylua;
 pub mod taplo;
 pub mod terraform;
 pub mod tflint;
+pub mod tsc;
 pub mod ty;
 pub mod typstyle;
 pub mod vale;
@@ -181,6 +182,7 @@ pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use tflint::parse_tflint;
+pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
@@ -2432,6 +2434,14 @@ mod tests {
         super::terraform::parse_terraform(input, input, code, files, std::path::Path::new("/"))
     }
 
+    fn fuzz_tsc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::tsc::parse_tsc(input, code, files)
+    }
+
     fn fuzz_ty(
         input: &[u8],
         code: Option<i32>,
@@ -2582,6 +2592,7 @@ mod tests {
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
+        ("tsc", fuzz_tsc),
         ("ty", fuzz_ty),
         ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
@@ -2681,6 +2692,7 @@ mod tests {
         ("check_jsonschema", include_str!("check_jsonschema.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
+        ("tsc", include_str!("tsc.rs")),
         ("ty", include_str!("ty.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),

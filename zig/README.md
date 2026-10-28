@@ -1,6 +1,6 @@
 # Zig
 
-Build, run, test and format Zig with the pinned `rules_zig` 0.14.0 and Zig
+Build, run, test and format Zig with the pinned `rules_zig` 0.17.0 and Zig
 0.16.0 toolchain. Nothing needs to be installed.
 
 ```python

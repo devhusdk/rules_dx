@@ -8,12 +8,7 @@ fn zig(args: &[&str]) -> dx_testing::Run {
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"));
     let local = tmp.join("zig-local-cache");
     let global = tmp.join("zig-global-cache");
-    let lib = file("DX_ZIG_STD")
-        .parent()
-        .and_then(|std| std.parent())
-        .expect("std.zig sits in lib/std")
-        .to_string_lossy()
-        .into_owned();
+    let lib = file("DX_ZIG_STD").to_string_lossy().into_owned();
     let env = [
         ("ZIG_LIB_DIR", lib),
         ("ZIG_LOCAL_CACHE_DIR", local.to_string_lossy().into_owned()),

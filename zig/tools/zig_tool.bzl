@@ -2,13 +2,13 @@
 
 def _zig_tool_impl(ctx):
     info = ctx.toolchains["@rules_zig//zig:toolchain_type"].zigtoolchaininfo
-    zig = info.zig_files[0]
+    zig = info.zig_exe.file
     exe = ctx.actions.declare_file(ctx.label.name + "/" + zig.basename)
     ctx.actions.symlink(output = exe, target_file = zig, is_executable = True)
     return [DefaultInfo(
         executable = exe,
         files = depset([exe]),
-        runfiles = ctx.runfiles(files = info.zig_files),
+        runfiles = ctx.runfiles(files = [info.zig_exe.file, info.zig_lib.file]),
     )]
 
 zig_tool = rule(
@@ -20,13 +20,11 @@ zig_tool = rule(
 
 def _zig_lib_marker_impl(ctx):
     info = ctx.toolchains["@rules_zig//zig:toolchain_type"].zigtoolchaininfo
-    std = [f for f in info.zig_files if f.path.endswith("/lib/std/std.zig")]
-    if len(std) != 1:
-        fail("want one lib/std/std.zig in the Zig toolchain, got %d" % len(std))
-    return [DefaultInfo(files = depset(std), runfiles = ctx.runfiles(files = info.zig_files))]
+    lib = info.zig_lib.file
+    return [DefaultInfo(files = depset([lib]), runfiles = ctx.runfiles(files = [lib]))]
 
 zig_lib_marker = rule(
     implementation = _zig_lib_marker_impl,
     toolchains = ["@rules_zig//zig:toolchain_type"],
-    doc = "The std.zig file that marks the Zig library directory.",
+    doc = "The Zig library directory of the resolved toolchain.",
 )

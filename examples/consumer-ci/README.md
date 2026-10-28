@@ -27,13 +27,13 @@ hermetic LLVM and Rust toolchains and registers them:
 bazel_dep(name = "rules_dx", version = "0.0.0")
 bazel_dep(name = "rules_cc", version = "0.2.27")
 bazel_dep(name = "llvm", version = "0.8.25")
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
-    rustfmt_version = "1.98.0",
-    versions = ["1.98.0"],
+    rustfmt_version = "1.98.1",
+    versions = ["1.98.1"],
 )
 use_repo(rust, "rust_toolchains")
 

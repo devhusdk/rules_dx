@@ -6,7 +6,10 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["Cargo.toml"])
+exports_files([
+    "BUILD.bazel",
+    "Cargo.toml",
+])
 
 real_source_target(
     name = "corpus_starlark",
@@ -136,8 +139,8 @@ rust_test(
         "//cc/tests/fixtures/compilation_db:probe_legacy.aquery.json",
         "@llvm//tools:clang",
         "@llvm//tools:clangd",
-        "@rust_analyzer_1.98.0_tools//:rust_analyzer",
-        "@rust_analyzer_1.98.0_tools//:rustc",
+        "@rust_analyzer_1.98.1_tools//:rust_analyzer",
+        "@rust_analyzer_1.98.1_tools//:rustc",
         "@rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc",
     ],
     edition = "2021",
@@ -148,8 +151,8 @@ rust_test(
         "DX_LSP_LIMITS_H": "$(rootpath //cc/tests/fixtures/compilation_db:limits_h)",
         "DX_LSP_PROBE_C": "$(rootpath //cc/tests/fixtures/compilation_db:probe.c)",
         "DX_LSP_RUSTC_CHECK": "$(rootpath @rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rustc)",
-        "DX_LSP_RUSTC_PROJECT": "$(rootpath @rust_analyzer_1.98.0_tools//:rustc)",
-        "DX_LSP_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.0_tools//:rust_analyzer)",
+        "DX_LSP_RUSTC_PROJECT": "$(rootpath @rust_analyzer_1.98.1_tools//:rustc)",
+        "DX_LSP_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.1_tools//:rust_analyzer)",
     },
     tags = ["no-remote-exec"],
     target_compatible_with = [

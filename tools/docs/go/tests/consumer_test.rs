@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "0.0.0", repo_name = "dxr")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
 bazel_dep(name = "rules_go", version = "RULES_GO")
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "GO_VERSION")

@@ -40,7 +40,7 @@ const MODULE_FILE: &str = "rules_dx.MODULE.bazel";
 pub const OVERRIDES: &[Override] = &[
     Override {
         module: "rules_rust",
-        version: "0.74.0",
+        version: "0.75.0",
         patch_strip: 1,
         patches: &[
             OverridePatch {
@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn consumer_owned_override_is_refused() {
         let module = format!(
-            "{}single_version_override(module_name = \"rules_rust\", version = \"0.74.0\")\n",
+            "{}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
             dep_module()
         );
         let scratch = consumer(&module);

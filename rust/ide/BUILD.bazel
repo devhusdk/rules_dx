@@ -6,6 +6,8 @@ load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
+exports_files(["BUILD.bazel"])
+
 ide_acquisition_test(
     name = "ide_acquisition_test",
     binary = "@rules_rust//tools/rust_analyzer:discover_bazel_rust_project",
@@ -33,11 +35,11 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
-        "@rust_analyzer_1.98.0_tools//:rust_analyzer",
+        "@rust_analyzer_1.98.1_tools//:rust_analyzer",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.0_tools//:rust_analyzer)",
+        "DX_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.1_tools//:rust_analyzer)",
     },
     env_inherit = [
         "HOME",

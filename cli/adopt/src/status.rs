@@ -511,7 +511,7 @@ mod tests {
         let broken = run("bazel_dep(");
         assert_eq!(broken.status, "warn");
         assert_eq!(broken.detail, "unknown: MODULE.bazel does not parse");
-        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n");
+        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n");
         assert_eq!(none.status, "warn");
         assert!(none.detail.starts_with("unknown:"), "{}", none.detail);
         let setup = render_consumer_module_setup();
@@ -539,7 +539,7 @@ mod tests {
             skew.detail
         );
         let overridden = run(&format!(
-            "{}single_version_override(module_name = \"rules_rust\", version = \"0.74.0\")\n",
+            "{}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
             setup
         ));
         assert_eq!(overridden.status, "warn");
@@ -549,7 +549,7 @@ mod tests {
             overridden.detail
         );
         let no_dep = run(&setup.replace(
-            "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n",
+            "bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n",
             "",
         ));
         assert_eq!(no_dep.status, "warn");

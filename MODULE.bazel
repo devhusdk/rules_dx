@@ -4,7 +4,7 @@ module(
 )
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust",
     patch_strip = 1,
@@ -12,14 +12,14 @@ single_version_override(
         "//patches/rules_rust:lld_link.patch",
         "//patches/rules_rust:msvc_stdlib_linkflags.patch",
     ],
-    version = "0.74.0",
+    version = "0.75.0",
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.74.0")
+bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust_wasm_bindgen",
-    version = "0.74.0",
+    version = "0.75.0",
 )
 
 # floor: equals tested; not yet searched (#3747)
@@ -164,10 +164,10 @@ single_version_override(
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_rust_prost", version = "0.74.0")
+bazel_dep(name = "rules_rust_prost", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust_prost",
-    version = "0.74.0",
+    version = "0.75.0",
 )
 
 # floor: equals tested; not yet searched (#3747)
@@ -832,12 +832,12 @@ rust.toolchain(
         "wasm32-wasip1",
         "x86_64-linux-android",
     ],
-    rustfmt_version = "1.98.0",
-    versions = ["1.98.0"],
+    rustfmt_version = "1.98.1",
+    versions = ["1.98.1"],
 )
 use_repo(
     rust,
-    "rust_analyzer_1.98.0_tools",
+    "rust_analyzer_1.98.1_tools",
     "rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
     "rust_toolchains",
 )

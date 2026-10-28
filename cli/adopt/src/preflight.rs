@@ -11,8 +11,8 @@ use crate::overrides::{OVERRIDES, OVERRIDES_INCLUDE};
 /// rules_dx's own non-dev `bazel_dep` versions, the floors a consumer's graph is raised to.
 /// The drift test keeps this equal to `//:MODULE.bazel`.
 pub const RULES_DX_DEPS: &[(&str, &str)] = &[
-    ("rules_rust", "0.74.0"),
-    ("rules_rust_wasm_bindgen", "0.74.0"),
+    ("rules_rust", "0.75.0"),
+    ("rules_rust_wasm_bindgen", "0.75.0"),
     ("rules_cc", "0.2.27"),
     ("llvm", "0.8.25"),
     ("rules_cuda", "0.3.0"),
@@ -26,7 +26,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("bazel_skylib", "1.9.2"),
     ("rules_proto", "7.1.0"),
     ("protobuf", "34.0.bcr.1"),
-    ("rules_rust_prost", "0.74.0"),
+    ("rules_rust_prost", "0.75.0"),
     ("rules_java", "9.9.0"),
     ("rules_android", "0.8.0"),
     ("rules_kotlin", "2.4.10"),
@@ -602,7 +602,7 @@ mod tests {
             ("rules_rust", "0.60.0", 1)
         );
         assert!(!f.hard);
-        assert!(render_plan_text("app", &plan).contains("rules_rust 0.60.0 -> 0.74.0"));
+        assert!(render_plan_text("app", &plan).contains("rules_rust 0.60.0 -> 0.75.0"));
     }
 
     #[test]
@@ -611,7 +611,7 @@ mod tests {
             ("MODULE.bazel", "include(\"//tools:mine.MODULE.bazel\")\n"),
             (
                 "tools/mine.MODULE.bazel",
-                "\nsingle_version_override(module_name = \"rules_rust\", version = \"0.74.0\")\n",
+                "\nsingle_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
             ),
         ]);
         let plan = preflight(dir.path(), &snippet());

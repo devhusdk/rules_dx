@@ -211,7 +211,7 @@ pub const MDX_VERSION: &str = "3.1.1";
 pub const RUST_WEB_EDITION: &str = "2021";
 pub const RUST_WEB_WASM_BINDGEN_CRATE_VERSION: &str = "0.2.121";
 pub const RUST_WEB_WASM_BINDGEN_TEST_CRATE_VERSION: &str = "0.3.71";
-pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.74.0";
+pub const RULES_RUST_WASM_BINDGEN_VERSION: &str = "0.75.0";
 pub const RUST_WEB_PLATFORMS_VERSION: &str = "1.1.0";
 pub const RUST_WEB_BAZEL_VERSION: &str = "9.2.0";
 
@@ -2750,7 +2750,7 @@ mod tests {
         assert!(
             module
                 .content
-                .contains("bazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"0.74.0\")"),
+                .contains("bazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"0.75.0\")"),
             "{module:?}"
         );
         assert!(

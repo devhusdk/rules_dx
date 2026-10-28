@@ -28,7 +28,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 
 | Module | Version | Patches | Why |
 | --- | --- | --- | --- |
-| `rules_rust` | 0.74.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch` | Rust on Windows (lld-link, MSVC stdlib link flags) |
+| `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch` | Rust on Windows (lld-link, MSVC stdlib link flags) |
 | `rules_cuda` | 0.3.0 | `dlink_includes.patch` | CUDA device link (`rdc`) in the sandbox |
 | `rules_dotnet` | 0.22.2 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
 | `rules_ruby` | 0.29.0 | `reproducible.patch`, `coverage.patch` | Ruby toolchain from the repository cache (psych/openssl build options resolved at action time); Ruby coverage without a bundle and on Windows |

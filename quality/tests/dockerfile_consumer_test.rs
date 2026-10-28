@@ -14,7 +14,7 @@ const MODULE: &str = r#"module(name = "consumer")
 bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 "#;
 
 const BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")

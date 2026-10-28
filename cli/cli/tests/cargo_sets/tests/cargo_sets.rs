@@ -5,7 +5,7 @@ use dx_testing::{resolve_runfiles, Run};
 
 const MODULE: &str = r#"module(name = "consumer")
 
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(

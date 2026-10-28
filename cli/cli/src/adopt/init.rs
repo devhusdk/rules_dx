@@ -494,10 +494,10 @@ mod tests {
         std::fs::write(root.join("MODULE.bazel"), &module).expect("module");
         let (code, out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("rules_rust 0.60.0 -> 0.74.0"), "{out}");
+        assert!(out.contains("rules_rust 0.60.0 -> 0.75.0"), "{out}");
         assert!(out.contains("MODULE.bazel:2"), "{out}");
         let conflict = format!(
-            "{module}single_version_override(module_name = \"rules_rust\", version = \"0.74.0\")\n"
+            "{module}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n"
         );
         std::fs::write(root.join("MODULE.bazel"), conflict).expect("module");
         let (code, out, err) = run(&invocation(&["init"]), &root);
@@ -526,7 +526,7 @@ mod tests {
         assert!(out.contains("\"event\":\"status\""), "{out}");
         assert!(out.contains("init_plan.version_raise.rules_rust"), "{out}");
         assert!(
-            out.contains("rules_rust 0.60.0 -> 0.74.0") || out.contains("0.60.0 -> 0.74.0"),
+            out.contains("rules_rust 0.60.0 -> 0.75.0") || out.contains("0.60.0 -> 0.75.0"),
             "{out}"
         );
         assert!(out.contains("MODULE.bazel:2"), "{out}");

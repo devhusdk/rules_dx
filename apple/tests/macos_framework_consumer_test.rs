@@ -12,7 +12,7 @@ use macos::{
 };
 
 const PRODUCER_EXTRA: &str = r#"
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 
 apple_cc_configure = use_extension("@xcode_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
@@ -27,7 +27,7 @@ rust.toolchain(
         "aarch64-apple-ios-sim",
         "x86_64-apple-ios",
     ],
-    versions = ["1.98.0"],
+    versions = ["1.98.1"],
 )
 use_repo(rust, "rust_toolchains")
 

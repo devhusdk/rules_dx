@@ -41,13 +41,13 @@ pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.27";
 pub const CONSUMER_LLVM_VERSION: &str = "0.8.25";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUST` in `modules/versions.bzl`.
-pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
+pub const CONSUMER_RULES_RUST_VERSION: &str = "0.75.0";
 
 pub const CONSUMER_RUST_EDITION: &str = "2021";
 
-pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
+pub const CONSUMER_RUST_VERSION: &str = "1.98.1";
 
-pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
+pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.1";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUBY` in `modules/versions.bzl`.
 pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.29.0";

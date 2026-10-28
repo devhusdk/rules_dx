@@ -3,6 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "consumer-ci/README.md",
     "consumer-ci/caller.yml",
     "docs-ci/caller.yml",
     "gitlab-ci/.gitlab-ci.yml",

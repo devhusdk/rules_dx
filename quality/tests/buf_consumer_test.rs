@@ -48,7 +48,7 @@ local_path_override(module_name = "rules_dx", path = "RULES_DX")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "protobuf", version = "34.0.bcr.1")
 bazel_dep(name = "rules_cc", version = "0.2.27")
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
 MAVEN_BLOCK

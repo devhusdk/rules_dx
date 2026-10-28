@@ -16,7 +16,7 @@ load("@rules_dx//haskell/rules:defs.bzl", "haskell_binary", "haskell_library", "
 haskell_library(
     name = "stock",
     srcs = ["src/Stock.hs"],
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["//haskell/toolchain:base"],
 )
 
 haskell_test(
@@ -24,7 +24,7 @@ haskell_test(
     srcs = ["test/StockTest.hs"],
     deps = [
         ":stock",
-        "@dx_haskell_toolchains//:base",
+        "//haskell/toolchain:base",
     ],
 )
 
@@ -33,7 +33,7 @@ haskell_binary(
     srcs = ["src/Main.hs"],
     deps = [
         ":stock",
-        "@dx_haskell_toolchains//:base",
+        "//haskell/toolchain:base",
     ],
 )
 ```
@@ -48,7 +48,7 @@ haskell_binary(
   Set `ghcopts` to replace the default.
 - Library `tags` reach the library; the generated upstream target is
   `manual`, so `//...` builds only the library.
-- `@dx_haskell_toolchains//:<package>` has the GHC boot packages: `array`,
+- `//haskell/toolchain:<package>` has the GHC boot packages: `array`,
   `base`, `binary`, `bytestring`, `containers`, `deepseq`, `directory`,
   `exceptions`, `filepath`, `ghc-prim`, `mtl`, `parsec`, `pretty`, `process`,
   `stm`, `template-haskell`, `text`, `time`, `transformers` and `unix`.
@@ -70,7 +70,7 @@ their license texts in `dx_closure/licenses`:
 
 `haskell_binary` and `haskell_test` link GMP dynamically and carry
 `libgmp.so.10` in their runfiles. Ship it with a binary you distribute.
-`@dx_haskell_toolchains//:licenses` has the license texts.
+`//haskell/toolchain:licenses` has the license texts.
 
 The host needs glibc 2.28 or newer.
 

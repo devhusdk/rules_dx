@@ -24,6 +24,35 @@ alias(
     actual = "@dx_haskell_toolchains//:base",
 )
 
+[
+    alias(
+        name = name,
+        actual = "@dx_haskell_toolchains//:" + name,
+    )
+    for name in [
+        "array",
+        "binary",
+        "bytestring",
+        "containers",
+        "deepseq",
+        "directory",
+        "exceptions",
+        "filepath",
+        "ghc-prim",
+        "licenses",
+        "mtl",
+        "parsec",
+        "pretty",
+        "process",
+        "stm",
+        "template-haskell",
+        "text",
+        "time",
+        "transformers",
+        "unix",
+    ]
+]
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],

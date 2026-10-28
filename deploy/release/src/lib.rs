@@ -591,7 +591,7 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     ));
     out.push_str("  steps:\n");
     out.push_str(
-        "    1. bazel build //cli/cli:dx //cli/cli:dx_standalone //cli/cli:man_pages (seed matrix cell dx-linux-x86_64)\n",
+        "    1. bazel build //deploy/release:dx_host_cell //cli/cli:man_pages (this host's release cell)\n",
     );
     out.push_str(
         "    2. bazel build //deploy/release:release_artifacts (packaged releasable unit: audit curator plus binary plus man page plus NOTICE plus SBOM/provenance)\n",

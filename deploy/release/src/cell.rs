@@ -1150,4 +1150,4 @@ pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, Stri
 
 #[cfg(test)]
 #[path = "cell_tests.rs"]
-mod tests;
+pub(crate) mod tests;

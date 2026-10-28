@@ -1,14 +1,17 @@
 use std::path::{Path, PathBuf};
 
+use super::cell::{self, CellOutcome, Expected};
 use super::{notice_verify_files, sbom_verify_files};
 
-pub const REPORT_SCHEMA: &str = "publish-dry-run/v1";
+pub const REPORT_SCHEMA: &str = "publish-dry-run/v2";
 
 pub const SIGNING_TRUST_ROOT: &str = super::SIGNING_TRUST_ROOT;
 
 pub struct PublishDryRunInputs {
-    pub binary: PathBuf,
-    pub archive: PathBuf,
+    pub matrix: PathBuf,
+    pub records: PathBuf,
+    pub archives: PathBuf,
+    pub expected: Expected,
     pub sbom_artifact: PathBuf,
     pub spdx: PathBuf,
     pub provenance: PathBuf,
@@ -29,9 +32,11 @@ pub struct PublishDryRunInputs {
 #[derive(Debug)]
 pub struct PublishDryRunOutcome {
     pub report: String,
-    pub binary_digest: String,
-    pub archive_digest: String,
     pub sbom_digest: String,
+    /// True only when every matrix cell qualified and nothing was stray.
+    pub qualified: bool,
+    /// Per-cell verification text, one block per cell in matrix order.
+    pub verification: String,
 }
 
 fn read_text(path: &Path, what: &str) -> Result<String, String> {
@@ -73,11 +78,67 @@ fn sbom_subject_digest(spdx_path: &Path) -> Result<String, String> {
     Ok(digest.to_owned())
 }
 
+/// Checks that the `<archive>.sha256` sidecar lists exactly the digest the record measured.
+fn sidecar_error(outcome: &CellOutcome, archives: &Path) -> Option<String> {
+    let record = outcome.record.as_ref()?;
+    let want = sha256sum_line(&record.archive.sha256, &record.archive.name);
+    let path = archives.join(format!("{}.sha256", record.archive.name));
+    match std::fs::read_to_string(&path) {
+        Ok(text) if text == want => None,
+        Ok(text) => Some(format!(
+            "sidecar {} is {:?}, want {want:?}",
+            path.display(),
+            text
+        )),
+        Err(error) => Some(format!("cannot read sidecar {}: {error}", path.display())),
+    }
+}
+
+fn cell_entry(outcome: &CellOutcome) -> serde_json::Value {
+    let status = if outcome.qualified() {
+        "qualified"
+    } else {
+        "rejected"
+    };
+    match &outcome.record {
+        Some(record) => serde_json::json!({
+            "name": outcome.cell,
+            "status": status,
+            "archive": record.archive.name,
+            "sha256": record.archive.sha256,
+            "sha": record.sha,
+            "version": record.version,
+            "job": record.job,
+            "run_id": record.run_id,
+            "reasons": outcome.reasons,
+        }),
+        None => serde_json::json!({
+            "name": outcome.cell,
+            "status": status,
+            "archive": null,
+            "sha256": null,
+            "sha": null,
+            "version": null,
+            "job": null,
+            "run_id": null,
+            "reasons": outcome.reasons,
+        }),
+    }
+}
+
 pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryRunOutcome, String> {
-    let binary_digest = dx_digest::sha256_file_hex(&inputs.binary)
-        .map_err(|error| format!("publish dry-run: cannot hash staged binary: {error}"))?;
-    let archive_digest = dx_digest::sha256_file_hex(&inputs.archive)
-        .map_err(|error| format!("publish dry-run: cannot hash staged archive: {error}"))?;
+    let matrix_text = read_text(&inputs.matrix, "release matrix")?;
+    let matrix =
+        cell::parse_matrix(&matrix_text).map_err(|error| format!("publish dry-run: {error}"))?;
+    let mut verification =
+        cell::verify_each(&matrix, &inputs.records, &inputs.archives, &inputs.expected);
+    for outcome in &mut verification.cells {
+        if let Some(reason) = sidecar_error(outcome, &inputs.archives) {
+            outcome.reasons.push(reason);
+        }
+    }
+    let qualified = verification.ok();
+    let verification_text = cell::render_verification(&verification);
     sbom_verify_files(
         &inputs.sbom_artifact,
         &inputs.spdx,
@@ -138,20 +199,25 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         "install verifier refusal log",
     )?;
     let sbom_digest = sbom_subject_digest(&inputs.spdx)?;
+    let artifacts: Vec<serde_json::Value> = verification
+        .cells
+        .iter()
+        .filter(|outcome| outcome.qualified())
+        .filter_map(|outcome| outcome.record.as_ref())
+        .map(|record| {
+            serde_json::json!({
+                "name": record.cell,
+                "archive": record.archive.name,
+                "sha256": record.archive.sha256,
+                "sidecar": format!("{}.sha256", record.archive.name),
+            })
+        })
+        .collect();
+    let release_matrix: Vec<serde_json::Value> =
+        verification.cells.iter().map(cell_entry).collect();
     let report = super::render_pretty(&serde_json::json!({
         "approved": inputs.approve,
-        "artifacts": [
-            {
-                "name": "dx-linux-x86_64",
-                "note": "seed-host binary; release matrix frozen in deploy/release/matrix.bzl",
-                "sha256": binary_digest,
-            },
-            {
-                "name": "dx-standalone.tar.gz",
-                "note": "seed-host standalone archive via //cli/cli:dx_standalone; wider matrix qualified per-host under issue #815 (human-run only, not built here)",
-                "sha256": archive_digest,
-            },
-        ],
+        "artifacts": artifacts,
         "bcr_shape": {
             "checked": true,
             "mode": "BCR_DRY_RUN=1",
@@ -168,9 +234,8 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "target": "//cli/cli:github_draft",
         },
         "exercised": [
-            "seed binary build //cli/cli:dx with sha256 staged under RUNNER_TEMP",
-            "seed standalone archive //cli/cli:dx_standalone with sha256 staged under RUNNER_TEMP",
-            "seed releasable unit //deploy/release:release_artifacts (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)",
+            "release cells built and qualified natively by .github/workflows/release-cells.yml on one runner per matrix cell (measured release-cell/v1 records, independent rebuild, consumer build), verified here with cell::verify_each",
+            "host releasable unit //deploy/release:release_artifacts (audit curator plus host cell archive plus man page plus NOTICE plus SBOM/provenance, publishes nothing)",
             "SBOM/provenance generation //deploy/release:sbom_demo (SPDX-2.3 + SLSA v1, subject digest equal to artifact sha256, owner-gated, publishes nothing)",
             "aggregated NOTICE //deploy/release:notice_demo (hermetic notice_bundle, byte-identical, missing-notice-text fails, publishes nothing)",
             "draft-only publisher //cli/cli:github_draft staged locally (placeholder v0.0.0-dryrun, draft-only flags, publishes nothing)",
@@ -183,7 +248,6 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "SBOM/provenance publishing (generated owner-gated via //deploy/release:sbom_demo)",
             "Signing/attestation publishing (Sigstore keyless + GitHub attestations on the trust root, signing-first; GHCR images sign separately via cosign <digest>)",
             "GHCR prebuilt images (separate workflow .github/workflows/ghcr.yml per owner decision)",
-            "Non-seed release matrix builds (qualified per-host under issue #815, human-run only, not built in dry-run)",
             "BCR submission (owner-gated via //deploy/release:bcr_demo)",
             "Any tag, registry submission, or release creation",
         ],
@@ -202,13 +266,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "target": "//deploy/release:release_artifacts",
         },
         "published": false,
-        "release_matrix": [
-            {"name": "dx-linux-x86_64", "status": "qualified-seed-built-here"},
-            {"name": "dx-linux-arm64", "status": "qualified-host-evidence"},
-            {"name": "dx-macos-arm64", "status": "qualified-host-evidence"},
-            {"name": "dx-windows-x86_64", "status": "qualified-host-evidence"},
-            {"name": "dx-windows-arm64", "status": "unqualified-missing-native-evidence"},
-        ],
+        "release_matrix": release_matrix,
         "sbom": {
             "linkage_ok": true,
             "predicate": "https://slsa.dev/provenance/v1",
@@ -219,6 +277,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
             "verified": true,
         },
         "schema": REPORT_SCHEMA,
+        "stray": verification.stray,
         "signing_dry_run": {
             "mode": "RELEASE_SIGN_DRY_RUN=1",
             "ok": true,
@@ -242,9 +301,9 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
     }
     Ok(PublishDryRunOutcome {
         report,
-        binary_digest,
-        archive_digest,
         sbom_digest,
+        qualified,
+        verification: verification_text,
     })
 }
 
@@ -287,9 +346,11 @@ mod tests {
         (manifest, vec![a, b])
     }
 
-    fn valid_inputs(dir: &Path) -> PublishDryRunInputs {
-        let binary = write_bytes(dir, "dx-linux-x86_64", b"seed binary\n");
-        let archive = write_bytes(dir, "dx-standalone.tar.gz", b"seed archive\n");
+    use crate::cell::tests::{matrix_json, release, Release};
+
+    /// Two qualified synthetic cells with their records, archives and sidecars.
+    fn valid_inputs(dir: &Path, release: &Release) -> PublishDryRunInputs {
+        let matrix = write_text(dir, "release_matrix.json", &matrix_json(&release.matrix));
         let sbom_artifact = write_bytes(dir, "demo.tar.gz", b"demo artifact\n");
         let digest = dx_digest::sha256_file_hex(&sbom_artifact).expect("digest demo");
         let spdx_text = crate::render_spdx("demo.tar.gz", &digest, "dx", "rules_dx");
@@ -338,8 +399,10 @@ mod tests {
             "checksum-only verification is not publisher-identity proof\n",
         );
         PublishDryRunInputs {
-            binary,
-            archive,
+            matrix,
+            records: release.records(),
+            archives: release.archives(),
+            expected: release.expected.clone(),
             sbom_artifact,
             spdx,
             provenance,
@@ -358,29 +421,46 @@ mod tests {
         }
     }
 
+    const TAR: &str = "dx-linux-x86_64-tar-gz";
+    const ZIP: &str = "dx-linux-x86_64-zip";
+
+    fn report_of(outcome: &PublishDryRunOutcome) -> serde_json::Value {
+        serde_json::from_str(&outcome.report).expect("report is JSON")
+    }
+
     #[test]
-    fn staged_bytes_verify_and_report_without_host_tools() {
+    fn qualified_cells_verify_and_report_from_records() {
+        let release = release();
         let dir = scratch();
-        let inputs = valid_inputs(dir.path());
+        let inputs = valid_inputs(dir.path(), &release);
         let outcome = publish_dry_run_check(&inputs).expect("valid stage verifies");
-        let binary_want = dx_digest::sha256_file_hex(&inputs.binary).expect("digest binary");
-        let archive_want = dx_digest::sha256_file_hex(&inputs.archive).expect("digest archive");
-        assert_eq!(outcome.binary_digest, binary_want);
-        assert_eq!(outcome.archive_digest, archive_want);
+        assert!(outcome.qualified, "{}", outcome.verification);
         assert!(!outcome.sbom_digest.is_empty());
-        let report: serde_json::Value =
-            serde_json::from_str(&outcome.report).expect("report is JSON");
+        let report = report_of(&outcome);
         assert_eq!(report["schema"], serde_json::json!(REPORT_SCHEMA));
         assert_eq!(report["approved"], serde_json::json!(false));
         assert_eq!(report["published"], serde_json::json!(false));
+        assert_eq!(report["stray"], serde_json::json!([]));
+        let record: crate::cell::CellRecord = serde_json::from_str(
+            &std::fs::read_to_string(release.records().join(format!("{TAR}.json")))
+                .expect("read record"),
+        )
+        .expect("record");
+        let entry = &report["release_matrix"][0];
+        assert_eq!(entry["name"], serde_json::json!(TAR));
+        assert_eq!(entry["status"], serde_json::json!("qualified"));
+        assert_eq!(entry["archive"], serde_json::json!(record.archive.name));
+        assert_eq!(entry["sha256"], serde_json::json!(record.archive.sha256));
+        assert_eq!(entry["sha"], serde_json::json!(record.sha));
+        assert_eq!(entry["version"], serde_json::json!(record.version));
+        assert_eq!(entry["job"], serde_json::json!(record.job));
+        assert_eq!(entry["run_id"], serde_json::json!(record.run_id));
+        assert_eq!(entry["reasons"], serde_json::json!([]));
         assert_eq!(
-            report["artifacts"][0]["sha256"],
-            serde_json::json!(binary_want)
+            report["artifacts"][0]["sidecar"],
+            serde_json::json!(format!("{TAR}.tar.gz.sha256"))
         );
-        assert_eq!(
-            report["artifacts"][1]["sha256"],
-            serde_json::json!(archive_want)
-        );
+        assert_eq!(report["artifacts"].as_array().map(Vec::len), Some(2));
         assert_eq!(
             report["sbom"]["subject_digest"],
             serde_json::json!(outcome.sbom_digest)
@@ -391,41 +471,124 @@ mod tests {
         assert_eq!(report["draft_dry_run"]["ok"], serde_json::json!(true));
         assert_eq!(report["signing_dry_run"]["ok"], serde_json::json!(true));
         assert!(outcome.report.ends_with('\n'));
+        assert!(!outcome.report.contains("qualified-host-evidence"));
+        assert!(!outcome.report.contains("dx_standalone"));
+        assert!(outcome.verification.contains(&format!("{TAR} qualified")));
     }
 
     #[test]
-    fn report_release_matrix_names_all_five_cells() {
+    fn report_release_matrix_follows_matrix_order() {
+        let release = release();
         let dir = scratch();
-        let inputs = valid_inputs(dir.path());
-        let outcome = publish_dry_run_check(&inputs).expect("valid stage verifies");
-        let report: serde_json::Value =
-            serde_json::from_str(&outcome.report).expect("report is JSON");
-        let names: Vec<&str> = report["release_matrix"]
+        let outcome = publish_dry_run_check(&valid_inputs(dir.path(), &release)).expect("ok");
+        let names: Vec<String> = report_of(&outcome)["release_matrix"]
             .as_array()
             .expect("release_matrix is an array")
             .iter()
-            .map(|cell| cell["name"].as_str().expect("cell has a name"))
+            .map(|cell| cell["name"].as_str().expect("name").to_owned())
             .collect();
+        assert_eq!(names, vec![TAR, ZIP]);
+    }
+
+    fn rejected(release: &Release) -> PublishDryRunOutcome {
+        let dir = scratch();
+        let outcome = publish_dry_run_check(&valid_inputs(dir.path(), release))
+            .expect("a rejected cell still renders the report");
+        assert!(!outcome.qualified);
+        outcome
+    }
+
+    #[test]
+    fn missing_record_rejects_only_that_cell() {
+        let release = release();
+        std::fs::remove_file(release.records().join(format!("{ZIP}.json"))).expect("remove");
+        let outcome = rejected(&release);
+        let report = report_of(&outcome);
         assert_eq!(
-            names,
-            vec![
-                "dx-linux-x86_64",
-                "dx-linux-arm64",
-                "dx-macos-arm64",
-                "dx-windows-x86_64",
-                "dx-windows-arm64",
-            ]
+            report["release_matrix"][0]["status"],
+            serde_json::json!("qualified")
         );
         assert_eq!(
-            report["release_matrix"][4]["status"],
-            serde_json::json!("unqualified-missing-native-evidence")
+            report["release_matrix"][1]["status"],
+            serde_json::json!("rejected")
         );
+        assert_eq!(
+            report["release_matrix"][1]["reasons"],
+            serde_json::json!(["no record"])
+        );
+        assert_eq!(report["artifacts"].as_array().map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn swapped_archive_rejects_its_cell() {
+        let release = release();
+        std::fs::write(
+            release.archives().join(format!("{TAR}.tar.gz")),
+            b"tampered\n",
+        )
+        .expect("swap");
+        let report = report_of(&rejected(&release));
+        assert_eq!(
+            report["release_matrix"][0]["status"],
+            serde_json::json!("rejected")
+        );
+    }
+
+    #[test]
+    fn missing_or_wrong_sidecar_rejects_its_cell() {
+        let release = release();
+        std::fs::remove_file(release.archives().join(format!("{TAR}.tar.gz.sha256")))
+            .expect("remove");
+        std::fs::write(
+            release.archives().join(format!("{ZIP}.zip.sha256")),
+            format!("{}  {ZIP}.zip\n", "0".repeat(64)),
+        )
+        .expect("wrong");
+        let report = report_of(&rejected(&release));
+        for index in 0..2 {
+            let entry = &report["release_matrix"][index];
+            assert_eq!(entry["status"], serde_json::json!("rejected"));
+            assert!(
+                entry["reasons"][0]
+                    .as_str()
+                    .is_some_and(|reason| reason.contains("sidecar")),
+                "{entry}"
+            );
+        }
+    }
+
+    #[test]
+    fn wrong_version_or_sha_rejects_the_cells() {
+        let mut release = release();
+        release.expected.version = "9.9.9".to_owned();
+        release.expected.sha = "b".repeat(40);
+        let outcome = rejected(&release);
+        assert!(outcome.verification.contains("version is"));
+        assert!(outcome.verification.contains("sha is"));
+    }
+
+    #[test]
+    fn unknown_cell_record_is_stray_and_not_qualified() {
+        let release = release();
+        release.edit(&format!("{TAR}.json"), |value| {
+            value["cell"] = "dx-mystery".into()
+        });
+        std::fs::copy(
+            release.records().join(format!("{ZIP}.json")),
+            release.records().join("copy.json"),
+        )
+        .expect("copy");
+        let report = report_of(&rejected(&release));
+        assert!(report["stray"][0]
+            .as_str()
+            .is_some_and(|stray| stray.contains("unknown cell")));
     }
 
     #[test]
     fn approved_flag_is_recorded_without_publishing() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         inputs.approve = true;
         let outcome = publish_dry_run_check(&inputs).expect("approved stage verifies");
         let report: serde_json::Value =
@@ -440,30 +603,10 @@ mod tests {
     }
 
     #[test]
-    fn missing_staged_binary_fails_before_any_digest() {
-        let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
-        inputs.binary = dir.path().join("absent-binary");
-        let error = publish_dry_run_check(&inputs).expect_err("missing binary must fail");
-        assert!(error.contains("cannot hash staged binary"), "got {error}");
-    }
-
-    #[test]
-    fn swapped_archive_breaks_its_reported_digest() {
-        let dir = scratch();
-        let inputs = valid_inputs(dir.path());
-        let before = publish_dry_run_check(&inputs).expect("valid stage verifies");
-        let swapped = write_bytes(dir.path(), "dx-standalone.tar.gz", b"tampered archive\n");
-        assert_ne!(
-            dx_digest::sha256_file_hex(&swapped).expect("digest swapped"),
-            before.archive_digest
-        );
-    }
-
-    #[test]
     fn mismatched_sbom_digest_fails_closed() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         let zeros = "0".repeat(64);
         let bad = crate::render_spdx("demo.tar.gz", &zeros, "dx", "rules_dx");
         inputs.spdx = write_text(dir.path(), "bad.spdx.json", &bad);
@@ -474,7 +617,8 @@ mod tests {
     #[test]
     fn malformed_spdx_json_fails_actionable() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         inputs.spdx = write_text(dir.path(), "broken.spdx.json", "{not json");
         let error = publish_dry_run_check(&inputs).expect_err("malformed SPDX must fail");
         assert!(error.contains("SBOM validation failed"), "got {error}");
@@ -483,7 +627,8 @@ mod tests {
     #[test]
     fn forged_provenance_builder_is_unapproved() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         let digest = dx_digest::sha256_file_hex(&inputs.sbom_artifact).expect("digest");
         let forged =
             crate::render_provenance("demo.tar.gz", &digest, "https://example.test/builder");
@@ -495,7 +640,8 @@ mod tests {
     #[test]
     fn redacted_notice_fails_closed() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         let text = std::fs::read_to_string(&inputs.notice).expect("read notice");
         let redacted = text.replace("Fixture words for demo-lib-a", "REDACTED");
         inputs.notice = write_text(dir.path(), "redacted.NOTICE", &redacted);
@@ -506,7 +652,8 @@ mod tests {
     #[test]
     fn release_list_missing_an_entry_fails() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         inputs.release_artifacts_list = write_text(
             dir.path(),
             "short.txt",
@@ -519,7 +666,8 @@ mod tests {
     #[test]
     fn draft_log_without_placeholder_fails() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         inputs.draft_log = write_text(dir.path(), "draft.log", "--draft --verify-tag\n");
         let error = publish_dry_run_check(&inputs).expect_err("draft without placeholder fails");
         assert!(error.contains("draft dry-run log"), "got {error}");
@@ -528,7 +676,8 @@ mod tests {
     #[test]
     fn draft_log_without_publishing_nothing_fails() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         inputs.draft_log = write_text(
             dir.path(),
             "draft.log",
@@ -542,7 +691,8 @@ mod tests {
     #[test]
     fn signing_log_without_cosign_fails() {
         let dir = scratch();
-        let mut inputs = valid_inputs(dir.path());
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
         inputs.signing_log = write_text(
             dir.path(),
             "signing.log",

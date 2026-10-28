@@ -818,6 +818,25 @@ rust_test(
 
 # keep
 rust_test(
+    name = "release_cells_runners_test",
+    size = "small",
+    srcs = ["release_cells_runners_test.rs"],
+    data = [
+        "//.github:workflows/release.yml",
+        "//.github:workflows/release-cells.yml",
+        "//deploy/release:release_matrix",
+    ],
+    env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/release:release_matrix)"},
+    deps = [
+        ":ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "release_assets_test",
     size = "small",
     srcs = ["release_assets_test.rs"],
@@ -977,6 +996,7 @@ rustfmt_test(
         ":docs_deploy_test",
         ":gitlab_example_test",
         ":release_assets_test",
+        ":release_cells_runners_test",
         ":reusable_callers_test",
         ":rustfmt_coverage_test",
         ":signing_pins_test",

@@ -20,7 +20,14 @@ env:
   BAZELISK_VERSION: "1.29.0"
 
 jobs:
+  cells:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-cells.yml
+
   dry-run:
+    needs: cells
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,24 +53,37 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Build seed-host release binary and standalone archive
-        run: bazel build //cli/cli:dx //cli/cli:dx_standalone //deploy/release:all //deploy/release:release_artifacts
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        # A missing artifact shows up as a rejected cell in the report instead of stopping here.
+        continue-on-error: true
+        with:
+          name: release-cells
+          path: ${{ runner.temp }}/release-cells
+      - name: Build the host release unit
+        run: bazel build //cli/cli:dx //deploy/release:all //deploy/release:release_artifacts
       - name: Qualify exact owned line coverage
         run: |
           set -euo pipefail
           bazel run //cli/cli:dx -- coverage --min-coverage 100 //...
-      - name: Stage binary and emit dry-run report
+      - name: Emit dry-run report from the release cells
         env:
           APPROVE: ${{ inputs.approve }}
+          CELLS_VERSION: ${{ needs.cells.outputs.version }}
+          CELLS_SHA: ${{ needs.cells.outputs.sha }}
+          WORKFLOW_REF: ${{ needs.cells.outputs.workflow_ref }}
         run: |
           set -euo pipefail
           stage="$RUNNER_TEMP/publish-dry-run"
           rm -rf "$stage"
           mkdir -p "$stage"
-          bin="$(bazel cquery --output=files //cli/cli:dx)"
-          cp "$bin" "$stage/dx-linux-x86_64"
-          archive="$(bazel cquery --output=files //cli/cli:dx_standalone_archive)"
-          cp "$archive" "$stage/dx-standalone.tar.gz"
+          cells="$RUNNER_TEMP/release-cells"
+          mkdir -p "$cells"
+          # The refusal proof only needs some dx file; a missing cell archive is reported by the check below.
+          if ! tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx; then
+            cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx"
+          fi
+          matrix="$(bazel cquery --output=files //deploy/release:release_matrix)"
+          bazel build //deploy/release:release_matrix --noshow_progress
           bazel build //deploy/release:release_artifacts --noshow_progress
           bazel cquery --output=files //deploy/release:release_artifacts > "$stage/release-artifacts.txt"
           spdx="$(bazel cquery --output=files //deploy/release:sbom_demo_spdx)"
@@ -84,14 +104,19 @@ jobs:
           {
             echo "install verifier refusal proof (no network, publishes nothing):"
             bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
-            if bazel run //deploy/install:dx_verify -- --binary "$stage/dx-linux-x86_64" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
+            if bazel run //deploy/install:dx_verify -- --binary "$stage/dx" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
               echo "expected checksum-only refusal failed" >&2
               exit 1
             fi
           }
+          status=0
           bazel run //deploy/release:publish_dry_run_check -- \
-            --binary "$stage/dx-linux-x86_64" \
-            --archive "$stage/dx-standalone.tar.gz" \
+            --matrix "$GITHUB_WORKSPACE/$matrix" \
+            --records "$cells" \
+            --archives "$cells" \
+            --sha "$CELLS_SHA" \
+            --version "$CELLS_VERSION" \
+            --workflow-ref "$WORKFLOW_REF" \
             --sbom-artifact "$demo_archive" \
             --spdx "$stage/sbom_demo.spdx.json" \
             --provenance "$stage/sbom_demo.provenance.json" \
@@ -107,15 +132,15 @@ jobs:
             --module-bazel "$GITHUB_WORKSPACE/MODULE.bazel" \
             --verify-refusal-log "$stage/verify-refusal.log" \
             --approve "$APPROVE" \
-            --report "$stage/dry-run-report.json" \
-            --binary-sha256-out "$stage/dx-linux-x86_64.sha256" \
-            --archive-sha256-out "$stage/dx-standalone.tar.gz.sha256"
+            --report "$stage/dry-run-report.json" | tee "$stage/verification.txt" || status=$?
           {
             echo "## Publish dry-run report"
             echo ""
             echo "- approved: \`$APPROVE\`; published: **no** (dry run never publishes)"
-            echo "- seed binary: \`dx-linux-x86_64\` \`$(cut -d' ' -f1 "$stage/dx-linux-x86_64.sha256")\`"
-            echo "- standalone: \`dx-standalone.tar.gz\` \`$(cut -d' ' -f1 "$stage/dx-standalone.tar.gz.sha256")\`"
+            echo "- release cells (\`release-cells.yml\`, version \`$CELLS_VERSION\`, commit \`$CELLS_SHA\`):"
+            echo '```'
+            cat "$stage/verification.txt"
+            echo '```'
             echo "- draft dry-run: \`//cli/cli:github_draft\` ok (placeholder \`v0.0.0-dryrun\`, draft-only flags, staged locally, publishes nothing)"
             echo "- packaging: \`//deploy/release:release_artifacts\` ok (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)"
             echo "- SBOM: \`//deploy/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
@@ -125,5 +150,6 @@ jobs:
             echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
             echo "- full report: \`dry-run-report.json\` in the job logs"
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
       - name: Prove checkout left clean
         run: test -z "$(git status --porcelain)"

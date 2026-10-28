@@ -677,7 +677,7 @@ fn import_allowed_matches_system_lists_runtime_and_windows_case() {
     assert!(!import_allowed("solaris", "libc.so.6", &[]));
 }
 
-fn matrix_json(cells: &[Cell]) -> String {
+pub(crate) fn matrix_json(cells: &[Cell]) -> String {
     serde_json::json!({"schema": MATRIX_SCHEMA, "cells": cells}).to_string()
 }
 
@@ -722,18 +722,18 @@ fn parse_matrix_reads_cells_and_rejects_bad_ones() {
     );
 }
 
-struct Release {
-    dir: tempfile::TempDir,
-    matrix: Vec<Cell>,
-    expected: Expected,
+pub(crate) struct Release {
+    pub(crate) dir: tempfile::TempDir,
+    pub(crate) matrix: Vec<Cell>,
+    pub(crate) expected: Expected,
 }
 
 impl Release {
-    fn records(&self) -> PathBuf {
+    pub(crate) fn records(&self) -> PathBuf {
         self.dir.path().join("records")
     }
 
-    fn archives(&self) -> PathBuf {
+    pub(crate) fn archives(&self) -> PathBuf {
         self.dir.path().join("archives")
     }
 
@@ -746,7 +746,7 @@ impl Release {
         )
     }
 
-    fn edit(&self, name: &str, edit: impl FnOnce(&mut serde_json::Value)) {
+    pub(crate) fn edit(&self, name: &str, edit: impl FnOnce(&mut serde_json::Value)) {
         let path = self.records().join(name);
         let mut value: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&path).expect("read")).expect("json");
@@ -760,7 +760,7 @@ impl Release {
 }
 
 /// Qualifies two synthetic cells and stages their records and archives like the aggregate job.
-fn release() -> Release {
+pub(crate) fn release() -> Release {
     let dir = tempfile::TempDir::new().expect("tempdir");
     std::fs::create_dir(dir.path().join("records")).expect("records");
     std::fs::create_dir(dir.path().join("archives")).expect("archives");
@@ -783,6 +783,13 @@ fn release() -> Release {
             dir.path().join("archives").join(cell.archive_name()),
         )
         .expect("archive");
+        std::fs::write(
+            dir.path()
+                .join("archives")
+                .join(format!("{}.sha256", cell.archive_name())),
+            format!("{}  {}\n", record.archive.sha256, cell.archive_name()),
+        )
+        .expect("sidecar");
         matrix.push(cell);
     }
     std::fs::write(dir.path().join("records").join("README.txt"), "ignored").expect("txt");

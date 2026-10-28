@@ -385,7 +385,7 @@ fn closed_pull_requests_join_the_ci_concurrency_group() {
     assert_eq!(ci["name"], json!("ci"));
     assert_eq!(
         ci["concurrency"]["group"],
-        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}"),
+        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main') || github.sha }}"),
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],
@@ -399,6 +399,25 @@ fn closed_pull_requests_join_the_ci_concurrency_group() {
     assert_eq!(
         cancel["concurrency"]["cancel-in-progress"],
         json!("${{ github.event_name == 'pull_request_target' }}"),
+    );
+}
+
+/// Pull requests keep `ci-ci-<number>`; main pushes share `ci-ci-main`, which
+/// cannot collide with `cancel-stale-main` or a numeric PR group; only PRs cancel.
+#[test]
+fn main_pushes_share_one_group_and_only_prs_cancel() {
+    let ci = document(CI_WORKFLOW);
+    let group = ci["concurrency"]["group"].as_str().unwrap();
+    assert!(
+        group.starts_with("ci-${{ github.workflow }}-${{ github.event.pull_request.number || (")
+    );
+    assert!(group.contains("github.ref == 'refs/heads/main' && 'main'"));
+    assert!(group.ends_with("|| github.sha }}"));
+    assert_ne!("ci-ci-main", "cancel-stale-main");
+    assert!("main".parse::<u64>().is_err());
+    assert_eq!(
+        ci["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request' }}"),
     );
 }
 

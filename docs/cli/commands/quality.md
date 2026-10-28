@@ -233,6 +233,7 @@ to.
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
+| `capnp` | lint, typecheck | capnp |
 | `cfn_lint` | lint | cloudformation |
 | `checkmake` | lint | make |
 | `checkstyle` | lint | java |
@@ -1320,6 +1321,59 @@ enums, and it skips renamed tables, so a clean result is not proof of
 compatibility. flatc reports no line or column, so the failure is a build
 failure and not a `dx lint` finding. The check runs on every platform because
 it uses the pinned `flatc` built by Bazel.
+
+### Cap'n Proto
+
+`capnp` 1.5.0 lints `.capnp` schemas. It is built from the pinned source
+archive (`@dx_capnproto`), not downloaded as a binary, and runs on Linux
+x86_64. Select it in a `capnp` family. The family is opt-in and part of no
+curated default. Format is not applicable: no maintained `.capnp` formatter
+exists, and `capnp` only validates.
+
+```python
+load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
+
+quality_family(
+    name = "capnp_family",
+    family_id = "capnp",
+    lint = ["capnp"],
+)
+
+capnp_library(
+    name = "order",
+    srcs = ["order.capnp"],
+    deps = ["//item"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //api/...
+```
+
+Own schemas with `capnp_library`. List the package files in `srcs` and the
+libraries they import in `deps`. An import resolves only from the `deps`
+closure, relative to the importing file or from the workspace root
+(`/pkg/x.capnp`), plus the schemas bundled with the compiler under `/capnp/`:
+`/capnp/c++.capnp`, `/capnp/schema.capnp`, `/capnp/stream.capnp` and
+`/capnp/compat/json.capnp`. A check runs
+`capnp compile --no-standard-import -I <root> --src-prefix=<root> -o-` from a
+scratch root that holds only those declared inputs, so an undeclared import is
+reported as `Import failed: <path>`, and a `..` import above the root or an
+absolute import outside the root cannot reach the host filesystem. The
+generated request goes to stdout and is discarded, so a check never writes.
+Each finding is reported at its line and column. A missing file ID, a syntax
+error, an unknown type or output the adapter cannot read fails the run and
+never counts as clean. Typecheck reports errors only. Cap'n Proto has no
+formatter, so format is not applicable, and `--apply` has nothing to fix.
+There is no breaking-change check.
+
+To run another `capnp`, point the flag at it:
+`--@rules_dx//config:tool_capnp=//tools:capnp`. A target without an
+executable fails with `set --@rules_dx//config:tool_capnp to a capnp binary`.
+
+`capnp` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
+macOS arm64 and Windows x86_64 are marked unsupported until `capnp` is
+qualified there. Code generation for Cap'n Proto is not available yet.
 
 ### CUE
 

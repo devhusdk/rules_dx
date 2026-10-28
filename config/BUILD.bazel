@@ -98,6 +98,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_capnp",
+    build_setting_default = "@dx_capnproto//src/capnp:capnp_tool",
+)
+
+label_flag(
     name = "tool_flatc",
     build_setting_default = "@dx_flatbuffers//:flatc",
 )

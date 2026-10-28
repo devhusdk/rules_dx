@@ -1195,6 +1195,28 @@ fn buf(
     }
 }
 
+/// Validates one schema with `capnp compile -o-`, which parses it and its
+/// imports and writes a CodeGeneratorRequest to stdout only on success.
+/// `rel_file` is relative to `root` and the run starts there, so the standard
+/// import path is off and `root` is the only import root (`..` and absolute
+/// imports cannot leave it).
+pub fn capnp_check(binary: &Path, rel_file: &Path, root: &Path) -> Invocation {
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            OsString::from("compile"),
+            OsString::from("--no-standard-import"),
+            OsString::from("-I"),
+            root.as_os_str().to_owned(),
+            OsString::from("--src-prefix"),
+            root.as_os_str().to_owned(),
+            OsString::from("-o-"),
+            rel_file.as_os_str().to_owned(),
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 /// Validates one schema with `flatc -M --cpp`, which parses it, prints its
 /// dependency list and writes nothing. Includes resolve next to the schema
 /// first, then under `root`.

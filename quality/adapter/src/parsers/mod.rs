@@ -2,6 +2,7 @@ pub mod ansible_lint;
 pub mod biome;
 pub mod buf;
 pub mod buildifier;
+pub mod capnp;
 pub mod cfn_lint;
 pub mod check_jsonschema;
 pub mod checkmake;
@@ -110,6 +111,7 @@ pub use ansible_lint::parse_ansible_lint;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
+pub use capnp::parse_capnp;
 pub use cfn_lint::parse_cfn_lint;
 pub use check_jsonschema::{parse_check_jsonschema, CheckJsonschemaTarget};
 pub use checkmake::parse_checkmake;
@@ -2266,6 +2268,14 @@ mod tests {
         super::ansible_lint::parse_ansible_lint(input, input, code, files)
     }
 
+    fn fuzz_capnp(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::capnp::parse_capnp(input, code, files)
+    }
+
     fn fuzz_cfn_lint(
         input: &[u8],
         code: Option<i32>,
@@ -2665,6 +2675,7 @@ mod tests {
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("ansible_lint", fuzz_ansible_lint),
+        ("capnp", fuzz_capnp),
         ("cfn_lint", fuzz_cfn_lint),
         ("check_jsonschema", fuzz_check_jsonschema),
         ("kubeconform", fuzz_kubeconform),
@@ -2782,6 +2793,7 @@ mod tests {
         ("julia_format", include_str!("julia_format.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ansible_lint", include_str!("ansible_lint.rs")),
+        ("capnp", include_str!("capnp.rs")),
         ("cfn_lint", include_str!("cfn_lint.rs")),
         ("kubeconform", include_str!("kubeconform.rs")),
         ("latexindent", include_str!("latexindent.rs")),

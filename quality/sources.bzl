@@ -20,6 +20,7 @@ SOURCES_REGISTRY_SCHEMA_VERSION = 1
 KNOWN_SEMANTIC_FILE_CLASSES = [
     "text",
     "c",
+    "capnp",
     "cpp",
     "cuda",
     "objc",

@@ -15,6 +15,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "biome",
     "buf",
     "buildifier",
+    "capnp",
     "cfn_lint",
     "checkmake",
     "checkstyle",

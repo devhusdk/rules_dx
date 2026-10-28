@@ -52,6 +52,15 @@ def _runner_matrix_test_impl(ctx):
     sibling_staged = {}
     for f in ctx.files.siblings:
         sibling_staged[f.short_path] = f
+    for target, spec in ctx.attr.staged_siblings.items():
+        marker, sep, directory = spec.partition(":")
+        if not sep or not marker or not directory.endswith("/"):
+            fail("runner_matrix_test: malformed staged sibling '" + spec + "': want MARKER:DIR/")
+        for f in target.files.to_list():
+            at = f.short_path.rfind(marker)
+            if at < 0:
+                fail("runner_matrix_test: staged sibling " + f.short_path + " has no '" + marker + "'")
+            sibling_staged[directory + f.short_path[at + len(marker):]] = f
 
     tools = {}
     for i, name in enumerate(ctx.attr.tool_names):
@@ -222,6 +231,7 @@ def _runner_matrix_test_impl(ctx):
     for target in (
         ctx.attr.srcs +
         ctx.attr.siblings +
+        ctx.attr.staged_siblings.keys() +
         ctx.attr.tool_binaries +
         ctx.attr.path_tool_binaries +
         ctx.attr.toolfile_srcs +
@@ -247,6 +257,10 @@ _runner_matrix_test = rule(
         "generated": attr.string_dict(),
         "siblings": attr.label_list(
             allow_files = True,
+        ),
+        "staged_siblings": attr.label_keyed_string_dict(
+            allow_files = True,
+            doc = "Label to `MARKER:DIR/`: each of its files is staged at DIR/ plus its short_path after the last MARKER, for files that must appear outside their own package path.",
         ),
         "capability": attr.string(
             mandatory = True,
@@ -372,6 +386,7 @@ def runner_matrix_suite(name, cases):
             srcs = case.get("srcs", []),
             generated = case.get("generated", {}),
             siblings = case.get("siblings", []),
+            staged_siblings = case.get("staged_siblings", {}),
             capability = case["capability"],
             stages = case["stages"],
             tool_names = case.get("tool_names", []),

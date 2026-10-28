@@ -485,6 +485,36 @@ FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
     "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
+CAPNP_CAPNP_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["capnp"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "capnp",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "capnp",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+}
+
+CAPNP_CAPNP_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["capnp"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "capnp",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "capnp",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+}
+
 CSS_STYLELINT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1007,6 +1037,8 @@ REGO_REGAL_LINT_SUPPORT = {
 }
 
 SUPPORT_RECORDS = [
+    CAPNP_CAPNP_LINT_SUPPORT,
+    CAPNP_CAPNP_TYPECHECK_SUPPORT,
     FLATBUFFERS_FLATC_LINT_SUPPORT,
     FLATBUFFERS_FLATC_TYPECHECK_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,

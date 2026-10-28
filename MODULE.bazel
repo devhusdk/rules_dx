@@ -1277,6 +1277,20 @@ _http_archive(
     urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v25.12.19.tar.gz"],
 )
 
+# capnp is built from source; literals mirror //capnproto:pins.bzl. The sed rewrites the
+# BCR-only `@capnp-cpp//` self-references to repo-local labels, and the second adds the
+# <cstddef> include that dynamic.h needs for std::nullptr_t under libc++.
+_http_archive(
+    name = "dx_capnproto",
+    patch_cmds = [
+        "sed -i.bak 's#@capnp-cpp//#//#g' src/capnp/BUILD.bazel src/capnp/cc_capnp_library.bzl src/capnp/compat/BUILD.bazel",
+        "sed -i.bak '/^#include \"schema.h\"/i\\\n#include <cstddef>' src/capnp/dynamic.h",
+    ],
+    sha256 = "d5ebdf858e9885c33d4b3f765006d68bd66e9b002bf4d607ff4317ef9c1aac6a",
+    strip_prefix = "capnproto-1.5.0/c++",
+    urls = ["https://github.com/capnproto/capnproto/archive/refs/tags/v1.5.0.tar.gz"],
+)
+
 # Rust runtime from the same archive (same sha256, so one download) and its bitflags dep.
 _http_archive(
     name = "dx_flatbuffers_rust",

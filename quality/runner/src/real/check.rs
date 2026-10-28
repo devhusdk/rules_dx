@@ -1078,6 +1078,51 @@ impl RealBackend {
                     Ok(owned)
                 }
             }
+            "capnp" => {
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    // The run starts at the scratch root and names the file relative to it,
+                    // so the compiler's import root is the scratch root and nothing above it.
+                    let invocation =
+                        commands::capnp_check(&tool.binary, Path::new(workspace), &root);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    // Exit 1 is a schema error; the crash banner for an escaping `..` import
+                    // also exits 1 and is reported by the parser. Anything else is not a verdict.
+                    if !matches!(out.code, Some(0 | 1)) {
+                        let code = out
+                            .code
+                            .map_or_else(|| "signal".to_owned(), |code| code.to_string());
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        return Err(execution(
+                            tool_id,
+                            format!("exit {code}: {}", stderr.trim()),
+                        ));
+                    }
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_capnp(&out.stderr, out.code, &[workspace.as_str()]),
+                    )?;
+                    let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+                    for mut item in found {
+                        // Typecheck is the error-only view of the same capnp run.
+                        if capability == "typecheck"
+                            && !matches!(
+                                item.finding.severity,
+                                quality_adapter::ToolSeverity::Error
+                            )
+                        {
+                            continue;
+                        }
+                        item.file = absolute.to_string_lossy().into_owned();
+                        item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                        findings.push(item);
+                    }
+                }
+                Ok(findings)
+            }
             "flatc" => {
                 let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
                     execution(tool_id, format!("canonicalize scratch root: {err}"))

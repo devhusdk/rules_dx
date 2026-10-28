@@ -34,6 +34,7 @@ load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//capnproto/rules:defs.bzl", "CapnpInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//lua/private:providers.bzl", "LuaInfo")
 load("//php/rules:php.bzl", "staged_path")
@@ -67,6 +68,14 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "core",
+    },
+    "capnp": {
+        "attr": attr.label(default = "//config:tool_capnp", allow_files = True, cfg = "exec", executable = True),
+        "capabilities": ["lint", "typecheck"],
+        "fallback": " to a capnp binary",
+        "kind": "setting",
+        "resources": "light",
+        "shard": "capnp",
     },
     "checkstyle": {
         "attr": attr.label(default = "//quality/tools/jvm:checkstyle", cfg = "exec", executable = True),
@@ -917,6 +926,29 @@ def upstream_direct_sources(target, ctx):
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
+def _capnp_closure(target):
+    return [(i.path, i.file) for i in target[CapnpInfo].transitive_imports.to_list()]
+
+def _flatc_closure(target):
+    staged = []
+    for f in target[FlatBuffersInfo].transitive_srcs.to_list():
+        ws_path = f.short_path
+        if ws_path.startswith("../"):
+            ws_path = "_external/" + ws_path[3:]
+        if ".." in ws_path.split("/"):
+            continue
+        staged.append((ws_path, f))
+    return staged
+
+# Tools whose declared import closure is staged next to the checked files:
+# tool -> (provider, closure(target) -> [(staged path, File)], strict). A strict
+# tool fails when two different Files claim one staged path, because the
+# compiler would see a different file than the one declared.
+_CLOSURE_STAGING = {
+    "capnp": (CapnpInfo, _capnp_closure, True),
+    "flatc": (FlatBuffersInfo, _flatc_closure, False),
+}
+
 QmlContextInfo = provider(
     doc = "QML import context files reachable through deps.",
     fields = {"files": "depset[File]: qmldir, qml, qmltypes and js files."},
@@ -1592,14 +1624,18 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
-    if "flatc" in stage_tools and FlatBuffersInfo in target:
-        for f in target[FlatBuffersInfo].transitive_srcs.to_list():
-            ws_path = f.short_path
-            if ws_path.startswith("../"):
-                ws_path = "_external/" + ws_path[3:]
-            if ".." in ws_path.split("/"):
-                continue
-            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+    for closure_tool, (closure_provider, closure_files, closure_strict) in _CLOSURE_STAGING.items():
+        if closure_tool not in stage_tools or closure_provider not in target:
+            continue
+        for (ws_path, f) in closure_files(target):
+            staged_as = None
+            for known in (path_to_file, sibling_pairs, resolve_pairs):
+                if ws_path in known:
+                    staged_as = known[ws_path]
+                    break
+            if staged_as != None:
+                if closure_strict and staged_as != f:
+                    fail(what + ": " + closure_tool + " would stage two different files at " + ws_path + ": " + staged_as.path + " and " + f.path)
                 continue
             resolve_pairs[ws_path] = f
     if "buf" in stage_tools and ProtoInfo in target:
@@ -2113,6 +2149,18 @@ _REAL_SHARD_SPECS = {
         "shard": "powershell",
         "suffix": "-powershell",
     },
+    "real_capnp_lint": {
+        "capability": "lint",
+        "doc": "Additive Cap'n Proto lint family aspect (capnp).",
+        "shard": "capnp",
+        "suffix": "-capnp",
+    },
+    "real_capnp_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Cap'n Proto typecheck family aspect (capnp errors only).",
+        "shard": "capnp",
+        "suffix": "-capnp",
+    },
     "real_flatbuffers_lint": {
         "capability": "lint",
         "doc": "Additive FlatBuffers lint family aspect (flatc).",
@@ -2543,6 +2591,8 @@ real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 
+real_capnp_lint_aspect = _make_real_aspect("real_capnp_lint")
+real_capnp_typecheck_aspect = _make_real_aspect("real_capnp_typecheck")
 real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
 real_flatbuffers_typecheck_aspect = _make_real_aspect("real_flatbuffers_typecheck")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")

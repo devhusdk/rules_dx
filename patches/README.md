@@ -1,8 +1,8 @@
 # Patches
 
 Bazel applies `single_version_override` only in the root module, and its
-patches must live in the root repository. `dx init --apply` and
-`dx new --apply` write them into your tree:
+patches must live in the root repository. `dx init --apply` writes
+them into your tree:
 
 ```text
 third_party/rules_dx/rules_dx.MODULE.bazel

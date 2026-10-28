@@ -1,0 +1,6 @@
+local hello = require("hello")
+
+if hello.greet("world") ~= "hello world" then
+	io.stderr:write("unexpected greeting\n")
+	os.exit(1)
+end

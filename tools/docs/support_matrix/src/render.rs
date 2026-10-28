@@ -46,32 +46,14 @@ fn build_table(
         .into_iter()
         .map(|row| {
             let tested = platforms.get(&row.name).cloned().unwrap_or_default();
-            let starters = if row.starters.is_empty() {
-                "no".to_owned()
-            } else {
-                row.starters
-                    .iter()
-                    .map(|starter| format!("`{starter}`"))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            };
             vec![
                 row.title.clone(),
                 platform_cell(facts, &tested.build),
                 platform_cell(facts, &tested.consumer),
-                starters,
             ]
         })
         .collect();
-    table(
-        &[
-            heading,
-            "Builds and tests on",
-            "Consumer test on",
-            "`dx new` starter",
-        ],
-        &rows,
-    )
+    table(&[heading, "Builds and tests on", "Consumer test on"], &rows)
 }
 
 fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
@@ -147,8 +129,8 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     let mut out = String::new();
     out.push_str("# Support matrix\n\n");
     out.push_str(
-        "This page lists, for each language and target, the platforms CI tests it on, \
-         its `dx new` starter, and its lint, format, and typecheck tools.\n\n",
+        "This page lists, for each language and target, the platforms CI tests it on \
+         and its lint, format, and typecheck tools.\n\n",
     );
     out.push_str("An empty cell or `no` is a missing test, tracked as an issue.\n\n");
     out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
@@ -207,9 +189,9 @@ mod tests {
       ],
       "sections": ["languages", "targets", "formats"],
       "rows": [
-        {"name": "go", "title": "Go", "section": "languages", "families": ["go"], "starters": ["go"],
+        {"name": "go", "title": "Go", "section": "languages", "families": ["go"],
          "ci_tests": [], "consumer_tests": [], "workflows": []},
-        {"name": "yaml", "title": "YAML", "section": "formats", "families": ["yaml"], "starters": [],
+        {"name": "yaml", "title": "YAML", "section": "formats", "families": ["yaml"],
          "ci_tests": [], "consumer_tests": [], "workflows": []}
       ],
       "quality": {"go": {"lint": ["govet"], "format": ["gofumpt"], "typecheck": []},
@@ -252,7 +234,7 @@ mod tests {
         assert_eq!(page, render(&facts, &platforms));
         assert!(page.is_ascii());
         assert!(
-            page.contains("| Go | `linux_x86_64`, `macos_arm64` | no | `go` |\n"),
+            page.contains("| Go | `linux_x86_64`, `macos_arm64` | no |\n"),
             "{page}"
         );
         assert!(

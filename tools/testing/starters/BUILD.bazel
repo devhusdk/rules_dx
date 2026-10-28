@@ -12,12 +12,12 @@ load("//rust/rules:defs.bzl", "rust_clippy_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "STARTER_CONSUMER_TAGS")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
-# One consumer test per `dx new` starter. Each scaffolds the starter, points it at this
-# checkout and runs `bazel test //...` in a nested Bazel. The targets are manual; the CI
-# `starter-consumer` job selects them by tag. Write each call literally: the support
-# matrix reader does not expand loops. cuda, rust-android and rust-web are not covered yet, and neither are the adopt-style starters
-# (csharp, fsharp, go, java, javascript, kotlin, python, rust, scala, typescript), which ship a
-# MODULE.bazel.snippet and no BUILD files, so they need a gazelle-driven flow.
+# One consumer test per hello-world fixture under fixtures/. Each runs `dx init --apply` into a
+# new directory, adds the fixture sources, points the project at this checkout and runs
+# `bazel test //...` in a nested Bazel. The targets are manual; the CI `starter-consumer` job
+# selects them by tag. Write each call literally: the support matrix reader does not expand
+# loops. cuda and rust-android have their own tests under //cuda/tests/starter and
+# //android/tests/starter.
 
 nested_bazel_test(
     name = "astro",
@@ -27,10 +27,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:astro",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "astro",
+        "DX_FIXTURE": "astro",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:astro)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -48,10 +50,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:c",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "c",
+        "DX_FIXTURE": "c",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:c)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -69,10 +73,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:cpp",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "cpp",
+        "DX_FIXTURE": "cpp",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:cpp)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -90,10 +96,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:d",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "d",
+        "DX_FIXTURE": "d",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:d)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -112,10 +120,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:elixir",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "elixir",
+        "DX_FIXTURE": "elixir",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:elixir)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -134,10 +144,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:erlang",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "erlang",
+        "DX_FIXTURE": "erlang",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:erlang)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -156,10 +168,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:fortran",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "fortran",
+        "DX_FIXTURE": "fortran",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:fortran)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -178,10 +192,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:haskell",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "haskell",
+        "DX_FIXTURE": "haskell",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:haskell)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -200,10 +216,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:julia",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "julia",
+        "DX_FIXTURE": "julia",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:julia)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -222,10 +240,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:lua",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "lua",
+        "DX_FIXTURE": "lua",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:lua)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -243,10 +263,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:mdx",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "mdx",
+        "DX_FIXTURE": "mdx",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:mdx)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -264,10 +286,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:ocaml",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "ocaml",
+        "DX_FIXTURE": "ocaml",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:ocaml)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -286,10 +310,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:perl",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "perl",
+        "DX_FIXTURE": "perl",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:perl)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -308,10 +334,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:php",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "php",
+        "DX_FIXTURE": "php",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:php)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -330,10 +358,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:powershell",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "powershell",
+        "DX_FIXTURE": "powershell",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:powershell)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -352,10 +382,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:ruby",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "ruby",
+        "DX_FIXTURE": "ruby",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:ruby)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -373,10 +405,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:svelte",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "svelte",
+        "DX_FIXTURE": "svelte",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:svelte)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -394,10 +428,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:vue",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "vue",
+        "DX_FIXTURE": "vue",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:vue)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,
@@ -415,10 +451,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:zig",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_STARTER": "zig",
+        "DX_FIXTURE": "zig",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:zig)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,

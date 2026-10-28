@@ -1,0 +1,22 @@
+load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "escript_archive", "escript_headers", "ex_unit_test")
+
+elixir_app(
+    name = "demo-app",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+escript_archive(
+    name = "demo-app_bin",
+    app = ":demo-app",
+    headers = escript_headers("Hello.CLI"),
+)
+
+ex_unit_test(
+    name = "demo-app_test",
+    srcs = [
+        "test/hello_test.exs",
+        "test/test_helper.exs",
+    ],
+    deps = [":demo-app"],
+)

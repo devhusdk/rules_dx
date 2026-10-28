@@ -449,7 +449,6 @@ fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<St
             FirstSlot::UpdateSets => update_set_hints(current),
             FirstSlot::BumpSets => bump_set_hints(current),
             FirstSlot::AddSets => add_set_hints(current),
-            FirstSlot::NewLanguages => prefixed(dx_adopt::SUPPORTED_NEW_LANGUAGES, current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
             FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
         }
@@ -665,15 +664,6 @@ mod tests {
                     assert_eq!(fixed, want);
                     assert!(!labels);
                 }
-                Command::New => {
-                    let mut want: Vec<String> = dx_adopt::SUPPORTED_NEW_LANGUAGES
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect();
-                    want.sort();
-                    assert_eq!(fixed, want);
-                    assert!(!labels);
-                }
                 Command::Completion => {
                     assert_eq!(fixed, vec!["bash", "fish", "powershell", "zsh"]);
                     assert!(!labels);
@@ -746,7 +736,6 @@ mod tests {
             Command::Env,
             Command::Bump,
             Command::Add,
-            Command::New,
             Command::Completion,
             Command::Deploy,
         ] {

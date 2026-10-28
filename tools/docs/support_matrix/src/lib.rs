@@ -1,4 +1,4 @@
-//! Generates `docs/support-matrix.md` from CI workflows, test BUILD files, `dx new` and the quality registry.
+//! Generates `docs/support-matrix.md` from CI workflows, test BUILD files and the quality registry.
 
 pub mod gaps;
 pub mod render;
@@ -33,7 +33,6 @@ pub struct Row {
     pub title: String,
     pub section: String,
     pub families: Vec<String>,
-    pub starters: Vec<String>,
     pub ci_tests: Vec<String>,
     pub consumer_tests: Vec<String>,
     pub workflows: Vec<String>,
@@ -209,24 +208,6 @@ impl Context<'_> {
     }
 }
 
-fn check_starters(facts: &Facts, starters: &[&str]) -> Result<(), String> {
-    let listed: BTreeSet<&str> = facts
-        .rows
-        .iter()
-        .flat_map(|row| row.starters.iter().map(String::as_str))
-        .collect();
-    let known: BTreeSet<&str> = starters.iter().copied().collect();
-    let missing: Vec<_> = known.difference(&listed).collect();
-    let unknown: Vec<_> = listed.difference(&known).collect();
-    if missing.is_empty() && unknown.is_empty() {
-        return Ok(());
-    }
-    Err(format!(
-        "tools/docs/support_matrix/languages.bzl starters drift from dx new: \
-         add {missing:?} to a row, remove {unknown:?}"
-    ))
-}
-
 /// Reads every source and returns the platforms of each row.
 pub fn row_platforms(
     facts: &Facts,
@@ -291,14 +272,9 @@ pub fn row_platforms(
     Ok(out)
 }
 
-/// Generates the page from the facts, the workspace sources and the `dx new` starters.
-pub fn generate(
-    facts_json: &str,
-    source: &dyn Source,
-    starters: &[&str],
-) -> Result<Matrix, String> {
+/// Generates the page from the facts and the workspace sources.
+pub fn generate(facts_json: &str, source: &dyn Source) -> Result<Matrix, String> {
     let facts = parse_facts(facts_json)?;
-    check_starters(&facts, starters)?;
     let platforms = row_platforms(&facts, source)?;
     let gaps = gaps::gaps(&facts, &platforms);
     if facts.gap_enforcement {

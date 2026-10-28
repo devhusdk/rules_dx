@@ -14,12 +14,11 @@ pub mod defaults;
 pub mod dependency_sets;
 pub mod error;
 pub mod git_changes;
+pub mod init_dir;
 pub mod init_parts;
 pub mod launcher;
 pub mod load_graph;
 pub mod migrate;
-pub mod new;
-mod new_locks;
 pub mod overrides;
 pub mod preflight;
 pub mod preset;
@@ -36,6 +35,10 @@ pub use git_changes::{
     dedupe_changes, is_dx_state, nearest_package_pattern, parse_name_status_nul, ChangeKind,
     GitChange, DEFAULT_BRANCH_CANDIDATES,
 };
+pub use init_dir::{
+    init_dir_module, is_fresh_dir, plan_fresh_files, validate_init_dir, DEFAULT_INIT_MODULE,
+    FRESH_BAZEL_VERSION,
+};
 pub use init_parts::{
     merge_init_record, read_init_record, InitPart, InitParts, InitRecord, INIT_PART_NAMES,
     INIT_RECORD_REL,
@@ -47,10 +50,6 @@ pub use launcher::{
 };
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
 pub use migrate::plan_migrate;
-pub use new::{
-    apply_new, default_new_name, new_is_known_language, new_language_name_list, plan_new_files,
-    removed_new_language, validate_new_destination, NEW_LANGUAGES, SUPPORTED_NEW_LANGUAGES,
-};
 pub use overrides::{
     apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };

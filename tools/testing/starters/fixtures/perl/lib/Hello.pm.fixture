@@ -1,0 +1,11 @@
+package Hello;
+
+use strict;
+use warnings;
+
+sub greet {
+    my ($name) = @_;
+    return "hello $name";
+}
+
+1;

@@ -66,7 +66,7 @@ It costs:
 
 - Bazel and its learning curve: BUILD files and `MODULE.bazel`.
 - The files `dx init` writes: essentials by default, optional parts with `--with`; see [init](docs/cli/commands/init.md).
-- Following the pinned rule and tool versions. You move when you run [`dx upgrade`](docs/cli/commands/new-upgrade.md).
+- Following the pinned rule and tool versions. You move when you run [`dx upgrade`](docs/cli/commands/upgrade-rollback.md).
 - Patched upstream overrides that `dx init --apply` writes to `third_party/rules_dx/`; see [rules_dx overrides](docs/cli/commands/init.md#rules_dx-overrides) and [patches/README.md](patches/README.md).
 
 ## Contributing

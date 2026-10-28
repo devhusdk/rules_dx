@@ -238,7 +238,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     match invocation.command {
         Command::Init
-        | Command::New
         | Command::Upgrade
         | Command::Rollback
         | Command::Status

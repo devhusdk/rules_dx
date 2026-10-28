@@ -192,7 +192,6 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::Version
             | Command::Completion
             | Command::Init
-            | Command::New
             | Command::Worktree
             | Command::Explain
             | Command::Install
@@ -580,7 +579,6 @@ mod tests {
             Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["lint"]),
-            Command::New => owned(&["rust"]),
             Command::Install => owned(&["--tag", "v1.2.3", "--archive", "a.tar.gz"]),
             _ => Vec::new(),
         }

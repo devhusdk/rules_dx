@@ -1,0 +1,7 @@
+---
+import { helper } from "./helper.js";
+
+const message = helper("world");
+---
+
+<div class="hello">{message}</div>

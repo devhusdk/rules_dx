@@ -60,10 +60,7 @@ rust_binary(
     crate_root = "src/main.rs",
     data = [":inputs"],
     edition = "2021",
-    deps = [
-        ":support_matrix",
-        "//cli/adopt:dx_adopt",
-    ],
+    deps = [":support_matrix"],
 )
 
 # keep
@@ -74,10 +71,7 @@ rust_binary(
     crate_root = "src/main.rs",
     data = [":inputs"],
     edition = "2021",
-    deps = [
-        ":support_matrix",
-        "//cli/adopt:dx_adopt",
-    ],
+    deps = [":support_matrix"],
 )
 
 # keep
@@ -89,10 +83,7 @@ rust_test(
         ":inputs",
         "//docs:support-matrix.md",
     ],
-    deps = [
-        ":support_matrix",
-        "//cli/adopt:dx_adopt",
-    ],
+    deps = [":support_matrix"],
 )
 
 rustfmt_test(

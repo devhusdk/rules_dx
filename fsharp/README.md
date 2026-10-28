@@ -7,14 +7,14 @@ toolchain, so there is no setup in `MODULE.bazel`.
 ## Start
 
 ```sh
-bazel run @rules_dx//:dx -- new --apply fsharp demo
+bazel run @rules_dx//:dx -- init --apply demo
 cd demo
 bazel run @rules_dx//:dx -- generate
 bazel build //...
 ```
 
-The template writes `demo.fsproj` and `Library.fs` and no `BUILD.bazel`.
-`dx generate` writes the targets.
+Add a `demo.fsproj` and its sources before `dx generate`. `dx generate`
+wires the language and writes the targets; you write no `BUILD.bazel`.
 
 ## Rules
 

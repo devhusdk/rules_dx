@@ -22,7 +22,7 @@ pub const INIT_RECORD_REL: &str = ".dx/init.toml";
 
 const RECORD_KEY: &str = "with";
 
-const RECORD_HEADER: &str = "# Written by dx init --apply; remove a name to stop checking that part.\n# dx init and dx status read this file; dx new and dx init --full select every part.\n";
+const RECORD_HEADER: &str = "# Written by dx init --apply; remove a name to stop checking that part.\n# dx init and dx status read this file; dx init --full selects every part.\n";
 
 impl InitPart {
     /// Every part, in canonical order.
@@ -66,7 +66,7 @@ pub struct InitParts(u8);
 impl InitParts {
     /// No optional part: the essentials only.
     pub const NONE: InitParts = InitParts(0);
-    /// Every part: the full scaffold `dx new` and `dx init --full` write.
+    /// Every part: the full scaffold `dx init --full` writes.
     pub const ALL: InitParts = InitParts(0b1_1111);
 
     fn bit(part: InitPart) -> u8 {

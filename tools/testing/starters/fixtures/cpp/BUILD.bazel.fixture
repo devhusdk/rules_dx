@@ -1,0 +1,19 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+cc_library(
+    name = "demo-app",
+    srcs = ["hello.cc"],
+    hdrs = ["hello.h"],
+)
+
+cc_binary(
+    name = "demo-app_bin",
+    srcs = ["main.cc"],
+    deps = [":demo-app"],
+)
+
+cc_test(
+    name = "demo-app_test",
+    srcs = ["hello_test.cc"],
+    deps = [":demo-app"],
+)

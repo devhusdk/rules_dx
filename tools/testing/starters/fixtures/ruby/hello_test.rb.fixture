@@ -1,0 +1,8 @@
+require_relative "hello"
+
+got = Hello.greet("world")
+if got != "hello world"
+  warn "unexpected greeting: #{got}"
+  exit 1
+end
+puts "PASS"

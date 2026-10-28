@@ -1,0 +1,13 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int scale_device_count(void);
+int scale_gpu(int n, float a, const float *x, float *y);
+void scale_cpu(int n, float a, const float *x, float *y);
+
+#ifdef __cplusplus
+}
+#endif

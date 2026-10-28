@@ -239,17 +239,6 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
         })
     );
     assert_eq!(
-        parse_with(
-            &strings(&["new", "rust", "--output=json"]),
-            &env_of(&[]),
-            &empty
-        ),
-        Err(ArgsError::UnsupportedOption {
-            command: "new",
-            option: "--output=json".to_owned(),
-        })
-    );
-    assert_eq!(
         parse_with(&strings(&["build", "--output=diff"]), &env_of(&[]), &empty),
         Err(ArgsError::UnsupportedOption {
             command: "build",

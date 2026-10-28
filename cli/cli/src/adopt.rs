@@ -2,7 +2,6 @@ pub(crate) mod agents;
 pub(crate) mod claude_md;
 mod completion;
 mod init;
-mod new;
 mod rollback;
 mod status;
 mod status_tools;
@@ -19,8 +18,6 @@ use dx_output::OutputMode;
 use dx_plan::args::{Command, Invocation};
 
 pub(crate) use crate::exec::common::{operational, pre_exec};
-#[cfg(test)]
-pub(crate) use new::CODE_NEW_FAILED;
 #[cfg(test)]
 pub(crate) use status::CODE_STATUS_PIN_MISMATCH;
 #[cfg(test)]
@@ -44,7 +41,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
     } = env;
     match invocation.command {
         Command::Init => init::execute_init(invocation, workspace, out, err),
-        Command::New => new::execute_new(invocation, workspace, out, err),
         Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
         Command::Status => status::execute_status(invocation, workspace, out, err),
         Command::Version => version::execute_version(invocation, workspace, out, err),
@@ -118,7 +114,7 @@ mod tests {
             vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--output=json"],
             vec!["completion", "bash"],
             vec!["init"],
-            vec!["new", "rust", "demo"],
+            vec!["init", "demo"],
         ] {
             let scratch = dx_test_scratch::scratch("adoption-pipe-");
             dx_adopt::write_version_pin(scratch.path(), "0.0.0").expect("pin");

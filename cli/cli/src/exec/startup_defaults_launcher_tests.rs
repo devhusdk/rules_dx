@@ -514,17 +514,18 @@ fn bazel_run_relative_workspace_uses_the_working_directory() {
 }
 
 #[test]
-fn new_and_completion_run_without_a_workspace() {
+fn init_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();
-    let (code, out, err) = run_dx(root, &["new", "--apply", "rust", "demo"], &[]);
+    let (code, out, err) = run_dx(root, &["init", "--apply", "demo"], &[]);
     assert_eq!(
         code,
         Some(0),
-        "standalone new works outside a workspace: {err}"
+        "init into a new directory works outside a workspace: {err}"
     );
-    assert!(out.contains("demo/Cargo.toml"), "{out}");
-    assert!(root.join("demo/Cargo.toml").exists());
+    assert!(out.contains("wrote demo/MODULE.bazel\n"), "{out}");
+    assert!(root.join("demo/MODULE.bazel").is_file());
+    assert!(root.join("demo/.dx/version").is_file());
     let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "completion works outside a workspace: {err}");
     assert!(out.contains("COMPLETE"), "{out}");
@@ -532,39 +533,24 @@ fn new_and_completion_run_without_a_workspace() {
 }
 
 #[test]
-fn removed_new_spellings_exit_2_with_canonical_name() {
+fn removed_new_exits_2_and_points_at_init() {
     let scratch = dx_test_scratch::scratch("dx-new-removed-");
     let root = scratch.path();
-    for (spelling, canonical) in [
-        ("cc", "cpp"),
-        ("c#", "csharp"),
-        ("c-sharp", "csharp"),
-        ("f#", "fsharp"),
-        ("f-sharp", "fsharp"),
+    for words in [
+        vec!["new"],
+        vec!["new", "rust", "demo"],
+        vec!["new", "--apply", "c", "demo"],
     ] {
-        for apply in [false, true] {
-            let mut words = vec!["new"];
-            if apply {
-                words.push("--apply");
-            }
-            words.extend([spelling, "demo"]);
-            let (code, out, err) = run_dx(root, &words, &[]);
-            assert_eq!(code, Some(2), "{words:?}: {err}");
-            assert!(out.is_empty(), "{words:?}: {out}");
-            assert!(
-                err.contains(&format!(
-                    "language spelling for dx new was removed: {spelling} (use {canonical})"
-                )),
-                "{words:?}: {err}"
-            );
-            assert!(!root.join("demo").exists(), "{words:?} wrote demo");
-        }
+        let (code, out, err) = run_dx(root, &words, &[]);
+        assert_eq!(code, Some(2), "{words:?}: {err}");
+        assert!(out.is_empty(), "{words:?}: {out}");
+        assert!(
+            err.contains("unsupported command 'new'"),
+            "{words:?}: {err}"
+        );
+        assert!(err.contains("dx init <dir>"), "{words:?}: {err}");
+        assert!(!root.join("demo").exists(), "{words:?} wrote demo");
     }
-    let (code, out, err) = run_dx(root, &["new", "--apply", "c", "demo"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("wrote demo/hello.c\n"), "{out}");
-    assert!(root.join("demo/hello.c").is_file());
-    assert!(!root.join("demo/hello.cc").exists());
     scratch.close().expect("cleanup");
 }
 

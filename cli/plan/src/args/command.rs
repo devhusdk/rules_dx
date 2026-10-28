@@ -21,7 +21,6 @@ pub enum Command {
     Codegen,
     Env,
     Init,
-    New,
     Upgrade,
     Status,
     Version,
@@ -40,7 +39,6 @@ pub enum FirstSlot {
     UpdateSets,
     BumpSets,
     AddSets,
-    NewLanguages,
     WatchTasks,
     CompletionShells,
 }
@@ -104,7 +102,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 32] = [
+pub static COMMANDS: [CommandMeta; 31] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -489,9 +487,9 @@ pub static COMMANDS: [CommandMeta; 32] = [
         command: Command::Init,
         name: "init",
         scope_policy: "optional-name",
-        describe: "adopt dx into an existing tree (absent-only; check by default; --apply scaffolds)",
-        usage: "Usage: dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [module-name]",
-        scopes: "Scopes: optional single module name (defaults to my_project when absent); Bazel labels/patterns are not scopes; extra positionals are usage failures.",
+        describe: "start or adopt a dx workspace in this or a new directory (absent-only; check by default; --apply scaffolds)",
+        usage: "Usage: dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [dir]",
+        scopes: "Scopes: optional single directory, created by --apply when missing (defaults to the current directory); the module name is the directory name, or my_project for the current directory; Bazel labels/patterns are not scopes; extra positionals are usage failures.",
         is_managed: false,
         is_adoption: true,
         supports_json: true,
@@ -502,25 +500,6 @@ pub static COMMANDS: [CommandMeta; 32] = [
         skew: SkewKind::Refuse,
         workflow_verb: None,
         first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-    },
-    CommandMeta {
-        command: Command::New,
-        name: "new",
-        scope_policy: "require",
-        describe: "start a new project for one language (absent-only; check by default; --apply scaffolds)",
-        usage: "Usage: dx new [--apply] <language> [name]",
-        scopes: "Scopes: <language> ({languages}) plus optional project name (defaults to my_project); rust-web scaffolds a shared Rust core with native and browser targets; rust-android scaffolds a Rust core packaged as a debug APK with adb launchers; absent-only, no --force; unknown languages fail with the supported list; extra positionals are usage failures.",
-        is_managed: false,
-        is_adoption: true,
-        supports_json: false,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::NewLanguages,
         labels: LabelsPolicy::Never,
     },
     CommandMeta {
@@ -813,14 +792,6 @@ impl Command {
     }
 
     pub fn scopes_text(self) -> &'static str {
-        if self == Command::New {
-            static NEW_SCOPES: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-            return NEW_SCOPES.get_or_init(|| {
-                self.meta()
-                    .scopes
-                    .replace("{languages}", &dx_adopt::SUPPORTED_NEW_LANGUAGES.join("|"))
-            });
-        }
         self.meta().scopes
     }
 
@@ -839,9 +810,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 20] = [
+    pub(crate) const APPLY_COMMANDS: [Command; 19] = [
         Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Add, Migrate, Codegen,
-        Env, Init, New, Upgrade, Watch, Rollback, Worktree, Install,
+        Env, Init, Upgrade, Watch, Rollback, Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const CHECK_OWNERS: [Command; 12] = [
@@ -877,17 +848,13 @@ mod tests {
         assert_eq!(Command::Bump.name(), "bump");
         assert_eq!(Command::Add.name(), "add");
         assert_eq!(Command::Migrate.name(), "migrate");
-        assert_eq!(Command::New.name(), "new");
         assert_eq!(Command::Upgrade.name(), "upgrade");
         assert!(!Command::Migrate.is_adoption());
         assert!(!Command::Migrate.is_managed());
         assert!(Command::Migrate.supports_json());
         assert!(!Command::Migrate.supports_diff());
-        assert!(Command::New.is_adoption());
         assert!(Command::Upgrade.is_adoption());
-        assert!(!Command::New.supports_json());
         assert!(Command::Upgrade.supports_json());
-        assert!(!Command::New.supports_diff());
         assert!(!Command::Upgrade.supports_diff());
         assert_eq!(Command::Lint.name(), "lint");
         assert_eq!(Command::Typecheck.name(), "typecheck");
@@ -936,7 +903,6 @@ mod tests {
             Command::Codegen,
             Command::Env,
             Command::Init,
-            Command::New,
             Command::Upgrade,
             Command::Status,
             Command::Version,
@@ -996,7 +962,6 @@ mod tests {
             Command::Add,
             Command::Migrate,
             Command::Init,
-            Command::New,
             Command::Upgrade,
             Command::Rollback,
         ] {
@@ -1049,7 +1014,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|rollback|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|upgrade|status|version|watch|completion|docs|rollback|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }
@@ -1241,11 +1206,7 @@ mod tests {
             .filter(|command| {
                 matches!(
                     command,
-                    Command::Bump
-                        | Command::Add
-                        | Command::Completion
-                        | Command::New
-                        | Command::Watch
+                    Command::Bump | Command::Add | Command::Completion | Command::Watch
                 )
             })
             .map(|command| (command.name(), command.required_slot()))
@@ -1257,7 +1218,6 @@ mod tests {
                 ("add", Some("<set:package> <version>")),
                 ("bump", Some("<set:package> <version>")),
                 ("completion", Some("<shell>")),
-                ("new", Some("<language>")),
                 (
                     "watch",
                     Some("<build|test|run|lint|typecheck|format|check|fix>")
@@ -1279,11 +1239,7 @@ mod tests {
             assert_eq!(entry.name, entry.command.meta().name);
             assert_eq!(entry.describe, entry.command.describe());
             assert_eq!(entry.usage, entry.command.usage());
-            if entry.command == Command::New {
-                assert!(entry.scopes.contains("{languages}"));
-            } else {
-                assert_eq!(entry.scopes, entry.command.scopes_text());
-            }
+            assert_eq!(entry.scopes, entry.command.scopes_text());
             assert_eq!(entry.scope_policy, entry.command.scope_policy());
         }
         let mut seen: Vec<Command> = Vec::new();

@@ -1,0 +1,9 @@
+# demo-app
+
+```sh
+bazel build //...
+bazel run :demo-app_bin
+bazel test //...
+```
+
+The targets are Linux only.

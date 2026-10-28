@@ -47,13 +47,11 @@ struct Starter {
 
 fn scaffold_safely(scratch: &Path, starter: &Starter) -> PathBuf {
     let lang = starter.language;
-    let (code, text) = dx(scratch, &["new", lang, "demo-app"]);
+    let (code, text) = dx(scratch, &["init", "demo-app"]);
     assert_eq!(code, Some(1), "{text}");
     assert!(!scratch.join("demo-app").exists(), "check must not write");
 
-    let (code, text) = dx(scratch, &["new", "--apply", lang, "demo-app"]);
-    assert_eq!(code, Some(0), "{text}");
-    let root = scratch.join("demo-app");
+    let root = nested::scaffold_fixture(scratch, lang, "demo-app");
     let ext = starter.ext;
     for file in [
         "MODULE.bazel".to_owned(),
@@ -66,7 +64,7 @@ fn scaffold_safely(scratch: &Path, starter: &Starter) -> PathBuf {
         format!("main.{ext}"),
         format!("hello_test.{ext}"),
     ] {
-        assert!(root.join(&file).is_file(), "{file}\n{text}");
+        assert!(root.join(&file).is_file(), "{file}");
     }
     let other = if ext == "c" { "hello.cc" } else { "hello.c" };
     assert!(!root.join(other).exists(), "{lang} wrote {other}");
@@ -74,26 +72,15 @@ fn scaffold_safely(scratch: &Path, starter: &Starter) -> PathBuf {
     let source = root.join(format!("hello.{ext}"));
     let edited = format!("{}/* edited */\n", read(&source));
     write(&source, &edited);
-    let (code, text) = dx(scratch, &["new", "--apply", lang, "demo-app"]);
+    let (code, text) = dx(scratch, &["init", "--apply", "demo-app"]);
     assert_eq!(code, Some(0), "{text}");
-    assert!(
-        text.contains(&format!(
-            "demo-app/hello.{ext} (absent-only, left untouched)"
-        )),
-        "{text}"
-    );
     assert_eq!(read(&source), edited, "re-apply keeps edited bytes");
 
-    let (code, text) = dx(scratch, &["new", "--apply", lang, "../escape"]);
+    let (code, text) = dx(scratch, &["init", "--apply", "../escape"]);
     assert_eq!(code, Some(2), "{text}");
     let parent = scratch.parent().expect("scratch has a parent");
     assert!(!parent.join("escape").exists(), "{text}");
     assert!(!scratch.join("escape").exists(), "{text}");
-
-    let (code, text) = dx(scratch, &["new", "--apply", "cc", "x"]);
-    assert_eq!(code, Some(2), "{text}");
-    assert!(text.contains("(use cpp)"), "{text}");
-    assert!(!scratch.join("x").exists(), "{text}");
     root
 }
 
@@ -235,7 +222,7 @@ fn qualify(starter: &Starter) {
 }
 
 #[test]
-fn dx_new_c_scaffolds_a_pure_c_project_that_builds_runs_and_tests() {
+fn dx_init_with_a_pure_c_fixture_builds_runs_and_tests() {
     qualify(&Starter {
         language: "c",
         ext: "c",
@@ -244,7 +231,7 @@ fn dx_new_c_scaffolds_a_pure_c_project_that_builds_runs_and_tests() {
 }
 
 #[test]
-fn dx_new_cpp_scaffolds_a_cpp_project_that_builds_runs_and_tests() {
+fn dx_init_with_a_cpp_fixture_builds_runs_and_tests() {
     qualify(&Starter {
         language: "cpp",
         ext: "cc",

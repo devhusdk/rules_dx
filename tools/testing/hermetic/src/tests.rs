@@ -20,7 +20,6 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         covered: Vec::new(),
         files: Vec::new(),
         module_fragment: Some(PathBuf::from("f")),
-        starter: None,
         fragment_before_toolchains: false,
         dx: PathBuf::from("d"),
         module_file: PathBuf::from("MODULE.bazel"),
@@ -1458,9 +1457,10 @@ fn verify_keeps_the_base_probe_set_without_failures_or_coverage() {
     verify(&good_evidence()).unwrap();
 }
 
-fn starter_text() -> Value {
-    json!({
-        "label": "//tools/testing/hermetic:c_starter",
+#[test]
+fn a_manifest_needs_a_fragment() {
+    let mut text = json!({
+        "label": "//tools/testing/hermetic:c_fixture",
         "languages": ["c"],
         "module": "m",
         "repo_name": "rules_dx",
@@ -1473,212 +1473,37 @@ fn starter_text() -> Value {
         "covered": [],
         "files": [],
         "module_fragment": "",
-        "starter": "c",
         "dx": "d",
         "module_file": "MODULE.bazel",
         "bazelversion": ".bazelversion",
-    })
-}
-
-#[test]
-fn a_starter_manifest_parses_without_a_fragment() {
-    let manifest = parse_manifest(&starter_text().to_string(), Path::new("/")).unwrap();
-    assert_eq!(manifest.starter.as_deref(), Some("c"));
-    assert_eq!(manifest.module_fragment, None);
-}
-
-#[test]
-fn a_starter_manifest_rejects_init_snippet_edits() {
-    for (key, value) in [
-        ("repo_name", json!("my_dx")),
-        ("fragment_before_toolchains", json!(true)),
-        ("rust_target_triples", json!(["x"])),
-        ("rust_extra_rustc_flags", json!(["-Cx"])),
-    ] {
-        let mut text = starter_text();
-        text[key] = value;
-        let err = parse_manifest(&text.to_string(), Path::new("/")).unwrap_err();
-        assert!(err.contains("starter manifest"), "{key}: {err}");
-    }
-}
-
-#[test]
-fn a_dx_init_manifest_needs_a_fragment() {
-    let mut text = starter_text();
-    text["starter"] = json!("");
+    });
     let err = parse_manifest(&text.to_string(), Path::new("/")).unwrap_err();
     assert!(err.contains("module_fragment"), "{err}");
     text["module_fragment"] = json!("f");
     let manifest = parse_manifest(&text.to_string(), Path::new("/")).unwrap();
-    assert_eq!(manifest.starter, None);
+    assert_eq!(manifest.module_fragment, Some(PathBuf::from("/f")));
 }
 
-const STARTER_MODULE: &str = "module(name = \"demo\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\ninclude(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")\n";
-
-#[test]
-fn starter_module_appends_the_override_and_fragment() {
-    let out = starter_module(STARTER_MODULE, Some("extra()\n"), Path::new("/a b/\"c\"")).unwrap();
-    assert!(out.starts_with(STARTER_MODULE), "{out}");
-    assert!(out.contains("\nextra()\nlocal_path_override("), "{out}");
-    assert!(out.ends_with("path = \"/a b/\\\"c\\\"\",\n)\n"), "{out}");
-    let plain = starter_module(STARTER_MODULE, None, Path::new("/src")).unwrap();
-    assert!(plain.ends_with("    path = \"/src\",\n)\n"), "{plain}");
+fn c_fixture() -> Manifest {
+    manifest_for("//tools/testing/hermetic:c_fixture", &["c"])
 }
 
-#[test]
-fn starter_module_rejects_unexpected_shapes() {
-    let src = Path::new("/src");
-    let err = starter_module("module(name = \"x\")\n", None, src).unwrap_err();
-    assert!(err.contains("exactly once"), "{err}");
-    let twice = format!("{STARTER_MODULE}{STARTER_MODULE}");
-    assert!(starter_module(&twice, None, src).is_err());
-    let done = starter_module(STARTER_MODULE, None, src).unwrap();
-    let err = starter_module(&done, None, src).unwrap_err();
-    assert!(err.contains("already carries"), "{err}");
-}
-
-#[test]
-fn scaffold_argv_pins_env_path_and_command() {
-    let argv = scaffold_argv(
-        Path::new("/dx"),
-        "cpp",
-        "consumer ws",
-        Path::new("/root"),
-        Path::new("/root/home"),
-    );
-    assert_eq!(
-        argv,
-        vec![
-            "/usr/bin/env",
-            "-i",
-            "HOME=/root/home",
-            &format!("PATH={ACTION_PATH}"),
-            "/bin/sh",
-            "-c",
-            "cd \"$0\" && exec \"$@\"",
-            "/root",
-            "/dx",
-            "new",
-            "--apply",
-            "cpp",
-            "consumer ws",
-            "--workspace",
-            "/root",
-        ]
-    );
-}
-
-fn c_starter() -> Manifest {
-    let mut manifest = manifest_for("//tools/testing/hermetic:c_starter", &["c"]);
-    manifest.starter = Some("c".to_owned());
-    manifest.module_fragment = None;
-    manifest
-}
-
-fn c_starter_evidence() -> Value {
-    let manifest = c_starter();
+fn c_fixture_evidence() -> Value {
+    let manifest = c_fixture();
     let mut evidence = good_evidence();
     evidence["qualification"] = json!(manifest.label);
     evidence["languages"] = json!(["c"]);
-    evidence["probes"]
-        .as_array_mut()
-        .unwrap()
-        .push(probe_record("scaffold", "pass", "", "denied", &[]));
     evidence
 }
 
 #[test]
-fn starter_evidence_requires_a_denied_scaffold_probe() {
-    let manifest = c_starter();
-    let evidence = c_starter_evidence();
-    verify_evidence(&evidence, "abc123", &manifest).unwrap();
-    let err =
-        verify_evidence(&without_probe(&evidence, "scaffold"), "abc123", &manifest).unwrap_err();
-    assert!(err.contains("scaffold"), "{err}");
-    let mut open = evidence.clone();
-    probe_mut(&mut open, "scaffold")["network"] = json!("allowed");
-    assert!(verify_evidence(&open, "abc123", &manifest).is_err());
-    let mut other = cpp_rust();
-    other.label = manifest.label.clone();
-    other.languages = vec!["c".to_owned()];
-    assert!(verify_evidence(&c_starter_evidence(), "abc123", &other).is_ok());
-}
-
-#[test]
 fn c_evidence_needs_a_native_artifact_machine() {
-    let manifest = c_starter();
-    let mut foreign = c_starter_evidence();
+    let manifest = c_fixture();
+    verify_evidence(&c_fixture_evidence(), "abc123", &manifest).unwrap();
+    let mut foreign = c_fixture_evidence();
     foreign["artifacts"][0]["machine"] = json!(null);
     foreign["target"]["machines"] = json!([]);
     assert!(verify_evidence(&foreign, "abc123", &manifest)
         .unwrap_err()
         .contains("no native artifact machine"));
-}
-
-#[test]
-fn the_starter_materializes_from_dx_new() {
-    let rel = std::env::var("DX_HERMETIC_STARTER_MANIFEST")
-        .expect("DX_HERMETIC_STARTER_MANIFEST names the manifest");
-    let text =
-        std::fs::read_to_string(dx_testing::resolve_runfiles(&rel)).expect("manifest is readable");
-    let base = std::env::current_dir().expect("runfiles cwd");
-    let manifest = parse_manifest(&text, &base).expect("manifest parses");
-    assert_eq!(manifest.starter.as_deref(), Some("c"));
-    assert_eq!(manifest.languages, vec!["c"]);
-    let dir = tempfile::tempdir().unwrap();
-    let workspace = dir.path().join(&manifest.workspace_dir);
-    let root = dir.path().to_string_lossy().into_owned();
-    let scaffold = dx_testing::run(
-        &manifest.dx,
-        &[
-            "new",
-            "--apply",
-            "c",
-            &manifest.workspace_dir,
-            "--workspace",
-            &root,
-        ],
-        &[],
-    )
-    .expect("dx new runs");
-    assert!(scaffold.status.success(), "{}", scaffold.combined());
-    let build = std::fs::read_to_string(workspace.join("BUILD.bazel")).unwrap();
-    let version = std::fs::read_to_string(workspace.join(".bazelversion")).unwrap();
-    let source = Path::new("/src");
-    materialize(&manifest, &workspace, source, "cc").unwrap();
-    assert_eq!(
-        std::fs::read_to_string(workspace.join("BUILD.bazel")).unwrap(),
-        build
-    );
-    assert_eq!(
-        std::fs::read_to_string(workspace.join(".bazelversion")).unwrap(),
-        version
-    );
-    assert!(workspace.join("third_party/rules_dx").is_dir());
-    let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
-    assert!(module.ends_with("    path = \"/src\",\n)\n"), "{module}");
-    for (_, dest) in &manifest.files {
-        assert!(workspace.join(dest).is_file(), "{dest}");
-    }
-    assert!(workspace.join(LEAKS_PACKAGE).join("BUILD.bazel").is_file());
-}
-
-#[test]
-fn starter_materialize_reports_missing_module_and_collisions() {
-    let dir = tempfile::tempdir().unwrap();
-    let source = Path::new("/src");
-    let mut manifest = c_starter();
-    let err = materialize(&manifest, &dir.path().join("a"), source, "cc").unwrap_err();
-    assert!(err.starts_with("dx new wrote no MODULE.bazel: "), "{err}");
-    let ws = dir.path().join("b");
-    std::fs::create_dir_all(&ws).unwrap();
-    std::fs::write(ws.join("MODULE.bazel"), STARTER_MODULE).unwrap();
-    std::fs::write(ws.join("BUILD.bazel"), "").unwrap();
-    manifest.module_fragment = Some(dir.path().join("no-fragment"));
-    let err = materialize(&manifest, &ws, source, "cc").unwrap_err();
-    assert!(err.starts_with("cannot read "), "{err}");
-    manifest.module_fragment = None;
-    manifest.files = vec![(PathBuf::from("src"), "BUILD.bazel".to_owned())];
-    let err = materialize(&manifest, &ws, source, "cc").unwrap_err();
-    assert!(err.contains("would overwrite dx new output"), "{err}");
 }

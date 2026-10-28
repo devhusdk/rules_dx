@@ -1,0 +1,30 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_test")
+load("@rules_dx//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+
+cuda_library(
+    name = "demo-app",
+    srcs = ["scale.cu"],
+    hdrs = [
+        "scale.cuh",
+        "scale.h",
+    ],
+    archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+)
+
+cc_binary(
+    name = "demo-app_bin",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":demo-app"],
+)
+
+# Checks the host-side logic only; it launches no kernel, so it passes without a GPU.
+cc_test(
+    name = "demo-app_test",
+    srcs = ["scale_test.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":demo-app"],
+)

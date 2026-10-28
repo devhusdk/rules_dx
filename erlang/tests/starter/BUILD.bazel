@@ -11,9 +11,11 @@ rust_test(
         "starter_test.rs",
         "//cli/cli:dx",
         "//erlang:module_srcs",
+        "//tools/testing/starters/fixtures:erlang",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:erlang)",
         "DX_BUILD_SLOT": "1",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,

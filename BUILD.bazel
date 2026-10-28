@@ -62,6 +62,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/testing/hermetic
+# gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
 # gazelle:exclude tools/docs/jvm/dokka

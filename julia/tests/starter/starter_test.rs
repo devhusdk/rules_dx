@@ -1,30 +1,9 @@
 use std::path::Path;
-use std::process::Command;
 
 use dx_nested as nested;
-use dx_testing::resolve_runfiles;
 
 fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
-    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
-    let output = Command::new(resolve_runfiles(&rel))
-        .current_dir(workspace)
-        .args(args)
-        .arg("--workspace")
-        .arg(workspace)
-        .output()
-        .unwrap_or_else(|error| panic!("dx runs: {error}"));
-    (
-        output.status.code(),
-        format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        ),
-    )
 }
 
 fn bazel(root: &Path, args: &[&str]) -> (Option<i32>, String, String) {
@@ -33,16 +12,10 @@ fn bazel(root: &Path, args: &[&str]) -> (Option<i32>, String, String) {
 }
 
 #[test]
-fn dx_new_julia_scaffolds_a_project_that_builds_runs_and_tests() {
+fn dx_init_with_a_julia_fixture_builds_runs_and_tests() {
     let case = nested::case("starter");
     let scratch = case.root().to_path_buf();
-    let (code, text) = dx(&scratch, &["new", "julia", "demo-app"]);
-    assert_eq!(code, Some(1), "{text}");
-    assert!(!scratch.join("demo-app").exists(), "check must not write");
-
-    let (code, text) = dx(&scratch, &["new", "--apply", "julia", "demo-app"]);
-    assert_eq!(code, Some(0), "{text}");
-    let root = scratch.join("demo-app");
+    let root = nested::scaffold_fixture(&scratch, "julia", "demo-app");
     for file in [
         "MODULE.bazel",
         "BUILD.bazel",
@@ -51,7 +24,7 @@ fn dx_new_julia_scaffolds_a_project_that_builds_runs_and_tests() {
         "main.jl",
         "test/runtests.jl",
     ] {
-        assert!(root.join(file).is_file(), "{file}\n{text}");
+        assert!(root.join(file).is_file(), "{file}");
     }
 
     let rules = dx_testing::rules_dx_source();

@@ -1,0 +1,44 @@
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "erlang_app", "erlang_bytecode", "erlc_opts", "escript_archive", "eunit", "test_erlang_app")
+
+erlang_app(
+    name = "demo-app",
+    app_description = "Greets people.",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+test_erlang_app(
+    name = "demo-app_test_app",
+    app_description = "Greets people.",
+    app_name = "hello",
+    app_version = "0.1.0",
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "demo-app_test_modules",
+    testonly = True,
+    srcs = ["test/hello_tests.erl"],
+    outs = ["test/hello_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    deps = [":demo-app_test_app"],
+)
+
+eunit(
+    name = "demo-app_test",
+    compiled_suites = [":demo-app_test_modules"],
+    target = ":demo-app_test_app",
+)
+
+escript_archive(
+    name = "demo-app_bin",
+    app = ":demo-app",
+    headers = [
+        "shebang",
+        "{emu_args, \"-escript main hello_cli\"}",
+    ],
+)

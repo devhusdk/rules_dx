@@ -183,8 +183,8 @@ mod tests {
 
     #[test]
     fn parse_label_kind_reads_sorted_deduped_pairs() {
-        let got = parse_label_kind(b"py_test rule //b:two\nrust_test rule //a:one\n\n")
-            .expect("parse");
+        let got =
+            parse_label_kind(b"py_test rule //b:two\nrust_test rule //a:one\n\n").expect("parse");
         assert_eq!(
             got,
             vec![

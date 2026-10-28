@@ -3,7 +3,7 @@
 ```sh
 bazel run @rules_dx//:dx -- init
 bazel run @rules_dx//:dx -- init --apply
-bazel run @rules_dx//:dx -- init --apply my_module
+bazel run @rules_dx//:dx -- init --apply my-app
 bazel run @rules_dx//:dx -- init --apply --with=vscode,agents
 ```
 
@@ -14,12 +14,22 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [module-name]
+dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [dir]
 ```
 
-Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
-defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
-`[a-z0-9._-]` only. An invalid module name fails before any file is written.
+Starts a new workspace or adopts `dx` into an existing tree. Checks by
+default; `--apply` scaffolds. Takes an optional directory, relative to the
+workspace and defaulting to the current one. `--apply` creates the directory
+when it is missing. A directory that is missing or holds only `.git` is fresh:
+init also writes a `MODULE.bazel` that depends on `rules_dx` and a
+`.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
+Nothing language-specific is chosen up front; languages are wired when their
+sources appear.
+
+The module name is the directory name, lowercased, with every run of other
+characters folded to `_`, or `my_project` for the current directory. An
+absolute path, a `..` segment, or a name with no `[a-z0-9]` character fails
+before any file is written.
 Writes each file only when it is missing. The exceptions are the marked
 block in `AGENTS.md`, stale launchers and stale Bazel preset layers (see below).
 
@@ -82,7 +92,7 @@ stderr. Without the `agents` part, init never reads or writes these files.
 
 The `github-ci` caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
-`rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line (see `dx new cuda`). The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
+`rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
 `/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`, so Bazel skips
 the IDE output bases. When a `.bazelignore` already exists it is left alone, and
@@ -94,7 +104,7 @@ with `bazel run` on separate output bases under `.dx/ide/`, and the file
 watcher and search exclude `bazel-*` and `.dx/ide/`. They configure language servers, not debuggers. See
 [Supported Surface](README.md#supported-surface).
 Flags: `--apply`, `--with=<parts>`, `--full`.
-Scopes: optional single module name.
+Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for the essentials (`.dx/version`,
 `.gitignore`, `.bazelignore`, `MODULE.bazel.snippet`, `tools/dx`,
@@ -112,8 +122,8 @@ an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
 When nothing is missing or stale and the pin is valid, it prints
 `init current: <module>` to stdout. Otherwise it prints
 `dx: init_failed: init drift: missing <paths>; stale <paths>; <path> lacks hooks: <hooks>; CLAUDE.md lacks @AGENTS.md; invalid .dx/version ("<pin>")`
-to stderr (only the parts that apply), followed by the `dx init <module> --apply`
-command to run. Apply does not edit an existing hooks file; it prints the hooks
+to stderr (only the parts that apply), followed by the `dx init --apply` command to run
+(`dx init <dir> --apply` when a directory was given). Apply does not edit an existing hooks file; it prints the hooks
 to add. An invalid pin is not fixed by apply: write the module version to
 `.dx/version`, which the message names.
 Apply checks every destination before the first write. A path whose parent is
@@ -130,7 +140,7 @@ write fails, apply still lists the files it already wrote, then the
 Output: `--output text|json`. JSON covers the check only; see Init plan below.
 
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
-extra positionals, an unknown part, or an invalid module name, `1` check found drift or apply
+extra positionals, an unknown part, or an invalid directory, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
 
 ## Init plan
@@ -175,7 +185,7 @@ with code `init_plan_partial`. `--apply` refuses `--output=json`.
 
 ## rules_dx overrides
 
-`dx init --apply` and `dx new --apply` write the root-only
+`dx init --apply` writes the root-only
 `single_version_override`s `rules_dx` needs to `third_party/rules_dx/`:
 `rules_dx.MODULE.bazel`, one `<module>.<file>.patch` per patch, `BUILD.bazel`
 and `.gitattributes`. These files are always rewritten to match the running dx.
@@ -190,8 +200,7 @@ stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 ## Agent commands block
 
 `dx init --apply --with=agents` writes this block between `<!-- dx:begin -->` and
-`<!-- dx:end -->` markers in `AGENTS.md`. `dx new --apply` writes the same
-block in the new project:
+`<!-- dx:end -->` markers in `AGENTS.md`:
 
 ```text
 <!-- dx:begin -->
@@ -262,7 +271,7 @@ first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
 When a launcher would change and `.dx/version` is not semver, init fails with
 `init_failed` before writing any file. `dx rollback --apply` refreshes existing launchers the
-same way. `dx new --apply` writes the same launcher in the new project.
+same way.
 
 ## Git hooks
 
@@ -286,7 +295,7 @@ To adopt `rules_dx` in a repo that already uses upstream rules, see
 `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc` and `resources.bazelrc`,
 and puts three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines at the top
 of the root `.bazelrc` (created when missing; its other bytes, BOM and line
-endings stay as they are). `dx new` writes the same files.
+endings stay as they are).
 
 - A layer file is created when missing and rewritten when it carries the dx
   header and differs from this dx. A file without the header, or a symlink, is

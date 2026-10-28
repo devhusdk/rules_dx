@@ -253,7 +253,7 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
 pub fn is_discovery_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Init | Command::New | Command::Completion | Command::Worktree | Command::Install
+        Command::Init | Command::Completion | Command::Worktree | Command::Install
     )
 }
 
@@ -823,14 +823,6 @@ fn parse_inner<S: AsRef<OsStr>>(
             Command::Init if targets.len() > 1 => {
                 return Err(extra_positional(command, &targets[1]));
             }
-            Command::New => {
-                if targets.len() > 2 {
-                    return Err(extra_positional(command, &targets[2]));
-                }
-                if targets.is_empty() {
-                    return Err(missing_positional(command));
-                }
-            }
             _ => {}
         }
     }
@@ -1222,7 +1214,7 @@ mod startup_tests {
             ),
             ("env", &json_env, &empty_file),
         ] {
-            for words in [&["completion"][..], &["new"][..], &["deploy"][..]] {
+            for words in [&["completion"][..], &["deploy"][..]] {
                 assert!(
                     !json_output_intent(&strings(words), env, file, false),
                     "{words:?} {label}"
@@ -1337,12 +1329,10 @@ mod startup_tests {
                     );
                 }
             }
-            for words in [&["deploy", "--bogus"][..], &["new"][..]] {
-                assert!(
-                    !json_output_intent(&strings(words), &agent, &file, false),
-                    "{marker} {words:?}"
-                );
-            }
+            assert!(
+                !json_output_intent(&strings(&["deploy", "--bogus"]), &agent, &file, false),
+                "{marker} deploy --bogus"
+            );
             assert!(
                 json_output_intent(&strings(&["lint", "--bogus"]), &agent, &file, false),
                 "{marker} lint"
@@ -1423,13 +1413,8 @@ mod startup_tests {
     }
 
     #[test]
-    fn discovery_runs_without_a_module_only_for_init_new_and_completion() {
-        for command in [
-            Command::Init,
-            Command::New,
-            Command::Completion,
-            Command::Install,
-        ] {
+    fn discovery_runs_without_a_module_only_for_init_and_completion() {
+        for command in [Command::Init, Command::Completion, Command::Install] {
             assert!(is_discovery_exempt(command), "{command:?} is exempt");
         }
         for command in [

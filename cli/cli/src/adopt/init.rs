@@ -19,11 +19,92 @@ fn invalid_module_code(
     error: &dx_adopt::AdoptError,
 ) -> i32 {
     match error {
-        dx_adopt::AdoptError::InitInvalidModule { .. } => {
+        dx_adopt::AdoptError::InitInvalidModule { .. }
+        | dx_adopt::AdoptError::InitInvalidDir { .. } => {
             refusal(invocation.output, out, err, &error.to_string())
         }
         _ => operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string()),
     }
+}
+
+/// The directory one `dx init` run works in.
+struct Target {
+    /// The directory as given, `/`-separated, or empty for the current directory.
+    dir: String,
+    /// Where the files go.
+    root: std::path::PathBuf,
+    /// What reported paths start with: `<dir>/`, or nothing.
+    prefix: String,
+    module: String,
+    /// Missing or empty apart from `.git`: init starts a workspace there.
+    fresh: bool,
+}
+
+impl Target {
+    fn resolve(
+        invocation: &Invocation,
+        workspace: &std::path::Path,
+    ) -> Result<Self, dx_adopt::AdoptError> {
+        let given = invocation.targets.first().map_or("", String::as_str);
+        let dir = dx_adopt::validate_init_dir(given)?;
+        let module = dx_adopt::init_dir_module(&dir);
+        if module.is_empty() {
+            return Err(dx_adopt::AdoptError::InitInvalidModule {
+                module: given.to_owned(),
+                reason: "the directory name holds no [a-z0-9] character to name the module"
+                    .to_owned(),
+            });
+        }
+        let root = if dir.is_empty() {
+            workspace.to_path_buf()
+        } else {
+            workspace.join(&dir)
+        };
+        let prefix = if dir.is_empty() {
+            String::new()
+        } else {
+            format!("{dir}/")
+        };
+        let fresh = dx_adopt::is_fresh_dir(&root);
+        Ok(Self {
+            dir,
+            root,
+            prefix,
+            module,
+            fresh,
+        })
+    }
+
+    /// The files this run plans, relative to `root`: the init files, plus a
+    /// `MODULE.bazel` and `.bazelversion` when the directory is fresh.
+    fn plan(
+        &self,
+        invocation: &Invocation,
+        parts: dx_adopt::InitParts,
+    ) -> Result<Vec<dx_adopt::scaffold::ScaffoldFile>, dx_adopt::AdoptError> {
+        let mut files = dx_adopt::plan_init_files_triples(
+            &self.module,
+            parts,
+            &invocation.init_rust_target_triples,
+        )?;
+        if self.fresh {
+            files.extend(dx_adopt::plan_fresh_files(&self.module));
+        }
+        Ok(files)
+    }
+
+    /// The command that fixes drift in this directory.
+    fn apply_command(&self) -> String {
+        if self.dir.is_empty() {
+            "dx init --apply".to_owned()
+        } else {
+            format!("dx init {} --apply", self.dir)
+        }
+    }
+}
+
+fn prefixed(prefix: &str, paths: Vec<String>) -> impl Iterator<Item = String> + '_ {
+    paths.into_iter().map(move |path| format!("{prefix}{path}"))
 }
 
 pub(crate) fn execute_init(
@@ -32,11 +113,12 @@ pub(crate) fn execute_init(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let module = invocation
-        .targets
-        .first()
-        .map_or("my_project", String::as_str);
-    let record = match dx_adopt::read_init_record(workspace) {
+    let target = match Target::resolve(invocation, workspace) {
+        Ok(target) => target,
+        Err(error) => return invalid_module_code(invocation, out, err, &error),
+    };
+    let root = target.root.as_path();
+    let record = match dx_adopt::read_init_record(root) {
         Ok(record) => record,
         Err(error) => {
             return operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string())
@@ -53,45 +135,55 @@ pub(crate) fn execute_init(
         );
     }
     if !invocation.applies() {
-        return check_init(invocation, workspace, module, &record, parts, out, err);
+        return check_init(invocation, &target, &record, parts, out, err);
     }
-    let planned = match dx_adopt::plan_init_files_triples(
-        module,
-        parts,
-        &invocation.init_rust_target_triples,
-    ) {
+    let planned = match target.plan(invocation, parts) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
     let mut destinations: Vec<&str> = planned.iter().map(|file| file.path.as_str()).collect();
     destinations.push(dx_adopt::INIT_RECORD_REL);
-    if let Err(message) = super::wiring::preflight(workspace, "", agents, &destinations) {
+    if let Err(message) = super::wiring::preflight(root, &target.prefix, agents, &destinations) {
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
-    let mut applied = dx_adopt::Applied::default();
+    let mut own = dx_adopt::Applied::default();
     let mut notes = Vec::new();
-    let written = dx_adopt::merge_init_record(workspace, invocation.init_parts, &mut applied)
+    let written = dx_adopt::merge_init_record(root, invocation.init_parts, &mut own)
+        .and_then(|()| {
+            if target.fresh {
+                dx_adopt::scaffold::apply_scaffold(
+                    root,
+                    &dx_adopt::plan_fresh_files(&target.module),
+                    &mut own,
+                )
+            } else {
+                Ok(())
+            }
+        })
         .and_then(|()| {
             dx_adopt::apply_init_triples(
-                workspace,
-                module,
+                root,
+                &target.module,
                 parts,
                 &invocation.init_rust_target_triples,
-                &mut applied,
+                &mut own,
             )
         });
+    if own.refused.iter().any(|path| path == ".bazelignore")
+        && !std::fs::read_to_string(root.join(".bazelignore"))
+            .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
+    {
+        notes.push(format!(
+            "{}.bazelignore lacks .dx; add it so Bazel skips the IDE output base",
+            target.prefix
+        ));
+    }
+    let mut applied = dx_adopt::Applied {
+        wrote: prefixed(&target.prefix, own.wrote).collect(),
+        refused: prefixed(&target.prefix, own.refused).collect(),
+    };
     let result = match written {
-        Ok(()) => {
-            if applied.refused.iter().any(|path| path == ".bazelignore")
-                && !std::fs::read_to_string(workspace.join(".bazelignore"))
-                    .is_ok_and(|text| dx_adopt::bazelignore_covers_dx(&text))
-            {
-                notes.push(
-                    ".bazelignore lacks .dx; add it so Bazel skips the IDE output base".to_owned(),
-                );
-            }
-            super::wiring::apply(workspace, "", agents, &mut applied, &mut notes)
-        }
+        Ok(()) => super::wiring::apply(root, &target.prefix, agents, &mut applied, &mut notes),
         Err(error @ dx_adopt::AdoptError::InitInvalidModule { .. }) => {
             return invalid_module_code(invocation, out, err, &error);
         }
@@ -110,18 +202,15 @@ pub(crate) fn execute_init(
 
 fn check_init(
     invocation: &Invocation,
-    workspace: &std::path::Path,
-    module: &str,
+    target: &Target,
     record: &dx_adopt::InitRecord,
     parts: dx_adopt::InitParts,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let files = match dx_adopt::plan_init_files_triples(
-        module,
-        parts,
-        &invocation.init_rust_target_triples,
-    ) {
+    let workspace = target.root.as_path();
+    let module = target.module.as_str();
+    let files = match target.plan(invocation, parts) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
@@ -140,8 +229,9 @@ fn check_init(
         .filter(|path| !workspace.join(path).exists())
         .collect();
     missing.extend(wiring.missing);
-    let stale = wiring.stale;
-    let other = wiring.other;
+    let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
+    let stale: Vec<String> = prefixed(&target.prefix, wiring.stale).collect();
+    let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
         .filter(|pin| !dx_adopt::pin_is_valid(pin));
@@ -228,11 +318,12 @@ fn check_init(
             conflicts.join(", ")
         ));
     }
+    let apply = target.apply_command();
     let fix = match (has_entries, invalid_pin.is_some()) {
-        (true, true) => format!("run `dx init {module} --apply`, then {rewrite}"),
+        (true, true) => format!("run `{apply}`, then {rewrite}"),
         (false, true) => rewrite,
         (false, false) => "resolve the conflicts in the init plan above".to_owned(),
-        _ => format!("run `dx init {module} --apply`"),
+        _ => format!("run `{apply}`"),
     };
     operational(
         invocation,
@@ -642,8 +733,8 @@ mod tests {
     }
 
     #[test]
-    fn init_rejects_invalid_modules_pre_exec_without_writing() {
-        for (module, quiet) in ["Bad Name", "../evil", "with\nnewline", "semi;colon"]
+    fn init_rejects_invalid_dirs_pre_exec_without_writing() {
+        for (module, quiet) in ["../evil", "with\nnewline", "/abs", "a/../b", "+++"]
             .into_iter()
             .flat_map(|module| [(module, false), (module, true)])
         {
@@ -657,7 +748,11 @@ mod tests {
             let inv = invocation(&words);
             let (code, _out, err) = run(&inv, &root);
             assert_eq!(code, pre_exec_code(), "{module:?}");
-            assert!(err.contains("invalid module name"), "{err}");
+            assert!(
+                err.contains("invalid directory for dx init")
+                    || err.contains("invalid module name"),
+                "{err}"
+            );
             let mut entries: Vec<String> = Vec::new();
             for entry in std::fs::read_dir(&root).expect("read") {
                 entries.push(
@@ -670,6 +765,49 @@ mod tests {
             }
             assert_eq!(entries, vec!["sentinel".to_owned()], "{module:?}");
         }
+    }
+
+    #[test]
+    fn init_dir_creates_a_fresh_workspace_and_rechecks_clean() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-dir-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&invocation(&["init", "nested/Demo App"]), &root);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains("missing nested/Demo App/")
+                && err.contains(" nested/Demo App/MODULE.bazel,"),
+            "{err}"
+        );
+        assert!(err.contains("dx init nested/Demo App --apply"), "{err}");
+        assert!(!root.join("nested").exists(), "check must not write");
+        let (code, out, err) = run(&invocation(&["init", "--apply", "nested/Demo App"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            out.contains("wrote nested/Demo App/MODULE.bazel\n"),
+            "{out}"
+        );
+        assert!(out.contains("wrote nested/Demo App/.dx/version\n"), "{out}");
+        let dir = root.join("nested/Demo App");
+        let module = std::fs::read_to_string(dir.join("MODULE.bazel")).expect("module");
+        assert!(module.contains("name = \"demo_app\""), "{module}");
+        assert!(dir.join(".bazelversion").is_file());
+        assert!(dir.join("tools/dx").is_file());
+        assert!(!root.join(".dx").exists(), "the parent stays untouched");
+        let (code, out, err) = run(&invocation(&["init", "nested/Demo App"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("init current: demo_app"), "{out}");
+    }
+
+    #[test]
+    fn init_in_a_non_empty_tree_writes_no_module() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(root.join("README.md"), "mine\n").expect("readme");
+        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(!out.contains("wrote MODULE.bazel\n"), "{out}");
+        assert!(!root.join("MODULE.bazel").exists());
+        assert!(!root.join(".bazelversion").exists());
     }
 
     #[test]

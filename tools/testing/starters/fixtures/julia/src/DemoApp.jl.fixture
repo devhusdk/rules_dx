@@ -1,0 +1,7 @@
+module DemoApp
+
+export greet
+
+greet(name) = "hello " * name
+
+end

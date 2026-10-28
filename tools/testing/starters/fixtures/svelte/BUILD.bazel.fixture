@@ -1,0 +1,34 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@demo_npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library")
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+)
+
+javascript_library(
+    name = "helper",
+    srcs = ["helper.js"],
+)
+
+svelte_library(
+    name = "demo-app",
+    srcs = ["Hello.svelte"],
+    deps = [":helper"],
+)
+
+javascript_js_test(
+    name = "demo-app_test",
+    size = "small",
+    srcs = ["hello.test.js"],
+    data = [
+        ":demo-app",
+        ":node_modules/svelte",
+    ],
+    entry_point = "hello.test.js",
+    package_json = ":package_json",
+)

@@ -411,88 +411,61 @@ consumer_sets_repo = repository_rule(
 _SCAFFOLD_BUILD_BAZEL = '''genrule(
     name = "consumer_scaffold_probe",
     outs = [
-        "new_apply.txt",
-        "new_check.txt",
-        "new_reapply.txt",
-        "new_invalid.txt",
         "new_removed.txt",
-        "new_c_apply.txt",
+        "init_dir_apply.txt",
+        "init_dir_reapply.txt",
         "init_apply.txt",
         "init_check.txt",
         "init_clean.txt",
         "init_bad.txt",
-        "foreign/myproj/hello.cc",
-        "foreign/myproj/hello.h",
+        "foreign/myproj/MODULE.bazel",
+        "foreign/myproj/.bazelversion",
         "foreign/myproj/MODULE.bazel.snippet",
         "foreign/myproj/.dx/version",
-        "foreign/myc/hello.c",
-        "foreign/myc/hello.h",
         "fortree/.dx/version",
         "fortree/MODULE.bazel.snippet",
     ],
     cmd = """
 set -eu
 public="$(location @rules_dx//:dx)"
-root="$$(dirname "$(location new_apply.txt)")"
+root="$$(dirname "$(location init_apply.txt)")"
 foreign="$$root/foreign"
 fortree="$$root/fortree"
 checktree="$$root/checktree"
 rm -rf "$$foreign" "$$fortree" "$$checktree"
 mkdir -p "$$foreign" "$$fortree" "$$checktree"
-"$$public" new --apply cpp myproj --workspace "$$foreign" > "$(location new_apply.txt)" 2>&1
-echo "exit=0" >> "$(location new_apply.txt)"
-grep -q "wrote myproj/hello.cc" "$(location new_apply.txt)"
-grep -q "wrote myproj/hello.h" "$(location new_apply.txt)"
-grep -q "wrote myproj/MODULE.bazel.snippet" "$(location new_apply.txt)"
-test -f "$$foreign/myproj/hello.cc"
-test -f "$$foreign/myproj/hello.h"
+echo "keep" > "$$fortree/README.md"
+echo "keep" > "$$checktree/README.md"
+if "$$public" new --apply cpp bad --workspace "$$foreign" > "$(location new_removed.txt)" 2>&1; then
+  echo "dx new still runs" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location new_removed.txt)"
+fi
+grep -q "unsupported command 'new'" "$(location new_removed.txt)"
+grep -q "dx init" "$(location new_removed.txt)"
+test ! -e "$$foreign/bad"
+"$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
+echo "exit=0" >> "$(location init_dir_apply.txt)"
+grep -q "wrote myproj/MODULE.bazel.snippet" "$(location init_dir_apply.txt)"
+grep -q "wrote myproj/.dx/version" "$(location init_dir_apply.txt)"
+test -f "$$foreign/myproj/MODULE.bazel"
+test -f "$$foreign/myproj/.bazelversion"
 test -f "$$foreign/myproj/MODULE.bazel.snippet"
 test -f "$$foreign/myproj/.dx/version"
-if "$$public" new cpp checkonly --workspace "$$checktree" > "$(location new_check.txt)" 2>&1; then
-  echo "check-mode applied a scaffold" >&2
-  exit 1
-else
-  echo "exit=$$?" >> "$(location new_check.txt)"
-fi
-grep -q "new drift: missing" "$(location new_check.txt)"
-test ! -e "$$checktree/checkonly"
-cp "$$foreign/myproj/hello.cc" "$$root/hello.cc.orig"
-"$$public" new --apply cpp myproj --workspace "$$foreign" > "$(location new_reapply.txt)" 2>&1
-echo "exit=0" >> "$(location new_reapply.txt)"
-grep -q "absent-only, left untouched" "$(location new_reapply.txt)"
-cmp "$$root/hello.cc.orig" "$$foreign/myproj/hello.cc"
-if "$$public" new --apply brainfuck bad --workspace "$$foreign" > "$(location new_invalid.txt)" 2>&1; then
-  echo "new accepted an unknown language" >&2
-  exit 1
-else
-  echo "exit=$$?" >> "$(location new_invalid.txt)"
-fi
-grep -q "unknown language" "$(location new_invalid.txt)"
-test ! -e "$$foreign/bad"
-for args in "--apply cc bad" "c-sharp bad" "--apply f# bad"; do
-  if "$$public" new $$args --workspace "$$foreign" >> "$(location new_removed.txt)" 2>&1; then
-    echo "new accepted a removed spelling: $$args" >&2
-    exit 1
-  else
-    echo "exit=$$?" >> "$(location new_removed.txt)"
-  fi
-done
-grep -q "use cpp" "$(location new_removed.txt)"
-grep -q "use csharp" "$(location new_removed.txt)"
-grep -q "use fsharp" "$(location new_removed.txt)"
-test ! -e "$$foreign/bad"
-"$$public" new --apply c myc --workspace "$$foreign" > "$(location new_c_apply.txt)" 2>&1
-echo "exit=0" >> "$(location new_c_apply.txt)"
-test -f "$$foreign/myc/hello.c"
-test -f "$$foreign/myc/hello.h"
-test ! -e "$$foreign/myc/hello.cc"
-"$$public" init --apply demo --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
+grep -q 'name = "myproj"' "$$foreign/myproj/MODULE.bazel"
+cp "$$foreign/myproj/MODULE.bazel" "$$root/module.orig"
+"$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_reapply.txt)" 2>&1
+echo "exit=0" >> "$(location init_dir_reapply.txt)"
+cmp "$$root/module.orig" "$$foreign/myproj/MODULE.bazel"
+"$$public" init --apply --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_apply.txt)"
 grep -q "wrote MODULE.bazel.snippet" "$(location init_apply.txt)"
 grep -q "wrote .dx/version" "$(location init_apply.txt)"
 test -f "$$fortree/MODULE.bazel.snippet"
 test -f "$$fortree/.dx/version"
-if "$$public" init demo --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then
+test ! -e "$$fortree/MODULE.bazel"
+if "$$public" init --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then
   echo "check-mode applied a scaffold" >&2
   exit 1
 else
@@ -500,16 +473,17 @@ else
 fi
 grep -q "init drift: missing" "$(location init_check.txt)"
 test ! -e "$$checktree/.dx"
-"$$public" init demo --workspace "$$fortree" > "$(location init_clean.txt)" 2>&1
+"$$public" init --workspace "$$fortree" > "$(location init_clean.txt)" 2>&1
 echo "exit=0" >> "$(location init_clean.txt)"
-grep -q "init current: demo" "$(location init_clean.txt)"
-if "$$public" init "Bad Name" --workspace "$$fortree" > "$(location init_bad.txt)" 2>&1; then
-  echo "init accepted an invalid module" >&2
+grep -q "init current: my_project" "$(location init_clean.txt)"
+if "$$public" init ../evil --workspace "$$fortree" > "$(location init_bad.txt)" 2>&1; then
+  echo "init accepted a directory outside the workspace" >&2
   exit 1
 else
   echo "exit=$$?" >> "$(location init_bad.txt)"
 fi
-grep -q "invalid module name" "$(location init_bad.txt)"
+grep -q "invalid directory for dx init" "$(location init_bad.txt)"
+test ! -e "$$root/evil"
 """,
     tools = [
         "@rules_dx//:dx",

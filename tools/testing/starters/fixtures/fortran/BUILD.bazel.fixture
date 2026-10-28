@@ -1,0 +1,18 @@
+load("@rules_dx//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+
+fortran_library(
+    name = "demo-app",
+    srcs = ["hello.f90"],
+)
+
+fortran_binary(
+    name = "demo-app_bin",
+    srcs = ["main.f90"],
+    deps = [":demo-app"],
+)
+
+fortran_test(
+    name = "demo-app_test",
+    srcs = ["hello_test.f90"],
+    deps = [":demo-app"],
+)

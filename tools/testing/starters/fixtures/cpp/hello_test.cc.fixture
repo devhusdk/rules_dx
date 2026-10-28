@@ -1,0 +1,13 @@
+#include <iostream>
+#include <string>
+
+#include "hello.h"
+
+int main() {
+  const std::string greeting = Hello("world");
+  if (greeting != "hello world") {
+    std::cerr << "unexpected greeting: " << greeting << "\n";
+    return 1;
+  }
+  return 0;
+}

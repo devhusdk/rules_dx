@@ -35,7 +35,7 @@ Exact commands.
 
 ## Minimal reproduction
 
-A project from `dx new <lang>` is ideal.
+A project from `dx init --apply <dir>` with a few sources is ideal.
 
 ## Logs
 

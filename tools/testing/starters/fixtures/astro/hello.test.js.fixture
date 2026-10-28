@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { parse } from "@astrojs/compiler/sync";
+import { is } from "@astrojs/compiler/utils";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const result = parse(fs.readFileSync(path.join(here, "Hello.astro"), "utf8"));
+
+assert.deepEqual(result.diagnostics, []);
+assert.ok(result.ast.children.some((node) => is.frontmatter(node)));
+assert.ok(
+  result.ast.children.some((node) => is.element(node) && node.name === "div"),
+);
+console.log("PASS");

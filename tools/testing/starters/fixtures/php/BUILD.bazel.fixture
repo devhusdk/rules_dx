@@ -1,0 +1,18 @@
+load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+
+php_library(
+    name = "demo-app",
+    srcs = ["src/Hello/Greeter.php"],
+)
+
+php_binary(
+    name = "demo-app_bin",
+    main = "bin/hello.php",
+    deps = [":demo-app"],
+)
+
+php_test(
+    name = "demo-app_test",
+    srcs = ["test/GreeterTest.php"],
+    deps = [":demo-app"],
+)

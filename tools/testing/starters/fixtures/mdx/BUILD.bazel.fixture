@@ -1,0 +1,29 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@demo_npm//:defs.bzl", "npm_link_all_packages")
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_check", "mdx_library")
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+)
+
+javascript_library(
+    name = "helper",
+    srcs = ["helper.js"],
+)
+
+mdx_library(
+    name = "demo-app",
+    srcs = ["Hello.mdx"],
+    deps = [":helper"],
+)
+
+mdx_check(
+    name = "demo-app_check",
+    srcs = ["Hello.mdx"],
+    node_modules = ":node_modules",
+    package_json = ":package_json",
+)

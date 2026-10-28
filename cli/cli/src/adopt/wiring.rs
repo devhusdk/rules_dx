@@ -227,7 +227,6 @@ mod tests {
 
     use crate::adopt::init::CODE_INIT_FAILED;
     use crate::adopt::test_support::{invocation, Truncated};
-    use crate::adopt::CODE_NEW_FAILED;
 
     fn applied(root: &Path, prefix: &str, code: &str, words: &[&str]) -> (i32, String, String) {
         let inv = invocation(words);
@@ -379,8 +378,8 @@ mod tests {
     fn a_prefix_reaches_every_report_line() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-prefix-");
         let root = scratch.path();
-        let words = ["new", "--apply", "rust", "demo"];
-        let (code, out, _err) = applied(root, "demo/", CODE_NEW_FAILED, &words);
+        let words = ["init", "--apply", "demo"];
+        let (code, out, _err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 0);
         assert_eq!(
             out,
@@ -392,7 +391,7 @@ mod tests {
             )
         );
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
-        let (code, out, err) = applied(root, "demo/", CODE_NEW_FAILED, &words);
+        let (code, out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 0);
         assert!(out.is_empty());
         assert!(
@@ -417,10 +416,10 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("AGENTS.md"), "# Mine\n\n<!-- dx:begin -->\n").expect("seed");
         assert!(super::preflight(root, "demo/", true, &[]).is_err());
-        let words = ["new", "--apply", "rust", "demo"];
-        let (code, _out, err) = applied(root, "demo/", CODE_NEW_FAILED, &words);
+        let words = ["init", "--apply", "demo"];
+        let (code, _out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);
         assert_eq!(code, 1);
-        assert!(err.contains("new_failed"));
+        assert!(err.contains("init_failed"));
     }
 
     #[test]

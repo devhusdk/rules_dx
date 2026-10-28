@@ -1,12 +1,10 @@
-//! `dx new rust-android` scaffolds a consumer whose host targets build and test, also when the
+//! `dx init` plus the rust-android fixture makes a consumer whose host targets build and test, also when the
 //! consumer renames rules_dx, and whose adb launchers analyze without an SDK. With
 //! `ANDROID_HOME`, `ANDROID_SDK_ROOT` and `ANDROID_NDK_REVISION` set it also builds the APK.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use dx_nested as nested;
-use dx_testing::resolve_runfiles;
 
 const NAME: &str = "demo-app";
 
@@ -18,37 +16,13 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
-    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
-    let output = Command::new(resolve_runfiles(&rel))
-        .current_dir(workspace)
-        .args(args)
-        .arg("--workspace")
-        .arg(workspace)
-        .output()
-        .unwrap_or_else(|error| panic!("dx runs: {error}"));
-    (
-        output.status.code(),
-        format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        ),
-    )
-}
-
 fn bazel(root: &Path, args: &[&str]) -> (Option<i32>, String) {
     let run = nested::bazel_in(root, args);
     (run.status.code(), format!("{}{}", run.stdout, run.stderr))
 }
 
 fn scaffold(scratch: &Path) -> PathBuf {
-    let (code, text) = dx(scratch, &["new", "rust-android", NAME]);
-    assert_eq!(code, Some(1), "{text}");
-    assert!(!scratch.join(NAME).exists(), "check must not write");
-    let (code, text) = dx(scratch, &["new", "--apply", "rust-android", NAME]);
-    assert_eq!(code, Some(0), "{text}");
-    let root = scratch.join(NAME);
+    let root = nested::scaffold_fixture(scratch, "rust-android", NAME);
     for file in [
         "Cargo.toml",
         "src/lib.rs",
@@ -58,7 +32,7 @@ fn scaffold(scratch: &Path) -> PathBuf {
         "MODULE.bazel",
         ".bazelrc",
     ] {
-        assert!(root.join(file).is_file(), "{file}\n{text}");
+        assert!(root.join(file).is_file(), "{file}");
     }
     let rules = dx_testing::rules_dx_source();
     let module = read(&root.join("MODULE.bazel"));
@@ -126,7 +100,7 @@ fn assert_host_and_launchers(root: &Path) {
 }
 
 #[test]
-fn dx_new_rust_android_builds_and_tests_with_plain_and_renamed_rules_dx() {
+fn dx_init_with_the_rust_android_fixture_builds_and_tests_with_plain_and_renamed_rules_dx() {
     let case = nested::case("starter_rust_android");
     let root = scaffold(case.root());
     assert_host_and_launchers(&root);

@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Hello\Tests;
+
+use Hello\Greeter;
+use PHPUnit\Framework\TestCase;
+
+final class GreeterTest extends TestCase
+{
+    public function testGreetsByName(): void
+    {
+        $this->assertSame('hello world', (new Greeter())->greet('world'));
+    }
+}

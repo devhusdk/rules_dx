@@ -5,9 +5,8 @@ Nothing needs to be installed.
 
 ## Start
 
-`dx new --apply julia demo-app` scaffolds a package with `DemoApp`,
-`DemoApp_bin` and `DemoApp_test` targets. Name each library after its module
-and keep the source in `src/<label>.jl`: that is the layout rules_julia needs
+Run `dx init --apply demo-app` and add sources; see `examples/julia-app`. Name
+each library after its module and keep the source in `src/<label>.jl`: that is the layout rules_julia needs
 to precompile. The wrappers name the upstream target `<name>_upstream`, so
 until #4606 is fixed libraries still compile on first load and a syntax error
 fails at run time, not at build time.

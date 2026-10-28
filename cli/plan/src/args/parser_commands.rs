@@ -10,12 +10,11 @@ use dx_testing::cli::strings;
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
         "security", "license", "update", "bump", "add", "migrate", "upgrade", "docs", "status",
-        "version", "init", "new",
+        "version", "init",
     ] {
         let base = match command {
             "bump" | "add" => vec![command, "cargo:demo", "1.0.0"],
             "migrate" | "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
-            "new" => vec![command, "rust"],
             _ => vec![command],
         };
         for option in [
@@ -97,7 +96,6 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "bump" | "add" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
-        "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
         "install" => &["--tag", "v1.2.3", "--archive", "a.tar.gz"],
@@ -583,34 +581,18 @@ fn migrate_needs_from_and_to_versions() {
 }
 
 #[test]
-fn new_takes_language_plus_optional_name() {
-    let got = parse(&strings(&["new", "rust", "demo"])).expect("parse new");
-    assert_eq!(got.command, Command::New);
-    assert!(got.command.is_adoption());
-    assert!(!got.command.supports_json());
-    assert_eq!(got.targets, vec!["rust".to_owned(), "demo".to_owned()]);
-    let bare_lang = parse(&strings(&["new", "go"])).expect("language only");
-    assert_eq!(bare_lang.targets, vec!["go".to_owned()]);
-    assert_eq!(
-        parse(&strings(&["new"])),
-        Err(ArgsError::MissingValue {
-            option: "<language>".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["new", "rust", "a", "b"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "new",
-            option: "b".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["new", "rust", "--output=json"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "new",
-            option: "--output=json".to_owned(),
-        })
-    );
+fn removed_new_points_at_init() {
+    for words in [
+        &["new"][..],
+        &["new", "rust", "demo"],
+        &["new", "--apply", "go"],
+    ] {
+        let Err(ArgsError::Usage { text }) = parse(&strings(words)) else {
+            panic!("{words:?} must be a usage error");
+        };
+        assert!(text.contains("unsupported command 'new'"), "{text}");
+        assert!(text.contains("dx init"), "{text}");
+    }
 }
 
 #[test]
@@ -801,8 +783,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["env", "--output=diff"],
         vec!["run", "//app:bin", "--output=diff"],
         vec!["init", "proj", "--output=diff"],
-        vec!["new", "rust", "--output=json"],
-        vec!["new", "rust", "demo", "--output=diff"],
         vec!["watch", "build", "--output=diff"],
         vec!["watch", "run", "//app:bin", "-o", "diff"],
         vec!["version", "--output=diff"],
@@ -1483,12 +1463,9 @@ fn init_with_and_full_select_parts() {
     for name in dx_adopt::INIT_PART_NAMES {
         assert!(bogus.contains(name), "{bogus}");
     }
-    assert!(parse(&strings(&["new", "rust", "--with=vscode"])).is_err());
     let init = super::super::grammar::advertised_flags(Command::Init);
-    let new = super::super::grammar::advertised_flags(Command::New);
     for flag in ["with", "full"] {
         assert!(init.iter().any(|name| name == flag), "{init:?}");
-        assert!(!new.iter().any(|name| name == flag), "{new:?}");
     }
 }
 

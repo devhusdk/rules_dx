@@ -7,14 +7,14 @@ toolchain, so there is no setup in `MODULE.bazel`.
 ## Start
 
 ```sh
-bazel run @rules_dx//:dx -- new --apply csharp demo
+bazel run @rules_dx//:dx -- init --apply demo
 cd demo
 bazel run @rules_dx//:dx -- generate
 bazel build //...
 ```
 
-The template writes `demo.csproj` and `Hello.cs` and no `BUILD.bazel`.
-`dx generate` writes the targets.
+Add a `demo.csproj` and its sources before `dx generate`. `dx generate`
+wires the language and writes the targets; you write no `BUILD.bazel`.
 
 ## Rules
 

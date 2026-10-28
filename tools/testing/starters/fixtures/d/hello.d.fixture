@@ -1,0 +1,11 @@
+module hello;
+
+string greet(string name) pure @safe
+{
+    return "hello " ~ name;
+}
+
+unittest
+{
+    assert(greet("world") == "hello world");
+}

@@ -1,0 +1,17 @@
+load("@rules_dx//d/rules:defs.bzl", "d_binary", "d_library", "d_test")
+
+d_library(
+    name = "demo-app",
+    srcs = ["hello.d"],
+)
+
+d_binary(
+    name = "demo-app_bin",
+    srcs = ["main.d"],
+    deps = [":demo-app"],
+)
+
+d_test(
+    name = "demo-app_test",
+    srcs = ["hello.d"],
+)

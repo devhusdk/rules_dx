@@ -1,0 +1,18 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library", "perl_test")
+
+perl_library(
+    name = "demo-app",
+    srcs = ["lib/Hello.pm"],
+)
+
+perl_binary(
+    name = "demo-app_bin",
+    srcs = ["bin/hello.pl"],
+    deps = [":demo-app"],
+)
+
+perl_test(
+    name = "demo-app_test",
+    srcs = ["t/hello.t"],
+    deps = [":demo-app"],
+)

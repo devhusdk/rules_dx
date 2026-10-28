@@ -1,6 +1,6 @@
 //! The Bazel preset in a consumer workspace: `.dx/bazelrc/*.bazelrc` imported from the root `.bazelrc`.
 //!
-//! One reader ([`inspect_preset`]) feeds init, `dx new`, status, upgrade and rollback, so they agree.
+//! One reader ([`inspect_preset`]) feeds init, status, upgrade and rollback, so they agree.
 
 use std::path::{Path, PathBuf};
 

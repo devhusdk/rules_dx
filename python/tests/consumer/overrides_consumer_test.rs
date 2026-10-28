@@ -123,7 +123,7 @@ fn dx(case: &Case, args: &[&str]) -> Run {
 }
 
 fn adopt(case: &Case) {
-    let applied = dx(case, &["init", "--apply", "consumer"]);
+    let applied = dx(case, &["init", "--apply"]);
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
     assert!(case.root().join(PATCH).is_file(), "{}", applied.combined());
     assert!(
@@ -162,7 +162,7 @@ fn a_corrupted_override_patch_fails_dx_and_init_repairs_it() {
         status.combined()
     );
 
-    let repaired = dx(&case, &["init", "--apply", "consumer"]);
+    let repaired = dx(&case, &["init", "--apply"]);
     assert_eq!(repaired.status.code(), Some(0), "{}", repaired.combined());
     let healthy = dx(&case, &["status"]);
     assert!(

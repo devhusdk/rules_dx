@@ -1,0 +1,8 @@
+{
+  "name": "demo-app",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "svelte": "5.57.0"
+  }
+}

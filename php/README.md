@@ -9,7 +9,8 @@ toolchains, so there is no toolchain setup in `MODULE.bazel`.
 
 ## Start
 
-Scaffold a working project with `dx new --apply php demo-app`.
+Run `dx init --apply demo-app` and add sources. The language is wired when
+its sources appear.
 
 ## Rules
 

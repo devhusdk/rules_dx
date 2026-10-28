@@ -8,7 +8,7 @@ guides below.
 
 ## Support
 
-- [Support matrix](support-matrix.md): the platforms CI tests each language on, its `dx new` starter, and its quality tools. An empty cell or `no` is a missing test, tracked as an issue.
+- [Support matrix](support-matrix.md): the platforms CI tests each language on and its quality tools. An empty cell or `no` is a missing test, tracked as an issue.
 
 ## Commands
 
@@ -26,7 +26,7 @@ guides below.
 - [Status and version](cli/commands/status-version.md): health report and the version pin.
 - [Completion](cli/commands/completion.md): shell completions.
 - [Migrate](cli/commands/migrate.md): move to the current layout.
-- [New, upgrade, rollback](cli/commands/new-upgrade.md): create modules and change the pin.
+- [Upgrade, rollback](cli/commands/upgrade-rollback.md): change the pin.
 - [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.
 - [Worktree](cli/commands/worktree.md): worktree slots.

@@ -10,9 +10,11 @@ rust_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:julia",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:julia)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [

@@ -66,12 +66,10 @@ rust_test(
     ),
     crate = ":hermetic",
     data = [
-        ":c_starter_manifest",
         ":cpp_rust_manifest",
     ],
     env = {
         "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
-        "DX_HERMETIC_STARTER_MANIFEST": "$(rootpath :c_starter_manifest)",
     },
     tags = ["no-remote-exec"],
     target_compatible_with = LINUX,
@@ -299,12 +297,18 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
-    name = "julia_starter",
-    files = {},
+    name = "julia_fixture",
+    files = {
+        "//tools/testing/starters/fixtures:julia/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:julia/Project.toml.fixture": "Project.toml",
+        "//tools/testing/starters/fixtures:julia/main.jl.fixture": "main.jl",
+        "//tools/testing/starters/fixtures:julia/src/DemoApp.jl.fixture": "src/DemoApp.jl",
+        "//tools/testing/starters/fixtures:julia/test/runtests.jl.fixture": "test/runtests.jl",
+    },
     languages = ["julia"],
+    module_fragment = "consumers/julia_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
-    starter = "julia",
 )
 
 hermetic_qualification(
@@ -789,31 +793,41 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
-    name = "c_starter",
+    name = "c_fixture",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
     files = {
-        "consumers/cc_starter/c_probe.BUILD.bazel": "probe/BUILD.bazel",
-        "consumers/cc_starter/c_only.c": "probe/c_only.c",
-        "consumers/cc_starter/cxx_in_c.c": "probe/cxx_in_c.c",
+        "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:c/hello.c.fixture": "hello.c",
+        "//tools/testing/starters/fixtures:c/hello.h.fixture": "hello.h",
+        "//tools/testing/starters/fixtures:c/hello_test.c.fixture": "hello_test.c",
+        "//tools/testing/starters/fixtures:c/main.c.fixture": "main.c",
+        "consumers/cc_fixture/c_only.c": "probe/c_only.c",
+        "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
     },
     languages = ["c"],
+    module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
-    starter = "c",
 )
 
 hermetic_qualification(
-    name = "cpp_starter",
+    name = "cpp_fixture",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {
-        "consumers/cc_starter/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
-        "consumers/cc_starter/cxx_only.cc": "probe/cxx_only.cc",
-        "consumers/cc_starter/c_in_cxx.cc": "probe/c_in_cxx.cc",
+        "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
+        "//tools/testing/starters/fixtures:cpp/hello.cc.fixture": "hello.cc",
+        "//tools/testing/starters/fixtures:cpp/hello.h.fixture": "hello.h",
+        "//tools/testing/starters/fixtures:cpp/hello_test.cc.fixture": "hello_test.cc",
+        "//tools/testing/starters/fixtures:cpp/main.cc.fixture": "main.cc",
+        "consumers/cc_fixture/c_in_cxx.cc": "probe/c_in_cxx.cc",
+        "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
     languages = ["cpp"],
+    module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
-    starter = "cpp",
 )
 
 rustfmt_test(
@@ -823,9 +837,9 @@ rustfmt_test(
     targets = [
         ":adopt_android",
         ":appimage",
-        ":c_starter",
+        ":c_fixture",
         ":cpp_rust",
-        ":cpp_starter",
+        ":cpp_fixture",
         ":cuda",
         ":elixir",
         ":erlang",
@@ -851,9 +865,9 @@ rust_clippy_test(
     targets = [
         ":adopt_android",
         ":appimage",
-        ":c_starter",
+        ":c_fixture",
         ":cpp_rust",
-        ":cpp_starter",
+        ":cpp_fixture",
         ":cuda",
         ":elixir",
         ":erlang",
@@ -877,8 +891,8 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "consumers/cc_starter/c_probe.BUILD.bazel",
-        "consumers/cc_starter/cpp_probe.BUILD.bazel",
+        "consumers/cc_fixture/c_probe.BUILD.bazel",
+        "consumers/cc_fixture/cpp_probe.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/c_store.BUILD.bazel",
         "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",

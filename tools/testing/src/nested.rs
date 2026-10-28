@@ -1554,23 +1554,31 @@ pub fn seed_lock_json(lock: &str) -> Result<String, String> {
 pub fn with_rules_dx_override(module: &str, rules: &Path) -> String {
     assert!(
         module.contains("bazel_dep(name = \"rules_dx\""),
-        "starter MODULE.bazel has no rules_dx bazel_dep:\n{module}"
+        "consumer MODULE.bazel has no rules_dx bazel_dep:\n{module}"
     );
     assert!(
         !module.contains("local_path_override(module_name = \"rules_dx\""),
-        "starter MODULE.bazel already overrides rules_dx:\n{module}"
+        "consumer MODULE.bazel already overrides rules_dx:\n{module}"
     );
     let path = rules.display().to_string().replace('\\', "/");
     format!("{module}local_path_override(module_name = \"rules_dx\", path = \"{path}\")\n")
 }
 
-/// Runs `dx new --apply <starter> <name>` in `scratch` with the dx named by `DX_BIN`, then points
-/// the scaffold at this rules_dx checkout. Returns the project root.
-pub fn scaffold_starter(scratch: &Path, starter: &str, name: &str) -> PathBuf {
+/// The runfiles directory that holds the hello-world fixtures, one subdirectory per language.
+pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
+
+/// Starts `scratch/<name>` the way a user does: `dx init --apply <name>` with the dx named by
+/// `DX_BIN`, then the hello-world sources of `fixture`, read from the runfiles that
+/// `DX_FIXTURE_FILES` lists (`$(rootpaths //tools/testing/starters/fixtures:<fixture>)`; files of
+/// other fixtures in the list are skipped).
+///
+/// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` and `.bazelrc` are appended to
+/// what `dx init` wrote; every other file is written as is. Returns the project root.
+pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
         .current_dir(scratch)
-        .args(["new", "--apply", starter, name])
+        .args(["init", "--apply", name])
         .arg("--workspace")
         .arg(scratch)
         .output()
@@ -1580,12 +1588,56 @@ pub fn scaffold_starter(scratch: &Path, starter: &str, name: &str) -> PathBuf {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(output.status.code(), Some(0), "dx new {starter}: {text}");
+    assert_eq!(output.status.code(), Some(0), "dx init {name}: {text}");
     let root = scratch.join(name);
+    let files = std::env::var("DX_FIXTURE_FILES")
+        .unwrap_or_else(|_| panic!("DX_FIXTURE_FILES must list the {fixture} fixture"));
+    let prefix = format!("{FIXTURES_DIR}/{fixture}/");
+    let mut copied = 0;
+    for file in files.split_whitespace() {
+        let Some(rest) = file.strip_prefix(&prefix) else {
+            continue;
+        };
+        let dest = rest
+            .strip_suffix(".fixture")
+            .unwrap_or_else(|| panic!("{file} lacks the .fixture suffix"));
+        let source = dx_testing::resolve_runfiles(file);
+        let body =
+            std::fs::read(&source).unwrap_or_else(|error| panic!("read {source:?}: {error}"));
+        let target = root.join(dest);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
+        }
+        let body = if matches!(dest, "MODULE.bazel" | ".bazelrc") {
+            let mut head = std::fs::read(&target).unwrap_or_default();
+            if !head.is_empty() && !head.ends_with(b"\n") {
+                head.push(b'\n');
+            }
+            head.push(b'\n');
+            head.extend(body);
+            head
+        } else {
+            body
+        };
+        std::fs::write(&target, body).unwrap_or_else(|error| panic!("write {target:?}: {error}"));
+        copied += 1;
+    }
+    assert!(
+        copied > 0,
+        "DX_FIXTURE_FILES lists no {fixture} files: {files}"
+    );
+    root
+}
+
+/// Runs [`scaffold_fixture`], then points the project at this rules_dx checkout. Returns the
+/// project root.
+pub fn scaffold_consumer(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
+    let root = scaffold_fixture(scratch, fixture, name);
     let rules = dx_testing::rules_dx_source();
     let module_path = root.join("MODULE.bazel");
     let module = std::fs::read_to_string(&module_path)
-        .unwrap_or_else(|error| panic!("read {module_path:?}: {error}\n{text}"));
+        .unwrap_or_else(|error| panic!("read {module_path:?}: {error}"));
     std::fs::write(&module_path, with_rules_dx_override(&module, &rules))
         .unwrap_or_else(|error| panic!("write {module_path:?}: {error}"));
     seed_rules_dx_lock(&root, &rules);

@@ -32,8 +32,7 @@ Patterns, paths, and multiple labels are usage errors.
 - `dx run`: needs a runnable scope.
 - `dx deploy`: exactly one main-workspace label.
 - `dx watch`: needs a watchable command plus its scopes.
-- `dx new`: needs a language, plus an optional name.
-- `dx init`: optional module name.
+- `dx init`: optional directory.
 - `dx completion`: exactly one shell.
 
 ## No Scopes

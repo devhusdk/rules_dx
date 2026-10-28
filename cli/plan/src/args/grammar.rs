@@ -1016,21 +1016,19 @@ command_args! {
     Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
     Init => 20, NoPassthroughTail, { output: ReadOutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
-    /// The flags `dx new` accepts.
-    New => 21, NoPassthroughTail, { apply: ScaffoldApplyFlag, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 22, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
+    Upgrade => 21, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
-    Status => 23, NoScopeTail, {
+    Status => 22, NoScopeTail, {
         output: ReadOutputFlag,
     };
     /// The flags `dx version` accepts.
-    Version => 24, NoScopeTail, {
+    Version => 23, NoScopeTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 25, BazelTail, {
+    Watch => 24, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
@@ -1042,18 +1040,18 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 26, NoPassthroughTail, {};
+    Completion => 25, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 27, BazelTail, {
+    Docs => 26, BazelTail, {
         output: ReadOutputFlag,
         check: CheckFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 28, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
+    Rollback => 27, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 29, NoPassthroughTail, {
+    Worktree => 28, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,
@@ -1062,9 +1060,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 30, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
+    Explain => 29, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 31, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 30, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]
@@ -1403,10 +1401,6 @@ mod tests {
             (
                 vec!["security", "-o", "diff"],
                 clap::error::ErrorKind::InvalidValue,
-            ),
-            (
-                vec!["new", "rust", "--output=json"],
-                clap::error::ErrorKind::UnknownArgument,
             ),
             (
                 vec!["completion", "bash", "-o", "json"],

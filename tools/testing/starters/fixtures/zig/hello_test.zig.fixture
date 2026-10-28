@@ -1,0 +1,7 @@
+const std = @import("std");
+const hello = @import("hello");
+
+test "greets by name" {
+    var buf: [64]u8 = undefined;
+    try std.testing.expectEqualStrings("hello world", try hello.greet(&buf, "world"));
+}

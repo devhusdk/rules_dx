@@ -1,0 +1,8 @@
+{
+  "name": "demo-app",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@mdx-js/mdx": "3.1.1"
+  }
+}

@@ -1,0 +1,19 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
+
+julia_library(
+    name = "DemoApp",
+    srcs = ["src/DemoApp.jl"],
+    data = ["Project.toml"],
+)
+
+julia_binary(
+    name = "DemoApp_bin",
+    srcs = ["main.jl"],
+    deps = [":DemoApp"],
+)
+
+julia_test(
+    name = "DemoApp_test",
+    srcs = ["test/runtests.jl"],
+    deps = [":DemoApp"],
+)

@@ -1,0 +1,7 @@
+-module(hello_cli).
+
+-export([main/1]).
+
+-spec main([string()]) -> ok.
+main(_Args) ->
+    io:format("~s~n", [hello:greet("world")]).

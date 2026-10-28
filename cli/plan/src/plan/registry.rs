@@ -175,7 +175,6 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
         },
         Command::Init
-        | Command::New
         | Command::Upgrade
         | Command::Rollback
         | Command::Worktree

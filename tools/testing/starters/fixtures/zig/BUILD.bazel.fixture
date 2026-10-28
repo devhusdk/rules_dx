@@ -1,0 +1,19 @@
+load("@rules_dx//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
+
+zig_library(
+    name = "demo-app",
+    import_name = "hello",
+    main = "hello.zig",
+)
+
+zig_binary(
+    name = "demo-app_bin",
+    main = "main.zig",
+    deps = [":demo-app"],
+)
+
+zig_test(
+    name = "demo-app_test",
+    main = "hello_test.zig",
+    deps = [":demo-app"],
+)

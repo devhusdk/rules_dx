@@ -498,11 +498,11 @@ fn init_adopts_an_existing_python_tree() {
             .output()
             .unwrap_or_else(|error| panic!("run dx: {error}"))
     };
-    let checked = invoke(&["init", "shop"]);
+    let checked = invoke(&["init"]);
     assert_eq!(checked.status.code(), Some(1), "{checked:?}");
     assert!(String::from_utf8_lossy(&checked.stderr).contains("init drift"));
     assert!(!dir.join(".dx/version").exists());
-    let applied = invoke(&["init", "--apply", "--with=github-ci", "shop"]);
+    let applied = invoke(&["init", "--apply", "--with=github-ci"]);
     assert_eq!(applied.status.code(), Some(0), "{applied:?}");
     for file in [
         ".dx/version",

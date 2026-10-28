@@ -9,8 +9,13 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:c",
+        "//tools/testing/starters/fixtures:cpp",
     ],
-    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:c) $(rootpaths //tools/testing/starters/fixtures:cpp)",
+    },
     env_inherit = [
         "HOME",
         "PATH",

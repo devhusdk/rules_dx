@@ -1,0 +1,7 @@
+defmodule HelloTest do
+  use ExUnit.Case, async: true
+
+  test "greets by name" do
+    assert Hello.greet("world") == "hello world"
+  end
+end

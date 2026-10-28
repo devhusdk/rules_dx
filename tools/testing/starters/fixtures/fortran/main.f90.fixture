@@ -1,0 +1,6 @@
+program main
+  use iso_fortran_env, only: output_unit
+  use hello, only: greet
+  implicit none
+  write(output_unit, '(a)') greet("world")
+end program main

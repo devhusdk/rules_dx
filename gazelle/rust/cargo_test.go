@@ -977,3 +977,23 @@ func cfgCount(cfgs string) int {
 	}
 	return strings.Count(cfgs, "\n") + 1
 }
+
+func TestCargoCfgPlatformCompound(t *testing.T) {
+	cases := []struct{ cfg, want string }{
+		{`cfg(unix)`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{`cfg(any(windows, target_os = "linux"))`, "@platforms//os:linux,@platforms//os:windows"},
+		{`cfg(target_os = "wasi")`, ""},
+		{`cfg(all(unix, windows))`, ""},
+		{`cfg(any(unix, feature = "x"))`, ""},
+	}
+	for _, tc := range cases {
+		got, ok := cargoCfgPlatform(tc.cfg)
+		if got != tc.want || ok != (tc.want != "") {
+			t.Errorf("%s = %q,%v want %q", tc.cfg, got, ok, tc.want)
+		}
+	}
+	dep := cargoDependency{cfgs: "cfg(windows)\ncfg(target_os=\"linux\")"}
+	if got := dep.platformConstraint(); got != "@platforms//os:linux,@platforms//os:windows" {
+		t.Errorf("mixed = %q", got)
+	}
+}

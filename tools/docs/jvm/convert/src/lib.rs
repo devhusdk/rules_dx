@@ -3,7 +3,9 @@
 //! Id rules: Kotlin top-level declarations use the Kotlin FQ name, never `FileKt`. An
 //! overload list holds erased simple types without `?` or generics. An extension's receiver
 //! type comes first, so `fun Circle.grow(by: Double)` is `grow(Circle,Double)`. A companion
-//! object is `Circle.Companion`. Kinds `object`, `trait`, `typealias`, `function` and
+//! object is `Circle.Companion`. A Kotlin extension property carries a `receiver` type and gets
+//! `a.area@Circle`, so `val Circle.area` and `val Square.area` stay distinct. A Scala object
+//! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
 //! `property` are accepted only for the languages that have them.
 
 #![cfg_attr(
@@ -191,6 +193,8 @@ const SCALA_KINDS: &[&str] = &[
     "object",
     "trait",
     "typealias",
+    "enum",
+    "enum_constant",
     "package",
 ];
 
@@ -221,14 +225,20 @@ fn kind_of(name: &str, language: &str, at: &str) -> Result<Kind, String> {
 }
 
 /// The reader-facing key of a symbol: `a.B.m(int,String)`.
-fn key_of(qualified: &str, overload: Option<&[String]>) -> String {
-    match overload {
-        Some(types) => format!("{qualified}({})", types.join(",")),
-        None => qualified.to_owned(),
+fn key_of(qualified: &str, overload: Option<&[String]>, receiver: Option<&str>) -> String {
+    match (overload, receiver) {
+        (Some(types), _) => format!("{qualified}({})", types.join(",")),
+        (None, Some(receiver)) => format!("{qualified}@{receiver}"),
+        (None, None) => qualified.to_owned(),
     }
 }
 
-fn id_of(prefix: &str, qualified: &str, overload: Option<&[String]>) -> String {
+fn id_of(
+    prefix: &str,
+    qualified: &str,
+    overload: Option<&[String]>,
+    receiver: Option<&str>,
+) -> String {
     let mut segments: Vec<&str> = qualified.split('.').collect();
     let last = segments.pop().unwrap_or_default();
     let mut id = String::from(prefix);
@@ -236,7 +246,7 @@ fn id_of(prefix: &str, qualified: &str, overload: Option<&[String]>) -> String {
         id.push_str(&escape_segment(segment));
         id.push('.');
     }
-    id.push_str(&escape_segment(&key_of(last, overload)));
+    id.push_str(&escape_segment(&key_of(last, overload, receiver)));
     id
 }
 
@@ -364,6 +374,30 @@ fn record(
             "{at} '{qualified}' has an overload list that does not match its kind"
         ));
     }
+    let receiver = match optional(item, "receiver") {
+        Some(value) => Some(
+            value
+                .as_str()
+                .filter(|text| !text.is_empty())
+                .ok_or_else(|| format!("{at} 'receiver' is not a non-empty string"))?
+                .to_owned(),
+        ),
+        None => None,
+    };
+    if receiver.is_some() && !(language == "kotlin" && kind.kind == SymbolKind::Property) {
+        return Err(format!(
+            "{at} '{qualified}' has a receiver, valid only for a kotlin property"
+        ));
+    }
+    if language == "scala" {
+        let is_object = string(item, "kind", &at)? == "object";
+        let last = qualified.rsplit('.').next().unwrap_or_default();
+        if is_object != last.ends_with('$') {
+            return Err(format!(
+                "{at} '{qualified}' must end in '$' exactly when it is a scala object"
+            ));
+        }
+    }
     let file = string(item, "file", &at)?.replace('\\', "/");
     let Some((rel, generated)) = manifest.0.get(&file) else {
         return Err(format!(
@@ -375,8 +409,8 @@ fn record(
         .filter(|line| *line > 0)
         .ok_or_else(|| format!("{at} '{qualified}' has no positive line"))?;
     let types = overload.as_deref();
-    let key = key_of(&qualified, types);
-    let id = id_of(prefix, &qualified, types);
+    let key = key_of(&qualified, types, receiver.as_deref());
+    let id = id_of(prefix, &qualified, types, receiver.as_deref());
     let display_name = match types {
         Some(types) => format!("{qualified}({})", types.join(", ")),
         None => qualified.clone(),

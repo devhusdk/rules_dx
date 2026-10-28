@@ -3,6 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "paket.docs_csharp.bzl",
+    "paket.docs_csharp_extension.bzl",
     "paket.fsharplint.bzl",
     "paket.fsharplint_extension.bzl",
     "paket.main.bzl",

@@ -25,6 +25,6 @@ A `genrule` in `model` runs `gen_schema` as a tool, so Bazel builds the tool for
 
 `analysis_options.yaml` turns on `strict-casts`, `strict-raw-types` and two lints. A `dart_config` binds it to every target through `aspect_hints`.
 
-The targets in `failures` are tagged `manual`. They have a type error, an import of a package that is not in `deps`, and an import of a file that does not exist. The hermetic `dart` consumer builds each one and checks the compiler message.
+The targets in `failures` are tagged `manual`. They have a type error, an import of a package that is not in `deps`, and an import of a file that does not exist. Each one fails with a compiler or dependency message.
 
 rules_dart 0.8.0 ships no Windows arm64 SDK, so the targets are incompatible there.

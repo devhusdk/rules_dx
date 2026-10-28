@@ -1,6 +1,8 @@
 load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
+_PUBLIC = ["//visibility:public"]
+
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
 dart_library(
@@ -8,6 +10,7 @@ dart_library(
     package_name = "inventory_cli",
     srcs = ["lib/inventory_cli.dart"],
     aspect_hints = ["//examples/dart-app:dart_config"],
+    visibility = _PUBLIC,
     deps = [
         "//examples/dart-app/ledger",
         "//examples/dart-app/model",
@@ -18,7 +21,7 @@ dart_library(
 dart_binary(
     name = "inventory",
     aspect_hints = ["//examples/dart-app:dart_config"],
-    data = ["//examples/dart-app/ledger:data/items.csv"],
+    data = ["//examples/dart-app/ledger:items"],
     main = "bin/inventory.dart",
     deps = [
         ":inventory_cli",

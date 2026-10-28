@@ -1,9 +1,9 @@
 load("@rules_dx//dart/rules:defs.bzl", "dart_compatible_with", "dart_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//examples/dart-app:__subpackages__"])
+_PUBLIC = ["//visibility:public"]
 
-exports_files(["schema.json"])
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
 genrule(
     name = "schema_g_dart",
@@ -22,6 +22,7 @@ dart_library(
         ":schema_g_dart",
     ],
     aspect_hints = ["//examples/dart-app:dart_config"],
+    visibility = _PUBLIC,
 )
 
 real_source_target(

@@ -1,15 +1,22 @@
 load("@rules_dx//dart/rules:defs.bzl", "dart_library", "dart_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
+_PUBLIC = ["//visibility:public"]
+
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
-exports_files(["data/items.csv"])
+filegroup(
+    name = "items",
+    srcs = ["data/items.csv"],
+    visibility = _PUBLIC,
+)
 
 dart_library(
     name = "ledger",
     package_name = "ledger",
     srcs = ["lib/ledger.dart"],
     aspect_hints = ["//examples/dart-app:dart_config"],
+    visibility = _PUBLIC,
     deps = [
         "//examples/dart-app/model",
         "@dx_dart_deps//:collection",

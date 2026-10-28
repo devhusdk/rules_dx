@@ -1,11 +1,14 @@
+load("@rules_dx//quality:native_config.bzl", "dart_config")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "dart_config")
+
+_PUBLIC = ["//visibility:public"]
 
 package(default_visibility = ["//:__subpackages__"])
 
 dart_config(
     name = "dart_config",
     src = "analysis_options.yaml",
+    visibility = _PUBLIC,
 )
 
 real_source_target(

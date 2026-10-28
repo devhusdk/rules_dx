@@ -8,7 +8,10 @@ PerlInfo = _PerlInfo
 
 PERL_COVERAGE_COLLECTOR = False
 
-PERL_QUALITY_TOOLS = {"perltidy": Label("//perl/tools:perltidy")}
+PERL_QUALITY_TOOLS = {
+    "perlcritic": Label("//perl/tools:perlcritic"),
+    "perltidy": Label("//perl/tools:perltidy"),
+}
 
 _PERL_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 
@@ -57,7 +60,7 @@ _perl_forward_test = dx_executable_forward_rule(
     quality_tools = PERL_QUALITY_TOOLS,
 )
 
-PERL_DEFERRED_SKIP_TAGS = ["no-lint", "no-typecheck"]
+PERL_DEFERRED_SKIP_TAGS = ["no-typecheck"]
 
 def perl_quality_srcs(main, srcs):
     """Returns the hand-written sources a Perl target owns: main first, then srcs."""

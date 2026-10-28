@@ -168,6 +168,13 @@ label_flag(
 filegroup(name = "no_phpstan")
 
 label_flag(
+    name = "tool_perlcritic",
+    build_setting_default = ":no_perlcritic",
+)
+
+filegroup(name = "no_perlcritic")
+
+label_flag(
     name = "tool_perltidy",
     build_setting_default = ":no_perltidy",
 )

@@ -726,6 +726,51 @@ pub(super) fn perltidy_fix_keeps_a_file_it_could_not_parse() {
     assert_eq!(kept, broken);
 }
 
+fn perlcritic_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--noprofile"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("silent") {
+        (2, String::new())
+    } else if text.contains("phantom") {
+        (0, format!("dx\t{file}\t1\t1\t5\tP::Q\tm\n"))
+    } else if text.contains("unreadable") {
+        (3, String::new())
+    } else if text.contains("no strict") {
+        (
+            2,
+            format!(
+                "dx\t{file}\t1\t1\t5\tTestingAndDebugging::RequireUseStrict\tCode before strictures are enabled\n"
+            ),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn perlcritic_lints_and_never_trusts_an_exit_that_disagrees_with_its_output() {
+    let backend = backend_for("perlcritic", plain_tool(), perlcritic_behavior);
+    let lint = |text: &str| backend.diagnose("perlcritic", "lint", &single("a.pl", text));
+    assert!(lint("use strict;\n").expect("check").is_empty());
+    let found = lint("# no strict\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].rule_id, "TestingAndDebugging::RequireUseStrict");
+    assert!(lint("silent\n").is_err());
+    assert!(lint("phantom\n").is_err());
+    assert!(lint("unreadable\n").is_err());
+}
+
 fn opa_behavior(
     argv: &[OsString],
     _cwd: &Path,

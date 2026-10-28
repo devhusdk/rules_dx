@@ -687,6 +687,11 @@ def real_pipeline_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "perlcritic is an owned target_tool with lint",
+                real_tool_table_shape_error({"perlcritic": _SETTING_TOOL | {"capabilities": ["lint"], "target_tool": True}}),
+                "",
+            ),
+            expect_equal(
                 "perltidy is an owned target_tool",
                 real_tool_table_shape_error({"perltidy": _SETTING_TOOL | {"target_tool": True}}),
                 "",

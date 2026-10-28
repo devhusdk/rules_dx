@@ -97,9 +97,13 @@ under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
 Perl sources form the `perl` class, so `dx check` sees them. The Perl
 wrappers carry perltidy 20260826, which `dx check` and `dx fix` run as the
 formatter with its default style, LF line endings and no profile, so
-`.perltidyrc` and `$PERLTIDY` are never read. No Perl linter runs yet. Until one
-does, the Perl rules add the `no-lint` and `no-typecheck` tags to every target.
-Set `--@rules_dx//config:tool_perltidy` to use another perltidy.
+`.perltidyrc` and `$PERLTIDY` are never read. They also carry Perl::Critic
+1.156, which runs as the linter at severity 5 only with no profile, so
+`.perlcriticrc` and `$PERLCRITIC` are never read. Perl::Critic needs two XS
+modules the cpan hub cannot build, so `perl/tools/perlcritic.pl` swaps in
+pure-Perl stand-ins (Clone::PP and Params::Util's PP mode). Until typecheck
+exists, the Perl rules add the `no-typecheck` tag to every target. Set
+`--@rules_dx//config:tool_perltidy` or `tool_perlcritic` to use another tool.
 
 ## Platforms
 

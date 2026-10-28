@@ -282,6 +282,7 @@ to.
 | `notebook_outputs` | lint | jupyter |
 | `ormolu` | format | haskell |
 | `opa` | format, typecheck | rego |
+| `perlcritic` | lint | perl |
 | `perltidy` | format | perl |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
@@ -337,18 +338,18 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
+  `julia_format`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
   `phpstan`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dart`, `dfmt`,
-  `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpstan`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpstan`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
-  `@rules_dx//perl/tools:perltidy`,
+  `@rules_dx//perl/tools:perlcritic`, `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
   `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//php/tools:phpstan`,
   `@rules_dx//elixir/tools:mix_format` and
@@ -479,18 +480,19 @@ include its documentation and style rules. It ignores `dscanner.ini` files for
 now. A file with a syntax error reports an error at its line and column. There
 is no `--apply` fix.
 
-### Perl formatting
+### Perl formatting and linting
 
 `perltidy` uses the pinned Perl::Tidy 20260826 that `perl_library`,
 `perl_binary` and `perl_test` carry. Select `perltidy` in a `perl` family. No
-flag is needed. Lint and typecheck stay deferred for Perl.
+flag is needed. Typecheck stays deferred for Perl.
 
 ```python
 quality_family(
     name = "perl_family",
     family_id = "perl",
-    disabled = ["audit", "lint", "typecheck"],
+    disabled = ["audit", "typecheck"],
     format = ["perltidy"],
+    lint = ["perlcritic"],
 )
 ```
 
@@ -502,6 +504,14 @@ never writes. `--apply` runs `perltidy -b -bext=/`, so no backup or `.ERR` file
 is left. A file perltidy cannot parse reports a syntax error and stays
 untouched. dx runs perltidy with its default style and LF line endings and
 always passes `--noprofile`, so `.perltidyrc` and `$PERLTIDY` are ignored.
+
+`perlcritic` uses the pinned Perl::Critic 1.156 that the same wrappers carry,
+and is check-only: it has no autofix. dx always passes `--noprofile`, so
+`.perlcriticrc` and `$PERLCRITIC` are ignored, and it runs severity 5 policies
+only. Findings carry the policy name as the rule, such as
+`TestingAndDebugging::RequireUseStrict`, at the physical file and line.
+To use your own perlcritic, set
+`--@rules_dx//config:tool_perlcritic=@rules_dx//perl/tools:perlcritic`.
 
 
 ### Erlang formatting

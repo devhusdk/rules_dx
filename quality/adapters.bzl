@@ -78,6 +78,7 @@ REAL_ADAPTERS = {
     "notebook_outputs": {"lint": ["jupyter"]},
     "ormolu": {"format": ["haskell"]},
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
+    "perlcritic": {"lint": ["perl"]},
     "perltidy": {"format": ["perl"]},
     "pkl": {"format": ["pkl"]},
     "regal": {"lint": ["rego"]},

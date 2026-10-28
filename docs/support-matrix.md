@@ -86,7 +86,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Lua | no | `stylua` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
-| Perl | no | `perltidy` | n/a |
+| Perl | `perlcritic` | `perltidy` | n/a |
 | PHP | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `phpstan` |
 | PowerShell | `psscriptanalyzer` on `linux_x86_64` | `psscriptanalyzer` on `linux_x86_64` | n/a |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
@@ -94,7 +94,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Rust | `clippy` | `rustfmt` | `rustc` |
 | Scala | `scalafix` on `linux_x86_64` | `scalafmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | Svelte | `eslint` | `prettier` | no |
-| TypeScript | `biome` | `biome`, `prettier` | no |
+| TypeScript | `biome` | `biome`, `prettier` | `tsc` |
 | Vue | `eslint` | `prettier` | no |
 | Zig | no | `zig_fmt` | no |
 | Apple | no | `clang_format` | `clang_syntax` |

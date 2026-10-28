@@ -391,13 +391,18 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel mod tidy "$@"
           git diff --exit-code -- MODULE.bazel
+      - name: Fail when a public rust library is missing from PUBLIC_RUST_CRATES
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          tools/docs/site/public_rust_crates_guard.sh "$@"
       - name: Write job summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### workflow-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

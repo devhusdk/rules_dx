@@ -81,7 +81,7 @@ impl ScriptRunner {
         }
         if let Some(folder) = argv
             .iter()
-            .skip_while(|arg| *arg != "--output-folder")
+            .skip_while(|arg| *arg != "--output-folder" && *arg != "-C")
             .nth(1)
         {
             for (name, bytes) in self.staged_outputs.borrow_mut().drain(..) {
@@ -138,6 +138,8 @@ impl ScriptRunner {
             format!("consumer-maven:{repository}")
         } else if argv.iter().any(|arg| arg.contains("paket2bazel")) {
             "nuget".to_owned()
+        } else if argv.contains(&"@rules_go//go".to_owned()) {
+            "go".to_owned()
         } else if argv.contains(&"uv".to_owned())
             && argv
                 .iter()

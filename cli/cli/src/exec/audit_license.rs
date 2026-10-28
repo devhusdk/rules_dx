@@ -131,6 +131,7 @@ pub(super) fn run_license(
                     | dx_adopt::dependency_sets::Ecosystem::Cargo
                     | dx_adopt::dependency_sets::Ecosystem::Maven
                     | dx_adopt::dependency_sets::Ecosystem::Nuget
+                    | dx_adopt::dependency_sets::Ecosystem::Go
             ) {
                 let ecosystem = set.ecosystem.name();
                 let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
@@ -461,7 +462,8 @@ pub(super) fn run_license(
                 | dx_adopt::dependency_sets::Ecosystem::PowerShell
                 | dx_adopt::dependency_sets::Ecosystem::Cargo
                 | dx_adopt::dependency_sets::Ecosystem::Maven
-                | dx_adopt::dependency_sets::Ecosystem::Nuget => {
+                | dx_adopt::dependency_sets::Ecosystem::Nuget
+                | dx_adopt::dependency_sets::Ecosystem::Go => {
                     selected_sets.insert(set.ecosystem.name());
                 }
                 dx_adopt::dependency_sets::Ecosystem::Uv => {}

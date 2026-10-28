@@ -14,9 +14,17 @@ pub enum BackendPlan {
     Noop,
 }
 
+/// The generator a [`StagedRun`] launches.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StagedTool {
+    Paket2Bazel,
+    GoModDownload,
+}
+
 /// A generator run on copies of `inputs` in a scratch directory, never in the workspace.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StagedRun {
+    pub tool: StagedTool,
     /// The command up to, not including, the paths into the scratch directory.
     pub argv_head: Vec<String>,
     pub env: Vec<(String, String)>,
@@ -26,20 +34,76 @@ pub struct StagedRun {
     pub outputs: Vec<String>,
 }
 
+/// Host variables that redirect or weaken go module fetching; dx cannot override them.
+const GO_HOST_ENV: [&str; 9] = [
+    "GOPROXY",
+    "GOPRIVATE",
+    "GONOPROXY",
+    "GONOSUMDB",
+    "GONOSUMCHECK",
+    "GOSUMDB",
+    "GOINSECURE",
+    "GOVCS",
+    "GOAUTH",
+];
+
 impl StagedRun {
     /// The full command for a scratch directory (an absolute path).
     pub fn argv(&self, scratch: &Path) -> Vec<String> {
         let mut argv = self.argv_head.clone();
-        argv.push("--dependencies-file".to_owned());
-        argv.push(
-            scratch
-                .join("paket.dependencies")
-                .to_string_lossy()
-                .into_owned(),
-        );
-        argv.push("--output-folder".to_owned());
-        argv.push(scratch.join("out").to_string_lossy().into_owned());
+        match self.tool {
+            StagedTool::Paket2Bazel => {
+                argv.push("--dependencies-file".to_owned());
+                argv.push(
+                    scratch
+                        .join("paket.dependencies")
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+                argv.push("--output-folder".to_owned());
+                argv.push(scratch.join("out").to_string_lossy().into_owned());
+            }
+            StagedTool::GoModDownload => {
+                argv.push("-C".to_owned());
+                argv.push(scratch.join("out").to_string_lossy().into_owned());
+                argv.extend(["mod", "download", "all"].map(str::to_owned));
+            }
+        }
         argv
+    }
+
+    /// The environment for a scratch directory: the planned env plus what the tool forces.
+    pub fn env(&self, scratch: &Path) -> Vec<(String, String)> {
+        let mut env = self.env.clone();
+        if self.tool == StagedTool::GoModDownload {
+            let under = |name: &str| scratch.join(name).to_string_lossy().into_owned();
+            env.extend([
+                ("GOENV".to_owned(), "off".to_owned()),
+                ("GOWORK".to_owned(), "off".to_owned()),
+                ("GOTOOLCHAIN".to_owned(), "local".to_owned()),
+                ("GOFLAGS".to_owned(), "-modcacherw".to_owned()),
+                ("GOMODCACHE".to_owned(), under("gomodcache")),
+                ("GOPATH".to_owned(), under("gopath")),
+                ("GOCACHE".to_owned(), under("gocache")),
+            ]);
+        }
+        env
+    }
+
+    /// Names the tool in messages.
+    pub fn tool_name(&self) -> &'static str {
+        match self.tool {
+            StagedTool::Paket2Bazel => "paket2bazel",
+            StagedTool::GoModDownload => "go",
+        }
+    }
+
+    /// The directory under `scratch` the inputs are copied into and the outputs are read from.
+    pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
+        match self.tool {
+            StagedTool::Paket2Bazel => scratch.to_path_buf(),
+            StagedTool::GoModDownload => scratch.join("out"),
+        }
     }
 }
 
@@ -442,6 +506,8 @@ const MAVEN_COURSIER_ENV: [&str; 5] = [
     "SCALA_CLI_CONFIG",
 ];
 
+const GO_HOST_ENV_REASON: &str = "unset GOPROXY, GOPRIVATE, GONOPROXY, GONOSUMDB, GONOSUMCHECK, GOSUMDB, GOINSECURE, GOVCS and GOAUTH: host values override go_deps.config(go_env=...) and can weaken checksum verification; declare them in go_deps.config(go_env=...)";
+
 /// Refuses sets whose backend would read host env dx cannot override (the runner only adds env).
 /// `lookup` tells whether a variable is set in the host environment.
 pub fn host_env_refusal(
@@ -449,6 +515,15 @@ pub fn host_env_refusal(
     check: bool,
     lookup: &dyn Fn(&str) -> bool,
 ) -> Option<BackendError> {
+    if set.ecosystem == Ecosystem::Go {
+        return GO_HOST_ENV
+            .iter()
+            .any(|key| lookup(key))
+            .then(|| BackendError::Unsupported {
+                set: set.name.clone(),
+                reason: GO_HOST_ENV_REASON,
+            });
+    }
     if set.ecosystem != Ecosystem::Maven {
         return None;
     }
@@ -773,6 +848,18 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: NUGET_PINS_EXACT,
         }),
+        (Ecosystem::Go, Selection::Full) => {
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            Ok(BackendPlan::Staged(go_staged(set, head, offline)?))
+        }
+        (Ecosystem::Go, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: GO_WHOLE_GRAPH,
+        }),
         (Ecosystem::Cargo, Selection::Packages(packages)) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -881,6 +968,11 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: MAVEN_ONE_PACKAGE,
         }),
+        (Ecosystem::Go, Selection::Full) => Ok(CheckPlan::Staged(go_staged(set, head, offline)?)),
+        (Ecosystem::Go, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: GO_WHOLE_GRAPH,
+        }),
         (Ecosystem::Nuget, Selection::Full) => {
             Ok(CheckPlan::Staged(nuget_staged(set, head, offline)?))
         }
@@ -929,6 +1021,7 @@ fn nuget_staged(
         .cloned()
         .collect();
     Ok(StagedRun {
+        tool: StagedTool::Paket2Bazel,
         argv_head: bazel(
             &pin_head,
             "run",
@@ -937,6 +1030,45 @@ fn nuget_staged(
         env: Vec::new(),
         inputs,
         outputs,
+    })
+}
+
+const GO_WHOLE_GRAPH: &str =
+    "go sums cover the whole module graph; edit the require in go.mod and run `dx update <set>`";
+
+/// Plans `go mod download all` on a staged copy of go.mod and go.sum.
+fn go_staged(
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    offline: bool,
+) -> Result<StagedRun, BackendError> {
+    // Every run starts from an empty module cache, so it always needs the network.
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    let pin_head = dx_process::BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    let sum = set
+        .locks
+        .iter()
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::GO_SUM))
+        .cloned()
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "a go set must list go.sum in locks",
+        })?;
+    let mut inputs = set.manifests.clone();
+    inputs.push(sum.clone());
+    Ok(StagedRun {
+        tool: StagedTool::GoModDownload,
+        argv_head: bazel(&pin_head, "run", &["@rules_go//go", "--"]),
+        env: Vec::new(),
+        inputs,
+        outputs: vec![sum],
     })
 }
 
@@ -2931,6 +3063,7 @@ mod tests {
         };
         let set = nuget_set();
         let expected = StagedRun {
+            tool: StagedTool::Paket2Bazel,
             argv_head: [
                 dx_process::BazelHead {
                     settings: Vec::new(),
@@ -3014,6 +3147,143 @@ mod tests {
                 set: "dotnet".to_owned(),
                 reason: NUGET_PINS_EXACT,
             })
+        );
+    }
+
+    fn go_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "gomods".to_owned(),
+            ecosystem: Ecosystem::Go,
+            dir: "third_party/go".to_owned(),
+            manifests: vec!["third_party/go/go.mod".to_owned()],
+            locks: vec!["third_party/go/go.sum".to_owned()],
+            writable: true,
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn configured_go_stages_go_mod_download_with_forced_env() {
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/ob".to_owned()],
+            options: vec!["--config=dx_dev".to_owned()],
+            settings: vec!["--@rules_dx//config:x=true".to_owned()],
+        };
+        let set = go_set();
+        let expected = StagedRun {
+            tool: StagedTool::GoModDownload,
+            argv_head: [
+                dx_process::BazelHead {
+                    settings: Vec::new(),
+                    ..head.clone()
+                }
+                .argv("run"),
+                strings(&["@rules_go//go", "--"]),
+            ]
+            .concat(),
+            env: Vec::new(),
+            inputs: vec![
+                "third_party/go/go.mod".to_owned(),
+                "third_party/go/go.sum".to_owned(),
+            ],
+            outputs: vec!["third_party/go/go.sum".to_owned()],
+        };
+        let closure = UvClosure::default();
+        assert_eq!(
+            plan_configured(ws(), &set, &Selection::Full, false, false, &head, &closure),
+            Ok(BackendPlan::Staged(expected.clone()))
+        );
+        // Frozen check passes through; frozen apply would write go.sum.
+        for frozen in [false, true] {
+            assert_eq!(
+                check_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
+                Ok(CheckPlan::Staged(expected.clone()))
+            );
+        }
+        assert_eq!(
+            plan_configured(ws(), &set, &Selection::Full, false, true, &head, &closure),
+            Err(BackendError::FrozenLocked {
+                set: "gomods".to_owned()
+            })
+        );
+        assert!(!expected
+            .argv_head
+            .iter()
+            .any(|arg| arg.contains("rules_dx")));
+        let scratch = Path::new("/scratch/1");
+        let argv = expected.argv(scratch);
+        assert_eq!(
+            argv[expected.argv_head.len()..],
+            strings(&["-C", "/scratch/1/out", "mod", "download", "all"])
+        );
+        assert_eq!(
+            expected.env(scratch),
+            vec![
+                ("GOENV".to_owned(), "off".to_owned()),
+                ("GOWORK".to_owned(), "off".to_owned()),
+                ("GOTOOLCHAIN".to_owned(), "local".to_owned()),
+                ("GOFLAGS".to_owned(), "-modcacherw".to_owned()),
+                ("GOMODCACHE".to_owned(), "/scratch/1/gomodcache".to_owned()),
+                ("GOPATH".to_owned(), "/scratch/1/gopath".to_owned()),
+                ("GOCACHE".to_owned(), "/scratch/1/gocache".to_owned()),
+            ]
+        );
+        assert_eq!(expected.inputs_dir(scratch), Path::new("/scratch/1/out"));
+        assert_eq!(expected.tool_name(), "go");
+    }
+
+    #[test]
+    fn configured_go_requires_network_and_refuses_packages() {
+        let set = go_set();
+        let head = no_head();
+        let closure = UvClosure::default();
+        for frozen in [false, true] {
+            assert_eq!(
+                check_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
+                Err(BackendError::OfflineRequired {
+                    set: "gomods".to_owned()
+                })
+            );
+        }
+        assert_eq!(
+            plan_configured(ws(), &set, &Selection::Full, true, false, &head, &closure),
+            Err(BackendError::OfflineRequired {
+                set: "gomods".to_owned()
+            })
+        );
+        let packages = Selection::Packages(vec!["github.com/google/go-cmp".to_owned()]);
+        let want = BackendError::Unsupported {
+            set: "gomods".to_owned(),
+            reason: GO_WHOLE_GRAPH,
+        };
+        assert_eq!(
+            plan_configured(ws(), &set, &packages, false, false, &head, &closure),
+            Err(want.clone())
+        );
+        assert_eq!(
+            check_configured(ws(), &set, &packages, false, false, &head, &closure),
+            Err(want)
+        );
+    }
+
+    #[test]
+    fn go_host_env_that_redirects_or_weakens_fetching_is_refused() {
+        let set = go_set();
+        for key in GO_HOST_ENV {
+            let refusal = host_env_refusal(&set, true, &|name| name == key);
+            assert_eq!(
+                refusal,
+                Some(BackendError::Unsupported {
+                    set: "gomods".to_owned(),
+                    reason: GO_HOST_ENV_REASON,
+                }),
+                "{key}"
+            );
+        }
+        assert_eq!(host_env_refusal(&set, false, &|_| false), None);
+        assert_eq!(
+            host_env_refusal(&set, false, &|name| name == "GOFLAGS"),
+            None
         );
     }
 

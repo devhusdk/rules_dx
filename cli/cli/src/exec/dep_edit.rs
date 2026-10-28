@@ -122,7 +122,8 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::PowerShell
             | dx_adopt::dependency_sets::Ecosystem::Cargo
             | dx_adopt::dependency_sets::Ecosystem::Maven
-            | dx_adopt::dependency_sets::Ecosystem::Nuget,
+            | dx_adopt::dependency_sets::Ecosystem::Nuget
+            | dx_adopt::dependency_sets::Ecosystem::Go,
             _,
         ) => Err(operational(
             invocation,

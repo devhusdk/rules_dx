@@ -907,4 +907,76 @@ scopes = ["dn"]
         assert!(out.contains(".dx/advisory/nuget.json"), "{out}{err}");
         assert!(!out.contains("audit_security_clean"), "{out}");
     }
+
+    const GO_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "gomods"
+ecosystem = "go"
+manifests = ["g/go.mod"]
+locks = ["g/go.sum"]
+scopes = ["g"]
+"#;
+
+    const GO_ADVISORY: &str = r#"[{
+        "id": "GHSA-go-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Go", "name": "github.com/example/lib"},
+            "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "1.2.0"}]}]
+        }]
+    }]"#;
+
+    fn go_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, GO_TOML, false);
+        harness.write_source(
+            "g/go.mod",
+            "module example.com/m\n\ngo 1.22\n\nrequire github.com/example/lib v1.1.0\n",
+        );
+        harness.write_source("g/go.sum", "github.com/example/lib v1.1.0 h1:abc=\n");
+        harness
+    }
+
+    #[test]
+    fn consumer_go_set_reads_its_go_mod_and_the_go_snapshot() {
+        let harness = go_harness("go-vuln");
+        write_advisory(&harness, "go", GO_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "gomods"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("GHSA-go-0001"), "{out}");
+        assert!(out.contains("g/go.mod"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-go-0001\"\n\
+             package = \"github.com/example/lib\"\nset = \"gomods\"\nversions = \"1.1.0\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "gomods"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
+    #[test]
+    fn consumer_go_missing_snapshot_fails_and_is_never_clean() {
+        for extra in [None, Some("--offline")] {
+            let harness = go_harness("go-missing");
+            write_advisory(&harness, "pypi", NO_ADVISORIES);
+            let runner = clean_runner();
+            let mut argv = vec!["security", "--output=json"];
+            argv.extend(extra);
+            argv.push("gomods");
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{extra:?} {out}{err}");
+            assert!(out.contains("failed to assess gomods"), "{out}{err}");
+            assert!(out.contains(".dx/advisory/go.json"), "{out}{err}");
+            assert!(!out.contains("audit_security_clean"), "{out}");
+            if extra.is_some() {
+                assert!(out.contains("offline_required"), "{out}{err}");
+            }
+        }
+    }
 }

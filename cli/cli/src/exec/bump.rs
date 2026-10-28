@@ -706,6 +706,47 @@ scopes = ["tools/ps"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    #[test]
+    fn consumer_go_set_refuses_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-go");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[[dependency_set]]\nname = \"gomods\"\necosystem = \"go\"\nmanifests = [\"go.mod\"]\nlocks = [\"go.sum\"]\nscopes = [\".\"]\n",
+        );
+        let files = [
+            (
+                "go.mod",
+                "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.6.0\n",
+            ),
+            ("go.sum", "github.com/google/go-cmp v0.6.0 h1:abc=\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        let (code, _, err) = harness.run(&[
+            "bump",
+            "gomods:github.com/google/go-cmp",
+            "v0.7.0",
+            "--apply",
+        ]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "bump is not supported for ecosystem go set gomods \
+(supported operations: check, update, audit)"
+            ),
+            "{err}"
+        );
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
     const BAZEL_SET_DX_TOML: &str = r#"
 schema_version = 1
 

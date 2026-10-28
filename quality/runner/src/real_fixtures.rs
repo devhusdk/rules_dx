@@ -45,6 +45,7 @@ pub(super) fn plain_tool() -> RealTool {
         tool_files: Vec::new(),
         upstream_diagnostics: Vec::new(),
         search_paths: Vec::new(),
+        path_tools: Vec::new(),
     }
 }
 

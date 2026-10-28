@@ -121,6 +121,8 @@ plugin \"terraform\" {
 ";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
+/// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
+const PATH_TOOLS_DIR_REL: &str = "dx-path-tools";
 const CREDO_DEFAULTS_REL: &str = "dx-credo-default/.credo.exs";
 /// Credo's own default checks over every staged file: Bazel decides which files are owned, so
 /// no excluded path pattern may drop one.
@@ -252,6 +254,8 @@ pub struct RealTool {
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
+    /// Helper executables placed on the child's `PATH` as shims: `(name, binary)`.
+    pub path_tools: Vec<(String, PathBuf)>,
 }
 
 pub type SpawnFn = fn(&[OsString], &Path, &[(OsString, OsString)]) -> io::Result<ChildOutput>;
@@ -323,7 +327,7 @@ fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
 }
 
 /// Launchers that read the manifest beside their own binary on every platform.
-const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
+const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint", "rst2html"];
 
 /// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
 fn resolves_launcher(tool_id: &str) -> bool {
@@ -343,6 +347,82 @@ fn javascript_manifest(binary: &Path) -> Option<(OsString, OsString)> {
             manifest.into_os_string(),
         )
     })
+}
+
+/// The runfiles env one launcher needs, keyed by the tool the launcher belongs to.
+fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
+    if reads_own_manifest(tool_id) {
+        return own_runfiles_manifest(binary);
+    }
+    if launch::policy_for(tool_id) == launch::RunfilesPolicy::OwnManifest {
+        return javascript_manifest(binary).into_iter().collect();
+    }
+    Vec::new()
+}
+
+/// A `/bin/sh` shim that sets the launcher's env, then execs its absolute path.
+fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
+    fn quote(text: &str) -> String {
+        format!("'{}'", text.replace('\'', "'\\''"))
+    }
+    let mut out = String::from("#!/bin/sh\n");
+    for (key, value) in env {
+        out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
+    }
+    out.push_str(&format!("exec {} \"$@\"\n", quote(binary)));
+    out
+}
+
+/// A `.cmd` shim with CRLF endings. Characters `cmd.exe` would reinterpret are refused.
+fn windows_shim(binary: &str, env: &[(String, String)]) -> Result<String, String> {
+    let bad = |text: &str| {
+        text.chars()
+            .any(|c| matches!(c, '%' | '"' | '^' | '!' | '\n' | '\r'))
+    };
+    let mut out = String::from("@echo off\r\n");
+    for (key, value) in env {
+        if bad(key) || bad(value) {
+            return Err(format!("unsafe character in {key} value"));
+        }
+        out.push_str(&format!("set \"{key}={value}\"\r\n"));
+    }
+    if bad(binary) {
+        return Err("unsafe character in launcher path".to_owned());
+    }
+    out.push_str(&format!("\"{binary}\" %*\r\n"));
+    Ok(out)
+}
+
+fn write_path_shim(
+    dir: &Path,
+    name: &str,
+    binary: &Path,
+    env: &[(OsString, OsString)],
+) -> Result<(), String> {
+    let env: Vec<(String, String)> = env
+        .iter()
+        .map(|(key, value)| {
+            (
+                key.to_string_lossy().into_owned(),
+                value.to_string_lossy().into_owned(),
+            )
+        })
+        .collect();
+    let binary = binary.to_string_lossy();
+    if cfg!(windows) {
+        let body = windows_shim(&binary, &env)?;
+        std::fs::write(dir.join(format!("{name}.cmd")), body).map_err(|err| err.to_string())
+    } else {
+        let path = dir.join(name);
+        std::fs::write(&path, unix_shim(&binary, &env)).map_err(|err| err.to_string())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                .map_err(|err| err.to_string())?;
+        }
+        Ok(())
+    }
 }
 
 fn execution(tool_id: &str, detail: String) -> RunnerError {
@@ -462,12 +542,18 @@ impl RealBackend {
             .collect();
         let ambient: Vec<(OsString, OsString)> = std::env::vars_os().collect();
         let mut env = exec::hermetic_env(scratch.root(), &extra, &ambient);
-        if reads_own_manifest(tool_id) {
-            env.extend(own_runfiles_manifest(&tool.binary));
-        } else if launch::policy_for(tool_id) == launch::RunfilesPolicy::OwnManifest {
-            if let Some(pair) = javascript_manifest(&tool.binary) {
-                env.push(pair);
+        env.extend(launcher_env(tool_id, &tool.binary));
+        if !tool.path_tools.is_empty() {
+            let dir = scratch.root().join(PATH_TOOLS_DIR_REL);
+            std::fs::create_dir_all(&dir)
+                .map_err(|err| execution(tool_id, format!("path tools dir: {err}")))?;
+            for (name, binary) in &tool.path_tools {
+                let shim_env = launcher_env(name, binary);
+                write_path_shim(&dir, name, binary, &shim_env)
+                    .map_err(|err| execution(tool_id, format!("path tool {name}: {err}")))?;
             }
+            env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
+            env.push((OsString::from("PATH"), dir.into_os_string()));
         }
         if tool_id == "tflint" {
             let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);
@@ -750,6 +836,53 @@ mod tests {
         for tool_id in ["pydoclint", "flake8", "pylint"] {
             assert!(reads_own_manifest(tool_id), "{tool_id}");
         }
+    }
+
+    #[test]
+    fn unix_shims_export_env_then_exec_the_quoted_launcher() {
+        let body = super::unix_shim(
+            "/w/it's/bin",
+            &[("RUNFILES_MANIFEST_FILE".to_owned(), "/w/m".to_owned())],
+        );
+        assert_eq!(
+            body,
+            "#!/bin/sh\nRUNFILES_MANIFEST_FILE='/w/m'\nexport RUNFILES_MANIFEST_FILE\nexec '/w/it'\\''s/bin' \"$@\"\n"
+        );
+    }
+
+    #[test]
+    fn windows_shims_use_crlf_and_refuse_cmd_metacharacters() {
+        let body = super::windows_shim("C:\\t\\bin.bat", &[("K".to_owned(), "V".to_owned())])
+            .expect("shim");
+        assert_eq!(
+            body,
+            "@echo off\r\nset \"K=V\"\r\n\"C:\\t\\bin.bat\" %*\r\n"
+        );
+        for bad in ["a%b", "a\"b", "a^b", "a!b", "a\nb"] {
+            assert!(super::windows_shim(bad, &[]).is_err(), "{bad}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_path_shim_runs_the_launcher_with_its_env() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().expect("dir");
+        let launcher = dir.path().join("fake");
+        std::fs::write(&launcher, "#!/bin/sh\necho \"$1:$K\"\n").expect("write");
+        std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        super::write_path_shim(
+            dir.path(),
+            "rst2html",
+            &launcher,
+            &[(OsString::from("K"), OsString::from("v"))],
+        )
+        .expect("shim");
+        let out = std::process::Command::new(dir.path().join("rst2html"))
+            .arg("arg")
+            .output()
+            .expect("run");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "arg:v\n");
     }
 
     /// The PowerShell launcher runs from its real path.

@@ -18,7 +18,12 @@ pub struct RequestTool {
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
+    /// Helper executables the tool finds by name on its own `PATH`: `(name, binary)`.
+    pub path_tools: Vec<(String, PathBuf)>,
 }
+
+/// Helper names each tool may be given on its `PATH`. One row per tool that shells out.
+pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[("vale", &["rst2html", "asciidoctor"])];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RealRequest {
@@ -60,6 +65,8 @@ pub enum RequestError {
         path: String,
         reason: String,
     },
+    #[error("tool {tool:?} may not be given {name:?} on its PATH")]
+    UnknownPathTool { tool: String, name: String },
     #[error("empty exec path for {role} {workspace:?}")]
     EmptyExec { role: String, workspace: String },
     #[error("duplicate {role} {path:?}")]
@@ -124,6 +131,15 @@ struct ToolDoc {
     upstream: Vec<String>,
     #[serde(default)]
     search_paths: Vec<String>,
+    #[serde(default)]
+    path_tools: Vec<PathToolDoc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PathToolDoc {
+    name: String,
+    binary: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -267,6 +283,31 @@ fn check_tool(
         }
         search_paths.push(PathBuf::from(dir));
     }
+    let mut path_tools: Vec<(String, PathBuf)> = Vec::with_capacity(doc.path_tools.len());
+    for helper in &doc.path_tools {
+        let allowed = PATH_TOOL_ALLOWLIST
+            .iter()
+            .any(|(tool, names)| *tool == tool_id && names.contains(&helper.name.as_str()));
+        if !allowed {
+            return Err(RequestError::UnknownPathTool {
+                tool: tool_id.to_owned(),
+                name: helper.name.clone(),
+            });
+        }
+        if helper.binary.is_empty() {
+            return Err(RequestError::EmptyExec {
+                role: "tool path helper".to_owned(),
+                workspace: helper.name.clone(),
+            });
+        }
+        if path_tools.iter().any(|(name, _)| *name == helper.name) {
+            return Err(RequestError::DuplicateMapping {
+                role: "tool path helper".to_owned(),
+                path: helper.name.clone(),
+            });
+        }
+        path_tools.push((helper.name.clone(), PathBuf::from(&helper.binary)));
+    }
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
             tool: tool_id.to_owned(),
@@ -281,6 +322,7 @@ fn check_tool(
         env,
         upstream,
         search_paths,
+        path_tools,
     })
 }
 
@@ -733,6 +775,37 @@ mod tests {
                 path: "absent.py".to_owned()
             }
         );
+    }
+
+    #[test]
+    fn tools_carry_allowlisted_path_helpers_only() {
+        let doc = |tool: &str, helpers: serde_json::Value| {
+            serde_json::to_vec(&json!({
+                "schema_version": 1,
+                "producer": "//pkg:target",
+                "capability": "lint",
+                "stages": [{"tool": tool, "classes": ["rst"], "sources": ["a.rst"]}],
+                "sources": [{"workspace": "a.rst", "exec": "exec/a.rst"}],
+                "siblings": [],
+                "resolves": [],
+                "tools": {tool: {"binary": "bin/t", "files": [], "env": [], "upstream": [], "path_tools": helpers}},
+            }))
+            .expect("encodes")
+        };
+        let ok = json!([{"name": "rst2html", "binary": "bin/rst2html"}]);
+        let request = parse_real_request(&doc("vale", ok.clone())).expect("parses");
+        assert_eq!(
+            request.tools["vale"].path_tools,
+            [("rst2html".to_owned(), PathBuf::from("bin/rst2html"))]
+        );
+        assert!(
+            parse_real_request(&doc("vale", json!([{"name": "ruby", "binary": "x"}]))).is_err()
+        );
+        assert!(
+            parse_real_request(&doc("vale", json!([{"name": "rst2html", "binary": ""}]))).is_err()
+        );
+        assert!(parse_real_request(&doc("vale", json!([ok[0].clone(), ok[0].clone()]))).is_err());
+        assert!(parse_real_request(&doc("chktex", ok)).is_err());
     }
 
     #[test]

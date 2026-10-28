@@ -120,6 +120,7 @@ REAL_CLASS_TO_FAMILY = {
     "c": "cc",
     "cpp": "cc",
     "csharp": "csharp",
+    "cloudformation": "cloudformation",
     "css": "css",
     "cuda": "cuda",
     "cue": "cue",

@@ -56,6 +56,16 @@ python_docs(
     prose = ["prose.md"],
     source_url = "https://example.com/consumer/blob/main/",
 )
+
+python_docs(
+    name = "numpy_site",
+    book_toml = "book.toml",
+    docstyle = "numpy",
+    library = ":money",
+    package = "money",
+    prose = ["prose.md"],
+    source_url = "https://example.com/consumer/blob/main/",
+)
 "#;
 
 const BOOK_TOML: &str =
@@ -63,7 +73,7 @@ const BOOK_TOML: &str =
 
 const PROSE: &str = "# Consumer\n\nThe Python API reference of the money package.\n";
 
-const MONEY: &str = "\"\"\"Keeps accounts.\"\"\"\n\n\nclass Account:\n    \"\"\"Holds the balance of one owner.\"\"\"\n\n    def __init__(self, owner: str) -> None:\n        self.owner = owner\n\n\ndef new_account(owner: str) -> Account:\n    \"\"\"Opens an empty account.\"\"\"\n    return Account(owner)\n";
+const MONEY: &str = "\"\"\"Keeps accounts.\"\"\"\n\n\nclass Account:\n    \"\"\"Holds the balance of one owner.\"\"\"\n\n    def __init__(self, owner: str) -> None:\n        self.owner = owner\n\n\ndef new_account(owner: str) -> Account:\n    \"\"\"Opens an empty account.\n\n    Parameters\n    ----------\n    owner : str\n        The name of the account holder.\n    \"\"\"\n    return Account(owner)\n";
 
 const BROKEN: &str = "def broken(:\n    pass\n";
 
@@ -103,14 +113,16 @@ fn consumer(name: &str) -> Case {
     root
 }
 
-fn docs(root: &Case) -> Run {
+fn dx(root: &Case, extra: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let home_dir = scratch("python-docs-home");
     let home = home_dir.path().to_string_lossy().into_owned();
+    let mut args = vec!["docs", "--workspace", workspace.as_str()];
+    args.extend_from_slice(extra);
     root.run(
         &resolve_runfiles(&rel),
-        &["docs", "--workspace", workspace.as_str(), "//:site"],
+        &args,
         &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
     )
 }
@@ -134,13 +146,13 @@ fn hashes(dir: &Path) -> BTreeMap<PathBuf, String> {
     out
 }
 
-fn site(root: &Case) -> PathBuf {
-    root.join("bazel-bin/site")
+fn site(root: &Case, name: &str) -> PathBuf {
+    root.join(format!("bazel-bin/{name}"))
 }
 
 /// Every rendered Python page, joined.
-fn py_pages(root: &Case) -> String {
-    let dir = site(root).join("api/python");
+fn py_pages(site: &Path) -> String {
+    let dir = site.join("api/python");
     let mut text = String::new();
     let mut stack = vec![dir.clone()];
     while let Some(next) = stack.pop() {
@@ -162,22 +174,24 @@ fn py_pages(root: &Case) -> String {
 fn dx_docs_renders_the_public_api_without_touching_sources() {
     let root = consumer("python_docs_render");
     let before = hashes(&root.join("src"));
-    let built = docs(&root);
+    let built = dx(&root, &["//:site"]);
     assert_eq!(built.status.code(), Some(0), "{}", built.combined());
     assert_eq!(
         hashes(&root.join("src")),
         before,
         "dx docs changed a source"
     );
+    let checked = dx(&root, &["--check", "//:site"]);
+    assert_eq!(checked.status.code(), Some(0), "{}", checked.combined());
 
-    let pages = py_pages(&root);
+    let pages = py_pages(&site(&root, "site"));
     assert!(pages.contains("new_account"), "{pages}");
     assert!(pages.contains("Opens an empty account"), "{pages}");
     assert!(
         pages.contains("href=\"https://example.com/consumer/blob/main/src/money/__init__.py#L"),
         "{pages}"
     );
-    let index = read(&site(&root).join("searchindex.js"));
+    let index = read(&site(&root, "site").join("searchindex.js"));
     assert!(
         index.contains("api/python/"),
         "the search index never names a Python page"
@@ -185,13 +199,23 @@ fn dx_docs_renders_the_public_api_without_touching_sources() {
 }
 
 #[test]
+fn numpy_docstyle_renders_parameter_docs() {
+    let root = consumer("python_docs_numpy");
+    let built = dx(&root, &["//:numpy_site"]);
+    assert_eq!(built.status.code(), Some(0), "{}", built.combined());
+    let pages = py_pages(&site(&root, "numpy_site"));
+    assert!(pages.contains("Opens an empty account"), "{pages}");
+    assert!(pages.contains("The name of the account holder."), "{pages}");
+}
+
+#[test]
 fn a_package_that_does_not_parse_fails_without_a_stub_page() {
     let root = consumer("python_docs_broken");
     write(&root.join("src/money/__init__.py"), BROKEN);
-    let built = docs(&root);
+    let built = dx(&root, &["//:site"]);
     assert_ne!(built.status.code(), Some(0), "{}", built.combined());
     assert!(
-        !site(&root).join("api/python").exists(),
+        !site(&root, "site").join("api/python").exists(),
         "a failed build left Python pages behind"
     );
 }

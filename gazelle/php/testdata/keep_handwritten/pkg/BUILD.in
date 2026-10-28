@@ -1,0 +1,14 @@
+load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library")
+
+php_library(
+    name = "pkg",
+    srcs = [],
+    autoload_files = ["src/functions.php"],
+)
+
+php_binary(
+    name = "tool",
+    srcs = [],
+    main = "bin/tool.php",
+    deps = [":pkg"],
+)

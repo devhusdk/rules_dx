@@ -1,0 +1,95 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//php/rules:defs.bzl", "php_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+
+go_library(
+    name = "php",
+    srcs = [
+        "doc.go",
+        "lang.go",
+        "naming.go",
+        "parser.go",
+        "stdlib.go",
+    ],
+    embedsrcs = ["builtins.txt"],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/php",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/php",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/rule",
+    ],
+)
+
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
+go_test(
+    name = "php_go_test",
+    srcs = [
+        "lang_test.go",
+        "naming_test.go",
+        "parser_test.go",
+    ],
+    embed = [":php"],
+    pure = "on",
+    deps = [
+        "//gazelle/common",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
+        "@gazelle//v2/rule",
+    ],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = glob(["testdata/*/README.md"]),
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+php_binary(
+    name = "builtins_dump",
+    srcs = ["builtins_dump.php"],
+    main = "builtins_dump.php",
+)
+
+sh_test(
+    name = "builtins_test",
+    size = "small",
+    srcs = ["builtins_test.sh"],
+    args = [
+        "$(rootpath :builtins_dump)",
+        "$(rootpath builtins.txt)",
+    ],
+    data = [
+        "builtins.txt",
+        ":builtins_dump",
+    ],
+)

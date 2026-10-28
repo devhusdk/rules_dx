@@ -123,6 +123,31 @@ Refused: `composer-plugin` packages, packages without a zip or tar dist
 run. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
 pinned PHPUnit phar.
 
+## Generating BUILD files
+
+`dx generate` writes `php_library` and `php_test` rules. Each package takes
+its own `.php` files plus every `.php` under `src/` that has no `BUILD` file of
+its own, and gets one `php_test` per `*Test.php` under `tests/` or `test/`
+(`GreeterTest.php` becomes `greeter_test`). One library holds a whole tree, so
+namespaces that refer to each other do not form dependency cycles.
+
+A class is found by what a file declares, not by its path, to match the
+classmap autoload: the parser indexes every class, interface, trait and enum
+declared at the top level of a file or namespace body, plus namespaced
+functions and constants. References come from `use` clauses and from the
+class positions of the code (`extends`, `implements`, `new`, `X::`,
+`instanceof`, `catch`, type declarations, attributes and `::class`). They
+resolve by PHP's lexical rules: the current namespace and the `use` aliases.
+
+- Classes, functions and constants that ship with PHP need no dep.
+  `PHPUnit\` names need none in a `php_test`.
+- A Composer package needs one mapping, for example
+  `# gazelle:resolve php Monolog\Logger @vendor//monolog/monolog`.
+- Unqualified function and constant names are skipped, because PHP falls back
+  to the global one. `require` and `include` are not read.
+- `php_binary` targets and `bin/` scripts stay hand-written. A hand-set
+  `autoload_files` stays out of `srcs` and its declarations are indexed.
+
 ## Quality
 
 PHP sources form the `php` class, so `dx check` sees them. No formatter,

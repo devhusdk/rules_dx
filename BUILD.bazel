@@ -98,6 +98,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude fortran/tests/runtime
 # gazelle:exclude ocaml/tests/runtime
 # gazelle:exclude perl/tests/runtime
+# gazelle:exclude php/tests/fixtures
+# gazelle:exclude php/rules/tool.php
+# gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
 # gazelle:exclude fsharp/tests/fixtures/layouts

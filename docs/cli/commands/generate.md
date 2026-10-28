@@ -94,7 +94,7 @@ when the language is unknown, or when the value is malformed. A scoped run
 checks only directives in packages inside the scope.
 
 Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `fsharp`, `go`, `haskell`, `java`,
-`javascript`, `kotlin`, `mdx`, `perl`, `powershell`, `python`, `ruby`, `rust`,
+`javascript`, `kotlin`, `mdx`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`,
 `scala`, `svelte`, `typescript`, `vue`, `zig`.
 
 `# gazelle:dx_cuda_archs <spec> <spec>...` sets the `archs` of a generated
@@ -187,7 +187,7 @@ An import resolves in this order:
   enclosing classes, then its own package. A package that more than one
   artifact ships fails as ambiguous; add a `resolve` mapping for it.
 - `rust`: crates resolve through `Cargo.toml`.
-- `python`, `javascript`, `typescript`, `csharp`, `fsharp`, `ruby`, `perl` and the
+- `python`, `javascript`, `typescript`, `csharp`, `fsharp`, `ruby`, `perl`, `php` and the
   other languages need one `# gazelle:resolve` line per third-party import.
 
 ```starlark

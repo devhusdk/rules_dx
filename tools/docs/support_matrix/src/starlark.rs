@@ -549,6 +549,7 @@ enum Constraint {
 /// guards the upstream target outside its runtime transition, and the cc, go, haskell,
 /// kotlin, typescript and elixir wrappers forward the attribute as written.
 const KNOWN_KINDS: &[(&str, Constraint)] = &[
+    ("android_apk_check", Constraint::AsWritten),
     ("cc_test", Constraint::AsWritten),
     ("csharp_test", Constraint::AsWritten),
     (
@@ -566,6 +567,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         "fortran_test",
         Constraint::DefaultIfUnset("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
     ),
+    ("failure_test", Constraint::AsWritten),
     ("fsharp_test", Constraint::AsWritten),
     ("go_test", Constraint::AsWritten),
     ("haskell_test", Constraint::AsWritten),
@@ -596,6 +598,8 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         "php_test",
         Constraint::Appended("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH"),
     ),
+    ("owns_dockerfile_class_test", Constraint::AsWritten),
+    ("owns_make_class_test", Constraint::AsWritten),
     ("pwsh_test", Constraint::AsWritten),
     ("python_test", Constraint::AsWritten),
     ("ruby_test", Constraint::AsWritten),
@@ -995,6 +999,27 @@ mod tests {
         )
         .expect_err("a call is not evaluated");
         assert!(error.contains("pkg/BUILD.bazel :t"), "{error}");
+    }
+
+    #[test]
+    fn reads_the_analysis_and_apk_check_kinds() {
+        for kind in [
+            "android_apk_check",
+            "failure_test",
+            "owns_dockerfile_class_test",
+            "owns_make_class_test",
+        ] {
+            let found = facts(&format!("{kind}(name = \"t\")\n"), "t").expect("facts");
+            assert!(found.compatible_with.is_empty(), "{kind}");
+            let linux = facts(
+                &format!(
+                    "{kind}(name = \"t\", target_compatible_with = [\"@platforms//os:linux\"])\n"
+                ),
+                "t",
+            )
+            .expect("facts");
+            assert_eq!(linux.compatible_with.len(), 1, "{kind}");
+        }
     }
 
     #[test]

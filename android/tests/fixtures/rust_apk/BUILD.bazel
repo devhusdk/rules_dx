@@ -731,3 +731,8 @@ sh_test(
     env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

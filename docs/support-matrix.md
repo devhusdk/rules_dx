@@ -51,12 +51,12 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 | Target | Builds and tests on | Consumer test on | `dx new` starter |
 | --- | --- | --- | --- |
-| Android | no | `linux_x86_64` | no |
+| Android | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
 | AppImage | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
 | Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` | no |
-| Dockerfile | no | no | no |
-| Make | no | no | no |
-| MSIX | no | `linux_x86_64` | no |
+| Dockerfile | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
+| Make | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
+| MSIX | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
 | Qt | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` | no |
 | WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
 

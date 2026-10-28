@@ -275,4 +275,23 @@ fn native_actions_name_the_hermetic_c_tools_and_no_host_path() {
         "{}",
         queried.text
     );
+    // The C toolchain's own flags must reach the link and assemble commands,
+    // otherwise clang falls back to the host sysroot, crt objects and libgcc.
+    for line in queried
+        .text
+        .lines()
+        .filter(|l| l.contains("CONDA_OCAML_MKEXE=") || l.contains("CONDA_OCAML_CC="))
+    {
+        for flag in ["--sysroot=/dev/null", "-fuse-ld=lld", "-rtlib=compiler-rt"] {
+            assert!(line.contains(flag), "{flag}\n{line}");
+        }
+    }
+    assert!(
+        queried
+            .text
+            .lines()
+            .any(|l| l.contains("CONDA_OCAML_MKEXE=") && l.contains(" -B")),
+        "MKEXE lacks the hermetic crt directory\n{}",
+        queried.text
+    );
 }

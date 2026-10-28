@@ -40,20 +40,45 @@ def toolchain_fields(info, extra):
     fields.update(extra)
     return fields
 
-def native_cc_env(cc, assembler, linker, archiver, dist_bin):
+def native_cc_env(cc, assembler, linker, archiver, dist_bin, cc_flags = [], as_flags = [], link_flags = [], dll_flags = []):
     """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools.
 
     The conda wrappers fall back to host as and cc when a variable is unset, so
-    every tool ocamlopt runs is named here. The dist bin directory comes first on
-    PATH so the wrappers themselves resolve; /usr/bin and /bin are the accepted
-    host baseline (bash, dirname).
+    every tool ocamlopt runs is named here. Each command carries the C
+    toolchain's own flags (--sysroot, -B for the crt objects, -fuse-ld, ...),
+    otherwise clang falls back to the host sysroot. The wrappers expand the
+    variables unquoted, so a flag must not contain whitespace. The dist bin
+    directory comes first on PATH so the wrappers themselves resolve; /usr/bin
+    and /bin are the accepted host baseline (bash, dirname).
+
+    Args:
+        cc: C compiler path.
+        assembler: Assembler driver path.
+        linker: Linker driver path.
+        archiver: Static archiver path.
+        dist_bin: Directory of the OCaml dist bin.
+        cc_flags: Flags of the C compile action.
+        as_flags: Flags of the assemble action.
+        link_flags: Flags of the executable link action.
+        dll_flags: Flags of the dynamic library link action.
+
+    Returns:
+        The environment variable dict.
     """
+    quiet = ["-Wno-unused-command-line-argument"]
+    cc_flags = cc_flags + quiet
+    as_flags = as_flags + quiet
+    link_flags = link_flags + quiet
+    dll_flags = dll_flags + quiet
+    for flag in cc_flags + as_flags + link_flags + dll_flags:
+        if " " in flag:
+            fail("C toolchain flag contains whitespace and cannot go through CONDA_OCAML_*: " + flag)
     return {
         "CONDA_OCAML_AR": archiver,
-        "CONDA_OCAML_AS": assembler + " -c",
-        "CONDA_OCAML_CC": cc,
-        "CONDA_OCAML_MKDLL": linker + " -shared",
-        "CONDA_OCAML_MKEXE": linker,
+        "CONDA_OCAML_AS": " ".join([assembler, "-c"] + as_flags),
+        "CONDA_OCAML_CC": " ".join([cc] + cc_flags),
+        "CONDA_OCAML_MKDLL": " ".join([linker, "-shared"] + dll_flags),
+        "CONDA_OCAML_MKEXE": " ".join([linker] + link_flags),
         "PATH": dist_bin + ":/usr/bin:/bin",
     }
 
@@ -66,6 +91,25 @@ def _native_fields(ctx):
         unsupported_features = ctx.disabled_features,
     )
     tool = lambda action: cc_common.get_tool_for_action(feature_configuration = features, action_name = action)
+    flags = lambda action, variables: list(cc_common.get_memory_inefficient_command_line(
+        feature_configuration = features,
+        action_name = action,
+        variables = variables,
+    ))
+    compile_vars = cc_common.create_compile_variables(
+        feature_configuration = features,
+        cc_toolchain = cc,
+    )
+    exe_vars = cc_common.create_link_variables(
+        feature_configuration = features,
+        cc_toolchain = cc,
+        is_linking_dynamic_library = False,
+    )
+    dll_vars = cc_common.create_link_variables(
+        feature_configuration = features,
+        cc_toolchain = cc,
+        is_linking_dynamic_library = True,
+    )
     return {
         "cc_files": depset(ctx.files.native_tools, transitive = [cc.all_files]),
         "cc_link_env_vars": native_cc_env(
@@ -74,6 +118,10 @@ def _native_fields(ctx):
             linker = tool(ACTION_NAMES.cpp_link_executable),
             archiver = tool(ACTION_NAMES.cpp_link_static_library),
             dist_bin = ctx.file.compiler.dirname,
+            cc_flags = flags(ACTION_NAMES.c_compile, compile_vars),
+            as_flags = flags(ACTION_NAMES.assemble, compile_vars),
+            link_flags = flags(ACTION_NAMES.cpp_link_executable, exe_vars),
+            dll_flags = flags(ACTION_NAMES.cpp_link_dynamic_library, dll_vars),
         ),
         "cc_toolchain": "clang",
     }

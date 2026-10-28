@@ -86,7 +86,8 @@ native `ocamlopt` of the pinned install. The default, `vm`, builds bytecode.
 
 `ocamlopt` assembles and links with the rules_dx LLVM C toolchain (clang,
 LLD, `llvm-ar`), the same one `cc_library` uses. The toolchain sets the
-`CONDA_OCAML_*` variables to those tools, so no host `as`, `cc` or `ld` runs.
+`CONDA_OCAML_*` variables to those tools together with the C toolchain's own
+compile and link flags (`--sysroot=/dev/null`, the hermetic crt objects, lld, compiler-rt), so no host `as`, `cc` or `ld` and no host sysroot is used.
 Only `bash` and the other tools in `/usr/bin` and `/bin` that the conda
 wrapper scripts need come from the host.
 

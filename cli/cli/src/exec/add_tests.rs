@@ -301,6 +301,20 @@ fn configured_bazel_set_adds_to_its_own_module_bazel() {
 }
 
 #[test]
+fn configured_bazel_set_add_refresh_failure_keeps_the_edit() {
+    let mut harness = Harness::new("add-consumer-bazel-fail");
+    harness.bazel_code = 3;
+    harness.write_source("dx.toml", BAZEL_SET_DX_TOML);
+    harness.write_source("tools/MODULE.bazel", BAZEL_SET_MODULE);
+    let (code, _, err) = harness.run(&["add", "bazel-modules:rules_go", "0.50.0", "--apply"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("`bazel mod deps` in tools exited 3"), "{err}");
+    assert!(err.contains("run `bazel mod deps`"), "{err}");
+    assert!(!err.contains("dx update"), "{err}");
+    assert!(read(&harness, "tools/MODULE.bazel").contains("rules_go"));
+}
+
+#[test]
 fn configured_uv_set_reports_unsupported_add() {
     let harness = Harness::new("add-consumer-uv");
     harness.write_source(

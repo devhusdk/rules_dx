@@ -15,7 +15,7 @@ use std::fs;
 use std::path::Path;
 
 use documentation_ir::decode_shard;
-use documentation_ir::proto::{DocIr, Symbol};
+use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 
 /// The inputs and outputs of one aggregation.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -128,6 +128,7 @@ fn link_text(text: &str) -> String {
 /// Reader-facing titles: a symbol's display name when its shard sets one, else `title(id)`.
 struct Titles<'a> {
     names: BTreeMap<&'a str, &'a str>,
+    kinds: BTreeMap<&'a str, i32>,
 }
 
 impl Titles<'_> {
@@ -238,6 +239,11 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
             .filter(|symbol| !symbol.display_name.is_empty())
             .map(|symbol| (symbol.id.as_str(), symbol.display_name.as_str()))
             .collect(),
+        kinds: shards
+            .iter()
+            .flat_map(|shard| &shard.symbols)
+            .map(|symbol| (symbol.id.as_str(), symbol.kind))
+            .collect(),
     };
     let mut rendered = Rendered {
         summary: "- [API](api.md)\n".to_string(),
@@ -296,6 +302,7 @@ fn group_title(group: &str) -> String {
         Some(("java", package)) => format!("Java package `{package}`"),
         Some(("kotlin", package)) => format!("Kotlin package `{package}`"),
         Some(("scala", package)) => format!("Scala package `{package}`"),
+        Some(("vue", package)) => format!("Vue components `{package}`"),
         Some((language, package)) => format!("{language} package `{package}`"),
         None => group.to_string(),
     }
@@ -326,6 +333,7 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
             Some(("java", _)) => "java",
             Some(("kotlin", _)) => "kotlin",
             Some(("scala", _)) => "scala",
+            Some(("vue", _)) => "ts",
             _ => "text",
         };
         text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));
@@ -367,17 +375,47 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
             }
         }
     }
-    let members: Vec<String> = known
+    let members: Vec<&str> = known
         .iter()
+        .copied()
         .filter(|id| {
             id.strip_prefix(symbol.id.as_str())
                 .and_then(|rest| rest.strip_prefix('.'))
                 .is_some_and(|rest| !rest.contains('.'))
         })
-        .map(|id| link(&from, id, known, titles))
         .collect();
     if page.canonical.is_none() && !members.is_empty() {
-        text.push_str(&format!("Members: {}\n\n", members.join(", ")));
+        let links = |ids: &[&str]| {
+            ids.iter()
+                .map(|id| link(&from, id, known, titles))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        if symbol.kind == SymbolKind::Component as i32 {
+            let groups: [(&str, &[SymbolKind]); 4] = [
+                ("Props", &[SymbolKind::Property]),
+                ("Events", &[SymbolKind::Event]),
+                ("Slots", &[SymbolKind::Slot]),
+                ("Exposed", &[SymbolKind::Method, SymbolKind::Field]),
+            ];
+            for (label, kinds) in groups {
+                let ids: Vec<&str> = members
+                    .iter()
+                    .copied()
+                    .filter(|id| {
+                        titles
+                            .kinds
+                            .get(id)
+                            .is_some_and(|kind| kinds.iter().any(|k| *k as i32 == *kind))
+                    })
+                    .collect();
+                if !ids.is_empty() {
+                    text.push_str(&format!("{label}: {}\n\n", links(&ids)));
+                }
+            }
+        } else {
+            text.push_str(&format!("Members: {}\n\n", links(&members)));
+        }
     }
     text.trim_end().to_string() + "\n"
 }

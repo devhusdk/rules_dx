@@ -74,6 +74,10 @@ pub enum Error {
     UnsafeDisplayName {
         id: String,
     },
+    OrphanMember {
+        id: String,
+        parent: String,
+    },
 }
 
 pub fn source_path_reason(file: &str) -> Option<&'static str> {
@@ -107,6 +111,44 @@ pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
             }
         }
         previous_id = Some(&symbol.id);
+    }
+    validate_component_members(shard)
+}
+
+fn validate_component_members(shard: &DocIr) -> Result<(), Error> {
+    let kind_of = |id: &str| {
+        shard
+            .symbols
+            .iter()
+            .find(|symbol| symbol.id == id)
+            .map(|symbol| symbol.kind)
+    };
+    for symbol in &shard.symbols {
+        let parents: &[String] = symbol
+            .relations
+            .as_ref()
+            .map_or(&[], |relations| relations.member_of.as_slice());
+        if symbol.kind == proto::SymbolKind::Component as i32 {
+            if let Some(parent) = parents.first() {
+                return Err(Error::OrphanMember {
+                    id: symbol.id.clone(),
+                    parent: parent.clone(),
+                });
+            }
+        } else if symbol.kind == proto::SymbolKind::Event as i32
+            || symbol.kind == proto::SymbolKind::Slot as i32
+        {
+            let component = proto::SymbolKind::Component as i32;
+            match parents {
+                [parent] if kind_of(parent) == Some(component) => {}
+                _ => {
+                    return Err(Error::OrphanMember {
+                        id: symbol.id.clone(),
+                        parent: parents.join(","),
+                    });
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -470,6 +512,70 @@ mod tests {
             decode_shard(&raw),
             Err(Error::UnsortedSymbols {
                 id: "python:mylib:AccountService.create".to_owned(),
+            })
+        );
+    }
+
+    fn component_shard() -> DocIr {
+        let mut shard = example_shard();
+        let make = |id: &str, kind: SymbolKind, parent: Option<&str>| Symbol {
+            id: format!("vue:mylib:{id}"),
+            kind: kind as i32,
+            relations: parent.map(|parent| Relations {
+                member_of: vec![format!("vue:mylib:{parent}")],
+                ..Relations::default()
+            }),
+            ..Symbol::default()
+        };
+        shard.language = "vue".to_owned();
+        shard.symbols = vec![
+            make("Button", SymbolKind::Component, None),
+            make("Button.event_click", SymbolKind::Event, Some("Button")),
+            make("Button.exposed_focus", SymbolKind::Method, Some("Button")),
+            make("Button.prop_label", SymbolKind::Property, Some("Button")),
+            make("Button.slot_default", SymbolKind::Slot, Some("Button")),
+        ];
+        shard
+    }
+
+    #[test]
+    fn a_component_with_all_member_kinds_validates() {
+        let shard = component_shard();
+        let bytes = encode_shard(&shard).unwrap();
+        assert_eq!(decode_shard(&bytes).unwrap(), shard);
+    }
+
+    #[test]
+    fn events_and_slots_need_a_component_parent() {
+        let mut orphan = component_shard();
+        orphan.symbols[1].relations = None;
+        assert_eq!(
+            encode_shard(&orphan),
+            Err(Error::OrphanMember {
+                id: "vue:mylib:Button.event_click".to_owned(),
+                parent: String::new(),
+            })
+        );
+        let mut wrong = component_shard();
+        wrong.symbols[0].kind = SymbolKind::Class as i32;
+        assert!(matches!(
+            encode_shard(&wrong),
+            Err(Error::OrphanMember { .. })
+        ));
+    }
+
+    #[test]
+    fn a_component_cannot_be_a_member() {
+        let mut shard = component_shard();
+        shard.symbols[0].relations = Some(Relations {
+            member_of: vec!["vue:mylib:Other".to_owned()],
+            ..Relations::default()
+        });
+        assert_eq!(
+            encode_shard(&shard),
+            Err(Error::OrphanMember {
+                id: "vue:mylib:Button".to_owned(),
+                parent: "vue:mylib:Other".to_owned(),
             })
         );
     }

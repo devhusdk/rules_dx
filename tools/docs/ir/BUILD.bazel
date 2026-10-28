@@ -5,10 +5,13 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
-exports_files([
-    "doc_ir.proto",
-    "shard.bzl",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "doc_ir.proto",
+        "shard.bzl",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 proto_library(
     name = "doc_ir_proto",

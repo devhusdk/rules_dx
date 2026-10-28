@@ -1,29 +1,220 @@
-diff -ruN a/ruby/private/download.bzl b/ruby/private/download.bzl
+diff --git a/ruby/private/bundle_install.bzl b/ruby/private/bundle_install.bzl
+index 121b0740..ea8e1c73 100644
+--- a/ruby/private/bundle_install.bzl
++++ b/ruby/private/bundle_install.bzl
+@@ -7,6 +7,7 @@ load(
+     _convert_env_to_script = "convert_env_to_script",
+     _is_windows = "is_windows",
+     _normalize_path = "normalize_path",
++    _resolve_bundle_build_env = "resolve_bundle_build_env",
+     _to_rlocation_path = "to_rlocation_path",
+ )
+ 
+@@ -64,6 +65,8 @@ def _rb_bundle_install_impl(ctx):
+ 
+     env = {}
+     env.update(toolchain.env)
++    if not _is_windows(ctx):
++        env.update(_resolve_bundle_build_env(toolchain.ruby.path, getattr(toolchain, "bundle_build_env", {})))
+     env.update(attr_env)
+ 
+     bundler_env = {}
+diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
+index b6843a1a..c9ff0009 100644
 --- a/ruby/private/download.bzl
 +++ b/ruby/private/download.bzl
-@@ -187,14 +187,6 @@
-             repository_ctx.attr.portable_ruby_checksums,
-         )
+@@ -137,6 +137,7 @@ def _rb_download_impl(repository_ctx):
  
--        # Portable Ruby may ship with libyaml and openssl which are needed to compile the
--        # psych and openssl gems respectively when built with --incompatible_strict_action_env).
+     engine = "ruby"
+     env = {}
++    bundle_build_env = {}
+     ruby_binary_name = "ruby"
+     gem_binary_name = "gem"
+ 
+@@ -189,12 +190,12 @@ def _rb_download_impl(repository_ctx):
+ 
+         # Portable Ruby may ship with libyaml and openssl which are needed to compile the
+         # psych and openssl gems respectively when built with --incompatible_strict_action_env).
 -        # TODO: This won't work on RBE.
 -        dist_dir = str(repository_ctx.path("dist"))
 -        if repository_ctx.path("dist/include/yaml.h").exists:
 -            env.update({"BUNDLE_BUILD__PSYCH": "--with-libyaml-dir=" + dist_dir})
 -        if repository_ctx.path("dist/include/openssl").exists:
 -            env.update({"BUNDLE_BUILD__OPENSSL": "--with-openssl-dir=" + dist_dir})
++        # The paths are relative to this repository and are made absolute when the action
++        # runs (see `resolve_bundle_build_env`), so the repository has no absolute paths.
++        bundle_build_env = portable_ruby_bundle_build_env(
++            has_libyaml = repository_ctx.path("dist/include/yaml.h").exists,
++            has_openssl = repository_ctx.path("dist/include/openssl").exists,
++        )
      else:
          _install_via_ruby_build(repository_ctx, version)
  
-@@ -229,6 +221,10 @@
+@@ -216,6 +217,7 @@ def _rb_download_impl(repository_ctx):
+             "{ruby_binary_name}": ruby_binary_name,
+             "{gem_binary_name}": gem_binary_name,
+             "{env}": repr(env),
++            "{bundle_build_env}": repr(bundle_build_env),
+             "{includes}": repr(includes),
+         },
+     )
+@@ -229,6 +231,58 @@ def _rb_download_impl(repository_ctx):
          },
      )
  
-+    if repository_ctx.attr.portable_ruby and not is_windows_target and version != "system" and not version.startswith(("jruby", "truffleruby")):
++    # Bazel 8.3+ can reuse the repository from the repository cache when it is
++    # marked reproducible. Only do that when nothing host-specific was written.
++    if hasattr(repository_ctx, "repo_metadata") and is_reproducible(
++        version = version,
++        portable_ruby = repository_ctx.attr.portable_ruby,
++        is_windows_target = is_windows_target,
++    ):
 +        return repository_ctx.repo_metadata(reproducible = True)
 +    return None
++
++def portable_ruby_bundle_build_env(has_libyaml, has_openssl):
++    """Returns Bundler build options for libraries shipped with portable Ruby.
++
++    Values are `<flag>=<path relative to the repository root>`. Rules that
++    compile native extensions turn the path into an absolute one at action time
++    with `resolve_bundle_build_env`.
++
++    Args:
++        has_libyaml: whether `dist/` ships libyaml headers
++        has_openssl: whether `dist/` ships openssl headers
++
++    Returns:
++        dict of environment variable name to relative value
++    """
++    env = {}
++    if has_libyaml:
++        env["BUNDLE_BUILD__PSYCH"] = "--with-libyaml-dir=dist"
++    if has_openssl:
++        env["BUNDLE_BUILD__OPENSSL"] = "--with-openssl-dir=dist"
++    return env
++
++def is_reproducible(version, portable_ruby, is_windows_target):
++    """Returns whether the downloaded Ruby repository is reproducible.
++
++    Only portable Ruby is: it is a checksummed archive and writes no absolute
++    paths. System Ruby depends on the host, TruffleRuby records Homebrew
++    prefixes, and JRuby, Windows and ruby-build installs are not covered.
++
++    Args:
++        version: Ruby version string
++        portable_ruby: value of the `portable_ruby` attribute
++        is_windows_target: whether the repository targets Windows
++
++    Returns:
++        bool
++    """
++    if not portable_ruby or is_windows_target:
++        return False
++    if version == "system" or version.startswith("jruby") or version.startswith("truffleruby"):
++        return False
++    return True
 +
  def _read_version_from_file(repository_ctx):
      version = repository_ctx.read(repository_ctx.attr.version_file).strip("\r\n")
      if repository_ctx.attr.version_file.name == ".tool-versions":
+diff --git a/ruby/private/download/BUILD.tpl b/ruby/private/download/BUILD.tpl
+index 14939ef0..6c952192 100644
+--- a/ruby/private/download/BUILD.tpl
++++ b/ruby/private/download/BUILD.tpl
+@@ -73,6 +73,7 @@ rb_toolchain(
+         "@platforms//os:windows": "dist/bin/bundle.cmd",
+         "//conditions:default": "dist/bin/bundle",
+     }),
++    bundle_build_env = {bundle_build_env},
+     env = {env},
+     files = [":files"],
+     gem = select({
+diff --git a/ruby/private/gem_install.bzl b/ruby/private/gem_install.bzl
+index 25376dfa..65b7121f 100644
+--- a/ruby/private/gem_install.bzl
++++ b/ruby/private/gem_install.bzl
+@@ -6,6 +6,7 @@ load(
+     _convert_env_to_script = "convert_env_to_script",
+     _is_windows = "is_windows",
+     _normalize_path = "normalize_path",
++    _resolve_bundle_build_env = "resolve_bundle_build_env",
+ )
+ 
+ def _rb_gem_install_impl(ctx):
+@@ -17,6 +18,8 @@ def _rb_gem_install_impl(ctx):
+ 
+     env = {}
+     env.update(toolchain.env)
++    if not _is_windows(ctx):
++        env.update(_resolve_bundle_build_env(toolchain.ruby.path, getattr(toolchain, "bundle_build_env", {})))
+ 
+     tools = []
+     tools.extend(toolchain.files)
+diff --git a/ruby/private/utils.bzl b/ruby/private/utils.bzl
+index f10b2abf..ed58c75e 100644
+--- a/ruby/private/utils.bzl
++++ b/ruby/private/utils.bzl
+@@ -107,6 +107,35 @@ def convert_env_to_script(ctx, env):
+ 
+     return newline.join(environment)
+ 
++def resolve_bundle_build_env(ruby_path, bundle_build_env):
++    """Makes the relative paths in `bundle_build_env` absolute at action time.
++
++    Each value has the form `<flag>=<path>`, with `<path>` relative to the
++    toolchain root: the directory two levels above the `ruby` binary
++    (`<root>/dist/bin/ruby`). The result is a shell value that prefixes the
++    path with `$PWD`, the execroot when the action starts. Paths are resolved on
++    the machine that runs the action, so this also works with remote execution.
++
++    Only for shell scripts. Windows toolchains never set `bundle_build_env`.
++
++    Args:
++        ruby_path: exec path of the toolchain `ruby` binary
++        bundle_build_env: dict of environment variable name to relative value
++
++    Returns:
++        dict of environment variable name to a quoted shell value
++    """
++    root = ruby_path.rpartition("/")[0].rpartition("/")[0].rpartition("/")[0]
++    resolved = {}
++    for name, value in bundle_build_env.items():
++        flag, sep, path = value.partition("=")
++        if not sep:
++            fail("invalid bundle_build_env value for %s: %r (expected <flag>=<path>)" % (name, value))
++        if root:
++            path = root + "/" + path
++        resolved[name] = '"%s=$PWD/%s"' % (flag, path)
++    return resolved
++
+ def normalize_path(ctx, path):
+     """Converts path to an OS-specific equivalent.
+ 
+diff --git a/ruby/toolchain.bzl b/ruby/toolchain.bzl
+index b6aca6e2..a9d21fac 100644
+--- a/ruby/toolchain.bzl
++++ b/ruby/toolchain.bzl
+@@ -7,6 +7,7 @@ def _rb_toolchain_impl(ctx):
+         gem = ctx.executable.gem,
+         version = ctx.attr.version,
+         env = ctx.attr.env,
++        bundle_build_env = ctx.attr.bundle_build_env,
+         files = ctx.files.files,
+     )
+ 
+@@ -37,6 +38,15 @@ rb_toolchain = rule(
+         "env": attr.string_dict(
+             doc = "Environment variables required by an interpreter",
+         ),
++        "bundle_build_env": attr.string_dict(
++            doc = """
++Bundler build options (`BUNDLE_BUILD__<GEM>`) used when compiling native extensions.
++Values have the form `<flag>=<path>`, where `<path>` is relative to the directory
++two levels above `ruby` (the toolchain repository root for downloaded Rubies).
++`rb_bundle_install` and `rb_gem_install` make the path absolute when the action
++runs, so no absolute path is stored in the toolchain.
++""",
++        ),
+         "files": attr.label_list(
+             allow_files = True,
+             doc = "All files necessary for toolchain",

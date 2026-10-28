@@ -4,10 +4,14 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
-exports_files([
-    "seed-inventory.txt",
-    "src/main.rs",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "cells.txt",
+        "seed-inventory.txt",
+        "src/main.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 real_source_target(
     name = "corpus_starlark",

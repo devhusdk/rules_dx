@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS)
@@ -953,5 +953,33 @@ rustfmt_test(
         ":workflow_expressions_test",
         ":workflow_permissions_test",
         ":workflow_pins_test",
+    ],
+)
+
+# keep
+rust_library(
+    name = "coverage_cells",
+    srcs = ["coverage_cells.rs"],
+    crate_name = "coverage_cells",
+    deps = ["@crates//:serde_json"],
+)
+
+# keep
+rust_binary(
+    name = "coverage_cells_bin",
+    srcs = ["coverage_cells_main.rs"],
+    deps = [":coverage_cells"],
+)
+
+# keep
+rust_test(
+    name = "coverage_cells_test",
+    size = "small",
+    srcs = ["coverage_cells_test.rs"],
+    data = ["//tools/coverage:cells.txt"],
+    deps = [
+        ":coverage_cells",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )

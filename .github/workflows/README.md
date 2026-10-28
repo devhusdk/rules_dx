@@ -8,7 +8,7 @@
 - `issue-labels.yml`: daily warning for open issues older than one day that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
 - `floor.yml`: nightly and dispatched floor check (#3747). Resolves a `dx init` consumer with `//modules:floor_graph_test` and fails when a consumer dep is off its floor. The `tested` leg resolves every dep at its tested version; dispatch with `overrides` tries candidate floors. Not part of the `ci` gate; the same test runs per PR in the `network` job.
 - `evidence.yml`: native evidence on hosted runners, dispatched per run. The `evidence-<platform>` artifact holds `evidence.log` and each test's log, XML and undeclared outputs.
-- `first-build.yml`: cold `dx new` then `dx test` timings for every language, one hosted runner each, weekly and on dispatch. It still runs the removed `dx new` and is retargeted in a follow-up. The `first-build-report` artifact holds the merged `first-build.json` and the rendered `first-build.md`; the report job fails when a median total is over its ceiling.
+- `first-build.yml`: cold `dx init`, hello-world fixture copy, then `dx test` timings for every language with a fixture, one hosted runner each, weekly and on dispatch. The `first-build-report` artifact holds the merged `first-build.json` and the rendered `first-build.md`; the report job fails when a median total is over its ceiling.
 - `android.yml`: runs the Rust Android APK on a hosted x86_64 emulator, dispatched per run.
 - `apple.yml`: Apple toolchain tests on a hosted macOS runner.
 - `bump.yml`: `widen-one-requirement loop` for one dependency per run.

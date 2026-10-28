@@ -23,7 +23,7 @@ def doc(*totals):
         rows.append(
             dict(
                 name=f"lang{index}",
-                new_s=None if total is None else 10,
+                init_s=None if total is None else 10,
                 test_s=None if total is None else total - 10,
                 total_s=total,
                 download_mb=None,
@@ -37,7 +37,7 @@ def doc(*totals):
             )
         )
     return {
-        "schema": 1,
+        "schema": 2,
         "runner": "Linux x86_64",
         "bazel_version": "9.2.0",
         "excludes": "x.",
@@ -61,7 +61,7 @@ def test_ceiling_rounds_up_to_the_minute():
 def part(name, total, **extra):
     return dict(
         name=name,
-        new_s=5,
+        init_s=5,
         test_s=total - 5,
         total_s=total,
         download_mb=1,
@@ -96,12 +96,41 @@ def test_select_rejects_unknown_language():
     assert first_build.select(doc(None, None), ["lang1"]) == ["lang1"]
 
 
+def test_select_leaves_out_skipped_and_rejects_naming_one():
+    data = doc(None, None)
+    data["languages"][0]["skipped"] = "no fixture"
+    assert first_build.select(data, []) == ["lang1"]
+    with pytest.raises(ValueError, match="lang0 is skipped: no fixture"):
+        first_build.select(data, ["lang0"])
+    data["languages"][1]["skipped"] = "x"
+    with pytest.raises(ValueError, match="no languages"):
+        first_build.select(data, [])
+
+
+def test_merge_keeps_a_fixed_skipped():
+    old = doc(None)
+    old["languages"][0]["skipped"] = "no fixture"
+    merged = first_build.merge(old, [part("lang0", 100)], "d")
+    assert merged["languages"][0]["skipped"] == "no fixture"
+
+
+def test_json_rows_match_fixture_directories():
+    data = first_build.load(ROOT / "docs" / "first-build.json")
+    base = ROOT / first_build.FIXTURES_REL
+    dirs = {p.name for p in base.iterdir() if p.is_dir()}
+    assert dirs <= set(first_build.names(data))
+    for row in data["languages"]:
+        path = base / row["name"]
+        has = path.is_dir() and any(path.rglob("*.fixture"))
+        assert has != bool(row.get("skipped")), row["name"]
+
+
 def test_check_names_the_breach():
     data = doc(300, 100)
     data["languages"][0]["ceiling_s"] = 200
     over, unset = first_build.breaches(data)
     assert over == [
-        "first-build: lang0 total 300s over ceiling 200s (new 10s, test 290s)"
+        "first-build: lang0 total 300s over ceiling 200s (init 10s, test 290s)"
     ]
     assert unset == ["lang1"]
 
@@ -132,6 +161,10 @@ def fake_tools(tmp_path):
     (rules / "tools" / "bazelrc").mkdir(parents=True)
     for layer in first_build.PRESET_LAYERS:
         (rules / "tools" / "bazelrc" / f"{layer}.bazelrc").write_text("build --x\n")
+    fixture = rules / first_build.FIXTURES_REL / "lang0"
+    (fixture / "sub").mkdir(parents=True)
+    for name in ("BUILD.bazel", "MODULE.bazel", ".bazelrc", "sub/x.txt"):
+        (fixture / (name + ".fixture")).write_text(f"fixture {name}\n")
     scratch = tmp_path / "scratch"
     scratch.mkdir()
     return bin_dir, rules, scratch
@@ -187,6 +220,71 @@ def test_missing_notice_means_not_cold(tmp_path, monkeypatch):
         run_fake(tmp_path, monkeypatch, FAKE_DX_COLD="0", FAKE_DX_SLEEP="0")
 
 
+def test_measure_run_calls_init_never_new(tmp_path, monkeypatch):
+    log = tmp_path / "dx.log"
+    run_fake(tmp_path, monkeypatch, FAKE_DX_SLEEP="0", FAKE_DX_LOG=str(log))
+    lines = log.read_text().splitlines()
+    assert len(lines) == 1
+    assert lines[0].startswith("init --apply demo-app --workspace ")
+    assert "new" not in lines[0].split()
+
+
+def test_missing_fixture_dir_is_an_error(tmp_path, monkeypatch):
+    bin_dir, rules, scratch = fake_tools(tmp_path)
+    shutil.rmtree(rules / first_build.FIXTURES_REL)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    with pytest.raises(first_build.MeasureError, match="no fixture at"):
+        first_build.measure_run(
+            "lang0", str(bin_dir / "dx"), rules, False, "checkout", str(scratch)
+        )
+
+
+def test_stage_fixture_strips_suffix_and_appends(tmp_path):
+    src = tmp_path / "src"
+    (src / "a" / "b").mkdir(parents=True)
+    (src / "a" / "b" / "f.txt.fixture").write_text("deep")
+    (src / "BUILD.bazel.fixture").write_text("build")
+    (src / "MODULE.bazel.fixture").write_text("frag\n")
+    (src / ".bazelrc.fixture").write_text("rc\n")
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    (dest / "MODULE.bazel").write_text("init")
+    (dest / "BUILD.bazel").write_text("old")
+    first_build.stage_fixture(src, dest)
+    assert (dest / "a" / "b" / "f.txt").read_text() == "deep"
+    assert (dest / "BUILD.bazel").read_text() == "build"
+    assert (dest / "MODULE.bazel").read_text() == "init\n\nfrag\n"
+    assert (dest / ".bazelrc").read_text() == "\nrc\n"
+
+
+def test_stage_fixture_rejects_unsuffixed_file(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "BUILD.bazel").write_text("x")
+    with pytest.raises(first_build.MeasureError, match="lacks the .fixture suffix"):
+        first_build.stage_fixture(src, tmp_path)
+
+
+def test_override_and_presets_follow_the_fixture_fragments(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "MODULE.bazel.fixture").write_text("frag\n")
+    (src / ".bazelrc.fixture").write_text("fixturerc\n")
+    rules = tmp_path / "rules"
+    (rules / "tools" / "bazelrc").mkdir(parents=True)
+    for layer in first_build.PRESET_LAYERS:
+        (rules / "tools" / "bazelrc" / f"{layer}.bazelrc").write_text("build --x\n")
+    demo = tmp_path / "demo"
+    demo.mkdir()
+    (demo / "MODULE.bazel").write_text("init\n")
+    first_build.stage_fixture(src, demo)
+    first_build.point_at_checkout(demo, rules)
+    module = (demo / "MODULE.bazel").read_text()
+    assert module.index("frag") < module.index("local_path_override")
+    rc = (demo / ".bazelrc").read_text()
+    assert rc.index("fixturerc") < rc.index("build --x")
+
+
 def test_launcher_source_is_refused(tmp_path):
     with pytest.raises(first_build.MeasureError, match="not implemented"):
         first_build.measure_run(
@@ -197,7 +295,7 @@ def test_launcher_source_is_refused(tmp_path):
 def test_summarize_takes_medians():
     runs = [
         dict(
-            new_s=1,
+            init_s=1,
             test_s=9,
             total_s=10,
             download_mb=5,
@@ -209,7 +307,7 @@ def test_summarize_takes_medians():
             dx_version="v",
         ),
         dict(
-            new_s=1,
+            init_s=1,
             test_s=29,
             total_s=30,
             download_mb=5,
@@ -221,7 +319,7 @@ def test_summarize_takes_medians():
             dx_version="v",
         ),
         dict(
-            new_s=1,
+            init_s=1,
             test_s=19,
             total_s=20,
             download_mb=5,
@@ -240,9 +338,13 @@ def test_summarize_takes_medians():
 
 
 def test_matrix_prints_json(capsys):
-    assert first_build.main(["matrix", "--languages", "rust,go"]) == 0
-    assert json.loads(capsys.readouterr().out) == {"language": ["rust", "go"]}
+    assert first_build.main(["matrix", "--languages", "c,zig"]) == 0
+    assert json.loads(capsys.readouterr().out) == {"language": ["c", "zig"]}
     assert first_build.main(["matrix", "--languages", "nope"]) == 1
+    assert first_build.main(["matrix", "--languages", "rust"]) == 1
+    assert first_build.main(["matrix"]) == 0
+    languages = json.loads(capsys.readouterr().out)["language"]
+    assert "rust" not in languages and "c" in languages
 
 
 if __name__ == "__main__":

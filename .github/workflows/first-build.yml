@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       languages:
-        description: "Comma separated dx new languages to measure. Empty measures all."
+        description: "Comma separated languages to measure (see docs/first-build.json). Empty measures all with a fixture."
         required: false
         default: ""
       runs:

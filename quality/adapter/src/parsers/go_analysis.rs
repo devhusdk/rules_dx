@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-use super::{check_output_size, known, FileFinding, ParseError};
+use super::{check_output_size, known, require_findings, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 #[derive(Debug, Deserialize)]
@@ -83,12 +83,7 @@ pub fn parse_go_analysis(
             }
         }
     }
-    if findings.is_empty() && code.is_some_and(|c| c != 0) {
-        return Err(ParseError::shape(
-            tool,
-            "nonzero exit with no diagnostics".to_owned(),
-        ));
-    }
+    require_findings(tool, &findings, code)?;
     Ok(findings)
 }
 
@@ -119,6 +114,7 @@ mod tests {
             .unwrap()
             .is_empty());
         assert!(parse_go_analysis("govet", b"", Some(1), &[]).is_err());
+        assert!(parse_go_analysis("govet", b"", None, &[]).is_err());
     }
 
     #[test]

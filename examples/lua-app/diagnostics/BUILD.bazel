@@ -1,0 +1,81 @@
+load("//lua/rules:defs.bzl", "lua_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//examples/lua-app:__subpackages__"])
+
+[
+    lua_binary(
+        name = name,
+        testonly = True,
+        main = name + ".lua",
+    )
+    for name in [
+        "missing_dep",
+        "runtime_error",
+    ]
+]
+
+rust_test(
+    name = "diagnostics_test",
+    size = "small",
+    srcs = ["diagnostics_test.rs"],
+    data = [
+        "syntax_error.lua",
+        "unformatted.lua",
+        ":missing_dep",
+        ":runtime_error",
+        "//examples/lua-app/catalog:catalog_test.lua",
+        "//examples/lua-app/catalog:init.lua",
+        "//examples/lua-app/catalog:parse.lua",
+        "//examples/lua-app/cli:main.lua",
+        "//examples/lua-app/report:init.lua",
+        "//examples/lua-app/report:report_test.lua",
+        "@dx_tools//:stylua",
+        "@lua//:bin/luac",
+    ],
+    env = {
+        "LUAC": "$(rootpath @lua//:bin/luac)",
+        "MISSING_DEP": "$(rlocationpath :missing_dep)",
+        "RUNTIME_ERROR": "$(rlocationpath :runtime_error)",
+        "STYLUA": "$(rootpath @dx_tools//:stylua)",
+        "STYLUA_CLEAN": " ".join([
+            "$(rootpath //examples/lua-app/catalog:catalog_test.lua)",
+            "$(rootpath //examples/lua-app/catalog:init.lua)",
+            "$(rootpath //examples/lua-app/catalog:parse.lua)",
+            "$(rootpath //examples/lua-app/cli:main.lua)",
+            "$(rootpath //examples/lua-app/report:init.lua)",
+            "$(rootpath //examples/lua-app/report:report_test.lua)",
+        ]),
+        "SYNTAX_ERROR": "$(rootpath syntax_error.lua)",
+        "UNFORMATTED": "$(rootpath unformatted.lua)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//examples:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
+)
+
+rustfmt_test(
+    name = "diagnostics_fmt_test",
+    size = "small",
+    targets = [":diagnostics_test"],
+)
+
+rust_clippy_test(
+    name = "diagnostics_clippy_test",
+    size = "small",
+    targets = [":diagnostics_test"],
+)

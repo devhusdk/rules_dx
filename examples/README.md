@@ -50,6 +50,7 @@ For the rule and aspect attributes these examples use, see the
 - [haskell-app](haskell-app/) Haskell stock tool with a pinned Hackage `split` dependency, a generated module, a C foreign call and a string flag.
 - [java-app](java-app/) multi-package Java invoice CLI with pinned `gson` and `guava` dependencies, a generated class and a packaged resource.
 - [kotlin-app](kotlin-app/) multi-package Kotlin gradebook CLI with pinned `gson` and `guava` dependencies, a generated object and a packaged resource.
+- [lua-app](lua-app/) multi-package Lua unit-stock CLI on Lua 5.4 built from source, with a pinned `inspect.lua` dependency, runfiles data and StyLua checks.
 - [msix-app](msix-app/) Windows console app with a DLL and a packaged resource, built as an MSIX, installed and signed in tests.
 - [node-app](node-app/) multi-package TypeScript and JavaScript registry CLI with a pinned `semver` dependency, a generated module and a packaged resource.
 - [perl-app](perl-app/) multi-package Perl stock CLI with a typed ledger, a runfiles CSV table, a pinned `Text::CSV` CPAN dependency and a `select()` flag.

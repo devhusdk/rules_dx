@@ -9,6 +9,7 @@ go_library(
     srcs = [
         "doc.go",
         "lang.go",
+        "legacy.go",
         "naming.go",
         "parser.go",
         "stdlib.go",
@@ -17,6 +18,9 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/powershell",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//resolve",
@@ -48,6 +52,7 @@ go_test(
     pure = "on",
     deps = [
         "//gazelle/common",
+        "//gazelle/common/treesitter",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//resolve",

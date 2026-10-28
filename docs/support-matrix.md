@@ -68,7 +68,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Name | Lint | Format | Typecheck |
 | --- | --- | --- | --- |
 | Astro | `eslint` | `prettier` | no |
-| C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | no |
+| C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` |
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | `csc` on `linux_x86_64` |
 | CUDA | no | `clang_format` | no |
 | D | `dscanner` | `dfmt` | no |
@@ -97,7 +97,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | TypeScript | `biome` | `biome`, `prettier` | no |
 | Vue | `eslint` | `prettier` | no |
 | Zig | no | `zig_fmt` | no |
-| Apple | no | `clang_format` | no |
+| Apple | no | `clang_format` | `clang_syntax` |
 | CMake | no | `gersemi` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | n/a |

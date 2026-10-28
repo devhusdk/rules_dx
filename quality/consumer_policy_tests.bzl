@@ -4,6 +4,7 @@ load(
     "//quality:real_aspects.bzl",
     "real_cc_format_aspect",
     "real_cc_lint_aspect",
+    "real_cc_typecheck_aspect",
     "real_cue_format_aspect",
     "real_dockerfile_lint_aspect",
     "real_make_lint_aspect",
@@ -71,6 +72,7 @@ _policy_transition = transition(
 _ASPECTS = [
     real_cc_format_aspect,
     real_cc_lint_aspect,
+    real_cc_typecheck_aspect,
     real_cue_format_aspect,
     real_jsonnet_format_aspect,
     real_fortran_lint_aspect,

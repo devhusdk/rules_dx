@@ -1,0 +1,59 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":report.bzl", "clang_syntax_report")
+
+cc_library(
+    name = "dep",
+    srcs = [],
+    hdrs = ["dep.h"],
+    includes = ["."],
+)
+
+cc_library(
+    name = "clean",
+    srcs = ["clean.c"],
+    copts = ["-DCLEAN_OFFSET=1"],
+    deps = [":dep"],
+)
+
+cc_library(
+    name = "dirty",
+    srcs = ["dirty.c"],
+    copts = ["-DCLEAN_OFFSET=1"],
+    tags = ["manual"],
+    deps = [":dep"],
+)
+
+clang_syntax_report(
+    name = "clean_report",
+    target = ":clean",
+)
+
+clang_syntax_report(
+    name = "dirty_report",
+    target = ":dirty",
+)
+
+# The include path and the -D come from the target's own compile action, so the
+# clean source passes only when the replay carries the real context.
+sh_test(
+    name = "clean_test",
+    srcs = ["check.sh"],
+    args = [
+        "0",
+        "-",
+        "$(rootpaths :clean_report)",
+    ],
+    data = [":clean_report"],
+)
+
+sh_test(
+    name = "dirty_test",
+    srcs = ["check.sh"],
+    args = [
+        "1",
+        "dirty.c:3:",
+        "$(rootpaths :dirty_report)",
+    ],
+    data = [":dirty_report"],
+)

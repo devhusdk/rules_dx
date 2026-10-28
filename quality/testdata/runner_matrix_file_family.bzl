@@ -560,6 +560,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_format_fail",
@@ -575,6 +576,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_format_syntax_error",
@@ -590,6 +592,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_format_module",
@@ -608,6 +611,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_format_module_syntax_error",
@@ -624,6 +628,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_lint_pass",
@@ -639,6 +644,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_lint_fail",
@@ -654,6 +660,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_lint_syntax_error",
@@ -669,6 +676,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_lint_module",
@@ -685,6 +693,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_terraform_lint_config",
@@ -704,6 +713,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_yaml_format_pass",
@@ -718,6 +728,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_yaml_format_fail",
@@ -732,6 +743,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_yaml_format_syntax_error",
@@ -746,6 +758,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_shell_format_pass",
@@ -1213,6 +1226,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_yaml_lint_fail",
@@ -1228,6 +1242,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_yaml_lint_syntax_error",
@@ -1243,6 +1258,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_shell_lint_pass",

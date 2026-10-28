@@ -303,6 +303,7 @@ MARKUP_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_prettier_config_sql_dialect_fail",

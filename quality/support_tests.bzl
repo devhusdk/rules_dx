@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms")
 load(":real_aspects.bzl", "real_wired_capabilities")
@@ -19,6 +20,22 @@ def _artifact_platforms():
     for artifact in TOOL_ARTIFACTS:
         by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return by_tool
+
+def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS):
+    """Returns claimed platforms with no artifact: no native pin and no inventoried emulated fallback.
+
+    A fallback only supplies an artifact for tools listed in the emulated inventory; it is never
+    evidence for the claim (see unproven_claims).
+    """
+    missing = []
+    for platform in claimed:
+        if platform in pinned:
+            continue
+        target = fallbacks.get(platform)
+        if target in pinned and tool in emulated.get(platform, []):
+            continue
+        missing.append(platform)
+    return missing
 
 # Claims (tool:capability:family:platform) that a support record makes today without a runner-matrix
 # case that runs on that platform. The list can only shrink: an unproven claim missing from it fails,
@@ -106,6 +123,26 @@ def _evidence_checks():
     record = {"capability": "format", "classes": ["yaml"], "family": "yaml", "platforms": ["linux_x86_64", "macos_arm64"], "tool": "yamlfmt"}
     case = {"capability": "format", "stages": ["yamlfmt;yaml;matrix/a.yaml"], "tool_names": ["yamlfmt"]}
     return [
+        expect_equal(
+            "emulated tool claiming windows_arm64 passes the pin check",
+            unpinned_platforms("tflint", ["windows_x86_64", "windows_arm64"], ["windows_x86_64"], {"windows_arm64": "windows_x86_64"}, {"windows_arm64": ["tflint"]}),
+            [],
+        ),
+        expect_equal(
+            "tool outside the emulated inventory fails the pin check",
+            unpinned_platforms("regal", ["windows_arm64"], ["windows_x86_64"], {"windows_arm64": "windows_x86_64"}, {"windows_arm64": ["tflint"]}),
+            ["windows_arm64"],
+        ),
+        expect_equal(
+            "emulated tool without a fallback pin fails the pin check",
+            unpinned_platforms("tflint", ["windows_arm64"], ["linux_x86_64"], {"windows_arm64": "windows_x86_64"}, {"windows_arm64": ["tflint"]}),
+            ["windows_arm64"],
+        ),
+        expect_equal(
+            "a windows_x86_64 flag does not prove a windows_arm64 claim",
+            unproven_claims([dict(record, platforms = ["windows_arm64"])], [dict(case, windows_x86_64 = True)]),
+            ["yamlfmt:format:yaml:windows_arm64"],
+        ),
         expect_equal(
             "matrix_case_platforms without flags is linux_x86_64",
             matrix_case_platforms({}),
@@ -205,7 +242,7 @@ def _record_checks(wired, artifact_platforms):
         if tool in artifact_platforms:
             checks.append(expect_equal(
                 label + " platforms are pinned",
-                [platform for platform in record["platforms"] if platform not in artifact_platforms[tool]],
+                unpinned_platforms(tool, record["platforms"], artifact_platforms[tool]),
                 [],
             ))
     return checks
@@ -233,22 +270,22 @@ def support_unit_tests(name):
             expect_equal(
                 "terraform format record covers four platforms",
                 TERRAFORM_FORMAT_SUPPORT["platforms"],
-                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "jupyter ruff records cover four platforms",
                 [JUPYTER_RUFF_FORMAT_SUPPORT["platforms"], JUPYTER_RUFF_LINT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]] * 2,
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
             ),
             expect_equal(
                 "jupyter notebook_outputs lint record covers four platforms",
                 JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT["platforms"],
-                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "sql xml and gherkin prettier records cover four platforms",
                 [SQL_PRETTIER_FORMAT_SUPPORT["platforms"], XML_PRETTIER_FORMAT_SUPPORT["platforms"], GHERKIN_PRETTIER_FORMAT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]] * 3,
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
             ),
             expect_equal(
                 "api_spec prettier format record covers four platforms",

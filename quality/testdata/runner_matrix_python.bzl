@@ -218,6 +218,7 @@ PYTHON_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
         "expected_file": ":matrix/matrix_jupyter_format_pass.expected.txt",
     },
     {
@@ -258,6 +259,7 @@ PYTHON_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
         "expected_file": ":matrix/matrix_jupyter_outputs_pass.expected.txt",
     },
     {

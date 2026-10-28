@@ -258,6 +258,7 @@ NATIVE_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_go_format_fail",
@@ -274,6 +275,7 @@ NATIVE_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_go_format_syntax_fail",
@@ -291,6 +293,7 @@ NATIVE_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_go_staticcheck_pass",

@@ -1,0 +1,69 @@
+load("//fsharp/rules:defs.bzl", "fsharp_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/dotnet:defs.bzl", "fsharp_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["ledger/Ledger.fs"],
+    visibility = VIS_TOOLS,
+)
+
+fsharp_library(
+    name = "ledger",
+    srcs = ["ledger/Ledger.fs"],
+    generate_documentation_file = True,
+    deps = [
+        "//tools/docs/dotnet/fixture/csharp:core",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_library(
+    name = "ledger_extra",
+    srcs = ["ledger/Ledger.fs"],
+    defines = ["DX_EXTRA"],
+    generate_documentation_file = True,
+    deps = [
+        "//tools/docs/dotnet/fixture/csharp:core",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_library(
+    name = "xmldoc_off",
+    srcs = ["ledger/Ledger.fs"],
+    generate_documentation_file = False,
+    tags = ["manual"],
+    deps = [
+        "//tools/docs/dotnet/fixture/csharp:core",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_doc_shard(
+    name = "ledger_docs",
+    library = ":ledger",
+    package = "Dx.Fixture.FsLedger",
+)
+
+fsharp_doc_shard(
+    name = "ledger_extra_docs",
+    library = ":ledger_extra",
+    package = "Dx.Fixture.FsLedger",
+)
+
+fsharp_doc_shard(
+    name = "xmldoc_off_docs",
+    library = ":xmldoc_off",
+    package = "Dx.Fixture.FsLedger",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

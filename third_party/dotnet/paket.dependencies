@@ -42,3 +42,11 @@ nuget Docfx.Dotnet 2.81.0
 nuget Microsoft.Build = 18.9.6
 nuget Microsoft.Build.Framework = 18.9.6
 nuget Microsoft.NET.StringTools = 18.9.6
+
+group docs_fsharp
+source https://api.nuget.org/v3/index.json
+framework: net10.0
+
+nuget FSharp.Compiler.Service = 43.12.204
+nuget FSharp.Core = 10.1.204
+nuget FSharp.Formatting 22.2.0

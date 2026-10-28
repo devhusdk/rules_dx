@@ -82,9 +82,9 @@ def fsharp_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over fsharp_library; srcs compile in list order, target_frameworks defaults to net10.0 and warnings are errors."""
     dx_wrap(name, _fsharp_library, _fsharp_library_forward, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 
-def fsharp_binary(name, srcs = None, visibility = None, **kwargs):
+def fsharp_binary(name, srcs = None, visibility = None, upstream_visibility = None, **kwargs):
     """Minimal wrapper over fsharp_binary; srcs is optional and compiles in list order, target_frameworks defaults to net10.0 and warnings are errors."""
-    dx_wrap_binary(name, _fsharp_binary, _fsharp_binary_forward, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
+    dx_wrap_binary(name, _fsharp_binary, _fsharp_binary_forward, srcs, visibility = visibility, upstream_visibility = upstream_visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 
 def fsharp_test(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over fsharp_test; srcs compile in list order, target_frameworks defaults to net10.0 and warnings are errors."""

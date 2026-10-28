@@ -542,6 +542,64 @@ The build fails, and writes no shard and no page, when:
 - the member list docfx read differs from the compiled reference assembly.
 - two documented symbols differ only by case.
 
-The F# group, other target frameworks and Visual Basic are not supported yet.
+Other target frameworks and Visual Basic are not supported yet.
+
+Exit codes are the same as for Java: Bazel failures keep Bazel's code.
+
+## F# API reference
+
+`fsharp_doc_shard` from `@rules_dx//tools/docs/dotnet:defs.bzl` reads one F# library's
+public API with FSharp.Formatting and produces a docs IR shard with language `fsharp`.
+The API comes from the compiled assembly and its XML documentation file; the sources
+are never run or changed. Pass the shard to `docs_site` beside other shards.
+
+```starlark
+load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_library")
+load("@rules_dx//tools/docs/dotnet:defs.bzl", "fsharp_doc_shard")
+
+fsharp_library(
+    name = "ledger",
+    srcs = ["Ledger.fs"],
+    generate_documentation_file = True,
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_doc_shard(
+    name = "ledger_docs",
+    library = ":ledger",
+    package = "Ledger",
+)
+```
+
+Attributes:
+
+- `library`: the documented `fsharp_library` from `@rules_dx//fsharp/rules:defs.bzl`. Its own `.fs` and `.fsi` `srcs` are documented; its `deps` are only references.
+- `package`: the package segment of the symbol ids. Defaults to the assembly name of `library`.
+
+Symbol ids have the form `fsharp:<package>:<Namespace.Type.Member>`. Overloads add
+`~~` and eight hex digits taken from the documentation comment id, and characters
+other than letters, digits and `_` are written as `~` and two hex digits, as for C#.
+A module that shares its name with a type is named by its compiled name, so
+`type Account` and `module Account` become `Account` and `AccountModule`.
+
+Public namespaces, modules, functions, values, records and their fields, unions and
+their cases, classes, structs, interfaces, enums, delegates, type abbreviations,
+constructors, methods and properties are documented, with the `summary`, `remarks`,
+`param`, `returns` and `example` text and the `cref` links. Private and internal
+declarations are left out. Signatures are plain F# text.
+
+The compile settings come from `library`: `defines` select the declarations behind
+`#if`, and `deps` become reference assemblies. `generate_documentation_file` must be
+`True`, which is the default of the rule; a library that turns it off fails at
+analysis. One target framework is read: the library's first.
+
+The build fails, and writes no shard and no page, when:
+
+- a source has a compile error.
+- `generate_documentation_file = False`.
+- the library has no public API.
+- the member list FSharp.Formatting read differs from the compiled assembly, for example because of an `exclude` or `omit` comment command.
+- a framework reference resolves outside the pinned toolchain.
+- two documented symbols differ only by case.
 
 Exit codes are the same as for Java: Bazel failures keep Bazel's code.

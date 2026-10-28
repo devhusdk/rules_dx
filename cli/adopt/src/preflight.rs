@@ -52,6 +52,18 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
 pub enum Kind {
     VersionRaise,
     OverrideConflict,
+    ToolchainConflict,
+}
+
+impl Kind {
+    /// Stable id for machine output.
+    pub fn id(self) -> &'static str {
+        match self {
+            Kind::VersionRaise => "version_raise",
+            Kind::OverrideConflict => "override_conflict",
+            Kind::ToolchainConflict => "toolchain_conflict",
+        }
+    }
 }
 
 /// One planned change or conflict, naming the file and line that causes it.
@@ -134,6 +146,9 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
         .findings
         .extend(version_raises(&sources, snippet_module.as_ref()));
     result.findings.extend(override_conflicts(&sources));
+    result
+        .findings
+        .extend(toolchain_conflicts(&sources, snippet_module.as_ref()));
     result
 }
 
@@ -234,12 +249,207 @@ fn override_conflicts(sources: &[Source]) -> Vec<Finding> {
     out
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Eco {
+    Rust,
+    Llvm,
+    Cc,
+    Python,
+}
+
+fn eco_of(call: &dx_module_bazel::Call) -> Option<Eco> {
+    let [Value::Str(label), Value::Str(name), ..] = call.positional.as_slice() else {
+        return None;
+    };
+    let (label, name) = (label.value.as_str(), name.value.as_str());
+    if label == "@rules_rust//rust:extensions.bzl" && name == "rust" {
+        Some(Eco::Rust)
+    } else if label.starts_with("@toolchains_llvm//") {
+        Some(Eco::Llvm)
+    } else if name == "cc_configure_extension" {
+        Some(Eco::Cc)
+    } else if label.starts_with("@rules_python//") && name == "python" {
+        Some(Eco::Python)
+    } else {
+        None
+    }
+}
+
+fn label_repo(label: &str) -> &str {
+    let rest = label.trim_start_matches('@');
+    rest.split("//").next().unwrap_or(rest)
+}
+
+/// Repos imported from a recognised extension, and the bindings by ecosystem.
+type EcoMap = Vec<(String, Eco)>;
+
+fn eco_repos(module: &ModuleFile) -> (EcoMap, EcoMap) {
+    let mut repos = Vec::new();
+    let mut bindings = Vec::new();
+    for call in module.calls_named("use_extension") {
+        let (Some(eco), Some(binding)) = (eco_of(call), call.binding.as_deref()) else {
+            continue;
+        };
+        bindings.push((binding.to_owned(), eco));
+        for (repo, _) in module.use_repos(binding) {
+            repos.push((repo.to_owned(), eco));
+        }
+    }
+    (repos, bindings)
+}
+
+fn registered_labels(module: &ModuleFile) -> Vec<(&str, usize)> {
+    let mut out = Vec::new();
+    for call in module.calls_named("register_toolchains") {
+        for value in &call.positional {
+            if let Value::Str(label) = value {
+                out.push((label.value.as_str(), call.line));
+            }
+        }
+    }
+    out
+}
+
+/// Normalised argument text of a call, without the binding name.
+fn args_text(module: &ModuleFile, call: &dx_module_bazel::Call) -> String {
+    let text = module.source().get(call.span.clone()).unwrap_or_default();
+    let args = text.find('(').map_or(text, |i| &text[i..]);
+    args.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+/// True when every `rust.toolchain` tag of the user is one the snippet also carries, so
+/// the snippet would add nothing new on the extension.
+fn rust_tags_adopted(sources: &[Source], snippet: &ModuleFile) -> bool {
+    let tags = |module: &ModuleFile| -> Vec<String> {
+        let (_, bindings) = eco_repos(module);
+        bindings
+            .iter()
+            .filter(|(_, e)| *e == Eco::Rust)
+            .flat_map(|(b, _)| {
+                let name = format!("{b}.toolchain");
+                module
+                    .calls_named(&name)
+                    .map(|c| args_text(module, c))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    };
+    let ours = tags(snippet);
+    sources
+        .iter()
+        .flat_map(|s| tags(s.module))
+        .all(|t| ours.contains(&t))
+}
+
+/// Toolchain registrations of the user that would compete with what the snippet adds.
+/// Measured against the merged module: snippet registrations the user already has are
+/// not "added", so an adopted repo shows nothing.
+fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<Finding> {
+    let mut out = Vec::new();
+    let user_labels: Vec<&str> = sources
+        .iter()
+        .flat_map(|s| registered_labels(s.module))
+        .map(|(l, _)| l)
+        .collect();
+    if let Some(snippet) = snippet {
+        let (snippet_repos, _) = eco_repos(snippet);
+        for (label, _) in registered_labels(snippet) {
+            let repo = label_repo(label);
+            let eco = snippet_repos
+                .iter()
+                .find(|(r, _)| r == repo)
+                .map(|(_, e)| *e)
+                .or_else(|| (repo == "llvm").then_some(Eco::Llvm));
+            let Some(eco) = eco else { continue };
+            if user_labels.contains(&label)
+                && (eco != Eco::Rust || rust_tags_adopted(sources, snippet))
+            {
+                continue;
+            }
+            let mut first: Option<(String, usize, String)> = None;
+            for source in sources {
+                let (repos, bindings) = eco_repos(source.module);
+                let mut hits: Vec<(usize, String)> = Vec::new();
+                if eco == Eco::Rust {
+                    for (binding, e) in &bindings {
+                        if *e == Eco::Rust {
+                            for call in source.module.calls_named(&format!("{binding}.toolchain")) {
+                                hits.push((call.line, format!("{binding}.toolchain")));
+                            }
+                        }
+                    }
+                }
+                for (user_label, line) in registered_labels(source.module) {
+                    let ours = repos
+                        .iter()
+                        .find(|(r, _)| r == label_repo(user_label))
+                        .map(|(_, e)| *e);
+                    let same = matches!(
+                        (eco, ours),
+                        (Eco::Rust, Some(Eco::Rust)) | (Eco::Llvm, Some(Eco::Llvm | Eco::Cc))
+                    );
+                    if same {
+                        hits.push((line, format!("register_toolchains(\"{user_label}\")")));
+                    }
+                }
+                if let Some((line, what)) = hits.into_iter().min_by_key(|(l, _)| *l) {
+                    first = Some((source.file.clone(), line, what));
+                    break;
+                }
+            }
+            let Some((file, line, what)) = first else {
+                continue;
+            };
+            let subject = if eco == Eco::Rust { "rust" } else { "llvm/cc" };
+            out.push(Finding {
+                kind: Kind::ToolchainConflict,
+                subject: subject.to_owned(),
+                before: format!("{what} ({file}:{line})"),
+                after: format!("register_toolchains(\"{label}\")"),
+                file,
+                line,
+                hint: format!(
+                    "Bazel prefers the first registration in the root module, so yours wins over the line dx appends, and --extra_toolchains in .bazelrc beats both; keep the bazel_dep lines and drop the snippet's {} lines",
+                    if eco == Eco::Rust {
+                        "rust.toolchain/use_repo/register_toolchains"
+                    } else {
+                        "register_toolchains"
+                    }
+                ),
+                hard: true,
+            });
+        }
+    }
+    for source in sources {
+        let (_, bindings) = eco_repos(source.module);
+        for (binding, eco) in bindings {
+            if eco != Eco::Python {
+                continue;
+            }
+            for call in source.module.calls_named(&format!("{binding}.toolchain")) {
+                out.push(Finding {
+                    kind: Kind::ToolchainConflict,
+                    subject: "python".to_owned(),
+                    before: format!("{binding}.toolchain ({}:{})", source.file, call.line),
+                    after: "rules_dx python.toolchain (as a dependency)".to_owned(),
+                    file: source.file.clone(),
+                    line: call.line,
+                    hint: "root-module toolchains win over dependency modules, so yours is used; nothing to change".to_owned(),
+                    hard: false,
+                });
+            }
+        }
+    }
+    out
+}
+
 /// The plan as text: one section per kind, `none` when empty, then the next step.
 pub fn render_plan_text(module: &str, plan: &Preflight) -> String {
     let mut out = format!("init plan: {module}\n");
     for (title, kind) in [
         ("version raises", Kind::VersionRaise),
         ("override conflicts", Kind::OverrideConflict),
+        ("toolchain conflicts", Kind::ToolchainConflict),
     ] {
         out.push_str(&format!("{title}:\n"));
         let items: Vec<&Finding> = plan.findings.iter().filter(|f| f.kind == kind).collect();
@@ -407,5 +617,114 @@ mod tests {
         );
         assert_eq!(before, after);
         assert_eq!(std::fs::read_dir(dir.path()).expect("dir").count(), 1);
+    }
+
+    fn toolchain_findings(module: &str) -> Vec<Finding> {
+        let dir = scratch(&[("MODULE.bazel", module)]);
+        preflight(dir.path(), &snippet())
+            .findings
+            .into_iter()
+            .filter(|f| f.kind == Kind::ToolchainConflict)
+            .collect()
+    }
+
+    const RUST_EXT: &str = "my = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\n";
+
+    #[test]
+    fn no_toolchains_no_findings() {
+        assert!(toolchain_findings("module(name = \"app\")\n").is_empty());
+    }
+
+    #[test]
+    fn user_rust_toolchain_tag_is_hard() {
+        let module = format!(
+            "module(name = \"app\")\n{RUST_EXT}my.toolchain(versions = [\"1.80.0\"])\nuse_repo(my, \"rust_toolchains\")\n"
+        );
+        let found = toolchain_findings(&module);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].hard);
+        assert_eq!(found[0].subject, "rust");
+        assert_eq!((found[0].file.as_str(), found[0].line), ("MODULE.bazel", 3));
+    }
+
+    #[test]
+    fn registration_of_own_rust_repo_is_hard() {
+        let module = format!(
+            "{RUST_EXT}use_repo(my, \"my_rust\")\nregister_toolchains(\"@my_rust//:all\")\n"
+        );
+        let found = toolchain_findings(&module);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].hard && found[0].before.contains("@my_rust//:all"));
+    }
+
+    #[test]
+    fn llvm_and_cc_configure_registrations_are_hard() {
+        for ext in [
+            "x = use_extension(\"@toolchains_llvm//toolchain/extensions:llvm.bzl\", \"llvm\")\n",
+            "x = use_extension(\"@bazel_tools//tools/cpp:cc_configure.bzl\", \"cc_configure_extension\")\n",
+        ] {
+            let module = format!("{ext}use_repo(x, \"cc_x\")\nregister_toolchains(\"@cc_x//:all\")\n");
+            let found = toolchain_findings(&module);
+            assert_eq!(found.len(), 1, "{found:?}");
+            assert!(found[0].hard && found[0].subject == "llvm/cc");
+            assert!(found[0].hint.contains("first registration"));
+        }
+    }
+
+    #[test]
+    fn python_toolchain_is_advisory() {
+        let module = "py = use_extension(\"@rules_python//python/extensions:python.bzl\", \"python\")\npy.toolchain(python_version = \"3.12\")\n";
+        let found = toolchain_findings(module);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(!found[0].hard && found[0].subject == "python");
+    }
+
+    #[test]
+    fn unknown_registration_is_not_flagged() {
+        assert!(toolchain_findings("register_toolchains(\"@whatever//:all\")\n").is_empty());
+    }
+
+    #[test]
+    fn conflict_in_an_included_file_names_that_file() {
+        let dir = scratch(&[
+            ("MODULE.bazel", "include(\"//:tc.MODULE.bazel\")\n"),
+            (
+                "tc.MODULE.bazel",
+                "my = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nmy.toolchain(versions = [\"1.80.0\"])\n",
+            ),
+        ]);
+        let plan = preflight(dir.path(), &snippet());
+        let f = plan
+            .findings
+            .iter()
+            .find(|f| f.kind == Kind::ToolchainConflict)
+            .expect("finding");
+        assert_eq!((f.file.as_str(), f.line), ("tc.MODULE.bazel", 2));
+    }
+
+    #[test]
+    fn canonical_rust_setup_with_other_version_is_hard() {
+        let module = format!(
+            "module(name = \"app\")\n{RUST_EXT}my.toolchain(versions = [\"1.80.0\"])\nuse_repo(my, \"rust_toolchains\")\nregister_toolchains(\"@rust_toolchains//:all\")\n"
+        );
+        let found = toolchain_findings(&module);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].hard && found[0].subject == "rust");
+    }
+
+    #[test]
+    fn adopted_repo_has_no_toolchain_findings() {
+        let module = format!("module(name = \"app\")\n{}", snippet());
+        assert!(toolchain_findings(&module).is_empty());
+    }
+
+    #[test]
+    fn toolchain_section_renders() {
+        let module = format!("{RUST_EXT}my.toolchain(versions = [\"1.80.0\"])\n");
+        let dir = scratch(&[("MODULE.bazel", &module)]);
+        let text = render_plan_text("m", &preflight(dir.path(), &snippet()));
+        assert!(text.contains("toolchain conflicts:\n  rust "), "{text}");
+        let clean = render_plan_text("m", &Preflight::default());
+        assert!(clean.contains("toolchain conflicts:\n  none\n"), "{clean}");
     }
 }

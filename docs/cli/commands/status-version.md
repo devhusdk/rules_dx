@@ -12,7 +12,7 @@ bazel run @rules_dx//:dx -- version
 dx status
 ```
 
-Reports toolchain, Bazel, module, overrides, host, exec_tools, tools, pin, and agents
+Reports toolchain, Bazel, module, overrides, init_plan, host, exec_tools, tools, pin, and agents
 health. With `--verbose` it adds one capability record per `dx` command. Takes no scopes and no
 per-command flags. Runs anywhere with a workspace. It is read-only: it
 downloads, installs, repairs, and runs nothing.
@@ -32,7 +32,7 @@ toolchain: ok (available: rust 1.98.0 via rules_rust 0.74.0 declared in MODULE.b
 
 Inside a `dx worktree` slot it adds a `lease` check that names the holder and branch.
 
-The checks are `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`,
+The checks are `toolchain`, `bazel`, `module`, `overrides`, `init_plan`, `host`, `exec_tools`,
 `tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
 Inside a worktree slot there is also `lease`.
 The `share` check appears only while build slots are held.
@@ -57,6 +57,9 @@ directory cannot be opened.
   A `single_version_override` version wins over `bazel_dep`. An override
   without a version falls back to the `bazel_dep` version. The check is `warn`
   only when neither declares a version.
+- `init_plan`: runs the read-only `dx init` plan against `MODULE.bazel` without Bazel.
+  `ok` with `none:` when no hard conflicts exist, `ok` with `not applicable:` without a
+  `MODULE.bazel` or in the rules_dx workspace, `warn` naming the hard conflicts otherwise.
 - `overrides`: compares the dx-generated `third_party/rules_dx/` files and the
   `include("//third_party/rules_dx:rules_dx.MODULE.bazel")` line with this `dx`.
   `ok` when they match, or `not applicable` in rules_dx itself or without a
@@ -96,7 +99,7 @@ directory cannot be opened.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version> --apply`.
-The `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`, `preset`, and `tools` detail text starts with
+The `toolchain`, `bazel`, `module`, `overrides`, `init_plan`, `host`, `exec_tools`, `preset`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
 

@@ -951,3 +951,18 @@ fn labeled_loader_pairs_files_with_include_labels() {
         [None, Some("//:a.MODULE.bazel"), Some("//:b.MODULE.bazel")]
     );
 }
+
+#[test]
+fn extension_bindings_and_use_repos_follow_the_binding() {
+    let module = ModuleFile::parse(
+        "rust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nuse_repo(rust, \"a\", \"b\")\nuse_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nother = use_extension(\"@x//:y.bzl\", \"z\")\nuse_repo(other, \"c\")\n",
+    )
+    .expect("parses");
+    assert_eq!(
+        module.extension_bindings("@rules_rust//rust:extensions.bzl", "rust"),
+        [("rust", 1)]
+    );
+    assert_eq!(module.use_repos("rust"), [("a", 2), ("b", 2)]);
+    assert_eq!(module.use_repos("other"), [("c", 5)]);
+    assert!(module.use_repos("missing").is_empty());
+}

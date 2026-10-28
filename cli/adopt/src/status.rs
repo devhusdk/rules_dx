@@ -421,12 +421,47 @@ fn launcher_check(root: &Path, pinned: &str) -> Option<StatusCheck> {
     })
 }
 
+/// What `dx init` would conflict with, from the declared files only; never runs Bazel.
+fn init_plan_check(root: &Path) -> StatusCheck {
+    let hint = "tools/dx init";
+    let plan = super::preflight::preflight(root, &super::render_consumer_module_setup());
+    if !plan.applicable {
+        return check(
+            "init_plan",
+            "ok",
+            "not applicable: no MODULE.bazel to plan against, or this is the rules_dx workspace"
+                .to_owned(),
+            hint,
+        );
+    }
+    let hard: Vec<String> = plan
+        .hard()
+        .map(|f| format!("{} ({}:{})", f.subject, f.file, f.line))
+        .collect();
+    if hard.is_empty() {
+        check(
+            "init_plan",
+            "ok",
+            "none: no hard conflicts with the init snippet".to_owned(),
+            hint,
+        )
+    } else {
+        check(
+            "init_plan",
+            "warn",
+            format!("{} hard conflicts: {}", hard.len(), hard.join(", ")),
+            hint,
+        )
+    }
+}
+
 pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> Vec<StatusCheck> {
     let mut checks = vec![
         toolchain_check(root),
         bazel_check(root, std::env::var_os("PATH")),
         module_check(root),
         overrides_check(root),
+        init_plan_check(root),
         host_check(std::env::consts::OS, std::env::consts::ARCH),
         exec_tools_check(root),
         preset_check(root),
@@ -440,7 +475,7 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
 #[cfg(test)]
 mod tests {
     use super::super::{render_consumer_module_setup, StatusCheck, MODULE_VERSION};
-    use super::{pin_check, render_status_text, toolchain_check};
+    use super::{init_plan_check, pin_check, render_status_text, toolchain_check};
 
     fn tools_check() -> StatusCheck {
         StatusCheck {
@@ -755,6 +790,7 @@ mod tests {
                 "bazel",
                 "module",
                 "overrides",
+                "init_plan",
                 "host",
                 "exec_tools",
                 "preset",
@@ -762,7 +798,7 @@ mod tests {
                 "pin"
             ]
         );
-        assert_eq!(checks[7], tools);
+        assert_eq!(checks[8], tools);
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -837,5 +873,36 @@ mod tests {
         let bad = super::host_check("freebsd", "riscv64");
         assert_eq!(bad.status, "error");
         assert!(bad.detail.starts_with("unavailable:"), "{}", bad.detail);
+    }
+
+    #[test]
+    fn init_plan_check_reports_hard_conflicts_only() {
+        let scratch = dx_test_scratch::scratch("dx-status-init-plan-");
+        let dir = scratch.path();
+        let run = |module: Option<&str>| {
+            let path = dir.join("MODULE.bazel");
+            match module {
+                Some(m) => std::fs::write(&path, m).expect("module"),
+                None => {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+            init_plan_check(dir)
+        };
+        let none = run(None);
+        assert!(none.status == "ok" && none.detail.starts_with("not applicable"));
+        let adopted = run(Some(&format!(
+            "module(name = \"app\")\n{}",
+            render_consumer_module_setup()
+        )));
+        assert!(
+            adopted.status == "ok" && adopted.detail.starts_with("none"),
+            "{adopted:?}"
+        );
+        let conflict = run(Some(
+            "r = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nr.toolchain(versions = [\"1.80.0\"])\n",
+        ));
+        assert_eq!(conflict.status, "warn");
+        assert!(conflict.detail.contains("rust"), "{conflict:?}");
     }
 }

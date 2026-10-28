@@ -81,12 +81,29 @@ pub fn matches(pattern: &str, text: &str) -> bool {
         .any(|index| matches(rest, &tail[index..]))
 }
 
-/// Returns the issue tracking `gap`, if any pattern matches it.
+/// Counts the literal (non-`*`) characters of `pattern`.
+fn specificity(pattern: &str) -> usize {
+    pattern.chars().filter(|c| *c != '*').count()
+}
+
+/// Returns the issue tracking `gap`: the matching pattern with the most literal characters.
 pub fn issue_for(gap: &str, ledger: &BTreeMap<String, u64>) -> Option<u64> {
     ledger
         .iter()
-        .find(|(pattern, _)| matches(pattern, gap))
+        .filter(|(pattern, _)| matches(pattern, gap))
+        .max_by(|(a, _), (b, _)| specificity(a).cmp(&specificity(b)).then_with(|| b.cmp(a)))
         .map(|(_, issue)| *issue)
+}
+
+/// Returns the pairs of patterns that match `gap` with equal specificity.
+fn ambiguous(gap: &str, ledger: &BTreeMap<String, u64>) -> Option<(String, String)> {
+    let hits: Vec<&String> = ledger.keys().filter(|p| matches(p, gap)).collect();
+    let top = hits.iter().map(|p| specificity(p)).max()?;
+    let best: Vec<&&String> = hits.iter().filter(|p| specificity(p) == top).collect();
+    match best.as_slice() {
+        [a, b, ..] => Some(((**a).clone(), (**b).clone())),
+        _ => None,
+    }
 }
 
 /// Fails when a gap has no issue or a ledger pattern matches no gap.
@@ -99,6 +116,14 @@ pub fn check_ledger(gaps: &[String], ledger: &BTreeMap<String, u64>) -> Result<(
         .keys()
         .filter(|pattern| !gaps.iter().any(|gap| matches(pattern, gap)))
         .collect();
+    for gap in gaps {
+        if let Some((a, b)) = ambiguous(gap, ledger) {
+            return Err(format!(
+                "tools/docs/support_matrix/languages.bzl GAP_ISSUES: patterns {a:?} and {b:?} \
+                 both match {gap:?} with equal specificity"
+            ));
+        }
+    }
     if untracked.is_empty() && stale.is_empty() {
         return Ok(());
     }
@@ -124,6 +149,35 @@ mod tests {
             "consumer:rust:linux_x86_64"
         ));
         assert!(matches("*", "anything"));
+    }
+
+    #[test]
+    fn issue_for_prefers_most_specific() {
+        let ledger = BTreeMap::from([("build:*".to_owned(), 1), ("build:cuda:*".to_owned(), 2)]);
+        assert_eq!(issue_for("build:cuda:macos_arm64", &ledger), Some(2));
+        assert_eq!(issue_for("build:d:macos_arm64", &ledger), Some(1));
+    }
+
+    #[test]
+    fn check_ledger_rejects_ambiguous_overlap() {
+        let ledger = BTreeMap::from([
+            ("build:cuda:m*".to_owned(), 1),
+            ("build:*:macos".to_owned(), 2),
+        ]);
+        let gaps = vec!["build:cuda:macos".to_owned()];
+        let error = check_ledger(&gaps, &ledger).expect_err("tie");
+        assert!(
+            error.contains("build:cuda:m*") && error.contains("build:*:macos"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn narrow_pattern_goes_stale_when_its_gaps_close() {
+        let ledger = BTreeMap::from([("build:*".to_owned(), 1), ("build:cuda:*".to_owned(), 2)]);
+        let gaps = vec!["build:d:macos_arm64".to_owned()];
+        let error = check_ledger(&gaps, &ledger).expect_err("stale");
+        assert!(error.contains("build:cuda:*"), "{error}");
     }
 
     #[test]

@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/devhusdk/rules_dx/gazelle/common"
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/zig"
 )
 
 var SupportedExts = []string{".zig"}
@@ -16,6 +20,8 @@ var TestSourceSuffixes = []string{"_test"}
 const LibraryKind = "zig_library"
 
 const ManifestFile = "build.zig.zon"
+
+var grammar = sync.OnceValue(func() *ts.Language { return zig.Language() })
 
 func rootHint(args language.GenerateArgs) string {
 	content, err := common.ReadSource(filepath.Join(args.Dir, ManifestFile))
@@ -27,101 +33,65 @@ func rootHint(args language.GenerateArgs) string {
 
 func manifestName(src []byte) string {
 	src = common.StripBOM(src)
-	depth := 0
-	for i := 0; i < len(src); {
-		switch c := src[i]; {
-		case c == '/' && i+1 < len(src) && src[i+1] == '/':
-			i = skipLine(src, i)
-		case c == '\\' && i+1 < len(src) && src[i+1] == '\\':
-			i = skipLine(src, i)
-		case c == '"':
-			_, i = readString(src, i)
-		case c == '{':
-			depth++
-			i++
-		case c == '}':
-			depth--
-			i++
-		case c == '.' && depth == 1 && hasKey(src, i):
-			return readValue(src, i+len(".name"))
-		default:
-			i++
+	wrapped := append(append([]byte("const manifest = "), src...), ';')
+	tree := treesitter.Parse(grammar(), wrapped)
+	defer tree.Release()
+	if tree.Root == nil {
+		return ""
+	}
+	var name string
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if name != "" {
+			return false
 		}
+		if tree.Type(n) == "initializer_list" {
+			name = nameField(tree, n)
+			return false
+		}
+		return true
+	})
+	return name
+}
+
+// nameField returns the value of the .name field of the top-level initializer
+// list n. Fields nested in other values are separate nodes and never visited.
+func nameField(tree *treesitter.Tree, list *treesitter.Node) string {
+	for _, f := range list.Children() {
+		if tree.Type(f) != "assignment_expression" {
+			continue
+		}
+		kids := f.Children()
+		if len(kids) != 3 || tree.Text(kids[0]) != ".name" {
+			continue
+		}
+		return fieldValue(tree, kids[2])
 	}
 	return ""
 }
 
-func skipLine(src []byte, i int) int {
-	for i < len(src) && src[i] != '\n' {
-		i++
-	}
-	return i
-}
-
-func readString(src []byte, i int) (string, int) {
-	var b []byte
-	i++
-	for i < len(src) && src[i] != '"' {
-		if src[i] == '\\' && i+1 < len(src) {
-			i++
+func fieldValue(tree *treesitter.Tree, v *treesitter.Node) string {
+	switch tree.Type(v) {
+	case "string":
+		return stringContent(tree, v)
+	case "field_expression":
+		kids := v.Children()
+		if len(kids) != 2 || tree.Type(kids[1]) != "identifier" {
+			return ""
 		}
-		b = append(b, src[i])
-		i++
+		id := kids[1]
+		for _, c := range id.Children() {
+			if tree.Type(c) == "string" {
+				return stringContent(tree, c)
+			}
+		}
+		return tree.Text(id)
 	}
-	if i < len(src) {
-		i++
-	}
-	return string(b), i
+	return ""
 }
 
-func isIdentByte(c byte) bool {
-	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
-}
-
-func hasKey(src []byte, i int) bool {
-	if i > 0 && isIdentByte(src[i-1]) {
-		return false
-	}
-	rest := src[i:]
-	if len(rest) < len(".name") || string(rest[:len(".name")]) != ".name" {
-		return false
-	}
-	return len(rest) == len(".name") || !isIdentByte(rest[len(".name")])
-}
-
-func skipSpace(src []byte, i int) int {
-	for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') {
-		i++
-	}
-	return i
-}
-
-func readValue(src []byte, i int) string {
-	i = skipSpace(src, i)
-	if i >= len(src) || src[i] != '=' {
-		return ""
-	}
-	i = skipSpace(src, i+1)
-	if i >= len(src) {
-		return ""
-	}
-	if src[i] == '"' {
-		v, _ := readString(src, i)
-		return v
-	}
-	if src[i] != '.' {
-		return ""
-	}
-	i++
-	if i < len(src) && src[i] == '@' && i+1 < len(src) && src[i+1] == '"' {
-		v, _ := readString(src, i+1)
-		return v
-	}
-	start := i
-	for i < len(src) && isIdentByte(src[i]) {
-		i++
-	}
-	return string(src[start:i])
+func stringContent(tree *treesitter.Tree, s *treesitter.Node) string {
+	text := strings.TrimSuffix(strings.TrimPrefix(tree.Text(s), `"`), `"`)
+	return strings.NewReplacer(`\"`, `"`, `\\`, `\`).Replace(text)
 }
 
 func IsTestSource(name string) bool {

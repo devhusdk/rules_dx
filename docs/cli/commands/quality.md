@@ -38,6 +38,7 @@ With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc
 Rust binary, test and clippy actions wait for each dependency's full rlib, not its `.rmeta`.
 Only library actions start early. To turn pipelining off, set
 `--@rules_rust//rust/settings:pipelined_compilation=false` in your `.bazelrc`.
+A bare `bazel build` with the quality aspect also needs `--@rules_rust//rust/settings:rustc_output_diagnostics=true` for the metadata (rmeta) diagnostics group to exist. `dx` sets it for you.
 
 ```text
 dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]

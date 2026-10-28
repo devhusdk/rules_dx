@@ -52,6 +52,8 @@ def _real_source_target_impl(ctx):
         direct_sources["jsonnet"] = depset(ctx.files.jsonnet_srcs)
     if len(ctx.files.lua_srcs) > 0:
         direct_sources["lua"] = depset(ctx.files.lua_srcs)
+    if len(ctx.files.haskell_srcs) > 0:
+        direct_sources["haskell"] = depset(ctx.files.haskell_srcs)
     if len(ctx.files.pkl_srcs) > 0:
         direct_sources["pkl"] = depset(ctx.files.pkl_srcs)
     if len(ctx.files.yaml_srcs) > 0:
@@ -90,7 +92,7 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.lua_srcs) + list(ctx.files.nix_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.lua_srcs) + list(ctx.files.haskell_srcs) + list(ctx.files.nix_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs)
     return [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
@@ -237,6 +239,10 @@ real_source_target = rule(
         "lua_srcs": attr.label_list(
             doc = "Lua files checked by quality aspects.",
             allow_files = [".lua"],
+            default = [],
+        ),
+        "haskell_srcs": attr.label_list(
+            allow_files = [".hs"],
             default = [],
         ),
         "pkl_srcs": attr.label_list(

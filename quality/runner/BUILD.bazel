@@ -35,6 +35,7 @@ rust_library(
         "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",
         "//quality/result:quality_result",
+        "@crates//:serde",
     ],
 )
 
@@ -153,6 +154,8 @@ rust_test(
         "//cli/path:dx_path",
         "//quality/adapter:quality_adapter",
         "//quality/result:quality_result",
+        "@crates//:serde",
+        "@crates//:serde_json",
     ],
 )
 

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_haskell_format_syntax_error
+capability FORMAT
+stages 1
+stage ormolu classes=haskell sources=matrix/haskell_broken.hs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR ormolu - matrix/haskell_broken.hs 27 27 fixable=false "The GHC parser (in Haddock mode) failed: [GHC-58481] parse error on input `='"
+terminal 1
+terminal ERROR ormolu - matrix/haskell_broken.hs 27 27 fixable=false "The GHC parser (in Haddock mode) failed: [GHC-58481] parse error on input `='"
+replacements 0

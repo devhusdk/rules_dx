@@ -72,7 +72,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Fortran | no | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64` | no |
-| Haskell | no | no | no |
+| Haskell | no | `ormolu` on `linux_x86_64` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | no |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
 | Julia | no | no | no |

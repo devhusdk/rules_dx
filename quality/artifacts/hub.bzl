@@ -19,6 +19,17 @@ TOOL_PLATFORMS = [
     "windows_x86_64",
 ]
 
+# Tools pinned on only some qualified platforms (upstream ships no build for the
+# rest). The hub renders a default branch to an empty file set for them instead
+# of failing analysis, so unrelated builds on other platforms keep working;
+# consumers that need the tool fail with a hint to set a tool override.
+PARTIAL_TOOL_PLATFORMS = {
+    "ormolu": ["linux_x86_64", "windows_x86_64"],
+}
+
+# Name of the empty target a partial tool resolves to on an unpinned platform.
+UNAVAILABLE_TARGET = "dx_unavailable"
+
 # Every platform the hub renders a config_setting for and accepts artifacts on.
 # Platforms outside TOOL_PLATFORMS are selectable but unqualified.
 ARTIFACT_PLATFORMS = list(PLATFORM_CONSTRAINTS.keys())
@@ -124,6 +135,8 @@ def no_match_error(entries, tool):
 def hub_build(artifacts, constraints):
     """Renders the hub BUILD file for one tool-to-platform repository map."""
     lines = [_config_settings(constraints)]
+    if [tool for tool in artifacts if tool in PARTIAL_TOOL_PLATFORMS]:
+        lines.append('filegroup(\n    name = "%s",\n    srcs = [],\n)\n' % UNAVAILABLE_TARGET)
     for tool in sorted(artifacts.keys()):
         lines.append(_alias(artifacts[tool], tool))
     return "\n".join(lines)
@@ -151,10 +164,14 @@ def _alias(entries, tool):
     lines.append("        {")
     for platform in ordered_platforms(entries):
         lines.append('            ":%s": "@%s//:tool",' % (platform, entries[platform]))
-    lines.append("        },")
-    lines.append("        no_match_error = (")
-    lines.extend(_message_lines("            ", no_match_error(entries, tool)))
-    lines.append("        ),")
+    if tool in PARTIAL_TOOL_PLATFORMS:
+        lines.append('            "//conditions:default": ":%s",' % UNAVAILABLE_TARGET)
+        lines.append("        },")
+    else:
+        lines.append("        },")
+        lines.append("        no_match_error = (")
+        lines.extend(_message_lines("            ", no_match_error(entries, tool)))
+        lines.append("        ),")
     lines.append("    ),")
     lines.append('    visibility = ["//visibility:public"],')
     lines.append(")")

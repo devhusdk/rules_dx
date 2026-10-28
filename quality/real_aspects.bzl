@@ -229,6 +229,14 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "core",
     },
+    "ormolu": {
+        "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "fallback": "=<label of an ormolu executable>",
+        "kind": "file",
+        "resources": "medium",
+        "shard": "haskell",
+    },
     "pkl": {
         "attr": attr.label(default = "//config:tool_pkl", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -734,7 +742,13 @@ def _real_tool_launch(target, ctx, stage_tools, delegated, has_rust_toolchain, w
             if has_rust_toolchain:
                 binaries[tool] = _rust_toolchain_file(ctx, spec["toolchain_file"])
             continue
-        if kind == "file":
+        if kind == "file" and "fallback" in spec:
+            # An optional pin: the hub resolves an empty file set on platforms without an artifact.
+            files = getattr(ctx.files, "_" + tool)
+            if len(files) != 1:
+                fail(what + ": " + tool + " has no pinned artifact for this execution platform; set --@rules_dx//config:tool_" + tool + spec["fallback"])
+            binaries[tool] = files[0]
+        elif kind == "file":
             binaries[tool] = getattr(ctx.file, "_" + tool)
         elif kind == "executable":
             tool_target = getattr(ctx.attr, "_" + tool)
@@ -1200,8 +1214,10 @@ def real_tool_table_shape_error(table):
             return prefix + "must not set an attr for kind '" + kind + "'"
         if kind == "setting" and ("fallback" in spec) == ("target_tool" in spec):
             return prefix + "needs exactly one of fallback or target_tool"
-        if kind != "setting" and ("fallback" in spec or "target_tool" in spec):
-            return prefix + "sets fallback or target_tool outside the setting kind"
+        if kind not in ["setting", "file"] and "fallback" in spec:
+            return prefix + "sets fallback outside the setting and file kinds"
+        if kind != "setting" and "target_tool" in spec:
+            return prefix + "sets target_tool outside the setting kind"
         if kind != "executable" and ("extra" in spec or "run_tool" in spec or "runfiles_env" in spec):
             return prefix + "sets extra, run_tool or runfiles_env outside the executable kind"
         if spec.get("extra", "files") not in ["files", "runfiles"]:
@@ -1463,6 +1479,12 @@ _REAL_SHARD_SPECS = {
         "shard": "lua",
         "suffix": "-lua",
     },
+    "real_haskell_format": {
+        "capability": "format",
+        "doc": "Additive Haskell format family aspect (ormolu).",
+        "shard": "haskell",
+        "suffix": "-haskell",
+    },
     "real_pkl_format": {
         "capability": "format",
         "doc": "Additive Pkl format family aspect (pkl format).",
@@ -1650,6 +1672,7 @@ real_cue_format_aspect = _make_real_aspect("real_cue_format")
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
+real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 

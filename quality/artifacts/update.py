@@ -825,6 +825,34 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "ormolu": {
+        "upstream_version": "0.9.0.0",
+        "release_page": "https://github.com/tweag/ormolu/releases/tag/0.9.0.0",
+        "licenses": [
+            {
+                "name": "BSD-3-Clause",
+                "source": "https://github.com/tweag/ormolu/blob/0.9.0.0/LICENSE.md",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "ormolu-x86_64-linux.zip",
+                "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-linux.zip",
+                "kind": "zip",
+                "executable": "ormolu",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "ormolu-x86_64-windows.zip",
+                "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-windows.zip",
+                "kind": "zip",
+                "executable": "ormolu.exe",
+            },
+        },
+    },
     "pkl": {
         "upstream_version": "0.32.1",
         "release_page": "https://github.com/apple/pkl/releases/tag/0.32.1",

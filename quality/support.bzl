@@ -466,6 +466,20 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "transport": "single",
 }
 
+HASKELL_ORMOLU_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["haskell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "haskell",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "ormolu",
+    "transport": "single",
+}
+
 PKL_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -526,6 +540,7 @@ SUPPORT_RECORDS = [
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
+    HASKELL_ORMOLU_FORMAT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,

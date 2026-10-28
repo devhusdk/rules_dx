@@ -57,6 +57,7 @@ REAL_ADAPTERS = {
     "markdown_check": {"lint": ["markdown"]},
     "mix_format": {"format": ["elixir"]},
     "modfmt": {"format": ["go_module"]},
+    "ormolu": {"format": ["haskell"]},
     "pkl": {"format": ["pkl"]},
     "pmd": {"lint": ["java"]},
     "prettier": {"format": ["astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"]},

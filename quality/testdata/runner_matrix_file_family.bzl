@@ -10,6 +10,8 @@ _CUE_MODULE = "quality/tests/fixtures/consumer_policy/cue_module/"
 
 _JSONNET_MODULE = "quality/tests/fixtures/consumer_policy/jsonnet_module/"
 
+_HASKELL_MODULE = "quality/tests/fixtures/consumer_policy/haskell_module/"
+
 _PKL_MODULE = "quality/tests/fixtures/consumer_policy/pkl_module/"
 
 _TERRAFORM_MODULE = "quality/tests/fixtures/consumer_policy/terraform_module/"
@@ -163,6 +165,51 @@ FILE_FAMILY_CASES = [
         "tool_names": ["stylua"],
         "tool_binaries": ["@dx_tools//:stylua"],
         "expected_file": ":matrix/matrix_lua_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_format_pass",
+        "generated": {
+            "matrix/haskell_clean.hs": "module Clean where\n\nmain :: IO ()\nmain = putStrLn \"hello\"\n",
+        },
+        "capability": "format",
+        "stages": ["ormolu;haskell;matrix/haskell_clean.hs"],
+        "tool_names": ["ormolu"],
+        "tool_binaries": ["@dx_tools//:ormolu"],
+        "expected_file": ":matrix/matrix_haskell_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_format_fail",
+        "generated": {
+            "matrix/haskell_dirty.hs": "module Dirty where\nmain::IO()\nmain   =   putStrLn    \"héllo\"\n",
+        },
+        "capability": "format",
+        "stages": ["ormolu;haskell;matrix/haskell_dirty.hs"],
+        "tool_names": ["ormolu"],
+        "tool_binaries": ["@dx_tools//:ormolu"],
+        "expected_file": ":matrix/matrix_haskell_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_format_syntax_error",
+        "generated": {
+            "matrix/haskell_broken.hs": "module Broken where\nmain = = 1\n",
+        },
+        "capability": "format",
+        "stages": ["ormolu;haskell;matrix/haskell_broken.hs"],
+        "tool_names": ["ormolu"],
+        "tool_binaries": ["@dx_tools//:ormolu"],
+        "expected_file": ":matrix/matrix_haskell_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_format_module",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:haskell_module"],
+        "capability": "format",
+        "stages": ["ormolu;haskell;" + ",".join([
+            _HASKELL_MODULE + "Lib/Greeting.hs",
+            _HASKELL_MODULE + "Main.hs",
+        ])],
+        "tool_names": ["ormolu"],
+        "tool_binaries": ["@dx_tools//:ormolu"],
+        "expected_file": ":matrix/matrix_haskell_format_module.expected.txt",
     },
     {
         "name": "matrix_pkl_format_pass",

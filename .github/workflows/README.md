@@ -4,6 +4,7 @@
 - `reusable-docs.yml`: `docs-check` plus `docs-publish` (GitHub Pages).
 - `ci.yml`: this repository's own `ci` gate.
 - `cancel-stale.yml`: cancels a closed PR's ci run through its concurrency group, then sweeps runs of closed PRs and main runs replaced by a newer commit while they still have no jobs. Runs on `ubuntu-slim`.
+- `issue-labels.yml`: daily warning for open issues older than one day that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
 - `evidence.yml`: native evidence on hosted runners, dispatched per run. The `evidence-<platform>` artifact holds `evidence.log` and each test's log, XML and undeclared outputs.
 - `android.yml`: runs the Rust Android APK on a hosted x86_64 emulator, dispatched per run.
 - `apple.yml`: Apple toolchain tests on a hosted macOS runner.

@@ -806,6 +806,7 @@ rust_test(
         "//cli/adopt:src/launcher.rs",
         "//cli/adopt:src/version.rs",
         "//cli/prebuilt:pins.bzl",
+        "//deploy/install:src/trust.rs",
     ],
     deps = ["//tools/testing:dx_testing"],
 )

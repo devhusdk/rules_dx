@@ -17,13 +17,15 @@ archive. The three files must sit in one directory:
 - `dx-<cell>.tar.gz` (Linux, macOS) or `dx-<cell>.zip` (Windows), where
   `<cell>` is `linux-x86_64`, `linux-arm64`, `macos-arm64`, `windows-x86_64` or
   `windows-arm64`. The archive must match the host.
-- `dx-sha256sums.txt`
-- `dx-sha256sums.txt.sigstore.json`
+- `dx-sha256sums.txt`, which also lists the raw `dx-<cell>` binaries
+- `dx-sha256sums.txt.sigstore.json`, one attestation over every line of the
+  manifest
 
 Output: `--output text|json`. Exit codes: 0 on success or a no-op, 2 for a
 usage error, 1 when a check refuses.
 
-Releases that carry these assets are published by the release workflow. Until
+Releases that carry these assets are published by the release workflow, which
+refuses a tag unless the committed dx version equals it. Until
 a release lists them, no published tag passes `dx install`.
 
 ## Prerequisites

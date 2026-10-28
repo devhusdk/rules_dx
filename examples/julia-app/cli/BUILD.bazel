@@ -1,0 +1,79 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob([
+    "*.jl",
+    "src/*.jl",
+]))
+
+string_flag(
+    name = "digits",
+    build_setting_default = "2",
+    values = [
+        "2",
+        "4",
+    ],
+)
+
+config_setting(
+    name = "four_digits",
+    flag_values = {":digits": "4"},
+)
+
+julia_library(
+    name = "Report",
+    srcs = ["src/Report.jl"],
+    data = ["Project.toml"],
+    deps = [
+        "//examples/julia-app/archive:Archive",
+        "//examples/julia-app/stats:Stats",
+    ],
+)
+
+julia_binary(
+    name = "readings",
+    srcs = ["main.jl"],
+    data = ["//examples/julia-app/data:readings_csv"],
+    env = select({
+        ":four_digits": {"JULIA_APP_DIGITS": "4"},
+        "//conditions:default": {"JULIA_APP_DIGITS": "2"},
+    }),
+    deps = [
+        ":Report",
+        "@rules_julia//julia/runfiles",
+    ],
+)
+
+julia_test(
+    name = "report_test",
+    srcs = ["report_test.jl"],
+    deps = [":Report"],
+)
+
+julia_test(
+    name = "cli_test",
+    srcs = ["cli_test.jl"],
+    data = [":readings"],
+    env = select({
+        ":four_digits": {
+            "JULIA_APP_BINARY": "$(rlocationpath :readings)",
+            "JULIA_APP_DIGITS": "4",
+        },
+        "//conditions:default": {
+            "JULIA_APP_BINARY": "$(rlocationpath :readings)",
+            "JULIA_APP_DIGITS": "2",
+        },
+    }),
+    deps = ["@rules_julia//julia/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

@@ -601,6 +601,7 @@ rust_test(
         "//examples/cuda-app/checks:corpus_starlark",
         "//examples/java-app/cli:corpus_starlark",
         "//examples/java-app/diagnostics:corpus_starlark",
+        "//examples/julia-app/diagnostics:corpus_starlark",
         "//examples/kotlin-app/cli:corpus_starlark",
         "//examples/kotlin-app/diagnostics:corpus_starlark",
         "//examples/lua-app/diagnostics:corpus_starlark",

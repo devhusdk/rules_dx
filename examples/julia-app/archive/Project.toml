@@ -1,0 +1,6 @@
+name = "Archive"
+uuid = "7a2c91de-3b54-4e0f-8d6a-0c1f4b9e5a02"
+version = "0.1.0"
+
+[deps]
+Bzip2_jll = "6e34b625-4abd-537c-b88f-471c36dfa7a0"

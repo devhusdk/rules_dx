@@ -108,8 +108,24 @@ func isRelativeSpec(spec string) bool {
 }
 
 func ParseImportRefs(src []byte, dir string) []ImportRef {
+	return parseRefs(src, dir, Scan)
+}
+
+// ParseSourceImportRefs is ParseImportRefs plus the setup modules a Jest,
+// Vitest, or Vite config named name declares.
+func ParseSourceImportRefs(name string, src []byte, dir string) []ImportRef {
+	if !IsJSTestConfig(name) {
+		return ParseImportRefs(src, dir)
+	}
+	return parseRefs(src, dir, func(src []byte, add func(string)) {
+		Scan(src, add)
+		ScanJSTestConfig(src, add)
+	})
+}
+
+func parseRefs(src []byte, dir string, scan func([]byte, func(string))) []ImportRef {
 	refs := make(map[string]ImportRef)
-	Scan(src, func(spec string) {
+	scan(src, func(spec string) {
 		spec = strings.TrimSpace(spec)
 		if spec == "" {
 			return

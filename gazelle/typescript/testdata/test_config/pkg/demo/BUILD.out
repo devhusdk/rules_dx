@@ -1,0 +1,22 @@
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+
+# gazelle:dx_ignore_import typescript @testing-library/jest-dom
+
+typescript_project(
+    name = "global_setup",
+    srcs = ["global_setup.ts"],
+)
+
+typescript_project(
+    name = "setup",
+    srcs = ["setup.ts"],
+)
+
+typescript_project(
+    name = "vitest_config",
+    srcs = ["vitest.config.ts"],
+    deps = [
+        ":global_setup",
+        ":setup",
+    ],
+)

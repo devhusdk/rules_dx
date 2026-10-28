@@ -24,9 +24,6 @@ _PRIVATE_ATTRS = {
     ),
 }
 
-def _stem(src):
-    return src.basename[:-len("." + src.extension)]
-
 def _flatc_args(language_flags, gen_object_api, out_dir, src):
     args = ["-I", "."] + language_flags
     if gen_object_api:
@@ -44,8 +41,13 @@ FlatBuffersCcAspectInfo = provider(
 def _cc_aspect_impl(target, ctx):
     info = target[FlatBuffersInfo]
     headers = []
+
+    # The flags change the output, so each variant gets its own root: one
+    # flatbuffers_library reached by cc libraries with different gen_object_api
+    # values would otherwise declare the same path from conflicting actions.
+    subdir = "_fbs_obj" if ctx.attr.gen_object_api else "_fbs"
     for src in info.direct_srcs:
-        out = ctx.actions.declare_file(_stem(src) + "_generated.h", sibling = src)
+        out = ctx.actions.declare_file(subdir + "/" + src.short_path[:-len("." + src.extension)] + "_generated.h")
         ctx.actions.run(
             executable = ctx.executable._flatc,
             inputs = info.transitive_srcs,
@@ -57,7 +59,7 @@ def _cc_aspect_impl(target, ctx):
         headers.append(out)
     own = CcInfo(compilation_context = cc_common.create_compilation_context(
         headers = depset(headers),
-        quote_includes = depset([ctx.bin_dir.path]),
+        quote_includes = depset([ctx.bin_dir.path + "/" + target.label.package + "/" + subdir if target.label.package else ctx.bin_dir.path + "/" + subdir]),
     ))
     dep_infos = [dep[FlatBuffersCcAspectInfo].cc_info for dep in ctx.rule.attr.deps]
     return [FlatBuffersCcAspectInfo(

@@ -74,7 +74,7 @@ The flatbuffers/cpp pair comes from `flatbuffers_cc_library` in
 include closure, and from `flatbuffers_codegen_shard`, which binds one plan entry
 with an `EXEC_PATH` suffix to each generated header. The headers are compiled
 against the C++ runtime of the same pinned archive, so the compiler and the
-runtime cannot drift. `gen_object_api = True` adds the object API. The shard
+runtime cannot drift. `gen_object_api = True` adds the object API; each variant writes under its own `_fbs` or `_fbs_obj` directory, so both can share one library. The shard
 lists the headers of the libraries in the `deps` of the `flatbuffers_cc_library`
 only; a library reached through those deps needs its own target and shard. Rust
 and Java generation and `--conform` are not implemented yet.

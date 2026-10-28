@@ -35,7 +35,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | OCaml | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build |
 | PHP | `windows_x86_64`: not tested yet; `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build |
-| PowerShell | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| PowerShell | none |
 | Python | none |
 | Ruby | none |
 | Rust | none |

@@ -1,5 +1,5 @@
 {
-  "checksum": "7ddb419d22daff5f64a4edb38bb92ed4d0f8c6649f5696695041224a565a2452",
+  "checksum": "3a4eccb82db573f419afb8bb28d93bfc0a029256c51adc87c0a939a55081b8f4",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -12499,6 +12499,29 @@
         }
       ],
       "version": "0.60.2"
+    },
+    "jvm_convert 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_jvm_convert",
+      "name": "jvm_convert",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_jvm_convert",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "k256 0.13.4": {
       "common_attrs": {
@@ -27566,6 +27589,7 @@
     "generation_result 0.0.0": "generation/generation_result",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
+    "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",

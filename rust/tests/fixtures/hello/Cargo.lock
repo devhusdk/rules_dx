@@ -2781,6 +2781,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "jvm_convert"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "k256"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

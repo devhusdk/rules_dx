@@ -62,6 +62,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/docs/ruby/extract:Cargo.toml",
     "//tools/docs/python/extract:Cargo.toml",
     "//tools/docs/powershell/extract:Cargo.toml",
+    "//tools/docs/jvm/convert:Cargo.toml",
     "//tools/docs/site/browser:Cargo.toml",
     "//tools/docs/site/aggregate:Cargo.toml",
     "//tools/docs/site/build:Cargo.toml",

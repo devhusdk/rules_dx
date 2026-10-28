@@ -3823,9 +3823,16 @@ fn sqlfluff_fake(
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    assert_eq!(args[..4], ["lint", "--format", "json", "--config"]);
-    assert!(Path::new(&args[4]).is_file(), "config file exists");
-    assert_eq!(args[5], "--ignore-local-config");
+    assert_eq!(args[..3], ["lint", "--format", "json"]);
+    let config_at = args
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("--config");
+    assert!(
+        Path::new(&args[config_at + 1]).is_file(),
+        "config file exists"
+    );
+    assert_eq!(args[config_at + 2], "--ignore-local-config");
     let separator = args.iter().position(|arg| arg == "--").expect("separator");
     let mut entries = Vec::new();
     let mut dirty = false;
@@ -3978,6 +3985,121 @@ fn sqlfluff_has_no_delegated_mode() {
         .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
         .expect_err("delegated");
     assert!(err.to_string().contains("no delegated mode"), "{err}");
+}
+
+static SQLFLUFF_FORMAT_ARGV: std::sync::Mutex<Vec<Vec<String>>> = std::sync::Mutex::new(Vec::new());
+
+/// Records each argv, then behaves as `sqlfluff format` (rewrites `a,b`) or as the lint fake.
+fn sqlfluff_format_fake(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    SQLFLUFF_FORMAT_ARGV
+        .lock()
+        .expect("lock")
+        .push(args.clone());
+    if args[0] != "format" {
+        return sqlfluff_fake(argv, cwd, env);
+    }
+    assert_eq!(args[1], "--config");
+    assert_eq!(args[3], "--ignore-local-config");
+    let separator = args.iter().position(|arg| arg == "--").expect("separator");
+    for name in &args[separator + 1..] {
+        let text = std::fs::read_to_string(name)?;
+        std::fs::write(name, text.replace("a,b", "a, b"))?;
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn sqlfluff_format_check_lints_with_only_the_format_rules() {
+    let backend = backend_for(
+        "sqlfluff",
+        sqlfluff_tool("[sqlfluff]\ndialect = ansi\nexclude_rules = LT01\n"),
+        sqlfluff_format_fake,
+    );
+    SQLFLUFF_FORMAT_ARGV.lock().expect("lock").clear();
+    let findings = backend
+        .diagnose("sqlfluff", "format", &single("db/a.sql", SQL_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    let calls = SQLFLUFF_FORMAT_ARGV.lock().expect("lock").clone();
+    let argv = calls.last().expect("spawned");
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--rules")
+        .expect("--rules");
+    assert_eq!(
+        argv[at + 1],
+        quality_adapter::commands::SQLFLUFF_FORMAT_RULES
+    );
+    let clean = backend
+        .diagnose("sqlfluff", "format", &single("db/a.sql", SQL_CLEAN))
+        .expect("diagnosed");
+    assert!(clean.is_empty());
+}
+
+#[test]
+fn sqlfluff_format_refuses_a_config_the_preflight_rejects() {
+    for config in [
+        "[sqlfluff]\ndialect = ansi\ntemplater = dbt\n",
+        "[sqlfluff]\ntemplater = raw\n",
+    ] {
+        let backend = backend_for("sqlfluff", sqlfluff_tool(config), sqlfluff_format_fake);
+        let check = backend
+            .diagnose("sqlfluff", "format", &single("db/a.sql", SQL_CLEAN))
+            .expect_err(config);
+        assert!(check.to_string().contains("sqlfluff config"), "{check}");
+        let fix = backend
+            .apply_fix("sqlfluff", "db/a.sql", SQL_DIRTY, "format")
+            .expect_err(config);
+        assert!(fix.to_string().contains("sqlfluff config"), "{fix}");
+    }
+}
+
+#[test]
+fn sqlfluff_format_fix_refuses_inline_directives_that_load_files() {
+    let sql = "-- sqlfluff:templater:jinja:library_path:/some/dir\nselect a,b from t\n";
+    let err = backend_for(
+        "sqlfluff",
+        sqlfluff_tool(SQLFLUFF_CONFIG),
+        sqlfluff_format_fake,
+    )
+    .apply_fix("sqlfluff", "db/a.sql", sql, "format")
+    .expect_err("inline library_path");
+    assert!(
+        err.to_string().contains("inline sqlfluff directive"),
+        "{err}"
+    );
+}
+
+#[test]
+fn sqlfluff_format_fix_rewrites_and_lint_fix_stays_check_only() {
+    let backend = backend_for(
+        "sqlfluff",
+        sqlfluff_tool(SQLFLUFF_CONFIG),
+        sqlfluff_format_fake,
+    );
+    let fixed = backend
+        .apply_fix("sqlfluff", "db/a.sql", SQL_DIRTY, "format")
+        .expect("formatted");
+    assert_eq!(fixed, "select a, b from t\n");
+    assert_eq!(
+        backend
+            .apply_fix("sqlfluff", "db/a.sql", SQL_DIRTY, "lint")
+            .expect("check-only"),
+        SQL_DIRTY
+    );
 }
 
 const NOTEBOOK_DIRTY: &str = "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\"# Title\"]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": 7,\n      \"metadata\": {\"tags\": [\"keep\"]},\n      \"outputs\": [{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}],\n      \"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\"x   =   1\"]\n    }\n  ],\n  \"metadata\": {\"language_info\": {\"name\": \"python\"}},\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}\n";

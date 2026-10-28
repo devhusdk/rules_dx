@@ -118,7 +118,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Pkl | no | `pkl` | no |
 | Rego | `regal` | `opa` | `opa` |
 | reStructuredText | `vale` | no | n/a |
-| SQL | `sqlfluff` | `prettier` | n/a |
+| SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a |
 | Terraform | `tflint` | `terraform` | no |
 | Typst | no | `typstyle` | n/a |
 | XML | no | `prettier` | n/a |

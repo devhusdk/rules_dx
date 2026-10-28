@@ -1803,6 +1803,39 @@ fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
 }
 
 #[test]
+fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
+    let a = Path::new("/scratch/a.sql");
+    let config = Path::new("/scratch/.sqlfluff");
+    let tail = [
+        "--config",
+        "/scratch/.sqlfluff",
+        "--ignore-local-config",
+        "--disregard-sqlfluffignores",
+        "--nocolor",
+        "--disable-progress-bar",
+        "--processes",
+        "1",
+        "--",
+        "/scratch/a.sql",
+    ];
+    let check = argv_strings(&sqlfluff_format_check(Path::new(BIN), &[a], config));
+    let mut want = vec![
+        BIN,
+        "lint",
+        "--format",
+        "json",
+        "--rules",
+        SQLFLUFF_FORMAT_RULES,
+    ];
+    want.extend(tail);
+    assert_eq!(check, want);
+    let fix = argv_strings(&sqlfluff_format_fix(Path::new(BIN), &[a], config));
+    let mut want = vec![BIN, "format"];
+    want.extend(tail);
+    assert_eq!(fix, want);
+}
+
+#[test]
 fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
     let query = Path::new("/scratch/api/query.graphql");
     let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));

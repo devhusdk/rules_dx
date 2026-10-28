@@ -680,7 +680,7 @@ _REAL_TOOL_TABLE = {
     },
     "sqlfluff": {
         "attr": attr.label(default = "//quality/tools/python:sqlfluff", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
+        "capabilities": ["format", "lint"],
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -2267,6 +2267,12 @@ _REAL_SHARD_SPECS = {
         "shard": "cloudformation",
         "suffix": "-cloudformation",
     },
+    "real_sql_format": {
+        "capability": "format",
+        "doc": "Additive SQL format family aspect (sqlfluff).",
+        "shard": "sql",
+        "suffix": "-sql",
+    },
     "real_sql_lint": {
         "capability": "lint",
         "doc": "Additive SQL lint family aspect (sqlfluff).",
@@ -2582,6 +2588,8 @@ real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
 real_ansible_lint_aspect = _make_real_aspect("real_ansible_lint")
 
 real_cloudformation_lint_aspect = _make_real_aspect("real_cloudformation_lint")
+
+real_sql_format_aspect = _make_real_aspect("real_sql_format")
 
 real_sql_lint_aspect = _make_real_aspect("real_sql_lint")
 

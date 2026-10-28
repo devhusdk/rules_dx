@@ -318,7 +318,7 @@ to.
 | `shellcheck` | lint | shell |
 | `shfmt` | format | shell |
 | `spotbugs` | lint | java |
-| `sqlfluff` | lint | sql |
+| `sqlfluff` | format, lint | sql |
 | `standardrb` | format | ruby |
 | `staticcheck` | lint | go |
 | `statix` | lint | nix |
@@ -2909,9 +2909,9 @@ clean. To change the rules, bind a `gplint_config` to the library with
 default rules. Rules that compare files, such as `no-dupe-feature-names`, give
 results that depend on which files share a batch, so avoid them.
 
-### SQL lint
+### SQL lint and format
 
-`sqlfluff` 4.4.0 runs from the managed pin for lint, check only. It runs on
+`sqlfluff` 4.4.0 runs from the managed pin for lint (check only) and format. It runs on
 Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Select it in the `sql`
 family. It is not a default: a `sql_library` without a `sqlfluff` config keeps
 building as before.
@@ -2928,7 +2928,7 @@ quality_family(
     name = "sql_family",
     disabled = ["typecheck"],
     family_id = "sql",
-    format = ["prettier"],
+    format = ["sqlfluff"],
     lint = ["sqlfluff"],
 )
 
@@ -2968,9 +2968,14 @@ default) without reporting it. dx treats a file missing from the report as a
 failure, so set `large_file_skip_byte_limit = 0` in the config when a target
 owns larger files.
 
-`sqlfluff fix` is not wired, so `--apply` never rewrites a file for this stage.
-When `prettier` formats the same files, exclude the layout rules in the config
-(`exclude_rules = LT`) so the two tools do not disagree about whitespace.
+Format is opt-in too: put `sqlfluff` in the family `format` list instead of
+`prettier`. Do not list both, because they would disagree about whitespace. The
+format check runs `sqlfluff lint` limited to the rules `sqlfluff format`
+applies (`capitalisation`, `layout`, `ambiguous.union`, `convention.not_equal`,
+`convention.coalesce`, `convention.select_trailing_comma`,
+`convention.is_null`, `jinja.padding` and `structure.distinct`), and `--apply`
+runs `sqlfluff format`. Both need the same bound config and go through the same
+preflight. Lint stays check only: `sqlfluff fix` is not wired.
 
 ### PowerShell
 

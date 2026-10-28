@@ -3,6 +3,7 @@ load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
+load(":compile_check_tests.bzl", "compile_check_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
@@ -637,6 +638,7 @@ support_unit_tests(name = "support_unit")
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
 nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
+compile_check_unit_tests(name = "compile_check_unit")
 
 test_suite(
     name = "all",
@@ -704,6 +706,8 @@ real_source_target(
         "consumer_policy_tests.bzl",
         "clang_syntax.bzl",
         "clang_syntax_tests.bzl",
+        "compile_check.bzl",
+        "compile_check_tests.bzl",
         "coverage_sources.bzl",
         "coverage_sources_tests.bzl",
         "curated_defaults.bzl",

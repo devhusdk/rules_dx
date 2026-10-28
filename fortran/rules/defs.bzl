@@ -11,7 +11,7 @@ FORTRAN_COMPATIBLE_WITH = [
     Label("@platforms//cpu:x86_64"),
 ]
 
-SKIP_TAGS = ["no-format", "no-typecheck"]
+SKIP_TAGS = ["no-format"]
 
 FORTRAN_EXTENSIONS = ["f", "f90", "f95", "f03", "f08", "F", "F90", "F95", "F03", "F08"]
 

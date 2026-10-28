@@ -26,6 +26,7 @@ load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps"
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
+load("//quality:compile_check.bzl", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
@@ -264,6 +265,18 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "runfiles_env": True,
         "shard": "py",
+    },
+    "flang": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "fortran",
+    },
+    "ldc": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "d",
     },
     "flatc": {
         "attr": attr.label(default = "//config:tool_flatc", allow_files = True, cfg = "exec", executable = True),
@@ -1352,6 +1365,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         else:
             go_report = target[GoAnalysisInfo].reports["gotype"]
 
+    compile_check = None
+    for compile_tool in ["flang", "ldc"]:
+        if compile_tool in [stage["tool"] for stage in resolved]:
+            if CompileCheckInfo not in target or target[CompileCheckInfo].tool != compile_tool:
+                resolved = drop_pipeline_tool(resolved, compile_tool)
+                if len(resolved) == 0:
+                    return []
+            else:
+                compile_check = target[CompileCheckInfo]
+
     tsc = None
     if "tsc" in [stage["tool"] for stage in resolved]:
         if TscInfo not in target:
@@ -1740,6 +1763,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if tool == "javac":
             upstream.append(jvm_check.log.path)
             inputs.append(jvm_check.log)
+        if tool == "flang" or tool == "ldc":
+            for i in range(len(compile_check.diagnostics)):
+                upstream.append(compile_check.diagnostics[i].path)
+                inputs.append(compile_check.diagnostics[i])
+                stem = compile_check.diagnostics[i].basename.rpartition(".")[0]
+                tool_files.append(real_request_tool_file("dx-compile-check/" + stem + "/exit", compile_check.statuses[i].path))
+                inputs.append(compile_check.statuses[i])
         if tool == "tsc":
             upstream.append(tsc.stdout.path)
             inputs.append(tsc.stdout)
@@ -1910,6 +1940,13 @@ _REAL_SHARD_SPECS = {
         "requires": [clang_syntax_aspect, nvcc_syntax_aspect],
         "shard": "cc",
         "suffix": "-cc",
+    },
+    "real_d_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive D typecheck family aspect (ldc replay of the compile action).",
+        "requires": [compile_check_aspect],
+        "shard": "d",
+        "suffix": "-d",
     },
     "real_dotnet_format": {
         "capability": "format",
@@ -2227,6 +2264,13 @@ _REAL_SHARD_SPECS = {
         "shard": "fortran",
         "suffix": "-fortran",
     },
+    "real_fortran_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Fortran typecheck family aspect (flang replay of the compile action).",
+        "requires": [compile_check_aspect],
+        "shard": "fortran",
+        "suffix": "-fortran",
+    },
     "real_jsonnet_lint": {
         "capability": "lint",
         "doc": "Additive Jsonnet lint family aspect (jsonnet-lint).",
@@ -2409,6 +2453,8 @@ real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 
 real_cc_typecheck_aspect = _make_real_aspect("real_cc_typecheck")
 
+real_d_typecheck_aspect = _make_real_aspect("real_d_typecheck")
+
 real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 
 real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
@@ -2494,6 +2540,8 @@ real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 real_jsonnet_lint_aspect = _make_real_aspect("real_jsonnet_lint")
 
 real_fortran_lint_aspect = _make_real_aspect("real_fortran_lint")
+
+real_fortran_typecheck_aspect = _make_real_aspect("real_fortran_typecheck")
 
 real_typst_format_aspect = _make_real_aspect("real_typst_format")
 

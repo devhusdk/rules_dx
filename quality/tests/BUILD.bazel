@@ -427,6 +427,78 @@ rust_clippy_test(
 
 # keep
 rust_test(
+    name = "flang_consumer_test",
+    size = "enormous",
+    srcs = ["flang_consumer_test.rs"],
+    data = [
+        "//cli/cli:dx",
+        "//fortran/tests/fixtures/type_error:bad.f90",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the compiler toolchain.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "flang_consumer_fmt_test",
+    targets = [":flang_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "flang_consumer_clippy_test",
+    targets = [":flang_consumer_test"],
+)
+
+# keep
+rust_test(
+    name = "ldc_consumer_test",
+    size = "enormous",
+    srcs = ["ldc_consumer_test.rs"],
+    data = [
+        "//cli/cli:dx",
+        "//d/tests/fixtures/type_error:bad.d",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the compiler toolchain.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "ldc_consumer_fmt_test",
+    targets = [":ldc_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "ldc_consumer_clippy_test",
+    targets = [":ldc_consumer_test"],
+)
+
+# keep
+rust_test(
     name = "tsc_consumer_test",
     size = "enormous",
     srcs = ["tsc_consumer_test.rs"],

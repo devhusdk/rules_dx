@@ -1,0 +1,7 @@
+name: greet
+publish_to: none
+resolution: workspace
+environment:
+  sdk: ^3.13.0
+dev_dependencies:
+  test: ^1.26.0

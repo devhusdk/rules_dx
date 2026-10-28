@@ -109,6 +109,7 @@ USER_BOOK = [
     mdbook_page("Adopt Android", "examples/adopt-android/README.md", "//examples/adopt-android:README.md"),
     mdbook_page("Adopt C++", "examples/adopt-cpp/README.md", "//examples/adopt-cpp:README.md"),
     mdbook_page("Adopt C#", "examples/adopt-csharp/README.md", "//examples/adopt-csharp:README.md"),
+    mdbook_page("Adopt Dart", "examples/adopt-dart/README.md", "//examples/adopt-dart:README.md"),
     mdbook_page("Adopt F#", "examples/adopt-fsharp/README.md", "//examples/adopt-fsharp:README.md"),
     mdbook_page("Adopt Go", "examples/adopt-go/README.md", "//examples/adopt-go:README.md"),
     mdbook_page("Adopt Java", "examples/adopt-java/README.md", "//examples/adopt-java:README.md"),

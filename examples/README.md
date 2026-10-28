@@ -24,6 +24,7 @@ For the rule and aspect attributes these examples use, see the
 - [adopt-kotlin](adopt-kotlin/) foreign Maven-layout tree adopted by the Kotlin Gazelle extension.
 - [adopt-scala](adopt-scala/) foreign sbt-layout tree adopted by the Scala Gazelle extension.
 - [adopt-csharp](adopt-csharp/) foreign SDK-style tree adopted by the C# Gazelle extension.
+- [adopt-dart](adopt-dart/) foreign pub workspace adopted by the Dart Gazelle extension.
 - [adopt-fsharp](adopt-fsharp/) foreign SDK-style tree adopted by the F# Gazelle extension.
 - [adopt-ruby](adopt-ruby/) foreign Bundler-layout tree adopted by the Ruby Gazelle extension.
 - [adopt-powershell](adopt-powershell/) foreign PowerShell tree adopted by the PowerShell Gazelle extension.

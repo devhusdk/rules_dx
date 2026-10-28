@@ -33,6 +33,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "ansible",
     "api_spec",
     "java",
     "kotlin",

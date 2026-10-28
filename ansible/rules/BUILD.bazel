@@ -1,0 +1,21 @@
+load("//ansible/rules:layout_tests.bzl", "layout_unit_tests")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["defs.bzl"])
+
+layout_unit_tests(name = "layout_unit")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "layout.bzl",
+        "layout_corpus.bzl",
+        "layout_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

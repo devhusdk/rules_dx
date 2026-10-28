@@ -1,0 +1,28 @@
+"""Corpus of [path, ansible-lint kind, dx class] rows for the layout classifier."""
+
+LAYOUT_CORPUS = [
+    ["roles/web/tasks/main.yml", "tasks", "ansible"],
+    ["roles/web/tasks/sub/more.yaml", "tasks", "ansible"],
+    ["roles/web/handlers/main.yml", "handlers", "ansible"],
+    ["roles/web/defaults/main.yml", "vars", "ansible"],
+    ["roles/web/vars/main.yml", "vars", "ansible"],
+    ["roles/web/meta/main.yml", "meta", "ansible"],
+    ["meta/runtime.yml", "meta-runtime", "ansible"],
+    ["roles/web/meta/argument_specs.yml", "role-arg-spec", "ansible"],
+    ["playbooks/site.yml", "playbook", "ansible"],
+    ["deploy-playbook.yml", "playbook", "ansible"],
+    ["inventory/hosts.yml", "inventory", "ansible"],
+    ["group_vars/all.yml", "vars", "ansible"],
+    ["host_vars/web1/main.yml", "vars", "ansible"],
+    ["requirements.yml", "requirements", "ansible"],
+    ["galaxy.yml", "galaxy", "ansible"],
+    ["execution-environment.yml", "execution-environment", "ansible"],
+    ["rulebooks/events.yml", "rulebook", "ansible"],
+    ["molecule/default/converge.yml", "playbook", "ansible"],
+    ["molecule/default/molecule.yml", "yaml", "yaml"],
+    [".github/workflows/ci.yml", "yaml", "yaml"],
+    ["app/config.yaml", "yaml", "yaml"],
+    ["roles/web/templates/x.yml", "text", "yaml"],
+    [".ansible-lint.yml", "ansible-lint-config", "yaml"],
+    ["changelogs/changelog.yaml", "changelog", "yaml"],
+]

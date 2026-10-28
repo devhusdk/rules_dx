@@ -530,6 +530,7 @@ rust_test(
         "//android/sdk/tests/fetch:corpus_starlark",
         "//android/tests/fixtures/native_lib:corpus_starlark",
         "//android/tests/fixtures/rust_apk:corpus_starlark",
+        "//ansible/rules:corpus_starlark",
         "//appimage/packer:corpus_starlark",
         "//appimage/tests:corpus_starlark",
         "//apple/tests:corpus_starlark",

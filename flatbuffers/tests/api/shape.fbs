@@ -1,0 +1,10 @@
+include "flatbuffers/tests/base/common.fbs";
+
+namespace dx.api;
+
+table Shape {
+  name: string;
+  origin: dx.base.Point;
+}
+
+root_type Shape;

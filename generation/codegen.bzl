@@ -37,6 +37,7 @@ DX_CODEGEN_SHARD_SUFFIX = ".dxcodegen.pb"
 DX_CODEGEN_ADMITTED_PAIRS = (
     ("protobuf", "rust"),
     ("openapi", "typescript"),
+    ("flatbuffers", "cpp"),
 )
 
 def codegen_path_error(path):
@@ -271,6 +272,72 @@ dx_codegen_plan_aspect = aspect(
     attr_aspects = _CODEGEN_ASPECT_ATTRS,
 )
 
+def codegen_bind_generated(rule_kind, producer, upstream_label, group, generated, entries):
+    """Fails unless every generated artifact is claimed once by an EXEC_PATH entry.
+
+    Shared by the codegen shard rules that bind plan entries to generated files.
+    """
+    for entry in entries:
+        if entry.exec_path == "":
+            fail(
+                rule_kind + " " + producer + ": entry '" +
+                entry.logical_path + "' needs an EXEC_PATH suffix binding it to one " + group + " artifact (logical-only entries carry no backing artifact)",
+            )
+    for entry in entries:
+        matches = [f for f in generated if plan_shard_exec_matches(f.path, entry.exec_path)]
+        if len(matches) == 0:
+            fail(
+                rule_kind + " " + producer + ": entry '" +
+                entry.logical_path + "' with EXEC_PATH '" + entry.exec_path +
+                "' matches no " + group + " artifact from " +
+                upstream_label,
+            )
+        if len(matches) > 1:
+            fail(
+                rule_kind + " " + producer + ": entry '" +
+                entry.logical_path + "' with EXEC_PATH '" + entry.exec_path +
+                "' is ambiguous: matches " + str(len(matches)) +
+                " " + group + " artifacts, want exactly one",
+            )
+    for f in generated:
+        claimants = [entry for entry in entries if plan_shard_exec_matches(f.path, entry.exec_path)]
+        if len(claimants) == 0:
+            fail(
+                rule_kind + " " + producer + ": unreported " + group + " artifact '" +
+                f.path + "' from " + upstream_label +
+                ": every generated artifact needs one claiming entry",
+            )
+        if len(claimants) > 1:
+            fail(
+                rule_kind + " " + producer + ": duplicate claim on " + group + " artifact '" +
+                f.path + "': claimed by " + str(len(claimants)) + " entries, want exactly one",
+            )
+
+def codegen_bound_shard_providers(ctx, rule_kind, schema_kind, upstream_label, group, generated):
+    """Builds the providers of a shard rule whose entries bind to generated files.
+
+    The rule needs `entries`, `language` and `_writer` attributes.
+    The generated files ride in the shard's plan output group so they are built
+    with the plan.
+    """
+    producer = display_label(ctx.label)
+    pair_error = codegen_pair_error(schema_kind, ctx.attr.language)
+    if pair_error != "":
+        fail(rule_kind + " " + producer + ": " + pair_error)
+    if len(generated) == 0:
+        fail(rule_kind + " " + producer + ": upstream " + upstream_label + " emitted no generated sources")
+    entries = [_parse_entry_spec(spec, producer) for spec in ctx.attr.entries]
+    codegen_bind_generated(rule_kind, producer, upstream_label, group, generated, entries)
+    record = _checked_record(producer, ctx.attr.language, entries)
+    out = plan_shard_emit(ctx, "codegen", producer, "--language", ctx.attr.language, ctx.attr.entries, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
+    return [
+        DefaultInfo(files = depset([out])),
+        DxCodegenPlanInfo(direct = [record], transitive = depset([record])),
+        OutputGroupInfo(dx_codegen_plans = depset([out] + generated)),
+    ]
+
+CODEGEN_SHARD_WRITER_LABEL = Label("//generation/codegen_shard:codegen_shard_writer")
+
 def _prost_codegen_shard_impl(ctx):
     producer = display_label(ctx.label)
     pair_error = codegen_pair_error(ctx.attr.schema_kind, ctx.attr.language)
@@ -296,41 +363,7 @@ def _prost_codegen_shard_impl(ctx):
             display_label(upstream.label) + " emitted no generated Rust sources",
         )
     entries = [_parse_entry_spec(spec, producer) for spec in ctx.attr.entries]
-    for entry in entries:
-        if entry.exec_path == "":
-            fail(
-                "prost_codegen_shard " + producer + ": entry '" +
-                entry.logical_path + "' needs an EXEC_PATH suffix binding it to one rust_generated_srcs artifact (logical-only entries carry no backing artifact)",
-            )
-    for entry in entries:
-        matches = [f for f in generated if plan_shard_exec_matches(f.path, entry.exec_path)]
-        if len(matches) == 0:
-            fail(
-                "prost_codegen_shard " + producer + ": entry '" +
-                entry.logical_path + "' with EXEC_PATH '" + entry.exec_path +
-                "' matches no rust_generated_srcs artifact from " +
-                display_label(upstream.label),
-            )
-        if len(matches) > 1:
-            fail(
-                "prost_codegen_shard " + producer + ": entry '" +
-                entry.logical_path + "' with EXEC_PATH '" + entry.exec_path +
-                "' is ambiguous: matches " + str(len(matches)) +
-                " rust_generated_srcs artifacts, want exactly one",
-            )
-    for f in generated:
-        claimants = [entry for entry in entries if plan_shard_exec_matches(f.path, entry.exec_path)]
-        if len(claimants) == 0:
-            fail(
-                "prost_codegen_shard " + producer + ": unreported rust_generated_srcs artifact '" +
-                f.path + "' from " + display_label(upstream.label) +
-                ": every generated artifact needs one claiming entry",
-            )
-        if len(claimants) > 1:
-            fail(
-                "prost_codegen_shard " + producer + ": duplicate claim on rust_generated_srcs artifact '" +
-                f.path + "': claimed by " + str(len(claimants)) + " entries, want exactly one",
-            )
+    codegen_bind_generated("prost_codegen_shard", producer, display_label(upstream.label), "rust_generated_srcs", generated, entries)
     record = _checked_record(producer, ctx.attr.language, entries)
     out = plan_shard_emit(ctx, "codegen", producer, "--language", ctx.attr.language, ctx.attr.entries, DX_CODEGEN_SHARD_SUFFIX, "DxCodegenShard")
     return [

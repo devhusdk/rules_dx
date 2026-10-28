@@ -144,7 +144,11 @@ fn frozen_identities_match_starlark() {
 
 #[test]
 fn is_shard_kind_matches_shard_rules() {
-    for kind in ["dx_codegen_shard", "prost_codegen_shard"] {
+    for kind in [
+        "dx_codegen_shard",
+        "prost_codegen_shard",
+        "flatbuffers_codegen_shard",
+    ] {
         assert!(is_shard_kind(kind), "{kind}");
     }
     for kind in [

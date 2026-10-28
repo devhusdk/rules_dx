@@ -63,10 +63,21 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 
 ## Codegen pairs
 
-The codegen plan admits the generator/language pairs `("protobuf", "rust")` and
-`("openapi", "typescript")`. The openapi/typescript pair is admitted in the plan
+The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
+`("flatbuffers", "cpp")` and `("openapi", "typescript")`. The openapi/typescript pair is admitted in the plan
 registry only; its `dx_codegen_shard` producer and `dx generate --check`
 coverage are not yet implemented.
+
+The flatbuffers/cpp pair comes from `flatbuffers_cc_library` in
+`@rules_dx//flatbuffers/rules:codegen.bzl`, which runs the pinned `flatc`
+(`--cpp --keep-prefix`) once per `flatbuffers_library` schema over its declared
+include closure, and from `flatbuffers_codegen_shard`, which binds one plan entry
+with an `EXEC_PATH` suffix to each generated header. The headers are compiled
+against the C++ runtime of the same pinned archive, so the compiler and the
+runtime cannot drift. `gen_object_api = True` adds the object API. The shard
+lists the headers of the libraries in the `deps` of the `flatbuffers_cc_library`
+only; a library reached through those deps needs its own target and shard. Rust
+and Java generation and `--conform` are not implemented yet.
 
 ## Android inputs
 

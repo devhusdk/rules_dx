@@ -64,3 +64,18 @@ func TestParseDirectivesMalformed(t *testing.T) {
 		}
 	}
 }
+
+func TestParseDirectivesLeadingMetadata(t *testing.T) {
+	cases := map[string]string{
+		"teston":  "@TestOn('vm')\nlibrary;\nimport 'package:test/test.dart';\n",
+		"timeout": "@Timeout(Duration(seconds: 1))\nimport 'package:test/test.dart';\nvoid main() {}\n",
+		"strarg":  "@Foo('not/a/uri.dart')\nimport 'package:test/test.dart';\n",
+	}
+	for name, src := range cases {
+		got, err := ParseDirectives([]byte(src))
+		want := []Directive{{Kind: "import", URI: "package:test/test.dart"}}
+		if err != nil || !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: got %v, %v; want %v", name, got, err, want)
+		}
+	}
+}

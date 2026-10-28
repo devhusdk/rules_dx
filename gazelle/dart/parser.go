@@ -38,14 +38,14 @@ func ParseDirectives(content []byte) ([]Directive, error) {
 		if typ == "ERROR" || c.HasError() {
 			return nil, fmt.Errorf("syntax error in the directives at byte %d", c.StartByte())
 		}
-		kind := firstWord(tree.Text(c))
+		kind := firstWord(stripMetadata(tree.Text(c)))
 		if !directiveKeywords[kind] {
 			// First declaration: the directive region is over.
 			return out, nil
 		}
 		isPartOf := false
 		if kind == "part" {
-			isPartOf = strings.HasPrefix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(tree.Text(c)), "part")), "of")
+			isPartOf = strings.HasPrefix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(stripMetadata(tree.Text(c))), "part")), "of")
 		}
 		if kind == "library" || isPartOf {
 			continue
@@ -62,6 +62,63 @@ func ParseDirectives(content []byte) ([]Directive, error) {
 		}
 	}
 	return out, nil
+}
+
+// stripMetadata removes leading annotations (@name, @a.b, with an optional
+// balanced argument list), whitespace and comments.
+func stripMetadata(s string) string {
+	for {
+		s = strings.TrimSpace(s)
+		switch {
+		case strings.HasPrefix(s, "//"):
+			i := strings.IndexByte(s, '\n')
+			if i < 0 {
+				return ""
+			}
+			s = s[i+1:]
+		case strings.HasPrefix(s, "/*"):
+			i := strings.Index(s, "*/")
+			if i < 0 {
+				return ""
+			}
+			s = s[i+2:]
+		case strings.HasPrefix(s, "@"):
+			i := 1
+			for i < len(s) && (s[i] == '_' || s[i] == '$' || s[i] == '.' || s[i] >= '0' && s[i] <= '9' || s[i] >= 'a' && s[i] <= 'z' || s[i] >= 'A' && s[i] <= 'Z') {
+				i++
+			}
+			s = strings.TrimLeft(s[i:], " \t\r\n")
+			if strings.HasPrefix(s, "(") {
+				depth, j := 0, 0
+				var quote byte
+				for ; j < len(s); j++ {
+					ch := s[j]
+					if quote != 0 {
+						if ch == '\\' {
+							j++
+						} else if ch == quote {
+							quote = 0
+						}
+						continue
+					}
+					if ch == '\'' || ch == '"' {
+						quote = ch
+					} else if ch == '(' {
+						depth++
+					} else if ch == ')' {
+						depth--
+						if depth == 0 {
+							j++
+							break
+						}
+					}
+				}
+				s = s[min(j, len(s)):]
+			}
+		default:
+			return s
+		}
+	}
 }
 
 func firstWord(s string) string {
@@ -84,7 +141,7 @@ func directiveURIs(tree *treesitter.Tree, n *treesitter.Node) ([]string, error) 
 		for _, c := range n.Children() {
 			typ := tree.Type(c)
 			switch {
-			case strings.Contains(typ, "comment"):
+			case strings.Contains(typ, "comment"), typ == "annotation":
 			case typ == "string_literal":
 				if !prevEq {
 					u, e := decodeString(tree.Text(c))

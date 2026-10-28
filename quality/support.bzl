@@ -1212,10 +1212,10 @@ REGO_REGAL_LINT_SUPPORT = {
     "transport": "batched",
 }
 
-# linux_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
-# macos_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
-# windows_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
-# windows_x86_64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# linux_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
+# macos_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
+# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
+# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 ELIXIR_CREDO_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1231,10 +1231,10 @@ ELIXIR_CREDO_LINT_SUPPORT = {
     "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
-# linux_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
-# macos_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
-# windows_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
-# windows_x86_64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# linux_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
+# macos_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
+# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
+# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",

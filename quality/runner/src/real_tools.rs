@@ -3158,6 +3158,84 @@ fn fake_nixfmt(
     })
 }
 
+static TFLINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn tflint_arg<'a>(argv: &'a [OsString], prefix: &str) -> Vec<&'a str> {
+    argv.iter()
+        .filter_map(|arg| arg.to_str()?.strip_prefix(prefix))
+        .collect()
+}
+
+fn tflint_fake(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    TFLINT_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    assert_hermetic(env);
+    let value = |key: &str| {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| PathBuf::from(value))
+    };
+    let plugins = value("TFLINT_PLUGIN_DIR").expect("plugin dir is pinned");
+    assert!(value("HOME").is_none(), "HOME never reaches tflint");
+    assert!(plugins.is_dir());
+    assert_eq!(std::fs::read_dir(&plugins).expect("plugin dir").count(), 0);
+    assert!(value("TFLINT_CONFIG_FILE").is_none());
+    if cfg!(unix) {
+        let tmp = value("TMPDIR").expect("TMPDIR is pinned");
+        assert!(
+            tmp.as_os_str().len() < 48,
+            "socket-safe TMPDIR, got {tmp:?}"
+        );
+    }
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("tflint always gets --config");
+    let config = PathBuf::from(&argv[at + 1]);
+    assert!(
+        config.ends_with("dx-tflint-default/.tflint.hcl"),
+        "unbound tflint uses the scratch default, got {config:?}"
+    );
+    let text = std::fs::read_to_string(&config).expect("default config is staged");
+    assert!(text.contains("call_module_type = \"none\""));
+    assert!(text.contains("preset  = \"recommended\""));
+    for flag in ["--format=json", "--no-color", "--call-module-type=none"] {
+        assert!(argv.iter().any(|arg| arg == flag), "{flag} is passed");
+    }
+    let dir = tflint_arg(argv, "--chdir=")[0].to_owned();
+    let filters = tflint_arg(argv, "--filter=");
+    let issues: Vec<serde_json::Value> = filters
+        .iter()
+        .filter(|name| {
+            std::fs::read_to_string(cwd.join(&dir).join(name))
+                .expect("staged source")
+                .contains("bad")
+        })
+        .map(|name| {
+            serde_json::json!({
+                "rule": {"name": "terraform_typed_variables", "severity": "warning", "link": ""},
+                "message": "variable has no type",
+                "range": {
+                    "filename": format!("{dir}/{name}"),
+                    "start": {"line": 1, "column": 1},
+                    "end": {"line": 1, "column": 3},
+                },
+            })
+        })
+        .collect();
+    let code = if issues.is_empty() { 0 } else { 2 };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: serde_json::json!({"issues": issues, "errors": []})
+            .to_string()
+            .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
 #[test]
 fn nixfmt_reports_a_dirty_file_and_fix_rewrites_it() {
     let backend = backend_for("nixfmt", plain_tool(), fake_nixfmt);
@@ -3195,4 +3273,55 @@ fn nixfmt_syntax_error_is_reported_and_a_fix_leaves_it_unchanged() {
             .expect("kept"),
         "BROKEN\n"
     );
+}
+
+#[test]
+fn tflint_runs_once_per_directory_with_scratch_home_and_default_config() {
+    TFLINT_SPAWNS.store(0, std::sync::atomic::Ordering::SeqCst);
+    let backend = backend_for("tflint", plain_tool(), tflint_fake);
+    let mut files = BTreeMap::new();
+    files.insert("infra/a/main.tf".to_owned(), "bad\n".to_owned());
+    files.insert("infra/a/vars.tf".to_owned(), "ok\n".to_owned());
+    files.insert("infra/b/main.tf".to_owned(), "bad\n".to_owned());
+    let findings = backend
+        .diagnose("tflint", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(TFLINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst), 2);
+    let mut paths: Vec<&str> = findings.iter().map(|f| f.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(paths, ["infra/a/main.tf", "infra/b/main.tf"]);
+    assert_eq!(findings[0].tool_id, "tflint");
+    assert_eq!(findings[0].rule_id, "terraform_typed_variables");
+}
+
+#[test]
+fn tflint_is_check_only() {
+    let backend = backend_for("tflint", plain_tool(), tflint_fake);
+    assert_eq!(
+        backend
+            .apply_fix("tflint", "a/main.tf", "bad\n", "lint")
+            .expect("check-only"),
+        "bad\n"
+    );
+}
+
+fn tflint_plugin_failure(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: br#"{"issues":[],"errors":[{"message":"Failed to initialize plugins; Plugin \"aws\" not found. Did you run \"tflint --init\"?","severity":"error"}]}"#.to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn tflint_plugin_failure_is_an_error_not_a_clean_run() {
+    let backend = backend_for("tflint", plain_tool(), tflint_plugin_failure);
+    let err = backend
+        .diagnose("tflint", "lint", &single("a/main.tf", "ok\n"))
+        .expect_err("never clean");
+    assert!(err.to_string().contains("tflint --init"), "{err}");
 }

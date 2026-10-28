@@ -505,6 +505,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "tflint": {
+        "upstream_version": "0.65.0",
+        "release_page": "https://github.com/terraform-linters/tflint/releases/tag/v0.65.0",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/terraform-linters/tflint/blob/v0.65.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "tflint_linux_amd64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_amd64.zip",
+                "kind": "zip",
+                "executable": "tflint",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "tflint_linux_arm64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_arm64.zip",
+                "kind": "zip",
+                "executable": "tflint",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "tflint_darwin_arm64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_darwin_arm64.zip",
+                "kind": "zip",
+                "executable": "tflint",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "tflint_windows_amd64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "tflint.exe",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+        },
+    },
     "hadolint": {
         "upstream_version": "2.15.1",
         "release_page": "https://github.com/hadolint/hadolint/releases/tag/v2.15.1",

@@ -29,6 +29,10 @@ load("//quality/artifacts:checkmake.linux_arm64.bzl", _checkmake_linux_arm64 = "
 load("//quality/artifacts:checkmake.linux_x86_64.bzl", _checkmake_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:checkmake.macos_arm64.bzl", _checkmake_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:checkmake.windows_x86_64.bzl", _checkmake_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:tflint.linux_arm64.bzl", _tflint_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:tflint.linux_x86_64.bzl", _tflint_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:tflint.macos_arm64.bzl", _tflint_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:tflint.windows_x86_64.bzl", _tflint_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:hadolint.linux_arm64.bzl", _hadolint_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:hadolint.linux_x86_64.bzl", _hadolint_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:hadolint.macos_arm64.bzl", _hadolint_macos_arm64 = "ARTIFACT")
@@ -150,6 +154,10 @@ _ARTIFACTS = [
     _checkmake_linux_arm64,
     _checkmake_macos_arm64,
     _checkmake_windows_x86_64,
+    _tflint_linux_x86_64,
+    _tflint_linux_arm64,
+    _tflint_macos_arm64,
+    _tflint_windows_x86_64,
     _hadolint_linux_x86_64,
     _hadolint_linux_arm64,
     _hadolint_macos_arm64,

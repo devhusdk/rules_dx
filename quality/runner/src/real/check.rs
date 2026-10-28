@@ -926,6 +926,35 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_modfmt(&out.stdout, out.code, &strs))
             }
+            "tflint" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "tflint needs a config path".to_owned()));
+                };
+                let mut merged = Vec::new();
+                for (dir, members) in group_by_parent(scratch.root(), pairs) {
+                    let names: Vec<&Path> = members
+                        .iter()
+                        .map(|(name, _, _)| Path::new(name.as_str()))
+                        .collect();
+                    let invocation = commands::tflint_check(&tool.binary, &dir, &names, config);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let reported: Vec<&str> =
+                        members.iter().map(|(_, rel, _)| rel.as_str()).collect();
+                    let mut found = parsed(
+                        tool_id,
+                        parsers::parse_tflint(&out.stdout, out.code, &reported),
+                    )?;
+                    for entry in &mut found {
+                        if let Some((_, _, absolute)) =
+                            members.iter().find(|(_, rel, _)| *rel == entry.file)
+                        {
+                            entry.file.clone_from(absolute);
+                        }
+                    }
+                    merged.extend(found);
+                }
+                Ok(merged)
+            }
             "terraform" => {
                 let invocation = commands::terraform_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -1404,4 +1433,40 @@ mod declared_input_tests {
         let missing = vec![inner.join("pkg/none.fbs").to_string_lossy().into_owned()];
         assert!(declared_input_escape("flatc", "pkg/a.fbs", &inner, &missing).is_err());
     }
+}
+
+/// Groups staged files by their directory under the scratch root, in sorted directory order.
+///
+/// Each member is the file name inside its directory, its scratch-root-relative path
+/// (the spelling a `--chdir` tool reports) and its absolute path. A file at the root
+/// belongs to the directory `.`. Reusable by any directory-scoped linter.
+pub(super) type DirGroups = std::collections::BTreeMap<String, Vec<(String, String, String)>>;
+
+pub(super) fn group_by_parent(root: &Path, pairs: &[(String, PathBuf)]) -> DirGroups {
+    let mut groups = DirGroups::new();
+    for (_, absolute) in pairs {
+        let rel = absolute.strip_prefix(root).unwrap_or(absolute);
+        let dir = rel
+            .parent()
+            .map(|dir| dir.to_string_lossy().replace('\\', "/"))
+            .filter(|dir| !dir.is_empty())
+            .unwrap_or_else(|| ".".to_owned());
+        let name = rel
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let rel = if dir == "." {
+            name.clone()
+        } else {
+            format!("{dir}/{name}")
+        };
+        groups
+            .entry(dir)
+            .or_default()
+            .push((name, rel, absolute.to_string_lossy().into_owned()));
+    }
+    for members in groups.values_mut() {
+        members.sort();
+    }
+    groups
 }

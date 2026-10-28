@@ -211,6 +211,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "stylua",
             "taplo",
             "terraform",
+            "tflint",
             "ty",
             "typstyle",
             "vale",

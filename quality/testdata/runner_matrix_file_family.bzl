@@ -6,6 +6,10 @@ _TERRAFORM_ENV = [
     "terraform=TF_INPUT=0",
 ]
 
+_TFLINT_HEADER = "terraform {\n  required_version = \">= 1.5\"\n  required_providers {\n    null = {\n      source  = \"hashicorp/null\"\n      version = \">= 3.0\"\n    }\n  }\n}\n\n"
+_TFLINT_UNUSED = "variable \"unused\" {\n  type = string\n}\n"
+_TFLINT_ENV = ["tflint=CHECKPOINT_DISABLE=1"]
+
 _CUE_MODULE = "quality/tests/fixtures/consumer_policy/cue_module/"
 
 _JSONNET_MODULE = "quality/tests/fixtures/consumer_policy/jsonnet_module/"
@@ -478,6 +482,86 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["@dx_tools//:terraform"],
         "tool_env": _TERRAFORM_ENV,
         "expected_file": ":matrix/matrix_terraform_format_module_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "matrix_terraform_lint_pass",
+        "generated": {
+            "matrix/tflint_clean/main.tf": _TFLINT_HEADER + "resource \"null_resource\" \"sample\" {}\n",
+        },
+        "capability": "lint",
+        "stages": ["tflint;terraform;matrix/tflint_clean/main.tf"],
+        "tool_names": ["tflint"],
+        "tool_binaries": ["@dx_tools//:tflint"],
+        "tool_env": _TFLINT_ENV,
+        "expected_file": ":matrix/matrix_terraform_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "matrix_terraform_lint_fail",
+        "generated": {
+            "matrix/tflint_dirty/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+        },
+        "capability": "lint",
+        "stages": ["tflint;terraform;matrix/tflint_dirty/main.tf"],
+        "tool_names": ["tflint"],
+        "tool_binaries": ["@dx_tools//:tflint"],
+        "tool_env": _TFLINT_ENV,
+        "expected_file": ":matrix/matrix_terraform_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "matrix_terraform_lint_syntax_error",
+        "generated": {
+            "matrix/tflint_broken/main.tf": "locals {\n  a = \n}\n",
+        },
+        "capability": "lint",
+        "stages": ["tflint;terraform;matrix/tflint_broken/main.tf"],
+        "tool_names": ["tflint"],
+        "tool_binaries": ["@dx_tools//:tflint"],
+        "tool_env": _TFLINT_ENV,
+        "expected_file": ":matrix/matrix_terraform_lint_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "matrix_terraform_lint_module",
+        "generated": {
+            "matrix/tflint_module/a/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+            "matrix/tflint_module/b/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+        },
+        "capability": "lint",
+        "stages": ["tflint;terraform;matrix/tflint_module/a/main.tf,matrix/tflint_module/b/main.tf"],
+        "tool_names": ["tflint"],
+        "tool_binaries": ["@dx_tools//:tflint"],
+        "tool_env": _TFLINT_ENV,
+        "expected_file": ":matrix/matrix_terraform_lint_module.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
+        "name": "matrix_terraform_lint_config",
+        "generated": {
+            "matrix/tflint_config/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+        },
+        "capability": "lint",
+        "stages": ["tflint;terraform;matrix/tflint_config/main.tf"],
+        "tool_names": ["tflint"],
+        "tool_binaries": ["@dx_tools//:tflint"],
+        "tool_env": _TFLINT_ENV,
+        "toolfile_tools": ["tflint"],
+        "toolfile_srcs": [":tflint_cfg/tflint.hcl"],
+        "config_tools": ["tflint"],
+        "config_files": [":tflint_cfg/tflint.hcl"],
+        "expected_file": ":matrix/matrix_terraform_lint_config.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,

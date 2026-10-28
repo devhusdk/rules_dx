@@ -285,6 +285,7 @@ to.
 | `stylua` | format | lua |
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
+| `tflint` | lint | terraform |
 | `ty` | typecheck | python |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
@@ -1059,6 +1060,53 @@ Linux x86_64 only.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//:tofu
+```
+
+#### Terraform lint with tflint
+
+`tflint` lints Terraform and runs from the managed pin (v0.65.0) on Linux
+x86_64 and arm64, macOS arm64 and Windows x86_64. It is opt-in and check only:
+select it with `lint = ["tflint"]` in the `terraform` family. Nothing selects it
+by default, because the recommended preset reports a missing `required_version`
+and missing `required_providers` in existing modules.
+
+```python
+quality_family(
+    name = "terraform_family",
+    family_id = "terraform",
+    format = ["terraform"],
+    lint = ["tflint"],
+)
+```
+
+Only the bundled `terraform` ruleset runs, with the `recommended` preset. dx
+never runs `tflint --init`, never downloads a provider ruleset and points
+`TFLINT_PLUGIN_DIR` at an empty directory, so the aws, google and azurerm
+rulesets are not available. Module calls are off (`call_module_type = "none"`),
+so tflint reads only the module directory it is linting. It runs once per module
+directory over the files the selected targets own.
+
+dx always passes `--config`. Bind a `.tflint.hcl` with `tflint_config` from
+`@rules_dx//quality:native_config.bzl`; without one, dx stages a default with the
+bundled ruleset and the recommended preset. `./.tflint.hcl`, `~/.tflint.hcl` and
+`TFLINT_CONFIG_FILE` are never read. A config that declares a plugin block with
+`source` and `version` needs `--init`; that fails the run with tflint's message
+and never counts as clean. A syntax error is reported on its file. `.tftest.hcl`
+files are not linted.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "tflint_config")
+
+tflint_config(
+    name = "tflint",
+    src = "tflint.hcl",
+)
+
+terraform_module(
+    name = "infra",
+    aspect_hints = [":tflint"],
+    srcs = ["main.tf"],
+)
 ```
 
 ### Go

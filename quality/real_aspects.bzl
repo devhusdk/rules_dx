@@ -479,6 +479,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "terraform",
     },
+    "tflint": {
+        "attr": attr.label(default = "@dx_tools//:tflint", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "env": [["CHECKPOINT_DISABLE", "1"]],
+        "kind": "file",
+        "resources": "light",
+        "shard": "terraform",
+    },
     "ty": {
         "attr": attr.label(default = "@dx_tools//:ty", allow_single_file = True, cfg = "exec"),
         "capabilities": ["typecheck"],
@@ -1620,6 +1628,12 @@ _REAL_SHARD_SPECS = {
         "shard": "terraform",
         "suffix": "-terraform",
     },
+    "real_terraform_lint": {
+        "capability": "lint",
+        "doc": "Additive Terraform lint family aspect (tflint).",
+        "shard": "terraform",
+        "suffix": "-terraform",
+    },
     "real_text_lint": {
         "capability": "lint",
         "doc": "Additive text lint family aspect (keep-sorted).",
@@ -1793,6 +1807,7 @@ real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
+real_terraform_lint_aspect = _make_real_aspect("real_terraform_lint")
 
 real_go_format_aspect = _make_real_aspect("real_go_format")
 

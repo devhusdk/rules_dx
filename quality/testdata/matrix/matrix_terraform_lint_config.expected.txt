@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_terraform_lint_config
+capability LINT
+stages 1
+stage tflint classes=terraform sources=matrix/tflint_config/main.tf
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

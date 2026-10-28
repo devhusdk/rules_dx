@@ -92,6 +92,7 @@ REAL_ADAPTERS = {
     "stylua": {"format": ["lua"]},
     "taplo": {"format": ["toml"], "lint": ["toml"]},
     "terraform": {"format": ["terraform"]},
+    "tflint": {"lint": ["terraform"]},
     "ty": {"typecheck": ["python", "python_stub"]},
     "typstyle": {"format": ["typst"]},
     "vale": {"lint": ["markdown"]},

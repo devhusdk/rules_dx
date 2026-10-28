@@ -83,6 +83,8 @@ pub(crate) struct Harness {
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    /// The working directory of each launch `FakeRunner` records in `build_argv`.
+    pub(crate) seen_cwd: Rc<RefCell<Vec<std::path::PathBuf>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
     pub(crate) actions: ActionTally,
@@ -264,6 +266,7 @@ impl Harness {
             intended: None,
             patch: None,
             seen_env: Rc::new(RefCell::new(Vec::new())),
+            seen_cwd: Rc::new(RefCell::new(Vec::new())),
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
             actions: ActionTally::default(),
@@ -446,6 +449,7 @@ impl Harness {
                 intended: self.intended.clone(),
                 patch: self.patch.clone(),
                 seen_env: Rc::clone(&self.seen_env),
+                seen_cwd: Rc::clone(&self.seen_cwd),
                 free_disk_bytes: self.free_disk_bytes,
                 probe_shards: self.probe_shards.clone(),
                 probe_code: self.probe_code,
@@ -507,6 +511,7 @@ impl Harness {
             intended: self.intended.clone(),
             patch: self.patch.clone(),
             seen_env: Rc::clone(&self.seen_env),
+            seen_cwd: Rc::clone(&self.seen_cwd),
             free_disk_bytes: self.free_disk_bytes,
             probe_shards: self.probe_shards.clone(),
             probe_code: self.probe_code,
@@ -737,6 +742,8 @@ pub(crate) struct FakeRunner {
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) patch: Option<Vec<u8>>,
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
+    /// The working directory of each launch `FakeRunner` records in `build_argv`.
+    pub(crate) seen_cwd: Rc<RefCell<Vec<std::path::PathBuf>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) probe_shards: Option<Vec<String>>,
     pub(crate) probe_code: Option<i32>,
@@ -800,7 +807,7 @@ impl Runner for FakeRunner {
         self.free_disk_bytes
     }
 
-    fn run(&self, argv: &[String], _cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         if self.io_error {
             return Err(io::Error::other("fake launch failure"));
         }
@@ -808,6 +815,7 @@ impl Runner for FakeRunner {
             return self.run_shard_probe(argv);
         }
         self.build_argv.borrow_mut().push(argv.to_vec());
+        self.seen_cwd.borrow_mut().push(cwd.to_path_buf());
         self.seen_env.borrow_mut().push(
             env.iter()
                 .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))

@@ -1,7 +1,8 @@
 //! `dx add`: declare one new requirement in the manifest `dx bump` widens.
 
 use super::request::{
-    parse_configured_selector, parse_selector, BumpError, BumpRequest, DepTarget,
+    parse_configured_selector, parse_selector, BumpError, BumpRequest, ConfiguredKind,
+    ConfiguredSet, DepTarget,
 };
 use super::sets::BumpSet;
 use super::version::{self, WidenVersion};
@@ -126,7 +127,10 @@ impl AddRequest {
                 set: BumpSet::Bazel,
                 package,
                 manifest: Some(manifest.to_owned()),
-                configured: None,
+                configured: Some(ConfiguredSet {
+                    name: set_name.to_owned(),
+                    kind: ConfiguredKind::Bazel,
+                }),
             },
             version: parsed,
             selector: selector.to_owned(),
@@ -157,8 +161,8 @@ impl AddRequest {
     pub fn summary(&self) -> String {
         let through = if self.needs_update_refresh() {
             format!(
-                "then refresh via `dx update {}` automatically",
-                self.refresh_selector()
+                "then refresh via `{}` automatically",
+                self.target.refresh_command()
             )
         } else {
             "then preset flag-diff review plus `bazel build //...`".to_owned()

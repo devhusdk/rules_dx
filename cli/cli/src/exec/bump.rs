@@ -756,9 +756,27 @@ scopes = ["tools"]
             out.contains("widened bazel-modules:rules_cc to 0.3.0 in tools/MODULE.bazel"),
             "{out}"
         );
+        assert!(
+            out.contains("refreshed bazel-modules via `bazel mod deps`")
+                || out.contains("refreshed tools/MODULE.bazel.lock via `bazel mod deps`"),
+            "{out}"
+        );
         assert_eq!(read("tools/MODULE.bazel"), after);
         assert_eq!(read("MODULE.bazel"), ROOT_MODULE);
-        assert!(harness.seen_env.borrow().is_empty());
+        {
+            let runs = harness.build_argv.borrow();
+            assert_eq!(runs.len(), 1, "{runs:?}");
+            assert_eq!(
+                runs[0][runs[0].len() - 3..],
+                ["mod", "deps", "--lockfile_mode=update"]
+            );
+            assert!(runs[0].iter().any(|arg| arg == "--max_idle_secs=15"));
+            assert!(!runs[0].iter().any(|arg| arg.contains("--output_base")));
+            assert_eq!(
+                *harness.seen_cwd.borrow(),
+                vec![harness.workspace.join("tools")]
+            );
+        }
         let (code, out, err) = harness.run(&[
             "bump",
             "bazel-modules:rules_cc",
@@ -774,7 +792,55 @@ scopes = ["tools"]
         assert_eq!(notice["code"], "bump_no_change");
         assert_eq!(notice["path"], "tools/MODULE.bazel");
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
-        assert!(harness.seen_env.borrow().is_empty());
+        assert_eq!(
+            harness.build_argv.borrow().len(),
+            1,
+            "no-op run launches nothing"
+        );
+    }
+
+    #[test]
+    fn consumer_bazel_set_refresh_failure_keeps_the_edit() {
+        let mut harness = Harness::new("bump-consumer-bazel-fail");
+        harness.bazel_code = 3;
+        harness.write_source("dx.toml", BAZEL_SET_DX_TOML);
+        harness.write_source("tools/MODULE.bazel", BAZEL_SET_MODULE);
+        let (code, _, err) = harness.run(&["bump", "bazel-modules:rules_cc", "0.3.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("`bazel mod deps` in tools exited 3"), "{err}");
+        assert!(!err.contains("dx update"), "{err}");
+        let text = std::fs::read_to_string(harness.workspace.join("tools/MODULE.bazel"))
+            .expect("manifest");
+        assert!(text.contains("0.3.0"), "{text}");
+    }
+
+    #[test]
+    fn consumer_bazel_set_offline_and_foreign_lock_fail_before_writing() {
+        let harness = Harness::new("bump-consumer-bazel-offline");
+        harness.write_source("dx.toml", BAZEL_SET_DX_TOML);
+        harness.write_source("tools/MODULE.bazel", BAZEL_SET_MODULE);
+        let manifest = || {
+            std::fs::read_to_string(harness.workspace.join("tools/MODULE.bazel")).expect("manifest")
+        };
+        let (code, _, err) = harness.run(&[
+            "bump",
+            "bazel-modules:rules_cc",
+            "0.3.0",
+            "--offline",
+            "--apply",
+        ]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        assert_eq!(manifest(), BAZEL_SET_MODULE);
+        harness.write_source(
+            "dx.toml",
+            &BAZEL_SET_DX_TOML.replace("tools/MODULE.bazel.lock", "other/MODULE.bazel.lock"),
+        );
+        let (code, _, err) = harness.run(&["bump", "bazel-modules:rules_cc", "0.3.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("no widen performed"), "{err}");
+        assert_eq!(manifest(), BAZEL_SET_MODULE);
+        assert!(harness.build_argv.borrow().is_empty());
     }
 
     #[test]

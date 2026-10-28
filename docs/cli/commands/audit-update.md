@@ -623,8 +623,12 @@ text_present = true
 ```
 
 `dx update --check` reports a `bazel` set as pinned. `dx update --apply`
-changes nothing; change a pin with `dx bump <set>:<module> <version>` and
-refresh the lock with `bazel mod deps`.
+changes nothing; change a pin with `dx bump <set>:<module> <version>`.
+`dx bump --apply` and `dx add --apply` on a configured `bazel` set then refresh
+its lock with `bazel mod deps --lockfile_mode=update`, run in the set's
+directory. The set must list exactly the `MODULE.bazel.lock` beside its
+manifest in `locks`; `--offline`, `--frozen` and any other lock layout refuse
+before the manifest is written. `dx update <set>` itself stays pinned.
 
 An `npm` set locks one `package.json` with the workspace's own pnpm. The
 root `MODULE.bazel` must load it:

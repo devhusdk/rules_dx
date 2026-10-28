@@ -570,6 +570,68 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
     }
 }
 
+/// A process to run in a directory other than the workspace root.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DirRun {
+    pub argv: Vec<String>,
+    pub env: Vec<(String, String)>,
+    /// The directory to run in, relative to the workspace.
+    pub dir: String,
+}
+
+/// The `bazel mod deps` run that refreshes the lock of a configured bazel-modules set.
+///
+/// The set's only lock must sit beside its manifest, or Bazel would write a file dx
+/// does not track. A nested workspace gets its own short-lived server and none of the
+/// user's `--output_base` or `--config`, which belong to the root workspace.
+pub fn plan_configured_bazel_lock(
+    set: &ResolvedSet,
+    offline: bool,
+    frozen: bool,
+    head: &dx_process::BazelHead,
+) -> Result<DirRun, BackendError> {
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    let expected = match set.dir.as_str() {
+        "." => "MODULE.bazel.lock".to_owned(),
+        dir => format!("{dir}/MODULE.bazel.lock"),
+    };
+    if set.locks != [expected] {
+        return Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "bazel-modules locks must be exactly the MODULE.bazel.lock beside the manifest",
+        });
+    }
+    let tail = strings(&["deps", "--lockfile_mode=update"]);
+    if set.dir == "." {
+        let mut argv = head.argv("mod");
+        argv.extend(tail);
+        return Ok(DirRun {
+            argv,
+            env: Vec::new(),
+            dir: ".".to_owned(),
+        });
+    }
+    // A nested workspace must not inherit the root's startup options.
+    #[allow(clippy::disallowed_methods)]
+    let mut argv = dx_process::startup_argv(&strings(&["--max_idle_secs=15"]));
+    argv.push("mod".to_owned());
+    argv.extend(tail);
+    Ok(DirRun {
+        argv,
+        env: Vec::new(),
+        dir: set.dir.clone(),
+    })
+}
+
 pub fn plan_configured(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1704,6 +1766,66 @@ mod tests {
                 matches!(error, BackendError::BackendUnavailable { var: got, .. } if got == var),
                 "{error:?}"
             );
+        }
+    }
+
+    #[test]
+    fn configured_bazel_lock_plans_a_nested_mod_deps() {
+        let set = bazel_set("tools", "tools/MODULE.bazel.lock");
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/x".to_owned()],
+            options: vec!["--config=ci".to_owned()],
+            settings: Vec::new(),
+        };
+        let plan = plan_configured_bazel_lock(&set, false, false, &head).expect("plan");
+        assert_eq!(plan.dir, "tools");
+        assert_eq!(
+            plan.argv[plan.argv.len() - 3..],
+            ["mod", "deps", "--lockfile_mode=update"]
+        );
+        assert!(plan.argv.iter().any(|arg| arg == "--max_idle_secs=15"));
+        assert!(!plan.argv.iter().any(|arg| arg.contains("--output_base")));
+        assert!(!plan.argv.iter().any(|arg| arg.contains("--config")));
+    }
+
+    #[test]
+    fn configured_bazel_lock_at_the_root_uses_the_head() {
+        let set = bazel_set(".", "MODULE.bazel.lock");
+        let plan = plan_configured_bazel_lock(&set, false, false, &no_head()).expect("plan");
+        assert_eq!(plan.dir, ".");
+        assert_eq!(
+            plan.argv[plan.argv.len() - 3..],
+            ["mod", "deps", "--lockfile_mode=update"]
+        );
+    }
+
+    #[test]
+    fn configured_bazel_lock_refuses_frozen_offline_and_foreign_locks() {
+        let set = bazel_set("tools", "tools/MODULE.bazel.lock");
+        assert!(matches!(
+            plan_configured_bazel_lock(&set, false, true, &no_head()),
+            Err(BackendError::FrozenLocked { .. })
+        ));
+        assert!(matches!(
+            plan_configured_bazel_lock(&set, true, false, &no_head()),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        let foreign = bazel_set("tools", "other/MODULE.bazel.lock");
+        assert!(matches!(
+            plan_configured_bazel_lock(&foreign, false, false, &no_head()),
+            Err(BackendError::Unsupported { .. })
+        ));
+    }
+
+    fn bazel_set(dir: &str, lock: &str) -> ResolvedSet {
+        ResolvedSet {
+            name: "bazel-modules".to_owned(),
+            ecosystem: Ecosystem::Bazel,
+            dir: dir.to_owned(),
+            manifests: vec![format!("{dir}/MODULE.bazel")],
+            locks: vec![lock.to_owned()],
+            writable: true,
+            repository: None,
         }
     }
 

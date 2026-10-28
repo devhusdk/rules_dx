@@ -1,5 +1,5 @@
 {
-  "checksum": "954e3b163bff30184bc27df8c16a51abc53e2c00567928fb72ccc35aed78a8a3",
+  "checksum": "03fdf451518bd00756eddf3d8d4aa4fcf8f7ada035cac0879d89dea827664771",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -17160,6 +17160,10 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "globset 0.4.20",
+            "target": "globset"
+          },
+          {
             "id": "line-index 0.1.2",
             "target": "line_index"
           },
@@ -17194,6 +17198,10 @@
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "toml_edit 0.25.15+spec-1.1.0",
+            "target": "toml_edit"
           },
           {
             "id": "url 2.5.8",

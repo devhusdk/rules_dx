@@ -1766,6 +1766,35 @@ pub fn ansible_lint_fix(
     }
 }
 
+/// `check-jsonschema` for one (schema, filetype) group, offline.
+///
+/// `--dx-ref-map` is read by dx's wrapper, which serves pinned `$ref` targets from disk and
+/// refuses every other download. `-vv` makes the JSON report list every checked file.
+pub fn check_jsonschema_check(
+    binary: &Path,
+    ref_map: &Path,
+    schema: &Path,
+    filetype: &str,
+    files: &[&Path],
+) -> Invocation {
+    let head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--dx-ref-map"),
+        ref_map.as_os_str().to_owned(),
+        OsString::from("--schemafile"),
+        schema.as_os_str().to_owned(),
+        OsString::from("--no-cache"),
+        OsString::from("--output-format"),
+        OsString::from("json"),
+        OsString::from("--verbose"),
+        OsString::from("--verbose"),
+        OsString::from("--force-filetype"),
+        OsString::from(filetype),
+        OsString::from("--"),
+    ];
+    assemble(binary, head, files, "")
+}
+
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     match config {
         Some(_) => optional_flag(
@@ -2119,7 +2148,7 @@ pub enum ArgTransport {
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
-        | "deadnix" => ArgTransport::Batched,
+        | "deadnix" | "check_jsonschema" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

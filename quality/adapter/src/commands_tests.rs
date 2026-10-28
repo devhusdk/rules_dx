@@ -2632,3 +2632,36 @@ fn ansible_lint_fix_rewrites_in_place_offline() {
         ]
     );
 }
+
+#[test]
+fn check_jsonschema_argv_is_offline_and_verbose() {
+    let a = Path::new("/scratch/a.yaml");
+    let b = Path::new("/scratch/b.yaml");
+    assert_eq!(
+        argv_strings(&check_jsonschema_check(
+            Path::new(BIN),
+            Path::new("/scratch/refs.json"),
+            Path::new("/cfg/s.json"),
+            "yaml",
+            &[a, b]
+        )),
+        vec![
+            BIN,
+            "--dx-ref-map",
+            "/scratch/refs.json",
+            "--schemafile",
+            "/cfg/s.json",
+            "--no-cache",
+            "--output-format",
+            "json",
+            "--verbose",
+            "--verbose",
+            "--force-filetype",
+            "yaml",
+            "--",
+            "/scratch/a.yaml",
+            "/scratch/b.yaml"
+        ]
+    );
+    assert_eq!(transport_for("check_jsonschema"), ArgTransport::Batched);
+}

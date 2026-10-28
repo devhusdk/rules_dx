@@ -17,6 +17,23 @@ def _schemas_config_impl(ctx):
         ],
         sorted([f.short_path.removeprefix("quality/tests/json_schema/") for f in info.closure.to_list()]),
     )
+    writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite"]
+    config = json.decode(writes[0].content)
+    asserts.equals(env, 1, config["schema_version"])
+    asserts.equals(
+        env,
+        [
+            {
+                "schema": "schemas.json_schemas/quality/tests/json_schema/fixtures/a.schema.json",
+                "url": "https://example.com/a.schema.json",
+            },
+            {
+                "schema": "schemas.json_schemas/quality/tests/json_schema/fixtures/common.schema.json",
+                "url": "https://example.com/common.schema.json",
+            },
+        ],
+        config["resources"],
+    )
     return analysistest.end(env)
 
 schemas_config_test = analysistest.make(_schemas_config_impl)

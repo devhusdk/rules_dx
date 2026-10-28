@@ -1,6 +1,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("//libs/starlark:cells.bzl", "cell_settings")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "ocaml_metadata_tests")
+load(":pins.bzl", "OCAML_CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,6 +14,11 @@ exports_files([
 ])
 
 ocaml_metadata_tests(name = "metadata")
+
+cell_settings(
+    name = "cell",
+    cells = OCAML_CELLS,
+)
 
 string_flag(
     name = "emitter",

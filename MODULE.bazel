@@ -102,7 +102,7 @@ gazelle_go_deps.module_override(
     patches = ["//third_party/go:gotreesitter_embed.patch"],
     path = "github.com/odvcencio/gotreesitter",
 )
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_odvcencio_gotreesitter", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_x_mod", "org_golang_x_net")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_odvcencio_gotreesitter", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(

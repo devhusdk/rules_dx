@@ -153,8 +153,43 @@ impl RealBackend {
                 )
             }
             "ty" => {
+                // ty cannot read notebooks, so each one is checked as a script of its code
+                // cells written beside the staged copy; findings map back to notebook cells.
+                let notebooks = Self::read_notebooks(tool_id, pairs)?;
+                let mut scripts: Vec<(String, String, quality_notebook::PythonScript)> = Vec::new();
+                let mut checked_pairs: Vec<(String, PathBuf)> = Vec::new();
+                for (workspace, absolute) in pairs {
+                    if absolute.extension().and_then(|ext| ext.to_str()) != Some("ipynb") {
+                        checked_pairs.push((workspace.clone(), absolute.clone()));
+                        continue;
+                    }
+                    let key = absolute.to_string_lossy().into_owned();
+                    let text = notebooks
+                        .iter()
+                        .find(|(path, _)| *path == key)
+                        .map(|(_, text)| text.as_str())
+                        .unwrap_or_default();
+                    let script = quality_notebook::Notebook::parse(text)
+                        .map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?
+                        .python_script()
+                        .ok_or_else(|| {
+                            execution(tool_id, format!("{workspace}: unreadable cell source"))
+                        })?;
+                    let mut script_path = absolute.clone().into_os_string();
+                    script_path.push(".py");
+                    let script_path = PathBuf::from(script_path);
+                    std::fs::write(&script_path, &script.source).map_err(|err| {
+                        execution(tool_id, format!("{workspace}: write cell script: {err}"))
+                    })?;
+                    checked_pairs.push((format!("{workspace}.py"), script_path));
+                    scripts.push((workspace.clone(), text.to_owned(), script));
+                }
+                let ty_refs: Vec<&Path> = checked_pairs
+                    .iter()
+                    .map(|(_, absolute)| absolute.as_path())
+                    .collect();
                 let mut dirs: Vec<PathBuf> = Vec::new();
-                for (_, absolute) in pairs.iter().chain(resolve_pairs.iter()) {
+                for (_, absolute) in checked_pairs.iter().chain(resolve_pairs.iter()) {
                     if let Some(parent) = absolute.parent() {
                         if !dirs.contains(&parent.to_path_buf()) {
                             dirs.push(parent.to_path_buf());
@@ -167,9 +202,9 @@ impl RealBackend {
                     }
                 }
                 let dir_refs: Vec<&Path> = dirs.iter().map(|dir| dir.as_path()).collect();
-                let invocation = commands::ty_check(&tool.binary, &refs, &dir_refs);
+                let invocation = commands::ty_check(&tool.binary, &ty_refs, &dir_refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
-                let workspaces: Vec<&str> = pairs
+                let workspaces: Vec<&str> = checked_pairs
                     .iter()
                     .chain(resolve_pairs.iter())
                     .map(|(workspace, _)| workspace.as_str())
@@ -178,13 +213,54 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_ty(&out.stdout, out.code, &workspaces),
                 )?;
-                let checked: std::collections::BTreeSet<&str> = pairs
+                let checked: std::collections::BTreeSet<&str> = checked_pairs
                     .iter()
                     .map(|(workspace, _)| workspace.as_str())
                     .collect();
                 findings.retain(|found| checked.contains(found.file.as_str()));
                 for found in &mut findings {
-                    let absolute = reanchor(tool_id, pairs, &found.file)?;
+                    let notebook = found
+                        .file
+                        .strip_suffix(".py")
+                        .and_then(|name| scripts.iter().find(|(ws, _, _)| ws == name));
+                    if let Some((workspace, text, script)) = notebook {
+                        let parsed_nb = quality_notebook::Notebook::parse(text)
+                            .map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?;
+                        let unplaced = || RunnerError::UnplaceableFinding {
+                            tool_id: tool_id.to_owned(),
+                            detail: format!("{workspace}: finding outside a code cell"),
+                        };
+                        let start = found.finding.start;
+                        let (cell, row) = script.cell_row(start.line).ok_or_else(unplaced)?;
+                        let place = |position: quality_adapter::TextPosition| {
+                            let (end_cell, end_row) =
+                                script.cell_row(position.line).ok_or_else(unplaced)?;
+                            // A span running into a later cell ends at the end of this one.
+                            let (row, column) = if end_cell == cell {
+                                (end_row, position.column)
+                            } else {
+                                (u64::MAX / 2, 1)
+                            };
+                            parsed_nb
+                                .locate(cell, row, column)
+                                .map(|(line, column)| quality_adapter::TextPosition {
+                                    line,
+                                    column,
+                                })
+                                .ok_or_else(unplaced)
+                        };
+                        found.finding.start = place(start)?;
+                        if let Some(end) = found.finding.end {
+                            found.finding.end = Some(place(end)?);
+                        }
+                        found.finding.message =
+                            format!("cell {cell}, line {row}: {}", found.finding.message);
+                        found.file = reanchor(tool_id, pairs, workspace)?
+                            .to_string_lossy()
+                            .into_owned();
+                        continue;
+                    }
+                    let absolute = reanchor(tool_id, &checked_pairs, &found.file)?;
                     found.file = absolute.to_string_lossy().into_owned();
                 }
                 Ok(findings)

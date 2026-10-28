@@ -318,7 +318,7 @@ to.
 | `terraform` | format | terraform |
 | `tflint` | lint | terraform |
 | `tsc` | typecheck | typescript, tsx |
-| `ty` | typecheck | python |
+| `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
 | `yamlfmt` | format | yaml |
@@ -3098,8 +3098,13 @@ written back.
 
 Only Python notebooks are checked. A notebook with another kernel language, a
 format other than nbformat 4, or invalid JSON is an error and never counts as
-clean. Cells that start with a cell magic are skipped by Ruff. Type checking
-does not apply to notebooks, so disable `typecheck` and `audit` in the family.
+clean. Cells that start with a cell magic are skipped by Ruff. Disable `audit`
+in the family.
+
+To type check notebooks, list `ty` under `typecheck` in the family. The code
+cells are joined into one script (line magics and shell escapes become `pass`,
+and `get_ipython` and `display` are declared), checked with `ty`, and each
+finding is mapped back to its cell and line in the notebook file.
 
 To change options, bind a `ruff_config` to the notebook targets with
 `aspect_hints`, as for Python.

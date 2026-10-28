@@ -464,6 +464,46 @@ impl<'a> Notebook<'a> {
             .map(|(chars, _)| chars.into_iter().map(|(c, _)| c).collect())
     }
 
+    /// The notebook's code cells as one Python script for a type checker.
+    ///
+    /// IPython line magics and shell escapes become `pass`, cell magics are blanked, and a
+    /// one-line prelude declares the names IPython injects. Returns `None` when a code cell
+    /// has no readable source.
+    pub fn python_script(&self) -> Option<PythonScript> {
+        let mut source = String::from(PYTHON_PRELUDE);
+        source.push('\n');
+        let mut lines = 1u64;
+        let mut cells = Vec::new();
+        for (at, cell) in self.cells.iter().enumerate() {
+            if cell.kind != "code" {
+                continue;
+            }
+            let text = match cell.source {
+                Some(_) => self.source_text(cell)?,
+                None => String::new(),
+            };
+            let text = text.replace("\r\n", "\n").replace('\r', "\n");
+            let cell_magic = text.trim_start().starts_with("%%");
+            cells.push(ScriptCell {
+                cell: at as u64 + 1,
+                first_line: lines + 1,
+            });
+            for line in text.split('\n') {
+                let trimmed = line.trim_start();
+                if cell_magic {
+                } else if trimmed.starts_with('%') || trimmed.starts_with('!') {
+                    source.push_str(&line[..line.len() - trimmed.len()]);
+                    source.push_str("pass");
+                } else {
+                    source.push_str(line);
+                }
+                source.push('\n');
+                lines += 1;
+            }
+        }
+        Some(PythonScript { source, cells })
+    }
+
     /// Maps a Ruff `(cell, row, column)` (all 1-based, columns in scalars) to
     /// a 1-based line and scalar column in the notebook file. A row or column
     /// past the end clamps to the end of the cell source; anything else out of
@@ -693,6 +733,32 @@ pub fn splice_sources(original: &str, rewritten: &str) -> Result<String, Noteboo
     Ok(out)
 }
 
+const PYTHON_PRELUDE: &str = "from typing import Any; get_ipython: Any; display: Any";
+
+/// Where one notebook code cell starts inside a [`PythonScript`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScriptCell {
+    /// 1-based position in the notebook's cell list.
+    pub cell: u64,
+    /// 1-based script line of the cell's first source line.
+    pub first_line: u64,
+}
+
+/// Python extracted from a notebook, with the cell boundaries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PythonScript {
+    pub source: String,
+    pub cells: Vec<ScriptCell>,
+}
+
+impl PythonScript {
+    /// Maps a script line to `(cell, row)` inside that cell; `None` for the prelude.
+    pub fn cell_row(&self, line: u64) -> Option<(u64, u64)> {
+        let cell = self.cells.iter().rev().find(|c| c.first_line <= line)?;
+        Some((cell.cell, line - cell.first_line + 1))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -903,5 +969,26 @@ mod tests {
         assert_eq!(&text[s..e], "[]");
         let (s, e) = cell.execution_count.unwrap();
         assert_eq!(&text[s..e], "null");
+    }
+
+    #[test]
+    fn python_script_skips_magics_and_maps_cells() {
+        let text = nb(
+            &format!(
+                "{},{}",
+                code("[\"x = 1\\n\", \"%time y\\n\", \"z = x\"]"),
+                code("[\"w\"]")
+            ),
+            "{}",
+        );
+        let script = Notebook::parse(&text).unwrap().python_script().unwrap();
+        assert!(
+            script.source.ends_with("x = 1\npass\nz = x\nw\n"),
+            "{:?}",
+            script.source
+        );
+        assert_eq!(script.cell_row(1), None);
+        assert_eq!(script.cell_row(4), Some((1, 3)));
+        assert_eq!(script.cell_row(5), Some((2, 1)));
     }
 }

@@ -287,7 +287,6 @@ GAP_ISSUES = {
     "typecheck:astro": 1767,
     "typecheck:cuda": 4594,
     "typecheck:d": 4530,
-    "typecheck:jupyter": 4534,
     "typecheck:fortran": 4530,
     "typecheck:fsharp": 4529,
     "typecheck:go": 4526,

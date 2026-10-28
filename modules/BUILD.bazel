@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 load(":consumer_deps.bzl", "consumer_deps_json")
 load(":versions_tests.bzl", "versions_contract_tests")
 
@@ -16,8 +16,10 @@ rust_test(
     size = "small",
     srcs = ["consumer_deps_test.rs"],
     data = [
+        "consumer_names_test.rs",
         ":consumer_deps_json",
         "//:MODULE.bazel",
+        "//tools/testing/hermetic:module_fragments",
     ],
     deps = [
         "//libs/module_bazel:dx_module_bazel",
@@ -112,6 +114,50 @@ rust_clippy_test(
     name = "consumer_names_clippy_test",
     size = "small",
     targets = [":consumer_names_test"],
+)
+
+# keep
+rust_test(
+    name = "floor_graph_test",
+    size = "enormous",
+    srcs = ["floor_graph_test.rs"],
+    data = [
+        "floor_graph_test.rs",
+        ":consumer_deps_json",
+        "//:MODULE.bazel",
+        "//cli/cli:dx",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "DX_CONSUMER_OVERRIDES",
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_CI_NETWORK_TAGS + ["floor-consumer"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+        "//tools/testing/floor:dx_floor",
+    ],
+)
+
+rustfmt_test(
+    name = "floor_graph_fmt_test",
+    size = "small",
+    targets = [":floor_graph_test"],
+)
+
+rust_clippy_test(
+    name = "floor_graph_clippy_test",
+    size = "small",
+    targets = [":floor_graph_test"],
 )
 
 exports_files([

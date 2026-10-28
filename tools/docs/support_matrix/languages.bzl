@@ -98,7 +98,7 @@ ROWS = [
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"], "name": "haskell", "section": "languages", "starters": ["haskell"], "title": "Haskell"},
     {"ci_tests": _hello("java"), "name": "java", "section": "languages", "starters": ["java"], "title": "Java"},
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "starters": ["javascript"], "title": "JavaScript"},
-    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "name": "julia", "section": "languages", "title": "Julia"},
+    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": ["//julia/tests/starter:starter_test"], "name": "julia", "section": "languages", "starters": ["julia"], "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "starters": ["kotlin"], "title": "Kotlin"},
     {"ci_tests": ["//lua/tests/runtime:probe_test"], "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
     {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},

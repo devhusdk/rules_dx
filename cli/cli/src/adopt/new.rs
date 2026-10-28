@@ -489,6 +489,16 @@ mod tests {
             "demo-app",
             &["hello.lua", "main.lua", "hello_test.lua"],
         ),
+        (
+            "julia",
+            "demo-app",
+            &[
+                "Project.toml",
+                "src/DemoApp.jl",
+                "main.jl",
+                "test/runtests.jl",
+            ],
+        ),
     ];
 
     #[test]
@@ -518,16 +528,21 @@ mod tests {
             }
             let build =
                 std::fs::read_to_string(root.join(name).join("BUILD.bazel")).expect("build");
-            let check_target = if *language == "mdx" {
-                "\"demo-app_check\""
-            } else {
-                "\"demo-app_test\""
+            let (lib_target, check_target) = match *language {
+                "mdx" => ("\"demo-app\"", "\"demo-app_check\""),
+                "julia" => ("\"DemoApp\"", "\"DemoApp_test\""),
+                _ => ("\"demo-app\"", "\"demo-app_test\""),
             };
-            for target in ["\"demo-app\"", check_target] {
+            for target in [lib_target, check_target] {
                 assert!(build.contains(target), "{language}: {build}");
             }
+            let bin_target = if *language == "julia" {
+                "\"DemoApp_bin\""
+            } else {
+                "\"demo-app_bin\""
+            };
             assert_eq!(
-                build.contains("\"demo-app_bin\""),
+                build.contains(bin_target),
                 matches!(
                     *language,
                     "ruby"
@@ -539,6 +554,7 @@ mod tests {
                         | "haskell"
                         | "cuda"
                         | "lua"
+                        | "julia"
                 ),
                 "{language}: {build}"
             );
@@ -629,6 +645,7 @@ mod tests {
             vec!["new", "--apply", "elixir", "demo", "--force"],
             vec!["new", "--apply", "erlang", "demo", "--force"],
             vec!["new", "--apply", "lua", "demo", "--force"],
+            vec!["new", "--apply", "julia", "demo", "--force"],
         ] {
             let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

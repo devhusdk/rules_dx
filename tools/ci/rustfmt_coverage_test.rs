@@ -180,6 +180,7 @@ const PACKAGES: [&str; 128] = [
     "generation/result",
     "haskell/tests/negative",
     "javascript/tests/fixtures/web_app",
+    "julia/tests/starter",
     "lua/tests/negative",
     "modules",
     "ocaml/tests/negative",

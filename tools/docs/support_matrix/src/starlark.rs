@@ -567,7 +567,10 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("haskell_test", Constraint::AsWritten),
     ("java_test", Constraint::AsWritten),
     ("javascript_test", Constraint::AsWritten),
-    ("julia_test", Constraint::AsWritten),
+    (
+        "julia_test",
+        Constraint::Appended("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH"),
+    ),
     ("kotlin_test", Constraint::AsWritten),
     ("lua_test", Constraint::AsWritten),
     (

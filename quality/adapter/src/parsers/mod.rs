@@ -22,10 +22,12 @@ pub mod errcheck;
 pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
+pub mod flang;
 pub mod flatc;
 pub mod fortitude;
 pub mod fsharplint;
 pub mod gersemi;
+mod gnu_diagnostics;
 pub mod go_analysis;
 pub mod gofumpt;
 pub mod google_java_format;
@@ -40,6 +42,7 @@ pub mod ktfmt;
 pub mod ktlint;
 pub mod kubeconform;
 pub mod latexindent;
+pub mod ldc;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
@@ -109,6 +112,7 @@ pub use errcheck::parse_errcheck;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
+pub use flang::parse_flang;
 pub use flatc::{parse_flatc, FlatcReport};
 pub use fortitude::parse_fortitude;
 pub use fsharplint::parse_fsharplint;
@@ -127,6 +131,7 @@ pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use kubeconform::{parse_kubeconform, KubeconformTarget};
 pub use latexindent::parse_latexindent;
+pub use ldc::parse_ldc;
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
@@ -1999,6 +2004,22 @@ mod tests {
         super::elvis::parse_elvis(input, b"", code, files)
     }
 
+    fn fuzz_flang(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::flang::parse_flang(input, code, files)
+    }
+
+    fn fuzz_ldc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ldc::parse_ldc(input, code, files)
+    }
+
     fn fuzz_dialyzer(
         input: &[u8],
         code: Option<i32>,
@@ -2380,6 +2401,8 @@ mod tests {
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
         ("dialyzer", fuzz_dialyzer),
+        ("flang", fuzz_flang),
+        ("ldc", fuzz_ldc),
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
@@ -2477,6 +2500,8 @@ mod tests {
         ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("dialyzer", include_str!("dialyzer.rs")),
+        ("flang", include_str!("flang.rs")),
+        ("ldc", include_str!("ldc.rs")),
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),

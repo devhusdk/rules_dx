@@ -1,0 +1,29 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//scala/rules:defs.bzl", "scala_binary")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+# Compiles against the Scala compiler of the active rules_scala toolchain, so the documented
+# sources are read by the compiler the consumer declared. Only Scala 2.13 has this doc model.
+scala_binary(
+    name = "scaladoc_extract",
+    srcs = [
+        "Docs.scala",
+        "Main.scala",
+        "Model.scala",
+    ],
+    aspect_hints = ["//:scalafmt_config"],
+    main_class = "dx.docs.scaladoc.Main",
+    deps = [
+        "//tools/docs/jvm/record:api_record_writer",
+        "@rules_scala//scala/private/toolchain_deps:scala_compile_classpath",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

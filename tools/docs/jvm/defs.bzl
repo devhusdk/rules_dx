@@ -1,4 +1,4 @@
-"""JVM API reference shards built from public sources by Javadoc and Dokka."""
+"""JVM API reference shards built from public sources by Javadoc, Dokka and Scaladoc."""
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
@@ -201,6 +201,31 @@ def kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs):
       **kwargs: Common attributes such as tags and visibility.
     """
     docs_kotlin_shard(
+        name = name,
+        lib = lib,
+        package = package,
+        deps = deps,
+        **kwargs
+    )
+
+docs_scala_shard = _jvm_shard_rule(
+    language = "scala",
+    adapter = "//tools/docs/jvm/scaladoc:scaladoc_extract",
+    mnemonic = "DxDocsScaladoc",
+    extensions = ["scala"],
+)
+
+def scala_doc_shard(name, lib, package = "", deps = [], **kwargs):
+    """Declares the DocIr shard of one Scala 2.13 library.
+
+    Args:
+      name: Name of the shard target.
+      lib: The documented scala_library; its srcs must all be .scala files.
+      package: Package segment of every symbol id; defaults to the name of lib.
+      deps: Doc shard targets of libraries whose types this one extends or links to.
+      **kwargs: Common attributes such as tags and visibility.
+    """
+    docs_scala_shard(
         name = name,
         lib = lib,
         package = package,

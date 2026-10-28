@@ -52,6 +52,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust serde_json @crates//:serde_json
 # gazelle:dx_external python tools/ci/tooling/uv.lock
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
+# gazelle:resolve rust quality_notebook //quality/notebook:quality_notebook_lib
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:dx_corpus true
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven

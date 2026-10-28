@@ -1764,6 +1764,14 @@ fn fixed_args_match_recorded_invocations() {
             KEEP_SORTED_FIX_ARGS,
             keep_sorted_fix(Path::new(BIN), &[file]),
         ),
+        (
+            NOTEBOOK_OUTPUTS_CHECK_ARGS,
+            notebook_outputs_check(Path::new(BIN), &[file]),
+        ),
+        (
+            NOTEBOOK_OUTPUTS_FIX_ARGS,
+            notebook_outputs_fix(Path::new(BIN), &[file]),
+        ),
     ];
     for (args, invocation) in cases {
         let mut expected = vec![BIN.to_owned()];
@@ -1911,6 +1919,7 @@ fn plan_batches_honours_launcher_budget() {
 fn file_independent_tools_batch() {
     for tool in [
         "keep_sorted",
+        "notebook_outputs",
         "ruff",
         "flake8",
         "pydoclint",

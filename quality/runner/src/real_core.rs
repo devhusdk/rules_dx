@@ -186,6 +186,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "mix_format",
             "modfmt",
             "nixfmt",
+            "notebook_outputs",
             "ormolu",
             "opa",
             "pkl",

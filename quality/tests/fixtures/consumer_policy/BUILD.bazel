@@ -390,6 +390,25 @@ workspace_policy(
     families = [":jupyter_family"],
 )
 
+quality_family(
+    name = "jupyter_outputs_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = [
+        "ruff",
+        "notebook_outputs",
+    ],
+)
+
+workspace_policy(
+    name = "jupyter_outputs_policy",
+    families = [":jupyter_outputs_family"],
+)
+
 filegroup(
     name = "jupyter_module",
     srcs = ["jupyter_module/clean.ipynb"],
@@ -403,6 +422,7 @@ real_source_target(
 
 real_source_target(
     name = "clean_jupyter",
+    aspect_hints = ["//:ruff_config"],
     jupyter_srcs = [":jupyter_module"],
 )
 

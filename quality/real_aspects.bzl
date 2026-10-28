@@ -300,6 +300,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "nix",
     },
+    "notebook_outputs": {
+        "attr": attr.label(default = "//quality/notebook:quality_notebook", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "core",
+    },
     "ormolu": {
         "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],

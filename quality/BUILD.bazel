@@ -452,6 +452,24 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_make",
         },
         {
+            "case": "jupyter_formatted",
+            "expected_dx_results": [
+                "clean_jupyter-real-format.pb",
+                "clean_jupyter-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:jupyter_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_jupyter",
+        },
+        {
+            "case": "jupyter_outputs_linted",
+            "expected_dx_results": [
+                "clean_jupyter-real-format.pb",
+                "clean_jupyter-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:jupyter_outputs_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_jupyter",
+        },
+        {
             "case": "nix_linted",
             "expected_dx_results": [
                 "clean_nix-real-format-nix.pb",
@@ -556,6 +574,8 @@ test_suite(
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
+        ":consumer_policy_jupyter_formatted_test",
+        ":consumer_policy_jupyter_outputs_linted_test",
         ":consumer_policy_kubernetes_linted_test",
         ":consumer_policy_make_linted_test",
         ":consumer_policy_nix_linted_test",
@@ -702,6 +722,8 @@ rust_test(
         "//quality/adapter:src/lib.rs",
         "//quality/markdown:src/lib.rs",
         "//quality/markdown:src/main.rs",
+        "//quality/notebook:src/lib.rs",
+        "//quality/notebook:src/main.rs",
         "//quality/result:src/lib.rs",
         "//quality/result:src/print.rs",
         "//quality/runner:src/lib.rs",

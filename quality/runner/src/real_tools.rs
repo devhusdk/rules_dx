@@ -3403,3 +3403,115 @@ fn credo_lint_apply_leaves_bytes_unchanged() {
         "IO.inspect(1)\n"
     );
 }
+
+fn outputs_backend() -> RealBackend {
+    backend_for("notebook_outputs", plain_tool(), notebook_outputs_behavior)
+}
+
+fn outputs_stripped() -> String {
+    NOTEBOOK_DIRTY
+        .replace("\"execution_count\": 7", "\"execution_count\": null")
+        .replace(
+            "[{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}]",
+            "[]",
+        )
+}
+
+#[test]
+fn notebook_outputs_findings_name_the_cell_and_never_write() {
+    let backend = outputs_backend();
+    let before = single("n.ipynb", NOTEBOOK_DIRTY);
+    let findings = backend
+        .diagnose("notebook_outputs", "lint", &before)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 2);
+    assert!(findings.iter().all(|f| f.message.starts_with("cell 2: ")));
+    let rules: Vec<&str> = findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert_eq!(rules, ["execution-count", "cell-outputs"]);
+    assert_eq!(before["n.ipynb"], NOTEBOOK_DIRTY, "check mode never writes");
+}
+
+#[test]
+fn notebook_outputs_fix_strips_only_outputs_and_counts() {
+    let backend = outputs_backend();
+    let fixed = backend
+        .apply_fix("notebook_outputs", "n.ipynb", NOTEBOOK_DIRTY, "lint")
+        .expect("fixed");
+    assert_eq!(fixed, outputs_stripped());
+    assert!(backend
+        .diagnose("notebook_outputs", "lint", &single("n.ipynb", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn ruff_fix_then_notebook_outputs_fix_keeps_both_edits() {
+    let after_ruff = notebook_backend()
+        .apply_fix("ruff", "n.ipynb", NOTEBOOK_DIRTY, "lint")
+        .expect("ruff fixed");
+    let both = outputs_backend()
+        .apply_fix("notebook_outputs", "n.ipynb", &after_ruff, "lint")
+        .expect("outputs fixed");
+    assert!(!both.contains("import os"));
+    assert!(both.contains("\"execution_count\": null"));
+    assert!(!both.contains("\"stdout\""));
+}
+
+#[test]
+fn notebook_outputs_rewrite_that_touches_more_is_refused() {
+    let backend = backend_for(
+        "notebook_outputs",
+        plain_tool(),
+        notebook_outputs_tampering_behavior,
+    );
+    let err = backend
+        .apply_fix("notebook_outputs", "n.ipynb", NOTEBOOK_DIRTY, "lint")
+        .expect_err("refused");
+    assert!(err.to_string().contains("n.ipynb"), "{err}");
+}
+
+#[test]
+fn notebook_outputs_failures_never_report_clean() {
+    let notebook = single("n.ipynb", NOTEBOOK_DIRTY);
+    for behavior in [
+        notebook_outputs_malformed_behavior as Spawn,
+        notebook_outputs_crash_behavior,
+        notebook_outputs_missing_behavior,
+    ] {
+        let backend = backend_for("notebook_outputs", plain_tool(), behavior);
+        backend
+            .diagnose("notebook_outputs", "lint", &notebook)
+            .expect_err("a broken tool is an error");
+    }
+    let err = outputs_backend()
+        .diagnose("notebook_outputs", "lint", &single("n.ipynb", "{ not json"))
+        .expect_err("invalid JSON");
+    assert!(err.to_string().contains("n.ipynb"), "{err}");
+    let r_notebook = NOTEBOOK_DIRTY.replace(
+        "{\"language_info\": {\"name\": \"python\"}}",
+        "{\"kernelspec\": {\"language\": \"R\"}}",
+    );
+    let found = outputs_backend()
+        .diagnose("notebook_outputs", "lint", &single("n.ipynb", &r_notebook))
+        .expect("any kernel language is accepted");
+    assert_eq!(found.len(), 2);
+}
+
+#[test]
+fn notebook_outputs_settles_only_the_exact_strip() {
+    let ok = RealBackend::settle(
+        "notebook_outputs",
+        "n.ipynb",
+        NOTEBOOK_DIRTY,
+        outputs_stripped(),
+    )
+    .expect("exact strip");
+    assert_eq!(ok, outputs_stripped());
+    RealBackend::settle(
+        "notebook_outputs",
+        "n.ipynb",
+        NOTEBOOK_DIRTY,
+        NOTEBOOK_DIRTY.replace("# Title", "# Other"),
+    )
+    .expect_err("any other rewrite is refused");
+}

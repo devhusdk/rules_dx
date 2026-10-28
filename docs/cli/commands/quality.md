@@ -264,6 +264,7 @@ to.
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
 | `nixfmt` | format | nix |
+| `notebook_outputs` | lint | jupyter |
 | `ormolu` | format | haskell |
 | `opa` | format, typecheck | rego |
 | `pkl` | format | pkl |
@@ -2454,6 +2455,35 @@ does not apply to notebooks, so disable `typecheck` and `audit` in the family.
 
 To change options, bind a `ruff_config` to the notebook targets with
 `aspect_hints`, as for Python.
+
+#### Notebook outputs
+
+The `notebook_outputs` check flags code cells that keep saved outputs or an
+execution count. It is off by default and is not part of any curated default.
+Enable it by listing it next to Ruff under `lint` in the `jupyter` family.
+
+```python
+quality_family(
+    name = "jupyter_family",
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff", "notebook_outputs"],
+    disabled = ["audit", "typecheck"],
+)
+```
+
+Two rules exist, and neither has options:
+
+- `cell-outputs`: a code cell whose `outputs` array is not empty.
+- `execution-count`: a code cell whose `execution_count` is not `null`.
+
+Each finding starts with `cell N:` and points at the `outputs` or
+`execution_count` line of the notebook file. `--apply` sets `outputs` to `[]`
+and `execution_count` to `null` and changes no other byte, so metadata,
+attachments, markdown cells, key order, indentation and line endings stay as
+they were. The check works with any kernel language, so an R or Julia notebook
+is accepted, while invalid JSON or a format other than nbformat 4 is an error.
+The tool is built from this repository and needs no install.
 
 ### HTML templates
 

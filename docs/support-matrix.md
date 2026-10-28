@@ -21,6 +21,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `csharp` |
 | CUDA | `linux_x86_64` | `linux_x86_64` | `cuda` |
 | D | `linux_x86_64` | no | `d` |
+| Dart | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Elixir | `linux_x86_64` | `linux_x86_64` | `elixir` |
 | Erlang | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64` | `erlang` |
 | Fortran | `linux_x86_64` | no | `fortran` |
@@ -70,6 +71,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | no |
 | CUDA | no | `clang_format` | no |
 | D | `dscanner` | `dfmt` | no |
+| Dart | no | no | no |
 | Elixir | `credo` | `mix_format` | no |
 | Erlang | `elvis` | `erlfmt` | no |
 | Fortran | no | no | no |

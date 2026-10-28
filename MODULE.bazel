@@ -482,6 +482,7 @@ pub = use_extension(
 pub.from_lock(
     name = "dx_dart_deps",
     lock = "//third_party/dart:pubspec.lock",
+    on_version_conflict = "upgrade",
 )
 use_repo(pub, "dx_dart_deps")
 

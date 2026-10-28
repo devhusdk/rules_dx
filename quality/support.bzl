@@ -557,6 +557,90 @@ API_SPEC_REDOCLY_LINT_SUPPORT = {
     "transport": "single",
 }
 
+JAVASCRIPT_BIOME_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["javascript", "jsx"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "javascript",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "biome",
+    "transport": "batched",
+}
+
+JAVASCRIPT_BIOME_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["javascript", "jsx"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "javascript",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "biome",
+    "transport": "batched",
+}
+
+JAVASCRIPT_ESLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["javascript"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "javascript",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "eslint",
+    "transport": "batched",
+}
+
+JAVASCRIPT_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["javascript"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "javascript",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
+TYPESCRIPT_BIOME_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["tsx", "typescript"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "typescript",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "biome",
+    "transport": "batched",
+}
+
+TYPESCRIPT_BIOME_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["tsx", "typescript"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "typescript",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "biome",
+    "transport": "batched",
+}
+
 MDX_REMARK_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1110,6 +1194,12 @@ SUPPORT_RECORDS = [
     JUPYTER_RUFF_FORMAT_SUPPORT,
     JUPYTER_RUFF_LINT_SUPPORT,
     JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT,
+    JAVASCRIPT_BIOME_FORMAT_SUPPORT,
+    JAVASCRIPT_BIOME_LINT_SUPPORT,
+    JAVASCRIPT_ESLINT_LINT_SUPPORT,
+    JAVASCRIPT_PRETTIER_FORMAT_SUPPORT,
+    TYPESCRIPT_BIOME_FORMAT_SUPPORT,
+    TYPESCRIPT_BIOME_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):

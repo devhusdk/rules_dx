@@ -1,0 +1,5 @@
+[book]
+title = "jvm"
+authors = ["rules_dx fixture"]
+language = "en"
+src = "src"

@@ -699,7 +699,7 @@ ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state,
 "#;
 
 const RUST_ANDROID_BUILD: &str = r#"# gazelle:ignore
-load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "rust_android_apk")
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_static_library", "rust_test", "rustfmt_test")
 
@@ -758,6 +758,11 @@ android_apk_check(
     name = "@NAME@_check_test",
     apk = ":@NAME@_apk_unsigned_file",
     tags = ["manual"],
+)
+
+android_apk_release_sign(
+    name = "@NAME@_release_sign",
+    apk = ":@NAME@_apk_unsigned_file",
 )
 
 android_adb_install(

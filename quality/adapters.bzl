@@ -80,6 +80,7 @@ REAL_ADAPTERS = {
     "modfmt": {"format": ["go_module"]},
     "nixfmt": {"format": ["nix"]},
     "notebook_outputs": {"lint": ["jupyter"]},
+    "nvcc_syntax": {"typecheck": ["cuda"]},
     "ormolu": {"format": ["haskell"]},
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
     "perlcritic": {"lint": ["perl"]},

@@ -66,6 +66,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "modfmt",
     "nixfmt",
     "notebook_outputs",
+    "nvcc_syntax",
     "ormolu",
     "opa",
     "perlcritic",

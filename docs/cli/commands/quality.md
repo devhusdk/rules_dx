@@ -285,6 +285,7 @@ to.
 | `modfmt` | format | go_module |
 | `nixfmt` | format | nix |
 | `notebook_outputs` | lint | jupyter |
+| `nvcc_syntax` | typecheck | cuda |
 | `ormolu` | format | haskell |
 | `opa` | format, typecheck | rego |
 | `perlcritic` | lint | perl |
@@ -328,7 +329,9 @@ to.
 | `zig_ast_check` | lint | zig |
 | `zig_fmt` | format | zig |
 
-C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clang_syntax"]` on the `cc` family). It replays each compile action of the target with `-fsyntax-only`, using the exact command line, inputs and environment Bazel configured, so includes, defines and copts match the real build. The compiler is whatever the action names, so a GCC toolchain also works; a toolchain without a readable command line (clang-cl/MSVC, params files) fails with an explicit error. Headers are checked only when the target compiles them (`--features=parse_headers`); a header-only library without that feature fails instead of passing unchecked. The tool has no fix support. CUDA is not covered yet (nvcc has no syntax-only mode).
+C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clang_syntax"]` on the `cc` family). It replays each compile action of the target with `-fsyntax-only`, using the exact command line, inputs and environment Bazel configured, so includes, defines and copts match the real build. The compiler is whatever the action names, so a GCC toolchain also works; a toolchain without a readable command line (clang-cl/MSVC, params files) fails with an explicit error. Headers are checked only when the target compiles them (`--features=parse_headers`); a header-only library without that feature fails instead of passing unchecked. The tool has no fix support.
+
+CUDA (`nvcc_syntax`) typecheck is opt-in (`typecheck = ["nvcc_syntax"]` on the `cuda` family). It replays each `CudaCompile` action with the exact nvcc command line, inputs and environment Bazel configured, changing only `-c` to `-cuda` (nvcc's front-end stage, which stops before the host compile), the output to `/dev/null`, and dropping dependency-file and keep-temporary flags. Nothing else is translated, so `-gencode`, `-Xcompiler` and `-ccbin` match the real build. Device compilation and ptxas still run for every `-gencode` architecture, so the check is heavy; it is only cheaper than the build by the host compile. Host-compiler-only warnings (for example `-W` flags passed through `-Xcompiler`) are not reported. Diagnostics inside a header owned by another target are dropped because nvcc prints no include chain; the failing exit then reports an error without a located finding. Params files and header-only `cuda_library` targets (which have no compile action) fail with an explicit error. The tool has no fix support.
 
 Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format` and `no-typecheck`, so `dx format` and `dx typecheck` skip them. The `fortitude` linter is described under Fortran below.
 

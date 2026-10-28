@@ -305,6 +305,39 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
+        self.check_compile_replay_delegated(
+            tool_id,
+            tool,
+            pairs,
+            "dx-clang-syntax",
+            parsers::parse_clang_syntax,
+        )
+    }
+
+    pub(super) fn check_nvcc_syntax_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        self.check_compile_replay_delegated(
+            tool_id,
+            tool,
+            pairs,
+            "dx-nvcc-syntax",
+            parsers::parse_nvcc_syntax,
+        )
+    }
+
+    /// Reads the logs and exit codes of a compile-replay aspect (`<prefix>/<stem>/exit`).
+    fn check_compile_replay_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+        prefix: &str,
+        parse: SarifParser,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
         let workspaces: Vec<&str> = pairs
             .iter()
             .map(|(workspace, _)| workspace.as_str())
@@ -312,8 +345,7 @@ impl RealBackend {
         if tool.upstream_diagnostics.is_empty() {
             return Err(execution(
                 tool_id,
-                "clang_syntax requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"
-                    .to_owned(),
+                format!("{tool_id} requires upstream diagnostics from a declared delegated action: direct execution without the authoritative compilation context is rejected"),
             ));
         }
         let mut findings = Vec::new();
@@ -326,10 +358,10 @@ impl RealBackend {
                 .ok_or_else(|| {
                     execution(
                         tool_id,
-                        format!("clang_syntax log {} has no name", path.display()),
+                        format!("{tool_id} log {} has no name", path.display()),
                     )
                 })?;
-            let key = format!("dx-clang-syntax/{stem}/exit");
+            let key = format!("{prefix}/{stem}/exit");
             let code = tool
                 .tool_files
                 .iter()
@@ -340,14 +372,11 @@ impl RealBackend {
                     execution(
                         tool_id,
                         format!(
-                            "clang_syntax needs the compiler exit status for {stem}; the clang_syntax aspect did not supply it"
+                            "{tool_id} needs the compiler exit status for {stem}; the {tool_id} aspect did not supply it"
                         ),
                     )
                 })?;
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_clang_syntax(&bytes, Some(code), &workspaces),
-            )?);
+            findings.extend(parsed(tool_id, parse(&bytes, Some(code), &workspaces))?);
         }
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;

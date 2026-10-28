@@ -31,7 +31,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Kotlin | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `kotlin` |
 | Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
 | MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `mdx` |
-| OCaml | `linux_x86_64` | no | no |
+| OCaml | `linux_x86_64` | no | `ocaml` |
 | Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | PHP | `linux_x86_64` | no | no |
 | PowerShell | `linux_x86_64`, `linux_arm64` | no | `powershell` |
@@ -52,8 +52,8 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | AppImage | `linux_x86_64`, `linux_arm64` | no | no |
 | Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` | no |
 | Dockerfile | no | no | no |
+| Make | no | no | no |
 | MSIX | no | no | no |
-| Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Qt | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` | no |
 | WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
 
@@ -67,7 +67,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | no |
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | no |
 | CUDA | no | `clang_format` | no |
-| D | no | no | no |
+| D | no | `dfmt` | no |
 | Elixir | no | `mix_format` | no |
 | Erlang | no | `erlfmt` | no |
 | Fortran | no | no | no |
@@ -80,7 +80,6 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Kotlin | `ktlint` | `ktfmt` | no |
 | Lua | no | `stylua` on `linux_x86_64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
-| Nix | `statix`, `deadnix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | no | no | no |
 | PHP | no | no | no |
@@ -95,13 +94,20 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Zig | no | `zig_fmt` | no |
 | Apple | no | `clang_format` | no |
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
+| Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Qt | `qmllint` | `qmlformat` | no |
+| Ansible | `ansible_lint` | no | no |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | CUE | no | `cue` on `linux_x86_64` | no |
+| FlatBuffers | `flatc` on `linux_x86_64` | no | no |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | no |
 | Jsonnet | no | `jsonnetfmt` on `linux_x86_64` | no |
+| Jupyter | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
+| Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | no |
 | Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Rego | no | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
 | SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |

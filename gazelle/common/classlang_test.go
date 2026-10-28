@@ -254,3 +254,113 @@ func TestClassLangSpecRoundTrip(t *testing.T) {
 		t.Fatalf("Spec() generation differs: %+v vs %+v", a, b)
 	}
 }
+
+const clsAndroidKind = "cls_android_library"
+
+func clsAndroidSpec() ClassLangSpec {
+	spec := clsSpec()
+	v := AndroidVariant(clsAndroidKind)
+	v.DefsPackage = "cls/rules:defs.bzl"
+	spec.Variant = v
+	return spec
+}
+
+func clsAndroidGenerate(t *testing.T, existing *rule.Rule, files map[string]string) (*SingleLang, language.GenerateResult) {
+	t.Helper()
+	l := NewClassLang(clsAndroidSpec())
+	l.Before(context.Background())
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		dotFile(t, root, "pkg/demo/"+name, content)
+		regular = append(regular, name)
+	}
+	slices.Sort(regular)
+	var file *rule.File
+	if existing != nil {
+		file = rule.EmptyFile(filepath.Join(root, "pkg", "demo", "BUILD.bazel"), "pkg/demo")
+		existing.Insert(file)
+	}
+	return l, l.GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         file,
+		RegularFiles: regular,
+	})
+}
+
+func TestAndroidVariantSelected(t *testing.T) {
+	l, res := clsAndroidGenerate(t, nil, map[string]string{"A.cls": "package com.x\nimport android.app.Activity\nimport org.json.JSONObject\nimport other.Thing\n"})
+	if l.Failed() || len(res.Gen) != 1 {
+		t.Fatalf("failed = %v errors = %v", l.Failed(), l.Errors())
+	}
+	r := res.Gen[0]
+	if r.Kind() != clsAndroidKind || r.AttrString("custom_package") != "com.x" || !reflect.DeepEqual(r.AttrStrings("tags"), []string{"manual"}) {
+		t.Fatalf("rule = %s %v", r.Kind(), r.AttrStrings("tags"))
+	}
+	if got, _ := UnwrapImportSet(res.Imports[0]); !reflect.DeepEqual(got, []string{"other.Thing"}) {
+		t.Fatalf("imports = %v", got)
+	}
+}
+
+func TestAndroidVariantHostUnchanged(t *testing.T) {
+	l, res := clsAndroidGenerate(t, nil, map[string]string{"A.cls": "package com.x\nimport org.json.JSONObject\n"})
+	if l.Failed() || res.Gen[0].Kind() != clsKind || res.Gen[0].AttrString("custom_package") != "" {
+		t.Fatalf("kind = %s errors = %v", res.Gen[0].Kind(), l.Errors())
+	}
+	if got, _ := UnwrapImportSet(res.Imports[0]); !reflect.DeepEqual(got, []string{"org.json.JSONObject"}) {
+		t.Fatalf("imports = %v", got)
+	}
+}
+
+func TestAndroidVariantKeepsAndroidxImport(t *testing.T) {
+	_, res := clsAndroidGenerate(t, nil, map[string]string{"A.cls": "package com.x\nimport android.os.Bundle\nimport androidx.core.Foo\n"})
+	if got, _ := UnwrapImportSet(res.Imports[0]); !reflect.DeepEqual(got, []string{"androidx.core.Foo"}) {
+		t.Fatalf("imports = %v", got)
+	}
+}
+
+func TestAndroidVariantSupportLibNotSelected(t *testing.T) {
+	_, res := clsAndroidGenerate(t, nil, map[string]string{"A.cls": "package com.x\nimport android.support.v4.View\n"})
+	if res.Gen[0].Kind() != clsKind {
+		t.Fatalf("kind = %s", res.Gen[0].Kind())
+	}
+}
+
+func TestAndroidVariantKindSwitchFails(t *testing.T) {
+	l, _ := clsAndroidGenerate(t, rule.NewRule(clsKind, "demo"), map[string]string{"A.cls": "package com.x\nimport android.os.Bundle\n"})
+	if !l.Failed() {
+		t.Fatal("kind switch to the Android kind must fail")
+	}
+}
+
+func TestAndroidVariantReverseSwitchFails(t *testing.T) {
+	l, _ := clsAndroidGenerate(t, rule.NewRule(clsAndroidKind, "demo"), map[string]string{"A.cls": "package com.x\nimport other.Thing\n"})
+	if !l.Failed() {
+		t.Fatal("kind switch back to the host kind must fail")
+	}
+}
+
+func TestAndroidVariantNeedsPackage(t *testing.T) {
+	l, _ := clsAndroidGenerate(t, nil, map[string]string{"A.cls": "import android.os.Bundle\n"})
+	if !l.Failed() || !strings.Contains(strings.Join(l.Errors(), "\n"), "package declaration") {
+		t.Fatalf("errors = %v", l.Errors())
+	}
+}
+
+func TestAndroidVariantLoads(t *testing.T) {
+	l := NewClassLang(clsAndroidSpec())
+	if _, ok := l.Kinds()[clsAndroidKind]; !ok {
+		t.Fatalf("kinds = %v", l.Kinds())
+	}
+	var got []string
+	for _, load := range l.Loads() {
+		got = append(got, load.Name+":"+strings.Join(load.Symbols, ","))
+	}
+	slices.Sort(got)
+	want := []string{"@rules_dx//cls/rules:defs.bzl:cls_library,cls_android_library"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("loads = %v", got)
+	}
+}

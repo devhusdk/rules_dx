@@ -1,7 +1,9 @@
 """Bounded Android native library composition over qualified toolchains."""
 
+load("@rules_android//rules:rules.bzl", _android_library = "android_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
 load("//android/platforms:defs.bzl", "platform_label", "triple_for", "tuple_errors", "tuples")
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//rust/rules:defs.bzl", "rust_static_library")
@@ -122,3 +124,11 @@ def android_native_library(
             visibility = visibility,
             tags = ["manual"],
         )
+
+def java_android_library(**kwargs):
+    """Android Java library over rules_android android_library."""
+    _android_library(**kwargs)
+
+def kotlin_android_library(**kwargs):
+    """Android Kotlin library over rules_kotlin kt_android_library."""
+    _kt_android_library(**kwargs)

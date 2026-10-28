@@ -88,6 +88,24 @@ yourself to keep your value. Gazelle never removes them when the include goes
 away, so delete a stale value by hand. After an upgrade, `--check` can report
 an existing NDK or JNI `cc_library` as stale.
 
+The `java` and `kotlin` languages generate an Android library kind for
+directories that import the Android SDK:
+
+- An `android.*` or `dalvik.*` import selects `java_android_library` or
+  `kotlin_android_library`, loaded from `@rules_dx//android/rules:defs.bzl`,
+  instead of `java_library` or `kotlin_library`. `android.support.*`,
+  `android.arch.*` and `androidx.*` are Maven artifacts and don't select it.
+- In those directories `android.*`, `dalvik.*`, `org.json.*` and
+  `org.xmlpull.v1.*` imports need no dependency. A `# gazelle:resolve`
+  mapping still wins.
+- Gazelle sets `custom_package` to the source package and
+  `tags = ["manual"]` only when the rule doesn't have them. The sources must
+  declare a package.
+- A rule of the other kind with the same name fails generation instead of
+  changing kind. Handwritten rules_android `android_library` rules are left
+  alone.
+- Resources, the `R` class and manifests are never derived.
+
 Generation never writes `app_id`, permissions, `api_level`, `abis`, signing or
 app topology. The packaging rules validate ABIs.
 

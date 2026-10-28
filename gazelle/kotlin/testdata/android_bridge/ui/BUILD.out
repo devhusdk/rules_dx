@@ -1,0 +1,9 @@
+load("@rules_dx//android/rules:defs.bzl", "kotlin_android_library")
+
+kotlin_android_library(
+    name = "ui",
+    srcs = ["Screen.kt"],
+    custom_package = "com.example.ui",
+    tags = ["manual"],
+    deps = ["//util"],
+)

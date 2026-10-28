@@ -1,0 +1,8 @@
+load("@rules_dx//android/rules:defs.bzl", "java_android_library")
+
+java_android_library(
+    name = "ui",
+    srcs = ["Screen.java"],
+    custom_package = "com.example.custom",
+    tags = ["local"],
+)

@@ -157,7 +157,7 @@ type SingleFileSpec struct {
 	IsSource     func(name string) bool
 	// OwnsByName limits stale removal to rules named like the generated
 	// library or naming no existing source, so handwritten rules survive.
-	OwnsByName bool
+	OwnsByName   bool
 	TargetName   func(name string) (string, error)
 	ParseImports func(content []byte, dir string) []ImportRef
 	IsStdLib     func(name string) bool
@@ -266,10 +266,38 @@ func ReadSource(path string) ([]byte, error) {
 	return StripBOM(content), nil
 }
 
+// KindAttr is one attribute a KindVariant sets on a newly generated rule.
+type KindAttr struct {
+	Name  string
+	Value any
+}
+
+// KindVariant swaps a directory's library kind when its sources import
+// platform packages the host kind cannot build against.
+type KindVariant struct {
+	// Kind is the rule kind generated instead of the library kind.
+	Kind string
+	// DefsPackage is the defs package that exports Kind.
+	DefsPackage string
+	// Selects reports whether an import root picks the variant.
+	Selects func(root string) bool
+	// IsPlatform reports whether an import root ships with the variant's
+	// platform, so it needs no dependency once the variant is chosen.
+	IsPlatform func(root string) bool
+	// Attrs returns the attributes set on the generated rule, in order. pkg is
+	// the source package, which is never empty.
+	Attrs func(pkg string) []KindAttr
+	// NeedsPackage is the failure message when the sources declare no package.
+	NeedsPackage string
+}
+
 type SingleDirSpec struct {
+	// Variant, when set, swaps LibraryKind for Variant.Kind in directories
+	// importing a package Variant.Selects.
+	Variant *KindVariant
 	// OwnsByName limits stale removal to rules named like the generated
 	// library or naming no existing source, so handwritten rules survive.
-	OwnsByName bool
+	OwnsByName   bool
 	LanguageName string
 	LibraryKind  string
 	IsSource     func(name string) bool
@@ -326,7 +354,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	packages := make(map[string]bool)
 	seen := make(map[string]bool)
 	contents := make(map[string][]byte, len(sources))
-	var imports []string
+	var raw []string
 	for _, file := range append(append([]string{}, sources...), headers...) {
 		content, err := ReadSource(filepath.Join(args.Dir, file))
 		if err != nil {
@@ -347,11 +375,11 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			packages[pkg] = true
 		}
 		for _, root := range spec.ParseImports(content) {
-			if skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) || seen[root] {
+			if seen[root] {
 				continue
 			}
 			seen[root] = true
-			imports = append(imports, root)
+			raw = append(raw, root)
 		}
 	}
 	if rep.Failed() {
@@ -366,6 +394,38 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		rep.Fail(InPackage(args.Rel), "%s: %s: mixed packages %s in one directory; split the directory before adopting generation", spec.LanguageName, args.Rel, strings.Join(names, ", "))
 		return language.GenerateResult{}
 	}
+	libraryKind := spec.LibraryKind
+	variant := spec.Variant
+	chosen := false
+	if variant != nil {
+		for _, root := range raw {
+			if variant.Selects(root) && !mappedByOverride(args.Config, spec.LanguageName, spec.Candidates, root) {
+				chosen = true
+				break
+			}
+		}
+	}
+	var pkg string
+	if chosen {
+		libraryKind = variant.Kind
+		for p := range packages {
+			pkg = p
+		}
+		if pkg == "" {
+			rep.Fail(InPackage(args.Rel), "%s: %s: %s", spec.LanguageName, args.Rel, variant.NeedsPackage)
+			return language.GenerateResult{}
+		}
+	}
+	var imports []string
+	for _, root := range raw {
+		if chosen && variant.IsPlatform(root) && !mappedByOverride(args.Config, spec.LanguageName, spec.Candidates, root) {
+			continue
+		}
+		if skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) {
+			continue
+		}
+		imports = append(imports, root)
+	}
 	sort.Strings(imports)
 	ordered := sources
 	if spec.OrderSrcs != nil {
@@ -375,7 +435,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			return language.GenerateResult{}
 		}
 	}
-	if err := CheckClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: spec.LibraryKind}}, nil); err != nil {
+	if err := CheckClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: libraryKind}}, nil); err != nil {
 		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
@@ -383,16 +443,22 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	makeRule := spec.MakeRule
 	if makeRule == nil {
 		makeRule = func(ruleName string, srcs []string, _ []string) *rule.Rule {
-			r := rule.NewRule(spec.LibraryKind, ruleName)
+			r := rule.NewRule(libraryKind, ruleName)
 			r.SetAttr("srcs", srcs)
 			return r
 		}
 	}
 	lib := makeRule(name, ordered, headers)
+	lib.SetKind(libraryKind)
 	if spec.Extend != nil {
 		if err := spec.Extend(lib, args.RegularFiles, contents); err != nil {
 			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 			return language.GenerateResult{}
+		}
+	}
+	if chosen {
+		for _, a := range variant.Attrs(pkg) {
+			lib.SetAttr(a.Name, a.Value)
 		}
 	}
 	result.Gen = append(result.Gen, lib)
@@ -422,10 +488,10 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 }
 
 type ResolveSpec struct {
-	LanguageName   string
-	WantKind       string
-	Attr           string
-	Unwrap         func(raw any) ([]string, bool)
+	LanguageName string
+	WantKind     string
+	Attr         string
+	Unwrap       func(raw any) ([]string, bool)
 	// UnwrapRefs, when set and matching, takes precedence over Unwrap and
 	// gives import refs whose relative entries may use Fallback.
 	UnwrapRefs func(raw any) ([]ImportRef, bool)
@@ -444,7 +510,7 @@ type ResolveSpec struct {
 	SkipDep func(dep label.Label) bool
 	// External looks a non-relative import up in the third-party sources
 	// after the index and ignores. It returns the labels found, or a hint.
-	External func(name string) ([]label.Label, string)
+	External       func(name string) ([]label.Label, string)
 	FailConflict   func(from label.Label, name string)
 	FailUnresolved func(from label.Label, name string, hint string)
 	FailAmbiguous  func(from label.Label, name string, matches string)

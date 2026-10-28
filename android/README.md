@@ -131,6 +131,10 @@ the library with `System.loadLibrary("<name>_bin")`. A custom
 ABIs, empty ABI sets, malformed app IDs, downgraded API levels,
 non-positive version codes, and empty launch activities fail at
 analysis, as do adb launchers without a serial.
+`java_android_library` and `kotlin_android_library` re-export
+rules_android `android_library` and rules_kotlin `kt_android_library`
+from `//android/rules:defs.bzl`. `dx generate` emits them for Java and
+Kotlin sources that import the Android SDK.
 Package outputs are explicit-label only. See [App Bundles](#app-bundles)
 for the `.aab` output.
 

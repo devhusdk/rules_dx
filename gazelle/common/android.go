@@ -123,3 +123,37 @@ func NDKLib(header string) (string, bool) {
 	}
 	return "", true
 }
+
+var androidSDKPackages = []string{"android", "dalvik"}
+
+// androidMavenPackages ship as Maven artifacts, not in android.jar.
+var androidMavenPackages = []string{"android.support", "android.arch"}
+
+// androidBundledPackages ship in android.jar next to the android packages.
+var androidBundledPackages = []string{"org.json", "org.xmlpull.v1"}
+
+// IsAndroidSDKPlatform reports whether an import is an android.jar package
+// that selects an Android library kind.
+func IsAndroidSDKPlatform(spec string) bool {
+	return InPackages(spec, androidSDKPackages) && !InPackages(spec, androidMavenPackages)
+}
+
+// IsAndroidPlatformImport reports whether an import resolves against android.jar.
+func IsAndroidPlatformImport(spec string) bool {
+	return IsAndroidSDKPlatform(spec) || InPackages(spec, androidBundledPackages)
+}
+
+// AndroidVariant returns the KindVariant generating kind for sources that
+// import the Android SDK.
+func AndroidVariant(kind string) *KindVariant {
+	return &KindVariant{
+		Kind:         kind,
+		DefsPackage:  "android/rules:defs.bzl",
+		Selects:      IsAndroidSDKPlatform,
+		IsPlatform:   IsAndroidPlatformImport,
+		NeedsPackage: "Android sources need a package declaration to set custom_package",
+		Attrs: func(pkg string) []KindAttr {
+			return []KindAttr{{"custom_package", pkg}, {"tags", []string{"manual"}}}
+		},
+	}
+}

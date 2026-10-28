@@ -70,9 +70,6 @@ SUPPORT_EVIDENCE_PENDING = [
     "latexindent:format:latex:windows_x86_64",
     "roslyn:lint:csharp:linux_x86_64",
     "rubocop:lint:ruby:linux_x86_64",
-    "ruff:lint:jupyter:linux_arm64",
-    "ruff:lint:jupyter:macos_arm64",
-    "ruff:lint:jupyter:windows_x86_64",
     "shellcheck:lint:shell:linux_arm64",
     "shellcheck:lint:shell:macos_arm64",
     "shellcheck:lint:shell:windows_x86_64",
@@ -324,9 +321,9 @@ def support_unit_tests(name):
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
-                "jupyter ruff records cover four platforms",
+                "jupyter ruff records cover five platforms",
                 [JUPYTER_RUFF_FORMAT_SUPPORT["platforms"], JUPYTER_RUFF_LINT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]],
             ),
             expect_equal(
                 "jupyter notebook_outputs lint record covers four platforms",

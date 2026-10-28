@@ -24,6 +24,7 @@ load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
+load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
@@ -101,6 +102,13 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "cue",
+    },
+    "opa": {
+        "attr": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format", "typecheck"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "rego",
     },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
@@ -1066,6 +1074,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "opa" in stage_tools and RegoInfo in target:
+        for f in target[RegoInfo].transitive_srcs.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension != "rego":
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "jsonnetfmt" in stage_tools:
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
@@ -1542,6 +1558,18 @@ _REAL_SHARD_SPECS = {
         "shard": "cue",
         "suffix": "-cue",
     },
+    "real_rego_format": {
+        "capability": "format",
+        "doc": "Additive Rego format family aspect (opa fmt).",
+        "shard": "rego",
+        "suffix": "-rego",
+    },
+    "real_rego_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Rego typecheck family aspect (opa check).",
+        "shard": "rego",
+        "suffix": "-rego",
+    },
     "real_jsonnet_format": {
         "capability": "format",
         "doc": "Additive Jsonnet format family aspect (jsonnetfmt).",
@@ -1760,6 +1788,10 @@ real_typst_format_aspect = _make_real_aspect("real_typst_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
+
+real_rego_format_aspect = _make_real_aspect("real_rego_format")
+
+real_rego_typecheck_aspect = _make_real_aspect("real_rego_typecheck")
 
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 

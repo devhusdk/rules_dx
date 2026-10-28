@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_rego_typecheck_fail
+capability TYPECHECK
+stages 1
+stage opa classes=rego sources=matrix/rego_module_bad/lib/lib.rego,matrix/rego_module_bad/app/app.rego
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR opa rego_type_error matrix/rego_module_bad/app/app.rego 39 39 fixable=false "undefined function data.lib.missing"
+terminal 1
+terminal ERROR opa rego_type_error matrix/rego_module_bad/app/app.rego 39 39 fixable=false "undefined function data.lib.missing"
+replacements 0

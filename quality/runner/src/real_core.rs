@@ -182,6 +182,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "mix_format",
             "modfmt",
             "ormolu",
+            "opa",
             "pkl",
             "pmd",
             "prettier",

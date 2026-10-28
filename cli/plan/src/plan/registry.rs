@@ -51,6 +51,7 @@ pub fn spec(command: Command) -> CommandSpec {
             aspects: &[
                 "quality:real_aspects.bzl%real_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "quality:real_aspects.bzl%real_rego_typecheck_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_typecheck_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -71,6 +72,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_pkl_format_aspect",
                 "quality:real_aspects.bzl%real_protobuf_format_aspect",
                 "quality:real_aspects.bzl%real_powershell_format_aspect",
+                "quality:real_aspects.bzl%real_rego_format_aspect",
                 "quality:real_aspects.bzl%real_ruby_format_aspect",
                 "quality:real_aspects.bzl%real_rust_format_aspect",
                 "quality:real_aspects.bzl%real_scala_format_aspect",
@@ -304,6 +306,7 @@ mod tests {
             &[
                 "quality:real_aspects.bzl%real_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "quality:real_aspects.bzl%real_rego_typecheck_aspect",
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
@@ -324,6 +327,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_pkl_format_aspect",
                 "quality:real_aspects.bzl%real_protobuf_format_aspect",
                 "quality:real_aspects.bzl%real_powershell_format_aspect",
+                "quality:real_aspects.bzl%real_rego_format_aspect",
                 "quality:real_aspects.bzl%real_ruby_format_aspect",
                 "quality:real_aspects.bzl%real_rust_format_aspect",
                 "quality:real_aspects.bzl%real_scala_format_aspect",

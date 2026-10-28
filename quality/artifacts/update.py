@@ -1221,6 +1221,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "opa": {
+        "upstream_version": "1.21.4",
+        "release_page": "https://github.com/open-policy-agent/opa/releases/tag/v1.21.4",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/open-policy-agent/opa/blob/v1.21.4/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "opa_linux_amd64_static",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_amd64_static",
+                "kind": "raw",
+                "executable": "opa_linux_amd64_static",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_amd64_static.sha256",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "opa_linux_arm64_static",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_arm64_static",
+                "kind": "raw",
+                "executable": "opa_linux_arm64_static",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_arm64_static.sha256",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "opa_darwin_arm64_static",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_darwin_arm64_static",
+                "kind": "raw",
+                "executable": "opa_darwin_arm64_static",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_darwin_arm64_static.sha256",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "opa_windows_amd64.exe",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_windows_amd64.exe",
+                "kind": "raw",
+                "executable": "opa_windows_amd64.exe",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_windows_amd64.exe.sha256",
+            },
+        },
+    },
     "mdbook": {
         "upstream_version": "0.4.52",
         "release_page": "https://github.com/rust-lang/mdBook/releases/tag/v0.4.52",

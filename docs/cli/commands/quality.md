@@ -256,6 +256,7 @@ to.
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
 | `ormolu` | format | haskell |
+| `opa` | format, typecheck | rego |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
 | `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
@@ -304,9 +305,9 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `terraform`, `hadolint`, `gofumpt`, `qmlformat`, `qmllint`,
+- `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
   `zig_fmt`, `dfmt`, `erlfmt` and `mix_format` have override flags.
-- The `ruff`, `terraform` and `hadolint` alternates must be a single
+- The `ruff`, `terraform`, `hadolint` and `opa` alternates must be a single
   executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `dfmt`, `erlfmt` and
@@ -822,6 +823,49 @@ writes. `--apply` rewrites only the `.cue` files the selected targets own. An
 unformatted file is reported at the start of the file. A syntax error fails the
 run with the file, line and column. It never counts as clean. `cue` takes no
 config file.
+
+### Rego
+
+`opa fmt` and `opa check` run from the managed OPA pin. Select `opa` in a
+`rego` family. It runs on Linux x86_64.
+
+```python
+quality_family(
+    name = "rego_family",
+    disabled = ["lint"],
+    family_id = "rego",
+    format = ["opa"],
+    typecheck = ["opa"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //policy/...
+bazel run @rules_dx//:dx -- format --apply //policy/...
+bazel run @rules_dx//:dx -- typecheck //policy/...
+```
+
+Own Rego files with `rego_library` from `@rules_dx//rego/rules:defs.bzl`. List
+the `.rego` files of the package in `srcs`, the `.json`, `.yaml` and `.yml` data
+files in `data` and the libraries it imports in `deps`. Data files are not
+checked. Format runs `opa fmt` on one file at a time. A check never writes.
+`--apply` rewrites only the `.rego` files the selected targets own. An
+unformatted file is reported at its first differing line. A file that does not
+parse fails with the file and line. It never counts as clean.
+
+Typecheck runs `opa check` once over the owned files and the `.rego` files of
+their dependencies, so imports resolve. Only errors in owned files are
+reported, with the OPA error code as the rule, the file, the line and the
+column. A column counts characters from 1. Output that is not the expected JSON
+fails the run. It never counts as clean.
+
+Only format fixes. Policies are Rego v1, the OPA 1.x default. A Rego v0 policy
+fails to parse until it is migrated. No config file is read yet and no lint
+runs. To use another OPA executable, point `tool_opa` at it.
+
+```sh
+bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_opa=//tools:opa
+```
 
 ### Jsonnet
 

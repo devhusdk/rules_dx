@@ -592,6 +592,34 @@ JUPYTER_RUFF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+REGO_OPA_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["rego"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "rego",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "opa",
+    "transport": "single",
+}
+
+REGO_OPA_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["rego"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "rego",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "opa",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     FLATBUFFERS_FLATC_LINT_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
@@ -631,6 +659,8 @@ SUPPORT_RECORDS = [
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     LUA_STYLUA_SUPPORT,
+    REGO_OPA_FORMAT_SUPPORT,
+    REGO_OPA_TYPECHECK_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
     JUPYTER_RUFF_FORMAT_SUPPORT,

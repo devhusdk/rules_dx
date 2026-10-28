@@ -766,6 +766,50 @@ impl RealBackend {
                     parsers::parse_cue(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "opa" => {
+                if capability == "format" {
+                    let mut findings = Vec::new();
+                    for (workspace, absolute) in pairs {
+                        let invocation = commands::opa_fmt_check(&tool.binary, absolute);
+                        let out = self.run(tool_id, tool, &invocation, scratch)?;
+                        let input = std::fs::read(absolute).map_err(|err| {
+                            execution(tool_id, format!("read {workspace}: {err}"))
+                        })?;
+                        let file = absolute.to_string_lossy();
+                        findings.extend(parsed(
+                            tool_id,
+                            parsers::parse_opa_fmt(
+                                &out.stdout,
+                                &out.stderr,
+                                out.code,
+                                &input,
+                                &file,
+                            ),
+                        )?);
+                    }
+                    Ok(findings)
+                } else {
+                    let mut all: Vec<&Path> = refs.clone();
+                    for (_, absolute) in resolve_pairs {
+                        if !all.contains(&absolute.as_path()) {
+                            all.push(absolute.as_path());
+                        }
+                    }
+                    let invocation = commands::opa_check(&tool.binary, &all);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let known: Vec<String> = all
+                        .iter()
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .collect();
+                    let known: Vec<&str> = known.iter().map(String::as_str).collect();
+                    let mut findings = parsed(
+                        tool_id,
+                        parsers::parse_opa_check(&out.stdout, &out.stderr, out.code, &known),
+                    )?;
+                    findings.retain(|found| strs.contains(&found.file.as_str()));
+                    Ok(findings)
+                }
+            }
             "jsonnetfmt" => {
                 let invocation = commands::jsonnetfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

@@ -134,6 +134,9 @@ Bazel work ends or dx exits, including when it crashes.
 While dx waits, it keeps the worktree's running Bazel server from shutting down
 for idleness. It never starts a server, and it leaves a server alone that was started
 with `--max_idle_secs=0`, since that one never shuts down.
+It finds that server and the idle-server reaper's output roots from `startup
+--output_user_root` and `--output_base` in rc files (including `startup:<os>` lines
+for the host OS) and from `--bazel-startup-option`; the command line wins.
 
 Before it prints the wait line, dx stops idle Bazel servers to free memory for
 the running builds. A server is idle when no Bazel client holds its output base

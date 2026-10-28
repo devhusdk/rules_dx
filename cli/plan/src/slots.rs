@@ -195,13 +195,8 @@ impl dx_process::Runner for SlotEnv<'_> {
         held: &[&std::fs::File],
     ) -> io::Result<Option<dx_process::ChildStatus>> {
         let share = self.share_env();
-        self.inner.run_app(
-            argv,
-            cwd,
-            &slot_env(env, share.as_deref()),
-            withdraw,
-            held,
-        )
+        self.inner
+            .run_app(argv, cwd, &slot_env(env, share.as_deref()), withdraw, held)
     }
 
     fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
@@ -1243,16 +1238,22 @@ impl Gate {
         );
         let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
         let cpus = u64::try_from(cpus).unwrap_or(1);
+        let paths = dx_process::rc::startup_output_paths(
+            env_get,
+            workspace,
+            &read,
+            read_user_rc,
+            startup.as_deref().unwrap_or_default(),
+        );
+        let default_roots = host::default_output_roots(env_get);
+        let roots = reap_roots(&default_roots, &paths);
         let warm = startup.map(|startup_options| Warmth {
             workspace: workspace.to_path_buf(),
             startup_options,
+            output_user_root: paths.output_user_root.clone(),
+            output_base: paths.output_base.clone(),
+            default_roots,
         });
-        let mut roots = host::default_output_roots(env_get);
-        if let Some(root) = warm.as_ref().and_then(|warm| {
-            startup_value(&warm.startup_options, "--output_user_root").map(PathBuf::from)
-        }) {
-            roots.push(root);
-        }
         let reclaim_in = workspace.to_path_buf();
         Some(Gate {
             warm,
@@ -1423,6 +1424,17 @@ impl Gate {
 struct Warmth {
     workspace: PathBuf,
     startup_options: Vec<String>,
+    /// The `--output_user_root` and `--output_base` in effect (rc files and command line).
+    output_user_root: Option<PathBuf>,
+    output_base: Option<PathBuf>,
+    default_roots: Vec<PathBuf>,
+}
+
+/// The output roots the reaper acts on: the defaults plus the root rc files or the command line set.
+fn reap_roots(defaults: &[PathBuf], paths: &dx_process::rc::StartupPaths) -> Vec<PathBuf> {
+    let mut roots = defaults.to_vec();
+    roots.extend(paths.output_user_root.clone());
+    roots
 }
 
 /// The Bazel startup options on a dx command line, or `None` when it does not parse.
@@ -1452,13 +1464,6 @@ fn idle_limit(cmdline: &str) -> Option<u64> {
         .and_then(|value| value.trim().parse().ok())
 }
 
-fn startup_value<'a>(options: &'a [String], name: &str) -> Option<&'a str> {
-    options
-        .iter()
-        .rev()
-        .find_map(|option| option.strip_prefix(name)?.strip_prefix('='))
-}
-
 fn default_output_base(dir: &Path, root: &Path) -> bool {
     dir.parent()
         .is_some_and(|parent| host::same_path(parent, root))
@@ -1468,15 +1473,14 @@ fn default_output_base(dir: &Path, root: &Path) -> bool {
             .is_some_and(|name| name.len() == 32 && name.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
-/// The one running server a Bazel call from `workspace` with `options` would reach.
+/// The one running server a Bazel call from `workspace` with this `root` and `base` would reach.
 fn own_server<'a>(
     servers: &'a [Server],
     workspace: &Path,
-    options: &[String],
+    root: Option<&Path>,
+    base: Option<&Path>,
     default_roots: &[PathBuf],
 ) -> Option<&'a Server> {
-    let base = startup_value(options, "--output_base");
-    let root = startup_value(options, "--output_user_root");
     let mut found = servers.iter().filter(|server| {
         let (Some(dir), Some(output_base), Some(user_root)) = (
             server.workspace.as_deref(),
@@ -1486,13 +1490,13 @@ fn own_server<'a>(
             return false;
         };
         let root_matches = match root {
-            Some(root) => host::same_path(user_root, Path::new(root)),
+            Some(root) => host::same_path(user_root, root),
             None => default_roots
                 .iter()
                 .any(|default| host::same_path(user_root, default)),
         };
         let base_matches = match base {
-            Some(base) => host::same_path(output_base, Path::new(base)),
+            Some(base) => host::same_path(output_base, base),
             None => default_output_base(output_base, user_root),
         };
         host::same_path(dir, workspace) && root_matches && base_matches
@@ -1519,8 +1523,9 @@ impl Warm for Warmth {
         let server = own_server(
             &servers,
             &self.workspace,
-            &self.startup_options,
-            &host::default_output_roots(&|name| std::env::var(name).ok()),
+            self.output_user_root.as_deref(),
+            self.output_base.as_deref(),
+            &self.default_roots,
         )?;
         let idle = server
             .output_base
@@ -4144,16 +4149,22 @@ mod tests {
             ),
             server(2, "/ws", "/c/_bazel_u", &base),
         ];
-        let pid = |options: &[&str]| {
-            let options: Vec<String> = options.iter().map(|o| (*o).to_owned()).collect();
-            own_server(&servers, Path::new("/ws"), &options, &roots).map(|found| found.pid)
+        let pid = |root: Option<&str>, base: Option<&str>| {
+            own_server(
+                &servers,
+                Path::new("/ws"),
+                root.map(Path::new),
+                base.map(Path::new),
+                &roots,
+            )
+            .map(|found| found.pid)
         };
-        assert_eq!(pid(&[]), Some(2));
-        assert_eq!(pid(&[&format!("--output_base={base}")]), Some(2));
-        assert_eq!(pid(&["--output_base=/elsewhere"]), None);
-        assert_eq!(pid(&["--output_user_root=/elsewhere"]), None);
+        assert_eq!(pid(None, None), Some(2));
+        assert_eq!(pid(None, Some(&base)), Some(2));
+        assert_eq!(pid(None, Some("/elsewhere")), None);
+        assert_eq!(pid(Some("/elsewhere"), None), None);
         assert_eq!(
-            own_server(&servers, Path::new("/nope"), &[], &roots).map(|found| found.pid),
+            own_server(&servers, Path::new("/nope"), None, None, &roots).map(|found| found.pid),
             None
         );
     }
@@ -4162,14 +4173,15 @@ mod tests {
     fn own_server_skips_servers_a_plain_call_would_not_reach() {
         let roots = vec![PathBuf::from("/c/_bazel_u")];
         let custom = vec![server(3, "/ws", "/c/_bazel_u", "/c/_bazel_u/custom")];
-        assert!(own_server(&custom, Path::new("/ws"), &[], &roots).is_none());
+        assert!(own_server(&custom, Path::new("/ws"), None, None, &roots).is_none());
         let other_root = vec![server(4, "/ws", "/r", &format!("/r/{BASE}"))];
-        assert!(own_server(&other_root, Path::new("/ws"), &[], &roots).is_none());
+        assert!(own_server(&other_root, Path::new("/ws"), None, None, &roots).is_none());
         assert_eq!(
             own_server(
                 &other_root,
                 Path::new("/ws"),
-                &["--output_user_root=/r".to_owned()],
+                Some(Path::new("/r")),
+                None,
                 &roots
             )
             .map(|found| found.pid),
@@ -4184,7 +4196,41 @@ mod tests {
                 "/c/_bazel_u/fedcba9876543210fedcba9876543210",
             ),
         ];
-        assert!(own_server(&two, Path::new("/ws"), &[], &roots).is_none());
+        assert!(own_server(&two, Path::new("/ws"), None, None, &roots).is_none());
+    }
+
+    #[test]
+    fn own_server_follows_an_rc_root_and_base() {
+        let roots = vec![PathBuf::from("/c/_bazel_u")];
+        let servers = vec![server(7, "/ws", "/r", "/r/custom")];
+        let pid = |root: Option<&str>, base: Option<&str>| {
+            own_server(
+                &servers,
+                Path::new("/ws"),
+                root.map(Path::new),
+                base.map(Path::new),
+                &roots,
+            )
+            .map(|found| found.pid)
+        };
+        assert_eq!(pid(Some("/r"), Some("/r/custom")), Some(7));
+        assert_eq!(pid(None, Some("/r/custom")), None);
+        assert_eq!(pid(Some("/r"), None), None);
+    }
+
+    #[test]
+    fn reap_roots_add_the_rc_root_to_the_defaults() {
+        let defaults = vec![PathBuf::from("/c/_bazel_u")];
+        let none = dx_process::rc::StartupPaths::default();
+        assert_eq!(reap_roots(&defaults, &none), defaults);
+        let paths = dx_process::rc::StartupPaths {
+            output_user_root: Some(PathBuf::from("/r")),
+            output_base: None,
+        };
+        assert_eq!(
+            reap_roots(&defaults, &paths),
+            vec![PathBuf::from("/c/_bazel_u"), PathBuf::from("/r")]
+        );
     }
 
     #[derive(Default)]
@@ -4336,6 +4382,9 @@ mod tests {
         let warmth = Warmth {
             workspace: std::env::temp_dir(),
             startup_options: Vec::new(),
+            output_user_root: None,
+            output_base: None,
+            default_roots: Vec::new(),
         };
         let mut child = Process::new("sleep")
             .arg("30")

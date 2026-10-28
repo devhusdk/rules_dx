@@ -670,7 +670,7 @@ pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
 #[path = "rc_sections.rs"]
 mod sections;
 
-pub use sections::{nested_bazel_selected, remote_execution};
+pub use sections::{nested_bazel_selected, remote_execution, startup_output_paths, StartupPaths};
 
 #[cfg(test)]
 #[allow(clippy::disallowed_methods)] // test asserts the launcher head

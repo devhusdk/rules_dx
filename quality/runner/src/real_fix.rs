@@ -343,11 +343,11 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
     };
     match tool_id {
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
-        | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "dscanner" | "jsonnet_lint"
-        | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
-        | "errcheck" | "stylelint" | "rubocop" | "yamllint" | "shellcheck" | "hadolint"
-        | "redocly" | "kubeconform" | "checkmake" | "flatc" | "tflint" | "ansible_lint"
-        | "credo" | "dialyzer" | "elvis" | "regal" => Ok(Route::Keep),
+        | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "dscanner" | "fortitude"
+        | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck"
+        | "staticcheck" | "govet" | "errcheck" | "stylelint" | "rubocop" | "yamllint"
+        | "shellcheck" | "hadolint" | "redocly" | "kubeconform" | "checkmake" | "flatc"
+        | "tflint" | "ansible_lint" | "credo" | "dialyzer" | "elvis" | "regal" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

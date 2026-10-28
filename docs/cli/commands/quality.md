@@ -253,6 +253,7 @@ to.
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
 | `flatc` | lint | flatbuffers |
+| `fortitude` | lint | fortran |
 | `fsharplint` | lint | fsharp |
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
@@ -312,7 +313,7 @@ to.
 | `yamllint` | lint | yaml |
 | `zig_fmt` | format | zig |
 
-Fortran (`fortran`) has no formatter and no linter. Fortran targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
+Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format` and `no-typecheck`, so `dx format` and `dx typecheck` skip them. The `fortitude` linter is described under Fortran below.
 
 OCaml (`ocaml`) has no formatter and no linter. OCaml targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
 
@@ -1159,6 +1160,34 @@ no config file.
 missing object fields and unresolved imports with the file, line and column. It
 has no fix, so `--apply` leaves the files alone. A run that exits with an error
 or prints nothing it can place in a staged file fails and never counts as clean.
+
+### Fortran
+
+`fortitude` 0.10.0 runs from the managed pin for lint. Select it in a `fortran`
+family. It runs on Linux x86_64, the only platform the Fortran rules build on.
+It runs with `--isolated`, so a `fortitude.toml` or `fpm.toml` higher up the
+tree never changes the result, and without `--force-exclude`, so a source under
+a directory such as `build/` is still checked.
+
+```python
+quality_family(
+    name = "fortran_family",
+    family_id = "fortran",
+    lint = ["fortitude"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //fortran/...
+```
+
+`fortitude` reads free-form source only. It reports a valid fixed-form `.f`
+or `.F` file as a syntax error, so those files are not handed to it and are not
+linted. A syntax error in a free-form file is reported as a finding with the
+file, line and column. A run that exits with a code it does not recognise, an
+exit that disagrees with its report, or a finding in a file that was not passed
+fails and never counts as clean. `fortitude --fix` is not wired, so `--apply`
+leaves the files alone. There is no Fortran formatter yet.
 
 ### Haskell
 

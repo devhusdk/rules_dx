@@ -511,6 +511,20 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+FORTRAN_FORTITUDE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["fortran"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "fortran",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "fortitude",
+    "transport": "batched",
+}
+
 JSONNET_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -791,6 +805,7 @@ SUPPORT_RECORDS = [
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     JSONNET_LINT_SUPPORT,
+    FORTRAN_FORTITUDE_LINT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
     LATEX_LATEXINDENT_FORMAT_SUPPORT,

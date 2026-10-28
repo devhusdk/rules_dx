@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_fortran_lint_fail
+capability LINT
+stages 1
+stage fortitude classes=fortran sources=matrix/fortran_dirty.f90
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR fortitude C001 matrix/fortran_dirty.f90 0 14 fixable=false "program uses implicit typing"
+terminal 1
+terminal ERROR fortitude C001 matrix/fortran_dirty.f90 0 14 fixable=false "program uses implicit typing"
+replacements 0

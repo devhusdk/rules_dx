@@ -26,6 +26,11 @@ load("//quality/artifacts:cue.linux_x86_64.bzl", _cue_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:cue.macos_arm64.bzl", _cue_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:cue.windows_arm64.bzl", _cue_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:cue.windows_x86_64.bzl", _cue_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:fortitude.linux_arm64.bzl", _fortitude_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:fortitude.linux_x86_64.bzl", _fortitude_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:fortitude.macos_arm64.bzl", _fortitude_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:fortitude.windows_arm64.bzl", _fortitude_windows_arm64 = "ARTIFACT")
+load("//quality/artifacts:fortitude.windows_x86_64.bzl", _fortitude_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
@@ -182,6 +187,11 @@ _ARTIFACTS = [
     _cue_macos_arm64,
     _cue_windows_x86_64,
     _cue_windows_arm64,
+    _fortitude_linux_x86_64,
+    _fortitude_linux_arm64,
+    _fortitude_macos_arm64,
+    _fortitude_windows_x86_64,
+    _fortitude_windows_arm64,
     _gitleaks_linux_x86_64,
     _gitleaks_linux_arm64,
     _gitleaks_macos_arm64,

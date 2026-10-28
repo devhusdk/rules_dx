@@ -1194,6 +1194,63 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "fortitude": {
+        "upstream_version": "0.10.0",
+        "release_page": "https://github.com/PlasmaFAIR/fortitude/releases/tag/v0.10.0",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/PlasmaFAIR/fortitude/blob/v0.10.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "fortitude-x86_64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-x86_64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "fortitude-x86_64-unknown-linux-musl/fortitude",
+                "checksums_url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-x86_64-unknown-linux-musl.tar.gz.sha256",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "fortitude-aarch64-unknown-linux-musl.tar.gz",
+                "url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-aarch64-unknown-linux-musl.tar.gz",
+                "kind": "tar.gz",
+                "executable": "fortitude-aarch64-unknown-linux-musl/fortitude",
+                "checksums_url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-aarch64-unknown-linux-musl.tar.gz.sha256",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "fortitude-aarch64-apple-darwin.tar.gz",
+                "url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-aarch64-apple-darwin.tar.gz",
+                "kind": "tar.gz",
+                "executable": "fortitude-aarch64-apple-darwin/fortitude",
+                "checksums_url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-aarch64-apple-darwin.tar.gz.sha256",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "fortitude-x86_64-pc-windows-msvc.zip",
+                "url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "fortitude.exe",
+                "checksums_url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-x86_64-pc-windows-msvc.zip.sha256",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "fortitude-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "fortitude.exe",
+                "checksums_url": "https://github.com/PlasmaFAIR/fortitude/releases/download/v0.10.0/fortitude-aarch64-pc-windows-msvc.zip.sha256",
+            },
+        },
+    },
     "yamlfmt": {
         "upstream_version": "0.21.0",
         "release_page": "https://github.com/google/yamlfmt/releases/tag/v0.21.0",

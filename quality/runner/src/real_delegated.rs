@@ -379,6 +379,46 @@ pub(super) fn jsonnet_lint_reports_problems_and_never_trusts_a_failed_run() {
     assert!(lint("crash\n").is_err());
 }
 
+fn fortitude_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("crash") {
+        (2, "error: boom\n".to_owned())
+    } else if text.contains("implicit") {
+        (
+            1,
+            format!(
+                r#"[{{"code":"C001","severity":"error","filename":"{file}","location":{{"column":1,"row":1}},"end_location":{{"column":1,"row":2}},"message":"program uses implicit typing"}}]"#
+            ),
+        )
+    } else {
+        (0, "[]".to_owned())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn fortitude_reports_findings_skips_fixed_form_and_never_trusts_a_failed_run() {
+    let backend = backend_for("fortitude", plain_tool(), fortitude_behavior);
+    let lint = |name: &str, text: &str| backend.diagnose("fortitude", "lint", &single(name, text));
+    assert!(lint("a.f90", "program p\n").expect("check").is_empty());
+    let warned = lint("a.f90", "program implicit\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "C001");
+    // Fixed-form sources are not handed to the tool, so even a crash text is not run.
+    assert!(lint("a.f", "crash\n").expect("check").is_empty());
+    assert!(lint("a.f90", "crash\n").is_err());
+}
+
 fn dscanner_behavior(
     argv: &[OsString],
     cwd: &Path,

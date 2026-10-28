@@ -918,6 +918,29 @@ impl RealBackend {
                     Ok(findings)
                 }
             }
+            "fortitude" => {
+                // fortitude parses free-form source only; it reports a valid fixed-form `.f`
+                // or `.F` file as a syntax error, so those are not handed to it.
+                let free_form: Vec<&Path> = refs
+                    .iter()
+                    .copied()
+                    .filter(|path| {
+                        !path
+                            .extension()
+                            .is_some_and(|ext| ext.eq_ignore_ascii_case("f"))
+                    })
+                    .collect();
+                if free_form.is_empty() {
+                    return Ok(Vec::new());
+                }
+                let invocation = commands::fortitude_check(&tool.binary, &free_form);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let free_strs: Vec<&str> = free_form.iter().filter_map(|p| p.to_str()).collect();
+                parsed(
+                    tool_id,
+                    parsers::parse_fortitude(&out.stdout, out.code, &free_strs),
+                )
+            }
             "jsonnet_lint" => {
                 let invocation = commands::jsonnet_lint_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

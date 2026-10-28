@@ -21,6 +21,7 @@ def adapter_supported_classes(tool_id, capability):
     return sorted(SYNTHETIC_ADAPTERS[tool_id].get(capability, []))
 
 REAL_ADAPTERS = {
+    "ansible_lint": {"lint": ["ansible"]},
     "biome": {
         "format": ["javascript", "json", "jsx", "typescript", "tsx"],
         "lint": ["javascript", "json", "jsx", "typescript", "tsx"],
@@ -93,6 +94,7 @@ REAL_ADAPTERS = {
 }
 
 REAL_CLASS_TO_FAMILY = {
+    "ansible": "ansible",
     "api_spec": "api_spec",
     "astro": "astro",
     "c": "cc",

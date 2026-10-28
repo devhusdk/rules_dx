@@ -95,6 +95,26 @@ def support_unit_tests(name):
             ),
 
             expect_equal(
+                "valid unsupported platform is accepted",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["windows_x86_64"]}),
+                "",
+            ),
+            expect_equal(
+                "unsupported overlapping platforms is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["linux_x86_64"]}),
+                "support: platform 'linux_x86_64' is both supported and unsupported for tool 'keep_sorted'",
+            ),
+            expect_equal(
+                "unknown unsupported platform is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["plan9_x86_64"]}),
+                "support: unknown unsupported platform 'plan9_x86_64' for tool 'keep_sorted'",
+            ),
+            expect_equal(
+                "non-list unsupported is rejected",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": "windows_x86_64"}),
+                "support: tool 'keep_sorted' needs 'unsupported' to be a list",
+            ),
+            expect_equal(
                 "unknown tool is rejected",
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "not_a_tool", "transport": "single"}),
                 "support: unknown tool 'not_a_tool': not in the real adapter registry",

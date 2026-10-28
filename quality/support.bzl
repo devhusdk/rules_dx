@@ -600,6 +600,14 @@ def support_record_error(record):
     for platform in platforms:
         if not _is_canonical_token(platform):
             return "support: non-canonical platform '" + str(platform) + "' for tool '" + tool + "'"
+    unsupported = record.get("unsupported", [])
+    if type(unsupported) != "list":
+        return "support: tool '" + tool + "' needs 'unsupported' to be a list"
+    for platform in unsupported:
+        if platform not in ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]:
+            return "support: unknown unsupported platform '" + str(platform) + "' for tool '" + tool + "'"
+        if platform in platforms:
+            return "support: platform '" + platform + "' is both supported and unsupported for tool '" + tool + "'"
     if record["state"] not in ["known", "qualified", "supported"]:
         return "support: tool '" + tool + "' needs state 'known', 'supported' or 'qualified', got '" + str(record["state"]) + "'"
     if record["artifact"] not in ["missing", "pinned"]:

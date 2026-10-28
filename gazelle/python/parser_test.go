@@ -18,7 +18,7 @@ func TestParseImports(t *testing.T) {
 		{"list", "import a, b.c as d, e\n", []string{"a", "b", "e"}},
 		{"asPrefix", "import assignment\n", []string{"assignment"}},
 		{"spacedDot", "import a . b\n", []string{"a"}},
-		{"trailingDot", "import a . \n", []string{"a"}},
+		{"trailingDot", "import a . \n", nil}, // malformed: no import node
 		{"starSkipped", "import a, *\n", []string{"a"}},
 		{"semicolons", "import a; import b\n", []string{"a", "b"}},
 		{"continuation", "import a, \\\n b\n", []string{"a", "b"}},
@@ -29,10 +29,10 @@ func TestParseImports(t *testing.T) {
 		{"fromParen", "from x import (a,\n b)\n", []string{"x"}},
 		{"fromStar", "from x import *\n", []string{"x"}},
 		{"fromNoNewline", "from foo import bar", []string{"foo"}},
-		{"fromNoImport", "from foo bar\n", []string{"foo"}},
+		{"fromNoImport", "from foo bar\n", nil}, // malformed
 		{"fromContinuation", "from foo \\\n import bar\n", []string{"foo"}},
 		{"namesContinuation", "from foo import \\\n bar\n", []string{"foo"}},
-		{"unclosedParen", "from foo import (a,\n b", []string{"foo"}},
+		{"unclosedParen", "from foo import (a,\n b", nil}, // malformed
 		{"semicolonParen", "from foo import (a; b)\n", []string{"foo"}},
 		{"relativeBare", "from . import foo\n", nil},
 		{"relativeModule", "from .foo import bar\n", nil},

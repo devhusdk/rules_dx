@@ -821,6 +821,6 @@ filegroup(
 
 real_source_target(
     name = "clean_asciidoc",
-    aspect_hints = ["//quality:corpus_vale_config"],
     asciidoc_srcs = [":asciidoc_module"],
+    aspect_hints = ["//quality:corpus_vale_config"],
 )

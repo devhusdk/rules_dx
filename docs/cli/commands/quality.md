@@ -1336,6 +1336,13 @@ bazel run @rules_dx//:dx -- format //web/...
 bazel run @rules_dx//:dx -- format --apply //web/...
 ```
 
+A `prettier_config` may come from another module, including one bound with a
+`repo_name`; reference it as `@<name>//:target`. dx stages it under
+`_external/<canonical repo>/...`, and that path is what messages show. `overrides`
+patterns containing `/` match from that folder and do not reach your sources, so
+use file-name patterns such as `*.graphql` in shared configs. `data` imports must
+live in the same repo as the config.
+
 Own these files with `javascript_library`. It accepts `.html`, `.graphql`,
 `.gql`, `.json5` and `.jsonc` in `srcs`. A check never writes. `--apply`
 rewrites only the files the selected targets own. Comments in JSON5 and JSONC

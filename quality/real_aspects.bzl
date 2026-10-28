@@ -17,7 +17,7 @@ load(
     "REAL_CLASS_TO_FAMILY",
 )
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "native_config_scratch_rel", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
@@ -1258,9 +1258,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         config_rel = None
         if tool in configs_by_tool:
             hint = configs_by_tool[tool]
-            config_rel = hint.config.short_path
+            config_rel = native_config_scratch_rel(hint.config.short_path)
+            if config_rel == None:
+                fail("native_config (%s): config %s for %s escapes the scratch" % (tool, hint.config.short_path, what))
             for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
-                tool_files.append(real_request_tool_file(f.short_path, f.path))
+                closure_rel = native_config_scratch_rel(f.short_path)
+                if closure_rel == None:
+                    fail("native_config (%s): file %s for %s escapes the scratch" % (tool, f.short_path, what))
+                tool_files.append(real_request_tool_file(closure_rel, f.path))
                 inputs.append(f)
         upstream = []
         if tool == "clippy" and clippy_delegated:

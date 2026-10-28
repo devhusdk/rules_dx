@@ -242,8 +242,7 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     let mut paths: Vec<(String, bool)> = Vec::new();
     let others = git.stdout(&["ls-files", "-z", "--others", "--exclude-standard"])?;
     for field in others.split(|byte| *byte == 0).filter(|f| !f.is_empty()) {
-        let path = std::str::from_utf8(field)
-            .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
+        let path = git_path(field)?;
         paths.push((path.to_owned(), true));
     }
     let has_head = git
@@ -278,8 +277,7 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     } else {
         let cached = git.stdout(&["ls-files", "-z", "--cached"])?;
         for field in cached.split(|byte| *byte == 0).filter(|f| !f.is_empty()) {
-            let path = std::str::from_utf8(field)
-                .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
+            let path = git_path(field)?;
             paths.push((path.to_owned(), true));
         }
     }
@@ -302,6 +300,12 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
         .filter(|finding| !lfs.contains(&finding.path))
         .collect();
     Ok(report)
+}
+
+/// Reads one NUL-separated git path as UTF-8.
+fn git_path(field: &[u8]) -> Result<&str, String> {
+    std::str::from_utf8(field)
+        .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())
 }
 
 #[cfg(test)]
@@ -616,14 +620,11 @@ mod tests {
         assert!(!error.is_empty());
     }
 
-    #[cfg(unix)]
     #[test]
     fn non_utf8_names_are_an_error() {
-        use std::os::unix::ffi::OsStrExt;
-        let root = repo_on_main();
-        let name = std::ffi::OsStr::from_bytes(b"bad\xff.txt");
-        std::fs::write(root.join(name), b"x").expect("write");
-        assert!(scan_isolated(&root).is_err());
+        let error = git_path(b"bad\xff.txt").expect_err("error");
+        assert!(error.contains("not UTF-8"), "{error}");
+        assert_eq!(git_path(b"ok.txt"), Ok("ok.txt"));
     }
 
     #[test]

@@ -52,6 +52,44 @@ dart_test(
   unchanged.
 - `dart_codegen` and the web binaries are not wrapped yet.
 
+## Gazelle
+
+`dx generate` writes the Dart rules for each pub package. It makes one Bazel
+package per folder that holds a `pubspec.yaml`:
+
+- one `dart_library` named after the pubspec `name`, over every `.dart` file
+  under `lib/`
+- one `dart_binary` per `bin/*.dart`, named after the file stem (`_bin` is
+  added when that clashes with the library); files under `bin/src/` go into
+  each binary's `srcs`
+- one `dart_test` per `test/**/*_test.dart`; the other `.dart` files under
+  `test/` go into each test's `srcs`
+
+Point Gazelle at the lock so pub imports resolve to hub targets:
+
+```python
+# gazelle:dx_external pub third_party/dart/pubspec.lock my_pub_deps
+```
+
+A `pubspec.lock` next to the pubspec, or in a parent folder, is found without
+the directive and uses the hub `pub_deps`. An import resolves to a library in
+the repository first, so workspace members and `path:` packages need no hub
+entry.
+
+Generation fails, and never guesses a label, when:
+
+- a `package:` import is not declared in `dependencies` (tests may also use
+  `dev_dependencies`)
+- a declared package has no direct entry in the lock
+- a `part` file is neither on disk nor an output of a `genrule` in the same
+  BUILD file; write the generator rule by hand
+- a BUILD file sits below `lib/`, `bin/` or `test/`
+- a directive cannot be parsed
+
+Loose `.dart` files outside a pubspec folder get no rule. `data`, `defines`,
+`tags` and `aspect_hints` are never touched. `analysis_options.yaml` is not
+turned into a rule: bind `dart_config` by hand through `aspect_hints`.
+
 ## Pub dependencies
 
 Declare a hub with the rules_dart `pub` extension. The lock pins each package

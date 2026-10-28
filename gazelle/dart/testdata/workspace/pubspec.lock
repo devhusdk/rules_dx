@@ -1,0 +1,7 @@
+packages:
+  collection:
+    dependency: "direct main"
+    description:
+      name: collection
+    source: hosted
+    version: "1.19.1"

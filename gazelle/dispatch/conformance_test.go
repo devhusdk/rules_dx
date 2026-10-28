@@ -50,6 +50,15 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "csharp_library", target: "demo", defs: "csharp/rules:defs.bzl",
 		symbols: []string{"csharp_library"},
 	},
+	"dart": {
+		rel: "pkg/demo",
+		files: map[string]string{
+			"pubspec.yaml":  "name: demo\n",
+			"lib/demo.dart": "int answer() => 42;\n",
+		},
+		kind: "dart_library", target: "demo", defs: "dart/rules:defs.bzl",
+		symbols: []string{"dart_library", "dart_binary", "dart_test"},
+	},
 	"elixir": {
 		files: map[string]string{
 			"mix.exs":     "defmodule Demo.MixProject do\n  def project, do: [app: :demo, version: \"1.0.0\"]\nend\n",

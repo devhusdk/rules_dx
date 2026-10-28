@@ -1,0 +1,4 @@
+name: ws_root
+workspace:
+  - packages/a
+  - packages/b

@@ -1,0 +1,7 @@
+name: greet
+environment:
+  sdk: ^3.5.0
+dependencies:
+  collection: ^1.19.0
+dev_dependencies:
+  test: ^1.25.0

@@ -19,6 +19,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/cc"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 	"github.com/devhusdk/rules_dx/gazelle/csharp"
+	"github.com/devhusdk/rules_dx/gazelle/dart"
 	"github.com/devhusdk/rules_dx/gazelle/elixir"
 	"github.com/devhusdk/rules_dx/gazelle/fsharp"
 	"github.com/devhusdk/rules_dx/gazelle/go"
@@ -50,6 +51,7 @@ func composedLanguages() []language.Language {
 		astro.NewLanguage(),
 		cc.NewLanguage(),
 		csharp.NewLanguage(),
+		dart.NewLanguage(),
 		elixir.NewLanguage(),
 		fsharp.NewLanguage(),
 		golang.NewLanguage(),

@@ -1,0 +1,14 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library")
+
+dart_library(
+    name = "b",
+    package_name = "b",
+    srcs = ["lib/b.dart"],
+    deps = ["//packages/a"],
+)
+
+dart_binary(
+    name = "tool",
+    main = "bin/tool.dart",
+    deps = [":b"],
+)

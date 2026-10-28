@@ -2048,6 +2048,104 @@ mod cmd {
     }
 
     #[test]
+    fn cmd_launcher_reads_rc_and_cache_from_home_not_userprofile() {
+        let repo = source_repo("dx-launcher-cmd-home-profile-");
+        let root = repo.root();
+        let home = repo.base.join("home");
+        let profile = repo.base.join("profile");
+        let local = repo.base.join("local");
+        let data = repo.base.join("programdata");
+        for dir in [&home, &profile, &local, &data] {
+            std::fs::create_dir_all(dir).expect("dir");
+        }
+        let args = repo.base.join("args");
+        let in_home = home.join(".cache").join("dx").join("disk-cache");
+        let cases: [(&str, Option<&str>, Option<&str>, Option<&std::path::Path>); 2] = [
+            (
+                "rc under USERPROFILE is ignored",
+                None,
+                Some("build --disk_cache=/from-userprofile\n"),
+                Some(&in_home),
+            ),
+            (
+                "rc under HOME is read",
+                Some("build --disk_cache=/from-home\n"),
+                None,
+                None,
+            ),
+        ];
+        for (name, home_rc, profile_rc, expected) in cases {
+            for path in [
+                home.join(".bazelrc"),
+                profile.join(".bazelrc"),
+                root.join(".bazelrc"),
+                data.join("bazel.bazelrc"),
+            ] {
+                let _ = std::fs::remove_file(path);
+            }
+            let _ = std::fs::remove_dir_all(root.join(".dx/launcher"));
+            let _ = std::fs::remove_file(&args);
+            if let Some(text) = home_rc {
+                std::fs::write(home.join(".bazelrc"), text.replace('\n', "\r\n")).expect("home rc");
+            }
+            if let Some(text) = profile_rc {
+                std::fs::write(profile.join(".bazelrc"), text.replace('\n', "\r\n"))
+                    .expect("profile rc");
+            }
+            let vars = [
+                ("HOME", home.to_string_lossy().into_owned()),
+                ("USERPROFILE", profile.to_string_lossy().into_owned()),
+                ("LOCALAPPDATA", local.to_string_lossy().into_owned()),
+                ("ProgramData", data.to_string_lossy().into_owned()),
+            ];
+            let mut cmd = repo.command(&[], &repo.base.join("calls"));
+            cmd.env_remove("CI")
+                .env_remove("BAZEL_TEST")
+                .env_remove("XDG_CACHE_HOME")
+                .env("STUB_ARGS", &args);
+            for (key, value) in &vars {
+                cmd.env(key, value);
+            }
+            let out = cmd.output().expect("launcher runs");
+            let text = format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+            assert_eq!(out.status.code(), Some(0), "{name}: {text}");
+            let lookup: std::collections::HashMap<String, String> = vars
+                .iter()
+                .map(|(key, value)| ((*key).to_owned(), value.clone()))
+                .collect();
+            let policy = RcPolicy::from_env(&|key| lookup.get(key).cloned(), &root, &|path| {
+                std::fs::read_to_string(path).ok()
+            });
+            let expected = expected.map(|path| path.to_string_lossy().into_owned());
+            assert_eq!(policy.disk_cache, expected, "{name}");
+            let flags: Vec<String> = policy_flags(&policy)
+                .into_iter()
+                .map(|flag| match flag.strip_prefix("--disk_cache=") {
+                    Some(path) => format!("\"--disk_cache={}\"", path.replace('/', "\\")),
+                    None => flag,
+                })
+                .collect();
+            let logged = std::fs::read_to_string(&args).expect("bazel argv");
+            let build = logged
+                .lines()
+                .find(|line| line.starts_with("build ") || line.contains(" build "))
+                .expect("build argv");
+            let want = if flags.is_empty() {
+                "build --curses=no ".to_owned()
+            } else {
+                format!("build {} --curses=no ", flags.join(" "))
+            };
+            assert!(build.contains(&want), "{name}: want {want}: {logged}");
+            let bounded = build.contains("--experimental_disk_cache_gc_max_size=");
+            assert_eq!(bounded, expected.is_some(), "{name}: {logged}");
+        }
+    }
+
+    #[test]
     fn cmd_launcher_runs_the_previous_dx_when_dx_does_not_build() {
         let repo = source_repo("dx-launcher-cmd-fallback-");
         let root = repo.root();

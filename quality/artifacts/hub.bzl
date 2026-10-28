@@ -19,6 +19,14 @@ TOOL_PLATFORMS = [
     "windows_x86_64",
 ]
 
+# Selectable platforms without a native build resolve to a qualified platform's
+# artifact, run under OS emulation (Windows on Arm runs x64 via Prism). Keys must
+# be outside TOOL_PLATFORMS and values inside it: qualified platforms never run
+# emulated binaries. A native artifact on the key platform always wins.
+PLATFORM_FALLBACKS = {
+    "windows_arm64": "windows_x86_64",
+}
+
 # Tools pinned on only some qualified platforms (upstream ships no build for the
 # rest). The hub renders a default branch to an empty file set for them instead
 # of failing analysis, so unrelated builds on other platforms keep working;
@@ -61,6 +69,14 @@ def decode_artifacts(raw):
 def ordered_platforms(entries):
     """Returns the platform keys one tool map holds, in platform order."""
     return [platform for platform in ARTIFACT_PLATFORMS if platform in entries]
+
+def resolved_entries(entries):
+    """Returns one tool map plus fallback platforms it has no native artifact for."""
+    resolved = dict(entries)
+    for platform, source in PLATFORM_FALLBACKS.items():
+        if platform not in resolved and source in entries:
+            resolved[platform] = entries[source]
+    return resolved
 
 def artifact_metadata_errors(artifacts):
     """Returns one error string per artifact with missing or duplicated metadata."""
@@ -138,7 +154,7 @@ def hub_build(artifacts, constraints):
     if [tool for tool in artifacts if tool in PARTIAL_TOOL_PLATFORMS]:
         lines.append('filegroup(\n    name = "%s",\n    srcs = [],\n)\n' % UNAVAILABLE_TARGET)
     for tool in sorted(artifacts.keys()):
-        lines.append(_alias(artifacts[tool], tool))
+        lines.append(_alias(resolved_entries(artifacts[tool]), tool))
     return "\n".join(lines)
 
 def _platform_names():

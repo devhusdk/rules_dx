@@ -68,6 +68,10 @@ Each check reports once per platform as `<check> (<platform>)`, for example
 data once per run for every `security-audit` cell. `dx-ci (aggregate)` passes
 only when every check that should run succeeds.
 
+On `windows_arm64`, tools without a native build run their `windows_x86_64`
+binary under Windows x64 emulation. The platform is selectable but not
+qualified.
+
 Inputs:
 
 - `rules_dx_version`: the version your `rules_dx` declaration carries. The

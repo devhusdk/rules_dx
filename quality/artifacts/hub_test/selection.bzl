@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "PLATFORM_CONSTRAINTS", "PARTIAL_TOOL_PLATFORMS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms")
+load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "PLATFORM_CONSTRAINTS", "PLATFORM_FALLBACKS", "PARTIAL_TOOL_PLATFORMS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms", "resolved_entries")
 
 _CONSTRAINT_LABELS = {
     "cpu_arm64": "@platforms//cpu:arm64",
@@ -31,6 +31,9 @@ _SPARSE = {
 }
 
 _COMPLETE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS)}
+
+# A native windows_arm64 artifact wins over the emulated fallback.
+_NATIVE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS, windows_arm64 = _FIXTURE_REPOS["linux_arm64"])}
 
 # Tools allowed to ship artifacts on selectable platforms outside the qualified
 # TOOL_PLATFORMS set, and the only such platforms each may use.
@@ -90,6 +93,13 @@ def _unit_checks():
             ":macos_arm64": "@dx_hub_fixture_taplo_macos_arm64//:tool",
             ":windows_x86_64": "@dx_hub_fixture_taplo_windows_x86_64//:tool",
         }),
+        expect_equal("the platform fallbacks are the expected table", PLATFORM_FALLBACKS, {"windows_arm64": "windows_x86_64"}),
+        expect_equal("every fallback key is selectable but unqualified", [p for p in PLATFORM_FALLBACKS if p in ARTIFACT_PLATFORMS and p not in TOOL_PLATFORMS], list(PLATFORM_FALLBACKS.keys())),
+        expect_equal("every fallback source is qualified", [p for p in PLATFORM_FALLBACKS.values() if p in TOOL_PLATFORMS], list(PLATFORM_FALLBACKS.values())),
+        expect_equal("windows_arm64 falls back to the windows_x86_64 repository", resolved_entries(_SPARSE[_FIXTURE_TOOL]).get("windows_arm64"), "dx_hub_fixture_taplo_windows_x86_64"),
+        expect_equal("no windows_x86_64 means no windows_arm64 fallback", "windows_arm64" in resolved_entries({"linux_x86_64": "dx_a"}), False),
+        expect_equal("a native windows_arm64 artifact keeps its repository", resolved_entries(_NATIVE[_FIXTURE_TOOL])["windows_arm64"], "dx_hub_fixture_taplo_linux_arm64"),
+        expect_contains("the sparse hub renders the windows_arm64 fallback branch", sparse_rendered, '":windows_arm64": "@dx_hub_fixture_taplo_windows_x86_64//:tool",'),
         expect_equal("the released artifacts carry valid metadata", artifact_metadata_errors(TOOL_ARTIFACTS), []),
         expect_equal("the released tool map is valid", artifact_map_errors(released), []),
         expect_equal("a decoded map equals the encoded map", decode_artifacts(encode_artifacts(released)).artifacts, released),
@@ -122,6 +132,9 @@ def _unit_checks():
             checks.append(expect_contains(tool + " renders the unavailable default branch", rendered, '"//conditions:default": ":%s",' % UNAVAILABLE_TARGET))
         else:
             checks.append(expect_contains(tool + " keeps its no_match_error", rendered, "no_match_error = ("))
+        arm64_repo = "dx_%s_windows_arm64" % tool if "windows_arm64" in released[tool] else "dx_%s_windows_x86_64" % tool
+        if "windows_x86_64" in released[tool] or "windows_arm64" in released[tool]:
+            checks.append(expect_contains(tool + " resolves windows_arm64", rendered, '":windows_arm64": "@%s//:tool",' % arm64_repo))
         checks.append(expect_contains(tool + " renders its linux_x86_64 branch", rendered, '":linux_x86_64": "@dx_%s_linux_x86_64//:tool",' % tool))
     return checks
 
@@ -182,8 +195,8 @@ def _selection_fixture(fixture, tool_map):
     native.alias(
         name = fixture + "_" + _FIXTURE_TOOL,
         actual = select(
-            branch_labels(tool_map[_FIXTURE_TOOL]),
-            no_match_error = no_match_error(tool_map[_FIXTURE_TOOL], _FIXTURE_TOOL),
+            branch_labels(resolved_entries(tool_map[_FIXTURE_TOOL])),
+            no_match_error = no_match_error(resolved_entries(tool_map[_FIXTURE_TOOL]), _FIXTURE_TOOL),
         ),
         tags = ["manual"],
         visibility = ["//visibility:public"],
@@ -277,14 +290,15 @@ def hub_selection_tests(name):
             visibility = ["//visibility:public"],
         )
     subjects = []
-    for fixture, tool_map in [("sparse", _SPARSE), ("complete", _COMPLETE)]:
+    for fixture, tool_map in [("sparse", _SPARSE), ("complete", _COMPLETE), ("native", _NATIVE)]:
         _selection_fixture(fixture, tool_map)
-        for platform in ordered_platforms(tool_map[_FIXTURE_TOOL]):
+        resolved = resolved_entries(tool_map[_FIXTURE_TOOL])
+        for platform in ordered_platforms(resolved):
             probe = fixture + "_" + _FIXTURE_TOOL + "_" + platform
             hub_branch_probe(
                 name = probe,
                 branch = ":" + fixture + "_" + _FIXTURE_TOOL,
-                expected = "@" + tool_map[_FIXTURE_TOOL][platform] + "//:tool",
+                expected = "@" + resolved[platform] + "//:tool",
                 platform = platform,
                 platform_target = ":platform_" + platform,
             )

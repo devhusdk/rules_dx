@@ -155,7 +155,8 @@ func validateBuildImports(c *config.Config, manifest *cargoManifest, imports tar
 }
 
 func noteGate(result *targetImports, name string, dep cargoDependency) {
-	gated := dep.androidOnly()
+	constraint := dep.platformConstraint()
+	gated := constraint != ""
 	if prev, seen := result.gated[name]; seen && !prev {
 		return
 	}
@@ -163,6 +164,12 @@ func noteGate(result *targetImports, name string, dep cargoDependency) {
 		result.gated = make(map[string]bool)
 	}
 	result.gated[name] = gated
+	if gated {
+		if result.gateTarget == nil {
+			result.gateTarget = make(map[string]string)
+		}
+		result.gateTarget[name] = constraint
+	}
 }
 
 func noteRename(result *targetImports, name string, dep cargoDependency) {
@@ -335,9 +342,18 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	}
 	deps := make(map[string]bool)
 	androidDeps := make(map[string]bool)
+	platformDeps := make(map[string]map[string]bool)
 	addDep := func(name, dep string) {
 		if imports.gated[name] {
-			androidDeps[dep] = true
+			constraint := imports.gateTarget[name]
+			if constraint == "" || constraint == androidPlatformConstraint {
+				androidDeps[dep] = true
+				return
+			}
+			if platformDeps[constraint] == nil {
+				platformDeps[constraint] = make(map[string]bool)
+			}
+			platformDeps[constraint][dep] = true
 			return
 		}
 		deps[dep] = true
@@ -434,19 +450,30 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 			delete(androidDeps, dep)
 		}
 	}
+	platform := make(map[string][]string)
+	for constraint, set := range platformDeps {
+		for dep := range set {
+			if deps[dep] {
+				delete(set, dep)
+			}
+		}
+		if len(set) > 0 {
+			platform[constraint] = sortedKeys(set)
+		}
+	}
 	labels := sortedKeys(deps)
 	android := sortedKeys(androidDeps)
-	if len(labels) == 0 && len(android) == 0 {
+	if len(labels) == 0 && len(android) == 0 && len(platform) == 0 {
 		return
 	}
-	if len(android) > 0 {
+	if len(android) > 0 || len(platform) > 0 {
 		switch existing := r.Attr("deps"); existing.(type) {
 		case nil:
-			r.SetAttr("deps", depsConcatExpr{extra: labels, android: android})
+			r.SetAttr("deps", depsConcatExpr{extra: labels, android: android, platform: platform})
 		case *bzl.ListExpr:
-			r.SetAttr("deps", depsConcatExpr{extra: unionStrings(r.AttrStrings("deps"), labels), android: android})
+			r.SetAttr("deps", depsConcatExpr{extra: unionStrings(r.AttrStrings("deps"), labels), android: android, platform: platform})
 		default:
-			r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels, android: android})
+			r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels, android: android, platform: platform})
 		}
 		return
 	}

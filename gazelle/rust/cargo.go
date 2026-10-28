@@ -192,20 +192,37 @@ func cargoCfgPlatform(cfg string) (string, bool) {
 	switch strings.Join(strings.Fields(cfg), "") {
 	case `cfg(target_os="android")`:
 		return androidPlatformConstraint, true
+	case `cfg(target_os="windows")`, `cfg(windows)`:
+		return "@platforms//os:windows", true
+	case `cfg(target_os="linux")`:
+		return "@platforms//os:linux", true
+	case `cfg(target_os="macos")`:
+		return "@platforms//os:macos", true
+	case `cfg(target_os="ios")`:
+		return "@platforms//os:ios", true
 	}
 	return "", false
 }
 
-func (d cargoDependency) androidOnly() bool {
+// platformConstraint returns the single platform constraint every cfg of a
+// local path dependency maps to, or "" when the dependency is not gated.
+func (d cargoDependency) platformConstraint() string {
 	if d.external || d.cfgs == "" {
-		return false
+		return ""
 	}
+	out := ""
 	for _, cfg := range strings.Split(d.cfgs, "\n") {
-		if constraint, ok := cargoCfgPlatform(cfg); !ok || constraint != androidPlatformConstraint {
-			return false
+		constraint, ok := cargoCfgPlatform(cfg)
+		if !ok || (out != "" && constraint != out) {
+			return ""
 		}
+		out = constraint
 	}
-	return true
+	return out
+}
+
+func (d cargoDependency) androidOnly() bool {
+	return d.platformConstraint() == androidPlatformConstraint
 }
 
 func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, error) {

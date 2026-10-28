@@ -4,6 +4,8 @@ This page lists, for each language and target, the platforms CI tests it on, its
 
 An empty cell or `no` is a missing test, tracked as an issue.
 
+`n/a` means the capability does not apply to that language or format.
+
 The platforms are `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`.
 
 Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to refresh it.
@@ -69,7 +71,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | CUDA | no | `clang_format` | no |
 | D | `dscanner` | `dfmt` | no |
 | Elixir | `credo` | `mix_format` | no |
-| Erlang | no | `erlfmt` | no |
+| Erlang | `elvis` | `erlfmt` | no |
 | Fortran | no | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
@@ -81,9 +83,9 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Lua | no | `stylua` on `linux_x86_64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
-| Perl | no | `perltidy` | no |
+| Perl | no | `perltidy` | n/a |
 | PHP | no | no | no |
-| PowerShell | `psscriptanalyzer` on `linux_x86_64` | `psscriptanalyzer` on `linux_x86_64` | no |
+| PowerShell | `psscriptanalyzer` on `linux_x86_64` | `psscriptanalyzer` on `linux_x86_64` | n/a |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
 | Ruby | `rubocop` on `linux_x86_64` | `standardrb` on `linux_x86_64` | no |
 | Rust | `clippy` | `rustfmt` | `rustc` |
@@ -93,15 +95,15 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Vue | `eslint` | `prettier` | no |
 | Zig | no | `zig_fmt` | no |
 | Apple | no | `clang_format` | no |
-| Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
-| Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
+| Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
+| Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | Qt | `qmllint` | `qmlformat` | no |
 | Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | no | no |
-| API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | CUE | no | `cue` on `linux_x86_64` | no |
 | FlatBuffers | `flatc` on `linux_x86_64` | no | no |
-| Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | no |
+| Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | n/a |
 | Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64` | no |
 | Jupyter | `notebook_outputs` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
@@ -111,6 +113,21 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Rego | `regal` on `linux_x86_64` | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
 | SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| YAML | `yamllint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `yamlfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| YAML | `yamllint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `yamlfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+
+### Not applicable
+
+Not applicable for `typecheck`:
+
+- `api_spec`: declarative API description; no type system beyond schema validation
+- `dockerfile`: no static type system; hadolint covers lint
+- `gherkin`: natural-language scenarios; no type system
+- `html_template`: markup templates; no static type system
+- `make`: no static type system; build language with untyped strings
+- `perl`: dynamically typed; no maintained type checker
+- `powershell`: no type checker; PSScriptAnalyzer is a linter only
+- `typst`: dynamically typed markup; no standalone type checker
+- `xml`: data format; schema validation is not type checking
+- `yaml`: data format; schema validation is not type checking

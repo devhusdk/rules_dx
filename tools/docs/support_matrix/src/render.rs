@@ -77,6 +77,9 @@ fn build_table(
 fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
     let found = tools(facts, &row.families, capability);
     if found.is_empty() {
+        if crate::gaps::not_applicable(facts, &row.families, capability) {
+            return "n/a".to_owned();
+        }
         return "no".to_owned();
     }
     found
@@ -148,6 +151,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
          its `dx new` starter, and its lint, format, and typecheck tools.\n\n",
     );
     out.push_str("An empty cell or `no` is a missing test, tracked as an issue.\n\n");
+    out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
     out.push_str(&format!("The platforms are {}.\n\n", ids.join(", ")));
     out.push_str(&format!(
         "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n\n"
@@ -167,6 +171,24 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
          \"on\" lists the platforms a tool's support record covers.\n\n",
     );
     out.push_str(&quality_table(facts));
+    out.push_str(&not_applicable_section(facts));
+    out
+}
+
+fn not_applicable_section(facts: &Facts) -> String {
+    let mut out = String::new();
+    for (capability, families) in &facts.not_applicable {
+        if families.is_empty() {
+            continue;
+        }
+        if out.is_empty() {
+            out.push_str("\n### Not applicable\n\n");
+        }
+        out.push_str(&format!("Not applicable for `{capability}`:\n\n"));
+        for (family, reason) in families {
+            out.push_str(&format!("- `{family}`: {reason}\n"));
+        }
+    }
     out
 }
 
@@ -192,6 +214,7 @@ mod tests {
                   "yaml": {"lint": ["yamllint"], "format": [], "typecheck": []}},
       "support": [{"family": "yaml", "capability": "lint", "tool": "yamllint", "platforms": ["linux_x86_64"]}],
       "deferred_families": [],
+      "not_applicable": {"typecheck": {"yaml": "data format"}},
       "not_languages": [],
       "gap_issues": {},
       "gap_enforcement": false,
@@ -216,7 +239,7 @@ mod tests {
             "{page}"
         );
         assert!(
-            page.contains("| YAML | `yamllint` on `linux_x86_64` | no | no |\n"),
+            page.contains("| YAML | `yamllint` on `linux_x86_64` | no | n/a |\n"),
             "{page}"
         );
         assert!(!page.to_lowercase().contains("experimental"));

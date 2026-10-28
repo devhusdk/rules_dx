@@ -1,6 +1,6 @@
 """Writes the support matrix facts JSON from the language list and the quality registry."""
 
-load("//quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
+load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
 load(":languages.bzl", "COMPUTED_CONSTRAINTS", "GAP_ENFORCEMENT", "GAP_ISSUES", "NOT_LANGUAGES", "PLATFORMS", "ROWS", "SECTIONS", "SUPPORT_MATRIX_SCHEMA_VERSION")
@@ -71,6 +71,7 @@ def support_matrix_facts_dict():
         "deferred_families": sorted(deferred.keys()),
         "gap_enforcement": GAP_ENFORCEMENT,
         "gap_issues": GAP_ISSUES,
+        "not_applicable": NOT_APPLICABLE,
         "not_languages": sorted(NOT_LANGUAGES),
         "platforms": PLATFORMS,
         "quality": quality,

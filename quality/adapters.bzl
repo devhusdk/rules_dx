@@ -186,6 +186,44 @@ REAL_CLASS_TO_FAMILY = {
     "zig": "zig",
 }
 
+# Capabilities a family can never have: no static type system (or no
+# maintained checker) exists, so the support matrix shows `n/a`, not a gap.
+# Keyed by capability, then family. "n/a" means never; "not yet" belongs in
+# the gap ledger. A family with a real adapter must not be listed here.
+NOT_APPLICABLE = {
+    "typecheck": {
+        "api_spec": "declarative API description; no type system beyond schema validation",
+        "dockerfile": "no static type system; hadolint covers lint",
+        "gherkin": "natural-language scenarios; no type system",
+        "html_template": "markup templates; no static type system",
+        "make": "no static type system; build language with untyped strings",
+        "perl": "dynamically typed; no maintained type checker",
+        "powershell": "no type checker; PSScriptAnalyzer is a linter only",
+        "typst": "dynamically typed markup; no standalone type checker",
+        "xml": "data format; schema validation is not type checking",
+        "yaml": "data format; schema validation is not type checking",
+    },
+}
+
+def not_applicable_error(not_applicable, adapters, class_to_family):
+    """Validates a not-applicable declaration against the adapter registry."""
+    families = {}
+    for family in class_to_family.values():
+        families[family] = True
+    for capability in not_applicable:
+        if capability not in ["lint", "format", "typecheck"]:
+            return "not applicable: unknown capability '" + str(capability) + "'"
+        for family, reason in not_applicable[capability].items():
+            if family not in families:
+                return "not applicable: unknown family '" + str(family) + "' for " + capability
+            if reason == "":
+                return "not applicable: empty reason for " + capability + ":" + family
+            for tool_id in adapters:
+                for class_id in adapters[tool_id].get(capability, []):
+                    if class_to_family.get(class_id) == family:
+                        return "not applicable: " + capability + ":" + family + " contradicts tool '" + tool_id + "'"
+    return ""
+
 def real_supported_classes(tool_id, capability):
     """Returns the sorted supported classes for one real tool/capability."""
     if tool_id not in REAL_ADAPTERS:
@@ -222,4 +260,4 @@ def adapter_registry_schema_error():
                     return "adapter registry: non-canonical class '" + str(class_id) + "' for tool '" + tool_id + "'"
                 if class_id not in REAL_CLASS_TO_FAMILY:
                     return "adapter registry: tool '" + tool_id + "' names unclassified class '" + class_id + "'"
-    return ""
+    return not_applicable_error(NOT_APPLICABLE, REAL_ADAPTERS, REAL_CLASS_TO_FAMILY)

@@ -1,7 +1,9 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//ansible/rules:defs.bzl", "ansible_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":library_tests.bzl", "mixed_split_test", "plain_yaml_test")
+load(":lock_tests.bzl", "lock_unit_tests")
 
 ansible_library(
     name = "mixed",
@@ -41,6 +43,15 @@ failure_test(
     target = ":bad_playbook",
 )
 
+lock_unit_tests(name = "lock_unit")
+
+sh_test(
+    name = "collections_hub_test",
+    size = "small",
+    srcs = ["collections_hub_test.sh"],
+    data = ["@dx_ansible_test_collections//:collections"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
@@ -48,6 +59,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "library_tests.bzl",
+        "lock_tests.bzl",
     ],
     tags = ["corpus"],
 )

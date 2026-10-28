@@ -2525,8 +2525,8 @@ bazel run @rules_dx//:dx -- lint //ansible/...
 `ansible-lint` runs offline: no collection installs, schema refresh or version
 check. A syntax error or load failure is an error and never counts as clean.
 Any exit code other than clean or violations fails the run with the last line
-of `ansible-lint` stderr. There is no `--apply` for Ansible yet, and
-collections are not yet supported, so use modules from `ansible.builtin`.
+of `ansible-lint` stderr. There is no `--apply` for Ansible yet. Modules from
+`ansible.builtin` need nothing extra; other collections must be bound as below.
 
 To change rules, bind an `ansible_lint_config` (an `.ansible-lint` file) to the
 targets with `aspect_hints`.
@@ -2546,6 +2546,47 @@ ansible_library(
     srcs = ["playbooks/site.yml"],
 )
 ```
+
+#### Collections
+
+Collections are never installed at check time. Pin them in a lock and bind the
+fetched tree to the config. A lock is a sorted JSON file; each entry has
+exactly one of `urls` or `path` (relative to the lock):
+
+```json
+{
+  "collections": [
+    {
+      "name": "ansible.posix",
+      "sha256": "<64 hex characters>",
+      "urls": ["https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts/ansible-posix-1.5.4.tar.gz"],
+      "version": "1.5.4"
+    }
+  ],
+  "version": 1
+}
+```
+
+```python
+ansible = use_extension("@rules_dx//ansible:extensions.bzl", "ansible")
+ansible.collections(name = "ansible_deps", lock = "//:ansible_collections.lock.json")
+use_repo(ansible, "ansible_deps")
+```
+
+```python
+ansible_lint_config(
+    name = "relaxed",
+    src = ".ansible-lint",
+    data = ["@ansible_deps//:collections"],
+)
+```
+
+The archives are fetched once, checked against `sha256`, and must name the
+same collection and version as the lock; every declared dependency must be in
+the lock. After the first fetch the repository cache serves them, so checks run
+with the network denied. A checked-in `ansible_collections/<ns>/<coll>/` tree in
+`data` works the same way. A collection that is not bound fails the run and is
+never reported clean, and the same `ns.coll` under two roots is an error.
 
 ### Nix
 

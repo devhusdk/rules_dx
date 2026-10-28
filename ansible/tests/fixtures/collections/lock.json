@@ -1,0 +1,11 @@
+{
+  "collections": [
+    {
+      "name": "dxtest.tiny",
+      "path": "dxtest-tiny-1.0.0.tar.gz",
+      "sha256": "98e470c6f3d93bcdc0c456cc0f1e21446f18c7bc3bdbde9bfc0c5279febb4c4e",
+      "version": "1.0.0"
+    }
+  ],
+  "version": 1
+}

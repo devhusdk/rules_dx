@@ -1366,12 +1366,28 @@ impl RealBackend {
                 },
             ),
             "ansible_lint" => {
-                let invocation = commands::ansible_lint_check(
-                    &tool.binary,
-                    &refs,
-                    config.as_deref(),
-                    scratch.root(),
-                );
+                let roots = staging::ansible_collections_roots(
+                    tool.tool_files.iter().map(|(rel, _)| rel.as_str()),
+                )
+                .map_err(|detail| execution(tool_id, detail))?;
+                let mut collections = Vec::with_capacity(roots.len());
+                for root in &roots {
+                    collections.push(if root.is_empty() {
+                        scratch.root().to_path_buf()
+                    } else {
+                        scratch
+                            .resolve(Path::new(root))
+                            .map_err(|err| execution(tool_id, format!("collections root: {err}")))?
+                    });
+                }
+                let collection_refs: Vec<&Path> =
+                    collections.iter().map(PathBuf::as_path).collect();
+                let context = commands::AnsibleLintContext {
+                    config: config.as_deref(),
+                    collections: &collection_refs,
+                    project_dir: scratch.root(),
+                };
+                let invocation = commands::ansible_lint_check(&tool.binary, &refs, &context);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(
                     tool_id,

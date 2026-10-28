@@ -1511,16 +1511,55 @@ fn ansible_lint_check_offline_sarif_with_project_dir_and_optional_config() {
     ];
     let mut with = base.to_vec();
     with.extend(["-c", "/scratch/.ansible-lint", "/scratch/site.yml"]);
-    let conf = Some(Path::new("/scratch/.ansible-lint"));
+    let context = AnsibleLintContext {
+        config: Some(Path::new("/scratch/.ansible-lint")),
+        collections: &[],
+        project_dir: root,
+    };
     assert_eq!(
-        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], conf, root)),
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], &context)),
         with
     );
     let mut without = base.to_vec();
     without.push("/scratch/site.yml");
+    let context = AnsibleLintContext {
+        config: None,
+        collections: &[],
+        project_dir: root,
+    };
     assert_eq!(
-        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], None, root)),
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], &context)),
         without
+    );
+}
+
+#[test]
+fn ansible_lint_check_puts_collection_roots_first() {
+    let file = Path::new("/scratch/site.yml");
+    let roots = [Path::new("/scratch/a"), Path::new("/scratch/b")];
+    let context = AnsibleLintContext {
+        config: None,
+        collections: &roots,
+        project_dir: Path::new("/scratch"),
+    };
+    let joined = std::env::join_paths(roots)
+        .expect("joined")
+        .into_string()
+        .expect("utf8");
+    assert_eq!(
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], &context)),
+        [
+            BIN,
+            "--dx-collections-path",
+            joined.as_str(),
+            "--offline",
+            "--nocolor",
+            "-f",
+            "sarif",
+            "--project-dir",
+            "/scratch",
+            "/scratch/site.yml",
+        ]
     );
 }
 

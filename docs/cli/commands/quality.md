@@ -2679,7 +2679,8 @@ bazel run @rules_dx//:dx -- lint //ansible/...
 `ansible-lint` runs offline: no collection installs, schema refresh or version
 check. A syntax error or load failure is an error and never counts as clean.
 Any exit code other than clean or violations fails the run with the last line
-of `ansible-lint` stderr. There is no `--apply` for Ansible yet. Modules from
+of `ansible-lint` stderr. `--apply` runs `ansible-lint --fix=all` on the staged files and keeps the
+rewrites. Modules from
 `ansible.builtin` need nothing extra; other collections must be bound as below.
 
 To change rules, bind an `ansible_lint_config` (an `.ansible-lint` file) to the

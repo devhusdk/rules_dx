@@ -326,6 +326,7 @@ pub(super) enum Route {
     },
     Rustfmt,
     Scalafix,
+    AnsibleLint,
     Rewrite(fn(&Path, &[&Path]) -> Invocation),
 }
 
@@ -359,8 +360,9 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck"
         | "staticcheck" | "govet" | "errcheck" | "stylelint" | "rubocop" | "yamllint"
         | "shellcheck" | "hadolint" | "redocly" | "kubeconform" | "helm" | "checkmake"
-        | "flatc" | "tflint" | "ansible_lint" | "credo" | "dialyzer" | "elvis" | "phpstan"
-        | "regal" => Ok(Route::Keep),
+        | "flatc" | "tflint" | "credo" | "dialyzer" | "elvis" | "phpstan" | "regal" => {
+            Ok(Route::Keep)
+        }
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -390,6 +392,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             placeholders: &["py", "pyi"],
         }),
         "scalafix" => Ok(Route::Scalafix),
+        "ansible_lint" => Ok(Route::AnsibleLint),
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
@@ -410,7 +413,7 @@ impl Route {
         match self {
             Route::Spec { placeholders, .. } => placeholders,
             Route::Rustfmt => &["rs"],
-            Route::Keep | Route::Scalafix | Route::Rewrite(_) => &[],
+            Route::Keep | Route::Scalafix | Route::AnsibleLint | Route::Rewrite(_) => &[],
         }
     }
 }
@@ -763,6 +766,31 @@ impl super::RealBackend {
                 commands::scalafix_fix(&tool.binary, refs, &context)
                     .map_err(|err| execution(tool_id, err.to_string()))
             }
+            Route::AnsibleLint => {
+                let config = self.config_abs(tool_id, tool, scratch)?;
+                let roots = super::staging::ansible_collections_roots(
+                    tool.tool_files.iter().map(|(rel, _)| rel.as_str()),
+                )
+                .map_err(|detail| execution(tool_id, detail))?;
+                let mut collections = Vec::with_capacity(roots.len());
+                for root in &roots {
+                    collections.push(if root.is_empty() {
+                        scratch.root().to_path_buf()
+                    } else {
+                        scratch
+                            .resolve(Path::new(root))
+                            .map_err(|err| execution(tool_id, format!("collections root: {err}")))?
+                    });
+                }
+                let collection_refs: Vec<&Path> =
+                    collections.iter().map(PathBuf::as_path).collect();
+                let context = commands::AnsibleLintContext {
+                    config: config.as_deref(),
+                    collections: &collection_refs,
+                    project_dir: scratch.root(),
+                };
+                Ok(commands::ansible_lint_fix(&tool.binary, refs, &context))
+            }
             Route::Rewrite(fix) => Ok(fix(&tool.binary, refs)),
         }
     }
@@ -798,6 +826,14 @@ impl super::RealBackend {
             Route::Rustfmt => super::rustfmt::fix_outcome(scratch.root(), names, &out),
             Route::Scalafix => {
                 if matches!(out.code, Some(0) | Some(64)) {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Kept
+                }
+            }
+            // Violations that remain after the rewrite exit 2; the fixed file is still kept.
+            Route::AnsibleLint => {
+                if matches!(out.code, Some(0) | Some(2)) {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept

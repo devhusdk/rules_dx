@@ -2608,3 +2608,27 @@ fn phpstan_neon_includes_the_consumer_config_and_pins_our_values() {
     let odd = phpstan_neon(None, 5, Path::new("/s/a\"b"), &[]);
     assert!(odd.contains("\"/s/a\\\"b\""), "{odd}");
 }
+
+#[test]
+fn ansible_lint_fix_rewrites_in_place_offline() {
+    let file = Path::new("/scratch/site.yml");
+    let context = AnsibleLintContext {
+        config: Some(Path::new("/scratch/.ansible-lint")),
+        collections: &[],
+        project_dir: Path::new("/scratch"),
+    };
+    assert_eq!(
+        argv_strings(&ansible_lint_fix(Path::new(BIN), &[file], &context)),
+        [
+            BIN,
+            "--offline",
+            "--nocolor",
+            "--fix=all",
+            "--project-dir",
+            "/scratch",
+            "-c",
+            "/scratch/.ansible-lint",
+            "/scratch/site.yml",
+        ]
+    );
+}

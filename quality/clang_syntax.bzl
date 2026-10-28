@@ -191,7 +191,7 @@ def _clang_syntax_impl(target, ctx):
         ctx.actions.run_shell(
             mnemonic = "ClangTidy",
             progress_message = "clang-tidy %{label}: " + src,
-            command = 'bash "$0" "$@"',
+            command = 'bash "$@"',
             arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
             inputs = depset([tidy, runner], transitive = [all_inputs]),
             outputs = [tidy_log],

@@ -92,7 +92,7 @@ with `locale -a | grep -i c.utf`.
 | --- | --- | --- |
 | `linux_x86_64` | Qualified | |
 | `linux_arm64` | Qualified | |
-| `macos_arm64` | Not qualified | Needs a Darwin bindist cell and patched `otool` tools. Tracked in #4311. |
+| `macos_arm64` | Not qualified | Darwin bindist cell is pinned (no runtime closure). Still needs `otool` and `install_name_tool` from `@llvm//tools`, the GMP license text, and a native macOS run. Tracked in #4311. |
 | `macos_x86_64` | Not qualified | No CI cell. |
 | `windows_x86_64` | Not qualified | rules_haskell has no hermetic Windows port. |
 | `windows_arm64` | Not qualified | rules_haskell has no hermetic Windows port. |

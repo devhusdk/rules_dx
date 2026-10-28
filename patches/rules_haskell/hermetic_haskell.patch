@@ -549,7 +549,7 @@ index 2e10f82..84707ce 100644
 +        tools_for_ghc_pkg = [
 +            f
 +            for f in libdir
-+            if f.extension == "so" or ".so." in f.basename or f.dirname.endswith("/package.conf.d") or f.basename == "settings"
++            if f.extension == "so" or f.extension == "dylib" or ".so." in f.basename or f.dirname.endswith("/package.conf.d") or f.basename == "settings"
 +        ],
 +        maybe_exec_cc_toolchain = default_tools_config.maybe_exec_cc_toolchain,
 +        supports_haddock = default_tools_config.supports_haddock,

@@ -36,11 +36,13 @@ def _version_at_least(version, floor):
 def _cell_checks(name):
     cell = CELLS[name]
     triple = cell.ghc_libdir_triple
+    has_runtime = len(cell.runtime) > 0
     conf = closure_library_dirs(_CONF.replace("{triple}", triple), CLOSURE_DIR)
-    arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu"}[name]
+    arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": ""}[name]
     return [
         expect_equal(name + " ghc digest", len(cell.ghc_sha256), 64),
-        expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"]),
+        expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"] if has_runtime else []),
+        expect_true(name + " names a locale", len(cell.locale) > 0),
         expect_equal(name + " every package pins a digest", [package.package for package in cell.runtime if len(package.sha256) != 64], []),
         expect_equal(name + " every library ships a license", [package.package for package in cell.runtime if package.libraries and package.license == ""], []),
         expect_equal(name + " every library ships a copyright", [package.package for package in cell.runtime if package.libraries and package.copyright == ""], []),
@@ -59,9 +61,12 @@ def _checks():
         expect_equal("ghc version", GHC_VERSION, "9.10.3"),
         expect_equal("rules_haskell commit", RULES_HASKELL_COMMIT, "826018312ea91c80ff66fde1e1e39f76c42c07b8"),
         expect_equal("rules_haskell digest", len(RULES_HASKELL_SHA256), 64),
-        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64"]),
+        expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
-        expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in CELLS], [["libgmp10", "libtinfo6"]] * len(CELLS)),
+        expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
+        expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),
+        expect_true("arm64 mac runs the macos cell", cell_matches_host("macos_arm64", "mac os x", "aarch64")),
+        expect_false("linux never runs the macos cell", cell_matches_host("macos_arm64", "linux", "aarch64")),
         expect_true("amd64 host runs the amd64 cell", cell_matches_host("linux_amd64", "Linux", "amd64")),
         expect_true("x86_64 host runs the amd64 cell", cell_matches_host("linux_amd64", "linux", "x86_64")),
         expect_false("amd64 host never runs the arm64 cell", cell_matches_host("linux_arm64", "linux", "amd64")),

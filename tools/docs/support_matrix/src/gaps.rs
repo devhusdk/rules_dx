@@ -50,6 +50,9 @@ pub fn gaps(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Vec<St
             if !row.families.contains(&record.family) {
                 continue;
             }
+            if record.platforms.is_empty() {
+                continue;
+            }
             for platform in &facts.platforms {
                 if !record.platforms.contains(&platform.id) {
                     out.push(format!(

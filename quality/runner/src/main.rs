@@ -90,6 +90,11 @@ fn real_tool(
             .iter()
             .map(|exec| absolute(cwd.clone(), exec.clone()))
             .collect(),
+        path_tools: entry
+            .path_tools
+            .iter()
+            .map(|(name, binary)| (name.clone(), absolute(cwd.clone(), binary.clone())))
+            .collect(),
         search_paths: entry
             .search_paths
             .iter()
@@ -311,6 +316,7 @@ mod tests {
             ],
             upstream: vec![PathBuf::from("out/ruff.diag")],
             search_paths: vec![venv.clone()],
+            path_tools: Vec::new(),
         };
         let tool = real_tool("ruff", &entry, cwd.clone()).expect("tool");
         assert_eq!(tool.binary, PathBuf::from("/work/bin/ruff"));
@@ -341,6 +347,7 @@ mod tests {
             env: Vec::new(),
             upstream: vec![PathBuf::from("/abs/ty.diag")],
             search_paths: Vec::new(),
+            path_tools: Vec::new(),
         };
         let tool = real_tool("ty", &upstream_only, cwd.clone()).expect("upstream only");
         assert_eq!(tool.binary, PathBuf::new());

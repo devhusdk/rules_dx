@@ -59,6 +59,16 @@ pub fn parse_vale(
             .get("Text")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("vale reported a configuration error");
+        let lowered = detail.to_ascii_lowercase();
+        if ["rst2html", "asciidoctor"]
+            .iter()
+            .any(|converter| lowered.contains(converter))
+        {
+            return Err(ParseError::Incomplete {
+                tool: TOOL,
+                detail: format!("vale document converter failed: {}", detail.trim()),
+            });
+        }
         return Err(ParseError::ValeConfig {
             detail: format!("{}: {}", code_value, detail.trim()),
         });
@@ -179,6 +189,17 @@ mod tests {
         assert!(err.to_string().contains("nope.ini"));
         assert!(parse_vale(b"", Some(2), &["/s/vale/doc.md"]).is_err());
         assert!(parse_vale(VALE_DIRTY.as_bytes(), Some(1), &["/s/other.md"]).is_err());
+    }
+
+    #[test]
+    fn vale_converter_failures_are_incomplete_not_config() {
+        for text in ["rst2html not found", "asciidoctor not found"] {
+            let envelope = format!(r#"{{"Code": "E100", "Text": "{text}"}}"#);
+            let err = parse_vale(envelope.as_bytes(), Some(2), &["/s/vale/doc.rst"])
+                .expect_err("converter failure");
+            assert!(matches!(err, ParseError::Incomplete { .. }), "{err}");
+            assert!(err.to_string().contains(text.split(' ').next().unwrap()));
+        }
     }
 
     #[test]

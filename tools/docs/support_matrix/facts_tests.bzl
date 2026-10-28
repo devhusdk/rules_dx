@@ -13,6 +13,14 @@ def _families_resolve(facts):
         if family not in facts["quality"]
     ]
 
+def _not_applicable_problems(facts):
+    return [
+        capability + ":" + family
+        for capability, entries in facts["not_applicable"].items()
+        for family in entries
+        if family not in facts["quality"] or facts["quality"][family].get(capability, []) != []
+    ]
+
 def support_matrix_facts_tests(name):
     """Declares the support matrix facts schema test."""
     facts = support_matrix_facts_dict()
@@ -37,6 +45,7 @@ def support_matrix_facts_tests(name):
                 [row["name"] for row in facts["rows"]],
                 sorted([row["name"] for row in facts["rows"]]),
             ),
+            expect_equal("not applicable families have no tools", _not_applicable_problems(facts), []),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],
     )

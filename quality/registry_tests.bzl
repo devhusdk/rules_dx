@@ -1,7 +1,11 @@
 """Unit tests for the single-sourced versioned registry."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load(":adapters.bzl", "not_applicable_error")
 load(":registry.bzl", "REGISTRY_SCHEMA_VERSION", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_deferred_classes", "registry_families", "registry_schema_error", "registry_tools")
+
+_A = {"ty": {"typecheck": ["python"]}}
+_C = {"python": "python", "yaml": "yaml"}
 
 def registry_unit_tests(name):
     starlark_test(
@@ -49,6 +53,23 @@ def registry_unit_tests(name):
                     is_curated_family("not_a_family"),
                 ],
                 [False, False, False],
+            ),
+            expect_equal(
+                "not-applicable validation accepts and rejects",
+                [
+                    not_applicable_error({"typecheck": {"yaml": "data"}}, _A, _C),
+                    not_applicable_error({"bogus": {"yaml": "data"}}, _A, _C),
+                    not_applicable_error({"typecheck": {"nope": "data"}}, _A, _C),
+                    not_applicable_error({"typecheck": {"yaml": ""}}, _A, _C),
+                    not_applicable_error({"typecheck": {"python": "x"}}, _A, _C),
+                ],
+                [
+                    "",
+                    "not applicable: unknown capability 'bogus'",
+                    "not applicable: unknown family 'nope' for typecheck",
+                    "not applicable: empty reason for typecheck:yaml",
+                    "not applicable: typecheck:python contradicts tool 'ty'",
+                ],
             ),
             expect_equal(
                 "tsc is not a registry tool",

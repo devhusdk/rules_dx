@@ -20,6 +20,17 @@ pub fn tools(facts: &Facts, families: &[String], capability: &str) -> Vec<String
     out
 }
 
+/// Reports whether `capability` never applies to a row: it has no tools and
+/// every one of its families is declared not applicable.
+pub fn not_applicable(facts: &Facts, families: &[String], capability: &str) -> bool {
+    let Some(declared) = facts.not_applicable.get(capability) else {
+        return false;
+    };
+    !families.is_empty()
+        && tools(facts, families, capability).is_empty()
+        && families.iter().all(|family| declared.contains_key(family))
+}
+
 /// Returns every gap id, sorted. Ids look like `consumer:rust:windows_arm64`.
 pub fn gaps(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Vec<String> {
     let mut out = Vec::new();
@@ -42,7 +53,9 @@ pub fn gaps(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Vec<St
             continue;
         }
         for capability in CAPABILITIES {
-            if tools(facts, &row.families, capability).is_empty() {
+            if tools(facts, &row.families, capability).is_empty()
+                && !not_applicable(facts, &row.families, capability)
+            {
                 out.push(format!("{capability}:{}", row.name));
             }
         }
@@ -192,5 +205,28 @@ mod tests {
         assert!(error.contains("lint:d"), "{error}");
         let ledger = BTreeMap::from([("*".to_owned(), 1)]);
         assert_eq!(check_ledger(&gaps, &ledger), Ok(()));
+    }
+
+    fn facts_with(not_applicable: &str, quality: &str) -> Facts {
+        crate::parse_facts(&format!(
+            r#"{{"schema_version":1,"platforms":[],"sections":[],"rows":[],
+            "quality":{quality},"support":[],"deferred_families":[],
+            "not_applicable":{not_applicable},"not_languages":[],
+            "gap_issues":{{}},"gap_enforcement":false,"computed_constraints":{{}}}}"#
+        ))
+        .expect("facts")
+    }
+
+    #[test]
+    fn not_applicable_needs_every_family_and_no_tools() {
+        let na = r#"{"typecheck":{"a":"why"}}"#;
+        let quality = r#"{"a":{"typecheck":[]},"b":{"typecheck":[]},"c":{"typecheck":["t"]}}"#;
+        let facts = facts_with(na, quality);
+        let fam = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect::<Vec<_>>();
+        assert!(not_applicable(&facts, &fam(&["a"]), "typecheck"));
+        assert!(!not_applicable(&facts, &fam(&["a", "b"]), "typecheck"));
+        assert!(!not_applicable(&facts, &fam(&["a"]), "lint"));
+        let facts = facts_with(r#"{"typecheck":{"c":"why"}}"#, quality);
+        assert!(!not_applicable(&facts, &fam(&["c"]), "typecheck"));
     }
 }

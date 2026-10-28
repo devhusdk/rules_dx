@@ -58,6 +58,9 @@ pub struct Facts {
     pub quality: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub support: Vec<Support>,
     pub deferred_families: Vec<String>,
+    /// Capability, then family, then the reason the capability never applies.
+    #[serde(default)]
+    pub not_applicable: BTreeMap<String, BTreeMap<String, String>>,
     pub not_languages: Vec<String>,
     pub gap_issues: BTreeMap<String, u64>,
     pub gap_enforcement: bool,

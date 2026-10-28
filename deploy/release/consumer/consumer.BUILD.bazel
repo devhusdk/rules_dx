@@ -1,0 +1,26 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+
+rust_library(
+    name = "dx_release_consumer",
+    srcs = ["lib.rs"],
+    crate_name = "dx_release_consumer",
+    crate_root = "lib.rs",
+    edition = "2021",
+)
+
+rust_test(
+    name = "dx_release_consumer_test",
+    crate = ":dx_release_consumer",
+)
+
+rustfmt_test(
+    name = "dx_release_consumer_fmt_test",
+    size = "small",
+    targets = [":dx_release_consumer"],
+)
+
+rust_clippy_test(
+    name = "dx_release_consumer_clippy_test",
+    size = "small",
+    targets = [":dx_release_consumer"],
+)

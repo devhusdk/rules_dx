@@ -54,3 +54,15 @@ fn host_cell_notice_lists_shipped_crates_only() {
         "proc macros are not shipped"
     );
 }
+
+#[test]
+fn consumer_template_ships_every_staged_file() {
+    let template = data("DX_CONSUMER_TEMPLATE");
+    let template = template.parent().expect("template dir");
+    for (source, _) in dx_release_tools::cell::CONSUMER_FILES {
+        assert!(template.join(source).is_file(), "{source}");
+    }
+    for forbidden in ["BUILD", "BUILD.bazel", "MODULE.bazel"] {
+        assert!(!template.join(forbidden).exists(), "{forbidden}");
+    }
+}

@@ -205,6 +205,7 @@ _ROOT_BUILD = """exports_files(["LICENSE"])
 """
 
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -219,7 +220,7 @@ haskell_toolchain(
     fully_static_link = False,
     libdir = [":lib"],
     libraries = toolchain_libraries,
-    locale = "C.UTF-8",
+    locale = "{locale}",
     static_runtime = False,
     tools = [":bin"],
     version = "{version}",
@@ -235,14 +236,22 @@ filegroup(
     srcs = glob(["{libdir}/**", "{closure}/**"]),
 )
 
-cc_import(
-    name = "gmp",
-    shared_library = "{closure}/lib/libgmp.so.10",
-)
+{gmp}
 
 filegroup(
     name = "licenses",
     srcs = glob(["{closure}/licenses/*"]),
+)
+"""
+
+_GMP_IMPORT = """cc_import(
+    name = "gmp",
+    shared_library = "{closure}/lib/libgmp.so.10",
+)
+"""
+
+_GMP_EMPTY = """cc_library(
+    name = "gmp",
 )
 """
 
@@ -359,13 +368,15 @@ def _ghc_repo_impl(rctx):
     )
     for path in GHC_DROPPED_PATHS:
         rctx.delete(path)
-    deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
-    rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
-    for package in cell.runtime:
-        for soname in package.libraries:
-            rctx.symlink(CLOSURE_DIR + "/lib/" + soname, ghc_library_dir(rctx.attr.cell) + "/" + soname)
+    if cell.runtime:
+        deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
+        rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
+        for package in cell.runtime:
+            for soname in package.libraries:
+                rctx.symlink(CLOSURE_DIR + "/lib/" + soname, ghc_library_dir(rctx.attr.cell) + "/" + soname)
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings")), executable = False)
-    _gmp_registration(rctx)
+    if cell.runtime:
+        _gmp_registration(rctx)
     _execute(rctx, ["bin/ghc-pkg", "recache", "--global"])
     version = _execute(rctx, ["bin/ghc", "--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:
@@ -379,8 +390,10 @@ def _ghc_repo_impl(rctx):
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _GHC_BUILD.format(
         closure = CLOSURE_DIR,
+        gmp = (_GMP_IMPORT if cell.runtime else _GMP_EMPTY).format(closure = CLOSURE_DIR),
         libdir = LIBDIR,
         libraries = result["file_content"],
+        locale = cell.locale,
         version = GHC_VERSION,
         version_file = VERSION_FILE,
     ))

@@ -317,6 +317,7 @@ impl JsonScan<'_> {
 }
 
 pub(super) fn plan_go_mod(
+    manifest: &str,
     content: &str,
     package: &str,
     version: &WidenVersion,
@@ -325,12 +326,12 @@ pub(super) fn plan_go_mod(
         WidenVersion::Semver(version) => format!("v{version}"),
         _ => {
             return Err(BumpError::UnsupportedManifest {
-                manifest: "third_party/go/go.mod".to_owned(),
+                manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
     };
-    let manifest = "third_party/go/go.mod".to_owned();
+    let manifest = manifest.to_owned();
     dx_gomod::set_require_version(content, package, &new).map_err(|error| match error {
         dx_gomod::GoEditError::NotFound => BumpError::NotFound {
             manifest,

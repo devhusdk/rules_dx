@@ -2,6 +2,7 @@ use super::super::common::{
     check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, Env,
 };
 use super::super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError, QueryBazel};
+use super::super::staged::{run_staged_core, write_outputs, StagedError, ToolRun};
 use super::{
     record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
     SlotGate,
@@ -352,71 +353,6 @@ fn launch(
     }
 }
 
-/// A scratch directory outside the workspace, removed on every path.
-struct Scratch(std::path::PathBuf);
-
-impl Scratch {
-    fn create(label: &str) -> std::io::Result<Scratch> {
-        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let safe: String = label
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect();
-        let dir = std::env::temp_dir().join(format!("dx-staged-{}-{n}-{safe}", std::process::id()));
-        std::fs::create_dir(&dir)?;
-        let scratch = Scratch(dir);
-        std::fs::create_dir(scratch.0.join("out"))?;
-        Ok(scratch)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        remove_tree(&self.0);
-    }
-}
-
-/// Removes a scratch tree, making read-only entries writable and retrying once
-/// (a go module cache is read-only unless it was created with `-modcacherw`).
-fn remove_tree(dir: &std::path::Path) {
-    if std::fs::remove_dir_all(dir).is_ok() {
-        return;
-    }
-    fn open_up(dir: &std::path::Path) {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            return;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Ok(meta) = std::fs::symlink_metadata(&path) else {
-                continue;
-            };
-            if meta.is_dir() {
-                let mut permissions = meta.permissions();
-                #[allow(clippy::permissions_set_readonly_false)]
-                permissions.set_readonly(false);
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    permissions.set_mode(0o700);
-                }
-                let _ = std::fs::set_permissions(&path, permissions);
-                open_up(&path);
-            }
-        }
-    }
-    if let Ok(meta) = std::fs::metadata(dir) {
-        let _ = std::fs::set_permissions(dir, meta.permissions());
-    }
-    open_up(dir);
-    let _ = std::fs::remove_dir_all(dir);
-}
-
-fn file_name(rel: &str) -> &str {
-    rel.rsplit('/').next().unwrap_or(rel)
-}
-
 /// Runs a generator on copies of the set's inputs and compares what it wrote with the
 /// declared locks. Check reports drift; apply writes only the declared files that differ.
 fn run_staged(
@@ -432,157 +368,28 @@ fn run_staged(
     use dx_update::outcome::SetStatus;
     let set = &target.set;
     let verb = mode.verb();
-    macro_rules! fail {
-        ($($arg:tt)*) => {
-            record_named(
-                attempted,
-                details,
-                &set.name,
-                SetStatus::Failed,
-                format!("failed to {verb} {}: {}", set.name, format!($($arg)*)),
-            )
-        };
-    }
-
-    let scratch = match Scratch::create(&set.name) {
-        Ok(scratch) => scratch,
-        Err(error) => {
-            fail!("cannot create scratch directory: {error}");
+    let mut launch_tool = |argv: &[String], env: &[(String, String)]| {
+        gate.before(argv)?;
+        let guarded = (mode == RunMode::Check).then(|| CheckGuard::take(workspace, set));
+        let launched = launch(gate, runner, workspace, argv, env);
+        Ok(ToolRun {
+            launched,
+            wrote: guarded.and_then(|guard| guard.restore(workspace)),
+        })
+    };
+    let differing = match run_staged_core(run, workspace, &set.name, verb, &mut launch_tool) {
+        Ok(differing) => differing,
+        Err(StagedError::Exit(code)) => return Err(code),
+        Err(StagedError::Failed { message, code }) => {
+            record_named(attempted, details, &set.name, SetStatus::Failed, message);
+            if let Some(code) = code {
+                if let Some(detail) = details.get_mut(&set.name) {
+                    detail.failure_code = Some(code);
+                }
+            }
             return Ok(());
         }
     };
-    let inputs_dir = run.inputs_dir(&scratch.0);
-    let mut staged_inputs: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    for rel in &run.inputs {
-        let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
-            .and_then(std::fs::read)
-            .and_then(|bytes| {
-                std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
-                if inputs_dir != scratch.0 {
-                    staged_inputs.insert(file_name(rel).to_owned(), bytes);
-                }
-                Ok(())
-            });
-        if let Err(error) = copied {
-            fail!("cannot stage {rel}: {error}");
-            return Ok(());
-        }
-    }
-    let argv = run.argv(&scratch.0);
-    gate.before(&argv)?;
-    let guarded = (mode == RunMode::Check).then(|| CheckGuard::take(workspace, set));
-    let launched = launch(gate, runner, workspace, &argv, &run.env(&scratch.0));
-    let wrote = guarded.and_then(|guard| guard.restore(workspace));
-    let (status, message) = runner_status(
-        launched,
-        verb,
-        &set.name,
-        (SetStatus::Updated, String::new()),
-    );
-    if let Some(wrote) = wrote {
-        record_named(
-            attempted,
-            details,
-            &set.name,
-            SetStatus::Failed,
-            format!(
-                "failed to {verb} {}: check_wrote: {} (restored); {} must only write into its scratch output folder",
-                set.name,
-                wrote.join(", "),
-                run.tool_name()
-            ),
-        );
-        if let Some(detail) = details.get_mut(&set.name) {
-            detail.failure_code = Some("check_wrote");
-        }
-        return Ok(());
-    }
-    if status != SetStatus::Updated {
-        record_named(attempted, details, &set.name, status, message);
-        return Ok(());
-    }
-    let mut generated: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    match std::fs::read_dir(scratch.0.join("out")) {
-        Ok(entries) => {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().into_owned();
-                match std::fs::read(entry.path()) {
-                    Ok(bytes) => {
-                        generated.insert(name, bytes);
-                    }
-                    Err(error) => {
-                        fail!("cannot read generated {name}: {error}");
-                        return Ok(());
-                    }
-                }
-            }
-        }
-        Err(error) => {
-            fail!("cannot read generated files: {error}");
-            return Ok(());
-        }
-    }
-    let declared: BTreeMap<&str, &String> = run
-        .outputs
-        .iter()
-        .map(|rel| (file_name(rel), rel))
-        .collect();
-    // An input the tool left as it found it is not output; a changed one that is not a
-    // declared lock means the tool edited a manifest.
-    let mut changed_inputs: Vec<String> = Vec::new();
-    generated.retain(|name, bytes| match staged_inputs.get(name) {
-        Some(original) if !declared.contains_key(name.as_str()) => {
-            if original != bytes {
-                changed_inputs.push(name.clone());
-            }
-            false
-        }
-        _ => true,
-    });
-    if !changed_inputs.is_empty() {
-        let names = changed_inputs.join(", ");
-        fail!(
-            "{} changed {names}; dx writes only declared locks",
-            run.tool_name()
-        );
-        return Ok(());
-    }
-    let undeclared: Vec<&str> = generated
-        .keys()
-        .map(String::as_str)
-        .filter(|name| !declared.contains_key(name))
-        .collect();
-    if !undeclared.is_empty() {
-        fail!(
-            "{} generated files not declared in locks: {}; list them in the set's locks",
-            run.tool_name(),
-            undeclared.join(", ")
-        );
-        return Ok(());
-    }
-    let missing: Vec<&str> = declared
-        .iter()
-        .filter(|(name, _)| !generated.contains_key(**name))
-        .map(|(_, rel)| rel.as_str())
-        .collect();
-    if !missing.is_empty() {
-        fail!(
-            "{} did not generate declared locks: {}",
-            run.tool_name(),
-            missing.join(", ")
-        );
-        return Ok(());
-    }
-    let mut differing: Vec<(&String, &Vec<u8>)> = Vec::new();
-    for (name, rel) in &declared {
-        let bytes = &generated[*name];
-        let current = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
-            .and_then(std::fs::read)
-            .ok();
-        if current.as_ref() != Some(bytes) {
-            differing.push((rel, bytes));
-        }
-    }
     match mode {
         RunMode::Check => {
             if differing.is_empty() {
@@ -595,45 +402,36 @@ fn run_staged(
                 );
             } else {
                 let paths: Vec<&str> = differing.iter().map(|(rel, _)| rel.as_str()).collect();
-                fail!(
-                    "stale generated locks: {}; run `dx update {}`",
-                    paths.join(", "),
-                    set.name
+                record_named(
+                    attempted,
+                    details,
+                    &set.name,
+                    SetStatus::Failed,
+                    format!(
+                        "failed to {verb} {}: stale generated locks: {}; run `dx update {}`",
+                        set.name,
+                        paths.join(", "),
+                        set.name
+                    ),
                 );
             }
         }
-        RunMode::Update => {
-            for (rel, bytes) in differing {
-                let path = match dx_path::workspace::resolve_target_in_workspace(workspace, rel) {
-                    Ok(path) => path,
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                        let (parent, name) = rel.rsplit_once('/').unwrap_or((".", rel));
-                        match dx_path::workspace::resolve_target_in_workspace(workspace, parent) {
-                            Ok(parent) => parent.join(name),
-                            Err(error) => {
-                                fail!("cannot write {rel}: {error}");
-                                return Ok(());
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        fail!("cannot write {rel}: {error}");
-                        return Ok(());
-                    }
-                };
-                if let Err(error) = dx_atomic_fs::write_atomic(&path, bytes) {
-                    fail!("cannot write {rel}: {error}");
-                    return Ok(());
-                }
-            }
-            record_named(
+        RunMode::Update => match write_outputs(workspace, differing) {
+            Ok(()) => record_named(
                 attempted,
                 details,
                 &set.name,
                 SetStatus::Updated,
                 success_line(set, &target.request),
-            );
-        }
+            ),
+            Err(error) => record_named(
+                attempted,
+                details,
+                &set.name,
+                SetStatus::Failed,
+                format!("failed to {verb} {}: {error}", set.name),
+            ),
+        },
     }
     Ok(())
 }
@@ -2957,7 +2755,7 @@ scopes = ["third_party/go"]
     #[test]
     fn scratch_removal_survives_a_read_only_module_cache() {
         use std::os::unix::fs::PermissionsExt;
-        let scratch = super::Scratch::create("readonly").expect("scratch");
+        let scratch = crate::exec::staged::Scratch::create("readonly").expect("scratch");
         let dir = scratch.0.join("gomodcache/pkg/mod");
         std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(dir.join("f.go"), "package f\n").expect("file");

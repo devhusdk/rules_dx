@@ -874,45 +874,298 @@ scopes = ["tools/ps"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
-    #[test]
-    fn consumer_go_set_refuses_bump_without_mutation() {
-        let harness = Harness::new("bump-consumer-go");
-        harness.write_source(
-            "dx.toml",
-            "schema_version = 1\n[[dependency_set]]\nname = \"gomods\"\necosystem = \"go\"\nmanifests = [\"go.mod\"]\nlocks = [\"go.sum\"]\nscopes = [\".\"]\n",
-        );
-        let files = [
-            (
-                "go.mod",
-                "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.6.0\n",
-            ),
-            ("go.sum", "github.com/google/go-cmp v0.6.0 h1:abc=\n"),
-        ];
-        for (rel, text) in files {
+    const GO_SETS_DX_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "gomods"
+ecosystem = "go"
+manifests = ["third_party/go/go.mod"]
+locks = ["third_party/go/go.sum"]
+scopes = ["third_party/go"]
+
+[[dependency_set]]
+name = "tools"
+ecosystem = "go"
+manifests = ["tools/go.mod"]
+locks = ["tools/go.sum"]
+scopes = ["tools"]
+"#;
+    const GO_MOD: &str =
+        "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.6.0\n";
+    const GO_SUM: &str = "github.com/google/go-cmp v0.6.0 h1:abc=\n";
+    const GO_FILES: [(&str, &str); 4] = [
+        (
+            "MODULE.bazel",
+            "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n",
+        ),
+        ("third_party/go/go.mod", GO_MOD),
+        ("third_party/go/go.sum", GO_SUM),
+        ("tools/go.mod", GO_MOD),
+    ];
+
+    /// A runner that stands in for `go mod download all`: it records each launch and writes
+    /// the given files into the `-C` scratch directory, as go would.
+    struct GoRunner {
+        code: Option<i32>,
+        writes: Vec<(&'static str, String)>,
+        launches: std::cell::RefCell<Vec<(Vec<String>, std::path::PathBuf, Vec<(String, String)>)>>,
+        scratch: std::cell::RefCell<Option<std::path::PathBuf>>,
+    }
+
+    impl GoRunner {
+        fn new(code: Option<i32>, writes: &[(&'static str, &str)]) -> Self {
+            GoRunner {
+                code,
+                writes: writes
+                    .iter()
+                    .map(|(name, text)| (*name, (*text).to_owned()))
+                    .collect(),
+                launches: Default::default(),
+                scratch: Default::default(),
+            }
+        }
+    }
+
+    impl dx_process::Runner for GoRunner {
+        fn run(
+            &self,
+            argv: &[String],
+            cwd: &std::path::Path,
+            env: &[(&str, &str)],
+        ) -> std::io::Result<dx_process::ChildStatus> {
+            self.launches.borrow_mut().push((
+                argv.to_vec(),
+                cwd.to_path_buf(),
+                env.iter()
+                    .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+                    .collect(),
+            ));
+            let at = argv.iter().position(|arg| arg == "-C").expect("-C");
+            let out = std::path::PathBuf::from(&argv[at + 1]);
+            for (name, text) in &self.writes {
+                std::fs::write(out.join(name), text)?;
+            }
+            *self.scratch.borrow_mut() = out.parent().map(std::path::Path::to_path_buf);
+            Ok(dx_process::ChildStatus {
+                code: self.code,
+                signal: None,
+            })
+        }
+    }
+
+    fn go_harness(name: &str) -> Harness {
+        let harness = Harness::new(name);
+        harness.write_source("dx.toml", GO_SETS_DX_TOML);
+        for (rel, text) in GO_FILES {
             harness.write_source(rel, text);
         }
-        let (code, _, err) = harness.run(&[
-            "bump",
-            "gomods:github.com/google/go-cmp",
-            "v0.7.0",
-            "--apply",
-        ]);
-        assert_eq!(code, 1, "{err}");
-        assert!(
-            err.contains(
-                "bump is not supported for ecosystem go set gomods \
-(supported operations: check, update, audit)"
-            ),
-            "{err}"
+        harness
+    }
+
+    fn run_go(harness: &Harness, runner: &GoRunner, words: &[&str]) -> (i32, String, String) {
+        let words: Vec<String> = words.iter().map(|word| (*word).to_owned()).collect();
+        let invocation = dx_plan::args::parse(&words).expect("parse");
+        harness.execute_with(&invocation, runner)
+    }
+
+    const GO_BUMP: [&str; 5] = [
+        "bump",
+        "gomods:github.com/google/go-cmp",
+        "v0.7.0",
+        "--apply",
+        "--verbose",
+    ];
+
+    #[test]
+    fn consumer_go_set_widens_require_and_refreshes_go_sum_in_a_scratch_dir() {
+        let harness = go_harness("bump-consumer-go");
+        let runner = GoRunner::new(
+            Some(0),
+            &[
+                ("go.sum", "new sums\n"),
+                ("go.mod", &GO_MOD.replace("v0.6.0", "v0.7.0")),
+            ],
         );
-        for (rel, text) in files {
-            assert_eq!(
-                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
-                text.as_bytes(),
-                "{rel}"
-            );
+        let (code, out, err) = run_go(&harness, &runner, &GO_BUMP);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("refreshed gomods via `dx update gomods`"),
+            "{out}"
+        );
+        assert_eq!(
+            read(&harness, "third_party/go/go.mod"),
+            GO_MOD.replace("v0.6.0", "v0.7.0")
+        );
+        assert_eq!(read(&harness, "third_party/go/go.sum"), "new sums\n");
+        assert_unchanged(&harness, &[("tools/go.mod", GO_MOD), GO_FILES[0]]);
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1, "{launches:?}");
+        let (argv, cwd, env) = &launches[0];
+        let at = argv.iter().position(|arg| arg == "-C").expect("-C");
+        let mut head = dx_process::startup_argv(&[]);
+        head.extend(
+            ["run", "--config=dx_dev", "@rules_go//go", "--", "-C"]
+                .iter()
+                .map(|word| (*word).to_owned()),
+        );
+        assert_eq!(argv[..=at], head[..], "{argv:?}");
+        assert_eq!(argv[at + 2..], ["mod", "download", "all"], "{argv:?}");
+        let out_dir = std::path::PathBuf::from(&argv[at + 1]);
+        assert!(out_dir.ends_with("out"));
+        assert!(!out_dir.starts_with(&harness.workspace));
+        assert_eq!(cwd, &harness.workspace);
+        let env: std::collections::BTreeMap<&str, &str> = env
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        assert_eq!(env["GOENV"], "off");
+        assert_eq!(env["GOWORK"], "off");
+        assert_eq!(env["GOTOOLCHAIN"], "local");
+        let scratch = out_dir.parent().expect("scratch");
+        for key in ["GOMODCACHE", "GOPATH", "GOCACHE"] {
+            assert!(std::path::Path::new(env[key]).starts_with(scratch), "{key}");
         }
-        assert!(harness.seen_env.borrow().is_empty());
+        assert!(!scratch.exists(), "scratch must be removed");
+    }
+
+    #[test]
+    fn consumer_go_set_json_reports_the_refresh() {
+        let harness = go_harness("bump-consumer-go-json");
+        let runner = GoRunner::new(
+            Some(0),
+            &[
+                ("go.sum", "new sums\n"),
+                ("go.mod", &GO_MOD.replace("v0.6.0", "v0.7.0")),
+            ],
+        );
+        let (code, out, err) = run_go(
+            &harness,
+            &runner,
+            &[
+                "bump",
+                "gomods:github.com/google/go-cmp",
+                "v0.7.0",
+                "--apply",
+                "--output=json",
+            ],
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(
+            kinds,
+            ["command_started", "notice", "notice", "command_finished"],
+            "{out}"
+        );
+        assert_eq!(read(&harness, "third_party/go/go.sum"), "new sums\n");
+    }
+
+    #[test]
+    fn consumer_go_set_refusals_write_nothing_and_launch_nothing() {
+        let writable_false = GO_SETS_DX_TOML.replacen(
+            "scopes = [\"third_party/go\"]",
+            "scopes = [\"third_party/go\"]\nwritable = false",
+            1,
+        );
+        let cases: [(&str, Option<&str>, Vec<&str>, &str); 4] = [
+            ("frozen", None, vec!["--frozen"], "frozen_locked"),
+            ("offline", None, vec!["--offline"], "offline_required"),
+            ("readonly", Some(&writable_false), vec![], "read-only set"),
+            (
+                "missing",
+                None,
+                vec!["--missing"],
+                "no declared requirement",
+            ),
+        ];
+        for (name, dx_toml, flags, want) in cases {
+            let harness = go_harness(&format!("bump-consumer-go-refuse-{name}"));
+            if let Some(dx_toml) = dx_toml {
+                harness.write_source("dx.toml", dx_toml);
+            }
+            let runner = GoRunner::new(Some(0), &[("go.sum", "new sums\n")]);
+            let mut words = vec![
+                "bump",
+                "gomods:github.com/google/go-cmp",
+                "v0.7.0",
+                "--apply",
+            ];
+            if flags == ["--missing"] {
+                words[1] = "gomods:example.com/absent";
+            } else {
+                words.extend(flags);
+            }
+            let (code, out, err) = run_go(&harness, &runner, &words);
+            assert_eq!(code, 1, "{name}: {out}{err}");
+            assert!(format!("{out}{err}").contains(want), "{name}: {out}{err}");
+            assert_unchanged(&harness, &GO_FILES);
+            assert!(runner.launches.borrow().is_empty(), "{name}");
+        }
+    }
+
+    #[test]
+    fn consumer_go_set_failed_refresh_keeps_the_widen_and_go_sum() {
+        for (name, code, writes, want) in [
+            (
+                "exit",
+                Some(1),
+                vec![("go.sum", "new sums\n")],
+                "updater exited 1",
+            ),
+            (
+                "mod",
+                Some(0),
+                vec![("go.sum", "new sums\n"), ("go.mod", "module changed\n")],
+                "go changed go.mod",
+            ),
+        ] {
+            let harness = go_harness(&format!("bump-consumer-go-fail-{name}"));
+            let runner = GoRunner::new(code, &writes);
+            let (status, out, err) = run_go(&harness, &runner, &GO_BUMP);
+            assert_eq!(status, 1, "{name}: {out}{err}");
+            assert!(err.contains(want), "{name}: {err}");
+            assert!(
+                err.contains("widen kept in third_party/go/go.mod")
+                    && err.contains("`go mod tidy` in third_party/go, then `dx update gomods`"),
+                "{name}: {err}"
+            );
+            assert!(!format!("{out}{err}").contains("and refreshed"), "{name}");
+            assert_eq!(
+                read(&harness, "third_party/go/go.mod"),
+                GO_MOD.replace("v0.6.0", "v0.7.0")
+            );
+            assert_unchanged(
+                &harness,
+                &[("third_party/go/go.sum", GO_SUM), ("tools/go.mod", GO_MOD)],
+            );
+            let scratch = runner.scratch.borrow().clone().expect("launched");
+            assert!(!scratch.exists(), "{name}: scratch must be removed");
+        }
+    }
+
+    #[test]
+    fn consumer_go_set_json_reports_a_failed_refresh() {
+        let harness = go_harness("bump-consumer-go-json-fail");
+        let runner = GoRunner::new(Some(1), &[]);
+        let (code, out, _) = run_go(
+            &harness,
+            &runner,
+            &[
+                "bump",
+                "gomods:github.com/google/go-cmp",
+                "v0.7.0",
+                "--apply",
+                "--output=json",
+            ],
+        );
+        assert_eq!(code, 1, "{out}");
+        assert_eq!(
+            event_kinds(&json_events(&out)),
+            ["command_started", "notice", "error", "command_finished"],
+            "{out}"
+        );
+        assert_unchanged(&harness, &[("third_party/go/go.sum", GO_SUM)]);
     }
 
     const BAZEL_SET_DX_TOML: &str = r#"

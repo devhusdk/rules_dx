@@ -161,22 +161,43 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
         report(&run)
     );
 
+    // A real bump: an older require with stale sums is widened and go.sum is refreshed.
+    write(
+        &root.join("third_party/go/go.mod"),
+        &GO_MOD.replace("v0.7.0", "v0.6.0"),
+    );
+    write(&root.join("third_party/go/go.sum"), STALE_SUM);
+    let before = snapshot(&root);
     let run = dx_in(
         &root,
         &[
             "bump",
             "gomods:github.com/google/go-cmp",
-            "v0.7.1",
+            "v0.7.0",
             "--apply",
         ],
     );
-    assert_ne!(run.status.code(), Some(0), "{}", report(&run));
-    assert!(
-        run.stderr.contains(
-            "bump is not supported for ecosystem go set gomods (supported operations: check, update, audit)"
-        ),
-        "{}",
-        report(&run)
+    assert_eq!(run.status.code(), Some(0), "{}", report(&run));
+    let after = snapshot(&root);
+    let changed: Vec<&PathBuf> = after
+        .iter()
+        .filter(|(path, bytes)| before.get(*path) != Some(*bytes))
+        .map(|(path, _)| path)
+        .collect();
+    assert_eq!(
+        changed,
+        [
+            Path::new("third_party/go/go.mod"),
+            Path::new("third_party/go/go.sum")
+        ],
+        "{after:?}"
     );
-    assert_eq!(snapshot(&root), after, "bump changed files");
+    assert_eq!(
+        String::from_utf8_lossy(&after[Path::new("third_party/go/go.mod")]),
+        GO_MOD
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&after[Path::new("third_party/go/go.sum")]),
+        FULL_SUM
+    );
 }

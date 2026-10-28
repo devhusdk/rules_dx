@@ -1932,7 +1932,9 @@ impl RealBackend {
             "cfn_lint" => self.check_cfn_lint(tool_id, tool, staged, config.as_deref()),
             "cmakelint" => self.check_cmakelint(tool_id, tool, staged, config.as_deref()),
             "sqlfluff" => match config.as_deref() {
-                Some(bound) => self.check_sqlfluff(tool_id, tool, staged, bound),
+                Some(bound) => {
+                    self.check_sqlfluff(tool_id, tool, staged, bound, capability == "format")
+                }
                 None => Err(execution(tool_id, "sqlfluff requires a config".to_owned())),
             },
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),

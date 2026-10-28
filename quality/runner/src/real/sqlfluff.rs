@@ -6,13 +6,15 @@ use quality_adapter::{commands, parsers, sqlfluff_preflight};
 use super::*;
 
 impl RealBackend {
-    /// Preflights the bound config, then lints every owned file in one sqlfluff run.
+    /// Preflights the bound config, then lints every owned file in one sqlfluff run. A format
+    /// check lints with only the rules `sqlfluff format` applies.
     pub(super) fn check_sqlfluff(
         &self,
         tool_id: &str,
         tool: &RealTool,
         staged: &StagedScratch,
         config: &Path,
+        format: bool,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         if !tool.upstream_diagnostics.is_empty() {
             return Err(execution(
@@ -38,7 +40,11 @@ impl RealBackend {
                     .map_err(|err| execution(tool_id, format!("{err} (in {})", file.display())))?;
             }
         }
-        let invocation = commands::sqlfluff_check(&tool.binary, &files, config);
+        let invocation = if format {
+            commands::sqlfluff_format_check(&tool.binary, &files, config)
+        } else {
+            commands::sqlfluff_check(&tool.binary, &files, config)
+        };
         let out = self.run(tool_id, tool, &invocation, &staged.scratch)?;
         let names: Vec<String> = files
             .iter()

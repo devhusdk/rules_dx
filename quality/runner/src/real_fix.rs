@@ -118,6 +118,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "sqlfluff",
+        config: FixConfig::Required,
+        keep_exit_one: true,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "scalafmt",
         config: FixConfig::Optional,
         keep_exit_one: false,
@@ -368,8 +374,9 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "stylelint" | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "hlint"
         | "redocly" | "kubeconform" | "helm" | "capnp" | "checkmake" | "flatc" | "tflint"
         | "cfn_lint" | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype" | "luals"
-        | "phpcs" | "phpstan" | "regal" | "sqlfluff" | "tsc" | "javac" | "flang" | "ldc"
-        | "zig_ast_check" => Ok(Route::Keep),
+        | "phpcs" | "phpstan" | "regal" | "tsc" | "javac" | "flang" | "ldc" | "zig_ast_check" => {
+            Ok(Route::Keep)
+        }
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -398,6 +405,9 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             format: capability == "format",
             placeholders: &["py", "pyi"],
         }),
+        // Lint is check-only; only the format capability rewrites files.
+        "sqlfluff" if capability != "format" => Ok(Route::Keep),
+        "sqlfluff" => spec(true),
         "scalafix" => Ok(Route::Scalafix),
         "ansible_lint" => Ok(Route::AnsibleLint),
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
@@ -920,6 +930,22 @@ impl super::RealBackend {
                         let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                         Ok(commands::eslint_fix(&launch, refs, cfg)
                             .map_err(|err| execution(tool_id, err.to_string()))?)
+                    }
+                    "sqlfluff" => {
+                        // The fix path skips `check_sqlfluff`, so it repeats the same preflight.
+                        let text = std::fs::read_to_string(cfg)
+                            .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
+                        quality_adapter::sqlfluff_preflight::check_config(&text)
+                            .map_err(|err| execution(tool_id, err))?;
+                        for file in refs {
+                            if let Ok(text) = std::fs::read_to_string(file) {
+                                quality_adapter::sqlfluff_preflight::check_inline_config(&text)
+                                    .map_err(|err| {
+                                        execution(tool_id, format!("{err} (in {})", file.display()))
+                                    })?;
+                            }
+                        }
+                        Ok(commands::sqlfluff_format_fix(&tool.binary, refs, cfg))
                     }
                     _ => Err(execution(
                         tool_id,

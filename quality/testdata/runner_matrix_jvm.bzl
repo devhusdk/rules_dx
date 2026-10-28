@@ -9,6 +9,9 @@ JVM_CASES = [
         "tool_names": ["google_java_format"],
         "tool_binaries": ["//quality/tools/jvm:google_java_format"],
         "expected_file": ":matrix/matrix_java_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_format_fail",
@@ -18,6 +21,9 @@ JVM_CASES = [
         "tool_names": ["google_java_format"],
         "tool_binaries": ["//quality/tools/jvm:google_java_format"],
         "expected_file": ":matrix/matrix_java_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_checkstyle_pass",
@@ -31,6 +37,9 @@ JVM_CASES = [
         "config_tools": ["checkstyle"],
         "config_files": [":checkstyle_cfg/checkstyle.xml"],
         "expected_file": ":matrix/matrix_java_checkstyle_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_checkstyle_fail",
@@ -44,6 +53,9 @@ JVM_CASES = [
         "config_tools": ["checkstyle"],
         "config_files": [":checkstyle_cfg/checkstyle.xml"],
         "expected_file": ":matrix/matrix_java_checkstyle_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_checkstyle_tabs",
@@ -57,6 +69,9 @@ JVM_CASES = [
         "config_tools": ["checkstyle"],
         "config_files": [":checkstyle_tabs_cfg/checkstyle.xml"],
         "expected_file": ":matrix/matrix_java_checkstyle_tabs.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_pmd_pass",
@@ -66,6 +81,9 @@ JVM_CASES = [
         "tool_names": ["pmd"],
         "tool_binaries": ["//quality/tools/jvm:pmd"],
         "expected_file": ":matrix/matrix_java_pmd_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_pmd_fail",
@@ -75,6 +93,9 @@ JVM_CASES = [
         "tool_names": ["pmd"],
         "tool_binaries": ["//quality/tools/jvm:pmd"],
         "expected_file": ":matrix/matrix_java_pmd_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_java_pmd_ruleset",
@@ -88,6 +109,9 @@ JVM_CASES = [
         "config_tools": ["pmd"],
         "config_files": [":pmd_cfg/pmd.xml"],
         "expected_file": ":matrix/matrix_java_pmd_ruleset.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_kotlin_format_pass",
@@ -97,6 +121,9 @@ JVM_CASES = [
         "tool_names": ["ktfmt"],
         "tool_binaries": ["//quality/tools/jvm:ktfmt"],
         "expected_file": ":matrix/matrix_kotlin_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_kotlin_format_fail",
@@ -106,6 +133,9 @@ JVM_CASES = [
         "tool_names": ["ktfmt"],
         "tool_binaries": ["//quality/tools/jvm:ktfmt"],
         "expected_file": ":matrix/matrix_kotlin_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_kotlin_lint_pass",
@@ -117,6 +147,9 @@ JVM_CASES = [
         "tool_names": ["ktlint"],
         "tool_binaries": ["//quality/tools/jvm:ktlint"],
         "expected_file": ":matrix/matrix_kotlin_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_kotlin_lint_fail",
@@ -126,5 +159,8 @@ JVM_CASES = [
         "tool_names": ["ktlint"],
         "tool_binaries": ["//quality/tools/jvm:ktlint"],
         "expected_file": ":matrix/matrix_kotlin_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
 ]

@@ -196,7 +196,7 @@ SCALA_SCALAFIX_SUPPORT = {
     "execution": "direct",
     "family": "scala",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "scalafix",
     "transport": "batched",

@@ -51,6 +51,9 @@ SCALA_DOTNET_CASES = [
         "config_tools": ["scalafix"],
         "config_files": [":scalafix_cfg/.scalafix.conf"],
         "expected_file": ":matrix/matrix_scala_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_scala_lint_fail",
@@ -66,6 +69,9 @@ SCALA_DOTNET_CASES = [
         "config_tools": ["scalafix"],
         "config_files": [":scalafix_cfg/.scalafix.conf"],
         "expected_file": ":matrix/matrix_scala_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_csharp_format_pass",

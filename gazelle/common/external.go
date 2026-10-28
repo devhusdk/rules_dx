@@ -29,6 +29,9 @@ type externalParser struct {
 	// DefaultRepo is the hub repository a source uses when the directive
 	// names none. An empty DefaultRepo means the ecosystem takes no repo.
 	DefaultRepo string
+	// RootOnly limits discovery to the repository root, for ecosystems whose
+	// targets are only defined there.
+	RootOnly bool
 	Parse       func(content []byte, path string) (externalManifest, error)
 }
 
@@ -48,6 +51,16 @@ var externalParsers = map[string]externalParser{
 		Discover:    "maven_install.json",
 		DefaultRepo: "maven",
 		Parse:       parseMavenManifest,
+	},
+	"python": {
+		Discover:    "uv.lock",
+		DefaultRepo: "pypi",
+		Parse:       parseUVLockManifest,
+	},
+	"npm": {
+		Discover: "package.json",
+		RootOnly: true,
+		Parse:    parseNpmManifest,
 	},
 }
 
@@ -109,6 +122,9 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 	sort.Strings(ecos)
 	for _, eco := range ecos {
 		parser := externalParsers[eco]
+		if parser.RootOnly && rel != "" {
+			continue
+		}
 		relPath := path.Join(rel, parser.Discover)
 		abs := filepath.Join(c.RepoRoot, filepath.FromSlash(relPath))
 		if info, err := os.Stat(abs); err != nil || info.IsDir() {

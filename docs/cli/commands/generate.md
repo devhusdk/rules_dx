@@ -187,7 +187,14 @@ An import resolves in this order:
   enclosing classes, then its own package. A package that more than one
   artifact ships fails as ambiguous; add a `resolve` mapping for it.
 - `rust`: crates resolve through `Cargo.toml`.
-- `python`, `javascript`, `typescript`, `csharp`, `fsharp`, `ruby`, `perl`, `php` and the
+- `python`: an import whose top-level module matches the normalized name of a
+  package in `uv.lock` resolves to `@pypi//<name>`. Name a lockfile with
+  `# gazelle:dx_external python <path> [<repo>]`. A package whose import name
+  differs from its distribution name needs a `resolve` mapping.
+- `javascript`, `typescript`: an import of a package that the root
+  `package.json` lists in any dependencies field resolves to
+  `//:node_modules/<package>`. Only the root `package.json` is read.
+- `csharp`, `fsharp`, `ruby`, `perl`, `php` and the
   other languages need one `# gazelle:resolve` line per third-party import.
 
 ```starlark

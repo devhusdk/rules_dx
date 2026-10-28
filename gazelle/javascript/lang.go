@@ -91,6 +91,7 @@ func newLang() *common.SingleLang {
 		Find:           common.JSFind(languageName),
 		ConfigureExt:   common.ConfigureTSPathsExt,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
+		External:       "npm",
 		Generate:       generateRules,
 	})
 }

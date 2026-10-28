@@ -23,7 +23,10 @@ pub struct RequestTool {
 }
 
 /// Helper names each tool may be given on its `PATH`. One row per tool that shells out.
-pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[("vale", &["rst2html", "asciidoctor"])];
+pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
+    ("vale", &["rst2html", "asciidoctor"]),
+    ("helm", &["kubeconform"]),
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RealRequest {

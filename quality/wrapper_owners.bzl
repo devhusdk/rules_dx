@@ -39,6 +39,7 @@ WRAPPER_OWNERS = {
     "julia": "//julia/rules:defs.bzl",
     "jupyter": "//jupyter/rules:defs.bzl",
     "kotlin": "//kotlin/rules:defs.bzl",
+    "helm": "//helm/rules:defs.bzl",
     "kubernetes": "//kubernetes/rules:defs.bzl",
     "lua": "//lua/rules:defs.bzl",
     "markdown": "other",

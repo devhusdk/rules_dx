@@ -10,6 +10,7 @@ load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
+load("//helm/rules:providers.bzl", "HelmChartInfo")
 load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load(
     "//quality:adapters.bzl",
@@ -260,6 +261,13 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "runfiles_env": True,
         "shard": "ansible",
+    },
+    "helm": {
+        "attr": attr.label(default = "//config:tool_helm", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "kubernetes",
     },
     "kubeconform": {
         "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
@@ -857,6 +865,24 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
+def _helm_context(target, ctx, what):
+    """Returns the chart context file for one helm_chart target."""
+    if HelmChartInfo not in target:
+        fail(what + ": helm needs a helm_chart target")
+    chart = target[HelmChartInfo]
+    context = ctx.actions.declare_file(target.label.name + "-helm-context.json")
+    ctx.actions.write(
+        output = context,
+        content = json.encode({
+            "chart_root": chart.chart_root,
+            "namespace": chart.namespace,
+            "release": chart.release_name,
+            "schema_version": 1,
+            "values": [f.short_path for f in chart.values],
+        }),
+    )
+    return context
+
 # Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
 _TARGET_TOOL_OWNERS = {
     "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
@@ -1069,6 +1095,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "fsharplint" in [stage["tool"] for stage in resolved]:
         (fsharplint_refs, fsharplint_context) = _fsharplint_context(target, ctx, what)
 
+    helm_context = None
+    if "helm" in [stage["tool"] for stage in resolved]:
+        helm_context = _helm_context(target, ctx, what)
+
     roslyn = None
     if "roslyn" in [stage["tool"] for stage in resolved]:
         if RoslynInfo not in target:
@@ -1260,6 +1290,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "helm" in stage_tools and HelmChartInfo in target:
+        for f in target[HelmChartInfo].dependencies:
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or ws_path.startswith("../"):
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     pwsh_module_roots = {}
     if "psscriptanalyzer" in stage_tools:
         context_files = list(target[DefaultInfo].files.to_list())
@@ -1336,6 +1374,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(lib)
             tool_files.append(real_request_tool_file("dx-fsharplint/context.json", fsharplint_context.path))
             inputs.append(fsharplint_context)
+        path_tools = []
+        if tool == "helm":
+            tool_files.append(real_request_tool_file("dx-helm/context.json", helm_context.path))
+            inputs.append(helm_context)
+            path_tools.append({"binary": ctx.file._kubeconform.path, "name": "kubeconform"})
+            inputs.append(ctx.file._kubeconform)
         edition = None
         if tool == "rustfmt":
             edition = rustfmt_edition
@@ -1377,6 +1421,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             env = tool_env_entries.get(tool, []),
             upstream = upstream,
             search_paths = [f.path for f in ty_search_dirs] if tool == "ty" else [],
+            path_tools = path_tools,
         )
 
     doc = real_request_doc(
@@ -1712,7 +1757,7 @@ _REAL_SHARD_SPECS = {
     },
     "real_kubernetes_lint": {
         "capability": "lint",
-        "doc": "Additive Kubernetes lint family aspect (kubeconform).",
+        "doc": "Additive Kubernetes lint family aspect (kubeconform, helm).",
         "shard": "kubernetes",
         "suffix": "-kubernetes",
     },

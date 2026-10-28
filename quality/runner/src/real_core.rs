@@ -180,6 +180,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "govet",
             "graphql_eslint",
             "hadolint",
+            "helm",
             "jsonnet_lint",
             "jsonnetfmt",
             "julia_format",

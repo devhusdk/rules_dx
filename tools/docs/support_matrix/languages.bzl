@@ -213,6 +213,7 @@ ROWS = [
     {"name": "ansible", "section": "formats", "title": "Ansible"},
     {"name": "flatbuffers", "section": "formats", "title": "FlatBuffers"},
     {"name": "jupyter", "section": "formats", "title": "Jupyter"},
+    {"name": "helm", "section": "formats", "title": "Helm"},
     {"name": "kubernetes", "section": "formats", "title": "Kubernetes"},
     {"name": "nix", "section": "formats", "title": "Nix"},
     {"name": "rego", "section": "formats", "title": "Rego"},

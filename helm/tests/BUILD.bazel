@@ -1,0 +1,122 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//helm/rules:defs.bzl", "helm_chart")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "chart_provider_test", "owns_helm_class_test")
+
+helm_chart(
+    name = "app",
+    srcs = [
+        "Chart.yaml",
+        "templates/cm.yaml",
+        "values.yaml",
+    ],
+    dependencies = ["charts/dep-1.0.0.tgz"],
+    namespace = "prod",
+    release_name = "demo",
+    values = ["values-prod.yaml"],
+)
+
+owns_helm_class_test(
+    name = "owns_helm_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+chart_provider_test(
+    name = "chart_provider_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+helm_chart(
+    name = "no_chart_yaml",
+    srcs = ["values.yaml"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_chart_yaml_fails",
+    expected_failure_substring = "srcs must contain helm/tests/Chart.yaml",
+    target = ":no_chart_yaml",
+)
+
+helm_chart(
+    name = "bad_release",
+    srcs = ["Chart.yaml"],
+    release_name = "Bad_Name",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_release_fails",
+    expected_failure_substring = "release_name 'Bad_Name' must be a DNS-1123 label",
+    target = ":bad_release",
+)
+
+helm_chart(
+    name = "bad_namespace",
+    srcs = ["Chart.yaml"],
+    namespace = "-lead",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_namespace_fails",
+    expected_failure_substring = "namespace '-lead' must be a DNS-1123 label",
+    target = ":bad_namespace",
+)
+
+helm_chart(
+    name = "archive_in_srcs",
+    srcs = [
+        "Chart.yaml",
+        "charts/dep-1.0.0.tgz",
+    ],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "archive_in_srcs_fails",
+    expected_failure_substring = "belongs in dependencies, not srcs",
+    target = ":archive_in_srcs",
+)
+
+helm_chart(
+    name = "misplaced_dependency",
+    srcs = ["Chart.yaml"],
+    dependencies = ["other/dep-1.0.0.tgz"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "misplaced_dependency_fails",
+    expected_failure_substring = "must be a .tgz under helm/tests/charts/",
+    target = ":misplaced_dependency",
+)
+
+helm_chart(
+    name = "duplicate_file",
+    srcs = [
+        "Chart.yaml",
+        "values.yaml",
+    ],
+    tags = ["manual"],
+    values = ["values.yaml"],
+)
+
+failure_test(
+    name = "duplicate_file_fails",
+    expected_failure_substring = "duplicate file 'helm/tests/values.yaml'",
+    target = ":duplicate_file",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

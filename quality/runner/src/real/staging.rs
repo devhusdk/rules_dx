@@ -264,11 +264,11 @@ impl RealBackend {
                 .map(Some)
                 .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
         }
-        if tool_id == "kubeconform" && tool.upstream_diagnostics.is_empty() {
+        if matches!(tool_id, "kubeconform" | "helm") && tool.upstream_diagnostics.is_empty() {
             let Some(rel) = tool.config_rel.as_deref() else {
                 return Err(execution(
                     tool_id,
-                    "kubeconform needs a kubernetes_schemas config".to_owned(),
+                    format!("{tool_id} needs a kubernetes_schemas config"),
                 ));
             };
             return scratch

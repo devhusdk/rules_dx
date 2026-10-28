@@ -2999,6 +2999,70 @@ offending field. `kubeconform` is check-only: `lint --apply` never rewrites a
 manifest. Missing schemas, malformed output and a non-zero exit with no result
 are errors and never count as clean.
 
+### Helm
+
+`helm` lints a Helm chart and validates the manifests it renders. It runs from a
+managed v4.3.1 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
+x86_64. Select it in a `helm` family. It runs `helm lint`, then
+`helm template`, then checks every rendered document with the same
+`kubeconform` pin and the same offline schemas as the Kubernetes family.
+
+```python
+quality_family(
+    name = "helm_family",
+    family_id = "helm",
+    lint = ["helm"],
+)
+```
+
+Own a chart with `helm_chart` from `@rules_dx//helm/rules:defs.bzl`. The package
+holding `Chart.yaml` is the chart root, so each chart needs its own package.
+
+```python
+load("@rules_dx//helm/rules:defs.bzl", "helm_chart")
+load("@rules_dx//kubernetes/rules:defs.bzl", "kubernetes_schemas")
+
+kubernetes_schemas(
+    name = "schemas",
+    kubernetes_version = "1.32.0",
+    schemas = ["deployment-apps-v1.json", "service-v1.json"],
+)
+
+helm_chart(
+    name = "chart",
+    aspect_hints = [":schemas"],
+    srcs = ["Chart.yaml", "values.yaml", "templates/deploy.yaml"],
+    values = ["values-prod.yaml"],
+    dependencies = ["charts/common-1.0.0.tgz"],
+    release_name = "web",
+    namespace = "prod",
+)
+```
+
+`srcs` are the chart files and must include `Chart.yaml`; archives are not
+allowed there. `values` are extra values files passed to Helm in order, so a
+later file overrides an earlier one. `release_name` defaults to `release` and
+`namespace` to `default`; both must be DNS-1123 labels. A file listed twice
+fails the analysis.
+
+Dependencies are never fetched. Vendor each subchart archive under `charts/`,
+commit the matching `Chart.lock`, and list the archives in `dependencies`. A
+chart that declares a dependency with no vendored archive reports an error.
+
+Schemas come from the `kubernetes_schemas` hint, which also sets the Kubernetes
+version passed to Helm. A `helm_chart` target without that hint fails the
+analysis and names `kubernetes_schemas`. A native config cannot be declared for
+`helm` itself.
+
+Findings from rendered output point at line 1, column 1 of the template that
+produced them and keep the resource kind, name and field in the message.
+Findings from a vendored subchart point at `Chart.yaml`. A render failure
+reports the template position Helm names. `helm` is check-only: `lint --apply`
+never rewrites a chart. It runs with no network access, and Helm cache, config
+and plugin directories live in the scratch tree. A Helm exit that is not
+understood, a missing schema and malformed output are errors and never count as
+clean.
+
 ### CMake
 
 `gersemi` formats CMake files. It runs from a managed pin on Linux x86_64,

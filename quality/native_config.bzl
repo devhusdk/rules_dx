@@ -20,11 +20,18 @@ CONFIG_REQUIRED_TOOLS = {
         src = "kubernetes.kubeconform.json",
         hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
     ),
+    "helm": struct(
+        name = "helm",
+        src = "kubernetes.kubeconform.json",
+        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
+    ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
     "scalafix": struct(name = "Scalafix", src = ".scalafix.conf"),
     "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
     "vale": struct(name = "Vale", src = ".vale.ini"),
 }
+
+CONFIG_TOOL_ALIASES = {"helm": "kubeconform"}
 
 _NATIVE_CONFIG_SUFFIXES = {
     "ansible_lint": [".ansible-lint", ".yml", ".yaml"],
@@ -129,7 +136,12 @@ def collect_native_configs(hints, stage_tools, what):
             fail("native_config (" + what + "): duplicate aspect_hints " +
                  "for tool '" + hint.tool_id + "'")
         by_tool[hint.tool_id] = hint
-    return {tool: by_tool[tool] for tool in stage_tools if tool in by_tool}
+    resolved = {}
+    for tool in stage_tools:
+        source = CONFIG_TOOL_ALIASES.get(tool, tool)
+        if source in by_tool:
+            resolved[tool] = by_tool[source]
+    return resolved
 
 def missing_required_config_error(tool, capability, configs_by_tool, what):
     """Returns the error for a required tool with no bound config, or ""."""

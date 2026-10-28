@@ -4,6 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":native_config.bzl",
     "CONFIG_REQUIRED_TOOLS",
+    "CONFIG_TOOL_ALIASES",
     "collect_native_configs",
     "missing_required_config_error",
     "native_config_error",
@@ -317,6 +318,26 @@ def native_config_unit_tests(name):
                 "//q:t: kubeconform needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
             ),
             expect_equal(
+                "collect_native_configs resolves helm through the kubeconform hint",
+                collect_native_configs([struct(tool_id = "kubeconform")], ["helm", "kubeconform"], "//q:t"),
+                {"helm": struct(tool_id = "kubeconform"), "kubeconform": struct(tool_id = "kubeconform")},
+            ),
+            expect_equal(
+                "collect_native_configs gives helm nothing without the kubeconform hint",
+                collect_native_configs([], ["helm"], "//q:t"),
+                {},
+            ),
+            expect_equal(
+                "missing_required_config_error names kubernetes_schemas for helm",
+                missing_required_config_error("helm", "lint", {}, "//q:t"),
+                "//q:t: helm needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
+            ),
+            expect_equal(
+                "native_config rejects helm as a tool id",
+                native_config_error("helm", "helm.json", True, []).startswith("native_config: unknown tool 'helm'"),
+                True,
+            ),
+            expect_equal(
                 "missing_required_config_error names an unbound checkstyle lint stage",
                 missing_required_config_error("checkstyle", "lint", {}, "//q:t"),
                 "//q:t: Checkstyle needs a config. Declare checkstyle_config(name = \"checkstyle_config\", src = \"checkstyle.xml\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":checkstyle_config\"], or tag the target no-lint.",
@@ -361,7 +382,7 @@ def native_config_unit_tests(name):
                 [
                     tool
                     for tool in CONFIG_REQUIRED_TOOLS
-                    if native_config_error(tool, CONFIG_REQUIRED_TOOLS[tool].src, True, []) != ""
+                    if tool not in CONFIG_TOOL_ALIASES and native_config_error(tool, CONFIG_REQUIRED_TOOLS[tool].src, True, []) != ""
                 ],
                 [],
             ),

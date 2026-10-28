@@ -90,7 +90,7 @@ fn run(cli: Cli) -> Result<String, dx_tool_resolve::ResolveError> {
         Some(env_target(cli.env_file.as_deref())?)
     };
     let current =
-        std::env::current_dir().map_err(|error| dx_tool_resolve::ResolveError::Usage {
+        dx_process::current_directory().map_err(|error| dx_tool_resolve::ResolveError::Usage {
             detail: format!("could not read the current directory: {error}"),
         })?;
     let dir = context_dir(

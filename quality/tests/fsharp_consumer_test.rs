@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const TYPES: &str = "module Types\n\nlet prefix = \"hello \"\n";
 
@@ -281,7 +282,8 @@ fn path_without_dotnet(path: &str, shadow: &Path) -> Vec<PathBuf> {
 #[test]
 fn tools_run_without_dotnet_on_path_and_install_nothing() {
     let root = consumer();
-    let home = mkscratch("fsharp-home").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let home_dir = scratch("fsharp-home");
+    let home = home_dir.path();
     let packages = home.join("nuget");
     let path = std::env::var("PATH").unwrap_or_default();
     let clean = path_without_dotnet(&path, &home.join("path"));

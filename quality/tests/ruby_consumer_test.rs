@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const TYPES: &str =
     "# frozen_string_literal: true\n\n# Shared prefix.\nmodule Types\n  PREFIX = \"hello \"\nend\n";
@@ -301,7 +302,8 @@ fn an_unreadable_config_fails_the_run_and_never_counts_as_clean() {
 
 #[test]
 fn tools_ignore_ambient_gems_and_bundler_and_install_nothing() {
-    let home = mkscratch("ruby-home").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let home_dir = scratch("ruby-home");
+    let home = home_dir.path();
     let home_text = home.to_string_lossy().into_owned();
     let gems = home.join("gems").to_string_lossy().into_owned();
     let rc = format!(
@@ -341,7 +343,8 @@ fn an_uncached_bundle_with_downloads_blocked_fails_without_ambient_gems() {
     let root = consumer();
     let expunged = root.bazel(&["clean", "--expunge"]);
     assert!(expunged.status.success(), "{}", expunged.combined());
-    let cache = mkscratch("ruby-empty-cache").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let cache_dir = scratch("ruby-empty-cache");
+    let cache = cache_dir.path();
     let cache_flag = format!("--repository_cache={}", cache.join("repos").display());
     let out = dx_with_env(
         &root,

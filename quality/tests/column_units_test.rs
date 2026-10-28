@@ -132,17 +132,18 @@ fn assert_sarif_lands(
 
 #[test]
 fn eslint_columns_are_utf16_units() {
-    let dir = dx_testing::mkscratch("eslint").expect("scratch");
+    let dir_guard = dx_test_scratch::scratch("eslint");
+    let dir = dir_guard.path();
     let text = "const s = \"\u{1F600}\u{e9}\"; missing();\n";
-    let file = write(&dir, "a.js", text);
+    let file = write(dir, "a.js", text);
     let config = write(
-        &dir,
+        dir,
         "eslint.config.mjs",
         "export default [{ rules: { \"no-undef\": \"error\" } }];\n",
     );
     let launch = ResolvedTool::javascript("eslint", &tool("DX_ESLINT"));
     let invocation = commands::eslint_check(&launch, &[file.as_path()], &config).expect("argv");
-    let out = run(&invocation, &dir);
+    let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
     let findings = parsers::parse_eslint(out.stdout.as_bytes(), out.code, &[name])
         .unwrap_or_else(|err| panic!("eslint output: {err}: {}", out.combined));
@@ -157,14 +158,15 @@ fn eslint_columns_are_utf16_units() {
 
 #[test]
 fn checkstyle_columns_are_tab_expanded_scalars() {
-    let dir = dx_testing::mkscratch("checkstyle").expect("scratch");
+    let dir_guard = dx_test_scratch::scratch("checkstyle");
+    let dir = dir_guard.path();
     let text = "class A {\n  String s = \"\u{1F600}\u{e9}\"; int x=1;\n\tString t = \"\u{1F600}\u{e9}\"; int y=2;\n\tString u = \"\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\u{1F600}\"; int z=3;\n}\n";
-    let file = write(&dir, "A.java", text);
+    let file = write(dir, "A.java", text);
     let config = "<?xml version=\"1.0\"?>\n<!DOCTYPE module PUBLIC \"-//Checkstyle//DTD Checkstyle Configuration 1.3//EN\" \"https://checkstyle.org/dtds/configuration_1_3.dtd\">\n<module name=\"Checker\">\n  <module name=\"TreeWalker\">\n    <module name=\"WhitespaceAround\"/>\n  </module>\n</module>\n";
-    let config_path = write(&dir, "checkstyle.xml", config);
+    let config_path = write(dir, "checkstyle.xml", config);
     let invocation =
         commands::checkstyle_check(&tool("DX_CHECKSTYLE"), &[file.as_path()], &config_path);
-    let out = run(&invocation, &dir);
+    let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
     let findings = parsers::parse_checkstyle(
         out.stdout.as_bytes(),
@@ -186,16 +188,17 @@ fn checkstyle_columns_are_tab_expanded_scalars() {
 
 #[test]
 fn pmd_sarif_columns_land_after_an_emoji() {
-    let dir = dx_testing::mkscratch("pmd").expect("scratch");
+    let dir_guard = dx_test_scratch::scratch("pmd");
+    let dir = dir_guard.path();
     let text = "class B {\n  void f() { String s = \"\u{1F600}\u{e9}\"; int unused = (1) + s.length(); }\n}\n";
-    let file = write(&dir, "B.java", text);
+    let file = write(dir, "B.java", text);
     let ruleset = write(
-        &dir,
+        dir,
         "ruleset.xml",
         "<?xml version=\"1.0\"?>\n<ruleset name=\"t\" xmlns=\"http://pmd.sourceforge.net/ruleset/2.0.0\">\n  <description>t</description>\n  <rule ref=\"category/java/codestyle.xml/UselessParentheses\"/>\n</ruleset>\n",
     );
     let invocation = commands::pmd_check(&tool("DX_PMD"), &[file.as_path()], Some(&ruleset));
-    let out = run(&invocation, &dir);
+    let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
     let findings = parsers::parse_pmd(out.stdout.as_bytes(), out.code, &[name])
         .unwrap_or_else(|err| panic!("pmd output: {err}: {}", out.combined));
@@ -212,11 +215,12 @@ fn pmd_sarif_columns_land_after_an_emoji() {
 
 #[test]
 fn ktlint_sarif_columns_land_after_an_emoji() {
-    let dir = dx_testing::mkscratch("ktlint").expect("scratch");
+    let dir_guard = dx_test_scratch::scratch("ktlint");
+    let dir = dir_guard.path();
     let text = "val s = \"\u{1F600}\u{e9}\" +  \"x\"\n";
-    let file = write(&dir, "S.kt", text);
+    let file = write(dir, "S.kt", text);
     let invocation = commands::ktlint_check(&tool("DX_KTLINT"), &[file.as_path()], None);
-    let out = run(&invocation, &dir);
+    let out = run(&invocation, dir);
     let name = file.to_str().expect("utf-8 path");
     let findings = parsers::parse_ktlint(out.stdout.as_bytes(), out.code, &[name])
         .unwrap_or_else(|err| panic!("ktlint output: {err}: {}", out.combined));

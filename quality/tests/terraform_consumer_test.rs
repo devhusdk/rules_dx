@@ -1,5 +1,6 @@
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const MAIN: &str = "variable \"name\" {\n  type    = string\n  default = \"example\"\n}\n\nmodule \"child\" {\n  source = \"./modules/child\"\n  name   = var.name\n}\n";
 
@@ -144,8 +145,8 @@ fn lint_consumer() -> Case {
 fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("terraform-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("terraform-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
     argv.extend_from_slice(&["--workspace", workspace.as_str(), "//...", "--"]);
@@ -237,7 +238,8 @@ fn the_declared_terraform_is_acquired_from_the_cache_with_the_network_denied() {
     let warm = dx(&root, "format", &[]);
     assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
 
-    let scratch = mkscratch("terraform-denied").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let scratch_dir = scratch("terraform-denied");
+    let scratch = scratch_dir.path();
     let denied = scratch.join("downloader.cfg");
     write(&denied, "block releases.hashicorp.com\nallow *\n");
     let denied_flag = format!("--downloader_config={}", denied.display());

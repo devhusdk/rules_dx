@@ -1,5 +1,6 @@
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const HELLO_VUE: &str = "<template>\n  <div class=\"hello\">{{ message }}</div>\n</template>\n\n<script setup lang=\"ts\">\nconst message: string = \"world\";\n</script>\n\n<style scoped>\n.hello {\n  color: black;\n}\n</style>\n";
 
@@ -77,8 +78,8 @@ fn consumer(hello: &str) -> Case {
 fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("vue-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("vue-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
     argv.extend_from_slice(&[

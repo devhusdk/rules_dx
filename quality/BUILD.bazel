@@ -788,6 +788,7 @@ rust_test(
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
     ],

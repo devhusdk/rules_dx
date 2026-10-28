@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, serde_json, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, serde_json, write, Run};
 
 pub const CLEAN: &str = "def add(a: int, b: int) -> int:\n    return a + b\n";
 
@@ -188,8 +189,8 @@ pub fn assert_same(root: &Path, before: &BTreeMap<String, Vec<u8>>) {
 pub fn dx(root: &Case, command: &str, scope: &str, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("check-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("check-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
     argv.extend_from_slice(&[

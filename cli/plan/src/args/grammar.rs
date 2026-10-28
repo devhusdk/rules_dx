@@ -976,6 +976,7 @@ command_args! {
         output: ReadOutputFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
+        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

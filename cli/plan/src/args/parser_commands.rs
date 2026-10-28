@@ -1525,12 +1525,16 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
             .explain
     );
     assert!(!parse(&strings(&["check"])).expect("plain check").explain);
+    assert!(
+        parse(&strings(&["coverage", "--explain"]))
+            .expect("coverage")
+            .explain
+    );
     for words in [
         vec!["explain", "//x"],
         vec!["explain", "--", "--jobs=1"],
         vec!["explain", "--old="],
         vec!["lint", "--explain"],
-        vec!["coverage", "--explain"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }

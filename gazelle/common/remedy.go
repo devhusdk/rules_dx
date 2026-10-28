@@ -28,12 +28,13 @@ func AmbiguousImport(c *config.Config, lang string, from label.Label, name, matc
 		lang, from, name, matches, lang, name, BuildFilePath(c, from.Pkg))
 }
 
-// ClaimError formats a claim conflict with a remedy: rename or remove the handwritten rule, or change its kind.
-// where is the BUILD file holding the handwritten rule, or empty when unknown.
-func ClaimError(name, kind, source, have, where string) string {
-	if where == "" {
-		where = "its BUILD file"
+// ClaimError formats a claim conflict with a remedy. buildFile is the workspace-relative BUILD file holding the
+// handwritten rule have; it is empty when have comes from another generator's output, which the user cannot edit.
+func ClaimError(name, kind, source, have, buildFile string) string {
+	if buildFile == "" {
+		return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename one of the sources that generate it",
+			name, kind, source, have)
 	}
-	return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename or remove the existing rule in %s, or change it to %s",
-		name, kind, source, have, where, kind)
+	return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename or delete existing %s %q in %s, or change it to %s",
+		name, kind, source, have, have, name, buildFile, kind)
 }

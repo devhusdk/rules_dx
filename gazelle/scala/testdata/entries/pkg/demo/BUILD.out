@@ -1,4 +1,4 @@
-load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+load("@rules_dx//scala/rules:defs.bzl", "scala_library", "scala_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -12,4 +12,10 @@ scala_library(
         "Helper.scala",
         "Main.scala",
     ],
+)
+
+scala_test(
+    name = "helper_test",
+    srcs = ["HelperTest.scala"],
+    deps = [":demo"],
 )

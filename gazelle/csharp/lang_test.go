@@ -85,12 +85,11 @@ func wantRefusal(t *testing.T, got, want string) {
 }
 
 func TestGeneratePackageLevelLibrary(t *testing.T) {
-	regular := []string{"Demo.cs", "Helper.cs", "notes.txt", "DemoTest.cs"}
+	regular := []string{"Demo.cs", "Helper.cs", "notes.txt"}
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/Demo.cs":     "namespace Demo;\n\nusing Acme.Widget;\n\nclass Demo {}\n",
 		"pkg/demo/Helper.cs":   "namespace Demo;\n\nusing System.Collections.Generic;\n\nclass Helper {}\n",
 		"pkg/demo/notes.txt":   "not a source\n",
-		"pkg/demo/DemoTest.cs": "namespace Demo;\n\nusing System;\n\nclass DemoTest {}\n",
 	}, regular)
 	if len(result.Gen) != 1 || len(result.Imports) != 1 {
 		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
@@ -108,20 +107,27 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	}
 }
 
-func TestGenerateTestSourcesExcluded(t *testing.T) {
+func TestGenerateTestSourcesBecomeTestRules(t *testing.T) {
 	regular := []string{"Demo.cs", "DemoTest.cs"}
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/Demo.cs":     "namespace Demo;\n\nclass Demo {}\n",
 		"pkg/demo/DemoTest.cs": "namespace Demo;\n\nusing Acme.OnlyByTest;\n\nclass DemoTest {}\n",
 	}, regular)
-	if len(result.Gen) != 1 || len(result.Imports) != 1 {
-		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 2 || len(result.Imports) != 2 {
+		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Demo.cs" {
 		t.Errorf("library srcs = %q, want Demo.cs", got)
 	}
 	if got := result.Imports[0].(common.ImportSet); len(got.Names) != 0 {
 		t.Errorf("library imports = %+v, want empty", got.Names)
+	}
+	test := result.Gen[1]
+	if test.Kind() != "csharp_test" || test.Name() != "demo_test" {
+		t.Errorf("test rule = %s(%s), want csharp_test(demo_test)", test.Kind(), test.Name())
+	}
+	if got := strings.Join(test.AttrStrings("srcs"), ","); got != "DemoTest.cs" {
+		t.Errorf("test srcs = %q, want DemoTest.cs", got)
 	}
 }
 

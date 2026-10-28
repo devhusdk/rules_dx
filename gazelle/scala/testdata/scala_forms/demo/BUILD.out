@@ -1,4 +1,4 @@
-load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+load("@rules_dx//scala/rules:defs.bzl", "scala_library", "scala_test")
 
 scala_library(
     name = "demo",
@@ -7,4 +7,16 @@ scala_library(
         "Chained.scala",
     ],
     deps = ["//widget"],
+)
+
+scala_test(
+    name = "foo_spec",
+    srcs = ["FooSpec.scala"],
+    deps = [":demo"],
+)
+
+scala_test(
+    name = "foo_suite",
+    srcs = ["FooSuite.scala"],
+    deps = [":demo"],
 )

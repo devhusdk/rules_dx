@@ -262,6 +262,9 @@ PLATFORM_NOT_APPLICABLE = {
         "windows_x86_64": "AppImage is a Linux format",
         "windows_arm64": "AppImage is a Linux format",
     },
+    "dart": {
+        "windows_arm64": "rules_dart 0.8.0 ships no Windows arm64 SDK",
+    },
     "perl": {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
     },
@@ -274,7 +277,6 @@ GAP_ISSUES = {
     "build:apple:*": 4540,
     "build:cuda:*": 4541,
     "build:d:windows_*": 4542,
-    "build:dart:*": 4543,
     "build:elixir:*": 4544,
     "build:erlang:*": 4545,
     "build:fortran:*": 4546,

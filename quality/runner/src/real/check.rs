@@ -130,6 +130,22 @@ impl RealBackend {
                     },
                 )
             }
+            "notebook_outputs" => {
+                Self::read_notebooks_any(tool_id, pairs)?;
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::notebook_outputs_check(&tool.binary, files)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_notebook_outputs(&out.stdout, out.code, names),
+                        )
+                    },
+                )
+            }
             "ty" => {
                 let mut dirs: Vec<PathBuf> = Vec::new();
                 for (_, absolute) in pairs.iter().chain(resolve_pairs.iter()) {
@@ -1251,6 +1267,22 @@ impl RealBackend {
         tool_id: &str,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<(String, String)>, RunnerError> {
+        Self::read_notebooks_with(tool_id, pairs, quality_notebook::preflight)
+    }
+
+    /// Like `read_notebooks`, for tools that accept any kernel language.
+    fn read_notebooks_any(
+        tool_id: &str,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<(String, String)>, RunnerError> {
+        Self::read_notebooks_with(tool_id, pairs, quality_notebook::validate)
+    }
+
+    fn read_notebooks_with(
+        tool_id: &str,
+        pairs: &[(String, PathBuf)],
+        validate: fn(&str) -> Result<quality_notebook::Info, quality_notebook::NotebookError>,
+    ) -> Result<Vec<(String, String)>, RunnerError> {
         let mut notebooks = Vec::new();
         for (workspace, absolute) in pairs {
             if absolute.extension().and_then(|ext| ext.to_str()) != Some("ipynb") {
@@ -1264,8 +1296,7 @@ impl RealBackend {
                     format!("{workspace}: notebook is not UTF-8: {err}"),
                 )
             })?;
-            quality_adapter::notebook::preflight(&text)
-                .map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?;
+            validate(&text).map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?;
             notebooks.push((absolute.to_string_lossy().into_owned(), text));
         }
         Ok(notebooks)

@@ -50,6 +50,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "mix_format",
     "modfmt",
     "nixfmt",
+    "notebook_outputs",
     "ormolu",
     "opa",
     "pkl",

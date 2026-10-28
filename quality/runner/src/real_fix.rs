@@ -358,6 +358,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             }
         }
         "rustfmt" => Ok(Route::Rustfmt),
+        "notebook_outputs" => Ok(Route::Rewrite(commands::notebook_outputs_fix)),
         "ruff" => Ok(Route::Spec {
             format: capability == "format",
             placeholders: &["py", "pyi"],
@@ -668,13 +669,27 @@ impl super::RealBackend {
         if !path.ends_with(".ipynb") {
             return Ok(fixed);
         }
+        if tool_id == "notebook_outputs" {
+            // The single allow-list entry besides ruff: the tool may only
+            // clear outputs and execution counts, so its rewrite must equal
+            // what the library computes from the original bytes.
+            let want = quality_notebook::strip_outputs(before)
+                .map_err(|err| execution(tool_id, format!("{path}: {err}")))?;
+            if fixed != want {
+                return Err(execution(
+                    tool_id,
+                    format!("{path}: rewrite changed more than outputs and execution counts"),
+                ));
+            }
+            return Ok(fixed);
+        }
         if tool_id != "ruff" {
             return Err(execution(
                 tool_id,
                 format!("{path}: only ruff may rewrite a notebook"),
             ));
         }
-        quality_adapter::notebook::splice_sources(before, &fixed)
+        quality_notebook::splice_sources(before, &fixed)
             .map_err(|err| execution(tool_id, format!("{path}: {err}")))
     }
 
@@ -769,6 +784,20 @@ impl super::RealBackend {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept
+                }
+            }
+            Route::Rewrite(_) if tool_id == "notebook_outputs" => {
+                if out.code == Some(0) {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Failed(execution(
+                        tool_id,
+                        format!(
+                            "quality_notebook exited {:?}: {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr).trim()
+                        ),
+                    ))
                 }
             }
             Route::Rewrite(_) => {

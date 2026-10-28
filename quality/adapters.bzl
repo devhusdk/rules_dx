@@ -66,6 +66,7 @@ REAL_ADAPTERS = {
     "mix_format": {"format": ["elixir"]},
     "modfmt": {"format": ["go_module"]},
     "nixfmt": {"format": ["nix"]},
+    "notebook_outputs": {"lint": ["jupyter"]},
     "ormolu": {"format": ["haskell"]},
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
     "pkl": {"format": ["pkl"]},

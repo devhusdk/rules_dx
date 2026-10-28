@@ -6,7 +6,13 @@
 
 use std::fmt;
 
-type Span = (usize, usize);
+mod cli;
+mod outputs;
+
+pub use cli::run_cli;
+pub use outputs::{output_findings, strip_outputs, OutputFinding, CELL_OUTPUTS, EXECUTION_COUNT};
+
+pub(crate) type Span = (usize, usize);
 
 const MAX_DEPTH: usize = 128;
 
@@ -266,18 +272,18 @@ enum Source {
 }
 
 #[derive(Debug, Clone)]
-struct Cell {
-    kind: String,
+pub(crate) struct Cell {
+    pub(crate) kind: String,
     source: Option<Source>,
-    outputs: Option<Span>,
-    execution_count: Option<Span>,
+    pub(crate) outputs: Option<Span>,
+    pub(crate) execution_count: Option<Span>,
 }
 
 /// A scanned notebook borrowing its original text.
 #[derive(Debug)]
 pub struct Notebook<'a> {
-    text: &'a str,
-    cells: Vec<Cell>,
+    pub(crate) text: &'a str,
+    pub(crate) cells: Vec<Cell>,
     python: Option<String>,
 }
 
@@ -295,7 +301,7 @@ fn member<'n>(node: &'n Node, key: &str) -> Option<&'n Node> {
 impl<'a> Notebook<'a> {
     /// Parses a notebook without checking its format version or language.
     pub fn parse(text: &'a str) -> Result<Self, NotebookError> {
-        serde_json::from_str::<serde::de::IgnoredAny>(text)
+        serde_json::from_str::<serde_json::Value>(text)
             .map_err(|err| NotebookError::Json(err.to_string()))?;
         let mut scanner = Scanner {
             bytes: text.as_bytes(),
@@ -513,6 +519,14 @@ fn source_span(source: &Source) -> Span {
     match source {
         Source::Single(span) | Source::Lines(span, _) => *span,
     }
+}
+
+/// Checks that `text` is an nbformat 4 notebook in any language.
+pub fn validate(text: &str) -> Result<Info, NotebookError> {
+    let notebook = Notebook::parse(text)?;
+    Ok(Info {
+        cells: notebook.cells.len(),
+    })
 }
 
 /// Checks that `text` is an nbformat 4 notebook in Python.

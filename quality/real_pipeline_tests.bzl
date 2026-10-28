@@ -293,6 +293,33 @@ def real_pipeline_unit_tests(name):
                 [{"classes": ["jupyter"], "tool": "ruff"}],
             ),
             expect_equal(
+                "notebook_outputs is opt-in: jupyter lint only, absent under a ruff-only family",
+                [
+                    real_supported_classes("notebook_outputs", "lint"),
+                    real_supported_classes("notebook_outputs", "format"),
+                    pipeline_stages(
+                        ["jupyter"],
+                        "lint",
+                        {"jupyter": ["ruff"]},
+                        REAL_CLASS_TO_FAMILY,
+                        REAL_ADAPTERS,
+                    ),
+                    pipeline_stages(
+                        ["jupyter"],
+                        "lint",
+                        {"jupyter": ["notebook_outputs"]},
+                        REAL_CLASS_TO_FAMILY,
+                        REAL_ADAPTERS,
+                    ),
+                ],
+                [
+                    ["jupyter"],
+                    [],
+                    [{"classes": ["jupyter"], "tool": "ruff"}],
+                    [{"classes": ["jupyter"], "tool": "notebook_outputs"}],
+                ],
+            ),
+            expect_equal(
                 "authorize_classes maps each real tool to its own class",
                 authorize_classes(_LINT_SELECTIONS, REAL_CLASS_TO_FAMILY),
                 {

@@ -614,6 +614,7 @@ rust_test(
         "//quality:corpus_starlark",
         "//quality/adapter:corpus_starlark",
         "//quality/markdown:corpus_starlark",
+        "//quality/notebook:corpus_starlark",
         "//quality/result:corpus_starlark",
         "//quality/runner:corpus_starlark",
         "//quality/testdata:corpus_starlark",

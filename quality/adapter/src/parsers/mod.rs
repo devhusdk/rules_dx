@@ -36,6 +36,7 @@ pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
 pub mod nixfmt;
+pub mod notebook_outputs;
 pub mod opa;
 pub mod ormolu;
 pub mod pkl;
@@ -112,6 +113,7 @@ pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
 pub use nixfmt::parse_nixfmt;
+pub use notebook_outputs::parse_notebook_outputs;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use pkl::parse_pkl;
@@ -1783,6 +1785,14 @@ mod tests {
         super::markdown::parse_markdown_findings(input, code, files)
     }
 
+    fn fuzz_notebook_outputs(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::notebook_outputs::parse_notebook_outputs(input, code, files)
+    }
+
     fn fuzz_modfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2284,6 +2294,7 @@ mod tests {
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("parse_markdown_findings", fuzz_markdown_findings),
+        ("parse_notebook_outputs", fuzz_notebook_outputs),
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
         ("nixfmt", fuzz_nixfmt),
@@ -2368,6 +2379,7 @@ mod tests {
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("markdown", include_str!("markdown.rs")),
+        ("notebook_outputs", include_str!("notebook_outputs.rs")),
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
         ("nixfmt", include_str!("nixfmt.rs")),

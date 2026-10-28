@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 use super::{check_output_size, code_name, known, FileFinding, ParseError};
-use crate::notebook::Notebook;
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
+use quality_notebook::Notebook;
 
 #[derive(Debug, Deserialize)]
 struct RuffPosition {

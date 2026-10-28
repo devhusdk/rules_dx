@@ -636,6 +636,20 @@ JUPYTER_RUFF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["jupyter"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "notebook_outputs",
+    "transport": "batched",
+}
+
 REGO_OPA_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -712,6 +726,7 @@ SUPPORT_RECORDS = [
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
     JUPYTER_RUFF_FORMAT_SUPPORT,
     JUPYTER_RUFF_LINT_SUPPORT,
+    JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):

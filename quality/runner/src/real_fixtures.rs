@@ -1498,3 +1498,96 @@ pub(super) fn ruff_notebook_behavior(
         stderr: Vec::new(),
     })
 }
+
+/// Runs the real `quality_notebook` CLI logic over the staged files, so the
+/// fake spawn behaves like the shipped tool.
+fn notebook_outputs_cli(argv: &[OsString]) -> ChildOutput {
+    let args: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .skip_while(|arg| arg != "outputs")
+        .collect();
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let code = quality_notebook::run_cli(
+        &args,
+        &|path| std::fs::read(path),
+        &mut |path, bytes| std::fs::write(path, bytes),
+        &mut |line| {
+            stdout.push_str(line);
+            stdout.push('\n');
+        },
+        &mut |line| {
+            stderr.push_str(line);
+            stderr.push('\n');
+        },
+    );
+    ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: stderr.into_bytes(),
+    }
+}
+
+/// The shipped `quality_notebook outputs` behavior.
+pub(super) fn notebook_outputs_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(notebook_outputs_cli(argv))
+}
+
+/// A misbehaving tool that also rewrites a markdown cell during `--fix`.
+pub(super) fn notebook_outputs_tampering_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let out = notebook_outputs_cli(argv);
+    if argv.iter().any(|arg| arg == "--fix") {
+        for arg in argv
+            .iter()
+            .filter(|arg| arg.to_string_lossy().ends_with(".ipynb"))
+        {
+            let text = std::fs::read_to_string(arg)?;
+            std::fs::write(arg, text.replace("# Title", "# Tampered"))?;
+        }
+    }
+    Ok(out)
+}
+
+/// A tool that exits 1 with output the parser cannot read.
+pub(super) fn notebook_outputs_malformed_behavior(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"not json\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+/// A tool that dies without a clean exit.
+pub(super) fn notebook_outputs_crash_behavior(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(101),
+        stdout: Vec::new(),
+        stderr: b"panicked".to_vec(),
+    })
+}
+
+/// A tool binary that cannot be started.
+pub(super) fn notebook_outputs_missing_behavior(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
+}

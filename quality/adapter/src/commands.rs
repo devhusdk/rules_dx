@@ -194,6 +194,8 @@ const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
+const NOTEBOOK_OUTPUTS_CHECK_ARGS: &[&str] = &["outputs"];
+const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
@@ -1699,6 +1701,14 @@ pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
 }
 
+pub fn notebook_outputs_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, NOTEBOOK_OUTPUTS_CHECK_ARGS, files, "")
+}
+
+pub fn notebook_outputs_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, NOTEBOOK_OUTPUTS_FIX_ARGS, files, "")
+}
+
 pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_FIX_ARGS, files, "")
 }
@@ -1728,9 +1738,8 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" | "ruff" | "flake8" | "pydoclint" | "buildifier" | "deadnix" => {
-            ArgTransport::Batched
-        }
+        "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
+        | "deadnix" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

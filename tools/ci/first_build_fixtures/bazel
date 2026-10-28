@@ -1,0 +1,4 @@
+#!/bin/sh
+case "$1" in
+--version) echo "bazel 9.2.0" ;;
+esac

@@ -76,6 +76,28 @@ fn clean_page_names_every_clean_notice_code() {
 }
 
 #[test]
+fn first_build_page_and_json_list_the_new_languages_in_order() {
+    let want: Vec<&str> = dx_adopt::NEW_LANGUAGES.iter().map(|l| l.name).collect();
+    let docs = workspace_root().join("docs");
+    let json = std::fs::read_to_string(docs.join("first-build.json")).expect("first-build.json");
+    let json: serde_json::Value = serde_json::from_str(&json).expect("first-build.json parses");
+    let rows: Vec<&str> = json["languages"]
+        .as_array()
+        .expect("languages array")
+        .iter()
+        .map(|row| row["name"].as_str().expect("row name"))
+        .collect();
+    assert_eq!(rows, want, "docs/first-build.json rows drifted from NEW_LANGUAGES");
+    let page = std::fs::read_to_string(docs.join("first-build.md")).expect("first-build.md");
+    let listed: Vec<&str> = page
+        .lines()
+        .filter_map(|line| line.strip_prefix("| `"))
+        .filter_map(|rest| rest.split_once('`').map(|(name, _)| name))
+        .collect();
+    assert_eq!(listed, want, "docs/first-build.md table drifted from NEW_LANGUAGES");
+}
+
+#[test]
 fn new_upgrade_page_names_codes_and_starter_files() {
     use crate::adopt::{CODE_NEW_FAILED, CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
     let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new-upgrade.md");

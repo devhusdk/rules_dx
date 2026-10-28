@@ -297,6 +297,7 @@ rust_test(
         "//android/tests/fixtures/consumer_android:res/values/strings.xml",
         "//android/tests/fixtures/consumer_android:src/lib.rs",
         "//docs:command_docs",
+        "//docs:first_build_data",
         "//modules:versions.bzl",
         "//rust/tests/fixtures/consumer_web:BUILD.bazel",
         "//rust/tests/fixtures/consumer_web:src/lib.rs",

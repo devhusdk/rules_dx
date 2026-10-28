@@ -6,6 +6,7 @@
 - `cancel-stale.yml`: cancels a closed PR's ci run through its concurrency group, then sweeps runs of closed PRs and main runs replaced by a newer commit while they still have no jobs. Runs on `ubuntu-slim`.
 - `issue-labels.yml`: daily warning for open issues older than one day that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
 - `evidence.yml`: native evidence on hosted runners, dispatched per run. The `evidence-<platform>` artifact holds `evidence.log` and each test's log, XML and undeclared outputs.
+- `first-build.yml`: cold `dx new` then `dx test` timings for every language, one hosted runner each, weekly and on dispatch. The `first-build-report` artifact holds the merged `first-build.json` and the rendered `first-build.md`; the report job fails when a median total is over its ceiling.
 - `android.yml`: runs the Rust Android APK on a hosted x86_64 emulator, dispatched per run.
 - `apple.yml`: Apple toolchain tests on a hosted macOS runner.
 - `bump.yml`: `widen-one-requirement loop` for one dependency per run.

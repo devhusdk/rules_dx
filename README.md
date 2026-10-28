@@ -47,7 +47,8 @@ Next: [docs index](docs/README.md),
 [adopting rules_dx in an existing Bazel repo](docs/adopting-existing-bazel.md),
 [command reference](docs/cli/commands/README.md),
 [examples](examples/README.md), [CI](docs/github-ci.md),
-[support matrix](docs/support-matrix.md), and the
+[support matrix](docs/support-matrix.md),
+[first build times](docs/first-build.md), and the
 [docs site](https://devhusdk.github.io/rules_dx/).
 
 ## What rules_dx replaces

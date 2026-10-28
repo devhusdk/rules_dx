@@ -13,6 +13,9 @@ var TestSourceSuffixes = []string{"_spec", "_test"}
 
 const LibraryKind = "ruby_library"
 
+// TestKind is the rule generated for each *_spec.rb and *_test.rb source.
+const TestKind = "ruby_test"
+
 func IsTestSource(name string) bool {
 	return common.IsTestSource(name, SupportedExts, TestSourceSuffixes)
 }

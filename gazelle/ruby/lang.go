@@ -13,6 +13,7 @@ const languageName = "ruby"
 
 var rubyKinds = map[string]rule.KindInfo{
 	LibraryKind: common.LibraryKindInfo(),
+	TestKind:    common.TestKindInfo(),
 }
 
 type rubyLang struct{ *common.SingleLang }
@@ -22,6 +23,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		Kinds:          rubyKinds,
+		ExtraKinds:     []string{TestKind},
 		DefsPackage:    "ruby/rules:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       ClassIdentity,
@@ -69,5 +71,10 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		ParseImports: func(c []byte) []string { return ParseImports(c, args.Rel) },
 		IsStdLib:     IsStdLib,
 		Wrap:         common.WrapImportSet,
+		Tests: &common.TestSpec{
+			Kind:     TestKind,
+			IsSource: func(name string) bool { return isSupported(name) && IsTestSource(name) },
+			Name:     func(src string) (string, error) { return common.SnakeName(src, SupportedExts) },
+		},
 	}, rep)
 }

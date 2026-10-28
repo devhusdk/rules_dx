@@ -1,4 +1,4 @@
-load("@rules_dx//ruby/rules:defs.bzl", "ruby_library")
+load("@rules_dx//ruby/rules:defs.bzl", "ruby_library", "ruby_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -12,4 +12,10 @@ ruby_library(
         "demo.rb",
         "helper.rb",
     ],
+)
+
+ruby_test(
+    name = "demo_spec",
+    srcs = ["demo_spec.rb"],
+    deps = [":demo"],
 )

@@ -1,4 +1,4 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -13,4 +13,10 @@ cc_library(
         "helper.cc",
     ],
     hdrs = ["helper.h"],
+)
+
+cc_test(
+    name = "demo_test",
+    srcs = ["demo_test.cc"],
+    deps = [":demo"],
 )

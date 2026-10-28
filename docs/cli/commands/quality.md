@@ -1119,6 +1119,29 @@ rego_library(
 )
 ```
 
+`rego_test` runs `opa test` through `dx test`. It takes `srcs` for the
+`_test.rego` files, `deps` for the `rego_library` targets they import, and
+`data` for JSON and YAML files.
+
+```python
+rego_test(
+    name = "policy_test",
+    srcs = ["policy_test.rego"],
+    deps = [":policy"],
+)
+```
+
+```sh
+dx test //policy/...
+```
+
+opa runs on all four supported platforms. Files are staged at their
+repository-relative paths, so data namespaces match `opa test .` at the
+repository root. Tests marked `todo_` and skipped tests fail unless
+`args = ["--exit-zero-on-skipped"]` is set. A target with no tests fails.
+`--test_filter` maps to `opa test --run`. `tool_opa` also applies to tests and
+must name an executable for the target platform.
+
 Only format fixes. Policies are Rego v1, the OPA 1.x default. A Rego v0 policy
 fails to parse until it is migrated. To use another OPA or Regal executable,
 point `tool_opa` or `tool_regal` at it.

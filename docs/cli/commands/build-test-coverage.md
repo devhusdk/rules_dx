@@ -289,6 +289,7 @@ dx first queries the kinds of the selected tests with the run's repository
 options, such as `--override_repository` and `--repo_env`. If that query
 fails, dx stops with a query error before Bazel runs. Other commands
 reject `--test_arg`; run those cases with `bazel` directly.
+`rego_test` honors `--test_filter` through `TESTBRIDGE_TEST_ONLY`.
 
 Tests run once by default. Only tests marked flaky in their build
 definition retry, up to three attempts. Diagnose one test with retries

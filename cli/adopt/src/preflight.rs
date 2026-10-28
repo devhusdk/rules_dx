@@ -310,6 +310,37 @@ fn registered_labels(module: &ModuleFile) -> Vec<(&str, usize)> {
     out
 }
 
+/// Normalised argument text of a call, without the binding name.
+fn args_text(module: &ModuleFile, call: &dx_module_bazel::Call) -> String {
+    let text = module.source().get(call.span.clone()).unwrap_or_default();
+    let args = text.find('(').map_or(text, |i| &text[i..]);
+    args.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+/// True when every `rust.toolchain` tag of the user is one the snippet also carries, so
+/// the snippet would add nothing new on the extension.
+fn rust_tags_adopted(sources: &[Source], snippet: &ModuleFile) -> bool {
+    let tags = |module: &ModuleFile| -> Vec<String> {
+        let (_, bindings) = eco_repos(module);
+        bindings
+            .iter()
+            .filter(|(_, e)| *e == Eco::Rust)
+            .flat_map(|(b, _)| {
+                let name = format!("{b}.toolchain");
+                module
+                    .calls_named(&name)
+                    .map(|c| args_text(module, c))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    };
+    let ours = tags(snippet);
+    sources
+        .iter()
+        .flat_map(|s| tags(s.module))
+        .all(|t| ours.contains(&t))
+}
+
 /// Toolchain registrations of the user that would compete with what the snippet adds.
 /// Measured against the merged module: snippet registrations the user already has are
 /// not "added", so an adopted repo shows nothing.
@@ -323,9 +354,6 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
     if let Some(snippet) = snippet {
         let (snippet_repos, _) = eco_repos(snippet);
         for (label, _) in registered_labels(snippet) {
-            if user_labels.contains(&label) {
-                continue;
-            }
             let repo = label_repo(label);
             let eco = snippet_repos
                 .iter()
@@ -333,6 +361,11 @@ fn toolchain_conflicts(sources: &[Source], snippet: Option<&ModuleFile>) -> Vec<
                 .map(|(_, e)| *e)
                 .or_else(|| (repo == "llvm").then_some(Eco::Llvm));
             let Some(eco) = eco else { continue };
+            if user_labels.contains(&label)
+                && (eco != Eco::Rust || rust_tags_adopted(sources, snippet))
+            {
+                continue;
+            }
             let mut first: Option<(String, usize, String)> = None;
             for source in sources {
                 let (repos, bindings) = eco_repos(source.module);
@@ -667,6 +700,16 @@ mod tests {
             .find(|f| f.kind == Kind::ToolchainConflict)
             .expect("finding");
         assert_eq!((f.file.as_str(), f.line), ("tc.MODULE.bazel", 2));
+    }
+
+    #[test]
+    fn canonical_rust_setup_with_other_version_is_hard() {
+        let module = format!(
+            "module(name = \"app\")\n{RUST_EXT}my.toolchain(versions = [\"1.80.0\"])\nuse_repo(my, \"rust_toolchains\")\nregister_toolchains(\"@rust_toolchains//:all\")\n"
+        );
+        let found = toolchain_findings(&module);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].hard && found[0].subject == "rust");
     }
 
     #[test]

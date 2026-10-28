@@ -61,7 +61,7 @@ single_version_override(
 bazel_dep(name = "rules_go", version = "0.64.2")
 single_version_override(
     module_name = "rules_go",
-    version = "0.64.2",
+    version = "0.65.0",
 )
 
 # floor: forced by rules_dart 0.8.0 MVS (#1783)
@@ -78,18 +78,18 @@ single_version_override(
     version = "0.8.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: previous tested version; not yet searched (#3747)
 bazel_dep(name = "apple_support", version = "2.9.1")
 single_version_override(
     module_name = "apple_support",
-    version = "2.9.1",
+    version = "2.10.1",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: previous tested version; not yet searched (#3747)
 bazel_dep(name = "rules_apple", version = "5.2.0")
 single_version_override(
     module_name = "rules_apple",
-    version = "5.2.0",
+    version = "5.3.1",
 )
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
@@ -193,18 +193,18 @@ single_version_override(
     version = "0.0.8",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: previous tested version; not yet searched (#3747)
 bazel_dep(name = "rules_kotlin", version = "2.4.10")
 single_version_override(
     module_name = "rules_kotlin",
-    version = "2.4.10",
+    version = "2.4.21",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: previous tested version; not yet searched (#3747)
 bazel_dep(name = "rules_scala", version = "7.3.0")
 single_version_override(
     module_name = "rules_scala",
-    version = "7.3.0",
+    version = "7.4.0",
 )
 
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
@@ -259,11 +259,11 @@ use_repo(dotnet_fsharplint, "paket.fsharplint")
 dotnet_docs_csharp = use_extension("//third_party/dotnet/deps:paket.docs_csharp_extension.bzl", "docs_csharp_extension")
 use_repo(dotnet_docs_csharp, "paket.docs_csharp")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: previous tested version; not yet searched (#3747)
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 single_version_override(
     module_name = "rules_jvm_external",
-    version = "7.1",
+    version = "7.2",
 )
 
 maven = use_extension(
@@ -691,14 +691,14 @@ single_version_override(
 )
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "aspect_rules_ts", version = "3.10.0")
+bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
 single_version_override(
     module_name = "aspect_rules_ts",
     patch_strip = 1,
     patches = [
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
     ],
-    version = "3.10.0",
+    version = "3.10.1",
 )
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
@@ -1526,4 +1526,4 @@ qt_sdk.configure(modules = [
 use_repo(qt_sdk, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
-use_repo(rules_kotlin_extensions, "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "kotlin_build_tools_api", "kotlin_build_tools_impl", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")
+use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")

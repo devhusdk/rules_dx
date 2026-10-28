@@ -33,7 +33,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | `rules_dotnet` | 0.22.2 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
 | `rules_ruby` | 0.29.0 | `reproducible.patch`, `coverage.patch` | Ruby toolchain from the repository cache (psych/openssl build options resolved at action time); Ruby coverage without a bundle and on Windows |
 | `aspect_rules_py` | 2.0.0-alpha.6 | `windows_venv.patch` | Python venvs on Windows |
-| `aspect_rules_ts` | 3.10.0 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |
+| `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |
 | `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |
 
 The trade-off: a `single_version_override` pins the module for the whole

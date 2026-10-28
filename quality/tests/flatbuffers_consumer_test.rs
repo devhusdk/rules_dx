@@ -14,7 +14,7 @@ const UNDECLARED_INCLUDE: &str =
 
 const HIDDEN: &str = "namespace shop;\n\ntable Hidden {\n  id:int;\n}\n";
 
-const WARNING: &str = "namespace shop;\n\ntable Loud {\n  camelCase:int;\n}\n";
+const WARNING: &str = "namespace shop;\n\ntable Money {\n  cents:long;\n  camelCase:int;\n}\n";
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -151,16 +151,42 @@ fn an_include_that_is_not_a_declared_input_fails() {
 }
 
 #[test]
-fn a_warning_fails_the_lint() {
+fn a_warning_fails_the_lint_of_its_own_schema_only() {
     let root = consumer();
     write(&root.join("money/money.fbs"), WARNING);
     let out = dx(&root, "lint", &[]);
     assert_ne!(out.status.code(), Some(0), "{}", out.combined());
-    assert!(
-        out.combined().contains("money/money.fbs:"),
-        "{}",
-        out.combined()
+    let text = out.combined();
+    assert!(text.contains("money/money.fbs:"), "{text}");
+    // The dependents are valid: the warning is reported once, on money.fbs.
+    assert!(!text.contains("shop/item.fbs:"), "{text}");
+    assert!(!text.contains("shop/order.fbs:"), "{text}");
+    assert!(!text.contains("outside the checked files"), "{text}");
+}
+
+#[test]
+fn a_dependency_with_only_a_warning_does_not_fail_the_dependent() {
+    let root = consumer();
+    write(&root.join("money/money.fbs"), WARNING);
+    // Only the dependent is linted, so the warning in //money is out of scope.
+    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    let workspace = root.to_string_lossy().into_owned();
+    let home = mkscratch("flatbuffers-home").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let home = home.to_string_lossy().into_owned();
+    let out = root.run(
+        &resolve_runfiles(&rel),
+        &[
+            "lint",
+            "--workspace",
+            workspace.as_str(),
+            "//shop:item",
+            "//shop:order",
+            "--",
+            "--@rules_dx//config:workspace=//:policy",
+        ],
+        &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
     );
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
 }
 
 #[test]

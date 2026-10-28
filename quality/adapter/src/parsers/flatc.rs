@@ -121,8 +121,8 @@ pub fn parse_flatc(
     let err =
         std::str::from_utf8(stderr).map_err(|err| ParseError::shape(TOOL, err.to_string()))?;
     let mut findings = Vec::new();
-    let mut broken = Vec::new();
     let mut errors = 0usize;
+    let mut own_errors = 0usize;
     for line in err.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed == "error:" || trimmed == "warning:" {
@@ -143,10 +143,14 @@ pub fn parse_flatc(
         if found.severity == ToolSeverity::Error {
             errors += 1;
         }
+        // flatc parses every included schema in the same run. Their findings
+        // belong to their own targets, so only the checked files report here.
         let Some(file) = files.iter().find(|file| **file == found.path) else {
-            broken.push(format!("{}:{}: {}", found.path, found.line, found.message));
             continue;
         };
+        if found.severity == ToolSeverity::Error {
+            own_errors += 1;
+        }
         let rule = if found.severity == ToolSeverity::Error {
             "error"
         } else {
@@ -179,10 +183,10 @@ pub fn parse_flatc(
             ));
         }
         Some(0) => {}
-        Some(1) if errors == 0 => {
+        Some(1) if own_errors == 0 => {
             return Err(ParseError::shape(
                 TOOL,
-                "exit 1 with no error finding".to_owned(),
+                "exit 1 with no error finding in the checked files".to_owned(),
             ));
         }
         Some(1) => {}
@@ -192,14 +196,6 @@ pub fn parse_flatc(
                 format!("unexpected exit {}", code_name(other)),
             ));
         }
-    }
-    if !broken.is_empty() {
-        broken.sort();
-        broken.dedup();
-        return Err(ParseError::Incomplete {
-            tool: TOOL,
-            detail: format!("finding outside the checked files: {}", broken.join("; ")),
-        });
     }
     let dependencies = if code == Some(0) {
         dependencies(out)?
@@ -285,11 +281,17 @@ mod tests {
     }
 
     #[test]
-    fn finding_in_an_unchecked_file_is_incomplete() {
+    fn dependency_warning_does_not_fail_the_dependent() {
+        let out = b"/s/o/a_generated.h: \\\n /s/dep.fbs \\\n /s/a.fbs\n";
+        let err = b"warning:\n  /s/dep.fbs:2: 5: warning: field names should be lowercase\n";
+        let report = parse_flatc(out, err, Some(0), &[FILE]).expect("clean");
+        assert!(report.findings.is_empty());
+        assert_eq!(report.dependencies, ["/s/dep.fbs", "/s/a.fbs"]);
+    }
+
+    #[test]
+    fn error_only_in_an_unchecked_file_is_never_clean() {
         let err = b"error:\n  /s/other.fbs:1: 2: error: m\n";
-        assert!(matches!(
-            parse_flatc(b"", err, Some(1), &[FILE]),
-            Err(ParseError::Incomplete { .. })
-        ));
+        assert!(parse_flatc(b"", err, Some(1), &[FILE]).is_err());
     }
 }

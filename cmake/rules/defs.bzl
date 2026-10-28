@@ -21,7 +21,7 @@ def _cmake_library_impl(ctx):
 
 cmake_library = rule(
     implementation = _cmake_library_impl,
-    doc = "Owns the CMake files of one package for dx format (gersemi).",
+    doc = "Owns the CMake files of one package for dx format (gersemi) and dx lint (cmakelint).",
     attrs = {
         "srcs": attr.label_list(
             allow_files = True,

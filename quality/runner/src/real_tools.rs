@@ -3466,6 +3466,215 @@ fn cfn_lint_has_no_delegated_mode() {
     assert!(err.to_string().contains("no delegated mode"), "{err}");
 }
 
+const CMAKELINT_DIRTY: &str = "cmake_minimum_required(VERSION 3.20)\nSET(A b)\n";
+const CMAKELINT_CLEAN: &str = "cmake_minimum_required(VERSION 3.20)\n";
+
+static CMAKELINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn cmakelint_tool(config: &str) -> RealTool {
+    RealTool {
+        config_rel: Some("cmake/.cmakelintrc".to_owned()),
+        tool_files: vec![("cmake/.cmakelintrc".to_owned(), config.as_bytes().to_vec())],
+        ..plain_tool()
+    }
+}
+
+fn cmakelint_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    CMAKELINT_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let config = args[0].strip_prefix("--config=").expect("config flag");
+    assert!(Path::new(config).is_file(), "config file exists");
+    assert_eq!(args[1], "--");
+    let configured = std::fs::read_to_string(config)?;
+    let mut stdout = String::new();
+    let mut total = 0;
+    for name in &args[2..] {
+        if std::fs::read_to_string(name)?.contains("SET(") {
+            stdout.push_str(&format!(
+                "{name}:2: Command must be lowercase [readability/wonkycase]\n"
+            ));
+            total += 1;
+        }
+    }
+    // A bound config's marker reaches the tool through the file it names.
+    if configured.contains("filter=-readability/wonkycase") {
+        stdout.clear();
+        total = 0;
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(total > 0)),
+        stdout: stdout.into_bytes(),
+        stderr: format!("Total Errors: {total}\n").into_bytes(),
+    })
+}
+
+fn cmakelint_exit_one(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: b"Total Errors: 0\n".to_vec(),
+    })
+}
+
+fn cmakelint_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: None,
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn cmakelint_malformed(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"not a finding\n".to_vec(),
+        stderr: b"Total Errors: 0\n".to_vec(),
+    })
+}
+
+fn cmakelint_missing_binary(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
+}
+
+#[test]
+fn cmakelint_lints_every_file_in_one_check_only_run() {
+    let backend = backend_for("cmakelint", plain_tool(), cmakelint_fake);
+    let mut files = single("CMakeLists.txt", CMAKELINT_DIRTY);
+    files.insert("cmake/b.cmake".to_owned(), CMAKELINT_CLEAN.to_owned());
+    let before = CMAKELINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let findings = backend
+        .diagnose("cmakelint", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(
+        CMAKELINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
+        1
+    );
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "CMakeLists.txt");
+    assert_eq!(findings[0].rule_id, "readability/wonkycase");
+    assert_eq!(findings[0].tool_id, "cmakelint");
+    assert_eq!(
+        backend
+            .apply_fix("cmakelint", "CMakeLists.txt", CMAKELINT_DIRTY, "lint")
+            .expect("check-only"),
+        CMAKELINT_DIRTY
+    );
+}
+
+#[test]
+fn cmakelint_unbound_config_uses_the_scratch_default() {
+    let backend = backend_for("cmakelint", plain_tool(), cmakelint_fake);
+    let findings = backend
+        .diagnose(
+            "cmakelint",
+            "lint",
+            &single("CMakeLists.txt", CMAKELINT_CLEAN),
+        )
+        .expect("an empty dx config is written when none is bound");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn cmakelint_bound_config_reaches_the_tool() {
+    let backend = backend_for(
+        "cmakelint",
+        cmakelint_tool("filter=-readability/wonkycase\n"),
+        cmakelint_fake,
+    );
+    let findings = backend
+        .diagnose(
+            "cmakelint",
+            "lint",
+            &single("CMakeLists.txt", CMAKELINT_DIRTY),
+        )
+        .expect("diagnosed");
+    assert!(
+        findings.is_empty(),
+        "the bound filter suppressed the finding"
+    );
+}
+
+#[test]
+fn cmakelint_rejects_quiet_unknown_keys_and_unreadable_configs() {
+    for config in ["quiet\n", "spacs=4\n"] {
+        let err = backend_for("cmakelint", cmakelint_tool(config), cmakelint_fake)
+            .diagnose(
+                "cmakelint",
+                "lint",
+                &single("CMakeLists.txt", CMAKELINT_CLEAN),
+            )
+            .expect_err("disallowed config");
+        assert!(err.to_string().contains("cmakelint config"), "{err}");
+    }
+    let tool = RealTool {
+        config_rel: Some("cmake/missing".to_owned()),
+        ..plain_tool()
+    };
+    backend_for("cmakelint", tool, cmakelint_fake)
+        .diagnose(
+            "cmakelint",
+            "lint",
+            &single("CMakeLists.txt", CMAKELINT_CLEAN),
+        )
+        .expect_err("an unreadable config is never ignored");
+}
+
+#[test]
+fn cmakelint_failures_are_never_clean() {
+    let one = single("CMakeLists.txt", CMAKELINT_CLEAN);
+    for spawn in [
+        cmakelint_exit_one as Spawn,
+        cmakelint_crash,
+        cmakelint_malformed,
+        cmakelint_missing_binary,
+    ] {
+        backend_for("cmakelint", plain_tool(), spawn)
+            .diagnose("cmakelint", "lint", &one)
+            .expect_err("a failed run is an error");
+    }
+}
+
+#[test]
+fn cmakelint_has_no_delegated_mode() {
+    let tool = RealTool {
+        upstream_diagnostics: vec![PathBuf::from("/fake/up.json")],
+        ..plain_tool()
+    };
+    let err = backend_for("cmakelint", tool, cmakelint_fake)
+        .diagnose(
+            "cmakelint",
+            "lint",
+            &single("CMakeLists.txt", CMAKELINT_CLEAN),
+        )
+        .expect_err("delegated");
+    assert!(err.to_string().contains("no delegated mode"), "{err}");
+}
+
 const NOTEBOOK_DIRTY: &str = "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\"# Title\"]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": 7,\n      \"metadata\": {\"tags\": [\"keep\"]},\n      \"outputs\": [{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}],\n      \"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\"x   =   1\"]\n    }\n  ],\n  \"metadata\": {\"language_info\": {\"name\": \"python\"}},\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}\n";
 
 fn notebook_backend() -> RealBackend {

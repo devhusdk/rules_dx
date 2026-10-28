@@ -360,8 +360,8 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "perlcritic" | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy"
         | "cppcheck" | "staticcheck" | "govet" | "gplint" | "errcheck" | "stylelint" | "rubocop"
         | "yamllint" | "shellcheck" | "hadolint" | "hlint" | "redocly" | "kubeconform" | "helm"
-        | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "credo" | "dialyzer" | "elvis"
-        | "phpcs" | "phpstan" | "regal" | "tsc" => Ok(Route::Keep),
+        | "checkmake" | "flatc" | "tflint" | "cfn_lint" | "cmakelint" | "credo" | "dialyzer"
+        | "elvis" | "phpcs" | "phpstan" | "regal" | "tsc" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

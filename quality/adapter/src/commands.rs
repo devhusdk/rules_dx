@@ -252,6 +252,7 @@ const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
 const CHECKMAKE_PREFIX: &[&str] = &["--debug", "--output", "json"];
 const CHECKMAKE_TAIL: &[&str] = &["--"];
+const CMAKELINT_TAIL: &[&str] = &["--"];
 // `--no-cache`: gersemi otherwise keeps a cache under the home directory.
 const GERSEMI_CHECK_PREFIX: &[&str] = &["--check", "--diff", "--no-cache", "--no-color", "-w", "1"];
 const GERSEMI_FIX_PREFIX: &[&str] = &["-i", "--no-cache", "--no-color", "-w", "1"];
@@ -1974,6 +1975,20 @@ pub fn checkmake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocat
         files,
         "",
     )
+}
+
+/// Always `--config=<config>`: cmakelint otherwise reads `$HOME/.cmakelintrc`. No `--spaces`,
+/// `--linelength` or `--filter` flag is passed, because flags override the user's config.
+pub fn cmakelint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut flag = OsString::from("--config=");
+    flag.push(config.as_os_str());
+    let mut argv = vec![binary.as_os_str().to_owned(), flag];
+    argv.extend(CMAKELINT_TAIL.iter().map(OsString::from));
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn statix_fix(binary: &Path, file: &Path, config: &Path) -> Invocation {

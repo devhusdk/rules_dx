@@ -1699,6 +1699,7 @@ impl RealBackend {
                 )
             }
             "cfn_lint" => self.check_cfn_lint(tool_id, tool, staged, config.as_deref()),
+            "cmakelint" => self.check_cmakelint(tool_id, tool, staged, config.as_deref()),
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "helm" => self.check_helm(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {

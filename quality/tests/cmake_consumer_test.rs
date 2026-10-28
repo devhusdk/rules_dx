@@ -230,3 +230,54 @@ fn a_tool_override_that_is_not_one_executable_fails_naming_gersemi() {
         out.combined()
     );
 }
+
+const LINT_POLICY: &str = "--@rules_dx//config:workspace=//:lint_policy";
+
+const MIXED_CASE: &str = "cmake_minimum_required(VERSION 3.20)\nSET(A b)\n";
+
+fn lint_consumer() -> Case {
+    let root = consumer();
+    let build = read(&root.join("BUILD.bazel")).replace(
+        "gersemi_config(",
+        r#"quality_family(
+    name = "lint_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cmake",
+    lint = ["cmakelint"],
+)
+
+workspace_policy(
+    name = "lint_policy",
+    families = [":lint_family"],
+)
+
+gersemi_config("#,
+    );
+    write(&root.join("BUILD.bazel"), &build);
+    root
+}
+
+#[test]
+fn cmakelint_passes_clean_files_and_reports_owned_style_findings_without_writing() {
+    let root = lint_consumer();
+    let clean = dx_with(&root, "lint", &[], &[LINT_POLICY]);
+    assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
+
+    let lists = root.join("CMakeLists.txt");
+    write(&lists, MIXED_CASE);
+    write(&root.join("vendor/unowned.cmake"), MIXED_CASE);
+    let dirty = dx_with(&root, "lint", &[], &[LINT_POLICY]);
+    assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+    assert!(
+        dirty.combined().contains("readability/mixedcase"),
+        "{}",
+        dirty.combined()
+    );
+    assert!(!dirty.combined().contains("unowned"), "{}", dirty.combined());
+    let applied = dx_with(&root, "lint", &["--apply"], &[LINT_POLICY]);
+    assert_eq!(applied.status.code(), Some(1), "{}", applied.combined());
+    assert_eq!(read(&lists), MIXED_CASE);
+}

@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_cmake_lint_config
+capability LINT
+stages 1
+stage cmakelint classes=cmake sources=matrix/cmake_lint_config/CMakeLists.txt
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

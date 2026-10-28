@@ -392,6 +392,21 @@ workspace_policy(
     families = [":cmake_family"],
 )
 
+quality_family(
+    name = "cmake_lint_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cmake",
+    lint = ["cmakelint"],
+)
+
+workspace_policy(
+    name = "cmake_lint_policy",
+    families = [":cmake_lint_family"],
+)
+
 filegroup(
     name = "cmake_module",
     srcs = [

@@ -239,6 +239,7 @@ to.
 | `clang_format` | format | cc, cuda, objc |
 | `clang_syntax` | typecheck | cc, objc |
 | `clang_tidy` | lint | cc |
+| `cmakelint` | lint | cmake |
 | `clippy` | lint | rust |
 | `cppcheck` | lint | cc |
 | `csc` | typecheck | csharp |
@@ -3403,16 +3404,17 @@ clean.
 
 ### CMake
 
-`gersemi` formats CMake files. It runs from a managed pin on Linux x86_64,
-Linux arm64, macOS arm64 and Windows x86_64, so consumers need no Python
-toolchain and no host install. It is opt-in: no default policy selects it. dx
-never runs `cmake`. There is no linter.
+`gersemi` formats CMake files and `cmakelint` lints them. Both run from managed
+pins on Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64, so consumers
+need no Python toolchain and no host install. They are opt-in: no default
+policy selects either. dx never runs `cmake`.
 
 ```python
 quality_family(
     name = "cmake_family",
     family_id = "cmake",
     format = ["gersemi"],
+    lint = ["cmakelint"],
 )
 ```
 
@@ -3478,6 +3480,50 @@ executable, point `tool_gersemi` at it.
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_gersemi=//tools:gersemi
 ```
+
+#### cmakelint
+
+`cmakelint` 1.4.3 checks CMake style: command case, whitespace, line length,
+indent width and `find_package` usage. It is a style checker, so it does not
+report syntax errors; `gersemi` does. `lint` reports each finding at its line,
+with the category (for example `readability/mixedcase`) as the rule ID. It
+reports no columns, so findings point at column 1. `cmakelint` is check-only:
+`lint --apply` never rewrites a file.
+
+```sh
+bazel run @rules_dx//:dx -- lint //...
+```
+
+An output dx cannot account for is an error and never counts as clean. That
+covers a missing or mismatched `Total Errors` summary, an exit code that
+disagrees with the findings, a skipped file (`Ignoring file:`), a crash and an
+unparsable output line.
+
+`cmakelint` never reads a `.cmakelintrc` from the workspace or the home
+directory. To change the rules, bind a `cmakelint_config` to the target with
+`aspect_hints`. Without one, dx passes an empty config, which keeps every
+default (2-space indent unit, line length 80). A bound config may hold only
+blank lines, `#` comments and the keys `filter=`, `spaces=` and `linelength=`.
+Any other line, including `quiet` and a mistyped key, fails the run, because
+`cmakelint` would silently ignore it. An unreadable config fails the run too.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "cmakelint_config")
+
+cmakelint_config(
+    name = "cmakelint",
+    src = ".cmakelintrc",
+)
+```
+
+A `# lint_cmake: -readability/mixedcase` comment at the start of a line
+filters a category from that line on, within its file.
+
+`gersemi` and `cmakelint` overlap in two places. `spaces=` makes `cmakelint`
+require indents that are a multiple of its value; the default of 2 accepts the
+4-space indent `gersemi` writes, but a `gersemi` `indent` that is not a multiple
+of `spaces=` needs `spaces=` to match. A `gersemi` `line_length` above 80
+needs `linelength=` to match, or `filter=-linelength` to drop the check.
 
 ### Make
 

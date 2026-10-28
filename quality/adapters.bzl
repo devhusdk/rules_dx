@@ -36,6 +36,7 @@ REAL_ADAPTERS = {
     "clang_format": {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
     "clang_syntax": {"typecheck": ["c", "cpp", "objc", "objcpp"]},
     "clang_tidy": {"lint": ["c", "cpp"]},
+    "cmakelint": {"lint": ["cmake"]},
     "clippy": {"lint": ["rust"]},
     "cppcheck": {"lint": ["c", "cpp"]},
     "csharpier": {"format": ["csharp"]},

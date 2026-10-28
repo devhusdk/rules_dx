@@ -315,6 +315,14 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "cloudformation",
     },
+    "cmakelint": {
+        "attr": attr.label(default = "//quality/tools/python:cmakelint", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "runfiles_env": True,
+        "shard": "cmake",
+    },
     "helm": {
         "attr": attr.label(default = "//config:tool_helm", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -2114,6 +2122,12 @@ _REAL_SHARD_SPECS = {
         "shard": "cmake",
         "suffix": "-cmake",
     },
+    "real_cmake_lint": {
+        "capability": "lint",
+        "doc": "Additive CMake lint family aspect (cmakelint).",
+        "shard": "cmake",
+        "suffix": "-cmake",
+    },
     "real_lua_format": {
         "capability": "format",
         "doc": "Additive Lua format family aspect (stylua).",
@@ -2351,6 +2365,8 @@ real_latex_format_aspect = _make_real_aspect("real_latex_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
+
+real_cmake_lint_aspect = _make_real_aspect("real_cmake_lint")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
 

@@ -269,6 +269,35 @@ real_source_target(
 )
 
 quality_family(
+    name = "typst_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "typst",
+    format = ["typstyle"],
+)
+
+workspace_policy(
+    name = "typst_policy",
+    families = [":typst_family"],
+)
+
+filegroup(
+    name = "typst_module",
+    srcs = [
+        "typst_module/lib/helpers.typ",
+        "typst_module/main.typ",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_typst",
+    typst_srcs = [":typst_module"],
+)
+
+quality_family(
     name = "yaml_family",
     disabled = ["typecheck"],
     family_id = "yaml",

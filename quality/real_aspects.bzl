@@ -470,6 +470,13 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "core",
     },
+    "typstyle": {
+        "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "typst",
+    },
     "vale": {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -1541,6 +1548,12 @@ _REAL_SHARD_SPECS = {
         "shard": "jsonnet",
         "suffix": "-jsonnet",
     },
+    "real_typst_format": {
+        "capability": "format",
+        "doc": "Additive Typst format family aspect (typstyle).",
+        "shard": "typst",
+        "suffix": "-typst",
+    },
     "real_lua_format": {
         "capability": "format",
         "doc": "Additive Lua format family aspect (stylua).",
@@ -1742,6 +1755,8 @@ real_go_format_aspect = _make_real_aspect("real_go_format")
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
+
+real_typst_format_aspect = _make_real_aspect("real_typst_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")

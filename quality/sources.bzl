@@ -85,6 +85,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "zig",
     "nix",
     "kubernetes",
+    "typst",
 ]
 
 RUST = "rust"

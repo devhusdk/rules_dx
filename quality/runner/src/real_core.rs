@@ -210,6 +210,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "taplo",
             "terraform",
             "ty",
+            "typstyle",
             "vale",
             "yamlfmt",
             "yamllint",

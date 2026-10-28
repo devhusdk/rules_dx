@@ -1169,6 +1169,15 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&jsonnetfmt_fix(Path::new(BIN), &[jsonnet])),
         vec![BIN, "-i", "/scratch/Sample.jsonnet"]
     );
+    let typst = Path::new("/scratch/sample.typ");
+    assert_eq!(
+        argv_strings(&typstyle_check(Path::new(BIN), &[typst])),
+        vec![BIN, "--check", "/scratch/sample.typ"]
+    );
+    assert_eq!(
+        argv_strings(&typstyle_fix(Path::new(BIN), &[typst])),
+        vec![BIN, "-i", "/scratch/sample.typ"]
+    );
     let zig = Path::new("/scratch/sample.zig");
     assert_eq!(
         argv_strings(&zig_fmt_check(Path::new(BIN), &[zig])),

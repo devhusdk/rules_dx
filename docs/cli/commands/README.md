@@ -588,6 +588,7 @@ Language rules:
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
+- `@rules_dx//typst/rules:defs.bzl`: Typst.
 - `@rules_dx//vue/rules:defs.bzl`: Vue.
 - `@rules_dx//xml/rules:defs.bzl`: XML.
 - `@rules_dx//yaml/rules:defs.bzl`: YAML.

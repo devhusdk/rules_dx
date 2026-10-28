@@ -178,6 +178,7 @@ ROWS = [
     {"name": "pkl", "section": "formats", "title": "Pkl"},
     {"name": "sql", "section": "formats", "title": "SQL"},
     {"name": "terraform", "section": "formats", "title": "Terraform"},
+    {"name": "typst", "section": "formats", "title": "Typst"},
     {"name": "xml", "section": "formats", "title": "XML"},
     {"name": "yaml", "section": "formats", "title": "YAML"},
 ]

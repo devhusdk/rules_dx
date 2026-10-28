@@ -107,6 +107,8 @@ const CUE_CHECK_ARGS: &[&str] = &["fmt", "--check", "--diff"];
 const CUE_FIX_ARGS: &[&str] = &["fmt"];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
+const TYPSTYLE_CHECK_ARGS: &[&str] = &["--check"];
+const TYPSTYLE_FIX_ARGS: &[&str] = &["-i"];
 const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
@@ -984,6 +986,15 @@ pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn jsonnetfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_FIX_ARGS, files, "")
+}
+
+/// `typstyle --check`; no `-q`, which would hide the `Would reformat` lines.
+pub fn typstyle_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TYPSTYLE_CHECK_ARGS, files, "")
+}
+
+pub fn typstyle_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TYPSTYLE_FIX_ARGS, files, "")
 }
 
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {

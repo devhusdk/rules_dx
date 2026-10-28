@@ -134,6 +134,51 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_jsonnet_format_module_syntax_error.expected.txt",
     },
     {
+        "name": "matrix_typst_format_pass",
+        "generated": {
+            "matrix/typst_clean.typ": "#let greeting = \"hello\"\n",
+        },
+        "capability": "format",
+        "stages": ["typstyle;typst;matrix/typst_clean.typ"],
+        "tool_names": ["typstyle"],
+        "tool_binaries": ["@dx_tools//:typstyle"],
+        "expected_file": ":matrix/matrix_typst_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_typst_format_fail",
+        "generated": {
+            "matrix/typst_dirty.typ": "#let   greeting = \"hello\"\n",
+        },
+        "capability": "format",
+        "stages": ["typstyle;typst;matrix/typst_dirty.typ"],
+        "tool_names": ["typstyle"],
+        "tool_binaries": ["@dx_tools//:typstyle"],
+        "expected_file": ":matrix/matrix_typst_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_typst_format_syntax_error",
+        "generated": {
+            "matrix/typst_broken.typ": "#let greeting = (\n",
+        },
+        "capability": "format",
+        "stages": ["typstyle;typst;matrix/typst_broken.typ"],
+        "tool_names": ["typstyle"],
+        "tool_binaries": ["@dx_tools//:typstyle"],
+        "expected_file": ":matrix/matrix_typst_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_typst_format_multi",
+        "generated": {
+            "matrix/typst_multi/clean.typ": "#let greeting = \"hello\"\n",
+            "matrix/typst_multi/dirty.typ": "#let   name = \"world\"\n",
+        },
+        "capability": "format",
+        "stages": ["typstyle;typst;matrix/typst_multi/clean.typ,matrix/typst_multi/dirty.typ"],
+        "tool_names": ["typstyle"],
+        "tool_binaries": ["@dx_tools//:typstyle"],
+        "expected_file": ":matrix/matrix_typst_format_multi.expected.txt",
+    },
+    {
         "name": "matrix_lua_format_pass",
         "generated": {
             "matrix/lua_clean.lua": "local value = 1\nprint(value)\n",

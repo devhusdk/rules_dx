@@ -741,6 +741,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "typstyle": {
+        "upstream_version": "0.15.2",
+        "release_page": "https://github.com/typstyle-rs/typstyle/releases/tag/v0.15.2",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/typstyle-rs/typstyle/blob/v0.15.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "typstyle-x86_64-unknown-linux-gnu",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-unknown-linux-gnu",
+                "kind": "raw",
+                "executable": "typstyle-x86_64-unknown-linux-gnu",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "typstyle-aarch64-unknown-linux-gnu",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-unknown-linux-gnu",
+                "kind": "raw",
+                "executable": "typstyle-aarch64-unknown-linux-gnu",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "typstyle-aarch64-apple-darwin",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-apple-darwin",
+                "kind": "raw",
+                "executable": "typstyle-aarch64-apple-darwin",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "typstyle-x86_64-pc-windows-msvc.exe",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-pc-windows-msvc.exe",
+                "kind": "raw",
+                "executable": "typstyle-x86_64-pc-windows-msvc.exe",
+            },
+        },
+    },
     "buf": {
         "upstream_version": "1.72.0",
         "release_page": "https://github.com/bufbuild/buf/releases/tag/v1.72.0",

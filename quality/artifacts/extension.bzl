@@ -93,6 +93,10 @@ load("//quality/artifacts:ty.linux_arm64.bzl", _ty_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_x86_64.bzl", _ty_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.macos_arm64.bzl", _ty_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:ty.windows_x86_64.bzl", _ty_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:typstyle.linux_arm64.bzl", _typstyle_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:typstyle.linux_x86_64.bzl", _typstyle_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:typstyle.macos_arm64.bzl", _typstyle_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:typstyle.windows_x86_64.bzl", _typstyle_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:uv.linux_arm64.bzl", _uv_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:uv.linux_x86_64.bzl", _uv_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:uv.macos_arm64.bzl", _uv_macos_arm64 = "ARTIFACT")
@@ -203,6 +207,10 @@ _ARTIFACTS = [
     _ty_linux_arm64,
     _ty_macos_arm64,
     _ty_windows_x86_64,
+    _typstyle_linux_x86_64,
+    _typstyle_linux_arm64,
+    _typstyle_macos_arm64,
+    _typstyle_windows_x86_64,
     _uv_linux_x86_64,
     _uv_linux_arm64,
     _uv_macos_arm64,

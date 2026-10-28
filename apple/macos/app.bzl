@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_apple//apple:macos.bzl", "macos_application")
-load("@rules_apple//apple:providers.bzl", "AppleBundleInfo")
+load("@rules_apple//apple:providers.bzl", "AppleBinaryInfo", "AppleBundleInfo")
 load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
@@ -255,6 +255,35 @@ def _runfiles_path(ctx, file):
 def _lines(names):
     return "\n".join(names)
 
+def owner_relative_path(short_path, package):
+    """Returns a file path relative to its owning package, as rules_apple places it."""
+    path = short_path
+    if path.startswith("../"):
+        path = path[3:].partition("/")[2]
+    if package and path.startswith(package + "/"):
+        path = path[len(package) + 1:]
+    return path
+
+def _framework_names(frameworks):
+    return [framework[AppleBundleInfo].bundle_name for framework in frameworks]
+
+def _plugin_names(plugins):
+    names = []
+    for plugin in plugins:
+        found = []
+        if AppleBundleInfo in plugin:
+            info = plugin[AppleBundleInfo]
+            found.append(info.bundle_name + info.bundle_extension)
+        elif AppleBinaryInfo in plugin:
+            found.append(plugin[AppleBinaryInfo].binary.basename)
+        else:
+            for file in plugin.files.to_list():
+                found.append(owner_relative_path(file.short_path, file.owner.package if file.owner else plugin.label.package))
+        if not found:
+            fail("apple_macos_app: plugin '{}' places nothing under PlugIns".format(display(plugin.label)))
+        names.extend(found)
+    return sorted(names)
+
 def _macos_app_check_impl(ctx):
     bundle = ctx.attr.app[0]
     info = bundle[AppleBundleInfo]
@@ -277,8 +306,8 @@ def _macos_app_check_impl(ctx):
         ctx.attr.arch,
         xcode,
         str(xcode_config.sdk_version_for_platform(apple_common.platform.macos)),
-        _lines([label.name for label in ctx.attr.frameworks]),
-        _lines(sorted([file.basename for file in ctx.files.plugins])),
+        _lines(_framework_names(ctx.attr.frameworks)),
+        _lines(_plugin_names(ctx.attr.plugins)),
         _lines(flat_resources(ctx.files.resources)),
     ])
     env = {"PATH": TOOL_PATH}
@@ -327,7 +356,10 @@ _macos_app_check = rule(
         ),
         "arch": attr.string(doc = "Architecture every Mach-O file of the app must carry.", mandatory = True),
         "deployment": attr.string(doc = "Minimum macOS version the app supports.", mandatory = True),
-        "frameworks": attr.label_list(doc = "Frameworks the bundle must embed under Frameworks."),
+        "frameworks": attr.label_list(
+            doc = "Frameworks the bundle must embed under Frameworks.",
+            providers = [AppleBundleInfo],
+        ),
         "plugins": attr.label_list(doc = "Plugins the bundle must hold under PlugIns.", allow_files = True),
         "resources": attr.label_list(doc = "Resource files the bundle must hold.", allow_files = True),
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),

@@ -178,6 +178,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "latexindent",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "typstyle",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -511,8 +517,8 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        // statix and opa fix exactly one target per run.
-        let batches = if tool_id == "statix" || tool_id == "opa" {
+        // statix, opa and latexindent fix exactly one target per run.
+        let batches = if matches!(tool_id, "statix" | "opa" | "latexindent") {
             refs.iter().map(|file| vec![*file]).collect()
         } else {
             commands::plan_invocation_batches(&refs, |batch| {
@@ -868,6 +874,18 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "latexindent" => match refs {
+                        [file] => Ok(commands::latexindent_fix(
+                            &tool.binary,
+                            file,
+                            &Self::latexindent_cruft(tool_id, scratch)?,
+                            config.as_deref(),
+                        )),
+                        _ => Err(execution(
+                            tool_id,
+                            "latexindent fixes one file at a time".to_owned(),
+                        )),
+                    },
                     "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config.as_deref())),
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "djlint" => Ok(commands::djlint_format_fix(

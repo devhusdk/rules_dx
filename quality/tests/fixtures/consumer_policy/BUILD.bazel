@@ -298,6 +298,35 @@ real_source_target(
 )
 
 quality_family(
+    name = "latex_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "latex",
+    format = ["latexindent"],
+)
+
+workspace_policy(
+    name = "latex_policy",
+    families = [":latex_family"],
+)
+
+filegroup(
+    name = "latex_module",
+    srcs = [
+        "latex_module/lib/helpers.sty",
+        "latex_module/main.tex",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_latex",
+    latex_srcs = [":latex_module"],
+)
+
+quality_family(
     name = "yaml_family",
     disabled = ["typecheck"],
     family_id = "yaml",

@@ -43,6 +43,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
     "kubeconform": [".kubeconform.json"],
+    "latexindent": [".yaml", ".yml"],
     "checkmake": [".ini"],
     "pmd": [".xml"],
     "tflint": [".hcl"],
@@ -178,6 +179,8 @@ buildifier_config = _make_native_config_rule("buildifier")
 stylua_config = _make_native_config_rule("stylua")
 
 taplo_config = _make_native_config_rule("taplo")
+
+latexindent_config = _make_native_config_rule("latexindent")
 
 vale_config = _make_native_config_rule("vale")
 

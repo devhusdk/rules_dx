@@ -358,6 +358,18 @@ impl RealBackend {
         })
     }
 
+    /// The scratch directory latexindent writes its log and backups to, so a run never leaves
+    /// `indent.log` or `.bak` files next to the sources.
+    pub(super) fn latexindent_cruft(
+        tool_id: &str,
+        scratch: &Scratch,
+    ) -> Result<PathBuf, RunnerError> {
+        let dir = scratch.root().join(".dx-latexindent");
+        std::fs::create_dir_all(&dir)
+            .map_err(|err| execution(tool_id, format!("cruft dir: {err}")))?;
+        Ok(dir)
+    }
+
     pub(super) fn biome_config_dir(
         tool: &RealTool,
         scratch: &Scratch,

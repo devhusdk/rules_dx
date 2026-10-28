@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "API_SPEC_REDOCLY_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state")
+load(":support.bzl", "API_SPEC_REDOCLY_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -30,6 +30,13 @@ def _record_checks(wired, artifact_platforms):
             support_record_error(record),
             "",
         ))
+        if record["state"] == "known":
+            checks.append(expect_equal(
+                label + " is a known, ungated support tool",
+                [is_support_tool(tool), support_record_gap_error(record, {})],
+                [True, ""],
+            ))
+            continue
         checks.append(expect_equal(
             label + " is a support tool in a gated state",
             [is_support_tool(tool), record["state"] in ["qualified", "supported"]],
@@ -109,6 +116,31 @@ def support_unit_tests(name):
                 "support: keep_sorted lint is qualified but has no wired aspect (not silently clean)",
             ),
 
+            expect_equal(
+                "an unbuilt known record may have no platforms",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}),
+                "",
+            ),
+            expect_equal(
+                "empty platforms need every platform unsupported",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_x86_64"]}),
+                "support: tool 'chktex' needs a non-empty platform list",
+            ),
+            expect_equal(
+                "empty platforms are rejected for a supported record",
+                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "supported", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}),
+                "support: tool 'chktex' needs a non-empty platform list",
+            ),
+            expect_equal(
+                "empty platforms are rejected for a qualified record",
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}),
+                "support: tool 'chktex' needs a non-empty platform list",
+            ),
+            expect_equal(
+                "only tools with no build anywhere are unpinned",
+                [support_unpinned_tools("lint"), support_unpinned_tools("format")],
+                [{"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}, {}],
+            ),
             expect_equal(
                 "valid unsupported platform is accepted",
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["windows_x86_64"]}),

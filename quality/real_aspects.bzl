@@ -24,6 +24,7 @@ load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
+load("//quality:support.bzl", "support_unpinned_tools")
 load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
@@ -532,6 +533,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "typst",
     },
+    "latexindent": {
+        "attr": attr.label(default = "@dx_tools//:latexindent", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "latex",
+    },
     "vale": {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -621,6 +629,7 @@ def merge_inherited_sources(direct_sources, inherited, class_id):
 
 def real_policy_error(policy, capability, what):
     """Validates the selected workspace policy for one real capability."""
+    unpinned = support_unpinned_tools(capability)
     for family_id in sorted(policy.families.keys()):
         section = policy.families[family_id]
         error = family_section_error(
@@ -629,6 +638,7 @@ def real_policy_error(policy, capability, what):
             getattr(section, capability),
             section.disabled,
             _WIRED_TOOLS[capability],
+            unpinned,
         )
         if error != "":
             return what + ": " + error
@@ -1651,6 +1661,12 @@ _REAL_SHARD_SPECS = {
         "shard": "typst",
         "suffix": "-typst",
     },
+    "real_latex_format": {
+        "capability": "format",
+        "doc": "Additive LaTeX format family aspect (latexindent).",
+        "shard": "latex",
+        "suffix": "-latex",
+    },
     "real_lua_format": {
         "capability": "format",
         "doc": "Additive Lua format family aspect (stylua).",
@@ -1865,6 +1881,8 @@ real_cue_format_aspect = _make_real_aspect("real_cue_format")
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 
 real_typst_format_aspect = _make_real_aspect("real_typst_format")
+
+real_latex_format_aspect = _make_real_aspect("real_latex_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")

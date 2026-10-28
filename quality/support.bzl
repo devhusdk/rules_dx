@@ -510,6 +510,36 @@ TYPST_TYPSTYLE_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+LATEX_LATEXINDENT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["latex"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "latex",
+    "fix": "supported",
+    "platforms": ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "latexindent",
+    "transport": "single",
+}
+
+# chktex has no pinned build on any platform yet. Selecting it fails the policy check by name.
+LATEX_CHKTEX_LINT_SUPPORT = {
+    "artifact": "missing",
+    "capability": "lint",
+    "classes": ["latex"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "latex",
+    "fix": "check_only",
+    "platforms": [],
+    "state": "known",
+    "tool": "chktex",
+    "transport": "single",
+    "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+}
+
 POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -718,6 +748,8 @@ SUPPORT_RECORDS = [
     JSONNET_FORMAT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
+    LATEX_LATEXINDENT_FORMAT_SUPPORT,
+    LATEX_CHKTEX_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,
@@ -737,6 +769,30 @@ def _is_canonical_token(text):
         if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
             return False
     return True
+
+_ALL_PLATFORMS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]
+
+def _is_unbuilt(record):
+    """Reports whether a record names a tool with no pinned build on any platform.
+
+    Only a known record with a missing artifact may leave `platforms` empty, and it must list
+    every platform as unsupported.
+    """
+    unsupported = record.get("unsupported", [])
+    return (
+        record["artifact"] == "missing" and
+        record["state"] == "known" and
+        type(unsupported) == "list" and
+        sorted(unsupported) == _ALL_PLATFORMS
+    )
+
+def support_unpinned_tools(capability):
+    """Maps each tool of one capability with no pinned build anywhere to its unsupported platforms."""
+    unpinned = {}
+    for record in SUPPORT_RECORDS:
+        if record["capability"] == capability and len(record["platforms"]) == 0 and _is_unbuilt(record):
+            unpinned[record["tool"]] = sorted(record["unsupported"])
+    return unpinned
 
 def support_record_error(record):
     """Validates one support record against the adapter taxonomy."""
@@ -777,7 +833,9 @@ def support_record_error(record):
     if record["context"] not in ["owned", "target_coupled"]:
         return "support: tool '" + tool + "' needs context 'owned' or 'target_coupled', got '" + str(record["context"]) + "'"
     platforms = record["platforms"]
-    if type(platforms) != "list" or len(platforms) == 0:
+    if type(platforms) != "list":
+        return "support: tool '" + tool + "' needs a non-empty platform list"
+    if len(platforms) == 0 and not _is_unbuilt(record):
         return "support: tool '" + tool + "' needs a non-empty platform list"
     for platform in platforms:
         if not _is_canonical_token(platform):

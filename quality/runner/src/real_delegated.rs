@@ -175,6 +175,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "gofumpt",
         "jsonnetfmt",
         "julia_format",
+        "latexindent",
         "ktlint",
         "mix_format",
         "modfmt",

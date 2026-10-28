@@ -179,6 +179,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "jsonnetfmt",
             "julia_format",
             "keep_sorted",
+            "latexindent",
             "kubeconform",
             "ktfmt",
             "ktlint",

@@ -43,6 +43,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "jsonnetfmt",
     "julia_format",
     "keep_sorted",
+    "latexindent",
     "kubeconform",
     "ktfmt",
     "ktlint",

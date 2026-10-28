@@ -98,6 +98,10 @@ load("//quality/artifacts:terraform.linux_arm64.bzl", _terraform_linux_arm64 = "
 load("//quality/artifacts:terraform.linux_x86_64.bzl", _terraform_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:terraform.macos_arm64.bzl", _terraform_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:terraform.windows_x86_64.bzl", _terraform_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:latexindent.linux_arm64.bzl", _latexindent_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:latexindent.linux_x86_64.bzl", _latexindent_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:latexindent.macos_arm64.bzl", _latexindent_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:latexindent.windows_x86_64.bzl", _latexindent_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_arm64.bzl", _ty_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:ty.linux_x86_64.bzl", _ty_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:ty.macos_arm64.bzl", _ty_macos_arm64 = "ARTIFACT")
@@ -225,6 +229,10 @@ _ARTIFACTS = [
     _ty_linux_arm64,
     _ty_macos_arm64,
     _ty_windows_x86_64,
+    _latexindent_linux_x86_64,
+    _latexindent_linux_arm64,
+    _latexindent_macos_arm64,
+    _latexindent_windows_x86_64,
     _typstyle_linux_x86_64,
     _typstyle_linux_arm64,
     _typstyle_macos_arm64,

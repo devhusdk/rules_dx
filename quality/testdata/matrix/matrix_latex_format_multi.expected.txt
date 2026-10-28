@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_latex_format_multi
+capability FORMAT
+stages 1
+stage latexindent classes=latex sources=matrix/latex_multi/clean.tex,matrix/latex_multi/dirty.tex
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING latexindent - matrix/latex_multi/dirty.tex 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/latex_multi/dirty.tex 57 57 "\t"

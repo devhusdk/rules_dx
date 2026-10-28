@@ -183,6 +183,7 @@ ROWS = [
     {"name": "gherkin", "section": "formats", "title": "Gherkin"},
     {"name": "html_template", "section": "formats", "title": "HTML templates"},
     {"name": "jsonnet", "section": "formats", "title": "Jsonnet"},
+    {"name": "latex", "section": "formats", "title": "LaTeX"},
     {"name": "pkl", "section": "formats", "title": "Pkl"},
     {"name": "sql", "section": "formats", "title": "SQL"},
     {"name": "terraform", "section": "formats", "title": "Terraform"},

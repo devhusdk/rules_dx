@@ -3326,6 +3326,168 @@ fn tflint_plugin_failure_is_an_error_not_a_clean_run() {
     assert!(err.to_string().contains("tflint --init"), "{err}");
 }
 
+const LATEX_DIRTY: &str = "\\begin{itemize}\n\\item one\n\\end{itemize}\n";
+const LATEX_CLEAN: &str = "\\begin{itemize}\n\t\\item one\n\\end{itemize}\n";
+
+fn latexindent_tool(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let write = argv.iter().any(|arg| arg == "-w");
+    assert!(write || argv.iter().any(|arg| arg == "-k"));
+    let flag = |prefix: &str| {
+        argv.iter()
+            .filter_map(|arg| arg.to_str()?.strip_prefix(prefix).map(PathBuf::from))
+            .next()
+    };
+    let log = flag("-g=").expect("log goes to an explicit file");
+    let cruft = flag("-c=").expect("backups go to an explicit directory");
+    assert!(
+        log.starts_with(cwd),
+        "log {log:?} stays in the scratch tree"
+    );
+    assert!(
+        cruft.starts_with(cwd),
+        "cruft {cruft:?} stays in the scratch tree"
+    );
+    assert!(cruft.is_dir(), "the cruft directory exists");
+    assert!(
+        argv.iter().all(|arg| arg != "-l"),
+        "a bare -l would auto-load settings from the source directory"
+    );
+    let path = Path::new(argv.last().expect("file argument"));
+    let body = std::fs::read_to_string(path).expect("read staged latex file");
+    let formatted = body.replace("\n\\item", "\n\t\\item");
+    let mut code = 0;
+    let mut stdout = String::new();
+    if write {
+        std::fs::write(path, &formatted).expect("rewrite latex file");
+    } else if formatted != body {
+        stdout = formatted;
+        code = 1;
+    } else {
+        stdout = body;
+    }
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn latexindent_with_config(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert!(
+        argv.iter()
+            .any(|arg| arg.to_str().is_some_and(|arg| arg.starts_with("-l="))),
+        "a bound config is passed as -l=<file>"
+    );
+    latexindent_tool(argv, cwd, env)
+}
+
+fn latexindent_unknown_exit(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(7),
+        stdout: LATEX_CLEAN.as_bytes().to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn latexindent_fatal(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(3),
+        stdout: b"FATAL: I couldn't find a.tex, are you sure it exists?\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn latexindent_junk_stderr(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: LATEX_CLEAN.as_bytes().to_vec(),
+        stderr: b"Can't locate YAML/Tiny.pm\n".to_vec(),
+    })
+}
+
+#[test]
+fn latexindent_check_reports_dirty_files_by_workspace_path() {
+    let backend = backend_for("latexindent", plain_tool(), latexindent_tool);
+    let mut files = single("docs/a.tex", LATEX_DIRTY);
+    files.insert("docs/b.tex".to_owned(), LATEX_CLEAN.to_owned());
+    let findings = backend
+        .diagnose("latexindent", "format", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "latexindent");
+    assert_eq!(findings[0].path, "docs/a.tex");
+    assert!(backend
+        .diagnose("latexindent", "format", &single("docs/b.tex", LATEX_CLEAN))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn latexindent_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
+    let backend = backend_for("latexindent", plain_tool(), latexindent_tool);
+    let fixed = backend
+        .apply_fix("latexindent", "docs/a.tex", LATEX_DIRTY, "format")
+        .expect("fixed");
+    assert_eq!(fixed, LATEX_CLEAN);
+    assert!(backend
+        .diagnose("latexindent", "format", &single("docs/a.tex", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn latexindent_passes_the_bound_config_and_keeps_log_and_backups_in_scratch() {
+    let tool = RealTool {
+        config_rel: Some("cfg/localSettings.yaml".to_owned()),
+        ..plain_tool()
+    };
+    let backend = backend_for("latexindent", tool, latexindent_with_config);
+    let mut files = single("docs/a.tex", LATEX_DIRTY);
+    files.insert(
+        "cfg/localSettings.yaml".to_owned(),
+        "defaultIndent: \"  \"\n".to_owned(),
+    );
+    let findings = backend
+        .diagnose("latexindent", "format", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+fn latexindent_unknown_exit_fatal_and_stderr_are_never_clean() {
+    for tool in [
+        latexindent_unknown_exit as Spawn,
+        latexindent_fatal as Spawn,
+        latexindent_junk_stderr as Spawn,
+    ] {
+        let backend = backend_for("latexindent", plain_tool(), tool);
+        backend
+            .diagnose("latexindent", "format", &single("a.tex", LATEX_CLEAN))
+            .expect_err("malformed output is never clean");
+    }
+}
+
 fn credo_fake(
     argv: &[OsString],
     cwd: &Path,

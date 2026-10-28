@@ -1,4 +1,12 @@
 //! Converts a JVM doc adapter's "jvm api v1" JSON into one validated DocIr shard.
+//!
+//! Id rules: Kotlin top-level declarations use the Kotlin FQ name, never `FileKt`. An
+//! overload list holds erased simple types without `?` or generics. An extension's receiver
+//! type comes first, so `fun Circle.grow(by: Double)` is `grow(Circle,Double)`. A companion
+//! object is `Circle.Companion`. A Kotlin extension property carries a `receiver` type and gets
+//! `a.area@Circle`, so `val Circle.area` and `val Square.area` stay distinct. A Scala object
+//! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
+//! `property` are accepted only for the languages that have them.
 
 #![cfg_attr(
     not(test),
@@ -151,30 +159,86 @@ struct Kind {
     callable: bool,
 }
 
-fn kind_of(name: &str, at: &str) -> Result<Kind, String> {
+const JAVA_KINDS: &[&str] = &[
+    "constructor",
+    "method",
+    "field",
+    "constant",
+    "class",
+    "record",
+    "interface",
+    "annotation",
+    "enum",
+    "enum_constant",
+    "package",
+];
+const KOTLIN_KINDS: &[&str] = &[
+    "constructor",
+    "function",
+    "property",
+    "class",
+    "object",
+    "interface",
+    "annotation",
+    "enum",
+    "enum_constant",
+    "typealias",
+    "package",
+];
+const SCALA_KINDS: &[&str] = &[
+    "constructor",
+    "function",
+    "property",
+    "class",
+    "object",
+    "trait",
+    "typealias",
+    "enum",
+    "enum_constant",
+    "package",
+];
+
+fn kind_of(name: &str, language: &str, at: &str) -> Result<Kind, String> {
     let (kind, callable) = match name {
         "constructor" | "method" => (SymbolKind::Method, true),
+        "function" => (SymbolKind::Function, true),
         "field" => (SymbolKind::Field, false),
+        "property" => (SymbolKind::Property, false),
         "constant" => (SymbolKind::Constant, false),
-        "class" | "record" => (SymbolKind::Class, false),
-        "interface" | "annotation" => (SymbolKind::Interface, false),
+        "class" | "record" | "object" => (SymbolKind::Class, false),
+        "interface" | "annotation" | "trait" => (SymbolKind::Interface, false),
         "enum" => (SymbolKind::Enum, false),
         "enum_constant" => (SymbolKind::EnumVariant, false),
+        "typealias" => (SymbolKind::TypeAlias, false),
         "package" => (SymbolKind::Module, false),
         other => return Err(format!("{at} has unknown kind '{other}'")),
     };
+    let allowed = match language {
+        "java" => JAVA_KINDS,
+        "kotlin" => KOTLIN_KINDS,
+        _ => SCALA_KINDS,
+    };
+    if !allowed.contains(&name) {
+        return Err(format!("{at} has kind '{name}', not valid for {language}"));
+    }
     Ok(Kind { kind, callable })
 }
 
 /// The reader-facing key of a symbol: `a.B.m(int,String)`.
-fn key_of(qualified: &str, overload: Option<&[String]>) -> String {
-    match overload {
-        Some(types) => format!("{qualified}({})", types.join(",")),
-        None => qualified.to_owned(),
+fn key_of(qualified: &str, overload: Option<&[String]>, receiver: Option<&str>) -> String {
+    match (overload, receiver) {
+        (Some(types), _) => format!("{qualified}({})", types.join(",")),
+        (None, Some(receiver)) => format!("{qualified}@{receiver}"),
+        (None, None) => qualified.to_owned(),
     }
 }
 
-fn id_of(prefix: &str, qualified: &str, overload: Option<&[String]>) -> String {
+fn id_of(
+    prefix: &str,
+    qualified: &str,
+    overload: Option<&[String]>,
+    receiver: Option<&str>,
+) -> String {
     let mut segments: Vec<&str> = qualified.split('.').collect();
     let last = segments.pop().unwrap_or_default();
     let mut id = String::from(prefix);
@@ -182,7 +246,7 @@ fn id_of(prefix: &str, qualified: &str, overload: Option<&[String]>) -> String {
         id.push_str(&escape_segment(segment));
         id.push('.');
     }
-    id.push_str(&escape_segment(&key_of(last, overload)));
+    id.push_str(&escape_segment(&key_of(last, overload, receiver)));
     id
 }
 
@@ -285,7 +349,13 @@ struct Record {
     doc: String,
 }
 
-fn record(item: &Value, index: usize, prefix: &str, manifest: &Manifest) -> Result<Record, String> {
+fn record(
+    item: &Value,
+    index: usize,
+    prefix: &str,
+    language: &str,
+    manifest: &Manifest,
+) -> Result<Record, String> {
     let at = format!("JVM doc JSON symbol {index}");
     let item = item
         .as_object()
@@ -294,7 +364,7 @@ fn record(item: &Value, index: usize, prefix: &str, manifest: &Manifest) -> Resu
     if qualified.is_empty() || qualified.split('.').any(str::is_empty) {
         return Err(format!("{at} has an invalid name '{qualified}'"));
     }
-    let kind = kind_of(&string(item, "kind", &at)?, &at)?;
+    let kind = kind_of(&string(item, "kind", &at)?, language, &at)?;
     let overload = match optional(item, "overload") {
         Some(value) => Some(strings(value, "overload", &at)?),
         None => None,
@@ -303,6 +373,30 @@ fn record(item: &Value, index: usize, prefix: &str, manifest: &Manifest) -> Resu
         return Err(format!(
             "{at} '{qualified}' has an overload list that does not match its kind"
         ));
+    }
+    let receiver = match optional(item, "receiver") {
+        Some(value) => Some(
+            value
+                .as_str()
+                .filter(|text| !text.is_empty())
+                .ok_or_else(|| format!("{at} 'receiver' is not a non-empty string"))?
+                .to_owned(),
+        ),
+        None => None,
+    };
+    if receiver.is_some() && !(language == "kotlin" && kind.kind == SymbolKind::Property) {
+        return Err(format!(
+            "{at} '{qualified}' has a receiver, valid only for a kotlin property"
+        ));
+    }
+    if language == "scala" {
+        let is_object = string(item, "kind", &at)? == "object";
+        let last = qualified.rsplit('.').next().unwrap_or_default();
+        if is_object != last.ends_with('$') {
+            return Err(format!(
+                "{at} '{qualified}' must end in '$' exactly when it is a scala object"
+            ));
+        }
     }
     let file = string(item, "file", &at)?.replace('\\', "/");
     let Some((rel, generated)) = manifest.0.get(&file) else {
@@ -315,8 +409,8 @@ fn record(item: &Value, index: usize, prefix: &str, manifest: &Manifest) -> Resu
         .filter(|line| *line > 0)
         .ok_or_else(|| format!("{at} '{qualified}' has no positive line"))?;
     let types = overload.as_deref();
-    let key = key_of(&qualified, types);
-    let id = id_of(prefix, &qualified, types);
+    let key = key_of(&qualified, types, receiver.as_deref());
+    let id = id_of(prefix, &qualified, types, receiver.as_deref());
     let display_name = match types {
         Some(types) => format!("{qualified}({})", types.join(", ")),
         None => qualified.clone(),
@@ -429,7 +523,7 @@ pub fn convert(
     let mut records = Vec::new();
     let mut seen: BTreeMap<String, String> = BTreeMap::new();
     for (index, item) in items.iter().enumerate() {
-        let record = record(item, index, &prefix, &manifest)?;
+        let record = record(item, index, &prefix, language, &manifest)?;
         if let Some(first) = seen.insert(record.id.clone(), record.key.clone()) {
             return Err(format!(
                 "duplicate id {}: '{first}' and '{}'",

@@ -75,7 +75,7 @@ fn ids_escape_each_segment_and_the_overload_suffix() {
     assert_eq!(two.display_name, "a.Circle.scale(double, double)");
     assert_eq!(two.kind, SymbolKind::Method as i32);
     assert!(ids.contains(&"java:demo:a.Circle.Circle~28~29"));
-    assert_eq!(id_of("p:", "a.B$C.\u{e9}", None), "p:a.B~24C.~C3~A9");
+    assert_eq!(id_of("p:", "a.B$C.\u{e9}", None, None), "p:a.B~24C.~C3~A9");
 }
 
 #[test]
@@ -157,6 +157,14 @@ fn bad_inputs_are_rejected() {
     let mut zero = sym("a.X", "class", Value::Null, "");
     zero["line"] = json!(0);
     reject(one(zero), "line");
+    reject(
+        one(sym("a.X", "object", Value::Null, "")),
+        "not valid for java",
+    );
+    reject(
+        one(sym("a.X", "trait", Value::Null, "")),
+        "not valid for java",
+    );
     reject(one(sym("a.X", "widget", Value::Null, "")), "unknown kind");
     reject(one(sym("a.X", "method", Value::Null, "")), "overload");
     reject(doc(json!([])), "no public symbols");
@@ -198,4 +206,118 @@ fn parse_requires_every_flag() {
     .collect();
     assert_eq!(parse(&args).unwrap().dep_shards, vec!["d1", "d2"]);
     assert!(parse(&args[..4]).is_err());
+}
+
+fn kotlin_doc(symbols: Value) -> Value {
+    let mut value = doc(symbols);
+    value["language"] = json!("kotlin");
+    value["tool"] = json!("dokka");
+    value
+}
+
+fn run_kotlin(value: &Value) -> Result<DocIr, String> {
+    convert(&value.to_string(), "kotlin", "demo", MANIFEST, &[])
+}
+
+#[test]
+fn kotlin_kinds_and_receiver_overload_ids() {
+    let mut grow = sym("a.grow", "function", json!(["a.Circle", "double"]), "");
+    grow["overload"] = json!(["Circle", "Double"]);
+    let mut companion = sym("a.Circle.Companion", "object", Value::Null, "");
+    companion["member_of"] = json!("a.Circle");
+    let shard = run_kotlin(&kotlin_doc(json!([
+        sym("a.Circle", "class", Value::Null, ""),
+        companion,
+        sym("a.Alias", "typealias", Value::Null, ""),
+        sym("a.size", "property", Value::Null, ""),
+        grow,
+    ])))
+    .expect("kotlin converts");
+    let kinds: Vec<_> = shard.symbols.iter().map(|s| s.kind()).collect();
+    assert!(kinds.contains(&SymbolKind::TypeAlias));
+    assert!(kinds.contains(&SymbolKind::Property));
+    assert!(kinds.contains(&SymbolKind::Function));
+    let grow = shard
+        .symbols
+        .iter()
+        .find(|s| s.id.contains("grow"))
+        .expect("grow");
+    assert!(grow.id.contains("Circle"), "{}", grow.id);
+}
+
+#[test]
+fn kotlin_rejects_foreign_kinds_and_duplicate_overloads() {
+    let one = |item: Value| kotlin_doc(json!([item]));
+    let error = run_kotlin(&one(sym("a.X", "trait", Value::Null, ""))).expect_err("trait");
+    assert!(error.contains("not valid for kotlin"), "{error}");
+    let error = run_kotlin(&one(sym("a.X", "method", json!([]), ""))).expect_err("method");
+    assert!(error.contains("not valid for kotlin"), "{error}");
+    let twice = kotlin_doc(json!([
+        sym("a.f", "function", json!(["Int"]), ""),
+        sym("a.f", "function", json!(["Int"]), "")
+    ]));
+    let error = run_kotlin(&twice).expect_err("duplicate");
+    assert!(error.contains("duplicate id"), "{error}");
+}
+
+fn scala_doc(symbols: Value) -> Value {
+    let mut value = doc(symbols);
+    value["language"] = json!("scala");
+    value["tool"] = json!("scaladoc");
+    value
+}
+
+fn run_scala(value: &Value) -> Result<DocIr, String> {
+    convert(&value.to_string(), "scala", "demo", MANIFEST, &[])
+}
+
+#[test]
+fn scala_companion_object_gets_its_own_id() {
+    let shard = run_scala(&scala_doc(json!([
+        sym("a.Circle", "class", Value::Null, ""),
+        sym("a.Circle$", "object", Value::Null, ""),
+        sym("a.Color", "enum", Value::Null, ""),
+        sym("a.Color.Red", "enum_constant", Value::Null, ""),
+    ])))
+    .expect("scala converts");
+    let ids: BTreeSet<_> = shard.symbols.iter().map(|s| s.id.clone()).collect();
+    assert_eq!(ids.len(), 4, "{ids:?}");
+    let error = run_scala(&scala_doc(json!([sym(
+        "a.Circle",
+        "object",
+        Value::Null,
+        ""
+    )])))
+    .expect_err("unmarked object");
+    assert!(error.contains("scala object"), "{error}");
+    let error = run_scala(&scala_doc(json!([sym(
+        "a.Circle$",
+        "class",
+        Value::Null,
+        ""
+    )])))
+    .expect_err("marked class");
+    assert!(error.contains("scala object"), "{error}");
+}
+
+#[test]
+fn kotlin_extension_properties_include_the_receiver() {
+    let ext = |receiver: &str| {
+        let mut item = sym("a.area", "property", Value::Null, "");
+        item["receiver"] = json!(receiver);
+        item
+    };
+    let shard = run_kotlin(&kotlin_doc(json!([
+        ext("Circle"),
+        ext("Square"),
+        sym("a.area", "property", Value::Null, ""),
+        sym("a.area", "function", json!(["Circle"]), ""),
+    ])))
+    .expect("kotlin converts");
+    let ids: BTreeSet<_> = shard.symbols.iter().map(|s| s.id.clone()).collect();
+    assert_eq!(ids.len(), 4, "{ids:?}");
+    let mut bad = sym("a.f", "function", json!([]), "");
+    bad["receiver"] = json!("Circle");
+    let error = run_kotlin(&kotlin_doc(json!([bad]))).expect_err("function receiver");
+    assert!(error.contains("receiver"), "{error}");
 }

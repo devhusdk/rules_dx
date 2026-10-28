@@ -32,6 +32,14 @@ mod tests {
     const FILE: &str = "fortran/a.f90";
 
     #[test]
+    fn flang_accepts_a_dot_slash_path() {
+        let text = "./fortran/a.f90:3:7: error: No explicit type declared for 'y'\n";
+        let found = parse_flang(text.as_bytes(), Some(1), &[FILE]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, FILE);
+    }
+
+    #[test]
     fn flang_reports_errors_and_skips_excerpts() {
         let text = "fortran/a.f90:3:7: error: No explicit type declared for 'y'\n    y = 1\n        ^\nerror: Semantic errors in fortran/a.f90\n";
         let found = parse_flang(text.as_bytes(), Some(1), &[FILE]).expect("parsed");

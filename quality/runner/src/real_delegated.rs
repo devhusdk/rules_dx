@@ -1406,6 +1406,95 @@ fn nvcc_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
     tool
 }
 
+fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool {
+    let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let mut tool = delegated_tool(log.to_path_buf());
+    tool.tool_files = exit
+        .map(|text| {
+            vec![(
+                format!("dx-compile-check/{stem}/exit"),
+                text.as_bytes().to_vec(),
+            )]
+        })
+        .unwrap_or_default();
+    let _ = tool_id;
+    tool
+}
+
+const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
+
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 2] = [
+    (
+        "flang",
+        "src/a.f90",
+        "src/a.f90:3:7: error: No explicit type declared for 'y'\nerror: Semantic errors in src/a.f90\n",
+        "src/gen.f90:3:7: error: No explicit type declared for 'y'\n",
+    ),
+    (
+        "ldc",
+        "src/a.d",
+        "src/a.d:4:9: Error: undefined identifier `y`\n",
+        "src/gen.d:4:9: Error: undefined identifier `y`\n",
+    ),
+];
+
+#[test]
+fn delegated_compile_check_reads_clean_and_owned_errors() {
+    for (tool_id, path, owned, _) in COMPILE_CHECK_CASES {
+        let clean = upstream_file(tool_id, "");
+        let found = backend_for(
+            tool_id,
+            compile_check_tool(tool_id, clean.path(), Some("0\n")),
+            must_not_spawn,
+        )
+        .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+        .expect("clean");
+        assert!(found.is_empty(), "{tool_id}");
+
+        let dirty = upstream_file(tool_id, owned);
+        let found = backend_for(
+            tool_id,
+            compile_check_tool(tool_id, dirty.path(), Some("1\n")),
+            must_not_spawn,
+        )
+        .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+        .expect("dirty");
+        assert_eq!(found.len(), 1, "{tool_id}");
+        assert_eq!(found[0].path, path);
+    }
+}
+
+#[test]
+fn delegated_compile_check_fails_closed() {
+    for (tool_id, path, _, foreign) in COMPILE_CHECK_CASES {
+        let empty = upstream_file(tool_id, "");
+        let foreign_log = upstream_file(tool_id, foreign);
+        for (tool, needle) in [
+            (
+                compile_check_tool(tool_id, empty.path(), None),
+                "exit status",
+            ),
+            (
+                compile_check_tool(tool_id, empty.path(), Some("1")),
+                "exit 1",
+            ),
+            (
+                compile_check_tool(tool_id, foreign_log.path(), Some("1")),
+                tool_id,
+            ),
+        ] {
+            let error = backend_for(tool_id, tool, must_not_spawn)
+                .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+                .expect_err("fail closed");
+            assert!(error.to_string().contains(needle), "{tool_id}: {error}");
+        }
+        let error = backend_for(tool_id, plain_tool(), must_not_spawn)
+            .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+            .expect_err("no upstream");
+        assert!(error.to_string().contains("requires upstream diagnostics"));
+    }
+}
+
 const TSC_SOURCE: &str = "export const n: number = 'x';\n";
 const TSC_OWNED: &str =
     "src/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n";

@@ -95,12 +95,13 @@ pub(super) fn read(
         if head.message.is_empty() {
             return Err(ParseError::shape(tool, format!("malformed message: {raw}")));
         }
-        let owned = files.iter().copied().find(|file| *file == head.file);
+        let name = head.file.strip_prefix("./").unwrap_or(head.file);
+        let owned = files.iter().copied().find(|file| *file == name);
         let Some(file) = owned else {
             if severity == ToolSeverity::Error {
                 return Err(ParseError::UnknownFile {
                     tool,
-                    path: head.file.to_owned(),
+                    path: name.to_owned(),
                 });
             }
             continue;

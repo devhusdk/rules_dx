@@ -71,11 +71,11 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` |
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | `csc` on `linux_x86_64` |
 | CUDA | no | `clang_format` | `nvcc_syntax` |
-| D | `dscanner` | `dfmt` | no |
+| D | `dscanner` | `dfmt` | `ldc` |
 | Dart | `dart` | `dart` | `dart` |
 | Elixir | `credo` | `mix_format` | `dialyzer` |
 | Erlang | `elvis` | `erlfmt` | `dialyzer` |
-| Fortran | `fortitude` on `linux_x86_64` | no | no |
+| Fortran | `fortitude` on `linux_x86_64` | no | `flang` |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `gotype` |
 | Haskell | `hlint` on `linux_x86_64` | `ormolu` on `linux_x86_64`, `windows_x86_64`, `windows_arm64` | no |

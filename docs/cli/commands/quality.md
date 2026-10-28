@@ -260,6 +260,7 @@ to.
 | `eslint` | lint | astro, javascript, mdx, svelte, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
+| `flang` | typecheck | fortran |
 | `flatc` | lint, typecheck | flatbuffers |
 | `fortitude` | lint | fortran |
 | `fsharplint` | lint | fsharp |
@@ -281,6 +282,7 @@ to.
 | `ktlint` | lint | kotlin |
 | `kubeconform` | lint | kubernetes |
 | `latexindent` | format | latex |
+| `ldc` | typecheck | d |
 | `markdown_check` | lint | markdown |
 | `mbake` | format | make |
 | `credo` | lint | elixir |
@@ -336,7 +338,7 @@ C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clan
 
 CUDA (`nvcc_syntax`) typecheck is opt-in (`typecheck = ["nvcc_syntax"]` on the `cuda` family). It replays each `CudaCompile` action with the exact nvcc command line, inputs and environment Bazel configured, changing only `-c` to `-cuda` (nvcc's front-end stage, which stops before the host compile), the output to `/dev/null`, and dropping dependency-file and keep-temporary flags. Nothing else is translated, so `-gencode`, `-Xcompiler` and `-ccbin` match the real build. Device compilation and ptxas still run for every `-gencode` architecture, so the check is heavy; it is only cheaper than the build by the host compile. Host-compiler-only warnings (for example `-W` flags passed through `-Xcompiler`) are not reported. Diagnostics inside a header owned by another target are dropped because nvcc prints no include chain; the failing exit then reports an error without a located finding. Params files and header-only `cuda_library` targets (which have no compile action) fail with an explicit error. The tool has no fix support.
 
-Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format` and `no-typecheck`, so `dx format` and `dx typecheck` skip them. The `fortitude` linter is described under Fortran below.
+Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format`, so `dx format` skips them. The `fortitude` linter is described under Fortran below. Typecheck is opt-in, see Fortran and D typechecking.
 
 OCaml (`ocaml`) has no formatter and no linter. OCaml targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
 
@@ -810,6 +812,21 @@ javac pass on top of the real compile, only under `dx typecheck` and
 `dx check`; `bazel build` is unchanged. The classpath is the transitive compile
 classpath, so strict-deps violations are not reported. Java sources inside
 `kt_jvm_library` targets, Kotlin and Scala are not typechecked yet.
+
+### Fortran and D typechecking
+
+`flang` (Fortran) and `ldc` (D) are opt-in: select them with
+`typecheck = ["flang"]` on a `fortran` family or `typecheck = ["ldc"]` on a `d`
+family. Each one replays the compile action that the Fortran or D rules
+configured, so the compiler, flags, include paths and module directories match
+the real build. The replay only checks syntax and types. It writes no object
+files, headers or module files into the build outputs. An error is reported at
+its line and column in the target's own sources. A failed run with no error in
+those sources fails the run instead of passing it. Both tools run on Linux
+x86_64 only and never fix, so `--apply` changes nothing. Fortran modules that a
+source takes from another source of the same target come from the real build:
+a type error in the providing source fails `bazel build` instead of showing as
+a finding.
 
 ### TypeScript typechecking
 

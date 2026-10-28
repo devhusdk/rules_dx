@@ -4,6 +4,9 @@ use super::*;
 
 type SarifParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
 
+type CompileLogParser =
+    fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
+
 impl RealBackend {
     pub(super) fn check_clippy_delegated(
         &self,
@@ -403,6 +406,71 @@ impl RealBackend {
                         tool_id,
                         format!(
                             "{tool_id} needs the compiler exit status for {stem}; the {tool_id} aspect did not supply it"
+                        ),
+                    )
+                })?;
+            findings.extend(parsed(tool_id, parse(&bytes, Some(code), &workspaces))?);
+        }
+        for found in &mut findings {
+            let absolute = reanchor(tool_id, pairs, &found.file)?;
+            found.file = absolute.to_string_lossy().into_owned();
+        }
+        Ok(findings)
+    }
+
+    pub(super) fn check_compile_log_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let workspaces: Vec<&str> = pairs
+            .iter()
+            .map(|(workspace, _)| workspace.as_str())
+            .collect();
+        let parse: CompileLogParser = match tool_id {
+            "flang" => parsers::parse_flang,
+            "ldc" => parsers::parse_ldc,
+            other => {
+                return Err(execution(
+                    other,
+                    "no compile-check parser is registered for this tool".to_owned(),
+                ));
+            }
+        };
+        if tool.upstream_diagnostics.is_empty() {
+            return Err(execution(
+                tool_id,
+                format!(
+                    "{tool_id} requires upstream diagnostics from a declared delegated compile replay: direct execution without the authoritative compilation context is rejected"
+                ),
+            ));
+        }
+        let mut findings = Vec::new();
+        for path in &tool.upstream_diagnostics {
+            let bytes = std::fs::read(path)
+                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+            let stem = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!("{tool_id} log {} has no name", path.display()),
+                    )
+                })?;
+            let key = format!("dx-compile-check/{stem}/exit");
+            let code = tool
+                .tool_files
+                .iter()
+                .find(|(rel, _)| *rel == key)
+                .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
+                .and_then(|text| text.trim().parse::<i32>().ok())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "{tool_id} needs the compiler exit status for {stem}; the compile-check aspect did not supply it"
                         ),
                     )
                 })?;

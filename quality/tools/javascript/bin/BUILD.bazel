@@ -81,6 +81,17 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+# Isolated launcher: never loads vueCompilerOptions.plugins or any module outside its node_modules.
+js_binary(
+    name = "vue_component_meta",
+    data = [
+        "//quality/tools/javascript:node_modules/typescript",
+        "//quality/tools/javascript:node_modules/vue-component-meta",
+    ],
+    entry_point = "vue_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
 # The stock CLI, only for the isolation test's control build.
 typedoc_bin.typedoc_binary(
     name = "typedoc_stock",

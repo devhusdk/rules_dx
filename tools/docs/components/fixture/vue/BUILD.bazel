@@ -1,0 +1,40 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/components:defs.bzl", "vue_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+vue_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.vue"]),
+    entry_points = [
+        "src/Button.vue",
+        "src/Badge.vue",
+    ],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+
+# The same sources under a looser compiler configuration, to prove the
+# configuration is part of the shard's identity.
+vue_doc_shard(
+    name = "ui_docs_loose",
+    srcs = glob(["src/*.vue"]) + ["tsconfig.json"],
+    entry_points = [
+        "src/Button.vue",
+        "src/Badge.vue",
+    ],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.loose.json",
+)
+
+exports_files(["src/Button.vue"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

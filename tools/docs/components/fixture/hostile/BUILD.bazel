@@ -1,0 +1,25 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+# Not a vue_doc_shard: the launcher must refuse this project, so the isolation
+# test runs the launcher on these files directly.
+filegroup(
+    name = "project",
+    testonly = True,
+    srcs = glob([
+        "plugins/*.cjs",
+        "src/*.vue",
+    ]) + [
+        "tsconfig.base.json",
+        "tsconfig.json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

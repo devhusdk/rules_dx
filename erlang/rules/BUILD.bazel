@@ -8,6 +8,7 @@ exports_files([
     "defs.bzl",
     "beam.bzl",
     "dialyzer.bzl",
+    "nif_exports.lds",
     "plt_fixup.escript",
     "providers.bzl",
     "wrapper_tests.bzl",

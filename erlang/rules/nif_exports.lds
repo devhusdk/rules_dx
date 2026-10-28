@@ -1,0 +1,6 @@
+{
+  global:
+    nif_init;
+  local:
+    *;
+};

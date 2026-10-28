@@ -46,7 +46,7 @@ escript_archive(
 | `eunit` | EUnit test over `target` and `compiled_suites` |
 | `ct_suite` | Common Test suite from `test/<name>.erl` with `test/<name>_data/` |
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
-| `erlang_nif` | NIF shared library from declared C `srcs` and `hdrs`, placed at `priv/<name>.so` |
+| `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, placed at `priv/<name>.so` |
 
 ```python
 erlang_nif(
@@ -67,7 +67,12 @@ Declare the NIF in the package of the app that loads it and pass it through
 the pinned OTP. `erlang:load_nif/2` takes `priv/<name>` without the extension.
 An `escript_archive` whose app, or any app it bundles, ships a NIF fails at
 analysis time: Erlang cannot load a NIF from inside an escript archive. Run the
-app with `erlang_app` or ship it in a release instead. Under `bazel coverage` the C
+app with `erlang_app`; this refusal is final, releases that carry NIFs are
+tracked separately. Each NIF links its own
+static libc++ on Linux and uses the SDK's libc++ on macOS. Only `nif_init` is
+exported (version script on Linux, `-exported_symbol` on macOS), so the runtime
+never binds to beam's libstdc++. C++ exceptions must not cross the NIF
+boundary, and NIFs cannot rely on exporting other symbols. Under `bazel coverage` the C
 lines join the Erlang lines in the report.
 
 `erlang_app` and `test_erlang_app` pass `tags` to every target they build; the

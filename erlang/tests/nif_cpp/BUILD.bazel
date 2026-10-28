@@ -1,0 +1,70 @@
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_nif", "erlc_opts", "eunit", "test_erlang_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//erlang/tests/runtime:__pkg__"],
+)
+
+erlang_nif(
+    name = "dx_cpp_a_nif",
+    srcs = ["//erlang/tests/nif_cpp/c_src:dx_cpp_a_nif.cc"],
+)
+
+erlang_nif(
+    name = "dx_cpp_b_nif",
+    srcs = ["//erlang/tests/nif_cpp/c_src:dx_cpp_b_nif.cc"],
+)
+
+erlang_app(
+    app_description = "Two C++ NIFs that load in one VM.",
+    app_name = "dx_cpp",
+    app_version = "1.0.0",
+    nifs = [
+        ":dx_cpp_a_nif",
+        ":dx_cpp_b_nif",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+test_erlang_app(
+    app_name = "dx_cpp",
+    app_version = "1.0.0",
+    nifs = [
+        ":dx_cpp_a_nif",
+        ":dx_cpp_b_nif",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "test_modules",
+    testonly = True,
+    srcs = ["test/dx_cpp_nif_tests.erl"],
+    outs = ["test/dx_cpp_nif_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+eunit(
+    name = "eunit",
+    size = "small",
+    compiled_suites = [":test_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//erlang/tests/runtime:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

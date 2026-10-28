@@ -77,6 +77,7 @@ REAL_ADAPTERS = {
     "ktlint": {"lint": ["kotlin"]},
     "kubeconform": {"lint": ["kubernetes"]},
     "markdown_check": {"lint": ["markdown"]},
+    "mbake": {"format": ["make"]},
     "mix_format": {"format": ["elixir"]},
     "modfmt": {"format": ["go_module"]},
     "nixfmt": {"format": ["nix"]},

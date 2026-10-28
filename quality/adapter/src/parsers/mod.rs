@@ -53,6 +53,7 @@ pub mod latexindent;
 pub mod ldc;
 pub mod luals;
 pub mod markdown;
+pub mod mbake;
 pub mod mix_format;
 pub mod modfmt;
 pub mod nixfmt;
@@ -158,6 +159,7 @@ pub use latexindent::parse_latexindent;
 pub use ldc::parse_ldc;
 pub use luals::parse_luals;
 pub use markdown::parse_markdown_findings;
+pub use mbake::parse_mbake;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
 pub use nixfmt::parse_nixfmt;
@@ -2319,6 +2321,14 @@ mod tests {
         super::gplint::parse_gplint(input, code, files)
     }
 
+    fn fuzz_mbake(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::mbake::parse_mbake(input, input, code, files)
+    }
+
     fn fuzz_gersemi(
         input: &[u8],
         code: Option<i32>,
@@ -2648,6 +2658,7 @@ mod tests {
         ("check_jsonschema", fuzz_check_jsonschema),
         ("kubeconform", fuzz_kubeconform),
         ("latexindent", fuzz_latexindent),
+        ("mbake", fuzz_mbake),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("luals", fuzz_luals),
@@ -2766,6 +2777,7 @@ mod tests {
         ("ktlint", include_str!("ktlint.rs")),
         ("luals", include_str!("luals.rs")),
         ("markdown", include_str!("markdown.rs")),
+        ("mbake", include_str!("mbake.rs")),
         ("notebook_outputs", include_str!("notebook_outputs.rs")),
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),

@@ -363,6 +363,21 @@ workspace_policy(
     families = [":make_family"],
 )
 
+quality_family(
+    name = "make_format_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "make",
+    format = ["mbake"],
+)
+
+workspace_policy(
+    name = "make_format_policy",
+    families = [":make_format_family"],
+)
+
 filegroup(
     name = "make_module",
     srcs = [

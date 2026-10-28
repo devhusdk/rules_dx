@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_make_format_fail
+capability FORMAT
+stages 1
+stage mbake classes=make sources=matrix/make_format_dirty/Makefile
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING mbake - matrix/make_format_dirty/Makefile 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/make_format_dirty/Makefile 2 26 " = gcc\n\nall:\n\techo hi"

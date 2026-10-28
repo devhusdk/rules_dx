@@ -12,6 +12,11 @@ const RULES_MK: &str = ".PHONY: sub\nsub:\n\t@echo sub\n";
 
 const UNOWNED: &str = "all:\n\t@echo unowned\n";
 
+// Space-indented recipe, compact assignment and trailing blanks: mbake reformats all three.
+const UNFORMATTED: &str = "CC=gcc\n\nall:\n    @echo $(CC)  \n";
+
+const FORMATTED: &str = "CC = gcc\n\nall:\n\t@echo $(CC)\n";
+
 const NO_MINPHONY: &str = "[minphony]\ndisabled=true\n";
 
 const MODULE: &str = r#"module(name = "consumer")
@@ -37,6 +42,21 @@ quality_family(
 workspace_policy(
     name = "policy",
     families = [":make_family"],
+)
+
+quality_family(
+    name = "make_format_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "make",
+    format = ["mbake"],
+)
+
+workspace_policy(
+    name = "format_policy",
+    families = [":make_format_family"],
 )
 
 checkmake_config(
@@ -104,19 +124,19 @@ fn consumer() -> Case {
 }
 
 fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
+    dx_policy(root, command, args, "//:policy")
+}
+
+fn dx_policy(root: &Case, command: &str, args: &[&str], policy: &str) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
     let home_dir = scratch("make-home");
     let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
-    argv.extend_from_slice(&[
-        "--workspace",
-        workspace.as_str(),
-        "//...",
-        "--",
-        "--@rules_dx//config:workspace=//:policy",
-    ]);
+    argv.extend_from_slice(&["--workspace", workspace.as_str(), "//...", "--"]);
+    let setting = format!("--@rules_dx//config:workspace={policy}");
+    argv.push(setting.as_str());
     root.run(
         &resolve_runfiles(&rel),
         &argv,
@@ -188,4 +208,32 @@ fn stray_unbound_configs_next_to_the_sources_are_ignored() {
         "{}",
         out.combined()
     );
+}
+
+#[test]
+fn format_reports_an_unformatted_file_and_apply_repairs_only_owned_files() {
+    let root = consumer();
+    let clean = dx_policy(&root, "format", &[], "//:format_policy");
+    assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
+
+    write(&root.join("Makefile"), UNFORMATTED);
+    write(&root.join("vendor/Makefile"), UNFORMATTED);
+    let dirty = dx_policy(&root, "format", &[], "//:format_policy");
+    assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+    assert!(
+        dirty.combined().contains("Makefile:") && !dirty.combined().contains("vendor/"),
+        "{}",
+        dirty.combined()
+    );
+    assert_eq!(read(&root.join("Makefile")), UNFORMATTED);
+
+    let applied = dx_policy(&root, "format", &["--apply"], "//:format_policy");
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("Makefile")), FORMATTED);
+    assert_eq!(read(&root.join("GNUmakefile")), CLEAN);
+    assert_eq!(read(&root.join("sub/rules.mk")), RULES_MK);
+    assert_eq!(read(&root.join("vendor/Makefile")), UNFORMATTED);
+
+    let again = dx_policy(&root, "format", &[], "//:format_policy");
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
 }

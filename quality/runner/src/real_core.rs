@@ -200,6 +200,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "ktlint",
             "luals",
             "markdown_check",
+            "mbake",
             "mix_format",
             "modfmt",
             "nixfmt",

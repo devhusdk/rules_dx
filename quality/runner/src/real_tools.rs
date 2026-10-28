@@ -2368,6 +2368,126 @@ fn gersemi_failing_without_a_diff_is_an_error_not_a_clean_run() {
         .is_err());
 }
 
+/// Stands in for mbake: a file holding `BAD` is unformatted, a fix run rewrites it to `GOOD`.
+fn mbake_run(
+    argv: &[OsString],
+    env: &[(OsString, OsString)],
+    config_tail: &str,
+    config_bytes: &[u8],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for key in ["HOME", "XDG_CONFIG_HOME"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches mbake"
+        );
+    }
+    assert!(env
+        .iter()
+        .any(|(key, value)| key == "NO_COLOR" && value == "1"));
+    assert!(env
+        .iter()
+        .any(|(key, value)| key == "TERM" && value == "dumb"));
+    assert!(env
+        .iter()
+        .any(|(key, value)| key == "COLUMNS" && value == "100000"));
+    assert_eq!(argv[1], OsString::from("format"));
+    let flags: Vec<String> = argv[1..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    for banned in ["--validate", "--diff", "update"] {
+        assert!(
+            !flags.iter().any(|arg| arg == banned),
+            "{banned} is never passed"
+        );
+    }
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("mbake always gets --config");
+    let config = PathBuf::from(&argv[at + 1]);
+    assert!(config.ends_with(config_tail), "{config:?}");
+    assert_eq!(
+        std::fs::read(&config).expect("config is staged"),
+        config_bytes
+    );
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    if !flags.iter().any(|arg| arg == "--check") {
+        std::fs::write(&file, text.replace("BAD", "GOOD")).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: format!("Formatted: {file}\n").into_bytes(),
+            stderr: Vec::new(),
+        });
+    }
+    if !text.contains("BAD") {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: b"\nSummary: Processed 1 files\n".to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: format!("Would reformat: {file}\n\nSummary: Processed 1 files\n").into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn mbake_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    mbake_run(
+        argv,
+        env,
+        "dx-mbake-default/.bake.toml",
+        b"[formatter]\nensure_final_newline = true\n",
+    )
+}
+
+fn mbake_config_error(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"Error: Configuration file not found at /x/.bake.toml.\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn mbake_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
+    let backend = backend_for("mbake", plain_tool(), mbake_defaults);
+    let findings = backend
+        .diagnose("mbake", "format", &single("Makefile", "BAD\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "mbake");
+    assert!(backend
+        .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
+        .expect("diagnosed")
+        .is_empty());
+    let fixed = backend
+        .apply_fix("mbake", "Makefile", "BAD\n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, "GOOD\n");
+}
+
+#[test]
+fn mbake_failing_without_a_file_is_an_error_not_a_clean_run() {
+    let backend = backend_for("mbake", plain_tool(), mbake_config_error);
+    assert!(backend
+        .diagnose("mbake", "format", &single("Makefile", "GOOD\n"))
+        .is_err());
+}
+
 fn elvis_report(argv: &[OsString], cwd: &Path, config_tail: &str) -> io::Result<ChildOutput> {
     let at = argv
         .iter()

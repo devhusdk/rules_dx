@@ -282,6 +282,7 @@ to.
 | `kubeconform` | lint | kubernetes |
 | `latexindent` | format | latex |
 | `markdown_check` | lint | markdown |
+| `mbake` | format | make |
 | `credo` | lint | elixir |
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
@@ -3694,15 +3695,17 @@ needs `linelength=` to match, or `filter=-linelength` to drop the check.
 
 ### Make
 
-`checkmake` lints Makefiles. It runs from a managed pin on Linux x86_64, Linux
-arm64, macOS arm64 and Windows x86_64. It is opt-in: no default policy selects
-it, because its `minphony` rule fires on most real Makefiles. dx never runs
-`make`. There is no formatter.
+`checkmake` lints Makefiles and `mbake` formats them. `checkmake` runs from a
+managed pin on Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64.
+`mbake` is a pinned Python tool and runs on Linux x86_64 only. Both are opt-in:
+no default policy selects either, because the `checkmake` `minphony` rule fires
+on most real Makefiles. dx never runs `make`.
 
 ```python
 quality_family(
     name = "make_family",
     family_id = "make",
+    format = ["mbake"],
     lint = ["checkmake"],
 )
 ```
@@ -3749,6 +3752,39 @@ checkmake_config(
 make_library(
     name = "build",
     aspect_hints = [":checkmake"],
+    srcs = ["Makefile"],
+)
+```
+
+`mbake` formatting is the part that `--apply` rewrites:
+
+```sh
+bazel run @rules_dx//:dx -- format //...
+bazel run @rules_dx//:dx -- format --apply //...
+```
+
+`mbake` never reads `~/.bake.toml` or a `.bake.toml` from the workspace. Without
+a bound config dx passes a default that keeps every mbake default except
+`ensure_final_newline = true`: it does not insert `.PHONY` declarations, group
+them, or align variable assignments. To change the rules, bind an
+`mbake_config` (a `.bake.toml`) to the target with `aspect_hints`. dx never
+passes `--validate` (it runs the host `make`) and never runs `mbake update`.
+mbake does not reject a Makefile as a syntax error, so `format` reports only
+files that would change, at line 1. mbake output is parsed from the exit code
+and the `Would reformat:` file names, and anything else is an error and never a
+clean run.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "mbake_config")
+
+mbake_config(
+    name = "mbake",
+    src = ".bake.toml",
+)
+
+make_library(
+    name = "build",
+    aspect_hints = [":mbake"],
     srcs = ["Makefile"],
 )
 ```

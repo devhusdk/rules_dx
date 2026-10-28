@@ -21,7 +21,7 @@ def _make_library_impl(ctx):
 
 make_library = rule(
     implementation = _make_library_impl,
-    doc = "Owns the Makefiles of one package for dx lint (checkmake).",
+    doc = "Owns the Makefiles of one package for dx lint (checkmake) and dx format (mbake).",
     attrs = {
         "srcs": attr.label_list(
             allow_files = True,

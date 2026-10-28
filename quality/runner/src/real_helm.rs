@@ -204,6 +204,7 @@ fn helm_maps_invalid_rendered_documents_to_their_template() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].path, "charts/app/templates/deploy.yaml");
     assert_eq!(findings[0].tool_id, "helm");
+    assert_eq!(findings[0].start_byte, Some(0));
 }
 
 #[test]

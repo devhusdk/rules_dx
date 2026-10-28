@@ -34,6 +34,12 @@ fn moved_finding(mut found: FileFinding, rendered: &str) -> FileFinding {
     found
 }
 
+fn reset_position(mut found: FileFinding) -> FileFinding {
+    found.finding.start = TextPosition { line: 1, column: 1 };
+    found.finding.end = None;
+    found
+}
+
 fn join_rel(root: &str, rel: &str) -> String {
     if root.is_empty() {
         rel.to_owned()
@@ -207,7 +213,7 @@ impl RealBackend {
                     checked
                         .problems
                         .into_iter()
-                        .map(|problem| preflight_finding(&absolute, problem)),
+                        .map(|problem| reset_position(preflight_finding(&absolute, problem))),
                 );
                 owned.push(entry);
             } else {
@@ -231,13 +237,11 @@ impl RealBackend {
             search_paths: Vec::new(),
             path_tools: Vec::new(),
         };
-        findings.extend(self.validate_documents(
-            "kubeconform",
-            &kubeconform,
-            scratch,
-            config_path,
-            &owned,
-        )?);
+        findings.extend(
+            self.validate_documents("kubeconform", &kubeconform, scratch, config_path, &owned)?
+                .into_iter()
+                .map(reset_position),
+        );
         for (path, entry) in unowned {
             let found = self.validate_documents(
                 "kubeconform",

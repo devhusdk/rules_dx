@@ -30,3 +30,16 @@ python_doc_shard(
     library = ":mylib",
     package = "mylib",
 )
+
+python_library(
+    name = "npylib",
+    srcs = ["src/npylib/__init__.py"],
+    imports = ["src"],
+)
+
+python_doc_shard(
+    name = "npylib_docs",
+    docstyle = "numpy",
+    library = ":npylib",
+    package = "npylib",
+)

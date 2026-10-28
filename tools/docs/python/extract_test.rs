@@ -68,3 +68,18 @@ fn sources_are_repo_relative_and_generated_modules_are_flagged() {
         }
     }
 }
+
+#[test]
+fn the_numpy_shard_supplies_param_types_and_docs() {
+    let bytes = std::fs::read(runfile("DX_FIXTURE_NUMPY_SHARD")).expect("read the shard");
+    let shard = decode_shard(&bytes).expect("the shard decodes");
+    validate_shard(&shard).expect("validate_shard passes");
+    assert_eq!(shard.package, "npylib");
+    let scale = shard
+        .symbols
+        .iter()
+        .find(|s| s.id == "python:npylib:scale")
+        .expect("scale");
+    assert_eq!(scale.params[0].r#type, "list of int");
+    assert_eq!(scale.params[1].doc, "The factor.");
+}

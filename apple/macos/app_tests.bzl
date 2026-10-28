@@ -2,7 +2,7 @@
 
 load("//apple/bundle:defs.bzl", "bundle_id_errors", "bundle_version_errors")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":app.bzl", "default_macos_app", "macos_app_errors", "plugin_errors")
+load(":app.bzl", "default_macos_app", "macos_app_errors", "owner_relative_path", "plugin_errors")
 
 def _app(**kwargs):
     base = default_macos_app()
@@ -120,6 +120,10 @@ def _app_checks():
         macos_app_errors(_app(plugins = [""])),
         ["apple_macos_app: plugin names must not be empty"],
     ))
+    checks.append(expect_equal("same package path is stripped", owner_relative_path("pkg/x/Foo.bundle/a", "pkg"), "x/Foo.bundle/a"))
+    checks.append(expect_equal("external repo path is stripped", owner_relative_path("../repo+/pkg/f", "pkg"), "f"))
+    checks.append(expect_equal("root package path is kept", owner_relative_path("f", ""), "f"))
+    checks.append(expect_equal("other package is not stripped", owner_relative_path("other/f", "pkg"), "other/f"))
     return checks
 
 def apple_macos_app_tests(name):

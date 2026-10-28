@@ -541,8 +541,10 @@ apple_macos_app(
 `srcs` holds the native entry point. `library` is any target with
 `CcInfo` that links one static archive, such as `rust_static_library`.
 The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
-embedded under `Contents/Frameworks`, and `plugins` takes files placed
-under `Contents/PlugIns`. Without `infoplists`, the app gets a default
+`macos_dynamic_framework` targets, checked by bundle name under
+`Contents/Frameworks`. `plugins` takes `macos_bundle` targets, checked as
+`<bundle_name>.bundle`, binaries, or files placed by their package-relative
+path under `Contents/PlugIns`. Without `infoplists`, the app gets a default
 `Info.plist`.
 
 Your `MODULE.bazel` needs the Rust macOS triple and the Xcode C/C++
@@ -600,6 +602,7 @@ Failures read:
 
 - `apple_macos_app: arch 'x86_64' is outside macos: want arm64`
 - `apple_macos_app: deployment '13.0' is below 14.0`
+- `apple_macos_app: plugin '//app:empty' places nothing under PlugIns`
 - `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`
 - `apple_macos_app: building signs ad hoc only; signing is a separate operation`
 - `apple_macos_app: srcs or library is required; pass the native entry point or a Rust static library`

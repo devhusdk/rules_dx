@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_ansible_lint_pass
+capability LINT
+stages 1
+stage ansible_lint classes=ansible sources=matrix/ansible_clean/playbooks/site.yml,matrix/ansible_clean/roles/web/tasks/main.yml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

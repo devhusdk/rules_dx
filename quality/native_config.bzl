@@ -27,6 +27,7 @@ CONFIG_REQUIRED_TOOLS = {
 }
 
 _NATIVE_CONFIG_SUFFIXES = {
+    "ansible_lint": [".ansible-lint", ".yml", ".yaml"],
     "biome": [".json"],
     "buf": [".yaml"],
     "buildifier": [".json"],
@@ -231,6 +232,8 @@ yamlfmt_config = _make_native_config_rule("yamlfmt")
 shellcheck_config = _make_native_config_rule("shellcheck")
 
 yamllint_config = _make_native_config_rule("yamllint")
+
+ansible_lint_config = _make_native_config_rule("ansible_lint")
 
 hadolint_config = _make_native_config_rule("hadolint")
 checkmake_config = _make_native_config_rule("checkmake")

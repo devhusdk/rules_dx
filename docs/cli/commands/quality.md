@@ -225,6 +225,7 @@ to.
 
 | Tool ID | Verbs | Families |
 | --- | --- | --- |
+| `ansible_lint` | lint | ansible |
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
@@ -2199,6 +2200,59 @@ yaml_library(
         "//:relaxed",
     ],
     srcs = ["app.yaml"],
+)
+```
+
+### Ansible
+
+`ansible-lint` lints Ansible playbooks, roles and tasks. It is check-only and
+opt-in: add `ansible_lint` to an `ansible` family. It runs from a managed pin on
+Linux x86_64, Linux arm64 and macOS arm64. Upstream has no Windows build, so
+`ansible_lint` fails on Windows with `ansible_lint: no upstream Windows build
+(windows_x86_64 is unsupported); remove ansible_lint from this family on
+Windows`.
+
+```python
+quality_family(
+    name = "ansible_family",
+    family_id = "ansible",
+    lint = ["ansible_lint"],
+)
+```
+
+Own the files with `ansible_library` from `@rules_dx//ansible/rules:defs.bzl`.
+List the `.yml` and `.yaml` files of the package in `srcs`. Files whose path
+matches an Ansible layout (playbooks, `tasks/`, `handlers/`, `vars/`, `meta/`
+and so on) are linted by `ansible-lint`. Other YAML stays in the `yaml` family.
+Name playbooks that do not match a layout in `playbooks`; each must also be in
+`srcs`.
+
+```sh
+bazel run @rules_dx//:dx -- lint //ansible/...
+```
+
+`ansible-lint` runs offline: no collection installs, schema refresh or version
+check. A syntax error or load failure is an error and never counts as clean.
+Any exit code other than clean or violations fails the run with the last line
+of `ansible-lint` stderr. There is no `--apply` for Ansible yet, and
+collections are not yet supported, so use modules from `ansible.builtin`.
+
+To change rules, bind an `ansible_lint_config` (an `.ansible-lint` file) to the
+targets with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "ansible_lint_config")
+
+ansible_lint_config(
+    name = "relaxed",
+    src = ".ansible-lint",
+    visibility = ["//visibility:public"],
+)
+
+ansible_library(
+    name = "site",
+    aspect_hints = ["//:relaxed"],
+    srcs = ["playbooks/site.yml"],
 )
 ```
 

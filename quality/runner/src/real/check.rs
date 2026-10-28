@@ -1153,6 +1153,19 @@ impl RealBackend {
                     )
                 },
             ),
+            "ansible_lint" => {
+                let invocation = commands::ansible_lint_check(
+                    &tool.binary,
+                    &refs,
+                    config.as_deref(),
+                    scratch.root(),
+                );
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_ansible_lint(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {

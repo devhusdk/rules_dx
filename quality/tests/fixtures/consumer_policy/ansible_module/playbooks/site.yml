@@ -1,0 +1,8 @@
+---
+- name: Configure web servers
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Report readiness
+      ansible.builtin.debug:
+        msg: ready

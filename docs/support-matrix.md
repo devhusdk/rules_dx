@@ -96,7 +96,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Qt | `qmllint` | `qmlformat` | no |
-| Ansible | `ansible_lint` | no | no |
+| Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | no | no |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | CUE | no | `cue` on `linux_x86_64` | no |
 | FlatBuffers | `flatc` on `linux_x86_64` | no | no |

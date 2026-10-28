@@ -3,39 +3,12 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
-use documentation_ir::{decode_shard, validate_shard};
+use documentation_ir::proto::SymbolKind;
+use documentation_ir::validate_shard;
+use jvm_test_support::{ids, line_of, runfile, shard, symbol};
 
 const SHAPES: &str = "java:shapes:dx.fixture.shapes.";
 const CIRCLE: &str = "tools/docs/jvm/fixture/java/dx/fixture/shapes/Circle.java";
-
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn shard(var: &str) -> DocIr {
-    let bytes = std::fs::read(runfile(var)).expect("read the shard");
-    decode_shard(&bytes).expect("the shard decodes")
-}
-
-fn find<'a>(shard: &'a DocIr, id: &str) -> Option<&'a Symbol> {
-    shard.symbols.iter().find(|s| s.id == id)
-}
-
-fn symbol<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
-    find(shard, id).unwrap_or_else(|| panic!("{id} is missing"))
-}
-
-/// Returns the 1-based line of the first fixture line that contains `needle`.
-fn line_of(var: &str, needle: &str) -> u64 {
-    let text = std::fs::read_to_string(runfile(var)).expect("read the fixture");
-    let index = text
-        .lines()
-        .position(|line| line.contains(needle))
-        .unwrap_or_else(|| panic!("{needle} is not in the fixture"));
-    index as u64 + 1
-}
 
 #[test]
 fn the_shapes_shard_maps_every_public_symbol() {
@@ -73,10 +46,6 @@ fn the_shapes_shard_maps_every_public_symbol() {
             ids(&shard)
         );
     }
-}
-
-fn ids(shard: &DocIr) -> Vec<&str> {
-    shard.symbols.iter().map(|s| s.id.as_str()).collect()
 }
 
 #[test]

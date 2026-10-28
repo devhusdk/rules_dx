@@ -66,6 +66,31 @@ class ApiRecordWriterTest {
   }
 
   @Test
+  void writesTheReceiverOfAnExtensionPropertyAndOrdersByIt() {
+    ApiRecordWriter.Symbol circle = receiverProperty("Circle");
+    ApiRecordWriter.Symbol square = receiverProperty("Square");
+    String json = ApiRecordWriter.render("kotlin", "dokka", "2.2.0", List.of(square, circle));
+    assertTrue(json.contains("\"receiver\":\"Circle\",\"kind\":\"property\""), json);
+    assertTrue(json.indexOf("\"Circle\"") < json.indexOf("\"Square\""), json);
+  }
+
+  private static ApiRecordWriter.Symbol receiverProperty(String receiver) {
+    return new ApiRecordWriter.Symbol(
+        "a.area",
+        null,
+        "property",
+        "val area: Double",
+        "",
+        null,
+        null,
+        "a/X.kt",
+        4,
+        "a",
+        List.of(),
+        receiver);
+  }
+
+  @Test
   void ordersSymbolsStablyWhateverTheInputOrder() {
     ApiRecordWriter.Symbol a = type("a.A", "");
     ApiRecordWriter.Symbol b = type("a.B", "");

@@ -1,13 +1,17 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//java/rules:defs.bzl", "java_library")
+load("//kotlin/rules:defs.bzl", "kotlin_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/docs/jvm:defs.bzl", "java_doc_shard")
+load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
 exports_files(
     [
+        "kotlin/dx/fixture/paint/Square.kt",
+        "kotlin/dx/fixture/shapes/Circle.kt",
+        "kotlin/dx/fixture/shapes/Shape.kt",
         "java/dx/fixture/paint/Square.java",
         "java/dx/fixture/shapes/Circle.java",
         "java/dx/fixture/shapes/Shape.java",
@@ -116,5 +120,40 @@ java_doc_shard(
     name = "reexport_docs",
     lib = ":reexport",
     package = "reexport",
+    tags = ["manual"],
+)
+
+kotlin_library(
+    name = "kotlin_shapes",
+    srcs = [
+        "kotlin/dx/fixture/shapes/Circle.kt",
+        "kotlin/dx/fixture/shapes/Extras.kt",
+        "kotlin/dx/fixture/shapes/Shape.kt",
+    ],
+)
+
+kotlin_library(
+    name = "kotlin_paint",
+    srcs = ["kotlin/dx/fixture/paint/Square.kt"],
+    deps = [":kotlin_shapes"],
+)
+
+kotlin_doc_shard(
+    name = "kotlin_shapes_docs",
+    lib = ":kotlin_shapes",
+    package = "shapes",
+)
+
+kotlin_doc_shard(
+    name = "kotlin_paint_docs",
+    lib = ":kotlin_paint",
+    package = "paint",
+    deps = [":kotlin_shapes_docs"],
+)
+
+kotlin_doc_shard(
+    name = "kotlin_paint_nodep_docs",
+    lib = ":kotlin_paint",
+    package = "paint",
     tags = ["manual"],
 )

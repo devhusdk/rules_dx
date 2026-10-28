@@ -3,6 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "dokka_install.json",
     "maven_install.json",
     "pins.bzl",
 ])

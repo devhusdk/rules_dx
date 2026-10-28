@@ -1024,6 +1024,13 @@ QT_COMPATIBLE_WITH = select(
     {"//conditions:default": [Label("@platforms//:incompatible")]},
 )
 
+# target_compatible_with for targets that run on any qualified cell, including
+# macOS; QT_COMPATIBLE_WITH covers glibc consumer cells only.
+QT_HOST_COMPATIBLE_WITH = select(
+    {_cell_setting(cell): [] for cell in qualified_cells()} |
+    {"//conditions:default": [Label("@platforms//:incompatible")]},
+)
+
 # consumer_archive arch of the qualified cell the build targets.
 QT_CONSUMER_ARCH = select(
     {_cell_setting(cell): qt_consumer_identity(cell).arch for cell in _CONSUMER_CELLS} |

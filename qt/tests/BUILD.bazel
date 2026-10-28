@@ -2,7 +2,7 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
+load("//qt/rules:defs.bzl", "QT_HOST_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -12,13 +12,6 @@ load(":rules_tests.bzl", "qt_rules_tests")
 _LINUX = select({
     "@platforms//cpu:arm64": ["@platforms//os:linux"],
     "@platforms//cpu:x86_64": ["@platforms//os:linux"],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
-
-_HOSTS = select({
-    "@dx_qt//:linux_arm64": [],
-    "@dx_qt//:linux_x86_64": [],
-    "@dx_qt//:macos_arm64": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
@@ -40,7 +33,7 @@ _LINUX_X86_64 = [
 qt_frameworks(
     name = "probe_qt_frameworks",
     tags = ["manual"],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
     deps = ["@dx_qt//:qml"],
 )
 
@@ -51,7 +44,7 @@ cc_binary(
     data = ["@dx_qt//:qml_imports"],
     linkstatic = False,
     tags = ["manual"],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
     deps = [
         ":probe_qt_frameworks",
         "@dx_qt//:qml",
@@ -158,7 +151,7 @@ rust_test(
         "block-network",
         "no-remote-exec",
     ],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -334,7 +327,7 @@ qt_cc_library(
         "test",
         "widgets",
     ],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
 )
 
 qt_cc_test(
@@ -345,7 +338,7 @@ qt_cc_test(
         "test",
         "widgets",
     ],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
     deps = [":gui"],
 )
 
@@ -358,7 +351,7 @@ qt_cc_binary(
         "widgets",
     ],
     tags = ["manual"],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
     deps = [":gui"],
 )
 
@@ -587,5 +580,5 @@ qt_cc_test(
     size = "small",
     srcs = ["fixtures/plugin_path.cc"],
     plugins = ["imageformats"],
-    target_compatible_with = _HOSTS,
+    target_compatible_with = QT_HOST_COMPATIBLE_WITH,
 )

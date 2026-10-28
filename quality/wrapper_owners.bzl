@@ -40,6 +40,7 @@ WRAPPER_OWNERS = {
     "markdown": "other",
     "mdx": "//mdx/rules:defs.bzl",
     "nix": "//nix/rules:defs.bzl",
+    "typst": "//typst/rules:defs.bzl",
     "objc": "//cc/rules:defs.bzl",
     "ocaml": "//ocaml/rules:defs.bzl",
     "perl": "//perl/rules:defs.bzl",

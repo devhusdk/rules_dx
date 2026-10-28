@@ -2987,3 +2987,139 @@ fn notebooks_only_settle_through_ruff() {
         "y"
     );
 }
+
+const TYPST_DIRTY: &str = "#let   x = 1\n";
+const TYPST_CLEAN: &str = "#let x = 1\n";
+const TYPST_ERRONEOUS: &str = "#let x = (erroneous\n";
+
+fn typstyle_tool(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(
+        env.iter()
+            .any(|(key, value)| key == "NO_COLOR" && value == "1"),
+        "typstyle runs without colour"
+    );
+    let write = argv.iter().any(|arg| arg == "-i");
+    assert!(write || argv.iter().any(|arg| arg == "--check"));
+    assert!(!argv.iter().any(|arg| arg == "-q"), "-q hides the listing");
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let mut code = 0;
+    for arg in argv
+        .iter()
+        .skip(1)
+        .filter(|arg| !arg.to_string_lossy().starts_with('-'))
+    {
+        let path = Path::new(arg);
+        let shown = path
+            .strip_prefix(cwd)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .into_owned();
+        let body = std::fs::read_to_string(path).expect("read staged typst file");
+        if body.contains("erroneous") {
+            stderr.push_str(&format!(
+                "warn: Failed to parse {shown}. The source is erroneous.\n"
+            ));
+        } else if body.contains("   ") {
+            if write {
+                std::fs::write(path, body.replace("   ", " ")).expect("rewrite typst file");
+            } else {
+                stdout.push_str(&format!("Would reformat: {shown}\n"));
+                code = 1;
+            }
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+fn typstyle_unknown_exit(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(7),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn typstyle_junk(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"all good\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn typstyle_check_reports_dirty_files_by_workspace_path() {
+    let backend = backend_for("typstyle", plain_tool(), typstyle_tool);
+    let mut files = single("docs/a.typ", TYPST_DIRTY);
+    files.insert("docs/b.typ".to_owned(), TYPST_CLEAN.to_owned());
+    let findings = backend
+        .diagnose("typstyle", "format", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "typstyle");
+    assert_eq!(findings[0].path, "docs/a.typ");
+    assert!(backend
+        .diagnose("typstyle", "format", &single("docs/b.typ", TYPST_CLEAN))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn typstyle_apply_rewrites_the_owned_file_and_the_recheck_is_clean() {
+    let backend = backend_for("typstyle", plain_tool(), typstyle_tool);
+    let fixed = backend
+        .apply_fix("typstyle", "docs/a.typ", TYPST_DIRTY, "format")
+        .expect("fixed");
+    assert_eq!(fixed, TYPST_CLEAN);
+    assert!(backend
+        .diagnose("typstyle", "format", &single("docs/a.typ", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn typstyle_syntax_error_at_exit_zero_is_never_clean() {
+    let backend = backend_for("typstyle", plain_tool(), typstyle_tool);
+    let findings = backend
+        .diagnose("typstyle", "format", &single("a.typ", TYPST_ERRONEOUS))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "a.typ");
+    // typstyle leaves the erroneous file as it was, so the recheck still reports it.
+    let kept = backend
+        .apply_fix("typstyle", "a.typ", TYPST_ERRONEOUS, "format")
+        .expect("fix round completes");
+    assert_eq!(kept, TYPST_ERRONEOUS);
+    let again = backend
+        .diagnose("typstyle", "format", &single("a.typ", &kept))
+        .expect("diagnosed");
+    assert_eq!(again.len(), 1);
+}
+
+#[test]
+fn typstyle_unknown_exit_and_junk_output_are_never_clean() {
+    for tool in [typstyle_unknown_exit as Spawn, typstyle_junk as Spawn] {
+        let backend = backend_for("typstyle", plain_tool(), tool);
+        backend
+            .diagnose("typstyle", "format", &single("a.typ", TYPST_CLEAN))
+            .expect_err("malformed output is never clean");
+    }
+}

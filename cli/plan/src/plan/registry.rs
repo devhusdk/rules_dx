@@ -76,6 +76,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_scala_format_aspect",
                 "quality:real_aspects.bzl%real_shell_format_aspect",
                 "quality:real_aspects.bzl%real_terraform_format_aspect",
+                "quality:real_aspects.bzl%real_typst_format_aspect",
                 "quality:real_aspects.bzl%real_html_template_format_aspect",
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
@@ -328,6 +329,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_scala_format_aspect",
                 "quality:real_aspects.bzl%real_shell_format_aspect",
                 "quality:real_aspects.bzl%real_terraform_format_aspect",
+                "quality:real_aspects.bzl%real_typst_format_aspect",
                 "quality:real_aspects.bzl%real_html_template_format_aspect",
                 "quality:real_aspects.bzl%real_yaml_format_aspect",
             ]

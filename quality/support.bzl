@@ -452,6 +452,20 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+TYPST_TYPSTYLE_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["typst"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "typst",
+    "fix": "supported",
+    "platforms": ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "typstyle",
+    "transport": "batched",
+}
+
 POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -614,6 +628,7 @@ SUPPORT_RECORDS = [
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
+    TYPST_TYPSTYLE_FORMAT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,

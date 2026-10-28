@@ -284,6 +284,7 @@ to.
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
 | `ty` | typecheck | python |
+| `typstyle` | format | typst |
 | `vale` | lint | markdown |
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
@@ -886,6 +887,32 @@ To use another ormolu executable, point `tool_ormolu` at it.
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_ormolu=//tools:ormolu
 ```
+
+### Typst
+
+`typstyle` runs from the managed pin for format. Select it in a `typst` family.
+It runs on Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64.
+
+```python
+quality_family(
+    name = "typst_family",
+    family_id = "typst",
+    format = ["typstyle"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //docs/...
+bazel run @rules_dx//:dx -- format --apply //docs/...
+```
+
+Own Typst files with `typst_library` from `@rules_dx//typst/rules:defs.bzl`.
+List the `.typ` files of the package in `srcs` and the libraries it imports in
+`deps`. A check never writes. `--apply` rewrites only the files the selected
+targets own. An unformatted file is reported at the start of the file. A
+syntax error fails the run with the file named. `typstyle` exits 0 on a syntax
+error, so dx reads its warning and never counts that file as clean. `typstyle`
+has no config file, so it runs with its upstream defaults.
 
 ### Pkl
 

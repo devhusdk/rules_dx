@@ -377,6 +377,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_jsonnet",
         },
         {
+            "case": "typst_formatted",
+            "expected_dx_results": [
+                "clean_typst-real-format-typst.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:typst_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_typst",
+        },
+        {
             "case": "lua_formatted",
             "expected_dx_results": [
                 "clean_lua-real-format-lua.pb",
@@ -525,6 +533,7 @@ test_suite(
         ":consumer_policy_nix_linted_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
+        ":consumer_policy_typst_formatted_test",
         ":consumer_policy_yaml_formatted_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",

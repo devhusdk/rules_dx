@@ -186,6 +186,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "standardrb",
         "stylua",
         "terraform",
+        "typstyle",
         "yamlfmt",
         "zig_fmt",
     ] {

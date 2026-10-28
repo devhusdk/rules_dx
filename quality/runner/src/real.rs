@@ -74,6 +74,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "taplo",
     "terraform",
     "ty",
+    "typstyle",
     "vale",
     "yamlfmt",
     "yamllint",
@@ -418,6 +419,9 @@ impl RealBackend {
             if let Some(pair) = javascript_manifest(&tool.binary) {
                 env.push(pair);
             }
+        }
+        if tool_id == "typstyle" {
+            env.push((OsString::from("NO_COLOR"), OsString::from("1")));
         }
         if tool_id == "redocly" {
             env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));

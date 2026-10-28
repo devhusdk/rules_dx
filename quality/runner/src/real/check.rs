@@ -791,6 +791,15 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "typstyle" => {
+                let invocation = commands::typstyle_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let cwd = scratch.root().join(&cwd_rel);
+                parsed(
+                    tool_id,
+                    parsers::parse_typstyle(&out.stdout, &out.stderr, out.code, &strs, &cwd),
+                )
+            }
             "erlfmt" => {
                 let invocation = commands::erlfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

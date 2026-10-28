@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//lua/rules:defs.bzl", "lua_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -13,10 +14,33 @@ exports_files(
     visibility = ["//tools/testing/hermetic:__pkg__"] + APPS,
 )
 
+string_flag(
+    name = "order",
+    build_setting_default = "file",
+    values = [
+        "file",
+        "name",
+    ],
+)
+
+config_setting(
+    name = "by_name",
+    flag_values = {":order": "name"},
+)
+
 lua_binary(
     name = "units",
     data = ["//examples/lua-app/catalog:units"],
-    env = {"UNITS": "$(rlocationpath //examples/lua-app/catalog:units)"},
+    env = select({
+        ":by_name": {
+            "UNITS": "$(rlocationpath //examples/lua-app/catalog:units)",
+            "UNITS_ORDER": "name",
+        },
+        "//conditions:default": {
+            "UNITS": "$(rlocationpath //examples/lua-app/catalog:units)",
+            "UNITS_ORDER": "file",
+        },
+    }),
     main = "main.lua",
     deps = [
         "//examples/lua-app/catalog",
@@ -29,8 +53,22 @@ sh_test(
     size = "small",
     srcs = ["exit_codes.sh"],
     args = ["$(rootpath :units)"],
-    data = [":units"],
-    env = {"UNITS": "_main/examples/lua-app/catalog/units.tsv"},
+    data = [
+        ":units",
+        "//examples/lua-app/catalog:units",
+    ],
+    env = select({
+        ":by_name": {
+            "UNITS": "$(rlocationpath //examples/lua-app/catalog:units)",
+            "UNITS_ORDER": "name",
+            "WANT_ORDER": "name",
+        },
+        "//conditions:default": {
+            "UNITS": "$(rlocationpath //examples/lua-app/catalog:units)",
+            "UNITS_ORDER": "file",
+            "WANT_ORDER": "file",
+        },
+    }),
 )
 
 real_source_target(

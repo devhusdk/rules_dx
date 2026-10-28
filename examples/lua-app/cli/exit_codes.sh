@@ -17,10 +17,17 @@ check() {
   fi
 }
 
-report="lamp 4 x 1250 = 5000
+if [ "${WANT_ORDER:-file}" = name ]; then
+  report="cable 12 x 199 = 2388
+fuse 0 x 35 = 0
+lamp 4 x 1250 = 5000
+total 7388"
+else
+  report="lamp 4 x 1250 = 5000
 cable 12 x 199 = 2388
 fuse 0 x 35 = 0
 total 7388"
+fi
 
 check 0 "$report" ""
 check 0 "$report" "" report
@@ -29,5 +36,16 @@ check 4 "" "units: no unit bulb" get bulb
 check 2 "" "usage: units [report | --dump | get NAME]" sell
 check 2 "" "usage: units [report | --dump | get NAME]" get
 check 2 "" "usage: units [report | --dump | get NAME]" report extra
+
+# An unreadable data file exits 1 with the system error.
+out=$(UNITS=_main/no/such/units.tsv "$bin" report 2>"${TEST_TMPDIR:-/tmp}/stderr")
+code=$?
+case "$code:$(cat "${TEST_TMPDIR:-/tmp}/stderr")" in
+  1:units:*) ;;
+  *)
+    echo "FAIL: missing data file -> $code '$out' '$(cat "${TEST_TMPDIR:-/tmp}/stderr")'"
+    failures=$((failures + 1))
+    ;;
+esac
 
 exit "$failures"

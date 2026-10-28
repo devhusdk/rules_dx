@@ -25,6 +25,12 @@ if not units then
 	fail(1, "units: " .. err)
 end
 
+if os.getenv("UNITS_ORDER") == "name" then
+	table.sort(units, function(a, b)
+		return a.name < b.name
+	end)
+end
+
 if command == "report" then
 	print(table.concat(report.lines(units), "\n"))
 elseif command == "--dump" then

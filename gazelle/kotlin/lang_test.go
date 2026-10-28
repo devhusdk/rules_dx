@@ -88,10 +88,10 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		"pkg/demo/Demo.kt":     "package demo\n\nimport com.example.Widget\n\nclass Demo\n",
 		"pkg/demo/Helper.kt":   "package demo\n\nimport java.util.List\n\nclass Helper\n",
 		"pkg/demo/notes.txt":   "not a source\n",
-		"pkg/demo/DemoTest.kt": "package demo\n\nimport org.junit.Test\n\nclass DemoTest\n",
+		"pkg/demo/DemoTest.kt": "package demo\n\nclass DemoTest\n",
 	}, regular)
-	if len(result.Gen) != 1 || len(result.Imports) != 1 {
-		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 2 || len(result.Imports) != 2 {
+		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	lib := result.Gen[0]
 	if lib.Kind() != LibraryKind || lib.Name() != "demo" {
@@ -106,20 +106,39 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	}
 }
 
-func TestGenerateTestSourcesExcluded(t *testing.T) {
+func TestGenerateTestTarget(t *testing.T) {
 	regular := []string{"Demo.kt", "DemoTest.kt"}
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/Demo.kt":     "package demo\n\nclass Demo\n",
 		"pkg/demo/DemoTest.kt": "package demo\n\nimport com.example.OnlyByTest\n\nclass DemoTest\n",
 	}, regular)
-	if len(result.Gen) != 1 || len(result.Imports) != 1 {
-		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 2 || len(result.Imports) != 2 {
+		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Demo.kt" {
 		t.Errorf("library srcs = %q, want Demo.kt", got)
 	}
 	if got := result.Imports[0].(common.ImportSet); len(got.Names) != 0 {
 		t.Errorf("library imports = %+v, want empty", got.Names)
+	}
+	test := result.Gen[1]
+	if test.Kind() != TestKind || test.Name() != "demo_test" {
+		t.Fatalf("test = %s(%s), want kotlin_test(demo_test)", test.Kind(), test.Name())
+	}
+	if got := test.AttrString("test_class"); got != "demo.DemoTest" {
+		t.Errorf("test_class = %q, want demo.DemoTest", got)
+	}
+	if got := strings.Join(test.AttrStrings("deps"), ","); got != ":demo" {
+		t.Errorf("test deps = %q, want :demo", got)
+	}
+	if got := result.Imports[1].(common.ImportSet); strings.Join(got.Names, ",") != "com.example.OnlyByTest" {
+		t.Errorf("test imports = %+v, want [com.example.OnlyByTest]", got.Names)
+	}
+}
+
+func TestTestTargetName(t *testing.T) {
+	if got, err := TestTargetName("InvoiceReaderTest.kt"); err != nil || got != "invoice_reader_test" {
+		t.Errorf("TestTargetName = %q, %v", got, err)
 	}
 }
 

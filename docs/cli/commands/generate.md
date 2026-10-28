@@ -129,12 +129,13 @@ manifests, labels from other packages and `select` values are skipped.
 
 ## Test targets
 
-For Java, each `*Test.java` source gets its own `java_test`. The target name
-is the file stem in snake case, so `GreetTest.java` becomes `greet_test`.
-`test_class` is the class qualified by its `package` line. When the directory
+For Java and Kotlin, each `*Test.java` or `*Test.kt` source gets its own
+`java_test` or `kotlin_test`. The target name is the file stem in snake case,
+so `GreetTest.java` becomes `greet_test`. `test_class` is the class qualified
+by its `package` line. When the directory
 also has a library, the test depends on it. The test's own imports resolve
-like library imports, except JUnit 4 (`org.junit`), which the test runner
-already supplies. JUnit 5 imports still need a resolve mapping.
+like library imports, except JUnit 4 (`org.junit`) in Java, which the test
+runner already supplies. Kotlin tests resolve every import, JUnit included.
 
 A handwritten test rule that already lists a test source in `srcs` owns it.
 Generation then emits nothing for that source and keeps the rule. A `java_test`

@@ -1,4 +1,4 @@
-load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library", "kotlin_test")
 
 filegroup(
     name = "assets",
@@ -14,6 +14,14 @@ kotlin_library(
     data = ["README.txt"],
     tags = ["manual"],
     visibility = ["//visibility:public"],
+)
+
+kotlin_test(
+    name = "demo_test",
+    size = "small",
+    srcs = ["DemoTest.kt"],
+    test_class = "demo.Stale",
+    deps = ["//stale:dep"],
 )
 
 kotlin_library(

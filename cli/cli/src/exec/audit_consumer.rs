@@ -847,4 +847,64 @@ repository = "maven"
             }
         }
     }
+
+    const NUGET_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "dotnet"
+ecosystem = "nuget"
+manifests = ["dn/paket.dependencies"]
+locks = ["dn/paket.lock", "dn/paket.main.bzl", "dn/paket.main_extension.bzl"]
+scopes = ["dn"]
+"#;
+
+    const NUGET_ADVISORY: &str = r#"[{
+        "id": "GHSA-nuget-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "NuGet", "name": "Example.Lib"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0"}, {"fixed": "1.2"}]}]
+        }]
+    }]"#;
+
+    fn nuget_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, NUGET_TOML, false);
+        harness.write_source(
+            "dn/paket.dependencies",
+            "source https://api.nuget.org/v3/index.json\nnuget Example.Lib\n",
+        );
+        harness.write_source(
+            "dn/paket.lock",
+            "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Example.Lib (1.1)\n",
+        );
+        harness.write_source("dn/paket.main.bzl", "main\n");
+        harness.write_source("dn/paket.main_extension.bzl", "ext\n");
+        harness
+    }
+
+    #[test]
+    fn consumer_nuget_set_reads_its_paket_lock_and_the_nuget_snapshot() {
+        let harness = nuget_harness("nuget-vuln");
+        write_advisory(&harness, "nuget", NUGET_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "dotnet"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("GHSA-nuget-0001"), "{out}");
+        assert!(out.contains("dn/paket.lock"), "{out}");
+    }
+
+    #[test]
+    fn consumer_nuget_missing_snapshot_fails_and_is_never_clean() {
+        let harness = nuget_harness("nuget-missing");
+        write_advisory(&harness, "pypi", NO_ADVISORIES);
+        let runner = clean_runner();
+        let (code, out, err) =
+            run_with(&["security", "--output=json", "dotnet"], &runner, &harness);
+        assert_ne!(code, 0, "{out}{err}");
+        assert!(out.contains("failed to assess dotnet"), "{out}{err}");
+        assert!(out.contains(".dx/advisory/nuget.json"), "{out}{err}");
+        assert!(!out.contains("audit_security_clean"), "{out}");
+    }
 }

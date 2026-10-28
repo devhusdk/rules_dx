@@ -328,6 +328,9 @@ fn run_backends(
                 dx_update::backend::BackendPlan::Run { argv, env } => {
                     dx_update::backend::CheckPlan::Run { argv, env }
                 }
+                dx_update::backend::BackendPlan::Staged(run) => {
+                    dx_update::backend::CheckPlan::Staged(run)
+                }
                 dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
             }),
             RunMode::Check => dx_update::backend::check(
@@ -353,6 +356,16 @@ fn run_backends(
                 );
             }
             Ok(dx_update::backend::CheckPlan::Unavailable) => {
+                record_named(
+                    &mut attempted,
+                    &mut details,
+                    name,
+                    dx_update::outcome::SetStatus::Unsupported,
+                    unavailable_message(name),
+                );
+            }
+            // Builtin sets never plan a staged run; only configured nuget sets do.
+            Ok(dx_update::backend::CheckPlan::Staged(_)) => {
                 record_named(
                     &mut attempted,
                     &mut details,

@@ -548,6 +548,7 @@ rust_test(
         "//cli/cli/tests/latency:corpus_starlark",
         "//cli/cli/tests/maven_sets:corpus_starlark",
         "//cli/cli/tests/npm_sets:corpus_starlark",
+        "//cli/cli/tests/nuget_sets:corpus_starlark",
         "//cli/cli/tests/results_consumer:corpus_starlark",
         "//cli/cli/tests/startup_consistency:corpus_starlark",
         "//cli/cli/tests/uv_sets:corpus_starlark",

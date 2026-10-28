@@ -548,6 +548,12 @@ fn parse_locked_for_configured(
                 Some(name) if name.ends_with(".json") => dx_audit::locks::parse_maven_install(text),
                 _ => Ok(Vec::new()),
             },
+            dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::PAKET_LOCK) => {
+                    dx_audit::locks::parse_paket_lock(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
                 Some(dx_adopt::dependency_sets::CARGO_LOCK) => {
                     dx_audit::locks::parse_cargo_lock(text)

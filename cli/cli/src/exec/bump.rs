@@ -668,6 +668,44 @@ scopes = ["tools/ps"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    #[test]
+    fn consumer_nuget_set_refuses_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-nuget");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[[dependency_set]]\nname = \"dotnet\"\necosystem = \"nuget\"\nmanifests = [\"paket.dependencies\"]\nlocks = [\"paket.lock\", \"paket.main.bzl\", \"paket.main_extension.bzl\"]\nscopes = [\".\"]\n",
+        );
+        let files = [
+            (
+                "paket.dependencies",
+                "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
+            ),
+            ("paket.lock", "NUGET\n"),
+            ("paket.main.bzl", "main\n"),
+            ("paket.main_extension.bzl", "ext\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        let (code, _, err) = harness.run(&["bump", "dotnet:Newtonsoft.Json", "13.0.3", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "bump is not supported for ecosystem nuget set dotnet \
+(supported operations: check, update, audit)"
+            ),
+            "{err}"
+        );
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
     const BAZEL_SET_DX_TOML: &str = r#"
 schema_version = 1
 

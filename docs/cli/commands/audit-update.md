@@ -552,13 +552,13 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`, `npm`, `bazel`, `ruby`, `powershell`, `cargo`, or `maven`), workspace-relative
+(`uv`, `npm`, `bazel`, `ruby`, `powershell`, `cargo`, `maven`, or `nuget`), workspace-relative
 `manifests`, `locks`, and owning `scopes`. A `cargo` or `maven` record also names its
 `repository`; any other ecosystem fails with exit `2` when it sets one. Manifests are named for the
 ecosystem: `pyproject.toml` for `uv`, `package.json` for `npm`,
 `MODULE.bazel` for `bazel`, `Gemfile` for `ruby`,
 `PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`, `MODULE.bazel` for
-`maven`; any other name fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+`maven`, `paket.dependencies` for `nuget`; any other name fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
 the workspace fails `security` and `license` for that set with exit `1`.
 Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
@@ -822,6 +822,44 @@ backstop for the former. `--check --offline` adds
 against `.dx/advisory/maven.json`, failing the set with `failed to assess
 <name>` when the snapshot is missing, and `dx license` reads
 `[[inventory]]` entries with `set = "maven"`.
+
+A `nuget` set regenerates the `paket2bazel` output of rules_dotnet. Its
+`manifests` is one `paket.dependencies`; `locks` lists the `paket.lock` beside it
+and the generated `paket.<group>.bzl` and `paket.<group>_extension.bzl` files, in
+complete pairs and in one folder. The root `MODULE.bazel` must have
+`bazel_dep(name = "rules_dotnet")` with no `repo_name`, and every `source` in
+`paket.dependencies` must be http(s). Violations are `unsupported`.
+
+```toml
+[[dependency_set]]
+name = "dotnet"
+ecosystem = "nuget"
+manifests = ["third_party/dotnet/paket.dependencies"]
+locks = [
+  "third_party/dotnet/paket.lock",
+  "third_party/dotnet/deps/paket.main.bzl",
+  "third_party/dotnet/deps/paket.main_extension.bzl",
+]
+scopes = ["third_party/dotnet"]
+```
+
+dx copies `paket.dependencies` and `paket.lock` into a scratch directory outside
+the workspace and runs
+`bazel run @rules_dotnet//tools/paket2bazel -- --dependencies-file <scratch>/paket.dependencies --output-folder <scratch>/out`
+with the Bazel startup options but no rules_dx settings, then removes the scratch
+directory. `paket2bazel` never resolves: it renders `paket.lock`, which dx never
+writes. `--check` compares the generated files byte for byte with the declared
+locks; a difference, an undeclared generated file, or a declared file that was not
+generated fails the set and lists the paths. `--apply` writes only the declared
+files that differ, and writes nothing when an undeclared or missing file turns up.
+`--apply --frozen` runs, because the lock cannot change. `--offline` fails with
+`offline_required` in both modes: Paket has no offline switch, so dx cannot prove
+it stays off the network. `nuget` sets take no `set:package`: pins are exact in
+`paket.lock`; edit `paket.dependencies`, run `paket update`, then `dx update
+<set>`. `dx bump` refuses `nuget` sets; `dx security` matches `paket.lock` against
+`.dx/advisory/nuget.json`, failing the set with `failed to assess <name>` when the
+snapshot is missing, and `dx license` reads `[[inventory]]` entries with
+`set = "nuget"`.
 
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector

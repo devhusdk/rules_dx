@@ -14,6 +14,10 @@ on:
         description: "Candidate versions as module=version,... (for example rules_shell=0.6.1), or the word tested. Empty runs the floors and tested legs."
         required: false
         default: ""
+      consumer_target:
+        description: "Also run the hermetic consumer suites under this target at the overrides (for example //tools/testing/hermetic:all). Empty skips them."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -84,3 +88,43 @@ jobs:
         run: |
           echo "### floor (${LEG}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "DX_CONSUMER_OVERRIDES=\`${OVERRIDES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # Runs the hermetic consumer suites of one language at candidate versions. Only manual:
+  # a floor search steps one dep down at a time and needs the suites of the languages that
+  # use it (#3747). The hermetic harness applies DX_CONSUMER_OVERRIDES to each consumer
+  # MODULE.bazel.
+  consumers:
+    name: consumers (${{ inputs.overrides }})
+    if: github.event_name == 'workflow_dispatch' && inputs.overrides != '' && inputs.consumer_target != ''
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check the inputs
+        env:
+          OVERRIDES: ${{ inputs.overrides }}
+          TARGET: ${{ inputs.consumer_target }}
+        run: |
+          printf '%s' "$OVERRIDES" | grep -Eq '^[A-Za-z0-9._+=,-]+$' || { echo "bad overrides" >&2; exit 1; }
+          printf '%s' "$TARGET" | grep -Eq '^//[A-Za-z0-9_/.-]*(:[A-Za-z0-9_./+-]+|/\.\.\.)$' || { echo "bad target" >&2; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Allow unprivileged user namespaces
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Run the consumer suites at the candidate versions
+        env:
+          OVERRIDES: ${{ inputs.overrides }}
+          TARGET: ${{ inputs.consumer_target }}
+        run: |
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --test_timeout=3600 --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS "--test_env=DX_CONSUMER_OVERRIDES=${OVERRIDES}" --test_tag_filters=hermetic-consumer "$TARGET"

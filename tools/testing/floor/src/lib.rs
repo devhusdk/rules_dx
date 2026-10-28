@@ -82,6 +82,37 @@ fn safe(token: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || b"._+-".contains(&byte))
 }
 
+/// Parses `module=version,...` without checking the modules against the table. The hermetic
+/// consumer suites use it: they have no table, and a module the consumer does not declare is
+/// left out of its `bazel_dep`s but still forced by the override.
+pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
+    let mut overrides = Overrides::new();
+    for item in spec
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+    {
+        let Some((module, version)) = item.split_once('=') else {
+            return Err(format!(
+                "{OVERRIDES_ENV} item {item:?} is not module=version"
+            ));
+        };
+        let (module, version) = (module.trim(), version.trim());
+        if !safe(module) || !safe(version) {
+            return Err(format!(
+                "{OVERRIDES_ENV} item {item:?} needs a module name and a version of letters, digits and . _ + -"
+            ));
+        }
+        if overrides
+            .insert(module.to_owned(), version.to_owned())
+            .is_some()
+        {
+            return Err(format!("{OVERRIDES_ENV} names {module:?} twice"));
+        }
+    }
+    Ok(overrides)
+}
+
 /// Parses `DX_CONSUMER_OVERRIDES`: empty, the keyword `tested`, or `module=version,...`.
 pub fn parse_overrides(
     spec: &str,

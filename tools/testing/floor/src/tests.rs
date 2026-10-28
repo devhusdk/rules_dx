@@ -151,3 +151,14 @@ fn table_json_parses() {
     assert!(parse_table("{\"a\": {\"floor\": \"1\"}}").is_err());
     assert!(parse_table("[]").is_err());
 }
+
+#[test]
+fn pairs_parse_without_a_table() {
+    let pairs = parse_pairs("rules_shell=0.6.1, zlib=1.3.1.bcr.5").unwrap();
+    assert_eq!(pairs["rules_shell"], "0.6.1");
+    assert_eq!(pairs.len(), 2);
+    assert!(parse_pairs("").unwrap().is_empty());
+    assert!(parse_pairs("rules_shell").is_err());
+    assert!(parse_pairs("a=1,a=2").is_err());
+    assert!(parse_pairs("a=1 2").is_err());
+}

@@ -52,6 +52,7 @@ rust_library(
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
+        "//tools/testing/floor:dx_floor",
     ],
 )
 

@@ -1494,6 +1494,54 @@ pub fn seed_lock_json(lock: &str) -> Result<String, String> {
     Ok(text)
 }
 
+/// Appends a `local_path_override` that points `rules_dx` at the checkout in `rules`.
+///
+/// Panics when `module` has no `bazel_dep(name = "rules_dx"` line, or already has an override.
+pub fn with_rules_dx_override(module: &str, rules: &Path) -> String {
+    assert!(
+        module.contains("bazel_dep(name = \"rules_dx\""),
+        "starter MODULE.bazel has no rules_dx bazel_dep:\n{module}"
+    );
+    assert!(
+        !module.contains("local_path_override(module_name = \"rules_dx\""),
+        "starter MODULE.bazel already overrides rules_dx:\n{module}"
+    );
+    let path = rules.display().to_string().replace('\\', "/");
+    format!("{module}local_path_override(module_name = \"rules_dx\", path = \"{path}\")\n")
+}
+
+/// Runs `dx new --apply <starter> <name>` in `scratch` with the dx named by `DX_BIN`, then points
+/// the scaffold at this rules_dx checkout. Returns the project root.
+pub fn scaffold_starter(scratch: &Path, starter: &str, name: &str) -> PathBuf {
+    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    let output = Command::new(dx_testing::resolve_runfiles(&rel))
+        .current_dir(scratch)
+        .args(["new", "--apply", starter, name])
+        .arg("--workspace")
+        .arg(scratch)
+        .output()
+        .unwrap_or_else(|error| panic!("dx runs: {error}"));
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(0), "dx new {starter}: {text}");
+    let root = scratch.join(name);
+    let rules = dx_testing::rules_dx_source();
+    let module_path = root.join("MODULE.bazel");
+    let module = std::fs::read_to_string(&module_path)
+        .unwrap_or_else(|error| panic!("read {module_path:?}: {error}\n{text}"));
+    std::fs::write(&module_path, with_rules_dx_override(&module, &rules))
+        .unwrap_or_else(|error| panic!("write {module_path:?}: {error}"));
+    seed_rules_dx_lock(&root, &rules);
+    let rc_path = root.join(".bazelrc");
+    let rc = std::fs::read_to_string(&rc_path).unwrap_or_default();
+    std::fs::write(&rc_path, format!("{rc}{}", dx_testing::preset_rc(&rules)))
+        .unwrap_or_else(|error| panic!("write {rc_path:?}: {error}"));
+    root
+}
+
 /// Writes `root/MODULE.bazel.lock` holding the extension facts of the rules_dx checkout at `rules`.
 ///
 /// The consumer must pin the `.bazelversion` of the same checkout, or Bazel ignores the lock.
@@ -1997,6 +2045,21 @@ mod tests {
         seed_rules_dx_lock(root.path(), rules.path());
         let text = std::fs::read_to_string(root.path().join("MODULE.bazel.lock")).expect("read");
         assert_eq!(text, seed_lock_json(LOCK).expect("seed"));
+    }
+
+    #[test]
+    fn rules_dx_override_is_appended_exactly_once() {
+        let module = "bazel_dep(name = \"rules_dx\", version = \"1\")\n";
+        let out = with_rules_dx_override(module, Path::new("/src/rules"));
+        assert_eq!(out.matches("local_path_override").count(), 1, "{out}");
+        assert!(out.starts_with(module), "{out}");
+        assert!(out.ends_with("path = \"/src/rules\")\n"), "{out}");
+    }
+
+    #[test]
+    #[should_panic(expected = "no rules_dx bazel_dep")]
+    fn rules_dx_override_fails_without_the_dep() {
+        with_rules_dx_override("module(name = \"x\")\n", Path::new("/src"));
     }
 
     #[test]

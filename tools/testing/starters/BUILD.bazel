@@ -1,0 +1,453 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
+load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
+load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
+load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
+load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
+load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "STARTER_CONSUMER_TAGS")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
+
+# One consumer test per `dx new` starter. Each scaffolds the starter, points it at this
+# checkout and runs `bazel test //...` in a nested Bazel. The targets are manual; the CI
+# `starter-consumer` job selects them by tag. Write each call literally: the support
+# matrix reader does not expand loops. cuda, rust-android and rust-web are not covered yet, and neither are the adopt-style starters
+# (csharp, fsharp, go, java, javascript, kotlin, python, rust, scala, typescript), which ship a
+# MODULE.bazel.snippet and no BUILD files, so they need a gazelle-driven flow.
+
+nested_bazel_test(
+    name = "astro",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "astro",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "c",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "c",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "cpp",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "cpp",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "d",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "d",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = D_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "elixir",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "elixir",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "erlang",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "erlang",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "fortran",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "fortran",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = FORTRAN_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "haskell",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "haskell",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "julia",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "julia",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "lua",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "lua",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "mdx",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "mdx",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "ocaml",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "ocaml",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "perl",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "perl",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = PERL_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "php",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "php",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = PHP_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "powershell",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "powershell",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "ruby",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "ruby",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "svelte",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "svelte",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "vue",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "vue",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "zig",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTER": "zig",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "starter_fmt_test",
+    size = "small",
+    targets = [":c"],
+)
+
+rust_clippy_test(
+    name = "starter_clippy_test",
+    size = "small",
+    targets = [":c"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

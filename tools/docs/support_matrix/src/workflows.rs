@@ -134,6 +134,25 @@ pub fn tag_job_platforms(
             let Some(include) = job["strategy"]["matrix"]["include"].as_array() else {
                 return Err(format!("{path}: job {id} has no matrix.include"));
             };
+            let matrix = &job["strategy"]["matrix"];
+            if !matrix["exclude"].is_null() {
+                return Err(format!(
+                    "{path}: job {id} has matrix.exclude, so the reader cannot tell \
+                     which cells run"
+                ));
+            }
+            if let Some(axis) = matrix["platform"].as_array() {
+                for value in axis {
+                    let covered = include.iter().any(|entry| {
+                        entry["platform"] == *value && entry["runner"].as_str().is_some()
+                    });
+                    if !covered {
+                        return Err(format!(
+                            "{path}: job {id} has platform {value} with no matrix.include runner"
+                        ));
+                    }
+                }
+            }
             include
                 .iter()
                 .filter_map(|entry| entry["runner"].as_str().map(str::to_owned))
@@ -224,6 +243,26 @@ jobs:
         let text = "jobs:\n  c:\n    runs-on: ${{ matrix.runner }}\n    strategy:\n      matrix:\n        include:\n          - runner: ubuntu-latest\n          - runner: macos-15\n    steps:\n      - run: bazel query 'attr(tags, t_1, //...)'\n";
         let jobs = tag_job_platforms("ci.yml", text, &runners).expect("jobs");
         assert_eq!(jobs["t_1"], ["linux_x86_64", "macos_arm64"]);
+    }
+
+    #[test]
+    fn reads_sharded_matrix_tag_jobs() {
+        let runners = runner_platforms("ci.yml", CI).expect("runners");
+        let text = "jobs:\n  c:\n    runs-on: ${{ matrix.runner }}\n    strategy:\n      matrix:\n        platform: [linux_x86_64, macos_arm64]\n        shard: [0, 1]\n        include:\n          - platform: linux_x86_64\n            runner: ubuntu-latest\n          - platform: macos_arm64\n            runner: macos-15\n    steps:\n      - run: bazel query 'attr(tags, t_1, //...)'\n";
+        let jobs = tag_job_platforms("ci.yml", text, &runners).expect("jobs");
+        assert_eq!(jobs["t_1"], ["linux_x86_64", "macos_arm64"]);
+        let missing = text.replace(
+            "platform: [linux_x86_64, macos_arm64]",
+            "platform: [linux_x86_64, macos_arm64, windows_x86_64]",
+        );
+        assert!(tag_job_platforms("ci.yml", &missing, &runners).is_err());
+    }
+
+    #[test]
+    fn rejects_matrix_exclude_in_tag_jobs() {
+        let runners = runner_platforms("ci.yml", CI).expect("runners");
+        let text = "jobs:\n  c:\n    runs-on: ${{ matrix.runner }}\n    strategy:\n      matrix:\n        shard: [0]\n        include:\n          - runner: ubuntu-latest\n        exclude:\n          - shard: 0\n    steps:\n      - run: bazel query 'attr(tags, t_1, //...)'\n";
+        assert!(tag_job_platforms("ci.yml", text, &runners).is_err());
     }
 
     #[test]

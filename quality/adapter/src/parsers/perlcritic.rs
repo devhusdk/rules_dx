@@ -11,7 +11,8 @@ const TOOL: &str = "perlcritic";
 /// 2 exactly when it printed a violation, so exit 0 with lines, exit 2 without lines and any
 /// other exit (1: no files, 3: a file could not be critiqued) are errors, never a clean run.
 /// Lines are the physical file and line, so `#line` directives cannot redirect a finding. The
-/// column is Perl::Critic's visual column: 1-based with tabs expanded to multiples of 8.
+/// column is Perl::Critic's visual column: 1-based Unicode scalars. Perl::Critic never sets a
+/// PPI tab width, so PPI's default of 1 applies and a tab counts as a single column.
 pub fn parse_perlcritic(
     stdout: &[u8],
     code: Option<i32>,
@@ -71,7 +72,7 @@ fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         fields[6].trim().to_owned(),
         severity,
         position,
-        ColumnEncoding::ScalarsTabs { width: 8 },
+        ColumnEncoding::Scalars,
     ))
 }
 
@@ -118,14 +119,19 @@ mod tests {
         assert_eq!(found[0].finding.severity, ToolSeverity::Error);
         assert_eq!(found[0].finding.start.line, 4);
         assert_eq!(found[0].finding.start.column, 9);
-        assert_eq!(
-            found[0].finding.encoding,
-            ColumnEncoding::ScalarsTabs { width: 8 }
-        );
+        assert_eq!(found[0].finding.encoding, ColumnEncoding::Scalars);
         assert_eq!(
             found[0].finding.message,
             "Code before strictures are enabled"
         );
+    }
+
+    #[test]
+    fn perlcritic_tab_indented_finding_keeps_its_scalar_column() {
+        let line = b"dx\t/s/a.pl\t2\t2\t5\tSubroutines::ProhibitExplicitReturnUndef\tm\n";
+        let found = run(line, 2).expect("parsed");
+        assert_eq!(found[0].finding.start.column, 2);
+        assert_eq!(found[0].finding.encoding, ColumnEncoding::Scalars);
     }
 
     #[test]

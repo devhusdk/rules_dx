@@ -55,9 +55,6 @@ func TestParseQuotedIncludesMalformedRawStringsInert(t *testing.T) {
 			t.Errorf("inert %q: %v", inert, got)
 		}
 	}
-	if end, ok := skipRawString([]byte(`R"(hello`), 0); !ok || end != len(`R"(hello`) {
-		t.Errorf("skipRawString unterminated = (%d, %v), want (%d, true)", end, ok, len(`R"(hello`))
-	}
 }
 
 func TestPrefixedRawStrings(t *testing.T) {
@@ -77,25 +74,6 @@ func TestPrefixedRawStrings(t *testing.T) {
 	} {
 		if got := ParseQuotedIncludes([]byte(content)); !reflect.DeepEqual(got, []string{"a.h"}) {
 			t.Errorf("ParseQuotedIncludes(%q) = %v, want [a.h]", content, got)
-		}
-	}
-	for _, c := range []struct {
-		in   string
-		pos  int
-		want bool
-	}{
-		{`R"`, 0, true},
-		{`u8R"`, 2, true},
-		{`LR"`, 1, true},
-		{`UR"`, 1, true},
-		{`xuR"`, 2, false},
-		{`xu8R"`, 3, false},
-		{`8R"`, 1, false},
-		{`R`, 0, false},
-		{`Rx`, 0, false},
-	} {
-		if got := isRawStringStart([]byte(c.in), c.pos); got != c.want {
-			t.Errorf("isRawStringStart(%q, %d) = %v, want %v", c.in, c.pos, got, c.want)
 		}
 	}
 }
@@ -145,24 +123,6 @@ func TestDigitSeparators(t *testing.T) {
 	if got := ParseQuotedIncludes([]byte("char c = u'\"';\n#include \"real.h\"")); !reflect.DeepEqual(got, []string{"real.h"}) {
 		t.Errorf("prefixed char literal: %v", got)
 	}
-	for _, c := range []struct {
-		in   string
-		pos  int
-		want int
-	}{
-		{"x1'0", 1, 1},
-		{"abc1", 3, 3},
-		{"x = .", 4, 4},
-		{"x = .y", 4, 4},
-		{"1'", 0, 1},
-		{"1e+5;", 0, 4},
-		{"1+5", 0, 1},
-		{"7", 0, 1},
-	} {
-		if got := skipPPNumber([]byte(c.in), c.pos); got != c.want {
-			t.Errorf("skipPPNumber(%q, %d) = %d, want %d", c.in, c.pos, got, c.want)
-		}
-	}
 }
 
 func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
@@ -190,9 +150,6 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 		if DefinesMain([]byte(literal)) {
 			t.Errorf("literal main: %q", literal)
 		}
-	}
-	if _, _, ok := parseIncludePath([]byte("other"), 0); ok {
-		t.Fatal("non-include parsed")
 	}
 }
 

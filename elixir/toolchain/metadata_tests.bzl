@@ -3,7 +3,7 @@
 load("//elixir/tools:launcher.bzl", "MIX_FORMAT_ENV", "launcher_preamble")
 load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
-load(":pins.bzl", "CREDO_PACKAGES", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
+load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
 load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_script", "hub_build")
 
 _SOURCE = """#!/bin/sh
@@ -35,6 +35,7 @@ def _checks():
         expect_equal("distribution url", ELIXIR_URL, "https://builds.hex.pm/builds/elixir/v1.20.4-otp-29.zip"),
         expect_equal("distribution digest", len(ELIXIR_SHA256), 64),
         expect_equal("applications", ELIXIR_APPLICATIONS, ["eex", "elixir", "ex_unit", "iex", "logger", "mix"]),
+        expect_equal("dialyzer PLT applications", DIALYZER_PLT_ELIXIR, ["elixir", "logger"]),
         expect_equal("rules_elixir commit", len(RULES_ELIXIR_COMMIT), 40),
         expect_equal("rules_elixir digest", len(RULES_ELIXIR_SHA256), 64),
         expect_contains("rules_elixir url names the commit", RULES_ELIXIR_URL, RULES_ELIXIR_COMMIT),

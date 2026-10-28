@@ -2503,6 +2503,7 @@ fn helm_is_a_single_transport_tool() {
 fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
     let invocation = dialyzer_check(
         Path::new(BIN),
+        &[Path::new("/s/pa")],
         &[Path::new("/s/core.plt"), Path::new("/s/ext.plt")],
         &[Path::new("/s/a.beam"), Path::new("/s/b.beam")],
     );
@@ -2510,6 +2511,8 @@ fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
         argv_strings(&invocation),
         vec![
             BIN,
+            "-pa",
+            "/s/pa",
             "--plts",
             "/s/core.plt",
             "/s/ext.plt",
@@ -2517,11 +2520,13 @@ fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
             "--no_indentation",
             "--error_location",
             "column",
+            "--fullpath",
             "--",
             "/s/a.beam",
             "/s/b.beam"
         ]
     );
-    let bare = dialyzer_check(Path::new(BIN), &[], &[Path::new("/s/a.beam")]);
+    let bare = dialyzer_check(Path::new(BIN), &[], &[], &[Path::new("/s/a.beam")]);
     assert!(!argv_strings(&bare).contains(&"--plts".to_owned()));
+    assert!(!argv_strings(&bare).contains(&"-pa".to_owned()));
 }

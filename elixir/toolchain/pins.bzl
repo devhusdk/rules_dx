@@ -12,6 +12,11 @@ ELIXIR_CELLS = ["linux_amd64"]
 
 ELIXIR_APPLICATIONS = ["eex", "elixir", "ex_unit", "iex", "logger", "mix"]
 
+# The Elixir applications the dialyzer PLT covers, on top of the OTP core PLT. A call into an
+# application missing here is an "Unknown function" warning. `elixir` also holds the compiler
+# (elixir_erl) dialyzer loads to read the debug info of every Elixir beam.
+DIALYZER_PLT_ELIXIR = ["elixir", "logger"]
+
 RULES_ELIXIR_COMMIT = "8e13ada66e2abcea001256346acaeb06f97f1eb5"
 
 RULES_ELIXIR_SHA256 = "eae82d40b892603a5d6243b83a6f6096d8da023ed2b7f450e2648b36d9105b4d"

@@ -25,6 +25,7 @@ load(
     "dart_format_flag_tests",
     "dart_subject",
     "dfmt_flag_tests",
+    "dialyzer_elixir_flag_tests",
     "dialyzer_flag_tests",
     "dscanner_flag_tests",
     "elixir_lint_subject",
@@ -1299,6 +1300,33 @@ erlang_typecheck_subject(
 dialyzer_flag_tests(
     name = "dialyzer_flag",
     subject = ":erlang_typecheck_subject",
+)
+
+quality_family(
+    name = "elixir_typecheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "elixir",
+    typecheck = ["dialyzer"],
+)
+
+workspace_policy(
+    name = "elixir_typecheck_policy",
+    families = [":elixir_typecheck_family"],
+)
+
+erlang_typecheck_subject(
+    name = "elixir_typecheck_subject",
+    testonly = True,
+    target = "//elixir/tests/runtime:erlang_app",
+)
+
+dialyzer_elixir_flag_tests(
+    name = "dialyzer_elixir_flag",
+    subject = ":elixir_typecheck_subject",
 )
 
 quality_family(

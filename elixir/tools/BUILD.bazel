@@ -1,4 +1,5 @@
 load("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
+load("//erlang/rules:dialyzer.bzl", "dialyzer_plt")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":credo.bzl", "credo")
 load(":mix_format.bzl", "mix_format")
@@ -21,6 +22,27 @@ credo(
     name = "credo",
     apps = ["@dx_credo//credo:erlang_app"],
     driver = "credo_driver.exs",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+filegroup(
+    name = "dialyzer_code",
+    srcs = ["@dx_elixir//:dialyzer_beams_elixir"],
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+# The Elixir standard library on top of the OTP core PLT. Every elixir_app brings it through
+# BeamInfo.plts, after the PLTs of the dialyzer tool.
+dialyzer_plt(
+    name = "elixir_plt",
+    beams = [
+        "@dx_elixir//:dialyzer_beams_elixir",
+        "@dx_elixir//:dialyzer_beams_logger",
+    ],
+    code = [":dialyzer_code"],
+    dialyzer = "//erlang/tools:dialyzer_bin",
+    escript = "//erlang/tools:escript_bin",
+    plts = ["//erlang/tools:otp_core_plt"],
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 

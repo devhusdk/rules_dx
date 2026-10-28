@@ -1,12 +1,9 @@
 """Dialyzer PLT and tool rules over the pinned OTP runtime."""
 
 load(":defs.bzl", "otp_tool_binary_impl")
-load(":providers.bzl", "DialyzerToolInfo")
+load(":providers.bzl", "DialyzerToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
 
-DialyzerPltInfo = provider(
-    doc = "One built PLT.",
-    fields = {"plt": "The .plt file."},
-)
+DialyzerPltInfo = _DialyzerPltInfo
 
 otp_tool_binary = rule(
     implementation = otp_tool_binary_impl,
@@ -31,7 +28,14 @@ fi
 rm -f "$log" "$raw"
 """
 
-def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, out):
+def _dirs(files):
+    """The distinct directories of `files`, in order."""
+    seen = {}
+    for f in files:
+        seen[f.dirname] = True
+    return list(seen)
+
+def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, code, out):
     """Builds one PLT of OTP `apps` and `beams`, layered over `plts`.
 
     Dialyzer exits 2 when it only emitted warnings, which a PLT build does for
@@ -45,6 +49,7 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, out):
       apps: OTP application names to include.
       plts: PLT files the new PLT builds on.
       beams: .beam files to include.
+      code: .beam files whose directories go on dialyzer's code path (the compiler that wrote the debug info of `beams`).
       out: The declared output PLT.
     """
     args = ctx.actions.args()
@@ -52,6 +57,9 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, out):
     args.add(escript.executable)
     args.add(fixup)
     args.add(out)
+    for directory in _dirs(code):
+        args.add("-pa")
+        args.add(directory)
     args.add("--build_plt")
     if plts:
         args.add("--plts")
@@ -68,7 +76,7 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, out):
         progress_message = "Building dialyzer PLT %{output}",
         command = _PLT_SCRIPT,
         arguments = [args],
-        inputs = list(plts) + list(beams) + [fixup],
+        inputs = list(plts) + list(beams) + list(code) + [fixup],
         outputs = [out],
         tools = [dialyzer, escript],
         use_default_shell_env = False,
@@ -77,14 +85,18 @@ def dialyzer_plt_action(ctx, dialyzer, escript, fixup, apps, plts, beams, out):
 def _dialyzer_plt_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".plt")
     base = [dep[DialyzerPltInfo].plt for dep in ctx.attr.plts]
-    dialyzer_plt_action(ctx, ctx.attr.dialyzer[DefaultInfo].files_to_run, ctx.attr.escript[DefaultInfo].files_to_run, ctx.file._fixup, ctx.attr.apps, base, [], out)
+    if not ctx.attr.apps and not ctx.files.beams:
+        fail("dialyzer_plt " + ctx.label.name + ": set apps or beams")
+    dialyzer_plt_action(ctx, ctx.attr.dialyzer[DefaultInfo].files_to_run, ctx.attr.escript[DefaultInfo].files_to_run, ctx.file._fixup, ctx.attr.apps, base, ctx.files.beams, ctx.files.code, out)
     return [DefaultInfo(files = depset([out])), DialyzerPltInfo(plt = out)]
 
 dialyzer_plt = rule(
     implementation = _dialyzer_plt_impl,
-    doc = "A PLT of OTP applications, layered over other PLTs.",
+    doc = "A PLT of OTP applications and beams, layered over other PLTs.",
     attrs = {
-        "apps": attr.string_list(mandatory = True, doc = "OTP application names."),
+        "apps": attr.string_list(doc = "OTP application names."),
+        "beams": attr.label_list(allow_files = [".beam"], doc = "Extra .beam files to include."),
+        "code": attr.label_list(allow_files = [".beam"], doc = "Beams whose directories go on dialyzer's code path, to read the debug info of `beams`."),
         "dialyzer": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "An otp_tool_binary for dialyzer."),
         "escript": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "An otp_tool_binary for escript."),
         "plts": attr.label_list(providers = [DialyzerPltInfo], doc = "PLTs this one builds on, in order."),

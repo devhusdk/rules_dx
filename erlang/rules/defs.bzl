@@ -10,6 +10,7 @@ load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
 load("//cc/rules:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library")
+load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:providers.bzl", "BeamInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "CELLS")
@@ -36,28 +37,12 @@ _SPECS = [("erlang", ["erl", "hrl"])]
 
 _EXTS = [".erl", ".hrl"]
 
-def _beams(info):
-    """The .beam files of one ErlangAppInfo; a prebuilt ebin directory is not supported."""
-    beams = []
-    for f in info.beam:
-        if f.is_directory:
-            fail("erlang_app " + info.app_name + ": dialyzer needs listed .beam files, not the directory " + f.short_path)
-        if f.extension == "beam":
-            beams.append(f)
-    return beams
-
 def _beam_info(ctx, upstream):
-    info = upstream[_ErlangAppInfo]
     nifs = [nif[ErlangNifInfo] for nif in ctx.attr.nifs]
     return [ErlangNifInfo(
         libraries = depset(transitive = [nif.libraries for nif in nifs]),
         objects_lists = depset(transitive = [nif.objects_lists for nif in nifs]),
-    ), BeamInfo(
-        app_name = info.app_name,
-        owned = depset(_beams(info)),
-        deps = depset([b for dep in info.deps for b in _beams(dep[_ErlangAppInfo])]),
-        extra_apps = info.extra_apps,
-    )]
+    ), beam_info(upstream, [])]
 
 _erlang_app_forward = dx_library_forward_rule(
     extra_providers = _beam_info,

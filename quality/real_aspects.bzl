@@ -1119,6 +1119,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     dialyzer_owned = []
     dialyzer_aux = []
     dialyzer_plts = []
+    dialyzer_code = []
     if "dialyzer" in [stage["tool"] for stage in resolved]:
         if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
             resolved = drop_pipeline_tool(resolved, "dialyzer")
@@ -1128,7 +1129,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             tool_target = getattr(ctx.attr, "_dialyzer")
             if DialyzerToolInfo not in tool_target:
                 fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer")
-            dialyzer_plts = tool_target[DialyzerToolInfo].plts
+            # The tool's PLTs come first; a language's own follow, without repeating one.
+            seen_plts = {}
+            for plt in tool_target[DialyzerToolInfo].plts + target[BeamInfo].plts:
+                if plt.path not in seen_plts:
+                    seen_plts[plt.path] = True
+                    dialyzer_plts.append(plt)
+            dialyzer_code = sorted(target[BeamInfo].code, key = lambda f: f.basename)
             dialyzer_owned = sorted(target[BeamInfo].owned.to_list(), key = lambda f: f.short_path)
             owned_paths = {f.path: True for f in dialyzer_owned}
             dialyzer_aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
@@ -1405,6 +1412,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(plt)
             for index, beam in enumerate(dialyzer_owned):
                 tool_files.append(real_request_tool_file("dx-dialyzer/owned/%d/%s" % (index, beam.basename), beam.path))
+                inputs.append(beam)
+            for beam in dialyzer_code:
+                tool_files.append(real_request_tool_file("dx-dialyzer/pa/" + beam.basename, beam.path))
                 inputs.append(beam)
             seen_aux = {}
             for index, beam in enumerate(dialyzer_aux):

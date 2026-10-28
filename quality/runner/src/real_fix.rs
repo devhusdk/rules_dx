@@ -831,9 +831,10 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
-            // Violations that remain after the rewrite exit 2; the fixed file is still kept.
+            // Violations that remain after the rewrite exit 2; a clean rewrite
+            // exits 8 (FIXED_VIOLATIONS). The fixed file is kept either way.
             Route::AnsibleLint => {
-                if matches!(out.code, Some(0) | Some(2)) {
+                if matches!(out.code, Some(0) | Some(2) | Some(8)) {
                     Outcome::Fixed
                 } else {
                     Outcome::Kept

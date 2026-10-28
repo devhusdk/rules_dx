@@ -54,7 +54,7 @@ ANSIBLE_ANSIBLE_LINT_SUPPORT = {
     "context": "owned",
     "execution": "direct",
     "family": "ansible",
-    "fix": "check_only",
+    "fix": "supported",
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "qualified",
     "tool": "ansible_lint",

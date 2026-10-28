@@ -59,6 +59,14 @@ pub fn resolve(root: &Path, path: &str) -> PathBuf {
     }
 }
 
+/// Where a report the test itself wrote to COVERAGE_OUTPUT_FILE is kept so the merger still sees it.
+pub fn preserved_report(output: &Path, coverage_dir: &Path) -> Option<PathBuf> {
+    if output.starts_with(coverage_dir) {
+        return None;
+    }
+    Some(coverage_dir.join("test_report.dat"))
+}
+
 pub fn export_args(profdata: &Path, root: &Path, objects: &[PathBuf]) -> Vec<String> {
     let mut args = vec![
         "export".to_string(),
@@ -157,6 +165,19 @@ mod tests {
         assert_eq!(
             object_lines("bazel-out/k8/bin/a\n\n  bazel-out/k8/bin/b \n"),
             vec!["bazel-out/k8/bin/a", "bazel-out/k8/bin/b"]
+        );
+    }
+
+    #[test]
+    fn keeps_a_report_written_outside_the_coverage_dir() {
+        let dir = Path::new("/exec/cov/test");
+        assert_eq!(
+            preserved_report(Path::new("/exec/testlogs/x/coverage.dat"), dir),
+            Some(PathBuf::from("/exec/cov/test/test_report.dat"))
+        );
+        assert_eq!(
+            preserved_report(Path::new("/exec/cov/test/coverage.dat"), dir),
+            None
         );
     }
 

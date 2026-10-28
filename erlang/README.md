@@ -46,6 +46,27 @@ escript_archive(
 | `eunit` | EUnit test over `target` and `compiled_suites` |
 | `ct_suite` | Common Test suite from `test/<name>.erl` with `test/<name>_data/` |
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
+| `erlang_nif` | NIF shared library from declared C `srcs` and `hdrs`, placed at `priv/<name>.so` |
+
+```python
+erlang_nif(
+    name = "kv_checksum_nif",
+    srcs = ["c_src/kv_checksum_nif.c"],
+    hdrs = ["c_src/fnv1a.h"],
+)
+
+erlang_app(
+    app_name = "kv_checksum",
+    app_version = "1.0.0",
+    nifs = [":kv_checksum_nif"],
+)
+```
+
+Declare the NIF in the package of the app that loads it and pass it through
+`nifs` on `erlang_app` and `test_erlang_app`. The C includes `erl_nif.h` from
+the pinned OTP. `erlang:load_nif/2` takes `priv/<name>` without the extension.
+A NIF does not load from an `escript_archive`. Under `bazel coverage` the C
+lines join the Erlang lines in the report.
 
 `erlang_app` and `test_erlang_app` pass `tags` to every target they build; the
 generated targets are `manual`, so `//...` builds only the app.

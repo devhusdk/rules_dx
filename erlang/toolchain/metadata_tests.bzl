@@ -1,8 +1,8 @@
 """Erlang toolchain pin and launcher tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "replace_once")
+load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES")
+load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "replace_once")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -48,6 +48,11 @@ def _checks():
         expect_contains("erlfmt links the shared getopt", TOOL_BUILDS["dx_erlfmt"], "@dx_erlang_getopt//:erlang_app"),
         expect_equal("dialyzer PLT apps are shipped", [app for app in DIALYZER_PLT_CORE + DIALYZER_PLT_APPS if dropped_application(app + "-1.0")], []),
         expect_equal("dialyzer PLT apps are listed once", len(DIALYZER_PLT_CORE + DIALYZER_PLT_APPS), len(depset(DIALYZER_PLT_CORE + DIALYZER_PLT_APPS).to_list())),
+        expect_equal("nif headers cover every cell", sorted([key.rpartition("cell_")[2] for key in nif_header_cases(CELLS.keys()) if "cell_" in key]), sorted(CELLS.keys())),
+        expect_equal("nif headers resolve to the cell repo", nif_header_cases(["linux_amd64"])["@rules_dx//erlang/toolchain:cell_linux_amd64"], ["@dx_otp_linux_amd64//:erl_nif"]),
+        expect_equal("nif headers default to nothing", nif_header_cases(CELLS.keys())["//conditions:default"], []),
+        expect_equal("nif default is incompatible", nif_compatible_cases(CELLS.keys())["//conditions:default"], ["@platforms//:incompatible"]),
+        expect_equal("nif include follows erts", nif_include_dir(), "erts-" + ERTS_VERSION + "/include"),
         expect_equal("replace_once edits", replace_once("a(F) b", [("a(F)", "c(F)")], "x"), "c(F) b"),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),

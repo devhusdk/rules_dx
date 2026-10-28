@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "runfiles_path")
+load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "nif_linkopt_cases", "nif_priv_path", "runfiles_path")
 load(":providers.bzl", "BeamInfo")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -28,6 +28,9 @@ def erlang_wrapper_contract_tests(name):
                 ERLANG_SOURCE_GLOBS,
                 ["src/**/*.erl", "src/**/*.hrl", "include/**/*.hrl"],
             ),
+            expect_equal("nifs land in the app priv directory", nif_priv_path("kv_checksum_nif"), "priv/kv_checksum_nif.so"),
+            expect_equal("macos nifs resolve erts symbols at load", nif_linkopt_cases()[str(Label("@platforms//os:macos"))], ["-Wl,-undefined,dynamic_lookup"]),
+            expect_equal("other nifs add no link options", nif_linkopt_cases()["//conditions:default"], []),
             expect_equal("suites start no epmd", ct_run_args([]), ["-sname", "undefined", "-start_epmd", "false"]),
             expect_equal("suite args follow the local node", ct_run_args(["-ct_hooks cth_surefire"]), LOCAL_NODE_ARGS + ["-ct_hooks cth_surefire"]),
             expect_equal("named suites keep their node", ct_run_args(["-sname peer_host"]), ["-sname peer_host"]),
@@ -56,25 +59,32 @@ def _coverage_env_impl(ctx):
     run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
     got = run_env.get("COVERDATA_TO_LCOV_APPS_DIRS", "")
     asserts.equals(env, ctx.attr.apps_dirs, got)
+    native = ctx.attr.native and ctx.attr.apps_dirs != ""
+    asserts.equals(env, native, "CC_CODE_COVERAGE_SCRIPT" in run_env)
+    asserts.equals(env, False, "DX_COVERAGE_CLANG_OBJECTS" in run_env)
     metadata = [f.short_path for f in target[InstrumentedFilesInfo].metadata_files.to_list()]
     if ctx.attr.apps_dirs:
         asserts.true(env, ctx.attr.source in metadata, "missing " + ctx.attr.source + " in " + str(metadata))
+    asserts.equals(env, native, len([m for m in metadata if m.endswith("runtime_objects_list.txt")]) > 0)
     return analysistest.end(env)
 
 _coverage_env_on_test = analysistest.make(
     _coverage_env_impl,
-    attrs = {"apps_dirs": attr.string(), "source": attr.string()},
+    attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()},
     config_settings = {"//command_line_option:collect_code_coverage": True},
 )
 
 _coverage_env_off_test = analysistest.make(
     _coverage_env_impl,
-    attrs = {"apps_dirs": attr.string(), "source": attr.string()},
+    attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()},
 )
 
-def erlang_coverage_env_test(name, target, apps_dirs, source):
-    """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then."""
-    _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps_dirs = apps_dirs, source = source)
+def erlang_coverage_env_test(name, target, apps_dirs, source, native = False):
+    """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then.
+
+    With `native`, it also asserts the test collects LLVM coverage for the NIFs of its apps.
+    """
+    _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps_dirs = apps_dirs, source = source, native = native)
     _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target, apps_dirs = "")
 
 def _beam_info_impl(ctx):

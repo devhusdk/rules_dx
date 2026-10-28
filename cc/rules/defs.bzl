@@ -64,6 +64,8 @@ _cc_coverage_transition = transition(
     outputs = ["//command_line_option:features"],
 )
 
+CC_COVERAGE_TRANSITION = _cc_coverage_transition
+
 _cc_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = DX_EXEC_PROVIDES,

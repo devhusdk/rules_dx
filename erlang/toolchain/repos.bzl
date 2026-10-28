@@ -59,7 +59,8 @@ _PRIVATE_BUILD = """config_setting(
 )
 """
 
-_OTP_BUILD = """load("@rules_dx//erlang/toolchain:otp.bzl", "dx_otp")
+_OTP_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_dx//erlang/toolchain:otp.bzl", "dx_otp")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -75,7 +76,36 @@ erlang_toolchain(
     name = "erlang",
     otp = ":otp",
 )
+
+cc_library(
+    name = "erl_nif",
+    hdrs = glob(["{include}/*.h"], allow_empty = False),
+    includes = ["{include}"],
+)
 """
+
+_HUB_NIF = """cc_library(
+    name = "erl_nif",
+    target_compatible_with = select({compatible}),
+    deps = select({deps}),
+)
+"""
+
+def nif_include_dir():
+    """Returns the OTP-relative directory that holds erl_nif.h."""
+    return "erts-" + ERTS_VERSION + "/include"
+
+def nif_header_cases(cells):
+    """Returns the hub select cases that map each target cell to its erl_nif header library."""
+    cases = {"@rules_dx//erlang/toolchain:cell_" + cell: ["@" + cell_repository_name(cell) + "//:erl_nif"] for cell in sorted(cells)}
+    cases["//conditions:default"] = []
+    return cases
+
+def nif_compatible_cases(cells):
+    """Returns the hub select cases that make erl_nif incompatible outside the pinned cells."""
+    cases = {"@rules_dx//erlang/toolchain:cell_" + cell: [] for cell in sorted(cells)}
+    cases["//conditions:default"] = ["@platforms//:incompatible"]
+    return cases
 
 _TOOLCHAIN = """toolchain(
     name = "{cell}",
@@ -308,6 +338,8 @@ def _otp_repo_impl(rctx):
     if rctx.read("releases/" + OTP_RELEASE + "/OTP_VERSION").strip() != OTP_VERSION:
         fail("OTP archive is not release " + OTP_VERSION)
     _prune(rctx)
+    if not rctx.path(nif_include_dir() + "/erl_nif.h").exists:
+        fail("OTP archive ships no " + nif_include_dir() + "/erl_nif.h")
     _install(rctx, CLOSURE_DIR if cell.runtime else None)
     if cell.runtime:
         runtime_closure(rctx, cell.runtime)
@@ -317,6 +349,7 @@ def _otp_repo_impl(rctx):
         closure = CLOSURE_DIR,
         version = OTP_VERSION,
         version_file = VERSION_FILE,
+        include = nif_include_dir(),
     ))
     return rctx.repo_metadata(reproducible = True)
 
@@ -360,7 +393,7 @@ _tool_source = repository_rule(
 )
 
 def _hub_impl(rctx):
-    content = []
+    content = ['load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n']
     for cell in sorted(CELLS.keys()):
         content.append(_TOOLCHAIN.format(
             cell = cell,
@@ -368,6 +401,10 @@ def _hub_impl(rctx):
             repo = cell_repository_name(cell),
         ))
     rctx.file("REPO.bazel", "")
+    content.append(_HUB_NIF.format(
+        compatible = repr(nif_compatible_cases(CELLS.keys())),
+        deps = repr(nif_header_cases(CELLS.keys())),
+    ))
     rctx.file("BUILD.bazel", "\n".join(content))
     return rctx.repo_metadata(reproducible = True)
 

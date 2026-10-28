@@ -210,6 +210,18 @@ fn main() {
         runfiles_dir,
     };
     let output = ctx.coverage_dir.join("coverage.dat");
+    if let Ok(reported) = env::var("COVERAGE_OUTPUT_FILE") {
+        let reported = collect::resolve(&ctx.execroot, &reported);
+        let written = fs::metadata(&reported)
+            .map(|m| m.len() > 0)
+            .unwrap_or(false);
+        if let Some(kept) =
+            collect::preserved_report(&reported, &ctx.coverage_dir).filter(|_| written)
+        {
+            fs::copy(&reported, &kept)
+                .unwrap_or_else(|e| fail(&format!("cannot keep the test report: {e}")));
+        }
+    }
 
     let mut profraw: Vec<PathBuf> = fs::read_dir(&ctx.coverage_dir)
         .unwrap_or_else(|e| fail(&format!("cannot list COVERAGE_DIR: {e}")))

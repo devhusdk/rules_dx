@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json::Value;
 use quality_adapter::commands::{qmlformat_check, qmlformat_fix, qmllint_check, Invocation};
-use quality_adapter::parsers::{parse_qmlformat, parse_qmllint};
+use quality_adapter::parsers::{parse_qmlformat, parse_qmllint, QmllintView};
 
 fn path(variable: &str) -> PathBuf {
     let rel = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must be set"));
@@ -36,8 +36,13 @@ fn qmllint_output_parses_through_the_adapter() {
         report["files"][0]["warnings"],
         pinned["files"][0]["warnings"]
     );
-    let findings =
-        parse_qmllint(out.stdout.as_bytes(), out.status.code(), &[name]).expect("parsed");
+    let findings = parse_qmllint(
+        out.stdout.as_bytes(),
+        out.status.code(),
+        &[name],
+        QmllintView::Lint,
+    )
+    .expect("parsed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].file, name);
     let finding = &findings[0].finding;
@@ -172,6 +177,18 @@ fn lint(
     dx_testing::Run,
     Result<Vec<quality_adapter::parsers::FileFinding>, quality_adapter::parsers::ParseError>,
 ) {
+    view(files, import_dirs, use_settings, QmllintView::Lint)
+}
+
+fn view(
+    files: &[&Path],
+    import_dirs: &[&Path],
+    use_settings: bool,
+    view: QmllintView,
+) -> (
+    dx_testing::Run,
+    Result<Vec<quality_adapter::parsers::FileFinding>, quality_adapter::parsers::ParseError>,
+) {
     let out = run(&qmllint_check(
         &path("DX_QMLLINT"),
         files,
@@ -182,7 +199,7 @@ fn lint(
         .iter()
         .map(|file| file.to_str().expect("utf-8 path"))
         .collect();
-    let parsed = parse_qmllint(out.stdout.as_bytes(), out.status.code(), &names);
+    let parsed = parse_qmllint(out.stdout.as_bytes(), out.status.code(), &names, view);
     (out, parsed)
 }
 
@@ -223,7 +240,7 @@ fn qmllint_reports_every_file_of_a_batch() {
 #[test]
 fn qmllint_unknown_import_is_reported_not_ignored() {
     let (_file_dir, file) = scratch_file("Import.qml", "import Nope.Missing\nItem {}\n");
-    let (out, parsed) = lint(&[file.as_path()], &[], false);
+    let (out, parsed) = view(&[file.as_path()], &[], false, QmllintView::Typecheck);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let found = parsed.expect("parsed");
     assert!(found.iter().all(|item| item.finding.rule_id == "import"));
@@ -263,7 +280,7 @@ fn qmllint_declared_import_dir_resolves_a_module() {
     .expect("Use.qml");
     let roots = dir.join("mods");
 
-    let (out, parsed) = lint(&[user.as_path()], &[], false);
+    let (out, parsed) = view(&[user.as_path()], &[], false, QmllintView::Typecheck);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     assert!(parsed
         .expect("parsed")
@@ -356,6 +373,7 @@ fn qmllint_severity_flags_decide_the_exit_code() {
         out.stdout.as_bytes(),
         out.status.code(),
         &[file.to_str().expect("utf-8 path")],
+        QmllintView::Lint,
     )
     .expect("parsed");
     assert_eq!(found.len(), 1);

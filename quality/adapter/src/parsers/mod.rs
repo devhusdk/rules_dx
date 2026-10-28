@@ -164,7 +164,7 @@ pub use psscriptanalyzer::{parse_psscriptanalyzer, parse_psscriptanalyzer_format
 pub use pydoclint::parse_pydoclint;
 pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
-pub use qmllint::{parse_qmllint, parse_qmllint_report};
+pub use qmllint::{parse_qmllint, parse_qmllint_report, QmllintView};
 pub use redocly::parse_redocly;
 pub use regal::parse_regal;
 pub use remark::parse_remark;
@@ -2154,7 +2154,18 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::qmllint::parse_qmllint(input, code, files)
+        let lint =
+            super::qmllint::parse_qmllint(input, code, files, super::qmllint::QmllintView::Lint);
+        let types = super::qmllint::parse_qmllint(
+            input,
+            code,
+            files,
+            super::qmllint::QmllintView::Typecheck,
+        );
+        lint.and_then(|mut found| {
+            found.extend(types?);
+            Ok(found)
+        })
     }
 
     fn fuzz_csc(

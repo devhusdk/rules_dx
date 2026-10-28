@@ -268,6 +268,7 @@ to.
 | `gplint` | lint | gherkin |
 | `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
+| `hlint` | lint | haskell |
 | `jsonnet_lint` | lint | jsonnet |
 | `jsonnetfmt` | format | jsonnet |
 | `julia_format` | format | julia |
@@ -1417,6 +1418,41 @@ To use another ormolu executable, point `tool_ormolu` at it.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_ormolu=//tools:ormolu
+```
+
+`hlint` 3.10 runs from the managed pin for lint. Select it in the same `haskell`
+family. It runs on Linux x86_64 and needs `libgmp.so.10` and glibc 2.29 or newer
+on the host. Without the library the run fails with a message that names it.
+macOS and Linux arm64 have no pin, so a run that lints Haskell there fails with
+a hint to set `tool_hlint`. Runs with no Haskell sources are not affected.
+
+```python
+quality_family(
+    name = "haskell_family",
+    family_id = "haskell",
+    format = ["ormolu"],
+    lint = ["hlint"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //app/...
+```
+
+`hlint` runs with the built-in hints only. It reads no `.hlint.yaml`, whether in
+the package or in a parent folder. A parse error is reported as a finding with
+rule `Parse error`. Hints map to severities as `Error`, `Warning` and
+`Suggestion`, which is reported as info. Exit 0 with an empty report is clean,
+and exit 1 with a non-empty report carries findings. Any other exit, a report
+that disagrees with the exit, a missing or undecodable file, or a finding in a
+file that was not passed fails and never counts as clean. `hlint --refactor` is
+not wired, so `--apply` leaves the files alone. Columns count Unicode scalars
+with a tab advancing to the next multiple of 8.
+
+To use another hlint executable, point `tool_hlint` at it.
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_hlint=//tools:hlint
 ```
 
 ### Typst

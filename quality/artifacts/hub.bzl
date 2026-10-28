@@ -37,6 +37,7 @@ PLATFORM_FALLBACKS = {
 EMULATED_TOOLS = {
     "windows_arm64": [
         "hadolint",
+        "hlint",
         "keep_sorted",
         "latexindent",
         "mdbook",
@@ -56,6 +57,7 @@ EMULATED_TOOLS = {
 # of failing analysis, so unrelated builds on other platforms keep working;
 # consumers that need the tool fail with a hint to set a tool override.
 PARTIAL_TOOL_PLATFORMS = {
+    "hlint": ["linux_x86_64", "windows_x86_64"],
     "nixfmt": ["linux_x86_64"],
     "ormolu": ["linux_x86_64", "windows_x86_64"],
 }

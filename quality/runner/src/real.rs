@@ -50,6 +50,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "graphql_eslint",
     "hadolint",
     "helm",
+    "hlint",
     "jsonnet_lint",
     "jsonnetfmt",
     "julia_format",
@@ -154,6 +155,9 @@ const GERSEMI_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+const HLINT_DEFAULTS_REL: &str = "dx-hlint-default/hlint.yaml";
+/// An empty hint list keeps the built-in hints and stops hlint from searching for `.hlint.yaml`.
+const HLINT_DEFAULTS_BYTES: &[u8] = b"[]\n";
 /// The stock rulesets for every staged `.erl` and `.hrl`, at any depth.
 const ELVIS_DEFAULTS_REL: &str = "dx-elvis-default/elvis.config";
 const ELVIS_DEFAULTS_BYTES: &[u8] = b"[{config, [

@@ -30,6 +30,8 @@ pub trait Host {
     fn process_alive(&self, pid: u32) -> bool;
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
+    /// The output roots that need no server scan: the defaults and the custom roots the rc files name.
+    fn config_output_roots(&self) -> Vec<PathBuf>;
     fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf>;
     /// Runs `bazel shutdown` in workspace; callers decide whether a server runs there.
     fn bazel_shutdown(&self, workspace: &Path);
@@ -527,21 +529,26 @@ impl Host for SystemHost {
         }
     }
 
-    fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf> {
+    fn config_output_roots(&self) -> Vec<PathBuf> {
         let mut roots = default_output_roots(&|name| std::env::var(name).ok());
-        for server in servers.iter().cloned() {
-            if let Some(root) = server.output_user_root {
-                if !roots.contains(&root) {
-                    roots.push(root);
-                }
-            }
-        }
         if let Ok(workspace) = std::env::current_dir() {
             let mut files = vec![workspace.join(".bazelrc")];
             if let Some(home) = home(&|name| std::env::var(name).ok()) {
                 files.push(home.join(".bazelrc"));
             }
             for root in rc_output_roots(files, &workspace) {
+                if !roots.contains(&root) {
+                    roots.push(root);
+                }
+            }
+        }
+        roots
+    }
+
+    fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf> {
+        let mut roots = self.config_output_roots();
+        for server in servers.iter().cloned() {
+            if let Some(root) = server.output_user_root {
                 if !roots.contains(&root) {
                     roots.push(root);
                 }

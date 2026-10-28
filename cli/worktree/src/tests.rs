@@ -178,6 +178,10 @@ impl Host for FakeHost {
         self.servers.lock().expect("servers").clone()
     }
 
+    fn config_output_roots(&self) -> Vec<PathBuf> {
+        self.roots.lock().expect("roots").clone()
+    }
+
     fn output_roots(&self, _servers: &[Server]) -> Vec<PathBuf> {
         self.root_scans.fetch_add(1, Ordering::SeqCst);
         self.roots.lock().expect("roots").clone()
@@ -1989,7 +1993,7 @@ fn reclaim_for_build_skips_plenty_or_unknown_disk() {
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         None
     );
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
 }
 
@@ -2066,7 +2070,7 @@ fn reclaim_for_build_without_a_pool_skips_plenty_or_unknown_disk() {
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         None
     );
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
     assert!(!fixture.cache.exists());
 }
@@ -2158,7 +2162,7 @@ fn plenty_of_disk_reclaims_nothing_and_takes_no_lock() {
         None,
         "under 20 GiB but over 10% free is not low"
     );
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 2);
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
 }
 

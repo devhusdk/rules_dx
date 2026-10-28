@@ -272,6 +272,9 @@ PLATFORM_NOT_APPLICABLE = {
     "fortran": {
         "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build",
     },
+    "haskell": {
+        "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
+    },
     "perl": {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
     },

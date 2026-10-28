@@ -89,7 +89,8 @@ To run the hermetic consumer suites at candidate versions, add
 test (the harness rewrites each consumer `MODULE.bazel` the same way), or dispatch
 `floor.yml` with `overrides` and `consumer_target`.
 
-For now every floor equals its tested version. Do not lower a floor yet: the
-floor searches themselves are still follow-ups to #3747.
+A tested-only bump leaves the floor at the previous tested version, and its
+comment says so. Do not lower a floor without a floor search; the searches
+themselves are still follow-ups to #3747.
 
 `.dx/launcher` is a copy (about 50 MB) of the last built dx, kept for worktree hooks and failed rebuilds. `tools/dx worktree add`, `release` and `hook` run the last built dx without rebuilding, so they never wait on Bazel. Any other `tools/dx` command (or `bazel build //:dx`) picks up dx source changes. You can delete it any time and `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots. Both launchers run dx from this copy, so a running dx never locks bazel-bin; `dx.exe.old.*` files may remain while an old dx is still running.

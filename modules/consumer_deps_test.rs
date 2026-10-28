@@ -81,7 +81,13 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             problems.push(format!("{name:?} floor {floor} is above tested {tested}"));
         }
         match module.floor_comment(name) {
-            Ok(Some(_)) => {}
+            Ok(Some(reason)) => {
+                if reason.contains("equals tested") && floor != tested {
+                    problems.push(format!(
+                        "bazel_dep {name:?} floor comment says \"equals tested\" but floor {floor} != tested {tested}"
+                    ));
+                }
+            }
             Ok(None) => problems.push(format!(
                 "bazel_dep {name:?} has no `# floor: <reason>` comment directly above it"
             )),
@@ -245,6 +251,11 @@ fn disagreeing_fixtures_fail() {
             GOOD.replace("# floor: oldest passing\n", ""),
             demo.clone(),
             "has no `# floor: <reason>` comment",
+        ),
+        (
+            GOOD.replace("oldest passing", "equals tested"),
+            demo.clone(),
+            "says \"equals tested\"",
         ),
         (
             GOOD.replace("single_version_override", "archive_override"),

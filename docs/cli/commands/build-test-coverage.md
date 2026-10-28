@@ -534,16 +534,3 @@ The comment syntax depends on the language: `//` for Rust, Go, JS/TS, the JVM
 languages (including Kotlin scripts, `.kts`), .NET and C/C++; `#` for Python
 and Ruby; `%` for Erlang (`.erl` and `.hrl`). Markers in other sources
 (`.bzl`, `.pyi`, `.cu`/`.cuh`, `.d.ts`) are not read.
-
-## Line And Branch Metrics
-
-This section describes `//tools/coverage:coverage_bin`, not `dx coverage`.
-
-The coverage gate enforces exact executable-line coverage. Branch outcomes
-are measured separately and never change the gate. Each file with branch
-records reports raw, ignored, eligible and taken counts with its language.
-Branches on lines covered by `LCOV_EXCL_LINE` or a START/STOP range are
-counted as ignored and are left out of eligible, taken, missed and the rate.
-The declared branch summary is still checked against all records. Files without
-branch records report unavailable instead of a rate. A declared branch
-summary that does not match its records fails the report as incomplete.

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::verdict::{alias_errors, line_comment_syntax, normalize_path, LineComment};
+use crate::lang::{line_comment_syntax, LineComment};
 use crate::{
     find_ignores, is_covered_language, is_ignored, merge_lcov_reports, FileHits, Ignores, LcovError,
 };
@@ -355,3 +355,28 @@ pub fn account(
 #[cfg(test)]
 #[path = "accounting_tests.rs"]
 mod accounting_tests;
+
+fn normalize_path(path: &str) -> String {
+    let slashed = path.replace('\\', "/");
+    let mut rest = slashed.as_str();
+    while let Some(stripped) = rest.strip_prefix("./") {
+        rest = stripped;
+    }
+    rest.to_string()
+}
+
+fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
+    let mut seen: BTreeMap<String, &str> = BTreeMap::new();
+    for path in paths {
+        let key = normalize_path(path);
+        match seen.get(&key) {
+            Some(first) if first != path => errors.push(format!(
+                "path alias in {label}: {first} and {path} name the same file"
+            )),
+            Some(_) => errors.push(format!("duplicate path in {label}: {path}")),
+            None => {
+                seen.insert(key, path);
+            }
+        }
+    }
+}

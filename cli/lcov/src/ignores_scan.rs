@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::sync::LazyLock;
 
-use crate::verdict::{line_comment_syntax, LineComment};
+use crate::lang::{line_comment_syntax, LineComment};
 
 fn slash_scan() -> Option<&'static Regex> {
     static SCAN: LazyLock<Option<Regex>> =

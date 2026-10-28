@@ -1647,7 +1647,6 @@ version = "0.0.0"
 name = "dx_lcov"
 version = "0.0.0"
 dependencies = [
- "clap",
  "lcov",
  "regex",
  "thiserror 2.0.20",

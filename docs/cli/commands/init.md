@@ -131,6 +131,23 @@ Exit codes: `0` check passed or apply succeeded, `2` usage error, including
 extra positionals, an unknown part, or an invalid module name, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
 
+## Init plan
+
+When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-only plan of
+what adopting rules_dx would change, found from the declared files alone. It runs no Bazel
+and writes nothing. Sections:
+
+- `version raises`: a `bazel_dep` you declare below the version rules_dx needs (the higher of
+  its own `bazel_dep` floors and the snippet init would write). Advisory.
+- `override conflicts`: a `*_override` you own. One on a module dx patches
+  (`single_version_override` of `rules_rust`, for example) is hard, because dx cannot add its
+  patches; one on another rules_dx dependency is advisory.
+
+Each finding names the file and line, including `include()`d `.MODULE.bazel` files. The
+plan covers declared deps only, so transitive raises are not shown. Hard findings add an
+`init plan: N hard conflicts (...)` clause to `init drift` and exit 1; advisory ones never
+change the exit code.
+
 ## rules_dx overrides
 
 `dx init --apply` and `dx new --apply` write the root-only

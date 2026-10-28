@@ -21,6 +21,7 @@ pub mod migrate;
 pub mod new;
 mod new_locks;
 pub mod overrides;
+pub mod preflight;
 pub mod preset;
 pub mod preset_fragment;
 pub mod scaffold;
@@ -53,6 +54,7 @@ pub use new::{
 pub use overrides::{
     apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
+pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{
     inspect_preset, preflight_preset, preset_drift, refresh_preset, write_preset, PresetDrift,
     PresetState,

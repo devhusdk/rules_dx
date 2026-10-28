@@ -511,10 +511,10 @@ signed_release(
 filegroup(
     name = "release_artifacts",
     srcs = [
+        ":dx_host_cell",
         ":notice_demo",
         ":sbom_demo",
         "//:audit_curator",
-        "//cli/cli:dx",
         "//cli/cli:man_pages",
     ],
 )

@@ -1,5 +1,4 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//deploy/rules:archive.bzl", "archive_deploy")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
@@ -142,11 +141,6 @@ github_deploy(
         ":dx",
         ":man_pages",
     ],
-)
-
-archive_deploy(
-    name = "dx_standalone",
-    app = ":dx",
 )
 
 rust_binary(

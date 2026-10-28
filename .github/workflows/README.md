@@ -13,7 +13,8 @@
 - `apple.yml`: Apple toolchain tests on a hosted macOS runner.
 - `bump.yml`: `widen-one-requirement loop` for one dependency per run.
 - `ghcr.yml`: prebuilt devcontainer images.
-- `publish-dry-run.yml`: the release path without a release.
+- `release-cells.yml`: reusable, read-only. Builds, independently rebuilds and qualifies one archive per `//deploy/release:release_matrix` cell on its native runner (a consumer Bazel build included), then verifies all records. Artifacts: `release-cell-<name>` per cell and the combined `release-cells`; outputs: `version`, `sha`, `workflow_ref`. It fails when any cell is rejected, and a rejected cell never stops the others.
+- `publish-dry-run.yml`: the release path without a release. Calls `release-cells.yml` and renders its report from the measured per-cell records.
 - `release.yml`: builds dx for five platforms and the `rules_dx-<version>.tar.gz` source archive (after `release_driver` checks the tag against the candidate commit), then uploads them with `.sha256` files, a `dx-sha256sums.txt` manifest of the five binaries, and `source.json` to the release. No asset is ever replaced once uploaded: a rerun skips identical assets and fails on a different one.
 
 ## Main health

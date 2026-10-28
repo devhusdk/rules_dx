@@ -10,7 +10,8 @@
 
 use std::path::{Path, PathBuf};
 
-use dx_release_tools::{publish_dry_run_check, sha256sum_line, PublishDryRunInputs};
+use dx_release_tools::cell::Expected;
+use dx_release_tools::{publish_dry_run_check, PublishDryRunInputs};
 
 fn flag_value(argv: &[String], name: &str) -> Option<String> {
     argv.windows(2).find_map(|pair| {
@@ -41,8 +42,6 @@ fn notice_texts_of(raw: &str) -> Vec<PathBuf> {
 struct ParsedInputs {
     inputs: PublishDryRunInputs,
     report_path: String,
-    binary_sha_path: String,
-    archive_sha_path: String,
 }
 
 fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
@@ -58,8 +57,12 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
             }
         }
     };
-    let binary = get("--binary");
-    let archive = get("--archive");
+    let matrix = get("--matrix");
+    let records = get("--records");
+    let archives = get("--archives");
+    let sha = get("--sha");
+    let version = get("--version");
+    let workflow_ref = get("--workflow-ref");
     let sbom_artifact = get("--sbom-artifact");
     let spdx = get("--spdx");
     let provenance = get("--provenance");
@@ -76,8 +79,6 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
     let verify_refusal_log = get("--verify-refusal-log");
     let approve_raw = get("--approve");
     let report_path = get("--report");
-    let binary_sha_path = get("--binary-sha256-out");
-    let archive_sha_path = get("--archive-sha256-out");
     if let Some(diagnostic) = missing {
         return Err(diagnostic);
     }
@@ -86,8 +87,14 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
     })?;
     Ok(ParsedInputs {
         inputs: PublishDryRunInputs {
-            binary: PathBuf::from(binary),
-            archive: PathBuf::from(archive),
+            matrix: PathBuf::from(matrix),
+            records: PathBuf::from(records),
+            archives: PathBuf::from(archives),
+            expected: Expected {
+                sha,
+                version,
+                workflow_ref,
+            },
             sbom_artifact: PathBuf::from(sbom_artifact),
             spdx: PathBuf::from(spdx),
             provenance: PathBuf::from(provenance),
@@ -105,8 +112,6 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
             approve,
         },
         report_path,
-        binary_sha_path,
-        archive_sha_path,
     })
 }
 
@@ -125,27 +130,18 @@ fn run(argv: &[String]) -> i32 {
                     error,
                 );
             }
-            let binary_line = sha256sum_line(&outcome.binary_digest, "dx-linux-x86_64");
-            if let Err(error) = std::fs::write(&parsed.binary_sha_path, binary_line.as_bytes()) {
-                return dx_release_tools::bin_cannot_write(
-                    "publish_dry_run_check",
-                    Path::new(&parsed.binary_sha_path),
-                    error,
-                );
-            }
-            let archive_line = sha256sum_line(&outcome.archive_digest, "dx-standalone.tar.gz");
-            if let Err(error) = std::fs::write(&parsed.archive_sha_path, archive_line.as_bytes()) {
-                return dx_release_tools::bin_cannot_write(
-                    "publish_dry_run_check",
-                    Path::new(&parsed.archive_sha_path),
-                    error,
-                );
-            }
             print!(
-                "seed binary sha256: {}\nstandalone archive sha256: {}\nsbom subject digest: {} (linkage ok: true)\npackaging ok: true (SBOM pair plus NOTICE signed together)\ndraft dry-run ok: true\nsigning dry-run ok: true\nbcr dry-run ok: true\napproved: {}; published: False (dry run never publishes)\n",
-                outcome.binary_digest, outcome.archive_digest, outcome.sbom_digest, parsed.inputs.approve,
+                "{}sbom subject digest: {} (linkage ok: true)\npackaging ok: true (SBOM pair plus NOTICE signed together)\ndraft dry-run ok: true\nsigning dry-run ok: true\nbcr dry-run ok: true\napproved: {}; published: False (dry run never publishes)\n",
+                outcome.verification, outcome.sbom_digest, parsed.inputs.approve,
             );
-            0
+            if outcome.qualified {
+                0
+            } else {
+                eprintln!(
+                    "publish_dry_run_check: not every release cell qualified (see the report)"
+                );
+                1
+            }
         }
         Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
     }
@@ -184,8 +180,12 @@ mod tests {
 
     fn full_argv(approve: &str) -> Vec<String> {
         argv_of(&[
-            ("--binary", "binary"),
-            ("--archive", "archive"),
+            ("--matrix", "matrix"),
+            ("--records", "records"),
+            ("--archives", "archives"),
+            ("--sha", "sha"),
+            ("--version", "version"),
+            ("--workflow-ref", "ref"),
             ("--sbom-artifact", "sbom"),
             ("--spdx", "spdx"),
             ("--provenance", "provenance"),
@@ -202,22 +202,20 @@ mod tests {
             ("--verify-refusal-log", "refusal"),
             ("--approve", approve),
             ("--report", "report"),
-            ("--binary-sha256-out", "binary_sha"),
-            ("--archive-sha256-out", "archive_sha"),
         ])
     }
 
     #[test]
     fn flag_value_reads_the_pair_after_a_name() {
-        let argv = argv_of(&[("--binary", "staged")]);
-        assert_eq!(flag_value(&argv, "--binary"), Some("staged".to_owned()));
-        assert_eq!(flag_value(&argv, "--archive"), None);
+        let argv = argv_of(&[("--matrix", "staged")]);
+        assert_eq!(flag_value(&argv, "--matrix"), Some("staged".to_owned()));
+        assert_eq!(flag_value(&argv, "--records"), None);
     }
 
     #[test]
     fn flag_value_ignores_a_trailing_name_without_value() {
-        let argv = vec!["publish_dry_run_check".to_owned(), "--binary".to_owned()];
-        assert_eq!(flag_value(&argv, "--binary"), None);
+        let argv = vec!["publish_dry_run_check".to_owned(), "--matrix".to_owned()];
+        assert_eq!(flag_value(&argv, "--matrix"), None);
     }
 
     #[test]
@@ -252,18 +250,18 @@ mod tests {
             .expect("missing flag must fail");
         assert_eq!(
             error,
-            "publish_dry_run_check: missing required --archive-sha256-out <path>"
+            "publish_dry_run_check: missing required --report <path>"
         );
     }
 
     #[test]
     fn single_missing_flag_names_that_flag() {
-        let error = parse_inputs(&full_argv_without("--archive"))
+        let error = parse_inputs(&full_argv_without("--records"))
             .err()
             .expect("missing flag must fail");
         assert_eq!(
             error,
-            "publish_dry_run_check: missing required --archive <path>"
+            "publish_dry_run_check: missing required --records <path>"
         );
     }
 
@@ -281,15 +279,15 @@ mod tests {
     #[test]
     fn valid_argv_assembles_inputs_with_split_texts() {
         let parsed = parse_inputs(&full_argv("1")).unwrap();
-        assert_eq!(parsed.inputs.binary, PathBuf::from("binary"));
+        assert_eq!(parsed.inputs.matrix, PathBuf::from("matrix"));
+        assert_eq!(parsed.inputs.expected.version, "version");
+        assert_eq!(parsed.inputs.expected.workflow_ref, "ref");
         assert!(parsed.inputs.approve);
         assert_eq!(
             parsed.inputs.notice_texts,
             vec![PathBuf::from("a"), PathBuf::from("b")]
         );
         assert_eq!(parsed.report_path, "report");
-        assert_eq!(parsed.binary_sha_path, "binary_sha");
-        assert_eq!(parsed.archive_sha_path, "archive_sha");
     }
 
     #[test]

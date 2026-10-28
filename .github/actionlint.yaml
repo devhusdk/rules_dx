@@ -5,3 +5,8 @@ self-hosted-runner:
     - macos-15
     - windows-latest
     - windows-11-arm
+# The pinned actionlint predates job.workflow_ref and job.workflow_sha (documented GitHub job context).
+paths:
+  .github/workflows/release-cells.yml:
+    ignore:
+      - 'property "workflow_(ref|sha)" is not defined in object type \{check_run_id'

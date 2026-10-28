@@ -39,6 +39,7 @@ dx_rust_crate(
         "//patches/rules_cuda:dlink_includes.patch",
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
+        "//patches/rules_dotnet:sdk_versions.patch",
         "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_rust:lld_link.patch",

@@ -3,6 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 exports_files([
     "fsharp_signature.patch",
     "reproducible.patch",
+    "sdk_versions.patch",
 ])
 
 real_source_target(

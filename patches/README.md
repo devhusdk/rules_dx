@@ -30,7 +30,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | --- | --- | --- | --- |
 | `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch` | Rust on Windows (lld-link, MSVC stdlib link flags) |
 | `rules_cuda` | 0.3.0 | `dlink_includes.patch` | CUDA device link (`rdc`) in the sandbox |
-| `rules_dotnet` | 0.22.2 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
+| `rules_dotnet` | 0.22.2 | `reproducible.patch`, `fsharp_signature.patch`, `sdk_versions.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs`; .NET SDK 10.0.403 (security) until a rules_dotnet release |
 | `rules_ruby` | 0.29.0 | `reproducible.patch`, `coverage.patch` | Ruby toolchain from the repository cache (psych/openssl build options resolved at action time); Ruby coverage without a bundle and on Windows |
 | `aspect_rules_py` | 2.0.0-alpha.6 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |

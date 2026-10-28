@@ -2274,3 +2274,11 @@ exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
 )
+
+exports_files(
+    [
+        "csharp_consumer_test.rs",
+        "fsharp_consumer_test.rs",
+    ],
+    visibility = ["//modules:__pkg__"],
+)

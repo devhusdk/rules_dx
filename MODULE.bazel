@@ -227,6 +227,7 @@ ansible.collections(
 )
 use_repo(ansible, "dx_ansible_test_collections")
 
+# sdk_versions.patch adds .NET SDK 10.0.403 (security); drop on the next rules_dotnet release (upstream #588)
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_dotnet", version = "0.22.2")
 single_version_override(
@@ -235,6 +236,7 @@ single_version_override(
     patches = [
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
+        "//patches/rules_dotnet:sdk_versions.patch",
     ],
     version = "0.22.2",
 )
@@ -247,7 +249,7 @@ single_version_override(
 )
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(dotnet_version = "10.0.400")
+dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
 
 dotnet_nuget = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")

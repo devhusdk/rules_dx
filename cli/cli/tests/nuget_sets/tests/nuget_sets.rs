@@ -9,7 +9,7 @@ const MODULE: &str = r#"module(name = "consumer")
 bazel_dep(name = "rules_dotnet", version = "0.22.2")
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(dotnet_version = "10.0.400")
+dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
 "#;
 

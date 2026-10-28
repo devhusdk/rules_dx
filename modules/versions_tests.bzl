@@ -95,6 +95,9 @@ def versions_contract_tests(name):
             "//examples:consumer-ci/README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//rust/rules:README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
+            "//cli/cli/tests/nuget_sets:tests/nuget_sets.rs": "dotnet_version = \"" + _DOTNET_VERSION + "\"",
+            "//quality/tests:csharp_consumer_test.rs": "dotnet_version = \"" + _DOTNET_VERSION + "\"",
+            "//quality/tests:fsharp_consumer_test.rs": "dotnet_version = \"" + _DOTNET_VERSION + "\"",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +

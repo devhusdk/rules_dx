@@ -75,6 +75,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "fsharp_signature.patch",
                 content: include_str!("../../../patches/rules_dotnet/fsharp_signature.patch"),
             },
+            OverridePatch {
+                file: "sdk_versions.patch",
+                content: include_str!("../../../patches/rules_dotnet/sdk_versions.patch"),
+            },
         ],
     },
     Override {

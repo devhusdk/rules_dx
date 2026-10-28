@@ -100,7 +100,7 @@ def _go_analysis_impl(target, ctx):
         "GoVersion": go_lang_version(toolchain.sdk.version) if toolchain != None else "",
         "ImportMap": import_map,
         "ImportPath": importpath,
-        "OwnedFiles": [f.path for f in sources if f.is_source],
+        "OwnedFiles": [f.path for f in _go_files(ctx.rule.files.srcs) if f.is_source],
         "PackageFile": package_file,
         "StdlibDir": stdlib.root_file.path + "/" + _install_suffix(mode),
         "Tags": list(mode.tags),

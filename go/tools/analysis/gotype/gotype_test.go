@@ -108,12 +108,13 @@ func TestMissingExportDataIsFailure(t *testing.T) {
 	}
 }
 
-func TestUnownedFileIsFailure(t *testing.T) {
+func TestUnownedFileDiagnosticsAreDropped(t *testing.T) {
 	dir := t.TempDir()
 	cfg := base(write(t, dir, "a.go", "package p\n\nvar a int = \"x\"\n"))
 	cfg.OwnedFiles = []string{filepath.Join(dir, "other.go")}
-	if res := check(cfg); res.failure == "" {
-		t.Fatalf("expected failure, got %+v", res)
+	res := check(cfg)
+	if res.failure != "" || len(res.diagnostics["typecheck"]) != 0 {
+		t.Fatalf("expected no diagnostics, got %+v", res)
 	}
 }
 

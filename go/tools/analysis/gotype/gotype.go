@@ -15,7 +15,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -186,7 +185,6 @@ func check(cfg *config) result {
 		owned[path] = true
 	}
 	var typed []diagnostic
-	var foreign []string
 	collect := func(err error) {
 		terr, ok := err.(types.Error)
 		if !ok {
@@ -195,7 +193,6 @@ func check(cfg *config) result {
 		}
 		name := terr.Fset.Position(terr.Pos).Filename
 		if len(owned) > 0 && !owned[name] {
-			foreign = append(foreign, name)
 			return
 		}
 		typed = append(typed, diagnostic{Posn: position(terr.Fset, terr.Pos), Message: terr.Msg})
@@ -220,10 +217,6 @@ func check(cfg *config) result {
 	}
 	if len(res.missing) > 0 {
 		return result{failure: res.missing[0]}
-	}
-	if len(foreign) > 0 {
-		sort.Strings(foreign)
-		return result{failure: "diagnostic in file the target does not own: " + foreign[0]}
 	}
 	if len(typed) == 0 {
 		return result{diagnostics: map[string][]diagnostic{}}

@@ -34,3 +34,10 @@ go_test(
     embed = [":clean"],
     tags = ["manual"],
 )
+
+go_test(
+    name = "broken_embed_test",
+    srcs = ["broken_test.go"],
+    embed = [":broken"],
+    tags = ["manual"],
+)

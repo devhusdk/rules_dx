@@ -8,6 +8,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "rustc",
         "roslyn",
         "csc",
+        "fsc",
         "fsharplint",
         "qmllint",
         "govet",
@@ -1376,6 +1377,70 @@ fn delegated_csc_requires_the_exit_status() {
         .diagnose("csc", "typecheck", &single("src/a.cs", ROSLYN_SOURCE))
         .expect_err("missing exit");
     assert!(error.to_string().contains("csc"), "{error}");
+}
+
+/// One fsc tool fed an fsc log and exit status per target framework.
+fn fsc_pivots(scratch: &Path, pivots: &[(&str, &str, Option<&str>)]) -> RealTool {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    tool.tool_files.clear();
+    for (tfm, log, exit) in pivots {
+        let path = scratch.join(format!("{tfm}.log"));
+        std::fs::write(&path, log).expect("write fsc log");
+        if let Some(exit) = exit {
+            tool.tool_files
+                .push((format!("dx-fsc/{tfm}/exit"), exit.as_bytes().to_vec()));
+        }
+        tool.upstream_diagnostics.push(path);
+    }
+    tool
+}
+
+const FSC_ERROR: &str = "/work/root/src/a.fs(2,1): error FS0001: boom\n";
+
+#[test]
+fn delegated_fsc_reports_errors_reanchored_to_the_staged_source() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = fsc_pivots(scratch.path(), &[("net10.0", FSC_ERROR, Some("1"))]);
+    let findings = backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].rule_id, "FS0001");
+    assert!(findings[0].path.ends_with("src/a.fs"), "{:?}", findings[0]);
+}
+
+#[test]
+fn delegated_fsc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = fsc_pivots(scratch.path(), &[("net10.0", "", None)]);
+    let error = backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("fsc exit status"), "{error}");
+}
+
+#[test]
+fn delegated_fsc_merges_frameworks_and_fails_on_a_silent_failure() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = fsc_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", FSC_ERROR, Some("1")),
+            ("net10.0", FSC_ERROR, Some("1")),
+        ],
+    );
+    let findings = backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .expect("merged");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    let tool = fsc_pivots(
+        scratch.path(),
+        &[("net8.0", FSC_ERROR, Some("1")), ("net10.0", "", Some("1"))],
+    );
+    assert!(backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .is_err());
 }
 
 fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {

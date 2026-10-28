@@ -105,6 +105,7 @@ REAL_ADAPTERS = {
     "remark": {"format": ["mdx"]},
     "roslyn": {"lint": ["csharp"]},
     "csc": {"typecheck": ["csharp"]},
+    "fsc": {"typecheck": ["fsharp"]},
     "ruff": {"audit": ["python", "python_stub"], "format": ["python", "python_stub", "jupyter"], "lint": ["python", "python_stub", "jupyter"]},
     "rustc": {"typecheck": ["rust"]},
     "rustfmt": {"format": ["rust"]},

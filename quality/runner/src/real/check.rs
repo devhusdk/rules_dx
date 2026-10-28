@@ -582,6 +582,7 @@ impl RealBackend {
             }
             "roslyn" => self.check_roslyn_delegated(tool_id, tool, pairs),
             "csc" => self.check_csc_delegated(tool_id, tool, pairs),
+            "fsc" => self.check_fsc_delegated(tool_id, tool, pairs),
             "clang_syntax" => self.check_clang_syntax_delegated(tool_id, tool, pairs),
             "flang" | "ldc" => self.check_compile_log_delegated(tool_id, tool, pairs),
             "javac" => self.check_jvm_log_delegated(tool_id, tool, pairs),

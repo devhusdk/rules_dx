@@ -41,12 +41,10 @@ load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 quality_family(
     name = "fsharp_family",
     family_id = "fsharp",
-    disabled = [
-        "audit",
-        "typecheck",
-    ],
+    disabled = ["audit"],
     format = ["fantomas"],
     lint = ["fsharplint"],
+    typecheck = ["fsc"],
 )
 
 workspace_policy(
@@ -254,6 +252,38 @@ fn an_unreadable_config_fails_the_run_and_never_counts_as_clean() {
         "{}",
         out.combined()
     );
+}
+
+#[test]
+fn typecheck_reports_compiler_errors_and_warnings_and_a_clean_target_passes() {
+    let root = consumer();
+    let greeter = root.join("core/Greeter.fs");
+
+    let clean = dx(&root, "typecheck", &[]);
+    assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
+
+    write(
+        &greeter,
+        "module Core\n\nlet greet (name: string) : int = Types.prefix\n",
+    );
+    let broken = dx(&root, "typecheck", &[]);
+    let text = broken.combined();
+    assert_eq!(broken.status.code(), Some(1), "{text}");
+    let line = text
+        .lines()
+        .find(|line| line.contains("core/Greeter.fs:3:"))
+        .unwrap_or_else(|| panic!("no finding at line 3: {text}"));
+    assert!(line.contains("FS0001"), "{line}");
+
+    write(
+        &greeter,
+        "module Core\n\nlet greet name = Types.prefix + name\n\nlet half (x: int) =\n    match x with\n    | 1 -> 0\n",
+    );
+    let warned = dx(&root, "typecheck", &[]);
+    let text = warned.combined();
+    assert!(text.contains("core/Greeter.fs:"), "{text}");
+    assert!(text.contains("FS0025"), "{text}");
+    assert_eq!(read(&greeter).lines().count(), 7);
 }
 
 fn path_without_dotnet(path: &str, shadow: &Path) -> Vec<PathBuf> {

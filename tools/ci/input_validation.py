@@ -19,6 +19,9 @@ MIN_CHANGED_ENV = "DX_MIN_CHANGED_LINE_COVERAGE"
 INVOCATION_ENV = "DX_INVOCATION_ID"
 OUTPUT_ENV = "GITHUB_OUTPUT"
 
+# Source of truth for the platform list. Parity tests in input_validation_test.py pin every
+# copy to this table: the ci.yml dogfood platforms and preflight matrix, the evidence.yml
+# runner table, the release.yml build matrix, .github/actionlint.yaml labels, and the docs.
 PLATFORMS = {
     "linux_x86_64": "ubuntu-latest",
     "linux_arm64": "ubuntu-24.04-arm",

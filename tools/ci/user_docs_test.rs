@@ -363,7 +363,10 @@ fn docs_and_examples_indexes_link_the_starlark_rule_reference() {
             .into_iter()
             .filter(|link| link == RULES)
             .count();
-        assert_eq!(hits, 1, "{index} must link the Starlark rule reference once");
+        assert_eq!(
+            hits, 1,
+            "{index} must link the Starlark rule reference once"
+        );
     }
 }
 

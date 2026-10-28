@@ -280,7 +280,6 @@ GAP_ISSUES = {
     "lint:pkl": 4623,
     "lint:typst": 4623,
     "lint:xml": 4618,
-    "lint:zig": 4613,
     "support:*": 4441,
     "starter:dart": 1783,
     "typecheck:astro": 1767,

@@ -325,6 +325,7 @@ to.
 | `vale` | lint | markdown |
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
+| `zig_ast_check` | lint | zig |
 | `zig_fmt` | format | zig |
 
 C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clang_syntax"]` on the `cc` family). It replays each compile action of the target with `-fsyntax-only`, using the exact command line, inputs and environment Bazel configured, so includes, defines and copts match the real build. The compiler is whatever the action names, so a GCC toolchain also works; a toolchain without a readable command line (clang-cl/MSVC, params files) fails with an explicit error. Headers are checked only when the target compiles them (`--features=parse_headers`); a header-only library without that feature fails instead of passing unchecked. The tool has no fix support. CUDA is not covered yet (nvcc has no syntax-only mode).
@@ -344,13 +345,13 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
+  `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
   `phpcs`, `phpstan`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dart`, `dfmt`,
+- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`,
   `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpcs`, `phpstan`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
@@ -485,6 +486,34 @@ dx runs `dscanner --styleCheck` with the upstream default checks, so findings
 include its documentation and style rules. It ignores `dscanner.ini` files for
 now. A file with a syntax error reports an error at its line and column. There
 is no `--apply` fix.
+
+### Zig linting
+
+`zig_ast_check` runs `zig ast-check` with the Zig compiler that `zig_library`,
+`zig_binary` and `zig_test` carry. Select `zig_ast_check` in a `zig` family. No
+flag is needed.
+
+```python
+quality_family(
+    name = "zig_family",
+    family_id = "zig",
+    disabled = ["audit", "format", "typecheck"],
+    lint = ["zig_ast_check"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint
+```
+
+To use your own compiler, set
+`--@rules_dx//config:tool_zig_ast_check=@rules_dx//zig/tools:zig`.
+
+`zig ast-check` takes one file per run, so dx starts one process per file. It
+reports syntax errors and AST-level errors such as unused locals at their line
+and column. Columns count UTF-8 bytes. Its `note:` lines are context and are not
+findings. A failed run, such as an unreadable file, is an error and never reads
+as clean. There is no `--apply` fix.
 
 ### Perl formatting and linting
 

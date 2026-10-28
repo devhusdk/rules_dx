@@ -21,6 +21,8 @@ _QML_POLICY = _CANONICAL + "//quality/testdata:qml_policy"
 _QML_LINT_POLICY = _CANONICAL + "//quality/testdata:qml_lint_policy"
 _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
 _ZIG_POLICY = _CANONICAL + "//quality/testdata:zig_policy"
+_ZIG_LINT_POLICY = _CANONICAL + "//quality/testdata:zig_lint_policy"
+_ZIG_AST_CHECK_SETTING = _CANONICAL + "//config:tool_zig_ast_check"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
 _D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
@@ -190,6 +192,29 @@ zig_subject = rule(
         "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
         "target": attr.label(
             aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _zig_lint_subject_impl(ctx):
+    """Exposes the resolved zig_ast_check binary and the lint results beside the real aspect."""
+    tool = ctx.attr._zig_ast_check[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["zig_ast_check"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+        "zig_ast_check": tool.short_path if tool else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+zig_lint_subject = rule(
+    implementation = _zig_lint_subject_impl,
+    attrs = {
+        "_zig_ast_check": attr.label(default = "//config:tool_zig_ast_check"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
             mandatory = True,
         ),
     },
@@ -684,6 +709,49 @@ def zig_fmt_flag_tests(name, subject):
         target_under_test = subject,
     )
     _zig_fmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+def _zig_ast_check_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's compiler."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["zig_ast_check"])
+    asserts.true(env, fields["wrapper"].endswith("/zig") or fields["wrapper"].endswith("/zig.exe"), "want the zig compiler, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the zig target")
+    return analysistest.end(env)
+
+_zig_ast_check_default_test = analysistest.make(
+    _zig_ast_check_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _ZIG_LINT_POLICY},
+)
+
+def _zig_ast_check_wired_impl(ctx):
+    """Asserts the flag wires the Zig compiler and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["zig_ast_check"].endswith("/zig") or fields["zig_ast_check"].endswith("/zig.exe"), "want the zig compiler, got " + fields["zig_ast_check"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the zig target")
+    return analysistest.end(env)
+
+_zig_ast_check_set_test = analysistest.make(
+    _zig_ast_check_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ZIG_LINT_POLICY,
+        _ZIG_AST_CHECK_SETTING: _ZIG_FMT_TOOL,
+    },
+)
+
+def zig_ast_check_flag_tests(name, subject):
+    """Instantiates the zig_ast_check flag proofs."""
+    _zig_ast_check_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_under_test = subject,
+    )
+    _zig_ast_check_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

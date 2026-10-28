@@ -108,6 +108,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "vale",
     "yamlfmt",
     "yamllint",
+    "zig_ast_check",
     "zig_fmt",
 ];
 

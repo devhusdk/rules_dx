@@ -469,6 +469,54 @@ pub(super) fn hlint_reports_findings_with_the_staged_default_and_never_trusts_a_
     assert!(lint("crash\n").is_err());
 }
 
+fn zig_ast_check_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    // Exactly one file: `ast-check`, `--color`, `off`, then the file.
+    assert_eq!(argv.len(), 5, "one file per process: {argv:?}");
+    assert_eq!(argv[1], OsString::from("ast-check"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (
+            1,
+            "error: unable to open file 'x' for ast-check: FileNotFound\n".to_owned(),
+        )
+    } else if text.contains("unused") {
+        (
+            1,
+            format!("{file}:1:1: error: unused local variable\nunused\n^\n"),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn zig_ast_check_runs_one_process_per_file_and_never_trusts_a_failed_run() {
+    let backend = backend_for("zig_ast_check", plain_tool(), zig_ast_check_behavior);
+    let lint = |text: &str| backend.diagnose("zig_ast_check", "lint", &single("a.zig", text));
+    assert!(lint("const a = 1;\n").expect("check").is_empty());
+    let warned = lint("unused\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "ast_check");
+    assert!(lint("crash\n").is_err());
+    let mut two = single("a.zig", "unused\n");
+    two.extend(single("b.zig", "unused\n"));
+    let both = backend
+        .diagnose("zig_ast_check", "lint", &two)
+        .expect("check");
+    assert_eq!(both.len(), 2);
+}
+
 fn dart_behavior(
     argv: &[OsString],
     _cwd: &Path,

@@ -56,13 +56,13 @@ def codegen_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "codegen admits the flatbuffers cpp pair (#2316) and defers other languages",
+                "codegen admits the flatbuffers cpp and rust pairs (#2316) and defers other languages",
                 [
                     codegen_pair_error("flatbuffers", "cpp") == "",
                     codegen_pair_error("flatbuffers", "rust") == "",
                     codegen_pair_error("flatbuffers", "python") == "",
                 ],
-                [True, False, False],
+                [True, True, False],
             ),
             expect_equal(
                 "codegen_path_error accepts relative paths",

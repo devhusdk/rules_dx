@@ -1,18 +1,30 @@
-"""FlatBuffers C++ code generation (flatc from the pinned source archive).
+"""FlatBuffers C++ and Rust code generation (flatc from the pinned source archive).
 
-flatc and the C++ runtime come from the one archive pinned in //flatbuffers:pins.bzl,
-so the compiler and the runtime cannot drift. Actions read only the declared
+flatc and every runtime come from the one archive pinned in //flatbuffers:pins.bzl,
+so the compiler and the runtimes cannot drift. Actions read only the declared
 schema closure of FlatBuffersInfo.
+
+C++ is generated per flatbuffers_library by an aspect. Rust is generated as one
+crate per root schema (flatc --rust --gen-all), because flatc's Rust output uses
+crate:: and super:: paths that only compile when the whole include closure sits
+in one crate. Two Rust crates whose roots share a schema therefore each get their
+own, non-interchangeable copy of its types.
 """
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
 load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo")
 
 FLATBUFFERS_GENERATED_SRCS_GROUP = "flatbuffers_generated_srcs"
+
+FlatBuffersCodegenInfo = provider(
+    doc = "Which language a flatbuffers codegen target generated.",
+    fields = {"language": "string: cpp or rust."},
+)
 
 # Private attributes shared by every codegen rule, so a later toolchain swap
 # touches one place. The compiler is the pinned source build, never the lint flag.
@@ -87,6 +99,7 @@ def _cc_library_impl(ctx):
         # Generated code owns no checked sources; it is not a cc_library to lint.
         dx_quality_sources([], [], str(ctx.label)),
         OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset(own_headers)}),
+        FlatBuffersCodegenInfo(language = "cpp"),
     ]
 
 flatbuffers_cc_library = rule(
@@ -104,13 +117,103 @@ flatbuffers_cc_library = rule(
     provides = [CcInfo],
 )
 
+def _rust_srcs_impl(ctx):
+    info = ctx.attr.library[FlatBuffersInfo]
+    owned = info.direct_srcs
+    root = ctx.file.root
+    if root == None:
+        if len(owned) != 1:
+            fail(
+                "flatbuffers_rust_library " + display_label(ctx.label) + ": root is required because " +
+                display_label(ctx.attr.library.label) + " owns " + str(len(owned)) + " schemas (want exactly one root)",
+            )
+        root = owned[0]
+    elif root not in owned:
+        fail(
+            "flatbuffers_rust_library " + display_label(ctx.label) + ": root " + root.short_path +
+            " is not owned by " + display_label(ctx.attr.library.label),
+        )
+    base = root.basename[:-len("." + root.extension)]
+    generated = ctx.actions.declare_file(ctx.label.name + "_fbs_rs/" + base + "_generated.rs")
+    ctx.actions.run(
+        executable = ctx.executable._flatc,
+        inputs = info.transitive_srcs,
+        outputs = [generated],
+        arguments = _flatc_args(["--rust", "--gen-all"], False, generated.dirname, root),
+        mnemonic = "FlatcRust",
+        progress_message = "flatc --rust " + root.short_path,
+    )
+    lib = ctx.actions.declare_file(ctx.label.name + "_fbs_rs/lib.rs")
+    ctx.actions.write(lib, "pub mod {0}_generated;\npub use {0}_generated::*;\n".format(base))
+    return [
+        DefaultInfo(files = depset([lib, generated])),
+        OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset([generated])}),
+        dx_quality_sources([], [], str(ctx.label)),
+        FlatBuffersCodegenInfo(language = "rust"),
+    ]
+
+_flatbuffers_rust_srcs = rule(
+    implementation = _rust_srcs_impl,
+    doc = "Runs flatc --rust --gen-all on one root schema and writes the crate root.",
+    attrs = {
+        "library": attr.label(
+            providers = [FlatBuffersInfo],
+            mandatory = True,
+            doc = "flatbuffers_library owning the root schema.",
+        ),
+        "root": attr.label(
+            allow_single_file = [".fbs"],
+            doc = "Root schema, one of the library's srcs. Optional when the library owns exactly one.",
+        ),
+    } | _PRIVATE_ATTRS,
+)
+
+def flatbuffers_rust_library(name, library, root = None, **kwargs):
+    """Rust crate for one root schema and its include closure.
+
+    flatc --rust --gen-all emits the whole closure into one file, so the crate
+    is per root, not per flatbuffers_library. The runtime comes from the pinned
+    flatbuffers archive. Point flatbuffers_codegen_shard at NAME_generated.
+
+    Args:
+      name: Name of the rust_library.
+      library: flatbuffers_library that owns the root schema.
+      root: Root schema label; optional when the library owns one schema.
+      **kwargs: Passed to the rust_library (visibility, tags, testonly).
+    """
+    generated = name + "_generated"
+    _flatbuffers_rust_srcs(
+        name = generated,
+        library = library,
+        root = root,
+        tags = kwargs.get("tags"),
+        testonly = kwargs.get("testonly"),
+        visibility = kwargs.get("visibility"),
+    )
+    rust_library(
+        name = name,
+        srcs = [":" + generated],
+        crate_root = None,
+        edition = "2021",
+        rustc_flags = ["--cap-lints=allow"],
+        deps = [Label("//flatbuffers:runtime_rust")],
+        **kwargs
+    )
+
 def _shard_impl(ctx):
     library = ctx.attr.library
+    if FlatBuffersCodegenInfo in library and ctx.attr.language in ("cpp", "rust") and library[FlatBuffersCodegenInfo].language != ctx.attr.language:
+        fail(
+            "flatbuffers_codegen_shard " + display_label(ctx.label) + ": language " + ctx.attr.language +
+            " does not match " + display_label(library.label) + ", which generates " +
+            library[FlatBuffersCodegenInfo].language + ". Point library at a flatbuffers_cc_library for cpp, " +
+            "or at NAME_generated of a flatbuffers_rust_library for rust",
+        )
     if OutputGroupInfo not in library or FLATBUFFERS_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
         fail(
             "flatbuffers_codegen_shard " + display_label(ctx.label) + ": " +
             display_label(library.label) + " has no " + FLATBUFFERS_GENERATED_SRCS_GROUP +
-            " output group (want a flatbuffers_cc_library)",
+            " output group (want a flatbuffers_cc_library or a flatbuffers_rust_library NAME_generated)",
         )
     return codegen_bound_shard_providers(
         ctx,
@@ -129,9 +232,9 @@ flatbuffers_codegen_shard = rule(
             doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
             mandatory = True,
         ),
-        "language": attr.string(doc = "cpp.", mandatory = True),
+        "language": attr.string(doc = "cpp or rust.", mandatory = True),
         "library": attr.label(
-            doc = "flatbuffers_cc_library whose generated headers the entries bind.",
+            doc = "flatbuffers_cc_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
             mandatory = True,
         ),
         "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),

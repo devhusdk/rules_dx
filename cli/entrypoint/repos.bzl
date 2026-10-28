@@ -346,11 +346,17 @@ if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
   echo "security reported a configured cargo set as uncovered" >&2
   exit 1
 fi
-if "$$public" bump rs:serde 2.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
+if "$$public" bump rs:serde 2.0.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
   echo "bump unexpectedly widened a configured cargo set" >&2
   exit 1
 fi
-grep -q "bump is not supported for ecosystem cargo set rs (supported operations: check, update, audit)" "$(location bump_cargo.txt)"
+grep -q 'no declared requirement for "serde" in any manifest of set rs' "$(location bump_cargo.txt)"
+# The set names a crate_universe hub MODULE.bazel does not declare: dx refuses to run it.
+if "$$public" update --check --workspace "$$ok" rs >> "$(location bump_cargo.txt)" 2>&1; then
+  echo "update checked a cargo set without its crate_universe hub" >&2
+  exit 1
+fi
+grep -q 'cannot resolve cargo hub "crates": no crate.from_cargo(name = "crates") tag in MODULE.bazel' "$(location bump_cargo.txt)"
 cmp /tmp/consumer_sets_cargo_lock.orig "$(location sets_ok/apps/rs/Cargo.lock)"
 "$$public" update --check --workspace "$$ok" gems modules > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"

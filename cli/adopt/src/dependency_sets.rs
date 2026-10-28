@@ -363,6 +363,12 @@ pub enum DependencySetsError {
         repository: String,
         detail: String,
     },
+    #[error("dependency set {name:?} cannot resolve cargo hub {repository:?}: {detail}")]
+    UnsupportedCargoHub {
+        name: String,
+        repository: String,
+        detail: String,
+    },
     #[error("dependency set {name:?} cannot run paket2bazel: {detail}")]
     UnsupportedNugetLayout { name: String, detail: String },
     #[error("dependency set {name:?} cannot run go mod download: {detail}")]
@@ -607,7 +613,8 @@ fn validate_set(
     for manifest in &raw.manifests {
         dirs.insert(manifest_dir(std::slice::from_ref(manifest)));
     }
-    if dirs.len() != 1 {
+    // A crate_universe hub reads manifests from many directories; the first sits beside the lock.
+    if dirs.len() != 1 && ecosystem != Ecosystem::Cargo {
         return Err(DependencySetsError::ScatteredManifests {
             rel: rel.to_owned(),
             name,
@@ -1044,12 +1051,21 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     if target.starts_with('@') {
         return Vec::new();
     }
-    let (package, recursive) = normalize_scope(target);
+    let (mut package, recursive) = normalize_scope(target);
+    if package == "." {
+        package.clear();
+    }
     if package.is_empty() {
         if recursive || target.contains("MODULE.bazel") {
             return registry.sets.iter().map(|set| set.name.as_str()).collect();
         }
-        return Vec::new();
+        // A root-package label (`//:x`, `//:`, `.`) belongs only to sets scoped `.`.
+        return registry
+            .sets
+            .iter()
+            .filter(|set| set.scopes.iter().any(|scope| scope == "."))
+            .map(|set| set.name.as_str())
+            .collect();
     }
     let mut owners: BTreeSet<&str> = BTreeSet::new();
     for set in &registry.sets {
@@ -1182,11 +1198,112 @@ pub fn check_backend_settings(
         Ecosystem::Bazel => Ok(()),
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
-        Ecosystem::Cargo => check_pinned_lock(set, CARGO_LOCK),
+        Ecosystem::Cargo => {
+            check_pinned_lock(set, CARGO_LOCK)?;
+            check_cargo_hub(workspace, set).map(|_| ())
+        }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
         Ecosystem::Nuget => check_nuget_layout(workspace, set),
         Ecosystem::Go => check_go_layout(workspace, set),
     }
+}
+
+/// The name `@<name>` resolves the set's crate_universe hub by in the root module.
+///
+/// This is the `use_repo` name, which differs from the hub's own `name` (the value
+/// `CARGO_BAZEL_REPIN_ONLY` must carry) when the module renames it. None when the set
+/// is not a valid cargo set; callers run `check_backend_settings` first.
+pub fn cargo_fetch_repository(workspace: &Path, set: &ResolvedSet) -> Option<String> {
+    check_cargo_hub(workspace, set).ok()
+}
+
+fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, DependencySetsError> {
+    let repository = set.repository.clone().unwrap_or_default();
+    let unsupported = |detail: String| DependencySetsError::UnsupportedCargoHub {
+        name: set.name.clone(),
+        repository: repository.clone(),
+        detail,
+    };
+    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
+        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
+    let read_include = |label: &str| -> Result<String, String> {
+        let rel = dx_module_bazel::include_rel("", label)?;
+        std::fs::read_to_string(workspace.join(rel))
+            .map_err(|error| format!("cannot read included {label}: {error}"))
+    };
+    let modules =
+        dx_module_bazel::load_with_includes(&root, &read_include).map_err(&unsupported)?;
+    let mut hubs = Vec::new();
+    for (index, module) in modules.iter().enumerate() {
+        let found = module
+            .cargo_hubs()
+            .map_err(|error| unsupported(error.to_string()))?;
+        hubs.extend(
+            found
+                .into_iter()
+                .filter(|hub| hub.name == repository)
+                .map(|hub| (index, hub)),
+        );
+    }
+    let (index, hub) = match hubs.as_slice() {
+        [] => {
+            return Err(unsupported(format!(
+                "no crate.from_cargo(name = {repository:?}) tag in {MODULE_BAZEL}"
+            )));
+        }
+        [one] => one,
+        _ => {
+            return Err(unsupported(format!(
+                "{} crate.from_cargo tags are named {repository:?}",
+                hubs.len()
+            )));
+        }
+    };
+    let visible = std::iter::once(&modules[*index])
+        .chain(
+            modules
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| i != index)
+                .map(|(_, m)| m),
+        )
+        .find_map(|module| module.cargo_apparent(hub))
+        .ok_or_else(|| {
+            unsupported(format!(
+                "{MODULE_BAZEL} must list {repository:?} in use_repo of the crate extension"
+            ))
+        })?;
+    let label = hub.cargo_lockfile.ok_or_else(|| {
+        unsupported("the crate.from_cargo tag needs a literal cargo_lockfile".to_owned())
+    })?;
+    let cargo_lock = dx_module_bazel::label_path(label).map_err(&unsupported)?;
+    if cargo_lock != in_dir(&set.dir, CARGO_LOCK) {
+        return Err(unsupported(format!(
+            "cargo_lockfile {label} is not the set's {} (want {cargo_lock})",
+            in_dir(&set.dir, CARGO_LOCK)
+        )));
+    }
+    if let Some(label) = hub.lockfile {
+        let lock = dx_module_bazel::label_path(label).map_err(&unsupported)?;
+        if !set.locks.contains(&lock) {
+            return Err(unsupported(format!(
+                "lockfile {label} is not listed in the set's locks (want {lock})"
+            )));
+        }
+    }
+    let hub_manifests = hub
+        .manifests
+        .iter()
+        .map(|manifest| dx_module_bazel::label_path(&manifest.value).map_err(&unsupported))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    for manifest in &set.manifests {
+        if !hub_manifests.contains(manifest) {
+            return Err(unsupported(format!(
+                "{manifest} is not one of the manifests of crate.from_cargo({repository:?})"
+            )));
+        }
+    }
+    Ok(visible.to_owned())
 }
 
 const MAVEN_SIGNATURES: [&str; 2] = ["__INPUT_ARTIFACTS_HASH", "__RESOLVED_ARTIFACTS_HASH"];
@@ -1504,15 +1621,75 @@ fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependenc
     if backend != NpmBackend::Pnpm {
         return Ok(());
     }
+    match nearest_parent_pnpm_workspace(workspace, set) {
+        None => Ok(()),
+        Some((_, true)) => Ok(()),
+        Some((config, false)) => Err(unsupported(format!(
+            "{config} makes pnpm write the parent workspace lock"
+        ))),
+    }
+}
+
+/// The nearest `pnpm-workspace.yaml` above a pnpm set, as `(path, is_root_only)`.
+///
+/// A set with its own workspace file is its own root and has no parent to find.
+/// `is_root_only` is true when the parent lists only `.` as a package, so the
+/// set is not a member and pnpm needs `--ignore-workspace` to stay out of it.
+fn nearest_parent_pnpm_workspace(workspace: &Path, set: &ResolvedSet) -> Option<(String, bool)> {
+    if workspace.join(in_dir(&set.dir, PNPM_WORKSPACE)).is_file() {
+        return None;
+    }
     for dir in parent_dirs(&set.dir).into_iter().skip(1) {
         let config = in_dir(dir, PNPM_WORKSPACE);
-        if workspace.join(&config).is_file() {
-            return Err(unsupported(format!(
-                "{config} makes pnpm write the parent workspace lock"
-            )));
+        if let Ok(text) = std::fs::read_to_string(workspace.join(&config)) {
+            let root_only = pnpm_workspace_packages(&text) == [".".to_owned()];
+            return Some((config, root_only));
         }
     }
-    Ok(())
+    None
+}
+
+/// Whether pnpm runs for this set need `--ignore-workspace`: the set has no
+/// workspace file of its own and the nearest parent workspace lists only `.`.
+pub fn npm_ignore_workspace(workspace: &Path, set: &ResolvedSet) -> bool {
+    set.ecosystem == Ecosystem::Npm
+        && npm_backend(set) == Some(NpmBackend::Pnpm)
+        && nearest_parent_pnpm_workspace(workspace, set).is_some_and(|(_, root_only)| root_only)
+}
+
+/// The `packages` globs of a `pnpm-workspace.yaml`, read without a YAML parser.
+fn pnpm_workspace_packages(text: &str) -> Vec<String> {
+    let clean = |item: &str| {
+        item.split(" #")
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_matches(|c| c == '"' || c == '\'')
+            .to_owned()
+    };
+    let mut out = Vec::new();
+    let mut lines = text.lines();
+    while let Some(line) = lines.next() {
+        let Some(rest) = line.strip_prefix("packages:") else {
+            continue;
+        };
+        let rest = rest.split(" #").next().unwrap_or("").trim();
+        if let Some(inline) = rest.strip_prefix('[') {
+            let inline = inline.trim_end_matches(']');
+            out.extend(inline.split(',').map(clean).filter(|item| !item.is_empty()));
+            break;
+        }
+        for item in lines.by_ref() {
+            let trimmed = item.trim();
+            if let Some(entry) = trimmed.strip_prefix("- ") {
+                out.push(clean(entry));
+            } else if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                break;
+            }
+        }
+        break;
+    }
+    out
 }
 
 fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
@@ -1945,6 +2122,38 @@ scopes = ["apps/second"]
     }
 
     #[test]
+    fn root_scope_owns_only_root_package_labels() {
+        let text = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "root"
+ecosystem = "npm"
+manifests = ["package.json"]
+locks = ["pnpm-lock.yaml"]
+scopes = ["."]
+
+[[dependency_set]]
+name = "leaf"
+ecosystem = "uv"
+manifests = ["apps/leaf/pyproject.toml"]
+locks = ["apps/leaf/uv.lock"]
+scopes = ["apps/leaf"]
+"#;
+        let registry = load_text(text);
+        for target in ["//:node_modules", "//:", "."] {
+            assert_eq!(owning_sets(&registry, target), vec!["root"], "{target}");
+        }
+        assert_eq!(owning_sets(&registry, "//foo:bar"), Vec::<&str>::new());
+        assert_eq!(owning_sets(&registry, "//apps/leaf:t"), vec!["leaf"]);
+        assert_eq!(owning_sets(&registry, "//foo/..."), Vec::<&str>::new());
+        assert_eq!(owning_sets(&registry, "//...").len(), 2);
+        assert_eq!(owning_sets(&registry, "//:MODULE.bazel").len(), 2);
+        let bare = load_text(&text.replace("\".\"", "\"apps/root\""));
+        assert_eq!(owning_sets(&bare, "//:x"), Vec::<&str>::new());
+    }
+
+    #[test]
     fn overlapping_scopes_resolve_to_every_owner() {
         let text = r#"
 schema_version = 1
@@ -2343,6 +2552,29 @@ scopes = ["services/worker"]
                 "{parent}"
             );
         }
+        let scratch = npm_workspace("root-only");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::write(
+            workspace.join("pnpm-workspace.yaml"),
+            "packages:\n  - \".\" # root\nallowBuilds: {}\n",
+        )
+        .expect("root-only workspace");
+        assert_eq!(check_backend_settings(&workspace, &frontend), Ok(()));
+        assert!(npm_ignore_workspace(&workspace, &frontend));
+        std::fs::write(
+            workspace.join("apps/web/pnpm-workspace.yaml"),
+            "packages: []\n",
+        )
+        .expect("own workspace");
+        assert!(!npm_ignore_workspace(&workspace, &frontend));
+        let scratch = npm_workspace("members");
+        let workspace = scratch.path().to_path_buf();
+        std::fs::write(
+            workspace.join("pnpm-workspace.yaml"),
+            "packages: [\"apps/*\"]\n",
+        )
+        .expect("members workspace");
+        assert!(!npm_ignore_workspace(&workspace, &frontend));
         let scratch = npm_workspace("other-lock");
         let workspace = scratch.path().to_path_buf();
         let mut other = frontend.clone();
@@ -2520,6 +2752,79 @@ scopes = ["tools/rs"]
 repository = "tool_crates"
 "#;
 
+    const CARGO_EXT: &str =
+        "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n";
+
+    const CARGO_HUBS: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:Cargo.lock\", lockfile = \"//apps/rs:cargo-bazel-lock.json\", manifests = [\"//apps/rs:Cargo.toml\"])\ncrate.from_cargo(name = \"tool_crates\", cargo_lockfile = \"//tools/rs:Cargo.lock\", manifests = [\"//tools/rs:Cargo.toml\"])\nuse_repo(crate, \"crates\", \"tool_crates\")\n";
+
+    fn cargo_hub_detail(module: &str, set: &ResolvedSet) -> String {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-hub-");
+        std::fs::write(scratch.path().join(MODULE_BAZEL), module).expect("module");
+        match check_backend_settings(scratch.path(), set) {
+            Err(DependencySetsError::UnsupportedCargoHub { detail, .. }) => detail,
+            other => panic!("expected UnsupportedCargoHub, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn cargo_hubs_resolve_by_their_visible_name_and_refuse_everything_else() {
+        let registry = load_text(CARGO_SETS);
+        let crates = ResolvedSet::of(registry.find("crates").expect("crates"));
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-visible-");
+        let hub = |import: &str| {
+            format!(
+                "{CARGO_EXT}crate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:Cargo.lock\", lockfile = \"//apps/rs:cargo-bazel-lock.json\", manifests = [\"//apps/rs:Cargo.toml\"])\n{import}"
+            )
+        };
+        for (import, visible) in [
+            ("use_repo(crate, \"crates\")\n", "crates"),
+            ("use_repo(crate, deps = \"crates\")\n", "deps"),
+        ] {
+            std::fs::write(scratch.path().join(MODULE_BAZEL), hub(import)).expect("module");
+            assert_eq!(check_backend_settings(scratch.path(), &crates), Ok(()));
+            assert_eq!(
+                cargo_fetch_repository(scratch.path(), &crates).as_deref(),
+                Some(visible)
+            );
+        }
+        assert!(cargo_hub_detail(CARGO_EXT, &crates).contains("no crate.from_cargo"));
+        assert!(cargo_hub_detail(&hub(""), &crates).contains("use_repo"));
+        let two = hub("use_repo(crate, \"crates\")\n").replace(
+            "use_repo",
+            "crate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:Cargo.lock\", manifests = [\"//apps/rs:Cargo.toml\"])\nuse_repo",
+        );
+        assert!(cargo_hub_detail(&two, &crates).contains("2 crate.from_cargo"));
+        let mismatch = hub("use_repo(crate, \"crates\")\n")
+            .replace("//apps/rs:Cargo.lock", "//other:Cargo.lock");
+        assert!(cargo_hub_detail(&mismatch, &crates).contains("cargo_lockfile"));
+        let unlisted =
+            hub("use_repo(crate, \"crates\")\n").replace("cargo-bazel-lock.json", "other.json");
+        assert!(cargo_hub_detail(&unlisted, &crates).contains("not listed in the set's locks"));
+        let mut stray = crates.clone();
+        stray.manifests.push("stray/Cargo.toml".to_owned());
+        assert!(
+            cargo_hub_detail(&hub("use_repo(crate, \"crates\")\n"), &stray)
+                .contains("stray/Cargo.toml")
+        );
+    }
+
+    #[test]
+    fn cargo_sets_may_span_directories_but_uv_sets_may_not() {
+        let multi = cargo_record("repository = \"crates\"\n").replace(
+            "manifests = [\"a/Cargo.toml\"]",
+            "manifests = [\"a/Cargo.toml\", \"b/Cargo.toml\"]",
+        );
+        let registry = parse(&multi, DX_TOML_REL)
+            .expect("valid")
+            .expect("registry");
+        assert_eq!(registry.find("a").expect("a").manifests.len(), 2);
+        let uv = "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\", \"b/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
+        assert!(matches!(
+            parse(uv, DX_TOML_REL),
+            Err(DependencySetsError::ScatteredManifests { .. })
+        ));
+    }
+
     fn cargo_record(extra: &str) -> String {
         format!(
             "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"cargo\"\nmanifests = [\"a/Cargo.toml\"]\nlocks = [\"a/Cargo.lock\"]\nscopes = [\"a\"]\n{extra}"
@@ -2629,6 +2934,7 @@ repository = "tool_crates"
         let registry = load_text(CARGO_SETS);
         let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-");
         let workspace = scratch.path().to_path_buf();
+        std::fs::write(workspace.join(MODULE_BAZEL), CARGO_HUBS).expect("module");
         for name in ["crates", "tools"] {
             let set = ResolvedSet::of(registry.find(name).expect("set"));
             assert_eq!(check_backend_settings(&workspace, &set), Ok(()), "{name}");

@@ -542,6 +542,22 @@ mod tests {
     }
 
     #[test]
+    fn root_package_labels_are_audited_only_when_a_root_scoped_set_exists() {
+        let set = |scope: &str| {
+            format!(
+                "schema_version = 1\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"package.json\"]\nlocks = [\"pnpm-lock.yaml\"]\nscopes = [\"{scope}\"]\n"
+            )
+        };
+        let root = dx_test_scratch::scratch("dx-affected-root-scope-");
+        write(root.path(), "dx.toml", &set("."));
+        assert!(audit_owned(root.path(), "//:node_modules"));
+        assert!(!audit_owned(root.path(), "//foo:bar"));
+        let other = dx_test_scratch::scratch("dx-affected-other-scope-");
+        write(other.path(), "dx.toml", &set("apps/web"));
+        assert!(!audit_owned(other.path(), "//:node_modules"));
+    }
+
+    #[test]
     fn widened_summary_caps_names_and_json_keeps_all() {
         let scopes: Vec<String> = (0..480).map(|n| format!("//p{n}:all")).collect();
         let entries: Vec<(&str, &str)> = scopes

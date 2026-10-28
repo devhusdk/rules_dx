@@ -160,6 +160,7 @@ fn run_configured_target(
             | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
             | dependency_sets::DependencySetsError::MissingPinnedLock { .. }
             | dependency_sets::DependencySetsError::UnsupportedMavenHub { .. }
+            | dependency_sets::DependencySetsError::UnsupportedCargoHub { .. }
             | dependency_sets::DependencySetsError::UnsupportedNugetLayout { .. }
             | dependency_sets::DependencySetsError::UnsupportedGoLayout { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
@@ -1908,12 +1909,16 @@ repository = "tool_crates"
         "consumer-rs/tools/cargo-bazel-lock.json",
     ];
 
+    /// The crate_universe hubs behind `CARGO_TOML_SETS`; dx refuses a cargo set without its hub.
+    const CARGO_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//consumer-rs/crates:Cargo.lock\", lockfile = \"//consumer-rs/crates:cargo-bazel-lock.json\", manifests = [\"//consumer-rs/crates:Cargo.toml\"])\ncrate.from_cargo(name = \"tool_crates\", cargo_lockfile = \"//consumer-rs/tools:Cargo.lock\", lockfile = \"//consumer-rs/tools:cargo-bazel-lock.json\", manifests = [\"//consumer-rs/tools:Cargo.toml\"])\nuse_repo(crate, \"crates\", \"tool_crates\")\n";
+
     fn cargo_harness(name: &str) -> Harness {
         let harness = consumer_harness(name, &format!("{MIXED_TOML}{CARGO_TOML_SETS}"), true);
         for dir in ["consumer-npm/jobs", "consumer-npm/web"] {
             harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
             harness.write_source(&format!("{dir}/pnpm-lock.yaml"), PNPM_LOCK);
         }
+        harness.write_source("MODULE.bazel", CARGO_MODULE);
         for dir in ["consumer-rs/crates", "consumer-rs/tools"] {
             harness.write_source(&format!("{dir}/Cargo.toml"), CARGO_MANIFEST);
             harness.write_source(&format!("{dir}/Cargo.lock"), CARGO_LOCK);

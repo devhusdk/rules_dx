@@ -1208,6 +1208,12 @@ fn write_dependency_sets(base: &Path) {
     .expect("manifest");
     fs::write(workspace.join("app/Cargo.lock"), "version = 4\n").expect("lock");
     fs::write(workspace.join("app/cargo-bazel-lock.json"), "{}\n").expect("bazel lock");
+    // dx refuses a cargo set whose crate_universe hub is not declared.
+    fs::write(
+        workspace.join("MODULE.bazel"),
+        "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//app:Cargo.lock\", lockfile = \"//app:cargo-bazel-lock.json\", manifests = [\"//app:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
+    )
+    .expect("module");
 }
 
 #[test]

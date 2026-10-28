@@ -710,6 +710,33 @@ fn cargo_hubs_follow_the_rules_rust_crate_extension() {
 }
 
 #[test]
+fn cargo_hub_lockfile_and_visible_name() {
+    let head = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n";
+    let hub = |import: &str| {
+        let source = format!(
+            "{head}crate.from_cargo(name = \"dx_crates\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//:Cargo.toml\"])\n{import}"
+        );
+        let file = parse(&source);
+        let hubs = file.cargo_hubs().expect("hubs");
+        assert_eq!(hubs[0].lockfile, Some("//:cargo-bazel-lock.json"));
+        file.cargo_apparent(&hubs[0]).map(str::to_owned)
+    };
+    assert_eq!(
+        hub("use_repo(crate, \"dx_crates\")\n"),
+        Some("dx_crates".to_owned())
+    );
+    assert_eq!(
+        hub("use_repo(crate, crates = \"dx_crates\")\n"),
+        Some("crates".to_owned())
+    );
+    assert_eq!(
+        hub("use_repo(crate, \"other\")\nuse_repo(other, \"dx_crates\")\n"),
+        None
+    );
+    assert_eq!(hub(""), None);
+}
+
+#[test]
 fn maven_installs_follow_the_rules_jvm_external_extension() {
     let source = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"a:b:1\"],\n    lock_file = \"//:maven_install.json\",\n)\nmaven.install(name = \"tool\", lock_file = \"//t:lock.json\", fail_if_repin_required = False)\nmaven.install(name = \"c\", fail_if_repin_required = FLAG)\nmaven.install(name = \"d\", fail_if_repin_required = True)\nfake = use_extension(\"@fake//:extensions.bzl\", \"maven\")\nfake.install(name = \"no\")\n";
     let view = |i: &MavenInstall<'_>| {

@@ -674,7 +674,12 @@ values reach the `bazel` call. pnpm runs with `npm_config_globalconfig` and
 global `.npmrc` files are ignored; a `.npmrc` in the set directory still
 applies. The set is unsupported before pnpm starts when `locks` does not list
 `<set directory>/pnpm-lock.yaml` or when a parent directory inside the
-workspace holds a `pnpm-workspace.yaml`.
+workspace holds a `pnpm-workspace.yaml` that makes the set a member. pnpm uses
+the nearest workspace file, so a set with its own `pnpm-workspace.yaml` is its
+own root and is accepted. A set with none of its own under a parent whose
+`packages` is exactly `["."]` is not a member of that workspace either; dx
+accepts it and passes `--ignore-workspace` to pnpm so the parent lock stays
+untouched.
 
 A set may list `<set directory>/yarn.lock` or `<set directory>/package-lock.json`
 instead; the first of `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` in
@@ -759,7 +764,19 @@ repository = "crates"
 `2`. `locks` must list `<set directory>/Cargo.lock`; otherwise `dx update`
 reports the set unsupported and names the missing path.
 
-`dx update --apply` runs `bazel fetch --repo=@<repository>` from the workspace
+`repository` is the `name` of one `crate.from_cargo` tag in the root
+`MODULE.bazel` (included `*.MODULE.bazel` files are followed). `manifests` may
+list `Cargo.toml` files from several directories, because one hub reads them
+all; the first sits beside the set's `Cargo.lock` and every one must be among
+the hub's `manifests`. dx refuses the set as unsupported (exit `1`) unless
+exactly one tag has that name, the tag is imported with `use_repo` (renamed or
+not), its literal `cargo_lockfile` is the set's `Cargo.lock`, and its
+`lockfile`, when set, is in `locks`. The hub is fetched under the name
+`use_repo` gives it (`use_repo(crate, crates = "dx_crates")` is fetched as
+`@crates`), while `CARGO_BAZEL_REPIN_ONLY` carries the hub's own `name`
+(`dx_crates`), which is what crate_universe compares it with.
+
+`dx update --apply` runs `bazel fetch --repo=@<visible name of the hub>` from the workspace
 root with `CARGO_BAZEL_REPIN=workspace`, `REPIN=workspace`,
 `CARGO_BAZEL_REPIN_ONLY=<repository>`, and `CARGO_BAZEL_ISOLATED=true`, so
 crate_universe re-resolves `Cargo.toml` into that hub's `Cargo.lock` and
@@ -917,7 +934,9 @@ is missing.
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
 selects every configured set. A scope selects every set whose scope covers
-it; overlapping scopes select every owner and the run names them all.
+it; overlapping scopes select every owner and the run names them all. The
+scope `.` owns the root package only: `//:x` and `//:` select the sets scoped
+`.`, while `//pkg:x` and `//pkg/...` never do; `//...` selects every set.
 Unknown names and unowned paths fail with exit `2`.
 
 `dx update` and `dx update --check` run the pinned uv `0.12.23` and the pinned

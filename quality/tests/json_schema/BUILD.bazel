@@ -1,0 +1,86 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:json_schema.bzl", "json_schema", "json_schemas")
+load(":json_schema_tests.bzl", "schemas_config_test")
+
+json_schema(
+    name = "common",
+    src = "fixtures/common.schema.json",
+)
+
+json_schema(
+    name = "a",
+    src = "fixtures/a.schema.json",
+    files = ["conf/*.json"],
+    url = "https://example.com/a.schema.json",
+    deps = [":common"],
+)
+
+json_schemas(
+    name = "schemas",
+    schemas = [":a"],
+)
+
+schemas_config_test(
+    name = "schemas_config_test",
+    size = "small",
+    target_under_test = ":schemas",
+)
+
+json_schema(
+    name = "no_target",
+    src = "fixtures/common.schema.json",
+    tags = ["manual"],
+)
+
+json_schemas(
+    name = "no_target_schemas",
+    schemas = [":no_target"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_target_fails",
+    expected_failure_substring = "needs files, url, or both",
+    target = ":no_target_schemas",
+)
+
+json_schema(
+    name = "dup_a",
+    src = "fixtures/a.schema.json",
+    tags = ["manual"],
+    url = "https://example.com/x.json",
+)
+
+json_schema(
+    name = "dup_b",
+    src = "fixtures/common.schema.json",
+    tags = ["manual"],
+    url = "https://example.com/x.json",
+)
+
+json_schemas(
+    name = "dup_url",
+    schemas = [
+        ":dup_a",
+        ":dup_b",
+    ],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "dup_url_fails",
+    expected_failure_substring = "duplicate url 'https://example.com/x.json'",
+    target = ":dup_url",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "json_schema_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

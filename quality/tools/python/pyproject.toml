@@ -10,6 +10,7 @@ dependencies = [
   "flake8>=7.3.0",
   "pylint>=4.0.8",
   "yamllint>=1.38.0",
+  "check-jsonschema>=0.39.0",
   "djlint>=1.45.0,<1.46",
   "griffelib>=2.4.1",
   "ansible-lint>=26.10.1",

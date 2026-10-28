@@ -54,6 +54,15 @@ pub const OVERRIDES: &[Override] = &[
         ],
     },
     Override {
+        module: "rules_cuda",
+        version: "0.3.0",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "dlink_includes.patch",
+            content: include_str!("../../../patches/rules_cuda/dlink_includes.patch"),
+        }],
+    },
+    Override {
         module: "rules_android",
         version: "0.6.6",
         patch_strip: 1,

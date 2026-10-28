@@ -1,0 +1,66 @@
+load("//cc/rules:defs.bzl", "cc_binary")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library", "cuda_objects")
+
+package(default_visibility = ["//cuda/tests:__subpackages__"])
+
+cuda_library(
+    name = "scale",
+    srcs = ["scale.cu"],
+    hdrs = ["scale.cuh"],
+    archs = [
+        "sm_89",
+        "sm_120",
+    ],
+    rdc = True,
+)
+
+cuda_library(
+    name = "axpy",
+    srcs = ["axpy.cu"],
+    hdrs = ["axpy.h"],
+    archs = [
+        "sm_89",
+        "sm_120",
+    ],
+    rdc = True,
+    deps = [":scale"],
+)
+
+cc_binary(
+    name = "rdc_app",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":axpy"],
+)
+
+cuda_objects(
+    name = "scale_objects",
+    srcs = ["scale.cu"],
+    hdrs = ["scale.cuh"],
+    archs = [
+        "sm_89",
+        "sm_120",
+    ],
+)
+
+cuda_library(
+    name = "axpy_from_objects",
+    srcs = ["axpy.cu"],
+    hdrs = [
+        "axpy.h",
+        "scale.cuh",
+    ],
+    archs = [
+        "sm_89",
+        "sm_120",
+    ],
+    rdc = True,
+    deps = [":scale_objects"],
+)
+
+cc_binary(
+    name = "rdc_objects_app",
+    srcs = ["main.cc"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":axpy_from_objects"],
+)

@@ -1,7 +1,7 @@
 """Minimal CUDA wrappers that compile with the pinned nvcc."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_cuda//cuda:defs.bzl", _cuda_library = "cuda_library")
+load("@rules_cuda//cuda:defs.bzl", _cuda_library = "cuda_library", _cuda_objects = "cuda_objects")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
 load("//cc/rules:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("//cuda/rules:components.bzl", _cuda_component_library = "cuda_component_library")
@@ -83,14 +83,15 @@ def cuda_split_srcs(srcs):
             host.append(src)
     return device, host
 
-def cuda_library(name, srcs, archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
-    """Minimal wrapper over rules_cuda cuda_library; archs is required."""
+def cuda_library(name, srcs, archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
+    """Minimal wrapper over rules_cuda cuda_library; archs is required and rdc enables relocatable device code."""
     compatible = cuda_target_compatible_with(target_compatible_with)
     _cuda_library(
         name = name + "_upstream",
         srcs = srcs,
         hdrs = hdrs or [],
         archs = archs,
+        rdc = rdc,
         tags = dx_upstream_tags(tags),
         target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
         visibility = ["//visibility:private"],
@@ -121,7 +122,46 @@ def cuda_library(name, srcs, archs, hdrs = None, visibility = None, tags = None,
         **forward_kwargs
     )
 
-def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None):
+def cuda_objects(name, srcs, archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
+    """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library, cuda_binary or cuda_test."""
+    compatible = cuda_target_compatible_with(target_compatible_with)
+    _cuda_objects(
+        name = name + "_upstream",
+        srcs = srcs,
+        hdrs = hdrs or [],
+        archs = archs,
+        deps = list(deps or []) + [Label("@rules_cuda//cuda:runtime")],
+        tags = dx_upstream_tags(tags),
+        target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
+        visibility = ["//visibility:private"],
+        **kwargs
+    )
+    cuda_check(
+        name = name + "_cuda_check",
+        archs = archs,
+        tags = ["manual"],
+        target_compatible_with = compatible,
+        testonly = kwargs.get("testonly", None),
+        visibility = ["//visibility:private"],
+    )
+    forward_kwargs = {}
+    for key in ("aspect_hints", "testonly"):
+        if kwargs.get(key, None) != None:
+            forward_kwargs[key] = kwargs[key]
+    if tags != None:
+        forward_kwargs["tags"] = tags
+    _cuda_library_forward(
+        name = name,
+        upstream = name + "_upstream",
+        check = name + "_cuda_check",
+        srcs = srcs,
+        hdrs = hdrs or [],
+        target_compatible_with = compatible,
+        visibility = visibility,
+        **forward_kwargs
+    )
+
+def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False):
     device, host = cuda_split_srcs(srcs)
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_library(
@@ -129,6 +169,7 @@ def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, t
         srcs = device,
         hdrs = hdrs,
         archs = archs,
+        rdc = rdc,
         deps = deps,
         tags = dx_upstream_tags(library_tags if library_tags != None else tags),
         target_compatible_with = compatible,
@@ -145,14 +186,14 @@ def _cuda_executable(cc_rule, name, srcs, archs, deps, hdrs, visibility, tags, t
         **kwargs
     )
 
-def cuda_binary(name, srcs, archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
+def cuda_binary(name, srcs, archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
     """Compiles .cu sources with nvcc and links them into a cc_binary."""
-    _cuda_executable(_cc_binary, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs)
+    _cuda_executable(_cc_binary, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc)
 
-def cuda_test(name, srcs, archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
+def cuda_test(name, srcs, archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
     """Compiles .cu sources with nvcc and links them into a cc_test."""
     kwargs["testonly"] = True
-    _cuda_executable(_cc_test, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs)
+    _cuda_executable(_cc_test, name, srcs, archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc)
 
 _GPU_TAGS = ["exclusive", "external", "local", "requires-gpu"]
 
@@ -164,7 +205,7 @@ def cuda_gpu_env(min_compute_capability, min_driver):
         "DX_GPU_RUNTIME": CUDA_VERSION,
     }
 
-def cuda_gpu_test(name, srcs, archs, min_compute_capability, min_driver, deps = None, hdrs = None, visibility = None, tags = None, env = None, data = None, target_compatible_with = None, **kwargs):
+def cuda_gpu_test(name, srcs, archs, min_compute_capability, min_driver, deps = None, hdrs = None, visibility = None, tags = None, env = None, data = None, target_compatible_with = None, rdc = False, **kwargs):
     """Runs dx_gpu_test_main on a real GPU and records gpu_facts.json; a host without a GPU fails."""
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_gpu_check(
@@ -193,4 +234,5 @@ def cuda_gpu_test(name, srcs, archs, min_compute_capability, min_driver, deps = 
         target_compatible_with,
         kwargs,
         library_tags = user_tags,
+        rdc = rdc,
     )

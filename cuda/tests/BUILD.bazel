@@ -6,7 +6,7 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load(":defs.bzl", "component_sources_test", "hermetic_toolchain_test", "with_clang_compiler")
+load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "hermetic_toolchain_test", "with_clang_compiler")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -38,6 +38,70 @@ cuda_gpu_test(
     min_driver = "13.0",
     tags = ["manual"],
     deps = ["//cuda/tests/fixtures/saxpy"],
+)
+
+rust_test(
+    name = "rdc_device_code_test",
+    size = "small",
+    srcs = ["rdc_device_code_test.rs"],
+    data = [
+        "//cuda/tests/fixtures/rdc:axpy",
+        "//cuda/tests/fixtures/rdc:axpy_from_objects",
+        "//cuda/tests/fixtures/rdc:rdc_app",
+        "//cuda/tests/fixtures/rdc:rdc_objects_app",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/rdc:axpy) $(rootpaths //cuda/tests/fixtures/rdc:axpy_from_objects)",
+        "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/rdc:rdc_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+dx_hello_output_test(
+    name = "rdc_output_test",
+    binary = "//cuda/tests/fixtures/rdc:rdc_app",
+    expected = "rdc n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+dx_hello_output_test(
+    name = "rdc_objects_output_test",
+    binary = "//cuda/tests/fixtures/rdc:rdc_objects_app",
+    expected = "rdc n=1024 sum=1048576",
+    target_compatible_with = CUDA_TARGET,
+)
+
+device_link_hermetic_test(
+    name = "rdc_device_link_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/rdc:axpy",
+)
+
+device_link_hermetic_test(
+    name = "rdc_objects_device_link_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/rdc:axpy_from_objects",
+)
+
+hermetic_toolchain_test(
+    name = "rdc_objects_hermetic_test",
+    target_compatible_with = CUDA_TARGET,
+    target_under_test = "//cuda/tests/fixtures/rdc:scale_objects",
+)
+
+cuda_gpu_test(
+    name = "rdc_gpu_test",
+    srcs = ["rdc_gpu_test.cu"],
+    archs = [
+        "sm_89",
+        "sm_120",
+    ],
+    min_compute_capability = "8.9",
+    min_driver = "13.0",
+    rdc = True,
+    tags = ["manual"],
+    deps = ["//cuda/tests/fixtures/rdc:axpy"],
 )
 
 rust_test(
@@ -256,6 +320,7 @@ rustfmt_test(
     size = "small",
     targets = [
         ":cublas_device_code_test",
+        ":rdc_device_code_test",
         ":saxpy_device_code_test",
         ":saxpy_gpu_unavailable_test",
     ],

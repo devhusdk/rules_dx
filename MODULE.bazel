@@ -36,10 +36,14 @@ single_version_override(
     version = "0.8.23",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_cuda", version = "0.3.0")
 single_version_override(
     module_name = "rules_cuda",
+    patch_strip = 1,
+    patches = [
+        "//patches/rules_cuda:dlink_includes.patch",
+    ],
     version = "0.3.0",
 )
 

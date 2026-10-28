@@ -1,0 +1,66 @@
+diff -ruN a/cuda/private/actions/dlink.bzl b/cuda/private/actions/dlink.bzl
+--- a/cuda/private/actions/dlink.bzl
++++ b/cuda/private/actions/dlink.bzl
+@@ -85,6 +85,9 @@
+         cpp_copts = common.cpp_copts,
+         cpp_cxxopts = common.cpp_cxxopts,
+         use_pic = pic,
++        include_paths = common.includes,
++        quote_include_paths = common.quote_includes,
++        system_include_paths = common.system_includes,
+     )
+     cmd = cuda_helper.get_command_line(cuda_feature_config, ACTION_NAMES.device_link, var)
+     env = cuda_helper.get_environment_variables(cuda_feature_config, ACTION_NAMES.device_link, var)
+@@ -96,7 +99,7 @@
+         executable = cuda_compiler,
+         arguments = [args],
+         outputs = [obj_file],
+-        inputs = depset(transitive = [objects, cc_toolchain.all_files, cuda_toolchain.all_files]),
++        inputs = depset(transitive = [objects, common.headers, cc_toolchain.all_files, cuda_toolchain.all_files]),
+         env = env,
+         mnemonic = "CudaDeviceLink",
+         progress_message = "Device linking %{output}",
+diff -ruN a/cuda/private/cuda_helper.bzl b/cuda/private/cuda_helper.bzl
+--- a/cuda/private/cuda_helper.bzl
++++ b/cuda/private/cuda_helper.bzl
+@@ -583,6 +583,9 @@
+         user_link_flags = [],
+         cpp_copts = [],
+         cpp_cxxopts = [],
++        include_paths = [],
++        quote_include_paths = [],
++        system_include_paths = [],
+         use_pic = False):
+     """Returns variables used for `device_link` actions.
+ 
+@@ -598,6 +601,9 @@
+         user_link_flags: flags for device linking.
+         cpp_copts: use the `copts` fields from C++ configuration fragment for CUDA host compilation, guarded with feature `cuda_host_use_copts`
+         cpp_cxxopts: use the `cxxopts` fields from C++ configuration fragment for CUDA host compilation, guarded with feature `cuda_host_use_cxxopts`
++        include_paths: Include paths used when compiling the device-link stub.
++        quote_include_paths: Quote include paths used by the device-link stub.
++        system_include_paths: System include paths used by the device-link stub.
+         use_pic: whether to compile for position independent code.
+     """
+     arch_specs = cuda_archs_info.arch_specs
+@@ -629,6 +635,9 @@
+         use_pic = use_pic,
+         cpp_copts = cpp_copts,
+         cpp_cxxopts = cpp_cxxopts,
++        include_paths = include_paths,
++        quote_include_paths = quote_include_paths,
++        system_include_paths = system_include_paths,
+         **optional_variables
+     )
+ 
+diff -ruN a/cuda/private/toolchain_configs/nvcc.bzl b/cuda/private/toolchain_configs/nvcc.bzl
+--- a/cuda/private/toolchain_configs/nvcc.bzl
++++ b/cuda/private/toolchain_configs/nvcc.bzl
+@@ -250,6 +250,7 @@
+             flag_set(
+                 actions = [
+                     ACTION_NAMES.cuda_compile,
++                    ACTION_NAMES.device_link,
+                 ],
+                 flag_groups = [
+                     flag_group(

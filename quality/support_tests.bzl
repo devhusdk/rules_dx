@@ -32,6 +32,7 @@ SUPPORT_EVIDENCE_PENDING = [
     "hadolint:lint:dockerfile:linux_arm64",
     "hadolint:lint:dockerfile:macos_arm64",
     "hadolint:lint:dockerfile:windows_x86_64",
+    "jsonnet_lint:lint:jsonnet:linux_x86_64",
     "keep_sorted:lint:text:linux_arm64",
     "keep_sorted:lint:text:linux_x86_64",
     "keep_sorted:lint:text:macos_arm64",

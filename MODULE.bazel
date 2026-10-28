@@ -1081,6 +1081,13 @@ _consumer_dx_repo(
     dev_dependency = True,
 )
 
+_consumer_surface_repo = use_repo_rule("//cli/entrypoint:surface.bzl", "consumer_surface_repo")
+
+_consumer_surface_repo(
+    name = "dx_consumer_surface",
+    dev_dependency = True,
+)
+
 _consumer_sets_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_sets_repo")
 
 _consumer_sets_repo(

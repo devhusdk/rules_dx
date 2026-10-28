@@ -154,6 +154,17 @@ func validateBuildImports(c *config.Config, manifest *cargoManifest, imports tar
 	return check(imports.test, "test")
 }
 
+func noteGate(result *targetImports, name string, dep cargoDependency) {
+	gated := dep.androidOnly()
+	if prev, seen := result.gated[name]; seen && !prev {
+		return
+	}
+	if result.gated == nil {
+		result.gated = make(map[string]bool)
+	}
+	result.gated[name] = gated
+}
+
 func noteRename(result *targetImports, name string, dep cargoDependency) {
 	if dep.crate != "" && dep.crate != name {
 		if result.renames == nil {
@@ -173,10 +184,12 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if includeDev {
 			if dep, ok := manifest.devDeps[name]; ok && !dep.external {
 				result.production = append(result.production, name)
 				noteRename(&result, name, dep)
+				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.production = append(result.production, name)
 			}
@@ -193,9 +206,11 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 			if dep, normal := manifest.normalDeps[name]; normal && !dep.external {
 				result.test = append(result.test, name)
 				noteRename(&result, name, dep)
+				noteGate(&result, name, dep)
 			} else if dep, dev := manifest.devDeps[name]; dev && !dep.external {
 				result.test = append(result.test, name)
 				noteRename(&result, name, dep)
+				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.test = append(result.test, name)
 			}
@@ -219,6 +234,7 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 				seen[name] = true
 				result.mirrorPaths = append(result.mirrorPaths, name)
 				noteRename(result, name, dep)
+				noteGate(result, name, dep)
 			}
 		}
 	}
@@ -235,9 +251,11 @@ func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if dep, ok := manifest.devDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
 		}
@@ -252,6 +270,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 		if dep, ok := manifest.buildDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
 		}
@@ -260,6 +279,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 		if dep, ok := manifest.buildDeps[name]; ok && !dep.external {
 			result.test = append(result.test, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.test = append(result.test, name)
 		}
@@ -314,6 +334,14 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		all = append(all, imports.test...)
 	}
 	deps := make(map[string]bool)
+	androidDeps := make(map[string]bool)
+	addDep := func(name, dep string) {
+		if imports.gated[name] {
+			androidDeps[dep] = true
+			return
+		}
+		deps[dep] = true
+	}
 	aliases := make(map[string]string)
 	// lookup finds providers by the renamed crate name when no override exists.
 	lookup := func(name string) []resolve.FindResult {
@@ -342,14 +370,14 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				l.fail("rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			addDep(name, override.Rel(from.Repo, from.Pkg).String())
 			continue
 		}
 		matches := lookup(name)
 		switch len(matches) {
 		case 1:
 			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
+				addDep(name, matches[0].Label.Rel(from.Repo, from.Pkg).String())
 				noteAlias(name, matches[0])
 			}
 		case 0:
@@ -377,11 +405,11 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		}
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			addDep(name, override.Rel(from.Repo, from.Pkg).String())
 			continue
 		}
 		if matches := lookup(name); len(matches) == 1 && matches[0].Label != from {
-			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
+			addDep(name, matches[0].Label.Rel(from.Repo, from.Pkg).String())
 			noteAlias(name, matches[0])
 		}
 	}
@@ -401,12 +429,25 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	if len(aliases) > 0 {
 		r.SetAttr("aliases", aliasesUnionExpr{base: r.Attr("aliases"), extra: aliases})
 	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
+	for dep := range androidDeps {
+		if deps[dep] {
+			delete(androidDeps, dep)
+		}
 	}
-	sort.Strings(labels)
-	if len(labels) == 0 {
+	labels := sortedKeys(deps)
+	android := sortedKeys(androidDeps)
+	if len(labels) == 0 && len(android) == 0 {
+		return
+	}
+	if len(android) > 0 {
+		switch existing := r.Attr("deps"); existing.(type) {
+		case nil:
+			r.SetAttr("deps", depsConcatExpr{extra: labels, android: android})
+		case *bzl.ListExpr:
+			r.SetAttr("deps", depsConcatExpr{extra: unionStrings(r.AttrStrings("deps"), labels), android: android})
+		default:
+			r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels, android: android})
+		}
 		return
 	}
 	switch existing := r.Attr("deps"); existing.(type) {
@@ -417,6 +458,15 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	default:
 		r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels})
 	}
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func addLocalDep(deps map[string]bool, from label.Label, name string) {

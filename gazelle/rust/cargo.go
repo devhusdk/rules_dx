@@ -183,6 +183,29 @@ type cargoDependency struct {
 	workspace bool
 	renamed   bool
 	crate     string
+	cfgs      string
+}
+
+const androidPlatformConstraint = "@platforms//os:android"
+
+func cargoCfgPlatform(cfg string) (string, bool) {
+	switch strings.Join(strings.Fields(cfg), "") {
+	case `cfg(target_os="android")`:
+		return androidPlatformConstraint, true
+	}
+	return "", false
+}
+
+func (d cargoDependency) androidOnly() bool {
+	if d.external || d.cfgs == "" {
+		return false
+	}
+	for _, cfg := range strings.Split(d.cfgs, "\n") {
+		if constraint, ok := cargoCfgPlatform(cfg); !ok || constraint != androidPlatformConstraint {
+			return false
+		}
+	}
+	return true
 }
 
 func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, error) {
@@ -457,10 +480,16 @@ func (m *cargoManifest) buildDependencies(manifestPath string, depFields map[str
 				}
 				if i == 0 {
 					chosen, first = dep, entry
+					if cfg != "" && !dep.external {
+						chosen.cfgs = cfg
+					}
 					continue
 				}
 				if first.cfg == "" {
 					continue
+				}
+				if !dep.external {
+					chosen.cfgs += "\n" + cfg
 				}
 				same := dep.external == chosen.external && dep.label == chosen.label && dep.depPath == chosen.depPath && dep.workspace == chosen.workspace && dep.renamed == chosen.renamed
 				if same && !dep.external && dep.version != chosen.version {

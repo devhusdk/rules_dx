@@ -907,3 +907,34 @@ func TestBuiltinRunfilesImport(t *testing.T) {
 		t.Errorf("builtin runfiles errors = %v", l.errors)
 	}
 }
+
+func TestResolveAndroidCfgPathDepSelect(t *testing.T) {
+	l := &rustLang{}
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/droid", "droid"}, struct{ pkg, name string }{"lib/plain", "plain"})
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	r := rule.NewRule(libraryKind, "app")
+	imports := targetImports{
+		production: []string{"droid", "plain"},
+		gated:      map[string]bool{"droid": true, "plain": false},
+	}
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "app", "app"))
+	got := bzl.FormatString(r.Attr("deps"))
+	for _, want := range []string{`"//lib/plain"`, "select(", `"@platforms//os:android": ["//lib/droid"]`, `"//conditions:default": []`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("deps = %s, missing %s", got, want)
+		}
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestDepsConcatSelectMergeIsStable(t *testing.T) {
+	src := depsConcatExpr{extra: []string{"//a"}, android: []string{"//droid"}}
+	first := src.Merge(nil)
+	second := src.Merge(first)
+	if a, b := bzl.FormatString(first), bzl.FormatString(second); a != b {
+		t.Errorf("merge not stable:\n%s\n%s", a, b)
+	}
+}

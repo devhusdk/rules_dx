@@ -1492,7 +1492,7 @@ struct JsStarter {
     version: &'static str,
     lock: &'static str,
     component_source: &'static str,
-    test_source: &'static str,
+    test_source: Option<&'static str>,
 }
 
 fn js_starter_files(identity: &str, starter: &JsStarter) -> Vec<(String, String)> {
@@ -1501,11 +1501,47 @@ fn js_starter_files(identity: &str, starter: &JsStarter) -> Vec<(String, String)
         dx = super::DX_VERSION,
         js = ASPECT_RULES_JS_VERSION,
     );
+    let (js_loads, rule_loads, check) = match starter.test_source {
+        Some(_) => (
+            "\"javascript_js_test\", \"javascript_library\"",
+            format!("\"{}_library\"", starter.rule),
+            format!(
+                r#"javascript_js_test(
+    name = "IDENTITY_test",
+    size = "small",
+    srcs = ["hello.test.js"],
+    data = [
+        ":IDENTITY",
+        ":node_modules/{package}",
+    ],
+    entry_point = "hello.test.js",
+    package_json = ":package_json",
+)
+"#,
+                package = starter.package,
+            ),
+        ),
+        None => (
+            "\"javascript_library\"",
+            format!("\"{0}_check\", \"{0}_library\"", starter.rule),
+            format!(
+                r#"{rule}_check(
+    name = "IDENTITY_check",
+    srcs = ["{component}"],
+    node_modules = ":node_modules",
+    package_json = ":package_json",
+)
+"#,
+                rule = starter.rule,
+                component = starter.component,
+            ),
+        ),
+    };
     let build = format!(
         r#"load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@demo_npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library")
-load("@rules_dx//{rule}/rules:defs.bzl", "{rule}_library")
+load("@rules_dx//javascript/rules:defs.bzl", {js_loads})
+load("@rules_dx//{rule}/rules:defs.bzl", {rule_loads})
 
 npm_link_all_packages(name = "node_modules")
 
@@ -1525,21 +1561,9 @@ javascript_library(
     deps = [":helper"],
 )
 
-javascript_js_test(
-    name = "IDENTITY_test",
-    size = "small",
-    srcs = ["hello.test.js"],
-    data = [
-        ":IDENTITY",
-        ":node_modules/{package}",
-    ],
-    entry_point = "hello.test.js",
-    package_json = ":package_json",
-)
-"#,
+{check}"#,
         rule = starter.rule,
         component = starter.component,
-        package = starter.package,
     )
     .replace("IDENTITY", identity);
     let package_json = format!(
@@ -1549,7 +1573,7 @@ javascript_js_test(
         starter.version
     );
     let readme = format!("# {identity}\n\n```sh\nbazel build //...\nbazel test //...\n```\n");
-    vec![
+    let mut files = vec![
         ("MODULE.bazel".to_owned(), module),
         (".bazelversion".to_owned(), consumer_bazelversion()),
         (".bazelrc".to_owned(), consumer_bazelrc()),
@@ -1570,9 +1594,12 @@ javascript_js_test(
             "helper.js".to_owned(),
             "export function helper(name) {\n  return `hello ${name}`;\n}\n".to_owned(),
         ),
-        ("hello.test.js".to_owned(), starter.test_source.to_owned()),
         ("README.md".to_owned(), readme),
-    ]
+    ];
+    if let Some(test_source) = starter.test_source {
+        files.push(("hello.test.js".to_owned(), test_source.to_owned()));
+    }
+    files
 }
 
 fn astro_files(identity: &str) -> Vec<(String, String)> {
@@ -1585,7 +1612,9 @@ fn astro_files(identity: &str) -> Vec<(String, String)> {
             version: ASTRO_COMPILER_VERSION,
             lock: super::new_locks::ASTRO_LOCK,
             component_source: "---\nimport { helper } from \"./helper.js\";\n\nconst message = helper(\"world\");\n---\n\n<div class=\"hello\">{message}</div>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@astrojs/compiler/sync\";\nimport { is } from \"@astrojs/compiler/utils\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst result = parse(fs.readFileSync(path.join(here, \"Hello.astro\"), \"utf8\"));\n\nassert.deepEqual(result.diagnostics, []);\nassert.ok(result.ast.children.some((node) => is.frontmatter(node)));\nassert.ok(\n  result.ast.children.some((node) => is.element(node) && node.name === \"div\"),\n);\nconsole.log(\"PASS\");\n",
+            test_source: Some(
+                "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@astrojs/compiler/sync\";\nimport { is } from \"@astrojs/compiler/utils\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst result = parse(fs.readFileSync(path.join(here, \"Hello.astro\"), \"utf8\"));\n\nassert.deepEqual(result.diagnostics, []);\nassert.ok(result.ast.children.some((node) => is.frontmatter(node)));\nassert.ok(\n  result.ast.children.some((node) => is.element(node) && node.name === \"div\"),\n);\nconsole.log(\"PASS\");\n",
+            ),
         },
     )
 }
@@ -1600,7 +1629,9 @@ fn svelte_files(identity: &str) -> Vec<(String, String)> {
             version: SVELTE_VERSION,
             lock: super::new_locks::SVELTE_LOCK,
             component_source: "<script>\n  import { helper } from \"./helper.js\";\n\n  let name = \"world\";\n  let message = $derived(helper(name));\n</script>\n\n<div class=\"hello\">{message}</div>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"svelte/compiler\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.svelte\"), \"utf8\");\nconst ast = parse(source, { modern: true });\n\nassert.ok(ast.fragment.nodes.length > 0);\nassert.notEqual(ast.instance, null);\nassert.ok(\n  source.slice(ast.instance.start, ast.instance.end).includes(\"./helper.js\"),\n);\nconsole.log(\"PASS\");\n",
+            test_source: Some(
+                "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"svelte/compiler\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.svelte\"), \"utf8\");\nconst ast = parse(source, { modern: true });\n\nassert.ok(ast.fragment.nodes.length > 0);\nassert.notEqual(ast.instance, null);\nassert.ok(\n  source.slice(ast.instance.start, ast.instance.end).includes(\"./helper.js\"),\n);\nconsole.log(\"PASS\");\n",
+            ),
         },
     )
 }
@@ -1615,7 +1646,9 @@ fn vue_files(identity: &str) -> Vec<(String, String)> {
             version: VUE_COMPILER_VERSION,
             lock: super::new_locks::VUE_LOCK,
             component_source: "<template>\n  <div class=\"hello\">{{ message }}</div>\n</template>\n\n<script setup>\nimport { helper } from \"./helper.js\";\n\nconst message = helper(\"world\");\n</script>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@vue/compiler-sfc\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.vue\"), \"utf8\");\nconst { descriptor, errors } = parse(source);\n\nassert.deepEqual(errors, []);\nassert.notEqual(descriptor.template, null);\nassert.ok(descriptor.scriptSetup.content.includes(\"./helper.js\"));\nconsole.log(\"PASS\");\n",
+            test_source: Some(
+                "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@vue/compiler-sfc\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.vue\"), \"utf8\");\nconst { descriptor, errors } = parse(source);\n\nassert.deepEqual(errors, []);\nassert.notEqual(descriptor.template, null);\nassert.ok(descriptor.scriptSetup.content.includes(\"./helper.js\"));\nconsole.log(\"PASS\");\n",
+            ),
         },
     )
 }
@@ -1630,7 +1663,7 @@ fn mdx_files(identity: &str) -> Vec<(String, String)> {
             version: MDX_VERSION,
             lock: super::new_locks::MDX_LOCK,
             component_source: "import { helper } from \"./helper.js\";\n\n# Hello\n\n<div className=\"hello\">{helper(\"world\")}</div>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { compile } from \"@mdx-js/mdx\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.mdx\"), \"utf8\");\nconst output = String(await compile(source));\n\nassert.ok(output.includes(\"./helper.js\"));\nassert.ok(output.includes(\"Hello\"));\nconsole.log(\"PASS\");\n",
+            test_source: None,
         },
     )
 }
@@ -1874,7 +1907,13 @@ mod tests {
             assert!(read("pnpm-lock.yaml").contains(&format!("specifier: {version}")));
             let build = read("BUILD.bazel");
             assert!(build.contains(&format!("{language}_library(")), "{build}");
-            assert!(build.contains("javascript_js_test("), "{build}");
+            if language == "mdx" {
+                assert!(build.contains("mdx_check("), "{build}");
+                assert!(!build.contains("javascript_js_test("), "{build}");
+                assert!(!files.iter().any(|f| f.path.ends_with("hello.test.js")));
+            } else {
+                assert!(build.contains("javascript_js_test("), "{build}");
+            }
             assert!(
                 build.contains("package_json = \":package_json\""),
                 "{build}"

@@ -278,6 +278,8 @@ sources, and `README.md`. The only npm dependency is the framework package, pinn
 rules_dx qualifies.
 Node comes from the rules_dx toolchain, so nothing needs to be installed.
 
+`mdx` writes no test file. Its `<name>_check` target compiles `Hello.mdx` and fails on errors.
+
 ```sh
 bazel run @rules_dx//:dx -- new --apply astro demo
 ```

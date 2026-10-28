@@ -291,7 +291,6 @@ GAP_ISSUES = {
     "typecheck:javascript": 4524,
     "typecheck:julia": 4532,
     "typecheck:kotlin": 4528,
-    "typecheck:lua": 4532,
     "typecheck:mdx": 1768,
     "typecheck:ocaml": 4530,
     "typecheck:pkl": 4533,

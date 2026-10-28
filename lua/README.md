@@ -147,8 +147,18 @@ quality_family(
 
 StyLua never reads a `stylua.toml` or `.editorconfig` next to the sources. Bind
 a `stylua_config` from `@rules_dx//quality:native_config.bzl` to set indent
-width or quote style. No Lua linter or type check runs yet, so the Lua rules add
-the `no-lint` and `no-typecheck` tags to every target.
+width or quote style. No Lua linter runs yet, so the Lua rules add the `no-lint`
+tag to every target.
+
+### Type check with LuaLS
+
+`dx check` type checks Lua sources with `lua-language-server --check`, pinned to
+3.19.2. The tool is opt in: pass `--@rules_dx//config:tool_luals=@rules_dx//lua/tools:luals`,
+or bind your own. Modules of `deps` are staged as a library and are never
+reported; only the sources of the target are. Bind a `luals_config` from
+`@rules_dx//quality:native_config.bzl` (a plain `.luarc.json`, never `.jsonc`) to
+set globals or diagnostics. The runtime version, the library, `libraryFiles` and
+the output paths are always set by dx. Only `linux_x86_64` is qualified.
 
 ## Platforms
 

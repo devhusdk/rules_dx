@@ -83,7 +83,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
 | Julia | no | `julia_format` | no |
 | Kotlin | `ktlint` | `ktfmt` | no |
-| Lua | no | `stylua` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Lua | no | `stylua` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `luals` |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | `perlcritic` | `perltidy` | n/a |

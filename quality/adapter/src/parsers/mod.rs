@@ -51,6 +51,7 @@ pub mod ktlint;
 pub mod kubeconform;
 pub mod latexindent;
 pub mod ldc;
+pub mod luals;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
@@ -155,6 +156,7 @@ pub use ktlint::parse_ktlint;
 pub use kubeconform::{parse_kubeconform, KubeconformTarget};
 pub use latexindent::parse_latexindent;
 pub use ldc::parse_ldc;
+pub use luals::parse_luals;
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
@@ -1872,6 +1874,14 @@ mod tests {
         super::ktlint::parse_ktlint(input, code, files)
     }
 
+    fn fuzz_luals(
+        input: &[u8],
+        _code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::luals::parse_luals(input, files)
+    }
+
     fn fuzz_markdown_findings(
         input: &[u8],
         code: Option<i32>,
@@ -2640,6 +2650,7 @@ mod tests {
         ("latexindent", fuzz_latexindent),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
+        ("luals", fuzz_luals),
         ("parse_markdown_findings", fuzz_markdown_findings),
         ("parse_notebook_outputs", fuzz_notebook_outputs),
         ("mix_format", fuzz_mix_format),
@@ -2753,6 +2764,7 @@ mod tests {
         ("latexindent", include_str!("latexindent.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
+        ("luals", include_str!("luals.rs")),
         ("markdown", include_str!("markdown.rs")),
         ("notebook_outputs", include_str!("notebook_outputs.rs")),
         ("mix_format", include_str!("mix_format.rs")),

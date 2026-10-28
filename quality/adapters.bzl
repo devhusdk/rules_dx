@@ -87,6 +87,7 @@ REAL_ADAPTERS = {
     "perltidy": {"format": ["perl"]},
     "pkl": {"format": ["pkl"]},
     "regal": {"lint": ["rego"]},
+    "luals": {"typecheck": ["lua"]},
     "phpcs": {"lint": ["php"]},
     "phpstan": {"typecheck": ["php"]},
     "pmd": {"lint": ["java"]},

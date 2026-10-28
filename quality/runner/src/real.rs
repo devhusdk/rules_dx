@@ -61,6 +61,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "kubeconform",
     "ktfmt",
     "ktlint",
+    "luals",
     "markdown_check",
     "mix_format",
     "modfmt",

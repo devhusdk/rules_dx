@@ -8,7 +8,10 @@ lua_library(
         "pkg/init.lua",
     ],
     strip_import_prefix = "/lua/tests/runtime",
-    visibility = ["//lua/tests:__subpackages__"],
+    visibility = [
+        "//lua/tests:__subpackages__",
+        "//quality/testdata:__pkg__",
+    ],
 )
 
 lua_binary(

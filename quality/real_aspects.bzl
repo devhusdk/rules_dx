@@ -31,6 +31,7 @@ load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
+load("//lua/private:providers.bzl", "LuaInfo")
 load("//php/rules:php.bzl", "staged_path")
 load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
@@ -157,6 +158,14 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//php/tools:phpcs",
         "kind": "setting",
         "resources": "medium",
+        "shard": "core",
+    },
+    "luals": {
+        "attr": attr.label(default = "//config:tool_luals", allow_files = True, cfg = "exec"),
+        "capabilities": ["typecheck"],
+        "fallback": "=@rules_dx//lua/tools:luals",
+        "kind": "setting",
+        "resources": "heavy",
         "shard": "core",
     },
     "phpstan": {
@@ -1266,6 +1275,20 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             owned_paths = {f.path: True for f in dialyzer_owned}
             dialyzer_aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
 
+    luals_modules = []
+    if "luals" in [stage["tool"] for stage in resolved]:
+        # Dependency modules become the library, one file per module name; the owned sources
+        # are checked in place, so they stay out of the library. Libraries carry LuaInfo; a
+        # lua_binary or lua_test has none, so its deps provide the modules.
+        owned_paths = {f.path: True for f in path_to_file.values()}
+        infos = [target[LuaInfo]] if LuaInfo in target else [dep[LuaInfo] for dep in getattr(ctx.rule.attr, "deps", []) if LuaInfo in dep]
+        seen_modules = {}
+        for info in infos:
+            for (module, module_file) in sorted(info.modules.to_list(), key = lambda m: m[0]):
+                if module_file.path not in owned_paths and module not in seen_modules:
+                    seen_modules[module] = True
+                    luals_modules.append(("dx-luals/mod/" + module.replace(".", "/") + ".lua", module_file))
+
     phpstan_scan = []
     if "phpstan" in [stage["tool"] for stage in resolved]:
         if PhpInfo not in target:
@@ -1621,6 +1644,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 seen_aux[beam.path] = True
                 tool_files.append(real_request_tool_file("dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam.path))
                 inputs.append(beam)
+        if tool == "luals":
+            for (rel, module_file) in luals_modules:
+                tool_files.append(real_request_tool_file(rel, module_file.path))
+                inputs.append(module_file)
         if tool == "phpstan":
             for (rel, scan_file) in phpstan_scan:
                 tool_files.append(real_request_tool_file(rel, scan_file.path))

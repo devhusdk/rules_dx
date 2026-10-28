@@ -248,6 +248,7 @@ to.
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang, elixir |
+| `luals` | typecheck | lua |
 | `phpcs` | lint | php |
 | `phpstan` | typecheck | php |
 | `dart` | format, lint, typecheck | dart |
@@ -349,19 +350,19 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
   `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
-  `phpcs`, `phpstan`, `mix_format`, `credo`, `ormolu`
+  `luals`, `phpcs`, `phpstan`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`,
-  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpcs`, `phpstan`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `luals`, `phpcs`, `phpstan`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perlcritic`, `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
-  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//php/tools:phpcs`, `@rules_dx//php/tools:phpstan`,
+  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//lua/tools:luals`, `@rules_dx//php/tools:phpcs`, `@rules_dx//php/tools:phpstan`,
   `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
@@ -744,6 +745,36 @@ an error at its line with the rule as `phpstan/<identifier>`, or `phpstan/error`
 when PHPStan names none. Only findings in the target's own sources are
 reported. PHPStan never fixes, so `--apply` changes nothing. The platform is
 `linux_x86_64`, the only one with a pinned PHP.
+
+### Lua type checking
+
+`luals` has no default executable. Select `luals` in a `lua` family and point
+the flag at the pinned LuaLS (lua-language-server) 3.19.2.
+
+```starlark
+quality_family(
+    name = "lua_family",
+    family_id = "lua",
+    typecheck = ["luals"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_luals=@rules_dx//lua/tools:luals
+```
+
+Without the flag, a policy that selects `luals` fails the analysis and names the
+flag. LuaLS checks the target's own sources as Lua 5.4. The modules of its
+`lua_library` deps are staged as a library by module name, so a `require` of a
+dependency resolves; library files are never reported. Bind a `.luarc.json`
+(never `.jsonc`) with `luals_config` from `@rules_dx//quality:native_config.bzl`
+to set globals or diagnostics; the runtime version, the library, library
+diagnostics and the log, meta and report paths are always set by dx. Each
+finding has the rule `luals/<code>` at its line; severity 1 is an error, 2 a
+warning and 3 or 4 info. LuaLS exits 0 with findings, so a missing report is an
+execution error. LuaLS never fixes, so `--apply` changes nothing. Only
+`linux_x86_64` is qualified, though archives for macOS, Linux arm64 and Windows
+are pinned.
 
 ### Java typechecking
 

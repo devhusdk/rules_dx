@@ -38,6 +38,8 @@ load(
     "erlfmt_flag_tests",
     "julia_format_flag_tests",
     "julia_subject",
+    "lua_typecheck_subject",
+    "luals_flag_tests",
     "mix_format_flag_tests",
     "perl_lint_subject",
     "perl_subject",
@@ -1386,6 +1388,33 @@ php_lint_subject(
 phpcs_flag_tests(
     name = "phpcs_flag",
     subject = ":php_lint_subject",
+)
+
+quality_family(
+    name = "lua_typecheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "lua",
+    typecheck = ["luals"],
+)
+
+workspace_policy(
+    name = "lua_typecheck_policy",
+    families = [":lua_typecheck_family"],
+)
+
+lua_typecheck_subject(
+    name = "lua_typecheck_subject",
+    testonly = True,
+    target = "//lua/tests/runtime:lib",
+)
+
+luals_flag_tests(
+    name = "luals_flag",
+    subject = ":lua_typecheck_subject",
 )
 
 quality_family(

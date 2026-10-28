@@ -2193,3 +2193,70 @@ fn flatc_check_parses_one_schema_and_writes_nothing() {
     );
     assert_eq!(invocation.cwd_rel, "");
 }
+
+#[test]
+fn helm_argv_keeps_value_order_and_never_fetches() {
+    let values = [Path::new("/c/a.yaml"), Path::new("/c/b.yaml")];
+    let lint = argv_strings(&helm_lint(
+        Path::new(BIN),
+        Path::new("/c"),
+        &values,
+        "1.31.0",
+    ));
+    assert_eq!(
+        lint,
+        [
+            BIN,
+            "lint",
+            "/c",
+            "--quiet",
+            "--kube-version",
+            "1.31.0",
+            "-f",
+            "/c/a.yaml",
+            "-f",
+            "/c/b.yaml"
+        ]
+    );
+    let template = argv_strings(&helm_template(
+        Path::new(BIN),
+        "dx",
+        "default",
+        Path::new("/c"),
+        &values,
+        "1.31.0",
+    ));
+    assert_eq!(
+        template,
+        [
+            BIN,
+            "template",
+            "dx",
+            "/c",
+            "--namespace",
+            "default",
+            "--kube-version",
+            "1.31.0",
+            "-f",
+            "/c/a.yaml",
+            "-f",
+            "/c/b.yaml"
+        ]
+    );
+    for argv in [&lint, &template] {
+        for forbidden in [
+            "dependency",
+            "repo",
+            "pull",
+            "--repo",
+            "--dependency-update",
+        ] {
+            assert!(!argv.iter().any(|arg| arg == forbidden), "{forbidden}");
+        }
+    }
+}
+
+#[test]
+fn helm_is_a_single_transport_tool() {
+    assert_eq!(transport_for("helm"), ArgTransport::Single);
+}

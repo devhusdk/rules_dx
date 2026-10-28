@@ -601,6 +601,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "helm": {
+        "upstream_version": "4.3.1",
+        "release_page": "https://github.com/helm/helm/releases/tag/v4.3.1",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/helm/helm/blob/v4.3.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "helm-v4.3.1-linux-amd64.tar.gz",
+                "url": "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "linux-amd64/helm",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz.sha256sum",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "helm-v4.3.1-linux-arm64.tar.gz",
+                "url": "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "linux-arm64/helm",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz.sha256sum",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "helm-v4.3.1-darwin-arm64.tar.gz",
+                "url": "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "darwin-arm64/helm",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz.sha256sum",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "helm-v4.3.1-windows-amd64.zip",
+                "url": "https://get.helm.sh/helm-v4.3.1-windows-amd64.zip",
+                "kind": "zip",
+                "executable": "windows-amd64/helm.exe",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-windows-amd64.zip.sha256sum",
+            },
+        },
+    },
     "kubeconform": {
         "upstream_version": "0.8.0",
         "release_page": "https://github.com/yannh/kubeconform/releases/tag/v0.8.0",
@@ -1593,7 +1641,7 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buf", "buildifier", "keep_sorted", "kubeconform", "shfmt", "terraform"):
+    if tool in ("buf", "buildifier", "helm", "keep_sorted", "kubeconform", "shfmt", "terraform"):
         linkage = "static"
     else:
         linkage = "dynamic"

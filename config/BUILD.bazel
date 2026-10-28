@@ -46,6 +46,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_helm",
+    build_setting_default = "@dx_tools//:helm",
+)
+
+label_flag(
     name = "tool_kubeconform",
     build_setting_default = "@dx_tools//:kubeconform",
 )

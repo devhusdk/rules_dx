@@ -1611,6 +1611,56 @@ pub fn kubeconform_check(
     Ok(assemble(binary, head, files, ""))
 }
 
+/// `helm lint <chart> --quiet --kube-version V -f <values>...`; never fetches dependencies.
+pub fn helm_lint(
+    binary: &Path,
+    chart_dir: &Path,
+    values: &[&Path],
+    kube_version: &str,
+) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("lint"),
+        chart_dir.as_os_str().to_owned(),
+        OsString::from("--quiet"),
+        OsString::from("--kube-version"),
+        OsString::from(kube_version),
+    ];
+    helm_values(&mut head, values);
+    assemble(binary, head, &[], "")
+}
+
+/// `helm template <release> <chart> --namespace NS --kube-version V -f <values>...`.
+pub fn helm_template(
+    binary: &Path,
+    release: &str,
+    namespace: &str,
+    chart_dir: &Path,
+    values: &[&Path],
+    kube_version: &str,
+) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("template"),
+        OsString::from(release),
+        chart_dir.as_os_str().to_owned(),
+        OsString::from("--namespace"),
+        OsString::from(namespace),
+        OsString::from("--kube-version"),
+        OsString::from(kube_version),
+    ];
+    helm_values(&mut head, values);
+    assemble(binary, head, &[], "")
+}
+
+/// Values files in declared order; later files override earlier ones.
+fn helm_values(head: &mut Vec<OsString>, values: &[&Path]) {
+    for path in values {
+        head.push(OsString::from("-f"));
+        head.push(path.as_os_str().to_owned());
+    }
+}
+
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
 }

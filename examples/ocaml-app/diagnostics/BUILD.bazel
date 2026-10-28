@@ -1,0 +1,29 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "syntax_error.ml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Negative case: the compiler must reject this file.
+ocaml_module(
+    name = "syntax_error",
+    struct = "syntax_error.ml",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

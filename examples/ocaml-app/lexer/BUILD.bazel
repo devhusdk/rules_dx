@@ -1,0 +1,53 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test", "ocamllex")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "lexer_test.ml",
+        "tokens.mll",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Generated code: ocamllex turns tokens.mll into tokens.ml.
+ocamllex(
+    name = "tokens_ml",
+    src = "tokens.mll",
+    out = "tokens.ml",
+    tags = ["manual"],
+)
+
+ocaml_module(
+    name = "tokens",
+    opts = [
+        "-w",
+        "-a",
+    ],
+    struct = ":tokens_ml",
+)
+
+ocaml_module(
+    name = "lexer_test_main",
+    testonly = True,
+    struct = "lexer_test.ml",
+    deps = [":tokens"],
+)
+
+ocaml_test(
+    name = "lexer_test",
+    size = "small",
+    main = ":lexer_test_main",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

@@ -133,6 +133,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/lua-app
 # gazelle:exclude examples/astro-app
 # gazelle:exclude examples/node-app
+# gazelle:exclude examples/ocaml-app
 # gazelle:exclude examples/perl-app
 # gazelle:exclude examples/qt-rust
 # gazelle:exclude examples/qt-tasks

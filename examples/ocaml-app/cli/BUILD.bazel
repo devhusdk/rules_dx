@@ -1,0 +1,67 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_module")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "exit_codes.sh",
+        "good.txt",
+        "malformed.txt",
+        "main.ml",
+        "over_limit.txt",
+        "report_without_astring.ml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+ocaml_module(
+    name = "main",
+    struct = "main.ml",
+    deps = [
+        "//examples/ocaml-app/checksum",
+        "//examples/ocaml-app/ledger",
+    ],
+)
+
+ocaml_binary(
+    name = "stockctl",
+    main = ":main",
+)
+
+sh_test(
+    name = "exit_codes_test",
+    size = "small",
+    srcs = ["exit_codes.sh"],
+    args = [
+        "$(rootpath :stockctl)",
+        "$(rootpath :good.txt)",
+        "$(rootpath :malformed.txt)",
+        "$(rootpath :over_limit.txt)",
+    ],
+    data = [
+        "good.txt",
+        "malformed.txt",
+        "over_limit.txt",
+        ":stockctl",
+    ],
+)
+
+# Negative case: Astring is used without being declared.
+ocaml_module(
+    name = "report_without_astring",
+    struct = "report_without_astring.ml",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

@@ -19,13 +19,17 @@ pub const ECOSYSTEM_CARGO: &str = "cargo";
 
 pub const ECOSYSTEM_MAVEN: &str = "maven";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven";
+pub const ECOSYSTEM_NUGET: &str = "nuget";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
 pub const CARGO_LOCK: &str = "Cargo.lock";
 
 pub const GEMFILE_LOCK: &str = "Gemfile.lock";
+
+pub const PAKET_LOCK: &str = "paket.lock";
 
 pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
 
@@ -46,6 +50,7 @@ pub enum Ecosystem {
     PowerShell,
     Cargo,
     Maven,
+    Nuget,
 }
 
 impl Ecosystem {
@@ -58,6 +63,7 @@ impl Ecosystem {
             Ecosystem::PowerShell => ECOSYSTEM_POWERSHELL,
             Ecosystem::Cargo => ECOSYSTEM_CARGO,
             Ecosystem::Maven => ECOSYSTEM_MAVEN,
+            Ecosystem::Nuget => ECOSYSTEM_NUGET,
         }
     }
 
@@ -70,20 +76,29 @@ impl Ecosystem {
             ECOSYSTEM_POWERSHELL => Some(Ecosystem::PowerShell),
             ECOSYSTEM_CARGO => Some(Ecosystem::Cargo),
             ECOSYSTEM_MAVEN => Some(Ecosystem::Maven),
+            ECOSYSTEM_NUGET => Some(Ecosystem::Nuget),
             _ => None,
         }
     }
 
     pub fn supported_check(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo | Ecosystem::Maven => "check",
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Cargo
+            | Ecosystem::Maven
+            | Ecosystem::Nuget => "check",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo | Ecosystem::Maven => "update",
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Cargo
+            | Ecosystem::Maven
+            | Ecosystem::Nuget => "update",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
@@ -110,7 +125,8 @@ impl Ecosystem {
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
             | Ecosystem::Cargo
-            | Ecosystem::Maven => "audit",
+            | Ecosystem::Maven
+            | Ecosystem::Nuget => "audit",
         }
     }
 
@@ -122,6 +138,7 @@ impl Ecosystem {
             Ecosystem::Ruby => Some("rubygems"),
             Ecosystem::Cargo => Some("cargo"),
             Ecosystem::Maven => Some("maven"),
+            Ecosystem::Nuget => Some("nuget"),
             Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
@@ -136,6 +153,7 @@ impl Ecosystem {
             Ecosystem::PowerShell => "PSGallery.requirements.psd1",
             Ecosystem::Cargo => "Cargo.toml",
             Ecosystem::Maven => MODULE_BAZEL,
+            Ecosystem::Nuget => "paket.dependencies",
         }
     }
 
@@ -147,7 +165,8 @@ impl Ecosystem {
             | Ecosystem::Npm
             | Ecosystem::Bazel
             | Ecosystem::Ruby
-            | Ecosystem::PowerShell => false,
+            | Ecosystem::PowerShell
+            | Ecosystem::Nuget => false,
         }
     }
 }
@@ -329,6 +348,8 @@ pub enum DependencySetsError {
         repository: String,
         detail: String,
     },
+    #[error("dependency set {name:?} cannot run paket2bazel: {detail}")]
+    UnsupportedNugetLayout { name: String, detail: String },
     #[error("invalid {rel}: dependency set {name:?} is missing repository (the Bazel repository name ecosystem {ecosystem} resolves through)")]
     MissingRepository {
         rel: String,
@@ -749,6 +770,8 @@ const CARGO_PACKAGE_CHARSET: &str = "crate names start alphanumerically and use 
 
 const MAVEN_PACKAGE_CHARSET: &str = "maven packages are group:artifact with [A-Za-z0-9_.-] parts";
 
+const NUGET_PACKAGE_CHARSET: &str = "nuget package ids use [A-Za-z0-9._-] only";
+
 const NPM_PACKAGE_CHARSET: &str =
     "npm package names are [@scope/]name with lowercase [a-z0-9._-] parts";
 
@@ -806,8 +829,13 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 _ => Err(MAVEN_PACKAGE_CHARSET),
             }
         }
-        Ecosystem::Uv | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
+        Ecosystem::Uv
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Nuget => {
             let charset = match ecosystem {
+                Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
                 Ecosystem::Ruby => RUBY_PACKAGE_CHARSET,
                 Ecosystem::PowerShell => POWERSHELL_PACKAGE_CHARSET,
@@ -1138,6 +1166,7 @@ pub fn check_backend_settings(
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cargo => check_pinned_lock(set, CARGO_LOCK),
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
+        Ecosystem::Nuget => check_nuget_layout(workspace, set),
     }
 }
 
@@ -1263,6 +1292,92 @@ pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), Depen
         }
         _ => Ok(()),
     }
+}
+
+/// Refuses a nuget set whose `paket2bazel` run could not stay inside the declared locks.
+fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    let unsupported = |detail: String| DependencySetsError::UnsupportedNugetLayout {
+        name: set.name.clone(),
+        detail,
+    };
+    check_pinned_lock(set, PAKET_LOCK)?;
+    let mut folders = BTreeSet::new();
+    let mut groups: BTreeMap<String, (bool, bool)> = BTreeMap::new();
+    for lock in &set.locks {
+        let (folder, file) = lock.rsplit_once('/').unwrap_or((".", lock));
+        if file == PAKET_LOCK {
+            continue;
+        }
+        let Some(stem) = file
+            .strip_prefix("paket.")
+            .and_then(|rest| rest.strip_suffix(".bzl"))
+        else {
+            return Err(unsupported(format!(
+                "lock {lock} is neither paket.lock nor a generated paket.<group>.bzl file"
+            )));
+        };
+        folders.insert(folder.to_owned());
+        let (group, extension) = match stem.strip_suffix("_extension") {
+            Some(group) => (group, true),
+            None => (stem, false),
+        };
+        if group.is_empty() {
+            return Err(unsupported(format!("lock {lock} names no paket group")));
+        }
+        let entry = groups.entry(group.to_owned()).or_default();
+        if extension {
+            entry.1 = true;
+        } else {
+            entry.0 = true;
+        }
+    }
+    if groups.is_empty() {
+        return Err(unsupported(
+            "locks list no generated paket.<group>.bzl files".to_owned(),
+        ));
+    }
+    if folders.len() != 1 {
+        return Err(unsupported(
+            "generated paket .bzl locks must share one folder".to_owned(),
+        ));
+    }
+    for (group, (plain, extension)) in &groups {
+        if !(*plain && *extension) {
+            return Err(unsupported(format!(
+                "group {group} needs both paket.{group}.bzl and paket.{group}_extension.bzl in locks"
+            )));
+        }
+    }
+    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
+        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
+    let module = dx_module_bazel::ModuleFile::parse(&root)
+        .map_err(|error| unsupported(format!("cannot parse {MODULE_BAZEL}: {error}")))?;
+    let dep = module.bazel_dep("rules_dotnet").map_err(|_| {
+        unsupported(format!(
+            "{MODULE_BAZEL} needs bazel_dep(name = \"rules_dotnet\")"
+        ))
+    })?;
+    if dep.arg("repo_name").is_some() {
+        return Err(unsupported(
+            "the rules_dotnet bazel_dep must not set repo_name".to_owned(),
+        ));
+    }
+    for manifest in &set.manifests {
+        let text = std::fs::read_to_string(workspace.join(manifest))
+            .map_err(|error| unsupported(format!("cannot read {manifest}: {error}")))?;
+        for line in text.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("source ") {
+                let rest = rest.trim();
+                if !(rest.starts_with("http://") || rest.starts_with("https://")) {
+                    return Err(unsupported(format!(
+                        "{manifest} source {rest:?} is not http(s); staging copies only paket.dependencies and paket.lock"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySetsError> {
@@ -2012,7 +2127,7 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget"
         );
     }
 
@@ -2677,5 +2792,152 @@ scopes = ["MODULE.bazel"]
         let registry = load_text(TWO_UV_SETS);
         let uv = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         assert_eq!(check_lock_ready(root, &uv), Ok(()));
+    }
+
+    const NUGET_SETS: &str = r#"
+schema_version = 1
+[[dependency_set]]
+name = "dotnet"
+ecosystem = "nuget"
+manifests = ["third_party/dotnet/paket.dependencies"]
+locks = [
+  "third_party/dotnet/paket.lock",
+  "third_party/dotnet/deps/paket.main.bzl",
+  "third_party/dotnet/deps/paket.main_extension.bzl",
+]
+scopes = ["third_party/dotnet"]
+"#;
+
+    const NUGET_MODULE: &str = "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\n";
+
+    fn nuget_workspace(
+        sets: &str,
+        module: &str,
+        dependencies: &str,
+    ) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-nuget-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        std::fs::create_dir_all(root.join("third_party/dotnet/deps")).expect("dir");
+        std::fs::write(
+            root.join("third_party/dotnet/paket.dependencies"),
+            dependencies,
+        )
+        .expect("dependencies");
+        let registry = load_text(sets);
+        let set = ResolvedSet::of(registry.find("dotnet").expect("dotnet"));
+        (scratch, set)
+    }
+
+    fn nuget_detail(result: Result<(), DependencySetsError>) -> String {
+        match result {
+            Err(DependencySetsError::UnsupportedNugetLayout { detail, .. }) => detail,
+            other => panic!("expected UnsupportedNugetLayout, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nuget_sets_load_with_paket_manifests() {
+        let registry = load_text(NUGET_SETS);
+        let dotnet = registry.find("dotnet").expect("dotnet");
+        assert_eq!(dotnet.ecosystem, Ecosystem::Nuget);
+        assert_eq!(Ecosystem::parse("nuget"), Some(Ecosystem::Nuget));
+        assert_eq!(Ecosystem::Nuget.manifest_name(), "paket.dependencies");
+        assert_eq!(
+            Ecosystem::Nuget.supported_operations(),
+            "check, update, audit"
+        );
+        assert_eq!(Ecosystem::Nuget.advisory_family(), Some("nuget"));
+        assert!(!Ecosystem::Nuget.uses_repository());
+        let wrong = NUGET_SETS.replace("paket.dependencies", "packages.config");
+        assert!(matches!(
+            parse(&wrong, DX_TOML_REL),
+            Err(DependencySetsError::InvalidManifest { .. })
+        ));
+        assert!(resolve(&registry, &["dotnet:Newtonsoft.Json".to_owned()]).is_ok());
+        for package in ["a b", "a;b", "a/b"] {
+            assert_eq!(
+                resolve(&registry, &[format!("dotnet:{package}")]),
+                Err(DependencySetsError::InvalidPackage {
+                    set: "dotnet".to_owned(),
+                    package: package.to_owned(),
+                    reason: NUGET_PACKAGE_CHARSET,
+                }),
+                "{package}"
+            );
+        }
+    }
+
+    #[test]
+    fn nuget_layout_accepts_one_folder_of_paired_groups() {
+        let (scratch, set) = nuget_workspace(
+            NUGET_SETS,
+            NUGET_MODULE,
+            "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
+        );
+        assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+    }
+
+    #[test]
+    fn nuget_layout_refuses_what_staging_cannot_reproduce() {
+        let dependencies = "source https://api.nuget.org/v3/index.json\n";
+        let cases = [
+            (
+                NUGET_SETS.replace("paket.main.bzl", "notes.txt"),
+                NUGET_MODULE,
+                dependencies,
+                "neither paket.lock",
+            ),
+            (
+                NUGET_SETS.replace(
+                    "deps/paket.main_extension.bzl",
+                    "other/paket.main_extension.bzl",
+                ),
+                NUGET_MODULE,
+                dependencies,
+                "share one folder",
+            ),
+            (
+                NUGET_SETS.replace(
+                    "  \"third_party/dotnet/deps/paket.main_extension.bzl\",\n",
+                    "",
+                ),
+                NUGET_MODULE,
+                dependencies,
+                "needs both",
+            ),
+            (
+                NUGET_SETS.to_owned(),
+                "bazel_dep(name = \"other\", version = \"1\")\n",
+                dependencies,
+                "rules_dotnet",
+            ),
+            (
+                NUGET_SETS.to_owned(),
+                "bazel_dep(name = \"rules_dotnet\", version = \"1\", repo_name = \"dn\")\n",
+                dependencies,
+                "repo_name",
+            ),
+            (
+                NUGET_SETS.to_owned(),
+                NUGET_MODULE,
+                "source ../local-feed\n",
+                "not http(s)",
+            ),
+        ];
+        let (scratch, set) = nuget_workspace(
+            &NUGET_SETS.replace("  \"third_party/dotnet/paket.lock\",\n", ""),
+            NUGET_MODULE,
+            dependencies,
+        );
+        assert!(matches!(
+            check_backend_settings(scratch.path(), &set),
+            Err(DependencySetsError::MissingPinnedLock { .. })
+        ));
+        for (sets, module, dependencies, want) in cases {
+            let (scratch, set) = nuget_workspace(&sets, module, dependencies);
+            let detail = nuget_detail(check_backend_settings(scratch.path(), &set));
+            assert!(detail.contains(want), "{want}: {detail}");
+        }
     }
 }

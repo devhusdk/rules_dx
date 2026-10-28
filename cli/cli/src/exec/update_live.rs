@@ -16,6 +16,8 @@ pub(super) struct ScriptRunner {
     pub(super) launches: RefCell<Vec<Launch>>,
     /// Files the next launch writes, as a backend that changes the tree would.
     pub(super) writes: RefCell<Vec<(std::path::PathBuf, Vec<u8>)>>,
+    /// Files the next launch writes into its `--output-folder`, as a staged generator would.
+    pub(super) staged_outputs: RefCell<Vec<(String, Vec<u8>)>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,6 +52,7 @@ impl ScriptRunner {
             version: Some(dx_update::backend::UV_VERSION_LINE.to_owned()),
             launches: RefCell::new(Vec::new()),
             writes: RefCell::new(Vec::new()),
+            staged_outputs: RefCell::new(Vec::new()),
         }
     }
 
@@ -75,6 +78,15 @@ impl ScriptRunner {
         self.calls.borrow_mut().push(argv.to_vec());
         for (path, bytes) in self.writes.borrow_mut().drain(..) {
             std::fs::write(&path, bytes)?;
+        }
+        if let Some(folder) = argv
+            .iter()
+            .skip_while(|arg| *arg != "--output-folder")
+            .nth(1)
+        {
+            for (name, bytes) in self.staged_outputs.borrow_mut().drain(..) {
+                std::fs::write(Path::new(folder).join(name), bytes)?;
+            }
         }
         let key = Self::key_for(argv);
         let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));

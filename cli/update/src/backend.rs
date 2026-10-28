@@ -9,7 +9,38 @@ pub enum BackendPlan {
         argv: Vec<String>,
         env: Vec<(String, String)>,
     },
+    /// Runs a generator against a staged copy of its inputs; the caller compares the output.
+    Staged(StagedRun),
     Noop,
+}
+
+/// A generator run on copies of `inputs` in a scratch directory, never in the workspace.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StagedRun {
+    /// The command up to, not including, the paths into the scratch directory.
+    pub argv_head: Vec<String>,
+    pub env: Vec<(String, String)>,
+    /// Workspace-relative files copied into the scratch directory by file name.
+    pub inputs: Vec<String>,
+    /// Workspace-relative locks the run may produce; compared by file name against `out/`.
+    pub outputs: Vec<String>,
+}
+
+impl StagedRun {
+    /// The full command for a scratch directory (an absolute path).
+    pub fn argv(&self, scratch: &Path) -> Vec<String> {
+        let mut argv = self.argv_head.clone();
+        argv.push("--dependencies-file".to_owned());
+        argv.push(
+            scratch
+                .join("paket.dependencies")
+                .to_string_lossy()
+                .into_owned(),
+        );
+        argv.push("--output-folder".to_owned());
+        argv.push(scratch.join("out").to_string_lossy().into_owned());
+        argv
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -322,6 +353,7 @@ pub enum CheckPlan {
     },
     Pinned,
     Unavailable,
+    Staged(StagedRun),
 }
 
 pub fn check(
@@ -671,6 +703,14 @@ pub fn plan_configured(
             set: set.name.clone(),
             reason: MAVEN_ONE_PACKAGE,
         }),
+        // paket.lock never changes, so a frozen run is a pinned fetch and stays allowed.
+        (Ecosystem::Nuget, Selection::Full) => {
+            Ok(BackendPlan::Staged(nuget_staged(set, head, offline)?))
+        }
+        (Ecosystem::Nuget, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: NUGET_PINS_EXACT,
+        }),
         (Ecosystem::Cargo, Selection::Packages(packages)) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -779,7 +819,63 @@ pub fn check_configured(
             set: set.name.clone(),
             reason: MAVEN_ONE_PACKAGE,
         }),
+        (Ecosystem::Nuget, Selection::Full) => {
+            Ok(CheckPlan::Staged(nuget_staged(set, head, offline)?))
+        }
+        (Ecosystem::Nuget, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: NUGET_PINS_EXACT,
+        }),
     }
+}
+
+const NUGET_PINS_EXACT: &str = "nuget pins are exact in paket.lock; edit paket.dependencies, run `paket update`, then `dx update <set>`";
+
+/// Plans `paket2bazel` on a staged copy of paket.dependencies and paket.lock.
+fn nuget_staged(
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    offline: bool,
+) -> Result<StagedRun, BackendError> {
+    // Paket has no offline switch, so dx cannot keep it off the network.
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    // The run needs no rules_dx diagnostics settings, and a consumer without rules_dx
+    // cannot resolve them.
+    let pin_head = dx_process::BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    let lock = set
+        .locks
+        .iter()
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::PAKET_LOCK))
+        .cloned()
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "a nuget set must list paket.lock in locks",
+        })?;
+    let mut inputs = set.manifests.clone();
+    inputs.push(lock.clone());
+    let outputs = set
+        .locks
+        .iter()
+        .filter(|path| **path != lock)
+        .cloned()
+        .collect();
+    Ok(StagedRun {
+        argv_head: bazel(
+            &pin_head,
+            "run",
+            &["@rules_dotnet//tools/paket2bazel", "--"],
+        ),
+        env: Vec::new(),
+        inputs,
+        outputs,
+    })
 }
 
 fn closure_path(
@@ -1010,7 +1106,7 @@ mod tests {
                 assert!(argv.contains(&"third_party/dotnet/deps".to_owned()));
                 assert!(env.is_empty());
             }
-            BackendPlan::Noop => panic!("nuget runs paket2bazel"),
+            BackendPlan::Noop | BackendPlan::Staged(_) => panic!("nuget runs paket2bazel"),
         }
         assert_eq!(
             plan(ws(), SetId::Go, &SetRequest::Full, false, false, &no_head()).expect("go"),
@@ -1043,7 +1139,7 @@ mod tests {
                 );
                 assert!(env.is_empty());
             }
-            BackendPlan::Noop => panic!("npm-tools runs pnpm"),
+            BackendPlan::Noop | BackendPlan::Staged(_) => panic!("npm-tools runs pnpm"),
         }
         let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false, false, &no_head()).expect("uv");
         assert_eq!(
@@ -1174,7 +1270,7 @@ mod tests {
             let argv = match plan(ws(), set, &request, false, false, &no_head()).expect(set.name())
             {
                 BackendPlan::Run { argv, .. } => argv,
-                BackendPlan::Noop => panic!("{} runs pnpm", set.name()),
+                BackendPlan::Noop | BackendPlan::Staged(_) => panic!("{} runs pnpm", set.name()),
             };
             let at = argv
                 .iter()
@@ -2684,6 +2780,117 @@ mod tests {
             Err(BackendError::Unsupported {
                 set: "crates".to_owned(),
                 reason: CARGO_CHECK_SELECTIVE,
+            })
+        );
+    }
+
+    fn nuget_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "dotnet".to_owned(),
+            ecosystem: Ecosystem::Nuget,
+            dir: "third_party/dotnet".to_owned(),
+            manifests: vec!["third_party/dotnet/paket.dependencies".to_owned()],
+            locks: vec![
+                "third_party/dotnet/paket.lock".to_owned(),
+                "third_party/dotnet/deps/paket.main.bzl".to_owned(),
+                "third_party/dotnet/deps/paket.main_extension.bzl".to_owned(),
+            ],
+            writable: true,
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn configured_nuget_stages_paket2bazel_without_rules_dx_settings() {
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/ob".to_owned()],
+            options: vec!["--config=dx_dev".to_owned()],
+            settings: vec!["--@rules_dx//config:x=true".to_owned()],
+        };
+        let set = nuget_set();
+        let expected = StagedRun {
+            argv_head: [
+                dx_process::BazelHead {
+                    settings: Vec::new(),
+                    ..head.clone()
+                }
+                .argv("run"),
+                strings(&["@rules_dotnet//tools/paket2bazel", "--"]),
+            ]
+            .concat(),
+            env: Vec::new(),
+            inputs: vec![
+                "third_party/dotnet/paket.dependencies".to_owned(),
+                "third_party/dotnet/paket.lock".to_owned(),
+            ],
+            outputs: vec![
+                "third_party/dotnet/deps/paket.main.bzl".to_owned(),
+                "third_party/dotnet/deps/paket.main_extension.bzl".to_owned(),
+            ],
+        };
+        let closure = UvClosure::default();
+        // Frozen is allowed: paket.lock never changes, so the run is a pinned fetch.
+        for frozen in [false, true] {
+            assert_eq!(
+                plan_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
+                Ok(BackendPlan::Staged(expected.clone()))
+            );
+            assert_eq!(
+                check_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
+                Ok(CheckPlan::Staged(expected.clone()))
+            );
+        }
+        assert!(expected.argv_head.contains(&"--output_base=/ob".to_owned()));
+        assert!(!expected
+            .argv_head
+            .iter()
+            .any(|arg| arg.contains("rules_dx")));
+        let argv = expected.argv(Path::new("/scratch/1"));
+        assert_eq!(
+            argv[expected.argv_head.len()..],
+            strings(&[
+                "--dependencies-file",
+                "/scratch/1/paket.dependencies",
+                "--output-folder",
+                "/scratch/1/out"
+            ])
+        );
+    }
+
+    #[test]
+    fn configured_nuget_requires_network_and_refuses_packages() {
+        let set = nuget_set();
+        let head = no_head();
+        let closure = UvClosure::default();
+        for frozen in [false, true] {
+            let offline = Err(BackendError::OfflineRequired {
+                set: "dotnet".to_owned(),
+            });
+            assert_eq!(
+                plan_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
+                offline
+            );
+            assert_eq!(
+                check_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
+                Err(BackendError::OfflineRequired {
+                    set: "dotnet".to_owned()
+                })
+            );
+        }
+        let packages = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
+        let unsupported = Err(BackendError::Unsupported {
+            set: "dotnet".to_owned(),
+            reason: NUGET_PINS_EXACT,
+        });
+        assert_eq!(
+            plan_configured(ws(), &set, &packages, false, false, &head, &closure),
+            unsupported
+        );
+        assert_eq!(
+            check_configured(ws(), &set, &packages, false, false, &head, &closure),
+            Err(BackendError::Unsupported {
+                set: "dotnet".to_owned(),
+                reason: NUGET_PINS_EXACT,
             })
         );
     }

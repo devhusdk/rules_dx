@@ -123,7 +123,8 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::Ruby
             | dx_adopt::dependency_sets::Ecosystem::PowerShell
             | dx_adopt::dependency_sets::Ecosystem::Cargo
-            | dx_adopt::dependency_sets::Ecosystem::Maven,
+            | dx_adopt::dependency_sets::Ecosystem::Maven
+            | dx_adopt::dependency_sets::Ecosystem::Nuget,
             _,
         ) => Err(operational(
             invocation,
@@ -354,6 +355,17 @@ pub(crate) fn write_and_refresh(
                 Err(exit) => exit,
             }
         }
+        // Bump refuses nuget sets, the only ecosystem that plans a staged run.
+        dx_update::backend::BackendPlan::Staged(_) => refresh_failed(
+            edit,
+            invocation,
+            out,
+            err,
+            manifest,
+            &format!(
+                "failed to refresh {update_selector}: staged refresh is not supported ({kept})"
+            ),
+        ),
         dx_update::backend::BackendPlan::Run { argv, env: extra } => {
             let env_refs: Vec<(&str, &str)> = extra
                 .iter()

@@ -90,6 +90,11 @@ Loose `.dart` files outside a pubspec folder get no rule. `data`, `defines`,
 `tags` and `aspect_hints` are never touched. `analysis_options.yaml` is not
 turned into a rule: bind `dart_config` by hand through `aspect_hints`.
 
+## Examples
+
+- `examples/adopt-dart` adopts a pub workspace with `dx generate`.
+- `examples/dart-app` is a multi-package app with a generated source file, runfiles data and failure targets.
+
 ## Pub dependencies
 
 Declare a hub with the rules_dart `pub` extension. The lock pins each package

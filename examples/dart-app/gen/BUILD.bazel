@@ -1,0 +1,18 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+dart_binary(
+    name = "gen_schema",
+    aspect_hints = ["//examples/dart-app:dart_config"],
+    main = "bin/gen_schema.dart",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

@@ -46,6 +46,7 @@ For the rule and aspect attributes these examples use, see the
 - [c-app](c-app/) multi-package pure C stock CLI with a pinned `cJSON` dependency, a generated header and packaged data.
 - [cpp-app](cpp-app/) multi-package C++17 menu report with templates, a pinned `fmt` dependency, a generated header and a runfiles resource.
 - [cuda-app](cuda-app/) multi-package CUDA app with three kernels behind a C ABI header, a C++ binary with a CPU fallback and checks on the compiled device code.
+- [dart-app](dart-app/) multi-package Dart inventory CLI with a generated schema built by a Dart tool, a CSV ledger read through runfiles and failure targets.
 - [elixir-app](elixir-app/) multi-package Elixir application with a generated unit table, a supervised ledger, a pinned `jason` Hex package and an escript.
 - [erlang-app](erlang-app/) multi-package Erlang/OTP key-value store with a leex and yecc parser, a supervised application, a pinned `thoas` dependency, a C NIF and an escript.
 - [haskell-app](haskell-app/) Haskell stock tool with a pinned Hackage `split` dependency, a generated module, a C foreign call and a string flag.

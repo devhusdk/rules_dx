@@ -152,6 +152,7 @@ USER_BOOK = [
     mdbook_page("C App", "examples/c-app/README.md", "//examples/c-app:README.md"),
     mdbook_page("C++ App", "examples/cpp-app/README.md", "//examples/cpp-app:README.md"),
     mdbook_page("CUDA App", "examples/cuda-app/README.md", "//examples/cuda-app:README.md"),
+    mdbook_page("Dart App", "examples/dart-app/README.md", "//examples/dart-app:README.md"),
     mdbook_page("Elixir App", "examples/elixir-app/README.md", "//examples/elixir-app:README.md"),
     mdbook_page("Erlang App", "examples/erlang-app/README.md", "//examples/erlang-app:README.md"),
     mdbook_page("Haskell App", "examples/haskell-app/README.md", "//examples/haskell-app:README.md"),

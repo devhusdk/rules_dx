@@ -1,0 +1,47 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+dart_library(
+    name = "inventory_cli",
+    package_name = "inventory_cli",
+    srcs = ["lib/inventory_cli.dart"],
+    aspect_hints = ["//examples/dart-app:dart_config"],
+    deps = [
+        "//examples/dart-app/ledger",
+        "//examples/dart-app/model",
+        "@dx_dart_deps//:args",
+    ],
+)
+
+dart_binary(
+    name = "inventory",
+    aspect_hints = ["//examples/dart-app:dart_config"],
+    data = ["//examples/dart-app/ledger:data/items.csv"],
+    main = "bin/inventory.dart",
+    deps = [
+        ":inventory_cli",
+        "@rules_dart//dart/runfiles",
+    ],
+)
+
+dart_test(
+    name = "exit_codes_test",
+    size = "small",
+    aspect_hints = ["//examples/dart-app:dart_config"],
+    data = [":inventory"],
+    main = "test/exit_codes_test.dart",
+    deps = [
+        "@dx_dart_deps//:test",
+        "@rules_dart//dart/runfiles",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

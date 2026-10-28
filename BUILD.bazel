@@ -157,6 +157,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/julia-app
 # gazelle:exclude examples/msix-app
 # gazelle:exclude examples/cuda-app
+# gazelle:exclude examples/dart-app
 # gazelle:exclude examples/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello

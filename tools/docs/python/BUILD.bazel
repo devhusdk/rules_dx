@@ -13,10 +13,12 @@ rust_test(
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/python/fixture:mylib_docs",
+        "//tools/docs/python/fixture:npylib_docs",
         "//tools/docs/python/fixture:src/mylib/shapes.py",
     ],
     env = {
         "DX_FIXTURE_SHAPES_PY": "$(rootpath //tools/docs/python/fixture:src/mylib/shapes.py)",
+        "DX_FIXTURE_NUMPY_SHARD": "$(rootpath //tools/docs/python/fixture:npylib_docs)",
         "DX_FIXTURE_SHARD": "$(rootpath //tools/docs/python/fixture:mylib_docs)",
     },
     tags = ["no-coverage"],

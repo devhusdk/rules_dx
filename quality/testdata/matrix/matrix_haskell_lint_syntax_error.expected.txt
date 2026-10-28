@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_haskell_lint_syntax_error
+capability LINT
+stages 1
+stage hlint classes=haskell sources=matrix/haskell_lint_broken.hs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR hlint Parse error matrix/haskell_lint_broken.hs 27 28 fixable=false "Parse error: on input `='"
+terminal 1
+terminal ERROR hlint Parse error matrix/haskell_lint_broken.hs 27 28 fixable=false "Parse error: on input `='"
+replacements 0

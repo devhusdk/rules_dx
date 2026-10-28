@@ -75,6 +75,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(HADOLINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "hlint" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(HLINT_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(HLINT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "regal" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(REGAL_DEFAULTS_REL),
@@ -237,6 +243,13 @@ impl RealBackend {
         }
         if tool_id == "hadolint" {
             let rel = tool.config_rel.as_deref().unwrap_or(HADOLINT_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "hlint" {
+            let rel = tool.config_rel.as_deref().unwrap_or(HLINT_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

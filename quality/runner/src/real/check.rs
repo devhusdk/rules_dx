@@ -1135,6 +1135,17 @@ impl RealBackend {
                     parsers::parse_fortitude(&out.stdout, out.code, &free_strs),
                 )
             }
+            "hlint" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "hlint needs a config path".to_owned()));
+                };
+                let invocation = commands::hlint_check(&tool.binary, &refs, config);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_hlint(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "jsonnet_lint" => {
                 let invocation = commands::jsonnet_lint_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

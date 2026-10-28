@@ -1921,6 +1921,20 @@ pub fn regal_lint(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     )
 }
 
+/// Always `--hint=<config>`: without it hlint searches the cwd and its parents for `.hlint.yaml`.
+/// A config holding `[]` keeps the built-in hints.
+pub fn hlint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut flag = OsString::from("--hint=");
+    flag.push(config.as_os_str());
+    let head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--json"),
+        flag,
+        OsString::from("--"),
+    ];
+    assemble(binary, head, files, "")
+}
+
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
 pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(

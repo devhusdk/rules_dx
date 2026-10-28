@@ -479,6 +479,51 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_haskell_lint_pass",
+        "generated": {
+            "matrix/haskell_lint_clean.hs": "module Clean where\n\nmain :: IO ()\nmain = putStrLn \"hello\"\n",
+        },
+        "capability": "lint",
+        "stages": ["hlint;haskell;matrix/haskell_lint_clean.hs"],
+        "tool_names": ["hlint"],
+        "tool_binaries": ["@dx_tools//:hlint"],
+        "expected_file": ":matrix/matrix_haskell_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_lint_fail",
+        "generated": {
+            "matrix/haskell_lint_dirty.hs": "module Dirty where\n\nf :: [Int]\nf = map (\\x -> x) []\n",
+        },
+        "capability": "lint",
+        "stages": ["hlint;haskell;matrix/haskell_lint_dirty.hs"],
+        "tool_names": ["hlint"],
+        "tool_binaries": ["@dx_tools//:hlint"],
+        "expected_file": ":matrix/matrix_haskell_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_lint_syntax_error",
+        "generated": {
+            "matrix/haskell_lint_broken.hs": "module Broken where\nmain = = 1\n",
+        },
+        "capability": "lint",
+        "stages": ["hlint;haskell;matrix/haskell_lint_broken.hs"],
+        "tool_names": ["hlint"],
+        "tool_binaries": ["@dx_tools//:hlint"],
+        "expected_file": ":matrix/matrix_haskell_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_haskell_lint_multi",
+        "generated": {
+            "matrix/haskell_lint_multi/Clean.hs": "module Clean where\n\nmain :: IO ()\nmain = putStrLn \"hello\"\n",
+            "matrix/haskell_lint_multi/Dirty.hs": "module Dirty where\n\nf :: [Int]\nf = map (\\x -> x) []\n",
+        },
+        "capability": "lint",
+        "stages": ["hlint;haskell;matrix/haskell_lint_multi/Clean.hs,matrix/haskell_lint_multi/Dirty.hs"],
+        "tool_names": ["hlint"],
+        "tool_binaries": ["@dx_tools//:hlint"],
+        "expected_file": ":matrix/matrix_haskell_lint_multi.expected.txt",
+    },
+    {
         "name": "matrix_rego_format_pass",
         "generated": {
             "matrix/rego_clean.rego": "package clean\n\nvalue := 1\n",

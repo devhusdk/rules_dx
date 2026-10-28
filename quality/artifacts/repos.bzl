@@ -55,6 +55,8 @@ DX_TOOL_REPOS = [
     "dx_helm_macos_arm64",
     "dx_helm_windows_arm64",
     "dx_helm_windows_x86_64",
+    "dx_hlint_linux_x86_64",
+    "dx_hlint_windows_x86_64",
     "dx_jsonnet_lint_linux_arm64",
     "dx_jsonnet_lint_linux_x86_64",
     "dx_jsonnet_lint_macos_arm64",

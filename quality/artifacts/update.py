@@ -1355,6 +1355,34 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "hlint": {
+        "upstream_version": "3.10",
+        "release_page": "https://github.com/ndmitchell/hlint/releases/tag/v3.10",
+        "licenses": [
+            {
+                "name": "BSD-3-Clause",
+                "source": "https://github.com/ndmitchell/hlint/blob/v3.10/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "hlint-3.10-x86_64-linux.tar.gz",
+                "url": "https://github.com/ndmitchell/hlint/releases/download/v3.10/hlint-3.10-x86_64-linux.tar.gz",
+                "kind": "tar.gz",
+                "executable": "hlint-3.10/hlint",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "hlint-3.10-x86_64-windows.zip",
+                "url": "https://github.com/ndmitchell/hlint/releases/download/v3.10/hlint-3.10-x86_64-windows.zip",
+                "kind": "zip",
+                "executable": "hlint-3.10/hlint.exe",
+            },
+        },
+    },
     "ormolu": {
         "upstream_version": "0.9.0.0",
         "release_page": "https://github.com/tweag/ormolu/releases/tag/0.9.0.0",

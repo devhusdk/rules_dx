@@ -1905,6 +1905,20 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/run.sh"
         ]
     );
+    assert_eq!(
+        argv_strings(&hlint_check(
+            Path::new(BIN),
+            &[Path::new("/s/A.hs")],
+            Path::new("/scratch/dx-hlint-default/hlint.yaml")
+        )),
+        vec![
+            BIN,
+            "--json",
+            "--hint=/scratch/dx-hlint-default/hlint.yaml",
+            "--",
+            "/s/A.hs"
+        ]
+    );
     let dockerfile = Path::new("/scratch/Dockerfile");
     assert_eq!(
         argv_strings(&hadolint_check(

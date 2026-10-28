@@ -422,6 +422,53 @@ pub(super) fn fortitude_reports_findings_skips_fixed_form_and_never_trusts_a_fai
     assert!(lint("a.f90", "crash\n").is_err());
 }
 
+fn hlint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--json"));
+    let config = argv[2].to_string_lossy().into_owned();
+    assert!(
+        config.starts_with("--hint=") && config.ends_with("dx-hlint-default/hlint.yaml"),
+        "{config}"
+    );
+    assert_eq!(argv[3], OsString::from("--"));
+    let staged = std::fs::read(config.trim_start_matches("--hint=")).expect("staged config");
+    assert_eq!(staged, b"[]\n");
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("crash") {
+        (1, String::new())
+    } else if text.contains("redundant") {
+        (
+            1,
+            format!(
+                r#"[{{"module":[],"decl":[],"severity":"Warning","hint":"Use id","file":"{file}","startLine":1,"startColumn":5,"endLine":1,"endColumn":12,"from":"x","to":"id","note":[],"refactorings":"[]"}}]"#
+            ),
+        )
+    } else {
+        (0, "[]".to_owned())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn hlint_reports_findings_with_the_staged_default_and_never_trusts_a_failed_run() {
+    let backend = backend_for("hlint", plain_tool(), hlint_behavior);
+    let lint = |text: &str| backend.diagnose("hlint", "lint", &single("A.hs", text));
+    assert!(lint("main = pure ()\n").expect("check").is_empty());
+    let warned = lint("f = redundant\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "Use id");
+    assert!(lint("crash\n").is_err());
+}
+
 fn dart_behavior(
     argv: &[OsString],
     _cwd: &Path,

@@ -186,6 +186,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "graphql_eslint",
             "hadolint",
             "helm",
+            "hlint",
             "jsonnet_lint",
             "jsonnetfmt",
             "julia_format",

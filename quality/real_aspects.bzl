@@ -408,6 +408,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "core",
     },
+    "hlint": {
+        "attr": attr.label(default = "//config:tool_hlint", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "fallback": "=<label of an hlint executable>",
+        "kind": "file",
+        "resources": "medium",
+        "shard": "haskell",
+    },
     "ormolu": {
         "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -2118,6 +2126,12 @@ _REAL_SHARD_SPECS = {
         "shard": "haskell",
         "suffix": "-haskell",
     },
+    "real_haskell_lint": {
+        "capability": "lint",
+        "doc": "Additive Haskell lint family aspect (hlint).",
+        "shard": "haskell",
+        "suffix": "-haskell",
+    },
     "real_pkl_format": {
         "capability": "format",
         "doc": "Additive Pkl format family aspect (pkl format).",
@@ -2338,6 +2352,7 @@ real_latex_format_aspect = _make_real_aspect("real_latex_format")
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
+real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
 
 real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")
 

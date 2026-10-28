@@ -795,6 +795,20 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "transport": "single",
 }
 
+HASKELL_HLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["haskell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "haskell",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "hlint",
+    "transport": "batched",
+}
+
 HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -973,6 +987,7 @@ SUPPORT_RECORDS = [
     JSONNET_FORMAT_SUPPORT,
     JSONNET_LINT_SUPPORT,
     FORTRAN_FORTITUDE_LINT_SUPPORT,
+    HASKELL_HLINT_LINT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
     LATEX_LATEXINDENT_FORMAT_SUPPORT,

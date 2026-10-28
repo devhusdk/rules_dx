@@ -16,6 +16,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_hlint",
+    build_setting_default = "@dx_tools//:hlint",
+)
+
+label_flag(
     name = "tool_nixfmt",
     build_setting_default = "@dx_tools//:nixfmt",
 )

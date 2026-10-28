@@ -1,4 +1,5 @@
 use super::common::*;
+use super::explain_store;
 use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
@@ -923,8 +924,27 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             return exit;
         }
     }
+    let explain_log = if request.explain {
+        match explain_store::reserve(workspace) {
+            Ok(reserved) => Some(reserved),
+            Err(error) => {
+                return operational_output(
+                    request.common.output,
+                    out,
+                    err,
+                    explain_store::CODE_EXPLAIN_LOG_UNWRITABLE,
+                    &format!("could not create an execution log under .dx/explain: {error}"),
+                );
+            }
+        }
+    } else {
+        None
+    };
     if request.common.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(command, mode)) {
+            if let Some(reserved) = &explain_log {
+                let _ = std::fs::remove_file(&reserved.path);
+            }
             return exit;
         }
     }
@@ -982,6 +1002,16 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         if let Some(capture) = sarif_capture {
             collector.require_capture(index, capture);
         }
+        let phase_log = explain_log.as_ref().map(|_| {
+            temp_dir.join(format!(
+                "umbrella-explain-{pid}-{phase_nonce}{}",
+                explain_store::SUFFIX
+            ))
+        });
+        let phase_log_text = phase_log
+            .as_ref()
+            .and_then(|path| path.to_str())
+            .map(str::to_owned);
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
         let PhaseRun {
@@ -1005,12 +1035,19 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 bump_commit_json,
             };
             if phase == Command::Generate {
-                execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
+                let mut generate = request.phase_generate_request(phase_reports);
+                generate.exec_log = phase_log_text.clone();
+                execute_generate_phase(&generate, phase_env)
             } else if let (Command::Test, Some(test)) = (phase, request.test.as_deref()) {
-                execute_test_phase(test, phase_env)
+                let mut test = test.clone();
+                test.exec_log = phase_log_text.clone();
+                execute_test_phase(&test, phase_env)
             } else {
                 match request.phase_quality_request(phase, phase_reports) {
-                    Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
+                    Ok(mut phase_request) => {
+                        phase_request.exec_log = phase_log_text.clone();
+                        execute_quality_phase(&phase_request, phase_env)
+                    }
                     Err(message) if request.common.output == OutputMode::Json => PhaseRun {
                         code: pre_exec(
                             request.common.output,
@@ -1032,6 +1069,9 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 }
             }
         };
+        if let (Some(reserved), Some(path)) = (&explain_log, &phase_log) {
+            append_phase_log(&reserved.path, path);
+        }
         if code != 0 && interrupted().is_some() {
             kind = PhaseKind::Cancelled;
         }
@@ -1161,6 +1201,14 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
     }
     collector.cleanup();
+    if let Some(reserved) = &explain_log {
+        let _ = explain_store::prune(workspace, explain_store::KEEP, reserved.number);
+        if stdout_exit.is_none() {
+            if let Err(exit) = announce_explain_log(request, out, err, &reserved.path) {
+                stdout_exit = Some(exit);
+            }
+        }
+    }
     if !matches!(request.common.output, OutputMode::Json)
         && (stop_code.is_some() || failed_code.is_some())
     {
@@ -1223,6 +1271,42 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         let _ = write_event(out, &finished);
     }
     code
+}
+
+/// Appends one finished phase's execution log to the run's store file, then removes the phase file.
+/// Concatenated zstd frames are one valid log, so `dx explain` reads the phases as segments.
+fn append_phase_log(store: &Path, phase: &Path) {
+    if let Ok(bytes) = std::fs::read(phase) {
+        if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(store) {
+            let _ = file.write_all(&bytes);
+        }
+    }
+    let _ = std::fs::remove_file(phase);
+}
+
+/// Names the saved execution log: a notice in JSON, one stderr line in text.
+fn announce_explain_log(
+    request: &UmbrellaRequest,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    path: &Path,
+) -> Result<(), i32> {
+    let shown = path.display().to_string();
+    if request.common.output == OutputMode::Json {
+        let notice = NoticeEvent {
+            related_command: Some(request.command.name().to_owned()),
+            path: Some(shown),
+            ..NoticeEvent::info(
+                explain_store::CODE_EXPLAIN_LOG,
+                "saved the execution log for dx explain",
+            )
+        };
+        return emit_built(out, notice_event(&notice));
+    }
+    if request.common.chatty() {
+        let _ = writeln!(err, "dx: execution log {shown}");
+    }
+    Ok(())
 }
 
 #[cfg(test)]

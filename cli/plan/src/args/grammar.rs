@@ -994,6 +994,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
         fail_on: FailOnFlag,
+        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

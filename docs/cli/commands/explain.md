@@ -8,7 +8,7 @@ Explains why actions missed the cache. It compares two Bazel execution logs
 and lists each action in the newer log that ran without a cache hit. It never
 runs Bazel and changes no files.
 
-Save a log with `dx build --explain` or `dx test --explain`. Each run writes
+Save a log with `dx build --explain`, `dx test --explain` or `dx check --explain`. Each run writes
 `.dx/explain/<n>.binpb.zst` and keeps the two newest logs.
 
 Flags:

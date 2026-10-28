@@ -1,6 +1,6 @@
 use dx_process::{describe_scope, ForwardError};
 
-use super::{bazel_argv, workflow_scope_labels, BuildPlan};
+use super::{bazel_argv, exec_log_guards, exec_log_options, workflow_scope_labels, BuildPlan};
 use crate::resolve::ResolvedScope;
 
 pub const GENERATE_TARGET: &str = "//dx:generate";
@@ -117,8 +117,24 @@ pub fn plan_generate(
     startup_options: &[String],
     patch: Option<&str>,
 ) -> Result<BuildPlan, ForwardError> {
-    let required = Vec::new();
-    let protected = Vec::new();
+    plan_generate_logged(resolved, bazel_options, check, startup_options, patch, None)
+}
+
+/// Plans generate, saving Bazel's compact execution log to `exec_log` when given.
+pub fn plan_generate_logged(
+    resolved: &ResolvedScope,
+    bazel_options: &[String],
+    check: bool,
+    startup_options: &[String],
+    patch: Option<&str>,
+    exec_log: Option<&str>,
+) -> Result<BuildPlan, ForwardError> {
+    let required = exec_log.map(exec_log_options).unwrap_or_default();
+    let protected = if exec_log.is_some() {
+        exec_log_guards()
+    } else {
+        Vec::new()
+    };
     let target = if check {
         GENERATE_CHECK_TARGET
     } else {

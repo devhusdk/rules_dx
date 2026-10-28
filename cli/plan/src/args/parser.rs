@@ -892,6 +892,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         init_rust_target_triples: dx_adopt::validate_rust_target_triples(&rust_target_triple)
             .map_err(|detail| ArgsError::BadDefault { detail })?,
         explain,
+        exec_log: None,
         old_log,
         new_log,
         install_tag,

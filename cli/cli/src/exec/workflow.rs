@@ -203,7 +203,7 @@ fn execute_checked(
                 );
             }
         },
-        None => None,
+        None => invocation.exec_log.clone(),
     };
     let profile = if verb == WorkflowVerb::Coverage {
         None

@@ -1736,6 +1736,36 @@ pub fn ansible_lint_check(
     }
 }
 
+/// `--offline --nocolor --fix=all --project-dir <dir>`, an optional `-c <config>`, and a leading `--dx-collections-path` when collection roots are staged.
+pub fn ansible_lint_fix(
+    binary: &Path,
+    files: &[&Path],
+    context: &AnsibleLintContext<'_>,
+) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    if !context.collections.is_empty() {
+        let joined = std::env::join_paths(context.collections.iter().copied())
+            .unwrap_or_else(|_| OsString::new());
+        argv.push(OsString::from("--dx-collections-path"));
+        argv.push(joined);
+    }
+    argv.extend(
+        ["--offline", "--nocolor", "--fix=all", "--project-dir"]
+            .iter()
+            .map(OsString::from),
+    );
+    argv.push(context.project_dir.as_os_str().to_owned());
+    if let Some(config) = context.config {
+        argv.push(OsString::from("-c"));
+        argv.push(config.as_os_str().to_owned());
+    }
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     match config {
         Some(_) => optional_flag(

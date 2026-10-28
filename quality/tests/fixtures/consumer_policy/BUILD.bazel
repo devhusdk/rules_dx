@@ -791,3 +791,36 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     rst_srcs = [":rst_module"],
 )
+
+quality_family(
+    name = "asciidoc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "asciidoc",
+    lint = ["vale"],
+)
+
+workspace_policy(
+    name = "asciidoc_policy",
+    families = [":asciidoc_family"],
+    visibility = [
+        "//quality:__pkg__",
+        "//quality/testdata:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "asciidoc_module",
+    srcs = [
+        "asciidoc_module/guide.adoc",
+        "asciidoc_module/notes.adoc",
+    ],
+)
+
+real_source_target(
+    name = "clean_asciidoc",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    asciidoc_srcs = [":asciidoc_module"],
+)

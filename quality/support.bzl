@@ -781,6 +781,21 @@ LATEX_CHKTEX_LINT_SUPPORT = {
     "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
+# Vale lints AsciiDoc through the pinned Asciidoctor.js converter the owner rule carries.
+ASCIIDOC_VALE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["asciidoc"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "asciidoc",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "vale",
+    "transport": "batched",
+}
+
 POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1037,6 +1052,7 @@ SUPPORT_RECORDS = [
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
     LATEX_LATEXINDENT_FORMAT_SUPPORT,
     LATEX_CHKTEX_LINT_SUPPORT,
+    ASCIIDOC_VALE_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,

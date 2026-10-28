@@ -95,6 +95,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "typst",
     "latex",
     "rst",
+    "asciidoc",
 ]
 
 RUST = "rust"

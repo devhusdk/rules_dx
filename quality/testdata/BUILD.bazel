@@ -16,7 +16,7 @@ load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_te
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "rmeta_typecheck_test")
-load(":rst_converter_tests.bzl", "rst_no_converter_test")
+load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(
     ":tool_override_tests.bzl",
@@ -343,6 +343,14 @@ real_source_target(
 )
 
 real_source_target(
+    name = "fixture_real_asciidoc_no_converter",
+    aspect_hints = [":vale_cfg"],
+    asciidoc_converter = False,
+    asciidoc_srcs = ["real_clean.adoc"],
+    tags = ["manual"],
+)
+
+real_source_target(
     name = "fixture_real_rst_no_converter",
     aspect_hints = [":vale_cfg"],
     rst_converter = False,
@@ -622,6 +630,18 @@ failure_test(
 real_aspect_subject(
     name = "fixture_real_markdown_subject",
     target = ":fixture_real_markdown",
+)
+
+real_aspect_subject(
+    name = "fixture_real_asciidoc_no_converter_subject",
+    tags = ["manual"],
+    target = ":fixture_real_asciidoc_no_converter",
+)
+
+asciidoc_no_converter_test(
+    name = "fixture_real_asciidoc_no_converter_test",
+    size = "small",
+    target_under_test = ":fixture_real_asciidoc_no_converter_subject",
 )
 
 real_aspect_subject(

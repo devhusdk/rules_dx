@@ -409,6 +409,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_latex",
         },
         {
+            "case": "asciidoc_vale",
+            "expected_dx_results": [
+                "clean_asciidoc-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:asciidoc_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_asciidoc",
+        },
+        {
             "case": "rst_vale",
             "expected_dx_results": [
                 "clean_rst-real-lint.pb",
@@ -652,6 +660,7 @@ test_suite(
         ":consumer_policy_make_linted_test",
         ":consumer_policy_latex_formatted_test",
         ":consumer_policy_nix_linted_test",
+        ":consumer_policy_asciidoc_vale_test",
         ":consumer_policy_rst_vale_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",

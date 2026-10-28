@@ -1600,7 +1600,29 @@ quality_family(
 
 List the `.rst` files of the package in `srcs`. An rst file that is not owned by
 `rst_library` fails the run with a message naming the rule. A converter failure
-is reported and never counts as clean. AsciiDoc is not covered yet.
+is reported and never counts as clean.
+
+### AsciiDoc
+
+Vale lints `.adoc`, `.asciidoc` and `.asc` files. Vale converts them with
+`asciidoctor`, which dx supplies from a pinned Asciidoctor.js 3.0.4 run on the
+hermetic Node toolchain, so no Ruby or host install is needed. Own the files with
+`asciidoc_library` from `@rules_dx//asciidoc/rules:defs.bzl`; the rule hands
+`asciidoctor` to the Vale run. Curated defaults do not select Vale for asciidoc,
+so select it in an `asciidoc` family.
+
+```python
+quality_family(
+    name = "asciidoc_family",
+    family_id = "asciidoc",
+    lint = ["vale"],
+)
+```
+
+Vale is check only, and the converter starts one Node process per file. An
+AsciiDoc file that is not owned by `asciidoc_library` fails the run with a
+message naming the rule. A converter failure is reported and never counts as
+clean.
 
 ### LaTeX
 

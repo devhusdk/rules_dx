@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@dx_npm_tools//quality/tools/javascript:@redocly/cli/package_json.bzl", redocly_bin = "bin")
+load("@dx_npm_tools//quality/tools/javascript:asciidoctor/package_json.bzl", asciidoctor_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:esbuild/package_json.bzl", esbuild_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
@@ -53,6 +54,11 @@ js_binary(
         "//quality/tools/javascript:node_modules/svelte",
     ],
     entry_point = "prettier.mjs",
+)
+
+asciidoctor_bin.asciidoctor_binary(
+    name = "asciidoctor_generated",
+    env = {"BAZEL_BINDIR": "."},
 )
 
 redocly_bin.redocly_binary(name = "redocly_generated")
@@ -112,6 +118,13 @@ wrangler_bin.wrangler_binary(
 esbuild_bin.esbuild_binary(
     name = "esbuild",
     env = {"BAZEL_BINDIR": "."},
+)
+
+js_tool(
+    name = "asciidoctor",
+    entry_point = ":asciidoctor_generated__entry_point",
+    js_binary = ":asciidoctor_generated",
+    visibility = ["//visibility:public"],
 )
 
 js_tool(

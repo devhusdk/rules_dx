@@ -288,10 +288,17 @@ def nif_priv_path(name):
     """Returns the package-relative path one NIF library is placed at."""
     return "priv/" + name + ".so"
 
-def nif_linkopt_cases():
-    """Returns the select cases for the link options a NIF shared library needs."""
+def nif_linkopt_cases(version_script):
+    """Returns the select cases for the link options a NIF shared library needs.
+
+    Only `nif_init` is exported, so a statically linked C++ runtime stays private to the library.
+
+    Args:
+        version_script: Label string of the Linux version script, as used in `$(execpath)`.
+    """
     return {
-        str(Label("@platforms//os:macos")): ["-Wl,-undefined,dynamic_lookup"],
+        str(Label("@platforms//os:linux")): ["-Wl,--version-script=$(execpath " + version_script + ")"],
+        str(Label("@platforms//os:macos")): ["-Wl,-undefined,dynamic_lookup", "-Wl,-exported_symbol,_nif_init"],
         "//conditions:default": [],
     }
 
@@ -329,7 +336,7 @@ _erlang_nif = rule(
 )
 
 def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, tags = None, target_compatible_with = None):
-    """Builds a NIF shared library from declared C sources and places it at priv/<name>.so.
+    """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so.
 
     Declare the NIF in the package of the erlang_app that loads it and pass it through `nifs`.
     """
@@ -350,7 +357,8 @@ def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, 
         name = "lib" + name + ".so",
         deps = [":" + name + "_c"],
         linkshared = True,
-        linkopts = select(nif_linkopt_cases()),
+        linkopts = select(nif_linkopt_cases(str(Label("//erlang/rules:nif_exports.lds")))),
+        additional_linker_inputs = [Label("//erlang/rules:nif_exports.lds")],
         tags = tags,
         target_compatible_with = compatible,
     )

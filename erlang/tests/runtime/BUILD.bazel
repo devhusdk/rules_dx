@@ -89,6 +89,14 @@ erlang_coverage_env_test(
     target = "//examples/erlang-app/checksum:eunit",
 )
 
+erlang_coverage_env_test(
+    name = "nif_cpp_coverage_env_test",
+    apps_dirs = "erlang/tests",
+    native = True,
+    source = "erlang/tests/nif_cpp/src/dx_cpp_a.erl",
+    target = "//erlang/tests/nif_cpp:eunit",
+)
+
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],

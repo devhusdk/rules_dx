@@ -1,0 +1,27 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+cc_library(
+    name = "c_src",
+    testonly = True,
+    srcs = [
+        "dx_cpp_a_nif.cc",
+        "dx_cpp_b_nif.cc",
+    ],
+)
+
+exports_files(
+    [
+        "dx_cpp_a_nif.cc",
+        "dx_cpp_b_nif.cc",
+    ],
+    visibility = ["//erlang/tests/nif_cpp:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

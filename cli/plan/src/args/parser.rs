@@ -1224,7 +1224,6 @@ mod startup_tests {
         ] {
             for words in [
                 &["completion"][..],
-                &["init", "a", "b"][..],
                 &["new"][..],
                 &["deploy"][..],
             ] {
@@ -1342,7 +1341,7 @@ mod startup_tests {
                     );
                 }
             }
-            for words in [&["deploy", "--bogus"][..], &["init"][..]] {
+            for words in [&["deploy", "--bogus"][..], &["new"][..]] {
                 assert!(
                     !json_output_intent(&strings(words), &agent, &file, false),
                     "{marker} {words:?}"

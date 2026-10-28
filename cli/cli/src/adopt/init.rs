@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use crate::exec::common::{check_stdout_write, refusal};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal};
+use dx_output::{
+    command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
+};
 use dx_plan::args::Invocation;
 
 use super::{operational, summaries_suppressed};
@@ -39,6 +42,14 @@ pub(crate) fn execute_init(
     };
     let parts = record.parts.union(invocation.init_parts);
     let agents = parts.contains(dx_adopt::InitPart::Agents);
+    if invocation.applies() && invocation.output == OutputMode::Json {
+        return refusal(
+            invocation.output,
+            out,
+            err,
+            "dx init --apply has no JSON output; drop --output=json",
+        );
+    }
     if !invocation.applies() {
         return check_init(invocation, workspace, module, &record, parts, out, err);
     }
@@ -137,7 +148,25 @@ fn check_init(
         .find(|file| file.path == "MODULE.bazel.snippet")
         .map(|snippet| dx_adopt::preflight(workspace, &snippet.content))
         .filter(|plan| plan.applicable);
-    if let Some(plan) = &plan {
+    let json = invocation.output == OutputMode::Json;
+    if json {
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
+            return exit;
+        }
+    }
+    if let (Some(plan), true) = (&plan, json) {
+        for f in &plan.findings {
+            let event = status_event(&StatusEvent {
+                name: format!("init_plan.{}.{}", f.kind.id(), f.subject),
+                status: if f.hard { "error" } else { "warn" }.to_owned(),
+                detail: format!("{} -> {} ({}:{})", f.before, f.after, f.file, f.line),
+                hint: f.hint.clone(),
+            });
+            if let Err(exit) = emit_built(out, event) {
+                return exit;
+            }
+        }
+    } else if let Some(plan) = &plan {
         if !summaries_suppressed(invocation) {
             if let Err(exit) =
                 check_stdout_write(write!(out, "{}", dx_adopt::render_plan_text(module, plan)))
@@ -156,7 +185,11 @@ fn check_init(
         && invalid_pin.is_none()
         && conflicts.is_empty()
     {
-        if !summaries_suppressed(invocation) {
+        if json {
+            if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
+                return exit;
+            }
+        } else if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
                 return exit;
             }
@@ -475,6 +508,28 @@ mod tests {
             err.contains("init plan: 1 hard conflicts (rules_rust)"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn init_check_json_emits_plan_findings_as_status_events() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-json-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        let module = format!(
+            "bazel_dep(name = \"rules_dx\", version = \"{}\")\nbazel_dep(name = \"rules_rust\", version = \"0.60.0\")\n",
+            dx_adopt::DX_VERSION
+        );
+        std::fs::write(root.join("MODULE.bazel"), &module).expect("module");
+        let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("\"event\":\"status\""), "{out}");
+        assert!(out.contains("init_plan.version_raise.rules_rust"), "{out}");
+        assert!(
+            out.contains("rules_rust 0.60.0 -> 0.74.0") || out.contains("0.60.0 -> 0.74.0"),
+            "{out}"
+        );
+        assert!(out.contains("MODULE.bazel:2"), "{out}");
     }
 
     #[test]

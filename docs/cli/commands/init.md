@@ -14,7 +14,7 @@ tools/dx init
 ## `dx init`
 
 ```text
-dx init [--apply] [--with=<parts>|--full] [module-name]
+dx init [--apply] [--with=<parts>|--full] [--rust-target-triple=<triples>] [module-name]
 ```
 
 Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks by default; `--apply` scaffolds. Takes an optional module name, which
@@ -127,6 +127,8 @@ stderr. `--quiet` hides the stdout lines. The stderr lines still print. When a
 write fails, apply still lists the files it already wrote, then the
 `init_failed` error. Closing stdout early does not stop the writes.
 
+Output: `--output text|json`. JSON covers the check only; see Init plan below.
+
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
 extra positionals, an unknown part, or an invalid module name, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
@@ -159,6 +161,11 @@ Each finding names the file and line, including `include()`d `.MODULE.bazel` fil
 plan covers declared deps only, so transitive raises are not shown. Hard findings add an
 `init plan: N hard conflicts (...)` clause to `init drift` and exit 1; advisory ones never
 change the exit code.
+
+With `--output=json`, the plan is one `status` event per finding instead of text: `name` is
+`init_plan.<kind>.<subject>` (`version_raise`, `override_conflict`, `toolchain_conflict`,
+`bazelrc_conflict`), `status` is `error` for hard findings and `warn` for advisory ones,
+`detail` is `before -> after (file:line)`, and `hint` is the fix. `--apply` refuses `--output=json`.
 
 ## rules_dx overrides
 

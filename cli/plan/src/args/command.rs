@@ -494,7 +494,7 @@ pub static COMMANDS: [CommandMeta; 32] = [
         scopes: "Scopes: optional single module name (defaults to my_project when absent); Bazel labels/patterns are not scopes; extra positionals are usage failures.",
         is_managed: false,
         is_adoption: true,
-        supports_json: false,
+        supports_json: true,
         supports_diff: false,
         supports_here: false,
         supports_fail_on: false,

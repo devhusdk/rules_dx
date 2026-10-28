@@ -69,6 +69,16 @@ def clang_syntax_unit_tests(name):
                 "a.c",
             ),
             expect_equal(
+                "a header-parsing action names its header as the source",
+                clang_syntax_source([_CLANG, "-DX", "-iquote", ".", "-xc++-header", "-fsyntax-only", "pkg/a.h"]),
+                "pkg/a.h",
+            ),
+            expect_equal(
+                "a header-parsing action is replayed without a -c",
+                _rewrite([_CLANG, "-iquote", ".", "-xc++-header", "-fsyntax-only", "pkg/a.h"], "pkg/a.h").error,
+                "",
+            ),
+            expect_equal(
                 "no -c names no source",
                 clang_syntax_source([_CLANG, "a.c"]),
                 "",

@@ -14,6 +14,7 @@ ClangSyntaxInfo = provider(
     },
 )
 
+_SOURCE_EXTENSIONS = ["h", "hh", "hpp", "hxx", "h++", "inc", "inl", "tcc", "c", "cc", "cpp", "cxx", "c++", "m", "mm", "cu", "cuh"]
 _MNEMONICS = ["CppCompile", "ObjcCompile"]
 
 # Flags that produce build outputs and are not wanted for a syntax-only run.
@@ -81,10 +82,19 @@ def _compile_actions(target):
     return [action for action in actions if action.mnemonic in _MNEMONICS]
 
 def clang_syntax_source(argv):
-    """Returns the translation unit named after -c, or "" when there is none."""
+    """Returns the translation unit of a compile command line, or "" when there is none.
+
+    A normal compile names it after -c. A header-parsing action (parse_headers) has no
+    -c: it already carries -fsyntax-only and ends with the header, so the last argument
+    with a C-family extension is taken.
+    """
     for i in range(len(argv) - 1):
         if argv[i] == "-c":
             return argv[i + 1]
+    if "-fsyntax-only" in argv:
+        for arg in reversed(argv):
+            if not arg.startswith("-") and arg.rpartition(".")[2] in _SOURCE_EXTENSIONS:
+                return arg
     return ""
 
 def _clang_syntax_impl(target, ctx):

@@ -321,6 +321,51 @@ The public API is `__all__` when a module defines it, otherwise every name
 without a leading underscore. A package with no source, a syntax error or a
 missing package fails the build and produces no shard and no page.
 
+## Java API reference
+
+`java_doc_shard` from `@rules_dx//tools/docs/jvm:defs.bzl` reads one Java library's
+public API with the JDK's Javadoc tool and produces a docs IR shard with language
+`java`. The sources are parsed, never run or changed. Pass the shard to `docs_site`
+beside other shards.
+
+```starlark
+load("@rules_dx//tools/docs/jvm:defs.bzl", "java_doc_shard")
+
+java_doc_shard(
+    name = "api_docs",
+    lib = ":shapes",
+)
+```
+
+Attributes:
+
+- `lib`: the documented `java_library`. Its own `.java` `srcs` are documented; its `deps` are only on the classpath.
+- `package`: the package segment of the symbol ids. Defaults to the name of `lib`.
+- `deps`: `java_doc_shard` targets of libraries whose types this one uses. Their symbols are linked, not documented again.
+
+Symbol ids have the form `java:<package>:<qualified name>`, for example
+`java:shapes:dx.fixture.shapes.Circle`. Overloaded methods add the erased parameter
+types, as in `java:shapes:dx.fixture.shapes.Circle.scale~28double~2Cdouble~29`.
+Characters other than letters, digits and `_` are written as `~` and two hex digits.
+
+Public and package-visible-by-`public` types, methods, fields, constructors and
+enum constants are documented, with the text of `@param`, `@return`, `@throws`,
+`@deprecated`, `@see` and `@since`, and `{@link}` references. Protected and private
+members are left out. Only `.java` sources are read; source jars and annotation
+processors are not supported. The Javadoc tool needs a full JDK as the tool runtime.
+
+A type error in a signature, a missing source or an empty public API fails the
+build, and no pages are written.
+
+Build the shard's site with the scope of the target:
+
+```sh
+bazel run @rules_dx//:dx -- docs //lib:api_docs
+```
+
+Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
+failure. Bazel failures keep Bazel's code.
+
 ## PowerShell API reference
 
 `powershell_doc_shard` from `@rules_dx//tools/docs/powershell:defs.bzl` reads one

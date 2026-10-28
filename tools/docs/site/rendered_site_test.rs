@@ -588,6 +588,66 @@ fn a_ruby_api_page_renders_its_signature_docs_source_and_relations() {
 }
 
 #[test]
+fn a_java_api_page_renders_its_signature_docs_source_and_relations() {
+    let root = site(DEMO_POLYGLOT_SITE);
+    let routes = every_html(&root);
+    let scale = read(
+        &root,
+        "api/java/shapes/dx.fixture.shapes.Circle.scale~28double~2Cdouble~29.html",
+    );
+    assert!(
+        scale.contains("<code class=\"language-java\">public Circle scale(double horizontal, double vertical)"),
+        "the signature must render as a Java code block"
+    );
+    assert!(scale.contains("Scales the radius by two factors"));
+    assert!(
+        scale.contains("href=\"dx.fixture.shapes.Circle.scale~28double~29.html\""),
+        "the link to the other overload must resolve to its page"
+    );
+    let circle_java = "tools/docs/jvm/fixture/java/dx/fixture/shapes/Circle.java";
+    assert!(
+        scale.contains(&format!(
+            "href=\"https://github.com/devhusdk/rules_dx/blob/main/{circle_java}#L"
+        )),
+        "the page must link its source line"
+    );
+    let area = read(&root, "api/java/shapes/dx.fixture.shapes.Circle.area~28~29.html");
+    assert!(
+        area.contains("Returns the area of this shape."),
+        "an override must show the documentation it inherits"
+    );
+    let square = read(&root, "api/java/paint/dx.fixture.paint.Square.html");
+    assert!(
+        square.contains("href=\"../shapes/dx.fixture.shapes.Shape.html\""),
+        "the Square page never links the Shape page it implements"
+    );
+    assert!(
+        square.contains("href=\"../shapes/dx.fixture.shapes.Circle.html\""),
+        "the doc link to Circle must resolve to its page"
+    );
+    let circle = read(&root, "api/java/shapes/dx.fixture.shapes.Circle.html");
+    assert!(!circle.contains("<script>alert"), "raw HTML from a doc comment leaked");
+    assert!(!circle.contains("Undocumented."));
+    for hidden in ["hidden", "secret", "Internal"] {
+        assert!(
+            !routes.iter().any(|route| route.contains(hidden)),
+            "the non-public member {hidden} was published"
+        );
+    }
+    let index = read(&root, "searchindex.js");
+    let mut urls = BTreeSet::new();
+    for (start, _) in index.match_indices("\"api/java/") {
+        let rest = &index[start + 1..];
+        let end = rest.find('"').expect("closed string");
+        urls.insert(rest[..end].split('#').next().expect("url").to_string());
+    }
+    assert!(!urls.is_empty(), "the search index names no Java page");
+    for url in urls {
+        assert!(root.join(&url).is_file(), "search names {url}, no page");
+    }
+}
+
+#[test]
 fn a_changed_signature_changes_the_rendered_page() {
     let before = read(&site(DEMO_SITE), "api/rust/docs_fixture/add.html");
     let after = read(&site(DEMO_CHANGED_SITE), "api/rust/docs_fixture/add.html");

@@ -216,6 +216,7 @@ const PACKAGES: [&str; 130] = [
     "tools/docs/go",
     "tools/docs/go/extract",
     "tools/docs/ir/ir",
+    "tools/docs/jvm",
     "tools/docs/jvm/convert",
     "tools/docs/powershell",
     "tools/docs/powershell/extract",

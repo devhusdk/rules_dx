@@ -788,6 +788,9 @@ fn readme_events_list_every_emitted_field() {
                 passed: true,
                 errors: 0,
                 dx_version: "1".to_owned(),
+                sha: Some("abc".to_owned()),
+                dirty: false,
+                collector: Some("bazel 9.0.0".to_owned()),
             })
             .expect("coverage"),
         ),
@@ -818,7 +821,10 @@ fn readme_events_list_every_emitted_field() {
             dx_output::EVENTS.contains(name),
             "`{name}` is not a known event"
         );
-        assert_eq!(event["event"], *name, "fixture for `{name}` emits another event");
+        assert_eq!(
+            event["event"], *name,
+            "fixture for `{name}` emits another event"
+        );
         let bullet = readme_event_bullet(name);
         let object = event.as_object().expect("event is an object");
         for key in object.keys().filter(|k| *k != "event" && *k != "schema") {

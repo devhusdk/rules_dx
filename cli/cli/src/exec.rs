@@ -6,6 +6,7 @@ mod bump;
 mod changed_coverage;
 mod clean;
 pub mod common;
+mod coverage_candidate;
 #[cfg(test)]
 mod current_dir_guard_tests;
 #[cfg(test)]

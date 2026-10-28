@@ -79,6 +79,17 @@ fn stale_sha_fails() {
 }
 
 #[test]
+fn dirty_checkout_fails() {
+    fails(
+        &[
+            event("linux_x86_64"),
+            with("macos_arm64", "dirty", json!(true)),
+        ],
+        "macos_arm64: report is from a dirty checkout",
+    );
+}
+
+#[test]
 fn zero_hit_line_fails() {
     fails(
         &[

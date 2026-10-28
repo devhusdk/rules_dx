@@ -1,6 +1,6 @@
 use super::affected::{named_base, PlanError};
 use super::common::{
-    emit_built, CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE,
+    emit_built, git_output, CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE,
     CODE_CHANGED_LINE_UNAVAILABLE,
 };
 use dx_lcov::{all_lines, changed_account, parse_added_lines, AddedLines, CellAccount};
@@ -17,24 +17,6 @@ pub(super) struct ChangedGate<'a> {
     pub(super) workspace: &'a Path,
     pub(super) runner: &'a dyn QueryRunner,
     pub(super) output: OutputMode,
-}
-
-fn git_output(
-    runner: &dyn QueryRunner,
-    workspace: &Path,
-    what: &str,
-    args: &[&str],
-) -> Result<Vec<u8>, String> {
-    let mut argv = vec!["git".to_owned()];
-    argv.extend(args.iter().map(ToString::to_string));
-    let result = runner
-        .run_query(&argv, workspace)
-        .map_err(|error| format!("git {what} failed: {error}"))?;
-    if result.code != Some(0) {
-        let detail = dx_output::first_diagnostic_line(&result.stderr, 200, "no Git diagnostic");
-        return Err(format!("git {what} failed: {detail}"));
-    }
-    Ok(result.stdout)
 }
 
 /// The lines the working tree adds since `merge_base`, with every untracked file counted in full.

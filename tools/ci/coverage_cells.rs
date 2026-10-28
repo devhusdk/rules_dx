@@ -63,6 +63,9 @@ pub fn aggregate(expected: &[String], sha: &str, ndjson: &str) -> Vec<String> {
             Some(found) => errors.push(format!("{cell}: stale sha {found}, expected {sha}")),
             None => errors.push(format!("{cell}: report carries no sha")),
         }
+        if event.get("dirty").and_then(Value::as_bool) == Some(true) {
+            errors.push(format!("{cell}: report is from a dirty checkout"));
+        }
         match event.get("collector").and_then(Value::as_str) {
             Some(collector) if !collector.is_empty() => collectors.push((cell, collector)),
             _ => errors.push(format!("{cell}: report carries no collector")),

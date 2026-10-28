@@ -224,6 +224,25 @@ pub(crate) const CODE_ADD_FAILED: &str = "add_failed";
 pub(crate) const CODE_MIGRATE_FAILED: &str = "migrate_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
+/// Runs `git` in `workspace` and returns its stdout; a launch error or a non-zero exit is an error.
+pub(super) fn git_output(
+    runner: &dyn QueryRunner,
+    workspace: &Path,
+    what: &str,
+    args: &[&str],
+) -> Result<Vec<u8>, String> {
+    let mut argv = vec!["git".to_owned()];
+    argv.extend(args.iter().map(ToString::to_string));
+    let result = runner
+        .run_query(&argv, workspace)
+        .map_err(|error| format!("git {what} failed: {error}"))?;
+    if result.code != Some(0) {
+        let detail = dx_output::first_diagnostic_line(&result.stderr, 200, "no Git diagnostic");
+        return Err(format!("git {what} failed: {detail}"));
+    }
+    Ok(result.stdout)
+}
+
 #[cfg(test)]
 pub(crate) const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";
 

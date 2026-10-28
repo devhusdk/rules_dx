@@ -105,6 +105,7 @@ pub(crate) struct Harness {
 /// The audit date every test harness pins.
 pub(crate) const TEST_AUDIT_TODAY: &str = "2026-01-15";
 
+#[derive(Default)]
 pub(crate) struct ScriptQuery {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
     pub(crate) expressions: RefCell<Vec<String>>,
@@ -116,6 +117,9 @@ pub(crate) struct ScriptQuery {
     /// never consume scripted cquery answers. Empty means git fails to launch.
     pub(crate) git_outputs: RefCell<Vec<QueryResult>>,
     pub(crate) git_calls: RefCell<Vec<Vec<String>>>,
+    /// Answers for the checkout and tracked-file queries of `dx coverage`, kept apart so
+    /// they never consume the answers scripted for other git queries. Empty means not a work tree.
+    pub(crate) checkout_git_outputs: RefCell<Vec<QueryResult>>,
 }
 
 impl ScriptQuery {
@@ -147,6 +151,14 @@ impl ScriptQuery {
         });
     }
 
+    pub(crate) fn script_checkout_git(&self, code: i32, stdout: &str) {
+        self.checkout_git_outputs.borrow_mut().push(QueryResult {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
     pub(crate) fn script_info(&self, output: &str) {
         self.info.replace(Some(QueryResult {
             code: Some(0),
@@ -158,6 +170,23 @@ impl ScriptQuery {
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        if argv.first().map(String::as_str) == Some("git")
+            && argv.iter().any(|arg| {
+                [
+                    "--is-inside-work-tree",
+                    "--cached",
+                    "--porcelain",
+                    "HEAD^{commit}",
+                ]
+                .contains(&arg.as_str())
+            })
+        {
+            let mut outputs = self.checkout_git_outputs.borrow_mut();
+            if outputs.is_empty() {
+                return Err(io::Error::other("unscripted checkout query"));
+            }
+            return Ok(outputs.remove(0));
+        }
         if argv.first().map(String::as_str) == Some("git") {
             self.git_calls.borrow_mut().push(argv.to_vec());
             let mut outputs = self.git_outputs.borrow_mut();
@@ -230,6 +259,7 @@ impl Harness {
                 free_disk_bytes: Cell::new(None),
                 git_outputs: RefCell::new(Vec::new()),
                 git_calls: RefCell::new(Vec::new()),
+                checkout_git_outputs: RefCell::new(Vec::new()),
             },
             intended: None,
             patch: None,

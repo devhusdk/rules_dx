@@ -1,5 +1,6 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
+use super::coverage_candidate::{candidate, tracked_orphans, Candidate, Unavailable};
 use super::failure_reports::write_failure_reports;
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
@@ -141,6 +142,8 @@ pub(crate) struct TestReportsRequest<'a> {
     pub(crate) query_runner: &'a dyn QueryRunner,
     pub(crate) results_complete: &'a mut bool,
     pub(crate) actions: Option<ActionCounts>,
+    /// True when the run resolved to exactly `//...`, so every tracked source is in scope.
+    pub(crate) whole_repo: bool,
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
@@ -588,11 +591,23 @@ struct Sources {
     manifests: Vec<SourceManifest>,
     missing: Vec<String>,
     invalid: Vec<String>,
+    /// `bazel <version>` from the build events' `started` event.
+    collector: Option<String>,
+    /// The checkout measured, when the workspace is a Git work tree.
+    candidate: Option<Candidate>,
+    /// Why the tracked-source check did not run, when it is not an accounting error.
+    tracked_unavailable: Option<String>,
 }
 
 /// Reads the coverage source manifests from the run's build events.
 fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
-    let mut sources = Sources::default();
+    let mut sources = Sources {
+        collector: dx_bep::stream_build_tool_version(bep)
+            .ok()
+            .flatten()
+            .map(|version| format!("bazel {version}")),
+        ..Sources::default()
+    };
     let account = match collect_output_account(bep, SOURCES_OUTPUT_GROUP, workspace) {
         Ok(account) => account,
         Err((_, message)) => {
@@ -1119,11 +1134,18 @@ fn sources_report(sources: &Sources, account: &dx_lcov::CellAccount) -> String {
         .chain(account.absent.iter().map(|path| (path.as_str(), "absent")))
         .collect();
     let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
+    let candidate = sources
+        .candidate
+        .as_ref()
+        .map(|found| serde_json::json!({"sha": found.sha, "dirty": found.dirty}));
     let document = serde_json::json!({
-        "record_version": 1,
+        "record_version": 2,
         "cell": account.cell,
+        "candidate": candidate,
+        "collector": sources.collector,
         "owned": owned,
         "absent": account.absent,
+        "orphans": account.orphans,
         "errors": errors,
     });
     serde_json::to_string_pretty(&document).unwrap_or_default() + "\n"
@@ -1143,11 +1165,17 @@ fn coverage_sources(
     let errors: Vec<&String> = sources.invalid.iter().chain(&account.errors).collect();
     let info: fn(&str, String) -> NoticeEvent = NoticeEvent::info;
     let warning: fn(&str, String) -> NoticeEvent = NoticeEvent::warning;
-    let notices = std::iter::once((info, CODE_COVERAGE_SOURCES, &summary)).chain(
-        errors
-            .iter()
-            .map(|message| (warning, CODE_COVERAGE_SOURCES_INCOMPLETE, *message)),
-    );
+    let unavailable = sources
+        .tracked_unavailable
+        .iter()
+        .map(|why| (warning, CODE_COVERAGE_SOURCES, why));
+    let notices = std::iter::once((info, CODE_COVERAGE_SOURCES, &summary))
+        .chain(unavailable)
+        .chain(
+            errors
+                .iter()
+                .map(|message| (warning, CODE_COVERAGE_SOURCES_INCOMPLETE, *message)),
+        );
     for (notice, code, message) in notices {
         match output {
             OutputMode::Json if enforce && code == CODE_COVERAGE_SOURCES_INCOMPLETE => {
@@ -1194,6 +1222,9 @@ fn coverage_event(
         passed: errors == 0 && account.meets(minimum.unwrap_or(0)),
         errors,
         dx_version: dx_adopt::DX_VERSION.to_owned(),
+        sha: sources.candidate.as_ref().map(|found| found.sha.clone()),
+        dirty: sources.candidate.as_ref().is_some_and(|found| found.dirty),
+        collector: sources.collector.clone(),
     };
     emit_built(out, dx_output::coverage_event(&event))
 }
@@ -1257,6 +1288,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         query_runner,
         results_complete,
         actions,
+        whole_repo,
     } = request;
     let failure_count = if bazel_code != 0 {
         match report_build_failures(bep, invocation.output, out, err) {
@@ -1301,7 +1333,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let Collected {
         mut suites,
         lcov_documents,
-        sources,
+        mut sources,
         mut reported,
         gap,
         no_collector,
@@ -1338,8 +1370,23 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         }
     }
-    let account = (verb == WorkflowVerb::Coverage && detail.is_empty())
+    let mut account = (verb == WorkflowVerb::Coverage && detail.is_empty())
         .then(|| account_sources(&sources, &lcov_documents, workspace));
+    if let Some(account) = account.as_mut() {
+        sources.candidate = candidate(workspace, query_runner);
+        if whole_repo {
+            match tracked_orphans(workspace, query_runner, &invocation.bazel_startup_options) {
+                Ok(orphans) => account.record_orphans(orphans),
+                Err(Unavailable::NotGit) => {
+                    sources.tracked_unavailable =
+                        Some("tracked sources unavailable: not a Git work tree".to_owned());
+                }
+                Err(Unavailable::Failed(why)) => account
+                    .errors
+                    .push(format!("tracked sources unavailable: {why}")),
+            }
+        }
+    }
     let sources_document = account
         .as_ref()
         .map(|account| sources_report(&sources, account));
@@ -1910,13 +1957,123 @@ mod tests {
         assert_eq!(code, 0, "{err}");
         let document: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).expect("sources report")).unwrap();
-        assert_eq!(document["record_version"], serde_json::json!(1));
+        assert_eq!(document["record_version"], serde_json::json!(2));
+        assert_eq!(document["orphans"], serde_json::json!([]));
         assert_eq!(document["absent"], serde_json::json!(["src/b.py"]));
         assert_eq!(document["owned"]["src/a.py"], serde_json::json!("eligible"));
         assert_eq!(
             document["owned"]["src/a_test.py"],
             serde_json::json!("support")
         );
+    }
+
+    const ORPHAN_MANIFEST: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
+    const ORPHAN_MESSAGE: &str = "tracked source not owned by any Bazel target: src/orphan.py";
+
+    /// Scripts a clean Git checkout whose tracked files include a used and an unused source.
+    fn script_checkout(harness: &Harness) {
+        std::fs::create_dir_all(harness.workspace.join("src")).expect("mkdir");
+        std::fs::write(harness.workspace.join("src/BUILD.bazel"), "").expect("build");
+        harness.query.script_checkout_git(0, "true\n");
+        harness.query.script_checkout_git(0, "abc123\n");
+        harness.query.script_checkout_git(0, "");
+        harness.query.script_checkout_git(0, "true\n");
+        harness
+            .query
+            .script_checkout_git(0, "src/a.py\0src/orphan.py\0src/BUILD.bazel\0");
+        harness.query.script_graph(&[dx_testing::cli::graph_rule(
+            "//src:lib",
+            &["//src:a.py"],
+            &[],
+        )]);
+    }
+
+    #[test]
+    fn coverage_tracked_orphan_fails_min_coverage() {
+        let harness = sources_harness("cov-orphan-min", ORPHAN_MANIFEST, MINIMAL_LCOV);
+        script_checkout(&harness);
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains(ORPHAN_MESSAGE), "{err}");
+    }
+
+    #[test]
+    fn coverage_tracked_orphan_is_a_notice_without_minimum() {
+        let harness = sources_harness("cov-orphan-notice", ORPHAN_MANIFEST, MINIMAL_LCOV);
+        script_checkout(&harness);
+        let path = harness.workspace.join("sources.json");
+        let (code, _, err) = harness.run(&[
+            "coverage",
+            "--output=text",
+            &format!("--report=sources={}", path.display()),
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert!(err.contains(ORPHAN_MESSAGE), "{err}");
+        let document: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("sources report")).unwrap();
+        assert_eq!(document["orphans"], serde_json::json!(["src/orphan.py"]));
+        assert_eq!(
+            document["candidate"],
+            serde_json::json!({"sha": "abc123", "dirty": false})
+        );
+    }
+
+    #[test]
+    fn coverage_tracked_check_skips_scoped_runs() {
+        let harness = sources_harness("cov-orphan-scoped", ORPHAN_MANIFEST, MINIMAL_LCOV);
+        script_checkout(&harness);
+        let (code, _, err) = harness.run(&[
+            "coverage",
+            "--output=text",
+            "--min-coverage=100",
+            "//src:lib",
+        ]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains(ORPHAN_MESSAGE), "{err}");
+    }
+
+    #[test]
+    fn coverage_tracked_check_skips_non_git_workspace() {
+        let harness = sources_harness("cov-orphan-nogit", ORPHAN_MANIFEST, MINIMAL_LCOV);
+        harness.query.script_checkout_git(128, "");
+        harness.query.script_checkout_git(128, "");
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(
+            err.contains("dx: tracked sources unavailable: not a Git work tree"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn coverage_tracked_query_failure_fails_min_coverage() {
+        let harness = sources_harness("cov-orphan-query", ORPHAN_MANIFEST, MINIMAL_LCOV);
+        script_checkout(&harness);
+        harness.query.outputs.borrow_mut().clear();
+        harness.query.script_failure(1, "ERROR: boom\n");
+        let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("tracked sources unavailable:"), "{err}");
+    }
+
+    #[test]
+    fn coverage_event_carries_sha_dirty_and_collector() {
+        let mut harness = sources_harness("cov-event-candidate", ORPHAN_MANIFEST, MINIMAL_LCOV);
+        script_checkout(&harness);
+        harness.raw_bep.as_mut().expect("bep").insert(
+            0,
+            r#"{"id":{"started":{}},"started":{"buildToolVersion":"9.0.0"}}"#.to_owned(),
+        );
+        let (code, out, err) = harness.run(&["coverage", "--output=json"]);
+        assert_eq!(code, 0, "{err}");
+        let event = out
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find(|event| event["event"] == "coverage")
+            .expect("coverage event");
+        assert_eq!(event["sha"], "abc123");
+        assert_eq!(event["dirty"], false);
+        assert_eq!(event["collector"], "bazel 9.0.0");
     }
 
     #[test]

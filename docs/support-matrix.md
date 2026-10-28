@@ -78,12 +78,12 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Fortran | `fortitude` on `linux_x86_64` | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Haskell | no | `ormolu` on `linux_x86_64` | no |
+| Haskell | no | `ormolu` on `linux_x86_64`, `windows_x86_64`, `windows_arm64` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | no |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
 | Julia | no | `julia_format` | no |
 | Kotlin | `ktlint` | `ktfmt` | no |
-| Lua | no | `stylua` on `linux_x86_64` | no |
+| Lua | no | `stylua` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | no | `perltidy` | n/a |
@@ -92,34 +92,34 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
 | Ruby | `rubocop` on `linux_x86_64` | `standardrb` on `linux_x86_64` | no |
 | Rust | `clippy` | `rustfmt` | `rustc` |
-| Scala | `scalafix` on `linux_x86_64` | `scalafmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Scala | `scalafix` on `linux_x86_64` | `scalafmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | Svelte | `eslint` | `prettier` | no |
 | TypeScript | `biome` | `biome`, `prettier` | no |
 | Vue | `eslint` | `prettier` | no |
 | Zig | no | `zig_fmt` | no |
 | Apple | no | `clang_format` | no |
 | CMake | no | `gersemi` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
+| Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | n/a |
 | Qt | `qmllint` | `qmlformat` | no |
 | Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| CUE | no | `cue` on `linux_x86_64` | `cue` on `linux_x86_64` |
+| CUE | no | `cue` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `cue` on `linux_x86_64` |
 | FlatBuffers | `flatc` on `linux_x86_64` | n/a | `flatc` on `linux_x86_64` |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Helm | `helm` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | n/a |
-| Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64` | n/a |
+| Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
 | Jupyter | `notebook_outputs` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`, `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | LaTeX | `chktex` unsupported | `latexindent` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | n/a |
-| Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | Rego | `regal` on `linux_x86_64` | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
 | reStructuredText | `vale` | no | n/a |
 | SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
 | XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | YAML | `yamllint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `yamlfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
 

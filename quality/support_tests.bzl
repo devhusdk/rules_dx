@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
-load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms")
+load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_platform_case_names")
 load(":real_aspects.bzl", "real_wired_capabilities")
 load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
@@ -52,7 +52,6 @@ SUPPORT_EVIDENCE_PENDING = [
     "helm:lint:helm:linux_x86_64",
     "helm:lint:helm:macos_arm64",
     "helm:lint:helm:windows_x86_64",
-    "jsonnet_lint:lint:jsonnet:linux_x86_64",
     "keep_sorted:lint:text:linux_arm64",
     "keep_sorted:lint:text:linux_x86_64",
     "keep_sorted:lint:text:macos_arm64",
@@ -64,15 +63,6 @@ SUPPORT_EVIDENCE_PENDING = [
     "latexindent:format:latex:linux_arm64",
     "latexindent:format:latex:macos_arm64",
     "latexindent:format:latex:windows_x86_64",
-    "prettier:format:gherkin:linux_arm64",
-    "prettier:format:gherkin:macos_arm64",
-    "prettier:format:gherkin:windows_x86_64",
-    "prettier:format:xml:linux_arm64",
-    "prettier:format:xml:macos_arm64",
-    "prettier:format:xml:windows_x86_64",
-    "redocly:lint:api_spec:linux_arm64",
-    "redocly:lint:api_spec:macos_arm64",
-    "redocly:lint:api_spec:windows_x86_64",
     "roslyn:lint:csharp:linux_x86_64",
     "rubocop:lint:ruby:linux_x86_64",
     "ruff:lint:jupyter:linux_arm64",
@@ -161,6 +151,21 @@ def _evidence_checks():
             "matrix_case_platforms windows x64 and arm64",
             matrix_case_platforms({"windows_x86_64": True, "windows_arm64": True}),
             ["linux_x86_64", "windows_x86_64", "windows_arm64"],
+        ),
+        expect_equal(
+            "an unflagged case is in no non-default platform suite",
+            [matrix_platform_case_names([{"name": "a"}], p) for p in ["linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]],
+            [[], [], [], []],
+        ),
+        expect_equal(
+            "a windows_arm64-only case is in that suite only",
+            [matrix_platform_case_names([{"name": "a", "windows_arm64": True}, {"name": "b"}], p) for p in ["linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]],
+            [[], [], [], ["a"]],
+        ),
+        expect_equal(
+            "suite membership matches matrix_case_platforms",
+            [matrix_platform_case_names([{"name": "a", "macos_arm64": True, "linux_arm64": True}], p) for p in ["linux_arm64", "macos_arm64", "windows_x86_64"]],
+            [["a"], ["a"], []],
         ),
         expect_equal(
             "a flagged matching case proves the claim and the linux baseline",
@@ -284,7 +289,7 @@ def support_unit_tests(name):
             expect_equal(
                 "sql xml and gherkin prettier records cover four platforms",
                 [SQL_PRETTIER_FORMAT_SUPPORT["platforms"], XML_PRETTIER_FORMAT_SUPPORT["platforms"], GHERKIN_PRETTIER_FORMAT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]],
             ),
             expect_equal(
                 "gherkin gplint lint record is owned, batched, check-only and linux_x86_64 only",
@@ -294,12 +299,12 @@ def support_unit_tests(name):
             expect_equal(
                 "api_spec prettier format record covers four platforms",
                 API_SPEC_PRETTIER_FORMAT_SUPPORT["platforms"],
-                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "ansible and kubernetes prettier records cover four platforms",
                 [ANSIBLE_PRETTIER_FORMAT_SUPPORT["platforms"], KUBERNETES_PRETTIER_FORMAT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]] * 2,
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2,
             ),
             expect_equal(
                 "cloudformation cfn_lint lint record is owned, batched, check-only and covers four platforms",
@@ -324,12 +329,12 @@ def support_unit_tests(name):
             expect_equal(
                 "dockerfile and php prettier records cover four platforms",
                 [DOCKERFILE_PRETTIER_FORMAT_SUPPORT["platforms"], PHP_PRETTIER_FORMAT_SUPPORT["platforms"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]] * 2,
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2,
             ),
             expect_equal(
                 "api_spec redocly lint record covers four platforms",
                 API_SPEC_REDOCLY_LINT_SUPPORT["platforms"],
-                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "supported record without a pinned artifact is an actionable failure",

@@ -3,6 +3,7 @@
 load("//deploy/rules:config.bzl", "rlocation_path")
 load("//libs/starlark:canonical.bzl", "is_canonical", "strip_canonical")
 load("//quality:pipeline.bzl", "real_request_stage")
+load("//quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _single_file(target):
@@ -377,6 +378,10 @@ def matrix_case_platforms(case):
         platforms.append("windows_arm64")
     return platforms
 
+def matrix_platform_case_names(cases, platform):
+    """Returns the names of the cases that run on `platform`, per `matrix_case_platforms`."""
+    return [case["name"] for case in cases if platform in matrix_case_platforms(case)]
+
 def runner_matrix_suite(name, cases):
     """Instantiates one _runner_matrix_test per matrix case plus a suite."""
     tests = []
@@ -417,3 +422,14 @@ def runner_matrix_suite(name, cases):
         )
         tests.append(":" + case["name"])
     native.test_suite(name = name, tests = tests)
+
+    # One evidence suite per non-default platform, derived from the same flags as
+    # `matrix_case_platforms`. The CI preflight lane for a platform runs exactly its suite.
+    # An empty `tests` list would make test_suite expand to every test in the package, so fail.
+    for platform in SUPPORT_PLATFORMS:
+        if platform == "linux_x86_64":
+            continue
+        members = matrix_platform_case_names(cases, platform)
+        if not members:
+            fail("runner_matrix_suite: no case is flagged for " + platform + "; an empty test_suite would run every test")
+        native.test_suite(name = name + "_" + platform, tests = [":" + m for m in members])

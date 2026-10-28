@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_jsonnet_lint_pass
+capability LINT
+stages 1
+stage jsonnet_lint classes=jsonnet sources=matrix/jsonnet_lint_clean.jsonnet
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

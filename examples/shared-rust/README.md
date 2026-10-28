@@ -102,6 +102,10 @@ builds:
 - A native macOS arm64 release CLI. The test relocates it, checks the
   replies, exit codes 0, 1, and 2, and the `notes.txt` digest. Evidence:
   `native-evidence.txt`.
+- A macOS release `.app` from `apple_macos_app`. The test relocates the
+  bundle, checks `Info.plist`, resources, and arm64 platform, then runs
+  its executable and checks the state it prints. Evidence:
+  `pocket-mac-app-evidence.txt`.
 - An iOS simulator release app. The test relocates the bundle, runs
   XCTest, installs it, and checks the state it writes on launch.
   Evidence: `pocket-evidence.txt`.

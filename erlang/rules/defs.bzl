@@ -125,7 +125,36 @@ def otp_tool_binary_impl(ctx):
     ), is_executable = True)
     return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles))]
 
+_NATIVE_SUFFIXES = (".so", ".dylib", ".dll")
+
+def native_priv_files(paths):
+    """Returns the entries of `paths` that are shared libraries."""
+    return [p for p in paths if p.endswith(_NATIVE_SUFFIXES)]
+
+def escript_nif_message(label, offenders):
+    """Returns the error for an escript that bundles native libraries; offenders are (app, path) pairs."""
+    lines = ["  " + app + ": " + path for (app, path) in offenders]
+    return (
+        label + ": an escript archive cannot bundle NIFs, code:priv_dir/1 fails inside the archive, so load_nif cannot find the library:\n" +
+        "\n".join(lines) +
+        "\na NIF cannot load from an escript archive; ship the app in a release or run it with erlang_app"
+    )
+
+def _check_escript_without_nifs(ctx):
+    """Fails when an app bundled into the escript ships a native library. The single place an unpack mode would switch off."""
+    offenders = []
+    for app in ctx.attr.apps + flat_deps(ctx.attr.apps):
+        name = app[_ErlangAppInfo].app_name
+        paths = [f.short_path for f in app[_ErlangAppInfo].priv]
+        if ErlangNifInfo in app:
+            paths += [f.short_path for f in app[ErlangNifInfo].libraries.to_list()]
+        for path in sorted(depset(native_priv_files(paths)).to_list()):
+            offenders.append((name, path))
+    if offenders:
+        fail(escript_nif_message(str(ctx.label), offenders))
+
 def _escript_binary_impl(ctx):
+    _check_escript_without_nifs(ctx)
     archive = ctx.attr.upstream[DefaultInfo].files_to_run.executable
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
@@ -152,6 +181,7 @@ _escript_binary = rule(
     attrs = dict({
         "srcs": attr.label_list(allow_files = _EXTS, doc = "Direct Erlang sources owned by this binary."),
         "upstream": attr.label(executable = True, cfg = "target", mandatory = True, doc = "The rules_erlang escript archive."),
+        "apps": attr.label_list(providers = [_ErlangAppInfo], doc = "The apps bundled into the archive; none may ship a NIF."),
     }, **dx_forward_data_attr()),
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     toolchains = ["@rules_erlang//tools:toolchain_type"],
@@ -366,6 +396,7 @@ def escript_archive(name, visibility = None, **kwargs):
     _escript_binary(
         name = name,
         upstream = ":" + name + "_upstream",
+        apps = [kwargs["app"]] if kwargs.get("app") else [],
         srcs = srcs,
         visibility = visibility,
         **dx_binary_forward_kwargs(kwargs)

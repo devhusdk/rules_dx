@@ -65,7 +65,9 @@ erlang_app(
 Declare the NIF in the package of the app that loads it and pass it through
 `nifs` on `erlang_app` and `test_erlang_app`. The C includes `erl_nif.h` from
 the pinned OTP. `erlang:load_nif/2` takes `priv/<name>` without the extension.
-A NIF does not load from an `escript_archive`. Under `bazel coverage` the C
+An `escript_archive` whose app, or any app it bundles, ships a NIF fails at
+analysis time: Erlang cannot load a NIF from inside an escript archive. Run the
+app with `erlang_app` or ship it in a release instead. Under `bazel coverage` the C
 lines join the Erlang lines in the report.
 
 `erlang_app` and `test_erlang_app` pass `tags` to every target they build; the

@@ -61,6 +61,7 @@ escript_archive(
 - `elixirc_opts` replaces `DEFAULT_ELIXIRC_OPTS`.
 - `escript_headers("Mod")` starts `Mod.main/1` with UTF-8 file names and
   stdio.
+- An `escript_archive` fails at analysis time when a bundled app ships a NIF; a NIF cannot load from an escript archive.
 - A test that runs no tests fails.
 
 ## Hex packages

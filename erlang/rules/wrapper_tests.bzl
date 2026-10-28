@@ -2,8 +2,8 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "nif_linkopt_cases", "nif_priv_path", "runfiles_path")
+load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal")
+load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "runfiles_path")
 load(":providers.bzl", "BeamInfo")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -15,6 +15,10 @@ def erlang_wrapper_contract_tests(name):
         name,
         file_classes = ["erlang"],
         extra_checks = [
+            expect_equal("native priv keeps libraries", native_priv_files(["priv/a.so", "priv/b.dylib", "priv/c.dll", "priv/d.txt", "priv/e.so.1"]), ["priv/a.so", "priv/b.dylib", "priv/c.dll"]),
+            expect_contains("nif refusal names label", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "//x:cli"),
+            expect_contains("nif refusal names app and file", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "app: x/priv/a.so"),
+            expect_contains("nif refusal says how to fix", escript_nif_message("//x:cli", []), "ship the app in a release or run it with erlang_app"),
             expect_equal("lcov finds example apps", lcov_apps_dirs(["examples/erlang-app/store/src/kv_store.erl", "examples/erlang-app/proto/src/p.erl"]), "examples/erlang-app"),
             expect_equal("lcov joins sorted roots", lcov_apps_dirs(["examples/erlang-app/store/src/kv_store.erl", "erlang/tests/runtime/src/dx_runtime_probe.erl"]), "erlang/tests:examples/erlang-app"),
             expect_equal("lcov skips non app sources", lcov_apps_dirs(["a/src/x.erl", "a/b/src/x.hrl", "lib/a.erl", "x/y/lib/z.erl"]), ""),
@@ -105,3 +109,18 @@ _beam_info_test = analysistest.make(
 def erlang_beam_info_test(name, target, app_name, owned):
     """Asserts an erlang_app exports its compiled beams in BeamInfo."""
     _beam_info_test(name = name, size = "small", target_under_test = target, app_name = app_name, owned = owned)
+
+def _nif_refusal_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, ctx.attr.message)
+    return analysistest.end(env)
+
+_nif_refusal_test = analysistest.make(
+    _nif_refusal_impl,
+    expect_failure = True,
+    attrs = {"message": attr.string(mandatory = True)},
+)
+
+def erlang_escript_nif_refusal_test(name, target, message, **kwargs):
+    """Asserts an escript_archive that bundles a NIF app fails analysis with `message`."""
+    _nif_refusal_test(name = name, size = "small", target_under_test = target, message = message, **kwargs)

@@ -3,6 +3,10 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
+load(":providers.bzl", "bin_annot_opts", "cmt_entries")
+
+def _F(basename):
+    return struct(basename = basename)
 
 def ocaml_wrapper_contract_tests(name):
     """Instantiates OCaml wrapper contract tests."""
@@ -30,6 +34,13 @@ def ocaml_wrapper_contract_tests(name):
             expect_equal("a signature target sets the module name", default_module_name("m", ":m_sig"), None),
             expect_equal("a configurable sig leaves the module name upstream", default_module_name("m", select({"//conditions:default": "m.mli"})), None),
             expect_equal("a Label sig leaves the module name upstream", default_module_name("m", Label("//ocaml/rules:m.mli")), None),
+            expect_equal("modules get -bin-annot", bin_annot_opts(None), ["-bin-annot"]),
+            expect_equal("-bin-annot is appended once", bin_annot_opts(["-g", "-bin-annot"]), ["-g", "-bin-annot"]),
+            expect_equal("-no-bin-annot opts out", bin_annot_opts(["-no-bin-annot"]), ["-no-bin-annot"]),
+            expect_equal("a struct and sig expose both", cmt_entries([_F("m.ml"), _F("m.mli")], [_F("m.cmt")], [_F("m.cmti")])[0].cmti, _F("m.cmti")),
+            expect_equal("the struct maps to its cmt", cmt_entries([_F("m.ml"), _F("m.mli")], [_F("m.cmt")], [_F("m.cmti")])[0].source, _F("m.ml")),
+            expect_equal("the opt-out exposes nothing", cmt_entries([_F("m.ml")], [], []), []),
+            expect_equal("a signature alone maps to its cmti", cmt_entries([_F("s.mli")], [], [_F("s.cmti")])[0].signature, _F("s.mli")),
             expect_equal("main repo runfiles", runfiles_path("_main", "pkg/app.bc"), "_main/pkg/app.bc"),
             expect_equal("external runfiles", runfiles_path("_main", "../repo/bin/ocamlrun"), "repo/bin/ocamlrun"),
             expect_equal("launcher runs bytecode on ocamlrun", launcher_script("r", "b").splitlines()[-1], 'exec "$runfiles/r" "$runfiles/b" "$@"'),

@@ -4,6 +4,7 @@ load(":wrapper_tests.bzl", "ocaml_wrapper_contract_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "providers.bzl",
     "defs.bzl",
     "wrapper_tests.bzl",
 ])
@@ -16,6 +17,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "providers.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

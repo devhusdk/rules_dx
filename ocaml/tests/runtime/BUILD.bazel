@@ -1,4 +1,6 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
+load(":cmt_check.bzl", "cmt_check")
 
 ocaml_module(
     name = "shout",
@@ -56,4 +58,44 @@ ocaml_test(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+ocaml_module(
+    name = "no_annot",
+    struct = "shout.ml",
+    opts = ["-no-bin-annot"],
+)
+
+cmt_check(
+    name = "greet_cmt",
+    expect = ["greet.ml:greet.cmt::"],
+    target = ":greet",
+)
+
+cmt_check(
+    name = "greet_sig_cmt",
+    expect = ["::greet.mli:greet.cmti"],
+    target = ":greet_sig",
+)
+
+cmt_check(
+    name = "shout_cmt",
+    expect = ["shout.ml:shout.cmt::"],
+    target = ":shout",
+)
+
+cmt_check(
+    name = "no_annot_cmt",
+    expect = [],
+    target = ":no_annot",
+)
+
+build_test(
+    name = "cmt_info_test",
+    targets = [
+        ":greet_cmt",
+        ":greet_sig_cmt",
+        ":no_annot_cmt",
+        ":shout_cmt",
+    ],
 )

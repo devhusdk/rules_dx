@@ -32,7 +32,7 @@ mod managed_env;
 mod managed_prepare;
 mod managed_staging;
 mod migrate;
-mod notice_codes;
+pub(crate) mod notice_codes;
 #[cfg(test)]
 mod package_identity;
 mod pinned_tool;

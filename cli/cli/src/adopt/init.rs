@@ -1,8 +1,10 @@
 use std::io::Write;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal};
+use crate::exec::notice_codes::CODE_INIT_PLAN_PARTIAL;
 use dx_output::{
-    command_finished, command_started, status_event, FinishedCounts, OutputMode, StatusEvent,
+    command_finished, command_started, init_plan_event, notice_event, FinishedCounts, NoticeEvent,
+    OutputMode, PlanFindingEvent,
 };
 use dx_plan::args::Invocation;
 
@@ -156,13 +158,25 @@ fn check_init(
     }
     if let (Some(plan), true) = (&plan, json) {
         for f in &plan.findings {
-            let event = status_event(&StatusEvent {
-                name: format!("init_plan.{}.{}", f.kind.id(), f.subject),
-                status: if f.hard { "error" } else { "warn" }.to_owned(),
-                detail: format!("{} -> {} ({}:{})", f.before, f.after, f.file, f.line),
+            let event = init_plan_event(&PlanFindingEvent {
+                kind: f.kind.id().to_owned(),
+                subject: f.subject.clone(),
+                before: f.before.clone(),
+                after: f.after.clone(),
+                file: f.file.clone(),
+                line: f.line,
                 hint: f.hint.clone(),
+                severity: if f.hard { "hard" } else { "advisory" }.to_owned(),
             });
             if let Err(exit) = emit_built(out, event) {
+                return exit;
+            }
+        }
+        for note in &plan.notes {
+            if let Err(exit) = emit_built(
+                out,
+                notice_event(&NoticeEvent::info(CODE_INIT_PLAN_PARTIAL, note.clone())),
+            ) {
                 return exit;
             }
         }
@@ -510,26 +524,99 @@ mod tests {
         );
     }
 
-    #[test]
-    fn init_check_json_emits_plan_findings_as_status_events() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-json-");
+    fn adopted_root(name: &str, extra: &str) -> std::path::PathBuf {
+        let scratch = dx_test_scratch::scratch(name);
         let root = scratch.path().to_path_buf();
+        std::mem::forget(scratch);
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
         let module = format!(
-            "bazel_dep(name = \"rules_dx\", version = \"{}\")\nbazel_dep(name = \"rules_rust\", version = \"0.60.0\")\n",
+            "bazel_dep(name = \"rules_dx\", version = \"{}\")\nbazel_dep(name = \"rules_rust\", version = \"0.60.0\")\n{extra}",
             dx_adopt::DX_VERSION
         );
-        std::fs::write(root.join("MODULE.bazel"), &module).expect("module");
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        root
+    }
+
+    fn events(out: &str) -> Vec<serde_json::Value> {
+        out.lines()
+            .map(|line| serde_json::from_str(line).expect("ndjson"))
+            .collect()
+    }
+
+    #[test]
+    fn init_check_json_emits_init_plan_events() {
+        let root = adopted_root("dx-adopt-init-plan-json-", "");
         let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("\"event\":\"status\""), "{out}");
-        assert!(out.contains("init_plan.version_raise.rules_rust"), "{out}");
+        let all = events(&out);
+        let plan: Vec<_> = all.iter().filter(|e| e["event"] == "init_plan").collect();
+        assert_eq!(plan.len(), 1, "{out}");
+        let f = plan[0];
+        assert_eq!(f["kind"], "version_raise");
+        assert_eq!(f["subject"], "rules_rust");
+        assert_eq!(f["before"], "0.60.0");
+        assert_eq!(f["after"], "0.75.0");
+        assert_eq!(f["file"], "MODULE.bazel");
+        assert_eq!(f["line"], 2);
+        assert_eq!(f["severity"], "advisory");
+        assert!(f["hint"].as_str().is_some_and(|h| !h.is_empty()));
         assert!(
-            out.contains("rules_rust 0.60.0 -> 0.75.0") || out.contains("0.60.0 -> 0.75.0"),
+            all.iter()
+                .any(|e| e["event"] == "notice" && e["code"] == "init_plan_partial"),
             "{out}"
         );
-        assert!(out.contains("MODULE.bazel:2"), "{out}");
+    }
+
+    #[test]
+    fn init_check_json_reports_a_hard_conflict_and_fails() {
+        let root = adopted_root(
+            "dx-adopt-init-plan-hard-",
+            "single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
+        );
+        let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            events(&out)
+                .iter()
+                .any(|e| e["event"] == "init_plan" && e["severity"] == "hard"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn init_check_names_both_toolchain_registrations() {
+        let root = adopted_root(
+            "dx-adopt-init-plan-toolchain-",
+            "my = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nmy.toolchain(versions = [\"1.80.0\"])\nuse_repo(my, \"rust_toolchains\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
+        );
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("MODULE.bazel:4"), "{out}");
+        assert!(out.contains("@rust_toolchains//:all"), "{out}");
+    }
+
+    #[test]
+    fn init_check_reads_transitive_raises_from_the_lock() {
+        let root = adopted_root("dx-adopt-init-plan-lock-", "");
+        let lock = serde_json::json!({
+            "lockFileVersion": 24,
+            "registryFileHashes": {
+                "https://bcr.bazel.build/modules/rules_rust/0.75.0/source.json": "x",
+                "https://bcr.bazel.build/modules/rules_rust/0.60.0/source.json": "x",
+                "https://bcr.bazel.build/modules/bazel_skylib/1.0.0/source.json": "x"
+            }
+        });
+        std::fs::write(root.join("MODULE.bazel.lock"), lock.to_string()).expect("lock");
+        let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        let all = events(&out);
+        let subjects: Vec<_> = all
+            .iter()
+            .filter(|e| e["event"] == "init_plan")
+            .map(|e| e["subject"].as_str().unwrap_or_default().to_owned())
+            .collect();
+        assert_eq!(subjects, vec!["bazel_skylib".to_owned()], "{out}");
     }
 
     #[test]

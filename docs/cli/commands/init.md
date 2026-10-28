@@ -136,11 +136,17 @@ failed, `141` apply wrote every file but stdout closed early.
 ## Init plan
 
 When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-only plan of
-what adopting rules_dx would change, found from the declared files alone. It runs no Bazel
+what adopting rules_dx would change, found from the declared files and `MODULE.bazel.lock`. It runs no Bazel
 and writes nothing. Sections:
 
-- `version raises`: a `bazel_dep` you declare below the version rules_dx needs (the higher of
-  its own `bazel_dep` floors and the snippet init would write). Advisory.
+- `version raises`: a module that resolves below the version rules_dx needs (the higher of
+  its own `bazel_dep` floors and the snippet init would write). For a module dx patches, the
+  target is the exact version dx pins, and a pin below yours is reported as lower. Modules
+  you override yourself are skipped. The current version is the one in `MODULE.bazel.lock`
+  (the highest `source.json` it records, so transitive raises show, with the lock line), or
+  the declared `bazel_dep` version when the lock is missing, invalid, or stale (a declared
+  dep it lacks or has at a lower version); a note then says the comparison is declared-only.
+  Advisory.
 - `override conflicts`: a `*_override` you own. One on a module dx patches
   (`single_version_override` of `rules_rust`, for example) is hard, because dx cannot add its
   patches; one on another rules_dx dependency is advisory.
@@ -157,15 +163,15 @@ and writes nothing. Sections:
   `%workspace%/`, that exactly repeats a flag line the dx preset layers own. Advisory; dx
   does not import the layers while the root file repeats them, so drop the line.
 
-Each finding names the file and line, including `include()`d `.MODULE.bazel` files. The
-plan covers declared deps only, so transitive raises are not shown. Hard findings add an
-`init plan: N hard conflicts (...)` clause to `init drift` and exit 1; advisory ones never
-change the exit code.
+Each finding names the file and line, including `include()`d `.MODULE.bazel` files. Hard
+findings add an `init plan: N hard conflicts (...)` clause to `init drift` and exit 1;
+advisory findings, and an unavailable lock, never change the exit code.
 
-With `--output=json`, the plan is one `status` event per finding instead of text: `name` is
-`init_plan.<kind>.<subject>` (`version_raise`, `override_conflict`, `toolchain_conflict`,
-`bazelrc_conflict`), `status` is `error` for hard findings and `warn` for advisory ones,
-`detail` is `before -> after (file:line)`, and `hint` is the fix. `--apply` refuses `--output=json`.
+With `--output=json`, the plan is one `init_plan` event per finding instead of text, with
+`kind` (`version_raise`, `override_conflict`, `toolchain_conflict`, `bazelrc_conflict`),
+`subject`, `before`, `after`, `file`, `line` (left out when unknown), `hint`, and `severity`
+(`hard` or `advisory`). Plan notes, such as the lock being unavailable, are `notice` events
+with code `init_plan_partial`. `--apply` refuses `--output=json`.
 
 ## rules_dx overrides
 

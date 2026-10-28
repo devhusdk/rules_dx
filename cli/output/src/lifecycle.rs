@@ -2,7 +2,7 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 5;
+pub const SCHEMA_MINOR: u64 = 6;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -15,6 +15,7 @@ pub const EVENTS: &[&str] = &[
     "coverage",
     "diagnostic",
     "error",
+    "init_plan",
     "notice",
     "operation",
     "phase_finished",
@@ -204,6 +205,51 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     map.insert("status".to_owned(), Value::String(check.status.clone()));
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
+    Ok(Value::Object(map))
+}
+
+/// One finding of the read-only `dx init` plan (#3751).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanFindingEvent {
+    pub kind: String,
+    pub subject: String,
+    pub before: String,
+    pub after: String,
+    pub file: String,
+    /// 1-based line in `file`; 0 leaves the field out.
+    pub line: usize,
+    pub hint: String,
+    /// `hard` fails `dx init`'s check; `advisory` is only reported.
+    pub severity: String,
+}
+
+pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError> {
+    nonempty("kind", &finding.kind)?;
+    nonempty("subject", &finding.subject)?;
+    nonempty("before", &finding.before)?;
+    nonempty("after", &finding.after)?;
+    nonempty("file", &finding.file)?;
+    nonempty("hint", &finding.hint)?;
+    if finding.severity != "hard" && finding.severity != "advisory" {
+        return Err(OutputError::BadSeverity {
+            value: finding.severity.clone(),
+        });
+    }
+    let mut map = base("init_plan");
+    for (key, value) in [
+        ("kind", &finding.kind),
+        ("subject", &finding.subject),
+        ("before", &finding.before),
+        ("after", &finding.after),
+        ("file", &finding.file),
+        ("hint", &finding.hint),
+        ("severity", &finding.severity),
+    ] {
+        map.insert(key.to_owned(), Value::String(value.clone()));
+    }
+    if finding.line > 0 {
+        map.insert("line".to_owned(), Value::from(finding.line as u64));
+    }
     Ok(Value::Object(map))
 }
 
@@ -1444,7 +1490,7 @@ mod tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 5},
+                "schema": {"major": 3, "minor": 6},
                 "event": "cache_miss",
                 "mnemonic": "Rustc",
                 "target": "//cli/digest:dx_digest",
@@ -1557,6 +1603,35 @@ mod tests {
     }
 
     #[test]
+    fn init_plan_event_shape() {
+        let mut finding = PlanFindingEvent {
+            kind: "version_raise".to_owned(),
+            subject: "rules_rust".to_owned(),
+            before: "0.60.0".to_owned(),
+            after: "0.75.0".to_owned(),
+            file: "MODULE.bazel".to_owned(),
+            line: 3,
+            hint: "h".to_owned(),
+            severity: "advisory".to_owned(),
+        };
+        let event = init_plan_event(&finding).expect("event");
+        assert_eq!(event["event"], "init_plan");
+        assert_eq!(event["schema"], schema());
+        assert_eq!(event["line"], 3);
+        assert_eq!(event["severity"], "advisory");
+        finding.line = 0;
+        assert!(init_plan_event(&finding)
+            .expect("event")
+            .get("line")
+            .is_none());
+        finding.severity = "bogus".to_owned();
+        assert!(init_plan_event(&finding).is_err());
+        finding.severity = "hard".to_owned();
+        finding.file = String::new();
+        assert!(init_plan_event(&finding).is_err());
+    }
+
+    #[test]
     fn status_event_shape() {
         let event = status_event(&StatusEvent {
             name: "pin".to_owned(),
@@ -1618,8 +1693,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 5);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 5}));
+        assert_eq!(SCHEMA_MINOR, 6);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 6}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -2110,7 +2185,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 5},
+                "schema": {"major": 3, "minor": 6},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2149,7 +2224,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 5},
+                "schema": {"major": 3, "minor": 6},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

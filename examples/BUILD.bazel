@@ -139,6 +139,7 @@ _EXAMPLE_STARLARK = [
     "//examples/elixir-app/cli:corpus_starlark",
     "//examples/elixir-app/stock:corpus_starlark",
     "//examples/erlang-app:corpus_starlark",
+    "//examples/erlang-app/checksum:corpus_starlark",
     "//examples/erlang-app/cli:corpus_starlark",
     "//examples/erlang-app/proto:corpus_starlark",
     "//examples/erlang-app/store:corpus_starlark",

@@ -49,6 +49,19 @@ erlang_app(
 )
 "#;
 
+const NIF_BUILD: &str = r#"load("@rules_dx//erlang/rules:defs.bzl", "erlang_nif")
+
+erlang_nif(
+    name = "probe_nif",
+    srcs = ["probe_nif.c"],
+    hdrs = HDRS,
+)
+"#;
+
+const NIF_SOURCE: &str = "#include <erl_nif.h>\n#include \"probe/hidden.h\"\n\nstatic ERL_NIF_TERM probe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {\n  (void)argc;\n  (void)argv;\n  return enif_make_int(env, HIDDEN);\n}\n\nstatic ErlNifFunc funcs[] = {{\"probe\", 0, probe, 0}};\n\nERL_NIF_INIT(probe, funcs, NULL, NULL, NULL, NULL)\n";
+
+const NIF_HEADER: &str = "#define HIDDEN 1\n";
+
 const CLEAN: &str = "-module(clean).\n\n-export([add/2]).\n\nadd(A, B) -> A + B.\n";
 
 const SYNTAX: &str = "-module(syntax_error).\n\n-export([add/2]).\n\nadd(A, B) -> A + .\n";
@@ -93,6 +106,20 @@ fn consumer() -> Case {
     case.write("failing/BUILD.bazel", SUITE_BUILD);
     case.write("failing/src/failing.erl", FAILING_SRC);
     case.write("failing/test/failing_SUITE.erl", FAILING_SUITE);
+    for (name, hdrs) in [
+        ("undeclared_header", "[]"),
+        ("declared_header", "[\"hidden.h\"]"),
+    ] {
+        case.write(
+            format!("{name}/BUILD.bazel"),
+            &format!("HDRS = {hdrs}\n\n{NIF_BUILD}"),
+        );
+        case.write(
+            format!("{name}/probe_nif.c"),
+            &NIF_SOURCE.replace("probe/hidden.h", &format!("{name}/hidden.h")),
+        );
+        case.write(format!("{name}/hidden.h"), NIF_HEADER);
+    }
     case.write("portable/BUILD.bazel", PLATFORMS_BUILD);
     case.write("portable/src/portable.erl", "-module(portable).\n");
     case
@@ -136,6 +163,22 @@ fn an_undeclared_dependency_fails_the_build() {
 fn a_declared_dependency_builds() {
     let case = consumer();
     let built = case.plain("build", "//declared_dep:erlang_app", &[]);
+    assert_eq!(built.status.code(), Some(0), "{}", built.combined());
+}
+
+#[test]
+fn an_undeclared_nif_header_fails_the_build() {
+    let case = consumer();
+    case.build_fails_with(
+        "//undeclared_header:probe_nif",
+        &["'undeclared_header/hidden.h' file not found"],
+    );
+}
+
+#[test]
+fn a_declared_nif_header_builds() {
+    let case = consumer();
+    let built = case.plain("build", "//declared_header:probe_nif", &[]);
     assert_eq!(built.status.code(), Some(0), "{}", built.combined());
 }
 

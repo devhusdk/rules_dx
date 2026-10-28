@@ -1,0 +1,70 @@
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_nif", "erlc_opts", "eunit", "test_erlang_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    glob([
+        "c_src/*",
+        "src/*",
+    ]) + [
+        "BUILD.bazel",
+        "test/kv_checksum_tests.erl",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+erlang_nif(
+    name = "kv_checksum_nif",
+    srcs = [
+        "c_src/fnv1a.c",
+        "c_src/kv_checksum_nif.c",
+    ],
+    hdrs = ["c_src/fnv1a.h"],
+)
+
+erlang_app(
+    app_description = "FNV-1a checksums through a NIF.",
+    app_name = "kv_checksum",
+    app_version = "1.0.0",
+    nifs = [":kv_checksum_nif"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//examples/erlang-app:__subpackages__"],
+)
+
+test_erlang_app(
+    app_name = "kv_checksum",
+    app_version = "1.0.0",
+    nifs = [":kv_checksum_nif"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "test_modules",
+    testonly = True,
+    srcs = ["test/kv_checksum_tests.erl"],
+    outs = ["test/kv_checksum_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+eunit(
+    name = "eunit",
+    size = "small",
+    compiled_suites = [":test_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//erlang/tests/runtime:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

@@ -111,6 +111,7 @@ type targetImports struct {
 	siblingLib  string
 	scriptDep   string
 	renames     map[string]string
+	gated       map[string]bool
 	// inheritedDeps are dependency labels of the existing crate rule that a
 	// self-contained unit test no longer inherits through crate=.
 	inheritedDeps []string

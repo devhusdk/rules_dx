@@ -452,16 +452,40 @@ func (c aliasesUnionExpr) BzlExpr() bzl.Expr {
 func (c aliasesUnionExpr) Merge(bzl.Expr) bzl.Expr { return c.BzlExpr() }
 
 type depsConcatExpr struct {
-	base  bzl.Expr
-	extra []string
+	base    bzl.Expr
+	extra   []string
+	android []string
 }
 
 func (c depsConcatExpr) BzlExpr() bzl.Expr {
-	extra := make([]bzl.Expr, len(c.extra))
-	for i, dep := range c.extra {
-		extra[i] = &bzl.StringExpr{Value: dep}
+	var out bzl.Expr = c.base
+	if out == nil || len(c.extra) > 0 || len(c.android) == 0 {
+		extra := make([]bzl.Expr, len(c.extra))
+		for i, dep := range c.extra {
+			extra[i] = &bzl.StringExpr{Value: dep}
+		}
+		list := &bzl.ListExpr{List: extra}
+		if out == nil {
+			out = list
+		} else {
+			out = &bzl.BinaryExpr{X: out, Op: "+", Y: list}
+		}
 	}
-	return &bzl.BinaryExpr{X: c.base, Op: "+", Y: &bzl.ListExpr{List: extra}}
+	if len(c.android) == 0 {
+		return out
+	}
+	items := make([]bzl.Expr, len(c.android))
+	for i, dep := range c.android {
+		items[i] = &bzl.StringExpr{Value: dep}
+	}
+	sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: []*bzl.KeyValueExpr{
+		{Key: &bzl.StringExpr{Value: androidPlatformConstraint}, Value: &bzl.ListExpr{List: items}},
+		{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}},
+	}, ForceMultiLine: true}}}
+	if len(c.extra) == 0 && c.base == nil {
+		return sel
+	}
+	return &bzl.BinaryExpr{X: out, Op: "+", Y: sel}
 }
 
 func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
@@ -469,7 +493,10 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	for _, dep := range c.extra {
 		managed[dep] = true
 	}
-	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed))}.BzlExpr()
+	for _, dep := range c.android {
+		managed[dep] = true
+	}
+	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android}.BzlExpr()
 }
 
 func unmanagedDepsLabels(other bzl.Expr, managed map[string]bool) []string {

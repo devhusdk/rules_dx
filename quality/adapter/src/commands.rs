@@ -1789,13 +1789,6 @@ pub fn cfn_lint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
     }
 }
 
-    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
-    Invocation {
-        argv,
-        cwd_rel: String::new(),
-    }
-}
-
 /// `check-jsonschema` for one (schema, filetype) group, offline.
 ///
 /// `--dx-ref-map` is read by dx's wrapper, which serves pinned `$ref` targets from disk and

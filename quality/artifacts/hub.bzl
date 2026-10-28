@@ -23,6 +23,8 @@ TOOL_PLATFORMS = [
 # artifact, run under OS emulation (Windows on Arm runs x64 via Prism). Keys must
 # be outside TOOL_PLATFORMS and values inside it: qualified platforms never run
 # emulated binaries. A native artifact on the key platform always wins.
+# Fallback resolution supplies an artifact, never a support claim: a record claims
+# the key platform only with a matrix case flagged for it.
 PLATFORM_FALLBACKS = {
     "windows_arm64": "windows_x86_64",
 }

@@ -224,7 +224,7 @@ YAML_YAMLFMT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamlfmt",
     "transport": "batched",
@@ -238,7 +238,7 @@ YAML_YAMLLINT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamllint",
     "transport": "batched",
@@ -295,7 +295,7 @@ TERRAFORM_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "terraform",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "terraform",
     "transport": "single",
@@ -309,7 +309,7 @@ TERRAFORM_TFLINT_SUPPORT = {
     "execution": "direct",
     "family": "terraform",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "tflint",
     "transport": "batched",
@@ -323,7 +323,7 @@ GO_GOFUMPT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "go",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "gofumpt",
     "transport": "batched",
@@ -449,7 +449,7 @@ SQL_PRETTIER_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "sql",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "prettier",
     "transport": "batched",
@@ -675,7 +675,7 @@ JUPYTER_RUFF_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "jupyter",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ruff",
     "transport": "batched",
@@ -703,7 +703,7 @@ JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = {
     "execution": "direct",
     "family": "jupyter",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "notebook_outputs",
     "transport": "batched",
@@ -818,6 +818,7 @@ def _is_canonical_token(text):
 
 # Every platform a support record may name: the qualified execution set plus the selectable
 # fallback platforms (hub.bzl). A sixth platform is one edit there.
+# A fallback platform claim still needs a matrix case flagged for it; fallbacks supply artifacts only.
 SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
 
 def _is_unbuilt(record):

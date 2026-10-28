@@ -61,7 +61,9 @@ fn document<'a>(
     Ok(target
         .documents
         .iter()
-        .find(|doc| same(&doc.kind, kind) && same(&doc.name, name) && same(&doc.api_version, version))
+        .find(|doc| {
+            same(&doc.kind, kind) && same(&doc.name, name) && same(&doc.api_version, version)
+        })
         .or_else(|| target.documents.iter().find(|doc| same(&doc.kind, kind))))
 }
 
@@ -136,9 +138,7 @@ fn resource_findings(
             let errors = match resource.get("validationErrors") {
                 None | Some(serde_json::Value::Null) => Vec::new(),
                 Some(serde_json::Value::Array(errors)) => errors.clone(),
-                Some(_) => {
-                    return Err(ParseError::shape(TOOL, "validationErrors is not an array"))
-                }
+                Some(_) => return Err(ParseError::shape(TOOL, "validationErrors is not an array")),
             };
             if errors.is_empty() {
                 let message = if message.is_empty() {
@@ -265,21 +265,25 @@ mod tests {
     fn kubeconform_clean_run_is_clean() {
         let documents = docs();
         for stdout in ["", "{\n  \"resources\": []\n}", "{\"resources\":null}"] {
-            assert!(parse_kubeconform(stdout.as_bytes(), b"", Some(0), &target(&documents))
-                .expect("parsed")
-                .is_empty());
+            assert!(
+                parse_kubeconform(stdout.as_bytes(), b"", Some(0), &target(&documents))
+                    .expect("parsed")
+                    .is_empty()
+            );
         }
         let valid = r#"{"filename":"/s/dx-kubeconform/docs/0.yaml","kind":"Deployment","name":"web","version":"apps/v1","status":"statusValid","msg":""}"#;
-        assert!(parse_kubeconform(valid.as_bytes(), b"", Some(0), &target(&documents))
-            .expect("parsed")
-            .is_empty());
+        assert!(
+            parse_kubeconform(valid.as_bytes(), b"", Some(0), &target(&documents))
+                .expect("parsed")
+                .is_empty()
+        );
     }
 
     #[test]
     fn kubeconform_invalid_resources_land_on_their_lines() {
         let documents = docs();
-        let findings =
-            parse_kubeconform(INVALID.as_bytes(), b"", Some(1), &target(&documents)).expect("parsed");
+        let findings = parse_kubeconform(INVALID.as_bytes(), b"", Some(1), &target(&documents))
+            .expect("parsed");
         assert_eq!(findings.len(), 4);
         assert!(findings.iter().all(|f| f.file == "/s/k8s/m.yaml"));
         assert!(findings.iter().all(|f| f.finding.rule_id == "invalid"));
@@ -334,7 +338,8 @@ mod tests {
         assert!(parse_kubeconform(INVALID.as_bytes(), b"", Some(2), &targets).is_err());
         assert!(parse_kubeconform(INVALID.as_bytes(), b"", None, &targets).is_err());
         let unknown = INVALID.replace("docs/0.yaml", "docs/9.yaml");
-        let err = parse_kubeconform(unknown.as_bytes(), b"", Some(1), &targets).expect_err("unknown");
+        let err =
+            parse_kubeconform(unknown.as_bytes(), b"", Some(1), &targets).expect_err("unknown");
         assert!(matches!(err, ParseError::UnknownFile { .. }), "{err}");
         let status = INVALID.replace("statusInvalid", "statusWeird");
         assert!(parse_kubeconform(status.as_bytes(), b"", Some(1), &targets).is_err());

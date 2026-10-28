@@ -2550,7 +2550,10 @@ fn kubeconform_tool(config: &str) -> RealTool {
     RealTool {
         config_rel: Some(KUBECONFORM_CONFIG_REL.to_owned()),
         tool_files: vec![
-            (KUBECONFORM_CONFIG_REL.to_owned(), config.as_bytes().to_vec()),
+            (
+                KUBECONFORM_CONFIG_REL.to_owned(),
+                config.as_bytes().to_vec(),
+            ),
             (
                 "k8s/schemas.kubeconform/core/pod-v1.json".to_owned(),
                 b"{}".to_vec(),
@@ -2578,8 +2581,13 @@ fn kubeconform_fake(
         .skip(1)
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    assert_eq!(args[..4], ["-output", "json", "-summary=false", "-kubernetes-version"]);
-    assert!(!args.iter().any(|arg| arg.contains("ignore-missing-schemas")));
+    assert_eq!(
+        args[..4],
+        ["-output", "json", "-summary=false", "-kubernetes-version"]
+    );
+    assert!(!args
+        .iter()
+        .any(|arg| arg.contains("ignore-missing-schemas")));
     let locations: Vec<&String> = args
         .iter()
         .zip(args.iter().skip(1))
@@ -2694,7 +2702,11 @@ fn kubeconform_clean_manifests_are_clean() {
 fn kubeconform_needs_a_local_config() {
     let backend = backend_for("kubeconform", plain_tool(), kubeconform_fake);
     let err = backend
-        .diagnose("kubeconform", "lint", &single("k8s/pod.yaml", "kind: Pod\n"))
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/pod.yaml", "kind: Pod\n"),
+        )
         .expect_err("no config");
     assert!(err.to_string().contains("kubernetes_schemas"), "{err}");
     let remote = kubeconform_tool(
@@ -2702,7 +2714,11 @@ fn kubeconform_needs_a_local_config() {
     );
     let backend = backend_for("kubeconform", remote, kubeconform_fake);
     let err = backend
-        .diagnose("kubeconform", "lint", &single("k8s/pod.yaml", "kind: Pod\n"))
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/pod.yaml", "kind: Pod\n"),
+        )
         .expect_err("remote schemas");
     assert!(err.to_string().contains("local directory"), "{err}");
 }
@@ -2715,6 +2731,10 @@ fn kubeconform_exit_zero_with_failures_fails_the_action() {
         kubeconform_exit_zero_with_failures,
     );
     backend
-        .diagnose("kubeconform", "lint", &single("k8s/app.yaml", KUBECONFORM_MANIFEST))
+        .diagnose(
+            "kubeconform",
+            "lint",
+            &single("k8s/app.yaml", KUBECONFORM_MANIFEST),
+        )
         .expect_err("exit 0 with failures is never clean");
 }

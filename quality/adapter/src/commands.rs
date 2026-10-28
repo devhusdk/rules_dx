@@ -1348,24 +1348,33 @@ fn remote_location(location: &str) -> bool {
 
 fn schema_dir(base: &Path, key: &str, rel: &str) -> Result<PathBuf, String> {
     if remote_location(rel) {
-        return Err(format!("kubeconform {key} must be a local directory, got {rel:?}"));
+        return Err(format!(
+            "kubeconform {key} must be a local directory, got {rel:?}"
+        ));
     }
     let bad = rel.is_empty()
         || rel.starts_with('/')
         || rel.contains('\\')
         || rel.contains(':')
-        || rel.split('/').any(|part| part.is_empty() || part == "." || part == "..");
+        || rel
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..");
     if bad {
         return Err(format!(
             "kubeconform {key} must be a relative forward-slash path below the config, got {rel:?}"
         ));
     }
-    Ok(rel.split('/').fold(base.to_path_buf(), |dir, part| dir.join(part)))
+    Ok(rel
+        .split('/')
+        .fold(base.to_path_buf(), |dir, part| dir.join(part)))
 }
 
 /// Parses a kubeconform config; its schema directories resolve against the config's directory.
 pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConfig, String> {
-    let name = config.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+    let name = config
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
     if !name.ends_with(KUBECONFORM_CONFIG_SUFFIX) {
         return Err(format!(
             "kubeconform config {} must end with {KUBECONFORM_CONFIG_SUFFIX}",
@@ -1386,11 +1395,15 @@ pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConf
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-'))
     {
-        return Err(format!("kubeconform kubernetes_version is not a version: {version:?}"));
+        return Err(format!(
+            "kubeconform kubernetes_version is not a version: {version:?}"
+        ));
     }
     for kind in &raw.skip_kinds {
         if kind.is_empty() || kind.contains(',') || kind.chars().any(char::is_whitespace) {
-            return Err(format!("kubeconform skip_kinds entry is not a kind: {kind:?}"));
+            return Err(format!(
+                "kubeconform skip_kinds entry is not a kind: {kind:?}"
+            ));
         }
     }
     let base = config.parent().unwrap_or(Path::new(""));
@@ -1409,7 +1422,9 @@ fn schema_location(dir: &Path, template: &str) -> Result<String, String> {
         .ok_or_else(|| format!("kubeconform schema dir is not UTF-8: {}", dir.display()))?;
     let location = format!("{}/{template}", dir.trim_end_matches(['/', '\\']));
     if dir.is_empty() || remote_location(dir) {
-        return Err(format!("kubeconform schema location must be local, got {location:?}"));
+        return Err(format!(
+            "kubeconform schema location must be local, got {location:?}"
+        ));
     }
     Ok(location)
 }

@@ -174,7 +174,7 @@ impl RealBackend {
                 .map(Some)
                 .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
         }
-        if tool_id == "kubeconform" {
+        if tool_id == "kubeconform" && tool.upstream_diagnostics.is_empty() {
             let Some(rel) = tool.config_rel.as_deref() else {
                 return Err(execution(
                     tool_id,

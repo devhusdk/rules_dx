@@ -27,9 +27,9 @@ def _schemas_config_impl(ctx):
     asserts.equals(
         env,
         [
+            "schemas.kubeconform.json",
             "schemas.kubeconform/core/deployment-apps-v1.json",
             "schemas.kubeconform/crd/example.com/widget_v1.json",
-            "schemas.kubeconform.json",
         ],
         sorted([f.short_path.removeprefix("kubernetes/tests/") for f in info.closure.to_list()]),
     )

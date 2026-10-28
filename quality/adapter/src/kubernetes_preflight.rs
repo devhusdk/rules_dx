@@ -136,7 +136,11 @@ fn on_node(
         }) => {
             if *expecting_key {
                 let Node::Scalar(name, _) = node else {
-                    return Err(syntax(line, col, "a mapping, sequence or alias used as a key"));
+                    return Err(syntax(
+                        line,
+                        col,
+                        "a mapping, sequence or alias used as a key",
+                    ));
                 };
                 let child = format!("{pointer}/{}", escape(name));
                 raw.pointers.entry(child).or_insert(at);
@@ -273,13 +277,20 @@ fn finish(raw: Raw, start: usize, end: usize, text: &str, bom: usize) -> Documen
 fn yaml_documents(text: &str, bom: usize) -> Result<Vec<(Document, bool)>, Problem> {
     let raws = scan_yaml(text)?;
     let offsets = Offsets::new(text);
-    let starts: Vec<usize> = raws.iter().map(|raw| offsets.byte(raw.start_char)).collect();
+    let starts: Vec<usize> = raws
+        .iter()
+        .map(|raw| offsets.byte(raw.start_char))
+        .collect();
     Ok(raws
         .into_iter()
         .enumerate()
         .map(|(index, raw)| {
             let start = starts[index];
-            let end = starts.get(index + 1).copied().unwrap_or(text.len()).max(start);
+            let end = starts
+                .get(index + 1)
+                .copied()
+                .unwrap_or(text.len())
+                .max(start);
             let empty = raw.empty;
             (finish(raw, start, end, text, bom), empty)
         })
@@ -392,7 +403,10 @@ mod tests {
         assert_eq!(first.pointers.get("/spec"), Some(&(6, 1)));
         assert_eq!(first.pointers.get("/spec/containers"), Some(&(7, 3)));
         assert_eq!(first.pointers.get("/spec/containers/0"), Some(&(8, 7)));
-        assert_eq!(first.pointers.get("/spec/containers/0/image"), Some(&(9, 7)));
+        assert_eq!(
+            first.pointers.get("/spec/containers/0/image"),
+            Some(&(9, 7))
+        );
         assert_eq!(first.locate("/spec/containers/0/missing/deeper"), (8, 7));
         assert_eq!(first.locate(""), (2, 1));
         assert_eq!(first.locate("/nowhere"), (2, 1));
@@ -400,7 +414,10 @@ mod tests {
 
     #[test]
     fn escapes_pointer_tokens() {
-        let checked = check_file("m.yaml", b"apiVersion: v1\nkind: ConfigMap\ndata:\n  a/b~c: x\n");
+        let checked = check_file(
+            "m.yaml",
+            b"apiVersion: v1\nkind: ConfigMap\ndata:\n  a/b~c: x\n",
+        );
         let document = &checked.documents[0];
         assert_eq!(document.pointers.get("/data/a~1b~0c"), Some(&(4, 3)));
     }
@@ -440,7 +457,8 @@ mod tests {
 
     #[test]
     fn json_stays_one_document() {
-        let text = "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"Pod\",\n  \"spec\": {\"x\": 1}\n}\n";
+        let text =
+            "{\n  \"apiVersion\": \"v1\",\n  \"kind\": \"Pod\",\n  \"spec\": {\"x\": 1}\n}\n";
         let checked = check_file("p.json", text.as_bytes());
         assert!(checked.problems.is_empty(), "{:?}", checked.problems);
         let [document] = checked.documents.as_slice() else {

@@ -315,7 +315,9 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
         | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs" | "qmllint"
         | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck" | "stylelint"
-        | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "redocly" | "kubeconform" => Ok(Route::Keep),
+        | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "redocly" | "kubeconform" => {
+            Ok(Route::Keep)
+        }
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

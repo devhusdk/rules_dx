@@ -1988,7 +1988,8 @@ fn kubeconform_pins_local_schema_locations() {
     assert!(!argv_strings(&invocation)
         .iter()
         .any(|arg| arg.contains("ignore-missing-schemas")));
-    let loose = r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    let loose =
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
     let config = kubeconform_config(config_path, loose.as_bytes()).expect("defaults");
     let argv = argv_strings(&kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv"));
     assert!(!argv.contains(&"-strict".to_owned()));

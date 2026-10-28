@@ -21,6 +21,7 @@ pub mod govet;
 pub mod hadolint;
 pub mod jsonnetfmt;
 pub mod keep_sorted;
+pub mod kubeconform;
 pub mod ktfmt;
 pub mod ktlint;
 pub mod markdown;
@@ -84,6 +85,7 @@ pub use govet::parse_govet;
 pub use hadolint::parse_hadolint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
+pub use kubeconform::{parse_kubeconform, KubeconformTarget};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use markdown::parse_markdown_findings;
@@ -1870,6 +1872,22 @@ mod tests {
         super::statix::parse_statix(input, input, code, files)
     }
 
+    fn fuzz_kubeconform(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let targets: Vec<super::KubeconformTarget<'_>> = files
+            .iter()
+            .map(|file| super::KubeconformTarget {
+                reported: file,
+                file,
+                documents: &[],
+            })
+            .collect();
+        super::kubeconform::parse_kubeconform(input, input, code, &targets)
+    }
+
     fn fuzz_hadolint(
         input: &[u8],
         code: Option<i32>,
@@ -2106,6 +2124,7 @@ mod tests {
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
+        ("kubeconform", fuzz_kubeconform),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("parse_markdown_findings", fuzz_markdown_findings),
@@ -2176,6 +2195,7 @@ mod tests {
         ("hadolint", include_str!("hadolint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
+        ("kubeconform", include_str!("kubeconform.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("markdown", include_str!("markdown.rs")),
@@ -2237,7 +2257,7 @@ mod tests {
     fn every_declared_parser_is_in_the_fuzz_table() {
         let declared = declared_parser_names();
         assert!(
-            declared.len() >= 59,
+            declared.len() >= 60,
             "expected the full parser set, got {declared:?}"
         );
         let bare: Vec<String> = declared

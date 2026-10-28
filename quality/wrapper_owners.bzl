@@ -32,6 +32,7 @@ WRAPPER_OWNERS = {
     "json": "other",
     "jsonnet": "//jsonnet/rules:defs.bzl",
     "kotlin": "//kotlin/rules:defs.bzl",
+    "kubernetes": "//kubernetes/rules:defs.bzl",
     "lua": "//lua/rules:defs.bzl",
     "markdown": "other",
     "mdx": "//mdx/rules:defs.bzl",

@@ -329,6 +329,20 @@ impl RealBackend {
                     parsers::parse_statix(&bytes, &[], Some(code), &workspaces)
                 }
                 "deadnix" => parsers::parse_deadnix(&bytes, &[], Some(0), &workspaces),
+                "kubeconform" => {
+                    let targets: Vec<parsers::KubeconformTarget<'_>> = workspaces
+                        .iter()
+                        .map(|workspace| parsers::KubeconformTarget {
+                            reported: workspace,
+                            file: workspace,
+                            documents: &[],
+                        })
+                        .collect();
+                    let text = String::from_utf8_lossy(&bytes);
+                    let failing =
+                        text.contains("\"statusInvalid\"") || text.contains("\"statusError\"");
+                    parsers::parse_kubeconform(&bytes, &[], Some(i32::from(failing)), &targets)
+                }
                 "keep_sorted" => parsers::parse_keep_sorted(&bytes, Some(0), &workspaces),
                 "djlint" => parsers::parse_djlint(&bytes, Some(0), &workspaces),
                 _ => {

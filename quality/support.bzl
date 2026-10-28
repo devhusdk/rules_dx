@@ -46,6 +46,20 @@ DOCKERFILE_HADOLINT_SUPPORT = {
     "transport": "batched",
 }
 
+KUBERNETES_KUBECONFORM_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["kubernetes"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "kubernetes",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "kubeconform",
+    "transport": "batched",
+}
+
 SHELL_SHFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -527,6 +541,7 @@ SUPPORT_RECORDS = [
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
     DOCKERFILE_HADOLINT_SUPPORT,
+    KUBERNETES_KUBECONFORM_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,

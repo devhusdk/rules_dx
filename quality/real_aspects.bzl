@@ -186,6 +186,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "dockerfile",
     },
+    "kubeconform": {
+        "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "kubernetes",
+    },
     "jsonnetfmt": {
         "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1461,6 +1468,12 @@ _REAL_SHARD_SPECS = {
         "shard": "nix",
         "suffix": "-nix",
     },
+    "real_kubernetes_lint": {
+        "capability": "lint",
+        "doc": "Additive Kubernetes lint family aspect (kubeconform).",
+        "shard": "kubernetes",
+        "suffix": "-kubernetes",
+    },
     "real_cue_format": {
         "capability": "format",
         "doc": "Additive CUE format family aspect (cue fmt).",
@@ -1654,6 +1667,8 @@ real_shell_format_aspect = _make_real_aspect("real_shell_format")
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
 
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
+
+real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
 
 real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 

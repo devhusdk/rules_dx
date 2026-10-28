@@ -198,7 +198,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, vale, yamlfmt, yamllint",
+                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, kubeconform, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -291,6 +291,11 @@ def native_config_unit_tests(name):
                 "missing_required_config_error names an unbound buildifier lint stage",
                 missing_required_config_error("buildifier", "lint", {}, "//q:t"),
                 "//q:t: Buildifier needs a config. Declare buildifier_config(name = \"buildifier_config\", src = \".buildifier.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":buildifier_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error uses the tool hint for kubeconform",
+                missing_required_config_error("kubeconform", "lint", {}, "//q:t"),
+                "//q:t: kubeconform needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
             ),
             expect_equal(
                 "missing_required_config_error names an unbound checkstyle lint stage",

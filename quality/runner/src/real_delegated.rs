@@ -20,6 +20,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "hadolint",
         "statix",
         "deadnix",
+        "kubeconform",
     ] {
         let scratch = tempfile::tempdir().expect("scratch");
         let tool = delegated_tool(scratch.path().join("missing"));
@@ -74,6 +75,10 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         (
             "deadnix",
             r#"{"file":"src/a.scala","results":[{"column":1,"endColumn":2,"line":1,"message":"Unused let binding: finding"}]}"#,
+        ),
+        (
+            "kubeconform",
+            r#"{"resources":[{"filename":"src/a.scala","kind":"Pod","name":"a","version":"v1","status":"statusInvalid","msg":"finding","validationErrors":[{"path":"/spec","msg":"finding"}]}]}"#,
         ),
         (
             "yamllint",
@@ -217,6 +222,7 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ("hadolint", "[]"),
         ("statix", ""),
         ("deadnix", ""),
+        ("kubeconform", r#"{"resources":[]}"#),
         ("staticcheck", ""),
         ("yamllint", ""),
     ] {

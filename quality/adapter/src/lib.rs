@@ -15,6 +15,7 @@ pub mod api_spec_preflight;
 pub mod cloudformation_preflight;
 pub mod commands;
 pub mod exec;
+pub mod kubernetes_preflight;
 pub mod launch;
 pub mod parsers;
 

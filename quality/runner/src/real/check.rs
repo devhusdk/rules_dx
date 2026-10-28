@@ -943,6 +943,7 @@ impl RealBackend {
                     },
                 )
             }
+            "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)

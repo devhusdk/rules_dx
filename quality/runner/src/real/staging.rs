@@ -174,6 +174,18 @@ impl RealBackend {
                 .map(Some)
                 .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
         }
+        if tool_id == "kubeconform" {
+            let Some(rel) = tool.config_rel.as_deref() else {
+                return Err(execution(
+                    tool_id,
+                    "kubeconform needs a kubernetes_schemas config".to_owned(),
+                ));
+            };
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
         if tool_id == "stylelint" {
             let rel = tool.config_rel.as_deref().unwrap_or(STYLELINT_DEFAULTS_REL);
             return scratch

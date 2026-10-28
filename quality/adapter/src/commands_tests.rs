@@ -1944,3 +1944,99 @@ fn invocation_batches_respect_launcher_budget() {
         assert!(units <= LAUNCHER_BATCH_BUDGET, "units {units} fit");
     }
 }
+
+const KUBECONFORM_CONFIG: &str = r#"{"schema_version":1,"kubernetes_version":"1.31.0","strict":true,"skip_kinds":["CustomThing","Other"],"core_dir":"k.kubeconform/core","crd_dir":"k.kubeconform/crd"}"#;
+
+#[test]
+fn kubeconform_pins_local_schema_locations() {
+    let config_path = Path::new("/scratch/cfg/k.kubeconform.json");
+    let config =
+        kubeconform_config(config_path, KUBECONFORM_CONFIG.as_bytes()).expect("config parses");
+    assert_eq!(
+        config.core_dir,
+        Path::new("/scratch/cfg").join("k.kubeconform").join("core")
+    );
+    let doc = Path::new("/scratch/dx-kubeconform/docs/0.yaml");
+    let invocation = kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv");
+    let core = format!(
+        "{}/{{{{.ResourceKind}}}}{{{{.KindSuffix}}}}.json",
+        config.core_dir.display()
+    );
+    let crd = format!(
+        "{}/{{{{.Group}}}}/{{{{.ResourceKind}}}}_{{{{.ResourceAPIVersion}}}}.json",
+        config.crd_dir.display()
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN.to_owned(),
+            "-output".to_owned(),
+            "json".to_owned(),
+            "-summary=false".to_owned(),
+            "-kubernetes-version".to_owned(),
+            "1.31.0".to_owned(),
+            "-strict".to_owned(),
+            "-skip".to_owned(),
+            "CustomThing,Other".to_owned(),
+            "-schema-location".to_owned(),
+            core,
+            "-schema-location".to_owned(),
+            crd,
+            "/scratch/dx-kubeconform/docs/0.yaml".to_owned(),
+        ]
+    );
+    assert!(!argv_strings(&invocation)
+        .iter()
+        .any(|arg| arg.contains("ignore-missing-schemas")));
+    let loose = r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    let config = kubeconform_config(config_path, loose.as_bytes()).expect("defaults");
+    let argv = argv_strings(&kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv"));
+    assert!(!argv.contains(&"-strict".to_owned()));
+    assert!(!argv.contains(&"-skip".to_owned()));
+    assert_eq!(
+        argv.iter().filter(|arg| *arg == "-schema-location").count(),
+        2
+    );
+}
+
+#[test]
+fn kubeconform_config_refuses_remote_or_escaping_locations() {
+    let config_path = Path::new("/scratch/cfg/k.kubeconform.json");
+    for (core, wanted) in [
+        ("default", "local directory"),
+        ("https://example.com/schemas", "local directory"),
+        ("../up", "relative forward-slash"),
+        ("/abs", "relative forward-slash"),
+        ("a\\\\b", "relative forward-slash"),
+        ("", "relative forward-slash"),
+    ] {
+        let text = format!(
+            r#"{{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"{core}","crd_dir":"d"}}"#
+        );
+        let err = kubeconform_config(config_path, text.as_bytes()).expect_err(core);
+        assert!(err.contains(wanted), "{core}: {err}");
+    }
+    let bad = [
+        r#"{"schema_version":2,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#,
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d","extra":1}"#,
+        r#"{"schema_version":1,"kubernetes_version":"","core_dir":"c","crd_dir":"d"}"#,
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","skip_kinds":["a,b"],"core_dir":"c","crd_dir":"d"}"#,
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c"}"#,
+    ];
+    for text in bad {
+        assert!(
+            kubeconform_config(config_path, text.as_bytes()).is_err(),
+            "{text}"
+        );
+    }
+    let ok = r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    assert!(kubeconform_config(Path::new("/scratch/cfg/k.json"), ok.as_bytes()).is_err());
+    let remote = KubeconformConfig {
+        kubernetes_version: "1.31.0".to_owned(),
+        strict: false,
+        skip_kinds: Vec::new(),
+        core_dir: PathBuf::from("https://example.com"),
+        crd_dir: PathBuf::from("/d"),
+    };
+    assert!(kubeconform_check(Path::new(BIN), &remote, &[]).is_err());
+}

@@ -505,6 +505,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "kubeconform": {
+        "upstream_version": "0.8.0",
+        "release_page": "https://github.com/yannh/kubeconform/releases/tag/v0.8.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/yannh/kubeconform/blob/v0.8.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "kubeconform-linux-amd64.tar.gz",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "kubeconform",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "kubeconform-linux-arm64.tar.gz",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "kubeconform",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "kubeconform-darwin-arm64.tar.gz",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "kubeconform",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "kubeconform-windows-amd64.zip",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-amd64.zip",
+                "kind": "zip",
+                "executable": "kubeconform.exe",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+        },
+    },
     "jsonschema": {
         "upstream_version": "17.3.1",
         "release_page": "https://github.com/sourcemeta/jsonschema/releases/tag/v17.3.1",
@@ -1385,7 +1433,7 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buf", "buildifier", "keep_sorted", "shfmt", "terraform"):
+    if tool in ("buf", "buildifier", "keep_sorted", "kubeconform", "shfmt", "terraform"):
         linkage = "static"
     else:
         linkage = "dynamic"

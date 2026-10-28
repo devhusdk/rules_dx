@@ -15,6 +15,11 @@ CONFIG_REQUIRED_TOOLS = {
     "checkstyle": struct(name = "Checkstyle", src = "checkstyle.xml"),
     "eslint": struct(name = "ESLint", src = "eslint.config.mjs"),
     "graphql_eslint": struct(name = "graphql-eslint", src = "graphql_lint.json"),
+    "kubeconform": struct(
+        name = "kubeconform",
+        src = "kubernetes.kubeconform.json",
+        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
+    ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
     "scalafix": struct(name = "Scalafix", src = ".scalafix.conf"),
     "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
@@ -35,6 +40,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "fsharplint": [".json"],
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
+    "kubeconform": [".kubeconform.json"],
     "pmd": [".xml"],
     "prettier": [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
     "psscriptanalyzer": [".psd1"],
@@ -113,6 +119,8 @@ def missing_required_config_error(tool, capability, configs_by_tool, what):
     if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:
         return ""
     info = CONFIG_REQUIRED_TOOLS[tool]
+    if hasattr(info, "hint"):
+        return what + ": " + info.name + " needs a config. " + info.hint
     return (what + ": " + info.name + " needs a config. Declare " + tool + "_config(name = \"" +
             tool + "_config\", src = \"" + info.src + "\") from @rules_dx//quality:native_config.bzl" +
             " and add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")

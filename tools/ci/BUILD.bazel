@@ -644,6 +644,7 @@ rust_test(
         "//tools/docs/jvm/convert:corpus_starlark",
         "//tools/docs/powershell:corpus_starlark",
         "//tools/docs/powershell/extract:corpus_starlark",
+        "//tools/docs/dotnet/extract:corpus_starlark",
         "//tools/docs/ruby:corpus_starlark",
         "//tools/docs/ruby/extract:corpus_starlark",
         "//tools/docs/rust:corpus_starlark",

@@ -91,6 +91,19 @@ pub fn source_path_reason(file: &str) -> Option<&'static str> {
     reject_reason(file)
 }
 
+/// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
+pub fn escape_id_segment(segment: &str) -> String {
+    let mut out = String::with_capacity(segment.len());
+    for byte in segment.bytes() {
+        if byte.is_ascii_alphanumeric() || byte == b'_' {
+            out.push(char::from(byte));
+        } else {
+            out.push_str(&format!("~{byte:02X}"));
+        }
+    }
+    out
+}
+
 pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
     dx_schema::check_major(shard.schema_major)
         .map_err(|found| Error::UnsupportedMajor { found })?;
@@ -283,6 +296,23 @@ mod tests {
     }
     use prost::Message;
     use proto::{Extension, Param, Relations, Returns, SourceRef, SymbolKind, Visibility};
+
+    #[test]
+    fn segments_escape_every_byte_outside_the_word_set() {
+        for (raw, escaped) in [
+            ("area", "area"),
+            ("empty?", "empty~3F"),
+            ("save!", "save~21"),
+            ("label=", "label~3D"),
+            ("[]", "~5B~5D"),
+            ("<=>", "~3C~3D~3E"),
+            ("~", "~7E"),
+            ("été", "~C3~A9t~C3~A9"),
+            ("`", "~60"),
+        ] {
+            assert_eq!(escape_id_segment(raw), escaped, "{raw}");
+        }
+    }
 
     fn example_shard() -> DocIr {
         DocIr {

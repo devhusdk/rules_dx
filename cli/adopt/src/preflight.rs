@@ -53,6 +53,7 @@ pub enum Kind {
     VersionRaise,
     OverrideConflict,
     ToolchainConflict,
+    BazelrcConflict,
 }
 
 impl Kind {
@@ -62,6 +63,7 @@ impl Kind {
             Kind::VersionRaise => "version_raise",
             Kind::OverrideConflict => "override_conflict",
             Kind::ToolchainConflict => "toolchain_conflict",
+            Kind::BazelrcConflict => "bazelrc_conflict",
         }
     }
 }
@@ -149,7 +151,56 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
     result
         .findings
         .extend(toolchain_conflicts(&sources, snippet_module.as_ref()));
+    result.findings.extend(bazelrc_conflicts(root));
     result
+}
+
+/// Flag lines in the root `.bazelrc` (and files it imports from `%workspace%`) that repeat a
+/// line the dx preset layers own. Advisory: `dx init` will not import the layers while the
+/// root file repeats them, so the file and line are named for the user to drop.
+fn bazelrc_conflicts(root: &Path) -> Vec<Finding> {
+    let owned = crate::preset_fragment::rendered_flag_lines(&crate::preset_fragment::render_all());
+    let mut out = Vec::new();
+    let mut pending = vec![".bazelrc".to_owned()];
+    let mut seen = std::collections::BTreeSet::new();
+    while let Some(rel) = pending.pop() {
+        if rel.starts_with(".dx/bazelrc/") || !seen.insert(rel.clone()) {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(root.join(&rel)) else {
+            continue;
+        };
+        for (index, raw) in text.lines().enumerate() {
+            let line = raw.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let words: Vec<&str> = line.split_whitespace().collect();
+            if let [verb, path] = words.as_slice() {
+                if matches!(*verb, "import" | "try-import") {
+                    if let Some(next) = path.strip_prefix("%workspace%/") {
+                        pending.push(next.to_owned());
+                    }
+                    continue;
+                }
+            }
+            if owned.contains(line) {
+                out.push(Finding {
+                    kind: Kind::BazelrcConflict,
+                    subject: line.to_owned(),
+                    before: "in your rc".to_owned(),
+                    after: "dx preset".to_owned(),
+                    file: rel.clone(),
+                    line: index + 1,
+                    hint: "the dx preset layers set this flag; drop the line so dx can import them"
+                        .to_owned(),
+                    hard: false,
+                });
+            }
+        }
+    }
+    out.sort_by(|a, b| (&a.file, a.line).cmp(&(&b.file, b.line)));
+    out
 }
 
 fn floors(snippet: Option<&ModuleFile>) -> Vec<(String, String)> {
@@ -450,6 +501,7 @@ pub fn render_plan_text(module: &str, plan: &Preflight) -> String {
         ("version raises", Kind::VersionRaise),
         ("override conflicts", Kind::OverrideConflict),
         ("toolchain conflicts", Kind::ToolchainConflict),
+        ("bazelrc conflicts", Kind::BazelrcConflict),
     ] {
         out.push_str(&format!("{title}:\n"));
         let items: Vec<&Finding> = plan.findings.iter().filter(|f| f.kind == kind).collect();
@@ -591,6 +643,29 @@ mod tests {
     fn rules_dx_workspace_is_not_applicable() {
         let dir = scratch(&[("MODULE.bazel", "module(name = \"rules_dx\")\n")]);
         assert!(!preflight(dir.path(), &snippet()).applicable);
+    }
+
+    #[test]
+    fn bazelrc_repeat_is_advisory_with_line() {
+        let dir = scratch(&[
+            ("MODULE.bazel", "module(name = \"app\")\n"),
+            (
+                ".bazelrc",
+                "# c\ntry-import %workspace%/extra.bazelrc\nbuild --jobs=2\n",
+            ),
+            ("extra.bazelrc", "\nbuild --verbose_failures\n"),
+        ]);
+        let plan = preflight(dir.path(), &snippet());
+        let f: Vec<_> = plan
+            .findings
+            .iter()
+            .filter(|f| f.kind == Kind::BazelrcConflict)
+            .collect();
+        assert_eq!(f.len(), 1, "{plan:?}");
+        assert_eq!(
+            (f[0].file.as_str(), f[0].line, f[0].hard),
+            ("extra.bazelrc", 2, false)
+        );
     }
 
     #[test]

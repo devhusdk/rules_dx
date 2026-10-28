@@ -23,12 +23,14 @@ load(
     "d_lint_subject",
     "d_subject",
     "dfmt_flag_tests",
+    "dialyzer_flag_tests",
     "dscanner_flag_tests",
     "elixir_lint_subject",
     "elixir_subject",
     "elvis_flag_tests",
     "erlang_lint_subject",
     "erlang_subject",
+    "erlang_typecheck_subject",
     "erlfmt_flag_tests",
     "julia_format_flag_tests",
     "julia_subject",
@@ -1268,6 +1270,33 @@ erlang_lint_subject(
 elvis_flag_tests(
     name = "elvis_flag",
     subject = ":erlang_lint_subject",
+)
+
+quality_family(
+    name = "erlang_typecheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "erlang",
+    typecheck = ["dialyzer"],
+)
+
+workspace_policy(
+    name = "erlang_typecheck_policy",
+    families = [":erlang_typecheck_family"],
+)
+
+erlang_typecheck_subject(
+    name = "erlang_typecheck_subject",
+    testonly = True,
+    target = "//erlang/tests/runtime:erlang_app",
+)
+
+dialyzer_flag_tests(
+    name = "dialyzer_flag",
+    subject = ":erlang_typecheck_subject",
 )
 
 quality_family(

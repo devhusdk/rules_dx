@@ -91,6 +91,13 @@ const CHECKSTYLE_MIDDLE: &[&str] = &["-f", "sarif"];
 const PMD_PREFIX: &[&str] = &["check"];
 const PMD_MIDDLE: &[&str] = &["--format", "sarif", "--rulesets"];
 const PMD_DEFAULT_RULESET: &[&str] = &["rulesets/java/quickstart.xml"];
+const DIALYZER_ARGS: &[&str] = &[
+    "--no_check_plt",
+    "--no_indentation",
+    "--error_location",
+    "column",
+];
+
 const SPOTBUGS_ARGS: &[&str] = &["-textui", "-effort:default", "-sarif"];
 const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
 const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
@@ -900,6 +907,23 @@ pub fn spotbugs_check(
         argv,
         cwd_rel: String::new(),
     })
+}
+
+/// `dialyzer` over compiled beams against pre-built PLTs. The PLT is trusted as is
+/// (`--no_check_plt`), and every beam, owned or auxiliary, is analysed.
+pub fn dialyzer_check(binary: &Path, plts: &[&Path], beams: &[&Path]) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    if !plts.is_empty() {
+        argv.push(OsString::from("--plts"));
+        argv.extend(plts.iter().map(|p| p.as_os_str().to_owned()));
+    }
+    argv.extend(DIALYZER_ARGS.iter().map(OsString::from));
+    argv.push(OsString::from("--"));
+    argv.extend(beams.iter().map(|b| b.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

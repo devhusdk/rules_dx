@@ -1,3 +1,6 @@
+load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("//erlang/rules:dialyzer.bzl", "dialyzer_plt", "dialyzer_tool", "otp_tool_binary")
+load("//erlang/toolchain:pins.bzl", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -10,6 +13,45 @@ alias(
 alias(
     name = "erlfmt",
     actual = "@dx_erlfmt//:erlfmt",
+)
+
+otp_tool_binary(
+    name = "dialyzer_bin",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    tool = "dialyzer",
+)
+
+otp_tool_binary(
+    name = "escript_bin",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    tool = "escript",
+)
+
+dialyzer_plt(
+    name = "otp_core_plt",
+    apps = DIALYZER_PLT_CORE,
+    dialyzer = ":dialyzer_bin",
+    escript = ":escript_bin",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+dialyzer_plt(
+    name = "otp_ext_plt",
+    apps = DIALYZER_PLT_APPS,
+    dialyzer = ":dialyzer_bin",
+    escript = ":escript_bin",
+    plts = [":otp_core_plt"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+dialyzer_tool(
+    name = "dialyzer",
+    binary = ":dialyzer_bin",
+    plts = [
+        ":otp_core_plt",
+        ":otp_ext_plt",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 real_source_target(

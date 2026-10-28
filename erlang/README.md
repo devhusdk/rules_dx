@@ -70,7 +70,15 @@ dx format --apply -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erl
 dx lint -- --@rules_dx//config:tool_elvis=@rules_dx//erlang/tools:elvis
 ```
 
-No Erlang type checker runs yet.
+`dx typecheck` checks the compiled beams of each `erlang_app` with the OTP 29.1.2
+dialyzer. Select `dialyzer` in an `erlang` family and pass the tool flag:
+
+```sh
+dx typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer
+```
+
+The base PLT is built by Bazel from the pinned OTP tree. See
+`docs/cli/commands/quality.md` for the PLT application list and the rules.
 
 ## Runtime
 

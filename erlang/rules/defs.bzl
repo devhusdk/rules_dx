@@ -8,6 +8,7 @@ load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
 load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
+load("//erlang/rules:providers.bzl", "BeamInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "CELLS")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
@@ -33,8 +34,28 @@ _SPECS = [("erlang", ["erl", "hrl"])]
 
 _EXTS = [".erl", ".hrl"]
 
+def _beams(info):
+    """The .beam files of one ErlangAppInfo; a prebuilt ebin directory is not supported."""
+    beams = []
+    for f in info.beam:
+        if f.is_directory:
+            fail("erlang_app " + info.app_name + ": dialyzer needs listed .beam files, not the directory " + f.short_path)
+        if f.extension == "beam":
+            beams.append(f)
+    return beams
+
+def _beam_info(_ctx, upstream):
+    info = upstream[_ErlangAppInfo]
+    return [BeamInfo(
+        app_name = info.app_name,
+        owned = depset(_beams(info)),
+        deps = depset([b for dep in info.deps for b in _beams(dep[_ErlangAppInfo])]),
+        extra_apps = info.extra_apps,
+    )]
+
 _erlang_app_forward = dx_library_forward_rule(
-    provides = [_ErlangAppInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    extra_providers = _beam_info,
+    provides = [_ErlangAppInfo, BeamInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
     quality_specs = _SPECS,
     what = "erlang_app",
@@ -66,8 +87,15 @@ else
     exit 2
 fi
 DX_ERLANG_HOME="$(cd "$runfiles/{root}" && pwd)"
-exec "$DX_ERLANG_HOME/bin/escript" "$runfiles/{archive}" "$@"
+{prelude}exec "$DX_ERLANG_HOME/bin/{tool}" {args}"$@"
 """
+
+# dialyzer reads $HOME for its caches even when every PLT is named; hermetic callers may unset it.
+_HOME_PRELUDE = 'export HOME="${HOME:-${TMPDIR:-/tmp}}"\n'
+
+def otp_launcher_text(root, tool, args = "", prelude = ""):
+    """Returns the shared launcher script that runs `bin/<tool>` of the resolved OTP tree."""
+    return _LAUNCHER.format(root = root, tool = tool, args = args, prelude = prelude)
 
 def runfiles_path(workspace_name, short_path):
     """Returns one file's path below the runfiles root."""
@@ -75,14 +103,27 @@ def runfiles_path(workspace_name, short_path):
         return short_path[3:]
     return workspace_name + "/" + short_path
 
+def otp_tool_binary_impl(ctx):
+    """Implements `otp_tool_binary`: a launcher for one `bin/<tool>` of the resolved OTP tree."""
+    (_, _, erlang_runfiles) = erlang_dirs(ctx)
+    root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
+    launcher = ctx.actions.declare_file(ctx.label.name)
+    ctx.actions.write(launcher, otp_launcher_text(
+        root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
+        tool = ctx.attr.tool,
+        prelude = _HOME_PRELUDE,
+    ), is_executable = True)
+    return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles))]
+
 def _escript_binary_impl(ctx):
     archive = ctx.attr.upstream[DefaultInfo].files_to_run.executable
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
     launcher = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(launcher, _LAUNCHER.format(
-        archive = runfiles_path(ctx.workspace_name, archive.short_path),
+    ctx.actions.write(launcher, otp_launcher_text(
         root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0],
+        tool = "escript",
+        args = '"$runfiles/' + runfiles_path(ctx.workspace_name, archive.short_path) + '" ',
     ), is_executable = True)
     runfiles = ctx.runfiles([launcher, archive]).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
     for dep in ctx.attr.data:

@@ -243,6 +243,7 @@ to.
 | `cue` | format | cue |
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
+| `dialyzer` | typecheck | erlang |
 | `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
 | `elvis` | lint | erlang |
@@ -326,19 +327,20 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`,
+  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
   `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
-  `dscanner`, `perltidy`, `erlfmt`, `elvis`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
+  `@rules_dx//erlang/tools:dialyzer`,
   `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
@@ -563,6 +565,41 @@ The `files` globs in a bound config match workspace-relative paths, such as
 `**/src/*.erl`. A file no glob matches is not checked. A config group that
 matches none of the checked files fails the run unless it sets
 `allow_no_files => true`. Do not set `output_format` in the config.
+
+### Erlang type checking
+
+`dialyzer` has no default executable. Select `dialyzer` in an `erlang` family
+and point the flag at the pinned OTP dialyzer and its PLTs.
+
+```starlark
+quality_family(
+    name = "erlang_family",
+    family_id = "erlang",
+    typecheck = ["dialyzer"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer
+```
+
+Without the flag, a policy that selects `dialyzer` fails the analysis and names
+the flag. Dialyzer checks the compiled `.beam` files of an `erlang_app` against
+the beams of its dependencies, so it sees the real compiler options, macros and
+generated modules. Every `erlang_app` is compiled with `debug_info`, which
+dialyzer needs. A dependency built without it fails the run and names the beam.
+
+The base PLT covers `erts`, `kernel`, `stdlib` and the OTP applications listed
+in `DIALYZER_PLT_CORE` and `DIALYZER_PLT_APPS` in `erlang/toolchain/pins.bzl`:
+`compiler`, `crypto`, `syntax_tools`, `sasl`, `public_key`, `ssl`, `inets`,
+`tools`, `runtime_tools` and `eunit`. Bazel builds it once per OTP version and
+execution platform. A call into an OTP application outside that list is
+reported as `dialyzer/unknown_function`. Each finding is a warning at its line
+and column, with the rule as `dialyzer/<rule>`: `no_return`, `pattern_match`,
+`invalid_contract`, `call`, `unmatched_return`, `unknown_function`,
+`unknown_type`, or `dialyzer` for the rest. Only findings in the target's own
+sources are reported. Dialyzer never fixes, so `--apply` changes nothing. To
+silence a warning, use a `-dialyzer(...)` attribute in the source.
 
 ### Elixir formatting
 

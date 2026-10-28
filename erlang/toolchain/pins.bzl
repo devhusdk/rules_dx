@@ -183,6 +183,12 @@ CELLS = {
     ),
 }
 
+# The OTP applications the dialyzer base PLT covers. A call into an application missing here
+# is an "Unknown function" warning, so the list holds what Erlang apps commonly use.
+DIALYZER_PLT_CORE = ["erts", "kernel", "stdlib"]
+
+DIALYZER_PLT_APPS = ["compiler", "crypto", "syntax_tools", "sasl", "public_key", "ssl", "inets", "tools", "runtime_tools", "eunit"]
+
 DROPPED_PATHS = ["Install", "misc"]
 
 DROPPED_APPLICATIONS = ["wx"]

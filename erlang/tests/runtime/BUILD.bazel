@@ -1,5 +1,5 @@
 load("//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "erlang_bytecode", "erlc_opts", "eunit", "test_erlang_app")
-load("//erlang/rules:wrapper_tests.bzl", "erlang_coverage_env_test")
+load("//erlang/rules:wrapper_tests.bzl", "erlang_beam_info_test", "erlang_coverage_env_test")
 load("//erlang/toolchain:pins.bzl", "OTP_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -19,6 +19,13 @@ test_erlang_app(
     app_name = "dx_runtime_probe",
     app_version = "1.0.0",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_beam_info_test(
+    name = "beam_info_test",
+    app_name = "dx_runtime_probe",
+    owned = ["dx_runtime_probe.beam"],
+    target = ":erlang_app",
 )
 
 erlc_opts(

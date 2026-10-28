@@ -83,6 +83,13 @@ label_flag(
 filegroup(name = "no_credo")
 
 label_flag(
+    name = "tool_dialyzer",
+    build_setting_default = ":no_dialyzer",
+)
+
+filegroup(name = "no_dialyzer")
+
+label_flag(
     name = "tool_elvis",
     build_setting_default = ":no_elvis",
 )

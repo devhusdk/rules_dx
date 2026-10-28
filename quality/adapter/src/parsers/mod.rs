@@ -12,6 +12,7 @@ pub mod csharpier;
 pub mod cue;
 pub mod deadnix;
 pub mod dfmt;
+pub mod dialyzer;
 pub mod djlint;
 pub mod dscanner;
 pub mod elvis;
@@ -94,6 +95,7 @@ pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
 pub use deadnix::parse_deadnix;
 pub use dfmt::parse_dfmt;
+pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use dscanner::parse_dscanner;
 pub use elvis::parse_elvis;
@@ -1973,6 +1975,14 @@ mod tests {
         super::elvis::parse_elvis(input, b"", code, files)
     }
 
+    fn fuzz_dialyzer(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dialyzer::parse_dialyzer(input, code, files)
+    }
+
     fn fuzz_erlfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2328,6 +2338,7 @@ mod tests {
         ("dscanner", fuzz_dscanner),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
+        ("dialyzer", fuzz_dialyzer),
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
@@ -2420,6 +2431,7 @@ mod tests {
         ("dfmt", include_str!("dfmt.rs")),
         ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
+        ("dialyzer", include_str!("dialyzer.rs")),
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),

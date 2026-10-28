@@ -5,6 +5,9 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "dialyzer.bzl",
+    "plt_fixup.escript",
+    "providers.bzl",
     "wrapper_tests.bzl",
 ])
 
@@ -16,6 +19,8 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "dialyzer.bzl",
+        "providers.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

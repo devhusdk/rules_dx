@@ -1209,8 +1209,12 @@ fn a_build_waiting_for_a_slot_starts_with_command_started() {
 fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
     let text: &[&str] = &["build", "//..."];
     let json: &[&str] = &["build", "//...", "--output=json"];
+    let run_text: &[&str] = &["run", "//demo:app"];
+    let run_json: &[&str] = &["run", "//demo:app", "--output=json"];
+    let update_text: &[&str] = &["update", "--apply", "cargo"];
+    let update_json: &[&str] = &["update", "--apply", "cargo", "--output=json"];
     for signo in [libc::SIGINT, libc::SIGTERM] {
-        for words in [text, json] {
+        for words in [text, json, run_text, run_json, update_text, update_json] {
             let scratch = dx_test_scratch::scratch("dx-stream-slot-stop-");
             let base = scratch.path();
             let held = hold_all_slots(base);
@@ -1240,7 +1244,7 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
                 err.contains(&format!("dx: cancelled: stopped by signal {signo}")),
                 "{signo} {words:?}\n{err}"
             );
-            if words == json {
+            if words.contains(&"--output=json") {
                 let events = json_events(&out);
                 assert_eq!(finished_exit(&events), None, "{signo} {words:?} {events:?}");
                 assert!(

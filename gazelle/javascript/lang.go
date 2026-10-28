@@ -138,7 +138,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
 		p.entry = !p.test && IsEntryFile(src)
-		p.refs = common.JSImportRefs(common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))))
+		p.refs = common.JSImportRefs(common.ParseSourceImportRefs(src, content, path.Join(args.Rel, path.Dir(src))))
 		plans = append(plans, p)
 	}
 	if rep.Failed() {

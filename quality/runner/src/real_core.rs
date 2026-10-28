@@ -229,6 +229,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "shellcheck",
             "shfmt",
             "spotbugs",
+            "sqlfluff",
             "standardrb",
             "staticcheck",
             "statix",

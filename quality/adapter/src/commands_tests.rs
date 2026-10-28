@@ -1742,6 +1742,40 @@ fn cfn_lint_check_always_passes_the_config_and_no_spec_or_region_flags() {
 }
 
 #[test]
+fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
+    let a = Path::new("/scratch/a.sql");
+    let b = Path::new("/scratch/b.sql");
+    let argv = argv_strings(&sqlfluff_check(
+        Path::new(BIN),
+        &[a, b],
+        Path::new("/scratch/.sqlfluff"),
+    ));
+    assert_eq!(
+        argv,
+        [
+            BIN,
+            "lint",
+            "--format",
+            "json",
+            "--config",
+            "/scratch/.sqlfluff",
+            "--ignore-local-config",
+            "--disregard-sqlfluffignores",
+            "--nocolor",
+            "--disable-progress-bar",
+            "--processes",
+            "1",
+            "--",
+            "/scratch/a.sql",
+            "/scratch/b.sql"
+        ]
+    );
+    for banned in ["--dialect", "fix", "format", "--templater"] {
+        assert!(!argv.iter().any(|arg| arg == banned), "{banned}");
+    }
+}
+
+#[test]
 fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
     let query = Path::new("/scratch/api/query.graphql");
     let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));

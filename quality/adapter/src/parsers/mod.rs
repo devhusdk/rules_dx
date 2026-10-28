@@ -84,6 +84,7 @@ pub mod scalafmt;
 pub mod shellcheck;
 pub mod shfmt;
 pub mod spotbugs;
+pub mod sqlfluff;
 pub mod standardrb;
 pub mod staticcheck;
 pub mod statix;
@@ -184,6 +185,7 @@ pub use scalafmt::parse_scalafmt;
 pub use shellcheck::parse_shellcheck;
 pub use shfmt::parse_shfmt;
 pub use spotbugs::parse_spotbugs;
+pub use sqlfluff::parse_sqlfluff;
 pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
 pub use statix::parse_statix;
@@ -2423,6 +2425,14 @@ mod tests {
         super::spotbugs::parse_spotbugs(input, code, files)
     }
 
+    fn fuzz_sqlfluff(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::sqlfluff::parse_sqlfluff(input, input, code, files)
+    }
+
     fn fuzz_standardrb(
         input: &[u8],
         code: Option<i32>,
@@ -2650,6 +2660,7 @@ mod tests {
         ("shellcheck", fuzz_shellcheck),
         ("shfmt", fuzz_shfmt),
         ("spotbugs", fuzz_spotbugs),
+        ("sqlfluff", fuzz_sqlfluff),
         ("standardrb", fuzz_standardrb),
         ("staticcheck", fuzz_staticcheck),
         ("statix", fuzz_statix),
@@ -2755,6 +2766,7 @@ mod tests {
         ("shellcheck", include_str!("shellcheck.rs")),
         ("shfmt", include_str!("shfmt.rs")),
         ("spotbugs", include_str!("spotbugs.rs")),
+        ("sqlfluff", include_str!("sqlfluff.rs")),
         ("standardrb", include_str!("standardrb.rs")),
         ("staticcheck", include_str!("staticcheck.rs")),
         ("statix", include_str!("statix.rs")),

@@ -93,6 +93,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "shellcheck",
     "shfmt",
     "spotbugs",
+    "sqlfluff",
     "standardrb",
     "staticcheck",
     "statix",
@@ -726,6 +727,7 @@ mod kubeconform;
 mod pipeline;
 mod redocly;
 mod rustfmt;
+mod sqlfluff;
 mod staging;
 
 pub use pipeline::{

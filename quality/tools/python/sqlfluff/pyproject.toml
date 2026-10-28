@@ -1,0 +1,11 @@
+# Separate project from ../pyproject.toml: sqlfluff caps click below 8.5 while
+# check-jsonschema needs 8.5 or newer, so the two cannot share one resolution.
+# Update flow: bump the bound here, then regenerate with `uv lock` in this
+# directory.
+[project]
+name = "dx-sqlfluff"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+  "sqlfluff>=4.4.0,<5",
+]

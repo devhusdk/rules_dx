@@ -597,6 +597,20 @@ SQL_PRETTIER_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+SQL_SQLFLUFF_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["sql"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "sql",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "sqlfluff",
+    "transport": "batched",
+}
+
 XML_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -994,6 +1008,7 @@ SUPPORT_RECORDS = [
     DOCKERFILE_PRETTIER_FORMAT_SUPPORT,
     PHP_PRETTIER_FORMAT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
+    SQL_SQLFLUFF_LINT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_GPLINT_LINT_SUPPORT,

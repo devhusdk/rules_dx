@@ -153,6 +153,7 @@ rust_library(
         "src/parsers/shellcheck.rs",
         "src/parsers/shfmt.rs",
         "src/parsers/spotbugs.rs",
+        "src/parsers/sqlfluff.rs",
         "src/parsers/standardrb.rs",
         "src/parsers/staticcheck.rs",
         "src/parsers/statix.rs",
@@ -169,6 +170,7 @@ rust_library(
         "src/parsers/yamllint.rs",
         "src/parsers/zig_fmt.rs",
         "src/pointer_index.rs",
+        "src/sqlfluff_preflight.rs",
     ],
     aliases = aliases(
         package_name = "quality/quality_adapter",
@@ -292,6 +294,7 @@ rust_test(
         "src/parsers/shellcheck.rs",
         "src/parsers/shfmt.rs",
         "src/parsers/spotbugs.rs",
+        "src/parsers/sqlfluff.rs",
         "src/parsers/standardrb.rs",
         "src/parsers/staticcheck.rs",
         "src/parsers/statix.rs",
@@ -308,6 +311,7 @@ rust_test(
         "src/parsers/yamllint.rs",
         "src/parsers/zig_fmt.rs",
         "src/pointer_index.rs",
+        "src/sqlfluff_preflight.rs",
     ],
     aliases = aliases(
         package_name = "quality/quality_adapter",

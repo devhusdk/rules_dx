@@ -1,0 +1,15 @@
+producer //quality/testdata:matrix_sql_lint_fail
+capability LINT
+stages 1
+stage sqlfluff classes=sql sources=matrix/sql_dirty/a.sql
+completed_rounds 1
+convergence STABLE
+initial 3
+initial ERROR sqlfluff LT09 matrix/sql_dirty/a.sql 0 10 fixable=false "Select targets should be on a new line unless there is only one select target."
+initial ERROR sqlfluff LT01 matrix/sql_dirty/a.sql 9 10 fixable=false "Expected single whitespace between comma ',' and naked identifier."
+initial ERROR sqlfluff LT01 matrix/sql_dirty/a.sql 15 17 fixable=false "Expected only single space before naked identifier. Found '  '."
+terminal 3
+terminal ERROR sqlfluff LT09 matrix/sql_dirty/a.sql 0 10 fixable=false "Select targets should be on a new line unless there is only one select target."
+terminal ERROR sqlfluff LT01 matrix/sql_dirty/a.sql 9 10 fixable=false "Expected single whitespace between comma ',' and naked identifier."
+terminal ERROR sqlfluff LT01 matrix/sql_dirty/a.sql 15 17 fixable=false "Expected only single space before naked identifier. Found '  '."
+replacements 0

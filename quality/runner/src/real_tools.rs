@@ -3675,6 +3675,191 @@ fn cmakelint_has_no_delegated_mode() {
     assert!(err.to_string().contains("no delegated mode"), "{err}");
 }
 
+const SQL_DIRTY: &str = "select a,b from t\n";
+const SQL_CLEAN: &str = "select a from t\n";
+
+static SQLFLUFF_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn sqlfluff_tool(config: &str) -> RealTool {
+    RealTool {
+        config_rel: Some("sql/.sqlfluff".to_owned()),
+        tool_files: vec![("sql/.sqlfluff".to_owned(), config.as_bytes().to_vec())],
+        ..plain_tool()
+    }
+}
+
+const SQLFLUFF_CONFIG: &str = "[sqlfluff]\ndialect = ansi\n";
+
+fn sqlfluff_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(env.iter().all(|(key, _)| key != "HOME"), "HOME leaked");
+    SQLFLUFF_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(args[..4], ["lint", "--format", "json", "--config"]);
+    assert!(Path::new(&args[4]).is_file(), "config file exists");
+    assert_eq!(args[5], "--ignore-local-config");
+    let separator = args.iter().position(|arg| arg == "--").expect("separator");
+    let mut entries = Vec::new();
+    let mut dirty = false;
+    for name in &args[separator + 1..] {
+        let violations = if std::fs::read_to_string(name)?.contains("a,b") {
+            dirty = true;
+            r#"{"start_line_no":1,"start_line_pos":9,"code":"LT01","description":"Expected single whitespace.","name":"layout.spacing","warning":false}"#
+        } else {
+            ""
+        };
+        entries.push(format!(
+            r#"{{"filepath":"{name}","violations":[{violations}],"statistics":{{}},"timings":{{}}}}"#
+        ));
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(dirty)),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn sqlfluff_usage_error(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: Vec::new(),
+        stderr: b"User Error: No dialect was specified.\n".to_vec(),
+    })
+}
+
+fn sqlfluff_malformed(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"not json".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn sqlfluff_skips_every_file(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"[]".to_vec(),
+        stderr: b"WARNING    Length of file is over the limit. Skipping".to_vec(),
+    })
+}
+
+#[test]
+fn sqlfluff_lints_every_file_in_one_run_and_stays_check_only() {
+    let backend = backend_for("sqlfluff", sqlfluff_tool(SQLFLUFF_CONFIG), sqlfluff_fake);
+    let mut files = single("db/a.sql", SQL_DIRTY);
+    files.insert("db/b.sql".to_owned(), SQL_CLEAN.to_owned());
+    let before = SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let findings = backend
+        .diagnose("sqlfluff", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(
+        SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
+        1
+    );
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "db/a.sql");
+    assert_eq!(findings[0].rule_id, "LT01");
+    assert_eq!(findings[0].tool_id, "sqlfluff");
+    assert_eq!(
+        backend
+            .apply_fix("sqlfluff", "db/a.sql", SQL_DIRTY, "lint")
+            .expect("check-only"),
+        SQL_DIRTY
+    );
+}
+
+#[test]
+fn sqlfluff_without_a_config_is_refused() {
+    let backend = backend_for("sqlfluff", plain_tool(), sqlfluff_fake);
+    let before = SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let err = backend
+        .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
+        .expect_err("needs a config");
+    assert!(
+        err.to_string().contains("sqlfluff requires a config"),
+        "{err}"
+    );
+    assert_eq!(
+        SQLFLUFF_SPAWNS.load(std::sync::atomic::Ordering::SeqCst),
+        before
+    );
+}
+
+#[test]
+fn sqlfluff_refuses_a_config_the_preflight_rejects() {
+    for config in [
+        "[sqlfluff]\ntemplater = raw\n",
+        "[sqlfluff]\ndialect = postgresql\n",
+        "[sqlfluff]\ndialect = ansi\ntemplater = dbt\n",
+        "[sqlfluff]\ndialect = ansi\n[sqlfluff:templater:jinja]\nload_macros_from_path = m\n",
+    ] {
+        let err = backend_for("sqlfluff", sqlfluff_tool(config), sqlfluff_fake)
+            .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
+            .expect_err(config);
+        assert!(err.to_string().contains("sqlfluff config"), "{err}");
+    }
+}
+
+#[test]
+fn sqlfluff_refuses_inline_directives_that_load_files() {
+    let sql = "-- sqlfluff:templater:jinja:library_path:/some/dir\nselect a from t\n";
+    let err = backend_for("sqlfluff", sqlfluff_tool(SQLFLUFF_CONFIG), sqlfluff_fake)
+        .diagnose("sqlfluff", "lint", &single("db/a.sql", sql))
+        .expect_err("inline library_path");
+    assert!(
+        err.to_string().contains("inline sqlfluff directive"),
+        "{err}"
+    );
+}
+
+#[test]
+fn sqlfluff_failures_are_never_clean() {
+    let one = single("db/a.sql", SQL_CLEAN);
+    for spawn in [
+        sqlfluff_usage_error as Spawn,
+        sqlfluff_malformed,
+        sqlfluff_skips_every_file,
+        cfn_lint_crash,
+        cfn_lint_missing_binary,
+    ] {
+        backend_for("sqlfluff", sqlfluff_tool(SQLFLUFF_CONFIG), spawn)
+            .diagnose("sqlfluff", "lint", &one)
+            .expect_err("a failed run is an error");
+    }
+}
+
+#[test]
+fn sqlfluff_has_no_delegated_mode() {
+    let tool = RealTool {
+        upstream_diagnostics: vec![PathBuf::from("/fake/up.json")],
+        ..sqlfluff_tool(SQLFLUFF_CONFIG)
+    };
+    let err = backend_for("sqlfluff", tool, sqlfluff_fake)
+        .diagnose("sqlfluff", "lint", &single("db/a.sql", SQL_CLEAN))
+        .expect_err("delegated");
+    assert!(err.to_string().contains("no delegated mode"), "{err}");
+}
+
 const NOTEBOOK_DIRTY: &str = "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\"# Title\"]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": 7,\n      \"metadata\": {\"tags\": [\"keep\"]},\n      \"outputs\": [{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}],\n      \"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\"x   =   1\"]\n    }\n  ],\n  \"metadata\": {\"language_info\": {\"name\": \"python\"}},\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}\n";
 
 fn notebook_backend() -> RealBackend {

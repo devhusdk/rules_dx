@@ -424,6 +424,41 @@ impl RealBackend {
     }
 }
 
+/// Collection roots (the directories that hold `ansible_collections/`) among the staged tool files.
+///
+/// Roots come back sorted and unique; the same `namespace.collection` under two roots is an error.
+pub(super) fn ansible_collections_roots<'a>(
+    rels: impl IntoIterator<Item = &'a str>,
+) -> Result<Vec<String>, String> {
+    let mut owners: BTreeMap<(String, String), String> = BTreeMap::new();
+    let mut roots = std::collections::BTreeSet::new();
+    for rel in rels {
+        let parts: Vec<&str> = rel.split('/').collect();
+        let Some(at) = parts.iter().position(|part| *part == "ansible_collections") else {
+            continue;
+        };
+        if parts.len() < at + 4 {
+            continue;
+        }
+        let root = parts[..at].join("/");
+        let key = (parts[at + 1].to_owned(), parts[at + 2].to_owned());
+        match owners.get(&key) {
+            Some(first) if *first != root => {
+                return Err(format!(
+                    "ansible collection {}.{} is staged under two roots ({:?} and {:?})",
+                    key.0, key.1, first, root
+                ));
+            }
+            Some(_) => {}
+            None => {
+                owners.insert(key, root.clone());
+            }
+        }
+        roots.insert(root);
+    }
+    Ok(roots.into_iter().collect())
+}
+
 pub(super) fn qml_import_roots(
     tool_id: &str,
     context: &[StagedPair],
@@ -503,4 +538,31 @@ fn extract_semanticdb(jar: &Path, into: &Path) -> Result<(), String> {
         std::io::copy(&mut entry, &mut out).map_err(|err| err.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ansible_roots_tests {
+    use super::ansible_collections_roots;
+
+    #[test]
+    fn roots_are_sorted_unique_and_include_the_scratch_root() {
+        let roots = ansible_collections_roots([
+            "z/ansible_collections/a/b/x",
+            "ansible_collections/c/d/y",
+            "z/ansible_collections/a/b/y",
+            "cfg/.ansible-lint",
+        ])
+        .expect("roots");
+        assert_eq!(roots, ["", "z"]);
+    }
+
+    #[test]
+    fn the_same_collection_under_two_roots_is_rejected() {
+        let err = ansible_collections_roots([
+            "a/ansible_collections/x/y/f",
+            "b/ansible_collections/x/y/f",
+        ])
+        .expect_err("duplicate");
+        assert!(err.contains("x.y"), "{err}");
+    }
 }

@@ -1,0 +1,9 @@
+{
+ "collection_info": {
+  "namespace": "dxtest",
+  "name": "tiny",
+  "version": "1.0.0",
+  "dependencies": {}
+ },
+ "format": 1
+}

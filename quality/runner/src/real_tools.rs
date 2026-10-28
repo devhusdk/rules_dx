@@ -3940,3 +3940,88 @@ fn dialyzer_is_check_only() {
         DIALYZER_SRC
     );
 }
+
+const ANSIBLE_CLEAN_SARIF: &str =
+    r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"ansible-lint"}},"results":[]}]}"#;
+
+fn ansible_clean(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_ne!(argv[1], "--dx-collections-path", "{argv:?}");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: ANSIBLE_CLEAN_SARIF.as_bytes().to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn ansible_expects_external_root(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], "--dx-collections-path", "{argv:?}");
+    let roots: Vec<PathBuf> = std::env::split_paths(&argv[2]).collect();
+    assert_eq!(roots.len(), 1, "{roots:?}");
+    assert!(roots[0].ends_with("_external/dx_hub"), "{roots:?}");
+    assert!(
+        roots[0]
+            .join("ansible_collections/dxtest/tiny/MANIFEST.json")
+            .is_file(),
+        "collection files are staged under the root"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: ANSIBLE_CLEAN_SARIF.as_bytes().to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn ansible_collection_tool(files: &[&str]) -> RealTool {
+    RealTool {
+        tool_files: files
+            .iter()
+            .map(|rel| ((*rel).to_owned(), b"{}".to_vec()))
+            .collect(),
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn ansible_lint_collection_roots_reach_argv_from_external_repos() {
+    let tool = ansible_collection_tool(&[
+        "_external/dx_hub/ansible_collections/dxtest/tiny/MANIFEST.json",
+        "_external/dx_hub/ansible_collections/dxtest/tiny/plugins/modules/hello.py",
+    ]);
+    let backend = backend_for("ansible_lint", tool, ansible_expects_external_root);
+    let findings = backend
+        .diagnose("ansible_lint", "lint", &single("site.yml", "---\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn ansible_lint_without_collections_gets_no_flag() {
+    let backend = backend_for("ansible_lint", plain_tool(), ansible_clean);
+    let findings = backend
+        .diagnose("ansible_lint", "lint", &single("site.yml", "---\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn ansible_lint_duplicate_collection_under_two_roots_is_an_error() {
+    let tool = ansible_collection_tool(&[
+        "_external/a/ansible_collections/dxtest/tiny/MANIFEST.json",
+        "_external/b/ansible_collections/dxtest/tiny/MANIFEST.json",
+    ]);
+    let backend = backend_for("ansible_lint", tool, ansible_clean);
+    let err = backend
+        .diagnose("ansible_lint", "lint", &single("site.yml", "---\n"))
+        .expect_err("duplicate roots must not be clean");
+    assert!(err.to_string().contains("dxtest.tiny"), "{err}");
+}

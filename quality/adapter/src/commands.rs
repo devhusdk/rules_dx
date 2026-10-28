@@ -1504,25 +1504,37 @@ pub fn psscriptanalyzer_format_fix(
     )
 }
 
-/// `--offline --nocolor -f sarif --project-dir <dir>` with an optional `-c <config>` before the files.
+/// Everything an ansible-lint invocation needs besides the binary and the files.
+pub struct AnsibleLintContext<'a> {
+    pub config: Option<&'a Path>,
+    pub collections: &'a [&'a Path],
+    pub project_dir: &'a Path,
+}
+
+/// `--offline --nocolor -f sarif --project-dir <dir>`, an optional `-c <config>`, and a leading `--dx-collections-path` when collection roots are staged.
 pub fn ansible_lint_check(
     binary: &Path,
     files: &[&Path],
-    config: Option<&Path>,
-    project_dir: &Path,
+    context: &AnsibleLintContext<'_>,
 ) -> Invocation {
-    let mut args: Vec<OsString> = ["--offline", "--nocolor", "-f", "sarif", "--project-dir"]
-        .iter()
-        .map(OsString::from)
-        .collect();
-    args.push(project_dir.as_os_str().to_owned());
-    if let Some(config) = config {
-        args.push(OsString::from("-c"));
-        args.push(config.as_os_str().to_owned());
-    }
-    args.extend(files.iter().map(|file| file.as_os_str().to_owned()));
     let mut argv = vec![binary.as_os_str().to_owned()];
-    argv.extend(args);
+    if !context.collections.is_empty() {
+        let joined = std::env::join_paths(context.collections.iter().copied())
+            .unwrap_or_else(|_| OsString::new());
+        argv.push(OsString::from("--dx-collections-path"));
+        argv.push(joined);
+    }
+    argv.extend(
+        ["--offline", "--nocolor", "-f", "sarif", "--project-dir"]
+            .iter()
+            .map(OsString::from),
+    );
+    argv.push(context.project_dir.as_os_str().to_owned());
+    if let Some(config) = context.config {
+        argv.push(OsString::from("-c"));
+        argv.push(config.as_os_str().to_owned());
+    }
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
     Invocation {
         argv,
         cwd_rel: String::new(),

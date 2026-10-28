@@ -220,6 +220,13 @@ register_toolchains(
     dev_dependency = True,
 )
 
+ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
+ansible.collections(
+    name = "dx_ansible_test_collections",
+    lock = "//ansible/tests:fixtures/collections/lock.json",
+)
+use_repo(ansible, "dx_ansible_test_collections")
+
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_dotnet", version = "0.22.2")
 single_version_override(

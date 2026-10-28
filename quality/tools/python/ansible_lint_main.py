@@ -14,6 +14,7 @@ WINDOWS_MESSAGE = (
     "remove ansible_lint from this family on Windows"
 )
 WINDOWS_EXIT = 69
+COLLECTIONS_FLAG = "--dx-collections-path"
 SHIM_MODULES = {
     "ansible": "ansible.cli.adhoc",
     "ansible-config": "ansible.cli.config",
@@ -47,8 +48,8 @@ def write_shims(directory, script):
     return directory
 
 
-def prepare_env(environ):
-    """Exports import roots, shim PATH and cache dirs into environ."""
+def prepare_env(environ, collections=None):
+    """Exports import roots, shim PATH, cache dirs and the collections path into environ."""
     tmp = environ.get("TMPDIR") or "/tmp"
     sites = [str(site) for site in site_packages()]
     existing = environ.get("PYTHONPATH")
@@ -62,6 +63,10 @@ def prepare_env(environ):
     environ.setdefault("ANSIBLE_LOCAL_TEMP", os.path.join(tmp, "ansible-local"))
     environ.setdefault("XDG_CACHE_HOME", os.path.join(tmp, "ansible-cache"))
     environ["ANSIBLE_COLLECTIONS_SCAN_SYS_PATH"] = "False"
+    environ.pop("ANSIBLE_COLLECTIONS_PATH", None)
+    environ.pop("ANSIBLE_COLLECTIONS_PATHS", None)
+    if collections:
+        environ["ANSIBLE_COLLECTIONS_PATH"] = collections
     environ["ANSIBLE_LINT_SKIP_SCHEMA_UPDATE"] = "1"
     return shims
 
@@ -74,7 +79,14 @@ def main(argv=None):
         return WINDOWS_EXIT
     if argv[:1] == ["--ansible-shim"]:
         return shim_main(argv[1], argv[2:])
-    prepare_env(os.environ)
+    collections = None
+    if argv[:1] == [COLLECTIONS_FLAG]:
+        if len(argv) < 2:
+            print("ansible_lint: %s needs a value" % COLLECTIONS_FLAG, file=sys.stderr)
+            return 2
+        collections = argv[1]
+        argv = argv[2:]
+    prepare_env(os.environ, collections)
     sys.argv = ["ansible-lint"] + argv
     return import_tool("ansiblelint.__main__", "_run_cli_entrypoint")()
 

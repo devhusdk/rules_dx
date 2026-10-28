@@ -50,9 +50,30 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUBY` in `modules/versions.bzl`.
-pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.28.0";
+pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.29.0";
 
-pub const CONSUMER_RUBY_VERSION: &str = "3.4.9";
+pub const CONSUMER_RUBY_VERSION: &str = "3.4.12";
+
+/// Portable Ruby asset digests for `CONSUMER_RUBY_VERSION`: `PORTABLE_RUBY_CHECKSUMS` in
+/// `modules/ruby.bzl`. rules_ruby does not ship them for this Ruby, so the toolchain passes them.
+pub const CONSUMER_PORTABLE_RUBY_CHECKSUMS: &[(&str, &str)] = &[
+    (
+        "ruby-3.4.12.arm64_darwin.tar.gz",
+        "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
+    ),
+    (
+        "ruby-3.4.12.arm64_linux.tar.gz",
+        "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
+    ),
+    (
+        "ruby-3.4.12.x86_64_darwin.tar.gz",
+        "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
+    ),
+    (
+        "ruby-3.4.12.x86_64_linux.tar.gz",
+        "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
+    ),
+];
 
 /// Bazel output base that rust-analyzer discovery runs on.
 pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
@@ -507,10 +528,11 @@ mod tests {
     use super::{
         apply_init, entries, plan_init_files, plan_init_files_for_host, plan_init_files_with,
         render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
-        CONSUMER_RUBY_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUBY_VERSION,
-        CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION,
-        CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
-        CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+        CONSUMER_PORTABLE_RUBY_CHECKSUMS, CONSUMER_RUBY_VERSION, CONSUMER_RULES_CC_VERSION,
+        CONSUMER_RULES_RUBY_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
+        CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
+        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -1145,7 +1167,7 @@ mod tests {
         let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
         let text = std::fs::read_to_string(
             std::path::Path::new(&source)
-                .join(workspace)
+                .join(&workspace)
                 .join("modules/versions.bzl"),
         )
         .expect("modules/versions.bzl ships as test data");
@@ -1162,6 +1184,18 @@ mod tests {
             assert!(
                 text.contains(&format!("{key} = \"{value}\"")),
                 "{key} drifts from modules/versions.bzl"
+            );
+        }
+        let ruby = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(&workspace)
+                .join("modules/ruby.bzl"),
+        )
+        .expect("modules/ruby.bzl ships as test data");
+        for (name, digest) in CONSUMER_PORTABLE_RUBY_CHECKSUMS {
+            assert!(
+                ruby.contains(&format!("\"{name}\": \"{digest}\"")),
+                "{name} drifts from modules/ruby.bzl"
             );
         }
     }

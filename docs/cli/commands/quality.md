@@ -1995,13 +1995,14 @@ and its `gem_checksums` into your module, then point the tools at the bundle in
 `.bazelrc`.
 
 ```python
-bazel_dep(name = "rules_ruby", version = "0.28.0")
+bazel_dep(name = "rules_ruby", version = "0.29.0")
 
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
 ruby.toolchain(
     name = "ruby",
     portable_ruby = True,
-    version = "3.4.9",
+    portable_ruby_checksums = {...},
+    version = "3.4.12",
 )
 ruby.bundle_fetch(
     name = "dx_bundle",

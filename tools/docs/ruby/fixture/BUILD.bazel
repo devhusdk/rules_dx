@@ -5,12 +5,15 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
-exports_files([
-    "ext/square.rb",
-    "lib/geometry.rb",
-    "lib/geometry/shapes.rb",
-    "testdata/broken.rb",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "ext/square.rb",
+        "lib/geometry.rb",
+        "lib/geometry/shapes.rb",
+        "testdata/broken.rb",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 ruby_library(
     name = "geometry",

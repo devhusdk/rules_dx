@@ -5,11 +5,14 @@ load(":defs.bzl", "ruby_doc_runtime")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "defs.bzl",
-    "repos.bzl",
-    "yard_dump.rb",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "defs.bzl",
+        "repos.bzl",
+        "yard_dump.rb",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 # The shard rule runs the driver itself with the pinned YARD on its load path.
 # gazelle:exclude yard_dump.rb

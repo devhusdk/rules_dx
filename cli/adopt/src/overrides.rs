@@ -64,7 +64,7 @@ pub const OVERRIDES: &[Override] = &[
     },
     Override {
         module: "rules_dotnet",
-        version: "0.22.1",
+        version: "0.22.2",
         patch_strip: 1,
         patches: &[
             OverridePatch {
@@ -79,7 +79,7 @@ pub const OVERRIDES: &[Override] = &[
     },
     Override {
         module: "rules_ruby",
-        version: "0.28.0",
+        version: "0.29.0",
         patch_strip: 1,
         patches: &[
             OverridePatch {

@@ -1,6 +1,6 @@
 # PowerShell
 
-Build, run and test PowerShell with a pinned pwsh 7.5.4. Nothing is installed
+Build, run and test PowerShell with a pinned pwsh 7.5.11. Nothing is installed
 on the host and nothing is fetched until a target needs it. rules_dx registers
 the toolchain, so there is no setup in `MODULE.bazel`.
 

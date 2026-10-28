@@ -70,6 +70,27 @@ rego_library(
 )
 "#;
 
+const APP_TEST: &str = "package app_test\n\nimport data.app\n\ntest_value if app.value == 42\n\ntest_limit if app.limit == 1\n";
+
+const APP_TEST_FAILS: &str = "package app_test\n\nimport data.app\n\ntest_value if app.value == 42\n\ntest_wrong_answer if app.value == 41\n";
+
+const TEST_APP_BUILD: &str = r#"load("@rules_dx//rego/rules:defs.bzl", "rego_library", "rego_test")
+
+rego_library(
+    name = "app",
+    srcs = ["main.rego"],
+    data = ["data.json"],
+    deps = ["//lib:base"],
+    visibility = ["//visibility:public"],
+)
+
+rego_test(
+    name = "app_test",
+    srcs = ["main_test.rego"],
+    deps = [":app"],
+)
+"#;
+
 const LINT_BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "regal_config")
 load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -376,4 +397,46 @@ fn a_regal_override_that_is_not_a_file_fails_and_names_the_tool() {
     let text = out.combined();
     assert_ne!(out.status.code(), Some(0), "{text}");
     assert!(text.contains("regal"), "{text}");
+}
+
+fn test_consumer(test_source: &str) -> Case {
+    let root = consumer();
+    write(
+        &root.join(".bazelrc"),
+        "common --enable_bzlmod\nbuild:dx_dev --compilation_mode=fastbuild\nbuild --remote_download_outputs=all\n",
+    );
+    write(&root.join("app/BUILD.bazel"), TEST_APP_BUILD);
+    write(&root.join("app/main_test.rego"), test_source);
+    root
+}
+
+#[test]
+fn dx_test_runs_a_passing_rego_test() {
+    let root = test_consumer(APP_TEST);
+    let out = dx(&root, "test", &[], &[]);
+    let text = out.combined();
+    assert_eq!(out.status.code(), Some(0), "{text}");
+    assert!(text.contains("//app:app_test"), "{text}");
+}
+
+#[test]
+fn dx_test_fails_a_failing_rego_test_and_names_the_target() {
+    let root = test_consumer(APP_TEST_FAILS);
+    let out = dx(&root, "test", &[], &[]);
+    let text = out.combined();
+    assert_ne!(out.status.code(), Some(0), "{text}");
+    assert!(text.contains("//app:app_test"), "{text}");
+}
+
+#[test]
+fn dx_test_runs_with_the_network_denied_after_the_fetch() {
+    let root = test_consumer(APP_TEST);
+    let warm = dx(&root, "test", &[], &[]);
+    assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
+    let scratch_dir = scratch("rego-denied");
+    let denied = scratch_dir.path().join("downloader.cfg");
+    write(&denied, "allow bcr.bazel.build\nblock *\n");
+    let denied_flag = format!("--downloader_config={}", denied.display());
+    let again = dx(&root, "test", &[], &[denied_flag.as_str()]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
 }

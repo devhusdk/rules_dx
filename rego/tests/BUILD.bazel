@@ -1,7 +1,8 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//rego/rules:defs.bzl", "rego_library")
-load(":library_tests.bzl", "owns_rego_class_test", "transitive_context_test")
+load("//rego/rules:defs.bzl", "rego_library", "rego_test")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load(":library_tests.bzl", "owns_rego_class_test", "test_descriptor_test", "test_sources_test", "transitive_context_test")
 
 rego_library(
     name = "lib",
@@ -37,6 +38,103 @@ failure_test(
     name = "non_rego_src_fails",
     expected_failure_substring = "notes.txt",
     target = ":bad_src",
+)
+
+rego_test(
+    name = "pass_test",
+    srcs = ["fixtures/app_test.rego"],
+    data = ["fixtures/data.json"],
+    deps = [":app"],
+)
+
+rego_test(
+    name = "fail_test",
+    srcs = ["fixtures/fail_test.rego"],
+    tags = ["manual"],
+)
+
+rego_test(
+    name = "empty_test",
+    srcs = ["fixtures/empty_test.rego"],
+    tags = ["manual"],
+)
+
+rego_test(
+    name = "bad_test_src",
+    srcs = ["fixtures/notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_test_src_fails",
+    expected_failure_substring = "notes.txt",
+    target = ":bad_test_src",
+)
+
+test_sources_test(
+    name = "test_sources_test",
+    size = "small",
+    target_under_test = ":pass_test",
+)
+
+test_descriptor_test(
+    name = "test_descriptor_test",
+    size = "small",
+    target_under_test = ":pass_test",
+)
+
+[
+    filegroup(
+        name = name + "_manifest",
+        testonly = True,
+        srcs = [":" + name],
+        output_group = "rego_test_manifest",
+        tags = ["manual"],
+    )
+    for name in [
+        "empty_test",
+        "fail_test",
+        "pass_test",
+    ]
+]
+
+rust_test(
+    name = "opa_test_run_test",
+    srcs = ["opa_test_run_test.rs"],
+    crate_root = "opa_test_run_test.rs",
+    data = [
+        ":empty_test",
+        ":empty_test_manifest",
+        ":fail_test",
+        ":fail_test_manifest",
+        ":pass_test",
+        ":pass_test_manifest",
+    ],
+    edition = "2021",
+    env = {
+        "EMPTY_EXE": "$(rootpath :empty_test)",
+        "EMPTY_MANIFEST": "$(rlocationpath :empty_test_manifest)",
+        "FAIL_EXE": "$(rootpath :fail_test)",
+        "FAIL_MANIFEST": "$(rlocationpath :fail_test_manifest)",
+        "PASS_EXE": "$(rootpath :pass_test)",
+        "PASS_MANIFEST": "$(rlocationpath :pass_test_manifest)",
+    },
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+)
+
+rustfmt_test(
+    name = "opa_test_run_fmt_test",
+    size = "small",
+    targets = [":opa_test_run_test"],
+)
+
+rust_clippy_test(
+    name = "opa_test_run_clippy_test",
+    size = "small",
+    targets = [":opa_test_run_test"],
 )
 
 real_source_target(

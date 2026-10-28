@@ -38,7 +38,7 @@ pub const ENVRC_CONTENT: &str = concat!(
 pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.27";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_LLVM` in `modules/versions.bzl`.
-pub const CONSUMER_LLVM_VERSION: &str = "0.8.23";
+pub const CONSUMER_LLVM_VERSION: &str = "0.8.25";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUST` in `modules/versions.bzl`.
 pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";

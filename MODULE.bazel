@@ -30,10 +30,10 @@ single_version_override(
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "llvm", version = "0.8.23")
+bazel_dep(name = "llvm", version = "0.8.25")
 single_version_override(
     module_name = "llvm",
-    version = "0.8.23",
+    version = "0.8.25",
 )
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
@@ -171,10 +171,10 @@ single_version_override(
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_java", version = "9.7.0")
+bazel_dep(name = "rules_java", version = "9.9.0")
 single_version_override(
     module_name = "rules_java",
-    version = "9.7.0",
+    version = "9.9.0",
 )
 
 # 0.8.0 needs build-tools 35 and --tool_java_language_version=17 (#3739, #2283, #3736).

@@ -1,7 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
+use dx_nested::Case;
 
 const CPAN_MODULE: &str = r#"
 bazel_dep(name = "rules_perl", version = "1.5.0")
@@ -127,88 +126,27 @@ const BASE_TEST: &str =
 
 const CRASH: &str = "use strict;\nuse warnings;\n\ndie \"the ledger is empty\\n\";\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("perl/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
-    let case = nested::case("negative");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
-    );
-    write(
-        &root.join("MODULE.bazel"),
-        &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{CPAN_MODULE}",
-            rules.display()
-        ),
-    );
-    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
-    write(&root.join("BUILD.bazel"), ROOT_BUILD);
-    write(&root.join("tampered.lock.json"), TAMPERED_LOCK);
-    let pkg = root.join("app");
-    write(&pkg.join("BUILD.bazel"), BUILD);
-    write(&pkg.join("data.txt"), "data\n");
-    write(&pkg.join("lib/Clean.pm"), CLEAN);
-    write(&pkg.join("lib/Broken.pm"), BROKEN);
-    write(&pkg.join("lib/Base.pm"), BASE);
-    write(&pkg.join("t/clean.t"), CLEAN_TEST);
-    write(&pkg.join("t/broken.t"), BROKEN_TEST);
-    write(&pkg.join("t/failing.t"), FAILING_TEST);
-    write(&pkg.join("t/dies.t"), DIES_TEST);
-    write(&pkg.join("t/missing.t"), MISSING_TEST);
-    write(&pkg.join("t/base.t"), BASE_TEST);
-    write(&pkg.join("bin/crash.pl"), CRASH);
+    let case = Case::consumer("negative", CPAN_MODULE);
+    case.write("BUILD.bazel", ROOT_BUILD);
+    case.write("tampered.lock.json", TAMPERED_LOCK);
+    case.write("app/BUILD.bazel", BUILD);
+    case.write("app/data.txt", "data\n");
+    case.write("app/lib/Clean.pm", CLEAN);
+    case.write("app/lib/Broken.pm", BROKEN);
+    case.write("app/lib/Base.pm", BASE);
+    case.write("app/t/clean.t", CLEAN_TEST);
+    case.write("app/t/broken.t", BROKEN_TEST);
+    case.write("app/t/failing.t", FAILING_TEST);
+    case.write("app/t/dies.t", DIES_TEST);
+    case.write("app/t/missing.t", MISSING_TEST);
+    case.write("app/t/base.t", BASE_TEST);
+    case.write("app/bin/crash.pl", CRASH);
     case
 }
 
-fn snapshot(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
-    let mut entries: Vec<_> = std::fs::read_dir(dir)
-        .unwrap_or_else(|error| panic!("list {dir:?}: {error}"))
-        .map(|entry| {
-            entry
-                .unwrap_or_else(|error| panic!("entry: {error}"))
-                .path()
-        })
-        .collect();
-    entries.sort();
-    for path in entries {
-        let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
-        let name = relative.to_string_lossy();
-        if name.starts_with("bazel-") || name == "MODULE.bazel.lock" {
-            continue;
-        }
-        if path.is_dir() {
-            snapshot(&path, root, files);
-        } else {
-            files.push((relative, std::fs::read(&path).unwrap_or_default()));
-        }
-    }
-}
-
 fn workspace_files(case: &Case) -> Vec<(PathBuf, Vec<u8>)> {
-    let mut files = Vec::new();
-    snapshot(case.root(), case.root(), &mut files);
-    files
+    case.files()
 }
 
 struct Outcome {

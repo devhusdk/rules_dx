@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
 
 const LIBRARY_BUILD: &str = r#"load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
 
@@ -27,26 +26,6 @@ const MALFORMED: &str = "module Malformed (add) where\n\nadd :: Int -> Int -> In
 const WARNING: &str =
     "module Unused (add) where\n\nadd :: Int -> Int -> Int\nadd a b = let unused = a in b\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("haskell/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 /// Mirrors `source` as symlinks, replacing the file at `relative` with `text`.
 fn farm(source: &Path, target: &Path, relative: &Path, text: &str) {
     std::fs::create_dir_all(target).unwrap_or_else(|error| panic!("mkdir {target:?}: {error}"));
@@ -65,7 +44,7 @@ fn farm(source: &Path, target: &Path, relative: &Path, text: &str) {
         }
         if Some(&name) == head.as_ref() {
             if rest.as_os_str().is_empty() {
-                write(&target.join(&name), text);
+                dx_testing::write_text(&target.join(&name), text);
             } else {
                 farm(&entry.path(), &target.join(&name), &rest, text);
             }
@@ -82,30 +61,30 @@ fn library(root: &Path, name: &str, module: &str, deps: &str, ghcopts: &str, sou
         .replace("{name}", name)
         .replace("{module}", module)
         .replace("    GHCOPTS\n", ghcopts);
-    write(
+    dx_testing::write_text(
         &dir.join("BUILD.bazel"),
         &format!("DEPS = {deps}\n\n{build}"),
     );
-    write(&dir.join(format!("{module}.hs")), source);
+    dx_testing::write_text(&dir.join(format!("{module}.hs")), source);
 }
 
 fn consumer_of(rules: &Path) -> Case {
     let case = nested::case("negative");
     let root = case.root().to_path_buf();
-    let source = rules_dx_root();
-    write(
+    let source = dx_testing::rules_dx_source();
+    dx_testing::write_text(
         &root.join(".bazelversion"),
-        &read(&source.join(".bazelversion")),
+        &dx_testing::read_text(&source.join(".bazelversion")),
     );
-    write(
+    dx_testing::write_text(
         &root.join("MODULE.bazel"),
         &format!(
             "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n",
             rules.display()
         ),
     );
-    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&source));
-    write(&root.join("BUILD.bazel"), "");
+    dx_testing::write_text(&root.join(".bazelrc"), &dx_testing::preset_rc(&source));
+    dx_testing::write_text(&root.join("BUILD.bazel"), "");
     library(&root, "clean", "Clean", "[]", "", CLEAN);
     library(&root, "malformed_source", "Malformed", "[]", "", MALFORMED);
     library(&root, "unused_variable", "Unused", "[]", "", WARNING);
@@ -131,26 +110,26 @@ fn consumer_of(rules: &Path) -> Case {
 }
 
 fn consumer() -> Case {
-    consumer_of(&rules_dx_root())
+    consumer_of(&dx_testing::rules_dx_source())
 }
 
 /// A consumer of rules_dx whose Haskell pins have one edit applied.
 fn tampered(old: &str, new: &str) -> Case {
-    let source = rules_dx_root();
+    let source = dx_testing::rules_dx_source();
     let pins = Path::new("haskell/toolchain/pins.bzl");
-    let text = read(&source.join(pins));
+    let text = dx_testing::read_text(&source.join(pins));
     assert_eq!(text.matches(old).count(), 1, "{old}");
     let case = consumer_of(Path::new("rules_dx"));
     let rules = case.root().join("rules_dx");
     farm(&source, &rules, pins, &text.replace(old, new));
-    write(
+    dx_testing::write_text(
         &case.root().join("MODULE.bazel"),
-        &read(&case.root().join("MODULE.bazel")).replace(
+        &dx_testing::read_text(&case.root().join("MODULE.bazel")).replace(
             "path = \"rules_dx\"",
             &format!("path = \"{}\"", rules.display()),
         ),
     );
-    write(&case.root().join(".bazelignore"), "rules_dx\n");
+    dx_testing::write_text(&case.root().join(".bazelignore"), "rules_dx\n");
     case
 }
 

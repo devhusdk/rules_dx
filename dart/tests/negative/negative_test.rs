@@ -1,7 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
+use dx_nested::Case;
 
 const PUB_MODULE: &str = r#"
 bazel_dep(name = "rules_dart", version = "0.8.0")
@@ -106,98 +105,35 @@ const TRANSITIVE_TEST: &str = "import 'package:base/base.dart';\nimport 'package
 const CRASH: &str =
     "import 'dart:io';\n\nvoid main() {\n  stderr.writeln('the ledger is empty');\n  exit(3);\n}\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("dart/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
-    let case = nested::case("negative");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
+    let rules = dx_testing::rules_dx_source();
+    let case = Case::consumer("negative", PUB_MODULE);
+    case.write("BUILD.bazel", "exports_files([\"pubspec.lock\"])\n");
+    case.write(
+        "pubspec.lock",
+        &dx_testing::read_text(&rules.join("third_party/dart/pubspec.lock")),
     );
-    write(
-        &root.join("MODULE.bazel"),
-        &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{PUB_MODULE}",
-            rules.display()
-        ),
-    );
-    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
-    write(
-        &root.join("BUILD.bazel"),
-        "exports_files([\"pubspec.lock\"])\n",
-    );
-    write(
-        &root.join("pubspec.lock"),
-        &read(&rules.join("third_party/dart/pubspec.lock")),
-    );
-    let pkg = root.join("app");
-    write(&pkg.join("BUILD.bazel"), BUILD);
+    case.write("app/BUILD.bazel", BUILD);
     for name in ["base", "broken"] {
-        write(
-            &root.join(name).join("BUILD.bazel"),
+        case.write(
+            format!("{name}/BUILD.bazel"),
             &LIBRARY.replace("NAME", name),
         );
     }
-    write(&root.join("base/lib/base.dart"), BASE);
-    write(&root.join("broken/lib/broken.dart"), BROKEN);
-    write(&root.join("middle/BUILD.bazel"), MIDDLE_BUILD);
-    write(&root.join("middle/lib/middle.dart"), MIDDLE);
-    write(&pkg.join("test/clean_test.dart"), CLEAN_TEST);
-    write(&pkg.join("test/broken_test.dart"), BROKEN_TEST);
-    write(&pkg.join("test/failing_test.dart"), FAILING_TEST);
-    write(&pkg.join("test/transitive_test.dart"), TRANSITIVE_TEST);
-    write(&pkg.join("bin/crash.dart"), CRASH);
+    case.write("base/lib/base.dart", BASE);
+    case.write("broken/lib/broken.dart", BROKEN);
+    case.write("middle/BUILD.bazel", MIDDLE_BUILD);
+    case.write("middle/lib/middle.dart", MIDDLE);
+    case.write("app/test/clean_test.dart", CLEAN_TEST);
+    case.write("app/test/broken_test.dart", BROKEN_TEST);
+    case.write("app/test/failing_test.dart", FAILING_TEST);
+    case.write("app/test/transitive_test.dart", TRANSITIVE_TEST);
+    case.write("app/bin/crash.dart", CRASH);
     case
 }
 
-fn snapshot(dir: &Path, root: &Path, files: &mut Vec<(PathBuf, Vec<u8>)>) {
-    let mut entries: Vec<_> = std::fs::read_dir(dir)
-        .unwrap_or_else(|error| panic!("list {dir:?}: {error}"))
-        .map(|entry| {
-            entry
-                .unwrap_or_else(|error| panic!("entry: {error}"))
-                .path()
-        })
-        .collect();
-    entries.sort();
-    for path in entries {
-        let relative = path.strip_prefix(root).unwrap_or(&path).to_path_buf();
-        let name = relative.to_string_lossy();
-        if name.starts_with("bazel-") || name == "MODULE.bazel.lock" {
-            continue;
-        }
-        if path.is_dir() {
-            snapshot(&path, root, files);
-        } else {
-            files.push((relative, std::fs::read(&path).unwrap_or_default()));
-        }
-    }
-}
-
 fn workspace_files(case: &Case) -> Vec<(PathBuf, Vec<u8>)> {
-    let mut files = Vec::new();
-    snapshot(case.root(), case.root(), &mut files);
-    files
+    case.files()
 }
 
 struct Outcome {

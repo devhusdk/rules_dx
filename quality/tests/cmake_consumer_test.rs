@@ -3,10 +3,10 @@ use dx_test_scratch::scratch;
 use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const ROOT_LISTS: &str =
-    "cmake_minimum_required(VERSION 3.20)\nproject(app)\nadd_subdirectory(sub)\n";
+    "cmake_minimum_required(VERSION 3.20)\nproject(app)\nadd_subdirectory(sub)\ngreet(a)\ngreet(b)\n";
 
 const ROOT_LISTS_DIRTY: &str =
-    "cmake_minimum_required( VERSION 3.20 )\nproject(  app )\nadd_subdirectory(sub)\n";
+    "cmake_minimum_required( VERSION 3.20 )\nproject(  app )\nadd_subdirectory(sub)\ngreet(a)\ngreet(b)\n";
 
 const SUB_LISTS: &str = "add_library(sub sub.c)\n";
 

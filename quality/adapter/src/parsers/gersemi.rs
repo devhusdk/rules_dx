@@ -47,8 +47,9 @@ pub fn parse_gersemi(
             continue;
         }
         if line.starts_with("Warning: unknown command ") {
-            // The next line locates the call; unknown commands are neither findings nor errors.
-            if lines.get(at).is_some_and(|next| !next.trim().is_empty()) {
+            // Every call site follows on its own `<path>:<line>:<col>` line, up to a blank line;
+            // unknown commands are neither findings nor errors.
+            while lines.get(at).is_some_and(|next| !next.trim().is_empty()) {
                 at += 1;
             }
             continue;
@@ -66,7 +67,7 @@ pub fn parse_gersemi(
                 format!("unrecognized stderr line: {line}"),
             ));
         };
-        let (position, message) = located(rest);
+        let (position, message, is_located) = located(rest);
         failures.push(finding(
             TOOL,
             file,
@@ -76,14 +77,13 @@ pub fn parse_gersemi(
             position,
             ColumnEncoding::Scalars,
         ));
-        // The source line and the caret line follow a located message.
-        let mut skipped = 0;
-        while skipped < 2 && at < lines.len() {
-            let next = lines[at];
-            at += 1;
-            skipped += 1;
-            if next.trim() == "^" {
-                break;
+        // The source line and the caret line follow a located message only; unlocated failures
+        // are a single line, so the next record must not be swallowed.
+        if is_located {
+            if lines.get(at).is_some_and(|next| next.trim() == "^") {
+                at += 1;
+            } else if lines.get(at + 1).is_some_and(|next| next.trim() == "^") {
+                at += 2;
             }
         }
     }
@@ -142,16 +142,16 @@ fn split_known<'a, 'b>(files: &[&'a str], line: &'b str) -> Option<(&'a str, &'b
 }
 
 /// `<line>:<col>: <message>`, or the whole text at the start of the file.
-fn located(rest: &str) -> (TextPosition, &str) {
+fn located(rest: &str) -> (TextPosition, &str, bool) {
     let mut parts = rest.splitn(3, ':');
     if let (Some(line), Some(column), Some(message)) = (parts.next(), parts.next(), parts.next()) {
         // gersemi reports columns that can lie past the end of the line (and positions at the end
         // of the file), so only the line is trusted; the column is pinned to the line start.
         if let (Ok(line), Ok(_)) = (line.trim().parse::<u64>(), column.trim().parse::<u64>()) {
-            return (TextPosition { line, column: 1 }, message.trim());
+            return (TextPosition { line, column: 1 }, message.trim(), true);
         }
     }
-    (TextPosition { line: 1, column: 1 }, rest.trim())
+    (TextPosition { line: 1, column: 1 }, rest.trim(), false)
 }
 
 /// Each file with a diff and the first changed line of its first hunk.
@@ -305,6 +305,22 @@ mod tests {
         assert!(parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
             .expect("ok")
             .is_empty());
+    }
+
+    #[test]
+    fn unknown_command_warnings_with_many_call_sites_are_skipped() {
+        let stderr = "Warning: unknown command 'foo' used at:\n/w/a.cmake:1:1\n/w/a.cmake:7:1\n/w/b.cmake:2:3\n\nWarning: unknown command 'bar' used at:\n/w/a.cmake:9:1\n\n";
+        assert!(parse_gersemi(b"", stderr.as_bytes(), Some(0), &FILES)
+            .expect("ok")
+            .is_empty());
+    }
+
+    #[test]
+    fn back_to_back_unlocated_failures_are_both_reported() {
+        let stderr = "/w/a.cmake: stream did not contain valid UTF-8\n/w/b.cmake: stream did not contain valid UTF-8\n";
+        let findings = parse_gersemi(b"", stderr.as_bytes(), Some(123), &FILES).expect("ok");
+        assert_eq!(findings.len(), 2);
+        assert_eq!(findings[1].file, "/w/b.cmake");
     }
 
     #[test]

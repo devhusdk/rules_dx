@@ -1,0 +1,21 @@
+load("//go/rules:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "unit",
+    srcs = ["unit.go"],
+    importpath = "rules_dx/go/tools/analysis/unit",
+    visibility = ["//go/tools/analysis:__subpackages__"],
+    deps = [
+        "@org_golang_x_tools//go/analysis",
+        "@org_golang_x_tools//go/analysis/unitchecker",
+    ],
+)
+
+go_test(
+    name = "unit_test",
+    srcs = ["unit_test.go"],
+    deps = [
+        ":unit",
+        "@org_golang_x_tools//go/analysis",
+    ],
+)

@@ -71,6 +71,16 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_govet",
+    build_setting_default = "//go/tools/analysis/cmd/dx_govet",
+)
+
+label_flag(
+    name = "tool_errcheck",
+    build_setting_default = "//go/tools/analysis/cmd/dx_errcheck",
+)
+
+label_flag(
     name = "tool_flatc",
     build_setting_default = "@dx_flatbuffers//:flatc",
 )

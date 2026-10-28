@@ -188,7 +188,9 @@ Events and exposed members carry no source link when `vue-component-meta` report
 declaration for them.
 
 `node_modules` is the consumer's npm link target. Only its `vue` package is read, for
-the type declarations. The metadata tools are pinned by dx, so their versions and the
+the type declarations. Pass further type packages the components import, for example
+`deps = ["//:node_modules/csstype"]`; without them the build fails with TS2307. The
+`tsconfig` may sit at any path in the package and may extend files listed in `srcs`. The metadata tools are pinned by dx, so their versions and the
 TypeScript version of the extractor are part of the shard's configuration identity.
 
 The rule runs through an isolated launcher. It rejects `vueCompilerOptions.plugins` in

@@ -42,6 +42,12 @@ fn adopt_locks_consistent() {
         "prettier_consumer fixture package.json plus pnpm-lock.yaml",
     );
     check_pair(
+        "js",
+        &data("DX_COMPONENT_FIXTURE_MANIFEST"),
+        &data("DX_COMPONENT_FIXTURE_LOCK"),
+        "component docs consumer fixture package.json plus pnpm-lock.yaml",
+    );
+    check_pair(
         "go",
         &data("DX_GO_MANIFEST"),
         &data("DX_GO_LOCK"),

@@ -1,0 +1,53 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+
+# keep
+rust_test(
+    name = "consumer_test",
+    size = "enormous",
+    srcs = ["consumer_test.rs"],
+    data = [
+        "//:MODULE.bazel",
+        "//cli/cli:dx",
+        "//tools/docs/components/tests/fixture/consumer:node_consumer",
+        "//tools/docs/components/tests/fixture/consumer:pnpm-lock.yaml",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_COMPONENT_NODE_FIXTURE": "$(rootpath //tools/docs/components/tests/fixture/consumer:pnpm-lock.yaml)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "consumer_fmt_test",
+    targets = [":consumer_test"],
+)
+
+rust_clippy_test(
+    name = "consumer_clippy_test",
+    targets = [":consumer_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

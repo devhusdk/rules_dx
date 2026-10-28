@@ -4,6 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "codegen.bzl",
+    "conform.bzl",
     "defs.bzl",
 ])
 
@@ -13,6 +14,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "codegen.bzl",
+        "conform.bzl",
         "defs.bzl",
     ],
     tags = ["corpus"],

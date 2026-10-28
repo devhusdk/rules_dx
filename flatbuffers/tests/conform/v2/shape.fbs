@@ -1,0 +1,8 @@
+namespace dx.api;
+
+table Shape {
+  name: string;
+  sides: int;
+}
+
+root_type Shape;

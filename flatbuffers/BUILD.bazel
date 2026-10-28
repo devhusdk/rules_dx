@@ -9,14 +9,19 @@ alias(
     visibility = ["//visibility:public"],
 )
 
+# Java runtime, built from the pinned flatbuffers archive (Maven lags the flatc version).
+alias(
+    name = "runtime_java",
+    actual = "@dx_flatbuffers_java//:flatbuffers",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "bitflags.BUILD.bazel",
         "pins.bzl",
-        "rust_runtime.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

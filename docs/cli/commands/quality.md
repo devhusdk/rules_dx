@@ -1081,6 +1081,36 @@ C++ code generation uses the pinned `flatc` through `flatbuffers_cc_library`
 and does not read this flag. See the codegen pairs in
 [generate](generate.md#codegen-pairs).
 
+`flatc` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
+macOS arm64 and Windows x86_64 are marked unsupported until `flatc` is
+qualified there.
+
+#### Breaking-change check
+
+`flatbuffers_conform_test` in `@rules_dx//flatbuffers/rules:conform.bzl` runs
+`flatc --conform` of a `library` against a `baseline`. Both are
+`flatbuffers_library` targets, and the baseline can be an in-repo snapshot or
+an external previous release. A breaking change fails `bazel test` or
+`bazel build` with flatc's message, for example
+`schemas don't conform: field deleted: Shape.name`.
+
+```python
+load("@rules_dx//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")
+
+flatbuffers_conform_test(
+    name = "order_conform_test",
+    baseline = "//api/v1:order",      # or "@schema_v1//:order"
+    library = ":order",
+)
+```
+
+`root` and `baseline_root` are required when a library owns more than one
+schema. flatc stops at the first error and does not report deleted tables or
+enums, and it skips renamed tables, so a clean result is not proof of
+compatibility. flatc reports no line or column, so the failure is a build
+failure and not a `dx lint` finding. The check runs on every platform because
+it uses the pinned `flatc` built by Bazel.
+
 ### CUE
 
 `cue fmt` (format) and `cue vet -c=false` (typecheck) run from the managed pin.

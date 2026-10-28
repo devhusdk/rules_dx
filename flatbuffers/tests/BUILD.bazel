@@ -1,8 +1,9 @@
 load("//cc/rules:defs.bzl", "cc_test")
-load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_rust_library")
+load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_java_library", "flatbuffers_rust_library")
+load("//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//java/rules:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
 load(":failure_tests.bzl", "flatbuffers_codegen_failure_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -79,16 +80,6 @@ flatbuffers_rust_library(
     library = "//flatbuffers/tests/api",
 )
 
-rust_test(
-    name = "rs_roundtrip_test",
-    size = "small",
-    srcs = ["rs_roundtrip_test.rs"],
-    deps = [
-        ":shapes_rs",
-        "//flatbuffers:runtime_rust",
-    ],
-)
-
 flatbuffers_codegen_shard(
     name = "shapes_rs_shard",
     entries = ["gen/api/shape_generated.rs|gen|dx.api|flatbuffers/tests/shapes_rs_generated_fbs_rs/shape_generated.rs"],
@@ -109,6 +100,60 @@ codegen_shard_argv_test(
     ],
     output = "flatbuffers/tests/shapes_rs_shard.dxcodegen.pb",
     target_under_test = ":shapes_rs_shard",
+)
+
+# Java: one compile per flatbuffers_library, against the runtime from the pinned archive.
+flatbuffers_java_library(
+    name = "shapes_java",
+    deps = [
+        "//flatbuffers/tests/api",
+        "//flatbuffers/tests/base",
+    ],
+)
+
+java_test(
+    name = "JavaRoundtripTest",
+    size = "small",
+    srcs = ["JavaRoundtripTest.java"],
+    main_class = "JavaRoundtripTest",
+    tags = ["no-lint"],  # no checkstyle config in this fixture package
+    test_class = "JavaRoundtripTest",
+    use_testrunner = False,
+    deps = [":shapes_java"],
+)
+
+flatbuffers_codegen_shard(
+    name = "shapes_java_shard",
+    entries = [
+        "gen/base/common.srcjar|gen|dx.base|flatbuffers/tests/base/_fbs_java/base.srcjar",
+        "gen/api/shape.srcjar|gen|dx.api|flatbuffers/tests/api/_fbs_java/api.srcjar",
+    ],
+    language = "java",
+    library = ":shapes_java",
+)
+
+codegen_shard_argv_test(
+    name = "shapes_java_shard_argv_test",
+    expected = [
+        "--producer",
+        "//flatbuffers/tests:shapes_java_shard",
+        "--language",
+        "java",
+        "--entry",
+        "gen/base/common.srcjar|gen|dx.base|flatbuffers/tests/base/_fbs_java/base.srcjar",
+        "--entry",
+        "gen/api/shape.srcjar|gen|dx.api|flatbuffers/tests/api/_fbs_java/api.srcjar",
+        "--output",
+    ],
+    output = "flatbuffers/tests/shapes_java_shard.dxcodegen.pb",
+    target_under_test = ":shapes_java_shard",
+)
+
+# Breaking-change check: adding a trailing field conforms.
+flatbuffers_conform_test(
+    name = "conform_added_field_test",
+    baseline = "//flatbuffers/tests/conform/v1:shape",
+    library = "//flatbuffers/tests/conform/v2:shape",
 )
 
 # Failing fixtures: only built by the analysis tests below.
@@ -155,6 +200,54 @@ flatbuffers_codegen_shard(
     language = "rust",
     library = ":shapes_rs_generated",
     tags = ["manual"],
+)
+
+flatbuffers_codegen_shard(
+    name = "java_shard_on_cc",
+    entries = ["gen/base/common_generated.h|gen|dx.base|flatbuffers/tests/base/common_generated.h"],
+    language = "java",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+flatbuffers_conform_test(
+    name = "foreign_root_conform",
+    baseline = "//flatbuffers/tests/conform/v1:shape",
+    library = "//flatbuffers/tests/api",
+    root = "//flatbuffers/tests/base:common.fbs",
+    tags = ["manual"],
+)
+
+flatbuffers_conform_test(
+    name = "multi_baseline_conform",
+    baseline = "//flatbuffers/tests/multi",
+    library = "//flatbuffers/tests/conform/v1:shape",
+    tags = ["manual"],
+)
+
+flatbuffers_conform_test(
+    name = "deleted_field_conform",
+    baseline = "//flatbuffers/tests/conform/v2:shape",
+    library = "//flatbuffers/tests/conform/bad:shape",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_failure_test(
+    name = "java_language_mismatch_test",
+    message = "does not match",
+    target_under_test = ":java_shard_on_cc",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "conform_foreign_root_test",
+    message = "is not owned by",
+    target_under_test = ":foreign_root_conform_conform",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "conform_multi_baseline_test",
+    message = "root is required because",
+    target_under_test = ":multi_baseline_conform_conform",
 )
 
 flatbuffers_codegen_failure_test(

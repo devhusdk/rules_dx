@@ -1,4 +1,4 @@
-"""FlatBuffers C++ and Rust code generation (flatc from the pinned source archive).
+"""FlatBuffers C++, Rust and Java code generation (flatc from the pinned source archive).
 
 flatc and every runtime come from the one archive pinned in //flatbuffers:pins.bzl,
 so the compiler and the runtimes cannot drift. Actions read only the declared
@@ -9,21 +9,25 @@ crate per root schema (flatc --rust --gen-all), because flatc's Rust output uses
 crate:: and super:: paths that only compile when the whole include closure sits
 in one crate. Two Rust crates whose roots share a schema therefore each get their
 own, non-interchangeable copy of its types.
+Java is generated and compiled once per flatbuffers_library by an aspect, against
+the Java runtime built from the same archive (Maven lags the flatc version).
 """
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_java//java/common:java_common.bzl", "java_common")
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
 load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
-load(":defs.bzl", "FlatBuffersInfo")
+load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
 
 FLATBUFFERS_GENERATED_SRCS_GROUP = "flatbuffers_generated_srcs"
 
 FlatBuffersCodegenInfo = provider(
     doc = "Which language a flatbuffers codegen target generated.",
-    fields = {"language": "string: cpp or rust."},
+    fields = {"language": "string: cpp, rust or java."},
 )
 
 # Private attributes shared by every codegen rule, so a later toolchain swap
@@ -117,22 +121,98 @@ flatbuffers_cc_library = rule(
     provides = [CcInfo],
 )
 
+FlatBuffersJavaAspectInfo = provider(
+    doc = "Java sources and classes generated for one flatbuffers_library closure.",
+    fields = {
+        "java_info": "JavaInfo of the compiled generated sources of the closure.",
+        "srcjar": "File: srcjar of this library's own schemas.",
+    },
+)
+
+_JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
+
+def _zip_entry(f):
+    return f.tree_relative_path + "=" + f.path
+
+def _java_aspect_impl(target, ctx):
+    info = target[FlatBuffersInfo]
+    name = target.label.name
+    tree = ctx.actions.declare_directory("_fbs_java/" + name + "_src")
+    ctx.actions.run(
+        executable = ctx.executable._flatc,
+        inputs = info.transitive_srcs,
+        outputs = [tree],
+        arguments = ["--java", "-I", ".", "-o", tree.path] + [src.path for src in info.direct_srcs],
+        mnemonic = "FlatcJava",
+        progress_message = "flatc --java " + str(target.label),
+    )
+    srcjar = ctx.actions.declare_file("_fbs_java/" + name + ".srcjar")
+    zip_args = ctx.actions.args()
+    zip_args.add("c")
+    zip_args.add(srcjar)
+    zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
+    ctx.actions.run(
+        executable = ctx.executable._zipper,
+        inputs = [tree],
+        outputs = [srcjar],
+        arguments = [zip_args],
+        mnemonic = "FlatcJavaSrcjar",
+        progress_message = "Packing " + srcjar.short_path,
+    )
+    dep_infos = [dep[FlatBuffersJavaAspectInfo].java_info for dep in ctx.rule.attr.deps]
+    jar = ctx.actions.declare_file("_fbs_java/" + name + ".jar")
+    java_info = java_common.compile(
+        ctx,
+        source_jars = [srcjar],
+        deps = dep_infos + [ctx.attr._runtime[JavaInfo]],
+        output = jar,
+        java_toolchain = ctx.toolchains[_JAVA_TOOLCHAIN].java,
+        javac_opts = ["-Xlint:none", "-nowarn"],
+    )
+    return [FlatBuffersJavaAspectInfo(java_info = java_info, srcjar = srcjar)]
+
+_java_aspect = aspect(
+    implementation = _java_aspect_impl,
+    attr_aspects = ["deps"],
+    attrs = dict(_PRIVATE_ATTRS, **{
+        "_runtime": attr.label(default = Label("//flatbuffers:runtime_java"), providers = [JavaInfo]),
+        "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
+    }),
+    required_providers = [FlatBuffersInfo],
+    provides = [FlatBuffersJavaAspectInfo],
+    toolchains = [_JAVA_TOOLCHAIN],
+    fragments = ["java"],
+)
+
+def _java_library_impl(ctx):
+    aspect_infos = [dep[FlatBuffersJavaAspectInfo] for dep in ctx.attr.deps]
+    srcjars = [info.srcjar for info in aspect_infos]
+    java_info = java_common.merge([info.java_info for info in aspect_infos] + [ctx.attr._runtime[JavaInfo]])
+    return [
+        DefaultInfo(files = depset(srcjars)),
+        java_info,
+        dx_quality_sources([], [], str(ctx.label)),
+        OutputGroupInfo(**{FLATBUFFERS_GENERATED_SRCS_GROUP: depset(srcjars)}),
+        FlatBuffersCodegenInfo(language = "java"),
+    ]
+
+flatbuffers_java_library = rule(
+    implementation = _java_library_impl,
+    doc = "Java classes and runtime for flatbuffers_library schemas. Each library is generated and compiled once, by its own aspect.",
+    attrs = {
+        "deps": attr.label_list(
+            providers = [FlatBuffersInfo],
+            aspects = [_java_aspect],
+            doc = "flatbuffers_library targets to generate Java for.",
+        ),
+        "_runtime": attr.label(default = Label("//flatbuffers:runtime_java"), providers = [JavaInfo]),
+    },
+    provides = [JavaInfo],
+)
+
 def _rust_srcs_impl(ctx):
     info = ctx.attr.library[FlatBuffersInfo]
-    owned = info.direct_srcs
-    root = ctx.file.root
-    if root == None:
-        if len(owned) != 1:
-            fail(
-                "flatbuffers_rust_library " + display_label(ctx.label) + ": root is required because " +
-                display_label(ctx.attr.library.label) + " owns " + str(len(owned)) + " schemas (want exactly one root)",
-            )
-        root = owned[0]
-    elif root not in owned:
-        fail(
-            "flatbuffers_rust_library " + display_label(ctx.label) + ": root " + root.short_path +
-            " is not owned by " + display_label(ctx.attr.library.label),
-        )
+    root = resolve_root("flatbuffers_rust_library", ctx.label, ctx.attr.library, ctx.file.root)
     base = root.basename[:-len("." + root.extension)]
     generated = ctx.actions.declare_file(ctx.label.name + "_fbs_rs/" + base + "_generated.rs")
     ctx.actions.run(
@@ -202,18 +282,19 @@ def flatbuffers_rust_library(name, library, root = None, **kwargs):
 
 def _shard_impl(ctx):
     library = ctx.attr.library
-    if FlatBuffersCodegenInfo in library and ctx.attr.language in ("cpp", "rust") and library[FlatBuffersCodegenInfo].language != ctx.attr.language:
+    if FlatBuffersCodegenInfo in library and ctx.attr.language in ("cpp", "rust", "java") and library[FlatBuffersCodegenInfo].language != ctx.attr.language:
         fail(
             "flatbuffers_codegen_shard " + display_label(ctx.label) + ": language " + ctx.attr.language +
             " does not match " + display_label(library.label) + ", which generates " +
             library[FlatBuffersCodegenInfo].language + ". Point library at a flatbuffers_cc_library for cpp, " +
-            "or at NAME_generated of a flatbuffers_rust_library for rust",
+            "at NAME_generated of a flatbuffers_rust_library for rust, " +
+            "or at a flatbuffers_java_library for java",
         )
     if OutputGroupInfo not in library or FLATBUFFERS_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
         fail(
             "flatbuffers_codegen_shard " + display_label(ctx.label) + ": " +
             display_label(library.label) + " has no " + FLATBUFFERS_GENERATED_SRCS_GROUP +
-            " output group (want a flatbuffers_cc_library or a flatbuffers_rust_library NAME_generated)",
+            " output group (want a flatbuffers_cc_library, a flatbuffers_java_library or a flatbuffers_rust_library NAME_generated)",
         )
     return codegen_bound_shard_providers(
         ctx,
@@ -232,9 +313,9 @@ flatbuffers_codegen_shard = rule(
             doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
             mandatory = True,
         ),
-        "language": attr.string(doc = "cpp or rust.", mandatory = True),
+        "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
         "library": attr.label(
-            doc = "flatbuffers_cc_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
+            doc = "flatbuffers_cc_library, flatbuffers_java_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
             mandatory = True,
         ),
         "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),

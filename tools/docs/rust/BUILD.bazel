@@ -4,13 +4,10 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files(
-    [
-        "defs.bzl",
-        "extensions.bzl",
-    ],
-    visibility = VIS_TOOLS,
-)
+exports_files([
+    "defs.bzl",
+    "extensions.bzl",
+], visibility = VIS_TOOLS)
 
 filegroup(
     name = "fixture_rustdoc_json",

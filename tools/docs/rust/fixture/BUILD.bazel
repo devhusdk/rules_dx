@@ -6,14 +6,11 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
-exports_files(
-    [
-        "src/lib.rs",
-        "src/lib_changed.rs",
-        "src/shapes.rs",
-    ],
-    visibility = VIS_TOOLS,
-)
+exports_files([
+    "src/lib.rs",
+    "src/lib_changed.rs",
+    "src/shapes.rs",
+], visibility = VIS_TOOLS)
 
 # keep
 cargo_build_script(

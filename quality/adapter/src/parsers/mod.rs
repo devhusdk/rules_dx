@@ -38,6 +38,7 @@ pub mod helm;
 pub mod jsonnet_lint;
 pub mod jsonnetfmt;
 pub mod julia_format;
+pub mod jvm_diagnostics;
 pub mod keep_sorted;
 pub mod ktfmt;
 pub mod ktlint;
@@ -128,6 +129,7 @@ pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, Rende
 pub use jsonnet_lint::parse_jsonnet_lint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use julia_format::parse_julia_format;
+pub use jvm_diagnostics::parse_jvm_diagnostics;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
@@ -2117,6 +2119,14 @@ mod tests {
         super::roslyn::parse_csc(input, code, files)
     }
 
+    fn fuzz_jvm_diagnostics(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jvm_diagnostics::parse_jvm_diagnostics("javac", input, code, files)
+    }
+
     fn fuzz_roslyn(
         input: &[u8],
         code: Option<i32>,
@@ -2496,6 +2506,7 @@ mod tests {
         ("regal", fuzz_regal),
         ("remark", fuzz_remark),
         ("csc", fuzz_csc),
+        ("jvm_diagnostics", fuzz_jvm_diagnostics),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
         ("ruff", fuzz_ruff),
@@ -2594,6 +2605,7 @@ mod tests {
         ("regal", include_str!("regal.rs")),
         ("remark", include_str!("remark.rs")),
         ("csc", include_str!("roslyn.rs")),
+        ("jvm_diagnostics", include_str!("jvm_diagnostics.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),
         ("ruff", include_str!("ruff.rs")),

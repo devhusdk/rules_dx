@@ -39,6 +39,21 @@ def clang_tidy_argv(argv, src, config_path = ""):
     out += [src, "--"] + rest
     return struct(argv = out, error = "")
 
+def clang_tidy_indices(sources, owned):
+    """Returns the indices of the translation units a clang_tidy stage owns.
+
+    Args:
+      sources: list of string: the translation unit of each recorded compile action.
+      owned: list of string or None: the stage sources; None keeps everything.
+
+    Returns:
+      list of int. Generated files (bazel-out paths) and files of a language family the
+      policy does not lint are left out, since their findings could not be attributed.
+    """
+    if owned == None:
+        return list(range(len(sources)))
+    return [i for i in range(len(sources)) if sources[i] in owned]
+
 # Bazel's Apple wrapper expands the placeholders in argv; clang-tidy is run without it.
 _SCRIPT = """
 log="$1"; err="$2"; status="$3"; tidy="$4"; shift 4
@@ -61,7 +76,7 @@ awk -v p="$PWD/" 'index($0, p) == 1 { $0 = substr($0, length(p) + 1) }
 rm -f "$raw"
 """
 
-def clang_tidy_actions(ctx, label, info, binary, config = None, config_inputs = []):
+def clang_tidy_actions(ctx, label, info, binary, config = None, config_inputs = [], owned = None):
     """Declares one clang-tidy action per recorded compile action.
 
     Args:
@@ -71,14 +86,21 @@ def clang_tidy_actions(ctx, label, info, binary, config = None, config_inputs = 
       binary: File: the clang-tidy executable.
       config: File or None: the resolved .clang-tidy.
       config_inputs: list of File: the config and everything it includes.
+      owned: list of string or None: the sources the clang_tidy stages own. Compile
+        actions of any other translation unit (a generated file, a language family the
+        policy does not lint) get no action, since the runner could not attribute
+        their findings.
 
     Returns:
       A struct of parallel lists: `logs` (stdout), `errs` (stderr) and `statuses`.
     """
+    for src, message in info.errors.items():
+        if src == "" or owned == None or src in owned:
+            fail("clang_tidy: %s: %s" % (label, message))
     logs = []
     errs = []
     statuses = []
-    for i in range(len(info.argvs)):
+    for i in clang_tidy_indices(info.sources, owned):
         src = info.sources[i]
         projected = clang_tidy_argv(info.argvs[i], src, config.path if config != None else "")
         if projected.error != "":

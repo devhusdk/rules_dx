@@ -10,6 +10,7 @@ ClangSyntaxInfo = provider(
     fields = {
         "argvs": "list of list of string: the -fsyntax-only command line (compiler first) per compile action.",
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
+        "errors": "dict: source path (\"\" when unknown) to why its compile action cannot be replayed. Such actions are skipped; the consumer decides whether that is fatal.",
         "envs": "list of dict: the environment of each compile action.",
         "execution_requirements": "list of dict: the execution requirements of each compile action.",
         "inputs": "list of depset of File: everything each compile action reads, including declared headers.",
@@ -131,15 +132,18 @@ def _clang_syntax_impl(target, ctx):
     execution_requirements = []
     inputs = []
     mnemonics = []
+    errors = {}
     for i in range(len(actions)):
         action = actions[i]
         argv = action.argv
         if argv == None:
-            fail("clang_syntax: Bazel does not expose the command line of the %s action of %s" % (action.mnemonic, target.label))
+            errors[""] = "Bazel does not expose the command line of the %s action" % action.mnemonic
+            continue
         src = clang_syntax_source(list(argv))
         rewritten = clang_syntax_argv(list(argv), src)
         if rewritten.error != "":
-            fail("clang_syntax: " + str(target.label) + ": " + rewritten.error)
+            errors[src] = rewritten.error
+            continue
         stem = "%s_%d" % (target.label.name, i)
         log = ctx.actions.declare_file("dx_clang_syntax/%s.log" % stem)
         status = ctx.actions.declare_file("dx_clang_syntax/%s.exit" % stem)
@@ -170,6 +174,7 @@ def _clang_syntax_impl(target, ctx):
         ClangSyntaxInfo(
             argvs = argvs,
             diagnostics = diagnostics,
+            errors = errors,
             envs = envs,
             execution_requirements = execution_requirements,
             inputs = inputs,

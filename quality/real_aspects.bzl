@@ -1255,6 +1255,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if ClangSyntaxInfo not in target:
             fail(what + ": clang_syntax needs a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
         clang_syntax = target[ClangSyntaxInfo]
+        for src, message in clang_syntax.errors.items():
+            fail("clang_syntax: %s: %s%s" % (what, message, " (" + src + ")" if src else ""))
 
     clang_tidy_context = None
     if "clang_tidy" in [stage["tool"] for stage in resolved]:
@@ -1329,6 +1331,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             ctx.file._clang_tidy,
             tidy_config.config if tidy_config != None else None,
             ([tidy_config.config] + tidy_config.closure.to_list()) if tidy_config != None else [],
+            [source for stage in resolved if stage["tool"] == "clang_tidy" for source in stage["sources"]],
         )
         delegated["clang_tidy"] = True
     if clippy_delegated:

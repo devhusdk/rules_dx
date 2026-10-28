@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":clang_syntax.bzl", "clang_syntax_argv")
-load(":clang_tidy.bzl", "clang_tidy_argv")
+load(":clang_tidy.bzl", "clang_tidy_argv", "clang_tidy_indices")
 
 _CLANG = "external/llvm/bin/clang"
 _WRAPPED = "external/apple_support/crosstool/wrapped_clang"
@@ -16,6 +16,16 @@ def clang_tidy_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "generated and unowned translation units get no action",
+                clang_tidy_indices(["pkg/a.m", "pkg/b.cc", "bazel-out/k8-fastbuild/bin/pkg/gen.c"], ["pkg/b.cc"]),
+                [1],
+            ),
+            expect_equal(
+                "without an owner list every translation unit is kept",
+                clang_tidy_indices(["pkg/a.m", "pkg/b.cc"], None),
+                [0, 1],
+            ),
             expect_equal(
                 "the compiler goes away and the source becomes the positional argument",
                 clang_tidy_argv([_CLANG, "-DX=1", "-fsyntax-only", "a.c"], "a.c").argv,

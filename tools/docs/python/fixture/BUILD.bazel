@@ -1,5 +1,5 @@
 load("//python/rules:defs.bzl", "python_library")
-load("//tools/docs/python:defs.bzl", "python_doc_shard")
+load("//tools/docs/python:defs.bzl", "python_doc_shard", "python_docs")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -42,4 +42,14 @@ python_doc_shard(
     docstyle = "numpy",
     library = ":npylib",
     package = "npylib",
+)
+
+python_docs(
+    name = "npylib_site",
+    book_toml = "book.toml",
+    docstyle = "numpy",
+    library = ":npylib",
+    package = "npylib",
+    prose = ["guide.md"],
+    source_url = "https://example.invalid/npylib/blob/main/",
 )

@@ -310,7 +310,25 @@ python_doc_shard(
 )
 ```
 
-Pass the shard to `docs_site` like any other language. Symbol ids have the form
+Pass the shard to `docs_site` like any other language, or let `python_docs`
+declare both. It takes the `python_doc_shard` attributes plus `book_toml`,
+`prose`, `prose_route` and `source_url`, creates `<name>_shard` and a
+`docs_site` named `<name>`:
+
+```starlark
+python_docs(
+    name = "mylib_site",
+    library = ":mylib",
+    book_toml = "book.toml",
+    prose = ["guide.md"],
+)
+```
+
+Run `bazel run @rules_dx//:dx -- docs //pkg:mylib_site` to build and preview it.
+`docstyle` selects the docstring convention griffe parses. A broken package
+fails the build, so `dx docs` exits with Bazel's code and writes no pages.
+
+Symbol ids and shard output are the same as with `python_doc_shard` alone. Symbol ids have the form
 `python:<package>:<module path>.<name>`.
 
 Supported shapes are flat and `src` layouts (through `imports`), regular

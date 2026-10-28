@@ -288,7 +288,7 @@ GAP_ISSUES = {
     "build:cuda:linux_arm64": 4541,
     "build:cuda:windows_x86_64": 4541,
     "build:d:windows_*": 4542,
-    "build:elixir:*": 4544,
+    "build:elixir:windows_*": 4544,
     "build:erlang:*": 4545,
     "build:fortran:*": 4546,
     "build:haskell:*": 4547,

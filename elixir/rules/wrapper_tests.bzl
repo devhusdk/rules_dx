@@ -29,7 +29,7 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("test helpers are required first", helper_first(["test/a_test.exs", "test/test_helper.exs", "test/z_test.exs"]), ["test/test_helper.exs", "test/a_test.exs", "test/z_test.exs"]),
             expect_equal("a helper label is required first", helper_first(["//t:a_test.exs", "//t:test_helper.exs"]), ["//t:test_helper.exs", "//t:a_test.exs"]),
             expect_equal("srcs without a helper keep their order", helper_first(["b.exs", "a.exs"]), ["b.exs", "a.exs"]),
-            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_amd64"]),
+            expect_equal("apps compile on the Elixir cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
             expect_equal("hex tarballs come from repo.hex.pm", hex_tarball_url("jason", "1.4.4"), "https://repo.hex.pm/tarballs/jason-1.4.4.tar"),
             expect_equal("hex metadata names the release", hex_metadata_entry("version", "1.4.4"), '{<<"version">>,<<"1.4.4">>}.'),
         ],

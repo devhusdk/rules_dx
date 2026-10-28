@@ -40,7 +40,7 @@ def _checks():
         expect_equal("rules_elixir digest", len(RULES_ELIXIR_SHA256), 64),
         expect_contains("rules_elixir url names the commit", RULES_ELIXIR_URL, RULES_ELIXIR_COMMIT),
         expect_contains("launcher forces Unicode names and stdio", script, "+fnu -kernel standard_io_encoding unicode $ELIXIR_ERL_OPTIONS $ERL"),
-        expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_amd64"]),
+        expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),
         expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
         expect_false("launcher keeps no bare options", "-ebin $ELIXIR_ERL_OPTIONS" in script),

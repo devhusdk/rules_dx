@@ -23,4 +23,16 @@ FORTRAN_CELLS = {
         sha256 = "673f4dc1e95d09b1253ca32078ae058540d68b533bdcbcbf72b7242fbed82dc6",
         strip_prefix = "flang+llvm-" + FLANG_VERSION,
     ),
+    "linux_arm64": struct(
+        constraints = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+        url = FLANG_RELEASES + "flang+llvm-" + FLANG_VERSION + "-aarch64-unknown-linux-gnu.tar.gz",
+        sha256 = "0b2f6a9e4192c04644f51c067b449405e00b1e4e8d8ee9bd510657130fdb7290",
+        strip_prefix = "flang+llvm-" + FLANG_VERSION,
+    ),
+    "macos_arm64": struct(
+        constraints = ["@platforms//os:macos", "@platforms//cpu:arm64"],
+        url = FLANG_RELEASES + "flang+llvm-" + FLANG_VERSION + "-arm64-apple-darwin.tar.gz",
+        sha256 = "89cbbe09bb35fac6ec1781b74637e40a58eddc89475d6a6a1e49c0b15a6c5eb5",
+        strip_prefix = "flang+llvm-" + FLANG_VERSION,
+    ),
 }

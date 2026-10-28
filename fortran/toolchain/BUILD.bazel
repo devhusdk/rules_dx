@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "fortran_metadata_tests")
+load(":pins.bzl", "FORTRAN_CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -10,6 +11,14 @@ exports_files([
     "repos.bzl",
     "toolchain.bzl",
 ])
+
+[
+    config_setting(
+        name = "cell_" + cell,
+        constraint_values = FORTRAN_CELLS[cell].constraints,
+    )
+    for cell in sorted(FORTRAN_CELLS.keys())
+]
 
 fortran_metadata_tests(name = "metadata")
 

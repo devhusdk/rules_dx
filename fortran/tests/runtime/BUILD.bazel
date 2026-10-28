@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_library", "cc_test")
-load("//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH", "fortran_binary", "fortran_library", "fortran_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 fortran_library(
@@ -23,10 +23,7 @@ dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
     expected = "Hello, fortran!",
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = FORTRAN_COMPATIBLE_WITH,
 )
 
 fortran_test(
@@ -58,10 +55,7 @@ cc_test(
     name = "dot_test",
     size = "small",
     srcs = ["dot_test.c"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = FORTRAN_COMPATIBLE_WITH,
     deps = [":dot"],
 )
 

@@ -104,8 +104,8 @@ fortitude reads free-form source only.
 | Cell | Status |
 | --- | --- |
 | `linux_x86_64` | Qualified |
-| `linux_arm64` | Unsupported |
-| `macos_arm64` | Unsupported |
+| `linux_arm64` | Not qualified |
+| `macos_arm64` | Not qualified |
 | `windows_x86_64` | Unsupported |
 | `windows_arm64` | Unsupported |
 

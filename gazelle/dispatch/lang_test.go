@@ -528,6 +528,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"java":   jvm,
 		"javascript": oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
 		"kotlin": jvm,
+		"lua":    oneSource,
 		"mdx":    oneSourceRelative,
 		"perl":   oneSource,
 		"php":    "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",

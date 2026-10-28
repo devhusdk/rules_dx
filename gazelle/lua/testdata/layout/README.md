@@ -1,0 +1,1 @@
+Generates a library per directory and a test per _test.lua file, names modules by path with init.lua naming its directory, and leaves out dotted stems. Requires in comments, long strings and pcall, and standard library modules, add no deps.

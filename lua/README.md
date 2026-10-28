@@ -112,6 +112,26 @@ lua_library(
 )
 ```
 
+## Generating BUILD files
+
+`dx generate` writes `lua_library` and `lua_test` rules. Each package gets one
+`lua_library` over its `.lua` files and one `lua_test` per `*_test.lua`, with
+`main` set to that file. Imports are the string literals of plain `require`
+calls, found with a Lua parser.
+
+- A module is named by its path, as `lua_library` names it: `catalog/init.lua`
+  is `catalog`. A file with a dot in its stem has no module and is left out.
+- `lua_binary` targets stay hand-written. Sources a hand-written `lua_binary`
+  lists in `main` or `srcs` are left out of the generated library.
+- Standard library modules and `runfiles` need no dep.
+- A third-party module needs one mapping, for example
+  `# gazelle:resolve lua inspect @lua_app_inspect//:inspect`.
+- `require` inside `pcall` or `xpcall` is optional and is skipped. So are
+  dynamic names, an aliased `require` (`local r = require`) and text in
+  comments or strings.
+- `strip_import_prefix` and `import_prefix` are never generated. A
+  hand-written library that sets them is indexed under the names they give.
+
 ## Quality
 
 Lua sources form the `lua` class, so `dx check` sees them. StyLua formats them

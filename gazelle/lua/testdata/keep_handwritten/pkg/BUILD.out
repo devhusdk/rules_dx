@@ -1,0 +1,16 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_binary", "lua_library")
+
+# gazelle:exclude src
+
+lua_library(
+    name = "inspect",
+    srcs = ["src/inspect.lua"],
+    strip_import_prefix = "src",
+)
+
+lua_binary(
+    name = "tool",
+    srcs = ["tool.lua"],
+    main = "tool.lua",
+    deps = [":inspect"],
+)

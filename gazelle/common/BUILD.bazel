@@ -67,6 +67,7 @@ go_library(
         "//gazelle/java:__pkg__",
         "//gazelle/javascript:__pkg__",
         "//gazelle/kotlin:__pkg__",
+        "//gazelle/lua:__pkg__",
         "//gazelle/mdx:__pkg__",
         "//gazelle/perl:__pkg__",
         "//gazelle/php:__pkg__",

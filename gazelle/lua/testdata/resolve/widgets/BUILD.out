@@ -1,0 +1,6 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_library")
+
+lua_library(
+    name = "widgets",
+    srcs = ["core.lua"],
+)

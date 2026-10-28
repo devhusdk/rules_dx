@@ -111,6 +111,17 @@ py_unittest_test(
 )
 
 py_binary(
+    name = "cfn_lint",
+    srcs = [
+        "cfn_lint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "cfn_lint_main.py",
+    deps = ["@pypi//cfn_lint"],
+)
+
+py_binary(
     name = "ansible_lint",
     srcs = [
         "ansible_lint_main.py",

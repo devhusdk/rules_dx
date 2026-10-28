@@ -1669,6 +1669,41 @@ fn ansible_lint_check_puts_collection_roots_first() {
 }
 
 #[test]
+fn cfn_lint_check_always_passes_the_config_and_no_spec_or_region_flags() {
+    let a = Path::new("/scratch/a.yaml");
+    let b = Path::new("/scratch/b.template");
+    let argv = argv_strings(&cfn_lint_check(
+        Path::new(BIN),
+        &[a, b],
+        Path::new("/scratch/.cfn-lint.yaml"),
+    ));
+    assert_eq!(
+        argv,
+        [
+            BIN,
+            "--format",
+            "json",
+            "--non-zero-exit-code",
+            "informational",
+            "--config-file",
+            "/scratch/.cfn-lint.yaml",
+            "--",
+            "/scratch/a.yaml",
+            "/scratch/b.template"
+        ]
+    );
+    for banned in [
+        "--update-specs",
+        "--regions",
+        "--append-rules",
+        "--override-spec",
+        "--templates",
+    ] {
+        assert!(!argv.iter().any(|arg| arg == banned), "{banned}");
+    }
+}
+
+#[test]
 fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
     let query = Path::new("/scratch/api/query.graphql");
     let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));

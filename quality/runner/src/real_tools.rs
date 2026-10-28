@@ -4293,13 +4293,19 @@ fn cue_vet_fake(
             "{key} never reaches cue"
         );
     }
-    let files: Vec<String> = argv[4..]
+    let targets: Vec<String> = argv[4..]
         .iter()
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
-    assert_eq!(files.len(), 1, "one package per spawn: {files:?}");
-    assert!(!files[0].contains("cue.mod"));
-    let text = std::fs::read_to_string(&files[0]).expect("staged");
+    assert_eq!(targets.len(), 1, "one package per spawn: {targets:?}");
+    assert!(
+        targets[0] == ".:app" || targets[0] == "./lib:lib",
+        "vetted by import path with package: {targets:?}"
+    );
+    let dir = targets[0].split(':').next().expect("dir");
+    assert!(dir == "." || dir.starts_with("./"), "{targets:?}");
+    let main = cwd.join(dir).join("main.cue");
+    let text = std::fs::read_to_string(&main).unwrap_or_default();
     if text.contains("BAD") {
         return Ok(ChildOutput {
             code: Some(1),

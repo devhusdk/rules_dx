@@ -1,3 +1,4 @@
+load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "eslint_config")
@@ -479,4 +480,30 @@ workspace_policy(
 real_source_target(
     name = "clean_lua",
     lua_srcs = ["lua_module/greet.lua"],
+)
+
+quality_family(
+    name = "api_spec_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "api_spec",
+    lint = ["redocly"],
+)
+
+workspace_policy(
+    name = "api_spec_policy",
+    families = [":api_spec_family"],
+)
+
+filegroup(
+    name = "api_spec_module",
+    srcs = ["api_spec_module/clean.yaml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+api_spec_library(
+    name = "clean_api_spec",
+    srcs = [":api_spec_module"],
 )

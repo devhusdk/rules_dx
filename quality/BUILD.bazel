@@ -443,6 +443,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_kubernetes",
         },
         {
+            "case": "api_spec_linted",
+            "expected_dx_results": [
+                "clean_api_spec-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:api_spec_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_api_spec",
+        },
+        {
             "case": "toml_format_off",
             "expected_dx_results": [
                 "clean_toml-real-lint.pb",
@@ -506,6 +514,7 @@ support_unit_tests(name = "support_unit")
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_api_spec_linted_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
         ":consumer_policy_html_template_formatted_test",

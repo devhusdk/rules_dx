@@ -114,7 +114,7 @@ fn managed_changes_print_the_exact_quoted_apply_command() {
     );
     let (_, json_out, json_err) = harness.run(&["lint", "--output=json"]);
     assert!(!json_err.contains("Apply them"), "{json_err}");
-    assert!(!json_out.contains("Apply them"), "{json_out}");
+    assert!(json_out.contains("changes_proposed"), "{json_out}");
 }
 
 #[test]

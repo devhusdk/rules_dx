@@ -102,7 +102,17 @@ pub fn parse_regal(
                 format!("{} without a location", violation.title),
             ));
         };
-        let file = known_native(TOOL, files, &location.file)?;
+        let anchored = location.file.is_empty();
+        let file = if anchored {
+            files.first().copied().ok_or_else(|| {
+                ParseError::shape(
+                    TOOL,
+                    format!("{} without a file or inputs", violation.title),
+                )
+            })?
+        } else {
+            known_native(TOOL, files, &location.file)?
+        };
         findings.push(finding(
             TOOL,
             file,
@@ -110,8 +120,8 @@ pub fn parse_regal(
             violation.description,
             severity,
             TextPosition {
-                line: location.row,
-                column: location.col,
+                line: if anchored { 1 } else { location.row },
+                column: if anchored { 1 } else { location.col },
             },
             ColumnEncoding::Scalars,
         ));
@@ -192,6 +202,15 @@ mod tests {
         assert!(parse_regal(stranger.as_bytes(), b"", Some(3), &FILES).is_err());
         let level = report("note", "a.rego", 1, 2);
         assert!(parse_regal(level.as_bytes(), b"", Some(3), &FILES).is_err());
+    }
+
+    #[test]
+    fn a_violation_without_a_file_anchors_to_the_first_input() {
+        let aggregate = report("error", "", 1, 2);
+        let found = parse_regal(aggregate.as_bytes(), b"", Some(3), &FILES).expect("ok");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, "a.rego");
+        assert!(parse_regal(aggregate.as_bytes(), b"", Some(3), &[]).is_err());
     }
 
     #[test]

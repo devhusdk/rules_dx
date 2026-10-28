@@ -445,6 +445,18 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_rego_lint_config.expected.txt",
     },
     {
+        "name": "matrix_rego_lint_multi_file",
+        "generated": {
+            "matrix/regal_multi/a.rego": "package matrix.regal_multi\n\nfirst := 1\n",
+            "matrix/regal_multi/b.rego": "package matrix.regal_multi\n\nsecond := 2\n",
+        },
+        "capability": "lint",
+        "stages": ["regal;rego;matrix/regal_multi/a.rego,matrix/regal_multi/b.rego"],
+        "tool_names": ["regal"],
+        "tool_binaries": ["@dx_tools//:regal"],
+        "expected_file": ":matrix/matrix_rego_lint_multi_file.expected.txt",
+    },
+    {
         "name": "matrix_rego_lint_package_mismatch",
         "generated": {
             "matrix/regal_pkg/policy.rego": "package other\n\nvalue := 1\n",

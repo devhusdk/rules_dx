@@ -1001,6 +1001,11 @@ error and a `warning` is a warning. Both are reported. A policy that does not
 parse fails the run and never counts as clean. Lint never writes: `--apply`
 does not run `regal fix`, because it can move files.
 
+Regal rules that look across the linted files, such as
+`idiomatic/no-defined-entrypoint`, report without a file when a target has more
+than one source. Those findings are anchored to the first owned file of the
+batch. Turn such a rule off in the `regal_config` if it does not fit a library.
+
 Regal never reads a `.regal` directory from the workspace, the home directory or
 a parent directory, and it does not check for a newer version. To change the
 rules, bind a `regal_config` to the target with `aspect_hints`. The config is a

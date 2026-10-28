@@ -1208,6 +1208,19 @@ impl Gate {
         bazel_options: &[String],
         setting: BuildSlots,
     ) -> Option<Self> {
+        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
+        Self::from_args(workspace, env_get, json, bazel_options, setting, &args)
+    }
+
+    /// `from_env` with an explicit argv, which excludes argv[0].
+    fn from_args(
+        workspace: &Path,
+        env_get: &dyn Fn(&str) -> Option<String>,
+        json: bool,
+        bazel_options: &[String],
+        setting: BuildSlots,
+        args: &[OsString],
+    ) -> Option<Self> {
         let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
         if set(SLOT_ENV_VAR) || set(BAZEL_TEST_ENV_VAR) {
             return None;
@@ -1225,8 +1238,7 @@ impl Gate {
         } = sizing(setting, memory, reserved)?;
         let read = |path: &Path| std::fs::read_to_string(path).ok();
         let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
-        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
-        let startup = own_startup_options(&args);
+        let startup = own_startup_options(args);
         let remote = dx_process::rc::remote_execution(
             env_get,
             workspace,
@@ -1302,8 +1314,19 @@ impl Gate {
         err: &mut dyn Write,
         events: &mut dyn Write,
     ) -> Result<Option<Slot>, i32> {
+        self.take_warming(command, err, events, self.warm.clone())
+    }
+
+    /// `take` with an explicit keep-warm source, ticked while waiting for a slot.
+    fn take_warming<W: Warm>(
+        &self,
+        command: Command,
+        err: &mut dyn Write,
+        events: &mut dyn Write,
+        warm: Option<W>,
+    ) -> Result<Option<Slot>, i32> {
         let json = self.json;
-        let mut keep = self.warm.clone().map(KeepWarm::new);
+        let mut keep = warm.map(KeepWarm::new);
         let out = RefCell::new((err, events));
         let layout = self.layout();
         let admission = Admission {
@@ -4357,6 +4380,113 @@ mod tests {
         idle.tick(Instant::now());
         drop(idle);
         assert_eq!(idle_log.borrow().stopped, 0);
+    }
+
+    /// Frees the holder's slot on its first ping, so a waiting `take` gets in on its next poll.
+    struct ReleasingWarm {
+        inner: FakeWarm,
+        holder: RefCell<Option<Slot>>,
+    }
+
+    impl Warm for ReleasingWarm {
+        type Ping = ();
+
+        fn own_server(&self) -> Option<(u32, Option<u64>)> {
+            self.inner.own_server()
+        }
+
+        fn alive(&self, pid: u32) -> bool {
+            self.inner.alive(pid)
+        }
+
+        fn ping(&self) -> Option<()> {
+            let ping = self.inner.ping();
+            drop(self.holder.borrow_mut().take());
+            ping
+        }
+
+        fn finished(&self, ping: &mut ()) -> bool {
+            self.inner.finished(ping)
+        }
+
+        fn stop(&self, ping: ()) {
+            self.inner.stop(ping);
+        }
+    }
+
+    #[test]
+    fn a_waiting_take_keeps_its_server_warm_until_it_gets_a_slot() {
+        let scratch = dx_test_scratch::scratch("dx-slots-keepwarm-");
+        let dir = scratch.path().to_path_buf();
+        let (holder, _, _) = take_gate(&Gate::new(dir.clone(), 1, "/w/holder".to_owned(), false));
+        let log = std::rc::Rc::new(RefCell::new(FakeLog::default()));
+        let warm = ReleasingWarm {
+            inner: FakeWarm {
+                server: Some((7, Some(90))),
+                log: log.clone(),
+            },
+            holder: RefCell::new(Some(holder)),
+        };
+        let waiter = Gate::new(dir, 1, "/w/waiter".to_owned(), false);
+        let mut err = Vec::new();
+        let mut events = Vec::new();
+        let got = waiter.take_warming(Command::Test, &mut err, &mut events, Some(warm));
+        assert!(matches!(got, Ok(Some(_))));
+        let log = log.borrow();
+        assert_eq!((log.lookups, log.pings, log.stopped), (1, 1, 1));
+        let err = String::from_utf8(err).expect("utf8");
+        assert!(err.contains(&wait_message("/w/holder")), "{err}");
+    }
+
+    #[test]
+    fn a_free_slot_never_looks_for_a_server() {
+        let scratch = dx_test_scratch::scratch("dx-slots-nowarm-");
+        let gate = Gate::new(scratch.path().to_path_buf(), 1, "/w/a".to_owned(), false);
+        let log = std::rc::Rc::new(RefCell::new(FakeLog::default()));
+        let warm = FakeWarm {
+            server: Some((7, Some(90))),
+            log: log.clone(),
+        };
+        let got = gate.take_warming(Command::Test, &mut Vec::new(), &mut Vec::new(), Some(warm));
+        assert!(matches!(got, Ok(Some(_))));
+        let log = log.borrow();
+        assert_eq!((log.lookups, log.pings), (0, 0));
+    }
+
+    #[test]
+    fn from_args_builds_warmth_from_argv_and_rc_roots() {
+        let scratch = dx_test_scratch::scratch("dx-slots-warmth-");
+        let root = scratch.path().to_path_buf();
+        let workspace = root.join("ws");
+        std::fs::create_dir_all(&workspace).expect("workspace");
+        let rc_root = root.join("r");
+        std::fs::write(
+            workspace.join(".bazelrc"),
+            format!("startup --output_user_root={}\n", rc_root.display()),
+        )
+        .expect("rc");
+        let cache = root.join("cache").to_string_lossy().into_owned();
+        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+        let base = root.join("ob");
+        let option = format!("--output_base={}", base.display());
+        let args: Vec<OsString> = vec![
+            "test".into(),
+            format!("--bazel-startup-option={option}").into(),
+            "//...".into(),
+        ];
+        let gate = Gate::from_args(&workspace, &get, false, &[], count(1), &args).expect("gate");
+        let warm = gate.warm.expect("warmth from argv");
+        assert_eq!(warm.startup_options, vec![option]);
+        assert_eq!(warm.output_user_root, Some(rc_root));
+        assert_eq!(warm.output_base, Some(base));
+        assert_eq!(warm.workspace, workspace);
+
+        let args: Vec<OsString> = vec!["slots::".into()];
+        let gate = Gate::from_args(&workspace, &get, false, &[], count(1), &args).expect("gate");
+        assert!(
+            gate.warm.is_none(),
+            "an argv that is not a dx command warms nothing"
+        );
     }
 
     #[test]

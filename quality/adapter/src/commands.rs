@@ -158,6 +158,20 @@ const DSCANNER_CHECK_ARGS: &[&str] = &[
 ];
 const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
+/// Always first: it stops perltidy reading `~/.perltidyrc`, `./.perltidyrc` and `$PERLTIDY`.
+const PERLTIDY_CHECK_ARGS: &[&str] = &[
+    "--noprofile",
+    "--standard-output",
+    "--standard-error-output",
+    "--output-line-ending=unix",
+];
+const PERLTIDY_FIX_ARGS: &[&str] = &[
+    "--noprofile",
+    "-b",
+    "-bext=/",
+    "--standard-error-output",
+    "--output-line-ending=unix",
+];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -1104,6 +1118,16 @@ pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn julia_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JULIA_FORMAT_FIX_ARGS, files, "")
+}
+
+/// perltidy `--standard-output` takes one file and writes the formatted text to stdout.
+pub fn perltidy_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, PERLTIDY_CHECK_ARGS, &[file], "")
+}
+
+/// `-b -bext=/` rewrites in place without a backup; `-se` keeps `.ERR` files from appearing.
+pub fn perltidy_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, PERLTIDY_FIX_ARGS, files, "")
 }
 
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

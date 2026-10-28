@@ -4,9 +4,10 @@ use strict;
 use warnings;
 
 sub new {
-    my ($class, %args) = @_;
+    my ( $class, %args ) = @_;
     my $limit = $args{limit} // 60;
-    die "error: the limit must be a positive whole number\n" if $limit !~ /\A[1-9][0-9]*\z/;
+    die "error: the limit must be a positive whole number\n"
+      if $limit !~ /\A[1-9][0-9]*\z/;
     return bless { limit => 0 + $limit, stock => {} }, $class;
 }
 
@@ -16,16 +17,17 @@ sub limit {
 }
 
 sub add {
-    my ($self, $item) = @_;
-    my $total = $self->count($item->name) + $item->units;
-    die sprintf "error: %s would exceed the limit of %d\n", $item->name, $self->{limit}
-        if $total > $self->{limit};
+    my ( $self, $item ) = @_;
+    my $total = $self->count( $item->name ) + $item->units;
+    die sprintf "error: %s would exceed the limit of %d\n", $item->name,
+      $self->{limit}
+      if $total > $self->{limit};
     $self->{stock}{ $item->name } = $total;
     return $total;
 }
 
 sub count {
-    my ($self, $name) = @_;
+    my ( $self, $name ) = @_;
     return $self->{stock}{$name} // 0;
 }
 

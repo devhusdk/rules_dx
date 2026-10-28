@@ -372,6 +372,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         "scalafix" => Ok(Route::Scalafix),
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
+        "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
         "keep_sorted" => {
             if tool.upstream_diagnostics.is_empty() {
@@ -804,6 +805,13 @@ impl super::RealBackend {
                             String::from_utf8_lossy(&out.stderr).trim()
                         ),
                     ))
+                }
+            }
+            Route::Rewrite(_) if tool_id == "perltidy" => {
+                if out.code == Some(0) {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Kept
                 }
             }
             Route::Rewrite(_) => {

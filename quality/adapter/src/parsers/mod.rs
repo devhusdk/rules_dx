@@ -40,6 +40,7 @@ pub mod nixfmt;
 pub mod notebook_outputs;
 pub mod opa;
 pub mod ormolu;
+pub mod perltidy;
 pub mod pkl;
 pub mod pmd;
 pub mod prettier;
@@ -118,6 +119,7 @@ pub use nixfmt::parse_nixfmt;
 pub use notebook_outputs::parse_notebook_outputs;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
+pub use perltidy::parse_perltidy;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
@@ -1841,6 +1843,20 @@ mod tests {
         super::opa::parse_opa_check(input, input, code, files)
     }
 
+    fn fuzz_perltidy(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::perltidy::parse_perltidy(
+            input,
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
+    }
+
     fn fuzz_pkl(
         input: &[u8],
         code: Option<i32>,
@@ -2312,6 +2328,7 @@ mod tests {
         ("ormolu", fuzz_ormolu),
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
+        ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
@@ -2397,6 +2414,7 @@ mod tests {
         ("nixfmt", include_str!("nixfmt.rs")),
         ("ormolu", include_str!("ormolu.rs")),
         ("opa", include_str!("opa.rs")),
+        ("perltidy", include_str!("perltidy.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),
         ("prettier", include_str!("prettier.rs")),

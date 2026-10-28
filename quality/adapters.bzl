@@ -69,6 +69,7 @@ REAL_ADAPTERS = {
     "notebook_outputs": {"lint": ["jupyter"]},
     "ormolu": {"format": ["haskell"]},
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
+    "perltidy": {"format": ["perl"]},
     "pkl": {"format": ["pkl"]},
     "pmd": {"lint": ["java"]},
     "prettier": {"format": ["astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"]},

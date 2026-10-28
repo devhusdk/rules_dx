@@ -423,6 +423,48 @@ not supported.
 An unresolved type in a public signature, a missing source or an empty public API fails
 the build, and no pages are written.
 
+## Scala API reference
+
+`scala_doc_shard` from `@rules_dx//tools/docs/jvm:defs.bzl` reads one Scala library's
+public API with the Scaladoc model of the Scala 2.13 compiler and produces a docs IR
+shard with language `scala`. The sources are analysed, never run or changed. Pass the
+shard to `docs_site` beside other shards.
+
+```starlark
+load("@rules_dx//tools/docs/jvm:defs.bzl", "scala_doc_shard")
+
+scala_doc_shard(
+    name = "api_docs",
+    lib = ":shapes",
+)
+```
+
+Attributes:
+
+- `lib`: the documented `scala_library`. Its own `.scala` `srcs` are documented; its `deps` are only on the classpath.
+- `package`: the package segment of the symbol ids. Defaults to the name of `lib`.
+- `deps`: `scala_doc_shard` targets of libraries whose types this one extends or links to. Their symbols are linked, not documented again.
+
+Only Scala 2.13 is supported. The consumer must set it with
+`scala_config.settings(scala_version = "2.13.x")`; under any other Scala version the
+documentation action fails. Only `.scala` sources are read; libraries with `.java`
+sources, source jars and compiler plugins are not supported.
+
+Symbol ids have the form `scala:<package>:<qualified name>`, for example
+`scala:shapes:dx.fixture.shapes.Circle`. A companion object ends in `$`, written
+`~24`, so the class and its object differ, as in `scala:shapes:dx.fixture.shapes.Point~24`.
+Overloaded methods add the erased simple parameter types, as in
+`scala:shapes:dx.fixture.shapes.Circle.scale~28Double~2CDouble~29`.
+Characters other than letters, digits and `_` are written as `~` and two hex digits.
+
+Public classes, traits, objects, constructors, methods, `val`s, `var`s and type members
+are documented, with the text of Scaladoc tags and `[[links]]`. Private, protected and
+qualified-private members, inherited members and compiler-generated members such as
+`copy` are left out.
+
+A type error, a missing source or an empty public API fails the build, and no pages
+are written.
+
 ## PowerShell API reference
 
 `powershell_doc_shard` from `@rules_dx//tools/docs/powershell:defs.bzl` reads one

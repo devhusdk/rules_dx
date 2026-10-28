@@ -2,7 +2,8 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//java/rules:defs.bzl", "java_library")
 load("//kotlin/rules:defs.bzl", "kotlin_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard")
+load("//scala/rules:defs.bzl", "scala_library")
+load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -16,6 +17,9 @@ exports_files(
         "java/dx/fixture/shapes/Circle.java",
         "java/dx/fixture/shapes/Shape.java",
         "java/dx/fixture/shapes/package-info.java",
+        "scala/dx/fixture/paint/Square.scala",
+        "scala/dx/fixture/shapes/Circle.scala",
+        "scala/dx/fixture/shapes/Shape.scala",
     ],
     visibility = VIS_TOOLS,
 )
@@ -154,6 +158,42 @@ kotlin_doc_shard(
 kotlin_doc_shard(
     name = "kotlin_paint_nodep_docs",
     lib = ":kotlin_paint",
+    package = "paint",
+    tags = ["manual"],
+)
+
+scala_library(
+    name = "scala_shapes",
+    srcs = [
+        "scala/dx/fixture/shapes/Circle.scala",
+        "scala/dx/fixture/shapes/Shape.scala",
+    ],
+    aspect_hints = ["//:scalafmt_config"],
+)
+
+scala_library(
+    name = "scala_paint",
+    srcs = ["scala/dx/fixture/paint/Square.scala"],
+    aspect_hints = ["//:scalafmt_config"],
+    deps = [":scala_shapes"],
+)
+
+scala_doc_shard(
+    name = "scala_shapes_docs",
+    lib = ":scala_shapes",
+    package = "shapes",
+)
+
+scala_doc_shard(
+    name = "scala_paint_docs",
+    lib = ":scala_paint",
+    package = "paint",
+    deps = [":scala_shapes_docs"],
+)
+
+scala_doc_shard(
+    name = "scala_paint_nodep_docs",
+    lib = ":scala_paint",
     package = "paint",
     tags = ["manual"],
 )

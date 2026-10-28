@@ -67,6 +67,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude tools/docs/jvm/dokka
 # gazelle:exclude tools/docs/jvm/fixture
 # gazelle:exclude tools/docs/jvm/javadoc
+# gazelle:exclude tools/docs/jvm/scaladoc
 # gazelle:exclude tools/docs/dotnet/csharp
 # gazelle:exclude tools/docs/dotnet/fixture
 # gazelle:exclude tools/docs/dotnet/fsharp

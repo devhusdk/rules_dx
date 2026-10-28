@@ -475,6 +475,7 @@ jobs:
         docs,
         devcontainer-check,
         hermetic,
+        hermetic-arm64,
         network,
         preflight,
         workflow-check,
@@ -493,7 +494,7 @@ jobs:
           import os
           import sys
 
-          required = ["dogfood", "docs", "devcontainer-check", "hermetic", "network", "preflight", "workflow-check"]
+          required = ["dogfood", "docs", "devcontainer-check", "hermetic", "hermetic-arm64", "network", "preflight", "workflow-check"]
           needs = json.loads(os.environ.get("NEEDS") or "{}")
           failing = sorted(
               name

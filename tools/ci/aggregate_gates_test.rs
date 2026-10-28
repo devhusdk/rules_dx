@@ -62,6 +62,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "docs",
         "devcontainer-check",
         "hermetic",
+        "hermetic-arm64",
         "network",
         "preflight",
         "workflow-check"

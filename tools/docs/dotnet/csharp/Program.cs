@@ -109,6 +109,28 @@ public static class Program
         return values;
     }
 
+    private sealed class DiagnosticListener : ILoggerListener
+    {
+        public readonly List<string> Messages = new List<string>();
+
+        public void WriteLine(ILogItem item)
+        {
+            if (item.LogLevel == LogLevel.Warning || item.LogLevel == LogLevel.Error)
+            {
+                string where = string.IsNullOrEmpty(item.File) ? "" : item.File + (string.IsNullOrEmpty(item.Line) ? "" : "(" + item.Line + ")") + ": ";
+                Messages.Add("  " + item.LogLevel.ToString().ToLowerInvariant() + ": " + where + item.Message);
+            }
+        }
+
+        public void Flush()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
     private static string Run(Context context, string scratch)
     {
         if (context.Srcs.Count == 0)
@@ -130,10 +152,19 @@ public static class Program
             string configPath = Path.Combine(work, "docfx.json");
             File.WriteAllText(configPath, DocfxConfig(context, cwd, api), new UTF8Encoding(false));
             Logger.ResetCount();
-            DotnetApiCatalog.GenerateManagedReferenceYamlFiles(configPath).GetAwaiter().GetResult();
+            DiagnosticListener listener = new DiagnosticListener();
+            Logger.RegisterListener(listener);
+            try
+            {
+                DotnetApiCatalog.GenerateManagedReferenceYamlFiles(configPath).GetAwaiter().GetResult();
+            }
+            finally
+            {
+                Logger.UnregisterListener(listener);
+            }
             if (Logger.ErrorCount > 0 || Logger.WarningCount > 0)
             {
-                throw new Failure("docfx reported " + Logger.ErrorCount + " error(s) and " + Logger.WarningCount + " warning(s)");
+                throw new Failure("docfx reported " + Logger.ErrorCount + " error(s) and " + Logger.WarningCount + " warning(s):\n" + string.Join("\n", listener.Messages));
             }
             List<Entry> items = ReadItems(api, context);
             CrossCheck(context, items);
@@ -469,6 +500,9 @@ public static class Program
         HashSet<string> expected = new HashSet<string>(StringComparer.Ordinal);
         CollectNamespace(assembly.GlobalNamespace, expected);
         HashSet<string> actual = new HashSet<string>(items.Select(i => i.DocId), StringComparer.Ordinal);
+        HashSet<string> implicitIds = new HashSet<string>(StringComparer.Ordinal);
+        CollectImplicit(SourceCompilation(context).Assembly.GlobalNamespace, implicitIds);
+        expected.RemoveWhere(id => implicitIds.Contains(id) && !actual.Contains(id));
         List<string> missing = expected.Where(id => !actual.Contains(id)).OrderBy(id => id, StringComparer.Ordinal).ToList();
         List<string> extra = actual.Where(id => !expected.Contains(id)).OrderBy(id => id, StringComparer.Ordinal).ToList();
         if (missing.Count > 0 || extra.Count > 0)
@@ -477,7 +511,26 @@ public static class Program
         }
     }
 
-    private static void Locate(Context context, List<Entry> items)
+    private static void CollectImplicit(INamespaceOrTypeSymbol container, HashSet<string> ids)
+    {
+        foreach (ISymbol member in container.GetMembers())
+        {
+            if (member is INamespaceOrTypeSymbol nested && !(member is INamedTypeSymbol type && type.IsImplicitlyDeclared))
+            {
+                CollectImplicit(nested, ids);
+            }
+            if (member.IsImplicitlyDeclared)
+            {
+                string id = member.GetDocumentationCommentId();
+                if (id != null)
+                {
+                    ids.Add(id);
+                }
+            }
+        }
+    }
+
+    private static CSharpCompilation SourceCompilation(Context context)
     {
         CSharpParseOptions parse = new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.Parse, SourceCodeKind.Regular, context.Defines);
         List<SyntaxTree> trees = new List<SyntaxTree>();
@@ -490,11 +543,16 @@ public static class Program
         {
             references.Add(MetadataReference.CreateFromFile(path));
         }
-        CSharpCompilation compilation = CSharpCompilation.Create(
+        return CSharpCompilation.Create(
             "dx-source-locate",
             trees,
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: context.AllowUnsafe));
+    }
+
+    private static void Locate(Context context, List<Entry> items)
+    {
+        CSharpCompilation compilation = SourceCompilation(context);
         foreach (Entry entry in items)
         {
             if (entry.DocId.StartsWith("N:", StringComparison.Ordinal) || entry.File != "")

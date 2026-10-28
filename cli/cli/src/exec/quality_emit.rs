@@ -268,6 +268,12 @@ pub(crate) fn emit_findings(
             conflict.producers.join(", ")
         );
     }
+    if !conflicts.is_empty() {
+        let _ = writeln!(
+            err,
+            "next: resolve the Conflict files listed above by hand or fix one producer, then run the command again."
+        );
+    }
     if let Some(view) = baseline {
         for stale in &view.stale {
             let _ = writeln!(

@@ -1,4 +1,4 @@
-load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library", "kotlin_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -12,4 +12,11 @@ kotlin_library(
         "Helper.kt",
         "Main.kt",
     ],
+)
+
+kotlin_test(
+    name = "helper_test",
+    srcs = ["HelperTest.kt"],
+    test_class = "demo.HelperTest",
+    deps = [":demo"],
 )

@@ -1142,6 +1142,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "jsonnet_lint": {
+        "upstream_version": "0.22.0",
+        "release_page": "https://github.com/google/go-jsonnet/releases/tag/v0.22.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/google/go-jsonnet/blob/v0.22.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "go-jsonnet_0.22.0_linux_amd64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_linux_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "go-jsonnet_0.22.0_windows_amd64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint.exe",
+            },
+        },
+    },
     "yamlfmt": {
         "upstream_version": "0.21.0",
         "release_page": "https://github.com/google/yamlfmt/releases/tag/v0.21.0",

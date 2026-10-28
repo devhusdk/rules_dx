@@ -496,6 +496,20 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+JSONNET_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["jsonnet"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jsonnet",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "jsonnet_lint",
+    "transport": "batched",
+}
+
 TYPST_TYPSTYLE_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -760,6 +774,7 @@ SUPPORT_RECORDS = [
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
+    JSONNET_LINT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
     TYPST_TYPSTYLE_FORMAT_SUPPORT,
     LATEX_LATEXINDENT_FORMAT_SUPPORT,

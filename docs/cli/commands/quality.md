@@ -253,6 +253,7 @@ to.
 | `govet` | lint | go |
 | `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
+| `jsonnet_lint` | lint | jsonnet |
 | `jsonnetfmt` | format | jsonnet |
 | `julia_format` | format | julia |
 | `keep_sorted` | lint | text |
@@ -1036,18 +1037,21 @@ bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_opa=//tools:op
 
 ### Jsonnet
 
-`jsonnetfmt` runs from the managed pin for format. Select it in a `jsonnet`
-family. It runs on Linux x86_64.
+`jsonnetfmt` runs from the managed pin for format and `jsonnet_lint` runs
+`jsonnet-lint` from the same go-jsonnet archive for lint. Select them in a
+`jsonnet` family. They run on Linux x86_64.
 
 ```python
 quality_family(
     name = "jsonnet_family",
     family_id = "jsonnet",
     format = ["jsonnetfmt"],
+    lint = ["jsonnet_lint"],
 )
 ```
 
 ```sh
+bazel run @rules_dx//:dx -- lint //config/...
 bazel run @rules_dx//:dx -- format //config/...
 bazel run @rules_dx//:dx -- format --apply //config/...
 ```
@@ -1061,6 +1065,11 @@ reported at the start of the file. A syntax error fails the run with the file,
 line and column. It never counts as clean. `jsonnetfmt` stops at the first
 syntax error, so fix it and run again to see the next one. `jsonnetfmt` takes
 no config file.
+
+`jsonnet_lint` reports unknown and unused variables, wrong call arguments,
+missing object fields and unresolved imports with the file, line and column. It
+has no fix, so `--apply` leaves the files alone. A run that exits with an error
+or prints nothing it can place in a staged file fails and never counts as clean.
 
 ### Haskell
 

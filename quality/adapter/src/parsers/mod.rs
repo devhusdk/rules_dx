@@ -26,6 +26,7 @@ pub mod google_java_format;
 pub mod govet;
 pub mod hadolint;
 pub mod helm;
+pub mod jsonnet_lint;
 pub mod jsonnetfmt;
 pub mod julia_format;
 pub mod keep_sorted;
@@ -106,6 +107,7 @@ pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
 pub use hadolint::parse_hadolint;
 pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, RenderedFile};
+pub use jsonnet_lint::parse_jsonnet_lint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use julia_format::parse_julia_format;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
@@ -1743,6 +1745,14 @@ mod tests {
         super::helm::parse_helm_lint(input, code, "", files)
     }
 
+    fn fuzz_jsonnet_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jsonnet_lint::parse_jsonnet_lint(input, input, code, files)
+    }
+
     fn fuzz_jsonnetfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2321,6 +2331,7 @@ mod tests {
         ("govet", fuzz_govet),
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
+        ("jsonnet_lint", fuzz_jsonnet_lint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("julia_format", fuzz_julia_format),
         ("keep_sorted", fuzz_keep_sorted),
@@ -2410,6 +2421,7 @@ mod tests {
         ("govet", include_str!("govet.rs")),
         ("hadolint", include_str!("hadolint.rs")),
         ("helm", include_str!("helm.rs")),
+        ("jsonnet_lint", include_str!("jsonnet_lint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("julia_format", include_str!("julia_format.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),

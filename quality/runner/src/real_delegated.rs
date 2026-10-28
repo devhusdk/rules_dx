@@ -343,6 +343,42 @@ pub(super) fn dfmt_checks_one_file_at_a_time_and_never_trusts_a_run_that_printed
     assert_eq!(broken[0].rule_id, "syntax");
 }
 
+fn jsonnet_lint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (1, "ERROR: boom\n".to_owned())
+    } else if text.contains("unused") {
+        (
+            2,
+            format!("{file}:1:7-17 Unused variable: x\n\nlocal x = 1;\n\n\nProblems found!\n"),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn jsonnet_lint_reports_problems_and_never_trusts_a_failed_run() {
+    let backend = backend_for("jsonnet_lint", plain_tool(), jsonnet_lint_behavior);
+    let lint = |text: &str| backend.diagnose("jsonnet_lint", "lint", &single("a.jsonnet", text));
+    assert!(lint("{}\n").expect("check").is_empty());
+    let warned = lint("local x = 1; unused\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].message, "Unused variable: x");
+    assert!(lint("crash\n").is_err());
+}
+
 fn dscanner_behavior(
     argv: &[OsString],
     cwd: &Path,

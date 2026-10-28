@@ -1162,6 +1162,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
+        argv_strings(&jsonnet_lint_check(Path::new(BIN), &[jsonnet])),
+        vec![BIN, "/scratch/Sample.jsonnet"]
+    );
+    assert_eq!(
         argv_strings(&jsonnetfmt_check(Path::new(BIN), &[jsonnet])),
         vec![BIN, "--test", "/scratch/Sample.jsonnet"]
     );

@@ -743,6 +743,7 @@ rust_test(
         "//javascript/rules:corpus_starlark",
         "//jsonnet/rules:corpus_starlark",
         "//julia/rules:corpus_starlark",
+        "//julia/tests/starter:corpus_starlark",
         "//julia/tools:corpus_starlark",
         "//kotlin/rules:corpus_starlark",
         "//libs/starlark:corpus_starlark",

@@ -14,6 +14,11 @@ _LINUX = ["@platforms//os:linux"]
 _WINDOWS = ["@platforms//os:windows"]
 
 cc_binary(
+    name = "fake_makeappx_bin",
+    srcs = ["fake_makeappx.c"],
+)
+
+cc_binary(
     name = "argv_signtool",
     srcs = ["argv_signtool.c"],
     linkopts = ["crypt32.lib"],
@@ -349,28 +354,24 @@ msix_variant(
     name = "pe_x64",
     src = "//examples/msix-app/app:dxmsix",
     platform = "@llvm//platforms:windows_x86_64",
-    target_compatible_with = _LINUX,
 )
 
 msix_variant(
     name = "greet_x64",
     src = "//examples/msix-app/greet:greet_dll",
     platform = "@llvm//platforms:windows_x86_64",
-    target_compatible_with = _LINUX,
 )
 
 msix_variant(
     name = "pe_arm64",
     src = "//examples/msix-app/app:dxmsix",
     platform = "@llvm//platforms:windows_aarch64",
-    target_compatible_with = _LINUX,
 )
 
 msix_variant(
     name = "greet_arm64",
     src = "//examples/msix-app/greet:greet_dll",
     platform = "@llvm//platforms:windows_aarch64",
-    target_compatible_with = _LINUX,
 )
 
 pwsh_test(
@@ -379,9 +380,9 @@ pwsh_test(
     srcs = ["pack_test.ps1"],
     data = [
         "fixtures/NOTICE.txt",
-        "fixtures/fake_makeappx.sh",
         "fixtures/greeting.txt",
         "fixtures/logo.png",
+        ":fake_makeappx_bin",
         ":greet_arm64",
         ":greet_x64",
         ":pe_arm64",
@@ -389,14 +390,13 @@ pwsh_test(
         "//msix:pack.ps1",
     ],
     env = {
-        "DX_MSIX_FAKE_MAKEAPPX": "$(rlocationpath fixtures/fake_makeappx.sh)",
+        "DX_MSIX_FAKE_MAKEAPPX": "$(rlocationpath :fake_makeappx_bin)",
         "DX_MSIX_FIXTURES": "$(rlocationpaths fixtures/NOTICE.txt) $(rlocationpaths fixtures/greeting.txt) $(rlocationpaths fixtures/logo.png)",
         "DX_MSIX_PACK": "$(rlocationpath //msix:pack.ps1)",
         "DX_MSIX_PE_ARM64": "$(rlocationpaths :pe_arm64) $(rlocationpaths :greet_arm64)",
         "DX_MSIX_PE_X64": "$(rlocationpaths :pe_x64) $(rlocationpaths :greet_x64)",
     },
     tags = ["block-network"],
-    target_compatible_with = _LINUX,
     deps = ["@rules_powershell//powershell/runfiles"],
 )
 

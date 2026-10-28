@@ -285,7 +285,6 @@ GAP_ISSUES = {
     "build:fortran:*": 4546,
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
-    "build:msix:*": 4549,
     "build:ocaml:*": 4550,
     "build:php:*": 4552,
     "build:powershell:*": 4553,

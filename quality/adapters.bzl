@@ -39,6 +39,7 @@ REAL_ADAPTERS = {
     "csharpier": {"format": ["csharp"]},
     "credo": {"lint": ["elixir"]},
     "cue": {"format": ["cue"]},
+    "dart": {"format": ["dart"]},
     "deadnix": {"lint": ["nix"]},
     "dfmt": {"format": ["d"]},
     "djlint": {"format": ["html_template"], "lint": ["html_template"]},

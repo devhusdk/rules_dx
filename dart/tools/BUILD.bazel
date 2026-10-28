@@ -1,0 +1,35 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load(":dart_tool.bzl", "dart_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+dart_tool(name = "dart")
+
+rust_test(
+    name = "format_cli_test",
+    srcs = ["format_cli_test.rs"],
+    data = [":dart"],
+    env = {"DART": "$(rootpath :dart)"},
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "format_cli_fmt_test",
+    targets = [":format_cli_test"],
+)
+
+rust_clippy_test(
+    name = "format_cli_clippy_test",
+    targets = [":format_cli_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "dart_tool.bzl",
+    ],
+    tags = ["corpus"],
+)

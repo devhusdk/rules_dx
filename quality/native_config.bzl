@@ -47,6 +47,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "elvis": ["elvis.config", ".config"],
     "eslint": [".js", ".mjs", ".cjs"],
     "credo": [".exs"],
+    "dart": [".yaml"],
     "fsharplint": [".json"],
     "gersemi": [".gersemirc", ".yaml", ".yml"],
     "graphql_eslint": [".json"],
@@ -221,6 +222,8 @@ scalafmt_config = _make_native_config_rule("scalafmt")
 scalafix_config = _make_native_config_rule("scalafix")
 
 csharpier_config = _make_native_config_rule("csharpier")
+
+dart_config = _make_native_config_rule("dart")
 
 clang_format_config = _make_native_config_rule("clang_format")
 

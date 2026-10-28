@@ -23,6 +23,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
@@ -159,6 +160,14 @@ _REAL_TOOL_TABLE = {
         "kind": "executable",
         "resources": "light",
         "shard": "nix",
+    },
+    "dart": {
+        "attr": attr.label(default = "//config:tool_dart", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+        "target_tool": True,
     },
     "dfmt": {
         "attr": attr.label(default = "//config:tool_dfmt", allow_files = True, cfg = "exec"),
@@ -882,9 +891,48 @@ def _helm_context(target, ctx, what):
         }),
     )
     return context
+_DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
+_DART_OPTIONS_REL = "analysis_options.yaml"
+
+def _dart_context(target, ctx, what):
+    """Writes the package config that gives each Dart file the language version Dart itself would use.
+
+    The version is the one of the in-repo package whose root holds the file (`test/` and `bin/`
+    included); a package that states none is listed without one, so it formats at the newest
+    version like a file in no package. Returns (package_config, empty_options).
+    """
+    if DartInfo in target:
+        info = target[DartInfo]
+    elif DartAnalyzableInfo in target:
+        info = target[DartAnalyzableInfo].dart_info
+    else:
+        fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
+    roots = {}
+    for pkg in info.transitive_packages.to_list():
+        if pkg.lib_root.startswith("../") or pkg.lib_root in roots:
+            continue
+        roots[pkg.lib_root] = pkg
+    packages = []
+    for lib_root in sorted(roots):
+        pkg = roots[lib_root]
+        entry = {
+            "name": pkg.package_name or "dx_package_%d" % len(packages),
+            "packageUri": "lib/",
+            "rootUri": "../" + lib_root,
+        }
+        version = getattr(pkg, "language_version", "")
+        if version:
+            entry["languageVersion"] = version
+        packages.append(entry)
+    config = ctx.actions.declare_file(target.label.name + "-dart-package-config.json")
+    ctx.actions.write(output = config, content = json.encode({"configVersion": 2, "packages": packages}))
+    options = ctx.actions.declare_file(target.label.name + "-dart-analysis-options.yaml")
+    ctx.actions.write(output = options, content = "")
+    return (config, options)
 
 # Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
 _TARGET_TOOL_OWNERS = {
+    "dart": ("dart_library, dart_binary or dart_test", "@rules_dx//dart/rules:defs.bzl", "@rules_dx//dart/tools:dart"),
     "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
     "dscanner": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dscanner"),
     "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
@@ -1098,6 +1146,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     helm_context = None
     if "helm" in [stage["tool"] for stage in resolved]:
         helm_context = _helm_context(target, ctx, what)
+    dart_package_config = None
+    dart_options = None
+    if "dart" in [stage["tool"] for stage in resolved]:
+        (dart_package_config, dart_options) = _dart_context(target, ctx, what)
 
     roslyn = None
     if "roslyn" in [stage["tool"] for stage in resolved]:
@@ -1397,6 +1449,18 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                     fail("native_config (%s): file %s for %s escapes the scratch" % (tool, f.short_path, what))
                 tool_files.append(real_request_tool_file(closure_rel, f.path))
                 inputs.append(f)
+        if tool == "dart":
+            # dart format reads `formatter:` from the nearest analysis_options.yaml, so the
+            # hinted config (or an empty one) sits at the scratch root and nowhere else.
+            options = dart_options
+            if tool in configs_by_tool:
+                options = configs_by_tool[tool].config
+            else:
+                inputs.append(options)
+            if config_rel != _DART_OPTIONS_REL:
+                tool_files.append(real_request_tool_file(_DART_OPTIONS_REL, options.path))
+            tool_files.append(real_request_tool_file(_DART_PACKAGE_CONFIG_REL, dart_package_config.path))
+            inputs.append(dart_package_config)
         upstream = []
         if tool == "clippy" and clippy_delegated:
             for diagnostics in clippy_diagnostics:

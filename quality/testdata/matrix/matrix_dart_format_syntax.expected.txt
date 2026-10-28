@@ -1,0 +1,17 @@
+producer //quality/testdata:matrix_dart_format_syntax
+capability FORMAT
+stages 1
+stage dart classes=dart sources=matrix/dart_broken.dart
+completed_rounds 1
+convergence STABLE
+initial 4
+initial ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "A function body must be provided."
+initial ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "Expected an identifier."
+initial ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "Expected to find ')'."
+initial ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "Expected to find '}'."
+terminal 4
+terminal ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "A function body must be provided."
+terminal ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "Expected an identifier."
+terminal ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "Expected to find ')'."
+terminal ERROR dart syntax matrix/dart_broken.dart 13 13 fixable=false "Expected to find '}'."
+replacements 0

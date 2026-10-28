@@ -1261,6 +1261,28 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/doc/sample.tex"
         ]
     );
+    let dart = Path::new("/scratch/lib/a.dart");
+    assert_eq!(
+        argv_strings(&dart_format_check(Path::new(BIN), &[dart])),
+        vec![
+            BIN,
+            "--suppress-analytics",
+            "format",
+            "--output=none",
+            "--set-exit-if-changed",
+            "/scratch/lib/a.dart"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&dart_format_fix(Path::new(BIN), &[dart])),
+        vec![
+            BIN,
+            "--suppress-analytics",
+            "format",
+            "--output=write",
+            "/scratch/lib/a.dart"
+        ]
+    );
     let zig = Path::new("/scratch/sample.zig");
     assert_eq!(
         argv_strings(&zig_fmt_check(Path::new(BIN), &[zig])),

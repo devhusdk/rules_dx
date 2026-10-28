@@ -1099,6 +1099,14 @@ impl RealBackend {
                     parsers::parse_mix_format(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "dart" => {
+                let invocation = commands::dart_format_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_dart_format(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "julia_format" => {
                 let invocation = commands::julia_format_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

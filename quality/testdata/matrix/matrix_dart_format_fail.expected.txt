@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_dart_format_fail
+capability FORMAT
+stages 1
+stage dart classes=dart sources=matrix/dart_dirty.dart
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING dart - matrix/dart_dirty.dart 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/dart_dirty.dart 11 21 " {\n  print(1);\n"

@@ -3,7 +3,7 @@
 load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_library = "dart_library", _dart_package_metadata = "dart_package_metadata", _dart_test = "dart_test")
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartCompileInfo", "DartInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 DART_SOURCE_SPECS = [("dart", "dart")]
 
@@ -14,7 +14,9 @@ DART_COMPATIBLE_WITH = select({
     "//conditions:default": [Label("@platforms//:incompatible")],
 })
 
-DART_DEFERRED_SKIP_TAGS = ["no-format", "no-lint", "no-typecheck"]
+DART_DEFERRED_SKIP_TAGS = ["no-lint", "no-typecheck"]
+
+DART_QUALITY_TOOLS = {"dart": Label("//dart/tools:dart")}
 
 CROSS_COMPILE_ERROR = "dart cross-compilation to %s-%s is not supported: dart compile downloads the target snapshotter at action time"
 
@@ -42,9 +44,10 @@ _NATIVE_TARGET_ATTR = {
 }
 
 _dart_library_forward = dx_library_forward_rule(
-    provides = [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    provides = [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(DartInfo, "DartInfo")],
     quality_specs = DART_SOURCE_SPECS,
+    quality_tools = DART_QUALITY_TOOLS,
     what = "dart_library",
     allow_files = DART_SOURCE_EXTS,
     upstream_providers = [[DartInfo]],
@@ -53,9 +56,10 @@ _dart_library_forward = dx_library_forward_rule(
 
 _dart_binary_forward = dx_executable_forward_rule(
     kind = "executable",
-    provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, DartCompileInfo],
+    provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, DartCompileInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo"), (DartCompileInfo, "DartCompileInfo")],
     quality_specs = DART_SOURCE_SPECS,
+    quality_tools = DART_QUALITY_TOOLS,
     what = "dart_binary",
     allow_files = DART_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo, DartCompileInfo]],
@@ -65,9 +69,10 @@ _dart_binary_forward = dx_executable_forward_rule(
 
 _dart_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo],
+    provides = DX_EXEC_PROVIDES + [DartAnalyzableInfo, QualityToolsInfo],
     required_providers = [(DartAnalyzableInfo, "DartAnalyzableInfo")],
     quality_specs = DART_SOURCE_SPECS,
+    quality_tools = DART_QUALITY_TOOLS,
     what = "dart_test",
     allow_files = DART_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo]],

@@ -74,6 +74,12 @@ public final class JavacCheckTest {
     String log = JavacCheck.check(List.of("srcjar=" + jar));
     expect(log.contains("\"exit\":1"), "srcjar error exits 1", log);
     expect(log.contains("compiler.err.cant.resolve.location.args"), "srcjar error seen", log);
+    expect(log.contains("gen.srcjar!/p/D.java"), "stable srcjar name", log);
+    expect(!log.contains("srcjar0"), "no temp path leaks", log);
+    expect(log.equals(JavacCheck.check(List.of("srcjar=" + jar))), "srcjar deterministic", log);
+    Path tabs = write(dir, "tabs/T.java", "class T {\n\t\tint f() { return \"s\"; }\n}\n");
+    String tabLog = JavacCheck.check(List.of("source=" + tabs));
+    expect(tabLog.contains("\"column\":34"), "tab column is javac's expanded column", tabLog);
   }
 
   private static void sorted(Path dir) throws IOException {

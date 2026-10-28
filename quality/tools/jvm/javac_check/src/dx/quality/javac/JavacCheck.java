@@ -128,9 +128,11 @@ public final class JavacCheck {
     try {
       Path classes = Files.createDirectory(work.resolve("classes"));
       List<String> inputs = new ArrayList<>(sources);
+      java.util.Map<String, String> names = new java.util.LinkedHashMap<>();
       int index = 0;
       for (String srcjar : srcjars) {
-        inputs.addAll(extract(srcjar, Files.createDirectory(work.resolve("srcjar" + index++))));
+        inputs.addAll(
+            extract(srcjar, Files.createDirectory(work.resolve("srcjar" + index++)), names));
       }
       List<String> args = new ArrayList<>(options);
       args.addAll(
@@ -177,7 +179,7 @@ public final class JavacCheck {
       }
       List<Entry> entries = new ArrayList<>();
       for (Diagnostic<? extends JavaFileObject> d : collector.getDiagnostics()) {
-        entries.add(entry(d));
+        entries.add(entry(d, names));
       }
       entries.sort(
           Comparator.comparing(Entry::file)
@@ -191,7 +193,8 @@ public final class JavacCheck {
     }
   }
 
-  private static Entry entry(Diagnostic<? extends JavaFileObject> d) {
+  private static Entry entry(
+      Diagnostic<? extends JavaFileObject> d, java.util.Map<String, String> names) {
     String severity;
     switch (d.getKind()) {
       case ERROR:
@@ -208,12 +211,21 @@ public final class JavacCheck {
     JavaFileObject source = d.getSource();
     boolean located = source != null && d.getLineNumber() > 0 && d.getColumnNumber() > 0;
     return new Entry(
-        source == null ? "" : source.getName(),
+        source == null ? "" : names.getOrDefault(source.getName(), source.getName()),
         located ? d.getLineNumber() : 0,
         located ? d.getColumnNumber() : 0,
         severity,
         String.valueOf(d.getCode()),
-        d.getMessage(Locale.ROOT));
+        stable(d.getMessage(Locale.ROOT), names));
+  }
+
+  /** Replaces temp extraction paths with their stable srcjar names. */
+  private static String stable(String message, java.util.Map<String, String> names) {
+    String result = message;
+    for (java.util.Map.Entry<String, String> name : names.entrySet()) {
+      result = result.replace(name.getKey(), name.getValue());
+    }
+    return result;
   }
 
   static String render(int exit, List<Entry> entries) {
@@ -260,7 +272,8 @@ public final class JavacCheck {
     return out.append('"').toString();
   }
 
-  private static List<String> extract(String srcjar, Path target) throws IOException {
+  private static List<String> extract(
+      String srcjar, Path target, java.util.Map<String, String> names) throws IOException {
     List<String> extracted = new ArrayList<>();
     try (ZipFile zip = new ZipFile(srcjar)) {
       var entries = zip.entries();
@@ -278,6 +291,7 @@ public final class JavacCheck {
           Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
         }
         extracted.add(out.toString());
+        names.put(out.toString(), srcjar + "!/" + entry.getName());
       }
     }
     return extracted;

@@ -101,7 +101,7 @@ pub fn parse_jvm_diagnostics(
                 },
                 end: None,
                 suggestions: Vec::new(),
-                encoding: ColumnEncoding::Utf16,
+                encoding: ColumnEncoding::ScalarsTabs { width: 8 },
                 related: Vec::new(),
             },
         });
@@ -169,6 +169,16 @@ mod tests {
         );
         assert_eq!(found[0].finding.start.column, 3);
         assert_eq!(found[0].finding.tool_id, "javac");
+    }
+
+    #[test]
+    fn column_encoding_expands_tabs_like_javac() {
+        let body = entry("j/A.java", 4, "error", "compiler.err.x");
+        let found = parse_jvm_diagnostics("javac", &log(1, &body), Some(0), &["j/A.java"]).unwrap();
+        assert_eq!(
+            found[0].finding.encoding,
+            ColumnEncoding::ScalarsTabs { width: 8 }
+        );
     }
 
     #[test]

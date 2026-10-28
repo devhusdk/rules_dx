@@ -63,6 +63,12 @@ CURATED_DEFAULTS = {
         "lint": ["ktlint"],
         "typecheck": [],
     },
+    "helm": {
+        "audit": [],
+        "format": [],
+        "lint": ["helm"],
+        "typecheck": [],
+    },
     "kubernetes": {
         "audit": [],
         "format": [],
@@ -154,6 +160,7 @@ FORMAT_FROZEN = {
     "javascript": ["biome"],
     "json": ["prettier"],
     "kotlin": ["ktfmt"],
+    "helm": [],
     "kubernetes": [],
     "markdown": [],
     "mdx": ["remark"],

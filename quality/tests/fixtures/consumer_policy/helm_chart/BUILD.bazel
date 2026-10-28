@@ -1,0 +1,12 @@
+load("//helm/rules:defs.bzl", "helm_chart")
+
+helm_chart(
+    name = "clean_helm",
+    srcs = [
+        "Chart.yaml",
+        "templates/configmap.yaml",
+        "values.yaml",
+    ],
+    aspect_hints = ["//quality/tests/fixtures/consumer_policy:kubernetes_schemas"],
+    visibility = ["//quality:__pkg__"],
+)

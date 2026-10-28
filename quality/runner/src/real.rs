@@ -44,6 +44,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "govet",
     "graphql_eslint",
     "hadolint",
+    "helm",
     "jsonnet_lint",
     "jsonnetfmt",
     "julia_format",
@@ -659,6 +660,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
 
 mod check;
 mod delegated;
+mod helm;
 mod kubeconform;
 mod pipeline;
 mod redocly;
@@ -681,6 +683,9 @@ mod real_delegated;
 #[cfg(test)]
 #[path = "real_fixtures.rs"]
 mod real_fixtures;
+#[cfg(test)]
+#[path = "real_helm.rs"]
+mod real_helm;
 #[cfg(test)]
 #[path = "real_tools.rs"]
 mod real_tools;

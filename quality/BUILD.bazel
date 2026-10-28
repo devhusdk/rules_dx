@@ -504,6 +504,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_kubernetes",
         },
         {
+            "case": "helm_linted",
+            "expected_dx_results": [
+                "clean_helm-real-lint-kubernetes.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:helm_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy/helm_chart:clean_helm",
+        },
+        {
             "case": "ansible_linted",
             "expected_dx_results": [
                 "clean_ansible-real-lint-ansible.pb",
@@ -594,6 +602,7 @@ test_suite(
         ":consumer_policy_jupyter_formatted_test",
         ":consumer_policy_jupyter_outputs_linted_test",
         ":consumer_policy_kubernetes_linted_test",
+        ":consumer_policy_helm_linted_test",
         ":consumer_policy_cmake_formatted_test",
         ":consumer_policy_make_linted_test",
         ":consumer_policy_latex_formatted_test",

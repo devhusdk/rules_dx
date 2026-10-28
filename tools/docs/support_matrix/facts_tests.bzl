@@ -1,9 +1,9 @@
 """Schema tests for the support matrix facts."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load(":facts.bzl", "support_matrix_facts_dict")
 load("//quality:adapters.bzl", "NOT_APPLICABLE")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
+load(":facts.bzl", "support_matrix_facts_dict")
 load(":languages.bzl", "PLATFORMS")
 
 def _families_resolve(facts):
@@ -50,7 +50,7 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "typecheck n/a families are an explicit snapshot",
                 sorted(NOT_APPLICABLE["typecheck"].keys()),
-                ["ansible", "api_spec", "cmake", "dockerfile", "gherkin", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "sql", "typst", "xml", "yaml"],
+                ["ansible", "api_spec", "cmake", "dockerfile", "gherkin", "helm", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "sql", "typst", "xml", "yaml"],
             ),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],

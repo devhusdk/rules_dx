@@ -124,6 +124,7 @@ def sources_registry_tests(name):
                 [],
             ),
             expect_equal("kubernetes class is known", is_known_semantic_class("kubernetes"), True),
+            expect_equal("helm class is known", is_known_semantic_class("helm"), True),
             expect_equal("cloudformation class is known", is_known_semantic_class("cloudformation"), True),
             expect_equal("RUST class ID", RUST, "rust"),
             expect_equal(

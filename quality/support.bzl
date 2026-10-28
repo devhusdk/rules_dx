@@ -76,6 +76,20 @@ KUBERNETES_KUBECONFORM_SUPPORT = {
     "transport": "batched",
 }
 
+HELM_HELM_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["helm"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "helm",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "helm",
+    "transport": "single",
+}
+
 MAKE_CHECKMAKE_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -829,6 +843,7 @@ SUPPORT_RECORDS = [
     SHELL_SHFMT_SUPPORT,
     DOCKERFILE_HADOLINT_SUPPORT,
     KUBERNETES_KUBECONFORM_SUPPORT,
+    HELM_HELM_SUPPORT,
     ANSIBLE_ANSIBLE_LINT_SUPPORT,
     MAKE_CHECKMAKE_SUPPORT,
     CMAKE_GERSEMI_SUPPORT,

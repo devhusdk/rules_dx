@@ -107,6 +107,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | CUE | no | `cue` on `linux_x86_64` | no |
 | FlatBuffers | `flatc` on `linux_x86_64` | n/a | no |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| Helm | `helm` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | n/a |
 | Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64` | n/a |
 | Jupyter | `notebook_outputs` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`, `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
@@ -134,6 +135,7 @@ Not applicable for `typecheck`:
 - `cmake`: no static type system; build language with untyped strings
 - `dockerfile`: no static type system; hadolint covers lint
 - `gherkin`: natural-language scenarios; no type system
+- `helm`: chart lint plus schema validation of rendered manifests
 - `html_template`: markup templates; no static type system
 - `jsonnet`: dynamically typed; no maintained type checker (the official linter only flags unused variables)
 - `kubernetes`: declarative manifests; schema validation is not type checking

@@ -90,6 +90,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "zig",
     "nix",
     "kubernetes",
+    "helm",
     "cloudformation",
     "typst",
     "latex",

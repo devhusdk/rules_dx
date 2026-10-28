@@ -9,7 +9,7 @@ use super::*;
 const DOCS_REL: &str = "dx-kubeconform/docs";
 
 /// One preflight problem as an error finding on the owned file.
-fn preflight_finding(file: &Path, problem: Problem) -> FileFinding {
+pub(super) fn preflight_finding(file: &Path, problem: Problem) -> FileFinding {
     FileFinding {
         file: file.to_string_lossy().into_owned(),
         finding: Finding {
@@ -83,6 +83,20 @@ impl RealBackend {
         let Some(config_path) = config else {
             return Err(execution(tool_id, "kubeconform needs a config".to_owned()));
         };
+        findings.extend(self.validate_documents(tool_id, tool, scratch, config_path, &owned)?);
+        Ok(findings)
+    }
+
+    /// Writes every owned document to scratch and validates them in one kubeconform run.
+    pub(super) fn validate_documents(
+        &self,
+        tool_id: &str,
+        kubeconform: &RealTool,
+        scratch: &Scratch,
+        config_path: &Path,
+        owned: &[(String, String, Vec<Document>)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let tool = kubeconform;
         let config_bytes = std::fs::read(config_path)
             .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
         let config = commands::kubeconform_config(config_path, &config_bytes)
@@ -102,7 +116,7 @@ impl RealBackend {
             }
         }
         if written.is_empty() {
-            return Ok(findings);
+            return Ok(Vec::new());
         }
         let targets: Vec<KubeconformTarget<'_>> = written
             .iter()
@@ -122,11 +136,10 @@ impl RealBackend {
         let invocation = commands::kubeconform_check(&tool.binary, &config, &refs)
             .map_err(|err| execution(tool_id, err))?;
         let out = self.run(tool_id, tool, &invocation, scratch)?;
-        findings.extend(parsed(
+        parsed(
             tool_id,
             parsers::parse_kubeconform(&out.stdout, &out.stderr, out.code, &targets),
-        )?);
-        Ok(findings)
+        )
     }
 }
 

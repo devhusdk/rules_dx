@@ -499,10 +499,26 @@ workspace_policy(
     families = [":kubernetes_family"],
 )
 
+quality_family(
+    name = "helm_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "helm",
+    lint = ["helm"],
+)
+
+workspace_policy(
+    name = "helm_policy",
+    families = [":helm_family"],
+)
+
 kubernetes_schemas(
     name = "kubernetes_schemas",
     kubernetes_version = "1.32.0",
     schemas = ["//quality/testdata/kubernetes_schemas:configmap-v1.json"],
+    visibility = ["//quality/tests/fixtures/consumer_policy/helm_chart:__pkg__"],
 )
 
 filegroup(

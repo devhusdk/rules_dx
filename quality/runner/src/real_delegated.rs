@@ -178,6 +178,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "mix_format",
         "modfmt",
         "ormolu",
+        "opa",
         "pkl",
         "psscriptanalyzer",
         "qmlformat",
@@ -354,6 +355,158 @@ pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
         .apply_fix("dfmt", "a.d", "void f(){} // warned\n", "format")
         .expect("fix round");
     assert_eq!(fixed, "void f()\n{} // warned\n");
+}
+
+fn opa_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let done = |code, stdout: &str, stderr: String| {
+        Ok(ChildOutput {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: stderr.into_bytes(),
+        })
+    };
+    if argv[1] == OsString::from("check") {
+        if text.contains("noise") {
+            return done(0, "", "warning: noise\n".to_owned());
+        }
+        if text.contains("missing") {
+            let report = format!(
+                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}"
+            );
+            return done(1, "", report);
+        }
+        return done(0, "", String::new());
+    }
+    if text.contains(":= :=") {
+        return done(
+            2,
+            "",
+            format!("failed to format Rego source file: 1 error occurred:\n{file}:2: rego_parse_error: unexpected assign token\n"),
+        );
+    }
+    let formatted = "package a\n\nx := 1\n";
+    if argv[2] == OsString::from("-w") {
+        std::fs::write(&file, formatted).expect("fix writes back");
+        return done(0, "", String::new());
+    }
+    done(0, formatted, String::new())
+}
+
+#[test]
+pub(super) fn opa_format_reports_unformatted_files_and_parse_errors() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let clean = single("a.rego", "package a\n\nx := 1\n");
+    assert!(backend
+        .diagnose("opa", "format", &clean)
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose(
+            "opa",
+            "format",
+            &single("a.rego", "package a\n\nx   := 1\n"),
+        )
+        .expect("unformatted");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].message, "file is not formatted");
+    let broken = single("a.rego", "package a\nx := := 1\n");
+    let findings = backend
+        .diagnose("opa", "format", &broken)
+        .expect("parse error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "rego_parse_error");
+}
+
+#[test]
+pub(super) fn opa_fix_rewrites_an_owned_file() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let fixed = backend
+        .apply_fix("opa", "a.rego", "package a\n\nx   := 1\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "package a\n\nx := 1\n");
+}
+
+#[test]
+pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let clean = single("a.rego", "package a\n\nx := 1\n");
+    assert!(backend
+        .diagnose("opa", "typecheck", &clean)
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose(
+            "opa",
+            "typecheck",
+            &single("a.rego", "package a\n\nx := data.lib.missing(1)\n"),
+        )
+        .expect("type error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "rego_type_error");
+    assert_eq!(findings[0].path, "a.rego");
+    assert!(backend
+        .diagnose("opa", "typecheck", &single("a.rego", "noise\n"))
+        .is_err());
+}
+
+fn opa_dependency_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mut errors = Vec::new();
+    for arg in &argv[2..] {
+        let file = arg.to_string_lossy().into_owned();
+        if !Path::new(&file).is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&file).expect("read staged file");
+        if text.contains("broken") {
+            errors.push(format!(
+                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}"
+            ));
+        }
+    }
+    let (code, stderr) = if errors.is_empty() {
+        (0, String::new())
+    } else {
+        (1, format!("{{\"errors\":[{}]}}", errors.join(",")))
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn opa_typecheck_never_reports_clean_when_only_a_dependency_is_broken() {
+    let backend = backend_for("opa", plain_tool(), opa_dependency_behavior);
+    let owned = single("app/app.rego", "package app\n\nx := 1\n");
+    let clean = single("lib/base.rego", "package lib\n\ny := 1\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &clean)
+        .expect("clean dependency");
+    assert!(found.is_empty());
+    let broken = single("lib/base.rego", "package lib\nbroken\n");
+    let error = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &broken)
+        .expect_err("broken dependency is never clean");
+    assert!(error.to_string().contains("lib/base.rego"), "{error}");
+    let both = single("app/app.rego", "package app\nbroken\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &both, &BTreeMap::new(), &broken)
+        .expect("owned error");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "app/app.rego");
 }
 
 fn mix_format_behavior(

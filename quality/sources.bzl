@@ -75,6 +75,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "pkl",
     "protobuf",
     "qml",
+    "rego",
     "ruby",
     "rust",
     "shell",

@@ -536,3 +536,21 @@ api_spec_library(
     name = "clean_api_spec",
     srcs = [":api_spec_module"],
 )
+
+quality_family(
+    name = "rego_family",
+    disabled = ["lint"],
+    family_id = "rego",
+    format = ["opa"],
+    typecheck = ["opa"],
+)
+
+workspace_policy(
+    name = "rego_policy",
+    families = [":rego_family"],
+)
+
+real_source_target(
+    name = "clean_rego",
+    rego_srcs = ["rego_module/greet.rego"],
+)

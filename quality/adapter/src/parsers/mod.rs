@@ -30,6 +30,7 @@ pub mod kubeconform;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
+pub mod opa;
 pub mod ormolu;
 pub mod pkl;
 pub mod pmd;
@@ -98,6 +99,7 @@ pub use kubeconform::{parse_kubeconform, KubeconformTarget};
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
+pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
@@ -126,8 +128,8 @@ pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
-pub use typstyle::parse_typstyle;
 pub use ty::parse_ty;
+pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
@@ -1773,6 +1775,28 @@ mod tests {
         super::ormolu::parse_ormolu(input, input, code, files)
     }
 
+    fn fuzz_opa_fmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::opa::parse_opa_fmt(
+            input,
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
+    }
+
+    fn fuzz_opa_check(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::opa::parse_opa_check(input, input, code, files)
+    }
+
     fn fuzz_pkl(
         input: &[u8],
         code: Option<i32>,
@@ -2185,6 +2209,8 @@ mod tests {
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
         ("ormolu", fuzz_ormolu),
+        ("opa_fmt", fuzz_opa_fmt),
+        ("opa_check", fuzz_opa_check),
         ("pkl", fuzz_pkl),
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
@@ -2260,6 +2286,7 @@ mod tests {
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
         ("ormolu", include_str!("ormolu.rs")),
+        ("opa", include_str!("opa.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),
         ("prettier", include_str!("prettier.rs")),

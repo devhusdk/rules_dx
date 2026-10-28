@@ -1,0 +1,51 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//rego/rules:defs.bzl", "rego_library")
+load(":library_tests.bzl", "owns_rego_class_test", "transitive_context_test")
+
+rego_library(
+    name = "lib",
+    srcs = ["fixtures/lib.rego"],
+    data = ["fixtures/data.json"],
+)
+
+rego_library(
+    name = "app",
+    srcs = ["fixtures/app.rego"],
+    deps = [":lib"],
+)
+
+owns_rego_class_test(
+    name = "owns_rego_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+transitive_context_test(
+    name = "transitive_context_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+rego_library(
+    name = "bad_src",
+    srcs = ["fixtures/notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "non_rego_src_fails",
+    expected_failure_substring = "notes.txt",
+    target = ":bad_src",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -257,6 +257,74 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_haskell_format_module.expected.txt",
     },
     {
+        "name": "matrix_rego_format_pass",
+        "generated": {
+            "matrix/rego_clean.rego": "package clean\n\nvalue := 1\n",
+        },
+        "capability": "format",
+        "stages": ["opa;rego;matrix/rego_clean.rego"],
+        "tool_names": ["opa"],
+        "tool_binaries": ["@dx_tools//:opa"],
+        "expected_file": ":matrix/matrix_rego_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_rego_format_fail",
+        "generated": {
+            "matrix/rego_dirty.rego": "package dirty\n\nvalue   :=   1\n",
+        },
+        "capability": "format",
+        "stages": ["opa;rego;matrix/rego_dirty.rego"],
+        "tool_names": ["opa"],
+        "tool_binaries": ["@dx_tools//:opa"],
+        "expected_file": ":matrix/matrix_rego_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_rego_format_syntax_error",
+        "generated": {
+            "matrix/rego_broken.rego": "package broken\n\nvalue := := 1\n",
+        },
+        "capability": "format",
+        "stages": ["opa;rego;matrix/rego_broken.rego"],
+        "tool_names": ["opa"],
+        "tool_binaries": ["@dx_tools//:opa"],
+        "expected_file": ":matrix/matrix_rego_format_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_rego_typecheck_pass",
+        "generated": {
+            "matrix/rego_module/lib/lib.rego": "package lib\n\nanswer := 42\n",
+            "matrix/rego_module/app/app.rego": "package app\n\nimport data.lib\n\nvalue := lib.answer\n",
+        },
+        "capability": "typecheck",
+        "stages": ["opa;rego;matrix/rego_module/lib/lib.rego,matrix/rego_module/app/app.rego"],
+        "tool_names": ["opa"],
+        "tool_binaries": ["@dx_tools//:opa"],
+        "expected_file": ":matrix/matrix_rego_typecheck_pass.expected.txt",
+    },
+    {
+        "name": "matrix_rego_typecheck_fail",
+        "generated": {
+            "matrix/rego_module_bad/lib/lib.rego": "package lib\n\nanswer := 42\n",
+            "matrix/rego_module_bad/app/app.rego": "package app\n\nimport data.lib\n\nvalue := lib.missing(1)\n",
+        },
+        "capability": "typecheck",
+        "stages": ["opa;rego;matrix/rego_module_bad/lib/lib.rego,matrix/rego_module_bad/app/app.rego"],
+        "tool_names": ["opa"],
+        "tool_binaries": ["@dx_tools//:opa"],
+        "expected_file": ":matrix/matrix_rego_typecheck_fail.expected.txt",
+    },
+    {
+        "name": "matrix_rego_typecheck_syntax_error",
+        "generated": {
+            "matrix/rego_broken_check.rego": "package broken\n\nvalue := := 1\n",
+        },
+        "capability": "typecheck",
+        "stages": ["opa;rego;matrix/rego_broken_check.rego"],
+        "tool_names": ["opa"],
+        "tool_binaries": ["@dx_tools//:opa"],
+        "expected_file": ":matrix/matrix_rego_typecheck_syntax_error.expected.txt",
+    },
+    {
         "name": "matrix_pkl_format_pass",
         "generated": {
             "matrix/pkl_clean.pkl": "value = \"hello\"\n",

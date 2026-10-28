@@ -582,6 +582,7 @@ Language rules:
 - `@rules_dx//python/rules:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//rego/rules:defs.bzl`: Rego.
 - `@rules_dx//ruby/rules:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
 - `@rules_dx//scala/rules:defs.bzl`: Scala.

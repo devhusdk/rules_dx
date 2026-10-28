@@ -196,6 +196,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "opa",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "pkl",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -330,7 +336,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 "graphql_eslint requires a config".to_owned(),
             )),
         },
-        "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark" => {
+        "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark" | "opa" => {
             if capability == "format" {
                 spec(true)
             } else {
@@ -490,8 +496,8 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        // statix fixes exactly one target per run.
-        let batches = if tool_id == "statix" {
+        // statix and opa fix exactly one target per run.
+        let batches = if tool_id == "statix" || tool_id == "opa" {
             refs.iter().map(|file| vec![*file]).collect()
         } else {
             commands::plan_invocation_batches(&refs, |batch| {
@@ -896,6 +902,13 @@ impl super::RealBackend {
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
                 "ormolu" => Ok(commands::ormolu_fix(&tool.binary, refs)),
                 "typstyle" => Ok(commands::typstyle_fix(&tool.binary, refs)),
+                "opa" => match refs {
+                    [file] => Ok(commands::opa_fmt_fix(&tool.binary, file)),
+                    _ => Err(execution(
+                        tool_id,
+                        "opa fixes one file at a time".to_owned(),
+                    )),
+                },
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
                 "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
                 "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),

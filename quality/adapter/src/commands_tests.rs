@@ -1263,6 +1263,26 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&pkl_fix(Path::new(BIN), &[pkl])),
         vec![BIN, "format", "-w", "/scratch/Sample.pkl"]
     );
+    let rego = Path::new("/scratch/policy/a.rego");
+    assert_eq!(
+        argv_strings(&opa_fmt_check(Path::new(BIN), rego)),
+        vec![BIN, "fmt", "/scratch/policy/a.rego"]
+    );
+    assert_eq!(
+        argv_strings(&opa_fmt_fix(Path::new(BIN), rego)),
+        vec![BIN, "fmt", "-w", "/scratch/policy/a.rego"]
+    );
+    assert_eq!(
+        argv_strings(&opa_check(Path::new(BIN), &[rego])),
+        vec![
+            BIN,
+            "check",
+            "--format",
+            "json",
+            "--max-errors=-1",
+            "/scratch/policy/a.rego"
+        ]
+    );
     let html = Path::new("/scratch/templates/a.html");
     let djlint_conf = Path::new("/scratch/djlint.toml");
     assert_eq!(

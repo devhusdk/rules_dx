@@ -130,6 +130,9 @@ const ORMOLU_FIX_ARGS: &[&str] = &[
 ];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
+const OPA_FMT_CHECK_ARGS: &[&str] = &["fmt"];
+const OPA_FMT_FIX_ARGS: &[&str] = &["fmt", "-w"];
+const OPA_CHECK_ARGS: &[&str] = &["check", "--format", "json", "--max-errors=-1"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
 /// The scratch directory holding the `.editorconfig` dfmt is pointed at; dfmt otherwise searches
 /// upward from each source file.
@@ -1046,6 +1049,18 @@ pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn pkl_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_FIX_ARGS, files, "")
+}
+
+pub fn opa_fmt_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, OPA_FMT_CHECK_ARGS, &[file], "")
+}
+
+pub fn opa_fmt_fix(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, OPA_FMT_FIX_ARGS, &[file], "")
+}
+
+pub fn opa_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, OPA_CHECK_ARGS, files, "")
 }
 
 pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

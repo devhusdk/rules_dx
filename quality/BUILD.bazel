@@ -385,6 +385,15 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_typst",
         },
         {
+            "case": "rego_checked",
+            "expected_dx_results": [
+                "clean_rego-real-format-rego.pb",
+                "clean_rego-real-typecheck-rego.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:rego_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_rego",
+        },
+        {
             "case": "lua_formatted",
             "expected_dx_results": [
                 "clean_lua-real-format-lua.pb",

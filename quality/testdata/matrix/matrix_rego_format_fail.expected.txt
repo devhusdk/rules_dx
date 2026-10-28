@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_rego_format_fail
+capability FORMAT
+stages 1
+stage opa classes=rego sources=matrix/rego_dirty.rego
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING opa - matrix/rego_dirty.rego 15 15 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/rego_dirty.rego 21 27 ":="

@@ -1,0 +1,30 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "ocaml",
+    srcs = [
+        "doc.go",
+        "lang.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/ocaml",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//repo",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
+        "@gazelle//v2/rule",
+    ],
+)
+
+go_test(
+    name = "ocaml_test",
+    srcs = ["lang_test.go"],
+    embed = [":ocaml"],
+    pure = "on",
+    deps = ["@gazelle//language"],
+)

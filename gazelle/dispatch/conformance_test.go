@@ -156,6 +156,11 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "svelte_library", target: "demo", defs: "svelte/rules:defs.bzl",
 		symbols: []string{"svelte_library"},
 	},
+	"ocaml": {
+		files: map[string]string{"demo.ml": "let x = 1\n"},
+		kind:  "ocaml_module", target: "demo", defs: "ocaml/rules:defs.bzl",
+		symbols: []string{"ocaml_module"},
+	},
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n"},
 		kind:  "typescript_project", target: "demo", defs: "typescript/rules:defs.bzl",

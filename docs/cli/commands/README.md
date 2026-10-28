@@ -294,7 +294,7 @@ error prints the command list and a `see dx <command> --help` hint.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.4`.
+`event` name and a `schema` with `major` and `minor`. The schema is `3.5`.
 Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
@@ -352,7 +352,8 @@ configurations appear once, with a `count`.
 - `coverage`: one cell's owned-source line account from `dx coverage`, with
   `cell`, `covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
   `eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
-  `passed`, `errors`, and `dx_version`, plus optional `minimum`.
+  `passed`, `errors`, and `dx_version`, plus optional `minimum`, `sha`, `dirty`,
+  and `collector`.
 - `changed_line_coverage`: the `--min-changed-line-coverage` gate from
   `dx coverage`, with `base`, `merge_base`, `minimum`, `covered_lines`,
   `eligible_lines`, `uncovered` (`path` and `line` items), `uninstrumented`,

@@ -453,7 +453,8 @@ fn pattern_builds(
         .collect()
 }
 
-fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, String> {
+/// The `.bazelignore` prefixes of the workspace, without `./` or trailing slashes.
+pub fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, String> {
     let Some(text) = read(workspace, ".bazelignore")? else {
         return Ok(Vec::new());
     };

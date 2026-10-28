@@ -326,6 +326,7 @@ fn execute_checked(
         query_runner,
         results_complete: complete,
         actions: action_counts,
+        whole_repo: resolved.targets == ["//..."],
     })
 }
 

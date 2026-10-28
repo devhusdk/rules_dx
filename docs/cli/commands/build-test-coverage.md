@@ -417,9 +417,10 @@ stderr, or emits an `error` event with code `no_coverage_collector` with
 requested LCOV report is still written.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
-combined LCOV. `--report sources=<path>` writes a JSON record (`record_version`, `cell`,
-`owned` with each source's disposition, `absent` production sources the report
-never saw, `errors`); it fails when the evidence is incomplete. Repeat the
+combined LCOV. `--report sources=<path>` writes a JSON record (`record_version`
+`2`, `cell`, `candidate` with the `sha` and `dirty` state of the checkout,
+`collector`, `owned` with each source's disposition, `absent` production
+sources the report never saw, `orphans` tracked sources no rule uses, `errors`); it fails when the evidence is incomplete. Repeat the
 flag for more files. Use `-` for stdout. A relative
 path anchors at the workspace root; an absolute one writes as given. Colliding
 destinations fail before anything runs, parents must exist, and a failed write
@@ -473,11 +474,27 @@ event with the same code. A repository that runs `--min-coverage` with an
 untested library therefore fails until that library has tests or a whole-file
 exclusion.
 
+On a whole-repository run (no scope, or `//...`) dx also checks the tracked
+files. It lists them with `git ls-files`, keeps the covered-language files
+(not `.d.ts` declarations), and drops the `.dx` state directory, anything
+under `.bazelignore`, and files outside any Bazel package. A remaining file
+that no rule of the workspace uses as an input prints
+`dx: coverage_sources_incomplete: tracked source not owned by any Bazel target: <path>`
+and counts as a gap like the others. The rule graph is the unconfigured
+`kind('rule', //...)` query, so a file used only on another platform's
+`select()` branch, as `data`, or by a `manual` rule is owned. Add the file to a
+rule, or delete it. Scoped runs skip this check. Outside a Git work tree dx
+prints `dx: tracked sources unavailable: not a Git work tree` and never
+enforces it; a Git or query failure inside a work tree is a gap.
+
 With `--output=json`, dx also emits one `coverage` event per run with `cell`,
 `covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
 `eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
 `passed`, `errors` (the number of coverage source gaps), `dx_version`, and
-`minimum` when `--min-coverage` is set. `passed` is true when the cell has no
+`minimum` when `--min-coverage` is set. `sha` (the `HEAD` commit), `dirty`
+(true when tracked files differ from it) and `collector` (`bazel <version>`
+from the build events) name the checkout and the tool that measured it; they
+are left out when unknown. `passed` is true when the cell has no
 gaps, has eligible lines, and meets the minimum when one is set. The event is
 left out when coverage is incomplete.
 `--build_tests_only` is refused, because it hides library targets from the

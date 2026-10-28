@@ -2,7 +2,7 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 4;
+pub const SCHEMA_MINOR: u64 = 5;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -268,6 +268,12 @@ pub struct CoverageEvent {
     pub passed: bool,
     pub errors: u64,
     pub dx_version: String,
+    /// The `HEAD` commit measured; left out when the workspace is not a Git work tree.
+    pub sha: Option<String>,
+    /// True when tracked files differ from `sha`.
+    pub dirty: bool,
+    /// The tool that collected the coverage, `bazel <version>`; left out when unknown.
+    pub collector: Option<String>,
 }
 
 pub fn coverage_event(coverage: &CoverageEvent) -> Result<Value, OutputError> {
@@ -296,6 +302,13 @@ pub fn coverage_event(coverage: &CoverageEvent) -> Result<Value, OutputError> {
         "dx_version".to_owned(),
         Value::String(coverage.dx_version.clone()),
     );
+    if let Some(sha) = &coverage.sha {
+        map.insert("sha".to_owned(), Value::String(sha.clone()));
+        map.insert("dirty".to_owned(), Value::Bool(coverage.dirty));
+    }
+    if let Some(collector) = &coverage.collector {
+        map.insert("collector".to_owned(), Value::String(collector.clone()));
+    }
     Ok(Value::Object(map))
 }
 
@@ -1431,7 +1444,7 @@ mod tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 4},
+                "schema": {"major": 3, "minor": 5},
                 "event": "cache_miss",
                 "mnemonic": "Rustc",
                 "target": "//cli/digest:dx_digest",
@@ -1605,8 +1618,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 4);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 4}));
+        assert_eq!(SCHEMA_MINOR, 5);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 5}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -2069,6 +2082,25 @@ mod build_failure_tests {
             passed: false,
             errors: 2,
             dx_version: "1.2.3".to_owned(),
+            sha: None,
+            dirty: false,
+            collector: None,
+        }
+    }
+
+    #[test]
+    fn coverage_event_names_candidate_and_collector_when_known() {
+        let mut coverage = coverage_fixture();
+        coverage.sha = Some("abc".to_owned());
+        coverage.dirty = true;
+        coverage.collector = Some("bazel 9.0.0".to_owned());
+        let event = coverage_event(&coverage).expect("coverage");
+        assert_eq!(event["sha"], "abc");
+        assert_eq!(event["dirty"], true);
+        assert_eq!(event["collector"], "bazel 9.0.0");
+        let bare = coverage_event(&coverage_fixture()).expect("coverage");
+        for key in ["sha", "dirty", "collector"] {
+            assert!(bare.get(key).is_none(), "{key}: {bare}");
         }
     }
 
@@ -2078,7 +2110,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 4},
+                "schema": {"major": 3, "minor": 5},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2117,7 +2149,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 4},
+                "schema": {"major": 3, "minor": 5},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

@@ -9,6 +9,11 @@ exports_files([
     "statix.BUILD.bazel",
 ])
 
+filegroup(
+    name = "crate_carrier",
+    srcs = ["src/lib.rs"],
+)
+
 alias(
     name = "deadnix",
     actual = "@dx_quality_crates//:deadnix__deadnix",

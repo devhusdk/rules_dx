@@ -170,6 +170,32 @@ pub fn stream_started(path: &Path) -> std::io::Result<bool> {
     Ok(false)
 }
 
+/// The `buildToolVersion` of the real `started` event in the stream at `path`, if it names one.
+///
+/// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
+pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>> {
+    let reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    for line in reader.lines() {
+        let Ok(line) = line else { continue };
+        let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if event
+            .pointer("/id/started")
+            .is_some_and(|id| id.is_object())
+        {
+            if let Some(version) = event
+                .pointer("/started/buildToolVersion")
+                .and_then(serde_json::Value::as_str)
+                .filter(|version| !version.is_empty())
+            {
+                return Ok(Some(version.to_owned()));
+            }
+        }
+    }
+    Ok(None)
+}
+
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
     dx_path::uri_to_path(uri).map_err(|_| BepError::UnsupportedUri {
         uri: uri.to_owned(),
@@ -470,6 +496,24 @@ mod tests {
         assert!(started_in("{\"id\":{\"started\":{}},\"started\":{\"uuid\":\"x\"}}\n").unwrap());
         assert!(!started_in("not json\n{\"id\":{\"started\":{}},\"star").unwrap());
         assert!(started_in("garbage\n{\"id\":{\"started\":{}},\"started\":{}}\n").unwrap());
+    }
+
+    #[test]
+    fn build_tool_version_comes_from_the_started_event() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("bep.json");
+        std::fs::write(
+            &path,
+            "garbage\n{\"id\":{\"started\":{}},\"started\":{\"buildToolVersion\":\"9.0.0\"}}\n",
+        )
+        .expect("write");
+        assert_eq!(
+            stream_build_tool_version(&path).unwrap().as_deref(),
+            Some("9.0.0")
+        );
+        std::fs::write(&path, "{\"id\":{\"started\":{}},\"started\":{}}\n").expect("write");
+        assert_eq!(stream_build_tool_version(&path).unwrap(), None);
+        assert!(stream_build_tool_version(Path::new("/nonexistent/dx/bep.json")).is_err());
     }
 
     /// A hand-written file URI naming one path under a root this host can resolve.

@@ -199,6 +199,24 @@ impl RuleGraph {
             .filter(|label| label.starts_with("@@"))
     }
 
+    /// The workspace-relative paths of every main-repo label some rule uses as an input.
+    ///
+    /// The query is unconfigured, so every `select()` branch and every manual rule counts.
+    pub fn main_repo_input_paths(&self) -> HashSet<String> {
+        self.users
+            .keys()
+            .filter_map(|label| label.strip_prefix("//"))
+            .filter_map(|rest| rest.split_once(':'))
+            .map(|(package, name)| {
+                if package.is_empty() {
+                    name.to_owned()
+                } else {
+                    format!("{package}/{name}")
+                }
+            })
+            .collect()
+    }
+
     /// Rules affected by the scopes, without manual rules.
     pub fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
@@ -354,6 +372,25 @@ mod tests {
             rule("//c:t", &["//c:m"], &[]),
             rule("//d:lone", &["@@android+sdk//:core"], &[]),
         ])
+    }
+
+    #[test]
+    fn main_repo_input_paths_map_labels_to_workspace_paths() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:a.rs", "//a/sub:b.rs", "//:root.rs"], &[]),
+            rule(
+                "//c:m",
+                &["@@ext+x//:ruby", "@//d:d.rs", "//c:sel_arm.rs"],
+                &["manual"],
+            ),
+        ]);
+        let paths = graph.main_repo_input_paths();
+        for want in ["a/a.rs", "a/sub/b.rs", "root.rs", "c/sel_arm.rs"] {
+            assert!(paths.contains(want), "{want}: {paths:?}");
+        }
+        assert!(!paths
+            .iter()
+            .any(|path| path.contains("ruby") || path.contains("d.rs")));
     }
 
     fn shard_graph() -> RuleGraph {

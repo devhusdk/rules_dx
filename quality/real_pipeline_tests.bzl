@@ -640,6 +640,16 @@ def real_pipeline_unit_tests(name):
                 "real aspects: table tool 'biome' sets target_tool outside the setting kind",
             ),
             expect_equal(
+                "a target_tool needs a wrapper owner",
+                real_tool_table_shape_error({"qmlformat": _SETTING_TOOL | {"target_tool": True}}),
+                "real aspects: table tool 'qmlformat' has no wrapper owner in _TARGET_TOOL_OWNERS",
+            ),
+            expect_equal(
+                "dfmt is an owned target_tool",
+                real_tool_table_shape_error({"dfmt": _SETTING_TOOL | {"target_tool": True}}),
+                "",
+            ),
+            expect_equal(
                 "fallback stays off executable tools",
                 real_tool_table_shape_error({"biome": _FILE_TOOL | {"kind": "executable", "fallback": "=x"}}),
                 "real aspects: table tool 'biome' sets fallback outside the setting and file kinds",

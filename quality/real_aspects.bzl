@@ -117,6 +117,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "nix",
     },
+    "dfmt": {
+        "attr": attr.label(default = "//config:tool_dfmt", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "setting",
+        "resources": "light",
+        "shard": "core",
+        "target_tool": True,
+    },
     "djlint": {
         "attr": attr.label(default = "//quality/tools/python:djlint", cfg = "exec", executable = True),
         "capabilities": ["format", "lint"],
@@ -715,6 +723,12 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
+# Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
+_TARGET_TOOL_OWNERS = {
+    "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
+    "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
+}
+
 def _tool_files_to_run(target, flag, tool, what):
     """Returns the flag's tool, else the one the target carries."""
     ftr = flag[DefaultInfo].files_to_run
@@ -722,7 +736,8 @@ def _tool_files_to_run(target, flag, tool, what):
         return ftr
     if QualityToolsInfo in target and tool in target[QualityToolsInfo].tools:
         return target[QualityToolsInfo].tools[tool]
-    fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
+    wrappers, defs, tool_label = _TARGET_TOOL_OWNERS[tool]
+    fail(what + ": " + tool + " has no executable; use " + wrappers + " from " + defs + ", or set --@rules_dx//config:tool_" + tool + "=" + tool_label)
 
 _GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
@@ -1251,6 +1266,8 @@ def real_tool_table_shape_error(table):
             return prefix + "sets fallback outside the setting and file kinds"
         if kind != "setting" and "target_tool" in spec:
             return prefix + "sets target_tool outside the setting kind"
+        if spec.get("target_tool", False) and tool not in _TARGET_TOOL_OWNERS:
+            return prefix + "has no wrapper owner in _TARGET_TOOL_OWNERS"
         if kind != "executable" and ("extra" in spec or "run_tool" in spec or "runfiles_env" in spec):
             return prefix + "sets extra, run_tool or runfiles_env outside the executable kind"
         if spec.get("extra", "files") not in ["files", "runfiles"]:

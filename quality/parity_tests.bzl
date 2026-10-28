@@ -10,7 +10,6 @@ PARITY_DEFERRED = {
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "perl": ["ADR", "perltidy adapter pending in a later #1788 slice"],
     "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
-    "d": ["ADR", "D formatter and D-Scanner adapters pending"],
 }
 
 def _adapter_backed_classes():
@@ -139,7 +138,7 @@ def parity_unit_tests(name):
             ),
             expect_equal(
                 "deferred pipeline error names the deferral with owner and route",
-                deferred_pipeline_error(["rust", "d"], "lint") != "",
+                deferred_pipeline_error(["rust", "fortran"], "lint") != "",
                 True,
             ),
         ],

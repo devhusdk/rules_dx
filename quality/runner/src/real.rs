@@ -23,6 +23,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "csharpier",
     "cue",
     "deadnix",
+    "dfmt",
     "djlint",
     "erlfmt",
     "errcheck",
@@ -97,6 +98,10 @@ const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+/// dfmt is always pointed at this directory (see `commands::DFMT_CONFIG_DIR`): `root = true`
+/// stops its upward search for `.editorconfig`, so a home-directory file never reaches it.
+const DFMT_DEFAULTS_FILE: &str = ".editorconfig";
+const DFMT_DEFAULTS_BYTES: &[u8] = b"root = true\n\n[*.d]\nend_of_line = lf\n";
 const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
 /// An empty `statix.toml` keeps every lint on and stops statix searching upward for one.
 const STATIX_DEFAULTS_BYTES: &[u8] = b"";

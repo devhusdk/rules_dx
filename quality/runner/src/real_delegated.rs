@@ -168,6 +168,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "clang_format",
         "cue",
         "csharpier",
+        "dfmt",
         "djlint",
         "erlfmt",
         "fantomas",
@@ -275,6 +276,74 @@ pub(super) fn erlfmt_fix_keeps_a_file_it_reported_an_error_for() {
     let broken = "-module( a ).\nbroken(X) -> X +.\n";
     let kept = backend
         .apply_fix("erlfmt", "a.erl", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+}
+
+fn dfmt_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--config"));
+    assert_eq!(argv[2], OsString::from("dx-dfmt-default"));
+    let staged = std::fs::read_to_string(cwd.join("dx-dfmt-default/.editorconfig"))
+        .expect("the staged dfmt default");
+    assert!(staged.starts_with("root = true\n"), "{staged}");
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let broken = text.contains("broken");
+    let inplace = argv[3] == OsString::from("--inplace");
+    let formatted = text.replace("(){", "()\n{");
+    let stderr = if broken {
+        format!("{file}(2:5)[error]: Primary expression expected\n").into_bytes()
+    } else {
+        Vec::new()
+    };
+    if inplace {
+        std::fs::write(&file, &formatted).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr,
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: formatted.into_bytes(),
+        stderr,
+    })
+}
+
+#[test]
+pub(super) fn dfmt_checks_one_file_at_a_time_and_never_trusts_a_run_that_printed_an_error() {
+    let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);
+    let clean = backend
+        .diagnose("dfmt", "format", &single("a.d", "void f()\n{}\n"))
+        .expect("check");
+    assert!(clean.is_empty());
+    let dirty = backend
+        .diagnose("dfmt", "format", &single("a.d", "void f(){}\n"))
+        .expect("check");
+    assert_eq!(dirty.len(), 1);
+    let broken = backend
+        .diagnose("dfmt", "format", &single("a.d", "void f(){\nbroken }\n"))
+        .expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+}
+
+#[test]
+pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
+    let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);
+    let fixed = backend
+        .apply_fix("dfmt", "a.d", "void f(){}\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "void f()\n{}\n");
+    let broken = "void f(){\nbroken }\n";
+    let kept = backend
+        .apply_fix("dfmt", "a.d", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
 }

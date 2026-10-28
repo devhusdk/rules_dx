@@ -337,6 +337,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             placeholders: &["py", "pyi"],
         }),
         "scalafix" => Ok(Route::Scalafix),
+        "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
         "keep_sorted" => {

@@ -1185,6 +1185,21 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&zig_fmt_fix(Path::new(BIN), &[zig])),
         vec![BIN, "fmt", "--color", "off", "/scratch/sample.zig"]
     );
+    let d = Path::new("/scratch/sample.d");
+    assert_eq!(
+        argv_strings(&dfmt_check(Path::new(BIN), d)),
+        vec![BIN, "--config", "dx-dfmt-default", "/scratch/sample.d"]
+    );
+    assert_eq!(
+        argv_strings(&dfmt_fix(Path::new(BIN), &[d])),
+        vec![
+            BIN,
+            "--config",
+            "dx-dfmt-default",
+            "--inplace",
+            "/scratch/sample.d"
+        ]
+    );
     let erl = Path::new("/scratch/sample.erl");
     assert_eq!(
         argv_strings(&erlfmt_check(Path::new(BIN), &[erl])),

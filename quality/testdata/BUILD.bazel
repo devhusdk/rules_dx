@@ -17,7 +17,7 @@ load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "rmeta_typecheck_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
-load(":tool_override_tests.bzl", "elixir_subject", "erlang_subject", "erlfmt_flag_tests", "mix_format_flag_tests", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests", "zig_fmt_flag_tests", "zig_subject")
+load(":tool_override_tests.bzl", "d_subject", "dfmt_flag_tests", "elixir_subject", "erlang_subject", "erlfmt_flag_tests", "mix_format_flag_tests", "qml_lint_subject", "qml_sources", "qml_subject", "qmlformat_flag_tests", "qmllint_flag_tests", "tool_override_subject", "tool_override_tests", "zig_fmt_flag_tests", "zig_subject")
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
 
 package(default_visibility = VIS_QUALITY)
@@ -1241,6 +1241,33 @@ elixir_subject(
 mix_format_flag_tests(
     name = "mix_format_flag",
     subject = ":elixir_subject",
+)
+
+quality_family(
+    name = "d_family",
+    disabled = [
+        "audit",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "d",
+    format = ["dfmt"],
+)
+
+workspace_policy(
+    name = "d_policy",
+    families = [":d_family"],
+)
+
+d_subject(
+    name = "d_subject",
+    testonly = True,
+    target = "//d/tests/fixtures/hello:greet",
+)
+
+dfmt_flag_tests(
+    name = "dfmt_flag",
+    subject = ":d_subject",
 )
 
 quality_family(

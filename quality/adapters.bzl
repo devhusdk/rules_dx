@@ -195,13 +195,19 @@ REAL_CLASS_TO_FAMILY = {
 # the gap ledger. A family with a real adapter must not be listed here.
 NOT_APPLICABLE = {
     "typecheck": {
+        "ansible": "dynamically typed YAML playbooks; no type system beyond ansible-lint",
         "api_spec": "declarative API description; no type system beyond schema validation",
         "dockerfile": "no static type system; hadolint covers lint",
         "gherkin": "natural-language scenarios; no type system",
         "html_template": "markup templates; no static type system",
+        "jsonnet": "dynamically typed; no maintained type checker (the official linter only flags unused variables)",
+        "kubernetes": "declarative manifests; schema validation is not type checking",
+        "latex": "typesetting macro language; no static type system",
         "make": "no static type system; build language with untyped strings",
+        "nix": "dynamically typed expression language; no maintained type checker",
         "perl": "dynamically typed; no maintained type checker",
         "powershell": "no type checker; PSScriptAnalyzer is a linter only",
+        "sql": "type checking needs a database schema and dialect; standalone .sql files carry neither",
         "typst": "dynamically typed markup; no standalone type checker",
         "xml": "data format; schema validation is not type checking",
         "yaml": "data format; schema validation is not type checking",

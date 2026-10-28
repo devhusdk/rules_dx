@@ -100,20 +100,20 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | Qt | `qmllint` | `qmlformat` | no |
-| Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | no | no |
+| Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | no | n/a |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | CUE | no | `cue` on `linux_x86_64` | no |
 | FlatBuffers | `flatc` on `linux_x86_64` | no | no |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | n/a |
-| Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64` | no |
+| Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64` | n/a |
 | Jupyter | `notebook_outputs` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`, `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
-| LaTeX | `chktex` unsupported | `latexindent` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | no |
+| Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
+| LaTeX | `chktex` unsupported | `latexindent` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | n/a |
 | Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Rego | `regal` on `linux_x86_64` | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
-| SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
@@ -123,13 +123,19 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 
 Not applicable for `typecheck`:
 
+- `ansible`: dynamically typed YAML playbooks; no type system beyond ansible-lint
 - `api_spec`: declarative API description; no type system beyond schema validation
 - `dockerfile`: no static type system; hadolint covers lint
 - `gherkin`: natural-language scenarios; no type system
 - `html_template`: markup templates; no static type system
+- `jsonnet`: dynamically typed; no maintained type checker (the official linter only flags unused variables)
+- `kubernetes`: declarative manifests; schema validation is not type checking
+- `latex`: typesetting macro language; no static type system
 - `make`: no static type system; build language with untyped strings
+- `nix`: dynamically typed expression language; no maintained type checker
 - `perl`: dynamically typed; no maintained type checker
 - `powershell`: no type checker; PSScriptAnalyzer is a linter only
+- `sql`: type checking needs a database schema and dialect; standalone .sql files carry neither
 - `typst`: dynamically typed markup; no standalone type checker
 - `xml`: data format; schema validation is not type checking
 - `yaml`: data format; schema validation is not type checking

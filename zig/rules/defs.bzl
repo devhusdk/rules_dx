@@ -17,7 +17,10 @@ _DX_ZIG_LIBRARY_PROVIDES = [
     QualityToolsInfo,
 ]
 
-ZIG_QUALITY_TOOLS = {"zig_fmt": Label("//zig/tools:zig")}
+ZIG_QUALITY_TOOLS = {
+    "zig_ast_check": Label("//zig/tools:zig"),
+    "zig_fmt": Label("//zig/tools:zig"),
+}
 _DX_ZIG_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 _DX_ZIG_SOURCE_SPECS = [("zig", "zig")]
 _DX_ZIG_SOURCE_EXTS = [".zig"]

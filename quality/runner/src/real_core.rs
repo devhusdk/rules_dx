@@ -244,6 +244,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "vale",
             "yamlfmt",
             "yamllint",
+            "zig_ast_check",
             "zig_fmt",
         ]
     );

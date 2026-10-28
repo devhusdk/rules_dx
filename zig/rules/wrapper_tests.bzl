@@ -12,9 +12,9 @@ def zig_wrapper_contract_tests(name):
         file_classes = ["zig"],
         extra_checks = [
             expect_equal(
-                "wrappers carry zig_fmt",
+                "wrappers carry zig_ast_check and zig_fmt",
                 sorted(ZIG_QUALITY_TOOLS.keys()),
-                ["zig_fmt"],
+                ["zig_ast_check", "zig_fmt"],
             ),
             expect_equal(
                 "main leads the owned sources",

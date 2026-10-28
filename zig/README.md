@@ -41,6 +41,15 @@ needed. The Zig SDK is fetched only for Zig targets:
 dx format --apply
 ```
 
+## Linting
+
+`dx lint` runs `zig ast-check` when a `zig` family selects `zig_ast_check`. No
+flag is needed. It runs once per file and reports syntax and AST-level errors:
+
+```sh
+dx lint
+```
+
 ## Generating BUILD files
 
 `dx generate` writes one `zig_library` per directory. The root is

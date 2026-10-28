@@ -1317,6 +1317,10 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     );
     let zig = Path::new("/scratch/sample.zig");
     assert_eq!(
+        argv_strings(&zig_ast_check(Path::new(BIN), zig)),
+        vec![BIN, "ast-check", "--color", "off", "/scratch/sample.zig"]
+    );
+    assert_eq!(
         argv_strings(&zig_fmt_check(Path::new(BIN), &[zig])),
         vec![
             BIN,

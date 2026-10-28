@@ -99,6 +99,7 @@ pub mod typstyle;
 pub mod vale;
 pub mod yamlfmt;
 pub mod yamllint;
+pub mod zig_ast_check;
 pub mod zig_fmt;
 
 pub use ansible_lint::parse_ansible_lint;
@@ -200,6 +201,7 @@ pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
+pub use zig_ast_check::parse_zig_ast_check;
 pub use zig_fmt::parse_zig_fmt;
 
 use std::path::Path;
@@ -2149,6 +2151,14 @@ mod tests {
         super::julia_format::parse_julia_format(input, input, code, files)
     }
 
+    fn fuzz_zig_ast_check(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::zig_ast_check::parse_zig_ast_check(input, input, code, files)
+    }
+
     fn fuzz_zig_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -2675,6 +2685,7 @@ mod tests {
         ("vale", fuzz_vale),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
+        ("zig_ast_check", fuzz_zig_ast_check),
         ("zig_fmt", fuzz_zig_fmt),
     ];
 
@@ -2781,6 +2792,7 @@ mod tests {
         ("vale", include_str!("vale.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
+        ("zig_ast_check", include_str!("zig_ast_check.rs")),
         ("zig_fmt", include_str!("zig_fmt.rs")),
     ];
 

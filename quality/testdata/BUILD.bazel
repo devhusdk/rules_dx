@@ -54,7 +54,9 @@ load(
     "qmllint_flag_tests",
     "tool_override_subject",
     "tool_override_tests",
+    "zig_ast_check_flag_tests",
     "zig_fmt_flag_tests",
+    "zig_lint_subject",
     "zig_subject",
 )
 load(":upstream_ownership.bzl", "no_context_cc", "upstream_ownership_subject", "upstream_ownership_tests")
@@ -1600,6 +1602,33 @@ zig_subject(
 zig_fmt_flag_tests(
     name = "zig_fmt_flag",
     subject = ":zig_subject",
+)
+
+quality_family(
+    name = "zig_lint_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "zig",
+    lint = ["zig_ast_check"],
+)
+
+workspace_policy(
+    name = "zig_lint_policy",
+    families = [":zig_lint_family"],
+)
+
+zig_lint_subject(
+    name = "zig_lint_subject",
+    testonly = True,
+    target = "//zig/tests/fixtures/hello:greet",
+)
+
+zig_ast_check_flag_tests(
+    name = "zig_ast_check_flag",
+    subject = ":zig_lint_subject",
 )
 
 quality_family(

@@ -736,6 +736,14 @@ _REAL_TOOL_TABLE = {
         "shard": "core",
         "target_tool": True,
     },
+    "zig_ast_check": {
+        "attr": attr.label(default = "//config:tool_zig_ast_check", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "setting",
+        "resources": "light",
+        "shard": "core",
+        "target_tool": True,
+    },
     "zig_fmt": {
         "attr": attr.label(default = "//config:tool_zig_fmt", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1025,6 +1033,7 @@ _TARGET_TOOL_OWNERS = {
     "dart": ("dart_library, dart_binary or dart_test", "@rules_dx//dart/rules:defs.bzl", "@rules_dx//dart/tools:dart"),
     "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
     "dscanner": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dscanner"),
+    "zig_ast_check": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
     "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
     "perlcritic": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perlcritic"),
     "perltidy": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perltidy"),

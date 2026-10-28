@@ -1454,6 +1454,21 @@ impl RealBackend {
                     parsers::parse_julia_format(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "zig_ast_check" => {
+                // One process per file: `zig ast-check` rejects a second positional file.
+                let mut merged = Vec::new();
+                for (name, path) in strs.iter().zip(refs.iter()) {
+                    let invocation = commands::zig_ast_check(&tool.binary, path);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_zig_ast_check(&out.stdout, &out.stderr, out.code, &[*name]),
+                    )
+                    .map_err(|err| in_file(err, name))?;
+                    merged.extend(found);
+                }
+                Ok(merged)
+            }
             "zig_fmt" => {
                 let invocation = commands::zig_fmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

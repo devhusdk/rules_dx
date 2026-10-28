@@ -96,7 +96,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Svelte | `eslint` | `prettier` | no |
 | TypeScript | `biome` | `biome`, `prettier` | `tsc` |
 | Vue | `eslint` | `prettier` | no |
-| Zig | no | `zig_fmt` | no |
+| Zig | `zig_ast_check` | `zig_fmt` | no |
 | Apple | no | `clang_format` | `clang_syntax` |
 | CMake | `cmakelint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `gersemi` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |

@@ -164,6 +164,7 @@ const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const OPA_FMT_CHECK_ARGS: &[&str] = &["fmt"];
 const OPA_FMT_FIX_ARGS: &[&str] = &["fmt", "-w"];
 const OPA_CHECK_ARGS: &[&str] = &["check", "--format", "json", "--max-errors=-1"];
+const ZIG_AST_CHECK_ARGS: &[&str] = &["ast-check", "--color", "off"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
 /// The scratch directory holding the `.editorconfig` dfmt is pointed at; dfmt otherwise searches
 /// upward from each source file.
@@ -1294,6 +1295,11 @@ fn flag_value(flag: &str, path: &Path) -> OsString {
     let mut value = OsString::from(flag);
     value.push(path.as_os_str());
     value
+}
+
+/// `zig ast-check` takes exactly one file per process.
+pub fn zig_ast_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, ZIG_AST_CHECK_ARGS, &[file], "")
 }
 
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {

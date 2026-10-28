@@ -145,6 +145,13 @@ label_flag(
 filegroup(name = "no_qmllint")
 
 label_flag(
+    name = "tool_zig_ast_check",
+    build_setting_default = ":no_zig_ast_check",
+)
+
+filegroup(name = "no_zig_ast_check")
+
+label_flag(
     name = "tool_zig_fmt",
     build_setting_default = ":no_zig_fmt",
 )

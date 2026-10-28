@@ -1,9 +1,9 @@
 """Signing and attestation selection for releases."""
 
 load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
-load("//deploy/rules:config.bzl", "rlocation_path")
+load("//deploy/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
+load("//deploy/rules:config.bzl", "deploy_config", "rlocation_path")
 load("//deploy/rules:defs.bzl", "dx_deployment")
-load("//rust/rules:defs.bzl", "rust_binary")
 
 SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"
 SIGNING_ISSUER = "https://token.actions.githubusercontent.com"
@@ -73,111 +73,56 @@ cosign_binary = rule(
     provides = [CosignInfo],
 )
 
-def _signing_launcher_impl(ctx):
-    """Writes the owner-gated signing deploy launcher Rust source."""
+def _signing_config_impl(ctx):
+    """Writes the owner-gated signing deploy config."""
     asset_rlocs = []
+    files = []
+    runfiles = ctx.runfiles()
     for target in ctx.attr.artifacts:
         info = target[DefaultInfo]
         f = info.files_to_run.executable
         if f == None:
-            files = info.files.to_list()
-            if len(files) != 1:
+            fl = info.files.to_list()
+            if len(fl) != 1:
                 fail("signed_release " + str(ctx.label) + ": artifact " +
                      str(target.label) + " provides " +
-                     str(len(files)) + " files, want exactly one")
-            f = files[0]
-        rloc = rlocation_path(ctx, f)
-        for banned in ["\"", "\\", "\n"]:
-            if banned in rloc:
-                fail("signed_release " + str(ctx.label) + ": rlocation '" + rloc +
-                     "' is not launcher-safe")
-        asset_rlocs.append(rloc)
+                     str(len(fl)) + " files, want exactly one")
+            f = fl[0]
+        asset_rlocs.append(rlocation_path(ctx, f))
+        files.append(f)
+        runfiles = runfiles.merge(info.default_runfiles)
     cosign = ctx.attr.cosign[CosignInfo]
-    cosign_rloc = rlocation_path(ctx, cosign.file)
-    for value in [ctx.attr.identity, ctx.attr.issuer, ctx.attr.cosign_version, cosign.sha256, cosign_rloc]:
-        for banned in ["\"", "\\", "\n"]:
-            if banned in value:
-                fail("signed_release " + str(ctx.label) + ": value '" + value +
-                     "' is not launcher-safe")
-    rloc_list = ", ".join(["\"" + r + "\"" for r in asset_rlocs])
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = """// Deploy launcher for `signed_release`. Generated. Do not edit.
-fn run() -> i32 {
-    const IDENTITY: &str = \"""" + ctx.attr.identity + """\";
-    const ISSUER: &str = \"""" + ctx.attr.issuer + """\";
-    const COSIGN_RLOC: &str = \"""" + cosign_rloc + """\";
-    const COSIGN_VERSION: &str = \"""" + ctx.attr.cosign_version + """\";
-    const COSIGN_SHA256: &str = \"""" + cosign.sha256 + """\";
-    const ASSET_RLOCS: &[&str] = &[""" + rloc_list + """];
-    if std::env::args_os().len() > 2 {
-        eprintln!("signing: this deploy target takes at most an output directory; artifacts are pinned at analysis time");
-        return 1;
-    }
-    let argv: Vec<String> = std::env::args().collect();
-    let outdir = dx_deploy_tools::deploy_outdir(&argv);
-    let dry = std::env::var("RELEASE_SIGN_DRY_RUN").unwrap_or_default() == "1";
-    let runfiles = match runfiles::Runfiles::create() {
-        Ok(runfiles) => runfiles,
-        Err(error) => {
-            eprintln!("signing: cannot load runfiles: {error}");
-            return 1;
-        }
-    };
-    let mut assets = Vec::with_capacity(ASSET_RLOCS.len());
-    for rloc in ASSET_RLOCS {
-        match runfiles.rlocation(rloc) {
-            Some(path) => assets.push(path.to_string_lossy().into_owned()),
-            None => {
-                eprintln!("signing: runfile not found for '{rloc}'");
-                return 1;
-            }
-        }
-    }
-    let Some(cosign) = runfiles.rlocation(COSIGN_RLOC) else {
-        eprintln!("signing: runfile not found for '{COSIGN_RLOC}'");
-        return 1;
-    };
-    let cosign = cosign.to_string_lossy().into_owned();
-    let pin = dx_release_tools::CosignPin {
-        path: &cosign,
-        version: COSIGN_VERSION,
-        sha256: COSIGN_SHA256,
-    };
-    match dx_release_tools::signing_run(IDENTITY, ISSUER, &assets, dry, &pin, &outdir) {
-        Ok(text) => {
-            print!("{text}");
-            0
-        }
-        Err(diagnostic) => {
-            eprintln!("{diagnostic}");
-            1
-        }
-    }
-}
-fn main() {
-    std::process::exit(run());
-}
-""",
+    runfiles = runfiles.merge(ctx.attr.cosign[DefaultInfo].default_runfiles)
+    return deploy_config(
+        ctx,
+        "signing",
+        {
+            "asset_rlocs": asset_rlocs,
+            "cosign_rloc": rlocation_path(ctx, cosign.file),
+            "cosign_sha256": cosign.sha256,
+            "cosign_version": ctx.attr.cosign_version,
+            "identity": ctx.attr.identity,
+            "issuer": ctx.attr.issuer,
+        },
+        runfiles.merge(ctx.runfiles(files = files + [cosign.file])),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_signing_launcher = rule(
-    implementation = _signing_launcher_impl,
-    doc = "Writes the owner-gated signing deploy launcher Rust source.",
+_signing_config = rule(
+    implementation = _signing_config_impl,
+    doc = "Writes the owner-gated signing deploy config.",
     attrs = {
         "artifacts": attr.label_list(
-            doc = "Executable targets the signing launcher embeds as assets.",
+            doc = "Targets the signing deploy signs, one asset each.",
             mandatory = True,
         ),
         "cosign": attr.label(
             doc = "Pinned cosign binary target providing the signing tool.",
             mandatory = True,
+            cfg = "exec",
             providers = [CosignInfo],
         ),
         "cosign_version": attr.string(
-            doc = "Cosign release version embedded in the signing launcher.",
+            doc = "Cosign release version recorded in the signing config.",
             mandatory = True,
         ),
         "identity": attr.string(
@@ -201,30 +146,18 @@ def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, profile =
         fail(version_err + " (in " + native.package_name() + ":" + name + ")")
     if len(artifacts) == 0:
         fail("signed_release " + native.package_name() + ":" + name + ": need at least one artifact")
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _signing_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _signing_config(
+        name = config_target,
         artifacts = artifacts,
         cosign = _COSIGN,
         cosign_version = cosign_version,
         identity = identity,
         issuer = issuer,
     )
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        crate_name = program_target.replace("-", "_"),
-        data = artifacts + [_COSIGN],
-        edition = "2021",
-        deps = [
-            "//deploy/release:dx_release_tools",
-            "//deploy/rules:dx_deploy_tools",
-            "@rules_rust//rust/runfiles",
-        ],
-    )
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = RELEASE_DEPLOY_TOOL,
         profile = profile,
     )

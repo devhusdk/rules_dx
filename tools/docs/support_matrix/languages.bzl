@@ -8,6 +8,7 @@ load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
 load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
 load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
+load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
@@ -45,6 +46,7 @@ COMPUTED_CONSTRAINTS = {
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": _all_of(FORTRAN_COMPATIBLE_WITH),
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
+    "//julia/rules:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _all_of(OCAML_COMPATIBLE_WITH),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
@@ -96,7 +98,7 @@ ROWS = [
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"], "name": "haskell", "section": "languages", "starters": ["haskell"], "title": "Haskell"},
     {"ci_tests": _hello("java"), "name": "java", "section": "languages", "starters": ["java"], "title": "Java"},
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "starters": ["javascript"], "title": "JavaScript"},
-    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "families": [], "name": "julia", "section": "languages", "title": "Julia"},
+    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "starters": ["kotlin"], "title": "Kotlin"},
     {"ci_tests": ["//lua/tests/runtime:probe_test"], "name": "lua", "section": "languages", "title": "Lua"},
     {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},

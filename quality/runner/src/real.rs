@@ -38,6 +38,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "graphql_eslint",
     "hadolint",
     "jsonnetfmt",
+    "julia_format",
     "keep_sorted",
     "kubeconform",
     "ktfmt",
@@ -294,7 +295,7 @@ const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
 
 /// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
 fn resolves_launcher(tool_id: &str) -> bool {
-    tool_id == "psscriptanalyzer"
+    matches!(tool_id, "psscriptanalyzer" | "julia_format")
 }
 
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.

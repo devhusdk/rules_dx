@@ -1209,6 +1209,15 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.d"
         ]
     );
+    let julia = Path::new("/scratch/sample.jl");
+    assert_eq!(
+        argv_strings(&julia_format_check(Path::new(BIN), &[julia])),
+        vec![BIN, "--check", "/scratch/sample.jl"]
+    );
+    assert_eq!(
+        argv_strings(&julia_format_fix(Path::new(BIN), &[julia])),
+        vec![BIN, "--apply", "/scratch/sample.jl"]
+    );
     let erl = Path::new("/scratch/sample.erl");
     assert_eq!(
         argv_strings(&erlfmt_check(Path::new(BIN), &[erl])),

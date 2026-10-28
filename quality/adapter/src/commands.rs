@@ -140,6 +140,8 @@ const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
 pub const DFMT_CONFIG_DIR: &str = "dx-dfmt-default";
 const DFMT_CHECK_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR];
 const DFMT_FIX_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR, "--inplace"];
+const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
+const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -1018,6 +1020,14 @@ pub fn dfmt_check(binary: &Path, file: &Path) -> Invocation {
 
 pub fn dfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DFMT_FIX_ARGS, files, "")
+}
+
+pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, JULIA_FORMAT_CHECK_ARGS, files, "")
+}
+
+pub fn julia_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, JULIA_FORMAT_FIX_ARGS, files, "")
 }
 
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

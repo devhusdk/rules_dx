@@ -461,10 +461,27 @@ single_version_override(
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
 
-bazel_dep(name = "rules_julia", version = "0.8.0", dev_dependency = True)
+# floor: equals tested; not yet searched (#3747)
+bazel_dep(name = "rules_julia", version = "0.8.0")
+single_version_override(
+    module_name = "rules_julia",
+    version = "0.8.0",
+)
 
-julia = use_extension("@rules_julia//julia:extensions.bzl", "julia", dev_dependency = True)
+julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
 julia.toolchain(version = "1.12.5")
+
+julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
+julia_pkg.from_manifest(
+    name = "dx_julia_format",
+    lockfile = "//julia/tools:Manifest.bazel.json",
+)
+julia_pkg.pkg_annotation(
+    dep = "Preferences",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/patches:Preferences.patch"],
+)
+use_repo(julia_pkg, "dx_julia_format")
 
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_perl", version = "1.5.0")

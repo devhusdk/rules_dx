@@ -174,6 +174,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "graphql_eslint",
             "hadolint",
             "jsonnetfmt",
+            "julia_format",
             "keep_sorted",
             "kubeconform",
             "ktfmt",

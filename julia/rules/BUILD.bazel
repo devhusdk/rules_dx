@@ -1,0 +1,42 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":platforms.bzl", "JULIA_PLATFORMS")
+load(":wrapper_tests.bzl", "julia_wrapper_contract_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "platforms.bzl",
+    "wrapper_tests.bzl",
+])
+
+julia_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+[
+    config_setting(
+        name = name,
+        constraint_values = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
+    )
+    for name, (os, cpu) in JULIA_PLATFORMS.items()
+]
+
+selects.config_setting_group(
+    name = "rules_julia_platform",
+    match_any = [":" + name for name in JULIA_PLATFORMS],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "platforms.bzl",
+        "wrapper_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

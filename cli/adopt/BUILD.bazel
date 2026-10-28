@@ -34,7 +34,6 @@ dx_rust_crate(
         "//patches/aspect_rules_jest:windows_v8_coverage.patch",
         "//patches/aspect_rules_py:windows_venv.patch",
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
-        "//patches/rules_android:rules_android.patch",
         "//patches/rules_cuda:dlink_includes.patch",
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",

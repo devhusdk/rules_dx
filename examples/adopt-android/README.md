@@ -45,10 +45,10 @@ bridge=jni
 
 ## Consumer setup
 
-Copy `rules_android/rules_android.patch` from the rules_dx patches to
-`third_party/rules_dx/rules_android.rules_android.patch`, then add this to
-`MODULE.bazel`. The Rust core is built for the APK's ABIs, so add the
-Android target triples to the `rust.toolchain` call that `dx init` wrote:
+Add this to `MODULE.bazel`. The Rust core is built for the APK's ABIs, so
+add the Android target triples to the `rust.toolchain` call that `dx init`
+wrote. Remove any `rules_android` override you added earlier; rules_dx now
+needs no `rules_android` patch.
 
 ```python
 rust.toolchain(
@@ -57,13 +57,6 @@ rust.toolchain(
         "aarch64-linux-android",
         "x86_64-linux-android",
     ],
-)
-
-single_version_override(
-    module_name = "rules_android",
-    patch_strip = 1,
-    patches = ["//third_party/rules_dx:rules_android.rules_android.patch"],
-    version = "0.6.6",
 )
 
 android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android/toolchain:repos.bzl", "android_ndk_toolchain_repo")

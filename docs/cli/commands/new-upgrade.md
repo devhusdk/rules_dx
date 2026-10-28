@@ -362,7 +362,7 @@ bazel build //...
 bazel test //...
 ```
 
-The APK reads an installed SDK (platform `android-34`, build-tools `34.0.0`,
+The APK reads an installed SDK (platform `android-34`, build-tools `35.0.0`,
 and an NDK). Export its location, then build, install, launch, and read the
 log on `emulator-5554`:
 

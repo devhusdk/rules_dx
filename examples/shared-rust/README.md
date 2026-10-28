@@ -90,7 +90,7 @@ tap or key press.
 `check_lifecycle.sh` on logcat fixtures. The `android` workflow runs it on
 the emulator log of `:install` and `:start`.
 
-Tools: NDK 27.2.12479018, build-tools 34.0.0, platform-tools 37.0.0,
+Tools: NDK 27.2.12479018, build-tools 35.0.0, platform-tools 37.0.0,
 emulator 37.2.12.0, system image `android-34;default;x86_64`.
 
 ## Apple

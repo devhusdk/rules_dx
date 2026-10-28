@@ -57,7 +57,6 @@ fn scaffold(scratch: &Path) -> PathBuf {
         "BUILD.bazel",
         "MODULE.bazel",
         ".bazelrc",
-        "third_party/rules_dx/rules_android.rules_android.patch",
     ] {
         assert!(root.join(file).is_file(), "{file}\n{text}");
     }

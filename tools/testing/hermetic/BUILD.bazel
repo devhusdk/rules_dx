@@ -649,9 +649,7 @@ hermetic_qualification(
         "//examples/adopt-android/native:summary.h": "examples/adopt-android/native/summary.h",
         "//examples/adopt-android/native:summary_test.cc": "examples/adopt-android/native/summary_test.cc",
         "//examples/adopt-android:BUILD.bazel": "examples/adopt-android/BUILD.bazel",
-        "//patches/rules_android:rules_android.patch": "third_party/rules_dx/rules_android.rules_android.patch",
         "consumers/adopt_android/consumer.bazelrc": ".bazelrc",
-        "consumers/adopt_android/third_party.BUILD.bazel": "third_party/rules_dx/BUILD.bazel",
     },
     languages = [
         "cpp",
@@ -814,7 +812,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "consumers/adopt_android/third_party.BUILD.bazel",
         "consumers/cc_starter/c_probe.BUILD.bazel",
         "consumers/cc_starter/cpp_probe.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",

@@ -816,7 +816,7 @@ fn rust_android_bazelrc() -> String {
 
 fn rust_android_readme(identity: &str, app_id: &str) -> String {
     format!(
-        "# {identity}\n\nRust core packaged as a debug Android APK ({app_id}) for arm64-v8a and x86_64.\n\nThe host build and tests need no Android SDK:\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nThe APK and its launchers are tagged manual. They need an installed Android SDK\nwith platform android-34, build-tools 34.0.0 and an NDK:\n\n```sh\nexport ANDROID_HOME=$HOME/Android/Sdk\nexport ANDROID_SDK_ROOT=$ANDROID_HOME\nexport ANDROID_NDK_REVISION=<installed ndk version>\nbazel build --config=android :{identity}_apk_file\nbazel test --config=android :{identity}_check_test\nbazel run --config=android :{identity}_install\nbazel run --config=android :{identity}_start\nbazel run --config=android :{identity}_log\n```\n\nThe launchers name {serial}. The APK is debug-signed, so no keys are needed.\nThe app ID, ABIs and API level are attributes of `:{identity}_apk` in BUILD.bazel.\n",
+        "# {identity}\n\nRust core packaged as a debug Android APK ({app_id}) for arm64-v8a and x86_64.\n\nThe host build and tests need no Android SDK:\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nThe APK and its launchers are tagged manual. They need an installed Android SDK\nwith platform android-34, build-tools 35.0.0 and an NDK:\n\n```sh\nexport ANDROID_HOME=$HOME/Android/Sdk\nexport ANDROID_SDK_ROOT=$ANDROID_HOME\nexport ANDROID_NDK_REVISION=<installed ndk version>\nbazel build --config=android :{identity}_apk_file\nbazel test --config=android :{identity}_check_test\nbazel run --config=android :{identity}_install\nbazel run --config=android :{identity}_start\nbazel run --config=android :{identity}_log\n```\n\nThe launchers name {serial}. The APK is debug-signed, so no keys are needed.\nThe app ID, ABIs and API level are attributes of `:{identity}_apk` in BUILD.bazel.\n",
         serial = RUST_ANDROID_SERIAL,
     )
 }
@@ -866,7 +866,7 @@ fn consumer_module_bazel(identity: &str, platforms: bool) -> String {
 }
 
 fn consumer_bazelrc() -> String {
-    "build --java_runtime_version=remotejdk_21\n".to_owned()
+    "build --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\nbuild --tool_java_language_version=17\n".to_owned()
 }
 
 fn consumer_bazelversion() -> String {

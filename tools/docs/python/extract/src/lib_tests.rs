@@ -253,8 +253,61 @@ fn failures_are_rejected() {
 #[test]
 fn parse_requires_every_flag() {
     let args = |list: &[&str]| list.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
-    assert!(parse(&args(&["--json", "a", "--package", "p", "--out", "o"])).is_ok());
+    assert!(parse(&args(&[
+        "--json",
+        "a",
+        "--package",
+        "p",
+        "--root",
+        "r",
+        "--srcs",
+        "s",
+        "--out",
+        "o"
+    ]))
+    .is_ok());
     assert!(parse(&args(&["--json", "a"])).is_err());
     assert!(parse(&args(&["--bad", "a"])).is_err());
     assert!(parse(&args(&["--json", "a", "--json", "b"])).is_err());
+}
+
+#[test]
+fn bare_star_is_kept_before_leading_keyword_only_parameters() {
+    let keyword = json!({"name": "a", "kind": "keyword-only"});
+    let this = json!({"name": "self", "kind": "positional or keyword"});
+    assert_eq!(render_parameters(&[keyword.clone()], false), "*, a");
+    assert_eq!(render_parameters(&[this, keyword.clone()], true), "*, a");
+    let star = json!({"name": "args", "kind": "variadic positional"});
+    assert_eq!(render_parameters(&[star, keyword], false), "*args, a");
+}
+
+#[test]
+fn sources_are_mapped_through_the_manifest() {
+    let manifest = "bin/p.pyroot/mylib/__init__.py\tpkg/src/mylib/__init__.py\t0\n";
+    let sources = parse_sources(manifest).unwrap();
+    let mapped = convert_mapped(GOOGLE, "mylib", &|file| {
+        sources
+            .get(&format!("bin/p.pyroot/{file}"))
+            .cloned()
+            .ok_or_else(|| format!("unmapped {file}"))
+    });
+    assert!(mapped.unwrap_err().starts_with("unmapped "));
+    let generated = convert_mapped(GOOGLE, "mylib", &|file| {
+        Ok((format!("pkg/src/{file}"), file.ends_with("x.py")))
+    })
+    .unwrap();
+    for symbol in &generated.symbols {
+        let source = symbol.source.as_ref().unwrap();
+        assert!(source.file.starts_with("pkg/src/mylib/"), "{}", source.file);
+        assert_eq!(source.generated, source.file.ends_with("x.py"));
+    }
+}
+
+#[test]
+fn malformed_manifest_lines_are_rejected() {
+    assert!(parse_sources("a\tb\t0\n").is_ok());
+    assert!(parse_sources("a\tb\n").is_err());
+    assert!(parse_sources("a\tb\t2\n").is_err());
+    assert!(parse_sources("a\t../b\t0\n").is_err());
+    assert!(parse_sources("a\t/b\t0\n").is_err());
 }

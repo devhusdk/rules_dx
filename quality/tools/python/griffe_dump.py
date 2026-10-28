@@ -9,6 +9,7 @@ import argparse
 import ast
 import json
 import logging
+import os
 import pathlib
 import platform
 import sys
@@ -109,9 +110,7 @@ def dump(root, package, docstyle):
     if handler.errors:
         raise RuntimeError("; ".join(handler.errors))
     path = module.filepath
-    if not isinstance(path, pathlib.Path) or not path.resolve().is_relative_to(
-        pathlib.Path(root).resolve()
-    ):
+    if not isinstance(path, pathlib.Path) or not _is_under(path, pathlib.Path(root)):
         raise RuntimeError(
             f"package '{package}' is not a source package under the root"
         )
@@ -124,6 +123,15 @@ def dump(root, package, docstyle):
         "module": module,
     }
     return json.dumps(document, cls=_encoder(), full=True, sort_keys=True)
+
+
+def _is_under(path, root):
+    """Compares lexically, as staged inputs are symlinks that must not be followed."""
+    path = pathlib.PurePath(os.path.abspath(path))
+    # griffe resolves the search path itself but not the files inside it, so
+    # the root is accepted both as given and with its own symlinks resolved.
+    roots = {os.path.abspath(root), os.path.realpath(root)}
+    return any(path.is_relative_to(pathlib.PurePath(r)) for r in roots)
 
 
 def main(argv):

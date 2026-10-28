@@ -62,6 +62,15 @@ class GriffeDumpTestCase(unittest.TestCase):
         self.assertEqual(document["docstyle"], "google")
         self.assertEqual(document["module"]["members"]["f"]["returns"], "int")
 
+    def test_symlink_staged_package_is_accepted(self):
+        """Inputs staged as symlinks to files outside the root still resolve."""
+        source = self.base / "source"
+        (source / "pkg").mkdir(parents=True)
+        (source / "pkg" / "__init__.py").write_text('"""Doc."""\n', encoding="utf-8")
+        (self.root / "pkg").mkdir()
+        (self.root / "pkg" / "__init__.py").symlink_to(source / "pkg" / "__init__.py")
+        self.assertEqual(self.run_driver("pkg"), 0, self.stderr)
+
     def test_missing_package_fails(self):
         """An absent package exits 1 without output."""
         self.assertEqual(self.run_driver("absent"), 1)

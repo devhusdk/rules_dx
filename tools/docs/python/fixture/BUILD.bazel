@@ -1,0 +1,32 @@
+load("//python/rules:defs.bzl", "python_library")
+load("//tools/docs/python:defs.bzl", "python_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["src/mylib/shapes.py"],
+    visibility = VIS_TOOLS,
+)
+
+genrule(
+    name = "gen_module",
+    outs = ["src/mylib/gen.py"],
+    cmd = "printf '\"\"\"Generated.\"\"\"\\n\\n\\ndef generated_name():\\n    \"\"\"Returns a name.\"\"\"\\n    return \"x\"\\n' > $@",
+)
+
+python_library(
+    name = "mylib",
+    srcs = [
+        "src/mylib/__init__.py",
+        "src/mylib/gen.py",
+        "src/mylib/shapes.py",
+    ],
+    imports = ["src"],
+)
+
+python_doc_shard(
+    name = "mylib_docs",
+    library = ":mylib",
+    package = "mylib",
+)

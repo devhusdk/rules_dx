@@ -882,6 +882,14 @@ impl RealBackend {
                     parsers::parse_mix_format(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "julia_format" => {
+                let invocation = commands::julia_format_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_julia_format(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "zig_fmt" => {
                 let invocation = commands::zig_fmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

@@ -1,4 +1,4 @@
-load("@rules_julia//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 

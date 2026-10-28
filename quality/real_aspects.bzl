@@ -515,6 +515,14 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "yaml",
     },
+    "julia_format": {
+        "attr": attr.label(default = "//config:tool_julia_format", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+        "target_tool": True,
+    },
     "zig_fmt": {
         "attr": attr.label(default = "//config:tool_zig_fmt", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -750,6 +758,7 @@ def _fsharplint_context(target, ctx, what):
 _TARGET_TOOL_OWNERS = {
     "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
     "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
+    "julia_format": ("julia_library, julia_binary or julia_test", "@rules_dx//julia/rules:defs.bzl", "@rules_dx//julia/tools:julia_format"),
 }
 
 def _tool_files_to_run(target, flag, tool, what):

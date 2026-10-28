@@ -25,6 +25,9 @@ _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
 _D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
 _DFMT_SETTING = _CANONICAL + "//config:tool_dfmt"
 _DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
+_JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
+_JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
+_JULIA_FORMAT_TOOL = _CANONICAL + "//julia/tools:julia_format"
 _ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
@@ -133,6 +136,29 @@ zig_subject = rule(
     implementation = _zig_subject_impl,
     attrs = {
         "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _julia_subject_impl(ctx):
+    """Exposes the resolved julia_format binary and the format results beside the real aspect."""
+    tool = ctx.attr._julia_format[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["julia_format"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+        "julia_format": tool.short_path if tool else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+julia_subject = rule(
+    implementation = _julia_subject_impl,
+    attrs = {
+        "_julia_format": attr.label(default = "//config:tool_julia_format"),
         "target": attr.label(
             aspects = [real_format_aspect],
             mandatory = True,
@@ -333,6 +359,49 @@ def zig_fmt_flag_tests(name, subject):
         target_under_test = subject,
     )
     _zig_fmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+def _julia_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's formatter."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["julia_format"])
+    asserts.true(env, fields["wrapper"].split("/")[-1].startswith("julia_format"), "want the julia formatter, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the julia target")
+    return analysistest.end(env)
+
+_julia_format_default_test = analysistest.make(
+    _julia_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _JULIA_POLICY},
+)
+
+def _julia_wired_impl(ctx):
+    """Asserts the flag wires the Julia formatter and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["julia_format"].split("/")[-1].startswith("julia_format"), "want the julia formatter, got " + fields["julia_format"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the julia target")
+    return analysistest.end(env)
+
+_julia_format_set_test = analysistest.make(
+    _julia_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _JULIA_POLICY,
+        _JULIA_FORMAT_SETTING: _JULIA_FORMAT_TOOL,
+    },
+)
+
+def julia_format_flag_tests(name, subject):
+    """Instantiates the julia_format flag proofs."""
+    _julia_format_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_under_test = subject,
+    )
+    _julia_format_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

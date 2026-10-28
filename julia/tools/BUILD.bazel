@@ -1,0 +1,69 @@
+load("@rules_julia//julia:defs.bzl", "julia_binary")
+load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
+load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load(":julia_tool.bzl", "dx_julia_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Manifest.bazel.json",
+    "Manifest.toml",
+    "Project.toml",
+])
+
+julia_binary(
+    name = "format_bin",
+    srcs = ["format.jl"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "@dx_julia_format//:JuliaFormatter",
+        "@dx_julia_format//:JuliaSyntax",
+    ],
+)
+
+dx_julia_tool(
+    name = "julia_format",
+    binary = ":format_bin",
+)
+
+julia_pkg_resolve(
+    name = "resolve",
+    manifest_bazel_json = "Manifest.bazel.json",
+    manifests = {"Manifest.toml": "1.12"},
+    project_toml = "Project.toml",
+)
+
+julia_pkg_resolve_test(
+    name = "resolve_test",
+    resolver = ":resolve",
+)
+
+rust_test(
+    name = "format_cli_test",
+    srcs = ["format_cli_test.rs"],
+    data = [":julia_format"],
+    env = {"JULIA_FORMAT": "$(rootpath :julia_format)"},
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "format_cli_fmt_test",
+    targets = [":format_cli_test"],
+)
+
+rust_clippy_test(
+    name = "format_cli_clippy_test",
+    targets = [":format_cli_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "julia_tool.bzl",
+    ],
+    tags = ["corpus"],
+)

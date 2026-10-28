@@ -220,6 +220,28 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_zig_format_fail.expected.txt",
     },
     {
+        "name": "matrix_julia_format_pass",
+        "generated": {
+            "matrix/julia_clean.jl": "function add(a, b)\n    return a + b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["julia_format;julia;matrix/julia_clean.jl"],
+        "tool_names": ["julia_format"],
+        "tool_binaries": ["//julia/tools:julia_format"],
+        "expected_file": ":matrix/matrix_julia_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_julia_format_fail",
+        "generated": {
+            "matrix/julia_dirty.jl": "function add(a, b)\n        return a + b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["julia_format;julia;matrix/julia_dirty.jl"],
+        "tool_names": ["julia_format"],
+        "tool_binaries": ["//julia/tools:julia_format"],
+        "expected_file": ":matrix/matrix_julia_format_fail.expected.txt",
+    },
+    {
         "name": "matrix_qml_lint_pass",
         "generated": {
             "matrix/qmllint_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",

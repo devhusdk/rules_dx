@@ -83,6 +83,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "starlark",
     "terraform",
     "go_module",
+    "julia",
     "zig",
     "nix",
     "kubernetes",

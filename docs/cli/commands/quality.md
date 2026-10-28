@@ -248,6 +248,7 @@ to.
 | `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
 | `jsonnetfmt` | format | jsonnet |
+| `julia_format` | format | julia |
 | `keep_sorted` | lint | text |
 | `ktfmt` | format | kotlin |
 | `ktlint` | lint | kotlin |
@@ -307,15 +308,15 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
-  `zig_fmt`, `dfmt`, `erlfmt`, `mix_format`, `ormolu` and `nixfmt` have
-  override flags.
+  `julia_format`, `zig_fmt`, `dfmt`, `erlfmt`, `mix_format`, `ormolu` and
+  `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `dfmt`, `erlfmt` and
-  `mix_format` alternates must be executable targets, such as
-  `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
-  `@rules_dx//d/tools:dfmt`,
+- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
+  `erlfmt` and `mix_format` alternates must be executable targets, such as
+  `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
+  `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`,
   `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
   A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
@@ -336,6 +337,26 @@ Without the flag, a policy that selects `qmlformat` fails the analysis and
 names the flag. To set formatting options, bind a `qmlformat_config` to the
 QML targets with `aspect_hints`. The file must be named `.qmlformat.ini`. dx
 passes it to `qmlformat` with `-s`.
+
+### Julia formatting
+
+`julia_format` runs JuliaFormatter 2.2.0 on the Julia version its Manifest was
+resolved for. Select `julia_format` in a `julia` family. No flag is needed, and
+the formatter packages are fetched only for Julia targets.
+
+```python
+quality_family(
+    name = "julia_family",
+    family_id = "julia",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["julia_format"],
+)
+```
+
+A Julia-class target that is not one of the wrappers fails the analysis and
+names the flag. The check never writes. `--apply` rewrites unformatted files. A
+file with a syntax error reports an error at its line and column and stays
+untouched. Use the wrappers from `@rules_dx//julia/rules:defs.bzl`.
 
 ### Zig formatting
 

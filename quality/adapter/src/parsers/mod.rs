@@ -23,6 +23,7 @@ pub mod google_java_format;
 pub mod govet;
 pub mod hadolint;
 pub mod jsonnetfmt;
+pub mod julia_format;
 pub mod keep_sorted;
 pub mod ktfmt;
 pub mod ktlint;
@@ -93,6 +94,7 @@ pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
 pub use hadolint::parse_hadolint;
 pub use jsonnetfmt::parse_jsonnetfmt;
+pub use julia_format::parse_julia_format;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
@@ -1901,6 +1903,14 @@ mod tests {
         super::mix_format::parse_mix_format(b"", input, code, files, std::path::Path::new("/"))
     }
 
+    fn fuzz_julia_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::julia_format::parse_julia_format(input, input, code, files)
+    }
+
     fn fuzz_zig_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -2210,6 +2220,7 @@ mod tests {
         ("govet", fuzz_govet),
         ("hadolint", fuzz_hadolint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
+        ("julia_format", fuzz_julia_format),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("kubeconform", fuzz_kubeconform),
@@ -2289,6 +2300,7 @@ mod tests {
         ("govet", include_str!("govet.rs")),
         ("hadolint", include_str!("hadolint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
+        ("julia_format", include_str!("julia_format.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("kubeconform", include_str!("kubeconform.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),

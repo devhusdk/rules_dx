@@ -115,7 +115,6 @@ rust_test(
     tags = NESTED_BAZEL_NETWORK_TAGS,
     target_compatible_with = [
         "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
     ],
     deps = [
         "//tools/testing:dx_nested",

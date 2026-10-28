@@ -302,6 +302,26 @@ def _compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False)
         "//conditions:default": linux,
     })
 
+def matrix_case_platforms(case):
+    """Returns the platform ids one matrix case runs on, mirroring `_compatible`.
+
+    linux_x86_64 is always included. Keep this next to `_compatible` so they cannot drift.
+    """
+    linux_arm64 = case.get("linux_arm64", False)
+    macos_arm64 = case.get("macos_arm64", False)
+    windows_x86_64 = case.get("windows_x86_64", False)
+    windows_arm64 = case.get("windows_arm64", False)
+    platforms = ["linux_x86_64"]
+    if linux_arm64:
+        platforms.append("linux_arm64")
+    if macos_arm64:
+        platforms.append("macos_arm64")
+    if windows_x86_64:
+        platforms.append("windows_x86_64")
+    if windows_arm64:
+        platforms.append("windows_arm64")
+    return platforms
+
 def runner_matrix_suite(name, cases):
     """Instantiates one _runner_matrix_test per matrix case plus a suite."""
     tests = []

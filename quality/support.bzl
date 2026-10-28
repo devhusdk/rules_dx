@@ -1,5 +1,6 @@
 """Explicit tool support records."""
 
+load("//quality/artifacts:hub.bzl", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
 SUPPORT_SCHEMA_VERSION = 1
@@ -223,7 +224,7 @@ YAML_YAMLFMT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamlfmt",
     "transport": "batched",
@@ -237,7 +238,7 @@ YAML_YAMLLINT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamllint",
     "transport": "batched",
@@ -322,7 +323,7 @@ GO_GOFUMPT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "go",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "gofumpt",
     "transport": "batched",
@@ -537,7 +538,7 @@ LATEX_CHKTEX_LINT_SUPPORT = {
     "state": "known",
     "tool": "chktex",
     "transport": "single",
-    "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
 POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
@@ -785,7 +786,9 @@ def _is_canonical_token(text):
             return False
     return True
 
-_ALL_PLATFORMS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]
+# Every platform a support record may name: the qualified execution set plus the selectable
+# fallback platforms (hub.bzl). A sixth platform is one edit there.
+SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
 
 def _is_unbuilt(record):
     """Reports whether a record names a tool with no pinned build on any platform.
@@ -798,7 +801,7 @@ def _is_unbuilt(record):
         record["artifact"] == "missing" and
         record["state"] == "known" and
         type(unsupported) == "list" and
-        sorted(unsupported) == _ALL_PLATFORMS
+        sorted(unsupported) == sorted(SUPPORT_PLATFORMS)
     )
 
 def support_unpinned_tools(capability):
@@ -855,11 +858,13 @@ def support_record_error(record):
     for platform in platforms:
         if not _is_canonical_token(platform):
             return "support: non-canonical platform '" + str(platform) + "' for tool '" + tool + "'"
+        if platform not in SUPPORT_PLATFORMS:
+            return "support: unknown platform '" + str(platform) + "' for tool '" + tool + "'"
     unsupported = record.get("unsupported", [])
     if type(unsupported) != "list":
         return "support: tool '" + tool + "' needs 'unsupported' to be a list"
     for platform in unsupported:
-        if platform not in ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]:
+        if platform not in SUPPORT_PLATFORMS:
             return "support: unknown unsupported platform '" + str(platform) + "' for tool '" + tool + "'"
         if platform in platforms:
             return "support: platform '" + platform + "' is both supported and unsupported for tool '" + tool + "'"

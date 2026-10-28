@@ -304,7 +304,7 @@ fn a_policy_selecting_chktex_names_the_missing_build() {
     assert_ne!(out.status.code(), Some(0), "{}", out.combined());
     assert!(
         out.combined().contains(
-            "policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_x86_64; disable 'lint'"
+            "policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64; disable 'lint'"
         ),
         "{}",
         out.combined()

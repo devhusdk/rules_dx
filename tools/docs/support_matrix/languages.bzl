@@ -11,7 +11,7 @@ load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
 load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
 load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
-load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
+load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
@@ -54,7 +54,7 @@ COMPUTED_CONSTRAINTS = {
     # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
     "//tools/testing/hermetic:defs.bzl%HERMETIC_COMPATIBLE_WITH": [["@platforms//os:linux"]],
     "//julia/rules:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
-    "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _all_of(OCAML_COMPATIBLE_WITH),
+    "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _cells(OCAML_CELLS, sorted(OCAML_CELLS.keys())),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
     "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
@@ -296,7 +296,7 @@ GAP_ISSUES = {
     "build:fortran:*": 4546,
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
-    "build:ocaml:*": 4550,
+    "build:ocaml:windows_*": 4550,
     "build:php:windows_x86_64": 4552,
     "build:powershell:*": 4553,
     "build:qt:windows_*": 4554,

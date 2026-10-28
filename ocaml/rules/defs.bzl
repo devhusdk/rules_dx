@@ -23,7 +23,9 @@ load(
     _ocamllex = "ocamllex",
     _ocamlyacc = "ocamlyacc",
 )
+load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_with_tag", "dx_wrap_forward_kwargs")
+load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "OCamlCmtInfo", "bin_annot_opts", "cmt_entries")
 
@@ -31,10 +33,7 @@ ocamllex = _ocamllex
 
 ocamlyacc = _ocamlyacc
 
-OCAML_COMPATIBLE_WITH = [
-    Label("@platforms//os:linux"),
-    Label("@platforms//cpu:x86_64"),
-]
+OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", sorted(OCAML_CELLS.keys()))
 
 OCAML_TOOLCHAIN_FLAG = "@rules_ocaml//toolchain"
 

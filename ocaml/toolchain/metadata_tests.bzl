@@ -10,7 +10,7 @@ def _checks():
     ocaml = [p for p in linux.packages if p.name == "ocaml"][0]
     return [
         expect_equal("ocaml version", OCAML_VERSION, "5.5.2"),
-        expect_equal("pinned cells", sorted(OCAML_CELLS.keys()), ["linux_amd64"]),
+        expect_equal("pinned cells", sorted(OCAML_CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
         expect_equal("linux emitters", linux.emitters, ["sys", "vm"]),
         expect_equal("known emitters", sorted(EMITTERS.keys()), ["sys", "vm"]),
         expect_equal("linux packages", sorted([p.name for p in linux.packages]), ["ocaml", "zstd"]),

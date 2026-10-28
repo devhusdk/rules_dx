@@ -983,68 +983,76 @@ _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl
 
 _consumer_hub_repo(
     name = "consumer_hub",
+    dev_dependency = True,
 )
 
 _docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
 
-_docs_consumer_repo(name = "dx_docs_consumer")
+_docs_consumer_repo(name = "dx_docs_consumer", dev_dependency = True)
 
 _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
 
-_consumer_dx_repo(name = "dx_consumer_entry")
+_consumer_dx_repo(name = "dx_consumer_entry", dev_dependency = True)
 
 _consumer_sets_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_sets_repo")
 
-_consumer_sets_repo(name = "dx_consumer_sets")
+_consumer_sets_repo(name = "dx_consumer_sets", dev_dependency = True)
 
 _consumer_scaffold_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_scaffold_repo")
 
-_consumer_scaffold_repo(name = "dx_consumer_scaffold")
+_consumer_scaffold_repo(name = "dx_consumer_scaffold", dev_dependency = True)
 
 _consumer_completion_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_completion_repo")
 
-_consumer_completion_repo(name = "dx_consumer_completion")
+_consumer_completion_repo(name = "dx_consumer_completion", dev_dependency = True)
 
 _consumer_cc_repo = use_repo_rule("//cc/tests/fixtures/consumer_cc:repos.bzl", "consumer_cc_repo")
 
 _consumer_cc_repo(
     name = "consumer_cc",
+    dev_dependency = True,
 )
 
 _go_samepkg_repo = use_repo_rule("//go/tests/fixtures/samepkg:repos.bzl", "go_samepkg_repo")
 
 _go_samepkg_repo(
     name = "go_samepkg_helper",
+    dev_dependency = True,
 )
 
 _consumer_resources_repo = use_repo_rule("//deploy/tests/fixtures/consumer_resources:repos.bzl", "consumer_resources_repo")
 
 _consumer_resources_repo(
     name = "consumer_resources",
+    dev_dependency = True,
 )
 
 _consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:repos.bzl", "consumer_native_repo")
 
 _consumer_native_repo(
     name = "consumer_native",
+    dev_dependency = True,
 )
 
 _consumer_abi_repo = use_repo_rule("//rust/tests/fixtures/consumer_abi:repos.bzl", "consumer_abi_repo")
 
 _consumer_abi_repo(
     name = "consumer_abi",
+    dev_dependency = True,
 )
 
 _consumer_archive_repo = use_repo_rule("//deploy/tests/fixtures/consumer_archive:repos.bzl", "consumer_archive_repo")
 
 _consumer_archive_repo(
     name = "consumer_archive_repo",
+    dev_dependency = True,
 )
 
 _consumer_wasm_bindgen_repo = use_repo_rule("//rust/tests/fixtures/wasm_bindgen:repos.bzl", "consumer_wasm_bindgen_repo")
 
 _consumer_wasm_bindgen_repo(
     name = "consumer_wasm_bindgen",
+    dev_dependency = True,
 )
 
 _android_ndk_toolchain_repo = use_repo_rule("//android/toolchain:repos.bzl", "android_ndk_toolchain_repo")
@@ -1068,6 +1076,7 @@ _web_consumer_repo = use_repo_rule("//javascript/tests/fixtures/web_app:repos.bz
 
 _web_consumer_repo(
     name = "web_consumer",
+    dev_dependency = True,
 )
 
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
@@ -1099,6 +1108,7 @@ _shared_consumer_repo = use_repo_rule("//examples/shared-rust:repos.bzl", "share
 
 _shared_consumer_repo(
     name = "shared_consumer",
+    dev_dependency = True,
 )
 
 _http_archive(
@@ -1353,6 +1363,7 @@ _hub_fixture_repo(
     name = "dx_hub_fixture_taplo_linux_x86_64",
     platform = "linux_x86_64",
     tool = "taplo",
+    dev_dependency = True,
 )
 
 _hub_fixture_repo(

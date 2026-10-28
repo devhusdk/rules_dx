@@ -112,6 +112,16 @@ pub struct ManifestTool {
     pub env: Vec<EnvEntry>,
     #[serde(default)]
     pub upstream_keys: Vec<String>,
+    #[serde(default)]
+    pub path_tools: Vec<ManifestPathTool>,
+}
+
+/// A helper executable the tool finds by name on its child PATH.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ManifestPathTool {
+    pub name: String,
+    pub binary_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
@@ -152,6 +162,7 @@ pub struct ResolvedTool {
     pub binary: Option<PathBuf>,
     pub files: Vec<(String, PathBuf)>,
     pub upstream: Vec<PathBuf>,
+    pub path_tools: Vec<(String, PathBuf)>,
 }
 
 fn lookup(resolver: &Resolver, key: &str) -> Result<PathBuf, HarnessError> {
@@ -222,12 +233,17 @@ pub fn resolve_manifest(resolver: &Resolver, manifest: Manifest) -> Result<Resol
         for key in &entry.upstream_keys {
             upstream.push(lookup(resolver, key)?);
         }
+        let mut path_tools = Vec::with_capacity(entry.path_tools.len());
+        for helper in &entry.path_tools {
+            path_tools.push((helper.name.clone(), lookup(resolver, &helper.binary_key)?));
+        }
         tools.insert(
             tool.clone(),
             ResolvedTool {
                 binary,
                 files,
                 upstream,
+                path_tools,
             },
         );
     }
@@ -276,6 +292,12 @@ struct RequestEnv {
 }
 
 #[derive(serde::Serialize)]
+struct RequestPathTool {
+    name: String,
+    binary: String,
+}
+
+#[derive(serde::Serialize)]
 struct RequestTool {
     #[serde(skip_serializing_if = "Option::is_none")]
     binary: Option<String>,
@@ -289,6 +311,8 @@ struct RequestTool {
     env: Vec<RequestEnv>,
     upstream: Vec<String>,
     search_paths: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    path_tools: Vec<RequestPathTool>,
 }
 
 #[derive(serde::Serialize)]
@@ -355,6 +379,15 @@ pub fn build_request(
                     .map(|path| display(path))
                     .collect(),
                 search_paths: Vec::new(),
+                path_tools: paths
+                    .map(|paths| paths.path_tools.as_slice())
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|(name, path)| RequestPathTool {
+                        name: name.clone(),
+                        binary: display(path),
+                    })
+                    .collect(),
             },
         );
     }
@@ -1095,6 +1128,7 @@ mod tests {
                         PathBuf::from("/runfiles/rustfmt.toml"),
                     )],
                     upstream: Vec::new(),
+                    path_tools: Vec::new(),
                 },
             ),
             (
@@ -1103,6 +1137,7 @@ mod tests {
                     binary: None,
                     files: Vec::new(),
                     upstream: vec![PathBuf::from("/runfiles/clippy.diag")],
+                    path_tools: Vec::new(),
                 },
             ),
         ]);

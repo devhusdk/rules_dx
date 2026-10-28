@@ -20,6 +20,29 @@ py_binary(
 )
 
 py_binary(
+    name = "rst2html",
+    srcs = [
+        "rst2html_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "rst2html_main.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//docutils"],
+)
+
+py_unittest_test(
+    name = "rst2html_main_test",
+    srcs = [
+        "rst2html_main.py",
+        "rst2html_main_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//docutils"],
+)
+
+py_binary(
     name = "flake8",
     srcs = [
         "flake8_main.py",

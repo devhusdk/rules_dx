@@ -135,6 +135,15 @@ def _runner_matrix_test_impl(ctx):
             manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
         manifest_tools[tool]["dialect"] = dialect
 
+    for i, name in enumerate(ctx.attr.path_tool_names):
+        owner = ctx.attr.path_tool_owners[i]
+        if owner not in manifest_tools:
+            manifest_tools[owner] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[owner].setdefault("path_tools", []).append({
+            "binary_key": rlocation_path(ctx, _tool_executable(ctx.attr.path_tool_binaries[i])),
+            "name": name,
+        })
+
     launcher_env = []
     for launcher in ["pydoclint", "flake8", "pylint", "psscriptanalyzer"]:
         if launcher in tools:
@@ -183,16 +192,38 @@ def _runner_matrix_test_impl(ctx):
             list(staged.values()) +
             list(sibling_staged.values()) +
             list(tools.values()) +
+            [_tool_executable(t) for t in ctx.attr.path_tool_binaries] +
             [f for (_tool, _rel, f) in tool_files] +
             [f for f in ctx.files.config_files] +
             [f for (_tool, f) in upstream]
         ),
     )
     runfiles = runfiles.merge(ctx.attr._runfiles_lib[DefaultInfo].default_runfiles)
+
+    # A path tool's launcher reads the runfiles tree beside its own binary,
+    # so each tool's tree is rebuilt next to the binary the test runfiles carry.
+    path_tool_trees = {}
+    for target in ctx.attr.path_tool_binaries:
+        info = target[DefaultInfo]
+        exe = _tool_executable(target)
+        beside = "_main/" + exe.short_path + ".runfiles/"
+        tool_runfiles = info.default_runfiles
+        for f in tool_runfiles.files.to_list():
+            path = f.short_path
+            path_tool_trees[beside + (path[3:] if path.startswith("../") else "_main/" + path)] = f
+        for entry in tool_runfiles.symlinks.to_list():
+            path_tool_trees[beside + "_main/" + entry.path] = entry.target_file
+        for entry in tool_runfiles.root_symlinks.to_list():
+            path_tool_trees[beside + entry.path] = entry.target_file
+        repo_mapping = info.files_to_run.repo_mapping_manifest
+        if repo_mapping != None:
+            path_tool_trees[beside + "_repo_mapping"] = repo_mapping
+    runfiles = runfiles.merge(ctx.runfiles(root_symlinks = path_tool_trees))
     for target in (
         ctx.attr.srcs +
         ctx.attr.siblings +
         ctx.attr.tool_binaries +
+        ctx.attr.path_tool_binaries +
         ctx.attr.toolfile_srcs +
         ctx.attr.config_files +
         ctx.attr.upstream_srcs +
@@ -226,6 +257,16 @@ _runner_matrix_test = rule(
         ),
         "tool_names": attr.string_list(),
         "tool_binaries": attr.label_list(),
+        "path_tool_owners": attr.string_list(
+            doc = "Tool whose child PATH carries each path tool.",
+        ),
+        "path_tool_names": attr.string_list(
+            doc = "Name each path tool is found by on the owning tool's PATH.",
+        ),
+        "path_tool_binaries": attr.label_list(
+            cfg = "exec",
+            doc = "Executable behind each path tool.",
+        ),
         "toolfile_tools": attr.string_list(),
         "toolfile_rels": attr.string_list(
             doc = "Optional mirror-relative path per toolfile_srcs entry; empty keeps the file's short path.",
@@ -335,6 +376,9 @@ def runner_matrix_suite(name, cases):
             stages = case["stages"],
             tool_names = case.get("tool_names", []),
             tool_binaries = case.get("tool_binaries", []),
+            path_tool_owners = case.get("path_tool_owners", []),
+            path_tool_names = case.get("path_tool_names", []),
+            path_tool_binaries = case.get("path_tool_binaries", []),
             rustfmt_from_toolchain = case.get("rustfmt_from_toolchain", False),
             toolfile_tools = case.get("toolfile_tools", []),
             toolfile_srcs = case.get("toolfile_srcs", []),

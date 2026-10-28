@@ -1301,6 +1301,26 @@ syntax error fails the run with the file named. `typstyle` exits 0 on a syntax
 error, so dx reads its warning and never counts that file as clean. `typstyle`
 has no config file, so it runs with its upstream defaults.
 
+### reStructuredText
+
+Vale lints `.rst` and `.rest` files. Vale converts them with `rst2html`, which dx
+supplies from a pinned docutils. Own the files with `rst_library` from
+`@rules_dx//rst/rules:defs.bzl`; the rule hands `rst2html` to the Vale run, so
+the core shard needs no Python. Curated defaults do not select Vale for rst, so
+select it in an `rst` family.
+
+```python
+quality_family(
+    name = "rst_family",
+    family_id = "rst",
+    lint = ["vale"],
+)
+```
+
+List the `.rst` files of the package in `srcs`. An rst file that is not owned by
+`rst_library` fails the run with a message naming the rule. A converter failure
+is reported and never counts as clean. AsciiDoc is not covered yet.
+
 ### LaTeX
 
 `latexindent` 4.0.3 runs from the managed pin for format. Select it in a

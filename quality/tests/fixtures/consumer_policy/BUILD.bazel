@@ -704,3 +704,36 @@ real_source_target(
     name = "clean_rego",
     rego_srcs = ["rego_module/greet.rego"],
 )
+
+quality_family(
+    name = "rst_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "rst",
+    lint = ["vale"],
+)
+
+workspace_policy(
+    name = "rst_policy",
+    families = [":rst_family"],
+    visibility = [
+        "//quality:__pkg__",
+        "//quality/testdata:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "rst_module",
+    srcs = [
+        "rst_module/guide.rst",
+        "rst_module/notes.rst",
+    ],
+)
+
+real_source_target(
+    name = "clean_rst",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    rst_srcs = [":rst_module"],
+)

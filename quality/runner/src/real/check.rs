@@ -265,7 +265,13 @@ impl RealBackend {
                     None => return Err(execution(tool_id, "vale requires a config".to_owned())),
                 };
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
-                parsed(tool_id, parsers::parse_vale(&out.stdout, out.code, &strs))
+                // Vale prints a runtime error envelope on stderr when stdout is empty.
+                let report = if out.stdout.iter().all(u8::is_ascii_whitespace) {
+                    &out.stderr
+                } else {
+                    &out.stdout
+                };
+                parsed(tool_id, parsers::parse_vale(report, out.code, &strs))
             }
             "biome" => {
                 let config_dir = Self::biome_config_dir(tool, scratch)?;

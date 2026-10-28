@@ -60,9 +60,15 @@ pub fn parse_vale(
             .and_then(serde_json::Value::as_str)
             .unwrap_or("vale reported a configuration error");
         let lowered = detail.to_ascii_lowercase();
-        if ["rst2html", "asciidoctor"]
-            .iter()
-            .any(|converter| lowered.contains(converter))
+        // A runtime error that names an owned document is that document's converter failing.
+        let names_owned_file = code_value.as_str() == Some("E100")
+            && files
+                .iter()
+                .any(|file| !file.is_empty() && detail.contains(*file));
+        if names_owned_file
+            || ["rst2html", "asciidoctor"]
+                .iter()
+                .any(|converter| lowered.contains(converter))
         {
             return Err(ParseError::Incomplete {
                 tool: TOOL,
@@ -200,6 +206,17 @@ mod tests {
             assert!(matches!(err, ParseError::Incomplete { .. }), "{err}");
             assert!(err.to_string().contains(text.split(' ').next().unwrap()));
         }
+    }
+
+    #[test]
+    fn vale_runtime_error_naming_an_owned_file_is_a_failed_converter() {
+        let envelope = r#"{"Code": "E100", "Text": "E100 [/s/vale/doc.rst] Runtime error\n\nexit status 1\n\nExecution stopped with code 1."}"#;
+        let err = parse_vale(envelope.as_bytes(), Some(2), &["/s/vale/doc.rst"])
+            .expect_err("converter failure");
+        assert!(matches!(err, ParseError::Incomplete { .. }), "{err}");
+        let config = r#"{"Code": "E100", "Text": "E100 [--config] Runtime error\n\npath '/s/nope.ini' does not exist"}"#;
+        let err = parse_vale(config.as_bytes(), Some(2), &["/s/vale/doc.rst"]).expect_err("config");
+        assert!(matches!(err, ParseError::ValeConfig { .. }), "{err}");
     }
 
     #[test]

@@ -1,0 +1,1 @@
+pipeline failed: tool execution failed for vale: vale analysis was incomplete: vale document converter failed: E100 [lintRST] Runtime error

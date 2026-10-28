@@ -2,12 +2,22 @@
 
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 
+ApiSpecInfo = provider(
+    doc = "The root documents and the full document closure of an api_spec_library.",
+    fields = {
+        "files": "Depset of File: roots, refs and the files of every dep.",
+        "roots": "List of File: the root documents of this library.",
+    },
+)
+
 def _api_spec_library_impl(ctx):
+    files = depset(
+        ctx.files.srcs + ctx.files.refs,
+        transitive = [dep[ApiSpecInfo].files for dep in ctx.attr.deps],
+    )
     return [
-        DefaultInfo(files = depset(
-            ctx.files.srcs + ctx.files.refs,
-            transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
-        )),
+        DefaultInfo(files = files),
+        ApiSpecInfo(files = files, roots = ctx.files.srcs),
         dx_quality_sources(ctx.files.srcs, [
             ("api_spec", ["yaml", "yml", "json"]),
             ("api_spec_ref", ["yaml", "yml", "json"], [], ctx.files.refs),
@@ -20,6 +30,6 @@ api_spec_library = rule(
     attrs = {
         "srcs": attr.label_list(allow_files = [".yaml", ".yml", ".json"], doc = "Root OpenAPI or AsyncAPI documents to lint."),
         "refs": attr.label_list(allow_files = [".yaml", ".yml", ".json"], doc = "Files the roots reach through relative $ref."),
-        "deps": attr.label_list(providers = [DefaultInfo], doc = "Spec libraries the roots reach through relative $ref."),
+        "deps": attr.label_list(providers = [ApiSpecInfo], doc = "Spec libraries the roots reach through relative $ref."),
     },
 )

@@ -1,3 +1,4 @@
+load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_typescript_client")
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -8,6 +9,18 @@ api_spec_library(
     srcs = ["openapi.yaml"],
     refs = ["schemas/pet.yaml"],
     deps = ["//examples/api-spec/shared"],
+)
+
+openapi_typescript_client(
+    name = "client",
+    spec = ":pets",
+)
+
+openapi_codegen_shard(
+    name = "client_shard",
+    client = ":client",
+    entries = ["gen/pets/client.ts|gen|pets|examples/api-spec/pets/client.ts"],
+    language = "typescript",
 )
 
 real_source_target(

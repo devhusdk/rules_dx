@@ -1,0 +1,117 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//api_spec/rules:codegen.bzl", "openapi_codegen_shard", "openapi_typescript_client")
+load("//api_spec/rules:defs.bzl", "api_spec_library")
+load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//typescript/rules:defs.bzl", "typescript_project")
+load(":failure_tests.bzl", "openapi_codegen_failure_test")
+
+package(default_visibility = ["//visibility:private"])
+
+api_spec_library(
+    name = "spec",
+    srcs = ["openapi.yaml"],
+    refs = ["refs/order.yaml"],
+    deps = ["//api_spec/tests/shared"],
+)
+
+openapi_typescript_client(
+    name = "client",
+    spec = ":spec",
+)
+
+openapi_codegen_shard(
+    name = "client_shard",
+    client = ":client",
+    entries = ["gen/shop/client.ts|gen|shop|api_spec/tests/client.ts"],
+    language = "typescript",
+)
+
+codegen_shard_argv_test(
+    name = "client_shard_argv_test",
+    expected = [
+        "--producer",
+        "//api_spec/tests:client_shard",
+        "--language",
+        "typescript",
+        "--entry",
+        "gen/shop/client.ts|gen|shop|api_spec/tests/client.ts",
+        "--output",
+    ],
+    output = "api_spec/tests/client_shard.dxcodegen.pb",
+    target_under_test = ":client_shard",
+)
+
+typescript_project(
+    name = "client_ts",
+    testonly = True,
+    srcs = [":client"],
+    isolated_typecheck = False,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+genrule(
+    name = "client_content",
+    testonly = True,
+    srcs = [":client"],
+    outs = ["client_content.txt"],
+    cmd = "grep -q 'export type Order = ' $< && grep -q 'getOrder' $< && grep -q 'export type ProblemDetail = ' $< && echo ok > $@",
+)
+
+build_test(
+    name = "client_content_test",
+    targets = [":client_content"],
+)
+
+openapi_codegen_shard(
+    name = "unmatched_shard",
+    client = ":client",
+    entries = ["gen/shop/other.ts|gen|shop|api_spec/tests/other.ts"],
+    language = "typescript",
+    tags = ["manual"],
+)
+
+openapi_codegen_shard(
+    name = "python_shard",
+    client = ":client",
+    entries = ["gen/shop/client.py|gen|shop|api_spec/tests/client.ts"],
+    language = "python",
+    tags = ["manual"],
+)
+
+openapi_typescript_client(
+    name = "wrong_root_client",
+    root = "//api_spec/tests/shared:error.yaml",
+    spec = ":spec",
+    tags = ["manual"],
+)
+
+openapi_codegen_failure_test(
+    name = "unmatched_entry_test",
+    message = "matches no openapi_generated_srcs artifact",
+    target_under_test = ":unmatched_shard",
+)
+
+openapi_codegen_failure_test(
+    name = "non_admitted_pair_test",
+    message = "unsupported codegen pair ('openapi', 'python')",
+    target_under_test = ":python_shard",
+)
+
+openapi_codegen_failure_test(
+    name = "wrong_root_test",
+    message = "is not a root of",
+    target_under_test = ":wrong_root_client",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "failure_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

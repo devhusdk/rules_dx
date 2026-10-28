@@ -64,9 +64,26 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")` and `("openapi", "typescript")`. The openapi/typescript pair is admitted in the plan
-registry only; its `dx_codegen_shard` producer and `dx generate --check`
-coverage are not yet implemented.
+`("flatbuffers", "cpp")` and `("openapi", "typescript")`.
+
+The openapi/typescript pair comes from `openapi_typescript_client` in
+`@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
+`api_spec_library` into a single self-contained `NAME.ts` with the pinned
+`@redocly/cli` `generate-client`. Every generator flag is fixed in the rule
+(`--output-mode=single --runtime=inline --import-ext=js --generator=typescript
+--args-style=grouped --error-mode=throw --date-type=string`), the config is dx's
+own, and the action runs without network. `root` is required when the spec has
+more than one root. `openapi_codegen_shard` binds one plan entry with an
+`EXEC_PATH` suffix to the generated file.
+
+A dx preflight runs before Redocly and fails the build with
+`path:line:col rule message` when the root is not an OpenAPI 3.0, 3.1 or 3.2
+document (AsyncAPI and Swagger roots are refused), when a `$ref` names a remote
+document (`dx/api-spec-remote-ref`), or when a `$ref` names a file the spec does
+not declare (`dx/api-spec-unresolved-ref`). Only OpenAPI is supported; AsyncAPI
+generation is a separate pair. Verify generated sources with
+`dx codegen --check`, which fails with "no current selection" until
+`dx codegen --apply` has run and with "stale selection" after the plan changes.
 
 The flatbuffers/cpp pair comes from `flatbuffers_cc_library` in
 `@rules_dx//flatbuffers/rules:codegen.bzl`, which runs the pinned `flatc`

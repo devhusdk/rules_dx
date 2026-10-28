@@ -51,7 +51,7 @@ def codegen_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "codegen admits the openapi/typescript pair (#2311)",
+                "codegen admits the openapi/typescript pair that openapi_codegen_shard emits (#2311)",
                 codegen_pair_error("openapi", "typescript"),
                 "",
             ),

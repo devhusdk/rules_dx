@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "runner": "Linux x86_64",
   "bazel_version": "pending",
   "excludes": "the Bazel binary download (Bazelisk cache), the build of dx itself, and the time to start the runner.",
@@ -10,7 +10,7 @@
   "languages": [
     {
       "name": "rust",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -20,11 +20,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "python",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -34,11 +34,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "javascript",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -48,11 +48,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "typescript",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -62,11 +62,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "go",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -76,11 +76,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "java",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -90,11 +90,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "kotlin",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -104,11 +104,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "scala",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -118,11 +118,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "csharp",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -132,11 +132,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "fsharp",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -146,11 +146,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "c",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -164,7 +164,7 @@
     },
     {
       "name": "cpp",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -178,7 +178,7 @@
     },
     {
       "name": "rust-web",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -188,11 +188,11 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": null
+      "skipped": "no hello-world fixture yet (#4701)"
     },
     {
       "name": "rust-android",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -206,7 +206,7 @@
     },
     {
       "name": "ruby",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -220,7 +220,7 @@
     },
     {
       "name": "powershell",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -234,7 +234,7 @@
     },
     {
       "name": "astro",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -248,7 +248,7 @@
     },
     {
       "name": "svelte",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -262,7 +262,7 @@
     },
     {
       "name": "vue",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -276,7 +276,7 @@
     },
     {
       "name": "mdx",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -290,7 +290,7 @@
     },
     {
       "name": "zig",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -304,7 +304,7 @@
     },
     {
       "name": "elixir",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -318,7 +318,7 @@
     },
     {
       "name": "erlang",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -332,7 +332,7 @@
     },
     {
       "name": "ocaml",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -346,7 +346,7 @@
     },
     {
       "name": "haskell",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -360,7 +360,7 @@
     },
     {
       "name": "cuda",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -374,7 +374,7 @@
     },
     {
       "name": "lua",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -388,7 +388,7 @@
     },
     {
       "name": "julia",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -402,7 +402,7 @@
     },
     {
       "name": "d",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -416,7 +416,7 @@
     },
     {
       "name": "fortran",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -430,7 +430,7 @@
     },
     {
       "name": "perl",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -444,7 +444,7 @@
     },
     {
       "name": "php",
-      "new_s": null,
+      "init_s": null,
       "test_s": null,
       "total_s": null,
       "download_mb": null,
@@ -456,6 +456,5 @@
       "ceiling_s": null,
       "skipped": null
     }
-
   ]
 }

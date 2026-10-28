@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Cold first-build timings for every `dx new` language.
+"""Cold first-build timings for every language with a hello-world fixture.
 
 Subcommands: matrix, measure, merge, check, render. docs/first-build.json is the
 single source of truth; render writes docs/first-build.md from it. The language
-list lives in that JSON and is pinned to dx_adopt::NEW_LANGUAGES by a Rust test.
+list lives in that JSON and is pinned to the fixtures by first_build_test.
 Standard library only, so a bare runner can run it with plain python3.
 """
 
@@ -25,11 +25,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = ROOT / "docs" / "first-build.json"
 MD_PATH = ROOT / "docs" / "first-build.md"
-MEASURED = ("new_s", "test_s", "total_s", "download_mb", "repos", "silent_max_s")
+MEASURED = ("init_s", "test_s", "total_s", "download_mb", "repos", "silent_max_s")
 STAMPS = ("date", "dx_version", "dx_source")
 NOTICE_MARK = "first run in this workspace"
 PRESET_LAYERS = ("correctness", "performance", "resources")
 CEILING_FACTOR = 1.5
+# Mirrors FIXTURES_DIR in tools/testing/src/nested.rs.
+FIXTURES_REL = "tools/testing/starters/fixtures"
+FIXTURE_SUFFIX = ".fixture"
+APPENDED = ("MODULE.bazel", ".bazelrc")
+PROJECT = "demo-app"
 
 
 class MeasureError(Exception):
@@ -58,7 +63,7 @@ def names(data):
 
 
 def select(data, wanted):
-    """Language names to run: all when `wanted` is empty, else the checked subset."""
+    """Language names to run: all unskipped when `wanted` is empty, else the checked subset."""
     known = names(data)
     chosen = [w for w in wanted if w]
     unknown = [w for w in chosen if w not in known]
@@ -66,7 +71,18 @@ def select(data, wanted):
         raise ValueError(
             f"unknown language {', '.join(unknown)}; known: {', '.join(known)}"
         )
-    return [n for n in known if not chosen or n in chosen]
+    skipped = {row["name"]: row.get("skipped") for row in data["languages"]}
+    for name in chosen:
+        if skipped[name]:
+            raise ValueError(f"{name} is skipped: {skipped[name]}")
+    picked = (
+        [n for n in known if n in chosen]
+        if chosen
+        else [n for n in known if not skipped[n]]
+    )
+    if not picked:
+        raise ValueError("no languages to measure")
+    return picked
 
 
 def split_names(text):
@@ -188,6 +204,30 @@ def point_at_checkout(demo, rules):
     rc.write_text(old + layers, encoding="utf-8")
 
 
+def stage_fixture(src_dir, dest):
+    """Copies a fixture over a fresh project the way nested.rs scaffold_fixture does.
+
+    Each file drops its `.fixture` suffix; MODULE.bazel and .bazelrc are appended to
+    what `dx init` wrote after a newline and a blank line.
+    """
+    src_dir = Path(src_dir)
+    dest = Path(dest)
+    for file in sorted(p for p in src_dir.rglob("*") if p.is_file()):
+        rel = file.relative_to(src_dir).as_posix()
+        if not rel.endswith(FIXTURE_SUFFIX):
+            raise MeasureError(f"{file} lacks the {FIXTURE_SUFFIX} suffix")
+        name = rel[: -len(FIXTURE_SUFFIX)]
+        body = file.read_bytes()
+        target = dest / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if name in APPENDED:
+            head = target.read_bytes() if target.exists() else b""
+            if head and not head.endswith(b"\n"):
+                head += b"\n"
+            body = head + b"\n" + body
+        target.write_bytes(body)
+
+
 def _rmtree(path):
     # Bazel leaves read-only directories behind; make the whole tree writable first.
     for root, dirs, _files in os.walk(path):
@@ -211,12 +251,20 @@ def measure_run(language, dx, rules, tty, dx_source, scratch):
         )
     home = Path(tempfile.mkdtemp(prefix="first-build-home-", dir=scratch))
     env = cold_env(home)
-    demo = home / "work" / "demo"
+    demo = home / "work" / PROJECT
     try:
+        fixture = Path(rules) / FIXTURES_REL / language
+        if not fixture.is_dir():
+            raise MeasureError(f"{language}: no fixture at {fixture}")
         (home / "work").mkdir()
-        made = run_timed([dx, "new", "--apply", language, "demo"], home / "work", env)
+        made = run_timed(
+            [dx, "init", "--apply", PROJECT, "--workspace", str(home / "work")],
+            home / "work",
+            env,
+        )
         if made.code != 0:
-            raise MeasureError(f"dx new --apply {language} failed:\n{made.text}")
+            raise MeasureError(f"dx init --apply failed for {language}:\n{made.text}")
+        stage_fixture(fixture, demo)
         point_at_checkout(demo, rules)
         bazel_version = command_version(["bazel", "--version"], demo, env)
         dx_version = command_version([dx, "--version"], demo, env)
@@ -233,7 +281,7 @@ def measure_run(language, dx, rules, tty, dx_source, scratch):
             str(home / ".cache" / "bazel" / "*" / "*" / "external" / "*.marker")
         )
         run = {
-            "new_s": made.elapsed,
+            "init_s": made.elapsed,
             "test_s": test.elapsed,
             "total_s": made.elapsed + test.elapsed,
             "download_mb": repos / 1e6,
@@ -302,7 +350,7 @@ def merge(old, parts, date):
         for key in MEASURED + ("dx_version", "dx_source"):
             row[key] = part.get(key)
         row["date"] = part.get("date") or date
-        row["skipped"] = part.get("skipped")
+        row["skipped"] = part.get("skipped") or row.get("skipped")
         if row["ceiling_s"] is None and row["total_s"] is not None:
             row["ceiling_s"] = ceiling_for(row["total_s"])
         if part.get("bazel_version"):
@@ -322,7 +370,7 @@ def breaches(data):
         elif row["total_s"] > row["ceiling_s"]:
             over.append(
                 f"first-build: {row['name']} total {row['total_s']:g}s over ceiling "
-                f"{row['ceiling_s']:g}s (new {row['new_s']:g}s, test {row['test_s']:g}s)"
+                f"{row['ceiling_s']:g}s (init {row['init_s']:g}s, test {row['test_s']:g}s)"
             )
     return over, unset
 
@@ -341,18 +389,19 @@ def render(data):
     lines = [
         "# First build times",
         "",
-        "How long the first `dx test` takes in a fresh `dx new` project, with every",
-        "cache empty. This page is generated from [first-build.json](first-build.json)",
-        "by `tools/ci/first_build.py render`. Do not edit it by hand.",
+        "How long the first `dx test` takes in a fresh `dx init` project with the",
+        "hello-world fixture copied in, with every cache empty. This page is",
+        "generated from [first-build.json](first-build.json) by",
+        "`tools/ci/first_build.py render`. Do not edit it by hand.",
         "",
-        "| Language | New | Test | Total | Download MB | Date | dx version |",
+        "| Language | Init | Test | Total | Download MB | Date | dx version |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in data["languages"]:
         lines.append(
             "| `{}` | {} | {} | {} | {} | {} | {} |".format(
                 row["name"],
-                cell(row, "new_s", seconds),
+                cell(row, "init_s", seconds),
                 cell(row, "test_s", seconds),
                 cell(row, "total_s", seconds),
                 cell(row, "download_mb", lambda v: f"{v:.0f}"),
@@ -370,7 +419,7 @@ def render(data):
         "",
         f"Times come from a hosted GitHub {data['runner']} runner and vary on other",
         "hardware and networks. Each language runs "
-        f"`dx new --apply <language> demo` and then `dx test //...` {data['method']['runs']} times.",
+        f"`dx init --apply demo-app`, copies in the hello-world fixture and runs `dx test //...` {data['method']['runs']} times.",
         "Every run gets its own empty home directory, so the output base, repository",
         "cache, disk cache and dx cache all start empty. The table shows the median.",
         "",

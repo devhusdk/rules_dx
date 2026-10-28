@@ -1,12 +1,24 @@
 #!/bin/sh
-# Fake dx: new creates a starter, test prints the notice and sleeps in two stretches.
+# Fake dx: init creates a project, test prints the notice and sleeps in two stretches.
 case "$1" in
 --version) echo "dx 0.0.0-fake" ;;
-new)
-  mkdir -p "$4" && printf 'module(name = "demo")\n' > "$4/MODULE.bazel"
-  [ -n "$HOME" ] && echo "$HOME" > "$4/home.txt"
+init)
+  [ -n "$FAKE_DX_LOG" ] && echo "$*" >> "$FAKE_DX_LOG"
+  shift
+  dir=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    --workspace) shift ;;
+    --apply) ;;
+    *) dir="$1" ;;
+    esac
+    shift
+  done
+  mkdir -p "$dir" && printf 'bazel_dep(name = "rules_dx", version = "0")\n' > "$dir/MODULE.bazel"
+  [ -n "$HOME" ] && echo "$HOME" > "$dir/home.txt"
   ;;
 test)
+  [ -f BUILD.bazel ] || { echo "no BUILD.bazel: fixture not staged" >&2; exit 2; }
   [ "${FAKE_DX_COLD:-1}" = 1 ] && echo "dx: first run in this workspace; Bazel will fetch toolchains" >&2
   echo "Analyzing"
   if [ -n "$FAKE_DX_RO" ]; then

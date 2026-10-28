@@ -1073,6 +1073,7 @@ python_test(
         "first_build.py",
         ":first_build_fixtures",
         "//docs:first_build_data",
+        "//tools/testing/starters/fixtures:all",
     ],
     dep_group = "hello",
     deps = [

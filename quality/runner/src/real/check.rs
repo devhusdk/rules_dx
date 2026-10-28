@@ -914,10 +914,12 @@ impl RealBackend {
                     let invocation =
                         commands::ormolu_check(&tool.binary, std::slice::from_ref(path));
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    merged.extend(parsed(
+                    let found = parsed(
                         tool_id,
                         parsers::parse_ormolu(&out.stdout, &out.stderr, out.code, &[*name]),
-                    )?);
+                    )
+                    .map_err(|err| in_file(err, name))?;
+                    merged.extend(found);
                 }
                 Ok(merged)
             }
@@ -1262,6 +1264,21 @@ impl RealBackend {
                 ))
         });
         Ok(merged)
+    }
+}
+
+/// Names the file whose output failed to parse.
+fn in_file(err: RunnerError, name: &str) -> RunnerError {
+    match err {
+        RunnerError::ToolExecution { tool_id, detail } => RunnerError::ToolExecution {
+            tool_id,
+            detail: format!("{name}: {detail}"),
+        },
+        RunnerError::ToolOutput { tool_id, detail } => RunnerError::ToolOutput {
+            tool_id,
+            detail: format!("{name}: {detail}"),
+        },
+        other => other,
     }
 }
 

@@ -115,6 +115,10 @@ It passes the toolchain `cc_link_env_vars` and the C toolchain files to the
 compiler actions and changes nothing when the field is empty, so bytecode
 actions are unchanged.
 
+## Example
+
+See [examples/ocaml-app](../examples/ocaml-app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocamllex lexer and a C stub that only the native cell builds.
+
 ## Formatting and linting
 
 No OCaml formatter or linter runs. The rules tag every target `no-format`,

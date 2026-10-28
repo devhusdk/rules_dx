@@ -1,0 +1,86 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(["LICENSE.md"])
+
+# Astring 0.8.5 (ISC) without its toplevel printers, in `src/astring.mllib` order.
+# The upstream code predates this repo's warning set, so warnings stay off here only.
+_OPTS = [
+    "-w",
+    "-a",
+]
+
+ocaml_module(
+    name = "astring_unsafe",
+    opts = _OPTS,
+    struct = "src/astring_unsafe.ml",
+)
+
+ocaml_module(
+    name = "astring_base",
+    opts = _OPTS,
+    struct = "src/astring_base.ml",
+    deps = [":astring_unsafe"],
+)
+
+ocaml_module(
+    name = "astring_escape",
+    opts = _OPTS,
+    struct = "src/astring_escape.ml",
+    deps = [":astring_unsafe"],
+)
+
+ocaml_module(
+    name = "astring_char",
+    opts = _OPTS,
+    struct = "src/astring_char.ml",
+    deps = [
+        ":astring_escape",
+        ":astring_unsafe",
+    ],
+)
+
+ocaml_module(
+    name = "astring_sub",
+    opts = _OPTS,
+    struct = "src/astring_sub.ml",
+    deps = [
+        ":astring_base",
+        ":astring_char",
+        ":astring_escape",
+        ":astring_unsafe",
+    ],
+)
+
+ocaml_module(
+    name = "astring_string",
+    opts = _OPTS,
+    struct = "src/astring_string.ml",
+    deps = [
+        ":astring_base",
+        ":astring_char",
+        ":astring_escape",
+        ":astring_sub",
+        ":astring_unsafe",
+    ],
+)
+
+ocaml_signature(
+    name = "astring_sig",
+    src = "src/astring.mli",
+    opts = _OPTS,
+)
+
+ocaml_module(
+    name = "astring",
+    opts = _OPTS,
+    sig = ":astring_sig",
+    struct = "src/astring.ml",
+    deps = [
+        ":astring_char",
+        ":astring_string",
+    ],
+)

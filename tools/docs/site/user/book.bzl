@@ -164,6 +164,7 @@ USER_BOOK = [
     mdbook_page("Lua App", "examples/lua-app/README.md", "//examples/lua-app:README.md"),
     mdbook_page("MSIX App", "examples/msix-app/README.md", "//examples/msix-app:README.md"),
     mdbook_page("Node App", "examples/node-app/README.md", "//examples/node-app:README.md"),
+    mdbook_page("OCaml App", "examples/ocaml-app/README.md", "//examples/ocaml-app:README.md"),
     mdbook_page("Perl App", "examples/perl-app/README.md", "//examples/perl-app:README.md"),
     mdbook_page(
         "Python Service",

@@ -39,3 +39,21 @@ sys_cell_test(
     size = "small",
     target = "//ocaml/tests/runtime:greet_test",
 )
+
+sys_cell_test(
+    name = "example_checksum_test",
+    size = "small",
+    target = "//examples/ocaml-app/checksum:checksum_test",
+)
+
+sys_cell_test(
+    name = "example_ledger_test",
+    size = "small",
+    target = "//examples/ocaml-app/ledger:ledger_test",
+)
+
+sys_cell_test(
+    name = "example_lexer_test",
+    size = "small",
+    target = "//examples/ocaml-app/lexer:lexer_test",
+)

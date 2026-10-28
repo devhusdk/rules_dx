@@ -1,0 +1,34 @@
+#!/bin/sh
+set -u
+bin="$1"
+good="$2"
+malformed="$3"
+over_limit="$4"
+failures=0
+
+check() {
+  want_code="$1"
+  want_out="$2"
+  want_err="$3"
+  shift 3
+  out=$("$bin" "$@" 2>"${TEST_TMPDIR:-/tmp}/stderr")
+  code=$?
+  err=$(cat "${TEST_TMPDIR:-/tmp}/stderr")
+  if [ "$code" != "$want_code" ] || [ "$out" != "$want_out" ] || [ "$err" != "$want_err" ]; then
+    echo "FAIL: $* -> $code '$out' '$err' (want $want_code '$want_out' '$want_err')"
+    failures=$((failures + 1))
+  fi
+}
+
+report="lamp 4 x 1250 = 5000
+cable 12 x 199 = 2388
+fuse 0 x 35 = 0
+total 7388
+checksum 3fe8391a"
+
+check 0 "$report" "" "$good"
+check 2 "" "stockctl: line 2: expected NAME QTY CENTS" "$malformed"
+check 4 "" "stockctl: bulb is over the limit of 1000" "$over_limit"
+check 2 "" "usage: stockctl FILE"
+
+exit "$failures"

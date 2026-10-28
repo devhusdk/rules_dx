@@ -364,6 +364,46 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "ocaml",
+    failures = {
+        "//examples/ocaml-app/cli:report_without_astring": "Unbound module Astring",
+        "//examples/ocaml-app/diagnostics:syntax_error": "Syntax error",
+    },
+    files = {
+        "//examples/ocaml-app:BUILD.bazel": "examples/ocaml-app/BUILD.bazel",
+        "//examples/ocaml-app:astring.BUILD.bazel": "examples/ocaml-app/astring.BUILD.bazel",
+        "//examples/ocaml-app/lexer:BUILD.bazel": "examples/ocaml-app/lexer/BUILD.bazel",
+        "//examples/ocaml-app/lexer:lexer_test.ml": "examples/ocaml-app/lexer/lexer_test.ml",
+        "//examples/ocaml-app/lexer:tokens.mll": "examples/ocaml-app/lexer/tokens.mll",
+        "//examples/ocaml-app/ledger:BUILD.bazel": "examples/ocaml-app/ledger/BUILD.bazel",
+        "//examples/ocaml-app/ledger:ledger.ml": "examples/ocaml-app/ledger/ledger.ml",
+        "//examples/ocaml-app/ledger:ledger.mli": "examples/ocaml-app/ledger/ledger.mli",
+        "//examples/ocaml-app/ledger:ledger_test.ml": "examples/ocaml-app/ledger/ledger_test.ml",
+        "//examples/ocaml-app/checksum:BUILD.bazel": "examples/ocaml-app/checksum/BUILD.bazel",
+        "//examples/ocaml-app/checksum:checksum.mli": "examples/ocaml-app/checksum/checksum.mli",
+        "//examples/ocaml-app/checksum:checksum_test.ml": "examples/ocaml-app/checksum/checksum_test.ml",
+        "//examples/ocaml-app/checksum/native:BUILD.bazel": "examples/ocaml-app/checksum/native/BUILD.bazel",
+        "//examples/ocaml-app/checksum/native:checksum.c": "examples/ocaml-app/checksum/native/checksum.c",
+        "//examples/ocaml-app/checksum/native:checksum.h": "examples/ocaml-app/checksum/native/checksum.h",
+        "//examples/ocaml-app/checksum/native:checksum.ml": "examples/ocaml-app/checksum/native/checksum.ml",
+        "//examples/ocaml-app/checksum/portable:BUILD.bazel": "examples/ocaml-app/checksum/portable/BUILD.bazel",
+        "//examples/ocaml-app/checksum/portable:checksum.ml": "examples/ocaml-app/checksum/portable/checksum.ml",
+        "//examples/ocaml-app/cli:BUILD.bazel": "examples/ocaml-app/cli/BUILD.bazel",
+        "//examples/ocaml-app/cli:exit_codes.sh": "examples/ocaml-app/cli/exit_codes.sh",
+        "//examples/ocaml-app/cli:good.txt": "examples/ocaml-app/cli/good.txt",
+        "//examples/ocaml-app/cli:main.ml": "examples/ocaml-app/cli/main.ml",
+        "//examples/ocaml-app/cli:malformed.txt": "examples/ocaml-app/cli/malformed.txt",
+        "//examples/ocaml-app/cli:over_limit.txt": "examples/ocaml-app/cli/over_limit.txt",
+        "//examples/ocaml-app/cli:report_without_astring.ml": "examples/ocaml-app/cli/report_without_astring.ml",
+        "//examples/ocaml-app/diagnostics:BUILD.bazel": "examples/ocaml-app/diagnostics/BUILD.bazel",
+        "//examples/ocaml-app/diagnostics:syntax_error.ml": "examples/ocaml-app/diagnostics/syntax_error.ml",
+    },
+    languages = ["ocaml"],
+    module_fragment = "consumers/ocaml/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "qt_tasks",
     srcs = ["//qt:module_srcs"],
     files = {

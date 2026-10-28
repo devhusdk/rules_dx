@@ -1,0 +1,43 @@
+load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_module")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "checksum.c",
+        "checksum.h",
+        "checksum.ml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "checksum_c",
+    srcs = ["checksum.c"],
+    hdrs = ["checksum.h"],
+)
+
+# The C-backed implementation needs the native (sys) cell: the bytecode cell links no C code.
+ocaml_module(
+    name = "native",
+    cc_deps = {":checksum_c": "static"},
+    sig = "//examples/ocaml-app/checksum:checksum_sig",
+    struct = "checksum.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH + select({
+        "@rules_dx//ocaml/toolchain:emitter_sys": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

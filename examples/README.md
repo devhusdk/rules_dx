@@ -53,6 +53,7 @@ For the rule and aspect attributes these examples use, see the
 - [lua-app](lua-app/) multi-package Lua unit-stock CLI on Lua 5.4 built from source, with a pinned `inspect.lua` dependency, runfiles data and StyLua checks.
 - [msix-app](msix-app/) Windows console app with a DLL and a packaged resource, built as an MSIX, installed and signed in tests.
 - [node-app](node-app/) multi-package TypeScript and JavaScript registry CLI with a pinned `semver` dependency, a generated module and a packaged resource.
+- [ocaml-app](ocaml-app/) multi-package OCaml stock CLI with a pinned `Astring` dependency, an ocamllex lexer, a C stub in the native cell and a `select()` on the emitter flag.
 - [perl-app](perl-app/) multi-package Perl stock CLI with a typed ledger, a runfiles CSV table, a pinned `Text::CSV` CPAN dependency and a `select()` flag.
 - [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.
 - [qt-app](qt-app/) headless Qt app with a QML module, a C++ QML type, a Qt resource and a QtTest suite.

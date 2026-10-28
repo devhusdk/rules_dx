@@ -348,7 +348,7 @@ API_SPEC_REDOCLY_LINT_SUPPORT = {
     "execution": "direct",
     "family": "api_spec",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "redocly",
     "transport": "single",

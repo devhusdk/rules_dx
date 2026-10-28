@@ -1261,9 +1261,9 @@ files and never fetches a schema over the network.
 ### OpenAPI and AsyncAPI lint
 
 `redocly` lints OpenAPI 3.0, 3.1 and 3.2 and AsyncAPI 2.6 and 3.0 documents
-with Redocly CLI 2.71.1. It runs on Linux x86_64. Linux arm64, macOS arm64 and
-Windows x86_64 are not supported yet. It is opt-in: select it in the
-`api_spec` family.
+with Redocly CLI 2.71.1. It runs on Linux x86_64 and arm64, macOS arm64 and
+Windows x86_64. Windows arm64 is not supported yet. It is opt-in: select it in
+the `api_spec` family.
 
 ```python
 quality_family(

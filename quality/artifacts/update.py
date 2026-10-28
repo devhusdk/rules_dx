@@ -1527,6 +1527,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "regal": {
+        "upstream_version": "0.43.0",
+        "release_page": "https://github.com/StyraInc/regal/releases/tag/v0.43.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/StyraInc/regal/blob/v0.43.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "regal_Linux_x86_64",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Linux_x86_64",
+                "kind": "raw",
+                "executable": "regal_Linux_x86_64",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "regal_Linux_arm64",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Linux_arm64",
+                "kind": "raw",
+                "executable": "regal_Linux_arm64",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "regal_Darwin_arm64",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Darwin_arm64",
+                "kind": "raw",
+                "executable": "regal_Darwin_arm64",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "regal_Windows_x86_64.exe",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Windows_x86_64.exe",
+                "kind": "raw",
+                "executable": "regal_Windows_x86_64.exe",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+        },
+    },
     "mdbook": {
         "upstream_version": "0.4.52",
         "release_page": "https://github.com/rust-lang/mdBook/releases/tag/v0.4.52",

@@ -278,6 +278,7 @@ to.
 | `qmlformat` | format | qml |
 | `qmllint` | lint | qml |
 | `redocly` | lint | api_spec |
+| `regal` | lint | rego |
 | `remark` | format | mdx |
 | `roslyn` | lint | csharp |
 | `rubocop` | lint | ruby |
@@ -318,11 +319,11 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
+- `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
   `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `mix_format`,
   `credo`, `ormolu`
   and `nixfmt` have override flags.
-- The `ruff`, `terraform`, `hadolint`, `opa`, `ormolu` and `nixfmt` alternates
+- The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
@@ -958,15 +959,16 @@ config file.
 
 ### Rego
 
-`opa fmt` and `opa check` run from the managed OPA pin. Select `opa` in a
-`rego` family. It runs on Linux x86_64.
+`opa fmt` and `opa check` run from the managed OPA pin, and `regal lint` runs
+from the managed Regal 0.43.0 pin. Select `opa` and `regal` in a `rego` family.
+They run on Linux x86_64.
 
 ```python
 quality_family(
     name = "rego_family",
-    disabled = ["lint"],
     family_id = "rego",
     format = ["opa"],
+    lint = ["regal"],
     typecheck = ["opa"],
 )
 ```
@@ -975,6 +977,7 @@ quality_family(
 bazel run @rules_dx//:dx -- format //policy/...
 bazel run @rules_dx//:dx -- format --apply //policy/...
 bazel run @rules_dx//:dx -- typecheck //policy/...
+bazel run @rules_dx//:dx -- lint //policy/...
 ```
 
 Own Rego files with `rego_library` from `@rules_dx//rego/rules:defs.bzl`. List
@@ -991,9 +994,36 @@ reported, with the OPA error code as the rule, the file, the line and the
 column. A column counts characters from 1. Output that is not the expected JSON
 fails the run. It never counts as clean.
 
+Lint runs `regal lint` over the owned files only, so rules that look across
+packages do not see dependencies. Regal rules become findings with the rule
+`category/title`, such as `style/use-assignment-operator`. A Regal `error` is an
+error and a `warning` is a warning. Both are reported. A policy that does not
+parse fails the run and never counts as clean. Lint never writes: `--apply`
+does not run `regal fix`, because it can move files.
+
+Regal never reads a `.regal` directory from the workspace, the home directory or
+a parent directory, and it does not check for a newer version. To change the
+rules, bind a `regal_config` to the target with `aspect_hints`. The config is a
+Regal YAML file. `.regal/rules` custom rules are not loaded.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "regal_config")
+
+regal_config(
+    name = "regal",
+    src = ".regal/config.yaml",
+)
+
+rego_library(
+    name = "policy",
+    aspect_hints = [":regal"],
+    srcs = ["policy.rego"],
+)
+```
+
 Only format fixes. Policies are Rego v1, the OPA 1.x default. A Rego v0 policy
-fails to parse until it is migrated. No config file is read yet and no lint
-runs. To use another OPA executable, point `tool_opa` at it.
+fails to parse until it is migrated. To use another OPA or Regal executable,
+point `tool_opa` or `tool_regal` at it.
 
 ```sh
 bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_opa=//tools:opa

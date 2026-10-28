@@ -644,9 +644,9 @@ api_spec_library(
 
 quality_family(
     name = "rego_family",
-    disabled = ["lint"],
     family_id = "rego",
     format = ["opa"],
+    lint = ["regal"],
     typecheck = ["opa"],
 )
 

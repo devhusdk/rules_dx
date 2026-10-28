@@ -1356,6 +1356,26 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         vec![BIN, "fmt", "-w", "/scratch/policy/a.rego"]
     );
     assert_eq!(
+        argv_strings(&regal_lint(
+            Path::new(BIN),
+            &[Path::new("policy/a.rego")],
+            Path::new("/scratch/.regal/config.yaml")
+        )),
+        vec![
+            BIN,
+            "lint",
+            "--format",
+            "json",
+            "--no-color",
+            "--fail-level",
+            "warning",
+            "--config-file",
+            "/scratch/.regal/config.yaml",
+            "--",
+            "policy/a.rego"
+        ]
+    );
+    assert_eq!(
         argv_strings(&opa_check(Path::new(BIN), &[rego])),
         vec![
             BIN,

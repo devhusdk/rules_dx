@@ -41,6 +41,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_regal",
+    build_setting_default = "@dx_tools//:regal",
+)
+
+label_flag(
     name = "tool_hadolint",
     build_setting_default = "@dx_tools//:hadolint",
 )

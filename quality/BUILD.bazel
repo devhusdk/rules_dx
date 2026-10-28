@@ -388,6 +388,7 @@ consumer_policy_tests(
             "case": "rego_checked",
             "expected_dx_results": [
                 "clean_rego-real-format-rego.pb",
+                "clean_rego-real-lint-rego.pb",
                 "clean_rego-real-typecheck-rego.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:rego_policy",

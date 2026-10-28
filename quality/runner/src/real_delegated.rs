@@ -586,6 +586,107 @@ pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
         .is_err());
 }
 
+fn regal_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(cwd.join(".regal").is_dir(), "regal config dir is staged");
+    let config = argv
+        .iter()
+        .position(|arg| arg == "--config-file")
+        .map(|index| PathBuf::from(&argv[index + 1]))
+        .expect("regal is always given a config file");
+    assert!(config.is_file(), "the config file exists");
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).is_relative(),
+        "paths are workspace-relative"
+    );
+    let text = std::fs::read_to_string(cwd.join(&file)).expect("read staged file");
+    let report = |level: &str, count: u64| {
+        format!(
+            "{{\"violations\":[{{\"title\":\"use-assignment-operator\",\"description\":\"Prefer :=\",\"category\":\"style\",\"level\":\"{level}\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":3}}}}],\"summary\":{{\"files_scanned\":1,\"files_failed\":1,\"rules_skipped\":0,\"num_violations\":{count}}}}}"
+        )
+    };
+    let done = |code: i32, stdout: String, stderr: &str| {
+        Ok(ChildOutput {
+            code: Some(code),
+            stdout: stdout.into_bytes(),
+            stderr: stderr.as_bytes().to_vec(),
+        })
+    };
+    if text.contains("errors") {
+        return done(3, report("error", 1), "");
+    }
+    if text.contains("warnings") {
+        return done(2, report("warning", 1), "");
+    }
+    if text.contains("exit0") {
+        return done(0, report("error", 1), "");
+    }
+    if text.contains("garbage") {
+        return done(0, "not json".to_owned(), "");
+    }
+    if text.contains("crash") {
+        return done(1, "{\"errors\":[\"parse failure\"]}".to_owned(), "boom\n");
+    }
+    done(
+        0,
+        "{\"violations\":[],\"summary\":{\"files_scanned\":1,\"files_failed\":0,\"rules_skipped\":0,\"num_violations\":0}}"
+            .to_owned(),
+        "",
+    )
+}
+
+#[test]
+pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_clean() {
+    let mut tool = plain_tool();
+    tool.extra_env = vec![("REGAL_DISABLE_VERSION_CHECK".to_owned(), "1".to_owned())];
+    let backend = backend_for("regal", tool, regal_behavior);
+    assert!(backend
+        .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose(
+            "regal",
+            "lint",
+            &single("p/a.rego", "package p\n\nerrors = 1\n"),
+        )
+        .expect("errors");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "style/use-assignment-operator");
+    assert_eq!(findings[0].path, "p/a.rego");
+    let findings = backend
+        .diagnose(
+            "regal",
+            "lint",
+            &single("p/a.rego", "package p\n\nwarnings = 1\n"),
+        )
+        .expect("warnings are findings");
+    assert_eq!(findings.len(), 1);
+    for body in ["package p\n\nexit0 = 1\n", "garbage\n", "crash\n"] {
+        assert!(
+            backend
+                .diagnose("regal", "lint", &single("p/a.rego", body))
+                .is_err(),
+            "{body}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn regal_lint_with_a_missing_binary_is_an_error() {
+    let backend = backend_for("regal", plain_tool(), |_, _, _| {
+        Err(io::Error::new(io::ErrorKind::NotFound, "no regal"))
+    });
+    assert!(backend
+        .diagnose("regal", "lint", &single("a.rego", "package a\n"))
+        .is_err());
+}
+
 fn opa_dependency_behavior(
     argv: &[OsString],
     _cwd: &Path,

@@ -119,6 +119,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "rego",
     },
+    "regal": {
+        "attr": attr.label(default = "//config:tool_regal", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "env": [["REGAL_DISABLE_VERSION_CHECK", "1"]],
+        "kind": "file",
+        "resources": "light",
+        "shard": "rego",
+    },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1657,6 +1665,12 @@ _REAL_SHARD_SPECS = {
         "shard": "rego",
         "suffix": "-rego",
     },
+    "real_rego_lint": {
+        "capability": "lint",
+        "doc": "Additive Rego lint family aspect (regal lint).",
+        "shard": "rego",
+        "suffix": "-rego",
+    },
     "real_rego_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Rego typecheck family aspect (opa check).",
@@ -1904,6 +1918,8 @@ real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_rego_format_aspect = _make_real_aspect("real_rego_format")
 
 real_rego_typecheck_aspect = _make_real_aspect("real_rego_typecheck")
+
+real_rego_lint_aspect = _make_real_aspect("real_rego_lint")
 
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 

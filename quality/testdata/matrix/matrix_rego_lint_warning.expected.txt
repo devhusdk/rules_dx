@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_rego_lint_warning
+capability LINT
+stages 1
+stage regal classes=rego sources=matrix/regal_warn/policy.rego
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING regal style/use-assignment-operator matrix/regal_warn/policy.rego 33 33 fixable=false "Prefer := over = for assignment"
+terminal 1
+terminal WARNING regal style/use-assignment-operator matrix/regal_warn/policy.rego 33 33 fixable=false "Prefer := over = for assignment"
+replacements 0

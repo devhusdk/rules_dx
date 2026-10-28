@@ -1,0 +1,6 @@
+rules:
+  style:
+    use-assignment-operator:
+      level: ignore
+    opa-fmt:
+      level: ignore

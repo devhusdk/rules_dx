@@ -207,6 +207,15 @@ mod tests {
         assert_eq!(check_ledger(&gaps, &ledger), Ok(()));
     }
 
+    #[test]
+    fn per_language_lint_entries_leave_new_lint_gaps_untracked() {
+        let ledger = BTreeMap::from([("lint:lua".to_owned(), 1)]);
+        let gaps = vec!["lint:lua".to_owned(), "lint:newlang".to_owned()];
+        let error = check_ledger(&gaps, &ledger).expect_err("lint:newlang is untracked");
+        assert!(error.contains("lint:newlang"), "{error}");
+        assert!(!error.contains("\"lint:lua\""), "{error}");
+    }
+
     fn facts_with(not_applicable: &str, quality: &str) -> Facts {
         crate::parse_facts(&format!(
             r#"{{"schema_version":1,"platforms":[],"sections":[],"rows":[],

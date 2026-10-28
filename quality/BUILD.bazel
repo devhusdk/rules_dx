@@ -446,6 +446,7 @@ consumer_policy_tests(
         {
             "case": "nix_linted",
             "expected_dx_results": [
+                "clean_nix-real-format-nix.pb",
                 "clean_nix-real-lint-nix.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:nix_policy",

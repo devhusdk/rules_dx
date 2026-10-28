@@ -3123,3 +3123,76 @@ fn typstyle_unknown_exit_and_junk_output_are_never_clean() {
             .expect_err("malformed output is never clean");
     }
 }
+
+const NIXFMT_CLEAN: &str = "{ a = 1; }\n";
+
+/// A fake nixfmt that follows the real contract: `--check` never writes, a syntax error exits 1
+/// with a located block on stderr and leaves the file alone, and a fix rewrites unformatted files.
+fn fake_nixfmt(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let check = argv.iter().any(|arg| arg == "--check");
+    let mut stderr = String::new();
+    for file in argv.iter().skip(1).filter(|arg| *arg != "--check") {
+        let name = file.to_string_lossy().into_owned();
+        let text = std::fs::read_to_string(file)?;
+        if text.contains("BROKEN") {
+            stderr.push_str(&format!(
+                "{name}:1:7:\n  |\n1 | {{ a = ; }}\n  |       ^^^^\nunexpected \";\"\nexpecting expression\n\n"
+            ));
+        } else if text != NIXFMT_CLEAN {
+            if check {
+                stderr.push_str(&format!("{name}: not formatted\n"));
+            } else {
+                std::fs::write(file, NIXFMT_CLEAN)?;
+            }
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(if stderr.is_empty() { 0 } else { 1 }),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+fn nixfmt_reports_a_dirty_file_and_fix_rewrites_it() {
+    let backend = backend_for("nixfmt", plain_tool(), fake_nixfmt);
+    let findings = backend
+        .diagnose("nixfmt", "format", &single("a.nix", "{a=1;}\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "nixfmt");
+    assert_eq!(findings[0].path, "a.nix");
+    assert!(backend
+        .diagnose("nixfmt", "format", &single("a.nix", NIXFMT_CLEAN))
+        .expect("diagnosed")
+        .is_empty());
+    let fixed = backend
+        .apply_fix("nixfmt", "a.nix", "{a=1;}\n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, NIXFMT_CLEAN);
+    assert!(backend
+        .diagnose("nixfmt", "format", &single("a.nix", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn nixfmt_syntax_error_is_reported_and_a_fix_leaves_it_unchanged() {
+    let backend = backend_for("nixfmt", plain_tool(), fake_nixfmt);
+    let findings = backend
+        .diagnose("nixfmt", "format", &single("b.nix", "BROKEN\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "b.nix");
+    assert_eq!(
+        backend
+            .apply_fix("nixfmt", "b.nix", "BROKEN\n", "format")
+            .expect("kept"),
+        "BROKEN\n"
+    );
+}

@@ -255,6 +255,7 @@ to.
 | `markdown_check` | lint | markdown |
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
+| `nixfmt` | format | nix |
 | `ormolu` | format | haskell |
 | `opa` | format, typecheck | rego |
 | `pkl` | format | pkl |
@@ -306,9 +307,10 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
-  `zig_fmt`, `dfmt`, `erlfmt` and `mix_format` have override flags.
-- The `ruff`, `terraform`, `hadolint` and `opa` alternates must be a single
-  executable file.
+  `zig_fmt`, `dfmt`, `erlfmt`, `mix_format`, `ormolu` and `nixfmt` have
+  override flags.
+- The `ruff`, `terraform`, `hadolint`, `opa`, `ormolu` and `nixfmt` alternates
+  must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `dfmt`, `erlfmt` and
   `mix_format` alternates must be executable targets, such as
@@ -2129,15 +2131,16 @@ yaml_library(
 
 ### Nix
 
-`statix` and `deadnix` lint Nix files. They are built from source with the
-Rust toolchain and are qualified on Linux x86_64. Select them in a `nix`
-family. There is no formatter yet.
+`statix` and `deadnix` lint Nix files and `nixfmt` formats them. `statix` and
+`deadnix` are built from source with the Rust toolchain. `nixfmt` 1.5.0 runs
+from the managed pin. All three are qualified on Linux x86_64. Select them in
+a `nix` family.
 
 ```python
 quality_family(
     name = "nix_family",
     family_id = "nix",
-    disabled = ["format"],
+    format = ["nixfmt"],
     lint = [
         "deadnix",
         "statix",
@@ -2162,7 +2165,27 @@ bazel run @rules_dx//:dx -- lint //nix/...
 bazel run @rules_dx//:dx -- lint --apply //nix/...
 ```
 
-A check never writes. `--apply` runs `statix fix` and `deadnix --edit` on the
+```sh
+bazel run @rules_dx//:dx -- format //nix/...
+bazel run @rules_dx//:dx -- format --apply //nix/...
+```
+
+Upstream publishes `nixfmt` only as a static Linux x86_64 binary, so it is
+pinned for that platform alone. On any other platform a run that formats Nix
+fails with a hint to set `tool_nixfmt`. Runs with no Nix sources are not
+affected. To use another executable, point `tool_nixfmt` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_nixfmt=//tools:nixfmt
+```
+
+`nixfmt` runs with its default RFC style at width 100 and has no config file.
+It formats the files the selected targets own and never follows symlinks. A
+format check never writes. A file that does not parse is an error with line and
+column, never a clean run, and `--apply` leaves it unchanged. `--apply` rewrites
+the unformatted files, then checks again.
+
+A lint check never writes. `--apply` runs `statix fix` and `deadnix --edit` on the
 files the selected targets own, then checks again. `statix` findings keep the
 lint code, such as `W02`, with line and column. `deadnix` findings name the
 unused binding, such as `unused_let_binding`. A file that does not parse is an

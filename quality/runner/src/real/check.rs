@@ -1101,6 +1101,19 @@ impl RealBackend {
                     },
                 )
             }
+            "nixfmt" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::nixfmt_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_nixfmt(&out.stdout, &out.stderr, out.code, names),
+                    )
+                },
+            ),
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {

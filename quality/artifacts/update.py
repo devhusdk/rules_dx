@@ -993,6 +993,26 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "nixfmt": {
+        "upstream_version": "1.5.0",
+        "release_page": "https://github.com/NixOS/nixfmt/releases/tag/v1.5.0",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/NixOS/nixfmt/blob/v1.5.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "nixfmt",
+                "url": "https://github.com/NixOS/nixfmt/releases/download/v1.5.0/nixfmt",
+                "kind": "raw",
+                "executable": "nixfmt",
+            },
+        },
+    },
     "pkl": {
         "upstream_version": "0.32.1",
         "release_page": "https://github.com/apple/pkl/releases/tag/0.32.1",

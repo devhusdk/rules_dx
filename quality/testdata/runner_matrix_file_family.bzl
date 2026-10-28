@@ -1145,6 +1145,40 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_nix_deadnix_syntax_error.expected.txt",
     },
     {
+        "name": "matrix_nix_format_pass",
+        "generated": {
+            "matrix/nixfmt_clean.nix": "{ a = 1; }\n",
+        },
+        "capability": "format",
+        "stages": ["nixfmt;nix;matrix/nixfmt_clean.nix"],
+        "tool_names": ["nixfmt"],
+        "tool_binaries": ["@dx_tools//:nixfmt"],
+        "expected_file": ":matrix/matrix_nix_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_nix_format_fail",
+        "generated": {
+            "matrix/nixfmt_dirty.nix": "{a=1;}\n",
+        },
+        "capability": "format",
+        "stages": ["nixfmt;nix;matrix/nixfmt_dirty.nix"],
+        "tool_names": ["nixfmt"],
+        "tool_binaries": ["@dx_tools//:nixfmt"],
+        "expected_file": ":matrix/matrix_nix_format_fail.expected.txt",
+    },
+    {
+        # A parse failure is an error finding, never a clean run.
+        "name": "matrix_nix_format_syntax_error",
+        "generated": {
+            "matrix/nixfmt_broken.nix": "{ a = ; }\n",
+        },
+        "capability": "format",
+        "stages": ["nixfmt;nix;matrix/nixfmt_broken.nix"],
+        "tool_names": ["nixfmt"],
+        "tool_binaries": ["@dx_tools//:nixfmt"],
+        "expected_file": ":matrix/matrix_nix_format_syntax_error.expected.txt",
+    },
+    {
         "name": "matrix_text_lint_pass",
         "generated": {
             "matrix/keep_sorted_clean.txt": "a\nb\nc\n",

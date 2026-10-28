@@ -80,6 +80,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Kotlin | `ktlint` | `ktfmt` | no |
 | Lua | no | `stylua` on `linux_x86_64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
+| Nix | `statix`, `deadnix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | no | no | no |
 | PHP | no | no | no |

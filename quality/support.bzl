@@ -242,6 +242,20 @@ NIX_STATIX_SUPPORT = {
     "transport": "single",
 }
 
+NIX_NIXFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["nix"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "nix",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "nixfmt",
+    "transport": "batched",
+}
+
 NIX_DEADNIX_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -634,6 +648,7 @@ SUPPORT_RECORDS = [
     YAML_YAMLLINT_SUPPORT,
     NIX_STATIX_SUPPORT,
     NIX_DEADNIX_SUPPORT,
+    NIX_NIXFMT_SUPPORT,
     HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,

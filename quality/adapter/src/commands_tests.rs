@@ -1227,6 +1227,16 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&mix_format_fix(Path::new(BIN), &[ex])),
         vec![BIN, "/scratch/sample.ex"]
     );
+    let nix = Path::new("/scratch/sample.nix");
+    let other = Path::new("/scratch/other.nix");
+    assert_eq!(
+        argv_strings(&nixfmt_check(Path::new(BIN), &[nix, other])),
+        vec![BIN, "--check", "/scratch/sample.nix", "/scratch/other.nix"]
+    );
+    assert_eq!(
+        argv_strings(&nixfmt_fix(Path::new(BIN), &[nix, other])),
+        vec![BIN, "/scratch/sample.nix", "/scratch/other.nix"]
+    );
     let hs = Path::new("/scratch/Sample.hs");
     assert_eq!(
         argv_strings(&ormolu_check(Path::new(BIN), &[hs])),

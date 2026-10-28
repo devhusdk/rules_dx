@@ -1776,14 +1776,28 @@ fn delegated_javac_fails_closed_without_its_log() {
 
 #[test]
 fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
-    let report = upstream_file("gotype", r#"{"p":{"typecheck":[{"posn":"a.txt:1:5","message":"undefined: x"}]}}"#);
-    let backend = backend_for("gotype", delegated_tool(report.path().to_path_buf()), must_not_spawn);
+    let report = upstream_file(
+        "gotype",
+        r#"{"p":{"typecheck":[{"posn":"a.txt:1:5","message":"undefined: x"}]}}"#,
+    );
+    let backend = backend_for(
+        "gotype",
+        delegated_tool(report.path().to_path_buf()),
+        must_not_spawn,
+    );
     let found = backend
         .diagnose("gotype", "typecheck", &single("a.txt", "var x = 1\n"))
         .expect("findings");
     assert_eq!(found.len(), 1);
-    let failed = upstream_file("gotype", r#"{"p":{"typecheck":{"error":"no export data"}}}"#);
-    let backend = backend_for("gotype", delegated_tool(failed.path().to_path_buf()), must_not_spawn);
+    let failed = upstream_file(
+        "gotype",
+        r#"{"p":{"typecheck":{"error":"no export data"}}}"#,
+    );
+    let backend = backend_for(
+        "gotype",
+        delegated_tool(failed.path().to_path_buf()),
+        must_not_spawn,
+    );
     assert!(backend
         .diagnose("gotype", "typecheck", &single("a.txt", "x\n"))
         .is_err());

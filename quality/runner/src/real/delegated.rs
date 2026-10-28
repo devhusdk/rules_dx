@@ -424,7 +424,7 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
         prefix: &str,
-        parse: SarifParser,
+        parse: LogParser,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let workspaces: Vec<&str> = pairs
             .iter()

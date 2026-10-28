@@ -1,4 +1,4 @@
-load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+load("@rules_dx//scala/rules:defs.bzl", "scala_library", "scala_test")
 
 filegroup(
     name = "assets",
@@ -21,4 +21,10 @@ scala_library(
 filegroup(
     name = "retained",
     srcs = ["removed.txt"],
+)
+
+scala_test(
+    name = "demo_test",
+    srcs = ["DemoTest.scala"],
+    deps = [":demo"],
 )

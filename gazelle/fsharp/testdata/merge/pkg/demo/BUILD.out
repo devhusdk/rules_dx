@@ -1,4 +1,4 @@
-load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_library")
+load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_library", "fsharp_test")
 
 filegroup(
     name = "assets",
@@ -22,4 +22,10 @@ fsharp_library(
 filegroup(
     name = "retained",
     srcs = ["removed.txt"],
+)
+
+fsharp_test(
+    name = "demo_test",
+    srcs = ["DemoTest.fs"],
+    deps = [":demo"],
 )

@@ -1,4 +1,4 @@
-load("@rules_dx//csharp/rules:defs.bzl", "csharp_library")
+load("@rules_dx//csharp/rules:defs.bzl", "csharp_library", "csharp_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -12,4 +12,10 @@ csharp_library(
         "Helper.cs",
         "Main.cs",
     ],
+)
+
+csharp_test(
+    name = "helper_test",
+    srcs = ["HelperTest.cs"],
+    deps = [":demo"],
 )

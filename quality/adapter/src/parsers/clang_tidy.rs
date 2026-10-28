@@ -12,6 +12,10 @@ pub fn parse_clang_tidy(
     const TOOL: &str = "clang_tidy";
     let mut findings = Vec::new();
     for line in lines(TOOL, stderr)? {
+        // A note explains the diagnostic before it; it is not a finding of its own.
+        if line.contains(": note: ") {
+            continue;
+        }
         let (file, rest) = located(TOOL, line, files)?;
         let rest = rest.trim_start_matches(':').trim_start();
         let mut parts = rest.splitn(4, ':');
@@ -65,6 +69,18 @@ mod tests {
     use super::*;
 
     const DIRTY: &str = "cc/tests/fixtures/clang_tidy/Sample.c:4:3: warning: do not use 'else' after 'return' [readability-else-after-return]\n";
+
+    #[test]
+    fn clang_tidy_skips_notes() {
+        let text = format!("{DIRTY}cc/tests/fixtures/clang_tidy/Sample.c:3:3: note: previous return\n");
+        let findings = parse_clang_tidy(
+            text.as_bytes(),
+            Some(0),
+            &["cc/tests/fixtures/clang_tidy/Sample.c"],
+        )
+        .expect("parsed");
+        assert_eq!(findings.len(), 1);
+    }
 
     #[test]
     fn clang_tidy_reports_text_diagnostics() {

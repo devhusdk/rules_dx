@@ -8,7 +8,12 @@ load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 ClangSyntaxInfo = provider(
     doc = "Syntax-only replays of the compile actions of one C/C++/Objective-C target.",
     fields = {
+        "argvs": "list of list of string: the -fsyntax-only command line (compiler first) per compile action.",
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
+        "envs": "list of dict: the environment of each compile action.",
+        "execution_requirements": "list of dict: the execution requirements of each compile action.",
+        "inputs": "list of depset of File: everything each compile action reads, including declared headers.",
+        "mnemonics": "list of string: the mnemonic of each compile action (CppCompile, ObjcCompile).",
         "sources": "list of string: source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
     },
@@ -121,6 +126,11 @@ def _clang_syntax_impl(target, ctx):
     sources = []
     diagnostics = []
     statuses = []
+    argvs = []
+    envs = []
+    execution_requirements = []
+    inputs = []
+    mnemonics = []
     for i in range(len(actions)):
         action = actions[i]
         argv = action.argv
@@ -136,12 +146,13 @@ def _clang_syntax_impl(target, ctx):
         requirements = {}
         if action.mnemonic == "ObjcCompile":
             requirements = dict(xcode_config.execution_info())
+        action_inputs = depset(transitive = [action.inputs, headers])
         ctx.actions.run_shell(
             mnemonic = "ClangSyntax",
             progress_message = "Syntax check %{label}: " + src,
             command = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"',
             arguments = [log.path, status.path] + rewritten.argv,
-            inputs = depset(transitive = [action.inputs, headers]),
+            inputs = action_inputs,
             outputs = [log, status],
             env = action.env,
             execution_requirements = requirements,
@@ -150,8 +161,22 @@ def _clang_syntax_impl(target, ctx):
         sources.append(src)
         diagnostics.append(log)
         statuses.append(status)
+        argvs.append(rewritten.argv)
+        envs.append(dict(action.env))
+        execution_requirements.append(requirements)
+        inputs.append(action_inputs)
+        mnemonics.append(action.mnemonic)
     return [
-        ClangSyntaxInfo(sources = sources, diagnostics = diagnostics, statuses = statuses),
+        ClangSyntaxInfo(
+            argvs = argvs,
+            diagnostics = diagnostics,
+            envs = envs,
+            execution_requirements = execution_requirements,
+            inputs = inputs,
+            mnemonics = mnemonics,
+            sources = sources,
+            statuses = statuses,
+        ),
         OutputGroupInfo(clang_syntax = depset(diagnostics + statuses)),
     ]
 

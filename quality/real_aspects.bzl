@@ -24,6 +24,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
+load("//quality:clang_tidy.bzl", "clang_tidy_actions")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
@@ -1255,6 +1256,17 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": clang_syntax needs a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
         clang_syntax = target[ClangSyntaxInfo]
 
+    clang_tidy_context = None
+    if "clang_tidy" in [stage["tool"] for stage in resolved]:
+        if ClangSyntaxInfo not in target:
+            # A target without compile actions (a header-only library) has no compile
+            # context to lint against.
+            resolved = drop_pipeline_tool(resolved, "clang_tidy")
+            if len(resolved) == 0:
+                return []
+        else:
+            clang_tidy_context = target[ClangSyntaxInfo]
+
     sql_dialect = None
     if "prettier" in [stage["tool"] for stage in resolved] and SqlDialectInfo in target:
         sql_dialect = target[SqlDialectInfo].dialect
@@ -1307,6 +1319,18 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(config_error)
 
     delegated = {}
+    clang_tidy = None
+    if clang_tidy_context != None:
+        tidy_config = configs_by_tool.get("clang_tidy")
+        clang_tidy = clang_tidy_actions(
+            ctx,
+            target.label,
+            clang_tidy_context,
+            ctx.file._clang_tidy,
+            tidy_config.config if tidy_config != None else None,
+            ([tidy_config.config] + tidy_config.closure.to_list()) if tidy_config != None else [],
+        )
+        delegated["clang_tidy"] = True
     if clippy_delegated:
         delegated["clippy"] = True
     if rustc_delegated:
@@ -1504,7 +1528,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     request_tools = {}
     for tool in stage_tools:
         binary_path = None
-        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated) and _REAL_TOOL_TABLE[tool]["kind"] != "upstream":
+        if not (tool == "clippy" and clippy_delegated) and not (tool == "rustc" and rustc_delegated) and not (tool == "clang_tidy" and clang_tidy != None) and _REAL_TOOL_TABLE[tool]["kind"] != "upstream":
             binary = tool_binaries[tool]
             binary_path = binary.path
             inputs.append(binary)
@@ -1615,6 +1639,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(roslyn.sarifs[i])
                 tool_files.append(real_request_tool_file("dx-roslyn/" + roslyn.tfms[i] + "/exit", roslyn.statuses[i].path))
                 inputs.append(roslyn.statuses[i])
+        if tool == "clang_tidy" and clang_tidy != None:
+            for i in range(len(clang_tidy.logs)):
+                upstream.append(clang_tidy.logs[i].path)
+                inputs.append(clang_tidy.logs[i])
+                stem = clang_tidy.logs[i].basename.rpartition(".")[0]
+                tool_files.append(real_request_tool_file("dx-clang-tidy/" + stem + "/exit", clang_tidy.statuses[i].path))
+                tool_files.append(real_request_tool_file("dx-clang-tidy/" + stem + "/err", clang_tidy.errs[i].path))
+                inputs.append(clang_tidy.statuses[i])
+                inputs.append(clang_tidy.errs[i])
         if tool == "clang_syntax":
             for i in range(len(clang_syntax.diagnostics)):
                 upstream.append(clang_syntax.diagnostics[i].path)
@@ -1752,7 +1785,8 @@ _REAL_SHARD_SPECS = {
     },
     "real_cc_lint": {
         "capability": "lint",
-        "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).",
+        "doc": "Additive C/C++/Objective-C lint family aspect (clang-tidy over the target's compile actions, cppcheck opt-in).",
+        "requires": [clang_syntax_aspect],
         "shard": "cc",
         "suffix": "-cc",
     },

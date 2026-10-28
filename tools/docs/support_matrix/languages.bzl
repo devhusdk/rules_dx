@@ -272,7 +272,6 @@ GAP_ISSUES = {
     "build:qt:*": 4554,
     "consumer:*": 4436,
     "format:*": 4439,
-    "lint:apple": 4616,
     "lint:cmake": 4620,
     "lint:cuda": 4616,
     "lint:gherkin": 4619,

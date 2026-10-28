@@ -93,10 +93,6 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ("govet", "src/a.scala:1:1: finding\n"),
         ("errcheck", "src/a.scala:1:1: finding\n"),
         (
-            "clang_tidy",
-            "src/a.scala:1:1: warning: finding [demo-check]\n",
-        ),
-        (
             "cppcheck",
             r#"<results version="2"><errors><error id="demo" severity="warning" msg="finding"><location file="src/a.scala" line="1" column="1"/></error></errors></results>"#,
         ),
@@ -214,7 +210,6 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
 #[test]
 pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
     for (tool_id, report) in [
-        ("clang_tidy", ""),
         (
             "cppcheck",
             r#"<results version="2"><errors></errors></results>"#,
@@ -1287,6 +1282,68 @@ fn delegated_clang_syntax_reads_clean_and_dirty_logs() {
         .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
         .expect("dirty");
     assert_eq!(found.len(), 1);
+}
+
+fn clang_tidy_tool(log: &Path, exit: Option<&str>, err: Option<&str>) -> RealTool {
+    let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let mut tool = delegated_tool(log.to_path_buf());
+    tool.tool_files.clear();
+    if let Some(text) = exit {
+        tool.tool_files.push((
+            format!("dx-clang-tidy/{stem}/exit"),
+            text.as_bytes().to_vec(),
+        ));
+    }
+    if let Some(text) = err {
+        tool.tool_files.push((
+            format!("dx-clang-tidy/{stem}/err"),
+            text.as_bytes().to_vec(),
+        ));
+    }
+    tool
+}
+
+#[test]
+fn delegated_clang_tidy_reads_clean_and_dirty_logs() {
+    let clean = upstream_file("clang_tidy", "");
+    let found = backend_for(
+        "clang_tidy",
+        clang_tidy_tool(clean.path(), Some("0\n"), Some("2 warnings generated.\n")),
+        must_not_spawn,
+    )
+    .diagnose("clang_tidy", "lint", &single("src/a.c", "x\n"))
+    .expect("clean");
+    assert!(found.is_empty());
+
+    let dirty = upstream_file(
+        "clang_tidy",
+        "src/a.c:1:1: warning: do not use 'else' after 'return' [readability-else-after-return]\n",
+    );
+    let found = backend_for(
+        "clang_tidy",
+        clang_tidy_tool(dirty.path(), Some("0\n"), Some("")),
+        must_not_spawn,
+    )
+    .diagnose("clang_tidy", "lint", &single("src/a.c", "x\n"))
+    .expect("dirty");
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn delegated_clang_tidy_fails_closed() {
+    let log = upstream_file("clang_tidy", "");
+    for (tool, needle) in [
+        (clang_tidy_tool(log.path(), None, None), "exit status"),
+        (
+            clang_tidy_tool(log.path(), Some("1"), Some("error: unknown argument")),
+            "unknown argument",
+        ),
+    ] {
+        let error = backend_for("clang_tidy", tool, must_not_spawn)
+            .diagnose("clang_tidy", "lint", &single("src/a.c", "x\n"))
+            .expect_err("fail closed");
+        assert!(error.to_string().contains(needle), "{error}");
+    }
 }
 
 #[test]

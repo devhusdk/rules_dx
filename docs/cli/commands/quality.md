@@ -322,6 +322,8 @@ to.
 
 C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clang_syntax"]` on the `cc` family). It replays each compile action of the target with `-fsyntax-only`, using the exact command line, inputs and environment Bazel configured, so includes, defines and copts match the real build. The compiler is whatever the action names, so a GCC toolchain also works; a toolchain without a readable command line (clang-cl/MSVC, params files) fails with an explicit error. Headers are checked only when the target compiles them (`--features=parse_headers`); a header-only library without that feature fails instead of passing unchecked. The tool has no fix support. CUDA is not covered yet (nvcc has no syntax-only mode).
 
+`clang_tidy` (lint) runs clang-tidy once per compile action of a C, C++, Objective-C or Objective-C++ target, with that action's exact command line, inputs and environment, and the `.clang-tidy` from the target's `native_config` hint. It needs a clang command line (a GCC toolchain fails with an explicit error) and a target with compile actions; a header-only library is skipped. CUDA is not covered yet.
+
 Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format` and `no-typecheck`, so `dx format` and `dx typecheck` skip them. The `fortitude` linter is described under Fortran below.
 
 OCaml (`ocaml`) has no formatter and no linter. OCaml targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
@@ -963,8 +965,9 @@ run, or prints output dx cannot read, fails the run with the cause named.
 
 `clang_format` formats Objective-C from the same managed pin as C and C++.
 Select it in an `objc` family. The family has two classes: `objc` for `.m`
-files and `objcpp` for `.mm` files. A `.h` file stays in the `cc` family. No
-lint tool is wired for Objective-C yet. The `objc` family is not in
+files and `objcpp` for `.mm` files. A `.h` file stays in the `cc` family.
+`clang_tidy` lints Objective-C from the compile actions of the target (see
+C and C++ below). The `objc` family is not in
 `default_workspace_policy`, so add it to your own policy.
 
 ```python

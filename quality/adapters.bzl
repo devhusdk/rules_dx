@@ -35,7 +35,7 @@ REAL_ADAPTERS = {
     "cfn_lint": {"lint": ["cloudformation"]},
     "clang_format": {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
     "clang_syntax": {"typecheck": ["c", "cpp", "objc", "objcpp"]},
-    "clang_tidy": {"lint": ["c", "cpp"]},
+    "clang_tidy": {"lint": ["c", "cpp", "objc", "objcpp"]},
     "clippy": {"lint": ["rust"]},
     "cppcheck": {"lint": ["c", "cpp"]},
     "csharpier": {"format": ["csharp"]},

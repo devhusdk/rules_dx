@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -139,6 +140,13 @@ workspace_policy(
 eslint_config(
     name = "consumer_eslint_config",
     src = "eslint.config.js",
+)
+
+# clang_tidy lints the compile actions of a target, so it needs a real cc target.
+cc_library(
+    name = "clean_cc",
+    srcs = ["clean.c"],
+    tags = ["corpus"],
 )
 
 real_source_target(

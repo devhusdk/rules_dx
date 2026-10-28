@@ -242,10 +242,49 @@ impl RealBackend {
         for path in &tool.upstream_diagnostics {
             let bytes = std::fs::read(path)
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_clang_tidy(&bytes, Some(0), &workspaces),
-            )?);
+            let stem = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!("clang_tidy log {} has no name", path.display()),
+                    )
+                })?;
+            let tool_file = |name: &str| {
+                let key = format!("dx-clang-tidy/{stem}/{name}");
+                tool.tool_files
+                    .iter()
+                    .find(|(rel, _)| *rel == key)
+                    .map(|(_, bytes)| bytes)
+            };
+            let code = tool_file("exit")
+                .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                .and_then(|text| text.trim().parse::<i32>().ok())
+                .ok_or_else(|| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "clang_tidy needs the exit status for {stem}; the clang_tidy action did not supply it"
+                        ),
+                    )
+                })?;
+            // Findings come from stdout only; stderr ("N warnings generated.") is
+            // never parsed and only explains a failed run.
+            match parsers::parse_clang_tidy(&bytes, Some(code), &workspaces) {
+                Ok(found) => findings.extend(found),
+                Err(error) => {
+                    let stderr = tool_file("err")
+                        .map(|bytes| String::from_utf8_lossy(bytes).trim().to_owned())
+                        .unwrap_or_default();
+                    let detail = if stderr.is_empty() {
+                        error.to_string()
+                    } else {
+                        format!("{error}: {stderr}")
+                    };
+                    return Err(execution(tool_id, detail));
+                }
+            }
         }
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;

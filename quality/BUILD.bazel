@@ -3,6 +3,7 @@ load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
+load(":clang_tidy_tests.bzl", "clang_tidy_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
@@ -585,10 +586,10 @@ consumer_policy_tests(
         {
             "case": "cc_clang_tidy",
             "expected_dx_results": [
-                "clean_c-real-lint-cc.pb",
+                "clean_cc-real-lint-cc.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy",
-            "subject": "//quality/tests/fixtures/consumer_policy:clean_c",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_cc",
         },
         {
             "case": "cc_cppcheck",
@@ -610,6 +611,8 @@ js_responsibilities_unit_tests(name = "js_responsibilities_unit")
 support_unit_tests(name = "support_unit")
 
 clang_syntax_unit_tests(name = "clang_syntax_unit")
+
+clang_tidy_unit_tests(name = "clang_tidy_unit")
 
 test_suite(
     name = "all",
@@ -674,6 +677,8 @@ real_source_target(
         "consumer_policy_tests.bzl",
         "clang_syntax.bzl",
         "clang_syntax_tests.bzl",
+        "clang_tidy.bzl",
+        "clang_tidy_tests.bzl",
         "coverage_sources.bzl",
         "coverage_sources_tests.bzl",
         "curated_defaults.bzl",

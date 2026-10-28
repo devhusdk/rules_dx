@@ -323,7 +323,7 @@ pub fn nuget_live_push(
     }
 }
 
-/// Runs the NuGet deploy launcher.
+/// Runs the NuGet deploy tool.
 pub fn nuget_main(
     nupkg_rloc: &str,
     target_name: &str,

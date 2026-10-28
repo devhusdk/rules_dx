@@ -25,11 +25,10 @@ def promotion_unit_tests(name):
                 "environment (for example 'staging')",
             ),
             expect_equal(
-                "promotion_environment_error rejects launcher-unsafe environment characters",
+                "promotion_environment_error rejects environment characters",
                 promotion_environment_error("prod;curl evil"),
                 "promotion_deploy: invalid environment 'prod;curl evil': want " +
-                "only [A-Za-z0-9._-] so the environment embeds safely in the " +
-                "deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "promotion_version_error accepts the demo version",
@@ -48,11 +47,10 @@ def promotion_unit_tests(name):
                 "version (for example '1.2.3')",
             ),
             expect_equal(
-                "promotion_version_error rejects launcher-unsafe version characters",
+                "promotion_version_error rejects version characters",
                 promotion_version_error("1.0;curl evil"),
                 "promotion_deploy: invalid version '1.0;curl evil': want " +
-                "only [A-Za-z0-9._-+] so the version embeds safely in the " +
-                "deploy launcher",
+                "only [A-Za-z0-9._-+]",
             ),
             expect_equal(
                 "promotion_edge_error accepts the staging to production edge",
@@ -80,13 +78,6 @@ def promotion_unit_tests(name):
                 promotion_artifact_error("release_demo.exe"),
                 "promotion_deploy: invalid artifact 'release_demo.exe': want " +
                 "one of .tar.gz, .tar, .tgz, .whl, .jar, .nupkg, .zip",
-            ),
-            expect_equal(
-                "promotion_artifact_error rejects launcher-unsafe filenames",
-                promotion_artifact_error("release demo.tar.gz"),
-                "promotion_deploy: invalid artifact 'release demo.tar.gz': want " +
-                "no quotes, backslashes, spaces, or newlines so the filename " +
-                "embeds safely in the deploy launcher",
             ),
         ],
     )

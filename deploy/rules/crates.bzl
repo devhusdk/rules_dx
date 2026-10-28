@@ -1,9 +1,8 @@
 """Local-first crates.io publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "ALNUM", "EMBED_UNSAFE", "VERSION_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "ALNUM", "VERSION_CHARS", "only_chars")
 
 _VALID_NAME_CHARS = ALNUM + "_-"
 
@@ -16,8 +15,7 @@ def crates_name_error(crate_name):
                 "': want a non-empty name (for example 'crates_demo')")
     if not only_chars(crate_name, _VALID_NAME_CHARS):
         return ("crates_deploy: invalid crate name '" + crate_name +
-                "': want only [A-Za-z0-9_-] so the name embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9_-]")
     return ""
 
 def crates_version_error(version):
@@ -27,47 +25,31 @@ def crates_version_error(version):
                 "': want a non-empty version (for example '0.0.0')")
     if not only_chars(version, _VALID_VERSION_CHARS):
         return ("crates_deploy: invalid version '" + version +
-                "': want only [A-Za-z0-9._-+] so the version embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-+]")
     return ""
 
-def crates_file_error(filename):
-    """Validates one crate source filename value."""
-    if type(filename) != "string" or filename == "":
-        return ("crates_deploy: invalid crate file '" + str(filename) +
-                "': want a non-empty filename")
-    if has_any(filename, EMBED_UNSAFE):
-        return ("crates_deploy: invalid crate file '" + filename +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the filename embeds safely in the deploy launcher")
-    return ""
-
-def _crates_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one crates.io deployment."""
+def _crates_config_impl(ctx):
+    """Writes the deploy config for one crates.io deployment."""
     crate_files = ctx.attr.crate[DefaultInfo].files.to_list()
     if len(crate_files) == 0:
         fail("crates_deploy " + str(ctx.label) + ": crate " +
              str(ctx.attr.crate.label) + " provides no files, want at least one source file")
-    rlocs = []
-    for f in crate_files:
-        file_error = crates_file_error(f.basename)
-        if file_error != "":
-            fail(file_error + " (in " + str(ctx.label) + ")")
-        rlocs.append(rlocation_path(ctx, f))
+    rlocs = [rlocation_path(ctx, f) for f in crate_files]
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const CRATE_RLOCS: &str = \"" + ";".join(rlocs) + "\";\n" +
-                  "const CRATE_NAME: &str = \"" + ctx.attr.crate_name + "\";\n" +
-                  "const CRATE_VERSION: &str = \"" + ctx.attr.version + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::crates_main(CRATE_RLOCS, CRATE_NAME, CRATE_VERSION, &std::env::args().collect::<Vec<_>>())); }\n",
+    return deploy_config(
+        ctx,
+        "crates",
+        {
+            "crate_name": ctx.attr.crate_name,
+            "crate_rlocs": rlocs,
+            "version": ctx.attr.version,
+        },
+        ctx.runfiles(files = crate_files).merge(ctx.attr.crate[DefaultInfo].default_runfiles),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_crates_launcher = rule(
-    implementation = _crates_launcher_impl,
-    doc = "Writes the launcher Rust source for one crates.io deployment.",
+_crates_config = rule(
+    implementation = _crates_config_impl,
+    doc = "Writes the deploy config for one crates.io deployment.",
     attrs = {
         "crate": attr.label(
             doc = "Crate target whose files are published by the deployment.",
@@ -94,24 +76,17 @@ def crates_deploy(name, crate, version = "0.0.0", profile = "release"):
     if version_error != "":
         fail(version_error + " (in " + native.package_name() + ":" + name + ")")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _crates_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _crates_config(
+        name = config_target,
         crate = crate,
         crate_name = name,
         version = version,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = [crate],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

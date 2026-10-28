@@ -1,8 +1,8 @@
 """Signing and attestation selection for releases."""
 
 load("//deploy/release:cosign_pins.bzl", "COSIGN_VERSION")
+load("//deploy/rules:config.bzl", "rlocation_path")
 load("//deploy/rules:defs.bzl", "dx_deployment")
-load("//deploy/rules:launcher.bzl", "rlocation_path")
 load("//rust/rules:defs.bzl", "rust_binary")
 
 SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"

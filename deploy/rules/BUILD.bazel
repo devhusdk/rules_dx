@@ -13,7 +13,7 @@ load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_un
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_unit_tests")
 load(":defs.bzl", "dx_deployment")
-load(":deploy_tests.bzl", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
+load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
 load(":github.bzl", "github_config", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":maven.bzl", "maven_deploy")
@@ -49,7 +49,6 @@ exports_files([
     "deploy_tests.bzl",
     "github.bzl",
     "github_tests.bzl",
-    "launcher.bzl",
     "maven.bzl",
     "maven_tests.bzl",
     "npm.bzl",
@@ -404,6 +403,31 @@ failure_test(
 
 deploy_config_tests(name = "deploy_config")
 
+config_runfiles_tests(
+    name = "config_runfiles",
+    demos = {
+        "crates_demo": ["lib.rs"],
+        "maven_demo": [
+            "maven_demo-0.0.0.pom",
+            "maven_demo-sources.jar",
+            "maven_demo-javadoc.jar",
+        ],
+        "npm_demo": [
+            "npm_demo.tgz",
+            "npm_demo.feed.json",
+        ],
+        "nuget_demo": ["nuget_demo.0.0.0.nupkg"],
+        "oci_demo": ["oci_demo.tar"],
+        "octopus_demo": ["release_demo.tar.gz"],
+        "promotion_demo": ["release_demo.tar.gz"],
+        "pypi.dotted_demo": ["pypi_demo-0.0.0-py3-none-any.whl"],
+        "pypi_demo": [
+            "pypi_demo-0.0.0-py3-none-any.whl",
+            "pypi_demo-0.0.0.tar.gz",
+        ],
+    },
+)
+
 dx_deployment(
     name = "deploy_untyped_config",
     config = ":web_dir",
@@ -607,9 +631,13 @@ deploy_analysis_test(
 rust_test(
     name = "oci_demo_verify",
     srcs = ["verify_test.rs"],
-    data = [":oci_demo_program"],
+    data = [
+        ":oci_demo",
+        ":oci_demo_config",
+    ],
     env = {
-        "DX_OCI_PROG": "$(rootpath :oci_demo_program)",
+        "DX_OCI_CONFIG": "$(rootpath :oci_demo_config)",
+        "DX_OCI_PROG": "$(rootpath :oci_demo)",
         "DX_VERIFY_MODE": "oci",
     },
     tags = ["no-coverage"],
@@ -622,12 +650,16 @@ rust_test(
     name = "oci_demo_layout_verify",
     srcs = ["verify_test.rs"],
     data = [
-        ":oci_demo_layout_program",
-        ":oci_demo_program",
+        ":oci_demo",
+        ":oci_demo_config",
+        ":oci_demo_layout",
+        ":oci_demo_layout_config",
     ],
     env = {
-        "DX_OCI_BASE_PROG": "$(rootpath :oci_demo_program)",
-        "DX_OCI_PROG": "$(rootpath :oci_demo_layout_program)",
+        "DX_OCI_BASE_CONFIG": "$(rootpath :oci_demo_config)",
+        "DX_OCI_BASE_PROG": "$(rootpath :oci_demo)",
+        "DX_OCI_CONFIG": "$(rootpath :oci_demo_layout_config)",
+        "DX_OCI_PROG": "$(rootpath :oci_demo_layout)",
         "DX_OCI_REF": "ghcr.io/oci_demo_layout:latest",
         "DX_VERIFY_MODE": "oci",
     },
@@ -685,6 +717,7 @@ test_suite(
         ":cloudflare_not_a_directory_fails",
         ":cloudflare_program_closure",
         ":cloudflare_unit",
+        ":config_runfiles",
         ":consumer_archive_unit",
         ":crates_analysis",
         ":crates_unit",
@@ -890,18 +923,24 @@ rust_test(
     name = "pypi_probe_verify",
     srcs = ["verify_test.rs"],
     data = [
-        ":dx_pypi_probe_program",
-        ":pypi_probe_mismatch_program",
-        ":pypi_probe_release_program",
+        ":dx_pypi_probe",
+        ":dx_pypi_probe_config",
+        ":pypi_probe_mismatch",
+        ":pypi_probe_mismatch_config",
+        ":pypi_probe_release",
+        ":pypi_probe_release_config",
         "//cli/update:python_files",
         "//cli/update:python_interpreter",
         "@dx_tools//:uv",
     ],
     env = {
-        "DX_PYPI_MISMATCH_PROG": "$(rootpath :pypi_probe_mismatch_program)",
-        "DX_PYPI_PROG": "$(rootpath :dx_pypi_probe_program)",
+        "DX_PYPI_CONFIG": "$(rootpath :dx_pypi_probe_config)",
+        "DX_PYPI_MISMATCH_CONFIG": "$(rootpath :pypi_probe_mismatch_config)",
+        "DX_PYPI_MISMATCH_PROG": "$(rootpath :pypi_probe_mismatch)",
+        "DX_PYPI_PROG": "$(rootpath :dx_pypi_probe)",
         "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
-        "DX_PYPI_RENAMED_PROG": "$(rootpath :pypi_probe_release_program)",
+        "DX_PYPI_RENAMED_CONFIG": "$(rootpath :pypi_probe_release_config)",
+        "DX_PYPI_RENAMED_PROG": "$(rootpath :pypi_probe_release)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
         "DX_VERIFY_MODE": "pypi",
     },
@@ -1118,8 +1157,8 @@ maven_deploy(
     name = "maven_demo",
     artifact = "maven_demo",
     group = "com.example",
-    javadoc = ":maven_demo_javadoc_jar",
     jar = ":maven_demo_lib",
+    javadoc = ":maven_demo_javadoc_jar",
     pom = "testdata/maven/maven_demo-0.0.0.pom",
     sources = ":maven_demo_sources_jar",
     version = "0.0.0",
@@ -1259,7 +1298,6 @@ real_source_target(
         "deploy_tests.bzl",
         "github.bzl",
         "github_tests.bzl",
-        "launcher.bzl",
         "maven.bzl",
         "maven_tests.bzl",
         "npm.bzl",

@@ -564,7 +564,7 @@ fn pages_deploy_staged(
     0
 }
 
-/// Runs the Cloudflare Pages deploy launcher.
+/// Runs the Cloudflare Pages deploy tool.
 pub fn cloudflare_pages_main(launch: &PagesLaunch<'_>, argv: &[String]) -> i32 {
     // LCOV_EXCL_START - reason: process wiring, issue: 1684
     pages_main_with(

@@ -1060,7 +1060,7 @@ pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
     live: "OCI_PUBLISH_LIVE",
 };
 
-/// Runs the OCI deploy launcher.
+/// Runs the OCI deploy tool.
 pub fn oci_main(
     image_rloc: &str,
     registry: &str,

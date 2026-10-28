@@ -1,7 +1,7 @@
 """Unit and analysis tests for the Maven Central publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_javadoc_error", "maven_jar_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
+load(":maven.bzl", "MAVEN_DEFAULT_REPOSITORY_URL", "maven_artifact_error", "maven_group_error", "maven_jar_error", "maven_javadoc_error", "maven_pom_error", "maven_repository_error", "maven_sources_error", "maven_version_error")
 
 def maven_unit_tests(name):
     starlark_test(
@@ -20,11 +20,10 @@ def maven_unit_tests(name):
                 "groupId (for example 'com.example')",
             ),
             expect_equal(
-                "maven_group_error rejects launcher-unsafe group characters",
+                "maven_group_error rejects group characters",
                 maven_group_error("com;curl evil"),
                 "maven_deploy: invalid group 'com;curl evil': want " +
-                "only [A-Za-z0-9._-] so the group embeds safely in the " +
-                "deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "maven_group_error rejects a leading dot",
@@ -76,11 +75,10 @@ def maven_unit_tests(name):
                 "artifactId (for example 'maven_demo')",
             ),
             expect_equal(
-                "maven_artifact_error rejects launcher-unsafe artifact characters",
+                "maven_artifact_error rejects artifact characters",
                 maven_artifact_error("dx;curl evil"),
                 "maven_deploy: invalid artifact 'dx;curl evil': want " +
-                "only [A-Za-z0-9._-] so the artifact embeds safely in " +
-                "the deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "maven_version_error accepts the demo version",
@@ -99,11 +97,10 @@ def maven_unit_tests(name):
                 "version (for example '0.0.0')",
             ),
             expect_equal(
-                "maven_version_error rejects launcher-unsafe version characters",
+                "maven_version_error rejects version characters",
                 maven_version_error("1.0;curl evil"),
                 "maven_deploy: invalid version '1.0;curl evil': want " +
-                "only [A-Za-z0-9._-+] so the version embeds safely in " +
-                "the deploy launcher",
+                "only [A-Za-z0-9._-+]",
             ),
             expect_equal(
                 "maven_repository_error accepts the default Publisher URL",
@@ -173,13 +170,6 @@ def maven_unit_tests(name):
                 "maven_javadoc_error accepts a jar filename",
                 maven_javadoc_error("maven_demo-javadoc.jar"),
                 "",
-            ),
-            expect_equal(
-                "maven_javadoc_error rejects an unsafe filename",
-                maven_javadoc_error("a b.jar"),
-                "maven_deploy: invalid javadoc jar 'a b.jar': want no quotes, " +
-                "backslashes, spaces, or newlines so the filename embeds " +
-                "safely in the deploy launcher",
             ),
             expect_equal(
                 "maven_pom_error accepts a pinned pom filename",

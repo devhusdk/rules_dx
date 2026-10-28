@@ -532,7 +532,7 @@ pub fn archive_stage_release(
     Ok((app_name, tarball_dest, checksum_dest))
 }
 
-/// Runs the archive deploy launcher.
+/// Runs the archive deploy tool.
 pub fn archive_main(
     app_rloc: &str,
     tarball_rloc: &str,

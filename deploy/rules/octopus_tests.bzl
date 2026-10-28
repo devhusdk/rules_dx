@@ -25,11 +25,10 @@ def octopus_unit_tests(name):
                 "project (for example 'octopus_demo')",
             ),
             expect_equal(
-                "octopus_project_error rejects launcher-unsafe project characters",
+                "octopus_project_error rejects project characters",
                 octopus_project_error("dx;curl evil"),
                 "octopus_deploy: invalid project 'dx;curl evil': want " +
-                "only [A-Za-z0-9._-] so the project embeds safely in the " +
-                "deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "octopus_channel_error accepts the default channel",
@@ -43,11 +42,10 @@ def octopus_unit_tests(name):
                 "channel (for example 'Default')",
             ),
             expect_equal(
-                "octopus_channel_error rejects launcher-unsafe channel characters",
+                "octopus_channel_error rejects channel characters",
                 octopus_channel_error("ch;curl evil"),
                 "octopus_deploy: invalid channel 'ch;curl evil': want " +
-                "only [A-Za-z0-9._-] so the channel embeds safely in the " +
-                "deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "octopus_version_error accepts the demo version",
@@ -66,11 +64,10 @@ def octopus_unit_tests(name):
                 "version (for example '0.0.0')",
             ),
             expect_equal(
-                "octopus_version_error rejects launcher-unsafe version characters",
+                "octopus_version_error rejects version characters",
                 octopus_version_error("1.0;curl evil"),
                 "octopus_deploy: invalid version '1.0;curl evil': want " +
-                "only [A-Za-z0-9._-+] so the version embeds safely in " +
-                "the deploy launcher",
+                "only [A-Za-z0-9._-+]",
             ),
             expect_equal(
                 "octopus_environment_error accepts the demo environment",
@@ -84,11 +81,10 @@ def octopus_unit_tests(name):
                 "environment (for example 'Production')",
             ),
             expect_equal(
-                "octopus_environment_error rejects launcher-unsafe environment characters",
+                "octopus_environment_error rejects environment characters",
                 octopus_environment_error("prod;curl evil"),
                 "octopus_deploy: invalid environment 'prod;curl evil': want " +
-                "only [A-Za-z0-9._-] so the environment embeds safely in " +
-                "the deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "octopus_space_error accepts the default empty space",

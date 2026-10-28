@@ -128,3 +128,54 @@ def deploy_config_tests(name):
         name = name,
         tests = [name + "_env", name + "_none"],
     )
+
+def _config_runfiles_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    want = "_main/deploy/rules/" + ctx.attr.config_name + ".deploy.json"
+    asserts.true(env, RunEnvironmentInfo in target, "a configured deployment must set its run environment")
+    if RunEnvironmentInfo in target:
+        asserts.equals(
+            env,
+            {"DX_DEPLOY_CONFIG": want},
+            target[RunEnvironmentInfo].environment,
+        )
+    runfiles = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list()]
+    for pin in ctx.attr.pins:
+        asserts.true(
+            env,
+            len([p for p in runfiles if p.endswith("/" + pin)]) > 0,
+            "the pinned artifact " + pin + " must ship in the runfiles: " + ", ".join(runfiles),
+        )
+    return analysistest.end(env)
+
+_config_runfiles_test = analysistest.make(
+    _config_runfiles_test_impl,
+    attrs = {
+        "config_name": attr.string(mandatory = True),
+        "pins": attr.string_list(mandatory = True),
+    },
+)
+
+def config_runfiles_tests(name, demos):
+    """Checks that each demo deployment names its config and ships its pinned artifacts.
+
+    Args:
+      name: test_suite name.
+      demos: dict of deployment name to the basenames of the artifacts it pins.
+    """
+    tests = []
+    for demo, pins in demos.items():
+        test = name + "_" + demo.replace(".", "_")
+        _config_runfiles_test(
+            name = test,
+            size = "small",
+            target_under_test = ":" + demo,
+            config_name = demo + "_config",
+            pins = pins,
+        )
+        tests.append(test)
+    native.test_suite(
+        name = name,
+        tests = tests,
+    )

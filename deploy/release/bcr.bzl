@@ -1,7 +1,7 @@
 """BCR submission tooling for rules_dx."""
 
+load("//deploy/rules:config.bzl", "rlocation_path")
 load("//deploy/rules:defs.bzl", "dx_deployment")
-load("//deploy/rules:launcher.bzl", "rlocation_path")
 load("//deploy/rules:validate.bzl", "genrule_arg")
 load("//rust/rules:defs.bzl", "rust_binary")
 

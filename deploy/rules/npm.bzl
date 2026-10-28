@@ -1,10 +1,9 @@
 """Hermetic npm pack feed publisher for dx deploy."""
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _NPM_PACKER = Label("//deploy/rules:npm_packer")
 
@@ -18,8 +17,7 @@ def npm_tag_error(tag):
                 "': want a non-empty tag (for example 'latest')")
     if not only_chars(tag, _VALID_TAG_CHARS):
         return ("npm_deploy: invalid tag '" + tag +
-                "': want only [A-Za-z0-9._-] so the tag embeds " +
-                "safely in the deploy program")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def npm_package_error(package):
@@ -29,18 +27,13 @@ def npm_package_error(package):
                 "': want a non-empty package name (for example 'npm-demo')")
     if not only_chars(package, _VALID_PACKAGE_CHARS):
         return ("npm_deploy: invalid package '" + package +
-                "': want only [A-Za-z0-9@/_.-] so the package name " +
-                "embeds safely in the deploy program")
+                "': want only [A-Za-z0-9@/_.-]")
     return ""
 
 def npm_registry_error(registry):
     """Validates one npm registry URL value."""
     if type(registry) != "string" or not registry.startswith("https://"):
         return ("npm_deploy: invalid registry '" + str(registry) +
-                "': want an https:// URL " +
-                "(for example 'https://registry.npmjs.org')")
-    if has_any(registry, EMBED_UNSAFE):
-        return ("npm_deploy: invalid registry '" + registry +
                 "': want an https:// URL " +
                 "(for example 'https://registry.npmjs.org')")
     return ""
@@ -85,21 +78,21 @@ def npm_filenames(name):
     """Returns the deterministic (tarball, feed) output names."""
     return (name + ".tgz", name + ".feed.json")
 
-def _npm_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one npm deployment."""
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "fn main() {{ std::process::exit(dx_deploy_tools::npm_deploy_main(&std::env::args().collect::<Vec<_>>(), {feed}, {tarball})); }}\n".format(
-            feed = json.encode(rlocation_path(ctx, ctx.file.feed)),
-            tarball = json.encode(rlocation_path(ctx, ctx.file.tarball)),
-        ),
+def _npm_config_impl(ctx):
+    """Writes the deploy config for one npm deployment."""
+    return deploy_config(
+        ctx,
+        "npm",
+        {
+            "feed_rloc": rlocation_path(ctx, ctx.file.feed),
+            "tarball_rloc": rlocation_path(ctx, ctx.file.tarball),
+        },
+        ctx.runfiles(files = [ctx.file.feed, ctx.file.tarball]),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_npm_launcher = rule(
-    implementation = _npm_launcher_impl,
-    doc = "Writes the launcher Rust source for one npm deployment.",
+_npm_config = rule(
+    implementation = _npm_config_impl,
+    doc = "Writes the deploy config for one npm deployment.",
     attrs = {
         "feed": attr.label(allow_single_file = True, mandatory = True, doc = "Packed feed JSON."),
         "tarball": attr.label(allow_single_file = True, mandatory = True, doc = "Packed tarball."),
@@ -130,8 +123,7 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
 
     (tarball, feed) = npm_filenames(name)
     pack_target = name + "_pack"
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
+    config_target = name + "_config"
 
     native.genrule(
         name = pack_target,
@@ -141,21 +133,15 @@ def npm_deploy(name, package, tag = "latest", srcs = [], registry = "https://reg
         cmd = "$(location " + str(_NPM_PACKER) + ") " + shell.quote(package) + " " + shell.quote(tag) + " " + shell.quote(registry) + " " + shell.quote(access) + " " + shell.quote(provenance) + " $(OUTS) $(SRCS)",
     )
 
-    _npm_launcher(
-        name = launcher_target,
+    _npm_config(
+        name = config_target,
         feed = ":" + feed,
         tarball = ":" + tarball,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = [":" + pack_target],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

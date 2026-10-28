@@ -25,10 +25,10 @@ def pypi_unit_tests(name):
                 "name (for example 'pypi_demo')",
             ),
             expect_equal(
-                "pypi_name_error rejects launcher-unsafe name characters",
+                "pypi_name_error rejects name characters",
                 pypi_name_error("dx;curl evil"),
                 "pypi_deploy: invalid distribution name 'dx;curl evil': want " +
-                "only [A-Za-z0-9._-] so the name embeds safely in the deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "pypi_repository_error accepts the default index URL",

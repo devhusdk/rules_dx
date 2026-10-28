@@ -389,7 +389,7 @@ pub(crate) const NPM_GATE: OwnerGate = OwnerGate {
     live: "NPM_PUBLISH_LIVE",
 };
 
-/// Runs the npm deploy launcher.
+/// Runs the npm deploy tool.
 pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> i32 {
     if std::env::var_os("NPM_PUBLISH_DRY_RUN").is_some() {
         eprintln!(

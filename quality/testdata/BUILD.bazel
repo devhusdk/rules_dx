@@ -43,7 +43,9 @@ load(
     "perl_subject",
     "perlcritic_flag_tests",
     "perltidy_flag_tests",
+    "php_lint_subject",
     "php_typecheck_subject",
+    "phpcs_flag_tests",
     "phpstan_flag_tests",
     "qml_lint_subject",
     "qml_sources",
@@ -1355,6 +1357,33 @@ erlang_typecheck_subject(
 dialyzer_elixir_flag_tests(
     name = "dialyzer_elixir_flag",
     subject = ":elixir_typecheck_subject",
+)
+
+quality_family(
+    name = "php_lint_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "php",
+    lint = ["phpcs"],
+)
+
+workspace_policy(
+    name = "php_lint_policy",
+    families = [":php_lint_family"],
+)
+
+php_lint_subject(
+    name = "php_lint_subject",
+    testonly = True,
+    target = "//php/tests/fixtures/hello:greeter",
+)
+
+phpcs_flag_tests(
+    name = "phpcs_flag",
+    subject = ":php_lint_subject",
 )
 
 quality_family(

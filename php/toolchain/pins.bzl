@@ -25,6 +25,12 @@ PHPUNIT = struct(
     urls = ["https://phar.phpunit.de/phpunit-13.4.3.phar"],
 )
 
+PHPCS = struct(
+    version = "4.0.4",
+    sha256 = "4b010cd21d8bc8a17e2504792e3c77ef8259126f24caf7eafe7eddef1fa871e9",
+    urls = ["https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/download/4.0.4/phpcs.phar"],
+)
+
 PHPSTAN = struct(
     version = "2.3.3",
     sha256 = "aa5cc7543f0de0ae7997deb24f654a3b2454b6ba4ba2c4552957a175886b60b1",

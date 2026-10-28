@@ -56,6 +56,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "kubeconform": [".kubeconform.json"],
     "latexindent": [".yaml", ".yml"],
     "checkmake": [".ini"],
+    "phpcs": [".xml", ".xml.dist"],
     "phpstan": [".neon", ".neon.dist"],
     "pmd": [".xml"],
     "tflint": [".hcl"],
@@ -278,6 +279,8 @@ tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
 
 elvis_config = _make_native_config_rule("elvis")
+
+phpcs_config = _make_native_config_rule("phpcs")
 
 phpstan_config = _make_native_config_rule("phpstan")
 

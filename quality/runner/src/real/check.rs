@@ -6,6 +6,9 @@ use quality_adapter::{commands, parsers};
 
 use super::*;
 
+/// The bundled standard phpcs runs when the consumer binds no config.
+const PHPCS_STANDARD: &str = "PSR12";
+
 /// The rule level PHPStan runs at when the consumer binds no config.
 const PHPSTAN_LEVEL: u8 = 5;
 
@@ -592,6 +595,44 @@ impl RealBackend {
                 // staged absolute path.
                 for found in &mut findings {
                     if let Some((_, absolute)) = pairs.iter().find(|(rel, _)| *rel == found.file) {
+                        found.file = absolute.to_string_lossy().into_owned();
+                    }
+                }
+                Ok(findings)
+            }
+            "phpcs" => {
+                // phpcs reports the paths it was given, resolved; pass and match canonical ones.
+                let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
+                for (workspace, absolute) in pairs {
+                    let real = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    owned.push((real, absolute));
+                }
+                // Always name a standard: without one phpcs would pick up a phpcs.xml from the
+                // working directory.
+                let standard: std::ffi::OsString = match config.as_deref() {
+                    Some(path) => std::fs::canonicalize(path)
+                        .map_err(|err| execution(tool_id, format!("resolve phpcs config: {err}")))?
+                        .into_os_string(),
+                    None => PHPCS_STANDARD.into(),
+                };
+                let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
+                let invocation = commands::phpcs_check(&tool.binary, &standard, &path_refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let real_names: Vec<String> = owned
+                    .iter()
+                    .map(|(real, _)| real.to_string_lossy().into_owned())
+                    .collect();
+                let real_strs: Vec<&str> = real_names.iter().map(String::as_str).collect();
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_phpcs(&out.stdout, out.code, &real_strs),
+                )?;
+                for found in &mut findings {
+                    if let Some((_, absolute)) = owned
+                        .iter()
+                        .find(|(real, _)| real.to_string_lossy() == found.file.as_str())
+                    {
                         found.file = absolute.to_string_lossy().into_owned();
                     }
                 }

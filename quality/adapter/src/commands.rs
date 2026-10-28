@@ -111,6 +111,7 @@ const DIALYZER_ARGS: &[&str] = &[
     "--fullpath",
 ];
 
+const PHPCS_ARGS: &[&str] = &["--report=json", "-q", "--no-colors", "--no-cache"];
 const PHPSTAN_ARGS: &[&str] = &[
     "analyse",
     "--no-progress",
@@ -1003,6 +1004,23 @@ pub fn dialyzer_check(
     argv.extend(DIALYZER_ARGS.iter().map(OsString::from));
     argv.push(OsString::from("--"));
     argv.extend(beams.iter().map(|b| b.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+/// `phpcs` over the owned sources, JSON on stdout. `standard` is a ruleset file or a bundled
+/// standard name; it is always passed, so phpcs never searches the working directory for a
+/// `phpcs.xml`.
+pub fn phpcs_check(binary: &Path, standard: &OsStr, paths: &[&Path]) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(PHPCS_ARGS.iter().map(OsString::from));
+    let mut flag = OsString::from("--standard=");
+    flag.push(standard);
+    argv.push(flag);
+    argv.push(OsString::from("--"));
+    argv.extend(paths.iter().map(|p| p.as_os_str().to_owned()));
     Invocation {
         argv,
         cwd_rel: String::new(),

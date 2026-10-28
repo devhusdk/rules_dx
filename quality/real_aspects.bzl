@@ -149,6 +149,14 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "core",
     },
+    "phpcs": {
+        "attr": attr.label(default = "//config:tool_phpcs", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "fallback": "=@rules_dx//php/tools:phpcs",
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+    },
     "phpstan": {
         "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
         "capabilities": ["typecheck"],

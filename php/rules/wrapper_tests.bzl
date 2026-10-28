@@ -22,7 +22,7 @@ def php_wrapper_contract_tests(name):
             expect_equal("main listed in srcs is owned once", php_quality_srcs("main.php", ["main.php", "src/A.php"]), ["main.php", "src/A.php"]),
             expect_equal("autoload files are owned once", php_quality_srcs(None, ["a.php"], ["a.php", "f.php"]), ["a.php", "f.php"]),
             expect_equal("no main and no srcs owns nothing", php_quality_srcs(None, None), []),
-            expect_equal("the deferred class skips quality", PHP_DEFERRED_SKIP_TAGS, ["no-format", "no-lint"]),
+            expect_equal("the deferred class skips quality", PHP_DEFERRED_SKIP_TAGS, ["no-format"]),
             expect_equal("user tags stay first", php_deferred_tags(["manual", "no-lint"]), ["manual", "no-lint", "no-format"]),
             expect_equal("targets build on the pinned cell", [str(c) for c in PHP_COMPATIBLE_WITH], [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))]),
             expect_equal("caller constraints come first", [str(c) for c in php_compatible_with(["//x:y"])], ["//x:y"] + [str(c) for c in PHP_COMPATIBLE_WITH]),

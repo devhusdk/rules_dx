@@ -161,6 +161,13 @@ label_flag(
 filegroup(name = "no_dfmt")
 
 label_flag(
+    name = "tool_phpcs",
+    build_setting_default = ":no_phpcs",
+)
+
+filegroup(name = "no_phpcs")
+
+label_flag(
     name = "tool_phpstan",
     build_setting_default = ":no_phpstan",
 )

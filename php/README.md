@@ -154,10 +154,16 @@ resolve by PHP's lexical rules: the current namespace and the `use` aliases.
 
 ## Quality
 
-PHP sources form the `php` class, so `dx check` sees them. No formatter or
-linter runs yet, and there is no coverage: the pinned build has neither Xdebug
-nor PCOV. Until the formatter and linter land, the PHP rules add the
-`no-format` and `no-lint` tags to every target.
+PHP sources form the `php` class, so `dx check` sees them. No formatter runs
+yet, and there is no coverage: the pinned build has neither Xdebug nor PCOV.
+Until the formatter lands, the PHP rules add the `no-format` tag to every target.
+
+PHP_CodeSniffer 4.0.4 lints `php` targets against PSR12 or a bound ruleset.
+Select `phpcs` in a `php` family and pass the tool flag:
+
+```sh
+dx lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs
+```
 
 PHPStan 2.3.3 type checks `php` targets. Select `phpstan` in a `php` family
 and pass the tool flag:

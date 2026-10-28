@@ -247,6 +247,7 @@ to.
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang, elixir |
+| `phpcs` | lint | php |
 | `phpstan` | typecheck | php |
 | `dart` | format, lint, typecheck | dart |
 | `dscanner` | lint | d |
@@ -339,19 +340,19 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
   `julia_format`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
-  `phpstan`, `mix_format`, `credo`, `ormolu`
+  `phpcs`, `phpstan`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dart`, `dfmt`,
-  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpstan`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpcs`, `phpstan`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perlcritic`, `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
-  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//php/tools:phpstan`,
+  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//php/tools:phpcs`, `@rules_dx//php/tools:phpstan`,
   `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
@@ -642,6 +643,37 @@ quality_family(
     typecheck = ["dialyzer"],
 )
 ```
+
+### PHP linting
+
+`phpcs` has no default executable. Select `phpcs` in a `php` family and point
+the flag at the pinned PHP_CodeSniffer 4.0.4 on the pinned PHP.
+
+```starlark
+quality_family(
+    name = "php_family",
+    family_id = "php",
+    lint = ["phpcs"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs
+```
+
+Without the flag, a policy that selects `phpcs` fails the analysis and names
+the flag. Without a config, phpcs checks the target's sources against the
+bundled `PSR12` standard. Bind a `phpcs.xml`, `.phpcs.xml` or `phpcs.xml.dist`
+ruleset with `phpcs_config` from `@rules_dx//quality:native_config.bzl` to
+change that; the standard is always passed explicitly, so a stray ruleset in a
+parent directory is never picked up. Only the standards bundled with phpcs
+resolve: a ruleset that needs `installed_paths` or a third-party standard
+fails. Each finding is at its line and column with the rule as
+`phpcs/<sniff source>`, an error or a warning as phpcs reports it. phpcs fails
+closed: an exit code outside 0 to 3, output that is not a report, a file it did
+not check or an internal phpcs exception is an execution error, never a clean
+run. phpcs does not fix here (`phpcbf` is not wired), so `--apply` changes
+nothing. The platform is `linux_x86_64`, the only one with a pinned PHP.
 
 ### PHP type checking
 

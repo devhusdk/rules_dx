@@ -87,7 +87,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
 | Perl | `perlcritic` | `perltidy` | n/a |
-| PHP | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `phpstan` |
+| PHP | `phpcs` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `phpstan` |
 | PowerShell | `psscriptanalyzer` on `linux_x86_64` | `psscriptanalyzer` on `linux_x86_64` | n/a |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
 | Ruby | `rubocop` on `linux_x86_64` | `standardrb` on `linux_x86_64` | no |

@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//tools/testing:bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERSION")
-load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
+load(":cuda.bzl", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_HOST_SYSROOT = "CUDA_HOST_SYSROOT", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _MOD_CUDA_HOST_LLVM_VERSION = "CUDA_HOST_LLVM_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _MOD_TOOLCHAINS_LLVM_VERSION = "TOOLCHAINS_LLVM_VERSION")
 load(":dotnet.bzl", _MOD_DOTNET_VERSION = "DOTNET_VERSION", _MOD_RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION")
 load(":java-scala-kotlin.bzl", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _MOD_SCALA_VERSION = "SCALA_VERSION")
 load(":js.bzl", _MOD_TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _NPM_DEV_HUBS = "NPM_DEV_HUBS", _NPM_HUBS = "NPM_HUBS", _NPM_LOCKS = "NPM_LOCKS")
@@ -69,6 +69,7 @@ def versions_contract_tests(name):
             expect_equal("cuda module follows canonical", _MOD_CUDA_VERSION, _CUDA_VERSION),
             expect_equal("cuda rules module follows canonical", _MOD_RULES_CUDA_VERSION, _RULES_CUDA_VERSION),
             expect_equal("cuda host llvm module follows canonical", _MOD_CUDA_HOST_LLVM_VERSION, _CUDA_HOST_LLVM_VERSION),
+            expect_equal("cuda host llvm major is accepted by the pinned nvcc", int(_CUDA_HOST_LLVM_VERSION.split(".")[0]) <= _CUDA_MAX_HOST_CLANG_MAJOR, True),
             expect_equal("toolchains_llvm module follows canonical", _MOD_TOOLCHAINS_LLVM_VERSION, _TOOLCHAINS_LLVM_VERSION),
             expect_equal("nested bazel pin follows canonical", NESTED_BAZEL_VERSION, _BAZEL_VERSION),
             expect_equal("nested bazel pins every platform", sorted(NESTED_BAZEL_SHA256.keys()), ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]),

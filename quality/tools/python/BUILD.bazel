@@ -144,6 +144,17 @@ py_unittest_test(
 )
 
 py_binary(
+    name = "sqlfluff",
+    srcs = [
+        "sqlfluff_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-sqlfluff",
+    main = "sqlfluff_main.py",
+    deps = ["@pypi//sqlfluff"],
+)
+
+py_binary(
     name = "ansible_lint",
     srcs = [
         "ansible_lint_main.py",

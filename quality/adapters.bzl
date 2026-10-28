@@ -108,6 +108,7 @@ REAL_ADAPTERS = {
     "shellcheck": {"lint": ["shell"]},
     "shfmt": {"format": ["shell"]},
     "spotbugs": {"lint": ["java"]},
+    "sqlfluff": {"lint": ["sql"]},
     "statix": {"lint": ["nix"]},
     "standardrb": {"format": ["ruby"]},
     "staticcheck": {"lint": ["go"]},

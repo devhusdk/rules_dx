@@ -310,6 +310,7 @@ to.
 | `shellcheck` | lint | shell |
 | `shfmt` | format | shell |
 | `spotbugs` | lint | java |
+| `sqlfluff` | lint | sql |
 | `standardrb` | format | ruby |
 | `staticcheck` | lint | go |
 | `statix` | lint | nix |
@@ -2692,6 +2693,69 @@ clean. To change the rules, bind a `gplint_config` to the library with
 `aspect_hints`. The file is a `.gplintrc` or `.json` rule map and replaces the
 default rules. Rules that compare files, such as `no-dupe-feature-names`, give
 results that depend on which files share a batch, so avoid them.
+
+### SQL lint
+
+`sqlfluff` 4.4.0 runs from the managed pin for lint, check only. It runs on
+Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Select it in the `sql`
+family. It is not a default: a `sql_library` without a `sqlfluff` config keeps
+building as before.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "sqlfluff_config")
+
+sqlfluff_config(
+    name = "sqlfluff_config",
+    src = ".sqlfluff",
+)
+
+quality_family(
+    name = "sql_family",
+    disabled = ["typecheck"],
+    family_id = "sql",
+    format = ["prettier"],
+    lint = ["sqlfluff"],
+)
+
+sql_library(
+    name = "schema",
+    srcs = ["schema.sql"],
+    aspect_hints = [":sqlfluff_config"],
+)
+```
+
+A config is required. A target with the `sqlfluff` stage and no bound
+`sqlfluff_config` fails and names the missing config; tag it `no-lint` to skip
+it. The config is the only source of the dialect and must set `dialect` under
+`[sqlfluff]`. dx passes the file with `--config` and `--ignore-local-config`,
+so no `.sqlfluff`, `setup.cfg`, `tox.ini`, `pyproject.toml` or home directory
+config is read, and `.sqlfluffignore` files are disregarded.
+
+The dialect names are sqlfluff's, not the `sql_library` ones. Use `postgres`
+for `postgresql`, `sparksql` for `spark`, `tsql` for `transactsql` and `oracle`
+for `plsql`. `db2i`, `n1ql` and `singlestoredb` have no sqlfluff dialect;
+`mysql` or `ansi` are the closest. dx does not check the config dialect against
+the `dialect` of the `sql_library` or the file suffix. A dialect sqlfluff 4.4.0
+does not list fails the run.
+
+Only the `raw`, `jinja` and `placeholder` templaters run. `dbt` and `python`
+templaters, the `templater:dbt` and `templater:python` sections, and the
+`library_path`, `load_macros_from_path` and `loader_search_path` keys are
+refused, because they load project code or files the target does not own.
+Macros declared inline under `[sqlfluff:templater:jinja:macros]` work.
+
+Findings keep their sqlfluff rule code (for example `LT01`). A file sqlfluff
+cannot parse or template is reported as an error finding (`PRS` or `TMP`) and
+never counts as clean. Rule warnings from `warnings = ...` stay warnings.
+
+sqlfluff skips a file larger than `large_file_skip_byte_limit` (20 KB by
+default) without reporting it. dx treats a file missing from the report as a
+failure, so set `large_file_skip_byte_limit = 0` in the config when a target
+owns larger files.
+
+`sqlfluff fix` is not wired, so `--apply` never rewrites a file for this stage.
+When `prettier` formats the same files, exclude the layout rules in the config
+(`exclude_rules = LT`) so the two tools do not disagree about whitespace.
 
 ### PowerShell
 

@@ -28,6 +28,11 @@ CONFIG_REQUIRED_TOOLS = {
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
     "scalafix": struct(name = "Scalafix", src = ".scalafix.conf"),
     "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
+    "sqlfluff": struct(
+        name = "sqlfluff",
+        src = ".sqlfluff",
+        hint = "Declare sqlfluff_config(name = \"sqlfluff_config\", src = \".sqlfluff\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":sqlfluff_config\"], or tag the target no-lint. The file must set `dialect = ...` under [sqlfluff] using sqlfluff's names (postgres, sparksql, tsql and oracle rather than sql_library's postgresql, spark, transactsql and plsql).",
+    ),
     "vale": struct(name = "Vale", src = ".vale.ini"),
 }
 
@@ -76,6 +81,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "scalafmt": [".conf"],
     "shellcheck": [".shellcheckrc", "shellcheckrc"],
     "standardrb": [".yml", ".yaml"],
+    "sqlfluff": [".sqlfluff", ".cfg", ".ini"],
     "staticcheck": [".conf"],
     "statix": [".toml"],
     "stylelint": [".json"],
@@ -225,6 +231,8 @@ eslint_config = _make_native_config_rule("eslint")
 scalafmt_config = _make_native_config_rule("scalafmt")
 
 scalafix_config = _make_native_config_rule("scalafix")
+
+sqlfluff_config = _make_native_config_rule("sqlfluff")
 
 csharpier_config = _make_native_config_rule("csharpier")
 

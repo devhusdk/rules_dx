@@ -1839,6 +1839,39 @@ pub fn cfn_lint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
     }
 }
 
+/// `lint --format json --config <config> --ignore-local-config ... --` before the files.
+///
+/// The config is mandatory and the only source of the dialect, so no ambient `.sqlfluff`, home or
+/// app-dir config is read. Ignore files are disregarded because dx already owns the file set, and
+/// one process keeps the batched run deterministic.
+pub fn sqlfluff_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(
+        ["lint", "--format", "json", "--config"]
+            .iter()
+            .map(OsString::from),
+    );
+    argv.push(config.as_os_str().to_owned());
+    argv.extend(
+        [
+            "--ignore-local-config",
+            "--disregard-sqlfluffignores",
+            "--nocolor",
+            "--disable-progress-bar",
+            "--processes",
+            "1",
+            "--",
+        ]
+        .iter()
+        .map(OsString::from),
+    );
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 /// `check-jsonschema` for one (schema, filetype) group, offline.
 ///
 /// `--dx-ref-map` is read by dx's wrapper, which serves pinned `$ref` targets from disk and

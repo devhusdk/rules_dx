@@ -916,25 +916,30 @@ pub(crate) fn probe_argv(flags: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn pinned_tool_defaults_to_absent() {
+fn pinned_tool_defaults_to_unset() {
     let runner = FakeRunner {
         status: ChildStatus::exited(0),
     };
-    assert!(runner.pinned_tool("DX_UV_BIN").is_none());
-    assert!(runner.pinned_tool("DX_GITLEAKS_BIN").is_none());
+    assert_eq!(runner.pinned_tool("DX_UV_BIN"), PinnedVar::Unset);
+    assert_eq!(runner.pinned_tool("DX_GITLEAKS_BIN"), PinnedVar::Unset);
 }
 
 #[test]
-fn pinned_env_path_takes_absolute_paths_only() {
-    let var = "DX_PROCESS_PINNED_TOOL_PROBE";
-    std::env::remove_var(var);
-    assert_eq!(pinned_env_path(var), None);
-    std::env::set_var(var, "relative/uv");
-    assert_eq!(pinned_env_path(var), None);
+fn pinned_var_classifies_values() {
+    use std::ffi::OsString;
+    assert_eq!(PinnedVar::classify(None), PinnedVar::Unset);
+    assert_eq!(PinnedVar::classify(Some(OsString::new())), PinnedVar::Unset);
+    assert_eq!(
+        PinnedVar::classify(Some("relative/x".into())),
+        PinnedVar::NotAbsolute
+    );
     let absolute = std::env::temp_dir().join("uv");
-    std::env::set_var(var, &absolute);
-    assert_eq!(pinned_env_path(var), Some(absolute));
-    std::env::remove_var(var);
+    assert_eq!(
+        PinnedVar::classify(Some(absolute.clone().into())),
+        PinnedVar::Path(absolute.clone())
+    );
+    assert_eq!(PinnedVar::Path(absolute.clone()).path(), Some(absolute));
+    assert_eq!(PinnedVar::NotAbsolute.path(), None);
 }
 
 #[test]

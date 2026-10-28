@@ -314,12 +314,11 @@ pub(crate) fn report_build_failures(
     let compiling = |event: &BuildFailureEvent| event.stage == FailureStage::Compilation.name();
     Ok(ReportedFailures {
         count: events.len(),
-        build_stage: events
+        build_stage: events.iter().any(|event| {
+            event.stage != FailureStage::Analysis.name() && event.category != NOT_BUILT
+        }) && !events
             .iter()
-            .any(|event| event.stage != FailureStage::Analysis.name() && event.category != NOT_BUILT)
-            && !events
-                .iter()
-                .any(|event| event.stage == FailureStage::Analysis.name()),
+            .any(|event| event.stage == FailureStage::Analysis.name()),
         compile_only: collected.problem.is_none()
             && events.iter().any(compiling)
             && events

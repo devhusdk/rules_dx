@@ -6,9 +6,12 @@ use crate::exec::execute;
 fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
     struct Unavailable;
     impl dx_process::Runner for Unavailable {
-        fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
-            (var == dx_audit::secrets::TOOL_ENV_VAR)
-                .then(|| std::path::PathBuf::from(hermetic_gitleaks()))
+        fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
+            if var == dx_audit::secrets::TOOL_ENV_VAR {
+                dx_process::PinnedVar::Path(std::path::PathBuf::from(hermetic_gitleaks()))
+            } else {
+                dx_process::PinnedVar::Unset
+            }
         }
         fn run(
             &self,

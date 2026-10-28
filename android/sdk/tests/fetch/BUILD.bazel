@@ -8,8 +8,8 @@ rust_test(
     size = "enormous",
     srcs = ["fetch_test.rs"],
     data = [
-        "fetch_test.rs",
         "fixtures/android-ndk-r27-linux.zip",
+        "//:module_srcs",
     ] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_ENV,
     env_inherit = [

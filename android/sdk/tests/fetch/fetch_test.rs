@@ -1,31 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use dx_nested::{self as nested, Case};
+use dx_nested::Case;
 use dx_testing::{resolve_runfiles, sha256_file};
 
 const FIXTURE: &str = "android/sdk/tests/fetch/fixtures/android-ndk-r27-linux.zip";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
 fn canonical(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|error| panic!("{path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let real = canonical(&resolve_runfiles("android/sdk/tests/fetch/fetch_test.rs"));
-    real.ancestors()
-        .nth(5)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
 }
 
 fn fixture_repo(name: &str, url: &str, sha256: &str) -> String {
@@ -35,27 +16,18 @@ fn fixture_repo(name: &str, url: &str, sha256: &str) -> String {
 }
 
 fn consumer() -> Case {
-    let rules = rules_dx_root();
     let fixture = canonical(&resolve_runfiles(FIXTURE));
     let digest = sha256_file(&fixture).unwrap_or_else(|error| panic!("{error}"));
     let url = format!("file://{}", fixture.display());
-    let case = nested::case("fetch");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
-    );
-    write(
-        &root.join("MODULE.bazel"),
+    let case = Case::consumer(
+        "fetch",
         &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n\n{}\n{}",
-            rules.display(),
+            "\n{}\n{}",
             fixture_repo("fixture_ok", &url, &digest),
             fixture_repo("fixture_bad", &url, &"0".repeat(64)),
         ),
     );
-    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
-    write(&root.join("BUILD.bazel"), "");
+    case.write("BUILD.bazel", "");
     case
 }
 

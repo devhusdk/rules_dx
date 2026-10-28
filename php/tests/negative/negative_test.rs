@@ -1,7 +1,4 @@
-use std::path::{Path, PathBuf};
-
-use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
+use dx_nested::Case;
 
 const TAMPERED_MODULE: &str = r#"
 php_phar = use_repo_rule("@rules_dx//php/toolchain:repos.bzl", "php_phar")
@@ -78,52 +75,17 @@ const EMPTY_TEST: &str = "<?php\n\ndeclare(strict_types=1);\n\nuse PHPUnit\\Fram
 const CRASH: &str =
     "<?php\n\ndeclare(strict_types=1);\n\nthrow new RuntimeException('the ledger is empty');\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("php/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
-    let case = nested::case("negative");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
-    );
-    write(
-        &root.join("MODULE.bazel"),
-        &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n{TAMPERED_MODULE}",
-            rules.display()
-        ),
-    );
-    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
-    write(&root.join("BUILD.bazel"), "");
-    let pkg = root.join("app");
-    write(&pkg.join("BUILD.bazel"), BUILD);
-    write(&pkg.join("data.txt"), "data\n");
-    write(&pkg.join("src/Clean/Answer.php"), CLEAN);
-    write(&pkg.join("src/Broken/Answer.php"), BROKEN);
-    write(&pkg.join("test/CleanTest.php"), CLEAN_TEST);
-    write(&pkg.join("test/FailingTest.php"), FAILING_TEST);
-    write(&pkg.join("test/EmptyTest.php"), EMPTY_TEST);
-    write(&pkg.join("bin/crash.php"), CRASH);
+    let case = Case::consumer("negative", TAMPERED_MODULE);
+    case.write("BUILD.bazel", "");
+    case.write("app/BUILD.bazel", BUILD);
+    case.write("app/data.txt", "data\n");
+    case.write("app/src/Clean/Answer.php", CLEAN);
+    case.write("app/src/Broken/Answer.php", BROKEN);
+    case.write("app/test/CleanTest.php", CLEAN_TEST);
+    case.write("app/test/FailingTest.php", FAILING_TEST);
+    case.write("app/test/EmptyTest.php", EMPTY_TEST);
+    case.write("app/bin/crash.php", CRASH);
     case
 }
 
@@ -255,7 +217,7 @@ fn composer_case(kind: &str, requires: &str, digests: &dyn Fn(&str) -> String) -
     let case = consumer();
     let root = case.root().to_path_buf();
     let src = root.join("tarball/pkg/src");
-    write(
+    dx_testing::write_text(
         &src.join("A.php"),
         "<?php\n\nnamespace V;\n\nfinal class A\n{\n}\n",
     );
@@ -274,14 +236,14 @@ fn composer_case(kind: &str, requires: &str, digests: &dyn Fn(&str) -> String) -
         r#"{{"packages": [{}], "packages-dev": []}}"#,
         lock_entry("v/a", kind, &url, requires)
     );
-    write(&root.join("vendor/composer.lock"), &lock);
-    write(&root.join("vendor/composer.digests.json"), &digests(&url));
-    write(
+    dx_testing::write_text(&root.join("vendor/composer.lock"), &lock);
+    dx_testing::write_text(&root.join("vendor/composer.digests.json"), &digests(&url));
+    dx_testing::write_text(
         &root.join("vendor/BUILD.bazel"),
         "exports_files([\"composer.lock\", \"composer.digests.json\"])\n",
     );
-    let module = read(&root.join("MODULE.bazel"));
-    write(
+    let module = dx_testing::read_text(&root.join("MODULE.bazel"));
+    dx_testing::write_text(
         &root.join("MODULE.bazel"),
         &format!(
             "{module}\ncomposer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor_hub\", lock = \"//vendor:composer.lock\", digests = \"//vendor:composer.digests.json\")\nuse_repo(composer, \"vendor_hub\")\n"

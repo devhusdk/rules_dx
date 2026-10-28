@@ -1,7 +1,4 @@
-use std::path::{Path, PathBuf};
-
-use dx_nested::{self as nested, Case};
-use dx_testing::resolve_runfiles;
+use dx_nested::Case;
 
 const BUILD: &str = r#"load("@rules_dx//fortran/rules:defs.bzl", "fortran_library", "fortran_test")
 
@@ -56,51 +53,17 @@ const TESTED: &str = "module tested\n  implicit none\ncontains\n  integer functi
 
 const FAILING_TEST: &str = "program failing_test\n  use tested, only: answer\n  implicit none\n  if (answer() /= 42) error stop \"the answer is wrong: 41\"\nend program failing_test\n";
 
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("fortran/tests/negative/negative_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn consumer() -> Case {
-    let rules = rules_dx_root();
-    let case = nested::case("negative");
-    let root = case.root().to_path_buf();
-    write(
-        &root.join(".bazelversion"),
-        &read(&rules.join(".bazelversion")),
-    );
-    write(
-        &root.join("MODULE.bazel"),
-        &format!(
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\n",
-            rules.display()
-        ),
-    );
-    write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));
-    write(&root.join("BUILD.bazel"), "");
-    write(&root.join("fortran/BUILD.bazel"), BUILD);
-    write(&root.join("fortran/clean.f90"), CLEAN);
-    write(&root.join("fortran/syntax_error.f90"), SYNTAX);
-    write(&root.join("fortran/missing_dep.f90"), NEEDS_DEP);
-    write(&root.join("fortran/provider.f90"), PROVIDER);
-    write(&root.join("fortran/consumer.f90"), CONSUMER);
-    write(&root.join("fortran/tested.f90"), TESTED);
-    write(&root.join("fortran/failing_test.f90"), FAILING_TEST);
+    let case = Case::consumer("negative", "");
+    case.write("BUILD.bazel", "");
+    case.write("fortran/BUILD.bazel", BUILD);
+    case.write("fortran/clean.f90", CLEAN);
+    case.write("fortran/syntax_error.f90", SYNTAX);
+    case.write("fortran/missing_dep.f90", NEEDS_DEP);
+    case.write("fortran/provider.f90", PROVIDER);
+    case.write("fortran/consumer.f90", CONSUMER);
+    case.write("fortran/tested.f90", TESTED);
+    case.write("fortran/failing_test.f90", FAILING_TEST);
     case
 }
 
@@ -120,14 +83,6 @@ fn bazel(case: &Case, verb: &str, target: &str, flags: &[&str]) -> Outcome {
     }
 }
 
-fn fails_with(case: &Case, target: &str, expected: &[&str]) {
-    let built = bazel(case, "build", target, &[]);
-    assert_eq!(built.code, Some(1), "{}", built.text);
-    for line in expected {
-        assert!(built.text.contains(line), "{line}\n{}", built.text);
-    }
-}
-
 #[test]
 fn a_clean_library_builds() {
     let case = consumer();
@@ -138,8 +93,7 @@ fn a_clean_library_builds() {
 #[test]
 fn a_syntax_error_fails_the_build_with_its_diagnostic() {
     let case = consumer();
-    fails_with(
-        &case,
+    case.build_fails_with(
         "//fortran:syntax_error",
         &["fortran/syntax_error.f90:2:16: error: expected end of statement"],
     );
@@ -148,8 +102,7 @@ fn a_syntax_error_fails_the_build_with_its_diagnostic() {
 #[test]
 fn a_module_outside_deps_fails_the_build() {
     let case = consumer();
-    fails_with(
-        &case,
+    case.build_fails_with(
         "//fortran:missing_dep",
         &["fortran/missing_dep.f90:2:7: error: Cannot parse module file for module 'base_dep'"],
     );
@@ -158,8 +111,7 @@ fn a_module_outside_deps_fails_the_build() {
 #[test]
 fn a_module_from_another_source_of_the_same_target_fails_the_build() {
     let case = consumer();
-    fails_with(
-        &case,
+    case.build_fails_with(
         "//fortran:same_target",
         &["fortran/consumer.f90:2:7: error: Cannot parse module file for module 'provider'"],
     );

@@ -199,7 +199,7 @@ impl dx_process::Runner for SlotEnv<'_> {
             .run_app(argv, cwd, &slot_env(env, share.as_deref()), withdraw, held)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         self.inner.pinned_tool(var)
     }
 
@@ -2632,6 +2632,24 @@ mod tests {
         fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
             Some(9)
         }
+
+        fn pinned_tool(&self, _var: &str) -> dx_process::PinnedVar {
+            dx_process::PinnedVar::NotAbsolute
+        }
+    }
+
+    #[test]
+    fn slot_runner_forwards_the_pinned_tool_state() {
+        use dx_process::Runner as _;
+        let scratch = dx_test_scratch::scratch("dx-slots-pinned-");
+        let dir = scratch.path().join("slots");
+        let slot = try_take(&dir, 1, "pinned").expect("try").expect("free");
+        let inner = EnvRecorder::default();
+        let held = slot.runner(&inner);
+        assert_eq!(
+            held.pinned_tool("DX_X_BIN"),
+            dx_process::PinnedVar::NotAbsolute
+        );
     }
 
     #[test]

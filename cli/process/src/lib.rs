@@ -682,9 +682,9 @@ pub trait Runner {
     }
 
     /// Names the absolute path one pinned-tool variable points at.
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn pinned_tool(&self, var: &str) -> PinnedVar {
         let _ = var;
-        None
+        PinnedVar::Unset
     }
 
     /// Reads the first line `path --version` prints; `None` when it cannot run.
@@ -763,11 +763,46 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     Some(DiskSpace { free, total })
 }
 
-/// Reads one pinned-tool variable, refusing a relative path.
-pub fn pinned_env_path(var: &str) -> Option<PathBuf> {
-    std::env::var_os(var)
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute())
+/// What one pinned-tool variable holds, read once.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PinnedVar {
+    /// Unset or empty: the caller may fall back to its hermetic source.
+    Unset,
+    /// An absolute path.
+    Path(PathBuf),
+    /// Set to a non-empty value that is not absolute; never searched on `PATH`.
+    NotAbsolute,
+}
+
+impl PinnedVar {
+    /// Sorts a raw variable value into its state.
+    pub fn classify(value: Option<std::ffi::OsString>) -> Self {
+        match value {
+            None => Self::Unset,
+            Some(value) if value.is_empty() => Self::Unset,
+            Some(value) => {
+                let path = PathBuf::from(value);
+                if path.is_absolute() {
+                    Self::Path(path)
+                } else {
+                    Self::NotAbsolute
+                }
+            }
+        }
+    }
+
+    /// The absolute path, when there is one.
+    pub fn path(self) -> Option<PathBuf> {
+        match self {
+            Self::Path(path) => Some(path),
+            Self::Unset | Self::NotAbsolute => None,
+        }
+    }
+}
+
+/// Reads one pinned-tool variable exactly once.
+pub fn pinned_env(var: &str) -> PinnedVar {
+    PinnedVar::classify(std::env::var_os(var))
 }
 
 /// Bound for one `--version` probe; a tool that cannot answer in this time is treated as absent.

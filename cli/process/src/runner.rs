@@ -2,7 +2,7 @@
 
 use std::fs::File;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 
 use crate::lifecycle::{
@@ -106,8 +106,8 @@ impl Runner for BinaryRunner {
         self.spawn_streamed(argv, cwd, env, true)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
-        crate::pinned_env_path(var)
+    fn pinned_tool(&self, var: &str) -> crate::PinnedVar {
+        crate::pinned_env(var)
     }
 
     fn tool_version(&self, path: &Path) -> Option<String> {
@@ -218,7 +218,7 @@ impl Runner for Holding<'_> {
         self.inner.run_app(argv, cwd, env, withdraw, &all)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn pinned_tool(&self, var: &str) -> crate::PinnedVar {
         self.inner.pinned_tool(var)
     }
 

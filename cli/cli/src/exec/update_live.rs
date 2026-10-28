@@ -178,13 +178,17 @@ impl Runner for ScriptRunner {
         self.launch(argv, cwd, env, true)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         let name = match var {
             "DX_UV_BIN" => "uv",
             "DX_UV_PYTHON" => "python3",
-            _ => return None,
+            _ => return dx_process::PinnedVar::Unset,
         };
-        self.pinned.then(|| fake_pinned(name).into())
+        if self.pinned {
+            dx_process::PinnedVar::Path(fake_pinned(name).into())
+        } else {
+            dx_process::PinnedVar::Unset
+        }
     }
 
     fn tool_version(&self, _path: &Path) -> Option<String> {

@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use super::*;
+use std::path::PathBuf;
 use crate::lib_tests::probe_argv;
 
 fn runner() -> BinaryRunner {

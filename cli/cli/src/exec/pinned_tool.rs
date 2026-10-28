@@ -1,5 +1,6 @@
 //! Resolves one pinned tool: an absolute environment path wins, an unset
-//! variable falls back to Bazel, and `PATH` is never searched.
+//! variable falls back to Bazel, a relative one is rejected, and `PATH` is
+//! never searched. The runner reads the variable once.
 
 use dx_plan::resolve::QueryRunner;
 use std::path::{Path, PathBuf};
@@ -92,11 +93,10 @@ pub(crate) fn resolve_pinned(
     tool: &PinnedTool<'_>,
     offline: bool,
 ) -> Result<PathBuf, PinnedToolError> {
-    if let Some(path) = runner.pinned_tool(tool.var) {
-        return Ok(path);
-    }
-    if std::env::var_os(tool.var).is_some_and(|value| !value.is_empty()) {
-        return Err(PinnedToolError::Invalid);
+    match runner.pinned_tool(tool.var) {
+        dx_process::PinnedVar::Path(path) => return Ok(path),
+        dx_process::PinnedVar::NotAbsolute => return Err(PinnedToolError::Invalid),
+        dx_process::PinnedVar::Unset => {}
     }
     let args: Vec<String> = if offline {
         vec!["--repository_disable_download".to_owned()]
@@ -117,7 +117,7 @@ mod tests {
     use std::cell::RefCell;
     use std::io;
 
-    struct EnvRunner(Option<&'static str>);
+    struct EnvRunner(dx_process::PinnedVar);
 
     impl dx_process::Runner for EnvRunner {
         fn run(
@@ -129,8 +129,8 @@ mod tests {
             Err(io::Error::other("unexpected run"))
         }
 
-        fn pinned_tool(&self, _var: &str) -> Option<PathBuf> {
-            self.0.map(PathBuf::from)
+        fn pinned_tool(&self, _var: &str) -> dx_process::PinnedVar {
+            self.0.clone()
         }
     }
 
@@ -174,7 +174,6 @@ mod tests {
         }
     }
 
-    // A name no environment sets, so the raw-variable check stays inert.
     const TOOL: PinnedTool<'static> = PinnedTool {
         var: "DX_TEST_UNSET_PINNED_TOOL_BIN",
         label: "@dx_tools//:tool",
@@ -183,8 +182,26 @@ mod tests {
     #[test]
     fn the_environment_path_wins_and_bazel_is_never_called() {
         let bazel = FakeBazel::default();
-        let path = resolve_pinned(&EnvRunner(Some("/pinned/tool")), &bazel, &TOOL, false);
+        let path = resolve_pinned(
+            &EnvRunner(dx_process::PinnedVar::Path(PathBuf::from("/pinned/tool"))),
+            &bazel,
+            &TOOL,
+            false,
+        );
         assert_eq!(path, Ok(PathBuf::from("/pinned/tool")));
+        assert!(bazel.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn a_relative_value_is_invalid_and_bazel_is_never_called() {
+        let bazel = FakeBazel::default();
+        let result = resolve_pinned(
+            &EnvRunner(dx_process::PinnedVar::NotAbsolute),
+            &bazel,
+            &TOOL,
+            false,
+        );
+        assert_eq!(result, Err(PinnedToolError::Invalid));
         assert!(bazel.calls.borrow().is_empty());
     }
 
@@ -195,7 +212,13 @@ mod tests {
             base: base.clone(),
             ..FakeBazel::default()
         };
-        let path = resolve_pinned(&EnvRunner(None), &bazel, &TOOL, false).expect("resolved");
+        let path = resolve_pinned(
+            &EnvRunner(dx_process::PinnedVar::Unset),
+            &bazel,
+            &TOOL,
+            false,
+        )
+        .expect("resolved");
         assert!(path.starts_with(&base), "{path:?}");
         assert_eq!(
             *bazel.calls.borrow(),
@@ -210,7 +233,13 @@ mod tests {
             base,
             ..FakeBazel::default()
         };
-        resolve_pinned(&EnvRunner(None), &bazel, &TOOL, true).expect("resolved");
+        resolve_pinned(
+            &EnvRunner(dx_process::PinnedVar::Unset),
+            &bazel,
+            &TOOL,
+            true,
+        )
+        .expect("resolved");
         let calls = bazel.calls.borrow();
         assert_eq!(calls[0].1, vec!["--repository_disable_download".to_owned()]);
         assert!(!calls[0].1.iter().any(|arg| arg == "--nofetch"));
@@ -222,9 +251,12 @@ mod tests {
             fail: true,
             ..FakeBazel::default()
         };
-        let Err(PinnedToolError::Unresolved { detail }) =
-            resolve_pinned(&EnvRunner(None), &bazel, &TOOL, false)
-        else {
+        let Err(PinnedToolError::Unresolved { detail }) = resolve_pinned(
+            &EnvRunner(dx_process::PinnedVar::Unset),
+            &bazel,
+            &TOOL,
+            false,
+        ) else {
             panic!("expected Unresolved");
         };
         assert!(detail.contains("@dx_tools//:tool"), "{detail}");

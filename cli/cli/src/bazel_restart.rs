@@ -226,7 +226,7 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         })
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         self.inner.pinned_tool(var)
     }
 
@@ -358,6 +358,24 @@ mod tests {
             let code = self.codes.borrow_mut().pop_front().unwrap_or(0);
             Ok(ChildStatus::exited(code))
         }
+    }
+
+    #[test]
+    fn forwards_the_pinned_tool_state() {
+        struct Relative;
+        impl Runner for Relative {
+            fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+                Err(io::Error::other("unexpected run"))
+            }
+            fn pinned_tool(&self, _: &str) -> dx_process::PinnedVar {
+                dx_process::PinnedVar::NotAbsolute
+            }
+        }
+        let runner = RestartingRunner::new(Relative);
+        assert_eq!(
+            runner.pinned_tool("DX_X_BIN"),
+            dx_process::PinnedVar::NotAbsolute
+        );
     }
 
     struct Shared(Rc<RefCell<Vec<u8>>>);

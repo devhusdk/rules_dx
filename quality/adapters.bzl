@@ -206,6 +206,9 @@ REAL_CLASS_TO_FAMILY = {
 # Keyed by capability, then family. "n/a" means never; "not yet" belongs in
 # the gap ledger. A family with a real adapter must not be listed here.
 NOT_APPLICABLE = {
+    "lint": {
+        "cue": "cue vet is the only CUE analysis and it is already the typecheck capability; the pinned cue binary has no separate linter",
+    },
     "format": {
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
     },

@@ -4,7 +4,7 @@ use std::fs::OpenOptions;
 use std::io;
 use std::path::{Path, PathBuf};
 
-const SUFFIX: &str = ".binpb.zst";
+pub(crate) const SUFFIX: &str = ".binpb.zst";
 
 pub(crate) const CODE_EXPLAIN_LOG: &str = "explain_log";
 pub(crate) const CODE_EXPLAIN_LOG_UNWRITABLE: &str = "explain_log_unwritable";
@@ -83,6 +83,19 @@ pub(crate) fn prune(workspace: &Path, keep: usize, own: u64) -> io::Result<()> {
     Ok(())
 }
 
+/// Deletes every saved log (`dx clean --apply`) and returns how many it removed.
+pub(crate) fn clear(workspace: &Path) -> io::Result<usize> {
+    let mut removed = 0;
+    for number in numbers(workspace)? {
+        match std::fs::remove_file(path_for(workspace, number)) {
+            Ok(()) => removed += 1,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(removed)
+}
+
 /// The `n` newest saved logs, newest first.
 pub(crate) fn latest(workspace: &Path, n: usize) -> io::Result<Vec<PathBuf>> {
     Ok(numbers(workspace)?
@@ -157,6 +170,18 @@ mod tests {
             latest(ws.path(), 2).expect("latest"),
             [path_for(ws.path(), 5), path_for(ws.path(), 4)]
         );
+    }
+
+    #[test]
+    fn clear_removes_every_numbered_log_and_nothing_else() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let ws = dir.path();
+        reserve(ws).expect("one");
+        reserve(ws).expect("two");
+        std::fs::write(super::dir(ws).join("notes.txt"), "keep").expect("write");
+        assert_eq!(clear(ws).expect("clear"), 2);
+        assert!(super::dir(ws).join("notes.txt").exists());
+        assert_eq!(clear(ws).expect("again"), 0);
     }
 
     #[test]

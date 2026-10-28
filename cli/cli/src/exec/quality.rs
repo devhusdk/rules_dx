@@ -339,6 +339,7 @@ fn run_quality_request(
         bep_text,
         &request.bazel_startup_options,
         None,
+        request.exec_log.as_deref(),
     )
     .map_err(|error| format!("{error}"))
     {
@@ -378,6 +379,7 @@ fn run_quality_request(
                 bep_text,
                 &request.bazel_startup_options,
                 Some(&shards),
+                request.exec_log.as_deref(),
             ) {
                 build = narrowed;
             }

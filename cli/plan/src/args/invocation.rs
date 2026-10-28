@@ -70,6 +70,8 @@ pub struct QualityRequest {
     pub fail_on: Threshold,
     pub baseline: Option<String>,
     pub origin: Option<UmbrellaOrigin>,
+    /// The execution log file an umbrella `--explain` run has this phase write.
+    pub exec_log: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -80,6 +82,8 @@ pub struct GenerateRequest {
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
     pub common: CommonOptions,
+    /// The execution log file an umbrella `--explain` run has this phase write.
+    pub exec_log: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,6 +101,8 @@ pub struct UmbrellaRequest {
     pub common: CommonOptions,
     pub fail_on: Threshold,
     pub baseline: Option<String>,
+    /// `dx check --explain`: save one execution log across the phases.
+    pub explain: bool,
 }
 
 impl CommonOptions {
@@ -203,6 +209,7 @@ impl UmbrellaRequest {
             fail_on: self.fail_on,
             baseline: self.baseline.clone(),
             origin: Some(self.origin()),
+            exec_log: None,
         })
     }
 
@@ -218,6 +225,7 @@ impl UmbrellaRequest {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
+            exec_log: None,
         }
     }
 }
@@ -276,6 +284,8 @@ pub struct Invocation {
     pub init_rust_target_triples: Vec<String>,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
+    /// An umbrella phase's execution log file; set instead of `explain` so the umbrella owns the store entry.
+    pub exec_log: Option<String>,
     /// `dx explain --old`.
     pub old_log: Option<String>,
     /// `dx explain --new`.
@@ -426,6 +436,7 @@ impl Invocation {
             fail_on: self.fail_on,
             baseline: self.baseline.clone(),
             origin: None,
+            exec_log: None,
         })
     }
 
@@ -443,6 +454,7 @@ impl Invocation {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
+            exec_log: None,
         })
     }
 
@@ -466,6 +478,7 @@ impl Invocation {
                 test.check = false;
                 test.apply = false;
                 test.reports = Vec::new();
+                test.explain = false;
                 test.include_edits = false;
                 test.targets = tests.clone();
                 test.affected_handoff = None;
@@ -495,6 +508,7 @@ impl Invocation {
             common: self.common_options(),
             fail_on: self.fail_on,
             baseline: self.baseline.clone(),
+            explain: self.explain,
         })
     }
 }
@@ -647,6 +661,7 @@ mod tests {
             init_parts: dx_adopt::InitParts::NONE,
             init_rust_target_triples: Vec::new(),
             explain: false,
+            exec_log: None,
             old_log: None,
             new_log: None,
             install_tag: None,

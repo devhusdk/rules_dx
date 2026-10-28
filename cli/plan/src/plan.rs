@@ -12,8 +12,8 @@ use std::sync::OnceLock;
 use dx_process::{ForwardError, ProtectedFlag};
 
 pub use generate::{
-    generate_package_scope, generate_scope_json, plan_generate, GENERATE_ENV_INTENDED,
-    GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
+    generate_package_scope, generate_scope_json, plan_generate, plan_generate_logged,
+    GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
 };
 pub use managed::{plan_managed, plan_managed_with_roots};
 pub(crate) use quality::workflow_scope_labels;

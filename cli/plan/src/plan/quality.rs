@@ -3,7 +3,8 @@ use dx_process::{
 };
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_flag, download_guards,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
+    exec_log_options,
     registry::{spec, CommandSpec},
     rules_dx_label, BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
     SKIP_INCOMPATIBLE_FLAG,
@@ -141,6 +142,7 @@ pub fn plan_build(
         bep_path,
         startup_options,
         None,
+        None,
     )
 }
 
@@ -152,15 +154,21 @@ pub fn plan_build_with(
     bep_path: &str,
     startup_options: &[String],
     shards: Option<&BTreeSet<String>>,
+    exec_log: Option<&str>,
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
     let aspects = joined_labels(select_aspects(&entry, shards));
+    let mut required = shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path);
+    if let Some(path) = exec_log {
+        required.extend(exec_log_options(path));
+    }
     shaped_plan(
         command,
         resolved,
         bazel_options,
         startup_options,
-        &shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path),
+        &required,
+        exec_log.is_some(),
     )
 }
 
@@ -186,6 +194,7 @@ pub fn plan_probe(
             bazel_options,
             bep_path,
         ),
+        false,
     )
     .map(Some)
 }
@@ -196,8 +205,12 @@ fn shaped_plan(
     bazel_options: &[String],
     startup_options: &[String],
     required: &[String],
+    logged: bool,
 ) -> Result<BuildPlan, ForwardError> {
-    let protected = protected_flags(required)?;
+    let mut protected = protected_flags(required)?;
+    if logged {
+        protected.extend(exec_log_guards());
+    }
     let (scope, labels) = workflow_scope_labels(resolved);
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
     options.extend(bazel_options.iter().cloned());
@@ -628,6 +641,7 @@ mod tests {
             "/tmp/bep.json",
             &[],
             Some(&rust),
+            None,
         )
         .expect("plan");
         assert!(plan.argv.contains(

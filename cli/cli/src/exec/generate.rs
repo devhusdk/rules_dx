@@ -6,7 +6,7 @@ use dx_plan::args::{GenerateRequest, Invocation};
 use dx_plan::finalize::{finalize, FinalizeError, FinalizeInput, GazelleStatus};
 use dx_plan::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
 use dx_plan::plan::{
-    generate_scope_json, intended_path, patch_path, plan_generate, GENERATE_ENV_INTENDED,
+    generate_scope_json, intended_path, patch_path, plan_generate_logged, GENERATE_ENV_INTENDED,
     GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
 };
 use dx_plan::reports::plan_reports;
@@ -104,12 +104,13 @@ fn run_generate_request(
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
-    let plan = match plan_generate(
+    let plan = match plan_generate_logged(
         &resolved,
         &request.bazel_options,
         !apply,
         &request.bazel_startup_options,
         patch_arg.as_deref(),
+        request.exec_log.as_deref(),
     ) {
         Ok(plan) => plan,
         Err(error) => {

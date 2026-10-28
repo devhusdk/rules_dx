@@ -1519,13 +1519,18 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
     let got = parse(&strings(&["test", "--explain", "--affected"])).expect("test");
     assert!(got.explain && got.affected);
     assert!(!parse(&strings(&["build"])).expect("plain").explain);
+    assert!(
+        parse(&strings(&["check", "--explain"]))
+            .expect("check")
+            .explain
+    );
+    assert!(!parse(&strings(&["check"])).expect("plain check").explain);
     for words in [
         vec!["explain", "//x"],
         vec!["explain", "--", "--jobs=1"],
         vec!["explain", "--old="],
         vec!["lint", "--explain"],
         vec!["coverage", "--explain"],
-        vec!["check", "--explain"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }

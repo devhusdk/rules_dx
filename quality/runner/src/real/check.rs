@@ -806,7 +806,28 @@ impl RealBackend {
                         tool_id,
                         parsers::parse_opa_check(&out.stdout, &out.stderr, out.code, &known),
                     )?;
+                    let reported: Vec<String> = findings.iter().map(|f| f.file.clone()).collect();
                     findings.retain(|found| strs.contains(&found.file.as_str()));
+                    if findings.is_empty() && !reported.is_empty() {
+                        let mut names: Vec<String> = resolve_pairs
+                            .iter()
+                            .filter(|(_, absolute)| {
+                                reported
+                                    .iter()
+                                    .any(|r| r.as_str() == absolute.to_string_lossy())
+                            })
+                            .map(|(workspace, _)| workspace.clone())
+                            .collect();
+                        names.sort();
+                        names.dedup();
+                        return Err(execution(
+                            tool_id,
+                            format!(
+                                "opa check failed in dependencies before the owned files were type checked: {}",
+                                names.join(", ")
+                            ),
+                        ));
+                    }
                     Ok(findings)
                 }
             }

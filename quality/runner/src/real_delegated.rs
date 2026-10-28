@@ -456,6 +456,59 @@ pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
         .is_err());
 }
 
+fn opa_dependency_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mut errors = Vec::new();
+    for arg in &argv[2..] {
+        let file = arg.to_string_lossy().into_owned();
+        if !Path::new(&file).is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&file).expect("read staged file");
+        if text.contains("broken") {
+            errors.push(format!(
+                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}"
+            ));
+        }
+    }
+    let (code, stderr) = if errors.is_empty() {
+        (0, String::new())
+    } else {
+        (1, format!("{{\"errors\":[{}]}}", errors.join(",")))
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn opa_typecheck_never_reports_clean_when_only_a_dependency_is_broken() {
+    let backend = backend_for("opa", plain_tool(), opa_dependency_behavior);
+    let owned = single("app/app.rego", "package app\n\nx := 1\n");
+    let clean = single("lib/base.rego", "package lib\n\ny := 1\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &clean)
+        .expect("clean dependency");
+    assert!(found.is_empty());
+    let broken = single("lib/base.rego", "package lib\nbroken\n");
+    let error = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &broken)
+        .expect_err("broken dependency is never clean");
+    assert!(error.to_string().contains("lib/base.rego"), "{error}");
+    let both = single("app/app.rego", "package app\nbroken\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &both, &BTreeMap::new(), &broken)
+        .expect("owned error");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "app/app.rego");
+}
+
 fn mix_format_behavior(
     argv: &[OsString],
     cwd: &Path,

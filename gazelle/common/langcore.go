@@ -34,6 +34,15 @@ func LibraryKindInfo() rule.KindInfo {
 	}
 }
 
+// fileBuildPath returns the workspace-relative path of the BUILD file f, keeping its base name.
+func fileBuildPath(f *rule.File) string {
+	name := "BUILD.bazel"
+	if f.Path != "" {
+		name = filepath.Base(f.Path)
+	}
+	return manifestPath(f.Pkg, name)
+}
+
 // CheckClaims rejects duplicate generated names and names whose existing rule kind, after kindAliases, differs from the claimant's kind.
 func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kindAliases map[string]string) error {
 	byName := make(map[string][]Claimant, len(claimants))
@@ -45,6 +54,7 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 		byName[c.Name] = append(byName[c.Name], c)
 	}
 	existing := make(map[string]string)
+	fromOther := make(map[string]bool)
 	if file != nil {
 		for _, r := range file.Rules {
 			existing[r.Name()] = r.Kind()
@@ -52,6 +62,7 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 	}
 	for _, r := range other {
 		existing[r.Name()] = r.Kind()
+		fromOther[r.Name()] = true
 	}
 	for _, name := range order {
 		claims := byName[name]
@@ -75,11 +86,11 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 			effective = alias
 		}
 		if effective != c.Kind {
-			where := ""
-			if file != nil {
-				where = file.Path
+			buildFile := ""
+			if !fromOther[name] && file != nil {
+				buildFile = fileBuildPath(file)
 			}
-			return fmt.Errorf("%s", ClaimError(name, c.Kind, c.Source, have, where))
+			return fmt.Errorf("%s", ClaimError(name, c.Kind, c.Source, have, buildFile))
 		}
 	}
 	return nil

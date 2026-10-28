@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
@@ -64,7 +65,8 @@ func TestCheckClaims(t *testing.T) {
 		if err != nil {
 			got = err.Error()
 		}
-		if got != tc.want {
+		// The want is a prefix; the remedy suffix is checked in remedy_test.go.
+		if got != tc.want && !(tc.want != "" && strings.HasPrefix(got, tc.want)) {
 			t.Errorf("%s: CheckClaims = %q, want %q", tc.name, got, tc.want)
 		}
 	}

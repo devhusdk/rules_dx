@@ -48,9 +48,6 @@ def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, em
 # (see matrix_case_platforms), never by editing a record. Tracked by #4441 and #1383.
 SUPPORT_EVIDENCE_PENDING = [
     "fsc:typecheck:fsharp:linux_x86_64",
-    "gersemi:format:cmake:linux_arm64",
-    "gersemi:format:cmake:macos_arm64",
-    "gersemi:format:cmake:windows_x86_64",
     "helm:lint:helm:linux_arm64",
     "helm:lint:helm:linux_x86_64",
     "helm:lint:helm:macos_arm64",
@@ -63,13 +60,7 @@ SUPPORT_EVIDENCE_PENDING = [
     "kubeconform:lint:kubernetes:linux_x86_64",
     "kubeconform:lint:kubernetes:macos_arm64",
     "kubeconform:lint:kubernetes:windows_x86_64",
-    "latexindent:format:latex:linux_arm64",
-    "latexindent:format:latex:macos_arm64",
-    "latexindent:format:latex:windows_x86_64",
     "rubocop:lint:ruby:linux_x86_64",
-    "shellcheck:lint:shell:linux_arm64",
-    "shellcheck:lint:shell:macos_arm64",
-    "shellcheck:lint:shell:windows_x86_64",
     "shfmt:format:shell:linux_arm64",
     "shfmt:format:shell:macos_arm64",
     "shfmt:format:shell:windows_x86_64",

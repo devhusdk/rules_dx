@@ -1,0 +1,21 @@
+load("@rules_dx//php/rules:defs.bzl", "php_library", "php_test")
+
+# gazelle:resolve php Monolog\Logger @vendor//monolog/monolog
+
+php_library(
+    name = "app",
+    srcs = [
+        "src/Helper.php",
+        "src/Main.php",
+    ],
+    deps = [
+        "//widgets",
+        "@vendor//monolog/monolog",
+    ],
+)
+
+php_test(
+    name = "main_test",
+    srcs = ["tests/MainTest.php"],
+    deps = [":app"],
+)

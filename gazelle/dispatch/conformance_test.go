@@ -101,6 +101,12 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"perl_library", "perl_test"},
 		inert:   []string{"script.pl"},
 	},
+	"php": {
+		files: map[string]string{"Demo.php": "<?php\nclass Demo {}\n"},
+		kind:  "php_library", target: "demo", defs: "php/rules:defs.bzl",
+		symbols: []string{"php_library", "php_test"},
+		inert:   []string{"bin/x.php"},
+	},
 	"powershell": {
 		files: map[string]string{"Demo.psm1": "function Get-Greeting { 'hi' }\n"},
 		kind:  "pwsh_library", target: "demo", defs: "powershell/rules:defs.bzl",

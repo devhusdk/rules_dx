@@ -488,6 +488,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"kotlin": jvm,
 		"mdx":    oneSourceRelative,
 		"perl":   oneSource,
+		"php":    "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",
 		"python": oneSource,
 		"ruby":   oneSource,
 		"scala":  jvm,

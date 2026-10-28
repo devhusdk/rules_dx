@@ -1,0 +1,23 @@
+load("@rules_dx//php/rules:defs.bzl", "php_library", "php_test")
+
+php_library(
+    name = "inventory",
+    srcs = [
+        "Inventory.php",
+        "src/Item.php",
+        "src/Ledger.php",
+    ],
+    deps = ["//inventory/src/Plugin"],
+)
+
+php_test(
+    name = "item_test",
+    srcs = ["tests/ItemTest.php"],
+    deps = [":inventory"],
+)
+
+php_test(
+    name = "ledger_test",
+    srcs = ["tests/LedgerTest.php"],
+    deps = [":inventory"],
+)

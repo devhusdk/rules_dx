@@ -1,0 +1,1 @@
+# gazelle:resolve php Monolog\Logger @vendor//monolog/monolog

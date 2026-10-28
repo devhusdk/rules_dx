@@ -155,6 +155,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         name: "cuda",
         identity: IdentityRule::BazelModule,
     },
+    NewLanguage {
+        name: "lua",
+        identity: IdentityRule::BazelModule,
+    },
 ];
 
 const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
@@ -989,6 +993,59 @@ bazel test //...
         (
             "hello_test.zig".to_owned(),
             "const std = @import(\"std\");\nconst hello = @import(\"hello\");\n\ntest \"greets by name\" {\n    var buf: [64]u8 = undefined;\n    try std.testing.expectEqualStrings(\"hello world\", try hello.greet(&buf, \"world\"));\n}\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn lua_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//lua/rules:defs.bzl", "lua_binary", "lua_library", "lua_test")
+
+lua_library(
+    name = "IDENTITY",
+    srcs = ["hello.lua"],
+)
+
+lua_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.lua"],
+    main = "main.lua",
+    deps = [":IDENTITY"],
+)
+
+lua_test(
+    name = "IDENTITY_test",
+    srcs = ["hello_test.lua"],
+    main = "hello_test.lua",
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "hello.lua".to_owned(),
+            "local M = {}\n\nfunction M.greet(name)\n\treturn \"hello \" .. name\nend\n\nreturn M\n".to_owned(),
+        ),
+        (
+            "main.lua".to_owned(),
+            "local hello = require(\"hello\")\n\nprint(hello.greet(\"world\"))\n".to_owned(),
+        ),
+        (
+            "hello_test.lua".to_owned(),
+            "local hello = require(\"hello\")\n\nif hello.greet(\"world\") ~= \"hello world\" then\n\tio.stderr:write(\"unexpected greeting\\n\")\n\tos.exit(1)\nend\n".to_owned(),
         ),
         ("README.md".to_owned(), readme),
     ]
@@ -1838,6 +1895,7 @@ fn new_language_files(
         "ocaml" => ocaml_files(identity),
         "haskell" => haskell_files(identity),
         "cuda" => cuda_files(identity),
+        "lua" => lua_files(identity),
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -1968,6 +2026,22 @@ mod tests {
         assert_eq!(normalize_new_language("ocaml"), Some("ocaml"));
         assert_eq!(normalize_new_language("haskell"), Some("haskell"));
         assert_eq!(normalize_new_language("cuda"), Some("cuda"));
+        assert_eq!(normalize_new_language("lua"), Some("lua"));
+    }
+
+    #[test]
+    fn lua_starter_names_targets_and_stays_hermetic() {
+        let files = lua_files("demo-app");
+        let all = files
+            .iter()
+            .map(|(path, text)| format!("{path}\n{text}"))
+            .collect::<String>();
+        for target in ["\"demo-app\"", "\"demo-app_bin\"", "\"demo-app_test\""] {
+            assert!(all.contains(target), "{target}");
+        }
+        assert!(all.contains("require(\"hello\")"));
+        assert!(!all.to_lowercase().contains("luarocks"));
+        assert!(!all.contains("package.path"));
     }
 
     #[test]

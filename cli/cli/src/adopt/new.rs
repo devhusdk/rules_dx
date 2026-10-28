@@ -484,6 +484,11 @@ mod tests {
                 "scale_test.cc",
             ],
         ),
+        (
+            "lua",
+            "demo-app",
+            &["hello.lua", "main.lua", "hello_test.lua"],
+        ),
     ];
 
     #[test]
@@ -533,6 +538,7 @@ mod tests {
                         | "ocaml"
                         | "haskell"
                         | "cuda"
+                        | "lua"
                 ),
                 "{language}: {build}"
             );
@@ -622,6 +628,7 @@ mod tests {
             vec!["new", "--apply", "zig", "demo", "--force"],
             vec!["new", "--apply", "elixir", "demo", "--force"],
             vec!["new", "--apply", "erlang", "demo", "--force"],
+            vec!["new", "--apply", "lua", "demo", "--force"],
         ] {
             let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

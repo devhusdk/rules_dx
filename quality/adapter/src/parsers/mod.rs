@@ -23,6 +23,7 @@ pub mod fantomas;
 pub mod flake8;
 pub mod flatc;
 pub mod fsharplint;
+pub mod go_analysis;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
@@ -106,6 +107,7 @@ pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
 pub use flatc::{parse_flatc, FlatcReport};
 pub use fsharplint::parse_fsharplint;
+pub use go_analysis::parse_go_analysis;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
@@ -1649,6 +1651,14 @@ mod tests {
         super::djlint::parse_djlint_format(input, code, files)
     }
 
+    fn fuzz_go_analysis(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::go_analysis::parse_go_analysis("govet", input, code, files)
+    }
+
     fn fuzz_errcheck(
         input: &[u8],
         code: Option<i32>,
@@ -2342,6 +2352,7 @@ mod tests {
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
+        ("go_analysis", fuzz_go_analysis),
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
@@ -2435,6 +2446,7 @@ mod tests {
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
+        ("go_analysis", include_str!("go_analysis.rs")),
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),

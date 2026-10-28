@@ -33,7 +33,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Lua | none |
 | MDX | none |
 | OCaml | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
-| Perl | `windows_arm64`: not tested yet |
+| Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build |
 | PHP | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
 | PowerShell | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
 | Python | none |

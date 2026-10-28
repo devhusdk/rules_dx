@@ -62,6 +62,7 @@ real_source_target(
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
         "testdata/entries/README.md",
+        "testdata/pytest_plugins/README.md",
         "testdata/source_only/README.md",
     ],
     tags = ["corpus"],

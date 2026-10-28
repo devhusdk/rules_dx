@@ -1,0 +1,2 @@
+# gazelle:resolve python mapped_plugin //pkg/vendor:mapped
+# gazelle:dx_ignore_import python ignored_plugin

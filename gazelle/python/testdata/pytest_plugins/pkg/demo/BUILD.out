@@ -1,0 +1,51 @@
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+
+# gazelle:resolve python mapped_plugin //pkg/vendor:mapped
+# gazelle:dx_ignore_import python ignored_plugin
+
+python_test(
+    name = "builtin_test",
+    srcs = ["builtin_test.py"],
+    imports = ["."],
+)
+
+python_library(
+    name = "capture",
+    srcs = ["capture.py"],
+    imports = ["."],
+)
+
+python_library(
+    name = "conftest",
+    srcs = ["conftest.py"],
+    imports = ["."],
+    deps = [":database_fixtures"],
+)
+
+python_library(
+    name = "database_fixtures",
+    srcs = ["database_fixtures.py"],
+    imports = ["."],
+)
+
+python_library(
+    name = "http_fixtures",
+    srcs = ["http_fixtures.py"],
+    imports = ["."],
+)
+
+python_test(
+    name = "local_test",
+    srcs = ["local_test.py"],
+    imports = ["."],
+)
+
+python_test(
+    name = "plugin_test",
+    srcs = ["plugin_test.py"],
+    imports = ["."],
+    deps = [
+        ":http_fixtures",
+        "//pkg/vendor:mapped",
+    ],
+)

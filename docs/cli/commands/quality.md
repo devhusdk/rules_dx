@@ -282,7 +282,7 @@ to.
 | `perltidy` | format | perl |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
-| `prettier` | format | ansible, api_spec, astro, css, gherkin, graphql, html, javascript, json, kubernetes, sql, svelte, typescript, vue, xml |
+| `prettier` | format | ansible, api_spec, astro, css, dockerfile, gherkin, graphql, html, javascript, json, kubernetes, php, sql, svelte, typescript, vue, xml |
 | `psscriptanalyzer` | format, lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
@@ -2926,7 +2926,10 @@ html_template_library(
 
 `hadolint` lints Dockerfiles. It runs from a managed pin on Linux x86_64, Linux
 arm64, macOS arm64 and Windows x86_64. The default policy selects it in the
-`dockerfile` family. There is no formatter.
+`dockerfile` family. Format is opt-in with `format = ["prettier"]` on the
+`dockerfile` family; Prettier runs the `dockerfmt` printer through
+`prettier-plugin-sh`, which is loaded for Dockerfiles only. Shell scripts stay
+with `shfmt`.
 
 ```python
 quality_family(
@@ -2986,6 +2989,20 @@ dockerfile_library(
 ```
 
 Inline `# hadolint ignore=DL3008` comments are honoured.
+
+### PHP
+
+Format is opt-in with `format = ["prettier"]` on the `php` family. Prettier
+formats `.php` files through the pinned `@prettier/plugin-php`; it needs no PHP
+runtime. Own the files with `php_library` from `@rules_dx//php/rules:defs.bzl`.
+
+```python
+quality_family(
+    name = "php_family",
+    family_id = "php",
+    format = ["prettier"],
+)
+```
 
 ### Kubernetes
 

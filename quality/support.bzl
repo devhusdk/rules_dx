@@ -525,6 +525,34 @@ KUBERNETES_PRETTIER_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+DOCKERFILE_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["dockerfile"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "dockerfile",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
+PHP_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["php"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "php",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
 SQL_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -903,6 +931,8 @@ SUPPORT_RECORDS = [
     API_SPEC_PRETTIER_FORMAT_SUPPORT,
     ANSIBLE_PRETTIER_FORMAT_SUPPORT,
     KUBERNETES_PRETTIER_FORMAT_SUPPORT,
+    DOCKERFILE_PRETTIER_FORMAT_SUPPORT,
+    PHP_PRETTIER_FORMAT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,

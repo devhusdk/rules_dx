@@ -18,6 +18,9 @@ importers:
       '@graphql-eslint/eslint-plugin':
         specifier: 4.4.2
         version: 4.4.2(@types/node@26.6.5)(eslint@10.10.0(jiti@2.7.0))(graphql@16.14.2)(typescript@5.9.3)
+      '@prettier/plugin-php':
+        specifier: 0.26.0
+        version: 0.26.0(prettier@3.9.6)
       '@prettier/plugin-xml':
         specifier: 3.4.2
         version: 3.4.2(prettier@3.9.6)
@@ -60,6 +63,9 @@ importers:
       prettier-plugin-gherkin:
         specifier: 4.0.0
         version: 4.0.0
+      prettier-plugin-sh:
+        specifier: 0.20.2
+        version: 0.20.2(prettier@3.9.6)
       prettier-plugin-sql:
         specifier: 0.20.0
         version: 0.20.0(prettier@3.9.6)
@@ -982,6 +988,11 @@ packages:
   '@prettier/parse-srcset@3.1.0':
     resolution: {integrity: sha512-FIRv2rZotO9NP/r66taYqD1zICpPiBbrECqjKV/xqNotqDxF7fLzzUeK+1RSRx9Tenk0DajR/GcRmTJ2qtHaKQ==}
 
+  '@prettier/plugin-php@0.26.0':
+    resolution: {integrity: sha512-qaKv27XSAPSnEpieY+H6Ktgzn7bQIjPKYmVWDVY4pJwnm7E1RC0whzMYHidWlfyyZK3qpnY7HPnjmecTnNC/uA==}
+    peerDependencies:
+      prettier: ^3.0.0
+
   '@prettier/plugin-xml@3.4.2':
     resolution: {integrity: sha512-/UyNlHfkuLXG6Ed85KB0WBF283xn2yavR+UtRibBRUcvEJId2DSLdGXwJ/cDa1X++SWDPzq3+GSFniHjkNy7yg==}
     peerDependencies:
@@ -994,6 +1005,31 @@ packages:
 
   '@repeaterjs/repeater@3.1.0':
     resolution: {integrity: sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ==}
+
+  '@reteps/dockerfmt-darwin-arm64@0.5.4':
+    resolution: {integrity: sha512-urMqV+dQyvVI8/WrXwClX9e1PEyS35wFdwJjpZYmL09AkV4Io5U1oam8UBKK7jZk0+YsdF88ay6e86Kn6DIyQg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@reteps/dockerfmt-darwin-x64@0.5.4':
+    resolution: {integrity: sha512-fJORy6DFxbgDiMqxpLTPZlb5KUY0Vq0iR4NGnyKnuYZ9LdZUS508DK2kt/AJ87/jIKNV1qRG0JXG1Tc6xdvWjw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@reteps/dockerfmt-linux-arm64@0.5.4':
+    resolution: {integrity: sha512-6pVakO06eXtDuvxy1Dnjs/gQyUoGGycle8PRSt5IFRwLi/AVaOQwfkfmW0WP8VH9wNUeti6BfJ3ksTn2G+XMxg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@reteps/dockerfmt-linux-x64@0.5.4':
+    resolution: {integrity: sha512-OD6SIlUV1D4TgJoTui3FMBAZsGbTSPYsiT0BKhD6jMUcJb3GpFTa7dY9rL8rP9FUqfL7OTHVUGUOL4Rh64Olog==}
+    cpu: [x64]
+    os: [linux]
+
+  '@reteps/dockerfmt@0.5.4':
+    resolution: {integrity: sha512-HEGgXVVOb+JtGUSSzXl/XPKFIZjMDTUoHarCjaQdkY+cb5M9K/O3b5xm+x0IPIk3SfHurbc0bSgcFsQlzjitxA==}
+    engines: {node: ^v12.20.0 || ^14.13.0 || >=16.0.0}
+    hasBin: true
 
   '@shikijs/engine-oniguruma@3.23.0':
     resolution: {integrity: sha512-1nWINwKXxKKLqPibT5f4pAFLej9oZzQTsby8942OTlsJzOBZ0MWKiwzMsd+jhzu8YPCHAswGnnN1YtQfirL35g==}
@@ -1969,6 +2005,9 @@ packages:
     resolution: {integrity: sha512-wM1+Z03eypVAVUCE7QdSqpVIvelbOakn1M0bPDoA4SGWPx3sNDVUiMo3L6To6WWGClB7VyXnhQ4Sn7gxiJbE6A==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
+  linguist-languages@9.5.0:
+    resolution: {integrity: sha512-Wtg9O6iHNBYFJQVtPNwWCaWkNEqZqiCGI4gSkeH8TqvgZUyb1IUWmFSa9Z9UhT392/aX6Peoa91bH9sDah1ZVw==}
+
   linkify-it@5.0.2:
     resolution: {integrity: sha512-ONTm2jCMAVZjgQa/Fy1kScXsuOoF5NPTsoFBdE1KVIZ2vAh/r9+Bqo+0jINCBYnavTPQZz38QzFTme79ENoN3Q==}
 
@@ -2344,6 +2383,9 @@ packages:
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
+  php-parser@3.7.0:
+    resolution: {integrity: sha512-JRc1t78GZAEa+MuzVC5A5RJS1NDFTS4UnprUEu/NnsN9cyHbGZLUqghO9IQZUSCay62HYQiWd3PxyWAEF45zmA==}
+
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -2408,6 +2450,12 @@ packages:
 
   prettier-plugin-gherkin@4.0.0:
     resolution: {integrity: sha512-EBDwV1Ou9rG+seoh7jcwZ6sXXyHwsbUks5TeSyrlrLaTdz+/qYvnHuwY8rk7mb6/+M1ZGuY4/SiVc68ybwvJOA==}
+
+  prettier-plugin-sh@0.20.2:
+    resolution: {integrity: sha512-4QVyY7Vav0f5i6AVa80SFwUJXaWsAv9t0yUZIivwI0ucxTei6Jwhso/khWqaKDj4QGdwjP2py1nxQrDUeZ0jyQ==}
+    engines: {node: '>=16.0.0'}
+    peerDependencies:
+      prettier: ^3.6.0
 
   prettier-plugin-sql@0.20.0:
     resolution: {integrity: sha512-7GRuduJIbWd10bFfYdFuymZdcVF37ZCukiuVi2a4c5ccqjAxHQtKbK7zSKyqGrFjCOBLQVVz4BStKWV7YvxAFA==}
@@ -2542,6 +2590,10 @@ packages:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
     engines: {node: '>=10'}
     hasBin: true
+
+  sh-syntax@0.7.0:
+    resolution: {integrity: sha512-sgMyAxpHiGgAaNg+gD3ad41vha24CzIjjghD4mdiON1lUafZPLJNYknyjcXmU4geilPstd69zCKkpccY0YvajA==}
+    engines: {node: '>=16.0.0'}
 
   sharp@0.35.5:
     resolution: {integrity: sha512-Ywn4OnzGukp7CDMrp08RQ50YKmuwG47brZgIVPTvBaaAfQlRlygrRqSrxdCiL9M+LlzLBiJ68IR1QqvzHyjC7g==}
@@ -3799,6 +3851,12 @@ snapshots:
 
   '@prettier/parse-srcset@3.1.0': {}
 
+  '@prettier/plugin-php@0.26.0(prettier@3.9.6)':
+    dependencies:
+      linguist-languages: 9.5.0
+      php-parser: 3.7.0
+      prettier: 3.9.6
+
   '@prettier/plugin-xml@3.4.2(prettier@3.9.6)':
     dependencies:
       '@xml-tools/parser': 1.0.12
@@ -3807,6 +3865,25 @@ snapshots:
   '@redocly/cli@2.71.1': {}
 
   '@repeaterjs/repeater@3.1.0': {}
+
+  '@reteps/dockerfmt-darwin-arm64@0.5.4':
+    optional: true
+
+  '@reteps/dockerfmt-darwin-x64@0.5.4':
+    optional: true
+
+  '@reteps/dockerfmt-linux-arm64@0.5.4':
+    optional: true
+
+  '@reteps/dockerfmt-linux-x64@0.5.4':
+    optional: true
+
+  '@reteps/dockerfmt@0.5.4':
+    optionalDependencies:
+      '@reteps/dockerfmt-darwin-arm64': 0.5.4
+      '@reteps/dockerfmt-darwin-x64': 0.5.4
+      '@reteps/dockerfmt-linux-arm64': 0.5.4
+      '@reteps/dockerfmt-linux-x64': 0.5.4
 
   '@shikijs/engine-oniguruma@3.23.0':
     dependencies:
@@ -4787,6 +4864,8 @@ snapshots:
 
   lines-and-columns@2.0.4: {}
 
+  linguist-languages@9.5.0: {}
+
   linkify-it@5.0.2:
     dependencies:
       uc.micro: 2.1.0
@@ -5453,6 +5532,8 @@ snapshots:
 
   pathe@2.0.3: {}
 
+  php-parser@3.7.0: {}
+
   picocolors@1.1.1: {}
 
   picomatch@2.3.2: {}
@@ -5505,6 +5586,12 @@ snapshots:
       '@cucumber/gherkin': 39.1.0
       '@cucumber/messages': 32.3.1
       prettier: 3.9.6
+
+  prettier-plugin-sh@0.20.2(prettier@3.9.6):
+    dependencies:
+      '@reteps/dockerfmt': 0.5.4
+      prettier: 3.9.6
+      sh-syntax: 0.7.0
 
   prettier-plugin-sql@0.20.0(prettier@3.9.6):
     dependencies:
@@ -5633,6 +5720,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.8.5: {}
+
+  sh-syntax@0.7.0: {}
 
   sharp@0.35.5(@types/node@26.6.5):
     dependencies:

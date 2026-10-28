@@ -30,6 +30,16 @@ const HELLO_SVELTE: &str = "<script>\n  let name = \"world\";\n</script>\n\n<div
 
 const HELLO_SVELTE_DIRTY: &str = "<script>\nlet   name = 'world'\n</script>\n<div   class=\"hello\">{name}</div>\n<style>\n.hello { color: black }\n</style>\n";
 
+const GREET_PHP: &str = "<?php\nfunction greet($name)\n{\n        return \"hello \" . $name;\n}\n";
+
+const GREET_PHP_DIRTY: &str = "<?php\nfunction  greet( $name ){\nreturn \"hello \".$name;\n}\n";
+
+const IMAGE_DOCKERFILE: &str =
+    "FROM alpine:3.20\nRUN apk add --no-cache curl && echo done\nCMD [\"sh\"]\n";
+
+const IMAGE_DOCKERFILE_DIRTY: &str =
+    "FROM   alpine:3.20\nRUN  apk add --no-cache curl   && echo done\nCMD [\"sh\"]\n";
+
 const LIMITS_SQL: &str = "select\n  max(limit_value)\nfrom\n  limits;\n";
 
 const BROKEN_SQL: &str = "select 'abc from users;\n";
@@ -43,7 +53,7 @@ const BROKEN_ASTRO: &str = "<div>\n  <span>hi\n</p>\n";
 const BROKEN_SVELTE: &str =
     "<script>\n  let name = \"x\";\n\n  let n = 1;\n</script>\n\n<div>\n  <span>{name}\n</p>\n\n<b>{n}</b>\n";
 
-const CLOSURE_REPOS: [&str; 29] = [
+const CLOSURE_REPOS: [&str; 36] = [
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier__3.9.6",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier-plugin-astro__1.1.2_prettier_3.9.6",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_astrojs_compiler-rs__0.5.2",
@@ -72,6 +82,13 @@ const CLOSURE_REPOS: [&str; 29] = [
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__locate-character__3.0.0",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__magic-string__0.30.21",
     "--repo=@@aspect_rules_js++npm+dx_npm_tools__zimmerframe__1.1.5",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_prettier_plugin-php__0.26.0_prettier_3.9.6",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__php-parser__3.7.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__linguist-languages__9.5.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__prettier-plugin-sh__0.20.2_prettier_3.9.6",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__sh-syntax__0.7.0",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_reteps_dockerfmt__0.5.4",
+    "--repo=@@aspect_rules_js++npm+dx_npm_tools__at_reteps_dockerfmt-linux-x64__0.5.4",
     "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
 ];
 
@@ -133,11 +150,33 @@ quality_family(
     format = ["prettier"],
 )
 
+quality_family(
+    name = "php_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "php",
+    format = ["prettier"],
+)
+
+quality_family(
+    name = "dockerfile_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "dockerfile",
+    format = ["prettier"],
+)
+
 workspace_policy(
     name = "policy",
     families = [
         ":astro_family",
+        ":dockerfile_family",
         ":gherkin_family",
+        ":php_family",
         ":sql_family",
         ":svelte_family",
         ":xml_family",
@@ -198,12 +237,36 @@ svelte_library(
 )
 "#;
 
+const PHP_BUILD: &str = r#"load("@rules_dx//php/rules:defs.bzl", "php_library")
+
+php_library(
+    name = "greet",
+    srcs = ["greet.php"],
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const IMAGES_BUILD: &str = r#"load("@rules_dx//dockerfile/rules:defs.bzl", "dockerfile_library")
+
+dockerfile_library(
+    name = "image",
+    srcs = [
+        "Dockerfile",
+        "Dockerfile.prod",
+        "app.Dockerfile",
+    ],
+    visibility = ["//visibility:public"],
+)
+"#;
+
 const APP_BUILD: &str = r#"genrule(
     name = "bundle",
     srcs = [
         "//config:settings",
         "//db:schema",
         "//features:greet",
+        "//images:image",
+        "//php:greet",
         "//web:greeting",
         "//web:hello",
     ],
@@ -212,7 +275,7 @@ const APP_BUILD: &str = r#"genrule(
 )
 "#;
 
-const FILES: [(&str, &str, &str); 7] = [
+const FILES: [(&str, &str, &str); 11] = [
     ("db/schema.sql", SCHEMA_SQL, SCHEMA_SQL_DIRTY),
     ("db/report.postgresql.sql", REPORT_SQL, REPORT_SQL_DIRTY),
     ("db/limits.sql", LIMITS_SQL, LIMITS_SQL),
@@ -220,6 +283,22 @@ const FILES: [(&str, &str, &str); 7] = [
     ("features/greet.feature", GREET_FEATURE, GREET_FEATURE_DIRTY),
     ("web/Hello.astro", HELLO_ASTRO, HELLO_ASTRO_DIRTY),
     ("web/Greeting.svelte", HELLO_SVELTE, HELLO_SVELTE_DIRTY),
+    ("php/greet.php", GREET_PHP, GREET_PHP_DIRTY),
+    (
+        "images/Dockerfile",
+        IMAGE_DOCKERFILE,
+        IMAGE_DOCKERFILE_DIRTY,
+    ),
+    (
+        "images/Dockerfile.prod",
+        IMAGE_DOCKERFILE,
+        IMAGE_DOCKERFILE_DIRTY,
+    ),
+    (
+        "images/app.Dockerfile",
+        IMAGE_DOCKERFILE,
+        IMAGE_DOCKERFILE_DIRTY,
+    ),
 ];
 
 fn consumer() -> Case {
@@ -240,6 +319,8 @@ fn consumer() -> Case {
     write(&root.join("config/BUILD.bazel"), CONFIG_BUILD);
     write(&root.join("features/BUILD.bazel"), FEATURES_BUILD);
     write(&root.join("web/BUILD.bazel"), WEB_BUILD);
+    write(&root.join("php/BUILD.bazel"), PHP_BUILD);
+    write(&root.join("images/BUILD.bazel"), IMAGES_BUILD);
     write(&root.join("app/BUILD.bazel"), APP_BUILD);
     for (path, clean, _) in FILES {
         write(&root.join(path), clean);

@@ -8,7 +8,10 @@ const PLUGINS = {
   "prettier-plugin-svelte": [".svelte"],
   "@prettier/plugin-xml": [".xml", ".xsd", ".xsl", ".xslt", ".wsdl"],
   "prettier-plugin-gherkin": [".feature"],
+  "@prettier/plugin-php": [".php"],
 };
+// prettier-plugin-sh is loaded for Dockerfiles only; shell stays with shfmt.
+const DOCKERFILE_PLUGIN = "prettier-plugin-sh";
 const RESERVED = ["--config", "--no-config", "--config-precedence", "--plugin", "--ignore-path", "--language"];
 
 const DX_CONFIG = "--dx-config";
@@ -62,8 +65,24 @@ const files = args.filter((arg) => !arg.startsWith("-")).map((arg) => arg.toLowe
 const plugins = Object.entries(PLUGINS)
   .filter(([, extensions]) => files.some((file) => extensions.some((extension) => file.endsWith(extension))))
   .map(([name]) => `--plugin=${fileURLToPath(import.meta.resolve(name))}`);
+// Mirrors is_dockerfile_name in quality/sources.bzl; keep the two in sync.
+function isDockerfileName(file) {
+  const base = path.basename(file);
+  if (base.endsWith(".dockerignore")) {
+    return false;
+  }
+  const stems = ["dockerfile", "containerfile"];
+  const suffixes = [".dockerfile", ".containerfile"];
+  return stems.some((stem) => base === stem || (base.startsWith(`${stem}.`) && base.length > stem.length + 1)) || suffixes.some((suffix) => base.endsWith(suffix) && base.length > suffix.length);
+}
+const dockerfiles = files.length > 0 && files.every(isDockerfileName);
+if (files.some(isDockerfileName)) {
+  plugins.push(`--plugin=${fileURLToPath(import.meta.resolve(DOCKERFILE_PLUGIN))}`);
+}
+// Prettier cannot infer a parser for names like Dockerfile.prod.
+const parser = dockerfiles ? ["--parser=dockerfile"] : [];
 const language = dxDialect !== undefined && plugins.some((plugin) => plugin.includes("prettier-plugin-sql")) ? [`--language=${dxDialect}`] : [];
 const options = `--config=${dxConfig ?? fileURLToPath(new URL("./prettier_options.json", import.meta.url))}`;
 const ignore = `--ignore-path=${fileURLToPath(new URL("./prettier_ignore", import.meta.url))}`;
-process.argv.splice(2, args.length, ...plugins, ...language, options, ignore, ...args);
+process.argv.splice(2, args.length, ...plugins, ...parser, ...language, options, ignore, ...args);
 createRequire(import.meta.url)("prettier/bin/prettier.cjs");

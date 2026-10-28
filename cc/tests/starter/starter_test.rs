@@ -15,15 +15,6 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("cc/tests/starter/starter_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(resolve_runfiles(&rel))
@@ -107,7 +98,7 @@ fn scaffold_safely(scratch: &Path, starter: &Starter) -> PathBuf {
 }
 
 fn point_at_this_checkout(root: &Path) {
-    let rules = rules_dx_root();
+    let rules = dx_testing::rules_dx_source();
     let module = read(&root.join("MODULE.bazel"));
     assert!(module.contains("bazel_dep(name = \"rules_dx\""), "{module}");
     write(

@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use dx_nested as nested;
@@ -6,15 +6,6 @@ use dx_testing::resolve_runfiles;
 
 fn read(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("elixir/tests/starter/starter_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
 }
 
 fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
@@ -63,7 +54,7 @@ fn dx_new_elixir_scaffolds_a_project_that_builds_runs_and_tests() {
         assert!(root.join(file).is_file(), "{file}\n{text}");
     }
 
-    let rules = rules_dx_root();
+    let rules = dx_testing::rules_dx_source();
     let module = read(&root.join("MODULE.bazel"));
     assert!(module.contains("bazel_dep(name = \"rules_dx\""), "{module}");
     std::fs::write(

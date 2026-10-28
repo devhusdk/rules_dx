@@ -62,7 +62,57 @@ sh_binary(
     name = "gofumpt",
     srcs = ["gofumpt.sh"],
 )
+
+sh_binary(
+    name = "gotype",
+    srcs = ["gotype.sh"],
+)
 "#;
+
+const TYPECHECK_BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+quality_family(
+    name = "go_family",
+    disabled = ["lint"],
+    family_id = "go",
+    format = ["gofumpt"],
+    typecheck = ["gotype"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":go_family"],
+)
+"#;
+
+const TYPECHECK_APP_BUILD: &str = r#"load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "greet",
+    srcs = [
+        "greet.go",
+        "helper.go",
+    ],
+    importpath = "example.com/consumer/greet",
+)
+
+go_test(
+    name = "greet_test",
+    srcs = ["greet_test.go"],
+    embed = [":greet"],
+)
+"#;
+
+const GREET_FMT: &str = "package greet\n\nimport \"fmt\"\n\nfunc Greet(name string) string {\n\treturn fmt.Sprintf(\"hello %s\", name)\n}\n";
+
+const HELPER_TYPE_ERROR: &str =
+    "package greet\n\nfunc shout(name string) int {\n\treturn Greet(name)\n}\n";
+
+const GREET_EXTERNAL_TEST: &str = "package greet_test\n\nimport (\n\t\"testing\"\n\n\t\"example.com/consumer/greet\"\n)\n\nfunc TestGreet(t *testing.T) {\n\tif greet.Greet(\"x\") == \"\" {\n\t\tt.Fatal(\"empty\")\n\t}\n}\n";
+
+const GREET_EXTERNAL_TEST_ERROR: &str = "package greet_test\n\nimport (\n\t\"testing\"\n\n\t\"example.com/consumer/greet\"\n)\n\nfunc TestGreet(t *testing.T) {\n\tvar n int = greet.Greet(\"x\")\n\t_ = n\n}\n";
+
+const FAKE_GOTYPE: &str = "#!/bin/sh\necho \"override gotype ran\" >&2\nexit 3\n";
 
 const FAKE_GOFUMPT: &str = "#!/bin/sh\necho \"override gofumpt ran\" >&2\nexit 3\n";
 
@@ -87,6 +137,19 @@ fn consumer() -> Case {
     write(&fake, FAKE_GOFUMPT);
     std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755))
         .unwrap_or_else(|error| panic!("chmod {fake:?}: {error}"));
+    let fake_type = root.join("tools/gotype.sh");
+    write(&fake_type, FAKE_GOTYPE);
+    std::fs::set_permissions(&fake_type, std::fs::Permissions::from_mode(0o755))
+        .unwrap_or_else(|error| panic!("chmod {fake_type:?}: {error}"));
+    root
+}
+
+fn typecheck_consumer() -> Case {
+    let root = consumer();
+    write(&root.join("BUILD.bazel"), TYPECHECK_BUILD);
+    write(&root.join("greet/BUILD.bazel"), TYPECHECK_APP_BUILD);
+    write(&root.join("greet/greet.go"), GREET_FMT);
+    write(&root.join("greet/greet_test.go"), GREET_EXTERNAL_TEST);
     root
 }
 
@@ -185,4 +248,67 @@ fn an_override_is_the_gofumpt_that_runs() {
             plan.stdout
         );
     }
+}
+
+#[test]
+fn typecheck_passes_a_clean_package_with_stdlib_imports_and_an_external_test() {
+    let root = typecheck_consumer();
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn typecheck_reports_a_type_error_and_exits_non_zero() {
+    let root = typecheck_consumer();
+    write(&root.join("greet/helper.go"), HELPER_TYPE_ERROR);
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("greet/helper.go"),
+        "{}",
+        out.combined()
+    );
+}
+
+#[test]
+fn typecheck_reports_a_syntax_error_and_never_passes() {
+    let root = typecheck_consumer();
+    write(&root.join("greet/helper.go"), HELPER_BROKEN);
+    let out = dx(&root, "typecheck", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn typecheck_reports_an_error_in_the_external_test_package() {
+    let root = typecheck_consumer();
+    write(&root.join("greet/greet_test.go"), GREET_EXTERNAL_TEST_ERROR);
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("greet/greet_test.go"),
+        "{}",
+        out.combined()
+    );
+}
+
+#[test]
+fn an_override_is_the_gotype_driver_that_runs() {
+    let root = typecheck_consumer();
+    let flag = "--@rules_dx//config:tool_gotype=//tools:gotype";
+    let out = dx_with(&root, "typecheck", &[], &[flag]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+
+    let plan = root.bazel(&[
+        "aquery",
+        "--aspects=@rules_dx//quality:real_aspects.bzl%real_go_typecheck_aspect",
+        "--output_groups=dx_results",
+        "--@rules_dx//config:workspace=//:policy",
+        flag,
+        "--include_aspects",
+        "--output=text",
+        "mnemonic(\"GoTypeCheck\", //greet:greet)",
+    ]);
+    assert!(plan.status.success(), "{}", plan.combined());
+    assert!(plan.stdout.contains("tools/gotype"), "{}", plan.stdout);
+    assert!(!plan.stdout.contains("dx_gotype"), "{}", plan.stdout);
 }

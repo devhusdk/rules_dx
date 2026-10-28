@@ -108,12 +108,13 @@ func TestMissingExportDataIsFailure(t *testing.T) {
 	}
 }
 
-func TestUnownedFileIsFailure(t *testing.T) {
+func TestUnownedFileDiagnosticsAreDropped(t *testing.T) {
 	dir := t.TempDir()
 	cfg := base(write(t, dir, "a.go", "package p\n\nvar a int = \"x\"\n"))
 	cfg.OwnedFiles = []string{filepath.Join(dir, "other.go")}
-	if res := check(cfg); res.failure == "" {
-		t.Fatalf("expected failure, got %+v", res)
+	res := check(cfg)
+	if res.failure != "" || len(res.diagnostics["typecheck"]) != 0 {
+		t.Fatalf("expected no diagnostics, got %+v", res)
 	}
 }
 
@@ -131,5 +132,23 @@ func TestRunWritesReportAndRejectsBadConfig(t *testing.T) {
 	}
 	if err := run(write(t, dir, "bad.json", "{"), out); err == nil {
 		t.Fatal("expected config error")
+	}
+}
+
+func TestStdlibDirLookup(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "std", "net"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := write(t, filepath.Join(dir, "std", "net"), "http.a", "x")
+	cfg := &config{StdlibDir: filepath.Join(dir, "std"), PackageFile: map[string]string{"a/b": "/b.a"}}
+	if got, ok := packageFile(cfg, "net/http"); !ok || got != want {
+		t.Fatalf("got %q %v", got, ok)
+	}
+	if got, ok := packageFile(cfg, "a/b"); !ok || got != "/b.a" {
+		t.Fatalf("got %q %v", got, ok)
+	}
+	if _, ok := packageFile(cfg, "fmt"); ok {
+		t.Fatal("fmt should be missing")
 	}
 }

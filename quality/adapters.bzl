@@ -58,6 +58,7 @@ REAL_ADAPTERS = {
     "fortitude": {"lint": ["fortran"]},
     "fsharplint": {"lint": ["fsharp"]},
     "gofumpt": {"format": ["go"]},
+    "gotype": {"typecheck": ["go"]},
     "gersemi": {"format": ["cmake"]},
     "gplint": {"lint": ["gherkin"]},
     "graphql_eslint": {"lint": ["graphql"]},

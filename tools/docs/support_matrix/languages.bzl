@@ -286,7 +286,6 @@ GAP_ISSUES = {
     "typecheck:d": 4530,
     "typecheck:fortran": 4530,
     "typecheck:fsharp": 4529,
-    "typecheck:go": 4526,
     "typecheck:haskell": 4530,
     "typecheck:javascript": 4524,
     "typecheck:julia": 4532,

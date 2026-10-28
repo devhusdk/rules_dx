@@ -15,7 +15,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -31,6 +30,7 @@ type config struct {
 	GOARCH      string
 	Tags        []string
 	Cgo         bool
+	StdlibDir   string
 }
 
 type diagnostic struct {
@@ -86,9 +86,23 @@ func (r *resolver) ImportFrom(path, _ string, _ types.ImportMode) (*types.Packag
 	return pkg, err
 }
 
+func packageFile(cfg *config, path string) (string, bool) {
+	if file, ok := cfg.PackageFile[path]; ok {
+		return file, true
+	}
+	if cfg.StdlibDir == "" {
+		return "", false
+	}
+	file := filepath.Join(cfg.StdlibDir, filepath.FromSlash(path)+".a")
+	if _, err := os.Stat(file); err != nil {
+		return "", false
+	}
+	return file, true
+}
+
 func newResolver(fset *token.FileSet, cfg *config) *resolver {
 	lookup := func(path string) (io.ReadCloser, error) {
-		file, ok := cfg.PackageFile[path]
+		file, ok := packageFile(cfg, path)
 		if !ok {
 			return nil, fmt.Errorf("no export data for %q", path)
 		}
@@ -171,7 +185,6 @@ func check(cfg *config) result {
 		owned[path] = true
 	}
 	var typed []diagnostic
-	var foreign []string
 	collect := func(err error) {
 		terr, ok := err.(types.Error)
 		if !ok {
@@ -180,7 +193,6 @@ func check(cfg *config) result {
 		}
 		name := terr.Fset.Position(terr.Pos).Filename
 		if len(owned) > 0 && !owned[name] {
-			foreign = append(foreign, name)
 			return
 		}
 		typed = append(typed, diagnostic{Posn: position(terr.Fset, terr.Pos), Message: terr.Msg})
@@ -205,10 +217,6 @@ func check(cfg *config) result {
 	}
 	if len(res.missing) > 0 {
 		return result{failure: res.missing[0]}
-	}
-	if len(foreign) > 0 {
-		sort.Strings(foreign)
-		return result{failure: "diagnostic in file the target does not own: " + foreign[0]}
 	}
 	if len(typed) == 0 {
 		return result{diagnostics: map[string][]diagnostic{}}

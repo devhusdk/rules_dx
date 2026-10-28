@@ -585,6 +585,7 @@ impl RealBackend {
             "clang_syntax" => self.check_clang_syntax_delegated(tool_id, tool, pairs),
             "javac" => self.check_jvm_log_delegated(tool_id, tool, pairs),
             "nvcc_syntax" => self.check_nvcc_syntax_delegated(tool_id, tool, pairs),
+            "gotype" => self.check_gotype_delegated(tool_id, tool, pairs),
             "tsc" => self.check_tsc_delegated(tool_id, tool, pairs),
             "fsharplint" => {
                 if !tool.upstream_diagnostics.is_empty() {

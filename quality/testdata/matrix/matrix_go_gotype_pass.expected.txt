@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_go_gotype_pass
+capability TYPECHECK
+stages 1
+stage gotype classes=go sources=matrix/gotype_clean.go
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

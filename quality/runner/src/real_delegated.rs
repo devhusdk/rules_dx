@@ -11,6 +11,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "fsharplint",
         "qmllint",
         "govet",
+        "gotype",
         "errcheck",
         "staticcheck",
         "clang_tidy",
@@ -27,7 +28,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         let scratch = tempfile::tempdir().expect("scratch");
         let tool = delegated_tool(scratch.path().join("missing"));
         let backend = backend_for(tool_id, tool, must_not_spawn);
-        let capability = if tool_id == "rustc" {
+        let capability = if tool_id == "rustc" || tool_id == "gotype" {
             "typecheck"
         } else {
             "lint"
@@ -222,6 +223,7 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ("djlint", ""),
         ("errcheck", ""),
         ("fsharplint", ""),
+        ("gotype", "{}"),
         ("govet", ""),
         ("keep_sorted", ""),
         (
@@ -1615,4 +1617,19 @@ fn delegated_javac_fails_closed_without_its_log() {
         .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
         .expect_err("missing log");
     assert!(error.to_string().contains("check log"), "{error}");
+}
+
+#[test]
+fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
+    let report = upstream_file("gotype", r#"{"p":{"typecheck":[{"posn":"a.txt:1:5","message":"undefined: x"}]}}"#);
+    let backend = backend_for("gotype", delegated_tool(report.path().to_path_buf()), must_not_spawn);
+    let found = backend
+        .diagnose("gotype", "typecheck", &single("a.txt", "var x = 1\n"))
+        .expect("findings");
+    assert_eq!(found.len(), 1);
+    let failed = upstream_file("gotype", r#"{"p":{"typecheck":{"error":"no export data"}}}"#);
+    let backend = backend_for("gotype", delegated_tool(failed.path().to_path_buf()), must_not_spawn);
+    assert!(backend
+        .diagnose("gotype", "typecheck", &single("a.txt", "x\n"))
+        .is_err());
 }

@@ -202,7 +202,7 @@ workspace_policy(
 | `astro` | `prettier` | disabled | disabled |
 | `cc` | `clang_format` | disabled | disabled |
 | `dockerfile` | disabled | `hadolint` | disabled |
-| `go` | `gofumpt` | disabled | disabled |
+| `go` | `gofumpt` | disabled | `gotype` |
 | `graphql` | `prettier` | disabled | disabled |
 | `html` | `prettier` | disabled | disabled |
 | `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | `javac` |
@@ -265,6 +265,7 @@ to.
 | `fsharplint` | lint | fsharp |
 | `gersemi` | format | cmake |
 | `gofumpt` | format | go |
+| `gotype` | typecheck | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
 | `gplint` | lint | gherkin |
@@ -348,14 +349,14 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
+- `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`,
   `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
   `luals`, `phpcs`, `phpstan`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`,
+- The `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`,
   `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `luals`, `phpcs`, `phpstan`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
@@ -775,6 +776,22 @@ warning and 3 or 4 info. LuaLS exits 0 with findings, so a missing report is an
 execution error. LuaLS never fixes, so `--apply` changes nothing. Only
 `linux_x86_64` is qualified, though archives for macOS, Linux arm64 and Windows
 are pinned.
+
+### Go typechecking
+
+`gotype` typechecks every `go_library`, `go_binary` and `go_test`. A Bazel action
+runs the `dx_gotype` driver, built on the standard library's `go/types`, once per
+package. It reads the export data that rules_go compiled for the package's
+dependencies and the standard library built for the same configuration, so the
+build tags, GOOS, GOARCH and cgo setting match the real compile. A `go_test`
+checks the internal and the external `_test` package together. Findings are
+`syntax` and `typecheck` errors at their line and column in the target's own
+sources. A package with no report, an import with no export data, or an error
+only in generated code fails the run instead of passing it. `gotype` never
+fixes, so `--apply` changes nothing. Dependencies are compiled to produce the
+export data, so a type error in a dependency fails the build of its dependents
+instead of being reported by them. Use `--@rules_dx//config:tool_gotype=<target>`
+to replace the driver.
 
 ### Java typechecking
 

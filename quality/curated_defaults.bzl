@@ -31,7 +31,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["gofumpt"],
         "lint": [],
-        "typecheck": [],
+        "typecheck": ["gotype"],
     },
     "graphql": {
         "audit": [],

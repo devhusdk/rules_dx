@@ -736,3 +736,54 @@ fn an_explicit_reexport_in_the_same_namespace_is_an_error() {
     let error = run(&value).expect_err("collision");
     assert!(error.contains("rust:demo:S"), "{error}");
 }
+
+#[test]
+fn private_module_globs_follow_the_same_shadowing_rules() {
+    // `mod imp { pub struct S }  pub use imp::*;  pub use other::S;`
+    let explicit = crate_json(
+        vec![
+            module_item(1, "imp", &[2]),
+            struct_item(2, "S", &[], &[]),
+            module_item(3, "other", &[4]),
+            struct_item(4, "S", &[], &[]),
+            use_item(8, "imp", "imp", Some(1), true),
+            use_item(9, "other::S", "S", Some(4), false),
+        ],
+        &[3, 8, 9],
+    );
+    let found = ids(&explicit);
+    assert!(
+        found.contains(&"rust:demo:other.S".to_string()),
+        "{found:?}"
+    );
+    assert!(
+        !found.iter().any(|id| id.starts_with("rust:demo:S@")),
+        "{found:?}"
+    );
+    assert!(!found.contains(&"rust:demo:imp.S".to_string()), "{found:?}");
+    // A root item shadows a private-module glob name.
+    let root = crate_json(
+        vec![
+            module_item(1, "imp", &[2]),
+            struct_item(2, "S", &[], &[]),
+            struct_item(3, "S", &[], &[]),
+            use_item(8, "imp", "imp", Some(1), true),
+        ],
+        &[3, 8],
+    );
+    assert_eq!(ids(&root), vec!["rust:demo:S".to_string()]);
+    // Two private-module globs with one name make it unusable.
+    let both = crate_json(
+        vec![
+            module_item(1, "a", &[2]),
+            struct_item(2, "S", &[], &[]),
+            module_item(3, "b", &[4]),
+            struct_item(4, "S", &[], &[]),
+            use_item(8, "a", "a", Some(1), true),
+            use_item(9, "b", "b", Some(3), true),
+        ],
+        &[8, 9],
+    );
+    let error = run(&both).expect_err("no public API remains");
+    assert!(error.contains("no public API"), "{error}");
+}

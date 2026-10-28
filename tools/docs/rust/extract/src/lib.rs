@@ -237,6 +237,9 @@ struct Entry {
     tag: &'static str,
     /// Always carries its `@tag` suffix (glob re-exports of foreign modules).
     forced: bool,
+    /// Defined at this path only through a glob re-export, so it follows
+    /// glob shadowing rules.
+    glob: bool,
     pos: Pos,
     symbol: Symbol,
     owner: Option<Id>,
@@ -449,6 +452,7 @@ impl<'a> Walker<'a> {
             rank,
             tag,
             forced: false,
+            glob: false,
             pos: self.pos(item),
             symbol,
             owner,
@@ -618,9 +622,16 @@ impl<'a> Walker<'a> {
             return Ok(());
         }
         if matches!(target.inner, ItemEnum::Variant(_)) {
-            return self.member(target, path, None, SymbolKind::EnumVariant);
+            self.member(target, path, None, SymbolKind::EnumVariant)?;
+        } else {
+            self.define(target, path, name)?;
         }
-        self.define(target, path, name)
+        if glob {
+            if let Some(&idx) = self.canonical.get(&target.id) {
+                self.entries[idx].glob = true;
+            }
+        }
+        Ok(())
     }
 
     fn id(&self, qualified: &[String]) -> String {
@@ -688,6 +699,70 @@ impl<'a> Walker<'a> {
             Cand::Entry(i) => (entries[*i].rank, entries[*i].pos.clone(), entries[*i].tag),
             Cand::Alias(i) => (aliases[*i].rank, aliases[*i].pos.clone(), aliases[*i].tag),
         };
+        // A glob name is dropped when another item has the same name in the
+        // same namespace; whatever hangs off a dropped item goes with it.
+        let is_glob = |cand: &Cand| match cand {
+            Cand::Entry(i) => entries[*i].glob,
+            Cand::Alias(i) => aliases[*i].glob,
+        };
+        let mut dropped_entry = vec![false; entries.len()];
+        let mut dropped_alias = vec![false; aliases.len()];
+        loop {
+            let mut changed = false;
+            let is_dropped = |cand: &Cand, de: &[bool], da: &[bool]| match cand {
+                Cand::Entry(i) => de[*i],
+                Cand::Alias(i) => da[*i],
+            };
+            let mut to_drop = Vec::new();
+            for cands in groups.values() {
+                let live: Vec<&Cand> = cands
+                    .iter()
+                    .filter(|c| {
+                        !entries_forced(c, &entries)
+                            && !is_dropped(c, &dropped_entry, &dropped_alias)
+                    })
+                    .collect();
+                for (n, cand) in live.iter().enumerate() {
+                    if is_glob(cand)
+                        && live
+                            .iter()
+                            .enumerate()
+                            .any(|(m, other)| m != n && rank_of(other) == rank_of(cand))
+                    {
+                        to_drop.push(**cand);
+                    }
+                }
+            }
+            for cand in to_drop {
+                match cand {
+                    Cand::Entry(i) => dropped_entry[i] = true,
+                    Cand::Alias(i) => dropped_alias[i] = true,
+                }
+                changed = true;
+            }
+            for (i, entry) in entries.iter().enumerate() {
+                let owner_gone = entry
+                    .owner
+                    .and_then(|o| canonical.get(&o))
+                    .is_some_and(|&o| dropped_entry[o]);
+                if owner_gone && !dropped_entry[i] {
+                    dropped_entry[i] = true;
+                    changed = true;
+                }
+            }
+            for (i, alias) in aliases.iter().enumerate() {
+                let gone = canonical
+                    .get(&alias.target)
+                    .is_some_and(|&t| dropped_entry[t]);
+                if gone && !dropped_alias[i] {
+                    dropped_alias[i] = true;
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
         let mut final_entry = vec![String::new(); entries.len()];
         let mut final_alias: Vec<Option<String>> = vec![None; aliases.len()];
         for (base, cands) in groups {
@@ -695,37 +770,30 @@ impl<'a> Walker<'a> {
             let mut live = Vec::new();
             for cand in &cands {
                 match cand {
+                    Cand::Entry(i) if dropped_entry[*i] => {}
+                    Cand::Alias(i) if dropped_alias[*i] => {}
                     Cand::Entry(i) if entries[*i].forced => forced.push(*cand),
                     _ => live.push(*cand),
                 }
             }
-            // A glob name is dropped when another item has the same name in
-            // the same namespace; an explicit name is an error instead.
+            // An explicit name that collides is an error.
             let mut survivors = Vec::new();
             for cand in &live {
                 if let Cand::Alias(i) = cand {
-                    let rivals: Vec<&Cand> = live
-                        .iter()
-                        .filter(|other| {
+                    if !aliases[*i].glob {
+                        let rival = live.iter().find(|other| {
                             !matches!((cand, other), (Cand::Alias(a), Cand::Alias(b)) if a == b)
                                 && rank_of(other) == rank_of(cand)
-                        })
-                        .collect();
-                    if aliases[*i].glob {
-                        if !rivals.is_empty() {
-                            continue;
+                        });
+                        if let Some(rival) = rival {
+                            let other = match rival {
+                                Cand::Entry(j) => entries[*j].symbol.signature_text.clone(),
+                                Cand::Alias(j) => format!("a re-export of {}", aliases[*j].base),
+                            };
+                            return Err(format!(
+                                "re-export name '{base}' collides with '{other}' in the same namespace"
+                            ));
                         }
-                    } else if let Some(rival) = rivals
-                        .iter()
-                        .find(|r| !matches!(r, Cand::Alias(j) if aliases[*j].glob))
-                    {
-                        let other = match rival {
-                            Cand::Entry(j) => entries[*j].symbol.signature_text.clone(),
-                            Cand::Alias(j) => format!("a re-export of {}", aliases[*j].base),
-                        };
-                        return Err(format!(
-                            "re-export name '{base}' collides with '{other}' in the same namespace"
-                        ));
                     }
                 }
                 survivors.push(*cand);
@@ -763,6 +831,9 @@ impl<'a> Walker<'a> {
         }
         let mut symbols = Vec::with_capacity(entries.len());
         for (index, entry) in entries.into_iter().enumerate() {
+            if dropped_entry[index] {
+                continue;
+            }
             let mut symbol = entry.symbol;
             symbol.id = final_entry[index].clone();
             let member_of: Vec<String> = entry.owner.iter().filter_map(&resolve).collect();
@@ -791,6 +862,10 @@ impl<'a> Walker<'a> {
         symbols.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(symbols)
     }
+}
+
+fn entries_forced(cand: &Cand, entries: &[Entry]) -> bool {
+    matches!(cand, Cand::Entry(i) if entries[*i].forced)
 }
 
 fn is_public(item: &Item) -> bool {

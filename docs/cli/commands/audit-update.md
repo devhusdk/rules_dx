@@ -457,10 +457,15 @@ manifests and repins the whole hub with `dx update --apply <set>`. A configured
 `maven` set edits only the literal coordinate in its own `maven.install` (named
 by the set's `repository`) and runs `@<repository>//:pin`. A configured `nuget`
 set edits `paket.dependencies` only; nothing re-resolves `paket.lock`, so the
-report names the next steps: `paket update`, then `dx update <set>`. Each
+report names the next steps: `paket update`, then `dx update <set>`. A configured
+`go` set edits only the `require` line of its single `go.mod`, then regenerates
+`go.sum` through the same staged `go mod download all` run as `dx update`. If go fails,
+or go would change `go.mod` (for example a widen that needs new indirect requires),
+the widen stays, `go.sum` is untouched, and the report names
+`go mod tidy` followed by `dx update <set>`. Each
 refusal that `dx update` makes for the set (read-only, missing files, `--offline`,
-`--frozen`, host environment) happens before any write. Configured `go`,
-`ruby`, and `powershell` sets fail with `bump is not supported`.
+`--frozen`, host environment) happens before any write. Configured `ruby` and
+`powershell` sets fail with `bump is not supported`.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
 `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
@@ -926,8 +931,8 @@ run starts from an empty module cache, so `--offline` fails with `offline_requir
 both modes; `--apply --frozen` fails with `frozen_locked` because `go.sum` is a lock
 write, while `--check --frozen` runs. The `-C` flag needs a Go SDK of 1.20 or newer; an
 older SDK fails the set. `go` sets take no `set:package`: sums cover the whole module
-graph, so edit the `require` in `go.mod` and run `dx update <set>`. `dx bump` refuses
-configured `go` sets; `dx security` matches the requirements in `go.mod` against
+graph, so edit the `require` in `go.mod` and run `dx update <set>`, or let
+`dx bump <set>:<module> <version>` widen the `require` and refresh `go.sum`; `dx security` matches the requirements in `go.mod` against
 `.dx/advisory/go.json`, failing the set with `failed to assess <name>` when the snapshot
 is missing.
 
@@ -981,7 +986,7 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` refuses configured `ruby`, `go`, and
+PEP 440 `versions` range. `dx bump` refuses configured `ruby` and
 `powershell` sets;
 configured `bazel` sets widen as described under `dx bump`.
 

@@ -46,6 +46,7 @@ mod quality_reports;
 mod results;
 mod run;
 mod rustc_stderr;
+mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
 mod test_filter;

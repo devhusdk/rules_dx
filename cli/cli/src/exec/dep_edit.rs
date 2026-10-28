@@ -97,6 +97,7 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Nuget if foreign => {
             Some(dx_bump::ConfiguredKind::Nuget)
         }
+        dx_adopt::dependency_sets::Ecosystem::Go if foreign => Some(dx_bump::ConfiguredKind::Go),
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -134,6 +135,7 @@ pub(crate) fn configured_set(
                             dx_bump::ConfiguredKind::Cargo => "at least one Cargo.toml",
                             dx_bump::ConfiguredKind::Maven => "exactly one MODULE.bazel",
                             dx_bump::ConfiguredKind::Nuget => "exactly one paket.dependencies",
+                            dx_bump::ConfiguredKind::Go => "exactly one go.mod",
                         },
                         set.name
                     ),
@@ -226,7 +228,9 @@ pub(crate) fn preflight(
     if target.is_configured_bazel()
         || matches!(&target.configured, Some(set) if matches!(
             set.kind,
-            dx_bump::ConfiguredKind::Cargo | dx_bump::ConfiguredKind::Maven
+            dx_bump::ConfiguredKind::Cargo
+                | dx_bump::ConfiguredKind::Maven
+                | dx_bump::ConfiguredKind::Go
         ))
     {
         // A foreign lock layout or a vanished set would only fail after the write.
@@ -248,7 +252,7 @@ pub(crate) fn preflight(
     Ok(())
 }
 
-/// Why a configured cargo or maven set cannot be refreshed, checked before any write.
+/// Why a configured cargo, maven or go set cannot be refreshed, checked before any write.
 ///
 /// These are the same refusals `dx update` makes for the set: missing files, an
 /// unsupported lock layout and host environment that redirects resolution.
@@ -256,7 +260,9 @@ fn hub_gate_refusal(workspace: &std::path::Path, target: &dx_bump::DepTarget) ->
     let configured = target.configured.as_ref()?;
     if !matches!(
         configured.kind,
-        dx_bump::ConfiguredKind::Cargo | dx_bump::ConfiguredKind::Maven
+        dx_bump::ConfiguredKind::Cargo
+            | dx_bump::ConfiguredKind::Maven
+            | dx_bump::ConfiguredKind::Go
     ) {
         return None;
     }
@@ -452,13 +458,19 @@ pub(crate) fn write_and_refresh(
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Noop) => {
             finish(Ok(()), refreshed(verb.noop_note))
         }
-        // Bump refuses nuget sets, the only ecosystem that plans a staged run.
-        RefreshPlan::Backend(dx_update::backend::BackendPlan::Staged(_)) => finish(
-            Err(format!(
-                "failed to refresh {update_selector}: staged refresh is not supported ({kept})"
-            )),
-            String::new(),
-        ),
+        // Only a go set plans a staged run here; nuget bumps never plan a refresh.
+        RefreshPlan::Backend(dx_update::backend::BackendPlan::Staged(run)) => {
+            let result = refresh_staged(
+                &run,
+                runner,
+                workspace,
+                &update_name,
+                &update_selector,
+                request.target_manifest(),
+                kept,
+            );
+            finish(result, refreshed("go.sum regenerated"))
+        }
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Run { argv, env }) => {
             let result = launch_refresh(
                 runner,
@@ -494,6 +506,43 @@ pub(crate) fn write_and_refresh(
                 None => message,
             };
             finish(result, message)
+        }
+    }
+}
+
+/// Refreshes a go set's lock through the staged runner `dx update` uses.
+///
+/// Nothing but the declared lock is written; when go fails or edits go.mod the widen stays
+/// and the message names the manual next step.
+fn refresh_staged(
+    run: &dx_update::backend::StagedRun,
+    runner: &dyn dx_process::Runner,
+    workspace: &std::path::Path,
+    set: &str,
+    subject: &str,
+    manifest: &str,
+    kept: &str,
+) -> Result<(), String> {
+    let mut launch = |argv: &[String], env: &[(String, String)]| {
+        let env_refs: Vec<(&str, &str)> = env
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        Ok(super::staged::ToolRun {
+            launched: runner.run(argv, workspace, &env_refs),
+            wrote: None,
+        })
+    };
+    let dir = manifest.rsplit_once('/').map_or(".", |(dir, _)| dir);
+    let next = format!("run `go mod tidy` in {dir}, then `dx update {set}`");
+    match super::staged::run_staged_core(run, workspace, subject, "refresh", &mut launch) {
+        Ok(differing) => super::staged::write_outputs(workspace, differing)
+            .map_err(|error| format!("failed to refresh {subject}: {error} ({kept}); {next}")),
+        Err(super::staged::StagedError::Failed { message, .. }) => {
+            Err(format!("{message} ({kept}); {next}"))
+        }
+        Err(super::staged::StagedError::Exit(_)) => {
+            Err(format!("failed to refresh {subject} ({kept}); {next}"))
         }
     }
 }
@@ -689,7 +738,10 @@ fn refresh_plan(
             dx_update::backend::UvClosure::default(),
         ),
         // A hub repin re-resolves the whole lock; it only touches changed requirements.
-        dx_bump::ConfiguredKind::Cargo | dx_bump::ConfiguredKind::Maven => (
+        // go sums cover the whole module graph, so a go refresh is always a full one.
+        dx_bump::ConfiguredKind::Cargo
+        | dx_bump::ConfiguredKind::Maven
+        | dx_bump::ConfiguredKind::Go => (
             dx_adopt::dependency_sets::Selection::Full,
             dx_update::backend::UvClosure::default(),
         ),

@@ -29,6 +29,8 @@ pub enum ConfiguredKind {
     Maven,
     /// A nuget set; `paket.dependencies` is edited and `paket.lock` is not re-resolved.
     Nuget,
+    /// A go set; only the `require` line of its go.mod is edited, then go.sum is refreshed.
+    Go,
 }
 
 impl ConfiguredKind {
@@ -38,6 +40,7 @@ impl ConfiguredKind {
             ConfiguredKind::Cargo => BumpSet::Cargo,
             ConfiguredKind::Maven => BumpSet::Maven,
             ConfiguredKind::Nuget => BumpSet::NuGet,
+            ConfiguredKind::Go => BumpSet::Go,
             ConfiguredKind::Npm => BumpSet::Npm,
             ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
         }
@@ -232,7 +235,8 @@ fn configured_refresh_selector(
         | ConfiguredKind::Bazel
         | ConfiguredKind::Cargo
         | ConfiguredKind::Maven
-        | ConfiguredKind::Nuget => set.name.clone(),
+        | ConfiguredKind::Nuget
+        | ConfiguredKind::Go => set.name.clone(),
     })
 }
 
@@ -329,7 +333,8 @@ impl BumpRequest {
             | ConfiguredKind::Uv
             | ConfiguredKind::Cargo
             | ConfiguredKind::Maven
-            | ConfiguredKind::Nuget => parse_foreign_selector(set_name, kind, selector)?,
+            | ConfiguredKind::Nuget
+            | ConfiguredKind::Go => parse_foreign_selector(set_name, kind, selector)?,
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
@@ -479,7 +484,7 @@ impl BumpRequest {
             }
             BumpSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
             BumpSet::Npm => plan_package_json(content, &self.package, &self.version),
-            BumpSet::Go => plan_go_mod(content, &self.package, &self.version),
+            BumpSet::Go => plan_go_mod(manifest, content, &self.package, &self.version),
             BumpSet::Maven => plan_maven_module_bazel(
                 manifest,
                 content,

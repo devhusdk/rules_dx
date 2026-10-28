@@ -50,6 +50,12 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "csharp_library", target: "demo", defs: "csharp/rules:defs.bzl",
 		symbols: []string{"csharp_library"},
 	},
+	"d": {
+		files: map[string]string{"demo.d": "module demo;\n"},
+		inert: []string{"notes.txt"},
+		kind:  "d_library", target: "demo", defs: "d/rules:defs.bzl",
+		symbols: []string{"d_library"},
+	},
 	"dart": {
 		rel: "pkg/demo",
 		files: map[string]string{

@@ -1,0 +1,8 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library")
+
+d_library(
+    name = "core",
+    srcs = ["text.d"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)

@@ -238,6 +238,28 @@ TOOL_BUILDS = {
     "dx_d_libdparse": _LIBDPARSE_BUILD,
 }
 
+# Source roots of each tool repository. The D sources they hold are the corpus
+# gazelle/d parses to catch grammar regressions.
+TOOL_SRC_ROOTS = {
+    "dx_d_containers": ["src"],
+    "dx_d_dcd": ["dsymbol/src"],
+    "dx_d_dfmt": ["src"],
+    "dx_d_dscanner": ["src"],
+    "dx_d_inifiled": ["source"],
+    "dx_d_libddoc": ["common/source", "src"],
+    "dx_d_libdparse": ["src"],
+}
+
+def tool_build(tool):
+    """Returns the BUILD file of one tool repository: its build plus the d_srcs corpus filegroup."""
+    globs = ", ".join(['"{}/**/*.d"'.format(root) for root in TOOL_SRC_ROOTS[tool]])
+    return TOOL_BUILDS[tool] + """
+filegroup(
+    name = "d_srcs",
+    srcs = glob([{}]),
+)
+""".format(globs)
+
 _TOOLCHAIN = """toolchain(
     name = "{cell}",
     exec_compatible_with = {constraints},
@@ -344,7 +366,7 @@ def hub_build():
 def tool_files(tool):
     """Returns the files written into one D quality tool source repository."""
     files = dict(TOOL_SOURCES[tool].files)
-    files["BUILD.bazel"] = TOOL_BUILDS[tool]
+    files["BUILD.bazel"] = tool_build(tool)
     return files
 
 def _d_impl(mctx):

@@ -292,7 +292,9 @@
       "file_extensions": [
         ".d"
       ],
-      "gazelle": [],
+      "gazelle": [
+        "//gazelle/d"
+      ],
       "repo_rules": [],
       "toolchains": [
         "@dx_d_toolchains//:all"

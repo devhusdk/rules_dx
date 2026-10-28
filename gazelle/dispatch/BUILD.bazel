@@ -45,6 +45,7 @@ go_test(
         "//gazelle/astro",
         "//gazelle/cc",
         "//gazelle/csharp",
+        "//gazelle/d",
         "//gazelle/dart",
         "//gazelle/elixir",
         "//gazelle/erlang",

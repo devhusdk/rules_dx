@@ -108,6 +108,16 @@ differs from `custom_package` (or `app_id` when `custom_package` is unset), or
 when its `minSdkVersion` differs from a non-zero `api_level`. Generated
 manifests, labels from other packages and `select` values are skipped.
 
+## D
+
+A directory with `.d` files gets a `d_library` named after the directory. Imports
+resolve by exact module name to the `d_library` that declares the module, and
+`import("file")` arguments that are plain string literals go in `string_srcs`.
+The parser is a small lexer, not a full D grammar. It fails with the line of an
+unterminated literal or comment. A source with a module-scope `main` fails
+generation, and DTrace scripts and Make dependency files with a `.d` extension
+are skipped.
+
 ## Dart and Flutter
 
 A directory with a `pubspec.yaml` gets a `dart_library` named after the

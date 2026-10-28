@@ -4,6 +4,7 @@ import (
 	_ "github.com/devhusdk/rules_dx/gazelle/astro"
 	_ "github.com/devhusdk/rules_dx/gazelle/cc"
 	_ "github.com/devhusdk/rules_dx/gazelle/csharp"
+	_ "github.com/devhusdk/rules_dx/gazelle/d"
 	_ "github.com/devhusdk/rules_dx/gazelle/dart"
 	_ "github.com/devhusdk/rules_dx/gazelle/elixir"
 	_ "github.com/devhusdk/rules_dx/gazelle/erlang"

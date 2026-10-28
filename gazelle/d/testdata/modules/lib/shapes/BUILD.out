@@ -1,0 +1,11 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library")
+
+d_library(
+    name = "shapes",
+    srcs = [
+        "circle.d",
+        "package.d",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)

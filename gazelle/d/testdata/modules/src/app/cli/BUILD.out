@@ -1,0 +1,9 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library")
+
+d_library(
+    name = "cli",
+    srcs = ["cli.d"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = ["//src/app/core"],
+)

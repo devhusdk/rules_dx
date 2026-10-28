@@ -60,6 +60,12 @@ pub struct Facts {
     /// Capability, then family, then the reason the capability never applies.
     #[serde(default)]
     pub not_applicable: BTreeMap<String, BTreeMap<String, String>>,
+    /// Row name, then platform, then the reason the row cannot support that platform.
+    #[serde(default)]
+    pub platform_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
+    /// Tool, then platform, then the reason the tool cannot run on that platform.
+    #[serde(default)]
+    pub tool_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
     pub not_languages: Vec<String>,
     pub gap_issues: BTreeMap<String, u64>,
     pub gap_enforcement: bool,

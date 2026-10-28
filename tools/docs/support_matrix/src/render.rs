@@ -5,20 +5,6 @@ use std::collections::BTreeMap;
 use crate::gaps::tools;
 use crate::{Facts, Row, RowPlatforms, UPDATE_COMMAND};
 
-fn platform_cell(facts: &Facts, on: &[String]) -> String {
-    let cells: Vec<String> = facts
-        .platforms
-        .iter()
-        .filter(|platform| on.contains(&platform.id))
-        .map(|platform| format!("`{}`", platform.id))
-        .collect();
-    if cells.is_empty() {
-        "no".to_owned()
-    } else {
-        cells.join(", ")
-    }
-}
-
 fn table(header: &[&str], rows: &[Vec<String>]) -> String {
     let mut out = format!("| {} |\n", header.join(" | "));
     out.push_str(&format!("|{}\n", " --- |".repeat(header.len())));
@@ -46,14 +32,34 @@ fn build_table(
         .into_iter()
         .map(|row| {
             let tested = platforms.get(&row.name).cloned().unwrap_or_default();
-            vec![
-                row.title.clone(),
-                platform_cell(facts, &tested.build),
-                platform_cell(facts, &tested.consumer),
-            ]
+            let declared = facts.platform_not_applicable.get(&row.name);
+            // Group the unsupported platforms by reason, in platform order.
+            let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+            for platform in &facts.platforms {
+                let reason = match declared.and_then(|d| d.get(&platform.id)) {
+                    Some(reason) => reason.clone(),
+                    None if tested.build.contains(&platform.id) => continue,
+                    None => "not tested yet".to_owned(),
+                };
+                let id = format!("`{}`", platform.id);
+                match groups.iter_mut().find(|(r, _)| *r == reason) {
+                    Some((_, ids)) => ids.push(id),
+                    None => groups.push((reason, vec![id])),
+                }
+            }
+            let cell = if groups.is_empty() {
+                "none".to_owned()
+            } else {
+                groups
+                    .iter()
+                    .map(|(reason, ids)| format!("{}: {reason}", ids.join(", ")))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            };
+            vec![row.title.clone(), cell]
         })
         .collect();
-    table(&[heading, "Builds and tests on", "Consumer test on"], &rows)
+    table(&[heading, "Not supported on"], &rows)
 }
 
 fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
@@ -67,30 +73,28 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
     found
         .iter()
         .map(|tool| {
-            let record: Vec<&String> = facts
-                .support
-                .iter()
-                .filter(|record| {
-                    record.tool == *tool
-                        && record.capability == capability
-                        && row.families.contains(&record.family)
-                })
-                .flat_map(|record| record.platforms.iter())
-                .collect();
-            if record.is_empty() {
-                let unsupported = facts.support.iter().any(|r| {
-                    r.tool == *tool
-                        && r.capability == capability
-                        && row.families.contains(&r.family)
-                });
-                return if unsupported {
-                    format!("`{tool}` unsupported")
-                } else {
-                    format!("`{tool}`")
-                };
+            let unsupported = facts.support.iter().any(|r| {
+                r.tool == *tool
+                    && r.capability == capability
+                    && row.families.contains(&r.family)
+                    && r.platforms.is_empty()
+            });
+            let mut cell = format!("`{tool}`");
+            if unsupported {
+                cell.push_str(" unsupported");
             }
-            let on: Vec<String> = record.into_iter().cloned().collect();
-            format!("`{tool}` on {}", platform_cell(facts, &on))
+            if let Some(declared) = facts.tool_not_applicable.get(tool) {
+                let notes: Vec<String> = facts
+                    .platforms
+                    .iter()
+                    .filter_map(|p| declared.get(&p.id).map(|reason| (p, reason)))
+                    .map(|(p, reason)| format!("`{}`: {reason}", p.id))
+                    .collect();
+                if !notes.is_empty() {
+                    cell.push_str(&format!(" (not on {})", notes.join("; ")));
+                }
+            }
+            cell
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -129,28 +133,27 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     let mut out = String::new();
     out.push_str("# Support matrix\n\n");
     out.push_str(
-        "This page lists, for each language and target, the platforms CI tests it on \
+        "This page lists, for each language and target, the platforms it does not support, \
          and its lint, format, and typecheck tools.\n\n",
     );
-    out.push_str("An empty cell or `no` is a missing test, tracked as an issue.\n\n");
+    out.push_str(
+        "Everything builds and tests on every platform it supports. \
+         `none` means all five platforms are supported. Missing tests on a supported platform are gaps, \
+         tracked as issues and listed by `bazel run //tools/docs/support_matrix:gaps`.\n\n",
+    );
     out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
     out.push_str(&format!("The platforms are {}.\n\n", ids.join(", ")));
     out.push_str(&format!(
         "Do not edit this page. Run `{UPDATE_COMMAND}` to refresh it.\n\n"
     ));
     out.push_str("## Languages\n\n");
-    out.push_str(
-        "\"Builds and tests on\" lists the platforms where CI runs the language's rule tests. \
-         \"Consumer test on\" lists the platforms where CI builds it from a module other than \
-         `rules_dx`.\n\n",
-    );
     out.push_str(&build_table(facts, platforms, "languages", "Language"));
     out.push_str("\n## Targets\n\n");
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
     out.push_str("\n## Quality\n\n");
     out.push_str(
         "Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. \
-         \"on\" lists the platforms a tool's support record covers.\n\n",
+         A tool runs on every platform its row supports unless a note says otherwise.\n\n",
     );
     out.push_str(&quality_table(facts));
     out.push_str(&not_applicable_section(facts));
@@ -197,6 +200,7 @@ mod tests {
       "quality": {"go": {"lint": ["govet"], "format": ["gofumpt"], "typecheck": []},
                   "yaml": {"lint": ["yamllint"], "format": [], "typecheck": []}},
       "support": [{"family": "yaml", "capability": "lint", "tool": "yamllint", "platforms": ["linux_x86_64"]}],
+      "tool_not_applicable": {"yamllint": {"macos_arm64": "no build"}},
       "deferred_families": [],
       "not_applicable": {"typecheck": {"yaml": "data format"}},
       "not_languages": [],
@@ -226,7 +230,7 @@ mod tests {
         let platforms = BTreeMap::from([(
             "go".to_owned(),
             RowPlatforms {
-                build: vec!["macos_arm64".to_owned(), "linux_x86_64".to_owned()],
+                build: vec!["linux_x86_64".to_owned()],
                 consumer: Vec::new(),
             },
         )]);
@@ -234,11 +238,11 @@ mod tests {
         assert_eq!(page, render(&facts, &platforms));
         assert!(page.is_ascii());
         assert!(
-            page.contains("| Go | `linux_x86_64`, `macos_arm64` | no |\n"),
+            page.contains("| Go | `macos_arm64`: not tested yet |\n"),
             "{page}"
         );
         assert!(
-            page.contains("| YAML | `yamllint` on `linux_x86_64` | no | n/a |\n"),
+            page.contains("| YAML | `yamllint` (not on `macos_arm64`: no build) | no | n/a |\n"),
             "{page}"
         );
         assert!(!page.to_lowercase().contains("experimental"));

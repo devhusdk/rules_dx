@@ -1,8 +1,8 @@
 # Support matrix
 
-This page lists, for each language and target, the platforms CI tests it on and its lint, format, and typecheck tools.
+This page lists, for each language and target, the platforms it does not support, and its lint, format, and typecheck tools.
 
-An empty cell or `no` is a missing test, tracked as an issue.
+Everything builds and tests on every platform it supports. `none` means all five platforms are supported. Missing tests on a supported platform are gaps, tracked as issues and listed by `bazel run //tools/docs/support_matrix:gaps`.
 
 `n/a` means the capability does not apply to that language or format.
 
@@ -12,119 +12,117 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 ## Languages
 
-"Builds and tests on" lists the platforms where CI runs the language's rule tests. "Consumer test on" lists the platforms where CI builds it from a module other than `rules_dx`.
-
-| Language | Builds and tests on | Consumer test on |
-| --- | --- | --- |
-| Astro | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| C and C++ | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| CUDA | `linux_x86_64` | `linux_x86_64` |
-| D | `linux_x86_64` | `linux_x86_64` |
-| Dart | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| Elixir | `linux_x86_64` | `linux_x86_64` |
-| Erlang | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64` |
-| Fortran | `linux_x86_64` | `linux_x86_64` |
-| F# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Go | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Haskell | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64` |
-| Java | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` |
-| Kotlin | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| OCaml | `linux_x86_64` | `linux_x86_64` |
-| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` |
-| PHP | `linux_x86_64` | `linux_x86_64` |
-| PowerShell | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` |
-| Python | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| Ruby | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| Rust | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
-| Scala | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
-| Svelte | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| TypeScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Vue | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
-| Zig | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| Language | Not supported on |
+| --- | --- |
+| Astro | none |
+| C and C++ | none |
+| C# | none |
+| CUDA | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| D | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Dart | `windows_arm64`: not tested yet |
+| Elixir | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Erlang | `windows_x86_64`, `windows_arm64`: not tested yet |
+| Fortran | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| F# | none |
+| Go | none |
+| Haskell | `windows_x86_64`, `windows_arm64`: not tested yet |
+| Java | none |
+| JavaScript | none |
+| Julia | `windows_arm64`: not tested yet |
+| Kotlin | none |
+| Lua | none |
+| MDX | none |
+| OCaml | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Perl | `windows_arm64`: not tested yet |
+| PHP | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| PowerShell | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Python | none |
+| Ruby | none |
+| Rust | none |
+| Scala | none |
+| Svelte | none |
+| TypeScript | none |
+| Vue | none |
+| Zig | none |
 
 ## Targets
 
-| Target | Builds and tests on | Consumer test on |
-| --- | --- | --- |
-| Android | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
-| AppImage | `linux_x86_64`, `linux_arm64` | `linux_x86_64` |
-| Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` |
-| CMake | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
-| Dockerfile | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Make | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| MSIX | `linux_x86_64`, `linux_arm64` | `linux_x86_64` |
-| Qt | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` |
-| WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
+| Target | Not supported on |
+| --- | --- |
+| Android | none |
+| AppImage | `macos_arm64`, `windows_x86_64`, `windows_arm64`: AppImage is a Linux format |
+| Apple | `linux_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| CMake | none |
+| Dockerfile | none |
+| Make | none |
+| MSIX | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Qt | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| WASI | none |
 
 ## Quality
 
-Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" lists the platforms a tool's support record covers.
+Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool runs on every platform its row supports unless a note says otherwise.
 
 | Name | Lint | Format | Typecheck |
 | --- | --- | --- | --- |
 | Astro | `eslint` | `prettier` | no |
 | C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` |
-| C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | `csc` on `linux_x86_64` |
+| C# | `roslyn` | `csharpier` | `csc` |
 | CUDA | no | `clang_format` | `nvcc_syntax` |
 | D | `dscanner` | `dfmt` | `ldc` |
 | Dart | `dart` | `dart` | `dart` |
 | Elixir | `credo` | `mix_format` | `dialyzer` |
 | Erlang | `elvis` | `erlfmt` | `dialyzer` |
-| Fortran | `fortitude` on `linux_x86_64` | no | `flang` |
-| F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | `fsc` on `linux_x86_64` |
-| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `gotype` |
-| Haskell | `hlint` on `linux_x86_64` | `ormolu` on `linux_x86_64`, `windows_x86_64`, `windows_arm64` | no |
+| Fortran | `fortitude` | no | `flang` |
+| F# | `fsharplint` | `fantomas` | `fsc` |
+| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` |
+| Haskell | `hlint` | `ormolu` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
 | Julia | no | `julia_format` | no |
 | Kotlin | `ktlint` | `ktfmt` | no |
-| Lua | no | `stylua` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `luals` |
-| MDX | `eslint` | `remark` on `linux_x86_64` | no |
+| Lua | no | `stylua` | `luals` |
+| MDX | `eslint` | `remark` | no |
 | OCaml | no | no | no |
 | Perl | `perlcritic` | `perltidy` | n/a |
-| PHP | `phpcs` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `phpstan` |
-| PowerShell | `psscriptanalyzer` on `linux_x86_64` | `psscriptanalyzer` on `linux_x86_64` | n/a |
+| PHP | `phpcs` | `prettier` | `phpstan` |
+| PowerShell | `psscriptanalyzer` | `psscriptanalyzer` | n/a |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
-| Ruby | `rubocop` on `linux_x86_64` | `standardrb` on `linux_x86_64` | no |
+| Ruby | `rubocop` | `standardrb` | no |
 | Rust | `clippy` | `rustfmt` | `rustc` |
-| Scala | `scalafix` on `linux_x86_64` | `scalafmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Scala | `scalafix` | `scalafmt` | no |
 | Svelte | `eslint` | `prettier` | no |
 | TypeScript | `biome` | `biome`, `prettier` | `tsc` |
 | Vue | `eslint` | `prettier` | no |
 | Zig | `zig_ast_check` | `zig_fmt` | no |
 | Apple | no | `clang_format` | `clang_syntax` |
-| CMake | `cmakelint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `gersemi` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `mbake` on `linux_x86_64` | n/a |
+| CMake | `cmakelint` | `gersemi` | n/a |
+| Dockerfile | `hadolint` | `prettier` | n/a |
+| Make | `checkmake` | `mbake` | n/a |
 | Qt | `qmllint` | `qmlformat` | `qmllint` |
-| Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| AsciiDoc | `vale` on `linux_x86_64` | no | n/a |
-| Cap'n Proto | `capnp` on `linux_x86_64` | n/a | `capnp` on `linux_x86_64` |
-| CloudFormation | `cfn_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
-| CUE | n/a | `cue` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `cue` on `linux_x86_64` |
-| FlatBuffers | `flatc` on `linux_x86_64` | n/a | `flatc` on `linux_x86_64` |
-| Gherkin | `gplint` on `linux_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| Helm | `helm` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
-| HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | n/a |
-| Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
-| Jupyter | `notebook_outputs` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`, `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `ty` |
-| Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| LaTeX | `chktex` unsupported | `latexindent` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | n/a |
-| Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Rego | `regal` on `linux_x86_64` | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
+| Ansible | `ansible_lint` | `prettier` | n/a |
+| API specs | `redocly` | `prettier` | n/a |
+| AsciiDoc | `vale` | no | n/a |
+| Cap'n Proto | `capnp` | n/a | `capnp` |
+| CloudFormation | `cfn_lint` | no | n/a |
+| CUE | n/a | `cue` | `cue` |
+| FlatBuffers | `flatc` | n/a | `flatc` |
+| Gherkin | `gplint` | `prettier` | n/a |
+| Helm | `helm` | no | n/a |
+| HTML templates | `djlint` | `djlint` | n/a |
+| Jsonnet | `jsonnet_lint` | `jsonnetfmt` | n/a |
+| Jupyter | `notebook_outputs`, `ruff` | `ruff` | `ty` |
+| Kubernetes | `kubeconform` | `prettier` | n/a |
+| LaTeX | `chktex` unsupported | `latexindent` | n/a |
+| Nix | `deadnix`, `statix` | `nixfmt` | n/a |
+| Pkl | no | `pkl` | no |
+| Rego | `regal` | `opa` | `opa` |
 | reStructuredText | `vale` | no | n/a |
-| SQL | `sqlfluff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
-| Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
-| Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
-| XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| YAML | `yamllint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `yamlfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
+| SQL | `sqlfluff` | `prettier` | n/a |
+| Terraform | `tflint` | `terraform` | no |
+| Typst | no | `typstyle` | n/a |
+| XML | no | `prettier` | n/a |
+| YAML | `yamllint` | `yamlfmt` | n/a |
 
 ### Not applicable
 

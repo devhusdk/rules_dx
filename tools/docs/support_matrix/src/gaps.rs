@@ -38,6 +38,13 @@ pub fn gaps(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Vec<St
         if row.section != "formats" {
             let tested = platforms.get(&row.name).cloned().unwrap_or_default();
             for platform in &facts.platforms {
+                let na = facts
+                    .platform_not_applicable
+                    .get(&row.name)
+                    .is_some_and(|declared| declared.contains_key(&platform.id));
+                if na {
+                    continue;
+                }
                 if !tested.build.contains(&platform.id) {
                     out.push(format!("build:{}:{}", row.name, platform.id));
                 }

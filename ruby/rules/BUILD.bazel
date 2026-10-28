@@ -1,12 +1,16 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load(":toolchain_tests.bzl", "ruby_toolchain_contract_tests")
 load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "toolchain_tests.bzl",
     "wrapper_tests.bzl",
 ])
+
+ruby_toolchain_contract_tests(name = "toolchain_contract_tests")
 
 ruby_wrapper_contract_tests(name = "wrapper_contract_tests")
 
@@ -16,6 +20,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "toolchain_tests.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

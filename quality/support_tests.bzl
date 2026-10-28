@@ -1,12 +1,17 @@
 """Unit tests for explicit tool support records."""
 
+load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
+load("//elixir/toolchain:pins.bzl", "ELIXIR_CELLS")
+load("//erlang/toolchain:pins.bzl", ERLANG_CELLS = "CELLS")
+load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_platform_case_names")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
+load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -213,6 +218,48 @@ def _evidence_checks():
             "support: unknown platform 'linux_amd64' for tool 'keep_sorted'",
         ),
     ]
+
+def _canonical(cells):
+    """Maps toolchain cell names to support platform names (amd64 is x86_64)."""
+    return [cell.replace("amd64", "x86_64") for cell in cells]
+
+# Platforms of the language toolchain that supplies each tool. A record may only claim a platform
+# inside its toolchain's cells; widening a cell and flagging a matrix case widens the claim.
+def _toolchain_platforms():
+    return {
+        "credo": _canonical(ELIXIR_CELLS),
+        "dart": sorted(RULES_DART_PLATFORMS.keys()),
+        "elvis": _canonical(ERLANG_CELLS.keys()),
+        "erlfmt": _canonical(ERLANG_CELLS.keys()),
+        "julia_format": sorted(JULIA_PLATFORMS.keys()),
+        "mix_format": _canonical(ELIXIR_CELLS),
+        "qmlformat": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
+        "qmllint": [name for name, cell in QT_CELLS.items() if not getattr(cell, "blocker", "")],
+    }
+
+# Records that must name every platform as either supported or unsupported with a reason comment.
+_COMPLETE_TOOLS = ["credo", "dart", "elvis", "erlfmt", "hlint", "julia_format", "mix_format", "ormolu", "qmlformat", "qmllint", "zig_fmt"]
+
+def _toolchain_checks():
+    """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
+    checks = []
+    cells = _toolchain_platforms()
+    for record in SUPPORT_RECORDS:
+        tool = record["tool"]
+        label = tool + " " + record["capability"]
+        if tool in cells:
+            checks.append(expect_equal(
+                label + " claims stay inside its toolchain platforms",
+                [p for p in record["platforms"] if p not in cells[tool]],
+                [],
+            ))
+        if tool in _COMPLETE_TOOLS:
+            checks.append(expect_equal(
+                label + " platforms plus unsupported cover every platform",
+                sorted(record["platforms"] + record.get("unsupported", [])),
+                sorted(SUPPORT_PLATFORMS),
+            ))
+    return checks
 
 def _record_checks(wired, artifact_platforms):
     """Builds the per-record checks over every support record."""
@@ -452,5 +499,5 @@ def support_unit_tests(name):
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "parcel"}),
                 "support: tool 'keep_sorted' needs transport 'batched' or 'single', got 'parcel'",
             ),
-        ] + _evidence_checks() + _record_checks(real_wired_capabilities(), _artifact_platforms()),
+        ] + _evidence_checks() + _toolchain_checks() + _record_checks(real_wired_capabilities(), _artifact_platforms()),
     )

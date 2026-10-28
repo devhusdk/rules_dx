@@ -102,7 +102,7 @@ ROWS = [
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "starters": ["kotlin"], "title": "Kotlin"},
     {"ci_tests": ["//lua/tests/runtime:probe_test"], "name": "lua", "section": "languages", "title": "Lua"},
     {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},
-    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "name": "ocaml", "section": "languages", "title": "OCaml"},
+    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
     {"ci_tests": ["//perl/tests/runtime:probe_test"], "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "name": "php", "section": "languages", "title": "PHP"},
     {"ci_tests": _hello("powershell"), "name": "powershell", "section": "languages", "starters": ["powershell"], "title": "PowerShell"},
@@ -173,6 +173,12 @@ ROWS = [
     },
     {"ci_tests": ["//wasi/testing:wasi_run_unit_test"], "families": [], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
+    {"name": "ansible", "section": "formats", "title": "Ansible"},
+    {"name": "flatbuffers", "section": "formats", "title": "FlatBuffers"},
+    {"name": "jupyter", "section": "formats", "title": "Jupyter"},
+    {"name": "kubernetes", "section": "formats", "title": "Kubernetes"},
+    {"name": "nix", "section": "formats", "title": "Nix"},
+    {"name": "rego", "section": "formats", "title": "Rego"},
     {"name": "cue", "section": "formats", "title": "CUE"},
     {"name": "gherkin", "section": "formats", "title": "Gherkin"},
     {"name": "html_template", "section": "formats", "title": "HTML templates"},
@@ -203,9 +209,17 @@ NOT_LANGUAGES = [
     "tools",
 ]
 
-GAP_ISSUES = {}
+GAP_ISSUES = {
+    "build:*": 4435,
+    "consumer:*": 4436,
+    "format:*": 4439,
+    "lint:*": 4438,
+    "starter:*": 4437,
+    "support:*": 4441,
+    "typecheck:*": 4440,
+}
 
-GAP_ENFORCEMENT = False
+GAP_ENFORCEMENT = True
 
 def _build_file(label):
     return label.split(":")[0] + ":BUILD.bazel"

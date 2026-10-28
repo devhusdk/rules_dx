@@ -10,6 +10,7 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/real.rs",
+        "src/real/cfn_lint.rs",
         "src/real/check.rs",
         "src/real/delegated.rs",
         "src/real/helm.rs",
@@ -126,6 +127,7 @@ rust_test(
         "src/lib_pipeline.rs",
         "src/lib_synthetic.rs",
         "src/real.rs",
+        "src/real/cfn_lint.rs",
         "src/real/check.rs",
         "src/real/delegated.rs",
         "src/real/helm.rs",

@@ -104,6 +104,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Qt | `qmllint` | `qmlformat` | no |
 | Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
+| CloudFormation | `cfn_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | CUE | no | `cue` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `cue` on `linux_x86_64` |
 | FlatBuffers | `flatc` on `linux_x86_64` | n/a | `flatc` on `linux_x86_64` |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
@@ -133,6 +134,7 @@ Not applicable for `typecheck`:
 
 - `ansible`: dynamically typed YAML playbooks; no type system beyond ansible-lint
 - `api_spec`: declarative API description; no type system beyond schema validation
+- `cloudformation`: declarative templates; cfn-lint schema validation is lint, not type checking
 - `cmake`: no static type system; build language with untyped strings
 - `dockerfile`: no static type system; hadolint covers lint
 - `gherkin`: natural-language scenarios; no type system

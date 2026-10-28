@@ -3207,6 +3207,199 @@ fn kubeconform_exit_zero_with_failures_fails_the_action() {
         .expect_err("exit 0 with failures is never clean");
 }
 
+const CFN_TEMPLATE: &str = "AWSTemplateFormatVersion: \"2010-09-09\"\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket\n    Properties:\n      Bogus: x\n";
+const CFN_CLEAN: &str =
+    "AWSTemplateFormatVersion: \"2010-09-09\"\nResources:\n  Bucket:\n    Type: AWS::S3::Bucket\n";
+
+static CFN_LINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn cfn_lint_tool(config: &str) -> RealTool {
+    RealTool {
+        config_rel: Some("cfn/cfn_lint.yaml".to_owned()),
+        tool_files: vec![("cfn/cfn_lint.yaml".to_owned(), config.as_bytes().to_vec())],
+        ..plain_tool()
+    }
+}
+
+fn cfn_lint_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for denied in ["AWS_REGION", "AWS_DEFAULT_REGION", "HOME"] {
+        assert!(env.iter().all(|(key, _)| key != denied), "{denied} leaked");
+    }
+    CFN_LINT_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        args[..5],
+        [
+            "--format",
+            "json",
+            "--non-zero-exit-code",
+            "informational",
+            "--config-file"
+        ]
+    );
+    assert!(Path::new(&args[5]).is_file(), "config file exists");
+    assert_eq!(args[6], "--");
+    let mut entries = Vec::new();
+    for name in &args[7..] {
+        if std::fs::read_to_string(name)?.contains("Bogus") {
+            entries.push(format!(
+                r#"{{"Filename":"{name}","Level":"Error","Location":{{"End":{{"ColumnNumber":12,"LineNumber":6}},"Path":null,"Start":{{"ColumnNumber":7,"LineNumber":6}}}},"Message":"Additional properties are not allowed ('Bogus' was unexpected)","Rule":{{"Id":"E3002"}}}}"#
+            ));
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(if entries.is_empty() { 0 } else { 2 }),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn cfn_lint_exit_one(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"Invalid configuration key 'x'\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn cfn_lint_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: None,
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn cfn_lint_malformed(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"not json".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn cfn_lint_missing_binary(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
+}
+
+#[test]
+fn cfn_lint_lints_every_template_in_one_run() {
+    let backend = backend_for(
+        "cfn_lint",
+        cfn_lint_tool("regions:\n  - eu-west-1\n"),
+        cfn_lint_fake,
+    );
+    let mut files = single("infra/a.yaml", CFN_TEMPLATE);
+    files.insert("infra/b.yaml".to_owned(), CFN_CLEAN.to_owned());
+    let before = CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let findings = backend
+        .diagnose("cfn_lint", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(
+        CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst) - before,
+        1
+    );
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "infra/a.yaml");
+    assert_eq!(findings[0].rule_id, "E3002");
+    assert_eq!(findings[0].tool_id, "cfn_lint");
+    assert_eq!(
+        backend
+            .apply_fix("cfn_lint", "infra/a.yaml", CFN_TEMPLATE, "lint")
+            .expect("check-only"),
+        CFN_TEMPLATE
+    );
+}
+
+#[test]
+fn cfn_lint_always_passes_a_config_file() {
+    let backend = backend_for("cfn_lint", plain_tool(), cfn_lint_fake);
+    let findings = backend
+        .diagnose("cfn_lint", "lint", &single("infra/a.yaml", CFN_CLEAN))
+        .expect("an empty dx config is written when none is bound");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn cfn_lint_plain_yaml_never_reaches_the_tool() {
+    let backend = backend_for("cfn_lint", plain_tool(), cfn_lint_fake);
+    let before = CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst);
+    let findings = backend
+        .diagnose("cfn_lint", "lint", &single("infra/data.yaml", "a: 1\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "dx/cloudformation-root");
+    assert_eq!(
+        CFN_LINT_SPAWNS.load(std::sync::atomic::Ordering::SeqCst),
+        before
+    );
+}
+
+#[test]
+fn cfn_lint_rejects_a_config_key_outside_the_allowlist() {
+    let backend = backend_for(
+        "cfn_lint",
+        cfn_lint_tool("custom_rules: evil.txt\n"),
+        cfn_lint_fake,
+    );
+    let err = backend
+        .diagnose("cfn_lint", "lint", &single("infra/a.yaml", CFN_CLEAN))
+        .expect_err("disallowed key");
+    assert!(err.to_string().contains("not allowed"), "{err}");
+}
+
+#[test]
+fn cfn_lint_failures_are_never_clean() {
+    let one = single("infra/a.yaml", CFN_CLEAN);
+    for spawn in [
+        cfn_lint_exit_one as Spawn,
+        cfn_lint_crash,
+        cfn_lint_malformed,
+        cfn_lint_missing_binary,
+    ] {
+        backend_for("cfn_lint", plain_tool(), spawn)
+            .diagnose("cfn_lint", "lint", &one)
+            .expect_err("a failed run is an error");
+    }
+}
+
+#[test]
+fn cfn_lint_has_no_delegated_mode() {
+    let tool = RealTool {
+        upstream_diagnostics: vec![PathBuf::from("/fake/up.json")],
+        ..plain_tool()
+    };
+    let err = backend_for("cfn_lint", tool, cfn_lint_fake)
+        .diagnose("cfn_lint", "lint", &single("infra/a.yaml", CFN_CLEAN))
+        .expect_err("delegated");
+    assert!(err.to_string().contains("no delegated mode"), "{err}");
+}
+
 const NOTEBOOK_DIRTY: &str = "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\"# Title\"]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": 7,\n      \"metadata\": {\"tags\": [\"keep\"]},\n      \"outputs\": [{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}],\n      \"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\"x   =   1\"]\n    }\n  ],\n  \"metadata\": {\"language_info\": {\"name\": \"python\"}},\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}\n";
 
 fn notebook_backend() -> RealBackend {

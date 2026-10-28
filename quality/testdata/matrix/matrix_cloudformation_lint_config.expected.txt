@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_cloudformation_lint_config
+capability LINT
+stages 1
+stage cfn_lint classes=cloudformation sources=matrix/cfn_config/a.yaml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

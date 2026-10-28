@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cloudformation_lint_syntax_error
+capability LINT
+stages 1
+stage cfn_lint classes=cloudformation sources=matrix/cfn_broken/a.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR cfn_lint dx/cloudformation-syntax matrix/cfn_broken/a.yaml 18 18 fixable=false "not valid YAML or JSON: while parsing a node, did not find expected node content"
+terminal 1
+terminal ERROR cfn_lint dx/cloudformation-syntax matrix/cfn_broken/a.yaml 18 18 fixable=false "not valid YAML or JSON: while parsing a node, did not find expected node content"
+replacements 0

@@ -15,6 +15,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "biome",
     "buf",
     "buildifier",
+    "cfn_lint",
     "checkmake",
     "checkstyle",
     "clang_format",
@@ -686,6 +687,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
     argv
 }
 
+mod cfn_lint;
 mod check;
 mod delegated;
 mod helm;

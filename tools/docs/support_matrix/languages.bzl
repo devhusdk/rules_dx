@@ -211,6 +211,7 @@ ROWS = [
     {"ci_tests": ["//wasi/testing:wasi_run_unit_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
+    {"name": "cloudformation", "section": "formats", "title": "CloudFormation"},
     {"name": "flatbuffers", "section": "formats", "title": "FlatBuffers"},
     {"name": "jupyter", "section": "formats", "title": "Jupyter"},
     {"name": "helm", "section": "formats", "title": "Helm"},

@@ -1766,6 +1766,29 @@ pub fn ansible_lint_fix(
     }
 }
 
+/// `--format json --non-zero-exit-code informational --config-file <config> --` before the files; the config is mandatory so no ambient `.cfnlintrc` is read.
+pub fn cfn_lint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(
+        [
+            "--format",
+            "json",
+            "--non-zero-exit-code",
+            "informational",
+            "--config-file",
+        ]
+        .iter()
+        .map(OsString::from),
+    );
+    argv.push(config.as_os_str().to_owned());
+    argv.push(OsString::from("--"));
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 /// `check-jsonschema` for one (schema, filetype) group, offline.
 ///
 /// `--dx-ref-map` is read by dx's wrapper, which serves pinned `$ref` targets from disk and

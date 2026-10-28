@@ -1578,6 +1578,7 @@ impl RealBackend {
                     parsers::parse_ansible_lint(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "cfn_lint" => self.check_cfn_lint(tool_id, tool, staged, config.as_deref()),
             "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "helm" => self.check_helm(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {

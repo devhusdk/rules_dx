@@ -533,6 +533,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_ansible",
         },
         {
+            "case": "cloudformation_linted",
+            "expected_dx_results": [
+                "clean_cloudformation-real-lint-cloudformation.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:cloudformation_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_cloudformation",
+        },
+        {
             "case": "api_spec_linted",
             "expected_dx_results": [
                 "clean_api_spec-real-lint-js.pb",
@@ -610,6 +618,7 @@ test_suite(
         ":consumer_policy_api_spec_linted_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
+        ":consumer_policy_cloudformation_linted_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",

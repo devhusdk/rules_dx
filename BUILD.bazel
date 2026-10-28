@@ -50,7 +50,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json
-# gazelle:resolve python pytest @pypi//pytest
+# gazelle:dx_external python tools/ci/tooling/uv.lock
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:dx_corpus true

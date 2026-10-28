@@ -2,7 +2,6 @@ package python
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"

@@ -66,6 +66,7 @@ func newLang() *common.SingleLang {
 		IsImportSource: func(name string) bool { return strings.HasSuffix(name, ".py") },
 		IsStdLib:       IsStdLib,
 		UnresolvedHint: "add a local one-source library or an exact # gazelle:resolve mapping",
+		External:       "python",
 		Generate:       generateRules,
 	})
 }

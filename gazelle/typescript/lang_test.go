@@ -2,7 +2,6 @@ package typescript
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"

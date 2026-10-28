@@ -2,7 +2,6 @@ package javascript
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"

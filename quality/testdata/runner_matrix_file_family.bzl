@@ -323,6 +323,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["latexindent"],
         "tool_binaries": ["@dx_tools//:latexindent"],
         "expected_file": ":matrix/matrix_latex_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_latex_format_fail",
@@ -432,6 +435,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["gersemi"],
         "tool_binaries": ["@dx_tools//:gersemi"],
         "expected_file": ":matrix/matrix_cmake_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_cmake_format_fail",
@@ -2133,6 +2139,9 @@ FILE_FAMILY_CASES = [
         "tool_names": ["shellcheck"],
         "tool_binaries": ["@dx_tools//:shellcheck"],
         "expected_file": ":matrix/matrix_shell_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_shell_lint_fail",

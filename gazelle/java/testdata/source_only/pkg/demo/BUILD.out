@@ -1,4 +1,4 @@
-load("@rules_dx//java/rules:defs.bzl", "java_library")
+load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -12,4 +12,11 @@ java_library(
         "Demo.java",
         "Helper.java",
     ],
+)
+
+java_test(
+    name = "demo_test",
+    srcs = ["DemoTest.java"],
+    test_class = "demo.DemoTest",
+    deps = [":demo"],
 )

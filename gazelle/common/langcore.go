@@ -34,6 +34,16 @@ func LibraryKindInfo() rule.KindInfo {
 	}
 }
 
+// TestKindInfo is LibraryKindInfo for generated per-source test rules; each
+// extra attribute name is also refreshed on merge.
+func TestKindInfo(extraMergeable ...string) rule.KindInfo {
+	info := LibraryKindInfo()
+	for _, attr := range extraMergeable {
+		info.MergeableAttrs[attr] = true
+	}
+	return info
+}
+
 // fileBuildPath returns the workspace-relative path of the BUILD file f, keeping its base name.
 func fileBuildPath(f *rule.File) string {
 	name := "BUILD.bazel"
@@ -317,13 +327,19 @@ type SingleDirSpec struct {
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
 	Extend       func(r *rule.Rule, files []string, contents map[string][]byte) error
 	Wrap         func(imports []string) any
+	// Tests, when set, also generates one test rule per test source. Nil
+	// keeps library-only generation.
+	Tests *TestSpec
 }
 
 func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInfo, spec SingleDirSpec, rep Reporter) language.GenerateResult {
 	var sources []string
 	var headers []string
+	var tests []string
 	for _, name := range args.RegularFiles {
 		switch {
+		case spec.Tests != nil && spec.Tests.IsSource(name):
+			tests = append(tests, name)
 		case spec.IsSource(name):
 			sources = append(sources, name)
 		case spec.IsHeader != nil && spec.IsHeader(name):
@@ -332,9 +348,126 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	}
 	sort.Strings(sources)
 	sort.Strings(headers)
-	if len(sources) == 0 && len(headers) == 0 {
-		return MergeStale(args.File, language.GenerateResult{}, kinds)
+	sort.Strings(tests)
+	testOwns := ownsGeneratedTest(spec.Tests)
+	if len(sources) == 0 && len(headers) == 0 && len(tests) == 0 {
+		return MergeStaleOwned(args.File, language.GenerateResult{}, kinds, testOwns)
 	}
+	hasLib := len(sources) > 0 || len(headers) > 0
+	var lib dirLibrary
+	if hasLib {
+		var ok bool
+		lib, ok = generateDirLibrary(args, spec, sources, headers, rep)
+		if !ok {
+			return language.GenerateResult{}
+		}
+	}
+	type testPlan struct {
+		name    string
+		src     string
+		rule    *rule.Rule
+		imports []string
+	}
+	var plans []testPlan
+	if spec.Tests != nil {
+		owned := testOwners(args.File, args.OtherGen, spec.Tests, tests)
+		for _, src := range tests {
+			if owned[src] {
+				continue
+			}
+			testName, err := spec.Tests.Name(src)
+			if err != nil {
+				rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+				continue
+			}
+			content, err := ReadSource(filepath.Join(args.Dir, src))
+			if err != nil {
+				rep.Fail(InPackage(args.Rel), "%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
+				continue
+			}
+			r, err := spec.Tests.makeRule(testName, src, content)
+			if err != nil {
+				rep.Fail(InPackage(args.Rel), "%s: %s: %s: %v", spec.LanguageName, args.Rel, src, err)
+				continue
+			}
+			p := testPlan{name: testName, src: src, rule: r}
+			seen := make(map[string]bool)
+			for _, root := range spec.ParseImports(content) {
+				if seen[root] || skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) ||
+					(spec.Tests.IsImplicit != nil && spec.Tests.IsImplicit(root)) {
+					continue
+				}
+				seen[root] = true
+				p.imports = append(p.imports, root)
+			}
+			sort.Strings(p.imports)
+			plans = append(plans, p)
+		}
+		if rep.Failed() {
+			return language.GenerateResult{}
+		}
+	}
+	var claimants []Claimant
+	if hasLib {
+		claimants = append(claimants, Claimant{Name: lib.name, Source: args.Rel, Kind: lib.kind})
+	}
+	for _, p := range plans {
+		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: spec.Tests.Kind})
+	}
+	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+		return language.GenerateResult{}
+	}
+	result := language.GenerateResult{}
+	if hasLib {
+		if IsFixturePath(args.Rel) {
+			lib.rule.SetAttr("testonly", true)
+		}
+		result.Gen = append(result.Gen, lib.rule)
+		result.Imports = append(result.Imports, spec.Wrap(lib.imports))
+	}
+	for _, p := range plans {
+		if hasLib {
+			p.rule.SetAttr("deps", []string{":" + lib.name})
+		}
+		result.Gen = append(result.Gen, p.rule)
+		result.Imports = append(result.Imports, spec.Wrap(p.imports))
+	}
+	var owns func(*rule.Rule) bool
+	if spec.OwnsByName {
+		owns = func(r *rule.Rule) bool {
+			if hasLib && r.Name() == lib.name {
+				return true
+			}
+			for _, attr := range []string{"srcs", "hdrs"} {
+				for _, src := range r.AttrStrings(attr) {
+					if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
+						return false
+					}
+				}
+			}
+			return true
+		}
+	}
+	if testOwns != nil {
+		byName := owns
+		owns = func(r *rule.Rule) bool {
+			return testOwns(r) && (byName == nil || byName(r))
+		}
+	}
+	return MergeStaleOwned(args.File, result, kinds, owns)
+}
+
+// dirLibrary is the directory library rule generateDirLibrary builds.
+type dirLibrary struct {
+	name    string
+	kind    string
+	rule    *rule.Rule
+	imports []string
+}
+
+// generateDirLibrary builds the directory library rule and its imports.
+func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources, headers []string, rep Reporter) (dirLibrary, bool) {
 	var hints []string
 	if args.Rel == "" && spec.RootHint != nil {
 		hints = append(hints, spec.RootHint(args))
@@ -345,7 +478,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	}
 	if err != nil {
 		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
-		return language.GenerateResult{}
+		return dirLibrary{}, false
 	}
 	isMain := spec.IsMainFile
 	if isMain == nil {
@@ -383,7 +516,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		}
 	}
 	if rep.Failed() {
-		return language.GenerateResult{}
+		return dirLibrary{}, false
 	}
 	if len(packages) > 1 {
 		names := make([]string, 0, len(packages))
@@ -392,7 +525,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		}
 		sort.Strings(names)
 		rep.Fail(InPackage(args.Rel), "%s: %s: mixed packages %s in one directory; split the directory before adopting generation", spec.LanguageName, args.Rel, strings.Join(names, ", "))
-		return language.GenerateResult{}
+		return dirLibrary{}, false
 	}
 	libraryKind := spec.LibraryKind
 	variant := spec.Variant
@@ -413,7 +546,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		}
 		if pkg == "" {
 			rep.Fail(InPackage(args.Rel), "%s: %s: %s", spec.LanguageName, args.Rel, variant.NeedsPackage)
-			return language.GenerateResult{}
+			return dirLibrary{}, false
 		}
 	}
 	var imports []string
@@ -432,14 +565,9 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		ordered, err = spec.OrderSrcs(name, sources, contents)
 		if err != nil {
 			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
-			return language.GenerateResult{}
+			return dirLibrary{}, false
 		}
 	}
-	if err := CheckClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: libraryKind}}, nil); err != nil {
-		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
-		return language.GenerateResult{}
-	}
-	result := language.GenerateResult{}
 	makeRule := spec.MakeRule
 	if makeRule == nil {
 		makeRule = func(ruleName string, srcs []string, _ []string) *rule.Rule {
@@ -453,7 +581,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	if spec.Extend != nil {
 		if err := spec.Extend(lib, args.RegularFiles, contents); err != nil {
 			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
-			return language.GenerateResult{}
+			return dirLibrary{}, false
 		}
 	}
 	if chosen {
@@ -461,30 +589,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			lib.SetAttr(a.Name, a.Value)
 		}
 	}
-	result.Gen = append(result.Gen, lib)
-	result.Imports = append(result.Imports, spec.Wrap(imports))
-	if IsFixturePath(args.Rel) {
-		for _, r := range result.Gen {
-			r.SetAttr("testonly", true)
-		}
-	}
-	var owns func(*rule.Rule) bool
-	if spec.OwnsByName {
-		owns = func(r *rule.Rule) bool {
-			if r.Name() == name {
-				return true
-			}
-			for _, attr := range []string{"srcs", "hdrs"} {
-				for _, src := range r.AttrStrings(attr) {
-					if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
-						return false
-					}
-				}
-			}
-			return true
-		}
-	}
-	return MergeStaleOwned(args.File, result, kinds, owns)
+	return dirLibrary{name: name, kind: libraryKind, rule: lib, imports: imports}, true
 }
 
 type ResolveSpec struct {

@@ -127,6 +127,22 @@ differs from `custom_package` (or `app_id` when `custom_package` is unset), or
 when its `minSdkVersion` differs from a non-zero `api_level`. Generated
 manifests, labels from other packages and `select` values are skipped.
 
+## Test targets
+
+For Java, each `*Test.java` source gets its own `java_test`. The target name
+is the file stem in snake case, so `GreetTest.java` becomes `greet_test`.
+`test_class` is the class qualified by its `package` line. When the directory
+also has a library, the test depends on it. The test's own imports resolve
+like library imports, except JUnit 4 (`org.junit`), which the test runner
+already supplies. JUnit 5 imports still need a resolve mapping.
+
+A handwritten test rule that already lists a test source in `srcs` owns it.
+Generation then emits nothing for that source and keeps the rule. A `java_test`
+whose `srcs` is a glob owns every test source in the directory; other test
+kinds, such as an `sh_test`, own only the sources they list. Generation
+replaces `deps` on a generated test, so mark any dependency that no import
+gives, such as a runtime-only library, with `# keep`.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this

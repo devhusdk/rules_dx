@@ -32,6 +32,7 @@ dx_rust_crate(
     ],
     # Patches dx copies into consumers through `include_str!` in src/overrides.rs.
     compile_data = [
+        "//modules:consumer_graph.json",
         "//patches/aspect_rules_jest:windows_v8_coverage.patch",
         "//patches/aspect_rules_py:windows_venv.patch",
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",

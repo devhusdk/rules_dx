@@ -470,6 +470,7 @@ func (c depsConcatExpr) BzlExpr() bzl.Expr {
 			gates[k] = v
 		}
 	}
+	// Keys may be comma-joined constraint sets sharing one dep list.
 	if out == nil || len(c.extra) > 0 || len(gates) == 0 {
 		extra := make([]bzl.Expr, len(c.extra))
 		for i, dep := range c.extra {
@@ -496,10 +497,12 @@ func (c depsConcatExpr) BzlExpr() bzl.Expr {
 		for i, dep := range gates[k] {
 			items[i] = &bzl.StringExpr{Value: dep}
 		}
-		sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: []*bzl.KeyValueExpr{
-			{Key: &bzl.StringExpr{Value: k}, Value: &bzl.ListExpr{List: items}},
-			{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}},
-		}, ForceMultiLine: true}}}
+		var entries []*bzl.KeyValueExpr
+		for _, key := range strings.Split(k, ",") {
+			entries = append(entries, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: key}, Value: &bzl.ListExpr{List: items}})
+		}
+		entries = append(entries, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}})
+		sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: entries, ForceMultiLine: true}}}
 		if first {
 			out = sel
 			first = false

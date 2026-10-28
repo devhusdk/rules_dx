@@ -188,37 +188,103 @@ type cargoDependency struct {
 
 const androidPlatformConstraint = "@platforms//os:android"
 
+// cargoCfgPlatform maps a cfg to a comma-joined, sorted set of platform
+// constraints. cfg(unix) and cfg(any(...)) of known atoms expand to several.
 func cargoCfgPlatform(cfg string) (string, bool) {
-	switch strings.Join(strings.Fields(cfg), "") {
-	case `cfg(target_os="android")`:
-		return androidPlatformConstraint, true
-	case `cfg(target_os="windows")`, `cfg(windows)`:
-		return "@platforms//os:windows", true
-	case `cfg(target_os="linux")`:
-		return "@platforms//os:linux", true
-	case `cfg(target_os="macos")`:
-		return "@platforms//os:macos", true
-	case `cfg(target_os="ios")`:
-		return "@platforms//os:ios", true
+	set := cfgConstraintSet(strings.Join(strings.Fields(cfg), ""))
+	if len(set) == 0 {
+		return "", false
 	}
-	return "", false
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ","), true
 }
 
-// platformConstraint returns the single platform constraint every cfg of a
-// local path dependency maps to, or "" when the dependency is not gated.
+var unixOSes = []string{"android", "freebsd", "ios", "linux", "macos", "netbsd", "openbsd"}
+
+func cfgConstraintSet(cfg string) map[string]bool {
+	if inner, ok := strings.CutPrefix(cfg, "cfg("); ok && strings.HasSuffix(cfg, ")") {
+		return cfgAtomSet(strings.TrimSuffix(inner, ")"))
+	}
+	return nil
+}
+
+func cfgAtomSet(atom string) map[string]bool {
+	out := map[string]bool{}
+	switch {
+	case atom == "windows":
+		out["@platforms//os:windows"] = true
+	case atom == "unix":
+		for _, os := range unixOSes {
+			out["@platforms//os:"+os] = true
+		}
+	case strings.HasPrefix(atom, "target_os=\"") && strings.HasSuffix(atom, "\""):
+		os := strings.Trim(strings.TrimPrefix(atom, "target_os="), "\"")
+		switch os {
+		case "android", "windows", "linux", "macos", "ios", "freebsd", "netbsd", "openbsd":
+			out["@platforms//os:"+os] = true
+		default:
+			return nil
+		}
+	case strings.HasPrefix(atom, "any(") && strings.HasSuffix(atom, ")"):
+		inner := atom[len("any(") : len(atom)-1]
+		depth, start := 0, 0
+		var parts []string
+		for i, r := range inner {
+			switch r {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			case ',':
+				if depth == 0 {
+					parts = append(parts, inner[start:i])
+					start = i + 1
+				}
+			}
+		}
+		parts = append(parts, inner[start:])
+		for _, part := range parts {
+			sub := cfgAtomSet(part)
+			if len(sub) == 0 {
+				return nil
+			}
+			for k := range sub {
+				out[k] = true
+			}
+		}
+	default:
+		return nil
+	}
+	return out
+}
+
+// platformConstraint returns the comma-joined set of platform constraints
+// covering every cfg of a local path dependency (the union across cfgs), or ""
+// when the dependency is not gated.
 func (d cargoDependency) platformConstraint() string {
 	if d.external || d.cfgs == "" {
 		return ""
 	}
-	out := ""
+	union := map[string]bool{}
 	for _, cfg := range strings.Split(d.cfgs, "\n") {
 		constraint, ok := cargoCfgPlatform(cfg)
-		if !ok || (out != "" && constraint != out) {
+		if !ok {
 			return ""
 		}
-		out = constraint
+		for _, k := range strings.Split(constraint, ",") {
+			union[k] = true
+		}
 	}
-	return out
+	keys := make([]string, 0, len(union))
+	for k := range union {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ",")
 }
 
 func (d cargoDependency) androidOnly() bool {

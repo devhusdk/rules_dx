@@ -2,7 +2,6 @@ package rust
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"slices"

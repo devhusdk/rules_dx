@@ -22,6 +22,6 @@ def user_api_shards():
     shards = []
     for crate in PUBLIC_RUST_CRATES:
         name = crate.split(":")[1] + "_docs"
-        rust_doc_shard(name = name, crate = crate)
+        rust_doc_shard(name = name, crate = crate, crate_features = [])
         shards.append(":" + name)
     return shards

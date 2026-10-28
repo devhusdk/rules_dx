@@ -110,10 +110,10 @@ def _local_features(crate):
     if label.startswith("//") and ":" in label:
         pkg, target = label.split(":", 1)
         if pkg != "//" + native.package_name():
-            return []
+            fail("rust_doc_shard: crate {} is outside this package, so its crate_features cannot be read; pass crate_features explicitly (use [] for none)".format(crate))
         label = ":" + target
     elif not label.startswith(":"):
-        return []
+        fail("rust_doc_shard: crate {} is outside this package, so its crate_features cannot be read; pass crate_features explicitly (use [] for none)".format(crate))
     for name in [label[1:], label[1:] + "_upstream"]:
         rule = native.existing_rule(name)
         if rule and rule.get("crate_features"):

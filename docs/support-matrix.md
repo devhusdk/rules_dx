@@ -25,7 +25,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Fortran | `windows_x86_64`: not tested yet; `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
 | F# | none |
 | Go | none |
-| Haskell | `windows_x86_64`, `windows_arm64`: not tested yet |
+| Haskell | `windows_x86_64`: not tested yet; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist |
 | Java | none |
 | JavaScript | none |
 | Julia | `windows_arm64`: not tested yet |

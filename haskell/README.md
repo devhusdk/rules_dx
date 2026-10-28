@@ -94,8 +94,8 @@ with `locale -a | grep -i c.utf`.
 | `linux_arm64` | Qualified | |
 | `macos_arm64` | Not qualified | Darwin bindist cell is pinned (no runtime closure). Still needs `otool` and `install_name_tool` from `@llvm//tools` and a native macOS run. Tracked in #4311. |
 | `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Not qualified | rules_haskell has no hermetic Windows port. |
-| `windows_arm64` | Not qualified | rules_haskell has no hermetic Windows port. |
+| `windows_x86_64` | Not qualified | No pinned mingw32 GHC cell yet (rules_haskell supports windows_amd64). Tracked in #4547. |
+| `windows_arm64` | n/a | GHC 9.10.3 ships no Windows arm64 bindist. |
 
 On other platforms Haskell targets fail toolchain resolution.
 

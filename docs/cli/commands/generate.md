@@ -64,7 +64,7 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")`, `("flatbuffers", "rust")` and `("openapi", "typescript")`.
+`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")` and `("openapi", "typescript")`.
 
 The openapi/typescript pair comes from `openapi_typescript_client` in
 `@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
@@ -104,7 +104,18 @@ inside one crate. The crate links the Rust runtime built from the same pinned
 archive. Bind the shard to the `NAME_generated` target, not to `NAME`; it binds
 only the flatc file, never the `lib.rs` dx writes. Two crates whose roots share a
 schema each get their own copy of its types, and those copies are not
-interchangeable. Java generation and `--conform` are not implemented yet.
+interchangeable.
+
+The flatbuffers/java pair comes from `flatbuffers_java_library`, which runs
+`flatc --java` once per `flatbuffers_library` (one compile per library, shared by
+every library that depends on it), packs the output into
+`_fbs_java/<lib>.srcjar` and compiles it with `java_common.compile`. The Java
+runtime is built from the same pinned archive and not taken from Maven, because
+the latest `flatbuffers-java` on Maven (25.2.10) is older than the generated
+code's version check. Bind `flatbuffers_codegen_shard` with `language = "java"`
+to the `flatbuffers_java_library`; each entry's `EXEC_PATH` is the srcjar of one
+direct dep. For breaking-change checks see `flatbuffers_conform_test` in
+[quality](quality.md#breaking-change-check).
 
 ## Android inputs
 

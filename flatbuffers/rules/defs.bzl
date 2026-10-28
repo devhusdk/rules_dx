@@ -1,5 +1,6 @@
 """FlatBuffers schema ownership for dx quality."""
 
+load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 
 FlatBuffersInfo = provider(
@@ -30,3 +31,30 @@ flatbuffers_library = rule(
     },
     provides = [FlatBuffersInfo],
 )
+
+def resolve_root(rule_kind, label, library_target, root_file):
+    """Picks the root schema of a flatbuffers_library.
+
+    Args:
+      rule_kind: Rule name for error text.
+      label: Label of the calling target.
+      library_target: The flatbuffers_library Target.
+      root_file: Explicit root File or None.
+
+    Returns:
+      The root schema File: root_file, or the only schema the library owns.
+    """
+    owned = library_target[FlatBuffersInfo].direct_srcs
+    if root_file == None:
+        if len(owned) != 1:
+            fail(
+                rule_kind + " " + display_label(label) + ": root is required because " +
+                display_label(library_target.label) + " owns " + str(len(owned)) + " schemas (want exactly one root)",
+            )
+        return owned[0]
+    if root_file not in owned:
+        fail(
+            rule_kind + " " + display_label(label) + ": root " + root_file.short_path +
+            " is not owned by " + display_label(library_target.label),
+        )
+    return root_file

@@ -411,6 +411,7 @@ FLATBUFFERS_FLATC_LINT_SUPPORT = {
     "state": "supported",
     "tool": "flatc",
     "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
 FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
@@ -425,6 +426,7 @@ FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "flatc",
     "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
 CSS_STYLELINT_LINT_SUPPORT = {

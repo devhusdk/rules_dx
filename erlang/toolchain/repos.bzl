@@ -95,6 +95,14 @@ def nif_include_dir():
     """Returns the OTP-relative directory that holds erl_nif.h."""
     return "erts-" + ERTS_VERSION + "/include"
 
+def erts_mismatch_message(expected, found_dirs):
+    """Returns the error for an OTP archive whose erts directory differs from the ERTS_VERSION pin."""
+    found = ", ".join(sorted(found_dirs)) if found_dirs else "none"
+    return (
+        "OTP archive ships no erts-" + expected + " directory (found: " + found + "); " +
+        "set ERTS_VERSION in erlang/toolchain/pins.bzl to match the erts-* directory of OTP " + OTP_VERSION
+    )
+
 def nif_header_cases(cells):
     """Returns the hub select cases that map each target cell to its erl_nif header library."""
     cases = {"@rules_dx//erlang/toolchain:cell_" + cell: ["@" + cell_repository_name(cell) + "//:erl_nif"] for cell in sorted(cells)}
@@ -339,6 +347,9 @@ def _otp_repo_impl(rctx):
         fail("OTP archive is not release " + OTP_VERSION)
     _prune(rctx)
     if not rctx.path(nif_include_dir() + "/erl_nif.h").exists:
+        found = [p.basename for p in rctx.path(".").readdir() if p.basename.startswith("erts-")]
+        if "erts-" + ERTS_VERSION not in found:
+            fail(erts_mismatch_message(ERTS_VERSION, found))
         fail("OTP archive ships no " + nif_include_dir() + "/erl_nif.h")
     _install(rctx, CLOSURE_DIR if cell.runtime else None)
     if cell.runtime:

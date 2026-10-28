@@ -1,0 +1,47 @@
+# gazelle:exclude probe_nif.c
+load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_nif", "escript_archive")
+load("//erlang/rules:wrapper_tests.bzl", "erlang_escript_nif_refusal_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    glob([
+        "probe_nif.c",
+        "src/*",
+    ]) + ["BUILD.bazel"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+erlang_nif(
+    name = "probe_nif",
+    srcs = ["probe_nif.c"],
+)
+
+erlang_app(
+    app_name = "nif_escript",
+    app_version = "1.0.0",
+    nifs = [":probe_nif"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+escript_archive(
+    name = "nif_cli",
+    app = ":erlang_app",
+    tags = ["manual"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_escript_nif_refusal_test(
+    name = "refusal_test",
+    message = "an escript archive cannot bundle NIFs",
+    target = ":nif_cli",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)

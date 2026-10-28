@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "replace_once")
+load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "nif_compatible_cases", "nif_header_cases", "nif_include_dir", "replace_once")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -53,6 +53,9 @@ def _checks():
         expect_equal("nif headers default to nothing", nif_header_cases(CELLS.keys())["//conditions:default"], []),
         expect_equal("nif default is incompatible", nif_compatible_cases(CELLS.keys())["//conditions:default"], ["@platforms//:incompatible"]),
         expect_equal("nif include follows erts", nif_include_dir(), "erts-" + ERTS_VERSION + "/include"),
+        expect_contains("erts mismatch names expected", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-1.2"),
+        expect_contains("erts mismatch names found", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-3.4"),
+        expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
         expect_equal("replace_once edits", replace_once("a(F) b", [("a(F)", "c(F)")], "x"), "c(F) b"),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),

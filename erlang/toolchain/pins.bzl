@@ -2,6 +2,7 @@
 
 OTP_VERSION = "29.1.2"
 
+# Moves with OTP_VERSION: the erts-* directory of the pinned OTP archive.
 ERTS_VERSION = "17.1.1"
 
 OTP_RELEASE = "29"

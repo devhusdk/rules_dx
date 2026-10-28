@@ -590,6 +590,7 @@ rust_test(
         "//env/env_shard:corpus_starlark",
         "//env/stubs:corpus_starlark",
         "//erlang/tests/negative:corpus_starlark",
+        "//erlang/tests/nif_escript:corpus_starlark",
         "//erlang/tests/starter:corpus_starlark",
         "//examples/c-app/cli:corpus_starlark",
         "//examples/c-app/diagnostics:corpus_starlark",

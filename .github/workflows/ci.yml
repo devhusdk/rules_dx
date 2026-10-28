@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
   merge_group:
     types: [checks_requested]
 
@@ -319,6 +320,12 @@ jobs:
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python, JavaScript, and YAML tools, and the Zig example and hello fixture on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+      - name: Record the runner image
+        if: always()
+        shell: bash
+        run: |
+          line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
+          echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
       - name: Prune the Bazel repository cache to this run's downloads
         if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash

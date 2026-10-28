@@ -498,6 +498,93 @@ def test_evidence_runners_match_the_validator_platforms(tmp_path):
     )
 
 
+RELEASE_WORKFLOW = ".github/workflows/release.yml"
+ACTIONLINT_CONFIG = ".github/actionlint.yaml"
+
+
+def preflight_pairs(text):
+    """Returns the ordered (platform, runner) pairs of the ci.yml preflight matrix."""
+    return re.findall(
+        r"^\s*- platform: (\S+)\n\s*runner: (\S+)\s*$", text, flags=re.MULTILINE
+    )
+
+
+def dogfood_platforms(text):
+    """Returns the ordered platforms the ci.yml dogfood job requests."""
+    found = re.findall(r"^\s*platforms: '(\[.*\])'\s*$", text, flags=re.MULTILINE)
+    return json.loads(found[0]) if len(found) == 1 else []
+
+
+def release_runners(text):
+    """Returns the set of runners in the release.yml build matrix."""
+    return set(re.findall(r"^\s*runner: (\S+)\s*$", text, flags=re.MULTILINE))
+
+
+def actionlint_labels(text):
+    """Returns the set of runner labels .github/actionlint.yaml declares."""
+    return set(re.findall(r"^\s*- (\S+)\s*$", text, flags=re.MULTILINE))
+
+
+def platform_drift(table, ci, release, actionlint):
+    """Returns one message per copy of the platform table that drifted from table."""
+    problems = []
+    if preflight_pairs(ci) != list(table.items()):
+        problems.append(f"{CI_WORKFLOW} preflight matrix drifted from {VALIDATOR}")
+    if dogfood_platforms(ci) != list(table):
+        problems.append(f"{CI_WORKFLOW} dogfood platforms drifted from {VALIDATOR}")
+    if release_runners(release) != set(table.values()):
+        problems.append(f"{RELEASE_WORKFLOW} runners drifted from {VALIDATOR}")
+    if not set(table.values()) <= actionlint_labels(actionlint):
+        problems.append(f"{ACTIONLINT_CONFIG} labels miss a runner from {VALIDATOR}")
+    return problems
+
+
+def read_copies():
+    """Returns the ci.yml, release.yml and actionlint.yaml texts."""
+    return tuple(
+        (ROOT / path).read_text(encoding="utf-8")
+        for path in (CI_WORKFLOW, RELEASE_WORKFLOW, ACTIONLINT_CONFIG)
+    )
+
+
+def test_platform_copies_match_the_validator_table():
+    """Every workflow copy of the platform table equals PLATFORMS, in order where order matters."""
+    ci, release, actionlint = read_copies()
+    assert platform_drift(validator_platforms(), ci, release, actionlint) == []
+
+
+def test_platform_parity_catches_a_drifted_copy():
+    """A dropped cell or swapped runner in any copy fails with a message naming the file."""
+    table = validator_platforms()
+    ci, release, actionlint = read_copies()
+    drifts = {
+        CI_WORKFLOW: (
+            ci.replace(
+                "          - platform: windows_arm64\n            runner: windows-11-arm\n",
+                "",
+            ),
+            release,
+            actionlint,
+        ),
+        RELEASE_WORKFLOW: (ci, release.replace("macos-15", "macos-14"), actionlint),
+        ACTIONLINT_CONFIG: (ci, release, actionlint.replace("windows-11-arm", "x")),
+    }
+    for name, (ci_text, release_text, lint_text) in drifts.items():
+        problems = platform_drift(table, ci_text, release_text, lint_text)
+        assert problems, f"{name} drift went unnoticed"
+        assert any(name in problem for problem in problems), (name, problems)
+    swapped = ci.replace("runner: macos-15", "runner: macos-14")
+    assert any(
+        "preflight" in problem
+        for problem in platform_drift(table, swapped, release, actionlint)
+    )
+    dogfood = ci.replace('"windows_x86_64", ', "")
+    assert any(
+        "dogfood" in problem
+        for problem in platform_drift(table, dogfood, release, actionlint)
+    )
+
+
 DOCS = "docs/github-ci.md"
 PLATFORM_CALLERS = ("examples/consumer-ci/caller.yml", CI_WORKFLOW)
 
@@ -544,5 +631,3 @@ def test_callers_request_only_mapped_platforms():
         assert not unknown, (
             f"{caller} platforms {unknown} are not in the {VALIDATOR} table"
         )
-
-

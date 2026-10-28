@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use ci_workflow::{document, jobs, triggers};
+use ci_workflow::{document, jobs, steps, triggers};
 use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
@@ -249,6 +249,50 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
             json!(["checks_requested"]),
             "{workflow} must subscribe to merge_group checks_requested: {on}"
         );
+    }
+}
+
+#[test]
+fn ci_can_be_dispatched_but_takes_no_inputs() {
+    let on = triggers(CI_WORKFLOW);
+    assert!(
+        on.get("workflow_dispatch").is_some(),
+        "{CI_WORKFLOW} must be dispatchable so a qualify/<sha> branch can run the matrix: {on}"
+    );
+    assert!(
+        on["workflow_dispatch"].get("inputs").is_none(),
+        "{CI_WORKFLOW} dispatch must take no inputs so it cannot change the matrix: {on}"
+    );
+    assert_eq!(on["merge_group"]["types"], json!(["checks_requested"]));
+}
+
+#[test]
+fn every_matrix_cell_records_its_runner_image() {
+    for (workflow, job) in [
+        (CI_WORKFLOW, "preflight"),
+        (CONSUMER_WORKFLOW, "checks"),
+        (CONSUMER_WORKFLOW, "coverage"),
+    ] {
+        let all = steps(workflow, job);
+        let found = all
+            .iter()
+            .find(|step| step["name"] == json!("Record the runner image"))
+            .unwrap_or_else(|| panic!("{workflow} job {job} must record the runner image"));
+        assert_eq!(found["if"], json!("always()"), "{workflow} {job} if");
+        let run = found["run"].as_str().unwrap_or_default();
+        for needle in [
+            "RUNNER_OS",
+            "RUNNER_ARCH",
+            "${ImageOS:-unknown}",
+            "${ImageVersion:-unknown}",
+            "bazel --version",
+            "|| true",
+        ] {
+            assert!(
+                run.contains(needle),
+                "{workflow} {job} step lacks {needle}: {run}"
+            );
+        }
     }
 }
 

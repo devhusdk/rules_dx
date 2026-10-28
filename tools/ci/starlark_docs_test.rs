@@ -3,7 +3,9 @@
 use std::path::Path;
 
 use dx_testing::runfiles_root;
-use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstLiteral, AstStmt, ExprP, StmtP};
+use starlark_syntax::syntax::ast::{
+    ArgumentP, AstArgument, AstExpr, AstLiteral, AstStmt, ExprP, StmtP,
+};
 use starlark_syntax::syntax::{AstModule, Dialect};
 
 /// Callees whose calls must pass doc when they pass implementation.

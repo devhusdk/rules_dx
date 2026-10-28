@@ -890,10 +890,12 @@ a `go.sum` entry for every module in the build list. The run is forced to
 `go.mod`; a changed `go.mod` fails the set. `--check` compares the generated `go.sum`
 with the committed one and fails on any difference; `--apply` writes `go.sum` only when
 the bytes differ. `go.sum` entries are added, never pruned: pruning is `go mod tidy`,
-which stays your call. dx sets no `GOPROXY` or `GOSUMDB`. A host `GOPROXY`, `GOPRIVATE`,
+which stays your call. The run always uses Go's default public proxy and checksum database; dx does not read
+`go_deps.config(go_env = ...)`, so private modules are not supported, and a root
+`MODULE.bazel` that mentions `go_env` makes the set `unsupported`. A host `GOPROXY`, `GOPRIVATE`,
 `GONOPROXY`, `GONOSUMDB`, `GONOSUMCHECK`, `GOSUMDB`, `GOINSECURE`, `GOVCS` or `GOAUTH`
-makes the set `unsupported` before anything launches, because host values override and can
-weaken the consumer's settings; declare them in `go_deps.config(go_env = ...)`. Every
+makes the set `unsupported` before anything launches, because host values can weaken checksum
+verification or leak private module names. Every
 run starts from an empty module cache, so `--offline` fails with `offline_required` in
 both modes; `--apply --frozen` fails with `frozen_locked` because `go.sum` is a lock
 write, while `--check --frozen` runs. The `-C` flag needs a Go SDK of 1.20 or newer; an

@@ -506,7 +506,7 @@ const MAVEN_COURSIER_ENV: [&str; 5] = [
     "SCALA_CLI_CONFIG",
 ];
 
-const GO_HOST_ENV_REASON: &str = "unset GOPROXY, GOPRIVATE, GONOPROXY, GONOSUMDB, GONOSUMCHECK, GOSUMDB, GOINSECURE, GOVCS and GOAUTH: host values override go_deps.config(go_env=...) and can weaken checksum verification; declare them in go_deps.config(go_env=...)";
+const GO_HOST_ENV_REASON: &str = "unset GOPROXY, GOPRIVATE, GONOPROXY, GONOSUMDB, GONOSUMCHECK, GOSUMDB, GOINSECURE, GOVCS and GOAUTH: go sets always use the default public proxy and checksum database, dx does not read go_deps.config(go_env=...), and private modules are not supported; host values can also weaken checksum verification";
 
 /// Refuses sets whose backend would read host env dx cannot override (the runner only adds env).
 /// `lookup` tells whether a variable is set in the host environment.

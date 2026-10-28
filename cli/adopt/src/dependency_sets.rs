@@ -1443,6 +1443,15 @@ fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependency
             "the rules_go bazel_dep must not set repo_name".to_owned(),
         ));
     }
+    if root.lines().any(|line| {
+        let code = line.split('#').next().unwrap_or("");
+        code.contains("go_env")
+    }) {
+        return Err(unsupported(
+            "go sets use the default public proxy and checksum database and do not read go_deps.config(go_env=...); private modules are not supported"
+                .to_owned(),
+        ));
+    }
     Ok(())
 }
 
@@ -3092,7 +3101,11 @@ scopes = ["third_party/go"]
         );
         let replaced = format!("{GO_MOD_TEXT}\nreplace example.com/x => ../x\n");
         let renamed = "bazel_dep(name = \"rules_go\", version = \"0.50.1\", repo_name = \"io_bazel_rules_go\")\n";
+        let with_env = format!(
+            "{GO_MODULE}\ngo_deps.config(go_env = {{\"GOPRIVATE\": \"corp.example.com\"}})\n"
+        );
         let cases = [
+            (GO_SETS, with_env.as_str(), GO_MOD_TEXT, "go_env"),
             (extra.as_str(), GO_MODULE, GO_MOD_TEXT, "exactly"),
             (GO_SETS, GO_MODULE, replaced.as_str(), "local path"),
             (GO_SETS, GO_MODULE, "not a go.mod {", "cannot parse"),

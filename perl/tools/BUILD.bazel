@@ -1,4 +1,6 @@
+load("@rules_perl//perl:perl_binary.bzl", "perl_binary")
 load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -12,6 +14,33 @@ exports_files([
 alias(
     name = "perltidy",
     actual = "@dx_perl_cpan//:Perl-Tidy_bin_perltidy",
+)
+
+# Perl::Critic needs XS modules the cpan hub cannot build, so perlcritic.pl
+# shims them with pure-Perl stand-ins; see the comment there.
+perl_binary(
+    name = "perlcritic",
+    srcs = ["perlcritic.pl"],
+    main = "perlcritic.pl",
+    deps = [
+        "@dx_perl_cpan//:Clone-PP",
+        "@dx_perl_cpan//:Perl-Critic",
+    ],
+)
+
+sh_test(
+    name = "perlcritic_smoke_test",
+    srcs = ["perlcritic_smoke_test.sh"],
+    args = [
+        "$(rootpath :perlcritic)",
+        "$(rootpath testdata/clean.pl)",
+        "$(rootpath testdata/dirty.pl)",
+    ],
+    data = [
+        "testdata/clean.pl",
+        "testdata/dirty.pl",
+        ":perlcritic",
+    ],
 )
 
 cpan_compiler(

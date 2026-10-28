@@ -399,6 +399,14 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "haskell",
     },
+    "perlcritic": {
+        "attr": attr.label(default = "//config:tool_perlcritic", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "setting",
+        "resources": "light",
+        "shard": "core",
+        "target_tool": True,
+    },
     "perltidy": {
         "attr": attr.label(default = "//config:tool_perltidy", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -970,6 +978,7 @@ _TARGET_TOOL_OWNERS = {
     "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
     "dscanner": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dscanner"),
     "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
+    "perlcritic": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perlcritic"),
     "perltidy": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perltidy"),
     "julia_format": ("julia_library, julia_binary or julia_test", "@rules_dx//julia/rules:defs.bzl", "@rules_dx//julia/tools:julia_format"),
 }

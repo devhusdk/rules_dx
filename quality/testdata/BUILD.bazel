@@ -39,7 +39,9 @@ load(
     "julia_format_flag_tests",
     "julia_subject",
     "mix_format_flag_tests",
+    "perl_lint_subject",
     "perl_subject",
+    "perlcritic_flag_tests",
     "perltidy_flag_tests",
     "php_typecheck_subject",
     "phpstan_flag_tests",
@@ -1515,6 +1517,33 @@ perl_subject(
 perltidy_flag_tests(
     name = "perltidy_flag",
     subject = ":perl_subject",
+)
+
+quality_family(
+    name = "perl_lint_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "perl",
+    lint = ["perlcritic"],
+)
+
+workspace_policy(
+    name = "perl_lint_policy",
+    families = [":perl_lint_family"],
+)
+
+perl_lint_subject(
+    name = "perl_lint_subject",
+    testonly = True,
+    target = "//perl/tests/runtime:dx_probe",
+)
+
+perlcritic_flag_tests(
+    name = "perlcritic_flag",
+    subject = ":perl_lint_subject",
 )
 
 quality_family(

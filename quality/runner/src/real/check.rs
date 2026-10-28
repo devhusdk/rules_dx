@@ -1082,6 +1082,15 @@ impl RealBackend {
                     parsers::parse_dscanner(&out.stdout, out.code, &strs),
                 )
             }
+            "perlcritic" => {
+                // perlcritic exits 3 on a file it cannot read, so it is never a clean run.
+                let invocation = commands::perlcritic_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_perlcritic(&out.stdout, out.code, &strs),
+                )
+            }
             "typstyle" => {
                 let invocation = commands::typstyle_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

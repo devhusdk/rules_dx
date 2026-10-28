@@ -27,6 +27,9 @@ _D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
 _DFMT_SETTING = _CANONICAL + "//config:tool_dfmt"
 _DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
 _DSCANNER_SETTING = _CANONICAL + "//config:tool_dscanner"
+_PERLCRITIC_SETTING = _CANONICAL + "//config:tool_perlcritic"
+_PERLCRITIC_TOOL = _CANONICAL + "//perl/tools:perlcritic"
+_PERL_LINT_POLICY = _CANONICAL + "//quality/testdata:perl_lint_policy"
 _DSCANNER_TOOL = _CANONICAL + "//d/tools:dscanner"
 _D_LINT_POLICY = _CANONICAL + "//quality/testdata:d_lint_policy"
 _DART_POLICY = _CANONICAL + "//quality/testdata:dart_policy"
@@ -508,6 +511,74 @@ def dscanner_flag_tests(name, subject):
         name = name + "_set_test",
         size = "small",
         target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+
+def _perl_lint_subject_impl(ctx):
+    """Exposes the resolved perlcritic binary and the lint results beside the real aspect."""
+    tool = ctx.attr._perlcritic[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["perlcritic"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "perlcritic": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+perl_lint_subject = rule(
+    implementation = _perl_lint_subject_impl,
+    attrs = {
+        "_perlcritic": attr.label(default = "//config:tool_perlcritic"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _perlcritic_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's perlcritic."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["perlcritic"])
+    asserts.true(env, fields["wrapper"].endswith("/perlcritic") or fields["wrapper"].endswith("/perlcritic.exe"), "want perlcritic, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
+    return analysistest.end(env)
+
+_perlcritic_default_test = analysistest.make(
+    _perlcritic_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _PERL_LINT_POLICY},
+)
+
+def _perlcritic_wired_impl(ctx):
+    """Asserts the flag wires perlcritic and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["perlcritic"].endswith("/perlcritic") or fields["perlcritic"].endswith("/perlcritic.exe"), "want perlcritic, got " + fields["perlcritic"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
+    return analysistest.end(env)
+
+_perlcritic_set_test = analysistest.make(
+    _perlcritic_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _PERL_LINT_POLICY,
+        _PERLCRITIC_SETTING: _PERLCRITIC_TOOL,
+    },
+)
+
+def perlcritic_flag_tests(name, subject):
+    """Instantiates the perlcritic flag proofs; Perl targets build only on rules_perl platforms."""
+    _perlcritic_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = PERL_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _perlcritic_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
 

@@ -11,9 +11,9 @@ def perl_wrapper_contract_tests(name):
         file_classes = ["perl"],
         extra_checks = [
             expect_equal(
-                "wrappers carry perltidy",
+                "wrappers carry perlcritic and perltidy",
                 sorted(PERL_QUALITY_TOOLS.keys()),
-                ["perltidy"],
+                ["perlcritic", "perltidy"],
             ),
             expect_equal(
                 "one perl class owns scripts, modules and tests",

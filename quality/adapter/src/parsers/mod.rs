@@ -55,6 +55,7 @@ pub mod nixfmt;
 pub mod notebook_outputs;
 pub mod opa;
 pub mod ormolu;
+pub mod perlcritic;
 pub mod perltidy;
 pub mod phpstan;
 pub mod pkl;
@@ -151,6 +152,7 @@ pub use nixfmt::parse_nixfmt;
 pub use notebook_outputs::parse_notebook_outputs;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
+pub use perlcritic::parse_perlcritic;
 pub use perltidy::parse_perltidy;
 pub use phpstan::parse_phpstan;
 pub use pkl::parse_pkl;
@@ -1926,6 +1928,14 @@ mod tests {
         super::opa::parse_opa_check(input, input, code, files)
     }
 
+    fn fuzz_perlcritic(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::perlcritic::parse_perlcritic(input, code, files)
+    }
+
     fn fuzz_perltidy(
         input: &[u8],
         code: Option<i32>,
@@ -2554,6 +2564,7 @@ mod tests {
         ("ormolu", fuzz_ormolu),
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
+        ("perlcritic", fuzz_perlcritic),
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
         ("phpstan", fuzz_phpstan),
@@ -2658,6 +2669,7 @@ mod tests {
         ("nixfmt", include_str!("nixfmt.rs")),
         ("ormolu", include_str!("ormolu.rs")),
         ("opa", include_str!("opa.rs")),
+        ("perlcritic", include_str!("perlcritic.rs")),
         ("perltidy", include_str!("perltidy.rs")),
         ("phpstan", include_str!("phpstan.rs")),
         ("pkl", include_str!("pkl.rs")),

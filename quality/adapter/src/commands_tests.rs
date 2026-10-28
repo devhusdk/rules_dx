@@ -1358,6 +1358,20 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.d"
         ]
     );
+    let perl = Path::new("/scratch/sample.pl");
+    assert_eq!(
+        argv_strings(&perlcritic_check(Path::new(BIN), &[perl])),
+        vec![
+            BIN,
+            "--noprofile",
+            "--severity=5",
+            "--nocolor",
+            "--quiet",
+            "--verbose",
+            PERLCRITIC_FORMAT,
+            "/scratch/sample.pl"
+        ]
+    );
     let julia = Path::new("/scratch/sample.jl");
     assert_eq!(
         argv_strings(&julia_format_check(Path::new(BIN), &[julia])),

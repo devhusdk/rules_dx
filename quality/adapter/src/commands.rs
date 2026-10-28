@@ -206,6 +206,19 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
     "--standard-error-output",
     "--output-line-ending=unix",
 ];
+/// The sentinel, then tab-separated fields; the message is last. `%g` and `%L` are the physical
+/// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
+pub const PERLCRITIC_FORMAT: &str = "dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
+/// `--noprofile` is always first: it stops perlcritic reading `~/.perlcriticrc`, `./.perlcriticrc`
+/// and `$PERLCRITIC`. Severity 5 is the only level dx asks for.
+const PERLCRITIC_CHECK_ARGS: &[&str] = &[
+    "--noprofile",
+    "--severity=5",
+    "--nocolor",
+    "--quiet",
+    "--verbose",
+    PERLCRITIC_FORMAT,
+];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -1336,6 +1349,11 @@ pub fn perltidy_check(binary: &Path, file: &Path) -> Invocation {
 /// `-b -bext=/` rewrites in place without a backup; `-se` keeps `.ERR` files from appearing.
 pub fn perltidy_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PERLTIDY_FIX_ARGS, files, "")
+}
+
+/// One batched check; Perl::Critic has no autofix.
+pub fn perlcritic_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, PERLCRITIC_CHECK_ARGS, files, "")
 }
 
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

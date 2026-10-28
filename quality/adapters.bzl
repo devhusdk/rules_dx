@@ -115,7 +115,7 @@ REAL_ADAPTERS = {
     "taplo": {"format": ["toml"], "lint": ["toml"]},
     "terraform": {"format": ["terraform"]},
     "tflint": {"lint": ["terraform"]},
-    "ty": {"typecheck": ["python", "python_stub"]},
+    "ty": {"typecheck": ["jupyter", "python", "python_stub"]},
     "tsc": {"typecheck": ["tsx", "typescript"]},
     "typstyle": {"format": ["typst"]},
     "latexindent": {"format": ["latex"]},

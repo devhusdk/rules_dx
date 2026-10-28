@@ -160,6 +160,7 @@ USER_BOOK = [
     mdbook_page("Haskell App", "examples/haskell-app/README.md", "//examples/haskell-app:README.md"),
     mdbook_page("Java App", "examples/java-app/README.md", "//examples/java-app:README.md"),
     mdbook_page("Kotlin App", "examples/kotlin-app/README.md", "//examples/kotlin-app:README.md"),
+    mdbook_page("Lua App", "examples/lua-app/README.md", "//examples/lua-app:README.md"),
     mdbook_page("MSIX App", "examples/msix-app/README.md", "//examples/msix-app:README.md"),
     mdbook_page("Node App", "examples/node-app/README.md", "//examples/node-app:README.md"),
     mdbook_page("Perl App", "examples/perl-app/README.md", "//examples/perl-app:README.md"),

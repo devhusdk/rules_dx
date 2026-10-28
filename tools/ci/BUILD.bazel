@@ -584,6 +584,7 @@ rust_test(
         "//examples/java-app/diagnostics:corpus_starlark",
         "//examples/kotlin-app/cli:corpus_starlark",
         "//examples/kotlin-app/diagnostics:corpus_starlark",
+        "//examples/lua-app/diagnostics:corpus_starlark",
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
         "//examples/qt-rust/ledger:corpus_starlark",

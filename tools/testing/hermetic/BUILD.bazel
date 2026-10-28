@@ -289,6 +289,28 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "lua",
+    files = {
+        "//examples/lua-app:BUILD.bazel": "examples/lua-app/BUILD.bazel",
+        "//examples/lua-app:inspect.BUILD.bazel": "examples/lua-app/inspect.BUILD.bazel",
+        "//examples/lua-app/catalog:BUILD.bazel": "examples/lua-app/catalog/BUILD.bazel",
+        "//examples/lua-app/catalog:catalog_test.lua": "examples/lua-app/catalog/catalog_test.lua",
+        "//examples/lua-app/catalog:init.lua": "examples/lua-app/catalog/init.lua",
+        "//examples/lua-app/catalog:parse.lua": "examples/lua-app/catalog/parse.lua",
+        "//examples/lua-app/catalog:units.tsv": "examples/lua-app/catalog/units.tsv",
+        "//examples/lua-app/cli:BUILD.bazel": "examples/lua-app/cli/BUILD.bazel",
+        "//examples/lua-app/cli:exit_codes.sh": "examples/lua-app/cli/exit_codes.sh",
+        "//examples/lua-app/cli:main.lua": "examples/lua-app/cli/main.lua",
+        "//examples/lua-app/report:BUILD.bazel": "examples/lua-app/report/BUILD.bazel",
+        "//examples/lua-app/report:init.lua": "examples/lua-app/report/init.lua",
+        "//examples/lua-app/report:report_test.lua": "examples/lua-app/report/report_test.lua",
+    },
+    languages = ["lua"],
+    module_fragment = "consumers/lua/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "erlang",
     files = {
         "//examples/erlang-app/proto:BUILD.bazel": "examples/erlang-app/proto/BUILD.bazel",
@@ -746,6 +768,7 @@ rustfmt_test(
         ":erlang",
         ":hermetic",
         ":msix",
+        ":lua",
         ":perl",
         ":python",
         ":qt_rust",
@@ -773,6 +796,7 @@ rust_clippy_test(
         ":erlang",
         ":hermetic",
         ":msix",
+        ":lua",
         ":perl",
         ":python",
         ":qt_rust",

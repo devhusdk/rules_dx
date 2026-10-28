@@ -128,6 +128,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/java-app/diagnostics
 # gazelle:exclude examples/kotlin-app/cli/Main.kt
 # gazelle:exclude examples/kotlin-app/diagnostics
+# gazelle:exclude examples/lua-app
 # gazelle:exclude examples/astro-app
 # gazelle:exclude examples/node-app
 # gazelle:exclude examples/perl-app

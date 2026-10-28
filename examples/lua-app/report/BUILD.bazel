@@ -1,0 +1,36 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_library", "lua_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+APPS = ["//examples/lua-app:__subpackages__"]
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "init.lua",
+        "report_test.lua",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"] + APPS,
+)
+
+lua_library(
+    name = "report",
+    srcs = ["init.lua"],
+    strip_import_prefix = "/examples/lua-app",
+    visibility = APPS,
+    deps = ["@lua_app_inspect//:inspect"],
+)
+
+lua_test(
+    name = "report_test",
+    size = "small",
+    main = "report_test.lua",
+    deps = [":report"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

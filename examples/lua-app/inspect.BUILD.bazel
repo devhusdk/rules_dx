@@ -1,0 +1,10 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_library")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+lua_library(
+    name = "inspect",
+    srcs = ["inspect.lua"],
+)

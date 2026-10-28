@@ -9,6 +9,10 @@ const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
 const CANCEL_WORKFLOW: &str = ".github/workflows/cancel-stale.yml";
 
+const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
+
+const RULESET: &str = ".github/rulesets/main.json";
+
 const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
@@ -240,6 +244,7 @@ fn the_native_matrix_keeps_all_five_platforms() {
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
     for workflow in [
         CI_WORKFLOW,
+        GATE_WORKFLOW,
         "examples/consumer-ci/caller.yml",
         "examples/docs-ci/caller.yml",
     ] {
@@ -475,4 +480,112 @@ fn pages_publication_stays_on_main_push_only() {
         ),
         "publish must be limited to pushes to main"
     );
+}
+
+#[test]
+fn the_gate_job_can_never_be_skipped() {
+    let document = document(GATE_WORKFLOW);
+    let job = &document["jobs"]["gate"];
+    assert_eq!(job["name"], json!("gate"));
+    assert!(job.get("if").is_none(), "gate must not have an if: {job}");
+    assert!(
+        job.get("needs").is_none(),
+        "gate must not have needs: {job}"
+    );
+    assert_eq!(document["jobs"].as_object().map(|jobs| jobs.len()), Some(1));
+}
+
+#[test]
+fn the_gate_fails_when_dx_check_fails() {
+    let document = document(GATE_WORKFLOW);
+    let steps = document["jobs"]["gate"]["steps"]
+        .as_array()
+        .expect("gate steps");
+    let piped: Vec<_> = steps
+        .iter()
+        .filter(|step| {
+            step["run"]
+                .as_str()
+                .is_some_and(|run| run.contains("check --affected") && run.contains('|'))
+        })
+        .collect();
+    assert!(
+        !piped.is_empty(),
+        "no piped dx check step in gate: {steps:?}"
+    );
+    for step in piped {
+        assert_eq!(
+            step["shell"],
+            json!("bash"),
+            "piped step needs pipefail: {step}"
+        );
+    }
+}
+
+#[test]
+fn the_gate_runs_on_every_landing_event_in_its_own_group() {
+    let on = triggers(GATE_WORKFLOW);
+    assert_eq!(on["push"]["branches"], json!(["main"]));
+    assert!(on.get("pull_request").is_some(), "{on}");
+    assert!(on.get("workflow_dispatch").is_some(), "{on}");
+    let document = document(GATE_WORKFLOW);
+    assert_eq!(
+        document["concurrency"]["group"],
+        json!("gate-${{ github.event.pull_request.number || github.ref }}"),
+        "gate concurrency is per pull request or ref, never per SHA and never the ci.yml group"
+    );
+    assert_eq!(
+        document["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request' }}")
+    );
+}
+
+#[test]
+fn the_ruleset_requires_the_gate_job_name() {
+    let ruleset = document(RULESET);
+    let name = document(GATE_WORKFLOW)["jobs"]["gate"]["name"].clone();
+    assert_eq!(ruleset["enforcement"], json!("active"));
+    assert_eq!(ruleset["bypass_actors"], json!([]));
+    assert_eq!(ruleset["target"], json!("branch"));
+    assert_eq!(
+        ruleset["conditions"]["ref_name"]["include"],
+        json!(["~DEFAULT_BRANCH"])
+    );
+    assert_eq!(
+        ruleset["rules"].as_array().map(|rules| rules.len()),
+        Some(1)
+    );
+    let rule = &ruleset["rules"][0];
+    assert_eq!(rule["type"], json!("required_status_checks"));
+    let parameters = &rule["parameters"];
+    assert_eq!(
+        parameters["strict_required_status_checks_policy"],
+        json!(false)
+    );
+    assert_eq!(parameters["do_not_enforce_on_create"], json!(true));
+    assert_eq!(
+        parameters["required_status_checks"],
+        json!([{"context": name, "integration_id": 15368}])
+    );
+}
+
+#[test]
+fn no_other_workflow_job_reports_the_gate_context() {
+    let mut names = dx_testing::workflow_files();
+    names.push("examples/consumer-ci/caller.yml".to_string());
+    names.push("examples/docs-ci/caller.yml".to_string());
+    for name in names {
+        if name.ends_with("/gate.yml") || name == GATE_WORKFLOW {
+            continue;
+        }
+        let document = document(&name);
+        for (id, job) in document["jobs"].as_object().into_iter().flatten() {
+            assert_ne!(id, "gate", "{name} job id collides with the gate context");
+            assert_ne!(
+                job["name"],
+                json!("gate"),
+                "{name} job {id} reports the gate context"
+            );
+        }
+    }
 }

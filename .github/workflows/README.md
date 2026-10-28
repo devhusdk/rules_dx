@@ -3,6 +3,7 @@
 - `reusable-consumer.yml`: nine checks plus the `dx-ci (aggregate)` gate.
 - `reusable-docs.yml`: `docs-check` plus `docs-publish` (GitHub Pages).
 - `ci.yml`: this repository's own `ci` gate.
+- `gate.yml`: the `gate` check, `dx check --affected` on linux_x86_64, required on main by `.github/rulesets/main.json`.
 - `cancel-stale.yml`: cancels a closed PR's ci run through its concurrency group, then sweeps runs of closed PRs and main runs replaced by a newer commit while they still have no jobs. Runs on `ubuntu-slim`.
 - `issue-labels.yml`: daily warning for open issues older than one day that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
 - `floor.yml`: nightly and dispatched floor check (#3747). Resolves a `dx init` consumer with `//modules:floor_graph_test` and fails when a consumer dep is off its floor. The `tested` leg resolves every dep at its tested version; dispatch with `overrides` tries candidate floors. Not part of the `ci` gate; the same test runs per PR in the `network` job.
@@ -30,5 +31,7 @@ The scheduled run covers general main health; to prove one fixed SHA, use `quali
 5. Also run a fork PR to confirm no secrets are needed.
 
 The platform table is `PLATFORMS` in `tools/ci/input_validation.py`; `input_validation_test` pins every other copy to it.
+
+Land a PR with `gh pr checks <n> --required --watch --fail-fast`, then `gh pr merge <n> --squash`, never `--admin`.
 
 The consumer contract is [GitHub CI](../../docs/github-ci.md).

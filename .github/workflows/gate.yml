@@ -1,0 +1,136 @@
+name: gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Both stay empty unless the repository sets BUILDBUDDY_API_KEY.
+  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
+  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  MSYS2_ARG_CONV_EXCL: "//"
+  BAZELISK_VERSION: "1.29.0"
+
+concurrency:
+  group: gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gate:
+    name: gate
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        shell: bash
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        id: repo-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Pin the affected base
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          python3 - <<'DX_GATE_BASE'
+          import os
+          import subprocess
+          import sys
+
+
+          def git(*args, check=True):
+              done = subprocess.run(
+                  ["git", *args], capture_output=True, text=True, check=False
+              )
+              if check and done.returncode != 0:
+                  sys.exit(f"git {' '.join(args)} failed: {done.stderr.strip()}")
+              return done
+
+
+          event = os.environ.get("EVENT_NAME", "")
+          head = git("rev-parse", "HEAD").stdout.strip()
+          first_parent = git("rev-parse", "--verify", "-q", "HEAD^1", check=False)
+          fallback = first_parent.stdout.strip() if first_parent.returncode == 0 else ""
+          candidate = ""
+          if event == "pull_request":
+              candidate = fallback
+          elif event == "merge_group":
+              candidate = os.environ.get("MERGE_GROUP_BASE", "")
+              if not candidate:
+                  sys.exit("gate: merge_group event has no base_sha")
+          elif event == "push":
+              before = os.environ.get("PUSH_BEFORE", "")
+              known = before and set(before) != {"0"}
+              known = known and git("cat-file", "-e", f"{before}^{{commit}}", check=False).returncode == 0
+              candidate = before if known else fallback
+          else:
+              candidate = fallback
+          if not candidate:
+              sys.exit(f"gate: no base commit for event {event!r}")
+          merged = git("merge-base", candidate, head, check=False)
+          base = merged.stdout.strip() if merged.returncode == 0 else candidate
+          if not base:
+              sys.exit("gate: empty base")
+          if base == head:
+              sys.exit(f"gate: base {base} equals HEAD, nothing would be compared")
+          git("update-ref", "refs/remotes/origin/main", base)
+          if git("rev-parse", "--verify", "-q", "refs/remotes/origin/HEAD", check=False).returncode == 0:
+              git("update-ref", "--no-deref", "-d", "refs/remotes/origin/HEAD")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"GATE_BASE={base}\n")
+          print(f"gate: base {base} head {head}")
+          DX_GATE_BASE
+      - name: Check the affected targets
+        shell: bash
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//:dx -- check --affected --output=json | tee "${RUNNER_TEMP:-/tmp}/gate.json"
+      - name: Verify the base dx compared against
+        run: |
+          python3 - "${RUNNER_TEMP:-/tmp}/gate.json" <<'DX_GATE_VERIFY'
+          import json
+          import os
+          import sys
+
+          want = os.environ["GATE_BASE"]
+          seen = []
+          for line in open(sys.argv[1], encoding="utf-8"):
+              try:
+                  value = json.loads(line)
+              except ValueError:
+                  continue
+              affected = value.get("affected") if isinstance(value, dict) else None
+              if isinstance(affected, dict) and "base" in affected:
+                  seen.append(affected["base"])
+          if want not in seen:
+              sys.exit(f"gate: dx compared against {seen}, expected {want}")
+          DX_GATE_VERIFY
+      - name: Summary
+        if: ${{ always() }}
+        run: echo "gate base ${GATE_BASE:-unset}" >> "$GITHUB_STEP_SUMMARY"

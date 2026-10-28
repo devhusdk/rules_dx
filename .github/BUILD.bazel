@@ -17,6 +17,7 @@ filegroup(
 
 exports_files([
     "actionlint.yaml",
+    "rulesets/main.json",
     "workflows/README.md",
 ] + glob(
     [

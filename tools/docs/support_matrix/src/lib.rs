@@ -141,6 +141,7 @@ struct Context<'a> {
     computed: &'a BTreeMap<String, Vec<Vec<String>>>,
     platforms: Vec<starlark::Platform>,
     dogfood: Vec<String>,
+    tag_jobs: BTreeMap<String, Vec<String>>,
     extra: BTreeMap<String, (Vec<String>, String)>,
 }
 
@@ -157,6 +158,13 @@ impl Context<'_> {
                 computed: self.computed,
             };
             let facts = starlark::test_facts(&file, name, &loader)?;
+            if label.ends_with("_upstream")
+                && facts.tags.iter().any(|t| self.tag_jobs.contains_key(t))
+            {
+                return Err(format!(
+                    "{label} is filtered out of tag-selected CI jobs, so it cannot be a consumer test"
+                ));
+            }
             let manual = facts.tags.iter().any(|tag| tag == "manual");
             for platform in &self.platforms {
                 if !starlark::compatible(&facts.compatible_with, platform)
@@ -166,6 +174,15 @@ impl Context<'_> {
                 }
                 if !manual && self.dogfood.contains(&platform.id) {
                     on.insert(platform.id.clone());
+                }
+                for tag in &facts.tags {
+                    if self
+                        .tag_jobs
+                        .get(tag)
+                        .is_some_and(|platforms| platforms.contains(&platform.id))
+                    {
+                        on.insert(platform.id.clone());
+                    }
                 }
                 for workflow in &row.workflows {
                     let Some((platforms, text)) = self.extra.get(workflow) else {
@@ -223,6 +240,7 @@ pub fn row_platforms(
             ));
         }
     }
+    let mut tag_jobs = workflows::tag_job_platforms(CI_WORKFLOW, &ci, &runners)?;
     let mut extra = BTreeMap::new();
     for workflow in facts.rows.iter().flat_map(|row| row.workflows.iter()) {
         if extra.contains_key(workflow) {
@@ -231,6 +249,14 @@ pub fn row_platforms(
         let path = format!(".github/workflows/{workflow}");
         let text = source.read(&path)?;
         let platforms = workflows::workflow_platforms(&path, &text, &runners)?;
+        for (tag, on) in workflows::tag_job_platforms(&path, &text, &runners)? {
+            let entry: &mut Vec<String> = tag_jobs.entry(tag).or_default();
+            for platform in on {
+                if !entry.contains(&platform) {
+                    entry.push(platform);
+                }
+            }
+        }
         extra.insert(workflow.clone(), (platforms, text));
     }
     let context = Context {
@@ -246,6 +272,7 @@ pub fn row_platforms(
             })
             .collect(),
         dogfood,
+        tag_jobs,
         extra,
     };
     let mut out = BTreeMap::new();

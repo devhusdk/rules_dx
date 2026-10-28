@@ -29,33 +29,33 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `javascript` |
 | Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64` | `julia` |
 | Kotlin | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `kotlin` |
-| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `lua` |
+| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `lua` |
 | MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `mdx` |
-| OCaml | `linux_x86_64` | no | `ocaml` |
-| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
+| OCaml | `linux_x86_64` | `linux_x86_64` | `ocaml` |
+| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64` | no |
 | PHP | `linux_x86_64` | no | no |
 | PowerShell | `linux_x86_64`, `linux_arm64` | no | `powershell` |
 | Python | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `python` |
 | Ruby | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `ruby` |
-| Rust | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `rust`, `rust-android`, `rust-web` |
-| Scala | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `scala` |
+| Rust | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `rust`, `rust-android`, `rust-web` |
+| Scala | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `scala` |
 | Svelte | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `svelte` |
 | TypeScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `typescript` |
 | Vue | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `vue` |
-| Zig | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `zig` |
+| Zig | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `zig` |
 
 ## Targets
 
 | Target | Builds and tests on | Consumer test on | `dx new` starter |
 | --- | --- | --- | --- |
 | Android | no | `linux_x86_64` | no |
-| AppImage | `linux_x86_64`, `linux_arm64` | no | no |
+| AppImage | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
 | Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` | no |
 | Dockerfile | no | no | no |
 | Make | no | no | no |
-| MSIX | no | no | no |
+| MSIX | no | `linux_x86_64` | no |
 | Qt | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` | no |
-| WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
+| WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
 
 ## Quality
 

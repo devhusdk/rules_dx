@@ -354,7 +354,7 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--explain] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` takes a whole number

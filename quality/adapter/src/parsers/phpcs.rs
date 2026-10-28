@@ -76,10 +76,9 @@ pub fn parse_phpcs(
         ));
     }
     match (code, findings.is_empty()) {
-        (Some(0), false) => Err(ParseError::shape(
-            TOOL,
-            "exit 0 with diagnostics".to_owned(),
-        )),
+        // A bound ruleset may mask issues from the exit code
+        // (`ignore_warnings_on_exit` and friends), so exit 0 can come with
+        // findings; the totals check above is the consistency guard.
         (Some(1..=3), true) => Err(ParseError::shape(
             TOOL,
             format!("exit {} with no diagnostics", code_name(code)),
@@ -237,11 +236,20 @@ mod tests {
     }
 
     #[test]
+    fn phpcs_accepts_warnings_at_exit_zero_when_a_ruleset_masks_them() {
+        let warnings = r#"{"totals":{"errors":0,"warnings":1,"fixable":0},"files":{"/s/a.php":{"errors":0,"warnings":1,"messages":[{"message":"Line exceeds 120 characters","source":"Generic.Files.LineLength.TooLong","severity":5,"fixable":false,"type":"WARNING","line":9,"column":121}]}}}"#;
+        let found = parse_phpcs(warnings.as_bytes(), Some(0), &["/s/a.php"]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.severity, ToolSeverity::Warning);
+        let skewed = warnings.replace(r#""warnings":1,"fixable""#, r#""warnings":0,"fixable""#);
+        parse_phpcs(skewed.as_bytes(), Some(0), &["/s/a.php"]).expect_err("totals disagree");
+    }
+
+    #[test]
     fn phpcs_fails_closed_on_inconsistent_reports() {
         let files = ["/s/a.php"];
         parse_phpcs(b"not json", Some(1), &files).expect_err("not JSON");
         parse_phpcs(b"[]", Some(1), &files).expect_err("not a report");
-        parse_phpcs(REPORT.as_bytes(), Some(0), &files).expect_err("exit 0 with findings");
         let clean = br#"{"totals":{"errors":0,"warnings":0,"fixable":0},"files":[]}"#;
         parse_phpcs(clean, Some(2), &files).expect_err("non-zero without findings");
         parse_phpcs(REPORT.as_bytes(), Some(1), &["/s/other.php"]).expect_err("unchecked file");

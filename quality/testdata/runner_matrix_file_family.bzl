@@ -1714,6 +1714,20 @@ FILE_FAMILY_CASES = [
         "macos_arm64": True,
     },
     {
+        "name": "matrix_ansible_lint_fix",
+        "generated": {
+            "matrix/ansible_fix/playbooks/site.yml": "---\n- name: Fixable play\n  hosts: all\n  gather_facts: false\n  tasks:\n    - name: Report readiness\n      debug:\n        msg: ready\n",
+        },
+        "capability": "lint",
+        "stages": ["ansible_lint;ansible;matrix/ansible_fix/playbooks/site.yml"],
+        "tool_names": ["ansible_lint"],
+        "tool_binaries": ["//quality/tools/python:ansible_lint"],
+        "tool_env": ["ansible_lint=RUNFILES_DIR=$TEST_SRCDIR"],
+        "expected_file": ":matrix/matrix_ansible_lint_fix.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
         "name": "matrix_ansible_lint_config",
         "generated": {
             "matrix/ansible_config/playbooks/site.yml": "---\n- name: Dirty play\n  hosts: all\n  tasks:\n    - shell: echo hi\n",

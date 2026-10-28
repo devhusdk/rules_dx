@@ -14,8 +14,8 @@ import math
 import os
 import pty
 import shutil
-import statistics
 import stat
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -225,9 +225,13 @@ def measure_run(language, dx, rules, tty, dx_source, scratch):
             raise MeasureError(f"dx test failed for {language}:\n{test.text}")
         notice = NOTICE_MARK in test.text
         if not notice:
-            raise MeasureError(f"{language}: no first-run notice, so the run was not cold")
+            raise MeasureError(
+                f"{language}: no first-run notice, so the run was not cold"
+            )
         repos = tree_bytes_of_repos(home)
-        markers = glob.glob(str(home / ".cache" / "bazel" / "*" / "*" / "external" / "*.marker"))
+        markers = glob.glob(
+            str(home / ".cache" / "bazel" / "*" / "*" / "external" / "*.marker")
+        )
         run = {
             "new_s": made.elapsed,
             "test_s": test.elapsed,
@@ -253,7 +257,18 @@ def tree_bytes_of_repos(home):
     """
     return sum(
         tree_bytes(path)
-        for path in glob.glob(str(home / ".cache" / "bazel" / "*" / "cache" / "repos" / "v1" / "content_addressable"))
+        for path in glob.glob(
+            str(
+                home
+                / ".cache"
+                / "bazel"
+                / "*"
+                / "cache"
+                / "repos"
+                / "v1"
+                / "content_addressable"
+            )
+        )
     )
 
 
@@ -442,7 +457,9 @@ def parser():
             p.add_argument("--runs", type=int, default=3)
             p.add_argument("--dx", required=True)
             p.add_argument("--tty", action="store_true")
-            p.add_argument("--dx-source", choices=("checkout", "launcher"), default="checkout")
+            p.add_argument(
+                "--dx-source", choices=("checkout", "launcher"), default="checkout"
+            )
             p.add_argument("--rules", default=str(ROOT))
             p.add_argument("--scratch", default="")
             p.add_argument("--out", required=True)

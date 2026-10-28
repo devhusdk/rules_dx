@@ -6,14 +6,15 @@ import shutil
 import stat
 import sys
 
-import pytest
-
 import first_build
+import pytest
 from workflow_testing import ROOT
 
 FIXTURES = ROOT / "tools" / "ci" / "first_build_fixtures"
 
-pytestmark = pytest.mark.skipif(os.name == "nt", reason="fake dx and bazel are shell scripts")
+pytestmark = pytest.mark.skipif(
+    os.name == "nt", reason="fake dx and bazel are shell scripts"
+)
 
 
 def doc(*totals):
@@ -99,7 +100,9 @@ def test_check_names_the_breach():
     data = doc(300, 100)
     data["languages"][0]["ceiling_s"] = 200
     over, unset = first_build.breaches(data)
-    assert over == ["first-build: lang0 total 300s over ceiling 200s (new 10s, test 290s)"]
+    assert over == [
+        "first-build: lang0 total 300s over ceiling 200s (new 10s, test 290s)"
+    ]
     assert unset == ["lang1"]
 
 
@@ -186,17 +189,49 @@ def test_missing_notice_means_not_cold(tmp_path, monkeypatch):
 
 def test_launcher_source_is_refused(tmp_path):
     with pytest.raises(first_build.MeasureError, match="not implemented"):
-        first_build.measure_run("lang0", "dx", tmp_path, False, "launcher", str(tmp_path))
+        first_build.measure_run(
+            "lang0", "dx", tmp_path, False, "launcher", str(tmp_path)
+        )
 
 
 def test_summarize_takes_medians():
     runs = [
-        dict(new_s=1, test_s=9, total_s=10, download_mb=5, repos=3, silent_max_s=2,
-             silent_after="a", notice_seen=True, bazel_version="b", dx_version="v"),
-        dict(new_s=1, test_s=29, total_s=30, download_mb=5, repos=3, silent_max_s=9,
-             silent_after="z", notice_seen=True, bazel_version="b", dx_version="v"),
-        dict(new_s=1, test_s=19, total_s=20, download_mb=5, repos=3, silent_max_s=4,
-             silent_after="c", notice_seen=True, bazel_version="b", dx_version="v"),
+        dict(
+            new_s=1,
+            test_s=9,
+            total_s=10,
+            download_mb=5,
+            repos=3,
+            silent_max_s=2,
+            silent_after="a",
+            notice_seen=True,
+            bazel_version="b",
+            dx_version="v",
+        ),
+        dict(
+            new_s=1,
+            test_s=29,
+            total_s=30,
+            download_mb=5,
+            repos=3,
+            silent_max_s=9,
+            silent_after="z",
+            notice_seen=True,
+            bazel_version="b",
+            dx_version="v",
+        ),
+        dict(
+            new_s=1,
+            test_s=19,
+            total_s=20,
+            download_mb=5,
+            repos=3,
+            silent_max_s=4,
+            silent_after="c",
+            notice_seen=True,
+            bazel_version="b",
+            dx_version="v",
+        ),
     ]
     summary = first_build.summarize("lang0", runs, "checkout", "d")
     assert summary["total_s"] == 20

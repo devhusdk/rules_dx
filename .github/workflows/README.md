@@ -19,11 +19,11 @@
 
 ## Main health
 
-`ci.yml` also runs on a schedule (`17 3,15 * * *`, UTC) against the default branch head, so main always has a recent full result even when push runs are cancelled. `cancel-stale.yml` sweeps `event=push` runs only and never touches a scheduled run, and publishing stays push-only. A red scheduled run is a signal, not an outage; route its causes to #1371. GitHub may delay or drop scheduled runs under load.
+`ci.yml` also runs on a schedule (`17 3,15 * * *`, UTC) against the default branch head, so main always has a recent full result. Main pushes share one concurrency group (`ci-ci-main`, no cancel): one run keeps running and the newest push replaces only the waiting one. Scheduled and `qualify/<sha>` runs use per-SHA groups, so a push never replaces them. `cancel-stale.yml` sweeps `event=push` runs only and never touches a scheduled run, and publishing stays push-only. A red scheduled run is a signal, not an outage; route its causes to #1371. GitHub may delay or drop scheduled runs under load.
 
 ## Qualifying a SHA
 
-The scheduled run covers general main health; to prove one fixed SHA, use `qualify/<sha>`. Main pushes are cancelled by `cancel-stale.yml` as newer commits land, so a main run may never finish. To get a full `ci` run at one fixed SHA:
+The scheduled run covers general main health; to prove one fixed SHA, use `qualify/<sha>`. A main run in progress always finishes, but intermediate pushes are replaced while waiting, so not every SHA gets a run. To get a full `ci` run at one fixed SHA:
 
 1. Push the SHA to a `qualify/<sha>` branch, then dispatch `ci` on that branch (`gh workflow run ci.yml --ref qualify/<sha>`). `ci.yml` takes no dispatch inputs, so the matrix is the required one. It uses `--config=ci`, like a main push, and writes to the remote cache.
 2. Record one triage table row per cell: cell, job URL, runner image and versions (the `Record the runner image` step), first root-cause category, owning issue. List runner outages separately.

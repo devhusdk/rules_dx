@@ -1077,7 +1077,7 @@ the check. Diagnostics suppressed in source with `#pragma warning disable` or
 `[SuppressMessage]` are not reported.
 
 Roslyn is check only. `lint --apply` changes no files. Supported on
-linux_x86_64.
+linux_x86_64, linux_arm64, macos_arm64, windows_x86_64 and windows_arm64.
 
 ### F# formatting and lint
 

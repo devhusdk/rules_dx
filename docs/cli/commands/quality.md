@@ -2259,7 +2259,9 @@ ruby_library(
 ### YAML
 
 `yamlfmt` formats and `yamllint` lints. Both run from managed pins on Linux
-x86_64. Select them in a `yaml` family. Only `yamlfmt` has fixes.
+x86_64. Select them in a `yaml` family. Only `yamlfmt` has fixes. After one
+warm run, both pins come from the Bazel repository cache, so `format` and `lint`
+pass with tool downloads blocked.
 
 ```python
 quality_family(

@@ -9,7 +9,8 @@ const DIRTY: &str = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app\nda
 const WIDGET: &str =
     "apiVersion: example.com/v1\nkind: Widget\nmetadata:\n  name: w\nspec:\n  size: 2\n";
 
-const EXTRA_FIELD: &str = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app\nextra: 1\n";
+const DUPLICATE_KEY: &str =
+    "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app\ndata:\n  key: a\n  key: b\n";
 
 const NOT_MANIFEST: &str = "name: not-a-manifest\n";
 
@@ -81,6 +82,12 @@ kubernetes_manifests(
 )
 
 kubernetes_manifests(
+    name = "tight",
+    aspect_hints = [":schemas"],
+    srcs = ["tight.yaml"],
+)
+
+kubernetes_manifests(
     name = "loose",
     aspect_hints = [":lenient"],
     srcs = ["loose.yaml"],
@@ -110,7 +117,8 @@ fn consumer() -> Case {
     write(&root.join("app/a.yaml"), CLEAN);
     write(&root.join("app/b.yaml"), CLEAN);
     write(&root.join("app/widget.yaml"), WIDGET);
-    write(&root.join("app/loose.yaml"), EXTRA_FIELD);
+    write(&root.join("app/loose.yaml"), DUPLICATE_KEY);
+    write(&root.join("app/tight.yaml"), CLEAN);
     write(&root.join("docs/plain.yaml"), NOT_MANIFEST);
     root
 }
@@ -158,6 +166,24 @@ fn lint_reports_file_and_line_for_an_invalid_manifest_and_never_edits() {
     assert!(out.combined().contains("app/b.yaml"), "{}", out.combined());
     assert!(!out.combined().contains("app/a.yaml"), "{}", out.combined());
     assert_eq!(read(&root.join("app/b.yaml")), DIRTY);
+}
+
+#[test]
+fn strict_rejects_a_duplicate_key_that_a_lenient_config_accepts() {
+    let root = consumer();
+    write(&root.join("app/tight.yaml"), DUPLICATE_KEY);
+    let out = dx(&root, "lint", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("app/tight.yaml"),
+        "{}",
+        out.combined()
+    );
+    assert!(
+        !out.combined().contains("app/loose.yaml"),
+        "{}",
+        out.combined()
+    );
 }
 
 #[test]

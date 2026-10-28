@@ -105,7 +105,7 @@ kubernetes_schemas = rule(
         ),
         "kubernetes_version": attr.string(
             mandatory = True,
-            doc = "Kubernetes version the core schemas describe, as X.Y.Z.",
+            doc = "Label for the version the schema files describe, as X.Y.Z; the files decide it.",
         ),
         "schemas": attr.label_list(
             allow_files = [".json"],
@@ -113,6 +113,6 @@ kubernetes_schemas = rule(
             default = [],
         ),
         "skip_kinds": attr.string_list(doc = "Resource kinds kubeconform skips.", default = []),
-        "strict": attr.bool(doc = "Rejects unknown fields and duplicate keys.", default = True),
+        "strict": attr.bool(doc = "Rejects duplicate keys; unknown fields need strict schema files.", default = True),
     },
 )

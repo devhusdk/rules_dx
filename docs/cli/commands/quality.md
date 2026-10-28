@@ -2154,7 +2154,12 @@ kubernetes_manifests(
 core schema files named like the yannh/kubernetes-json-schema files, for
 example `deployment-apps-v1.json`. `crd_schemas` maps each `<kind>_<version>.json`
 file to its API group. Duplicate names fail the analysis. `strict` defaults to
-true and rejects unknown fields. `skip_kinds` lists kinds that are not checked.
+true and rejects duplicate keys in a manifest. It does not reject unknown
+fields: that needs the `-standalone-strict` variants of the schema files in
+`schemas`, because the schema decides which fields are allowed.
+`kubernetes_version` only labels the run; the declared schema files decide
+which Kubernetes version is checked. `skip_kinds` lists kinds that are not
+checked.
 
 `kubeconform` never reaches a network schema location, and a kind with no
 schema is an error, not a skip. Findings keep the line and column of the

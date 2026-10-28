@@ -1,4 +1,22 @@
+diff --git a/py/private/py_venv/BUILD.bazel b/py/private/py_venv/BUILD.bazel
+index 86249c1..689a6d3 100644
+--- a/py/private/py_venv/BUILD.bazel
++++ b/py/private/py_venv/BUILD.bazel
+@@ -11,6 +11,12 @@ exports_files([
+     "templates/venv_activate.tmpl.sh",
+ ])
+ 
++# Public so rules_dx can unit-test the script with the host python.
++exports_files(
++    ["templates/windows_venv_launcher.py"],
++    visibility = ["//visibility:public"],
++)
++
+ bool_flag(
+     name = "debug_venv",
+     build_setting_default = False,
 diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
+index afc3005..fca7530 100644
 --- a/py/private/py_venv/py_venv.bzl
 +++ b/py/private/py_venv/py_venv.bzl
 @@ -27,6 +27,7 @@ layout details.
@@ -9,7 +27,35 @@ diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
  load("//py/private:py_library.bzl", _py_library = "py_library_utils")
  load("//py/private:py_semantics.bzl", _py_semantics = "semantics")
  load("//py/private:transitions.bzl", "python_transition")
-@@ -285,6 +286,8 @@ _py_venv = rule(
+@@ -81,6 +82,7 @@ def _assemble_shared(ctx):
+         site_merge_script_py = ctx.file._site_merge_script,
+         console_script_tmpl = ctx.file._console_script_tmpl,
+         venv_name = ".{}".format(safe_name),
++        windows_venv_launcher = ctx.file._windows_venv_launcher,
+     )
+ 
+     srcs_depset = _py_library.make_srcs_depset(ctx)
+@@ -115,6 +117,8 @@ def _common_providers(ctx, shared, executable = None):
+         # Deliberately no PyInfo: a venv is a terminal artifact, not a source of imports.
+         VirtualenvInfo(
+             bin_python = shared.venv.bin_python,
++            interpreter = shared.venv.interpreter,
++            launcher_script = shared.venv.launcher_script,
+             imports = shared.imports_depset,
+             transitive_sources = shared.srcs_depset,
+         ),
+@@ -227,6 +231,10 @@ does not reinsert a wheel.
+         allow_single_file = True,
+         default = "//py/private/py_venv:templates/_virtualenv.py",
+     ),
++    "_windows_venv_launcher": attr.label(
++        allow_single_file = True,
++        default = "//py/private/py_venv:templates/windows_venv_launcher.py",
++    ),
+     "_windows_constraint": attr.label(
+         default = "@platforms//os:windows",
+     ),
+@@ -285,6 +293,8 @@ _py_venv = rule(
          # site_merge action. Optional so venvs keep analyzing in setups
          # that never registered rules_py's exec-tools toolchain.
          config_common.toolchain_type(EXEC_TOOLS_TOOLCHAIN, mandatory = False),
@@ -18,7 +64,7 @@ diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
      ],
      executable = True,
      cfg = python_transition,
-@@ -309,6 +312,8 @@ _py_venv_lib = rule(
+@@ -309,6 +319,8 @@ _py_venv_lib = rule(
          # Same optional exec-tools dependency as `_py_venv`: assemble_venv
          # needs it to run the site_merge action when a package needs a merge.
          config_common.toolchain_type(EXEC_TOOLS_TOOLCHAIN, mandatory = False),
@@ -27,47 +73,120 @@ diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
      ],
      cfg = python_transition,
  )
-diff --git a/py/private/py_venv/toolchains_resolver.bzl b/py/private/py_venv/toolchains_resolver.bzl
---- a/py/private/py_venv/toolchains_resolver.bzl
-+++ b/py/private/py_venv/toolchains_resolver.bzl
-@@ -140,9 +140,9 @@ def resolve_venv_toolchain(ctx, *, py_toolchain, is_windows, venv_name):
-     return struct(
-         wheel_py_ver = wheel_py_ver,
-         venv_py_ver = venv_py_ver,
--        escape = _site_packages_escape(depth),
-+        escape = _relative_up(4 + depth) if is_windows else _site_packages_escape(depth),
-         venv_to_runfiles_escape = venv_to_runfiles_escape,
--        site_packages_rel = "{}/lib/{}/site-packages".format(venv_name, venv_py_ver),
-+        site_packages_rel = "{}/Lib/site-packages".format(venv_name) if is_windows else "{}/lib/{}/site-packages".format(venv_name, venv_py_ver),
-         pyvenv_home = _pyvenv_home(ctx, py_toolchain, is_windows, venv_to_runfiles_escape),
-         versioned_python_names = _versioned_python_names(py_toolchain),
-         bin_python_target_path = _bin_python_target_path(ctx, py_toolchain, depth),
-diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
---- a/py/private/py_venv/venv.bzl
-+++ b/py/private/py_venv/venv.bzl
-@@ -35,6 +35,8 @@ Bazel's action cache treats each piece independently (no tree-artifact
- + remote-exec materialisation surprises).
- """
- 
-+load("@bazel_lib//lib:paths.bzl", "to_rlocation_path")
-+load("@hermetic_launcher//launcher:lib.bzl", "launcher")
- load("//py/private:py_library.bzl", _py_library = "py_library_utils")
- load("//py/private/toolchain:types.bzl", "EXEC_TOOLS_TOOLCHAIN")
- load(":toolchains_resolver.bzl", "resolve_venv_toolchain")
-@@ -67,6 +69,110 @@ _ADDSITEDIR_LINE = (
-     "vars().get(\"known_paths\"))"
- )
- 
-+_WINDOWS_VENV_LAUNCHER = """import os
+diff --git a/py/private/py_venv/py_venv_exec.bzl b/py/private/py_venv/py_venv_exec.bzl
+index c4af4f0..378a597 100644
+--- a/py/private/py_venv/py_venv_exec.bzl
++++ b/py/private/py_venv/py_venv_exec.bzl
+@@ -88,13 +88,37 @@ def _py_venv_exec_impl(ctx):
+     # The launcher runtime resolves transformed-arg positions through
+     # the Bazel runfiles manifest, then `execve`s the venv python.
+     executable_launcher = ctx.actions.declare_file(ctx.attr.name)
+-    embedded_args, transformed_args = launcher.args_from_entrypoint(vinfo.bin_python)
++    # On Windows (`launcher_script` set) the stub starts the toolchain
++    # python.exe directly and `launcher_script --run` sets up the venv in
++    # that one process, so the stub is the interpreter's direct parent:
++    #   [0]  toolchain python.exe, [1+] flags, launcher_script, "--run",
++    #   venv bin/python.exe, main
++    if vinfo.launcher_script != None:
++        embedded_args, transformed_args = launcher.args_from_entrypoint(vinfo.interpreter)
++    else:
++        embedded_args, transformed_args = launcher.args_from_entrypoint(vinfo.bin_python)
+     for flag in flags:
+         embedded_args, transformed_args = launcher.append_embedded_arg(
+             arg = flag,
+             embedded_args = embedded_args,
+             transformed_args = transformed_args,
+         )
++    if vinfo.launcher_script != None:
++        embedded_args, transformed_args = launcher.append_runfile(
++            file = vinfo.launcher_script,
++            embedded_args = embedded_args,
++            transformed_args = transformed_args,
++        )
++        embedded_args, transformed_args = launcher.append_embedded_arg(
++            arg = "--run",
++            embedded_args = embedded_args,
++            transformed_args = transformed_args,
++        )
++        embedded_args, transformed_args = launcher.append_embedded_arg(
++            arg = launcher.to_rlocation_path(vinfo.bin_python),
++            embedded_args = embedded_args,
++            transformed_args = transformed_args,
++        )
+     embedded_args, transformed_args = launcher.append_runfile(
+         file = main,
+         embedded_args = embedded_args,
+diff --git a/py/private/py_venv/templates/windows_venv_launcher.py b/py/private/py_venv/templates/windows_venv_launcher.py
+new file mode 100644
+index 0000000..eed35d6
+--- /dev/null
++++ b/py/private/py_venv/templates/windows_venv_launcher.py
+@@ -0,0 +1,196 @@
++"""Windows launcher for rules_py venvs.
++
++Runs under the toolchain `python.exe` (started by a hermetic-launcher stub).
++Two modes, selected by the first argument:
++
++    windows_venv_launcher.py <venv-python-rlocation> <python args...>
++        Re-run: start the toolchain python again with `__PYVENV_LAUNCHER__`
++        pointing at the venv's `bin/python.exe`, which makes it a venv
++        interpreter. Used by the venv's own `bin/python.exe` stub.
++
++    windows_venv_launcher.py --run <venv-python-rlocation> <main> <args...>
++        In-process: set up the venv inside this one process and run `main`.
++        Used by `py_binary` launchers so that the process tree is
++        stub -> python, which lets the watchdog below see the stub die.
++
++On Windows a watchdog thread waits on the parent process. When the parent is
++killed (the hermetic-launcher stub uses no job object, so its child is
++orphaned), the watchdog stops the work and exits.
++"""
++
++import os
++import runpy
 +import signal
++import site
 +import subprocess
 +import sys
 +
 +BACKSLASH = chr(92)
 +
 +
++def start_watchdog(on_parent_death):
++    """Windows only: run `on_parent_death` then exit when the parent dies."""
++    if os.name != "nt":
++        return
++    import ctypes
++    import threading
++    from ctypes import wintypes
++
++    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
++    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
++    kernel32.OpenProcess.restype = wintypes.HANDLE
++    kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
++    kernel32.WaitForSingleObject.restype = wintypes.DWORD
++    synchronize = 0x00100000
++    infinite = 0xFFFFFFFF
++    handle = kernel32.OpenProcess(synchronize, False, os.getppid())
++    if not handle:
++        return
++
++    def watch():
++        kernel32.WaitForSingleObject(handle, infinite)
++        try:
++            on_parent_death()
++        finally:
++            os._exit(1)
++
++    threading.Thread(target=watch, daemon=True).start()
++
++
 +def is_venv(python):
-+    return bool(python) and os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(python)), "pyvenv.cfg"))
++    return bool(python) and os.path.isfile(os.path.join(venv_root(python), "pyvenv.cfg"))
++
++
++def venv_root(python):
++    return os.path.dirname(os.path.dirname(python))
 +
 +
 +def unescape(text):
@@ -88,6 +207,10 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 +    return entries
 +
 +
++def site_packages_dir(venv_python):
++    return os.path.join(venv_root(venv_python), "Lib", "site-packages")
++
++
 +def pth_imports(site_packages):
 +    imports = []
 +    for name in sorted(os.listdir(site_packages)):
@@ -106,9 +229,8 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 +
 +
 +def import_dirs(entries, venv_python):
-+    site_packages = os.path.join(os.path.dirname(os.path.dirname(venv_python)), "Lib", "site-packages")
 +    dirs = []
-+    for imp in pth_imports(site_packages):
++    for imp in pth_imports(site_packages_dir(venv_python)):
 +        for key, value in entries.items():
 +            if not key.startswith(imp + "/"):
 +                continue
@@ -121,30 +243,127 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 +    return dirs
 +
 +
-+rlocation = sys.argv[1]
-+runfiles = os.environ.get("RUNFILES_DIR", "")
-+manifest = os.environ.get("RUNFILES_MANIFEST_FILE", "")
-+if not runfiles and manifest:
-+    if manifest.endswith("_manifest"):
-+        runfiles = manifest[: -len("_manifest")]
-+    else:
-+        runfiles = os.path.dirname(manifest)
-+venv_python = os.path.normpath(os.path.join(runfiles, rlocation)) if runfiles else ""
-+extra = []
-+if not is_venv(venv_python) and os.path.isfile(manifest):
-+    entries = manifest_entries(manifest)
-+    venv_python = os.path.normpath(entries.get(rlocation, ""))
-+    if is_venv(venv_python):
-+        extra = import_dirs(entries, venv_python)
-+if not is_venv(venv_python):
-+    sys.exit("venv not found in the runfiles: " + rlocation)
-+signal.signal(signal.SIGINT, signal.SIG_IGN)
-+env = dict(os.environ)
-+env["__PYVENV_LAUNCHER__"] = venv_python
-+env["RULES_PY_VENV_PATHS"] = os.pathsep.join(extra)
-+sys.exit(subprocess.call([sys.executable] + sys.argv[2:], env=env))
-+"""
++def locate_venv(rlocation):
++    """Returns (venv_python, extra_import_dirs); exits with 2 when missing."""
++    runfiles = os.environ.get("RUNFILES_DIR", "")
++    manifest = os.environ.get("RUNFILES_MANIFEST_FILE", "")
++    if not runfiles and manifest:
++        if manifest.endswith("_manifest"):
++            runfiles = manifest[: -len("_manifest")]
++        else:
++            runfiles = os.path.dirname(manifest)
++    venv_python = os.path.normpath(os.path.join(runfiles, rlocation)) if runfiles else ""
++    extra = []
++    if not is_venv(venv_python) and os.path.isfile(manifest):
++        entries = manifest_entries(manifest)
++        venv_python = os.path.normpath(entries.get(rlocation, ""))
++        if is_venv(venv_python):
++            extra = import_dirs(entries, venv_python)
++    if not is_venv(venv_python):
++        sys.stderr.write("venv not found in the runfiles: " + rlocation + chr(10))
++        sys.exit(2)
++    return venv_python, extra
 +
++
++def include_system_site_packages(root):
++    with open(os.path.join(root, "pyvenv.cfg"), encoding="utf-8") as lines:
++        for line in lines:
++            key, _, value = line.partition("=")
++            if key.strip() == "include-system-site-packages":
++                return value.strip().lower() == "true"
++    return False
++
++
++def rerun(rlocation, python_args, children):
++    venv_python, extra = locate_venv(rlocation)
++    signal.signal(signal.SIGINT, signal.SIG_IGN)
++    env = dict(os.environ)
++    env["__PYVENV_LAUNCHER__"] = venv_python
++    env["RULES_PY_VENV_PATHS"] = os.pathsep.join(extra)
++    child = subprocess.Popen([sys.executable] + python_args, env=env)
++    children.append(child)
++    sys.exit(child.wait())
++
++
++def run(rlocation, main, args):
++    venv_python, extra = locate_venv(rlocation)
++    root = venv_root(venv_python)
++    base_site_packages = os.path.normcase(os.path.join(sys.base_prefix, "Lib", "site-packages"))
++    if not include_system_site_packages(root):
++        sys.path[:] = [p for p in sys.path if os.path.normcase(p) != base_site_packages]
++    sys.prefix = sys.exec_prefix = root
++    sys.executable = venv_python
++    site.addsitedir(site_packages_dir(venv_python))
++    sys.path.extend(p for p in extra if p not in sys.path)
++    if not sys.flags.isolated and sys.path:
++        # sys.path[0] is this launcher's directory; Python would have put
++        # the main script's directory there.
++        sys.path[0] = os.path.dirname(os.path.abspath(main))
++    sys.argv = [main] + args
++    runpy.run_path(main, run_name="__main__")
++
++
++def entry(argv):
++    # Open the parent handle before anything else so a recycled pid cannot
++    # be mistaken for the launcher stub.
++    children = []
++    start_watchdog(lambda: [child.kill() for child in children])
++    if len(argv) >= 4 and argv[1] == "--run":
++        run(argv[2], argv[3], argv[4:])
++    elif len(argv) >= 2:
++        rerun(argv[1], argv[2:], children)
++    else:
++        sys.exit("usage: windows_venv_launcher.py [--run] <venv-python> ...")
++
++
++if __name__ == "__main__":
++    entry(sys.argv)
+diff --git a/py/private/py_venv/toolchains_resolver.bzl b/py/private/py_venv/toolchains_resolver.bzl
+index 759349b..91a2980 100644
+--- a/py/private/py_venv/toolchains_resolver.bzl
++++ b/py/private/py_venv/toolchains_resolver.bzl
+@@ -140,9 +140,9 @@ def resolve_venv_toolchain(ctx, *, py_toolchain, is_windows, venv_name):
+     return struct(
+         wheel_py_ver = wheel_py_ver,
+         venv_py_ver = venv_py_ver,
+-        escape = _site_packages_escape(depth),
++        escape = _relative_up(4 + depth) if is_windows else _site_packages_escape(depth),
+         venv_to_runfiles_escape = venv_to_runfiles_escape,
+-        site_packages_rel = "{}/lib/{}/site-packages".format(venv_name, venv_py_ver),
++        site_packages_rel = "{}/Lib/site-packages".format(venv_name) if is_windows else "{}/lib/{}/site-packages".format(venv_name, venv_py_ver),
+         pyvenv_home = _pyvenv_home(ctx, py_toolchain, is_windows, venv_to_runfiles_escape),
+         versioned_python_names = _versioned_python_names(py_toolchain),
+         bin_python_target_path = _bin_python_target_path(ctx, py_toolchain, depth),
+diff --git a/py/private/py_venv/types.bzl b/py/private/py_venv/types.bzl
+index a5d63f5..c554b58 100644
+--- a/py/private/py_venv/types.bzl
++++ b/py/private/py_venv/types.bzl
+@@ -21,6 +21,8 @@ binary's launcher exec's the venv's `bin_python`.
+ """,
+     fields = {
+         "bin_python": "File — the venv's bin/python symlink. Callers needing a launcher target point here.",
++        "interpreter": "File or None — the toolchain python.exe the Windows launcher starts directly. Set on Windows only.",
++        "launcher_script": "File or None — the windows_venv_launcher.py template run by that python.exe (`--run` mode). Set on Windows only.",
+         "imports": "depset[str] — rlocation-root-relative import paths covered by this venv. Mirrors `PyInfo.imports` of the venv's dep closure.",
+         "transitive_sources": "depset[File] — first-party Python sources carried by this venv (its own `srcs` plus those of any `deps` that emit `PyInfo`). Surfaced by py_binary as `PyInfo.transitive_sources` so downstream consumers see the same source closure they'd see if srcs/deps lived on the binary directly.",
+     },
+diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
+index c998f6f..96e5e72 100644
+--- a/py/private/py_venv/venv.bzl
++++ b/py/private/py_venv/venv.bzl
+@@ -35,6 +35,8 @@ Bazel's action cache treats each piece independently (no tree-artifact
+ + remote-exec materialisation surprises).
+ """
+ 
++load("@bazel_lib//lib:paths.bzl", "to_rlocation_path")
++load("@hermetic_launcher//launcher:lib.bzl", "launcher")
+ load("//py/private:py_library.bzl", _py_library = "py_library_utils")
+ load("//py/private/toolchain:types.bzl", "EXEC_TOOLS_TOOLCHAIN")
+ load(":toolchains_resolver.bzl", "resolve_venv_toolchain")
+@@ -67,6 +69,23 @@ _ADDSITEDIR_LINE = (
+     "vars().get(\"known_paths\"))"
+ )
+ 
 +_WINDOWS_PATHS_LINE = (
 +    "import os, sys; " +
 +    "sys.path.extend(p for p in os.environ.pop(\"RULES_PY_VENV_PATHS\", \"\").split(os.pathsep) if p)"
@@ -165,7 +384,36 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
  def _dict_to_exports(env):
      return ["export %s=\"%s\"" % (k, v) for (k, v) in env.items()]
  
-@@ -167,6 +273,7 @@ def assemble_venv(
+@@ -84,7 +103,8 @@ def assemble_venv(
+         virtualenv_shim_py,
+         site_merge_script_py,
+         console_script_tmpl,
+-        venv_name):
++        venv_name,
++        windows_venv_launcher = None):
+     """Declare every file + symlink that makes up a venv for a target.
+ 
+     Args:
+@@ -114,6 +134,9 @@ def assemble_venv(
+       console_script_tmpl: File — the console-script wrapper template
+         (usually `ctx.file._console_script_tmpl`).
+       venv_name: str — the venv dir basename (e.g. "." + safe_name).
++      windows_venv_launcher: File — `templates/windows_venv_launcher.py`
++        (usually `ctx.file._windows_venv_launcher`). Required when
++        `is_windows`.
+ 
+     Returns:
+       struct with:
+@@ -121,6 +144,8 @@ def assemble_venv(
+             to rlocation-resolve and exec.
+         all_files: list[File] — every declared output, ready for runfiles
+             / DefaultInfo aggregation.
++        interpreter: File — the toolchain python.exe on Windows, else None.
++        launcher_script: File — the Windows launcher script, else None.
+     """
+ 
+     wheels_depset = _py_library.make_wheels_depset(ctx)
+@@ -167,6 +192,7 @@ def assemble_venv(
      # a cached per-wheel prefix rather than formatting every component.
      site_packages_prefix = site_packages_rel + "/"
      target_prefix_by_sp = {}
@@ -173,7 +421,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
      for tl, wheel_site_pkgs in top_level_to_site_pkgs.items():
          out = ctx.actions.declare_symlink(site_packages_prefix + tl)
          target_prefix = target_prefix_by_sp.get(wheel_site_pkgs)
-@@ -176,6 +283,14 @@ def assemble_venv(
+@@ -176,6 +202,14 @@ def assemble_venv(
          target_path = target_prefix + tl
          if "/" in tl:
              target_path = "../" * tl.count("/") + target_path
@@ -188,7 +436,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
          ctx.actions.symlink(
              output = out,
              target_path = target_path,
-@@ -209,6 +324,14 @@ def assemble_venv(
+@@ -209,6 +243,14 @@ def assemble_venv(
              "../" * datapath.count("/") +
              venv_to_runfiles_escape + "/" + install_root + "/" + datapath
          )
@@ -203,7 +451,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
          ctx.actions.symlink(
              output = out,
              target_path = target_path,
-@@ -303,6 +426,8 @@ def assemble_venv(
+@@ -303,6 +345,8 @@ def assemble_venv(
      # known_layout_site_pkgs so we don't have to materialise imports_depset
      # via .to_list().
      pth_lines.add_all(imports_depset, map_each = _format_imp, allow_closure = True)
@@ -212,7 +460,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
  
      site_packages_pth_file = ctx.actions.declare_file(
          "{}/{}.pth".format(site_packages_rel, safe_name),
-@@ -337,11 +462,40 @@ def assemble_venv(
+@@ -337,17 +381,44 @@ def assemble_venv(
      # absolute target bakes in the build-host execroot path that does not
      # exist inside an OCI container, leaving a dangling symlink. The
      # target path itself is computed by resolve_venv_toolchain.
@@ -222,9 +470,6 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 -        target_path = tc.bin_python_target_path,
 -    )
 +    if is_windows:
-+        venv_launcher = ctx.actions.declare_file("{}/bin/_venv_launcher.py".format(venv_name))
-+        ctx.actions.write(output = venv_launcher, content = _WINDOWS_VENV_LAUNCHER)
-+        declared.append(venv_launcher)
 +        bin_python = ctx.actions.declare_file("{}/bin/python.exe".format(venv_name))
 +        embedded_args, transformed_args = launcher.args_from_entrypoint(py_toolchain.python)
 +        for flag in ["-I", "-S"]:
@@ -234,7 +479,7 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
 +                transformed_args = transformed_args,
 +            )
 +        embedded_args, transformed_args = launcher.append_runfile(
-+            file = venv_launcher,
++            file = windows_venv_launcher,
 +            embedded_args = embedded_args,
 +            transformed_args = transformed_args,
 +        )
@@ -258,3 +503,18 @@ diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
      declared.append(bin_python)
  
      # Versioned python symlinks (python3, python3.<MAJ>.<MIN>, and
+     # python3.<MAJ>.<MIN>t for freethreaded) all point at the sibling
+     # `python`; names resolved by resolve_venv_toolchain.
+-    for versioned_name in tc.versioned_python_names:
++    # Skipped on Windows: they would dangle (no symlinks next to the stub).
++    for versioned_name in ([] if is_windows else tc.versioned_python_names):
+         sym = ctx.actions.declare_symlink("{}/bin/{}".format(venv_name, versioned_name))
+         ctx.actions.symlink(
+             output = sym,
+@@ -412,4 +483,6 @@ def assemble_venv(
+     return struct(
+         bin_python = bin_python,
+         all_files = declared,
++        interpreter = py_toolchain.python if is_windows else None,
++        launcher_script = windows_venv_launcher if is_windows else None,
+     )

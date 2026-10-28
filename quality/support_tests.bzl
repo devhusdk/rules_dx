@@ -5,7 +5,7 @@ load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "API_SPEC_REDOCLY_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
+load(":support.bzl", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -249,6 +249,11 @@ def support_unit_tests(name):
                 "sql xml and gherkin prettier records cover four platforms",
                 [SQL_PRETTIER_FORMAT_SUPPORT["platforms"], XML_PRETTIER_FORMAT_SUPPORT["platforms"], GHERKIN_PRETTIER_FORMAT_SUPPORT["platforms"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]] * 3,
+            ),
+            expect_equal(
+                "api_spec prettier format record covers four platforms",
+                API_SPEC_PRETTIER_FORMAT_SUPPORT["platforms"],
+                ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "api_spec redocly lint record covers four platforms",

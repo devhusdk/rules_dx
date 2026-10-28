@@ -8,7 +8,10 @@ def _api_spec_library_impl(ctx):
             ctx.files.srcs + ctx.files.refs,
             transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
         )),
-        dx_quality_sources(ctx.files.srcs, [("api_spec", ["yaml", "yml", "json"])], str(ctx.label)),
+        dx_quality_sources(ctx.files.srcs, [
+            ("api_spec", ["yaml", "yml", "json"]),
+            ("api_spec_ref", ["yaml", "yml", "json"], [], ctx.files.refs),
+        ], str(ctx.label)),
     ]
 
 api_spec_library = rule(

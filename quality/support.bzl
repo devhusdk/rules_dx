@@ -427,6 +427,20 @@ MDX_REMARK_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+API_SPEC_PRETTIER_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["api_spec", "api_spec_ref"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "api_spec",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "prettier",
+    "transport": "batched",
+}
+
 SQL_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -770,6 +784,7 @@ SUPPORT_RECORDS = [
     GRAPHQL_ESLINT_LINT_SUPPORT,
     API_SPEC_REDOCLY_LINT_SUPPORT,
     MDX_REMARK_FORMAT_SUPPORT,
+    API_SPEC_PRETTIER_FORMAT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,

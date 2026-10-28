@@ -322,6 +322,35 @@ real_source_target(
 )
 
 quality_family(
+    name = "make_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "make",
+    lint = ["checkmake"],
+)
+
+workspace_policy(
+    name = "make_policy",
+    families = [":make_family"],
+)
+
+filegroup(
+    name = "make_module",
+    srcs = [
+        "make_module/Makefile",
+        "make_module/sub/rules.mk",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_make",
+    make_srcs = [":make_module"],
+)
+
+quality_family(
     name = "nix_family",
     disabled = ["typecheck"],
     family_id = "nix",

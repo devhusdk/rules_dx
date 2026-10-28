@@ -1,0 +1,15 @@
+producer //quality/testdata:matrix_make_lint_fail
+capability LINT
+stages 1
+stage checkmake classes=make sources=matrix/make_dirty/Makefile
+completed_rounds 1
+convergence STABLE
+initial 3
+initial WARNING checkmake minphony matrix/make_dirty/Makefile 0 0 fixable=false "Required target \"all\" must be declared PHONY."
+initial WARNING checkmake minphony matrix/make_dirty/Makefile 0 0 fixable=false "Required target \"clean\" is missing from the Makefile."
+initial WARNING checkmake minphony matrix/make_dirty/Makefile 0 0 fixable=false "Required target \"test\" is missing from the Makefile."
+terminal 3
+terminal WARNING checkmake minphony matrix/make_dirty/Makefile 0 0 fixable=false "Required target \"all\" must be declared PHONY."
+terminal WARNING checkmake minphony matrix/make_dirty/Makefile 0 0 fixable=false "Required target \"clean\" is missing from the Makefile."
+terminal WARNING checkmake minphony matrix/make_dirty/Makefile 0 0 fixable=false "Required target \"test\" is missing from the Makefile."
+replacements 0

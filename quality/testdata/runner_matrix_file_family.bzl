@@ -1096,6 +1096,28 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_shell_lint_rcfile.expected.txt",
     },
     {
+        "name": "matrix_make_lint_pass",
+        "generated": {
+            "matrix/make_clean/Makefile": ".PHONY: all clean test\nall:\n\t@echo all\nclean:\n\t@echo clean\ntest:\n\t@echo test\n",
+        },
+        "capability": "lint",
+        "stages": ["checkmake;make;matrix/make_clean/Makefile"],
+        "tool_names": ["checkmake"],
+        "tool_binaries": ["@dx_tools//:checkmake"],
+        "expected_file": ":matrix/matrix_make_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_make_lint_fail",
+        "generated": {
+            "matrix/make_dirty/Makefile": "all:\n\t@echo all\n",
+        },
+        "capability": "lint",
+        "stages": ["checkmake;make;matrix/make_dirty/Makefile"],
+        "tool_names": ["checkmake"],
+        "tool_binaries": ["@dx_tools//:checkmake"],
+        "expected_file": ":matrix/matrix_make_lint_fail.expected.txt",
+    },
+    {
         "name": "matrix_dockerfile_lint_pass",
         "generated": {
             "matrix/hadolint_clean.Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n",

@@ -4,6 +4,7 @@ load("//kotlin/rules:defs.bzl", "kotlin_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//scala/rules:defs.bzl", "scala_library")
 load("//tools/docs/jvm:defs.bzl", "java_doc_shard", "kotlin_doc_shard", "scala_doc_shard")
+load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -196,4 +197,19 @@ scala_doc_shard(
     lib = ":scala_paint",
     package = "paint",
     tags = ["manual"],
+)
+
+docs_site(
+    name = "jvm_site",
+    book_toml = "book.toml",
+    prose = ["jvm_prose.md"],
+    shards = [
+        ":kotlin_paint_docs",
+        ":kotlin_shapes_docs",
+        ":paint_docs",
+        ":scala_paint_docs",
+        ":scala_shapes_docs",
+        ":shapes_docs",
+    ],
+    source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )

@@ -406,6 +406,36 @@ impl ModuleFile {
             .collect()
     }
 
+    /// The variables bound to `use_extension(bzl, name)` calls, with their line.
+    pub fn extension_bindings(&self, bzl: &str, name: &str) -> Vec<(&str, usize)> {
+        self.calls_named("use_extension")
+            .filter_map(|call| {
+                if extension_arg(call, 0, "extension_bzl_file")? != bzl
+                    || extension_arg(call, 1, "extension_name")? != name
+                {
+                    return None;
+                }
+                Some((call.binding.as_deref()?, call.line))
+            })
+            .collect()
+    }
+
+    /// The literal repo names `use_repo(binding, ...)` imports, with the call's line.
+    pub fn use_repos(&self, binding: &str) -> Vec<(&str, usize)> {
+        let mut out = Vec::new();
+        for call in self.calls_named("use_repo") {
+            if !matches!(call.positional.first(), Some(Value::Ident(v)) if v == binding) {
+                continue;
+            }
+            for value in &call.positional[1..] {
+                if let Value::Str(repo) = value {
+                    out.push((repo.value.as_str(), call.line));
+                }
+            }
+        }
+        out
+    }
+
     /// Every literal coordinate in the `artifacts` of rules_jvm_external `maven.install` tags.
     pub fn maven_artifacts(&self) -> Result<Vec<&Str>, ModuleError> {
         let proxies = self.maven_proxies();

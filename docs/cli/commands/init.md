@@ -142,6 +142,15 @@ and writes nothing. Sections:
 - `override conflicts`: a `*_override` you own. One on a module dx patches
   (`single_version_override` of `rules_rust`, for example) is hard, because dx cannot add its
   patches; one on another rules_dx dependency is advisory.
+- `toolchain conflicts`: toolchains you register that compete with registrations the snippet
+  would add, measured against the merged file, so a repo that already has the snippet shows
+  none. A Rust toolchain (your `rust.toolchain` tag, or a registered repo from your own
+  `rules_rust` extension) or a `toolchains_llvm` / `cc_configure` registration is hard.
+  Bazel prefers root-module registrations in listed order (first wins) and
+  `--extra_toolchains` beats all of them, see
+  <https://bazel.build/extending/toolchains>. A `python.toolchain` of yours is advisory:
+  rules_dx registers Python only as a dependency module, so yours always wins. Registrations
+  of repos dx cannot link to an ecosystem are never flagged.
 
 Each finding names the file and line, including `include()`d `.MODULE.bazel` files. The
 plan covers declared deps only, so transitive raises are not shown. Hard findings add an

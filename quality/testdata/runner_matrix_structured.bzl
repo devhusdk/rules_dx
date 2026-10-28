@@ -265,6 +265,8 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_qt//:qmlformat"],
         "tool_env": ["qmlformat=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_qml_format_fail",
@@ -277,6 +279,8 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_qt//:qmlformat"],
         "tool_env": ["qmlformat=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_format_pass",
@@ -288,6 +292,8 @@ STRUCTURED_CASES = [
         "tool_names": ["erlfmt"],
         "tool_binaries": ["//erlang/tools:erlfmt"],
         "expected_file": ":matrix/matrix_erlang_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_format_fail",
@@ -299,6 +305,8 @@ STRUCTURED_CASES = [
         "tool_names": ["erlfmt"],
         "tool_binaries": ["//erlang/tools:erlfmt"],
         "expected_file": ":matrix/matrix_erlang_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_format_syntax",
@@ -310,6 +318,8 @@ STRUCTURED_CASES = [
         "tool_names": ["erlfmt"],
         "tool_binaries": ["//erlang/tools:erlfmt"],
         "expected_file": ":matrix/matrix_erlang_format_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_lint_pass",
@@ -321,6 +331,8 @@ STRUCTURED_CASES = [
         "tool_names": ["elvis"],
         "tool_binaries": ["//erlang/tools:elvis"],
         "expected_file": ":matrix/matrix_erlang_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_lint_fail",
@@ -332,6 +344,8 @@ STRUCTURED_CASES = [
         "tool_names": ["elvis"],
         "tool_binaries": ["//erlang/tools:elvis"],
         "expected_file": ":matrix/matrix_erlang_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_lint_syntax",
@@ -343,6 +357,8 @@ STRUCTURED_CASES = [
         "tool_names": ["elvis"],
         "tool_binaries": ["//erlang/tools:elvis"],
         "expected_file": ":matrix/matrix_erlang_lint_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_elixir_format_pass",
@@ -420,6 +436,10 @@ STRUCTURED_CASES = [
         "tool_names": ["zig_fmt"],
         "tool_binaries": ["//zig/tools:zig"],
         "expected_file": ":matrix/matrix_zig_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_zig_format_fail",
@@ -431,6 +451,10 @@ STRUCTURED_CASES = [
         "tool_names": ["zig_fmt"],
         "tool_binaries": ["//zig/tools:zig"],
         "expected_file": ":matrix/matrix_zig_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_julia_format_pass",
@@ -442,6 +466,9 @@ STRUCTURED_CASES = [
         "tool_names": ["julia_format"],
         "tool_binaries": ["//julia/tools:julia_format"],
         "expected_file": ":matrix/matrix_julia_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_julia_format_fail",
@@ -453,6 +480,9 @@ STRUCTURED_CASES = [
         "tool_names": ["julia_format"],
         "tool_binaries": ["//julia/tools:julia_format"],
         "expected_file": ":matrix/matrix_julia_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_format_pass",
@@ -464,6 +494,9 @@ STRUCTURED_CASES = [
         "tool_names": ["dart"],
         "tool_binaries": ["//dart/tools:dart"],
         "expected_file": ":matrix/matrix_dart_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_format_fail",
@@ -475,6 +508,9 @@ STRUCTURED_CASES = [
         "tool_names": ["dart"],
         "tool_binaries": ["//dart/tools:dart"],
         "expected_file": ":matrix/matrix_dart_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_format_syntax",
@@ -486,6 +522,9 @@ STRUCTURED_CASES = [
         "tool_names": ["dart"],
         "tool_binaries": ["//dart/tools:dart"],
         "expected_file": ":matrix/matrix_dart_format_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_lint_pass",
@@ -500,6 +539,9 @@ STRUCTURED_CASES = [
         "toolfile_srcs": [":dart_cfg/analysis_options.yaml", ":dart_cfg/package_config.json"],
         "toolfile_rels": ["analysis_options.yaml", ".dart_tool/package_config.json"],
         "expected_file": ":matrix/matrix_dart_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_lint_fail",
@@ -514,6 +556,9 @@ STRUCTURED_CASES = [
         "toolfile_srcs": [":dart_cfg/analysis_options.yaml", ":dart_cfg/package_config.json"],
         "toolfile_rels": ["analysis_options.yaml", ".dart_tool/package_config.json"],
         "expected_file": ":matrix/matrix_dart_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_typecheck_fail",
@@ -528,6 +573,9 @@ STRUCTURED_CASES = [
         "toolfile_srcs": [":dart_cfg/analysis_options.yaml", ":dart_cfg/package_config.json"],
         "toolfile_rels": ["analysis_options.yaml", ".dart_tool/package_config.json"],
         "expected_file": ":matrix/matrix_dart_typecheck_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_dart_bad_options",
@@ -543,6 +591,9 @@ STRUCTURED_CASES = [
         "toolfile_rels": ["analysis_options.yaml", ".dart_tool/package_config.json"],
         "runner_failure": True,
         "expected_file": ":matrix/matrix_dart_bad_options.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_lint_pass",
@@ -577,6 +628,8 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_qt//:qmllint"],
         "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_lint_binary_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_qml_lint_binary_fail",
@@ -589,6 +642,8 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_qt//:qmllint"],
         "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_lint_binary_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_qml_typecheck_binary_pass",
@@ -601,6 +656,8 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_qt//:qmllint"],
         "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_typecheck_binary_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_qml_typecheck_binary_import",
@@ -613,5 +670,7 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_qt//:qmllint"],
         "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
         "expected_file": ":matrix/matrix_qml_typecheck_binary_import.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
 ]

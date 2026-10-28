@@ -994,6 +994,8 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "transport": "single",
 }
 
+# linux_arm64: hlint publishes no linux_arm64 build.
+# macos_arm64: hlint v3.10 ships only x86_64-osx and no macOS fallback exists.
 HASKELL_HLINT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1002,12 +1004,15 @@ HASKELL_HLINT_LINT_SUPPORT = {
     "execution": "direct",
     "family": "haskell",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_x86_64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "hlint",
     "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64"],
 }
 
+# linux_arm64: ormolu publishes no linux_arm64 build.
+# macos_arm64: the aarch64-darwin build is not pinned yet (tracked by #4664).
 HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1020,6 +1025,7 @@ HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "state": "qualified",
     "tool": "ormolu",
     "transport": "single",
+    "unsupported": ["linux_arm64", "macos_arm64"],
 }
 
 PKL_FORMAT_SUPPORT = {
@@ -1134,6 +1140,208 @@ REGO_REGAL_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+# linux_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# macos_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# windows_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# windows_x86_64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+ELIXIR_CREDO_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["elixir"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "elixir",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "credo",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
+# linux_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# macos_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# windows_arm64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+# windows_x86_64: ELIXIR_CELLS in elixir/toolchain/pins.bzl is linux_amd64 only
+ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["elixir"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "elixir",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "mix_format",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
+# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
+ERLANG_ELVIS_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["erlang"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "erlang",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "elvis",
+    "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
+# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
+ERLANG_ERLFMT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["erlang"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "erlang",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "erlfmt",
+    "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: Julia ships no windows_arm64 runtime (julia/rules/platforms.bzl)
+JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["julia"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "julia",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "julia_format",
+    "transport": "single",
+    "unsupported": ["windows_arm64"],
+}
+
+ZIG_ZIG_FMT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["zig"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "zig",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "zig_fmt",
+    "transport": "single",
+    "unsupported": [],
+}
+
+# windows_arm64: rules_dart ships no windows_arm64 SDK (dart/rules/platforms.bzl)
+DART_DART_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["dart"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "dart",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "dart",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
+}
+
+# windows_arm64: rules_dart ships no windows_arm64 SDK (dart/rules/platforms.bzl)
+DART_DART_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["dart"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "dart",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "dart",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
+}
+
+# windows_arm64: rules_dart ships no windows_arm64 SDK (dart/rules/platforms.bzl)
+DART_DART_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["dart"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "dart",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "dart",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
+}
+
+# windows_arm64: no Qt SDK cell in qt/sdk/pins.bzl
+# windows_x86_64: Qt windows_x86_64 cell has a blocker in qt/sdk/pins.bzl
+QML_QMLLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["qml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "qml",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "qmllint",
+    "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: no Qt SDK cell in qt/sdk/pins.bzl
+# windows_x86_64: Qt windows_x86_64 cell has a blocker in qt/sdk/pins.bzl
+QML_QMLLINT_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["qml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "qml",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "qmllint",
+    "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: no Qt SDK cell in qt/sdk/pins.bzl
+# windows_x86_64: Qt windows_x86_64 cell has a blocker in qt/sdk/pins.bzl
+QML_QMLFORMAT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["qml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "qml",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "qmlformat",
+    "transport": "single",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
 SUPPORT_RECORDS = [
     CAPNP_CAPNP_LINT_SUPPORT,
     CAPNP_CAPNP_TYPECHECK_SUPPORT,
@@ -1215,6 +1423,18 @@ SUPPORT_RECORDS = [
     JAVASCRIPT_PRETTIER_FORMAT_SUPPORT,
     TYPESCRIPT_BIOME_FORMAT_SUPPORT,
     TYPESCRIPT_BIOME_LINT_SUPPORT,
+    ELIXIR_CREDO_LINT_SUPPORT,
+    ELIXIR_MIX_FORMAT_FORMAT_SUPPORT,
+    ERLANG_ELVIS_LINT_SUPPORT,
+    ERLANG_ERLFMT_FORMAT_SUPPORT,
+    JULIA_JULIA_FORMAT_FORMAT_SUPPORT,
+    ZIG_ZIG_FMT_FORMAT_SUPPORT,
+    DART_DART_LINT_SUPPORT,
+    DART_DART_FORMAT_SUPPORT,
+    DART_DART_TYPECHECK_SUPPORT,
+    QML_QMLLINT_LINT_SUPPORT,
+    QML_QMLLINT_TYPECHECK_SUPPORT,
+    QML_QMLFORMAT_FORMAT_SUPPORT,
 ]
 
 def _is_canonical_token(text):

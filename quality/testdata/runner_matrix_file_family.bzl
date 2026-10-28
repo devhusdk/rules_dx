@@ -583,6 +583,8 @@ FILE_FAMILY_CASES = [
         "tool_names": ["hlint"],
         "tool_binaries": ["@dx_tools//:hlint"],
         "expected_file": ":matrix/matrix_haskell_lint_pass.expected.txt",
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_haskell_lint_fail",
@@ -594,6 +596,8 @@ FILE_FAMILY_CASES = [
         "tool_names": ["hlint"],
         "tool_binaries": ["@dx_tools//:hlint"],
         "expected_file": ":matrix/matrix_haskell_lint_fail.expected.txt",
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_haskell_lint_syntax_error",
@@ -605,6 +609,8 @@ FILE_FAMILY_CASES = [
         "tool_names": ["hlint"],
         "tool_binaries": ["@dx_tools//:hlint"],
         "expected_file": ":matrix/matrix_haskell_lint_syntax_error.expected.txt",
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_haskell_lint_multi",
@@ -617,6 +623,8 @@ FILE_FAMILY_CASES = [
         "tool_names": ["hlint"],
         "tool_binaries": ["@dx_tools//:hlint"],
         "expected_file": ":matrix/matrix_haskell_lint_multi.expected.txt",
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_format_pass",

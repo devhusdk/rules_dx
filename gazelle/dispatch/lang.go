@@ -28,6 +28,7 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/kotlin"
 	"github.com/devhusdk/rules_dx/gazelle/lua"
 	"github.com/devhusdk/rules_dx/gazelle/mdx"
+	"github.com/devhusdk/rules_dx/gazelle/ocaml"
 	"github.com/devhusdk/rules_dx/gazelle/perl"
 	"github.com/devhusdk/rules_dx/gazelle/php"
 	"github.com/devhusdk/rules_dx/gazelle/powershell"
@@ -57,6 +58,7 @@ func composedLanguages() []language.Language {
 		kotlin.NewLanguage(),
 		lua.NewLanguage(),
 		mdx.NewLanguage(),
+		ocaml.NewLanguage(),
 		perl.NewLanguage(),
 		php.NewLanguage(),
 		powershell.NewLanguage(),

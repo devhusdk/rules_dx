@@ -49,7 +49,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["google_java_format"],
         "lint": ["checkstyle", "pmd", "spotbugs"],
-        "typecheck": [],
+        "typecheck": ["javac"],
     },
     "javascript": {
         "audit": [],

@@ -111,10 +111,10 @@ pub fn parse_jvm_diagnostics(
         .any(|found| matches!(found.finding.severity, ToolSeverity::Error));
     if log.exit != 0 && !failed {
         let detail = dropped.map_or_else(
-            || format!("javac exit {} with no error diagnostic", log.exit),
+            || format!("{tool} exit {} with no error diagnostic", log.exit),
             |first| {
                 format!(
-                    "javac exit {} with no error in a checked file: {first}",
+                    "{tool} exit {} with no error in a checked file: {first}",
                     log.exit
                 )
             },

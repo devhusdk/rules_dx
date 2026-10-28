@@ -76,6 +76,11 @@ def registry_unit_tests(name):
                 ],
             ),
             expect_equal(
+                "javac is a registry tool",
+                is_registry_tool("javac"),
+                True,
+            ),
+            expect_equal(
                 "tsc is a registry tool",
                 is_registry_tool("tsc"),
                 True,

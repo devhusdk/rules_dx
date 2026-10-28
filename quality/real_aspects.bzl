@@ -25,6 +25,7 @@ load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps"
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
@@ -547,6 +548,12 @@ _REAL_TOOL_TABLE = {
         "kind": "upstream",
         "resources": "heavy",
         "shard": "dotnet",
+    },
+    "javac": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "jvm",
     },
     "tsc": {
         "capabilities": ["typecheck"],
@@ -1275,6 +1282,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "dart" in [stage["tool"] for stage in resolved]:
         (dart_package_config, dart_options, dart_stubs) = _dart_context(target, ctx, what, capability)
 
+    jvm_check = None
+    if "javac" in [stage["tool"] for stage in resolved]:
+        if JvmCheckInfo not in target:
+            resolved = drop_pipeline_tool(resolved, "javac")
+            if len(resolved) == 0:
+                return []
+        else:
+            jvm_check = target[JvmCheckInfo]
+
     tsc = None
     if "tsc" in [stage["tool"] for stage in resolved]:
         if TscInfo not in target:
@@ -1645,6 +1661,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
+        if tool == "javac":
+            upstream.append(jvm_check.log.path)
+            inputs.append(jvm_check.log)
         if tool == "tsc":
             upstream.append(tsc.stdout.path)
             inputs.append(tsc.stdout)
@@ -1897,6 +1916,13 @@ _REAL_SHARD_SPECS = {
         "requires": [tsc_aspect],
         "shard": "js",
         "suffix": "-js",
+    },
+    "real_jvm_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets).",
+        "requires": [javac_check_aspect],
+        "shard": "jvm",
+        "suffix": "-jvm",
     },
     "real_jvm_format": {
         "capability": "format",
@@ -2307,6 +2333,8 @@ real_python_lint_aspect = _make_real_aspect("real_python_lint")
 real_jvm_lint_aspect = _make_real_aspect("real_jvm_lint")
 
 real_jvm_format_aspect = _make_real_aspect("real_jvm_format")
+
+real_jvm_typecheck_aspect = _make_real_aspect("real_jvm_typecheck")
 
 real_rust_lint_aspect = _make_real_aspect("real_rust_lint")
 

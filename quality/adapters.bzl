@@ -67,6 +67,7 @@ REAL_ADAPTERS = {
     "govet": {"lint": ["go"]},
     "helm": {"lint": ["helm"]},
     "hlint": {"lint": ["haskell"]},
+    "javac": {"typecheck": ["java"]},
     "jsonnet_lint": {"lint": ["jsonnet"]},
     "jsonnetfmt": {"format": ["jsonnet"]},
     "julia_format": {"format": ["julia"]},

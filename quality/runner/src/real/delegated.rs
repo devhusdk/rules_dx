@@ -137,6 +137,50 @@ impl RealBackend {
         Ok(findings)
     }
 
+    /// Reads the versioned JSON log of a JVM compiler check (javac today).
+    ///
+    /// A failed driver fails its Bazel action, so the log's own exit status carries javac's result
+    /// and the process exit status is always zero here.
+    pub(super) fn check_jvm_log_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let owned: Vec<&str> = pairs
+            .iter()
+            .map(|(workspace, _)| workspace.as_str())
+            .collect();
+        let name: &'static str = match tool_id {
+            "javac" => "javac",
+            other => {
+                return Err(execution(
+                    other,
+                    "no JVM check log parser is registered for this tool".to_owned(),
+                ));
+            }
+        };
+        let [path] = tool.upstream_diagnostics.as_slice() else {
+            return Err(execution(
+                tool_id,
+                format!(
+                    "{tool_id} needs the check log of the target; the JVM aspect did not supply it"
+                ),
+            ));
+        };
+        let bytes = std::fs::read(path)
+            .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+        let mut findings = parsed(
+            tool_id,
+            parsers::parse_jvm_diagnostics(name, &bytes, Some(0), &owned),
+        )?;
+        for found in &mut findings {
+            let absolute = reanchor(tool_id, pairs, &found.file)?;
+            found.file = absolute.to_string_lossy().into_owned();
+        }
+        Ok(findings)
+    }
+
     pub(super) fn check_tsc_delegated(
         &self,
         tool_id: &str,

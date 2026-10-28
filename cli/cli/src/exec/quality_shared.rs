@@ -194,3 +194,101 @@ fn json_check_mode_proposes_apply_in_a_notice_but_apply_does_not() {
         "{out}"
     );
 }
+
+fn observer(harness: &Harness, original_digest: &[u8], message: &str) -> Vec<u8> {
+    harness.result_full(
+        vec![],
+        vec![Harness::diagnostic(message, false)],
+        vec![],
+        vec![FileSnapshot {
+            path: "src/a.py".to_owned(),
+            digest: original_digest.to_vec(),
+        }],
+    )
+}
+
+#[test]
+fn observer_on_the_editor_original_does_not_conflict_on_apply() {
+    for swap in [false, true] {
+        let (mut harness, original) = setup("shared-observer-apply");
+        let d = digest(&original).to_vec();
+        let editor = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+        let watcher = observer(&harness, &d, "observer finding");
+        let (first, second) = if swap {
+            (watcher, editor)
+        } else {
+            (editor, watcher)
+        };
+        harness.results.insert("//test:editor".to_owned(), first);
+        harness.results.insert("//test:observer".to_owned(), second);
+        let (code, out, err) =
+            harness.run(&["lint", "--apply", "--fail-on=error", "--output=json"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(source(&harness), b"y = 1\n");
+        assert!(!err.contains("Conflict:"), "{err}");
+        let events = json_events(&out);
+        let changes = events_of_kind(&events, "change");
+        assert_eq!(changes.len(), 1, "{out}");
+        assert_eq!(changes[0]["effect"], serde_json::json!("applied"));
+        let findings = events_of_kind(&events, "diagnostic");
+        assert_eq!(findings.len(), 1, "{out}");
+        assert_eq!(
+            findings[0]["message"],
+            serde_json::json!("observer finding")
+        );
+        assert_eq!(findings[0]["snapshot"], serde_json::json!("initial"));
+    }
+}
+
+#[test]
+fn observer_on_the_editor_original_proposes_in_check_mode() {
+    for swap in [false, true] {
+        let (mut harness, original) = setup("shared-observer-check");
+        let d = digest(&original).to_vec();
+        let editor = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+        let watcher = observer(&harness, &d, "observer finding");
+        let (first, second) = if swap {
+            (watcher, editor)
+        } else {
+            (editor, watcher)
+        };
+        harness.results.insert("//test:editor".to_owned(), first);
+        harness.results.insert("//test:observer".to_owned(), second);
+        let (_, out, err) = harness.run(&["lint", "--output=json"]);
+        assert_eq!(source(&harness), original);
+        assert!(!err.contains("Conflict:"), "{err}");
+        let events = json_events(&out);
+        let changes = events_of_kind(&events, "change");
+        assert_eq!(changes.len(), 1, "{out}");
+        assert_eq!(changes[0]["effect"], serde_json::json!("proposed"));
+    }
+}
+
+#[test]
+fn observer_on_a_stale_original_still_conflicts() {
+    for swap in [false, true] {
+        let (mut harness, original) = setup("shared-observer-stale");
+        let d = digest(&original).to_vec();
+        let editor = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+        let watcher = observer(&harness, &digest(b"other\n"), "observer finding");
+        let (first, second) = if swap {
+            (watcher, editor)
+        } else {
+            (editor, watcher)
+        };
+        harness.results.insert("//test:editor".to_owned(), first);
+        harness.results.insert("//test:observer".to_owned(), second);
+        let (code, out, err) = harness.run(&["lint", "--apply", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(source(&harness), original);
+        assert!(err.contains("Conflict: src/a.py"), "{err}");
+        let events = json_events(&out);
+        let refusals = events_of_kind(&events, "change");
+        assert_eq!(refusals.len(), 1, "{out}");
+        assert_eq!(refusals[0]["effect"], serde_json::json!("refused"));
+        assert_eq!(
+            refusals[0]["reason"],
+            serde_json::json!("conflicting_digests")
+        );
+    }
+}

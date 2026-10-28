@@ -450,7 +450,9 @@ not need to be on `PATH`:
       "Bash(tools/dx test *)",
       "Bash(tools/dx build *)",
       "Bash(tools/dx status *)",
-      "Bash(tools/dx version *)"
+      "Bash(tools/dx version *)",
+      "Bash(export DX_WORKTREE_SESSION=*)",
+      "Bash(export DX_WORKTREE_HOLDER=*)"
     ]
   }
 }

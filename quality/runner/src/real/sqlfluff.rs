@@ -31,6 +31,13 @@ impl RealBackend {
         if files.is_empty() {
             return Ok(Vec::new());
         }
+        for file in &files {
+            // Unreadable or non-UTF-8 files are left to sqlfluff to report.
+            if let Ok(text) = std::fs::read_to_string(file) {
+                sqlfluff_preflight::check_inline_config(&text)
+                    .map_err(|err| execution(tool_id, format!("{err} (in {})", file.display())))?;
+            }
+        }
         let invocation = commands::sqlfluff_check(&tool.binary, &files, config);
         let out = self.run(tool_id, tool, &invocation, &staged.scratch)?;
         let names: Vec<String> = files

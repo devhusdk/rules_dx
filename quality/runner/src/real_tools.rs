@@ -3821,6 +3821,18 @@ fn sqlfluff_refuses_a_config_the_preflight_rejects() {
 }
 
 #[test]
+fn sqlfluff_refuses_inline_directives_that_load_files() {
+    let sql = "-- sqlfluff:templater:jinja:library_path:/some/dir\nselect a from t\n";
+    let err = backend_for("sqlfluff", sqlfluff_tool(SQLFLUFF_CONFIG), sqlfluff_fake)
+        .diagnose("sqlfluff", "lint", &single("db/a.sql", sql))
+        .expect_err("inline library_path");
+    assert!(
+        err.to_string().contains("inline sqlfluff directive"),
+        "{err}"
+    );
+}
+
+#[test]
 fn sqlfluff_failures_are_never_clean() {
     let one = single("db/a.sql", SQL_CLEAN);
     for spawn in [

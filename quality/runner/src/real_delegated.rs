@@ -294,10 +294,13 @@ fn dfmt_behavior(
     let file = last_file(argv);
     let text = std::fs::read_to_string(&file).expect("read staged file");
     let broken = text.contains("broken");
+    let warned = text.contains("warned");
     let inplace = argv[3] == OsString::from("--inplace");
     let formatted = text.replace("(){", "()\n{");
     let stderr = if broken {
         format!("{file}(2:5)[error]: Primary expression expected\n").into_bytes()
+    } else if warned {
+        format!("{file}(1:1)[warn]: Empty declaration\n").into_bytes()
     } else {
         Vec::new()
     };
@@ -346,6 +349,10 @@ pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
         .apply_fix("dfmt", "a.d", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
+    let fixed = backend
+        .apply_fix("dfmt", "a.d", "void f(){} // warned\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "void f()\n{} // warned\n");
 }
 
 fn mix_format_behavior(

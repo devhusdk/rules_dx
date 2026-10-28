@@ -735,6 +735,16 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
+            Route::Rewrite(_) if tool_id == "dfmt" => {
+                // dfmt prints `[warn]` lines for valid code; only an `[error]`
+                // line or a non-zero exit means the file was not formatted.
+                let errored = String::from_utf8_lossy(&out.stderr).contains("[error]");
+                if out.code == Some(0) && !errored {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Kept
+                }
+            }
             Route::Rewrite(_) => {
                 if out.code == Some(0) && out.stderr.is_empty() {
                     Outcome::Fixed

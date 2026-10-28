@@ -197,7 +197,6 @@ workspace_policy(
 | `go` | `gofumpt` | disabled | disabled |
 | `graphql` | `prettier` | disabled | disabled |
 | `html` | `prettier` | disabled | disabled |
-| `kubernetes` | disabled | `kubeconform` | disabled |
 | `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | disabled |
 | `javascript` | `biome` | `biome` | disabled |
 | `json` | `prettier` | `biome` | disabled |
@@ -2110,7 +2109,7 @@ Inline `# hadolint ignore=DL3008` comments are honoured.
 
 `kubeconform` validates Kubernetes manifests against JSON schemas. It runs from
 a managed v0.8.0 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
-x86_64. The default policy selects it in the `kubernetes` family. There is no
+x86_64. Select it in a `kubernetes` family. There is no
 formatter, and plain YAML stays in the `yaml` family.
 
 ```python

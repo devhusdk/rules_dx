@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("//php/rules:php.bzl", "php_autoload_tree")
 load("//quality:fixtures.bzl", "real_source_target")
 
@@ -63,10 +63,7 @@ sh_test(
     php_autoload_tree(
         name = "autoload_" + copy,
         suffix = "Dx_reproducible",
-        target_compatible_with = [
-            "@platforms//os:linux",
-            "@platforms//cpu:x86_64",
-        ],
+        target_compatible_with = PHP_COMPATIBLE_WITH,
         deps = [":factory_deprecations"],
     )
     for copy in ("a", "b")

@@ -13,7 +13,7 @@ load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
 load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
-load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
+load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 
@@ -57,7 +57,7 @@ COMPUTED_CONSTRAINTS = {
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _all_of(OCAML_COMPATIBLE_WITH),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
-    "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _all_of(PHP_COMPATIBLE_WITH),
+    "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
     "//qt/rules:defs.bzl%QT_HOST_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
@@ -271,6 +271,9 @@ PLATFORM_NOT_APPLICABLE = {
     "perl": {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
     },
+    "php": {
+        "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
+    },
 }
 
 # A platform a quality tool cannot run on, keyed by tool name, with the reason.
@@ -286,7 +289,7 @@ GAP_ISSUES = {
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
     "build:ocaml:*": 4550,
-    "build:php:*": 4552,
+    "build:php:windows_x86_64": 4552,
     "build:powershell:*": 4553,
     "build:qt:windows_*": 4554,
     "consumer:*": 4436,

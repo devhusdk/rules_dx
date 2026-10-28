@@ -1,5 +1,7 @@
+load("//libs/starlark:cells.bzl", "cell_settings")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "php_metadata_tests", "php_version_test")
+load(":pins.bzl", "PHP_CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,6 +11,11 @@ exports_files([
     "pins.bzl",
     "repos.bzl",
 ])
+
+cell_settings(
+    name = "cell",
+    cells = PHP_CELLS,
+)
 
 toolchain_type(name = "toolchain_type")
 

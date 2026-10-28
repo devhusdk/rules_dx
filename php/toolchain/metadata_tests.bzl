@@ -1,24 +1,22 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load(":php.bzl", "TOOLCHAIN_TYPE")
 load(":pins.bzl", "COMPOSER", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION", "STATIC_PHP")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
-PHP_TEST_COMPATIBLE_WITH = [
-    "@platforms//os:linux",
-    "@platforms//cpu:x86_64",
-]
-
 def _checks():
-    linux = PHP_CELLS["linux_amd64"]
-    hub = hub_build(["linux_amd64"])
+    hub = hub_build(PHP_CELLS.keys())
+    archives = {"linux_amd64": "linux-x86_64", "linux_arm64": "linux-aarch64", "macos_arm64": "macos-aarch64"}
+    mac = PHP_CELLS["macos_arm64"]
     return [
         expect_equal("php version", PHP_VERSION, "8.5.12"),
-        expect_equal("pinned cells", sorted(PHP_CELLS.keys()), ["linux_amd64"]),
-        expect_equal("linux archive", linux.archive, "php-8.5.12-cli-linux-x86_64.tar.gz"),
-        expect_equal("linux digest", len(linux.sha256), 64),
-        expect_equal("linux urls", linux.urls, [STATIC_PHP + linux.archive]),
+        expect_equal("pinned cells", sorted(PHP_CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64"]),
+        expect_equal("archives", {c: PHP_CELLS[c].archive for c in PHP_CELLS}, {c: "php-8.5.12-cli-" + a + ".tar.gz" for c, a in archives.items()}),
+        expect_true("cell digests", all([len(PHP_CELLS[c].sha256) == 64 for c in PHP_CELLS])),
+        expect_true("cell urls", all([PHP_CELLS[c].urls == [STATIC_PHP + PHP_CELLS[c].archive] for c in PHP_CELLS])),
+        expect_equal("macos constraints", mac.exec_compatible_with, ["@platforms//os:macos", "@platforms//cpu:aarch64"]),
         expect_equal("composer version", COMPOSER.version, "2.10.3"),
         expect_equal("composer digest", len(COMPOSER.sha256), 64),
         expect_true("composer urls name the version", all([COMPOSER.version in url for url in COMPOSER.urls])),
@@ -33,9 +31,10 @@ def _checks():
         expect_true("phpstan urls name the version", all([PHPSTAN.version in url for url in PHPSTAN.urls])),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),
         expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "8.5.12",'),
-        expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2),
+        expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2 * len(PHP_CELLS)),
         expect_contains("the runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_amd64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:toolchain_type")) + "\","),
         expect_contains("the exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_amd64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:exec_toolchain_type")) + "\","),
+        expect_contains("the macos exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:macos\", \"@platforms//cpu:aarch64\"],\n    toolchain = \"@dx_php_macos_arm64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:exec_toolchain_type")) + "\","),
     ]
 
 def php_metadata_tests(name):
@@ -89,4 +88,4 @@ _php_version_test = rule(
 
 def php_version_test(name, **kwargs):
     """Declares the resolved-PHP version test on the qualified cell."""
-    _php_version_test(name = name, target_compatible_with = PHP_TEST_COMPATIBLE_WITH, **kwargs)
+    _php_version_test(name = name, target_compatible_with = PHP_COMPATIBLE_WITH, **kwargs)

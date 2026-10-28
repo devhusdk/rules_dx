@@ -596,6 +596,27 @@ fn configured_cargo_sets_plan_the_cargo_family_once() {
     );
 }
 
+#[test]
+fn configured_maven_sets_plan_the_maven_family_once() {
+    let set = |name: &str, lock: &str, repository: &str| {
+        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"maven\"\nmanifests = [\"MODULE.bazel\"]\nlocks = [\"{lock}\"]\nscopes = [\"{lock}\"]\nrepository = \"{repository}\"\n")
+    };
+    let text = format!(
+        "schema_version = 1\n\n{}\n{}",
+        set("jvm", "jvm/maven_install.json", "maven"),
+        set("tools", "tools/tool_install.json", "tool_maven")
+    );
+    assert_eq!(
+        planned_families(&[
+            ("dx.toml", &text),
+            ("MODULE.bazel", "module(name = \"a\")\n"),
+            ("jvm/maven_install.json", "{}\n"),
+            ("tools/tool_install.json", "{}\n"),
+        ]),
+        ["cargo", "maven"]
+    );
+}
+
 #[cfg(unix)]
 fn file_url(path: &Path) -> String {
     format!("file://{}", path.display())

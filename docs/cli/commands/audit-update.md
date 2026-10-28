@@ -551,13 +551,13 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`, `npm`, `bazel`, `ruby`, `powershell`, or `cargo`), workspace-relative
-`manifests`, `locks`, and owning `scopes`. A `cargo` record also names its
+(`uv`, `npm`, `bazel`, `ruby`, `powershell`, `cargo`, or `maven`), workspace-relative
+`manifests`, `locks`, and owning `scopes`. A `cargo` or `maven` record also names its
 `repository`; any other ecosystem fails with exit `2` when it sets one. Manifests are named for the
 ecosystem: `pyproject.toml` for `uv`, `package.json` for `npm`,
 `MODULE.bazel` for `bazel`, `Gemfile` for `ruby`,
-`PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`; any other name
-fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+`PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`, `MODULE.bazel` for
+`maven`; any other name fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
 the workspace fails `security` and `license` for that set with exit `1`.
 Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
@@ -767,7 +767,7 @@ select the set without a package.
 every `crate.from_cargo` hub of the workspace together, so a stale hub fails
 the check and update of every `cargo` set; update the stale set first.
 
-Every check that runs Bazel (`npm` and `cargo`) keeps the bytes of the set's
+Every check that runs Bazel (`npm`, `cargo`, and `maven`) keeps the bytes of the set's
 manifests and locks. If the check changed any of them, dx restores them and
 fails the set with `check_wrote: <paths>`. A `crate.from_cargo` hub without
 `lockfile` always repins, so its check ends in `check_wrote`; declare
@@ -778,6 +778,49 @@ fails the set with `check_wrote: <paths>`. A `crate.from_cargo` hub without
 `failed to assess <name>`, and `--offline` fails it with `offline_required`.
 `dx license` reads crate licenses from a declared `*.json` lock, and a
 `licenses.toml` `[[inventory]]` entry with `set = "cargo"` overrides them.
+
+A `maven` set pins one rules_jvm_external hub with the workspace's own
+rules_jvm_external (7.1 or later); dx ships no coursier. `repository` is the
+`name` of a `maven.install` tag (default `maven`) in the root `MODULE.bazel`
+(included `*.MODULE.bazel` files are followed). The tag needs a literal
+`lock_file`, the matching `locks` entry, and a `use_repo` entry for the hub
+without a rename. The manifest list must be exactly `["MODULE.bazel"]`, a
+nested `MODULE.bazel` fails with exit `2`. Several maven sets, and a `bazel`
+set, may share that manifest; each set still owns its locks exclusively.
+Create the lock file (empty is enough) before the first `--apply`:
+
+```toml
+[[dependency_set]]
+name = "jvm"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/maven_install.json"]
+scopes = ["third_party"]
+repository = "maven"
+```
+
+`dx update --apply` runs `bazel run @<repository>//:pin` from the workspace
+root with `RULES_JVM_EXTERNAL_REPIN=1` and nothing else; `REPIN` is never set
+because crate_universe also reads it. `dx update --check` runs
+`bazel fetch --repo=@<repository>` with no repin variable, so a stale lock
+fails the set with `updater exited <code>`. That only works while
+`fail_if_repin_required` is true (the default), and a check is refused as
+unsupported when it is `False` or computed, when the lock is empty or lacks
+the `__INPUT_ARTIFACTS_HASH` and `__RESOLVED_ARTIFACTS_HASH` signatures
+(upstream only prints a note for those), or when the host sets `REPIN` or
+`RULES_JVM_EXTERNAL_REPIN` (any value, even `false`, stops the failure).
+Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`,
+`COURSIER_CONFIG_DIR`, and `SCALA_CLI_CONFIG` are refused for both modes
+because they redirect resolution. A `--repo_env=REPIN=...` in a bazelrc, and
+`~/.m2/settings.xml`, cannot be detected; the `check_wrote` guard is the
+backstop for the former. `--check --offline` adds
+`--repository_disable_download`, `--apply --offline` fails with
+`offline_required`, and `--apply --frozen` fails with `frozen_locked`.
+`maven` sets take no `set:package`: pins are exact in `MODULE.bazel`.
+`dx bump` refuses `maven` sets; `dx security` matches the lock's `artifacts`
+against `.dx/advisory/maven.json`, failing the set with `failed to assess
+<name>` when the snapshot is missing, and `dx license` reads
+`[[inventory]]` entries with `set = "maven"`.
 
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector

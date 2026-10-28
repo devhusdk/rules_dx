@@ -388,8 +388,53 @@ pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     ]
 }
 
-/// Fetches the crate_universe hub, which re-evaluates the `crate` extension under `cargo_env`.
-fn configured_cargo_argv(
+/// The env rules_jvm_external's pin script reads. Only the maven-specific variable is set: `REPIN`
+/// would also trigger crate_universe. A check sets nothing, and `host_env_refusal` keeps the host
+/// from supplying either variable, because any value suppresses the stale-lock failure.
+pub fn maven_env(apply: bool) -> Vec<(String, String)> {
+    if apply {
+        vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())]
+    } else {
+        Vec::new()
+    }
+}
+
+const MAVEN_REPIN_ENV: [&str; 2] = ["REPIN", "RULES_JVM_EXTERNAL_REPIN"];
+
+/// Coursier settings that would redirect where the pin resolves from; dx cannot neutralise them.
+const MAVEN_COURSIER_ENV: [&str; 5] = [
+    "COURSIER_MIRRORS",
+    "COURSIER_REPOSITORIES",
+    "COURSIER_CREDENTIALS",
+    "COURSIER_CONFIG_DIR",
+    "SCALA_CLI_CONFIG",
+];
+
+/// Refuses sets whose backend would read host env dx cannot override (the runner only adds env).
+/// `lookup` tells whether a variable is set in the host environment.
+pub fn host_env_refusal(
+    set: &ResolvedSet,
+    check: bool,
+    lookup: &dyn Fn(&str) -> bool,
+) -> Option<BackendError> {
+    if set.ecosystem != Ecosystem::Maven {
+        return None;
+    }
+    let reason = if check && MAVEN_REPIN_ENV.iter().any(|key| lookup(key)) {
+        "unset REPIN and RULES_JVM_EXTERNAL_REPIN: any value stops rules_jvm_external from failing a stale lock"
+    } else if MAVEN_COURSIER_ENV.iter().any(|key| lookup(key)) {
+        "unset COURSIER_MIRRORS, COURSIER_REPOSITORIES, COURSIER_CREDENTIALS, COURSIER_CONFIG_DIR and SCALA_CLI_CONFIG: they redirect where maven artifacts resolve from"
+    } else {
+        return None;
+    };
+    Some(BackendError::Unsupported {
+        set: set.name.clone(),
+        reason,
+    })
+}
+
+/// Fetches a configured hub repository (cargo or maven), re-evaluating its module extension.
+fn configured_fetch_argv(
     head: &dx_process::BazelHead,
     repository: &str,
     offline: bool,
@@ -403,14 +448,31 @@ fn configured_cargo_argv(
     bazel(head, "fetch", &args)
 }
 
-fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+fn set_repository<'a>(set: &'a ResolvedSet, reason: &'static str) -> Result<&'a str, BackendError> {
     set.repository
         .as_deref()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "cargo sets must name their crate_universe repository in dx.toml",
+            reason,
         })
 }
+
+fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+    set_repository(
+        set,
+        "cargo sets must name their crate_universe repository in dx.toml",
+    )
+}
+
+fn maven_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+    set_repository(
+        set,
+        "maven sets must name their rules_jvm_external repository in dx.toml",
+    )
+}
+
+const MAVEN_ONE_PACKAGE: &str =
+    "maven pins are exact in MODULE.bazel; select the set without a package";
 
 const CARGO_CHECK_SELECTIVE: &str =
     "crate_universe checks the whole Cargo.lock; select the set without a package";
@@ -578,10 +640,37 @@ pub fn plan_configured(
             }
             let repository = cargo_repository(set)?;
             Ok(BackendPlan::Run {
-                argv: configured_cargo_argv(head, repository, false),
+                argv: configured_fetch_argv(head, repository, false),
                 env: cargo_env("workspace", repository),
             })
         }
+        (Ecosystem::Maven, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let target = format!("@{}//:pin", maven_repository(set)?);
+            // The pin script needs no rules_dx diagnostics settings, and a consumer
+            // without rules_dx cannot resolve them.
+            let pin_head = dx_process::BazelHead {
+                settings: Vec::new(),
+                ..head.clone()
+            };
+            Ok(BackendPlan::Run {
+                argv: bazel(&pin_head, "run", &[&target]),
+                env: maven_env(true),
+            })
+        }
+        (Ecosystem::Maven, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: MAVEN_ONE_PACKAGE,
+        }),
         (Ecosystem::Cargo, Selection::Packages(packages)) => {
             if offline {
                 return Err(BackendError::OfflineRequired {
@@ -607,7 +696,7 @@ pub fn plan_configured(
                 });
             }
             Ok(BackendPlan::Run {
-                argv: configured_cargo_argv(head, repository, false),
+                argv: configured_fetch_argv(head, repository, false),
                 env: cargo_env(package, repository),
             })
         }
@@ -671,13 +760,24 @@ pub fn check_configured(
         (Ecosystem::Cargo, Selection::Full) => {
             let repository = cargo_repository(set)?;
             Ok(CheckPlan::Run {
-                argv: configured_cargo_argv(head, repository, offline),
+                argv: configured_fetch_argv(head, repository, offline),
                 env: cargo_env("false", repository),
             })
         }
         (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: CARGO_CHECK_SELECTIVE,
+        }),
+        (Ecosystem::Maven, Selection::Full) => {
+            let repository = maven_repository(set)?;
+            Ok(CheckPlan::Run {
+                argv: configured_fetch_argv(head, repository, offline),
+                env: maven_env(false),
+            })
+        }
+        (Ecosystem::Maven, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: MAVEN_ONE_PACKAGE,
         }),
     }
 }
@@ -2586,6 +2686,176 @@ mod tests {
                 reason: CARGO_CHECK_SELECTIVE,
             })
         );
+    }
+
+    fn maven_set(name: &str, repository: &str) -> ResolvedSet {
+        ResolvedSet {
+            name: name.to_owned(),
+            ecosystem: Ecosystem::Maven,
+            dir: ".".to_owned(),
+            manifests: vec!["MODULE.bazel".to_owned()],
+            locks: vec![format!("{repository}_install.json")],
+            writable: true,
+            repository: Some(repository.to_owned()),
+        }
+    }
+
+    #[test]
+    fn configured_maven_update_runs_only_its_pin_target() {
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/ob".to_owned()],
+            options: vec!["--config=dx_dev".to_owned()],
+            settings: vec!["--@rules_dx//config:x=true".to_owned()],
+        };
+        let set = maven_set("tools", "tool_maven");
+        let plan = plan_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &head,
+            &UvClosure::default(),
+        )
+        .expect("maven update");
+        assert_eq!(
+            plan,
+            BackendPlan::Run {
+                argv: [
+                    dx_process::BazelHead {
+                        settings: Vec::new(),
+                        ..head.clone()
+                    }
+                    .argv("run"),
+                    strings(&["@tool_maven//:pin"])
+                ]
+                .concat(),
+                env: vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())],
+            }
+        );
+        let BackendPlan::Run { argv, env } = plan else {
+            unreachable!()
+        };
+        assert!(argv.contains(&"--output_base=/ob".to_owned()), "{argv:?}");
+        assert!(env.iter().all(|(key, _)| key != "REPIN"));
+    }
+
+    #[test]
+    fn configured_maven_check_fetches_without_repin_env() {
+        let set = maven_set("tools", "tool_maven");
+        for (offline, args) in [
+            (false, vec!["--repo=@tool_maven"]),
+            (
+                true,
+                vec!["--repository_disable_download", "--repo=@tool_maven"],
+            ),
+        ] {
+            assert_eq!(
+                check_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    offline,
+                    false,
+                    &no_head(),
+                    &UvClosure::default()
+                )
+                .expect("maven check"),
+                CheckPlan::Run {
+                    argv: cargo_fetch(&no_head(), &args),
+                    env: Vec::new(),
+                },
+                "offline {offline}"
+            );
+        }
+    }
+
+    #[test]
+    fn configured_maven_refuses_offline_frozen_and_packages() {
+        let set = maven_set("jvm", "maven");
+        for (offline, frozen, want) in [
+            (
+                true,
+                false,
+                BackendError::OfflineRequired {
+                    set: "jvm".to_owned(),
+                },
+            ),
+            (
+                false,
+                true,
+                BackendError::FrozenLocked {
+                    set: "jvm".to_owned(),
+                },
+            ),
+        ] {
+            assert_eq!(
+                plan_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    offline,
+                    frozen,
+                    &no_head(),
+                    &UvClosure::default()
+                ),
+                Err(want)
+            );
+        }
+        let packages = Selection::Packages(vec!["com.google.guava:guava".to_owned()]);
+        let unsupported = Err(BackendError::Unsupported {
+            set: "jvm".to_owned(),
+            reason: MAVEN_ONE_PACKAGE,
+        });
+        assert_eq!(
+            plan_configured(
+                ws(),
+                &set,
+                &packages,
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
+            unsupported
+        );
+        assert_eq!(
+            check_configured(
+                ws(),
+                &set,
+                &packages,
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
+            unsupported.map(|_: BackendPlan| CheckPlan::Pinned)
+        );
+    }
+
+    #[test]
+    fn maven_host_env_refusal_truth_table() {
+        let maven = maven_set("jvm", "maven");
+        let cargo = cargo_set("crates", "apps/rs", "crates");
+        let with = |key: &'static str| move |name: &str| name == key;
+        for key in ["REPIN", "RULES_JVM_EXTERNAL_REPIN"] {
+            assert!(
+                host_env_refusal(&maven, true, &with(key)).is_some(),
+                "{key}"
+            );
+            assert_eq!(host_env_refusal(&maven, false, &with(key)), None, "{key}");
+            assert_eq!(host_env_refusal(&cargo, true, &with(key)), None, "{key}");
+        }
+        for key in MAVEN_COURSIER_ENV {
+            for check in [false, true] {
+                assert!(
+                    host_env_refusal(&maven, check, &with(key)).is_some(),
+                    "{key}"
+                );
+            }
+            assert_eq!(host_env_refusal(&cargo, true, &with(key)), None, "{key}");
+        }
+        assert_eq!(host_env_refusal(&maven, true, &|_| false), None);
     }
 
     #[test]

@@ -687,6 +687,51 @@ fn cargo_hubs_follow_the_rules_rust_crate_extension() {
 }
 
 #[test]
+fn maven_installs_follow_the_rules_jvm_external_extension() {
+    let source = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"a:b:1\"],\n    lock_file = \"//:maven_install.json\",\n)\nmaven.install(name = \"tool\", lock_file = \"//t:lock.json\", fail_if_repin_required = False)\nmaven.install(name = \"c\", fail_if_repin_required = FLAG)\nmaven.install(name = \"d\", fail_if_repin_required = True)\nfake = use_extension(\"@fake//:extensions.bzl\", \"maven\")\nfake.install(name = \"no\")\n";
+    let view = |i: &MavenInstall<'_>| {
+        (
+            i.name.to_owned(),
+            i.lock_file.map(str::to_owned),
+            i.fail_if_repin_required,
+            i.line,
+        )
+    };
+    let file = parse(source);
+    let installs = file.maven_installs().expect("installs");
+    assert_eq!(
+        installs.iter().map(view).collect::<Vec<_>>(),
+        [
+            (
+                "maven".to_owned(),
+                Some("//:maven_install.json".to_owned()),
+                RepinPolicy::Unset,
+                2
+            ),
+            (
+                "tool".to_owned(),
+                Some("//t:lock.json".to_owned()),
+                RepinPolicy::False,
+                6
+            ),
+            ("c".to_owned(), None, RepinPolicy::Computed, 7),
+            ("d".to_owned(), None, RepinPolicy::True, 8),
+        ]
+    );
+    for (source, line) in [
+        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = N)\n", 2),
+        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = L)\n", 2),
+        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(**KW)\n", 2),
+    ] {
+        assert_eq!(
+            parse(source).maven_installs(),
+            Err(ModuleError::ComputedMavenHub { line }),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn label_path_maps_main_repository_labels_only() {
     assert_eq!(label_path("//:Cargo.toml"), Ok("Cargo.toml".to_owned()));
     assert_eq!(

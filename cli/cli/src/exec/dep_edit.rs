@@ -122,7 +122,8 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::Npm
             | dx_adopt::dependency_sets::Ecosystem::Ruby
             | dx_adopt::dependency_sets::Ecosystem::PowerShell
-            | dx_adopt::dependency_sets::Ecosystem::Cargo,
+            | dx_adopt::dependency_sets::Ecosystem::Cargo
+            | dx_adopt::dependency_sets::Ecosystem::Maven,
             _,
         ) => Err(operational(
             invocation,

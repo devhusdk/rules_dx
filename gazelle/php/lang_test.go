@@ -45,17 +45,21 @@ func generate(t *testing.T, rel string, files map[string]string, regular []strin
 func TestGenerateLibraryAndTests(t *testing.T) {
 	result := generate(t, "pkg/demo", map[string]string{
 		"pkg/demo/Demo.php":                 "<?php\nnamespace Demo;\nclass Demo extends Sub\\Thing {}\n",
-		"pkg/demo/src/Sub/Thing.php":        "<?php\nnamespace Demo\\Sub;\nuse Vendor\\Lib;\nclass Thing extends \\Exception {}\n",
-		"pkg/demo/tests/SubThingTest.php":   "<?php\nuse PHPUnit\\Framework\\TestCase;\nuse Demo\\Sub\\Thing;\nclass SubThingTest extends TestCase {}\n",
+		"pkg/demo/src/Sub/Thing.php":        "<?php\nnamespace Demo\\Sub;\nuse Vendor\\Lib;\nclass Thing extends \\Exception { function f() { new Lib(); } }\n",
+		"pkg/demo/tests/SubThingTest.php":   "<?php\nuse PHPUnit\\Framework\\TestCase;\nuse Demo\\Sub\\Thing;\nclass SubThingTest extends TestCase { function f() { new Thing(); } }\n",
 		"pkg/demo/src/Nested/BUILD.bazel":   "",
 		"pkg/demo/src/Nested/Own.php":       "<?php\nclass Own {}\n",
 		"pkg/demo/bin/run.php":              "<?php\nnew Demo\\Demo();\n",
 		"pkg/demo/tests/helpers/Helper.php": "<?php\nclass Helper {}\n",
 	}, []string{"Demo.php", "notes.txt"})
-	if len(result.Gen) != 2 || len(result.Imports) != 2 {
-		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 3 || len(result.Imports) != 3 {
+		t.Fatalf("generated %d rules and %d import sets, want 3 each", len(result.Gen), len(result.Imports))
 	}
-	lib, test := result.Gen[0], result.Gen[1]
+	lib, support, test := result.Gen[0], result.Gen[1], result.Gen[2]
+	if support.Name() != "demo_test_support" || support.AttrBool("testonly") != true ||
+		strings.Join(support.AttrStrings("srcs"), ",") != "tests/helpers/Helper.php" {
+		t.Errorf("support = %s srcs %v testonly %v", support.Name(), support.AttrStrings("srcs"), support.AttrBool("testonly"))
+	}
 	if lib.Kind() != LibraryKind || lib.Name() != "demo" {
 		t.Errorf("library = %s(%s), want php_library(demo)", lib.Kind(), lib.Name())
 	}
@@ -69,7 +73,7 @@ func TestGenerateLibraryAndTests(t *testing.T) {
 	if !reflect.DeepEqual(libImports, []string{"Demo\\Sub\\Thing", "Exception", "Vendor\\Lib"}) {
 		t.Errorf("library imports = %v", libImports)
 	}
-	testImports := result.Imports[1].(common.ImportSet).Names
+	testImports := result.Imports[2].(common.ImportSet).Names
 	if !reflect.DeepEqual(testImports, []string{"Demo\\Sub\\Thing"}) {
 		t.Errorf("test imports = %v, want PHPUnit dropped", testImports)
 	}

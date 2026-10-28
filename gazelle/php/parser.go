@@ -194,6 +194,8 @@ func (p *parser) ref(raw string) {
 			return
 		}
 		if target, ok := p.aliases[strings.ToLower(first)]; ok {
+			// A class use clause is only an import when its alias is used
+			// as a whole name; as a namespace prefix it may name no class.
 			name = target
 			if rest != "" {
 				name += `\` + rest
@@ -253,8 +255,8 @@ func (p *parser) useClause(n *treesitter.Node, kind, prefix string) {
 	if full == "" || full == prefix {
 		return
 	}
-	p.imps[full] = struct{}{}
 	if kind != "" {
+		p.imps[full] = struct{}{}
 		return
 	}
 	if alias == "" {

@@ -113,7 +113,8 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	autoload := autoloadFiles(args)
 	srcs := librarySources(args, excludes, autoload)
 	tests := testSources(args, excludes)
-	if len(srcs) == 0 && len(tests) == 0 {
+	support := testSupportSources(args, excludes, autoload)
+	if len(srcs) == 0 && len(tests) == 0 && len(support) == 0 {
 		return common.MergeStale(args.File, language.GenerateResult{}, kinds)
 	}
 	libName, err := common.PackageTargetName(args)
@@ -127,6 +128,10 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	var claimants []common.Claimant
 	if len(srcs) > 0 {
 		claimants = append(claimants, common.Claimant{Name: libName, Source: args.Rel, Kind: LibraryKind})
+	}
+	supportName := libName + "_test_support"
+	if len(support) > 0 {
+		claimants = append(claimants, common.Claimant{Name: supportName, Source: "tests", Kind: LibraryKind})
 	}
 	testNames := make(map[string]string, len(tests))
 	byName := make(map[string]string, len(tests))
@@ -157,6 +162,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	if len(srcs) > 0 {
 		add(LibraryKind, libName, srcs, autoload[libName])
+	}
+	if len(support) > 0 {
+		// Helpers such as tests/TestCase.php are not tests, but tests extend
+		// and load them, so they ship as a testonly library the tests depend on.
+		n := len(result.Gen)
+		add(LibraryKind, supportName, support, nil)
+		result.Gen[n].SetAttr("testonly", true)
+		result.Imports[n] = common.WrapImportSet(importsOf(args, support, true, rep))
 	}
 	for _, src := range tests {
 		add(TestKind, testNames[src], []string{src}, nil)
@@ -262,6 +275,25 @@ func testSources(args language.GenerateArgs, excludes []string) []string {
 	}
 	sort.Strings(tests)
 	return tests
+}
+
+// testSupportSources lists the non-test .php files under the package's tests
+// and test directories, such as shared base classes and fixtures.
+func testSupportSources(args language.GenerateArgs, excludes []string, autoload map[string][]string) []string {
+	skip := make(map[string]bool)
+	for _, files := range autoload {
+		for _, f := range files {
+			skip[path.Clean(f)] = true
+		}
+	}
+	var out []string
+	for _, dir := range testDirs {
+		if !claimed(args, excludes, dir) {
+			walk(args, excludes, dir, func(name string) bool { return !isTestSource(path.Base(name)) && !skip[name] }, &out)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func walk(args language.GenerateArgs, excludes []string, rel string, keep func(name string) bool, out *[]string) {

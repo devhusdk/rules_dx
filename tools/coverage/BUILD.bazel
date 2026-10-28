@@ -1,15 +1,10 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
 exports_files(
-    [
-        "cells.txt",
-        "seed-inventory.txt",
-        "src/main.rs",
-    ],
+    ["cells.txt"],
     visibility = VIS_TOOLS,
 )
 
@@ -20,24 +15,4 @@ real_source_target(
         "BUILD.bazel",
     ],
     tags = ["corpus"],
-)
-
-rust_binary(
-    name = "coverage_bin",
-    srcs = ["src/main.rs"],
-    crate_name = "coverage",
-    crate_root = "src/main.rs",
-    deps = ["//cli/lcov:dx_lcov"],
-)
-
-rustfmt_test(
-    name = "coverage_bin_fmt_test",
-    size = "small",
-    targets = [":coverage_bin"],
-)
-
-rust_clippy_test(
-    name = "coverage_bin_clippy_test",
-    size = "small",
-    targets = [":coverage_bin"],
 )

@@ -710,7 +710,6 @@ rust_test(
         "//quality/tools/javascript/launcher:src/main.rs",
         "//tools/bazelrc:src/bin_preset_update.rs",
         "//tools/bazelrc:src/lib.rs",
-        "//tools/coverage:src/main.rs",
         "//tools/depcheck:src/lib.rs",
         "//tools/depcheck:src/main.rs",
         "//tools/docs/ir/ir:src/lib.rs",

@@ -1,5 +1,5 @@
 {
-  "checksum": "0d2fbf74bb16a87aa7e1e17b1655bb43c4cf8d0553e5e9002342b88c82746165",
+  "checksum": "608181f7b28b00ea8c128d9d635c57a2908b59180fb029cd2f3058e40a6ee6bb",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7399,10 +7399,6 @@
     "dx_lcov 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
           {
             "id": "lcov 0.8.2",
             "target": "lcov"

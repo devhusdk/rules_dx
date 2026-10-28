@@ -11,10 +11,8 @@
 pub mod accounting;
 pub mod changed;
 pub mod ignores;
-pub mod inventory;
+mod lang;
 pub mod parse;
-pub mod run;
-pub mod verdict;
 
 pub use accounting::{
     account, orphan_candidates, parse_source_manifest, CellAccount, Disposition, SourceManifest,
@@ -25,12 +23,8 @@ pub use changed::{
     ChangedResult,
 };
 pub use ignores::{find_ignores, is_ignored, Ignores};
-pub use inventory::{parse_inventory, ELIGIBLE, SUPPORT};
+pub use lang::is_covered_language;
 pub use parse::{merge_lcov_reports, parse_lcov, validate_lcov_report, FileHits};
-pub use run::run;
-pub use verdict::{
-    evaluate, is_covered_language, reconcile_tracked, render, FileVerdict, GateVerdict,
-};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LcovError {
@@ -94,33 +88,6 @@ pub enum LcovError {
     UnrecognizedDirective { path: String, lineno: usize },
     #[error("unclosed range START at {path}:{start}")]
     UnclosedStart { path: String, start: usize },
-    #[error("malformed inventory line {lineno}: {raw:?}")]
-    MalformedInventory { lineno: usize, raw: String },
-    #[error("duplicate inventory path at line {lineno}: {path:?}")]
-    DuplicateInventoryPath { lineno: usize, path: String },
     #[error("{message}")]
     Io { message: String },
-}
-
-impl From<String> for LcovError {
-    fn from(message: String) -> Self {
-        Self::Io { message }
-    }
-}
-
-#[cfg(test)]
-mod facade_tests {
-    use super::LcovError;
-
-    #[test]
-    fn string_conversion_preserves_message() {
-        let error = LcovError::from("fixture io failure".to_string());
-        assert_eq!(
-            error,
-            LcovError::Io {
-                message: "fixture io failure".to_string()
-            }
-        );
-        assert!(error.to_string().contains("fixture io failure"));
-    }
 }

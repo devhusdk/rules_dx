@@ -9,6 +9,9 @@ TS_CASES = [
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
         "expected_file": ":matrix/matrix_typescript_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_typescript_lint_fail",
@@ -27,6 +30,9 @@ TS_CASES = [
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
         "expected_file": ":matrix/matrix_typescript_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_typescript_format_fail",

@@ -9,6 +9,9 @@ JS_CASES = [
         "tool_names": ["biome"],
         "tool_binaries": ["@dx_tools//:biome"],
         "expected_file": ":matrix/matrix_javascript_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_javascript_lint_fail",
@@ -48,6 +51,9 @@ JS_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/tools/javascript/bin:prettier"],
         "expected_file": ":matrix/matrix_javascript_prettier_format_disagree.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_javascript_biome_hinted",
@@ -74,6 +80,9 @@ JS_CASES = [
         "config_tools": ["eslint"],
         "config_files": [":eslint_cfg/eslint.config.js"],
         "expected_file": ":matrix/matrix_javascript_eslint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_javascript_eslint_fail",

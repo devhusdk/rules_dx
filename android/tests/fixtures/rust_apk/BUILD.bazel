@@ -45,6 +45,7 @@ cc_library(
 
 rust_android_apk(
     name = "app_apk",
+    testonly = True,
     app_id = "com.example.dxrustapk",
     assets = glob(["assets/**"]),
     assets_dir = "assets",
@@ -56,6 +57,7 @@ rust_android_apk(
 
 rust_android_apk(
     name = "arm_apk",
+    testonly = True,
     abis = ["arm64-v8a"],
     app_id = "com.example.dxrustapk",
     assets = glob(["assets/**"]),
@@ -141,6 +143,7 @@ android_adb_log(
 
 rust_android_apk(
     name = "custom_apk",
+    testonly = True,
     abis = ["x86_64"],
     api_level = 33,
     app_id = "org.example.custom.dxrustapk",

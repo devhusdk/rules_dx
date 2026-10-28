@@ -27,3 +27,13 @@ func AmbiguousImport(c *config.Config, lang string, from label.Label, name, matc
 	return fmt.Sprintf("%s: %s: ambiguous import %q resolves to %s; add \"# gazelle:resolve %s %s <label>\" to %s",
 		lang, from, name, matches, lang, name, BuildFilePath(c, from.Pkg))
 }
+
+// ClaimError formats a claim conflict with a remedy: rename or remove the handwritten rule, or change its kind.
+// where is the BUILD file holding the handwritten rule, or empty when unknown.
+func ClaimError(name, kind, source, have, where string) string {
+	if where == "" {
+		where = "its BUILD file"
+	}
+	return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename or remove the existing rule in %s, or change it to %s",
+		name, kind, source, have, where, kind)
+}

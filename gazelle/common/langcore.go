@@ -75,7 +75,11 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 			effective = alias
 		}
 		if effective != c.Kind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", name, c.Kind, c.Source, have)
+			where := ""
+			if file != nil {
+				where = file.Path
+			}
+			return fmt.Errorf("%s", ClaimError(name, c.Kind, c.Source, have, where))
 		}
 	}
 	return nil

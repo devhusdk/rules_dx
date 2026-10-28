@@ -72,7 +72,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | `csc` on `linux_x86_64` |
 | CUDA | no | `clang_format` | no |
 | D | `dscanner` | `dfmt` | no |
-| Dart | no | no | no |
+| Dart | `dart` | `dart` | `dart` |
 | Elixir | `credo` | `mix_format` | `dialyzer` |
 | Erlang | `elvis` | `erlfmt` | `dialyzer` |
 | Fortran | `fortitude` on `linux_x86_64` | no | no |
@@ -105,7 +105,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | CUE | no | `cue` on `linux_x86_64` | `cue` on `linux_x86_64` |
-| FlatBuffers | `flatc` on `linux_x86_64` | n/a | no |
+| FlatBuffers | `flatc` on `linux_x86_64` | n/a | `flatc` on `linux_x86_64` |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Helm | `helm` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | n/a |

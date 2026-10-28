@@ -221,6 +221,10 @@ const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
 const CHECKMAKE_PREFIX: &[&str] = &["--debug", "--output", "json"];
 const CHECKMAKE_TAIL: &[&str] = &["--"];
+// `--no-cache`: gersemi otherwise keeps a cache under the home directory.
+const GERSEMI_CHECK_PREFIX: &[&str] = &["--check", "--diff", "--no-cache", "--no-color", "-w", "1"];
+const GERSEMI_FIX_PREFIX: &[&str] = &["-i", "--no-cache", "--no-color", "-w", "1"];
+const GERSEMI_TAIL: &[&str] = &["--"];
 const REGAL_LINT_PREFIX: &[&str] = &[
     "lint",
     "--format",
@@ -1274,6 +1278,31 @@ pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
         STYLUA_CONFIG_FLAG,
         config,
         SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+/// Always `--config <config>`: gersemi otherwise searches upward from each file for a `.gersemirc`.
+pub fn gersemi_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        GERSEMI_CHECK_PREFIX,
+        "--config",
+        Some(config),
+        GERSEMI_TAIL,
+        files,
+        "",
+    )
+}
+
+pub fn gersemi_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        GERSEMI_FIX_PREFIX,
+        "--config",
+        Some(config),
+        GERSEMI_TAIL,
         files,
         "",
     )

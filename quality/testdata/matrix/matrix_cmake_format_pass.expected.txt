@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_cmake_format_pass
+capability FORMAT
+stages 1
+stage gersemi classes=cmake sources=matrix/cmake_clean/CMakeLists.txt
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

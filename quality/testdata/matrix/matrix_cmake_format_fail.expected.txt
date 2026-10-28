@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cmake_format_fail
+capability FORMAT
+stages 1
+stage gersemi classes=cmake sources=matrix/cmake_dirty/CMakeLists.txt
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING gersemi - matrix/cmake_dirty/CMakeLists.txt 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/cmake_dirty/CMakeLists.txt 23 55 "VERSION 3.20)\nproject(dirty"

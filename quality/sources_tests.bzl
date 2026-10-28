@@ -16,6 +16,8 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "less",
     "scss",
     "dockerfile",
+    "make",
+    "cmake",
     "javascript",
     "jsx",
     "typescript",
@@ -96,6 +98,10 @@ _DOCKERFILE_REJECTED = [
 _MAKE_ACCEPTED = ["Makefile", "makefile", "GNUmakefile", "rules.mk", "b.mk"]
 
 _MAKE_REJECTED = ["Makefile.am", "Makefile.in", "x.mak", ".mk", "MAKEFILE", "GNUMakefile", "README.md"]
+
+_CMAKE_ACCEPTED = ["CMakeLists.txt", "helpers.cmake", "FindFoo.cmake"]
+
+_CMAKE_REJECTED = ["CMakeLists.txt.in", "config.cmake.in", "cmakelists.txt", "CMakeCache.txt", ".cmake", "CMakeLists.TXT", "README.md"]
 
 def sources_registry_tests(name):
     starlark_test(
@@ -179,6 +185,21 @@ def sources_registry_tests(name):
                 "make name error lists the accepted names",
                 [named_source_class_error("make", "Makefile"), named_source_class_error("make", "Makefile.in")],
                 ["", "'Makefile.in' is not a make file name; accepted names: GNUmakefile, Makefile, makefile, *.mk"],
+            ),
+            expect_equal(
+                "cmake matcher accepts CMakeLists.txt and *.cmake",
+                [n for n in _CMAKE_ACCEPTED if not is_named_source("cmake", n)],
+                [],
+            ),
+            expect_equal(
+                "cmake matcher rejects .in templates, the cache and case variants",
+                [n for n in _CMAKE_REJECTED if is_named_source("cmake", n)],
+                [],
+            ),
+            expect_equal(
+                "cmake name error lists the accepted names",
+                [named_source_class_error("cmake", "CMakeLists.txt"), named_source_class_error("cmake", "CMakeLists.txt.in")],
+                ["", "'CMakeLists.txt.in' is not a cmake file name; accepted names: CMakeLists.txt, *.cmake"],
             ),
             expect_equal(
                 "upstream unknown extension maps to empty",

@@ -191,6 +191,14 @@ ROWS = [
         "section": "targets",
         "title": "Make",
     },
+    {
+        "ci_tests": ["//cmake/tests:bad_name_fails", "//cmake/tests:owns_cmake_class_test"],
+        "consumer_tests": ["//quality/tests:cmake_consumer_test"],
+        "families": ["cmake"],
+        "name": "cmake",
+        "section": "targets",
+        "title": "CMake",
+    },
     {"ci_tests": ["//msix/tests:pack_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
     {
         "ci_tests": ["//qt/tests:qt_tasks_test"],

@@ -32,6 +32,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "scss",
     "dockerfile",
     "make",
+    "cmake",
     "javascript",
     "jsx",
     "typescript",
@@ -162,6 +163,10 @@ NAMED_SOURCE_CLASSES = {
     "make": {
         "names": ["GNUmakefile", "Makefile", "makefile"],
         "suffixes": [".mk"],
+    },
+    "cmake": {
+        "names": ["CMakeLists.txt"],
+        "suffixes": [".cmake"],
     },
 }
 

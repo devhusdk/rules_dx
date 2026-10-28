@@ -380,6 +380,35 @@ real_source_target(
 )
 
 quality_family(
+    name = "cmake_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cmake",
+    format = ["gersemi"],
+)
+
+workspace_policy(
+    name = "cmake_policy",
+    families = [":cmake_family"],
+)
+
+filegroup(
+    name = "cmake_module",
+    srcs = [
+        "cmake_module/CMakeLists.txt",
+        "cmake_module/sub/helpers.cmake",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_cmake",
+    cmake_srcs = [":cmake_module"],
+)
+
+quality_family(
     name = "nix_family",
     disabled = ["typecheck"],
     family_id = "nix",

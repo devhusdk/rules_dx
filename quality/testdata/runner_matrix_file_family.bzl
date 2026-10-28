@@ -325,6 +325,39 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_lua_format_syntax_error.expected.txt",
     },
     {
+        "name": "matrix_cmake_format_pass",
+        "generated": {
+            "matrix/cmake_clean/CMakeLists.txt": "cmake_minimum_required(VERSION 3.20)\nproject(clean)\n",
+        },
+        "capability": "format",
+        "stages": ["gersemi;cmake;matrix/cmake_clean/CMakeLists.txt"],
+        "tool_names": ["gersemi"],
+        "tool_binaries": ["@dx_tools//:gersemi"],
+        "expected_file": ":matrix/matrix_cmake_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_cmake_format_fail",
+        "generated": {
+            "matrix/cmake_dirty/CMakeLists.txt": "cmake_minimum_required( VERSION 3.20 )\nproject(  dirty )\n",
+        },
+        "capability": "format",
+        "stages": ["gersemi;cmake;matrix/cmake_dirty/CMakeLists.txt"],
+        "tool_names": ["gersemi"],
+        "tool_binaries": ["@dx_tools//:gersemi"],
+        "expected_file": ":matrix/matrix_cmake_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_cmake_format_syntax_error",
+        "generated": {
+            "matrix/cmake_broken/CMakeLists.txt": "project(broken\nadd_library(a a.c)\n",
+        },
+        "capability": "format",
+        "stages": ["gersemi;cmake;matrix/cmake_broken/CMakeLists.txt"],
+        "tool_names": ["gersemi"],
+        "tool_binaries": ["@dx_tools//:gersemi"],
+        "expected_file": ":matrix/matrix_cmake_format_syntax_error.expected.txt",
+    },
+    {
         "name": "matrix_haskell_format_pass",
         "generated": {
             "matrix/haskell_clean.hs": "module Clean where\n\nmain :: IO ()\nmain = putStrLn \"hello\"\n",

@@ -24,6 +24,7 @@ pub mod flake8;
 pub mod flatc;
 pub mod fortitude;
 pub mod fsharplint;
+pub mod gersemi;
 pub mod go_analysis;
 pub mod gofumpt;
 pub mod google_java_format;
@@ -109,6 +110,7 @@ pub use flake8::parse_flake8;
 pub use flatc::{parse_flatc, FlatcReport};
 pub use fortitude::parse_fortitude;
 pub use fsharplint::parse_fsharplint;
+pub use gersemi::parse_gersemi;
 pub use go_analysis::parse_go_analysis;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
@@ -2099,6 +2101,14 @@ mod tests {
         super::checkmake::parse_checkmake(input, input, code, files, None)
     }
 
+    fn fuzz_gersemi(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::gersemi::parse_gersemi(input, input, code, files)
+    }
+
     fn fuzz_tflint(
         input: &[u8],
         code: Option<i32>,
@@ -2345,6 +2355,7 @@ mod tests {
         ("buf_lint", fuzz_buf_lint),
         ("buf_format", fuzz_buf_format),
         ("checkmake", fuzz_checkmake),
+        ("gersemi", fuzz_gersemi),
         ("checkstyle", fuzz_checkstyle),
         ("tflint", fuzz_tflint),
         ("clang_format", fuzz_clang_format),
@@ -2441,6 +2452,7 @@ mod tests {
         ("buf", include_str!("buf.rs")),
         ("buildifier", include_str!("buildifier.rs")),
         ("checkmake", include_str!("checkmake.rs")),
+        ("gersemi", include_str!("gersemi.rs")),
         ("checkstyle", include_str!("checkstyle.rs")),
         ("tflint", include_str!("tflint.rs")),
         ("clang_format", include_str!("clang_format.rs")),

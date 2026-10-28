@@ -1,0 +1,41 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//cmake/rules:defs.bzl", "cmake_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "owns_cmake_class_test")
+
+cmake_library(
+    name = "app",
+    srcs = [
+        "fixtures/CMakeLists.txt",
+        "fixtures/helpers.cmake",
+    ],
+)
+
+owns_cmake_class_test(
+    name = "owns_cmake_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+cmake_library(
+    name = "bad_name",
+    srcs = ["fixtures/CMakeLists.txt.in"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_name_fails",
+    expected_failure_substring = "'CMakeLists.txt.in' is not a cmake file name; accepted names: CMakeLists.txt, *.cmake",
+    target = ":bad_name",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -2143,6 +2143,165 @@ fn checkmake_config_fallback_is_an_error_not_a_clean_run() {
         .is_err());
 }
 
+fn gersemi_config_arg(argv: &[OsString]) -> PathBuf {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--config")
+        .expect("gersemi always gets --config");
+    PathBuf::from(&argv[at + 1])
+}
+
+/// Stands in for gersemi: a file holding `BAD` is unformatted, `-i` rewrites it to `GOOD`.
+fn gersemi_run(
+    argv: &[OsString],
+    env: &[(OsString, OsString)],
+    config_tail: &str,
+    config_bytes: &[u8],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for key in ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches gersemi"
+        );
+    }
+    let config = gersemi_config_arg(argv);
+    assert!(config.ends_with(config_tail), "{config:?}");
+    assert_eq!(
+        std::fs::read(&config).expect("config is staged"),
+        config_bytes
+    );
+    let flags: Vec<String> = argv[1..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    for flag in ["--no-cache", "--no-color", "-w", "1", "--"] {
+        assert!(flags.iter().any(|arg| arg == flag), "{flag} is always set");
+    }
+    assert_eq!(argv[argv.len() - 2], OsString::from("--"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let dirty = text.contains("BAD");
+    if flags.iter().any(|arg| arg == "-i") {
+        assert!(!flags.iter().any(|arg| arg == "--check"));
+        std::fs::write(&file, text.replace("BAD", "GOOD")).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    assert!(flags.iter().any(|arg| arg == "--check"));
+    assert!(flags.iter().any(|arg| arg == "--diff"));
+    if !dirty {
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: format!("--- {file}\n+++ {file}\n@@ -1 +1 @@\n-BAD\n+GOOD\n").into_bytes(),
+        stderr: format!("{file} would be reformatted\n").into_bytes(),
+    })
+}
+
+fn gersemi_defaults(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    gersemi_run(argv, env, "dx-gersemi-default/.gersemirc", b"")
+}
+
+fn gersemi_bound(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    gersemi_run(argv, env, "cfg/.gersemirc", b"indent: 2\n")
+}
+
+const GERSEMI_DIRTY: &str = "BAD\n";
+
+#[test]
+fn gersemi_unbound_config_uses_the_scratch_default_and_check_never_writes() {
+    let backend = backend_for("gersemi", plain_tool(), gersemi_defaults);
+    let findings = backend
+        .diagnose(
+            "gersemi",
+            "format",
+            &single("CMakeLists.txt", GERSEMI_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "gersemi");
+    assert_eq!(findings[0].path, "CMakeLists.txt");
+    assert!(backend
+        .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn gersemi_fix_rewrites_and_a_recheck_is_clean() {
+    let backend = backend_for("gersemi", plain_tool(), gersemi_defaults);
+    let fixed = backend
+        .apply_fix("gersemi", "CMakeLists.txt", GERSEMI_DIRTY, "format")
+        .expect("fixed");
+    assert_eq!(fixed, "GOOD\n");
+    assert!(backend
+        .diagnose("gersemi", "format", &single("CMakeLists.txt", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn gersemi_bound_config_reaches_the_tool_on_check_and_fix() {
+    let tool = RealTool {
+        config_rel: Some("cfg/.gersemirc".to_owned()),
+        tool_files: vec![("cfg/.gersemirc".to_owned(), b"indent: 2\n".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("gersemi", tool, gersemi_bound);
+    let findings = backend
+        .diagnose(
+            "gersemi",
+            "format",
+            &single("CMakeLists.txt", GERSEMI_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(
+        backend
+            .apply_fix("gersemi", "CMakeLists.txt", GERSEMI_DIRTY, "format")
+            .expect("fixed"),
+        "GOOD\n"
+    );
+}
+
+fn gersemi_exit_one_without_a_diff(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: Vec::new(),
+        stderr: b"[Errno 2] No such file or directory: '/x/.gersemirc'\n".to_vec(),
+    })
+}
+
+#[test]
+fn gersemi_failing_without_a_diff_is_an_error_not_a_clean_run() {
+    let backend = backend_for("gersemi", plain_tool(), gersemi_exit_one_without_a_diff);
+    assert!(backend
+        .diagnose("gersemi", "format", &single("CMakeLists.txt", "GOOD\n"))
+        .is_err());
+}
+
 fn elvis_report(argv: &[OsString], cwd: &Path, config_tail: &str) -> io::Result<ChildOutput> {
     let at = argv
         .iter()

@@ -255,6 +255,7 @@ to.
 | `flatc` | lint | flatbuffers |
 | `fortitude` | lint | fortran |
 | `fsharplint` | lint | fsharp |
+| `gersemi` | format | cmake |
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
@@ -2965,6 +2966,84 @@ schema is an error, not a skip. Findings keep the line and column of the
 offending field. `kubeconform` is check-only: `lint --apply` never rewrites a
 manifest. Missing schemas, malformed output and a non-zero exit with no result
 are errors and never count as clean.
+
+### CMake
+
+`gersemi` formats CMake files. It runs from a managed pin on Linux x86_64,
+Linux arm64, macOS arm64 and Windows x86_64, so consumers need no Python
+toolchain and no host install. It is opt-in: no default policy selects it. dx
+never runs `cmake`. There is no linter.
+
+```python
+quality_family(
+    name = "cmake_family",
+    family_id = "cmake",
+    format = ["gersemi"],
+)
+```
+
+Own CMake files with `cmake_library` from `@rules_dx//cmake/rules:defs.bzl`.
+List the files of the package in `srcs`. Accepted names are `CMakeLists.txt`
+and `*.cmake`, matched case-sensitively. Any other name fails the analysis with
+the accepted names listed. Templates such as `CMakeLists.txt.in` and
+`*.cmake.in` are not accepted, and neither is `CMakeCache.txt`.
+
+```python
+load("@rules_dx//cmake/rules:defs.bzl", "cmake_library")
+
+cmake_library(
+    name = "build",
+    srcs = ["CMakeLists.txt"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //...
+bazel run @rules_dx//:dx -- format --apply //...
+```
+
+`format` reports each unformatted file; `format --apply` rewrites only the
+files a `cmake_library` owns. A file that does not parse is reported as an
+error at its line and column, and `--apply` leaves it unchanged. One broken
+file does not change what is reported for the other files in its batch.
+Unknown-command warnings from gersemi are neither findings nor errors. A
+missing or invalid config, an unreadable file and a non-zero exit without a
+diff are errors and never count as clean.
+
+`gersemi` never reads a `.gersemirc` from the workspace, and it keeps no cache
+and reads nothing from the home directory. To change the style, bind a
+`gersemi_config` to the target with `aspect_hints`. Without one, dx passes an
+empty config, which keeps every gersemi default (4-space indent, line length
+80).
+
+```python
+load("@rules_dx//quality:native_config.bzl", "gersemi_config")
+
+gersemi_config(
+    name = "gersemi",
+    src = ".gersemirc",
+)
+
+cmake_library(
+    name = "build",
+    aspect_hints = [":gersemi"],
+    srcs = ["CMakeLists.txt"],
+)
+```
+
+`extensions:` and `definitions:` entries in a `.gersemirc` load files that sit
+next to the config. They only resolve when those files are in the
+`gersemi_config` `data`, and running them is the consumer's own trust decision,
+like an `eslint.config.mjs`.
+
+The pinned binaries are PyInstaller one-file builds that unpack into the
+runner's scratch `TMPDIR` on every start, so the first start of each batch
+takes a moment. To use another gersemi
+executable, point `tool_gersemi` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_gersemi=//tools:gersemi
+```
 
 ### Make
 

@@ -560,6 +560,7 @@ Language rules:
 - `@rules_dx//cue/rules:defs.bzl`: CUE.
 - `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
+- `@rules_dx//cmake/rules:defs.bzl`: CMake files.
 - `@rules_dx//d/rules:defs.bzl`: D.
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.

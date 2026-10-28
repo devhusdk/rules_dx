@@ -341,6 +341,63 @@ pub(super) fn dfmt_checks_one_file_at_a_time_and_never_trusts_a_run_that_printed
     assert_eq!(broken[0].rule_id, "syntax");
 }
 
+fn dscanner_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[2], OsString::from("--config"));
+    assert_eq!(argv[3], OsString::from("dx-dscanner-default/dscanner.ini"));
+    let staged = std::fs::read_to_string(cwd.join("dx-dscanner-default/dscanner.ini"))
+        .expect("the staged dscanner default");
+    assert!(
+        staged.starts_with("[analysis.config.StaticAnalysisConfig]\n"),
+        "{staged}"
+    );
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("silent") {
+        (1, String::new())
+    } else if text.contains("phantom") {
+        (0, format!("dx\t{file}\t1\t1\t1\t2\twarn\tx\tm\n"))
+    } else if text.contains("broken") {
+        (
+            1,
+            format!("dx\t{file}\t2\t5\t2\t5\terror\t\tPrimary expression expected\n"),
+        )
+    } else if text.contains("unused") {
+        (
+            1,
+            format!(
+                "dx\t{file}\t1\t9\t1\t10\twarn\tunused_variable_check\tVariable x is never used.\n"
+            ),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn dscanner_lints_a_batch_and_never_trusts_an_exit_that_disagrees_with_its_output() {
+    let backend = backend_for("dscanner", plain_tool(), dscanner_behavior);
+    let lint = |text: &str| backend.diagnose("dscanner", "lint", &single("a.d", text));
+    assert!(lint("void f()\n{}\n").expect("check").is_empty());
+    let warned = lint("void f() { int unused; }\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "unused_variable_check");
+    let broken = lint("void f(){\nbroken }\n").expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+    assert!(lint("silent\n").is_err());
+    assert!(lint("phantom\n").is_err());
+}
+
 #[test]
 pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
     let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);

@@ -1209,6 +1209,18 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.d"
         ]
     );
+    assert_eq!(
+        argv_strings(&dscanner_check(Path::new(BIN), &[d])),
+        vec![
+            BIN,
+            "--styleCheck",
+            "--config",
+            "dx-dscanner-default/dscanner.ini",
+            "--errorFormat",
+            DSCANNER_FORMAT,
+            "/scratch/sample.d"
+        ]
+    );
     let julia = Path::new("/scratch/sample.jl");
     assert_eq!(
         argv_strings(&julia_format_check(Path::new(BIN), &[julia])),

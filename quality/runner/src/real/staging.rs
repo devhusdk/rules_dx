@@ -75,6 +75,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(DFMT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "dscanner" {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(commands::DSCANNER_CONFIG_REL),
+                contents: MirrorContents::Bytes(DSCANNER_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "statix" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STATIX_DEFAULTS_REL),

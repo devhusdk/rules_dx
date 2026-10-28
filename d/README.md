@@ -41,6 +41,12 @@ Select `dfmt` in a `d` quality family to check and fix D formatting. The D
 wrappers carry the pinned dfmt, so no flag is needed. See "D formatting" in
 `docs/cli/commands/quality.md`.
 
+## Linting
+
+Select `dscanner` in a `d` quality family to lint D sources. The D wrappers
+carry the pinned D-Scanner, so no flag is needed. See "D linting" in
+`docs/cli/commands/quality.md`.
+
 ## Platforms
 
 | Host | LDC | Qualified |

@@ -140,6 +140,20 @@ const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
 pub const DFMT_CONFIG_DIR: &str = "dx-dfmt-default";
 const DFMT_CHECK_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR];
 const DFMT_FIX_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR, "--inplace"];
+/// The scratch path of the `dscanner.ini` dscanner is pointed at; with `--config` it never reads
+/// `$HOME/.config/dscanner` or a `dscanner.ini` in a parent directory.
+pub const DSCANNER_CONFIG_REL: &str = "dx-dscanner-default/dscanner.ini";
+/// The sentinel, then tab-separated fields; the message is last because upstream substitutes it
+/// before `{type}` and `{name}`.
+pub const DSCANNER_FORMAT: &str =
+    "dx\t{filepath}\t{line}\t{column}\t{endLine}\t{endColumn}\t{type}\t{name}\t{message}";
+const DSCANNER_CHECK_ARGS: &[&str] = &[
+    "--styleCheck",
+    "--config",
+    DSCANNER_CONFIG_REL,
+    "--errorFormat",
+    DSCANNER_FORMAT,
+];
 const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
@@ -1020,6 +1034,11 @@ pub fn dfmt_check(binary: &Path, file: &Path) -> Invocation {
 
 pub fn dfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DFMT_FIX_ARGS, files, "")
+}
+
+/// One batched style check. The relative `--config` makes the cwd the scratch root.
+pub fn dscanner_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DSCANNER_CHECK_ARGS, files, "")
 }
 
 pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {

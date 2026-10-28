@@ -12,6 +12,7 @@ pub mod cue;
 pub mod deadnix;
 pub mod dfmt;
 pub mod djlint;
+pub mod dscanner;
 pub mod erlfmt;
 pub mod errcheck;
 pub mod eslint;
@@ -85,6 +86,7 @@ pub use cue::parse_cue;
 pub use deadnix::parse_deadnix;
 pub use dfmt::parse_dfmt;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
+pub use dscanner::parse_dscanner;
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
@@ -1891,6 +1893,14 @@ mod tests {
         )
     }
 
+    fn fuzz_dscanner(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dscanner::parse_dscanner(input, code, files)
+    }
+
     fn fuzz_erlfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2226,6 +2236,7 @@ mod tests {
         ("cue", fuzz_cue),
         ("deadnix", fuzz_deadnix),
         ("dfmt", fuzz_dfmt),
+        ("dscanner", fuzz_dscanner),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
         ("erlfmt", fuzz_erlfmt),
@@ -2310,6 +2321,7 @@ mod tests {
         ("cue", include_str!("cue.rs")),
         ("deadnix", include_str!("deadnix.rs")),
         ("dfmt", include_str!("dfmt.rs")),
+        ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),

@@ -276,7 +276,11 @@ fn cmakelint_passes_clean_files_and_reports_owned_style_findings_without_writing
         "{}",
         dirty.combined()
     );
-    assert!(!dirty.combined().contains("unowned"), "{}", dirty.combined());
+    assert!(
+        !dirty.combined().contains("unowned"),
+        "{}",
+        dirty.combined()
+    );
     let applied = dx_with(&root, "lint", &["--apply"], &[LINT_POLICY]);
     assert_eq!(applied.status.code(), Some(1), "{}", applied.combined());
     assert_eq!(read(&lists), MIXED_CASE);

@@ -49,7 +49,13 @@ fn header(line: &str) -> Option<Header<'_>> {
         };
         let rest = rest.strip_prefix(' ')?;
         let (severity, message) = rest.split_once(':')?;
-        if severity.is_empty() || !severity.chars().all(|c| c.is_ascii_alphabetic()) {
+        if severity.is_empty()
+            || !severity
+                .chars()
+                .all(|c| c.is_ascii_alphabetic() || c == ' ')
+            || severity.starts_with(' ')
+            || severity.ends_with(' ')
+        {
             continue;
         }
         return Some(Header {
@@ -120,5 +126,16 @@ pub(super) fn read(
         ));
     }
     require_findings(tool, &findings, code)?;
+    // A failed compile must report an error; warnings alone cannot explain it.
+    if code != Some(0)
+        && !findings
+            .iter()
+            .any(|f| f.finding.severity == ToolSeverity::Error)
+    {
+        return Err(ParseError::shape(
+            tool,
+            "nonzero exit without a parsed error diagnostic".to_owned(),
+        ));
+    }
     Ok(findings)
 }

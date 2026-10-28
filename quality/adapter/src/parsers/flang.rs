@@ -8,7 +8,7 @@ const DIALECT: Dialect = Dialect {
     // flang counts bytes within the line.
     encoding: ColumnEncoding::Utf8,
     severity: |word| match word {
-        "error" => Some(Disposition::Report(ToolSeverity::Error)),
+        "error" | "fatal error" => Some(Disposition::Report(ToolSeverity::Error)),
         "warning" | "portability" => Some(Disposition::Report(ToolSeverity::Warning)),
         "info" | "note" | "because" => Some(Disposition::Skip),
         _ => None,
@@ -49,6 +49,19 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].finding.rule_id, "-Wlabel");
         assert_eq!(found[0].finding.message, "Label should be in columns 1-5");
+    }
+
+    #[test]
+    fn flang_fatal_error_is_an_error() {
+        let text = "fortran/a.f90:1:1: fatal error: Cannot read module file\n";
+        let found = parse_flang(text.as_bytes(), Some(1), &[FILE]).expect("parsed");
+        assert_eq!(found[0].finding.severity, ToolSeverity::Error);
+    }
+
+    #[test]
+    fn flang_unlocated_error_with_warning_fails_closed() {
+        let text = "fortran/a.f90:1:1: warning: w\nflang-new: error: x\n";
+        assert!(parse_flang(text.as_bytes(), Some(1), &[FILE]).is_err());
     }
 
     #[test]

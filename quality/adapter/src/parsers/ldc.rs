@@ -56,6 +56,12 @@ mod tests {
     }
 
     #[test]
+    fn ldc_unlocated_error_with_warning_fails_closed() {
+        let text = "Error: no location\nd/a.d:1:1: Warning: w\n";
+        assert!(parse_ldc(text.as_bytes(), Some(1), &["d/a.d"]).is_err());
+    }
+
+    #[test]
     fn ldc_fails_closed() {
         assert!(parse_ldc(b"", Some(0), &[FILE]).expect("clean").is_empty());
         assert!(parse_ldc(b"", Some(1), &[FILE]).is_err());

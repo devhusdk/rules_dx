@@ -27,13 +27,14 @@ rust_test(
     data = [
         "//:.clang-format",
         "//examples/cuda-app/app:format_srcs",
+        "//examples/cuda-app/gpu:format_srcs",
         "//examples/cuda-app/kernels:format_srcs",
         "@llvm//tools:clang-format",
     ],
     env = {
         "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
         "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
-        "DX_FORMAT_SRCS": "$(rootpaths //examples/cuda-app/app:format_srcs) $(rootpaths //examples/cuda-app/kernels:format_srcs)",
+        "DX_FORMAT_SRCS": "$(rootpaths //examples/cuda-app/app:format_srcs) $(rootpaths //examples/cuda-app/gpu:format_srcs) $(rootpaths //examples/cuda-app/kernels:format_srcs)",
     },
     deps = ["//tools/testing:dx_testing"],
 )

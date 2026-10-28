@@ -376,6 +376,9 @@ fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
     for (key, value) in env {
         out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
     }
+    // The child PATH is only the shim dir; launchers that start with
+    // `#!/usr/bin/env bash` need the system default search path back.
+    out.push_str("unset PATH\n");
     out.push_str(&format!("exec {} \"$@\"\n", quote(binary)));
     out
 }
@@ -396,6 +399,7 @@ fn windows_shim(binary: &str, env: &[(String, String)]) -> Result<String, String
     if bad(binary) {
         return Err("unsafe character in launcher path".to_owned());
     }
+    out.push_str("set \"PATH=\"\r\n");
     out.push_str(&format!("\"{binary}\" %*\r\n"));
     Ok(out)
 }
@@ -864,7 +868,7 @@ mod tests {
         );
         assert_eq!(
             body,
-            "#!/bin/sh\nRUNFILES_MANIFEST_FILE='/w/m'\nexport RUNFILES_MANIFEST_FILE\nexec '/w/it'\\''s/bin' \"$@\"\n"
+            "#!/bin/sh\nRUNFILES_MANIFEST_FILE='/w/m'\nexport RUNFILES_MANIFEST_FILE\nunset PATH\nexec '/w/it'\\''s/bin' \"$@\"\n"
         );
     }
 
@@ -874,7 +878,7 @@ mod tests {
             .expect("shim");
         assert_eq!(
             body,
-            "@echo off\r\nset \"K=V\"\r\n\"C:\\t\\bin.bat\" %*\r\n"
+            "@echo off\r\nset \"K=V\"\r\nset \"PATH=\"\r\n\"C:\\t\\bin.bat\" %*\r\n"
         );
         for bad in ["a%b", "a\"b", "a^b", "a!b", "a\nb"] {
             assert!(super::windows_shim(bad, &[]).is_err(), "{bad}");
@@ -901,6 +905,24 @@ mod tests {
             .output()
             .expect("run");
         assert_eq!(String::from_utf8_lossy(&out.stdout), "arg:v\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_path_shim_lets_env_shebang_launchers_find_their_interpreter() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().expect("dir");
+        let launcher = dir.path().join("fake");
+        std::fs::write(&launcher, "#!/usr/bin/env sh\necho ok\n").expect("write");
+        std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        super::write_path_shim(dir.path(), "tool", &launcher, &[]).expect("shim");
+        let body = std::fs::read_to_string(dir.path().join("tool")).expect("read");
+        assert!(body.contains("unset PATH\n"), "{body}");
+        let out = std::process::Command::new(dir.path().join("tool"))
+            .env("PATH", dir.path())
+            .output()
+            .expect("run");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "ok\n");
     }
 
     /// The PowerShell launcher runs from its real path.

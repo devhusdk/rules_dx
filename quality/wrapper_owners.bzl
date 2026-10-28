@@ -47,6 +47,7 @@ WRAPPER_OWNERS = {
     "nix": "//nix/rules:defs.bzl",
     "typst": "//typst/rules:defs.bzl",
     "latex": "//latex/rules:defs.bzl",
+    "rst": "//rst/rules:defs.bzl",
     "objc": "//cc/rules:defs.bzl",
     "ocaml": "//ocaml/rules:defs.bzl",
     "perl": "//perl/rules:defs.bzl",

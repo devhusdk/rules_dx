@@ -94,6 +94,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "cloudformation",
     "typst",
     "latex",
+    "rst",
 ]
 
 RUST = "rust"

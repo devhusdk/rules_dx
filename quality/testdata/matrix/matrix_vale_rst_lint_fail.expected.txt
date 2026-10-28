@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_vale_rst_lint_fail
+capability LINT
+stages 1
+stage vale classes=rst sources=matrix/rst_dirty.rst
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR vale Dx.Markers matrix/rst_dirty.rst 35 39 fixable=false "Remove 'TODO' markers before merging."
+terminal 1
+terminal ERROR vale Dx.Markers matrix/rst_dirty.rst 35 39 fixable=false "Remove 'TODO' markers before merging."
+replacements 0

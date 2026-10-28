@@ -228,7 +228,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("vale", "lint"),
                     real_supported_classes("vale", "format"),
                 ],
-                [["markdown"], []],
+                [["markdown", "rst"], []],
             ),
             expect_equal(
                 "real_supported_classes returns rustc typecheck support only",

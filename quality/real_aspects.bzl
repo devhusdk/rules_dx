@@ -946,6 +946,25 @@ _TARGET_TOOL_OWNERS = {
     "julia_format": ("julia_library, julia_binary or julia_test", "@rules_dx//julia/rules:defs.bzl", "@rules_dx//julia/tools:julia_format"),
 }
 
+# Converters Vale shells out to, by source class: (tool name, owner rule, defs.bzl).
+# The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
+# never load Python or Node.
+_VALE_CONVERTERS = {
+    "rst": ("rst2html", "rst_library", "@rules_dx//rst/rules:defs.bzl"),
+}
+
+def _vale_converters(target, stage_classes, what):
+    """Returns (name, FilesToRunProvider) for each converter the stage's classes need."""
+    found = []
+    for cls in sorted(_VALE_CONVERTERS.keys()):
+        if cls not in stage_classes:
+            continue
+        name, owner, defs = _VALE_CONVERTERS[cls]
+        if QualityToolsInfo not in target or name not in target[QualityToolsInfo].tools:
+            fail(what + ": vale: " + cls + " files need " + name + "; own them with " + owner + " from " + defs)
+        found.append((name, target[QualityToolsInfo].tools[name]))
+    return found
+
 def _tool_files_to_run(target, flag, tool, what):
     """Returns the flag's tool, else the one the target carries."""
     ftr = flag[DefaultInfo].files_to_run
@@ -1396,6 +1415,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "psscriptanalyzer" in tool_env_entries:
         tool_env_entries["psscriptanalyzer"].append(real_request_tool_env("DX_PWSH_MODULE_ROOTS", "|".join(sorted(pwsh_module_roots.keys()))))
 
+    vale_converters = []
+    for stage in resolved:
+        if stage["tool"] == "vale":
+            vale_converters = _vale_converters(target, stage["classes"], what)
+    for _name, converter in vale_converters:
+        run_tools = run_tools + [converter]
+
     request_tools = {}
     for tool in stage_tools:
         binary_path = None
@@ -1448,6 +1474,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             inputs.append(helm_context)
             path_tools.append({"binary": ctx.file._kubeconform.path, "name": "kubeconform"})
             inputs.append(ctx.file._kubeconform)
+        if tool == "vale":
+            for name, converter in vale_converters:
+                path_tools.append({"binary": converter.executable.path, "name": name})
+                inputs.append(converter.executable)
         edition = None
         if tool == "rustfmt":
             edition = rustfmt_edition

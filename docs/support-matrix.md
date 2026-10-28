@@ -116,6 +116,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | n/a |
 | Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Rego | `regal` on `linux_x86_64` | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
+| reStructuredText | `vale` | no | n/a |
 | SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | n/a |
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
 | Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
@@ -144,6 +145,7 @@ Not applicable for `typecheck`:
 - `nix`: dynamically typed expression language; no maintained type checker
 - `perl`: dynamically typed; no maintained type checker
 - `powershell`: no type checker; PSScriptAnalyzer is a linter only
+- `rst`: markup; no static type system
 - `sql`: type checking needs a database schema and dialect; standalone .sql files carry neither
 - `typst`: dynamically typed markup; no standalone type checker
 - `xml`: data format; schema validation is not type checking

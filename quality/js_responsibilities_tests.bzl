@@ -91,13 +91,13 @@ def js_responsibilities_unit_tests(name):
                 [[], []],
             ),
             expect_equal(
-                "no adapter typechecks typescript, tsx or javascript",
+                "only tsc typechecks typescript and tsx, nothing typechecks javascript",
                 [
                     _claimants("typecheck", "typescript"),
                     _claimants("typecheck", "tsx"),
                     _claimants("typecheck", "javascript"),
                 ],
-                [[], [], []],
+                [["tsc"], ["tsc"], []],
             ),
             expect_equal(
                 "deferred framework classes stay outside JS tool claims",

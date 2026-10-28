@@ -137,6 +137,45 @@ impl RealBackend {
         Ok(findings)
     }
 
+    pub(super) fn check_tsc_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let workspaces: Vec<&str> = pairs
+            .iter()
+            .map(|(workspace, _)| workspace.as_str())
+            .collect();
+        let [path] = tool.upstream_diagnostics.as_slice() else {
+            return Err(execution(
+                tool_id,
+                "tsc needs the diagnostics of the target project; the TypeScript aspect did not supply them"
+                    .to_owned(),
+            ));
+        };
+        let code = tool
+            .tool_files
+            .iter()
+            .find(|(rel, _)| rel == "dx-tsc/exit")
+            .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
+            .and_then(|text| text.trim().parse::<i32>().ok())
+            .ok_or_else(|| {
+                execution(
+                    tool_id,
+                    "tsc needs its exit status; the TypeScript aspect did not supply it".to_owned(),
+                )
+            })?;
+        let bytes = std::fs::read(path)
+            .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+        let mut findings = parsed(tool_id, parsers::parse_tsc(&bytes, Some(code), &workspaces))?;
+        for found in &mut findings {
+            let absolute = reanchor(tool_id, pairs, &found.file)?;
+            found.file = absolute.to_string_lossy().into_owned();
+        }
+        Ok(findings)
+    }
+
     pub(super) fn check_fsharplint_delegated(
         &self,
         tool_id: &str,

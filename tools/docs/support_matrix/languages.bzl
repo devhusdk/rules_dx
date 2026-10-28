@@ -311,7 +311,6 @@ GAP_ISSUES = {
     "typecheck:scala": 4528,
     "typecheck:svelte": 1766,
     "typecheck:terraform": 4533,
-    "typecheck:typescript": 4524,
     "typecheck:vue": 4525,
     "typecheck:zig": 4530,
 }

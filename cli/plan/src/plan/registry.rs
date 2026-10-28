@@ -56,6 +56,7 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[
                 "quality:real_aspects.bzl%real_typecheck_aspect",
+                "quality:real_aspects.bzl%real_js_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rust_typecheck_aspect",
                 "quality:real_aspects.bzl%real_dotnet_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rego_typecheck_aspect",
@@ -318,6 +319,7 @@ mod tests {
             typecheck.aspects,
             &[
                 "quality:real_aspects.bzl%real_typecheck_aspect",
+                "quality:real_aspects.bzl%real_js_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rust_typecheck_aspect",
                 "quality:real_aspects.bzl%real_dotnet_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rego_typecheck_aspect",

@@ -25,6 +25,7 @@ load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps"
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
@@ -506,6 +507,12 @@ _REAL_TOOL_TABLE = {
         "kind": "upstream",
         "resources": "heavy",
         "shard": "dotnet",
+    },
+    "tsc": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "js",
     },
     "ruff": {
         "attr": attr.label(default = "//config:tool_ruff", allow_single_file = True, cfg = "exec"),
@@ -1227,6 +1234,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if "dart" in [stage["tool"] for stage in resolved]:
         (dart_package_config, dart_options, dart_stubs) = _dart_context(target, ctx, what, capability)
 
+    tsc = None
+    if "tsc" in [stage["tool"] for stage in resolved]:
+        if TscInfo not in target:
+            resolved = drop_pipeline_tool(resolved, "tsc")
+            if len(resolved) == 0:
+                return []
+        else:
+            tsc = target[TscInfo]
+
     roslyn = None
     if "roslyn" in [stage["tool"] for stage in resolved] or "csc" in [stage["tool"] for stage in resolved]:
         if RoslynInfo not in target:
@@ -1588,6 +1604,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
+        if tool == "tsc":
+            upstream.append(tsc.stdout.path)
+            inputs.append(tsc.stdout)
+            tool_files.append(real_request_tool_file("dx-tsc/exit", tsc.status.path))
+            inputs.append(tsc.status)
         if tool == "roslyn" or tool == "csc":
             for i in range(len(roslyn.tfms)):
                 upstream.append(roslyn.sarifs[i].path)
@@ -1821,6 +1842,13 @@ _REAL_SHARD_SPECS = {
     "real_js_lint": {
         "capability": "lint",
         "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).",
+        "shard": "js",
+        "suffix": "-js",
+    },
+    "real_js_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive TypeScript typecheck family aspect (delegated tsc over typescript_project).",
+        "requires": [tsc_aspect],
         "shard": "js",
         "suffix": "-js",
     },
@@ -2226,6 +2254,7 @@ real_rust_lint_aspect = _make_real_aspect("real_rust_lint")
 
 real_rust_format_aspect = _make_real_aspect("real_rust_format")
 
+real_js_typecheck_aspect = _make_real_aspect("real_js_typecheck")
 real_rust_typecheck_aspect = _make_real_aspect("real_rust_typecheck")
 
 real_scala_format_aspect = _make_real_aspect("real_scala_format")

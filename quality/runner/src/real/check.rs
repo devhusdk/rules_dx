@@ -451,6 +451,7 @@ impl RealBackend {
             "roslyn" => self.check_roslyn_delegated(tool_id, tool, pairs),
             "csc" => self.check_csc_delegated(tool_id, tool, pairs),
             "clang_syntax" => self.check_clang_syntax_delegated(tool_id, tool, pairs),
+            "tsc" => self.check_tsc_delegated(tool_id, tool, pairs),
             "fsharplint" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_fsharplint_delegated(tool_id, tool, pairs)

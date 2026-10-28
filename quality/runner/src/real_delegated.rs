@@ -1249,6 +1249,18 @@ fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
     tool
 }
 
+const TSC_SOURCE: &str = "export const n: number = 'x';\n";
+const TSC_OWNED: &str =
+    "src/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n";
+
+fn tsc_tool(report: &Path, exit: Option<&str>) -> RealTool {
+    let mut tool = delegated_tool(report.to_path_buf());
+    tool.tool_files = exit
+        .map(|text| vec![("dx-tsc/exit".to_owned(), text.as_bytes().to_vec())])
+        .unwrap_or_default();
+    tool
+}
+
 #[test]
 fn delegated_clang_syntax_reads_clean_and_dirty_logs() {
     let clean = upstream_file("clang_syntax", "");
@@ -1293,4 +1305,55 @@ fn delegated_clang_syntax_fails_closed() {
         .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
         .expect_err("no upstream");
     assert!(error.to_string().contains("requires upstream diagnostics"));
+}
+
+#[test]
+fn delegated_tsc_is_clean_on_exit_zero_and_reports_owned_findings() {
+    let clean = upstream_file("tsc", "");
+    let findings = backend_for("tsc", tsc_tool(clean.path(), Some("0")), must_not_spawn)
+        .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+        .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("tsc", TSC_OWNED);
+    let findings = backend_for("tsc", tsc_tool(dirty.path(), Some("2\n")), must_not_spawn)
+        .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+        .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "src/a.ts");
+    assert_eq!(findings[0].rule_id, "TS2322");
+}
+
+#[test]
+fn delegated_tsc_never_reports_a_failing_project_clean() {
+    let dependency_only = upstream_file(
+        "tsc",
+        "lib/dep.ts(3,1): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+    );
+    let global = upstream_file(
+        "tsc",
+        "error TS18003: No inputs were found in config file.\n",
+    );
+    let silent = upstream_file("tsc", "");
+    for report in [&dependency_only, &global, &silent] {
+        let result = backend_for("tsc", tsc_tool(report.path(), Some("2")), must_not_spawn)
+            .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE));
+        assert!(result.is_err(), "{result:?}");
+    }
+}
+
+#[test]
+fn delegated_tsc_fails_closed_without_its_inputs() {
+    for exit in [None, Some("oops")] {
+        let report = upstream_file("tsc", "");
+        let error = backend_for("tsc", tsc_tool(report.path(), exit), must_not_spawn)
+            .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+            .expect_err("missing exit status");
+        assert!(error.to_string().contains("exit status"), "{error}");
+    }
+    let mut tool = tsc_tool(Path::new(""), Some("0"));
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("tsc", tool, must_not_spawn)
+        .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+        .expect_err("missing diagnostics");
+    assert!(error.to_string().contains("diagnostics"), "{error}");
 }

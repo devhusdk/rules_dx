@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use super::{as_text, code_name, finding, known_relative, unformatted_at, FileFinding, ParseError};
+use super::{
+    as_text, code_name, finding, known_relative, unformatted_at, FileFinding, ParseError,
+};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "typstyle";
@@ -33,7 +35,10 @@ pub fn parse_typstyle(
                 .find(|line| line.starts_with("error:"))
                 .unwrap_or("exit 2")
                 .to_owned();
-            return Err(ParseError::Incomplete { tool: TOOL, detail });
+            return Err(ParseError::Incomplete {
+                tool: TOOL,
+                detail,
+            });
         }
         _ => {
             return Err(ParseError::shape(
@@ -60,7 +65,10 @@ pub fn parse_typstyle(
         }
     }
     if code == Some(1) && findings.is_empty() {
-        return Err(ParseError::shape(TOOL, "exit 1 with no listed files"));
+        return Err(ParseError::shape(
+            TOOL,
+            "exit 1 with no listed files",
+        ));
     }
     if code == Some(0) && !findings.is_empty() {
         return Err(ParseError::shape(

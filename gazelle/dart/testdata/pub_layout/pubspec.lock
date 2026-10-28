@@ -1,0 +1,17 @@
+packages:
+  collection:
+    dependency: "direct main"
+    description:
+      name: collection
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.19.1"
+  test:
+    dependency: "direct dev"
+    description:
+      name: test
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.25.0"
+sdks:
+  dart: ">=3.5.0 <4.0.0"

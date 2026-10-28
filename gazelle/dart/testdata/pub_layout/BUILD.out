@@ -1,0 +1,27 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+
+dart_library(
+    name = "greet",
+    package_name = "greet",
+    srcs = [
+        "lib/greet.dart",
+        "lib/src/util.dart",
+    ],
+    deps = ["@pub_deps//:collection"],
+)
+
+dart_binary(
+    name = "greet_bin",
+    main = "bin/greet.dart",
+    deps = [":greet"],
+)
+
+dart_test(
+    name = "greet_test",
+    srcs = ["test/helpers.dart"],
+    main = "test/greet_test.dart",
+    deps = [
+        ":greet",
+        "@pub_deps//:test",
+    ],
+)

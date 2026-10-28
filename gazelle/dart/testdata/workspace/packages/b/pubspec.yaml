@@ -1,0 +1,4 @@
+name: b
+resolution: workspace
+dependencies:
+  a: any

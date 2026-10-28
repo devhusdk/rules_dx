@@ -1,0 +1,57 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "dart",
+    srcs = [
+        "doc.go",
+        "generate.go",
+        "lang.go",
+        "parser.go",
+        "pubspec.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/dart",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/dart",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/rule",
+    ],
+)
+
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
+go_test(
+    name = "dart_test",
+    srcs = [
+        "lang_test.go",
+        "parser_test.go",
+        "pubspec_test.go",
+    ],
+    embed = [":dart"],
+    pure = "on",
+    deps = [
+        "//gazelle/common",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//v2/rule",
+    ],
+)

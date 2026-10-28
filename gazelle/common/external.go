@@ -57,6 +57,11 @@ var externalParsers = map[string]externalParser{
 		DefaultRepo: "pypi",
 		Parse:       parseUVLockManifest,
 	},
+	"pub": {
+		Discover:    "pubspec.lock",
+		DefaultRepo: "pub_deps",
+		Parse:       parsePubLockManifest,
+	},
 	"npm": {
 		Discover: "package.json",
 		RootOnly: true,

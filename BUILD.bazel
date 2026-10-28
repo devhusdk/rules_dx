@@ -96,6 +96,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude cc/ide
 # gazelle:exclude lua/runtime
 # gazelle:exclude gazelle/cc/testdata
+# gazelle:exclude gazelle/dart/testdata
 # gazelle:exclude rust/tests/fixtures/cxx_identity
 # gazelle:exclude csharp/tests/fixtures/hello
 # gazelle:exclude csharp/tests/fixtures/xunit

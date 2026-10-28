@@ -25,6 +25,13 @@ bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_dotnet", version = "0.22.2")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
+single_version_override(
+    module_name = "rules_dotnet",
+    patch_strip = 1,
+    patches = ["//patches/rules_dotnet:sdk_versions.patch"],
+    version = "0.22.2",
+)
+
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
@@ -88,6 +95,20 @@ fsharp_binary(
 )
 "#;
 
+/// Seeds the SDK patch the way `dx init` does; overrides only apply in the root module.
+fn stage_dotnet_patch(root: &Path, rules: &Path) {
+    let patch = std::fs::read_to_string(rules.join("patches/rules_dotnet/sdk_versions.patch"))
+        .unwrap_or_else(|error| panic!("sdk_versions.patch: {error}"));
+    write(
+        &root.join("patches/rules_dotnet/sdk_versions.patch"),
+        &patch,
+    );
+    write(
+        &root.join("patches/rules_dotnet/BUILD.bazel"),
+        "exports_files([\"sdk_versions.patch\"])\n",
+    );
+}
+
 fn consumer() -> Case {
     let rules = rules_dx_source();
     let root = nested::case("consumer");
@@ -102,6 +123,7 @@ fn consumer() -> Case {
             .replace("RULES_DX", &rules.display().to_string()),
     );
     nested::stage_consumer_maven_lock(&root);
+    stage_dotnet_patch(&root, &rules);
     write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
     write(&root.join("BUILD.bazel"), BUILD);
     write(

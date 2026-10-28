@@ -8,6 +8,13 @@ const MODULE: &str = r#"module(name = "consumer")
 
 bazel_dep(name = "rules_dotnet", version = "0.22.2")
 
+single_version_override(
+    module_name = "rules_dotnet",
+    patch_strip = 1,
+    patches = ["//patches/rules_dotnet:sdk_versions.patch"],
+    version = "0.22.2",
+)
+
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
@@ -52,12 +59,27 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
+/// Seeds the SDK patch the way `dx init` does; overrides only apply in the root module.
+fn stage_dotnet_patch(root: &Path, rules: &Path) {
+    let patch = std::fs::read_to_string(rules.join("patches/rules_dotnet/sdk_versions.patch"))
+        .unwrap_or_else(|error| panic!("sdk_versions.patch: {error}"));
+    write(
+        &root.join("patches/rules_dotnet/sdk_versions.patch"),
+        &patch,
+    );
+    write(
+        &root.join("patches/rules_dotnet/BUILD.bazel"),
+        "exports_files([\"sdk_versions.patch\"])\n",
+    );
+}
+
 fn consumer() -> Case {
     let root = nested::case("nuget-sets");
     let version = std::fs::read_to_string(rules_dx_root().join(".bazelversion"))
         .unwrap_or_else(|error| panic!(".bazelversion: {error}"));
     write(&root.join(".bazelversion"), &version);
     write(&root.join("MODULE.bazel"), MODULE);
+    stage_dotnet_patch(&root, &rules_dx_root());
     write(&root.join("BUILD.bazel"), "");
     write(
         &root.join(".bazelrc"),

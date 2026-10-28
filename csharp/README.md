@@ -2,7 +2,11 @@
 
 Build and test C# with a pinned .NET SDK 10.0.403. Nothing is installed on the
 host and nothing is fetched until a target needs it. rules_dx registers the
-toolchain, so there is no setup in `MODULE.bazel`.
+toolchain, so there is no setup in `MODULE.bazel` beyond the include that
+`dx init` writes. That include carries the `rules_dotnet` patches, including
+`sdk_versions.patch`; stock `rules_dotnet` 0.22.2 rejects this SDK version, and
+overrides only apply in the root module, so a consumer that skips the include
+must copy the patches and override `rules_dotnet` itself.
 
 ## Start
 

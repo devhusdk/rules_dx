@@ -479,3 +479,57 @@ fn pages_that_differ_only_in_case_fail() {
         "{error}"
     );
 }
+
+fn vue_shard() -> DocIr {
+    let member = |name: &str, kind: SymbolKind, signature: &str| {
+        let mut s = symbol(&format!("vue:ui:Button.{name}"), signature, "", 5);
+        s.kind = kind as i32;
+        s.display_name = format!("Button.vue {name}");
+        s.relations = Some(Relations {
+            member_of: vec!["vue:ui:Button".to_string()],
+            ..Relations::default()
+        });
+        s
+    };
+    let mut button = symbol("vue:ui:Button", "component Button", "A button.", 1);
+    button.kind = SymbolKind::Component as i32;
+    button.display_name = "Button.vue".to_string();
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "vue".to_string(),
+        package: "ui".to_string(),
+        symbols: vec![
+            button,
+            member("event_click", SymbolKind::Event, "click: [number]"),
+            member("exposed_focus", SymbolKind::Method, "focus: () => void"),
+            member("prop_label", SymbolKind::Property, "label: string"),
+            member("prop_size", SymbolKind::Property, "size?: number = 1"),
+            member("slot_default", SymbolKind::Slot, "default: {}"),
+        ],
+    }
+}
+
+#[test]
+fn vue_components_group_their_members_by_kind() {
+    let rendered = render(&[vue_shard()], "").expect("render");
+    assert!(
+        rendered.api.contains("## Vue components `ui`"),
+        "{}",
+        rendered.api
+    );
+    let page = &rendered.pages["vue/ui/Button.md"];
+    assert_eq!(
+        page,
+        "# `Button.vue`\n\n```ts\ncomponent Button\n```\n\nA button.\n\nSource: `pkg/src/lib.rs:1`\n\nProps: [`Button.vue prop_label`](Button.prop_label.md), [`Button.vue prop_size`](Button.prop_size.md)\n\nEvents: [`Button.vue event_click`](Button.event_click.md)\n\nSlots: [`Button.vue slot_default`](Button.slot_default.md)\n\nExposed: [`Button.vue exposed_focus`](Button.exposed_focus.md)\n"
+    );
+    let prop = &rendered.pages["vue/ui/Button.prop_label.md"];
+    assert!(
+        prop.contains("```ts\nlabel: string\n```")
+            && prop.contains("Member of: [`Button.vue`](Button.md)"),
+        "{prop}"
+    );
+    assert_eq!(rendered.summary.matches("    - [").count(), 6);
+    let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");
+    assert_eq!(records.as_array().expect("records").len(), 6);
+}

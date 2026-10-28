@@ -19,7 +19,10 @@ enum SymbolKind {
   TYPE_ALIAS = 11;
   MACRO = 12;
   VARIABLE = 13;
-  reserved 14 to 15;
+  COMPONENT = 14;
+  EVENT = 15;
+  SLOT = 16;
+  reserved 17 to 20;
 }
 
 enum Visibility {

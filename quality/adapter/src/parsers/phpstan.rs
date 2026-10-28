@@ -7,7 +7,8 @@ const TOOL: &str = "phpstan";
 /// Findings from `phpstan analyse --error-format=json`, on exit 0 (clean) or 1 (findings).
 ///
 /// PHPStan keys `files` by the path it analysed, so `files` holds the paths of the owned
-/// sources as PHPStan reports them; an entry for any other file belongs to a dependency and is
+/// sources as PHPStan reports them (a trait error's `<file> (in context of ...)` key is read as
+/// the trait file, and when only dependency traits report, the owned sources are clean); an entry for any other file belongs to a dependency and is
 /// dropped. A clean run prints `"files": []`, an empty array rather than an object. The
 /// top-level `errors` array carries errors that are not tied to a file (a bad config, an
 /// unreadable path) and is never clean, whatever the exit code says. Any other exit code (255
@@ -43,10 +44,17 @@ pub fn parse_phpstan(
         ));
     }
     let mut findings: Vec<FileFinding> = Vec::new();
+    let mut dependency_trait = false;
     match report.get("files") {
         Some(serde_json::Value::Object(by_file)) => {
-            for (path, entry) in by_file {
-                if !files.contains(&path.as_str()) {
+            for (key, entry) in by_file {
+                // A trait error is keyed `<trait file> (in context of class X)`.
+                let (path, in_context) = match key.find(" (in context of ") {
+                    Some(at) if key.ends_with(')') => (&key[..at], true),
+                    _ => (key.as_str(), false),
+                };
+                if !files.contains(&path) {
+                    dependency_trait |= in_context;
                     continue;
                 }
                 let messages = entry
@@ -68,6 +76,11 @@ pub fn parse_phpstan(
             &b.finding.rule_id,
         ))
     });
+    // Exit 1 whose only findings sit in a dependency's trait (reported in the context of
+    // an owned class) is not a failure of the owned sources.
+    if findings.is_empty() && dependency_trait {
+        return Ok(findings);
+    }
     require_findings(TOOL, &findings, code)?;
     if code == Some(0) && !findings.is_empty() {
         return Err(ParseError::shape(
@@ -175,6 +188,16 @@ mod tests {
         let err =
             parse_phpstan(FINDINGS.as_bytes(), Some(1), &["/s/other.php"]).expect_err("no owned");
         assert!(err.to_string().contains("no diagnostics"), "{err}");
+    }
+
+    #[test]
+    fn phpstan_trait_context_keys_map_to_the_trait_file() {
+        let out = br#"{"totals":{"errors":0,"file_errors":2},"files":{"/s/t.php (in context of class A)":{"errors":1,"messages":[{"message":"bad","line":3,"identifier":"x.y"}]},"/d/dep.php (in context of class A)":{"errors":1,"messages":[{"message":"dep","line":1}]}},"errors":[]}"#;
+        let found = parse_phpstan(out, Some(1), &["/s/t.php", "/s/a.php"]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, "/s/t.php");
+        let dep_only = parse_phpstan(out, Some(1), &["/s/a.php"]).expect("dependency only");
+        assert!(dep_only.is_empty());
     }
 
     #[test]

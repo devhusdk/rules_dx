@@ -254,6 +254,7 @@ NIX_NIXFMT_SUPPORT = {
     "state": "supported",
     "tool": "nixfmt",
     "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
 NIX_DEADNIX_SUPPORT = {

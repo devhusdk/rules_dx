@@ -131,6 +131,36 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_jsonnet_lint_pass",
+        "generated": {
+            "matrix/jsonnet_lint_clean.jsonnet": "local greeting = 'hello';\n{ value: greeting }\n",
+        },
+        "capability": "lint",
+        "stages": ["jsonnet_lint;jsonnet;matrix/jsonnet_lint_clean.jsonnet"],
+        "tool_names": ["jsonnet_lint"],
+        "tool_binaries": ["@dx_tools//:jsonnet_lint"],
+        "expected_file": ":matrix/matrix_jsonnet_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "matrix_jsonnet_lint_fail",
+        "generated": {
+            "matrix/jsonnet_lint_dirty.jsonnet": "local unused = 1;\n{ value: 'hello' }\n",
+        },
+        "capability": "lint",
+        "stages": ["jsonnet_lint;jsonnet;matrix/jsonnet_lint_dirty.jsonnet"],
+        "tool_names": ["jsonnet_lint"],
+        "tool_binaries": ["@dx_tools//:jsonnet_lint"],
+        "expected_file": ":matrix/matrix_jsonnet_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
         "name": "matrix_jsonnet_format_syntax_error",
         "generated": {
             "matrix/jsonnet_broken.jsonnet": "{\n  value: [1, 2,\n",
@@ -634,6 +664,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["cue"],
         "tool_binaries": ["@dx_tools//:cue"],
         "expected_file": ":matrix/matrix_cue_typecheck_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_cue_typecheck_fail",
@@ -647,6 +681,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["cue"],
         "tool_binaries": ["@dx_tools//:cue"],
         "expected_file": ":matrix/matrix_cue_typecheck_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_cue_typecheck_syntax_error",
@@ -658,6 +696,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["cue"],
         "tool_binaries": ["@dx_tools//:cue"],
         "expected_file": ":matrix/matrix_cue_typecheck_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_cue_typecheck_schema_only",
@@ -669,6 +711,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["cue"],
         "tool_binaries": ["@dx_tools//:cue"],
         "expected_file": ":matrix/matrix_cue_typecheck_schema_only.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_typecheck_pass",
@@ -1237,6 +1283,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/testdata:fake_prettier_file_family"],
         "expected_file": ":matrix/matrix_gherkin_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_gherkin_format_fail",
@@ -1248,6 +1298,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/testdata:fake_prettier_file_family"],
         "expected_file": ":matrix/matrix_gherkin_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_ansible_format_pass",
@@ -1262,6 +1316,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_ansible_format_fail",
@@ -1276,6 +1331,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_kubernetes_format_pass",
@@ -1291,6 +1347,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_kubernetes_format_fail",
@@ -1305,6 +1362,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_php_format_pass",
@@ -1319,6 +1377,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_php_format_fail",
@@ -1333,6 +1392,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_dockerfile_format_pass",
@@ -1347,6 +1407,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_dockerfile_format_fail",
@@ -1361,6 +1422,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_api_spec_format_pass",
@@ -1375,6 +1437,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_api_spec_format_fail",
@@ -1389,6 +1452,7 @@ FILE_FAMILY_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_sql_format_pass",
@@ -1422,6 +1486,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/testdata:fake_prettier_file_family"],
         "expected_file": ":matrix/matrix_xml_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_xml_format_fail",
@@ -1433,6 +1501,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["prettier"],
         "tool_binaries": ["//quality/testdata:fake_prettier_file_family"],
         "expected_file": ":matrix/matrix_xml_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_html_template_lint_pass",
@@ -2325,6 +2397,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["redocly"],
         "tool_binaries": ["//quality/tools/javascript/bin:redocly"],
         "expected_file": ":matrix/matrix_api_spec_openapi_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_api_spec_openapi_recommended_fail",
@@ -2339,6 +2415,10 @@ FILE_FAMILY_CASES = [
         "config_tools": ["redocly"],
         "config_files": [":redocly_cfg/recommended.yaml"],
         "expected_file": ":matrix/matrix_api_spec_openapi_recommended_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_api_spec_fragment_fail",

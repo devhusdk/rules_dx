@@ -197,6 +197,10 @@ JS_CASES = [
         "tool_names": ["remark"],
         "tool_binaries": ["//quality/tools/javascript/bin:remark"],
         "expected_file": ":matrix/matrix_mdx_remark_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_mdx_remark_format_fail",
@@ -206,6 +210,10 @@ JS_CASES = [
         "tool_names": ["remark"],
         "tool_binaries": ["//quality/tools/javascript/bin:remark"],
         "expected_file": ":matrix/matrix_mdx_remark_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_mdx_remark_frontmatter_gfm_fail",
@@ -215,6 +223,10 @@ JS_CASES = [
         "tool_names": ["remark"],
         "tool_binaries": ["//quality/tools/javascript/bin:remark"],
         "expected_file": ":matrix/matrix_mdx_remark_frontmatter_gfm_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_mdx_remark_parse_fail",
@@ -224,6 +236,10 @@ JS_CASES = [
         "tool_names": ["remark"],
         "tool_binaries": ["//quality/tools/javascript/bin:remark"],
         "expected_file": ":matrix/matrix_mdx_remark_parse_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_mdx_eslint_plugin_fail",

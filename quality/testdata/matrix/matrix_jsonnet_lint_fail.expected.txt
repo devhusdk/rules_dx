@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_jsonnet_lint_fail
+capability LINT
+stages 1
+stage jsonnet_lint classes=jsonnet sources=matrix/jsonnet_lint_dirty.jsonnet
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR jsonnet_lint - matrix/jsonnet_lint_dirty.jsonnet 6 6 fixable=false "Unused variable: unused"
+terminal 1
+terminal ERROR jsonnet_lint - matrix/jsonnet_lint_dirty.jsonnet 6 6 fixable=false "Unused variable: unused"
+replacements 0

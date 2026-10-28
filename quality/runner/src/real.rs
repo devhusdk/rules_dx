@@ -46,6 +46,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "gofumpt",
     "google_java_format",
     "govet",
+    "gplint",
     "graphql_eslint",
     "hadolint",
     "helm",
@@ -185,6 +186,26 @@ rules:
   operation-parameters-unique: error
 telemetry: off
 ";
+/// The curated gplint rules cover meaning only. Layout belongs to prettier, and rules that
+/// compare files (`no-dupe-feature-names`, `no-dupe-scenario-names` in `anywhere` mode) would
+/// make a result depend on which files share a batch, so none of those are listed.
+const GPLINT_DEFAULTS_REL: &str = "dx-gplint-default/gplint.json";
+const GPLINT_DEFAULTS_BYTES: &[u8] = br#"{
+  "no-background-only-scenario": "error",
+  "no-dupe-scenario-names": ["error", "in-feature"],
+  "no-duplicate-tags": "error",
+  "no-empty-background": "error",
+  "no-empty-file": "error",
+  "no-examples-in-scenarios": "error",
+  "no-files-without-scenarios": "error",
+  "no-homogenous-tags": "error",
+  "no-scenario-outlines-without-examples": "error",
+  "no-superfluous-tags": "error",
+  "no-unnamed-features": "error",
+  "no-unnamed-scenarios": "error",
+  "no-unused-variables": "error"
+}
+"#;
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
   "rules": {
@@ -727,7 +748,8 @@ mod real_tools;
 mod tests {
     use super::{
         absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
-        resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, REAL_TOOLS, STYLELINT_DEFAULTS_BYTES,
+        resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, GPLINT_DEFAULTS_BYTES, REAL_TOOLS,
+        STYLELINT_DEFAULTS_BYTES,
     };
     use crate::RunnerError;
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
@@ -957,6 +979,7 @@ mod tests {
     fn javascript_tools_resolve_to_their_own_manifest() {
         for tool_id in [
             "eslint",
+            "gplint",
             "graphql_eslint",
             "prettier",
             "redocly",
@@ -996,6 +1019,7 @@ mod tests {
         }
         for tool_id in [
             "eslint",
+            "gplint",
             "graphql_eslint",
             "prettier",
             "redocly",
@@ -1018,6 +1042,31 @@ mod tests {
     #[test]
     fn keep_sorted_runner_edge_is_present() {
         assert!(REAL_TOOLS.contains(&"keep_sorted"));
+    }
+
+    /// The gplint defaults parse and leave layout to prettier and cross-file checks out.
+    #[test]
+    fn the_gplint_defaults_hold_only_per_file_meaning_rules() {
+        let config: serde_json::Value =
+            serde_json::from_slice(GPLINT_DEFAULTS_BYTES).expect("defaults are JSON");
+        let rules = config.as_object().expect("rules");
+        assert!(!rules.is_empty());
+        for banned in [
+            "indentation",
+            "table-align",
+            "no-trailing-spaces",
+            "new-line-at-eof",
+            "no-multiple-empty-lines",
+            "one-space-between-tags",
+            "no-dupe-feature-names",
+            "file-name",
+        ] {
+            assert!(!rules.contains_key(banned), "{banned}");
+        }
+        assert_eq!(
+            rules["no-dupe-scenario-names"][1], "in-feature",
+            "scenario names compare within one feature"
+        );
     }
 
     /// The default stylelint rules accept CSS Modules selectors and `composes`.

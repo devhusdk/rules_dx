@@ -315,6 +315,59 @@ impl RealBackend {
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_eslint(&out.stdout, out.code, &strs))
             }
+            "gplint" => {
+                // gplint reports realpaths, so lint and match the canonical ones.
+                let launch = ResolvedTool::javascript(tool_id, &tool.binary);
+                let Some(cfg) = config.as_ref() else {
+                    return Err(execution(tool_id, "gplint requires a config".to_owned()));
+                };
+                let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
+                for (workspace, absolute) in pairs {
+                    let real = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    owned.push((real, absolute));
+                }
+                let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
+                let invocation = commands::gplint_check(&launch, &path_refs, cfg)
+                    .map_err(|err| execution(tool_id, err.to_string()))?;
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                if out.stdout.is_empty() {
+                    // A crash or a configuration error: gplint prints no report, and a crash exits 0.
+                    return Err(execution(
+                        tool_id,
+                        format!(
+                            "gplint printed no report (exit {:?}): {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr).trim()
+                        ),
+                    ));
+                }
+                let real_names: Vec<String> = owned
+                    .iter()
+                    .map(|(real, _)| real.to_string_lossy().into_owned())
+                    .collect();
+                let real_strs: Vec<&str> = real_names.iter().map(String::as_str).collect();
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_gplint(&out.stdout, out.code, &real_strs),
+                )?;
+                for found in &mut findings {
+                    // Messages such as the duplicate-name rules quote realpaths; name the workspace path.
+                    for ((real, _), (workspace, _)) in owned.iter().zip(pairs.iter()) {
+                        found.finding.message = found
+                            .finding
+                            .message
+                            .replace(real.to_string_lossy().as_ref(), workspace);
+                    }
+                    if let Some((_, absolute)) = owned
+                        .iter()
+                        .find(|(real, _)| real.to_string_lossy() == found.file.as_str())
+                    {
+                        found.file = absolute.to_string_lossy().into_owned();
+                    }
+                }
+                Ok(findings)
+            }
             "stylelint" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                 let Some(cfg) = config.as_ref() else {

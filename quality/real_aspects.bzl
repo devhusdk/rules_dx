@@ -274,6 +274,15 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "jvm",
     },
+    "gplint": {
+        "attr": attr.label(default = "//quality/tools/javascript/bin:gplint", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
+        "extra": "files",
+        "kind": "executable",
+        "resources": "heavy",
+        "shard": "js",
+    },
     "graphql_eslint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:graphql_eslint", cfg = "exec", executable = True),
         "capabilities": ["lint"],

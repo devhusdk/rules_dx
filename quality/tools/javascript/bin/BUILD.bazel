@@ -1,6 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
 load("@dx_npm_tools//quality/tools/javascript:@redocly/cli/package_json.bzl", redocly_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:esbuild/package_json.bzl", esbuild_bin = "bin")
+load("@dx_npm_tools//quality/tools/javascript:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:stylelint/package_json.bzl", stylelint_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@dx_npm_tools//quality/tools/javascript:wrangler/package_json.bzl", wrangler_bin = "bin")
@@ -70,6 +71,8 @@ js_binary(
     entry_point = "remark.mjs",
 )
 
+gplint_bin.gplint_binary(name = "gplint_generated")
+
 stylelint_bin.stylelint_binary(name = "stylelint_generated")
 
 # Isolated launcher: never loads plugins or consumer typedocOptions.
@@ -121,6 +124,12 @@ js_tool(
     name = "graphql_eslint",
     entry_point = "graphql_eslint.mjs",
     js_binary = ":graphql_eslint_generated",
+)
+
+js_tool(
+    name = "gplint",
+    entry_point = ":gplint_generated__entry_point",
+    js_binary = ":gplint_generated",
 )
 
 js_tool(

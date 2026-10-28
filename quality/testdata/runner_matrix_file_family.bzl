@@ -1415,6 +1415,51 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_scss_lint_fail.expected.txt",
     },
     {
+        "name": "matrix_gherkin_lint_pass",
+        "generated": {
+            "matrix/gplint_clean.feature": "Feature: sample\n\n  Scenario: hello\n    Given a greeting\n",
+        },
+        "capability": "lint",
+        "stages": ["gplint;gherkin;matrix/gplint_clean.feature"],
+        "tool_names": ["gplint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:gplint"],
+        "expected_file": ":matrix/matrix_gherkin_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_gherkin_lint_fail",
+        "generated": {
+            "matrix/gplint_dirty.feature": "Feature:\n\n  Scenario: hello\n    Given a greeting\n",
+        },
+        "capability": "lint",
+        "stages": ["gplint;gherkin;matrix/gplint_dirty.feature"],
+        "tool_names": ["gplint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:gplint"],
+        "expected_file": ":matrix/matrix_gherkin_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_gherkin_lint_syntax_error",
+        "generated": {
+            "matrix/gplint_broken.feature": "Given a greeting\nFeature: sample\n",
+        },
+        "capability": "lint",
+        "stages": ["gplint;gherkin;matrix/gplint_broken.feature"],
+        "tool_names": ["gplint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:gplint"],
+        "expected_file": ":matrix/matrix_gherkin_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_gherkin_lint_multi",
+        "generated": {
+            "matrix/gplint_multi_a.feature": "Feature: first\n\n  Scenario: hello\n    Given a greeting\n",
+            "matrix/gplint_multi_b.feature": "Feature: second\n\n  Scenario: hello\n    Given a greeting\n\n  Scenario: hello\n    Given another\n",
+        },
+        "capability": "lint",
+        "stages": ["gplint;gherkin;matrix/gplint_multi_a.feature,matrix/gplint_multi_b.feature"],
+        "tool_names": ["gplint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:gplint"],
+        "expected_file": ":matrix/matrix_gherkin_lint_multi.expected.txt",
+    },
+    {
         "name": "matrix_ruby_lint_pass",
         "generated": {
             "matrix/rubocop_clean.rb": "puts \"hello\"\n",

@@ -58,6 +58,7 @@ REAL_ADAPTERS = {
     "fsharplint": {"lint": ["fsharp"]},
     "gofumpt": {"format": ["go"]},
     "gersemi": {"format": ["cmake"]},
+    "gplint": {"lint": ["gherkin"]},
     "graphql_eslint": {"lint": ["graphql"]},
     "hadolint": {"lint": ["dockerfile"]},
     "checkmake": {"lint": ["make"]},

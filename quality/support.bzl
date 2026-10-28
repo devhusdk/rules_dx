@@ -597,6 +597,20 @@ XML_PRETTIER_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+GHERKIN_GPLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["gherkin"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "gherkin",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "gplint",
+    "transport": "batched",
+}
+
 GHERKIN_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -953,6 +967,7 @@ SUPPORT_RECORDS = [
     SQL_PRETTIER_FORMAT_SUPPORT,
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
+    GHERKIN_GPLINT_LINT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     CUE_TYPECHECK_SUPPORT,
     JSONNET_FORMAT_SUPPORT,

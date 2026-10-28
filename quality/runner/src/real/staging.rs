@@ -111,6 +111,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(STATIX_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "gplint" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(GPLINT_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(GPLINT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "stylelint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
@@ -271,6 +277,13 @@ impl RealBackend {
                     format!("{tool_id} needs a kubernetes_schemas config"),
                 ));
             };
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "gplint" {
+            let rel = tool.config_rel.as_deref().unwrap_or(GPLINT_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

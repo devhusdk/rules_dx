@@ -1805,6 +1805,23 @@ fn file_family_lint_checks_are_check_only() {
             tool: "stylelint".to_owned()
         })
     );
+    let feature = Path::new("/scratch/a.feature");
+    let launch = ResolvedTool::javascript("gplint", Path::new(BIN));
+    let check =
+        gplint_check(&launch, &[feature], Path::new("/scratch/.gplintrc")).expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "-f",
+            "json",
+            "-i",
+            "dx-gplint-no-ignore",
+            "-c",
+            "/scratch/.gplintrc",
+            "/scratch/a.feature"
+        ]
+    );
     let rb = Path::new("/scratch/Sample.rb");
     assert_eq!(
         argv_strings(&rubocop_check(Path::new(BIN), &[rb], None)),

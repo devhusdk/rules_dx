@@ -243,6 +243,8 @@ const DJLINT_CHECK_PREFIX: &[&str] = &[
     "{filename}:{line}: {code} {message}",
 ];
 const DJLINT_PREFER_CONFIG: &[&str] = &["--prefer-configuration"];
+/// The `-i` value names no real path, so gplint never reads a `.gplintignore` from its cwd.
+const GPLINT_PREFIX: &[&str] = &["-f", "json", "-i", "dx-gplint-no-ignore"];
 const STYLELINT_PREFIX: &[&str] = &["--formatter", "json"];
 const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
@@ -1624,6 +1626,17 @@ fn djlint(binary: &Path, prefix: &[&str], files: &[&Path], config: Option<&Path>
         SCALAFMT_EMPTY
     };
     optional_flag(binary, prefix, "--configuration", config, suffix, files, "")
+}
+
+pub fn gplint_check(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+) -> Result<Invocation, LaunchError> {
+    let mut args: Vec<OsString> = GPLINT_PREFIX.iter().map(OsString::from).collect();
+    args.push(OsString::from("-c"));
+    args.push(config.as_os_str().to_owned());
+    launch.resolve(&args, files)
 }
 
 pub fn stylelint_check(

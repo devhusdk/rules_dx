@@ -6,7 +6,6 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 PARITY_SCHEMA_VERSION = 1
 
 PARITY_DEFERRED = {
-    "fortran": ["ADR", "no Fortran formatter or linter is pinned"],
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
     "dart": ["ADR", "dart_analyze and dart_format adapters pending in a later #1783 slice"],
@@ -138,7 +137,7 @@ def parity_unit_tests(name):
             ),
             expect_equal(
                 "deferred pipeline error names the deferral with owner and route",
-                deferred_pipeline_error(["rust", "fortran"], "lint") != "",
+                deferred_pipeline_error(["rust", "ocaml"], "lint") != "",
                 True,
             ),
         ],

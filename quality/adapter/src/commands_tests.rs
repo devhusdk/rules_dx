@@ -1160,6 +1160,24 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.lua"
         ]
     );
+    assert_eq!(
+        argv_strings(&fortitude_check(
+            Path::new(BIN),
+            &[Path::new("/scratch/a.f90"), Path::new("/scratch/b.F90")]
+        )),
+        vec![
+            BIN,
+            "check",
+            "--isolated",
+            "--no-respect-gitignore",
+            "--progress-bar",
+            "off",
+            "--output-format",
+            "json",
+            "/scratch/a.f90",
+            "/scratch/b.F90"
+        ]
+    );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
         argv_strings(&jsonnet_lint_check(Path::new(BIN), &[jsonnet])),

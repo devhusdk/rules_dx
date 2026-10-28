@@ -275,6 +275,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "make",
     },
+    "fortitude": {
+        "attr": attr.label(default = "@dx_tools//:fortitude", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "fortran",
+    },
     "jsonnetfmt": {
         "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1738,6 +1745,12 @@ _REAL_SHARD_SPECS = {
         "shard": "jsonnet",
         "suffix": "-jsonnet",
     },
+    "real_fortran_lint": {
+        "capability": "lint",
+        "doc": "Additive Fortran lint family aspect (fortitude).",
+        "shard": "fortran",
+        "suffix": "-fortran",
+    },
     "real_jsonnet_lint": {
         "capability": "lint",
         "doc": "Additive Jsonnet lint family aspect (jsonnet-lint).",
@@ -1970,6 +1983,8 @@ real_cue_format_aspect = _make_real_aspect("real_cue_format")
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
 
 real_jsonnet_lint_aspect = _make_real_aspect("real_jsonnet_lint")
+
+real_fortran_lint_aspect = _make_real_aspect("real_fortran_lint")
 
 real_typst_format_aspect = _make_real_aspect("real_typst_format")
 

@@ -36,6 +36,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "fantomas",
     "flake8",
     "flatc",
+    "fortitude",
     "fsharplint",
     "gofumpt",
     "google_java_format",

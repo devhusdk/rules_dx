@@ -37,6 +37,18 @@ const RUFF_HERMETIC_TAIL: &[&str] = &["--no-cache", "--no-respect-gitignore"];
 const RUFF_CHECK_TAIL: &[&str] = &["--output-format", "json"];
 const RUFF_FIX_TAIL: &[&str] = &["--fix"];
 const RUFF_FORMAT_CHECK_TAIL: &[&str] = &["--check", "--output-format", "json"];
+/// Config discovery, the git ignore rules and the default excludes are all off, and
+/// `--force-exclude` stays off: with it an explicit file under a directory such as `build/` is
+/// skipped and reported clean.
+const FORTITUDE_CHECK_ARGS: &[&str] = &[
+    "check",
+    "--isolated",
+    "--no-respect-gitignore",
+    "--progress-bar",
+    "off",
+    "--output-format",
+    "json",
+];
 const TY_BASE: &[&str] = &[
     "check",
     "--output-format",
@@ -1054,6 +1066,11 @@ pub fn cue_fix(binary: &Path, files: &[&Path]) -> Invocation {
 /// One batched lint. It prints nothing when every file is clean.
 pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
+}
+
+/// One batched lint over explicit free-form files. It prints `[]` when every file is clean.
+pub fn fortitude_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, FORTITUDE_CHECK_ARGS, files, "")
 }
 
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

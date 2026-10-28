@@ -51,6 +51,7 @@ REAL_ADAPTERS = {
     "fantomas": {"format": ["fsharp"]},
     "flake8": {"lint": ["python", "python_stub"]},
     "flatc": {"lint": ["flatbuffers"]},
+    "fortitude": {"lint": ["fortran"]},
     "fsharplint": {"lint": ["fsharp"]},
     "gofumpt": {"format": ["go"]},
     "graphql_eslint": {"lint": ["graphql"]},

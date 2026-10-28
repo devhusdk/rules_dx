@@ -183,6 +183,51 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_typst_format_multi.expected.txt",
     },
     {
+        "name": "matrix_fortran_lint_pass",
+        "generated": {
+            "matrix/fortran_clean.f90": "module clean_m\n  implicit none (type, external)\n  private\n  public :: add\n\ncontains\n\n  integer function add(a, b)\n    integer, intent(in) :: a, b\n    add = a + b\n  end function add\n\nend module clean_m\n",
+        },
+        "capability": "lint",
+        "stages": ["fortitude;fortran;matrix/fortran_clean.f90"],
+        "tool_names": ["fortitude"],
+        "tool_binaries": ["@dx_tools//:fortitude"],
+        "expected_file": ":matrix/matrix_fortran_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_fortran_lint_fail",
+        "generated": {
+            "matrix/fortran_dirty.f90": "program dirty\n  x = 1\n  print *, x\nend program dirty\n",
+        },
+        "capability": "lint",
+        "stages": ["fortitude;fortran;matrix/fortran_dirty.f90"],
+        "tool_names": ["fortitude"],
+        "tool_binaries": ["@dx_tools//:fortitude"],
+        "expected_file": ":matrix/matrix_fortran_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_fortran_lint_syntax_error",
+        "generated": {
+            "matrix/fortran_broken.f90": "module broken_m\n  implicit none (type, external)\n  integer :: =\nend module broken_m\n",
+        },
+        "capability": "lint",
+        "stages": ["fortitude;fortran;matrix/fortran_broken.f90"],
+        "tool_names": ["fortitude"],
+        "tool_binaries": ["@dx_tools//:fortitude"],
+        "expected_file": ":matrix/matrix_fortran_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_fortran_lint_multi",
+        "generated": {
+            "matrix/fortran_multi/clean.f90": "module clean_m\n  implicit none (type, external)\n  private\n  public :: add\n\ncontains\n\n  integer function add(a, b)\n    integer, intent(in) :: a, b\n    add = a + b\n  end function add\n\nend module clean_m\n",
+            "matrix/fortran_multi/dirty.f90": "program dirty\n  x = 1\n  print *, x\nend program dirty\n",
+        },
+        "capability": "lint",
+        "stages": ["fortitude;fortran;matrix/fortran_multi/clean.f90,matrix/fortran_multi/dirty.f90"],
+        "tool_names": ["fortitude"],
+        "tool_binaries": ["@dx_tools//:fortitude"],
+        "expected_file": ":matrix/matrix_fortran_lint_multi.expected.txt",
+    },
+    {
         "name": "matrix_latex_format_pass",
         "generated": {
             "matrix/latex_clean.tex": "\\documentclass{article}\n\\begin{document}\n\\begin{itemize}\n\t\\item one\n\\end{itemize}\n\\end{document}\n",

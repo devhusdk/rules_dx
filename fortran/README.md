@@ -92,9 +92,11 @@ A `fortran_library` gives C and C++ rules a `CcInfo`, and it can depend on a
 
 ## Formatting and linting
 
-No Fortran formatter or linter runs. The rules tag every target `no-format`,
-`no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck`
-skip it. The compiler is the type check.
+No Fortran formatter runs. The rules tag every target `no-format` and
+`no-typecheck`, so `dx format` and `dx typecheck` skip it. The compiler is the
+type check. `dx lint` runs `fortitude` on free-form sources (`.f90` and the
+newer extensions). Fixed-form `.f` and `.F` files are not linted, because
+fortitude reads free-form source only.
 
 ## Platforms
 

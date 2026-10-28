@@ -22,6 +22,7 @@ pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
 pub mod flatc;
+pub mod fortitude;
 pub mod fsharplint;
 pub mod go_analysis;
 pub mod gofumpt;
@@ -106,6 +107,7 @@ pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
 pub use flatc::{parse_flatc, FlatcReport};
+pub use fortitude::parse_fortitude;
 pub use fsharplint::parse_fsharplint;
 pub use go_analysis::parse_go_analysis;
 pub use gofumpt::parse_gofumpt;
@@ -1717,6 +1719,14 @@ mod tests {
         Ok(both.findings)
     }
 
+    fn fuzz_fortitude(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::fortitude::parse_fortitude(input, code, files)
+    }
+
     fn fuzz_fsharplint(
         input: &[u8],
         code: Option<i32>,
@@ -2357,6 +2367,7 @@ mod tests {
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
         ("flatc", fuzz_flatc),
+        ("fortitude", fuzz_fortitude),
         ("fsharplint", fuzz_fsharplint),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
@@ -2451,6 +2462,7 @@ mod tests {
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
         ("flatc", include_str!("flatc.rs")),
+        ("fortitude", include_str!("fortitude.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),

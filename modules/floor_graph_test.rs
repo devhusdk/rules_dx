@@ -6,7 +6,8 @@
 //! to resolve candidate versions instead; each override becomes the expected version.
 
 use dx_floor::{
-    apply_overrides, check_graph, parse_overrides, parse_table, patched_modules, OVERRIDES_ENV,
+    apply_overrides, check_graph, parse_overrides, parse_table, patched_modules,
+    render_graph_table, OVERRIDES_ENV,
 };
 use dx_nested as nested;
 use dx_testing::{read_runfiles, resolve_runfiles, rules_dx_source, write_text as write};
@@ -34,7 +35,6 @@ fn a_dx_init_consumer_resolves_every_dep_at_its_floor() {
         &[
             "init",
             "--apply",
-            "consumer",
             "--workspace",
             &root.display().to_string(),
         ],
@@ -77,4 +77,19 @@ fn a_dx_init_consumer_resolves_every_dep_at_its_floor() {
         "consumer deps off their expected versions ({OVERRIDES_ENV}={spec:?}):\n{}",
         problems.join("\n")
     );
+
+    // `dx init` embeds modules/consumer_graph.json to report transitive version raises.
+    // Set DX_WRITE_CONSUMER_GRAPH=<path> to write the resolved table there instead.
+    if overrides.is_empty() {
+        let resolved = render_graph_table(&run.stdout).unwrap_or_else(|error| panic!("{error}"));
+        if let Ok(path) = std::env::var("DX_WRITE_CONSUMER_GRAPH") {
+            std::fs::write(&path, &resolved).expect("write consumer graph");
+        } else {
+            assert_eq!(
+                read_runfiles("modules/consumer_graph.json"),
+                resolved,
+                "modules/consumer_graph.json is stale; regenerate it with DX_WRITE_CONSUMER_GRAPH=<path> and copy the file over it. Expected:\n{resolved}"
+            );
+        }
+    }
 }

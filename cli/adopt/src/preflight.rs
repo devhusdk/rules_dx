@@ -2,6 +2,13 @@
 //! would raise or conflict with, found from the declared files and `MODULE.bazel.lock`.
 //! No Bazel runs and nothing is written. Without a usable lock only declared deps are
 //! compared, so transitive raises are not seen; a note says so.
+//!
+//! The "after" versions come from `modules/consumer_graph.json`: every module a fresh dx
+//! consumer resolves to, transitive ones included, checked against real Bazel resolution
+//! by `//modules:floor_graph_test`. Bazel selects the highest version any module requires
+//! (minimal version selection), so the user's graph plus dx resolves to at least the higher
+//! of the user's version and the table's. Combining the two graphs is an approximation: a
+//! raise can be under-reported, never invented.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -39,6 +46,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_powershell", "0.3.1"),
     ("rules_ruby", "0.29.0"),
     ("rules_zig", "0.17.0"),
+    ("rules_dart", "0.8.0"),
     ("rules_julia", "0.8.0"),
     ("rules_perl", "1.5.0"),
     ("lua", "5.4.6.bcr.1"),
@@ -48,6 +56,20 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("aspect_rules_jest", "0.26.0"),
     ("rules_nodejs", "6.7.7"),
 ];
+
+/// Every module a fresh dx consumer resolves to, with its version (`modules/consumer_graph.json`).
+const CONSUMER_GRAPH: &str = include_str!("../../../modules/consumer_graph.json");
+
+/// The embedded consumer graph as `(module, version)` rows.
+pub fn consumer_graph() -> Vec<(String, String)> {
+    parse_consumer_graph(CONSUMER_GRAPH).unwrap_or_default()
+}
+
+fn parse_consumer_graph(text: &str) -> Result<Vec<(String, String)>, String> {
+    let map: BTreeMap<String, String> =
+        serde_json::from_str(text).map_err(|e| format!("invalid consumer_graph.json: {e}"))?;
+    Ok(map.into_iter().collect())
+}
 
 /// What kind of finding it is; one plan section each.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -209,6 +231,13 @@ fn floors(snippet: Option<&ModuleFile>) -> Vec<(String, String)> {
         .iter()
         .map(|(n, v)| ((*n).to_owned(), (*v).to_owned()))
         .collect();
+    for (name, version) in consumer_graph() {
+        match floors.iter_mut().find(|(n, _)| *n == name) {
+            Some((_, v)) if compare_module_versions(&version, v).is_gt() => *v = version,
+            Some(_) => {}
+            None => floors.push((name, version)),
+        }
+    }
     for call in snippet.iter().flat_map(|m| m.calls_named("bazel_dep")) {
         let (Some(name), Some(version)) = (call.str("name"), call.str("version")) else {
             continue;
@@ -817,6 +846,66 @@ mod tests {
         assert!(notes
             .iter()
             .any(|n| n.contains("read from MODULE.bazel.lock")));
+    }
+
+    /// A module only the consumer graph knows (not a direct rules_dx dep, not patched).
+    fn transitive_only() -> (String, String) {
+        consumer_graph()
+            .into_iter()
+            .find(|(n, _)| {
+                !RULES_DX_DEPS.iter().any(|(d, _)| d == n)
+                    && !OVERRIDES.iter().any(|row| row.module == n)
+            })
+            .expect("consumer_graph.json has a transitive-only module")
+    }
+
+    #[test]
+    fn consumer_graph_parses_and_covers_the_direct_deps() {
+        let graph = parse_consumer_graph(CONSUMER_GRAPH).expect("parses");
+        assert!(!graph.is_empty());
+        for (name, declared) in RULES_DX_DEPS {
+            let Some((_, resolved)) = graph.iter().find(|(n, _)| n == name) else {
+                panic!("{name} is missing from modules/consumer_graph.json; regenerate it");
+            };
+            assert!(
+                compare_module_versions(resolved, declared).is_ge(),
+                "{name}: consumer_graph.json has {resolved}, below the declared {declared}"
+            );
+        }
+        for row in OVERRIDES {
+            assert!(
+                graph.iter().any(|(n, _)| n == row.module),
+                "{} is pinned but missing from consumer_graph.json",
+                row.module
+            );
+        }
+    }
+
+    #[test]
+    fn transitive_raise_only_the_consumer_graph_knows() {
+        let (name, version) = transitive_only();
+        let lock = lock_text(&[(&name, "0.0.1")]);
+        let (found, _) = raises(&[
+            ("MODULE.bazel", "module(name = \"app\")\n"),
+            ("MODULE.bazel.lock", &lock),
+        ]);
+        let hit = found.iter().find(|f| f.subject == name).expect("raise");
+        assert_eq!(
+            (hit.before.as_str(), hit.after.as_str()),
+            ("0.0.1", version.as_str())
+        );
+        assert_eq!(hit.file, "MODULE.bazel.lock");
+    }
+
+    #[test]
+    fn graph_module_absent_from_the_lock_is_not_reported() {
+        let (name, _) = transitive_only();
+        let lock = lock_text(&[("some_unrelated_module", "1.0.0")]);
+        let (found, _) = raises(&[
+            ("MODULE.bazel", "module(name = \"app\")\n"),
+            ("MODULE.bazel.lock", &lock),
+        ]);
+        assert!(found.iter().all(|f| f.subject != name), "{found:?}");
     }
 
     #[test]

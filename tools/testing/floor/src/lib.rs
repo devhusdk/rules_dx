@@ -208,6 +208,29 @@ fn collect<'a>(node: &'a serde_json::Value, found: &mut Vec<&'a serde_json::Valu
     }
 }
 
+/// Every module with a version in a `bazel mod graph --output=json` result, as pretty JSON
+/// (`{"module": "version"}`, sorted). The root module (`consumer`), `rules_dx` and the
+/// versionless built-ins are left out. This is the committed `modules/consumer_graph.json`.
+pub fn render_graph_table(graph: &str) -> Result<String, String> {
+    let root: serde_json::Value =
+        serde_json::from_str(graph).map_err(|e| format!("mod graph output is not JSON: {e}"))?;
+    let mut nodes = Vec::new();
+    collect(&root, &mut nodes);
+    let mut table = std::collections::BTreeMap::new();
+    for node in nodes {
+        let name = node.get("name").and_then(serde_json::Value::as_str);
+        let version = node.get("version").and_then(serde_json::Value::as_str);
+        if let (Some(name), Some(version)) = (name, version) {
+            if !version.is_empty() && name != "consumer" && name != "rules_dx" {
+                table.insert(name.to_owned(), version.to_owned());
+            }
+        }
+    }
+    let mut text = serde_json::to_string_pretty(&table).map_err(|e| e.to_string())?;
+    text.push('\n');
+    Ok(text)
+}
+
 /// Every way the `bazel mod graph --output=json --verbose` result `graph` leaves a table
 /// module off its expected version; empty when the consumer resolves as intended.
 ///

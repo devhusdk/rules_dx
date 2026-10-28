@@ -149,8 +149,9 @@ When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-onl
 what adopting rules_dx would change, found from the declared files and `MODULE.bazel.lock`. It runs no Bazel
 and writes nothing. Sections:
 
-- `version raises`: a module that resolves below the version rules_dx needs (the higher of
-  its own `bazel_dep` floors and the snippet init would write). For a module dx patches, the
+- `version raises`: a module that resolves below the version rules_dx needs (the highest of
+  its own `bazel_dep` floors, the snippet init would write, and the version in
+  `modules/consumer_graph.json`, see below). For a module dx patches, the
   target is the exact version dx pins, and a pin below yours is reported as lower. Modules
   you override yourself are skipped. The current version is the one in `MODULE.bazel.lock`
   (the highest `source.json` it records, so transitive raises show, with the lock line), or
@@ -172,6 +173,21 @@ and writes nothing. Sections:
 - `bazelrc conflicts`: a line in the root `.bazelrc`, or a file it imports through
   `%workspace%/`, that exactly repeats a flag line the dx preset layers own. Advisory; dx
   does not import the layers while the root file repeats them, so drop the line.
+
+The "after" versions include transitive ones. `modules/consumer_graph.json` lists every module
+a fresh dx consumer resolves to; `//modules:floor_graph_test` re-resolves that graph with
+`bazel mod graph` in CI and fails when the file drifts, printing the new content (set
+`DX_WRITE_CONSUMER_GRAPH=<path>` to write it). Bazel picks the highest version any module
+requires (<https://bazel.build/external/module#version-selection>), so your graph plus dx
+resolves to at least the higher of your version and the file's. This is an approximation of a
+real resolution: a raise can be under-reported, never invented. dx does not run Bazel on a copy
+of your workspace.
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | no hard findings (raises and advisory findings are printed) |
+| `1` | a hard override or toolchain conflict, or other init drift |
+| `2` | usage error |
 
 Each finding names the file and line, including `include()`d `.MODULE.bazel` files. Hard
 findings add an `init plan: N hard conflicts (...)` clause to `init drift` and exit 1;

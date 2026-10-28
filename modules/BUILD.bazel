@@ -123,6 +123,7 @@ rust_test(
     srcs = ["floor_graph_test.rs"],
     data = [
         ":consumer_deps_json",
+        ":consumer_graph.json",
         "//:MODULE.bazel",
         "//:module_srcs",
         "//cli/cli:dx",
@@ -133,6 +134,7 @@ rust_test(
     } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
         "DX_CONSUMER_OVERRIDES",
+        "DX_WRITE_CONSUMER_GRAPH",
         "HOME",
         "PATH",
     ],
@@ -162,6 +164,7 @@ rust_clippy_test(
 
 exports_files([
     "consumer_deps.bzl",
+    "consumer_graph.json",
     "cuda.bzl",
     "rust.bzl",
     "python.bzl",

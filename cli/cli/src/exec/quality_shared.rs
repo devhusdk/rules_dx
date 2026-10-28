@@ -152,6 +152,7 @@ fn differing_original_digests_conflict_in_check_mode() {
         err.contains("Conflict: src/a.py (conflicting_digests"),
         "{err}"
     );
+    assert!(err.contains("next: resolve the Conflict files"), "{err}");
 }
 
 #[test]

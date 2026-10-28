@@ -98,7 +98,7 @@ findings from several targets print once, with a `count` and every target in
 
 When several targets fix the same file, identical fixes apply once. Fixes that
 disagree leave the file unchanged and print a `Conflict:` line naming the
-targets on stderr. JSON reports a `change` with effect `refused` and reason
+targets on stderr, followed by one `next:` line. JSON reports a `change` with effect `refused` and reason
 `conflicting_candidates` or `conflicting_digests`.
 Other files still apply.
 

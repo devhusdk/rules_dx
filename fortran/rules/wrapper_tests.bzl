@@ -1,8 +1,8 @@
 """Wrapper conformance tests for Fortran."""
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "FORTRAN_EXTENSIONS", "library_kwargs", "library_name", "link_kwargs", "with_defaults")
+load("//libs/starlark:defs.bzl", "expect_equal", "expect_true")
+load(":defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_kwargs", "library_name", "link_kwargs", "with_defaults")
 
 UPSTREAM_EXTENSIONS = [".f", ".f90", ".f95", ".f03", ".f08", ".F", ".F90", ".F95", ".F03", ".F08"]
 
@@ -32,7 +32,7 @@ def fortran_wrapper_contract_tests(name):
         extra_checks = [
             expect_equal("the extensions match rules_fortran", ["." + ext for ext in FORTRAN_EXTENSIONS], UPSTREAM_EXTENSIONS),
             expect_equal("format skips Fortran", with_defaults({"tags": ["x"]})["tags"], ["x", "no-format"]),
-            expect_equal("the Fortran cell is the default", len(with_defaults({})["target_compatible_with"]), 2),
+            expect_true("the Fortran cell is the default", with_defaults({})["target_compatible_with"] == FORTRAN_COMPATIBLE_WITH),
             expect_equal("an explicit compatibility is kept", with_defaults({"target_compatible_with": []})["target_compatible_with"], []),
             expect_equal(
                 "compile attributes reach the library",

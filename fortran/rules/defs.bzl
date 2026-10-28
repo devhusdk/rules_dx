@@ -3,13 +3,12 @@
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_fortran//fortran:defs.bzl", "FortranInfo", _fortran_library = "fortran_library")
+load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
+load("//libs/starlark:cells.bzl", "cells_compatible_with")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
-FORTRAN_COMPATIBLE_WITH = [
-    Label("@platforms//os:linux"),
-    Label("@platforms//cpu:x86_64"),
-]
+FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/toolchain", sorted(FORTRAN_CELLS.keys()))
 
 SKIP_TAGS = ["no-format"]
 

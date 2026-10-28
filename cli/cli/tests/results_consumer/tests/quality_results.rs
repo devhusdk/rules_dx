@@ -11,7 +11,7 @@ const MODULE: &str = r#"module(name = "quality_results_consumer")
 bazel_dep(name = "rules_dx", version = "0.0.0", repo_name = "my_dx")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_python", version = "1.9.0")
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
 

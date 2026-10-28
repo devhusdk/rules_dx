@@ -824,7 +824,7 @@ mod tests {
     #[test]
     fn consumer_setup_parses_the_default_snippet_shape() {
         let setup = parse_consumer_setup(
-            "# Add to MODULE.bazel.\nmodule(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nbazel_dep(name = \"llvm\", version = \"0.8.19\")\nbazel_dep(name = 'rules_rust', version = '0.74.0')\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"2021\",\n    rustfmt_version = \"1.98.0\",\n    versions = [\"1.98.0\"],\n)\nuse_repo(\n    rust,\n    \"rust_toolchains\",\n)\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains('@rust_toolchains//:all')\n",
+            "# Add to MODULE.bazel.\nmodule(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nbazel_dep(name = \"llvm\", version = \"0.8.19\")\nbazel_dep(name = 'rules_rust', version = '0.75.0')\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"2021\",\n    rustfmt_version = \"1.98.1\",\n    versions = [\"1.98.1\"],\n)\nuse_repo(\n    rust,\n    \"rust_toolchains\",\n)\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains('@rust_toolchains//:all')\n",
         );
         assert_eq!(
             setup.deps,
@@ -832,7 +832,7 @@ mod tests {
                 ("rules_dx".to_owned(), "0.0.0".to_owned()),
                 ("rules_cc".to_owned(), "0.2.22".to_owned()),
                 ("llvm".to_owned(), "0.8.19".to_owned()),
-                ("rules_rust".to_owned(), "0.74.0".to_owned()),
+                ("rules_rust".to_owned(), "0.75.0".to_owned()),
             ]
         );
         assert_eq!(
@@ -861,11 +861,11 @@ mod tests {
             setup
                 .tag_arg("rust.toolchain", "rustfmt_version")
                 .as_deref(),
-            Some("1.98.0")
+            Some("1.98.1")
         );
         assert_eq!(
             setup.tag_list_arg("rust.toolchain", "versions"),
-            vec!["1.98.0".to_owned()]
+            vec!["1.98.1".to_owned()]
         );
         assert_eq!(setup.dep_version("llvm"), Some("0.8.19"));
         assert_eq!(setup.dep_version("missing"), None);

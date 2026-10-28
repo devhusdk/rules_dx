@@ -10,7 +10,7 @@ use dx_testing::mkscratch;
 use macos::{bazel, installed_xcode, keep, passes, tool};
 
 const MODULE_EXTRA: &str = r#"
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_apple", version = "5.2.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 
@@ -23,7 +23,7 @@ rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
     extra_target_triples = ["aarch64-apple-darwin"],
-    versions = ["1.98.0"],
+    versions = ["1.98.1"],
 )
 use_repo(rust, "rust_toolchains")
 

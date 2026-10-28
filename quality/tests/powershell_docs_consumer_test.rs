@@ -12,7 +12,7 @@ const MODULE: &str = r#"module(name = "consumer")
 bazel_dep(name = "rules_dx", version = "0.0.0", repo_name = "dxr")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
-bazel_dep(name = "rules_rust", version = "0.74.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 "#;
 
 const BUILD: &str = r#"load("@dxr//tools/docs/powershell:defs.bzl", "powershell_doc_shard")

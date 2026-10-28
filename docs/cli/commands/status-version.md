@@ -27,7 +27,7 @@ Exit codes: `0` all checks pass, `2` usage error, `1` a check failed or
 `dx status` prints one line per check, for example:
 
 ```text
-toolchain: ok (available: rust 1.98.0 via rules_rust 0.74.0 declared in MODULE.bazel) hint: bazel build //...
+toolchain: ok (available: rust 1.98.1 via rules_rust 0.75.0 declared in MODULE.bazel) hint: bazel build //...
 ```
 
 Inside a `dx worktree` slot it adds a `lease` check that names the holder and branch.

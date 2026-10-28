@@ -38,6 +38,26 @@ pub fn parse_go_analysis(
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
+    parse_report(tool, stdout, code, files, ToolSeverity::Warning)
+}
+
+/// Parses the `dx_gotype` driver report, whose `syntax` and `typecheck` entries are errors.
+pub fn parse_gotype(
+    tool: &'static str,
+    stdout: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    parse_report(tool, stdout, code, files, ToolSeverity::Error)
+}
+
+fn parse_report(
+    tool: &'static str,
+    stdout: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+    severity: ToolSeverity,
+) -> Result<Vec<FileFinding>, ParseError> {
     check_output_size(tool, stdout)?;
     let mut findings = Vec::new();
     let stream = serde_json::Deserializer::from_slice(stdout).into_iter::<Report>();
@@ -71,7 +91,7 @@ pub fn parse_go_analysis(
                             tool_id: tool.to_owned(),
                             rule_id: analyzer.clone(),
                             message: diagnostic.message,
-                            severity: ToolSeverity::Warning,
+                            severity,
                             start: TextPosition { line, column },
                             end: None,
                             suggestions: Vec::new(),
@@ -138,5 +158,38 @@ mod tests {
         let findings =
             parse_go_analysis("errcheck", out, Some(0), &["C:\\tmp\\a.go"]).expect("parsed");
         assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    const TYPED: &str = r#"{"p":{"typecheck":[{"posn":"go/a.go:4:9","message":"undefined: x"}],"syntax":[{"posn":"go/a.go:9:1","message":"unexpected }"}]}}"#;
+
+    #[test]
+    fn gotype_reports_errors_with_stable_rule_ids() {
+        let findings =
+            parse_gotype("gotype", TYPED.as_bytes(), Some(0), &["go/a.go"]).expect("parsed");
+        let ids: Vec<_> = findings
+            .iter()
+            .map(|f| f.finding.rule_id.as_str())
+            .collect();
+        assert_eq!(ids, ["syntax", "typecheck"]);
+        assert!(findings
+            .iter()
+            .all(|f| matches!(f.finding.severity, ToolSeverity::Error)));
+    }
+
+    #[test]
+    fn gotype_clean_and_context_failures() {
+        assert!(parse_gotype("gotype", br#"{"p":{}}"#, Some(0), &[])
+            .unwrap()
+            .is_empty());
+        assert!(parse_gotype("gotype", b"", Some(1), &[]).is_err());
+        let err = br#"{"p":{"typecheck":{"error":"missing export data"}}}"#;
+        assert!(parse_gotype("gotype", err, Some(0), &[]).is_err());
+        let drive = br#"{"p":{"typecheck":[{"posn":"C:\\t\\a.go:3:1","message":"m"}]}}"#;
+        assert_eq!(
+            parse_gotype("gotype", drive, Some(0), &["C:\\t\\a.go"])
+                .unwrap()
+                .len(),
+            1
+        );
     }
 }

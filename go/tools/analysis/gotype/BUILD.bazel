@@ -1,0 +1,14 @@
+load("//go/rules:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "gotype",
+    srcs = ["gotype.go"],
+    importpath = "rules_dx/go/tools/analysis/gotype",
+    visibility = ["//go/tools/analysis:__subpackages__"],
+)
+
+go_test(
+    name = "gotype_test",
+    srcs = ["gotype_test.go"],
+    embed = [":gotype"],
+)

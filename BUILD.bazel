@@ -76,6 +76,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude tools/docs/ruby/fixture
 # gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude tools/depcheck/testdata
+# gazelle:exclude go/tools/analysis
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude go/tests/fixtures/testonly_binary
 # gazelle:exclude java/tests/fixtures/testonly_binary

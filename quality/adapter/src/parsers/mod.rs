@@ -113,7 +113,7 @@ pub use flatc::{parse_flatc, FlatcReport};
 pub use fortitude::parse_fortitude;
 pub use fsharplint::parse_fsharplint;
 pub use gersemi::parse_gersemi;
-pub use go_analysis::parse_go_analysis;
+pub use go_analysis::{parse_go_analysis, parse_gotype};
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
@@ -1665,6 +1665,14 @@ mod tests {
         super::go_analysis::parse_go_analysis("govet", input, code, files)
     }
 
+    fn fuzz_gotype(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::go_analysis::parse_gotype("gotype", input, code, files)
+    }
+
     fn fuzz_errcheck(
         input: &[u8],
         code: Option<i32>,
@@ -2384,6 +2392,7 @@ mod tests {
         ("erlfmt", fuzz_erlfmt),
         ("errcheck", fuzz_errcheck),
         ("go_analysis", fuzz_go_analysis),
+        ("gotype", fuzz_gotype),
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
@@ -2481,6 +2490,7 @@ mod tests {
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
         ("go_analysis", include_str!("go_analysis.rs")),
+        ("gotype", include_str!("go_analysis.rs")),
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),

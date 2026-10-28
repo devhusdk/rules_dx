@@ -42,17 +42,11 @@ def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, em
 # and an entry that becomes proven fails too. Close an entry by flagging a matrix case for the platform
 # (see matrix_case_platforms), never by editing a record. Tracked by #4441 and #1383.
 SUPPORT_EVIDENCE_PENDING = [
-    "checkmake:lint:make:linux_arm64",
-    "checkmake:lint:make:macos_arm64",
-    "checkmake:lint:make:windows_x86_64",
     "csc:typecheck:csharp:linux_x86_64",
     "fsharplint:lint:fsharp:linux_x86_64",
     "gersemi:format:cmake:linux_arm64",
     "gersemi:format:cmake:macos_arm64",
     "gersemi:format:cmake:windows_x86_64",
-    "hadolint:lint:dockerfile:linux_arm64",
-    "hadolint:lint:dockerfile:macos_arm64",
-    "hadolint:lint:dockerfile:windows_x86_64",
     "helm:lint:helm:linux_arm64",
     "helm:lint:helm:linux_x86_64",
     "helm:lint:helm:macos_arm64",
@@ -69,9 +63,6 @@ SUPPORT_EVIDENCE_PENDING = [
     "latexindent:format:latex:linux_arm64",
     "latexindent:format:latex:macos_arm64",
     "latexindent:format:latex:windows_x86_64",
-    "pkl:format:pkl:linux_arm64",
-    "pkl:format:pkl:macos_arm64",
-    "pkl:format:pkl:windows_x86_64",
     "prettier:format:gherkin:linux_arm64",
     "prettier:format:gherkin:macos_arm64",
     "prettier:format:gherkin:windows_x86_64",
@@ -86,18 +77,12 @@ SUPPORT_EVIDENCE_PENDING = [
     "ruff:lint:jupyter:linux_arm64",
     "ruff:lint:jupyter:macos_arm64",
     "ruff:lint:jupyter:windows_x86_64",
-    "scalafmt:format:scala:linux_arm64",
-    "scalafmt:format:scala:macos_arm64",
-    "scalafmt:format:scala:windows_x86_64",
     "shellcheck:lint:shell:linux_arm64",
     "shellcheck:lint:shell:macos_arm64",
     "shellcheck:lint:shell:windows_x86_64",
     "shfmt:format:shell:linux_arm64",
     "shfmt:format:shell:macos_arm64",
     "shfmt:format:shell:windows_x86_64",
-    "typstyle:format:typst:linux_arm64",
-    "typstyle:format:typst:macos_arm64",
-    "typstyle:format:typst:windows_x86_64",
 ]
 
 def _case_proves(case, record, platform):
@@ -150,6 +135,11 @@ def _evidence_checks():
             "a windows_x86_64 flag does not prove a windows_arm64 claim",
             unproven_claims([dict(record, platforms = ["windows_arm64"])], [dict(case, windows_x86_64 = True)]),
             ["yamlfmt:format:yaml:windows_arm64"],
+        ),
+        expect_equal(
+            "a windows_arm64 flag proves a windows_arm64 claim",
+            unproven_claims([dict(record, platforms = ["windows_arm64"])], [dict(case, windows_x86_64 = True, windows_arm64 = True)]),
+            [],
         ),
         expect_equal(
             "matrix_case_platforms without flags is linux_x86_64",

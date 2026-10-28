@@ -1,7 +1,7 @@
 """Replays the F# compilation of a target and records the fsc diagnostics."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
+load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols", "is_core_framework", "is_standard_framework")
 load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 load("//quality:roslyn.bzl", "tfm_sort_key")
 
@@ -16,6 +16,11 @@ FscInfo = provider(
         "statuses": "list of File: fsc exit code per target framework.",
         "tfms": "list of string: target framework per entry, in ascending version order.",
     },
+)
+
+FscUnsupportedInfo = provider(
+    doc = "Marks an F# target on a platform where the fsc typecheck is unavailable.",
+    fields = {"reason": "string: why fsc cannot run for this target."},
 )
 
 def _first(value):
@@ -35,9 +40,10 @@ def _merged_fsc(infos):
     )
 
 def _targetprofile(tfm):
-    if tfm.startswith("netstandard"):
+    # Mirrors rules_dotnet 0.22.2 fsharp_assembly.bzl _format_targetprofile.
+    if is_standard_framework(tfm):
         return "--targetprofile:netstandard"
-    if tfm.startswith("net") and "." in tfm and tfm[3:].partition(".")[0].isdigit():
+    if is_core_framework(tfm):
         return "--targetprofile:netcore"
     return "--targetprofile:mscorlib"
 
@@ -59,7 +65,9 @@ def _fsc_impl(target, ctx):
     if toolchain == None:
         fail("fsc: " + str(target.label) + " needs a resolved rules_dotnet toolchain")
     if ctx.target_platform_has_constraint(attrs._windows_constraint[platform_common.ConstraintValueInfo]):
-        fail("fsc: " + str(target.label) + " cannot be type-checked on Windows yet; the fsc typecheck is linux_x86_64 only")
+        # Do not fail here: this aspect runs on every F# target the typecheck
+        # visits, whatever the policy says. The pipeline fails only if fsc is resolved.
+        return [FscUnsupportedInfo(reason = "the fsc typecheck is linux_x86_64 only and " + str(target.label) + " is built for a Windows target platform")]
     tfm = attrs._target_framework[BuildSettingInfo].value
     fsc = toolchain.fsharp_compiler.files_to_run.executable
     runtime = toolchain.runtime.files_to_run.executable

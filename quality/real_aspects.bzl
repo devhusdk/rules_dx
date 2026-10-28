@@ -27,7 +27,7 @@ load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:compile_check.bzl", "CompileCheckInfo", "compile_check_aspect")
-load("//quality:fsc.bzl", "FscInfo", "fsc_aspect")
+load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
@@ -1399,6 +1399,8 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
 
     fsc = None
     if "fsc" in [stage["tool"] for stage in resolved]:
+        if FscUnsupportedInfo in target:
+            fail(what + ": fsc is unavailable: " + target[FscUnsupportedInfo].reason)
         if FscInfo not in target:
             fail(what + ": fsc needs an fsharp_* target")
         fsc = target[FscInfo]

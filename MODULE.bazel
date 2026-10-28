@@ -177,13 +177,12 @@ single_version_override(
     version = "9.7.0",
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_android", version = "0.6.6")
+# 0.8.0 needs build-tools 35 and --tool_java_language_version=17 (#3739, #2283, #3736).
+# floor: equals tested; unpatched since 0.8.0
+bazel_dep(name = "rules_android", version = "0.8.0")
 single_version_override(
     module_name = "rules_android",
-    patch_strip = 1,
-    patches = ["//patches/rules_android:rules_android.patch"],
-    version = "0.6.6",
+    version = "0.8.0",
 )
 
 # Root-only: rules_android asks for bazel_worker_java 0.0.4. Before the tested

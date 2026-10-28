@@ -7,6 +7,7 @@ load("//android/packaging:defs.bzl", "android_aab_check", "android_aab_release_s
 load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
+load(":starlark_platforms.bzl", "starlark_platforms")
 
 package(
     default_testonly = True,
@@ -246,6 +247,25 @@ android_aab_check(
         "x86_64",
     ],
     resources = ["string/app_name"],
+    tags = ["manual"],
+)
+
+# rules_android 0.8.0 prefers its Starlark android_platforms flag over the native option.
+# A narrower Starlark value from outside must not drop the bundle's own ABIs.
+starlark_platforms(
+    name = "app_apk_aab_file_x86_64_flag",
+    src = ":app_apk_aab_file",
+    platforms = ["//android/platforms:x86_64"],
+    tags = ["manual"],
+)
+
+android_aab_check(
+    name = "check_app_aab_starlark_flag_test",
+    aab = ":app_apk_aab_file_x86_64_flag",
+    abis = [
+        "arm64-v8a",
+        "x86_64",
+    ],
     tags = ["manual"],
 )
 
@@ -682,7 +702,10 @@ real_source_target(
     name = "corpus_starlark",
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "starlark_platforms.bzl",
+    ],
     tags = ["corpus"],
 )
 

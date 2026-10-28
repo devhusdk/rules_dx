@@ -349,7 +349,6 @@ mod tests {
             "BUILD.bazel",
             ".bazelrc",
             "third_party/rules_dx/rules_dx.MODULE.bazel",
-            "third_party/rules_dx/rules_android.rules_android.patch",
         ] {
             assert!(root.join("demo-app").join(file).is_file(), "{file}\n{err}");
         }

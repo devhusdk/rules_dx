@@ -71,8 +71,8 @@ test_suite(
     name = "all",
     tests = [
         ":consumer_deps_test",
-        ":versions_loaded_test",
         ":versions_contract",
+        ":versions_loaded_test",
     ],
 )
 

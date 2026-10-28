@@ -24,7 +24,7 @@ use_repo(
 What is fetched, each only when a build needs it:
 
 - NDK r27 (`dx_android_ndk_linux_x86_64`)
-- build-tools 34.0.0 (`dx_android_build_tools_linux_x86_64`)
+- build-tools 35.0.0 (`dx_android_build_tools_linux_x86_64`)
 - `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
   (`dx_android_platform`; the name does not depend on the level)
 - opt-in through `extra_packages`: `platform-tools` r37.0.1
@@ -96,7 +96,7 @@ host runs them.
 ## Application packaging
 
 `//android/packaging` builds one installable APK from static native
-deps through the qualified upstream backend (`rules_android` 0.6.6):
+deps through the qualified upstream backend (`rules_android` 0.8.0):
 
 ```python
 load("@rules_dx//android/packaging:defs.bzl", "rust_android_apk")
@@ -130,9 +130,6 @@ non-positive version codes, and empty launch activities fail at
 analysis, as do adb launchers without a serial.
 Package outputs are explicit-label only. See [App Bundles](#app-bundles)
 for the `.aab` output.
-
-`dx init --apply` writes the rules_android override; see
-[patches/README.md](../patches/README.md).
 
 Device operations are explicit launchers that never run at build time:
 
@@ -204,6 +201,10 @@ unsigned App Bundle `<name>_bundle_unsigned.aab` from the same
 `android_binary`, so the bundle keeps the app ID, version, API floor,
 ABIs, resources, assets and native library of the APK. For the fixture,
 `:app_apk_aab_file` builds `app_apk_bundle_unsigned.aab`.
+
+There are no key-rotation (signing lineage) bundles yet. If you pass
+`debug_signing_lineage_file`, the APK still builds, but `:<name>_aab_file`
+fails analysis until upstream `rules_android` fixes it (#3739).
 
 Check a bundle with a test:
 
@@ -338,6 +339,15 @@ consumer with these targets; see [`dx new rust-android`](../docs/cli/commands/ne
 
 Packaging builds read the installed SDK through the upstream
 `androidsdk` repository, which stays empty without `ANDROID_HOME`.
+`rules_android` 0.8.0 needs build-tools 35.0.0 or newer. rules_dx passes no
+`build_tools_version`, so the repository rule uses the highest build-tools
+installed under `ANDROID_HOME`.
+
+Breaking change for consumers (#3739): the `rules_android` floor is 0.8.0, the
+patch and its `single_version_override` are gone (remove them from your
+`MODULE.bazel`), and any repo adopted without `dx new` must add
+`build --tool_java_runtime_version=remotejdk_21` and
+`build --tool_java_language_version=17` to its `.bazelrc`.
 Build one APK for both tuples on a qualified host:
 
 ```sh
@@ -382,7 +392,7 @@ whole scenario from the repository root and writes logs, `logcat-default.txt`,
 ## Backend decision
 
 Packaging stays on the upstream backend: `rust_android_apk` composes
-`android_binary` from `rules_android` 0.6.6, so manifest merge,
+`android_binary` from `rules_android` 0.8.0, so manifest merge,
 resources, native ABI placement, DEX, and signing come from the
 upstream rules plus the installed SDK. There is no owned APK
 packager: a native-only reimplementation would still need the same

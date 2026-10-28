@@ -63,15 +63,6 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
-        module: "rules_android",
-        version: "0.6.6",
-        patch_strip: 1,
-        patches: &[OverridePatch {
-            file: "rules_android.patch",
-            content: include_str!("../../../patches/rules_android/rules_android.patch"),
-        }],
-    },
-    Override {
         module: "rules_dotnet",
         version: "0.22.1",
         patch_strip: 1,

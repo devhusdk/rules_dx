@@ -14,7 +14,7 @@ DEFAULT_PLATFORM_LEVEL = 34
 
 SDK_PLATFORM = "android-%d" % DEFAULT_PLATFORM_LEVEL
 
-BUILD_TOOLS = "34.0.0"
+BUILD_TOOLS = "35.0.0"
 
 PLATFORM_TOOLS = "37.0.1"
 
@@ -32,7 +32,7 @@ REQUIRED_LICENSES = ["android-sdk-license"]
 
 SDK_PACKAGES = [
     "platforms;android-34",
-    "build-tools;34.0.0",
+    "build-tools;35.0.0",
     "ndk;27.0.12077973",
 ]
 
@@ -55,11 +55,11 @@ NDK_ARTIFACTS = {
 BUILD_TOOLS_ARTIFACTS = {
     "linux_x86_64": struct(
         anchor = "source.properties",
-        archive = "build-tools_r34-linux.zip",
-        directory = "android-14",
-        sha1 = "d6d58e0c6925a9e4d9a541e84cd1f405c2f9d2a9",
-        sha256 = "e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f",
-        size = 61224257,
+        archive = "build-tools_r35_linux.zip",
+        directory = "android-15",
+        sha1 = "2cfaa0bbb2336e9ec18ed3ecea84fa2e2af607bc",
+        sha256 = "bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88",
+        size = 61958799,
     ),
 }
 
@@ -123,6 +123,9 @@ EMULATOR_ARTIFACTS = {
 NDK_ARCHIVE_PREFIX = "android-ndk-" + ANDROID_NDK_RELEASE
 
 BUILD_TOOLS_ARCHIVE_PREFIX = "build-tools_r" + BUILD_TOOLS.split(".")[0]
+
+# Google joins build-tools archive names with "_" since r35.
+BUILD_TOOLS_ARCHIVE_SEPARATOR = "_"
 
 PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
 
@@ -196,8 +199,12 @@ def build_tools_no_match_error():
     return ("rules_dx: no pinned Android build-tools " + BUILD_TOOLS + " artifact for this " +
             "platform; want one of " + ", ".join(sorted(BUILD_TOOLS_ARTIFACTS.keys())))
 
-def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True):
-    """Returns one error string per pinned artifact that is not ready to download."""
+def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True, separator = "-"):
+    """Returns one error string per pinned artifact that is not ready to download.
+
+    `separator` joins the archive prefix and the platform suffix; build-tools
+    archives use "_" (build-tools_r35_linux.zip), the others use "-".
+    """
     errors = []
     for key in sorted(artifacts.keys()):
         platform = str(key)
@@ -214,7 +221,7 @@ def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, host
                 errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
                               "', want one starting with '" + expected + "'")
         elif prefix != "":
-            expected = prefix + "-" + _release_suffix(platform)
+            expected = prefix + separator + _release_suffix(platform)
             if artifact.archive != expected:
                 errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
                               "', want the pinned '" + expected + "'")
@@ -512,7 +519,7 @@ def acquire_ndk(ctx):
 
 def acquire_build_tools(ctx):
     """Downloads, verifies, and extracts one pinned build-tools archive."""
-    return _acquire(ctx, artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX), build_tools_build)
+    return _acquire(ctx, artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX, True, BUILD_TOOLS_ARCHIVE_SEPARATOR), build_tools_build)
 
 def acquire_platform(ctx):
     """Downloads, verifies, and extracts one pinned platform archive."""
@@ -731,7 +738,7 @@ def _android_sdk_impl(module_ctx):
         fail("android_sdk: the extension is only reachable from a module graph")
     errors = (
         artifact_errors() +
-        artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX) +
+        artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX, True, BUILD_TOOLS_ARCHIVE_SEPARATOR) +
         artifact_errors(PLATFORM_ARTIFACTS, "", False) +
         artifact_errors(PLATFORM_TOOLS_ARTIFACTS, PLATFORM_TOOLS_ARCHIVE_PREFIX) +
         artifact_errors(EMULATOR_ARTIFACTS, "")

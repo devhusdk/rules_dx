@@ -52,6 +52,7 @@ build --test_env=PYTHONWARNINGS=error
 
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
+build --tool_java_language_version=17
 
 build --@rules_rust//cargo/settings:use_default_shell_env=False
 

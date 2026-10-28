@@ -68,6 +68,7 @@ pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<
 
 static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// Being removed by #2841; use `dx_test_scratch::scratch`.
 pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
     let base = std::env::var("TEST_TMPDIR")
         .ok()

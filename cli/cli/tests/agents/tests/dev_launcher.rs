@@ -282,7 +282,7 @@ fn policy_flags(policy: &RcPolicy) -> Vec<String> {
 #[cfg(unix)]
 mod sh {
     use super::*;
-    use dx_testing::mkscratch;
+    use dx_test_scratch::{scratch, TempDir};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
     use std::process::Command;
@@ -345,6 +345,7 @@ mod sh {
     struct SourceRepo {
         base: std::path::PathBuf,
         root: std::path::PathBuf,
+        _guard: TempDir,
     }
 
     fn checkout(root: &Path) {
@@ -364,7 +365,8 @@ mod sh {
     }
 
     fn source_repo_in(name: &str, dir: &str) -> SourceRepo {
-        let base = mkscratch(name).expect("scratch");
+        let guard = scratch(name);
+        let base = guard.path().to_path_buf();
         let root = base.join(dir);
         checkout(&root);
         std::fs::create_dir_all(base.join("stub")).expect("stub dir");
@@ -377,7 +379,11 @@ mod sh {
         )
         .expect("bazel stub");
         std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-        SourceRepo { base, root }
+        SourceRepo {
+            base,
+            root,
+            _guard: guard,
+        }
     }
 
     impl SourceRepo {
@@ -1441,12 +1447,13 @@ exec /bin/find "$@""#,
 #[cfg(windows)]
 mod cmd {
     use super::*;
-    use dx_testing::mkscratch;
+    use dx_test_scratch::{scratch, TempDir};
     use std::path::Path;
     use std::process::Command;
 
     struct SourceRepo {
         base: std::path::PathBuf,
+        _guard: TempDir,
     }
 
     fn checkout(root: &Path) {
@@ -1468,7 +1475,8 @@ mod cmd {
     }
 
     fn source_repo(name: &str) -> SourceRepo {
-        let base = mkscratch(name).expect("scratch");
+        let guard = scratch(name);
+        let base = guard.path().to_path_buf();
         checkout(&base.join("repo"));
         std::fs::create_dir_all(base.join("stub")).expect("stub dir");
         std::fs::write(
@@ -1476,7 +1484,10 @@ mod cmd {
             "@echo off\r\nif defined STUB_ARGS echo %*>>\"%STUB_ARGS%\"\r\nset \"OP=%3\"\r\nif \"%1\"==\"build\" set \"OP=build\"\r\nif \"%1\"==\"query\" set \"OP=query\"\r\necho %OP%>>\"%STUB_LOG%\"\r\nset \"SRC=%SystemRoot%\\System32\\hostname.exe\"\r\nif defined STUB_EXE set \"SRC=%STUB_EXE%\"\r\nif \"%OP%\"==\"build\" (\r\n  if not exist bazel-bin\\cli\\cli mkdir bazel-bin\\cli\\cli\r\n  copy /y \"%SRC%\" bazel-bin\\cli\\cli\\dx.exe >nul\r\n)\r\nif \"%OP%\"==\"query\" if exist \"%STUB_QUERY_FAIL%\" exit /b 1\r\nif \"%OP%\"==\"query\" (\r\n  echo //cli/cli:BUILD.bazel\r\n  ping -n 2 127.0.0.1 >nul\r\n  echo @rules_rust//rust:defs.bzl\r\n)\r\nexit /b 0\r\n",
         )
         .expect("bazel stub");
-        SourceRepo { base }
+        SourceRepo {
+            base,
+            _guard: guard,
+        }
     }
 
     impl SourceRepo {

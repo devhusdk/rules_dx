@@ -28,7 +28,10 @@ rust_test(
         "local",
         "no-sandbox",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 rustfmt_test(
@@ -65,6 +68,7 @@ rust_test(
     tags = NESTED_BAZEL_NETWORK_TAGS + ["exclusive"],
     target_compatible_with = NESTED_BAZEL_COMPATIBLE_WITH,
     deps = [
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
     ],

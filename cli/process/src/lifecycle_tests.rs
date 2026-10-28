@@ -146,8 +146,8 @@ fn timeout_kills_a_sleeping_child_within_a_bound() {
 
 #[test]
 fn timeout_reaps_a_descendant_holding_the_pipes() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-descendant").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-descendant");
+    let lock = scratch.path().join("descendant.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--spawn-descendant",
@@ -182,8 +182,8 @@ fn the_standard_budget_keeps_its_bounds() {
 
 #[test]
 fn a_stop_probe_ends_a_blocked_child_before_its_deadline() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-stop-probe").expect("scratch");
-    let lock = scratch.join("child.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-stop-probe");
+    let lock = scratch.path().join("child.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--sleep-ms=30000",
@@ -203,8 +203,8 @@ fn a_stop_probe_ends_a_blocked_child_before_its_deadline() {
 
 #[test]
 fn a_stop_probe_bounds_a_descendant_holding_stdout() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-stop-descendant").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-stop-descendant");
+    let lock = scratch.path().join("descendant.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--spawn-descendant",
@@ -226,8 +226,8 @@ fn a_stop_probe_bounds_a_descendant_holding_stdout() {
 
 #[test]
 fn a_tight_budget_bounds_a_blocked_child() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-tight-blocked").expect("scratch");
-    let lock = scratch.join("child.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-blocked");
+    let lock = scratch.path().join("child.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--sleep-ms=30000",
@@ -251,8 +251,8 @@ fn a_tight_budget_bounds_a_blocked_child() {
 
 #[test]
 fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-tight-descendant").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-tight-descendant");
+    let lock = scratch.path().join("descendant.alive");
     let spec = controlled_spec(
         probe_argv(&[
             "--stdout-text=//pkg:one",
@@ -293,8 +293,8 @@ fn daemon_probe(lock: &std::path::Path, sleep_ms: u32, descendants: Descendants)
 
 #[test]
 fn a_detachable_run_leaves_a_detached_server_running() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-detachable").expect("scratch");
-    let lock = scratch.join("server.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable");
+    let lock = scratch.path().join("server.alive");
     let spec = daemon_probe(&lock, 30000, Descendants::Detachable);
     assert_eq!(
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
@@ -305,8 +305,8 @@ fn a_detachable_run_leaves_a_detached_server_running() {
 
 #[test]
 fn a_detachable_run_reaps_an_attached_descendant() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-detachable-attached").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable-attached");
+    let lock = scratch.path().join("descendant.alive");
     let mut spec = controlled_spec(
         probe_argv(&[
             "--spawn-descendant",
@@ -354,8 +354,8 @@ fn attached_targets_is_the_intersection_in_any_order() {
 #[cfg(windows)]
 #[test]
 fn a_detachable_run_reaps_a_client_but_keeps_its_detached_server() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-detachable-chain").expect("scratch");
-    let lock = scratch.join("server.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-detachable-chain");
+    let lock = scratch.path().join("server.alive");
     let mut spec = controlled_spec(
         probe_argv(&[
             &format!("--nested-server-lock={}", lock.display()),
@@ -374,8 +374,8 @@ fn a_detachable_run_reaps_a_client_but_keeps_its_detached_server() {
 #[cfg(windows)]
 #[test]
 fn an_owned_run_kills_a_detached_server() {
-    let scratch = dx_testing::mkscratch("dx-lifecycle-owned-server").expect("scratch");
-    let lock = scratch.join("server.alive");
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-owned-server");
+    let lock = scratch.path().join("server.alive");
     let spec = daemon_probe(&lock, 0, Descendants::Owned);
     match run_within(&spec, INTERACTIVE).expect("probe runs") {
         ChildOutcome::Finished { exit, .. } => assert_eq!(exit.code(), Some(0)),
@@ -605,8 +605,8 @@ fn settle_after_skipped_launch(scratch: &std::path::Path) {
 
 #[test]
 fn streamed_stop_before_launch_never_spawns() {
-    let scratch = dx_testing::mkscratch("dx-stream-before").expect("scratch");
-    let marker = scratch.join("child.finished");
+    let scratch = dx_test_scratch::scratch("dx-stream-before");
+    let marker = scratch.path().join("child.finished");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[&format!("--marker={}", marker.display())]),
@@ -617,7 +617,7 @@ fn streamed_stop_before_launch_never_spawns() {
         run_streamed(spec, STREAM_BUDGET, &|| Some(2)).expect("stop is an outcome"),
         StreamOutcome::Cancelled { signal: 2 }
     );
-    settle_after_skipped_launch(&scratch);
+    settle_after_skipped_launch(scratch.path());
     assert!(!marker.exists(), "a stopped run launched its child");
 }
 
@@ -632,8 +632,8 @@ fn streamed_empty_argv_is_rejected() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
-    let scratch = dx_testing::mkscratch("dx-stream-blocked").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-blocked");
+    let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
@@ -717,8 +717,8 @@ fn streamed_stderr_reaches_its_own_sink() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_with_both_streams_forwarded_kills_the_owned_tree() {
-    let scratch = dx_testing::mkscratch("dx-stream-both").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-both");
+    let lock = scratch.path().join("descendant.alive");
     let out = Sink::default();
     let err = Sink::default();
     let spec = streamed_both(
@@ -777,8 +777,8 @@ fn streamed_drain_is_bounded_when_a_descendant_keeps_stderr() {
 #[cfg(unix)]
 #[test]
 fn streamed_stop_during_drain_cleans_up_the_owned_descendant() {
-    let scratch = dx_testing::mkscratch("dx-stream-drain").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-drain");
+    let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
@@ -885,8 +885,8 @@ fn assert_survived(probe: &mut Probe) {
 #[cfg(unix)]
 #[test]
 fn owned_child_gets_every_forwarded_sigint() {
-    let scratch = dx_testing::mkscratch("dx-forward-owned").expect("scratch");
-    let (mut child, log) = counting_probe(&scratch);
+    let scratch = dx_test_scratch::scratch("dx-forward-owned");
+    let (mut child, log) = counting_probe(scratch.path());
     let target = -(child.0.id() as i32);
     forward(target, 2);
     assert_eq!(sigints(&log, 1), 1);
@@ -929,8 +929,8 @@ fn a_terminal_run_without_a_tty_puts_the_child_in_its_own_group() {
 
 #[test]
 fn streamed_withdraw_before_launch_never_spawns() {
-    let scratch = dx_testing::mkscratch("dx-stream-withdraw-before").expect("scratch");
-    let marker = scratch.join("child.finished");
+    let scratch = dx_test_scratch::scratch("dx-stream-withdraw-before");
+    let marker = scratch.path().join("child.finished");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[&format!("--marker={}", marker.display())]),
@@ -941,7 +941,7 @@ fn streamed_withdraw_before_launch_never_spawns() {
         run_streamed_until(spec, STREAM_BUDGET, &never, &|| true).expect("withdraw is an outcome"),
         StreamOutcome::Withdrawn
     );
-    settle_after_skipped_launch(&scratch);
+    settle_after_skipped_launch(scratch.path());
     assert!(!marker.exists(), "a withdrawn run launched its child");
 }
 
@@ -958,8 +958,8 @@ fn streamed_exit_before_withdraw_reports_the_exit() {
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
-    let scratch = dx_testing::mkscratch("dx-stream-self-exit-group").expect("scratch");
-    let lock = scratch.join("leftover.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-group");
+    let lock = scratch.path().join("leftover.alive");
     let sink = Sink::default();
     let script = format!(
         "'{probe}' --alive-lock='{lock}' --sleep-ms=30000 >/dev/null 2>&1 & while [ ! -e '{lock}' ]; do sleep 0.05; done; exit 0",
@@ -987,8 +987,8 @@ fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_stops_a_descendant_holding_stdout() {
-    let scratch = dx_testing::mkscratch("dx-stream-self-exit-stdout").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-stdout");
+    let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
@@ -1015,8 +1015,8 @@ fn streamed_self_exit_stops_a_descendant_holding_stdout() {
 #[cfg(unix)]
 #[test]
 fn streamed_self_exit_leaves_a_detached_server_running() {
-    let scratch = dx_testing::mkscratch("dx-stream-self-exit-server").expect("scratch");
-    let lock = scratch.join("server.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-self-exit-server");
+    let lock = scratch.path().join("server.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
@@ -1038,8 +1038,8 @@ fn streamed_self_exit_leaves_a_detached_server_running() {
 #[cfg(unix)]
 #[test]
 fn streamed_withdraw_terminates_the_owned_tree() {
-    let scratch = dx_testing::mkscratch("dx-stream-withdraw").expect("scratch");
-    let lock = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-withdraw");
+    let lock = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let spec = streamed(
         probe_argv(&[
@@ -1067,8 +1067,8 @@ fn streamed_withdraw_terminates_the_owned_tree() {
 #[cfg(unix)]
 #[test]
 fn streamed_withdraw_kills_a_tree_that_ignores_sigterm() {
-    let scratch = dx_testing::mkscratch("dx-stream-withdraw-ignored").expect("scratch");
-    let lock = scratch.join("alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-withdraw-ignored");
+    let lock = scratch.path().join("alive");
     let sink = Sink::default();
     let script = format!(
         "trap '' TERM; exec '{probe}' --alive-lock='{lock}' --sleep-ms=30000",
@@ -1188,9 +1188,9 @@ fn wait_alive(lock: &std::path::Path) {
 
 #[test]
 fn streamed_held_lock_is_held_while_the_child_runs() {
-    let scratch = dx_testing::mkscratch("dx-stream-held-run").expect("scratch");
-    let lease = scratch.join("lease.lock");
-    let alive = scratch.join("child.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-held-run");
+    let lease = scratch.path().join("lease.lock");
+    let alive = scratch.path().join("child.alive");
     let sink = Sink::default();
     let mut spec = streamed(
         probe_argv(&[
@@ -1217,9 +1217,9 @@ fn streamed_held_lock_is_held_while_the_child_runs() {
 #[cfg(unix)]
 #[test]
 fn streamed_held_lock_outlives_parent_in_descendant() {
-    let scratch = dx_testing::mkscratch("dx-stream-held-descendant").expect("scratch");
-    let lease = scratch.join("lease.lock");
-    let alive = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-held-descendant");
+    let lease = scratch.path().join("lease.lock");
+    let alive = scratch.path().join("descendant.alive");
     let sink = Sink::default();
     let mut spec = streamed(
         probe_argv(&[
@@ -1251,10 +1251,10 @@ fn streamed_held_lock_outlives_parent_in_descendant() {
 #[cfg(unix)]
 #[test]
 fn streamed_sibling_spawn_does_not_inherit_held() {
-    let scratch = dx_testing::mkscratch("dx-stream-held-sibling").expect("scratch");
-    let lease = scratch.join("lease.lock");
-    let child_alive = scratch.join("child.alive");
-    let sibling_alive = scratch.join("sibling.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-held-sibling");
+    let lease = scratch.path().join("lease.lock");
+    let child_alive = scratch.path().join("child.alive");
+    let sibling_alive = scratch.path().join("sibling.alive");
     let held_sink = Sink::default();
     let mut held_spec = streamed(
         probe_argv(&[
@@ -1296,9 +1296,9 @@ fn streamed_sibling_spawn_does_not_inherit_held() {
 #[cfg(unix)]
 #[test]
 fn streamed_without_held_is_unchanged() {
-    let scratch = dx_testing::mkscratch("dx-stream-unheld").expect("scratch");
-    let lease = scratch.join("lease.lock");
-    let alive = scratch.join("descendant.alive");
+    let scratch = dx_test_scratch::scratch("dx-stream-unheld");
+    let lease = scratch.path().join("lease.lock");
+    let alive = scratch.path().join("descendant.alive");
     let parent_lock = held_lease(&lease);
     let sink = Sink::default();
     let spec = streamed(
@@ -1354,26 +1354,35 @@ fn streamed_held_parent_main() {
     let _ = run_streamed(spec, STREAM_BUDGET, &never);
 }
 
-fn crash_held_parent(prefix: &str) -> (std::path::PathBuf, std::path::PathBuf) {
-    let scratch = dx_testing::mkscratch(prefix).expect("scratch");
+/// The returned guard keeps the scratch dir alive while the orphaned
+/// descendant still holds the lease.
+fn crash_held_parent(
+    prefix: &str,
+) -> (
+    dx_test_scratch::TempDir,
+    std::path::PathBuf,
+    std::path::PathBuf,
+) {
+    let scratch = dx_test_scratch::scratch(prefix);
     let mut parent = std::process::Command::new(std::env::current_exe().expect("test binary"))
         .arg("lifecycle::lifecycle_tests::streamed_held_parent_main")
         .arg("--exact")
-        .env(HELD_PARENT_ENV, &scratch)
+        .env(HELD_PARENT_ENV, scratch.path())
         .stdin(std::process::Stdio::null())
         .spawn()
         .expect("spawn the held parent");
-    let alive = scratch.join("alive.lock");
+    let alive = scratch.path().join("alive.lock");
     wait_alive(&alive);
     parent.kill().expect("crash the held parent");
     let _ = parent.wait();
-    (scratch.join("lease.lock"), alive)
+    let lease = scratch.path().join("lease.lock");
+    (scratch, lease, alive)
 }
 
 #[cfg(unix)]
 #[test]
 fn streamed_held_lock_survives_parent_crash() {
-    let (lease, alive) = crash_held_parent("dx-stream-held-crash");
+    let (_scratch, lease, alive) = crash_held_parent("dx-stream-held-crash");
     assert!(
         !lease_free(&lease),
         "the running descendant keeps the lease after its parent dies"
@@ -1386,7 +1395,7 @@ fn streamed_held_lock_survives_parent_crash() {
 #[cfg(windows)]
 #[test]
 fn streamed_held_tree_dies_with_parent_crash() {
-    let (lease, alive) = crash_held_parent("dx-stream-held-crash");
+    let (_scratch, lease, alive) = crash_held_parent("dx-stream-held-crash");
     assert_released(&alive);
     wait_lease_free(&lease);
 }

@@ -153,6 +153,7 @@ fn json_mode_emits_lifecycle_with_counts() {
             "command_started",
             "diagnostic",
             "change",
+            "notice",
             "command_finished"
         ]
     );

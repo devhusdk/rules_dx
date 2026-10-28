@@ -111,6 +111,10 @@ do not fit the target platform, even named or affected ones; see
 `dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
 error event in JSON, and never applies fixes.
 
+In check mode, JSON output adds an info `notice` with code `changes_proposed`
+when files need changes. Its `message` is the `--apply` command to run. The
+notice is absent with `--apply`.
+
 A failed Bazel build lists each failed action the way `dx build` does: a
 `build_failure` event in JSON, or a `dx: build failure:` line on stderr. A Rust
 compile error in a `Clippy` or `Rustc` action carries its `path`, `line`,

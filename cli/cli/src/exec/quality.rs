@@ -1,6 +1,7 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
+use super::notice_codes::CODE_CHANGES_PROPOSED;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineGate, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
@@ -11,8 +12,8 @@ use super::quality_reports::{
 use super::results::collect_results;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    command_finished, command_started, meets_threshold, ActionCounts, FinishedCounts, OutputMode,
-    Severity,
+    command_finished, command_started, meets_threshold, notice_event, ActionCounts, FinishedCounts,
+    NoticeEvent, OutputMode, Severity,
 };
 use dx_plan::args::{Command, Invocation, QualityRequest};
 use dx_plan::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
@@ -601,11 +602,21 @@ fn run_quality_request(
     let not_applied_count = emit_counts.not_applied_count;
     let change_count = collected.changes.len() as u64;
 
-    if !apply
-        && !collected.changes.is_empty()
-        && matches!(request.common.output, OutputMode::Text { .. })
-    {
-        let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+    if !apply && !collected.changes.is_empty() {
+        if matches!(request.common.output, OutputMode::Text { .. }) {
+            let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+        } else if request.common.output == OutputMode::Json {
+            let notice = NoticeEvent {
+                related_command: Some(request.command.name().to_owned()),
+                ..NoticeEvent::info(
+                    CODE_CHANGES_PROPOSED,
+                    apply_hint(request, collected.changes.len()),
+                )
+            };
+            if let Err(exit) = emit_built(out, notice_event(&notice)) {
+                return exit;
+            }
+        }
     }
     if request.common.output != OutputMode::Json
         && not_applied

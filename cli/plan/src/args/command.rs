@@ -32,6 +32,7 @@ pub enum Command {
     Rollback,
     Worktree,
     Explain,
+    Install,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -104,7 +105,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 32] = [
+pub static COMMANDS: [CommandMeta; 33] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -713,6 +714,25 @@ pub static COMMANDS: [CommandMeta; 32] = [
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Never,
     },
+    CommandMeta {
+        command: Command::Install,
+        name: "install",
+        scope_policy: "reject",
+        describe: "verify and install a downloaded dx release archive (check by default; --apply writes)",
+        usage: "Usage: dx install --tag <tag> --archive <path> [--dir DIR] [--apply]",
+        scopes: "Scopes: none (install takes --tag and --archive, not scopes).",
+        is_managed: false,
+        is_adoption: false,
+        supports_json: true,
+        supports_diff: false,
+        supports_here: false,
+        supports_fail_on: false,
+        default_release: false,
+        skew: SkewKind::Proceed,
+        workflow_verb: None,
+        first_slot: FirstSlot::None,
+        labels: LabelsPolicy::Never,
+    },
 ];
 
 impl Command {
@@ -839,9 +859,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 19] = [
+    pub(crate) const APPLY_COMMANDS: [Command; 20] = [
         Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Add, Migrate, Codegen,
-        Env, Init, New, Upgrade, Watch, Rollback, Worktree,
+        Env, Init, New, Upgrade, Watch, Rollback, Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const CHECK_OWNERS: [Command; 12] = [
@@ -947,6 +967,7 @@ mod tests {
             Command::Rollback,
             Command::Worktree,
             Command::Explain,
+            Command::Install,
         ];
         assert_eq!(commands.len(), Command::value_variants().len());
         for command in commands {
@@ -1049,7 +1070,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree|explain",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }

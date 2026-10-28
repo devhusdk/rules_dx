@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use dx_output::{dx_text_visible, ColorMode, OutputMode, Threshold};
 
 use super::profile::{resolve_profile, Profile};
@@ -278,6 +280,12 @@ pub struct Invocation {
     pub old_log: Option<String>,
     /// `dx explain --new`.
     pub new_log: Option<String>,
+    /// `dx install --tag`.
+    pub install_tag: Option<String>,
+    /// `dx install --archive`, as typed (the CLI resolves it from the invocation cwd).
+    pub install_archive: Option<PathBuf>,
+    /// `dx install --dir`, absolute (resolved from the invocation cwd).
+    pub install_dir: Option<PathBuf>,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -641,6 +649,9 @@ mod tests {
             explain: false,
             old_log: None,
             new_log: None,
+            install_tag: None,
+            install_archive: None,
+            install_dir: None,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),

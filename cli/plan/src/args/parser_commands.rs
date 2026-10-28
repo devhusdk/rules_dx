@@ -102,6 +102,7 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
+        "install" => &["--tag", "v1.2.3", "--archive", "a.tar.gz"],
         _ => &[],
     }
 }
@@ -1559,5 +1560,72 @@ fn floor_and_reason_parse_only_on_bump() {
             ),
             "{words:?}"
         );
+    }
+}
+
+#[test]
+fn install_takes_a_tag_an_archive_and_optional_dir_and_apply() {
+    let check = parse(&strings(&[
+        "install",
+        "--tag",
+        "v1.2.3",
+        "--archive",
+        "a.tar.gz",
+    ]))
+    .expect("parses");
+    assert_eq!(check.command, Command::Install);
+    assert!(!check.applies());
+    assert_eq!(check.install_tag.as_deref(), Some("v1.2.3"));
+    assert_eq!(
+        check.install_archive.as_deref(),
+        Some(std::path::Path::new("a.tar.gz"))
+    );
+    assert!(check.install_dir.is_none());
+    let apply = parse(&strings(&[
+        "install",
+        "--tag",
+        "v1.2.3",
+        "--archive",
+        "a.tar.gz",
+        "--dir",
+        "d",
+        "--apply",
+    ]))
+    .expect("parses");
+    assert!(apply.applies());
+    assert_eq!(
+        apply.install_dir.as_deref(),
+        Some(std::path::Path::new("d"))
+    );
+    assert!(crate::args::is_discovery_exempt(Command::Install));
+}
+
+#[test]
+fn install_refuses_missing_inputs_positionals_and_foreign_flags() {
+    for words in [
+        vec!["install", "--archive", "a.tar.gz"],
+        vec!["install", "--tag", "v1.2.3"],
+        vec!["install"],
+    ] {
+        assert!(
+            matches!(parse(&strings(&words)), Err(ArgsError::MissingValue { .. })),
+            "{words:?}"
+        );
+    }
+    for words in [
+        vec!["install", "x", "--tag", "v1.2.3", "--archive", "a"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--check"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--here"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--", "--x"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--version"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
+    for words in [
+        vec!["lint", "--tag", "v1.2.3"],
+        vec!["build", "--archive", "a"],
+        vec!["status", "--dir", "d"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
 }

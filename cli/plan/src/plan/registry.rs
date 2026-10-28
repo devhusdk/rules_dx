@@ -162,6 +162,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Rollback
         | Command::Worktree
         | Command::Explain
+        | Command::Install
         | Command::Status
         | Command::Version
         | Command::Watch

@@ -1,0 +1,1 @@
+# gazelle:resolve julia Example @julia_deps//:Example

@@ -171,6 +171,13 @@ kinds, such as an `sh_test`, own only the sources they list. Generation
 replaces `deps` on a generated test, so mark any dependency that no import
 gives, such as a runtime-only library, with `# keep`.
 
+For Julia, a `Project.toml` with a `name` and a `src/<name>.jl` gets a
+`julia_library` named `<name>` and, when `test/runtests.jl` exists, a
+`julia_test` named `<name>_test`. Test dependencies come from
+`test/Project.toml` `[deps]` when that file exists, otherwise from `[extras]`
+filtered by `[targets].test`. `data` is never generated beyond `Project.toml`
+on the library, so data you add survives.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this
@@ -179,7 +186,7 @@ when the language is unknown, or when the value is malformed. A scoped run
 checks only directives in packages inside the scope.
 
 Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `fsharp`, `go`, `haskell`, `java`,
-`javascript`, `kotlin`, `lua`, `mdx`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`,
+`javascript`, `julia`, `kotlin`, `lua`, `mdx`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`,
 `scala`, `svelte`, `typescript`, `vue`, `zig`.
 
 `# gazelle:dx_cuda_archs <spec> <spec>...` sets the `archs` of a generated
@@ -279,6 +286,11 @@ An import resolves in this order:
 - `javascript`, `typescript`: an import of a package that the root
   `package.json` lists in any dependencies field resolves to
   `//:node_modules/<package>`. Only the root `package.json` is read.
+- `julia`: the `[deps]` of `Project.toml` are the dependencies. A standard
+  library, matched by name and UUID, needs nothing. A name with a standard
+  library name but another UUID fails. A local `julia_library` with that name
+  resolves to itself. Anything else needs one `resolve` line, as in
+  `# gazelle:resolve julia Example @<hub>//:Example`.
 - `csharp`, `fsharp`, `lua`, `ruby`, `perl`, `php` and the
   other languages need one `# gazelle:resolve` line per third-party import.
 

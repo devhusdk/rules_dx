@@ -1,0 +1,91 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//julia/rules:defs.bzl", "julia_binary", "julia_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "julia",
+    srcs = [
+        "doc.go",
+        "lang.go",
+        "naming.go",
+        "project.go",
+        "stdlib.go",
+    ],
+    embedsrcs = ["stdlib.txt"],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/julia",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "@com_github_pelletier_go_toml_v2//:go-toml",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/rule",
+    ],
+)
+
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
+julia_binary(
+    name = "stdlib_dump",
+    srcs = ["stdlib_dump.jl"],
+    main = "stdlib_dump.jl",
+)
+
+julia_test(
+    name = "stdlib_test",
+    srcs = ["stdlib_dump.jl"],
+    args = [
+        "--check",
+        "$(rootpath stdlib.txt)",
+    ],
+    data = ["stdlib.txt"],
+    main = "stdlib_dump.jl",
+)
+
+go_test(
+    name = "julia_test",
+    srcs = [
+        "lang_test.go",
+        "naming_test.go",
+        "project_test.go",
+    ],
+    embed = [":julia"],
+    pure = "on",
+    deps = [
+        "//gazelle/common",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/label",
+        "@gazelle//v2/rule",
+    ],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["testdata/root/README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

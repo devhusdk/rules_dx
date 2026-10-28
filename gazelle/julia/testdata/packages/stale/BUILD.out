@@ -1,0 +1,16 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library")
+
+julia_library(
+    name = "Stale",
+    srcs = ["src/Stale.jl"],
+    data = [
+        "Project.toml",
+        "extra.txt",
+    ],
+)
+
+julia_binary(
+    name = "stale_bin",
+    srcs = ["main.jl"],
+    deps = [":Stale"],
+)

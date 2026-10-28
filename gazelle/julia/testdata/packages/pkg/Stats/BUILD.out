@@ -1,0 +1,10 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_library")
+
+julia_library(
+    name = "Stats",
+    srcs = [
+        "src/Stats.jl",
+        "src/helpers/mean.jl",
+    ],
+    data = ["Project.toml"],
+)

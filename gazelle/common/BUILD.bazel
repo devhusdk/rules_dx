@@ -66,6 +66,7 @@ go_library(
         "//gazelle/haskell:__pkg__",
         "//gazelle/java:__pkg__",
         "//gazelle/javascript:__pkg__",
+        "//gazelle/julia:__pkg__",
         "//gazelle/kotlin:__pkg__",
         "//gazelle/lua:__pkg__",
         "//gazelle/mdx:__pkg__",

@@ -322,6 +322,29 @@ scalafix.install(
 )
 use_repo(scalafix, "dx_scalafix")
 
+dokka = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+dokka.install(
+    name = "dx_dokka",
+    artifacts = [
+        "org.jetbrains.dokka:analysis-kotlin-symbols:2.2.0",
+        "org.jetbrains.dokka:dokka-base:2.2.0",
+        "org.jetbrains.dokka:dokka-core:2.2.0",
+    ],
+    # analysis-kotlin-symbols calls stdlib APIs newer than the 2.0.21 that dokka-base declares, so
+    # the Kotlin toolchain's stdlib must be the only one on the adapter's classpath.
+    excluded_artifacts = [
+        "org.jetbrains.kotlin:kotlin-stdlib",
+        "org.jetbrains.kotlin:kotlin-stdlib-common",
+    ],
+    fail_if_repin_required = True,
+    lock_file = "//third_party/jvm:dokka_install.json",
+    repositories = [
+        "https://maven-central.storage-download.googleapis.com/maven2",
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(dokka, "dx_dokka")
+
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_powershell", version = "0.3.1")
 single_version_override(

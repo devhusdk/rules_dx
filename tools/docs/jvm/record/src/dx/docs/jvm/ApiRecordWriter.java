@@ -23,6 +23,7 @@ import java.util.List;
  *       the parameters, with arrays and varargs written {@code T[]}. The reader joins them with
  *       {@code ,} and no spaces to form the key {@code pkg.Type.name(int,String)}.
  *   <li>Links inside docs are {@code [label](jvm:<qualified>[(T,...)])}, using that same key.
+ *   <li>A Kotlin extension property also carries {@code receiver}, the erased simple receiver type.
  *   <li>{@code file} is the exact execution path of the source from the srcs manifest.
  * </ul>
  */
@@ -66,6 +67,7 @@ public final class ApiRecordWriter {
     public final int line;
     public final String memberOf;
     public final List<String> implementsTypes;
+    public final String receiver;
 
     public Symbol(
         String qualified,
@@ -79,6 +81,35 @@ public final class ApiRecordWriter {
         int line,
         String memberOf,
         List<String> implementsTypes) {
+      this(
+          qualified,
+          overload,
+          kind,
+          signature,
+          doc,
+          params,
+          returns,
+          file,
+          line,
+          memberOf,
+          implementsTypes,
+          null);
+    }
+
+    /** As above, with the erased receiver type of a Kotlin extension property, or null. */
+    public Symbol(
+        String qualified,
+        List<String> overload,
+        String kind,
+        String signature,
+        String doc,
+        List<Param> params,
+        Returns returns,
+        String file,
+        int line,
+        String memberOf,
+        List<String> implementsTypes,
+        String receiver) {
       this.qualified = qualified;
       this.overload = overload;
       this.kind = kind;
@@ -90,6 +121,7 @@ public final class ApiRecordWriter {
       this.line = line;
       this.memberOf = memberOf;
       this.implementsTypes = implementsTypes;
+      this.receiver = receiver;
     }
   }
 
@@ -102,7 +134,8 @@ public final class ApiRecordWriter {
     sorted.sort(
         Comparator.comparing((Symbol symbol) -> symbol.qualified)
             .thenComparing((Symbol symbol) -> key(symbol.overload))
-            .thenComparing((Symbol symbol) -> symbol.kind));
+            .thenComparing((Symbol symbol) -> symbol.kind)
+            .thenComparing((Symbol symbol) -> symbol.receiver == null ? "" : symbol.receiver));
     StringBuilder out = new StringBuilder();
     out.append("{\"format\":1,\"language\":");
     quote(out, language);
@@ -144,6 +177,10 @@ public final class ApiRecordWriter {
     if (symbol.overload != null) {
       out.append(",\"overload\":");
       strings(out, symbol.overload);
+    }
+    if (symbol.receiver != null) {
+      out.append(",\"receiver\":");
+      quote(out, symbol.receiver);
     }
     out.append(",\"kind\":");
     quote(out, symbol.kind);

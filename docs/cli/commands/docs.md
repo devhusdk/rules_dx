@@ -386,6 +386,43 @@ bazel run @rules_dx//:dx -- docs //lib:api_docs
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
 failure. Bazel failures keep Bazel's code.
 
+## Kotlin API reference
+
+`kotlin_doc_shard` from `@rules_dx//tools/docs/jvm:defs.bzl` reads one Kotlin library's
+public API with Dokka and produces a docs IR shard with language `kotlin`. The sources
+are analysed, never run or changed. Pass the shard to `docs_site` beside other shards.
+
+```starlark
+load("@rules_dx//tools/docs/jvm:defs.bzl", "kotlin_doc_shard")
+
+kotlin_doc_shard(
+    name = "api_docs",
+    lib = ":shapes",
+)
+```
+
+Attributes:
+
+- `lib`: the documented `kotlin_library`. Its own `.kt` `srcs` are documented; its `deps` are only on the classpath.
+- `package`: the package segment of the symbol ids. Defaults to the name of `lib`.
+- `deps`: `kotlin_doc_shard` targets of libraries whose types this one uses. Their symbols are linked, not documented again.
+
+Symbol ids have the form `kotlin:<package>:<qualified name>`, for example
+`kotlin:shapes:dx.fixture.shapes.Circle`. Overloaded functions add the erased simple
+parameter types, with the receiver first for an extension function, as in
+`kotlin:shapes:dx.fixture.shapes.grow~28Circle~2CDouble~29`. An extension property
+adds its receiver type after `@`, as in `kotlin:shapes:dx.fixture.shapes.diameter~40Circle`.
+Characters other than letters, digits and `_` are written as `~` and two hex digits.
+
+Public classes, interfaces, objects, companions, enum entries, functions, properties,
+constructors and type aliases are documented, with the text of KDoc tags and `[links]`.
+`internal`, `protected` and `private` declarations are left out. Only `.kt` sources
+are read; Kotlin libraries with `.java` sources, source jars and compiler plugins are
+not supported.
+
+An unresolved type in a public signature, a missing source or an empty public API fails
+the build, and no pages are written.
+
 ## PowerShell API reference
 
 `powershell_doc_shard` from `@rules_dx//tools/docs/powershell:defs.bzl` reads one

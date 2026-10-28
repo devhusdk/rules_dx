@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -14,6 +14,17 @@ filegroup(
     testonly = True,
     srcs = ["//tools/docs/jvm/fixture:shapes_docs"],
     output_group = "api_json",
+)
+
+# keep
+rust_library(
+    name = "jvm_test_support",
+    testonly = True,
+    srcs = ["jvm_test_support.rs"],
+    deps = [
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 # keep
@@ -43,6 +54,7 @@ rust_test(
     },
     tags = ["no-coverage"],
     deps = [
+        ":jvm_test_support",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
         "//tools/testing:dx_testing",
@@ -52,7 +64,48 @@ rust_test(
 rustfmt_test(
     name = "java_extract_fmt_test",
     size = "small",
-    targets = [":java_extract_test"],
+    targets = [
+        ":java_extract_test",
+        ":jvm_test_support",
+    ],
+)
+
+# keep
+rust_test(
+    name = "kotlin_extract_test",
+    size = "small",
+    srcs = ["kotlin_extract_test.rs"],
+    data = [
+        "//tools/docs/jvm/convert:jvm_convert",
+        "//tools/docs/jvm/dokka:dokka_extract",
+        "//tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Circle.kt",
+        "//tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Shape.kt",
+        "//tools/docs/jvm/fixture:kotlin_paint_docs",
+        "//tools/docs/jvm/fixture:kotlin_paint_nodep_docs",
+        "//tools/docs/jvm/fixture:kotlin_shapes_docs",
+    ],
+    env = {
+        "DX_CIRCLE_KT": "$(rootpath //tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Circle.kt)",
+        "DX_DOKKA_EXTRACT": "$(rootpath //tools/docs/jvm/dokka:dokka_extract)",
+        "DX_JVM_CONVERT": "$(rootpath //tools/docs/jvm/convert:jvm_convert)",
+        "DX_PAINT_NODEP_SHARD": "$(rootpath //tools/docs/jvm/fixture:kotlin_paint_nodep_docs)",
+        "DX_PAINT_SHARD": "$(rootpath //tools/docs/jvm/fixture:kotlin_paint_docs)",
+        "DX_SHAPES_SHARD": "$(rootpath //tools/docs/jvm/fixture:kotlin_shapes_docs)",
+        "DX_SHAPE_KT": "$(rootpath //tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Shape.kt)",
+    },
+    tags = ["no-coverage"],
+    deps = [
+        ":jvm_test_support",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "kotlin_extract_fmt_test",
+    size = "small",
+    targets = [":kotlin_extract_test"],
 )
 
 real_source_target(

@@ -119,7 +119,10 @@ ROWS = [
     {"ci_tests": _hello("powershell"), "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "starters": ["powershell"], "title": "PowerShell"},
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
-        "consumer_tests": ["//python/tests/consumer:service_consumer_test"],
+        "consumer_tests": [
+            "//python/tests/consumer:service_consumer_test",
+            "//python/tests/consumer:docs_consumer_test",
+        ],
         "name": "python",
         "section": "languages",
         "starters": ["python"],

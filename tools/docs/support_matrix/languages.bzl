@@ -226,6 +226,7 @@ GAP_ISSUES = {
     "format:*": 4439,
     "lint:*": 4438,
     "support:*": 4441,
+    "starter:dart": 1783,
     "typecheck:*": 4440,
 }
 

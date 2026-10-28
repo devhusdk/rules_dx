@@ -3,7 +3,7 @@
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "COMPUTED_CONSTRAINTS", "GAP_ENFORCEMENT", "GAP_ISSUES", "NOT_LANGUAGES", "PLATFORMS", "ROWS", "SECTIONS", "SUPPORT_MATRIX_SCHEMA_VERSION")
+load(":languages.bzl", "COMPUTED_CONSTRAINTS", "GAP_ENFORCEMENT", "GAP_ISSUES", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "SUPPORT_MATRIX_SCHEMA_VERSION", "TOOL_NOT_APPLICABLE")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -50,6 +50,15 @@ def support_matrix_facts_dict():
             for key in _BUILD_KEYS:
                 if row.get(key, []):
                     fail("support matrix: format row " + row["name"] + " sets " + key)
+    row_names = {row["name"]: True for row in ROWS}
+    platform_ids = {platform["id"]: True for platform in PLATFORMS}
+    for name, declared in PLATFORM_NOT_APPLICABLE.items() + [(tool, d) for tool, d in TOOL_NOT_APPLICABLE.items()]:
+        for platform, reason in declared.items():
+            if platform not in platform_ids or not reason:
+                fail("support matrix: " + name + " needs a known platform and a reason, got " + platform)
+    for name in PLATFORM_NOT_APPLICABLE:
+        if name not in row_names:
+            fail("support matrix: PLATFORM_NOT_APPLICABLE names unknown row " + name)
     support = []
     for record in SUPPORT_RECORDS:
         support.append({
@@ -68,6 +77,7 @@ def support_matrix_facts_dict():
         "gap_issues": GAP_ISSUES,
         "not_applicable": NOT_APPLICABLE,
         "not_languages": sorted(NOT_LANGUAGES),
+        "platform_not_applicable": PLATFORM_NOT_APPLICABLE,
         "platforms": PLATFORMS,
         "quality": quality,
         "rows": [
@@ -84,6 +94,7 @@ def support_matrix_facts_dict():
         ],
         "schema_version": SUPPORT_MATRIX_SCHEMA_VERSION,
         "sections": SECTIONS,
+        "tool_not_applicable": TOOL_NOT_APPLICABLE,
         "support": sorted(support, key = lambda record: (record["family"], record["capability"], record["tool"])),
     }
 

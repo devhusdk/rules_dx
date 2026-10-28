@@ -249,8 +249,21 @@ NOT_LANGUAGES = [
     "tools",
 ]
 
+# A platform a row cannot support, with the reason. Marking it removes the
+# build and consumer gaps for that platform. Rows without an entry that are
+# missing a platform have a tracked gap (see GAP_ISSUES), not a reason.
+PLATFORM_NOT_APPLICABLE = {
+    "appimage": {
+        "macos_arm64": "AppImage is a Linux format",
+        "windows_x86_64": "AppImage is a Linux format",
+        "windows_arm64": "AppImage is a Linux format",
+    },
+}
+
+# A platform a quality tool cannot run on, keyed by tool name, with the reason.
+TOOL_NOT_APPLICABLE = {}
+
 GAP_ISSUES = {
-    "build:appimage:*": 4539,
     "build:apple:*": 4540,
     "build:cuda:*": 4541,
     "build:d:*": 4542,

@@ -1904,6 +1904,27 @@ terraform_module(
 )
 ```
 
+### Bicep
+
+Own Bicep files with `bicep_module` from `@rules_dx//bicep/rules:defs.bzl`. It
+accepts `.bicep` and `.bicepparam` files in `srcs`, other Bicep modules in
+`deps`, and files read by Bicep `load` functions in `data`. Files in `data` are
+never checked, and a `bicepconfig.json` there is refused: bind the configuration
+with `bicep_config` instead. The pinned Bicep CLI v0.48.1 is available for all
+five platforms through the managed tool hub; formatting, linting and compiling
+with it are not wired into `dx format` or `dx lint` yet, so a `bicep_module`
+target is owned but not yet checked.
+
+```python
+load("@rules_dx//bicep/rules:defs.bzl", "bicep_module")
+
+bicep_module(
+    name = "network",
+    srcs = ["network.bicep", "network.bicepparam"],
+    deps = ["//infra/common:modules"],
+)
+```
+
 ### CloudFormation
 
 `cfn-lint` validates AWS CloudFormation templates against the bundled resource

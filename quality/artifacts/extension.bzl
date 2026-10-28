@@ -41,6 +41,11 @@ load("//quality/artifacts:gersemi.linux_x86_64.bzl", _gersemi_linux_x86_64 = "AR
 load("//quality/artifacts:gersemi.macos_arm64.bzl", _gersemi_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:gersemi.windows_arm64.bzl", _gersemi_windows_arm64 = "ARTIFACT")
 load("//quality/artifacts:gersemi.windows_x86_64.bzl", _gersemi_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:bicep.linux_arm64.bzl", _bicep_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:bicep.linux_x86_64.bzl", _bicep_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:bicep.macos_arm64.bzl", _bicep_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:bicep.windows_arm64.bzl", _bicep_windows_arm64 = "ARTIFACT")
+load("//quality/artifacts:bicep.windows_x86_64.bzl", _bicep_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:checkmake.linux_arm64.bzl", _checkmake_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:checkmake.linux_x86_64.bzl", _checkmake_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:checkmake.macos_arm64.bzl", _checkmake_macos_arm64 = "ARTIFACT")
@@ -209,6 +214,11 @@ _ARTIFACTS = [
     _gersemi_macos_arm64,
     _gersemi_windows_x86_64,
     _gersemi_windows_arm64,
+    _bicep_linux_x86_64,
+    _bicep_linux_arm64,
+    _bicep_macos_arm64,
+    _bicep_windows_x86_64,
+    _bicep_windows_arm64,
     _checkmake_linux_x86_64,
     _checkmake_linux_arm64,
     _checkmake_macos_arm64,

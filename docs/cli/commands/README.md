@@ -575,6 +575,7 @@ Language rules:
 - `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
 - `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
 - `@rules_dx//ansible/rules:defs.bzl`: Ansible.
+- `@rules_dx//bicep/rules:defs.bzl`: Bicep.
 - `@rules_dx//cloudformation/rules:defs.bzl`: CloudFormation.
 - `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
 - `@rules_dx//jupyter/rules:defs.bzl`: Jupyter notebooks.

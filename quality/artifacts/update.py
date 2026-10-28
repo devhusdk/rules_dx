@@ -574,6 +574,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "bicep": {
+        "upstream_version": "0.48.1",
+        "release_page": "https://github.com/Azure/bicep/releases/tag/v0.48.1",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/Azure/bicep/blob/v0.48.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "bicep-linux-x64",
+                "url": "https://github.com/Azure/bicep/releases/download/v0.48.1/bicep-linux-x64",
+                "kind": "raw",
+                "executable": "bicep-linux-x64",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "bicep-linux-arm64",
+                "url": "https://github.com/Azure/bicep/releases/download/v0.48.1/bicep-linux-arm64",
+                "kind": "raw",
+                "executable": "bicep-linux-arm64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "bicep-osx-arm64",
+                "url": "https://github.com/Azure/bicep/releases/download/v0.48.1/bicep-osx-arm64",
+                "kind": "raw",
+                "executable": "bicep-osx-arm64",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "bicep-win-x64.exe",
+                "url": "https://github.com/Azure/bicep/releases/download/v0.48.1/bicep-win-x64.exe",
+                "kind": "raw",
+                "executable": "bicep-win-x64.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "bicep-win-arm64.exe",
+                "url": "https://github.com/Azure/bicep/releases/download/v0.48.1/bicep-win-arm64.exe",
+                "kind": "raw",
+                "executable": "bicep-win-arm64.exe",
+            },
+        },
+    },
     "gersemi": {
         "upstream_version": "0.29.2",
         "release_page": "https://github.com/BlankSpruce/gersemi/releases/tag/0.29.2",

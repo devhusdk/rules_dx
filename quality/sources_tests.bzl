@@ -46,6 +46,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "python",
     "python_stub",
     "jupyter",
+    "bicep",
     "cue",
     "dart",
     "elixir",
@@ -127,6 +128,7 @@ def sources_registry_tests(name):
             expect_equal("kubernetes class is known", is_known_semantic_class("kubernetes"), True),
             expect_equal("helm class is known", is_known_semantic_class("helm"), True),
             expect_equal("cloudformation class is known", is_known_semantic_class("cloudformation"), True),
+            expect_equal("bicep class is known", is_known_semantic_class("bicep"), True),
             expect_equal("RUST class ID", RUST, "rust"),
             expect_equal(
                 "upstream rust extension maps to rust",

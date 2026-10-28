@@ -58,6 +58,8 @@ def _real_source_target_impl(ctx):
         direct_sources["cmake"] = depset(ctx.files.cmake_srcs)
     if len(ctx.files.starlark_srcs) > 0:
         direct_sources["starlark"] = depset(ctx.files.starlark_srcs)
+    if len(ctx.files.bicep_srcs) > 0:
+        direct_sources["bicep"] = depset(ctx.files.bicep_srcs)
     if len(ctx.files.cue_srcs) > 0:
         direct_sources["cue"] = depset(ctx.files.cue_srcs)
     if len(ctx.files.jsonnet_srcs) > 0:
@@ -122,7 +124,7 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.lua_srcs) + list(ctx.files.haskell_srcs) + list(ctx.files.typst_srcs) + list(ctx.files.latex_srcs) + list(ctx.files.rst_srcs) + list(ctx.files.asciidoc_srcs) + list(ctx.files.nix_srcs) + list(ctx.files.kubernetes_srcs) + list(ctx.files.cloudformation_srcs) + list(ctx.files.ansible_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.jupyter_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs) + list(ctx.files.make_srcs) + list(ctx.files.cmake_srcs) + list(ctx.files.rego_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.bicep_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.lua_srcs) + list(ctx.files.haskell_srcs) + list(ctx.files.typst_srcs) + list(ctx.files.latex_srcs) + list(ctx.files.rst_srcs) + list(ctx.files.asciidoc_srcs) + list(ctx.files.nix_srcs) + list(ctx.files.kubernetes_srcs) + list(ctx.files.cloudformation_srcs) + list(ctx.files.ansible_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.jupyter_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs) + list(ctx.files.make_srcs) + list(ctx.files.cmake_srcs) + list(ctx.files.rego_srcs)
     providers = [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
@@ -257,6 +259,11 @@ real_source_target = rule(
         "starlark_srcs": attr.label_list(
             doc = "Starlark files checked by quality aspects.",
             allow_files = [".bzl", ".bazel"],
+            default = [],
+        ),
+        "bicep_srcs": attr.label_list(
+            doc = "Bicep files checked by quality aspects.",
+            allow_files = [".bicep", ".bicepparam"],
             default = [],
         ),
         "cue_srcs": attr.label_list(

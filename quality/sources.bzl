@@ -61,6 +61,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "python",
     "python_stub",
     "jupyter",
+    "bicep",
     "cue",
     "dart",
     "d",

@@ -712,6 +712,7 @@ rust_test(
         "//apple/provisioning:corpus_starlark",
         "//apple/signing:corpus_starlark",
         "//astro/rules:corpus_starlark",
+        "//bicep/rules:corpus_starlark",
         "//cc/rules:corpus_starlark",
         "//cc/toolchains:corpus_starlark",
         "//cli/entrypoint:corpus_starlark",

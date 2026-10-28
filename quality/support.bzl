@@ -294,7 +294,8 @@ RUBY_RUBOCOP_SUPPORT = {
     "execution": "direct",
     "family": "ruby",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    # Ruby portable builds have no Windows, so rubocop is unsupported on windows_x86_64 and windows_arm64.
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "rubocop",
     "transport": "batched",
@@ -308,7 +309,8 @@ RUBY_STANDARDRB_SUPPORT = {
     "execution": "direct",
     "family": "ruby",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    # Ruby portable builds have no Windows, so standardrb is unsupported on windows_x86_64 and windows_arm64.
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "standardrb",
     "transport": "batched",

@@ -95,7 +95,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Apple | no | `clang_format` | no |
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | Qt | `qmllint` | `qmlformat` | no |
-| API specs | `redocly` on `linux_x86_64` | no | no |
+| API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | CUE | no | `cue` on `linux_x86_64` | no |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | no |

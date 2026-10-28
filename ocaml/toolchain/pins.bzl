@@ -13,7 +13,7 @@ RULES_OCAML_URL = "https://github.com/obazl/rules_ocaml/archive/" + RULES_OCAML_
 OCAML_CELLS = {
     "linux_amd64": struct(
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
-        emitters = ["vm"],
+        emitters = ["sys", "vm"],
         packages = [
             struct(
                 name = "ocaml",

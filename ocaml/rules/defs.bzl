@@ -1,5 +1,6 @@
 """Thin OCaml wrappers over rules_ocaml."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
     "@rules_ocaml//build:providers.bzl",
@@ -22,7 +23,7 @@ load(
     _ocamllex = "ocamllex",
     _ocamlyacc = "ocamlyacc",
 )
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_wrap_forward_kwargs", "dx_with_tag", "DX_NO_COVERAGE_COLLECTOR_TAG")
+load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_with_tag", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ocamllex = _ocamllex
@@ -35,6 +36,10 @@ OCAML_COMPATIBLE_WITH = [
 ]
 
 OCAML_TOOLCHAIN_FLAG = "@rules_ocaml//toolchain"
+
+OCAML_EMITTER_FLAG = str(Label("//ocaml/toolchain:emitter"))
+
+NATIVE_TOOLCHAIN = "ocamlopt.opt"
 
 UPSTREAM_DEFAULT_TOOLCHAIN = "ocamlopt.opt"
 
@@ -62,16 +67,18 @@ _FORWARDED = [
     _OcamlNsSubmoduleMarker,
 ]
 
-def toolchain_choice(current):
-    """Returns the rules_ocaml toolchain to build with; the bytecode compiler replaces the upstream default."""
+def toolchain_choice(current, emitter):
+    """Returns the rules_ocaml toolchain to build with: the emitter flag picks the native or the bytecode cell, and an explicit toolchain is kept."""
+    if emitter == "sys":
+        return NATIVE_TOOLCHAIN
     return OCAML_DEFAULT_TOOLCHAIN if current == UPSTREAM_DEFAULT_TOOLCHAIN else current
 
 def _toolchain_impl(settings, _attr):
-    return {OCAML_TOOLCHAIN_FLAG: toolchain_choice(settings[OCAML_TOOLCHAIN_FLAG])}
+    return {OCAML_TOOLCHAIN_FLAG: toolchain_choice(settings[OCAML_TOOLCHAIN_FLAG], settings[OCAML_EMITTER_FLAG])}
 
 _toolchain = transition(
     implementation = _toolchain_impl,
-    inputs = [OCAML_TOOLCHAIN_FLAG],
+    inputs = [OCAML_TOOLCHAIN_FLAG, OCAML_EMITTER_FLAG],
     outputs = [OCAML_TOOLCHAIN_FLAG],
 )
 
@@ -141,9 +148,20 @@ def _launcher_impl(ctx):
     bytecode = info.files_to_run.executable
     if bytecode == None:
         fail("ocaml_*: upstream target has no executable: " + str(upstream.label))
+    launcher = ctx.actions.declare_file(ctx.label.name)
+    if ctx.attr._emitter[BuildSettingInfo].value == "sys":
+        ctx.actions.symlink(output = launcher, target_file = bytecode, is_executable = True)
+        runfiles = ctx.runfiles([launcher, bytecode]).merge_all(
+            [info.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
+        )
+        return [
+            DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
+            coverage_common.instrumented_files_info(ctx, dependency_attributes = ["upstream"]),
+            dx_quality_sources(ctx.files.srcs, _OCAML, str(ctx.label)),
+            _run_environment_info(ctx, upstream),
+        ]
     runtime = ctx.attr._ocamlrun[DefaultInfo]
     ocamlrun = runtime.files.to_list()[0]
-    launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(
         launcher,
         launcher_script(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)),
@@ -164,6 +182,7 @@ def _launcher_attrs(extra = None):
     attrs.update(dx_forward_data_attr())
     attrs["env"] = attr.string_dict(doc = "Environment variables set when the executable runs.")
     attrs["env_inherit"] = attr.string_list(doc = "Environment variable names passed through from the caller.")
+    attrs["_emitter"] = attr.label(default = OCAML_EMITTER_FLAG, providers = [BuildSettingInfo], doc = "The emitter flag: sys links native executables, vm bytecode.")
     attrs["_ocamlrun"] = attr.label(default = "@dx_ocaml_toolchains//:ocamlrun", allow_files = True)
     return attrs
 
@@ -202,8 +221,14 @@ def with_defaults(kwargs):
     return out
 
 def link_kwargs(kwargs):
-    """Returns binary kwargs that link plain bytecode for the runfiles ocamlrun."""
-    out = dx_append_flags(kwargs, "opts", OCAML_LINK_OPTS)
+    """Returns binary kwargs that link plain bytecode for the runfiles ocamlrun when the emitter is vm; native links take no extra opts."""
+    vm_opts = select({
+        Label("//ocaml/toolchain:emitter_vm"): OCAML_LINK_OPTS,
+        "//conditions:default": [],
+    })
+    out = dict(kwargs)
+    opts = out.get("opts")
+    out["opts"] = vm_opts if opts == None else opts + vm_opts
     if out.get("vm_linkage") == None:
         out["vm_linkage"] = "dynamic"
     return out

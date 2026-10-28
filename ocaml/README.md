@@ -1,7 +1,9 @@
 # OCaml
 
 Build, run and test OCaml with a pinned OCaml 5.5.2 from conda-forge.
-Programs compile to bytecode and run on the pinned `ocamlrun`. Nothing is
+Programs compile to bytecode by default and run on the pinned `ocamlrun`;
+`--@rules_dx//ocaml/toolchain:emitter=sys` builds native executables instead
+(see [Native code](#native-code)). Nothing is
 installed on the host and nothing is fetched until a target needs it.
 rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 
@@ -76,6 +78,43 @@ ocaml_test(
 - `ocamllex` and `ocamlyacc` are re-exported unchanged.
 - Data files of a binary or test are in its runfiles.
 
+## Native code
+
+`--@rules_dx//ocaml/toolchain:emitter=sys` switches every OCaml target to the
+native `ocamlopt` of the pinned install. The default, `vm`, builds bytecode.
+`ocaml_binary` and `ocaml_test` run the native executable directly.
+
+`ocamlopt` assembles and links with the rules_dx LLVM C toolchain (clang,
+LLD, `llvm-ar`), the same one `cc_library` uses. The toolchain sets the
+`CONDA_OCAML_*` variables to those tools, so no host `as`, `cc` or `ld` runs.
+Only `bash` and the other tools in `/usr/bin` and `/bin` that the conda
+wrapper scripts need come from the host.
+
+C stubs are `cc_library` targets named in `cc_deps` of the module that
+declares the `external`:
+
+```python
+cc_library(
+    name = "stub",
+    srcs = ["stub.c"],
+    hdrs = ["stub.h"],
+)
+
+ocaml_module(
+    name = "binding",
+    struct = "binding.ml",
+    cc_deps = {":stub": "static"},
+)
+```
+
+A stub whose symbol is not reachable through `cc_deps` fails at link time.
+C stubs are not supported in the bytecode cell.
+
+Native builds need a patch to rules_ocaml, `patches/rules_ocaml/native_cc_env.patch`.
+It passes the toolchain `cc_link_env_vars` and the C toolchain files to the
+compiler actions and changes nothing when the field is empty, so bytecode
+actions are unchanged.
+
 ## Formatting and linting
 
 No OCaml formatter or linter runs. The rules tag every target `no-format`,
@@ -87,7 +126,7 @@ skip it. The compiler is the type check.
 | Cell | Emitter | Status |
 | --- | --- | --- |
 | `linux_x86_64` | bytecode (`vm`) | Qualified |
-| `linux_x86_64` | native | Not qualified |
+| `linux_x86_64` | native (`sys`) | Tested, not yet qualified |
 | `linux_arm64` | any | Not qualified |
 | `macos_x86_64` | any | Not qualified |
 | `macos_arm64` | any | Not qualified |

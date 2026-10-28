@@ -16,6 +16,13 @@ def _closure_impl(ctx):
 
 _closure_test = analysistest.make(_closure_impl)
 
+def _external_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, "cross-repo capnp schemas are unsupported")
+    return analysistest.end(env)
+
+_external_test = analysistest.make(_external_impl, expect_failure = True)
+
 def capnp_library_tests(name):
     """Instantiates the capnp_library analysis tests.
 
@@ -25,4 +32,6 @@ def capnp_library_tests(name):
     capnp_library(name = name + "_base", srcs = ["testdata/base.capnp"], tags = ["manual"])
     capnp_library(name = name + "_top", srcs = ["testdata/top.capnp"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top")
-    native.test_suite(name = name, tests = [":" + name + "_closure_test"])
+    capnp_library(name = name + "_external", srcs = ["//capnproto:std"], tags = ["manual"])
+    _external_test(name = name + "_external_test", target_under_test = ":" + name + "_external")
+    native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_external_test"])

@@ -29,6 +29,9 @@ def std_import_path(short_path):
 
 def _capnp_library_impl(ctx):
     direct = ctx.files.srcs
+    for f in direct:
+        if f.short_path.startswith("../"):
+            fail("capnp_library %s: schema %s is in another Bazel repository; cross-repo capnp schemas are unsupported because imports resolve from the main workspace root" % (ctx.label, f.short_path))
     own = [struct(path = f.short_path, file = f) for f in direct]
     std = [struct(path = std_import_path(f.short_path), file = f) for f in ctx.files._std]
     transitive = depset(

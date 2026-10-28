@@ -116,6 +116,7 @@ pub fn parse_capnp(
     let mut findings = Vec::new();
     let mut errors = 0usize;
     let mut own_errors = 0usize;
+    let mut foreign_error: Option<String> = None;
     for line in err.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -137,6 +138,12 @@ pub fn parse_capnp(
             errors += 1;
         }
         let Some(file) = files.iter().find(|file| **file == found.path) else {
+            if found.severity == ToolSeverity::Error && foreign_error.is_none() {
+                foreign_error = Some(format!(
+                    "{}:{}:{}: {}",
+                    found.path, found.line, found.column, found.message
+                ));
+            }
             continue;
         };
         if found.severity == ToolSeverity::Error {
@@ -156,6 +163,18 @@ pub fn parse_capnp(
             message,
         ));
     }
+    if code == Some(1) && own_errors == 0 {
+        if let (Some(detail), Some(file)) = (foreign_error, files.first()) {
+            findings.push(finding(
+                file,
+                ToolSeverity::Error,
+                1,
+                1,
+                &format!("blocked by an error in an imported schema: {detail}"),
+            ));
+            return Ok(findings);
+        }
+    }
     match code {
         Some(0) if errors > 0 => Err(ParseError::shape(
             TOOL,
@@ -174,6 +193,13 @@ mod tests {
     use super::*;
 
     const FILE: &str = "pkg/a.capnp";
+
+    #[test]
+    fn dependency_error_blocks_checked_file() {
+        let found =
+            parse_capnp(b"dep/b.capnp:2:1-4: error: boom\n", Some(1), &[FILE]).expect("finding");
+        assert_eq!(found.len(), 1);
+    }
 
     #[test]
     fn clean_run_has_no_findings() {
@@ -248,7 +274,10 @@ stack: 1 2 3\n";
         let err = b"pkg/a.capnp:1:2: error: m\n";
         assert!(parse_capnp(err, Some(0), &[FILE]).is_err());
         let other = b"pkg/other.capnp:1:2: error: m\n";
-        assert!(parse_capnp(other, Some(1), &[FILE]).is_err());
+        assert_eq!(
+            parse_capnp(other, Some(1), &[FILE]).expect("blocked").len(),
+            1
+        );
         assert!(parse_capnp(b"\xff\xfe\n", Some(0), &[FILE]).is_err());
     }
 }

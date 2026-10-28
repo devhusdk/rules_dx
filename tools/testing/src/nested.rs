@@ -559,6 +559,23 @@ mod signal {
     pub fn alive(pid: u32) -> bool {
         send(pid, 0)
     }
+
+    #[cfg(target_os = "linux")]
+    const STOP: i32 = 19;
+    #[cfg(target_os = "linux")]
+    const CONT: i32 = 18;
+    #[cfg(not(target_os = "linux"))]
+    const STOP: i32 = 17;
+    #[cfg(not(target_os = "linux"))]
+    const CONT: i32 = 19;
+
+    pub fn suspend(pid: u32) -> bool {
+        send(pid, STOP)
+    }
+
+    pub fn resume(pid: u32) -> bool {
+        send(pid, CONT)
+    }
 }
 
 #[cfg(windows)]
@@ -573,7 +590,14 @@ mod signal {
     const SYNCHRONIZE: u32 = 0x0010_0000;
     const PROCESS_TERMINATE: u32 = 0x0001;
     const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    const PROCESS_SUSPEND_RESUME: u32 = 0x0800;
     const WAIT_TIMEOUT: u32 = 0x0000_0102;
+
+    #[link(name = "ntdll", kind = "raw-dylib")]
+    unsafe extern "system" {
+        fn NtSuspendProcess(process: Handle) -> i32;
+        fn NtResumeProcess(process: Handle) -> i32;
+    }
 
     unsafe extern "system" {
         fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
@@ -608,6 +632,26 @@ mod signal {
         }
         waited == WAIT_TIMEOUT
     }
+
+    fn with_handle(pid: u32, act: unsafe extern "system" fn(Handle) -> i32) -> bool {
+        let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
+        if handle.is_null() {
+            return false;
+        }
+        let status = unsafe { act(handle) };
+        unsafe {
+            CloseHandle(handle);
+        }
+        status >= 0
+    }
+
+    pub fn suspend(pid: u32) -> bool {
+        with_handle(pid, NtSuspendProcess)
+    }
+
+    pub fn resume(pid: u32) -> bool {
+        with_handle(pid, NtResumeProcess)
+    }
 }
 
 #[cfg(not(any(unix, windows)))]
@@ -621,6 +665,44 @@ mod signal {
 
     pub fn alive(_pid: u32) -> bool {
         false
+    }
+
+    pub fn suspend(_pid: u32) -> bool {
+        false
+    }
+
+    pub fn resume(_pid: u32) -> bool {
+        false
+    }
+}
+
+/// A process frozen by `suspend`; it is resumed on drop.
+pub struct Suspended {
+    pid: u32,
+    held: bool,
+}
+
+/// Freezes every thread of `pid` until the guard resumes or drops.
+pub fn suspend(pid: u32) -> Result<Suspended, String> {
+    if signal::suspend(pid) {
+        Ok(Suspended { pid, held: true })
+    } else {
+        Err(format!("cannot suspend process {pid}"))
+    }
+}
+
+impl Suspended {
+    /// Resumes the process now; later calls and the drop do nothing.
+    pub fn resume(&mut self) -> bool {
+        let done = self.held && signal::resume(self.pid);
+        self.held = false;
+        done
+    }
+}
+
+impl Drop for Suspended {
+    fn drop(&mut self) {
+        self.resume();
     }
 }
 
@@ -3085,5 +3167,89 @@ mod portable_tests {
                 "{name} is read by from_parts but the root .bazelrc has no `test --test_env={name}`"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod suspend_tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn heartbeat(file: &Path) -> std::process::Child {
+        #[cfg(unix)]
+        let mut command = {
+            let mut command = std::process::Command::new("sh");
+            command.arg("-c").arg(format!(
+                "while true; do echo x >> '{}'; sleep 0.02; done",
+                file.display()
+            ));
+            command
+        };
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = std::process::Command::new("powershell");
+            command.args(["-NoProfile", "-Command"]).arg(format!(
+                "while ($true) {{ Add-Content -Path '{}' -Value x; Start-Sleep -Milliseconds 20 }}",
+                file.display()
+            ));
+            command
+        };
+        command.spawn().expect("spawn heartbeat")
+    }
+
+    fn size(file: &Path) -> u64 {
+        std::fs::metadata(file).map_or(0, |meta| meta.len())
+    }
+
+    fn wait_for_growth(file: &Path, from: u64) -> bool {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while std::time::Instant::now() < deadline {
+            if size(file) > from {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        false
+    }
+
+    #[test]
+    fn suspend_stops_a_child_and_resume_restarts_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("beat");
+        let mut child = heartbeat(&file);
+        assert!(wait_for_growth(&file, 0));
+        let mut frozen = suspend(child.id()).expect("suspend");
+        std::thread::sleep(Duration::from_millis(200));
+        let held = size(&file);
+        std::thread::sleep(Duration::from_millis(500));
+        assert_eq!(size(&file), held, "the child kept running while suspended");
+        assert!(frozen.resume());
+        assert!(wait_for_growth(&file, held), "the child did not restart");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn dropping_the_guard_resumes_the_child() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("beat");
+        let mut child = heartbeat(&file);
+        assert!(wait_for_growth(&file, 0));
+        let frozen = suspend(child.id()).expect("suspend");
+        std::thread::sleep(Duration::from_millis(200));
+        let held = size(&file);
+        drop(frozen);
+        assert!(wait_for_growth(&file, held), "the child did not restart");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn suspending_a_dead_pid_fails() {
+        let mut child = heartbeat(&std::env::temp_dir().join("nested-suspend-dead"));
+        let pid = child.id();
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(suspend(pid).is_err());
     }
 }

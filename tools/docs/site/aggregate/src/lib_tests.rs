@@ -533,3 +533,27 @@ fn vue_components_group_their_members_by_kind() {
     let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");
     assert_eq!(records.as_array().expect("records").len(), 6);
 }
+
+#[test]
+fn python_symbols_render_with_a_python_fence_and_title() {
+    let shard = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "python".to_string(),
+        package: "mylib".to_string(),
+        symbols: vec![symbol(
+            "python:mylib:greet",
+            "def greet(name: str) -> str",
+            "Greets.",
+            3,
+        )],
+    };
+    let rendered = render(&[shard], "https://example.com/blob/main/").expect("render");
+    let page = &rendered.pages["python/mylib/greet.md"];
+    assert!(
+        page.contains("```python\ndef greet(name: str) -> str\n```\n"),
+        "{page}"
+    );
+    let all: String = rendered.pages.values().cloned().collect();
+    assert!(all.contains("Python package `mylib`"), "{all}");
+}

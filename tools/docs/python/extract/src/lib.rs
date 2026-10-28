@@ -30,12 +30,14 @@ const ROOT_SEGMENT: &str = "__init__";
 pub struct Options {
     pub json: String,
     pub package: String,
+    pub root: String,
+    pub srcs: String,
     pub out: String,
 }
 
 /// The usage line shown for a rejected invocation.
 pub fn usage() -> &'static str {
-    "usage: python_extract --json FILE --package NAME --out FILE"
+    "usage: python_extract --json FILE --package NAME --root DIR --srcs FILE --out FILE"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
@@ -47,6 +49,8 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         let slot = match flag {
             "--json" => &mut options.json,
             "--package" => &mut options.package,
+            "--root" => &mut options.root,
+            "--srcs" => &mut options.srcs,
             "--out" => &mut options.out,
             _ => return Err(format!("unknown argument '{flag}'")),
         };
@@ -65,6 +69,8 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     for (flag, value) in [
         ("--json", &options.json),
         ("--package", &options.package),
+        ("--root", &options.root),
+        ("--srcs", &options.srcs),
         ("--out", &options.out),
     ] {
         if value.is_empty() {
@@ -78,10 +84,40 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.json)
         .map_err(|error| format!("cannot read {}: {error}", options.json))?;
-    let shard = convert(&json, &options.package)?;
+    let manifest = fs::read_to_string(&options.srcs)
+        .map_err(|error| format!("cannot read {}: {error}", options.srcs))?;
+    let sources = parse_sources(&manifest)?;
+    let root = options.root.trim_end_matches('/');
+    let shard = convert_mapped(&json, &options.package, &|file| {
+        let staged = format!("{root}/{file}");
+        sources
+            .get(&staged)
+            .cloned()
+            .ok_or_else(|| format!("source '{staged}' is not in the srcs manifest"))
+    })?;
     let bytes = documentation_ir::encode_shard(&shard)
         .map_err(|error| format!("cannot encode IR: {error:?}"))?;
     fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+}
+
+/// Parses a srcs manifest into staged path -> (repo-relative path, generated).
+pub fn parse_sources(manifest: &str) -> Result<BTreeMap<String, (String, bool)>, String> {
+    let mut sources = BTreeMap::new();
+    for line in manifest.lines().filter(|line| !line.is_empty()) {
+        let columns: Vec<&str> = line.split('\t').collect();
+        let generated = match columns.as_slice() {
+            [_, rel, flag] if !rel.is_empty() && !rel.starts_with('/') && !rel.contains("..") => {
+                match *flag {
+                    "0" => false,
+                    "1" => true,
+                    _ => return Err(format!("malformed srcs manifest line '{line}'")),
+                }
+            }
+            _ => return Err(format!("malformed srcs manifest line '{line}'")),
+        };
+        sources.insert(columns[0].to_owned(), (columns[1].to_owned(), generated));
+    }
+    Ok(sources)
 }
 
 /// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
@@ -543,6 +579,14 @@ fn draft(def: &Value, parent: Option<&Value>) -> Draft {
 
 /// Converts one driver JSON document into a validated IR shard of one package.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+    convert_mapped(json, package, &|file| Ok((file.to_owned(), false)))
+}
+
+/// Source mapper: griffe's package-relative file to (repo-relative file, generated).
+pub type SourceMap<'a> = &'a dyn Fn(&str) -> Result<(String, bool), String>;
+
+/// Like [`convert`], with every source path mapped through `map`.
+pub fn convert_mapped(json: &str, package: &str, map: SourceMap) -> Result<DocIr, String> {
     if package.is_empty()
         || package.contains([':', '.'])
         || package.chars().any(char::is_whitespace)
@@ -664,6 +708,11 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
             extensions.push(extension(KEY_INCOMPLETE, &incomplete.join(";")));
         }
         let file = text(def, "relative_package_filepath");
+        let mapped = if file.is_empty() {
+            None
+        } else {
+            Some(map(file)?)
+        };
         symbols.push(Symbol {
             id: join_id(package, &path),
             kind: draft.kind as i32,
@@ -672,10 +721,10 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
             params: draft.params,
             returns: draft.returns,
             examples: examples(def),
-            source: (!file.is_empty()).then(|| SourceRef {
-                file: file.to_owned(),
+            source: mapped.map(|(file, generated)| SourceRef {
+                file,
                 line: def.get("lineno").and_then(Value::as_u64).unwrap_or(0),
-                generated: false,
+                generated,
             }),
             visibility: Visibility::Public as i32,
             relations,

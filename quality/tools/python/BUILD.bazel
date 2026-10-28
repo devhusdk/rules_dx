@@ -71,6 +71,7 @@ py_binary(
         "tool_bootstrap.py",
     ],
     dep_group = "dx-python-tools",
+    imports = ["."],
     main = "griffe_dump.py",
     visibility = ["//tools/docs/python:__subpackages__"],
     deps = ["@pypi//griffelib"],

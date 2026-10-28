@@ -532,6 +532,50 @@ impl RealBackend {
                     parsers::parse_spotbugs(&out.stdout, out.code, &strs),
                 )
             }
+            "dialyzer" => {
+                let staged = |prefix: &str| -> Vec<PathBuf> {
+                    let mut rels: Vec<&String> = tool
+                        .tool_files
+                        .iter()
+                        .map(|(rel, _)| rel)
+                        .filter(|rel| rel.starts_with(prefix))
+                        .collect();
+                    rels.sort();
+                    rels.into_iter()
+                        .map(|rel| scratch.root().join(rel))
+                        .collect()
+                };
+                let plts = staged("dx-dialyzer/plt/");
+                let beams: Vec<PathBuf> = staged("dx-dialyzer/owned/")
+                    .into_iter()
+                    .chain(staged("dx-dialyzer/aux/"))
+                    .collect();
+                let plt_refs: Vec<&Path> = plts.iter().map(PathBuf::as_path).collect();
+                let beam_refs: Vec<&Path> = beams.iter().map(PathBuf::as_path).collect();
+                // Beams built with +deterministic name sources by basename; the first owned
+                // path in sorted order stands for every owned file of that name.
+                let mut sorted_names: Vec<&String> = names.iter().collect();
+                sorted_names.sort();
+                let mut owned_names: std::collections::BTreeMap<&str, &str> =
+                    std::collections::BTreeMap::new();
+                for name in sorted_names {
+                    let base = name.rsplit('/').next().unwrap_or(name);
+                    owned_names.entry(base).or_insert(name.as_str());
+                }
+                let base_names: Vec<&str> = owned_names.keys().copied().collect();
+                let invocation = commands::dialyzer_check(&tool.binary, &plt_refs, &beam_refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_dialyzer(&out.stdout, out.code, &base_names),
+                )?;
+                for found in &mut findings {
+                    if let Some(path) = owned_names.get(found.file.as_str()) {
+                        (*path).clone_into(&mut found.file);
+                    }
+                }
+                Ok(findings)
+            }
             "ktlint" => {
                 let invocation = commands::ktlint_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

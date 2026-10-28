@@ -2386,3 +2386,30 @@ fn helm_argv_keeps_value_order_and_never_fetches() {
 fn helm_is_a_single_transport_tool() {
     assert_eq!(transport_for("helm"), ArgTransport::Single);
 }
+
+#[test]
+fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
+    let invocation = dialyzer_check(
+        Path::new(BIN),
+        &[Path::new("/s/core.plt"), Path::new("/s/ext.plt")],
+        &[Path::new("/s/a.beam"), Path::new("/s/b.beam")],
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--plts",
+            "/s/core.plt",
+            "/s/ext.plt",
+            "--no_check_plt",
+            "--no_indentation",
+            "--error_location",
+            "column",
+            "--",
+            "/s/a.beam",
+            "/s/b.beam"
+        ]
+    );
+    let bare = dialyzer_check(Path::new(BIN), &[], &[Path::new("/s/a.beam")]);
+    assert!(!argv_strings(&bare).contains(&"--plts".to_owned()));
+}

@@ -22,6 +22,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//quality:support.bzl", "support_unpinned_tools")
@@ -126,6 +127,14 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "rego",
+    },
+    "dialyzer": {
+        "attr": attr.label(default = "//config:tool_dialyzer", allow_files = True, cfg = "exec"),
+        "capabilities": ["typecheck"],
+        "fallback": "=@rules_dx//erlang/tools:dialyzer",
+        "kind": "setting",
+        "resources": "heavy",
+        "shard": "core",
     },
     "elvis": {
         "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
@@ -1019,6 +1028,23 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 spotbugs_owned = sorted(owned.values(), key = lambda f: f.short_path)
                 spotbugs_aux = sorted(auxiliary.values(), key = lambda f: f.short_path)
 
+    dialyzer_owned = []
+    dialyzer_aux = []
+    dialyzer_plts = []
+    if "dialyzer" in [stage["tool"] for stage in resolved]:
+        if BeamInfo not in target or len(target[BeamInfo].owned.to_list()) == 0:
+            resolved = drop_pipeline_tool(resolved, "dialyzer")
+            if len(resolved) == 0:
+                return []
+        else:
+            tool_target = getattr(ctx.attr, "_dialyzer")
+            if DialyzerToolInfo not in tool_target:
+                fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer")
+            dialyzer_plts = tool_target[DialyzerToolInfo].plts
+            dialyzer_owned = sorted(target[BeamInfo].owned.to_list(), key = lambda f: f.short_path)
+            owned_paths = {f.path: True for f in dialyzer_owned}
+            dialyzer_aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
+
     scalafix_owned = []
     scalafix_aux = []
     if "scalafix" in [stage["tool"] for stage in resolved]:
@@ -1269,6 +1295,20 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for index, jar in enumerate(spotbugs_aux):
                 tool_files.append(real_request_tool_file("dx-spotbugs/aux/%d-%s" % (index, jar.basename), jar.path))
                 inputs.append(jar)
+        if tool == "dialyzer":
+            for index, plt in enumerate(dialyzer_plts):
+                tool_files.append(real_request_tool_file("dx-dialyzer/plt/%s-%s" % (("000" + str(index))[-3:], plt.basename), plt.path))
+                inputs.append(plt)
+            for index, beam in enumerate(dialyzer_owned):
+                tool_files.append(real_request_tool_file("dx-dialyzer/owned/%d/%s" % (index, beam.basename), beam.path))
+                inputs.append(beam)
+            seen_aux = {}
+            for index, beam in enumerate(dialyzer_aux):
+                if beam.path in seen_aux:
+                    continue
+                seen_aux[beam.path] = True
+                tool_files.append(real_request_tool_file("dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam.path))
+                inputs.append(beam)
         if tool == "scalafix":
             for index, jar in enumerate(scalafix_owned):
                 tool_files.append(real_request_tool_file("dx-scalafix/owned/%d-%s" % (index, jar.basename), jar.path))

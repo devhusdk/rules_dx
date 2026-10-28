@@ -4,6 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "lcov_apps_dirs", "runfiles_path")
+load(":providers.bzl", "BeamInfo")
 
 def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
@@ -75,3 +76,22 @@ def erlang_coverage_env_test(name, target, apps_dirs, source):
     """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then."""
     _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps_dirs = apps_dirs, source = source)
     _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target, apps_dirs = "")
+
+def _beam_info_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.true(env, BeamInfo in target, "erlang_app must carry BeamInfo")
+    info = target[BeamInfo]
+    owned = sorted([f.basename for f in info.owned.to_list()])
+    asserts.equals(env, ctx.attr.owned, owned)
+    asserts.equals(env, ctx.attr.app_name, info.app_name)
+    return analysistest.end(env)
+
+_beam_info_test = analysistest.make(
+    _beam_info_impl,
+    attrs = {"app_name": attr.string(), "owned": attr.string_list()},
+)
+
+def erlang_beam_info_test(name, target, app_name, owned):
+    """Asserts an erlang_app exports its compiled beams in BeamInfo."""
+    _beam_info_test(name = name, size = "small", target_under_test = target, app_name = app_name, owned = owned)

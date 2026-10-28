@@ -1048,7 +1048,12 @@ fn prettier_external_config_argv(
     cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
-    prettier_config_argv_ending(argv, cwd, env, "_external/shared_prettier+/cfg/.prettierrc.json")
+    prettier_config_argv_ending(
+        argv,
+        cwd,
+        env,
+        "_external/shared_prettier+/cfg/.prettierrc.json",
+    )
 }
 
 fn never_spawned(
@@ -3841,4 +3846,97 @@ fn notebook_outputs_settles_only_the_exact_strip() {
         NOTEBOOK_DIRTY.replace("# Title", "# Other"),
     )
     .expect_err("any other rewrite is refused");
+}
+
+fn dialyzer_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let plts = text.iter().position(|a| a == "--plts").expect("plts flag");
+    assert!(
+        text[plts + 1].ends_with("dx-dialyzer/plt/000-core.plt"),
+        "{text:?}"
+    );
+    assert!(
+        text[plts + 2].ends_with("dx-dialyzer/plt/001-ext.plt"),
+        "{text:?}"
+    );
+    assert_eq!(text[plts + 3], "--no_check_plt");
+    let sep = text.iter().position(|a| a == "--").expect("separator");
+    let beams = &text[sep + 1..];
+    assert_eq!(beams.len(), 2, "{beams:?}");
+    assert!(beams[0].contains("dx-dialyzer/owned/") && beams[0].ends_with("/a.beam"));
+    assert!(beams[1].contains("dx-dialyzer/aux/") && beams[1].ends_with("/dep.beam"));
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: b"  Proceeding with analysis...\na.erl:3:2: Function f/0 has no local return\ndep.erl:9:1: Function x/0 has no local return\nUnknown functions:\n  foo:bar/1 (a.erl:5:5)\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn dialyzer_tool() -> RealTool {
+    RealTool {
+        tool_files: vec![
+            ("dx-dialyzer/plt/001-ext.plt".to_owned(), b"e".to_vec()),
+            ("dx-dialyzer/plt/000-core.plt".to_owned(), b"c".to_vec()),
+            ("dx-dialyzer/aux/0/dep.beam".to_owned(), b"d".to_vec()),
+            ("dx-dialyzer/owned/0/a.beam".to_owned(), b"a".to_vec()),
+        ],
+        ..plain_tool()
+    }
+}
+
+const DIALYZER_SRC: &str = "-module(a).\n\nf() -> ok.\ng() ->\n    foo:bar(1), ok.\n";
+
+#[test]
+fn dialyzer_orders_plts_keeps_owned_findings_and_maps_basenames() {
+    let backend = backend_for("dialyzer", dialyzer_tool(), dialyzer_report);
+    let findings = backend
+        .diagnose(
+            "dialyzer",
+            "typecheck",
+            &single("lib/src/a.erl", DIALYZER_SRC),
+        )
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(
+        seen,
+        vec![
+            ("lib/src/a.erl", "no_return"),
+            ("lib/src/a.erl", "unknown_function")
+        ]
+    );
+}
+
+#[test]
+fn dialyzer_shared_basenames_resolve_to_the_first_sorted_path() {
+    let backend = backend_for("dialyzer", dialyzer_tool(), dialyzer_report);
+    let mut files = single("z/src/a.erl", DIALYZER_SRC);
+    files.insert("b/src/a.erl".to_owned(), DIALYZER_SRC.to_owned());
+    let findings = backend
+        .diagnose("dialyzer", "typecheck", &files)
+        .expect("diagnosed");
+    assert!(
+        findings.iter().all(|f| f.path == "b/src/a.erl"),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn dialyzer_is_check_only() {
+    let backend = backend_for("dialyzer", dialyzer_tool(), dialyzer_report);
+    assert_eq!(
+        backend
+            .apply_fix("dialyzer", "lib/src/a.erl", DIALYZER_SRC, "typecheck")
+            .expect("check-only"),
+        DIALYZER_SRC
+    );
 }

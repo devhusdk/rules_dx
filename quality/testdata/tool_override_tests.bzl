@@ -5,7 +5,7 @@ load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
-load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
+load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect", "real_typecheck_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 _CANONICAL = "@@"  # buildifier: disable=canonical-repository
@@ -41,6 +41,9 @@ _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
 _ERLANG_LINT_POLICY = _CANONICAL + "//quality/testdata:erlang_lint_policy"
 _ELVIS_SETTING = _CANONICAL + "//config:tool_elvis"
 _ELVIS_TOOL = _CANONICAL + "//erlang/tools:elvis"
+_ERLANG_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:erlang_typecheck_policy"
+_DIALYZER_SETTING = _CANONICAL + "//config:tool_dialyzer"
+_DIALYZER_TOOL = _CANONICAL + "//erlang/tools:dialyzer"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/tools:mix_format"
@@ -218,6 +221,22 @@ erlang_subject = rule(
         "_erlfmt": attr.label(default = "//config:tool_erlfmt"),
         "target": attr.label(
             aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _erlang_typecheck_subject_impl(ctx):
+    """Exposes the dialyzer request files beside the real aspect."""
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = {"results": ",".join([f.short_path for f in results])})]
+
+erlang_typecheck_subject = rule(
+    implementation = _erlang_typecheck_subject_impl,
+    attrs = {
+        "_dialyzer": attr.label(default = "//config:tool_dialyzer"),
+        "target": attr.label(
+            aspects = [real_typecheck_aspect],
             mandatory = True,
         ),
     },
@@ -793,4 +812,40 @@ def tool_override_tests(name, subject):
         size = "small",
         target_under_test = subject,
         expected_failure_substring = "fixture_policy' must produce a single file",
+    )
+
+_dialyzer_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ERLANG_TYPECHECK_POLICY},
+)
+
+def _dialyzer_wired_impl(ctx):
+    """Asserts the flag wires a typecheck stage result for the erlang target."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["results"] != "", "want a typecheck stage result for the erlang target")
+    return analysistest.end(env)
+
+_dialyzer_set_test = analysistest.make(
+    _dialyzer_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ERLANG_TYPECHECK_POLICY,
+        _DIALYZER_SETTING: _DIALYZER_TOOL,
+    },
+)
+
+def dialyzer_flag_tests(name, subject):
+    """Instantiates the dialyzer flag proofs."""
+    _dialyzer_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_dialyzer",
+    )
+    _dialyzer_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
     )

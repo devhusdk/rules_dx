@@ -26,6 +26,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "cue",
     "deadnix",
     "dfmt",
+    "dialyzer",
     "dscanner",
     "djlint",
     "elvis",

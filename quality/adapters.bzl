@@ -43,6 +43,7 @@ REAL_ADAPTERS = {
     "dfmt": {"format": ["d"]},
     "djlint": {"format": ["html_template"], "lint": ["html_template"]},
     "dscanner": {"lint": ["d"]},
+    "dialyzer": {"typecheck": ["erlang"]},
     "elvis": {"lint": ["erlang"]},
     "erlfmt": {"format": ["erlang"]},
     "errcheck": {"lint": ["go"]},

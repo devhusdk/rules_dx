@@ -599,6 +599,7 @@ rust_test(
         "//examples/cpp-app/core:corpus_starlark",
         "//examples/cpp-app/diagnostics:corpus_starlark",
         "//examples/cuda-app/checks:corpus_starlark",
+        "//examples/dart-app/failures:corpus_starlark",
         "//examples/java-app/cli:corpus_starlark",
         "//examples/java-app/diagnostics:corpus_starlark",
         "//examples/julia-app/diagnostics:corpus_starlark",

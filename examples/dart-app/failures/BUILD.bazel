@@ -1,0 +1,35 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+# Each target fails on purpose. They are manual so //... never builds them.
+
+dart_binary(
+    name = "type_error",
+    main = "type_error.dart",
+    tags = ["manual"],
+)
+
+dart_binary(
+    name = "undeclared_dep",
+    main = "undeclared_dep.dart",
+    tags = ["manual"],
+)
+
+dart_binary(
+    name = "missing_part",
+    main = "missing_part.dart",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//examples:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
+)

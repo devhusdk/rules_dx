@@ -1,0 +1,34 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_compatible_with", "dart_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = ["//examples/dart-app:__subpackages__"])
+
+genrule(
+    name = "schema_g_dart",
+    srcs = ["schema.json"],
+    outs = ["lib/schema.g.dart"],
+    cmd = "$(location //examples/dart-app/gen:gen_schema) $< $@",
+    target_compatible_with = dart_compatible_with([]),
+    tools = ["//examples/dart-app/gen:gen_schema"],
+)
+
+dart_library(
+    name = "model",
+    package_name = "model",
+    srcs = [
+        "lib/model.dart",
+        ":schema_g_dart",
+    ],
+    aspect_hints = ["//examples/dart-app:dart_config"],
+    visibility = _PUBLIC,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

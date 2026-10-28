@@ -9,9 +9,9 @@ load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
-load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_platform_case_names")
+load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
+load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CC_CPPCHECK_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -77,7 +77,7 @@ SUPPORT_EVIDENCE_PENDING = [
 
 def _case_proves(case, record, platform):
     """Reports whether one matrix case is evidence for one (record, platform) claim."""
-    if case.get("capability") != record["capability"] or record["tool"] not in case.get("tool_names", []):
+    if case.get("capability") != record["capability"] or record["tool"] not in matrix_case_tools(case):
         return False
     if platform not in matrix_case_platforms(case):
         return False
@@ -192,6 +192,21 @@ def _evidence_checks():
             ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
         ),
         expect_equal(
+            "a rustfmt_from_toolchain case proves a rustfmt claim",
+            unproven_claims([dict(record, tool = "rustfmt")], [dict(case, tool_names = [], rustfmt_from_toolchain = True, macos_arm64 = True)]),
+            [],
+        ),
+        expect_equal(
+            "an upstream_tools case proves nothing",
+            unproven_claims([record], [dict(case, tool_names = [], upstream_tools = ["yamlfmt"], macos_arm64 = True)]),
+            ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "matrix_case_tools plain, toolchain and upstream shapes",
+            [matrix_case_tools({"tool_names": ["a"]}), matrix_case_tools({"rustfmt_from_toolchain": True}), matrix_case_tools({"upstream_tools": ["b"]})],
+            [["a"], ["rustfmt"], []],
+        ),
+        expect_equal(
             "pending evidence list is sorted",
             SUPPORT_EVIDENCE_PENDING,
             sorted(SUPPORT_EVIDENCE_PENDING),
@@ -232,7 +247,7 @@ def _toolchain_platforms():
     }
 
 # Records that must name every platform as either supported or unsupported with a reason comment.
-_COMPLETE_TOOLS = ["credo", "dart", "elvis", "erlfmt", "hlint", "julia_format", "mix_format", "ormolu", "qmlformat", "qmllint", "zig_fmt"]
+_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "ormolu", "qmlformat", "qmllint", "rustfmt", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
@@ -311,6 +326,16 @@ def support_unit_tests(name):
                 "unknown tools stay outside support",
                 [is_support_tool("ty"), support_state("ty")],
                 [False, "unknown"],
+            ),
+            expect_equal(
+                "clang_format, cppcheck and rustfmt records cover five platforms",
+                [r["platforms"] for r in [CC_CLANG_FORMAT_SUPPORT, CUDA_CLANG_FORMAT_SUPPORT, OBJC_CLANG_FORMAT_SUPPORT, CC_CPPCHECK_LINT_SUPPORT, RUST_RUSTFMT_FORMAT_SUPPORT]],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 5,
+            ),
+            expect_equal(
+                "clang_format, cppcheck and rustfmt records fix and context",
+                [[r["fix"], r["context"]] for r in [CC_CLANG_FORMAT_SUPPORT, CUDA_CLANG_FORMAT_SUPPORT, OBJC_CLANG_FORMAT_SUPPORT, CC_CPPCHECK_LINT_SUPPORT, RUST_RUSTFMT_FORMAT_SUPPORT]],
+                [["supported", "owned"], ["supported", "owned"], ["supported", "owned"], ["check_only", "owned"], ["supported", "owned"]],
             ),
             expect_equal(
                 "terraform format record covers four platforms",

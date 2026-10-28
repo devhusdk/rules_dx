@@ -378,6 +378,17 @@ def matrix_case_platforms(case):
         platforms.append("windows_arm64")
     return platforms
 
+def matrix_case_tools(case):
+    """Returns the tool names one matrix case really executes, mirroring the tool binding in the rule impl.
+
+    `tool_names` run their binary; `rustfmt_from_toolchain` adds rustfmt. `upstream_tools` replay
+    recorded output and never run the tool, so they are not listed. Keep in sync with the impl.
+    """
+    tools = list(case.get("tool_names", []))
+    if case.get("rustfmt_from_toolchain", False) and "rustfmt" not in tools:
+        tools.append("rustfmt")
+    return tools
+
 def matrix_platform_case_names(cases, platform):
     """Returns the names of the cases that run on `platform`, per `matrix_case_platforms`."""
     return [case["name"] for case in cases if platform in matrix_case_platforms(case)]

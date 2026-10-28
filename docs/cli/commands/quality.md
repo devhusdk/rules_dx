@@ -244,6 +244,7 @@ to.
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang |
+| `dart` | format | dart |
 | `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
 | `elvis` | lint | erlang |
@@ -329,17 +330,17 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
+  `julia_format`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
   `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
+- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dart`, `dfmt`,
   `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
-  `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
+  `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
   `@rules_dx//erlang/tools:dialyzer`,

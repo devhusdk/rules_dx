@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "defs.bzl",
     "platforms.bzl",
+    "providers.bzl",
     "wrapper_tests.bzl",
 ])
 
@@ -39,6 +40,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "platforms.bzl",
+        "providers.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

@@ -190,6 +190,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "dart",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "julia_format",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -991,6 +997,7 @@ impl super::RealBackend {
                     )),
                 },
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
+                "dart" => Ok(commands::dart_format_fix(&tool.binary, refs)),
                 "julia_format" => Ok(commands::julia_format_fix(&tool.binary, refs)),
                 "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
                 "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),

@@ -22,6 +22,8 @@ load(
     "credo_flag_tests",
     "d_lint_subject",
     "d_subject",
+    "dart_format_flag_tests",
+    "dart_subject",
     "dfmt_flag_tests",
     "dialyzer_flag_tests",
     "dscanner_flag_tests",
@@ -1459,6 +1461,33 @@ zig_subject(
 zig_fmt_flag_tests(
     name = "zig_fmt_flag",
     subject = ":zig_subject",
+)
+
+quality_family(
+    name = "dart_family",
+    disabled = [
+        "audit",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "dart",
+    format = ["dart"],
+)
+
+workspace_policy(
+    name = "dart_policy",
+    families = [":dart_family"],
+)
+
+dart_subject(
+    name = "dart_subject",
+    testonly = True,
+    target = "//dart/tests/runtime:greet",
+)
+
+dart_format_flag_tests(
+    name = "dart_format_flag",
+    subject = ":dart_subject",
 )
 
 quality_family(

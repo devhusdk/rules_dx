@@ -168,6 +168,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "clang_format",
         "cue",
         "csharpier",
+        "dart",
         "dfmt",
         "djlint",
         "erlfmt",
@@ -418,6 +419,90 @@ pub(super) fn fortitude_reports_findings_skips_fixed_form_and_never_trusts_a_fai
     // Fixed-form sources are not handed to the tool, so even a crash text is not run.
     assert!(lint("a.f", "crash\n").expect("check").is_empty());
     assert!(lint("a.f90", "crash\n").is_err());
+}
+
+fn dart_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--suppress-analytics"));
+    assert_eq!(argv[2], OsString::from("format"));
+    let value = |key: &str| {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| value.clone())
+    };
+    assert_eq!(
+        value("DART_SUPPRESS_ANALYTICS"),
+        Some(OsString::from("true"))
+    );
+    assert!(value("HOME").is_none(), "dart format needs no HOME");
+    let writing = argv[3] == OsString::from("--output=write");
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout, stderr) = if text.contains("broken") {
+        (
+            65,
+            "Formatted no files in 0.00 seconds.\n".to_owned(),
+            format!(
+                "Could not format because the source could not be parsed:\n\nline 2, column 1 of {file}: Expected an identifier.\n"
+            ),
+        )
+    } else if text.contains("silent") {
+        (
+            1,
+            "Formatted 1 file (0 changed) in 0.00 seconds.\n".to_owned(),
+            String::new(),
+        )
+    } else if text.contains("{ }") && writing {
+        std::fs::write(&file, text.replace("{ }", "{}")).expect("rewrite staged file");
+        (
+            0,
+            "Formatted 1 file (1 changed) in 0.00 seconds.\n".to_owned(),
+            String::new(),
+        )
+    } else if text.contains("{ }") {
+        (
+            1,
+            format!("Changed {file}\nFormatted 1 file (1 changed) in 0.00 seconds.\n"),
+            String::new(),
+        )
+    } else {
+        (
+            0,
+            "Formatted 1 file (0 changed) in 0.00 seconds.\n".to_owned(),
+            String::new(),
+        )
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn dart_formats_without_a_home_and_never_trusts_a_silent_exit() {
+    let backend = backend_for("dart", plain_tool(), dart_behavior);
+    let check = |text: &str| backend.diagnose("dart", "format", &single("a.dart", text));
+    assert!(check("void main() {}\n").expect("check").is_empty());
+    let dirty = check("void main() { }\n").expect("check");
+    assert_eq!(dirty.len(), 1);
+    assert_eq!(dirty[0].message, "file is not formatted");
+    let broken = check("broken\n").expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+    assert!(check("silent\n").is_err());
+    let fixed = backend
+        .apply_fix("dart", "a.dart", "void main() { }\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "void main() {}\n");
+    let kept = backend
+        .apply_fix("dart", "a.dart", "broken\n", "format")
+        .expect("fix round");
+    assert_eq!(kept, "broken\n");
 }
 
 fn dscanner_behavior(

@@ -175,6 +175,13 @@ const DSCANNER_CHECK_ARGS: &[&str] = &[
     "--errorFormat",
     DSCANNER_FORMAT,
 ];
+const DART_FORMAT_CHECK_ARGS: &[&str] = &[
+    "--suppress-analytics",
+    "format",
+    "--output=none",
+    "--set-exit-if-changed",
+];
+const DART_FORMAT_FIX_ARGS: &[&str] = &["--suppress-analytics", "format", "--output=write"];
 const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
 /// Always first: it stops perltidy reading `~/.perltidyrc`, `./.perltidyrc` and `$PERLTIDY`.
@@ -1169,6 +1176,16 @@ pub fn dfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
 /// One batched style check. The relative `--config` makes the cwd the scratch root.
 pub fn dscanner_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DSCANNER_CHECK_ARGS, files, "")
+}
+
+/// `dart format` reads each file's language version from the `.dart_tool/package_config.json`
+/// staged at the scratch root, and `formatter:` options from the `analysis_options.yaml` beside it.
+pub fn dart_format_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DART_FORMAT_CHECK_ARGS, files, "")
+}
+
+pub fn dart_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DART_FORMAT_FIX_ARGS, files, "")
 }
 
 pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {

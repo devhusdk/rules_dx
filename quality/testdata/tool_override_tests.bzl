@@ -29,6 +29,9 @@ _DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
 _DSCANNER_SETTING = _CANONICAL + "//config:tool_dscanner"
 _DSCANNER_TOOL = _CANONICAL + "//d/tools:dscanner"
 _D_LINT_POLICY = _CANONICAL + "//quality/testdata:d_lint_policy"
+_DART_POLICY = _CANONICAL + "//quality/testdata:dart_policy"
+_DART_SETTING = _CANONICAL + "//config:tool_dart"
+_DART_TOOL = _CANONICAL + "//dart/tools:dart"
 _JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
 _JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
 _JULIA_FORMAT_TOOL = _CANONICAL + "//julia/tools:julia_format"
@@ -175,6 +178,29 @@ zig_subject = rule(
     implementation = _zig_subject_impl,
     attrs = {
         "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _dart_subject_impl(ctx):
+    """Exposes the resolved dart binary and the format results beside the real aspect."""
+    tool = ctx.attr._dart[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["dart"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+        "dart": tool.short_path if tool else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+dart_subject = rule(
+    implementation = _dart_subject_impl,
+    attrs = {
+        "_dart": attr.label(default = "//config:tool_dart"),
         "target": attr.label(
             aspects = [real_format_aspect],
             mandatory = True,
@@ -548,6 +574,49 @@ def zig_fmt_flag_tests(name, subject):
         target_under_test = subject,
     )
     _zig_fmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+def _dart_default_impl(ctx):
+    """Asserts an unset flag falls back to the dart binary the wrapper carries."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["dart"])
+    asserts.equals(env, "dart", fields["wrapper"].split("/")[-1])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the dart target")
+    return analysistest.end(env)
+
+_dart_format_default_test = analysistest.make(
+    _dart_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _DART_POLICY},
+)
+
+def _dart_wired_impl(ctx):
+    """Asserts the flag wires the dart binary and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "dart", fields["dart"].split("/")[-1])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the dart target")
+    return analysistest.end(env)
+
+_dart_format_set_test = analysistest.make(
+    _dart_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _DART_POLICY,
+        _DART_SETTING: _DART_TOOL,
+    },
+)
+
+def dart_format_flag_tests(name, subject):
+    """Instantiates the dart flag proofs."""
+    _dart_format_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_under_test = subject,
+    )
+    _dart_format_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

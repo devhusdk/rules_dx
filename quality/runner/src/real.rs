@@ -24,6 +24,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "credo",
     "csharpier",
     "cue",
+    "dart",
     "deadnix",
     "dfmt",
     "dialyzer",
@@ -588,6 +589,13 @@ impl RealBackend {
         }
         if tool_id == "typstyle" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+        }
+        if tool_id == "dart" {
+            // The host HOME stays unset (dart format needs none); analytics stay off.
+            env.push((
+                OsString::from("DART_SUPPRESS_ANALYTICS"),
+                OsString::from("true"),
+            ));
         }
         if tool_id == "redocly" {
             env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));

@@ -75,9 +75,14 @@ of a package, so the hub name must differ from `ext_pub_deps`.
 
 ## Quality
 
-Dart sources form the `dart` class, so `dx check` sees them. No Dart formatter
-or analyzer runs yet. Until one does, the Dart rules add the `no-format`,
-`no-lint` and `no-typecheck` tags to every target.
+Dart sources form the `dart` class, so `dx check` sees them. `dart format` is the
+real formatter: it runs the `dart` binary of the resolved SDK (nothing is
+fetched until a Dart target is analysed), formats each file at the language
+version of its package, and `dx format` fixes what it reports. Formatter options
+come from a `dart_config` (an `analysis_options.yaml`) bound with
+`aspect_hints`, from `@rules_dx//quality:native_config.bzl`. No analyzer runs
+yet, so the Dart rules still add the `no-lint` and `no-typecheck` tags to every
+target.
 
 ## Platforms
 

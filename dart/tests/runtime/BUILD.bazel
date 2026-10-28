@@ -1,6 +1,8 @@
 load("//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
+package(default_visibility = ["//:__subpackages__"])
+
 dart_library(
     name = "greet",
     package_name = "greet",

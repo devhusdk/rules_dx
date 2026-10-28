@@ -308,6 +308,39 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_julia_format_fail.expected.txt",
     },
     {
+        "name": "matrix_dart_format_pass",
+        "generated": {
+            "matrix/dart_clean.dart": "void main() {\n  print(1);\n}\n",
+        },
+        "capability": "format",
+        "stages": ["dart;dart;matrix/dart_clean.dart"],
+        "tool_names": ["dart"],
+        "tool_binaries": ["//dart/tools:dart"],
+        "expected_file": ":matrix/matrix_dart_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_dart_format_fail",
+        "generated": {
+            "matrix/dart_dirty.dart": "void main(){print(1);}\n",
+        },
+        "capability": "format",
+        "stages": ["dart;dart;matrix/dart_dirty.dart"],
+        "tool_names": ["dart"],
+        "tool_binaries": ["//dart/tools:dart"],
+        "expected_file": ":matrix/matrix_dart_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_dart_format_syntax",
+        "generated": {
+            "matrix/dart_broken.dart": "void main( {\n",
+        },
+        "capability": "format",
+        "stages": ["dart;dart;matrix/dart_broken.dart"],
+        "tool_names": ["dart"],
+        "tool_binaries": ["//dart/tools:dart"],
+        "expected_file": ":matrix/matrix_dart_format_syntax.expected.txt",
+    },
+    {
         "name": "matrix_qml_lint_pass",
         "generated": {
             "matrix/qmllint_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",

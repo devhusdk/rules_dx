@@ -720,6 +720,7 @@ rust_test(
         "//cuda/toolchain:corpus_starlark",
         "//cue/rules:corpus_starlark",
         "//dart/rules:corpus_starlark",
+        "//dart/tools:corpus_starlark",
         "//deploy/offline:corpus_starlark",
         "//deploy/release:corpus_starlark",
         "//deploy/rules:corpus_starlark",

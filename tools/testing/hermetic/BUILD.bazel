@@ -299,6 +299,15 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "julia_starter",
+    files = {},
+    languages = ["julia"],
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+    starter = "julia",
+)
+
+hermetic_qualification(
     name = "lua",
     files = {
         "//examples/lua-app:BUILD.bazel": "examples/lua-app/BUILD.bazel",

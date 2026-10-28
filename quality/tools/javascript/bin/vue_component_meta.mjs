@@ -179,7 +179,6 @@ async function main() {
     printer: { newLine: ts.NewLineKind.LineFeed },
   });
 
-  const program = checker.getProgram();
   const components = [];
   const cache = new Map();
   const seen = new Set();
@@ -188,21 +187,25 @@ async function main() {
     if (!fs.existsSync(file)) {
       throw new Failure(2, `entry ${entry} does not exist`);
     }
-    const source = program?.getSourceFile(file);
-    if (source) {
-      const diagnostics = [...program.getSyntacticDiagnostics(source), ...program.getSemanticDiagnostics(source)].filter(
-        (d) => d.category === ts.DiagnosticCategory.Error,
-      );
-      if (diagnostics.length > 0) {
-        const lines = diagnostics.map((d) => `${entry}: TS${d.code}: ${ts.flattenDiagnosticMessageText(d.messageText, "\n")}`);
-        throw new Failure(2, lines.join("\n"));
-      }
-    }
     let result;
     try {
       result = checker.getComponentMeta(file);
     } catch (error) {
       throw new Failure(2, `${entry}: ${error.message}`);
+    }
+    // getComponentMeta adds the entry as a root of the program when the tsconfig
+    // does not include it, so the program is fetched again afterwards.
+    const checked = checker.getProgram();
+    const source = checked?.getSourceFile(file);
+    if (!source) {
+      throw new Failure(2, `${entry}: not part of the type-checked program, cannot verify it has no type errors`);
+    }
+    const diagnostics = [...checked.getSyntacticDiagnostics(source), ...checked.getSemanticDiagnostics(source)].filter(
+      (d) => d.category === ts.DiagnosticCategory.Error,
+    );
+    if (diagnostics.length > 0) {
+      const lines = diagnostics.map((d) => `${entry}: TS${d.code}: ${ts.flattenDiagnosticMessageText(d.messageText, "\n")}`);
+      throw new Failure(2, lines.join("\n"));
     }
     if (result.type === meta.TypeMeta.Unknown) {
       throw new Failure(2, `${entry}: default export is not a component`);

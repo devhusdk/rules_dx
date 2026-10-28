@@ -244,3 +244,26 @@ fn run_writes_nothing_on_failure() {
     assert_eq!(shard.symbols.len(), 7);
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn member_and_component_names_are_escaped_in_ids() {
+    let component = json!({
+        "name": "My-Button",
+        "events": [{"name": "update:modelValue", "type": "[value: string]"}],
+        "slots": [{"name": "a/../../x", "type": "any"}],
+    });
+    let shard = convert_ok(json!([component]));
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "vue:ui:My~2DButton",
+            "vue:ui:My~2DButton.event_update~3AmodelValue",
+            "vue:ui:My~2DButton.slot_a~2F~2E~2E~2F~2E~2E~2Fx",
+        ]
+    );
+    assert_eq!(
+        shard.symbols[1].display_name,
+        "My-Button event_update:modelValue"
+    );
+}

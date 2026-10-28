@@ -6,7 +6,7 @@
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::{SCHEMA_MAJOR, SCHEMA_MINOR};
+use documentation_ir::{escape_segment, SCHEMA_MAJOR, SCHEMA_MINOR};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
@@ -92,7 +92,12 @@ fn component_symbols(
     settings: &Settings,
     out: &mut Vec<Symbol>,
 ) -> Result<(), String> {
-    let id = format!("{}:{}:{name}", settings.language, settings.package);
+    let id = format!(
+        "{}:{}:{}",
+        settings.language,
+        settings.package,
+        escape_segment(name)
+    );
     let display = match text(component, "display_name") {
         "" => name.to_owned(),
         shown => shown.to_owned(),
@@ -162,7 +167,7 @@ fn component_symbols(
             out.push(symbol(
                 settings,
                 Draft {
-                    id: format!("{id}.{prefix}_{member}"),
+                    id: format!("{id}.{prefix}_{}", escape_segment(member)),
                     kind,
                     signature,
                     doc: doc(item),

@@ -33,7 +33,14 @@ fn components_render_with_member_groups_and_search_records() {
     );
     assert_eq!(
         rendered.summary.matches("    - [").count(),
-        10,
+        12,
+        "{}",
+        rendered.summary
+    );
+    assert!(
+        rendered
+            .pages
+            .contains_key("vue/ui/Button.event_update~3AmodelValue.md"),
         "{}",
         rendered.summary
     );

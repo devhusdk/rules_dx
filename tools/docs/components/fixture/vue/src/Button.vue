@@ -21,6 +21,9 @@ const emit = defineEmits<{
   (e: "click", id: number): void;
 }>();
 
+/** The two-way bound value. */
+const model = defineModel<string>();
+
 defineSlots<{
   /** Content of the button. */
   default(props: { label: string }): unknown;
@@ -29,6 +32,7 @@ defineSlots<{
 /** Moves focus to the button. */
 function focus(): void {
   emit("click", props.size);
+  model.value = props.label;
 }
 
 /** The number of clicks seen. */

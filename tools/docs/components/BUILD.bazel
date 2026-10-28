@@ -16,11 +16,11 @@ rust_test(
     srcs = ["extract_test.rs"],
     data = [
         "//tools/docs/components/extract:component_extract",
+        "//tools/docs/components/fixture/vue:src/Button.vue",
         "//tools/docs/components/fixture/vue:ui_docs",
         "//tools/docs/components/fixture/vue:ui_docs.component_meta.json",
         "//tools/docs/components/fixture/vue:ui_docs_loose",
         "//tools/docs/components/fixture/vue:ui_docs_loose.component_meta.json",
-        "//tools/docs/components/fixture/vue:src/Button.vue",
     ],
     env = {
         "DX_COMPONENT_EXTRACT": "$(rootpath //tools/docs/components/extract:component_extract)",

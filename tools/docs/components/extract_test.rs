@@ -47,10 +47,12 @@ fn the_fixture_shard_has_the_exact_symbols() {
             "vue:ui:Badge.prop_text",
             "vue:ui:Button",
             "vue:ui:Button.event_click",
+            "vue:ui:Button.event_update~3AmodelValue",
             "vue:ui:Button.exposed_clicks",
             "vue:ui:Button.exposed_focus",
             "vue:ui:Button.prop_disabled",
             "vue:ui:Button.prop_label",
+            "vue:ui:Button.prop_modelValue",
             "vue:ui:Button.prop_size",
             "vue:ui:Button.slot_default",
         ]

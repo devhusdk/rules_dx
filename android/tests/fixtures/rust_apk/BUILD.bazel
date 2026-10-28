@@ -398,6 +398,29 @@ sh_test(
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
+sh_test(
+    name = "consumer_sign_test",
+    srcs = ["sign_test.sh"],
+    args = [
+        "$(rootpath //android/tests/fixtures/consumer_android:consumer_android_release_sign)",
+        "$(rootpath //android/tests/fixtures/consumer_android:consumer_android_apk_unsigned_file)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpaths @dx_android_sdk//:zipalign)",
+        "$(rootpaths @dx_android_sdk//:apksigner_jar)",
+        "$(JAVA_ROOTPATH)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":dummy.apk",
+        "//android/tests/fixtures/consumer_android:consumer_android_apk_unsigned_file",
+        "//android/tests/fixtures/consumer_android:consumer_android_release_sign",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:zipalign",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
 android_aab_release_sign(
     name = "sign_test_bundle",
     aab = ":test_bundle.aab",

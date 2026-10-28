@@ -17,14 +17,12 @@ pwsh_library(
 pwsh_binary(
     name = "hello",
     srcs = ["Hello.ps1"],
-    target_compatible_with = ["@platforms//os:linux"],
     deps = [":hello_lib"],
 )
 
 pwsh_test(
     name = "hello_test",
     srcs = ["HelloTest.ps1"],
-    target_compatible_with = ["@platforms//os:linux"],
     deps = [":hello_lib"],
 )
 

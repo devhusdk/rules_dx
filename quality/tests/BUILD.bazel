@@ -816,9 +816,12 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//cli/cli:dx",
+        "//quality/tests/fixtures/prettier_consumer:node_consumer",
+        "//quality/tests/fixtures/prettier_consumer:pnpm-lock.yaml",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_PRETTIER_NODE_FIXTURE": "$(rootpath //quality/tests/fixtures/prettier_consumer:pnpm-lock.yaml)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [

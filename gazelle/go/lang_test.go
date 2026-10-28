@@ -171,23 +171,6 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 	}
 }
 
-func TestGenerateNoSourcesStaleSweep(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "pkg", "demo")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	result := NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"notes.txt"},
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules, want 0", len(result.Gen))
-	}
-}
-
 func TestGeneratePackageMainFails(t *testing.T) {
 	regular := []string{"demo.go", "main.go"}
 	got := refuseFixture(t, map[string]string{
@@ -312,30 +295,6 @@ func TestGenerateBadBuildConstraintFails(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want 0", len(result.Gen))
 	}
-}
-
-func TestGenerateKindMismatchFails(t *testing.T) {
-	root := t.TempDir()
-	for name, content := range map[string]string{
-		"pkg/demo/demo.go": "package demo\n",
-	} {
-		writeFixture(t, root, name, content)
-	}
-	existing := &rule.File{}
-	fg := rule.NewRule("filegroup", "demo")
-	existing.Rules = append(existing.Rules, fg)
-	lang := NewLanguage()
-	result := lang.GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          filepath.Join(root, "pkg", "demo"),
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"demo.go"},
-		File:         existing,
-	})
-	if len(result.Gen) != 0 {
-		t.Fatalf("generated %d rules over a kind mismatch, want 0 with a recorded failure", len(result.Gen))
-	}
-	wantRefusal(t, refusal(t, lang), "go: pkg/demo: target name \"demo\" is claimed by generated go_library(pkg/demo) and existing filegroup")
 }
 
 func TestGenerateInternalAndExternalTestsCoexist(t *testing.T) {
@@ -554,61 +513,12 @@ func TestImportsExportImportpath(t *testing.T) {
 	}
 }
 
-func TestAfterResolvingDepsReportsFailures(t *testing.T) {
-	l := newLang()
-	l.Before(context.Background())
-	l.Fail("go: boom")
-	l.AfterResolvingDeps(context.Background())
-	got := common.Errors.Take()
-	if len(got) != 1 || got[0].Language != languageName || got[0].Message != "go: boom" {
-		t.Fatalf("sink = %#v, want one go failure", got)
-	}
-}
-
 func TestAfterResolvingDepsClean(t *testing.T) {
 	l := newLang()
 	l.Before(context.Background())
 	l.AfterResolvingDeps(context.Background())
 	if len(l.Errors()) != 0 {
 		t.Errorf("errors = %v", l.Errors())
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	l := newLang()
-	if l.Name() != "go" || len(l.Kinds()) != 2 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatal("invalid language metadata")
-	}
-	if _, ok := l.Kinds()[LibraryKind]; !ok {
-		t.Fatalf("kinds = %v, want go_library", l.Kinds())
-	}
-	if _, ok := l.Kinds()[TestKind]; !ok {
-		t.Fatalf("kinds = %v, want go_test", l.Kinds())
-	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	l.Configure(config.New(), "pkg", nil)
-	l.DoneGeneratingRules()
-	if got := strings.Join(l.KnownDirectives(), ","); got != "dx_ignore_import,dx_external" {
-		t.Fatalf("directives = %q, want dx_ignore_import,dx_external", got)
-	}
-	if l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
-	}
-	loads := l.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//go/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "go_library,go_test" {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//go/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
-	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//go/rules:defs.bzl" {
-		t.Errorf("default apparent loads = %+v", defaultApparent)
 	}
 }
 

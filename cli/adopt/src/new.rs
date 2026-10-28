@@ -163,6 +163,22 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         name: "julia",
         identity: IdentityRule::BazelModule,
     },
+    NewLanguage {
+        name: "d",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "fortran",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "perl",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "php",
+        identity: IdentityRule::BazelModule,
+    },
 ];
 
 const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
@@ -1176,6 +1192,193 @@ bazel test //...
     ])
 }
 
+fn hello_starter_files(
+    identity: &str,
+    build: &str,
+    sources: &[(&str, &str)],
+    readme_run: &str,
+) -> Vec<(String, String)> {
+    let readme = format!(
+        "# {identity}\n\n```sh\nbazel build //...\nbazel run :{identity}_bin\nbazel test //...\n```\n{readme_run}"
+    );
+    let mut files = vec![
+        (
+            "MODULE.bazel".to_owned(),
+            consumer_module_bazel(identity, false),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        (
+            "BUILD.bazel".to_owned(),
+            build.replace("IDENTITY", identity),
+        ),
+    ];
+    for (path, text) in sources {
+        files.push(((*path).to_owned(), (*text).to_owned()));
+    }
+    files.push(("README.md".to_owned(), readme));
+    files
+}
+
+fn d_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//d/rules:defs.bzl", "d_binary", "d_library", "d_test")
+
+d_library(
+    name = "IDENTITY",
+    srcs = ["hello.d"],
+)
+
+d_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.d"],
+    deps = [":IDENTITY"],
+)
+
+d_test(
+    name = "IDENTITY_test",
+    srcs = ["hello.d"],
+)
+"#;
+    hello_starter_files(
+        identity,
+        build,
+        &[
+            (
+                "hello.d",
+                "module hello;\n\nstring greet(string name) pure @safe\n{\n    return \"hello \" ~ name;\n}\n\nunittest\n{\n    assert(greet(\"world\") == \"hello world\");\n}\n",
+            ),
+            (
+                "main.d",
+                "module main;\n\nimport hello : greet;\nimport std.stdio : writeln;\n\nvoid main()\n{\n    writeln(greet(\"world\"));\n}\n",
+            ),
+        ],
+        "",
+    )
+}
+
+fn fortran_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+
+fortran_library(
+    name = "IDENTITY",
+    srcs = ["hello.f90"],
+)
+
+fortran_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.f90"],
+    deps = [":IDENTITY"],
+)
+
+fortran_test(
+    name = "IDENTITY_test",
+    srcs = ["hello_test.f90"],
+    deps = [":IDENTITY"],
+)
+"#;
+    hello_starter_files(
+        identity,
+        build,
+        &[
+            (
+                "hello.f90",
+                "module hello\n  implicit none\n  private\n  public :: greet\n\ncontains\n\n  function greet(name) result(text)\n    character(*), intent(in) :: name\n    character(:), allocatable :: text\n    text = \"hello \" // name\n  end function greet\n\nend module hello\n",
+            ),
+            (
+                "main.f90",
+                "program main\n  use iso_fortran_env, only: output_unit\n  use hello, only: greet\n  implicit none\n  write(output_unit, '(a)') greet(\"world\")\nend program main\n",
+            ),
+            (
+                "hello_test.f90",
+                "program hello_test\n  use hello, only: greet\n  implicit none\n  if (greet(\"world\") /= \"hello world\") error stop \"unexpected greeting\"\nend program hello_test\n",
+            ),
+        ],
+        "",
+    )
+}
+
+fn perl_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library", "perl_test")
+
+perl_library(
+    name = "IDENTITY",
+    srcs = ["lib/Hello.pm"],
+)
+
+perl_binary(
+    name = "IDENTITY_bin",
+    srcs = ["bin/hello.pl"],
+    deps = [":IDENTITY"],
+)
+
+perl_test(
+    name = "IDENTITY_test",
+    srcs = ["t/hello.t"],
+    deps = [":IDENTITY"],
+)
+"#;
+    hello_starter_files(
+        identity,
+        build,
+        &[
+            (
+                "lib/Hello.pm",
+                "package Hello;\n\nuse strict;\nuse warnings;\n\nsub greet {\n    my ($name) = @_;\n    return \"hello $name\";\n}\n\n1;\n",
+            ),
+            (
+                "bin/hello.pl",
+                "use strict;\nuse warnings;\n\nuse Hello;\n\nprint Hello::greet('world'), \"\\n\";\n",
+            ),
+            (
+                "t/hello.t",
+                "use strict;\nuse warnings;\n\nuse Test::More tests => 1;\nuse Hello;\n\nis( Hello::greet('world'), 'hello world', 'greets by name' );\n",
+            ),
+        ],
+        "",
+    )
+}
+
+fn php_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+
+php_library(
+    name = "IDENTITY",
+    srcs = ["src/Hello/Greeter.php"],
+)
+
+php_binary(
+    name = "IDENTITY_bin",
+    main = "bin/hello.php",
+    deps = [":IDENTITY"],
+)
+
+php_test(
+    name = "IDENTITY_test",
+    srcs = ["test/GreeterTest.php"],
+    deps = [":IDENTITY"],
+)
+"#;
+    hello_starter_files(
+        identity,
+        build,
+        &[
+            (
+                "src/Hello/Greeter.php",
+                "<?php\n\ndeclare(strict_types=1);\n\nnamespace Hello;\n\nfinal class Greeter\n{\n    public function greet(string $name): string\n    {\n        return 'hello ' . $name;\n    }\n}\n",
+            ),
+            (
+                "bin/hello.php",
+                "<?php\n\ndeclare(strict_types=1);\n\nuse Hello\\Greeter;\n\necho (new Greeter())->greet('world'), \"\\n\";\n",
+            ),
+            (
+                "test/GreeterTest.php",
+                "<?php\n\ndeclare(strict_types=1);\n\nnamespace Hello\\Tests;\n\nuse Hello\\Greeter;\nuse PHPUnit\\Framework\\TestCase;\n\nfinal class GreeterTest extends TestCase\n{\n    public function testGreetsByName(): void\n    {\n        $this->assertSame('hello world', (new Greeter())->greet('world'));\n    }\n}\n",
+            ),
+        ],
+        "",
+    )
+}
+
 fn cc_starter(identity: &str, ext: &str, sources: [String; 4]) -> Vec<(String, String)> {
     let build = r#"load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
@@ -2022,6 +2225,10 @@ fn new_language_files(
         "cuda" => cuda_files(identity),
         "lua" => lua_files(identity),
         "julia" => julia_files(identity)?,
+        "d" => d_files(identity),
+        "fortran" => fortran_files(identity),
+        "perl" => perl_files(identity),
+        "php" => php_files(identity),
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -2154,6 +2361,40 @@ mod tests {
         assert_eq!(normalize_new_language("cuda"), Some("cuda"));
         assert_eq!(normalize_new_language("lua"), Some("lua"));
         assert_eq!(normalize_new_language("julia"), Some("julia"));
+        assert_eq!(normalize_new_language("d"), Some("d"));
+        assert_eq!(normalize_new_language("fortran"), Some("fortran"));
+        assert_eq!(normalize_new_language("perl"), Some("perl"));
+        assert_eq!(normalize_new_language("php"), Some("php"));
+    }
+
+    #[test]
+    fn hello_starters_name_targets_and_stay_hermetic() {
+        for (language, files) in [
+            ("d", d_files("demo-app")),
+            ("fortran", fortran_files("demo-app")),
+            ("perl", perl_files("demo-app")),
+            ("php", php_files("demo-app")),
+        ] {
+            let build = &files.iter().find(|(p, _)| p == "BUILD.bazel").unwrap().1;
+            assert!(build.contains(&format!("@rules_dx//{language}/rules:defs.bzl")));
+            for target in ["demo-app", "demo-app_bin", "demo-app_test"] {
+                assert!(
+                    build.contains(&format!("name = \"{target}\"")),
+                    "{language}: {target}"
+                );
+            }
+            let all: String = files.iter().map(|(_, t)| t.as_str()).collect();
+            for banned in [
+                "dub",
+                "cpanm",
+                "use lib",
+                "composer install",
+                "vendor/autoload",
+                "gfortran",
+            ] {
+                assert!(!all.contains(banned), "{language} mentions {banned}");
+            }
+        }
     }
 
     #[test]

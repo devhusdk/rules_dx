@@ -499,6 +499,26 @@ mod tests {
                 "test/runtests.jl",
             ],
         ),
+        ("d", "demo-app", &["hello.d", "main.d"]),
+        (
+            "fortran",
+            "demo-app",
+            &["hello.f90", "main.f90", "hello_test.f90"],
+        ),
+        (
+            "perl",
+            "demo-app",
+            &["lib/Hello.pm", "bin/hello.pl", "t/hello.t"],
+        ),
+        (
+            "php",
+            "demo-app",
+            &[
+                "src/Hello/Greeter.php",
+                "bin/hello.php",
+                "test/GreeterTest.php",
+            ],
+        ),
     ];
 
     #[test]
@@ -555,6 +575,10 @@ mod tests {
                         | "cuda"
                         | "lua"
                         | "julia"
+                        | "d"
+                        | "fortran"
+                        | "perl"
+                        | "php"
                 ),
                 "{language}: {build}"
             );
@@ -646,6 +670,10 @@ mod tests {
             vec!["new", "--apply", "erlang", "demo", "--force"],
             vec!["new", "--apply", "lua", "demo", "--force"],
             vec!["new", "--apply", "julia", "demo", "--force"],
+            vec!["new", "--apply", "d", "demo", "--force"],
+            vec!["new", "--apply", "fortran", "demo", "--force"],
+            vec!["new", "--apply", "perl", "demo", "--force"],
+            vec!["new", "--apply", "php", "demo", "--force"],
         ] {
             let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

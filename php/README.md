@@ -7,6 +7,10 @@ Build, run and test PHP 8.5 with a pinned static PHP CLI build from
 and nothing is fetched until a target needs it. rules_dx registers the
 toolchains, so there is no toolchain setup in `MODULE.bazel`.
 
+## Start
+
+Scaffold a working project with `dx new --apply php demo-app`.
+
 ## Rules
 
 Load the rules from `@rules_dx//php/rules:defs.bzl`.

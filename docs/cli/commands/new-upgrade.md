@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, `cuda`, `lua`, or `julia`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, `cuda`, `lua`, `julia`, `d`, `fortran`, `perl`, or `php`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -128,6 +128,10 @@ language rule:
 - `julia` takes Bazel module names. The library, binary and test targets use
   the UpperCamelCase module name (`demo-app` becomes `DemoApp`), so a name that
   becomes `Base`, `Core`, `Main` or `Test` is refused.
+- `d` takes Bazel module names.
+- `fortran` takes Bazel module names.
+- `perl` takes Bazel module names.
+- `php` takes Bazel module names.
 
 A `rust-android` name must also start with a letter and must not be a Java
 keyword, so that `com.example.<name>` is a valid application ID.
@@ -538,3 +542,55 @@ the name, so a check after `--apply` reports nothing to do. rules_dx registers
 the Julia toolchain, so nothing is installed on the host. The targets need
 Linux x86_64, Linux arm64, macOS arm64 or Windows x86_64; there is no Julia
 build for Windows arm64.
+
+## `dx new d`
+
+```text
+dx new [--apply] d [name]
+```
+
+Scaffolds a standalone D consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `hello.d`, `main.d` and `README.md`.
+`BUILD.bazel` loads `d_library`, `d_binary` and `d_test` from
+`@rules_dx//d/rules:defs.bzl` and names the targets `<name>`, `<name>_bin`
+and `<name>_test`; `hello.d` carries the `unittest` block that `d_test` runs. rules_dx registers the D toolchain, so nothing is
+installed on the host. The targets need Linux x86_64.
+
+## `dx new fortran`
+
+```text
+dx new [--apply] fortran [name]
+```
+
+Scaffolds a standalone Fortran consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `hello.f90`, `main.f90`, `hello_test.f90` and `README.md`.
+`BUILD.bazel` loads `fortran_library`, `fortran_binary` and `fortran_test` from
+`@rules_dx//fortran/rules:defs.bzl` and names the targets `<name>`, `<name>_bin`
+and `<name>_test`; `hello_test.f90` ends with `error stop` when the greeting is wrong. rules_dx registers the Fortran toolchain, so nothing is
+installed on the host. The targets need Linux x86_64.
+
+## `dx new perl`
+
+```text
+dx new [--apply] perl [name]
+```
+
+Scaffolds a standalone Perl consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `lib/Hello.pm`, `bin/hello.pl`, `t/hello.t` and `README.md`.
+`BUILD.bazel` loads `perl_library`, `perl_binary` and `perl_test` from
+`@rules_dx//perl/rules:defs.bzl` and names the targets `<name>`, `<name>_bin`
+and `<name>_test`; `t/hello.t` uses Test::More from the Perl core. rules_dx registers the Perl toolchain, so nothing is
+installed on the host. The targets need Linux x86_64, Linux arm64, macOS arm64 or Windows x86_64.
+
+## `dx new php`
+
+```text
+dx new [--apply] php [name]
+```
+
+Scaffolds a standalone PHP consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `src/Hello/Greeter.php`, `bin/hello.php`, `test/GreeterTest.php` and `README.md`.
+`BUILD.bazel` loads `php_library`, `php_binary` and `php_test` from
+`@rules_dx//php/rules:defs.bzl` and names the targets `<name>`, `<name>_bin`
+and `<name>_test`; the rules inject the classmap autoload, so no composer step or `vendor/autoload.php` is needed. rules_dx registers the PHP toolchain, so nothing is
+installed on the host. The targets need Linux x86_64.

@@ -34,6 +34,10 @@ by `tools/ci/first_build.py render`. Do not edit it by hand.
 | `cuda` | pending | pending | pending | pending | pending | pending |
 | `lua` | pending | pending | pending | pending | pending | pending |
 | `julia` | pending | pending | pending | pending | pending | pending |
+| `d` | pending | pending | pending | pending | pending | pending |
+| `fortran` | pending | pending | pending | pending | pending | pending |
+| `perl` | pending | pending | pending | pending | pending | pending |
+| `php` | pending | pending | pending | pending | pending | pending |
 
 ## Method
 

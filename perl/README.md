@@ -6,6 +6,10 @@ installed on the host and nothing is fetched until a target needs it.
 rules_perl registers the toolchains, so there is no toolchain setup in
 `MODULE.bazel`.
 
+## Start
+
+Scaffold a working project with `dx new --apply perl demo-app`.
+
 ## Rules
 
 Load the rules from `@rules_dx//perl/rules:defs.bzl`. They wrap rules_perl

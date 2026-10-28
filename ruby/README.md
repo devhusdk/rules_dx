@@ -1,6 +1,6 @@
 # Ruby
 
-Build, run and test Ruby with a pinned Ruby 3.4.9 and rules_ruby 0.28.0.
+Build, run and test Ruby with a pinned Ruby 3.4.12 and rules_ruby 0.29.0.
 Nothing is installed on the host and nothing is fetched until a target needs
 it. rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 

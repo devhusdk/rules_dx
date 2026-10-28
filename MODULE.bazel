@@ -221,7 +221,7 @@ register_toolchains(
 )
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_dotnet", version = "0.22.1")
+bazel_dep(name = "rules_dotnet", version = "0.22.2")
 single_version_override(
     module_name = "rules_dotnet",
     patch_strip = 1,
@@ -229,7 +229,7 @@ single_version_override(
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
     ],
-    version = "0.22.1",
+    version = "0.22.2",
 )
 
 # floor: forced by rules_dart 0.8.0 MVS (#1783)
@@ -240,7 +240,7 @@ single_version_override(
 )
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(dotnet_version = "10.0.201")
+dotnet.toolchain(dotnet_version = "10.0.400")
 use_repo(dotnet, "dotnet_toolchains")
 
 dotnet_nuget = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
@@ -313,16 +313,16 @@ scalafix.install(
 use_repo(scalafix, "dx_scalafix")
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_powershell", version = "0.2.0")
+bazel_dep(name = "rules_powershell", version = "0.3.1")
 single_version_override(
     module_name = "rules_powershell",
-    version = "0.2.0",
+    version = "0.3.1",
 )
 
 powershell = use_extension("@rules_powershell//powershell:extensions.bzl", "powershell")
 powershell.toolchain(
     name = "dx_powershell_toolchains",
-    version = "7.5.4",
+    version = "7.5.11",
 )
 use_repo(powershell, "dx_powershell_toolchains")
 
@@ -386,7 +386,7 @@ register_toolchains("//tools/platforms:protoc_windows_arm64")
 register_toolchains("@dx_powershell_toolchains//:all")
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_ruby", version = "0.28.0")
+bazel_dep(name = "rules_ruby", version = "0.29.0")
 single_version_override(
     module_name = "rules_ruby",
     patch_strip = 1,
@@ -394,7 +394,7 @@ single_version_override(
         "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
     ],
-    version = "0.28.0",
+    version = "0.29.0",
 )
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
@@ -405,7 +405,13 @@ ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby", dev_dependency 
 ruby.toolchain(
     name = "ruby",
     portable_ruby = True,
-    version = "3.4.9",
+    portable_ruby_checksums = {
+        "ruby-3.4.12.arm64_darwin.tar.gz": "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
+        "ruby-3.4.12.arm64_linux.tar.gz": "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
+        "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
+        "ruby-3.4.12.x86_64_linux.tar.gz": "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
+    },
+    version = "3.4.12",
 )
 ruby.bundle_fetch(
     name = "bundle",

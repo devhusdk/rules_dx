@@ -15,7 +15,7 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
 bazel_dep(name = "aspect_rules_js", version = "3.5.2")
-bazel_dep(name = "rules_ruby", version = "0.28.0")
+bazel_dep(name = "rules_ruby", version = "0.29.0")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(

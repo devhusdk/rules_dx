@@ -905,11 +905,16 @@ bazel test //...
 ```
 "#
     .replace("IDENTITY", identity);
+    let checksums: String = crate::scaffold::CONSUMER_PORTABLE_RUBY_CHECKSUMS
+        .iter()
+        .map(|(name, digest)| format!("        \"{name}\": \"{digest}\",\n"))
+        .collect();
     let module = format!(
-        "{}bazel_dep(name = \"rules_ruby\", version = \"{rules_ruby}\")\n\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(\n    name = \"ruby\",\n    portable_ruby = True,\n    version = \"{ruby}\",\n)\nuse_repo(ruby, \"ruby_toolchains\")\n\nregister_toolchains(\"@ruby_toolchains//:all\")\n",
+        "{}bazel_dep(name = \"rules_ruby\", version = \"{rules_ruby}\")\n\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(\n    name = \"ruby\",\n    portable_ruby = True,\n    portable_ruby_checksums = {{\n{checksums}    }},\n    version = \"{ruby}\",\n)\nuse_repo(ruby, \"ruby_toolchains\")\n\nregister_toolchains(\"@ruby_toolchains//:all\")\n",
         consumer_module_bazel(identity, false),
         rules_ruby = crate::scaffold::CONSUMER_RULES_RUBY_VERSION,
         ruby = crate::scaffold::CONSUMER_RUBY_VERSION,
+        checksums = checksums,
     );
     vec![
         ("MODULE.bazel".to_owned(), module),
@@ -1921,6 +1926,20 @@ mod tests {
             assert!(!build.contains("jest"), "{build}");
             let module = read("MODULE.bazel");
             assert!(module.contains("module(name = \"demo-app\")"), "{module}");
+        }
+    }
+
+    #[test]
+    fn ruby_scaffold_hashes_the_portable_ruby_downloads() {
+        let files = ruby_files("demo");
+        let module = &files
+            .iter()
+            .find(|(path, _)| path == "MODULE.bazel")
+            .expect("MODULE.bazel")
+            .1;
+        assert!(module.contains("portable_ruby_checksums"));
+        for (name, digest) in crate::scaffold::CONSUMER_PORTABLE_RUBY_CHECKSUMS {
+            assert!(module.contains(&format!("\"{name}\": \"{digest}\"")));
         }
     }
 

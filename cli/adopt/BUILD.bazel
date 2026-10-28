@@ -63,6 +63,7 @@ dx_rust_crate(
         "//:package.json",
         "//examples:consumer-ci/caller.yml",
         "//modules:cuda.bzl",
+        "//modules:ruby.bzl",
         "//modules:versions.bzl",
     ],
     test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},

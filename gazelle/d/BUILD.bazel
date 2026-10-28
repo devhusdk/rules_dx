@@ -1,0 +1,96 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "d",
+    srcs = [
+        "doc.go",
+        "lang.go",
+        "naming.go",
+        "parser.go",
+        "stdlib.go",
+    ],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/d",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/d",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/rule",
+    ],
+)
+
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
+go_test(
+    name = "d_test",
+    srcs = [
+        "lang_test.go",
+        "naming_test.go",
+        "parser_test.go",
+    ],
+    embed = [":d"],
+    pure = "on",
+    deps = ["@gazelle//v2/label"],
+)
+
+go_test(
+    name = "corpus_test",
+    srcs = ["corpus_test.go"],
+    data = [
+        "@dx_d_containers//:d_srcs",
+        "@dx_d_dcd//:d_srcs",
+        "@dx_d_dfmt//:d_srcs",
+        "@dx_d_dscanner//:d_srcs",
+        "@dx_d_inifiled//:d_srcs",
+        "@dx_d_libddoc//:d_srcs",
+        "@dx_d_libdparse//:d_srcs",
+    ],
+    embed = [":d"],
+    env = {
+        "D_CORPUS_FILES": " ".join([
+            "$(rlocationpaths @dx_d_containers//:d_srcs)",
+            "$(rlocationpaths @dx_d_dcd//:d_srcs)",
+            "$(rlocationpaths @dx_d_dfmt//:d_srcs)",
+            "$(rlocationpaths @dx_d_dscanner//:d_srcs)",
+            "$(rlocationpaths @dx_d_inifiled//:d_srcs)",
+            "$(rlocationpaths @dx_d_libddoc//:d_srcs)",
+            "$(rlocationpaths @dx_d_libdparse//:d_srcs)",
+        ]),
+    },
+    pure = "on",
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = [
+        "testdata/modules/README.md",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

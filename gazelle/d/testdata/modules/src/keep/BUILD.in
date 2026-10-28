@@ -1,0 +1,12 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library")
+
+d_library(
+    name = "keep",
+    srcs = [
+        "gone.d",
+        "keep.d",
+    ],
+    dopts = ["-w"],
+    target_compatible_with = ["@platforms//os:linux"],
+    versions = ["Extra"],
+)

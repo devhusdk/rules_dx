@@ -240,6 +240,28 @@ TOOL_BUILDS = {
     "dx_d_libdparse": _LIBDPARSE_BUILD,
 }
 
+# Source roots of each tool repository. The D sources they hold are the corpus
+# gazelle/d parses to catch grammar regressions.
+TOOL_SRC_ROOTS = {
+    "dx_d_containers": ["src"],
+    "dx_d_dcd": ["dsymbol/src"],
+    "dx_d_dfmt": ["src"],
+    "dx_d_dscanner": ["src"],
+    "dx_d_inifiled": ["source"],
+    "dx_d_libddoc": ["common/source", "src"],
+    "dx_d_libdparse": ["src"],
+}
+
+def tool_build(tool):
+    """Returns the BUILD file of one tool repository: its build plus the d_srcs corpus filegroup."""
+    globs = ", ".join(['"{}/**/*.d"'.format(root) for root in TOOL_SRC_ROOTS[tool]])
+    return TOOL_BUILDS[tool] + """
+filegroup(
+    name = "d_srcs",
+    srcs = glob([{}]),
+)
+""".format(globs)
+
 _TOOLCHAIN = """toolchain(
     name = "{cell}",
     exec_compatible_with = {constraints},
@@ -344,7 +366,7 @@ def _tool_source_impl(rctx):
     for path, content in source.files.items():
         rctx.file(path, content)
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", TOOL_BUILDS[rctx.attr.tool])
+    rctx.file("BUILD.bazel", tool_build(rctx.attr.tool))
     return rctx.repo_metadata(reproducible = True)
 
 _tool_source = repository_rule(

@@ -59,6 +59,7 @@ go_library(
         "//gazelle/astro:__pkg__",
         "//gazelle/cc:__pkg__",
         "//gazelle/csharp:__pkg__",
+        "//gazelle/d:__pkg__",
         "//gazelle/dispatch:__pkg__",
         "//gazelle/elixir:__pkg__",
         "//gazelle/fsharp:__pkg__",

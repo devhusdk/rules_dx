@@ -1,0 +1,7 @@
+load("@rules_dx//d/rules:defs.bzl", "d_library")
+
+d_library(
+    name = "strings",
+    srcs = ["greeting.d"],
+    string_srcs = ["greeting.txt"],
+)

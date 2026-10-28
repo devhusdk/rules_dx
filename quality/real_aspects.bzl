@@ -211,6 +211,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "dockerfile",
     },
+    "ansible_lint": {
+        "attr": attr.label(default = "//quality/tools/python:ansible_lint", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "heavy",
+        "runfiles_env": True,
+        "shard": "ansible",
+    },
     "kubeconform": {
         "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -1571,6 +1579,12 @@ _REAL_SHARD_SPECS = {
         "shard": "nix",
         "suffix": "-nix",
     },
+    "real_ansible_lint": {
+        "capability": "lint",
+        "doc": "Additive Ansible lint family aspect (ansible-lint).",
+        "shard": "ansible",
+        "suffix": "-ansible",
+    },
     "real_kubernetes_lint": {
         "capability": "lint",
         "doc": "Additive Kubernetes lint family aspect (kubeconform).",
@@ -1805,6 +1819,8 @@ real_nix_format_aspect = _make_real_aspect("real_nix_format")
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 
 real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
+
+real_ansible_lint_aspect = _make_real_aspect("real_ansible_lint")
 
 real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 

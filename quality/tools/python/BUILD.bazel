@@ -65,6 +65,29 @@ py_binary(
 )
 
 py_binary(
+    name = "ansible_lint",
+    srcs = [
+        "ansible_lint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "ansible_lint_main.py",
+    deps = [
+        "@pypi//ansible_core",
+        "@pypi//ansible_lint",
+    ],
+)
+
+py_unittest_test(
+    name = "ansible_lint_main_test",
+    srcs = [
+        "ansible_lint_main.py",
+        "ansible_lint_main_test.py",
+        "tool_bootstrap.py",
+    ],
+)
+
+py_binary(
     name = "griffe_dump",
     srcs = [
         "griffe_dump.py",

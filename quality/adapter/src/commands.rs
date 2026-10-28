@@ -1338,6 +1338,31 @@ pub fn psscriptanalyzer_format_fix(
     )
 }
 
+/// `--offline --nocolor -f sarif --project-dir <dir>` with an optional `-c <config>` before the files.
+pub fn ansible_lint_check(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    project_dir: &Path,
+) -> Invocation {
+    let mut args: Vec<OsString> = ["--offline", "--nocolor", "-f", "sarif", "--project-dir"]
+        .iter()
+        .map(OsString::from)
+        .collect();
+    args.push(project_dir.as_os_str().to_owned());
+    if let Some(config) = config {
+        args.push(OsString::from("-c"));
+        args.push(config.as_os_str().to_owned());
+    }
+    args.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(args);
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     match config {
         Some(_) => optional_flag(

@@ -1,0 +1,53 @@
+load("//ansible/rules:defs.bzl", "ansible_library")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":library_tests.bzl", "mixed_split_test", "plain_yaml_test")
+
+ansible_library(
+    name = "mixed",
+    srcs = [
+        "fixtures/plain/data.yml",
+        "fixtures/roles/web/tasks/main.yml",
+    ],
+)
+
+mixed_split_test(
+    name = "mixed_split_test",
+    size = "small",
+    target_under_test = ":mixed",
+)
+
+ansible_library(
+    name = "plain",
+    srcs = ["fixtures/plain/data.yml"],
+)
+
+plain_yaml_test(
+    name = "plain_yaml_test",
+    size = "small",
+    target_under_test = ":plain",
+)
+
+ansible_library(
+    name = "bad_playbook",
+    srcs = ["fixtures/plain/data.yml"],
+    playbooks = ["fixtures/site.yml"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_playbook_fails",
+    expected_failure_substring = "playbooks entry ansible/tests/fixtures/site.yml is not in srcs",
+    target = ":bad_playbook",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

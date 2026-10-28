@@ -1393,6 +1393,34 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
 }
 
 #[test]
+fn ansible_lint_check_offline_sarif_with_project_dir_and_optional_config() {
+    let file = Path::new("/scratch/site.yml");
+    let root = Path::new("/scratch");
+    let base = [
+        BIN,
+        "--offline",
+        "--nocolor",
+        "-f",
+        "sarif",
+        "--project-dir",
+        "/scratch",
+    ];
+    let mut with = base.to_vec();
+    with.extend(["-c", "/scratch/.ansible-lint", "/scratch/site.yml"]);
+    let conf = Some(Path::new("/scratch/.ansible-lint"));
+    assert_eq!(
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], conf, root)),
+        with
+    );
+    let mut without = base.to_vec();
+    without.push("/scratch/site.yml");
+    assert_eq!(
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], None, root)),
+        without
+    );
+}
+
+#[test]
 fn graphql_eslint_check_passes_config_root_and_files_after_a_separator() {
     let query = Path::new("/scratch/api/query.graphql");
     let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));

@@ -440,6 +440,32 @@ real_source_target(
 )
 
 quality_family(
+    name = "ansible_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "ansible",
+    lint = ["ansible_lint"],
+)
+
+workspace_policy(
+    name = "ansible_policy",
+    families = [":ansible_family"],
+)
+
+filegroup(
+    name = "ansible_module",
+    srcs = ["ansible_module/playbooks/site.yml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_ansible",
+    ansible_srcs = [":ansible_module"],
+)
+
+quality_family(
     name = "html_template_family",
     disabled = ["typecheck"],
     family_id = "html_template",

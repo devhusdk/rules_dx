@@ -5,6 +5,7 @@ load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load(
     "//quality:real_aspects.bzl",
     "RealShardProbeInfo",
+    "real_ansible_lint_aspect",
     "real_cc_format_aspect",
     "real_cc_lint_aspect",
     "real_cue_format_aspect",
@@ -95,6 +96,7 @@ _REAL_ASPECTS = [
     real_nix_format_aspect,
     real_nix_lint_aspect,
     real_kubernetes_lint_aspect,
+    real_ansible_lint_aspect,
     real_format_aspect,
     real_go_format_aspect,
     real_dotnet_format_aspect,

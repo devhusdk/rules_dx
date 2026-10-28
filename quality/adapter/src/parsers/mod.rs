@@ -1,9 +1,9 @@
+pub mod ansible_lint;
 pub mod biome;
 pub mod buf;
 pub mod buildifier;
 pub mod checkmake;
 pub mod checkstyle;
-pub mod tflint;
 pub mod clang_format;
 pub mod clang_tidy;
 pub mod cppcheck;
@@ -63,6 +63,7 @@ pub mod stylelint;
 pub mod stylua;
 pub mod taplo;
 pub mod terraform;
+pub mod tflint;
 pub mod ty;
 pub mod typstyle;
 pub mod vale;
@@ -70,11 +71,11 @@ pub mod yamlfmt;
 pub mod yamllint;
 pub mod zig_fmt;
 
+pub use ansible_lint::parse_ansible_lint;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
 pub use checkmake::parse_checkmake;
-pub use tflint::parse_tflint;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
@@ -134,8 +135,9 @@ pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
-pub use typstyle::parse_typstyle;
+pub use tflint::parse_tflint;
 pub use ty::parse_ty;
+pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
@@ -1953,6 +1955,14 @@ mod tests {
         super::statix::parse_statix(input, input, code, files)
     }
 
+    fn fuzz_ansible_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ansible_lint::parse_ansible_lint(input, input, code, files)
+    }
+
     fn fuzz_kubeconform(
         input: &[u8],
         code: Option<i32>,
@@ -2234,6 +2244,7 @@ mod tests {
         ("julia_format", fuzz_julia_format),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
+        ("ansible_lint", fuzz_ansible_lint),
         ("kubeconform", fuzz_kubeconform),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
@@ -2314,6 +2325,7 @@ mod tests {
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("julia_format", include_str!("julia_format.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
+        ("ansible_lint", include_str!("ansible_lint.rs")),
         ("kubeconform", include_str!("kubeconform.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),

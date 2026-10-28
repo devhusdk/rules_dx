@@ -86,6 +86,10 @@ signature. The activity logs under the `DxSharedTasks` tag:
 or `board=invalid`, the summary or `summary none`, the asset report, and `input=touch|key <reply>` after a
 tap or key press.
 
+`lifecycle_check_test` and `lifecycle_check_missing_destroy_test` run
+`check_lifecycle.sh` on logcat fixtures. The `android` workflow runs it on
+the emulator log of `:install` and `:start`.
+
 Tools: NDK 27.2.12479018, build-tools 34.0.0, platform-tools 37.0.0,
 emulator 37.2.12.0, system image `android-34;default;x86_64`.
 
@@ -192,7 +196,8 @@ without its bindgen interface to fail with
 
 ## Pending
 
-- Emulator run: needs KVM. Without it the emulator boot loops.
+- Emulator run in CI: the `android` workflow runs it on a KVM runner; no
+  run has been recorded yet.
 - Physical arm64 device run.
 - Multi-ABI install on a device.
 - iOS device run: needs a physical device.

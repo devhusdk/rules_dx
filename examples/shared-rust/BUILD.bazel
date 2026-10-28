@@ -233,6 +233,23 @@ sh_test(
     tags = ["manual"],
 )
 
+sh_test(
+    name = "lifecycle_check_test",
+    srcs = ["check_lifecycle.sh"],
+    args = ["$(location testdata/lifecycle_ok.log)"],
+    data = ["testdata/lifecycle_ok.log"],
+)
+
+sh_test(
+    name = "lifecycle_check_missing_destroy_test",
+    srcs = ["check_lifecycle.sh"],
+    args = [
+        "$(location testdata/lifecycle_no_destroy.log)",
+        "--expect-fail",
+    ],
+    data = ["testdata/lifecycle_no_destroy.log"],
+)
+
 rust_wasi_module(
     name = "tasks_wasi",
     binary = ":tasks",

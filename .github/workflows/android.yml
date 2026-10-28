@@ -170,6 +170,24 @@ jobs:
           cat "$evidence/rust-android-starter.log"
           echo "rust-android-starter $code" >> "$evidence/exit-codes.txt"
           exit "$code"
+      - name: Run shared-rust on the emulator
+        run: |
+          set -o pipefail
+          cd "$GITHUB_WORKSPACE"
+          ndk=--extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          adb -s emulator-5554 logcat -c
+          bazel run --noshow_progress "$@" $ndk //examples/shared-rust:install
+          bazel run --noshow_progress "$@" $ndk //examples/shared-rust:start
+          sleep 5
+          adb -s emulator-5554 shell input tap 200 400
+          adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
+          sleep 2
+          adb -s emulator-5554 shell input keyevent KEYCODE_BACK
+          sleep 2
+          adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee evidence/logcat-shared-rust.txt
+          sh examples/shared-rust/check_lifecycle.sh evidence/logcat-shared-rust.txt
       - name: Collect test logs
         if: always()
         run: |

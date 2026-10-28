@@ -16,9 +16,11 @@ pub use api_spec_preflight;
 pub mod cloudformation_preflight;
 pub mod commands;
 pub mod exec;
+pub mod json_schema;
 pub mod kubernetes_preflight;
 pub mod launch;
 pub mod parsers;
+pub mod pointer_index;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolSeverity {

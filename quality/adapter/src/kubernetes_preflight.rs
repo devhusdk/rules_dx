@@ -2,7 +2,8 @@
 
 use std::collections::BTreeMap;
 
-use saphyr_parser::{Event, Parser, ScalarStyle};
+pub use crate::pointer_index::escape;
+use crate::pointer_index::{scan_yaml as scan, Offsets, Raw, SyntaxAt};
 
 /// A file that does not parse as YAML or JSON, or is too large or not UTF-8.
 pub const RULE_SYNTAX: &str = "dx/kubernetes-syntax";
@@ -11,6 +12,8 @@ pub const RULE_NOT_MANIFEST: &str = "dx/kubernetes-not-manifest";
 
 /// The largest manifest file dx hands to kubeconform.
 pub const MAX_MANIFEST_BYTES: usize = 2 * 1024 * 1024;
+
+const CAPTURED: &[&str] = &["/apiVersion", "/kind", "/metadata/name"];
 
 const BOM: char = '\u{feff}';
 
@@ -60,11 +63,6 @@ pub struct Preflight {
     pub problems: Vec<Problem>,
 }
 
-/// Escapes one JSON pointer reference token.
-pub fn escape(token: &str) -> String {
-    token.replace('~', "~0").replace('/', "~1")
-}
-
 fn syntax(line: usize, col: usize, detail: &str) -> Problem {
     Problem {
         rule: RULE_SYNTAX,
@@ -74,167 +72,12 @@ fn syntax(line: usize, col: usize, detail: &str) -> Problem {
     }
 }
 
-enum Frame {
-    Map {
-        pointer: String,
-        key: Option<String>,
-        expecting_key: bool,
-    },
-    Seq {
-        pointer: String,
-        index: usize,
-    },
-}
-
-enum Node<'a> {
-    Scalar(&'a str, ScalarStyle),
-    Map,
-    Seq,
-    Alias,
-}
-
-#[derive(Default)]
-struct Raw {
-    start_char: usize,
-    explicit: bool,
-    root: Option<(u64, u64)>,
-    empty: bool,
-    pointers: BTreeMap<String, (u64, u64)>,
-    captured: BTreeMap<&'static str, String>,
-}
-
-const CAPTURED: &[&str] = &["/apiVersion", "/kind", "/metadata/name"];
-
-fn value_done(stack: &mut [Frame]) {
-    if let Some(Frame::Map { expecting_key, .. }) = stack.last_mut() {
-        *expecting_key = true;
-    }
-}
-
-fn is_null(value: &str, style: ScalarStyle) -> bool {
-    style == ScalarStyle::Plain && matches!(value, "" | "~" | "null" | "Null" | "NULL")
-}
-
-fn on_node(
-    raw: &mut Raw,
-    stack: &mut Vec<Frame>,
-    node: Node<'_>,
-    at: (u64, u64),
-    line: usize,
-    col: usize,
-) -> Result<(), Problem> {
-    let pointer = match stack.last_mut() {
-        None => {
-            raw.root = Some(at);
-            raw.empty = matches!(node, Node::Scalar(value, style) if is_null(value, style));
-            String::new()
-        }
-        Some(Frame::Map {
-            pointer,
-            key,
-            expecting_key,
-        }) => {
-            if *expecting_key {
-                let Node::Scalar(name, _) = node else {
-                    return Err(syntax(
-                        line,
-                        col,
-                        "a mapping, sequence or alias used as a key",
-                    ));
-                };
-                let child = format!("{pointer}/{}", escape(name));
-                raw.pointers.entry(child).or_insert(at);
-                *key = Some(name.to_owned());
-                *expecting_key = false;
-                return Ok(());
-            }
-            format!("{pointer}/{}", escape(key.as_deref().unwrap_or_default()))
-        }
-        Some(Frame::Seq { pointer, index }) => {
-            let child = format!("{pointer}/{index}");
-            *index += 1;
-            child
-        }
-    };
-    raw.pointers.entry(pointer.clone()).or_insert(at);
-    match node {
-        Node::Scalar(value, _) => {
-            if let Some(slot) = CAPTURED.iter().find(|slot| **slot == pointer) {
-                raw.captured.insert(slot, value.to_owned());
-            }
-            value_done(stack);
-        }
-        Node::Alias => value_done(stack),
-        Node::Map => stack.push(Frame::Map {
-            pointer,
-            key: None,
-            expecting_key: true,
-        }),
-        Node::Seq => stack.push(Frame::Seq { pointer, index: 0 }),
-    }
-    Ok(())
-}
-
-/// The byte offset of each char index the parser reports.
-struct Offsets<'a> {
-    text: &'a str,
-    table: Option<Vec<usize>>,
-}
-
-impl<'a> Offsets<'a> {
-    fn new(text: &'a str) -> Self {
-        let table = (!text.is_ascii()).then(|| text.char_indices().map(|(at, _)| at).collect());
-        Self { text, table }
-    }
-
-    fn byte(&self, char_index: usize) -> usize {
-        match &self.table {
-            None => char_index.min(self.text.len()),
-            Some(table) => table.get(char_index).copied().unwrap_or(self.text.len()),
-        }
-    }
+fn syntax_at(err: SyntaxAt) -> Problem {
+    syntax(err.line, err.col, &err.detail)
 }
 
 fn scan_yaml(text: &str) -> Result<Vec<Raw>, Problem> {
-    let mut done = Vec::new();
-    let mut current: Option<Raw> = None;
-    let mut stack: Vec<Frame> = Vec::new();
-    for item in Parser::new_from_str(text) {
-        let (event, span) =
-            item.map_err(|err| syntax(err.marker().line(), err.marker().col(), err.info()))?;
-        let (line, col) = (span.start.line(), span.start.col());
-        let at = (line.max(1) as u64, col as u64 + 1);
-        let node = match &event {
-            Event::DocumentStart(explicit) => {
-                current = Some(Raw {
-                    start_char: span.start.index(),
-                    explicit: *explicit,
-                    ..Raw::default()
-                });
-                stack.clear();
-                None
-            }
-            Event::DocumentEnd => {
-                done.extend(current.take());
-                None
-            }
-            Event::Scalar(value, style, ..) => Some(Node::Scalar(value, *style)),
-            Event::MappingStart(..) => Some(Node::Map),
-            Event::SequenceStart(..) => Some(Node::Seq),
-            Event::Alias(_) => Some(Node::Alias),
-            Event::MappingEnd | Event::SequenceEnd => {
-                stack.pop();
-                value_done(&mut stack);
-                None
-            }
-            _ => None,
-        };
-        if let (Some(node), Some(raw)) = (node, current.as_mut()) {
-            on_node(raw, &mut stack, node, at, line, col)?;
-        }
-    }
-    done.extend(current);
-    Ok(done)
+    scan(text, CAPTURED).map_err(syntax_at)
 }
 
 fn decode(bytes: &[u8]) -> Result<(&str, usize), Problem> {
@@ -260,7 +103,7 @@ fn finish(raw: Raw, start: usize, end: usize, text: &str, bom: usize) -> Documen
     }
     let mut pointers = raw.pointers;
     pointers.entry(String::new()).or_insert((line, column));
-    let take = |captured: &BTreeMap<&str, String>, key: &str| captured.get(key).cloned();
+    let take = |captured: &BTreeMap<String, String>, key: &str| captured.get(key).cloned();
     Document {
         start: start + bom,
         end: end + bom,

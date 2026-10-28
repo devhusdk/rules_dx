@@ -95,6 +95,18 @@ py_binary(
     ],
     dep_group = "dx-python-tools",
     main = "check_jsonschema_main.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//check_jsonschema"],
+)
+
+py_unittest_test(
+    name = "check_jsonschema_main_test",
+    srcs = [
+        "check_jsonschema_main.py",
+        "check_jsonschema_main_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
     deps = ["@pypi//check_jsonschema"],
 )
 

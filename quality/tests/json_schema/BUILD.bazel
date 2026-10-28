@@ -6,6 +6,7 @@ load(":json_schema_tests.bzl", "schemas_config_test")
 json_schema(
     name = "common",
     src = "fixtures/common.schema.json",
+    url = "https://example.com/common.schema.json",
 )
 
 json_schema(

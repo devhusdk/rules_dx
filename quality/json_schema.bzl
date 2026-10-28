@@ -5,6 +5,7 @@ load("//quality:native_config.bzl", "DxNativeConfigInfo")
 JsonSchemaInfo = provider(
     doc = "One checked-in JSON Schema, the files it validates, and its closure.",
     fields = {
+        "resources": "depset[struct(file, url)]: every schema in the closure with the $schema URL it stands in for, or empty.",
         "closure": "depset[File]: the schema plus every schema it references.",
         "files": "list[str]: workspace-relative globs of the files it validates.",
         "schema": "File: the schema document.",
@@ -24,9 +25,14 @@ def _json_schema_impl(ctx):
         [ctx.file.src],
         transitive = [dep[JsonSchemaInfo].closure for dep in ctx.attr.deps],
     )
+    resources = depset(
+        [struct(file = ctx.file.src, url = ctx.attr.url)],
+        transitive = [dep[JsonSchemaInfo].resources for dep in ctx.attr.deps],
+    )
     return [
         DefaultInfo(files = closure),
         JsonSchemaInfo(
+            resources = resources,
             closure = closure,
             files = ctx.attr.files,
             schema = ctx.file.src,
@@ -64,6 +70,7 @@ def _json_schemas_impl(ctx):
     links = []
     urls = {}
     entries = []
+    resources = {}
     for target in ctx.attr.schemas:
         info = target[JsonSchemaInfo]
         if len(info.files) == 0 and info.url == "":
@@ -82,6 +89,11 @@ def _json_schemas_impl(ctx):
             link = ctx.actions.declare_file(root + "/" + path)
             ctx.actions.symlink(output = link, target_file = f)
             links.append(link)
+        for resource in info.resources.to_list():
+            entry_path = root + "/" + _staged_path(resource.file)
+            if entry_path in resources and resources[entry_path] != resource.url:
+                fail("json_schemas " + str(ctx.label) + ": '" + entry_path + "' is declared with two urls")
+            resources[entry_path] = resource.url
         entry = {
             "files": sorted(info.files),
             "schema": root + "/" + _staged_path(info.schema),
@@ -90,7 +102,14 @@ def _json_schemas_impl(ctx):
             entry["url"] = info.url
         entries.append(entry)
     config = ctx.actions.declare_file(ctx.label.name + ".schemas.json")
+    resource_entries = []
+    for path in sorted(resources):
+        resource = {"schema": path}
+        if resources[path] != "":
+            resource["url"] = resources[path]
+        resource_entries.append(resource)
     ctx.actions.write(config, json.encode({
+        "resources": resource_entries,
         "schema_version": 1,
         "schemas": entries,
     }) + "\n")

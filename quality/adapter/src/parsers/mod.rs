@@ -2,6 +2,7 @@ pub mod ansible_lint;
 pub mod biome;
 pub mod buf;
 pub mod buildifier;
+pub mod check_jsonschema;
 pub mod checkmake;
 pub mod checkstyle;
 pub mod clang_format;
@@ -96,6 +97,7 @@ pub use ansible_lint::parse_ansible_lint;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
+pub use check_jsonschema::{parse_check_jsonschema, CheckJsonschemaTarget};
 pub use checkmake::parse_checkmake;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
@@ -2195,6 +2197,23 @@ mod tests {
         super::kubeconform::parse_kubeconform(input, input, code, &targets)
     }
 
+    fn fuzz_check_jsonschema(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let targets: Vec<super::CheckJsonschemaTarget<'_>> = files
+            .iter()
+            .map(|file| super::CheckJsonschemaTarget {
+                reported: file,
+                file,
+                bytes: b"{}",
+                filetype: crate::json_schema::Filetype::Json,
+            })
+            .collect();
+        super::check_jsonschema::parse_check_jsonschema(input, input, code, &targets)
+    }
+
     fn fuzz_checkmake(
         input: &[u8],
         code: Option<i32>,
@@ -2501,6 +2520,7 @@ mod tests {
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("ansible_lint", fuzz_ansible_lint),
+        ("check_jsonschema", fuzz_check_jsonschema),
         ("kubeconform", fuzz_kubeconform),
         ("latexindent", fuzz_latexindent),
         ("ktfmt", fuzz_ktfmt),
@@ -2646,6 +2666,7 @@ mod tests {
         ("statix", include_str!("statix.rs")),
         ("stylelint", include_str!("stylelint.rs")),
         ("stylua", include_str!("stylua.rs")),
+        ("check_jsonschema", include_str!("check_jsonschema.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
         ("ty", include_str!("ty.rs")),

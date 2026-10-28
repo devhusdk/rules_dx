@@ -50,3 +50,8 @@ rust_clippy_test(
     size = "small",
     targets = [":nuget_sets_test"],
 )
+
+exports_files(
+    ["tests/nuget_sets.rs"],
+    visibility = ["//modules:__pkg__"],
+)

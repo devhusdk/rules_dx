@@ -26,7 +26,7 @@ bazel_dep(name = "rules_dotnet", version = "0.22.2")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(dotnet_version = "10.0.400")
+dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
 
 nuget = use_extension("@rules_dx//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")

@@ -1,6 +1,6 @@
 # C#
 
-Build and test C# with a pinned .NET SDK 10.0.400. Nothing is installed on the
+Build and test C# with a pinned .NET SDK 10.0.403. Nothing is installed on the
 host and nothing is fetched until a target needs it. rules_dx registers the
 toolchain, so there is no setup in `MODULE.bazel`.
 

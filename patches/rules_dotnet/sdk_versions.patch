@@ -1,0 +1,22 @@
+diff -ruN a/dotnet/private/sdk/versions.bzl b/dotnet/private/sdk/versions.bzl
+--- a/dotnet/private/sdk/versions.bzl
++++ b/dotnet/private/sdk/versions.bzl
+@@ -25,6 +25,18 @@
+         "arm64-pc-windows-msvc": {"hash": "sha512-GuJXLcHPt1PPjEQk7j874LGF8E4OnZYZuzwNrpsZcgD3OajJhC78CDp2enAXC2daFEWat3kTcPf0chtik5T+HQ==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.303/dotnet-sdk-10.0.303-win-arm64.zip"},
+         "x86_64-pc-windows-msvc": {"hash": "sha512-rU72IC5Vur3hxl4b57Row+y3OMzC+4vTwrtAik9F0kfIxaX1f+3FTr7ny1/E9Id3KZfy0FMBDS4ZA7l0zGQhbQ==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.303/dotnet-sdk-10.0.303-win-x64.zip"},
+     },
++    "10.0.403": {
++        "runtimeVersion": "10.0.14",
++        "runtimeTfm": "net10.0",
++        "csharpDefaultVersion": "14.0",
++        "fsharpDefaultVersion": "10.0",
++        "arm64-unknown-linux-gnu": {"hash": "sha512-CWaqK3D0Z3uDGb6d9Eenig3NYWSDZCW1Wmj9cU9AI/64e0ysIbmplreUcq1USHzQrc0qnf1XDisqHSZCOiuqmw==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-arm64.tar.gz"},
++        "x86_64-unknown-linux-gnu": {"hash": "sha512-t7PYRhz5iwfSVSzpGZcC+jrQEKwmcaX4zVE291NOUPaFW6e7sCsRSUVj8dBBVidqMc2hEDuQDl7s0NlHPce5xQ==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-x64.tar.gz"},
++        "aarch64-apple-darwin": {"hash": "sha512-WJPGa0jqNnTH2hhQEFnWBulvNnL6vk1eQXYuaSx8g98+4LK53FoHhhkdotxBPXM1FYEBwUyTWrIX8xrCUpdw8w==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-osx-arm64.tar.gz"},
++        "x86_64-apple-darwin": {"hash": "sha512-zpXSJbhtJAHxEcKqbfD15oVcN1t7NKtKc9+QxW8rD8KkQ5jP5FXLaJZwvIWQAS6UO2THpZASKvmM3AZ3IbEiIw==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-osx-x64.tar.gz"},
++        "arm64-pc-windows-msvc": {"hash": "sha512-947Ni0jiT9cu5gRoe3Xxu7gVBeg0P31S5Lr56jI3JVfrMOiPrKqtGVvyZG/M4Rf9lB5J2g1b3uHWDWPYNpaEKQ==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-arm64.zip"},
++        "x86_64-pc-windows-msvc": {"hash": "sha512-ehFMMY+n8dmCKZG1NLKBTQ54OGztqBazcfUUGs7+dB2HzLYG7eBsrayPmsUHDjK3CKZ7vRYZ/15aeFiieHTvSA==", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-x64.zip"},
++    },
+     "10.0.400": {
+         "runtimeVersion": "10.0.11",
+         "runtimeTfm": "net10.0",

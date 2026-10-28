@@ -1515,6 +1515,15 @@ trait Warm {
     fn stop(&self, ping: Self::Ping);
 }
 
+impl Warmth {
+    /// The full command a ping runs: launcher, startup options, then a lock-free `info`.
+    fn ping_argv(&self) -> Vec<String> {
+        let mut argv = dx_process::startup_argv(&self.startup_options);
+        argv.extend(["--noblock_for_lock", "info", "server_pid"].map(str::to_owned));
+        argv
+    }
+}
+
 impl Warm for Warmth {
     type Ping = Child;
 
@@ -1541,11 +1550,10 @@ impl Warm for Warmth {
 
     #[allow(clippy::disallowed_methods)] // info takes no build settings
     fn ping(&self) -> Option<Child> {
-        let argv = dx_process::startup_argv(&self.startup_options);
+        let argv = self.ping_argv();
         let (program, args) = argv.split_first()?;
         std::process::Command::new(program)
             .args(args)
-            .args(["--noblock_for_lock", "info", "server_pid"])
             .current_dir(&self.workspace)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -4392,6 +4400,25 @@ mod tests {
         idle.tick(Instant::now());
         drop(idle);
         assert_eq!(idle_log.borrow().stopped, 0);
+    }
+
+    #[test]
+    fn ping_argv_carries_startup_options_before_the_info_verb() {
+        let warmth = Warmth {
+            workspace: PathBuf::from("/ws"),
+            startup_options: vec!["--output_base=/ob".to_owned()],
+            output_user_root: None,
+            output_base: None,
+            default_roots: Vec::new(),
+        };
+        let argv = warmth.ping_argv();
+        let base = argv.iter().position(|arg| arg == "--output_base=/ob");
+        let info = argv.iter().position(|arg| arg == "info");
+        assert!(base.is_some() && base < info, "{argv:?}");
+        assert_eq!(
+            argv[argv.len() - 3..],
+            ["--noblock_for_lock", "info", "server_pid"]
+        );
     }
 
     #[cfg(unix)]

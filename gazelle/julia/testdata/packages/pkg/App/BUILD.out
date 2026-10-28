@@ -1,0 +1,17 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_library", "julia_test")
+
+julia_library(
+    name = "App",
+    srcs = ["src/App.jl"],
+    data = ["Project.toml"],
+    deps = [
+        "//pkg/Stats",
+        "@julia_deps//:Example",
+    ],
+)
+
+julia_test(
+    name = "App_test",
+    srcs = ["test/runtests.jl"],
+    deps = [":App"],
+)

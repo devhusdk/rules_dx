@@ -33,6 +33,15 @@ julia_test(
 
 The wrappers forward to `rules_julia` and add the `julia` quality class.
 
+## Generate
+
+`dx generate` reads `Project.toml` only. A `Project.toml` with a `name` and a
+`src/<name>.jl` gets a `julia_library` named `<name>` from `src/**/*.jl`, with
+`Project.toml` as `data` and `[deps]` as dependencies. When `test/runtests.jl`
+exists it also gets a `julia_test` named `<name>_test`. It never generates a
+`julia_binary`, `ext/` or `[weakdeps]`, and it leaves a `Project.toml` without
+a name alone. Third-party packages need a `# gazelle:resolve julia` line.
+
 ## Formatting
 
 `dx format` runs JuliaFormatter 2.2.0 when a `julia` family selects

@@ -1,0 +1,7 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_library")
+
+julia_library(
+    name = "Inner",
+    srcs = ["src/Inner.jl"],
+    data = ["Project.toml"],
+)

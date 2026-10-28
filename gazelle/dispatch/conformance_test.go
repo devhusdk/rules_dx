@@ -87,6 +87,15 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"javascript_library", "javascript_test", "javascript_binary"},
 		inert:   []string{"notes.txt", "widget.d.ts"},
 	},
+	"julia": {
+		files: map[string]string{
+			"Project.toml": "name = \"Demo\"\nuuid = \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\"\n",
+			"src/Demo.jl":  "module Demo\nend\n",
+		},
+		kind: "julia_library", target: "Demo", defs: "julia/rules:defs.bzl",
+		symbols: []string{"julia_library", "julia_test"},
+		oldSrcs: []string{"src/Old.jl"},
+	},
 	"kotlin": {
 		files: map[string]string{"Demo.kt": "package demo\n\nclass Demo\n"},
 		kind:  "kotlin_library", target: "demo", defs: "kotlin/rules:defs.bzl",

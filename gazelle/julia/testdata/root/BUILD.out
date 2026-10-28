@@ -1,0 +1,17 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_library", "julia_test")
+
+julia_library(
+    name = "Demo",
+    srcs = ["src/Demo.jl"],
+    data = ["Project.toml"],
+)
+
+julia_test(
+    name = "Demo_test",
+    srcs = [
+        "test/helpers.jl",
+        "test/runtests.jl",
+    ],
+    main = "test/runtests.jl",
+    deps = [":Demo"],
+)

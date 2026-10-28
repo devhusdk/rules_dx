@@ -1185,6 +1185,8 @@ FILE_FAMILY_CASES = [
         "tool_names": ["standardrb"],
         "tool_binaries": ["//quality/testdata:fake_standardrb"],
         "expected_file": ":matrix/matrix_ruby_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_ruby_format_fail",
@@ -1196,6 +1198,8 @@ FILE_FAMILY_CASES = [
         "tool_names": ["standardrb"],
         "tool_binaries": ["//quality/testdata:fake_standardrb"],
         "expected_file": ":matrix/matrix_ruby_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_html_template_format_pass",

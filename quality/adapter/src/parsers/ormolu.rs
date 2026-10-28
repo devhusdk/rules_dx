@@ -43,8 +43,7 @@ fn unformatted_files(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, P
     Ok(findings)
 }
 
-/// A located failure: `path:line:col` (optionally `-col`) then an indented message. Spans written
-/// as `path:(l1,c1)-(l2,c2)` are not read and fail as a shape error, never as clean.
+/// A located failure: `path:line:col` or `path:(l1,c1)-(l2,c2)`, then an indented message.
 fn failure(
     stderr: &str,
     files: &[&str],
@@ -94,9 +93,19 @@ fn locate<'a>(line: &str, files: &[&'a str]) -> Option<(&'a str, u64, u64)> {
             .is_some_and(|rest| rest.starts_with(':'))
     })?;
     let rest = line.strip_prefix(*file)?.strip_prefix(':')?;
-    let mut parts = rest.split(':');
-    let row: u64 = parts.next()?.parse().ok()?;
-    let column: u64 = parts.next()?.split(['-', ' ']).next()?.parse().ok()?;
+    let (row, column) = match rest.strip_prefix('(') {
+        Some(span) => {
+            let (row, after) = span.split_once(',')?;
+            (row, after.split(')').next()?)
+        }
+        None => {
+            let mut parts = rest.split(':');
+            let row = parts.next()?;
+            (row, parts.next()?.split(['-', ' ']).next()?)
+        }
+    };
+    let row: u64 = row.parse().ok()?;
+    let column: u64 = column.parse().ok()?;
     Some((file, row.max(1), column.max(1)))
 }
 
@@ -132,6 +141,31 @@ mod tests {
         assert_eq!(findings[0].finding.start.line, 2);
         assert_eq!(findings[0].finding.start.column, 8);
         assert!(findings[0].finding.message.contains("parse error"));
+    }
+
+    #[test]
+    fn ormolu_locates_a_multi_line_span_at_its_start() {
+        let spanned =
+            "/s/b.hs:(2,8)-(3,4): error:\n  The GHC parser failed:\n  parse error on input `='\n";
+        let findings = parse_ormolu(b"", spanned.as_bytes(), Some(3), &FILES).expect("ok");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].file, "/s/b.hs");
+        assert_eq!(findings[0].finding.start.line, 2);
+        assert_eq!(findings[0].finding.start.column, 8);
+        assert!(findings[0].finding.message.contains("parse error"));
+    }
+
+    #[test]
+    fn ormolu_rejects_a_malformed_span() {
+        for broken in [
+            "/s/b.hs:(2)-(3,4): error:\n  x\n",
+            "/s/b.hs:(2,x): error:\n  x\n",
+        ] {
+            assert!(
+                parse_ormolu(b"", broken.as_bytes(), Some(3), &FILES).is_err(),
+                "{broken}"
+            );
+        }
     }
 
     #[test]

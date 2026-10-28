@@ -330,6 +330,28 @@ NATIVE_CASES = [
         "expected_file": ":matrix/matrix_go_staticcheck_import_fail.expected.txt",
     },
     {
+        "name": "matrix_go_gotype_pass",
+        "generated": {
+            "matrix/gotype_clean.go": "// Seed Go typecheck fixture.\npackage gotype\n\nfunc check(name string) string {\n\treturn \"hello \" + name\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["gotype;go;matrix/gotype_clean.go"],
+        "upstream_tools": ["gotype"],
+        "upstream_srcs": [":matrix/matrix_go_gotype_pass.upstream.gotype.txt"],
+        "expected_file": ":matrix/matrix_go_gotype_pass.expected.txt",
+    },
+    {
+        "name": "matrix_go_gotype_fail",
+        "generated": {
+            "matrix/gotype_dirty.go": "// Seed Go typecheck fixture.\npackage gotype\n\nfunc check() int {\n\treturn \"hello\"\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["gotype;go;matrix/gotype_dirty.go"],
+        "upstream_tools": ["gotype"],
+        "upstream_srcs": [":matrix/matrix_go_gotype_fail.upstream.gotype.txt"],
+        "expected_file": ":matrix/matrix_go_gotype_fail.expected.txt",
+    },
+    {
         "name": "matrix_go_govet_pass",
         "generated": {
             "matrix/govet_clean.go": "// Seed Go vet fixture.\npackage govet\n\nfunc check(name string) string {\n\treturn \"hello \" + name\n}\n",

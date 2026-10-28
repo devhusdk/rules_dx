@@ -77,7 +77,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Erlang | `elvis` | `erlfmt` | `dialyzer` |
 | Fortran | `fortitude` on `linux_x86_64` | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |
-| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `gotype` |
 | Haskell | `hlint` on `linux_x86_64` | `ormolu` on `linux_x86_64`, `windows_x86_64`, `windows_arm64` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |

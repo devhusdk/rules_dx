@@ -31,6 +31,7 @@ type config struct {
 	GOARCH      string
 	Tags        []string
 	Cgo         bool
+	StdlibDir   string
 }
 
 type diagnostic struct {
@@ -86,9 +87,23 @@ func (r *resolver) ImportFrom(path, _ string, _ types.ImportMode) (*types.Packag
 	return pkg, err
 }
 
+func packageFile(cfg *config, path string) (string, bool) {
+	if file, ok := cfg.PackageFile[path]; ok {
+		return file, true
+	}
+	if cfg.StdlibDir == "" {
+		return "", false
+	}
+	file := filepath.Join(cfg.StdlibDir, filepath.FromSlash(path)+".a")
+	if _, err := os.Stat(file); err != nil {
+		return "", false
+	}
+	return file, true
+}
+
 func newResolver(fset *token.FileSet, cfg *config) *resolver {
 	lookup := func(path string) (io.ReadCloser, error) {
-		file, ok := cfg.PackageFile[path]
+		file, ok := packageFile(cfg, path)
 		if !ok {
 			return nil, fmt.Errorf("no export data for %q", path)
 		}

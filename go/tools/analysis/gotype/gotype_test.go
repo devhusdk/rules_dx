@@ -133,3 +133,21 @@ func TestRunWritesReportAndRejectsBadConfig(t *testing.T) {
 		t.Fatal("expected config error")
 	}
 }
+
+func TestStdlibDirLookup(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "std", "net"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := write(t, filepath.Join(dir, "std", "net"), "http.a", "x")
+	cfg := &config{StdlibDir: filepath.Join(dir, "std"), PackageFile: map[string]string{"a/b": "/b.a"}}
+	if got, ok := packageFile(cfg, "net/http"); !ok || got != want {
+		t.Fatalf("got %q %v", got, ok)
+	}
+	if got, ok := packageFile(cfg, "a/b"); !ok || got != "/b.a" {
+		t.Fatalf("got %q %v", got, ok)
+	}
+	if _, ok := packageFile(cfg, "fmt"); ok {
+		t.Fatal("fmt should be missing")
+	}
+}

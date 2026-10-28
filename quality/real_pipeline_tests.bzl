@@ -4,8 +4,9 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//sql/rules:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
+load(":go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
-load(":real_aspects.bzl", "go_lang_version", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
 
 def _f(path, is_source = True, extension = "rs", workspace = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(workspace_name = workspace))
@@ -46,6 +47,7 @@ _FORMAT_SELECTIONS = {
 }
 
 _TYPECHECK_SELECTIONS = {
+    "go": ["gotype"],
     "java": ["javac"],
     "javascript": [],
     "json": [],
@@ -231,6 +233,15 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("vale", "format"),
                 ],
                 [["markdown", "rst"], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns gotype typecheck support only",
+                [
+                    real_supported_classes("gotype", "typecheck"),
+                    real_supported_classes("gotype", "lint"),
+                    real_supported_classes("gotype", "format"),
+                ],
+                [["go"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns javac typecheck support only",

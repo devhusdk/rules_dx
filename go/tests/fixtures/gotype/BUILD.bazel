@@ -1,0 +1,36 @@
+load("//go/rules:defs.bzl", "go_library", "go_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+go_library(
+    name = "base",
+    srcs = ["base.go"],
+    importpath = "rules_dx/go/tests/fixtures/gotype/base",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "clean",
+    srcs = ["clean.go"],
+    importpath = "rules_dx/go/tests/fixtures/gotype/clean",
+    tags = ["manual"],
+    deps = [":base"],
+)
+
+go_library(
+    name = "broken",
+    srcs = ["broken.go"],
+    importpath = "rules_dx/go/tests/fixtures/gotype/broken",
+    tags = ["manual"],
+    deps = [":base"],
+)
+
+go_test(
+    name = "external_test",
+    srcs = ["clean_test.go"],
+    embed = [":clean"],
+    tags = ["manual"],
+)

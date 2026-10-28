@@ -99,10 +99,10 @@ quality_family(
     name = "default_go_family",
     disabled = [
         "lint",
-        "typecheck",
     ],
     family_id = "go",
     format = ["gofumpt"],
+    typecheck = ["gotype"],
 )
 
 quality_family(
@@ -717,6 +717,7 @@ real_source_target(
         "support_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
+        "go_analysis.bzl",
         "javac_check.bzl",
         "tsc.bzl",
     ],

@@ -4,6 +4,7 @@ load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
+load("@rules_go//go:def.bzl", "GoArchive")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
@@ -26,6 +27,7 @@ load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
@@ -565,6 +567,12 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "dotnet",
     },
+    "gotype": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "go",
+    },
     "javac": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
@@ -1085,24 +1093,9 @@ def _tool_files_to_run(target, flag, tool, what):
     wrappers, defs, tool_label = _TARGET_TOOL_OWNERS[tool]
     fail(what + ": " + tool + " has no executable; use " + wrappers + " from " + defs + ", or set --@rules_dx//config:tool_" + tool + "=" + tool_label)
 
-_GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
-
-def go_lang_version(sdk_version):
-    """Returns the gofumpt -lang value (go<major>.<minor>) for one Go SDK version."""
-    parts = sdk_version.removeprefix("go").split(".")
-    minor = ""
-    if len(parts) >= 2:
-        for c in parts[1].elems():
-            if not c.isdigit():
-                break
-            minor += c
-    if len(parts) < 2 or not parts[0].isdigit() or minor == "":
-        fail("gofumpt: cannot derive -lang from Go SDK version '" + sdk_version + "'")
-    return "go" + parts[0] + "." + minor
-
 def _gofumpt_lang(ctx, what):
     """Derives gofumpt -lang from the resolved rules_go SDK."""
-    toolchain = ctx.toolchains[_GO_TOOLCHAIN_TYPE]
+    toolchain = ctx.toolchains[GO_TOOLCHAIN_TYPE]
     if toolchain == None:
         fail(what + ": gofumpt needs a registered rules_go Go toolchain to derive -lang")
     return go_lang_version(toolchain.sdk.version)
@@ -1337,6 +1330,18 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 return []
         else:
             jvm_check = target[JvmCheckInfo]
+
+    go_report = None
+    if "gotype" in [stage["tool"] for stage in resolved]:
+        if GoAnalysisInfo not in target:
+            if GoArchive not in target:
+                resolved = drop_pipeline_tool(resolved, "gotype")
+                if len(resolved) == 0:
+                    return []
+            else:
+                fail(what + ": gotype needs the Go analysis aspect report for a rules_go target")
+        else:
+            go_report = target[GoAnalysisInfo].reports["gotype"]
 
     tsc = None
     if "tsc" in [stage["tool"] for stage in resolved]:
@@ -1718,6 +1723,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
+        if tool == "gotype":
+            upstream.append(go_report.path)
+            inputs.append(go_report)
         if tool == "javac":
             upstream.append(jvm_check.log.path)
             inputs.append(jvm_check.log)
@@ -1924,12 +1932,20 @@ _REAL_SHARD_SPECS = {
         "shard": "ruby",
         "suffix": "-ruby",
     },
+    "real_go_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Go typecheck family aspect (delegated dx_gotype over rules_go packages).",
+        "requires": [go_analysis_aspect],
+        "shard": "go",
+        "suffix": "-go",
+        "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
+    },
     "real_go_format": {
         "capability": "format",
         "doc": "Additive Go format family aspect (gofumpt).",
         "shard": "go",
         "suffix": "-go",
-        "toolchains": [config_common.toolchain_type(_GO_TOOLCHAIN_TYPE, mandatory = False)],
+        "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
     },
     "real_html_template_format": {
         "capability": "format",
@@ -2450,6 +2466,8 @@ real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 real_terraform_lint_aspect = _make_real_aspect("real_terraform_lint")
 
 real_go_format_aspect = _make_real_aspect("real_go_format")
+
+real_go_typecheck_aspect = _make_real_aspect("real_go_typecheck")
 
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 

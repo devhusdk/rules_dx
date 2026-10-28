@@ -1,0 +1,1 @@
+{"example.com/gotype":{"typecheck":[{"posn":"matrix/gotype_dirty.go:5:9","message":"cannot use \"hello\" (untyped string constant) as int value in return statement"}]}}

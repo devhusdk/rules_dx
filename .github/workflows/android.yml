@@ -151,6 +151,7 @@ jobs:
             cd demo-app
             printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
             bazel build --noshow_progress --config=android :demo-app_apk_file
+            bazel build --noshow_progress --config=android :demo-app_release_sign
             bazel test --noshow_progress --config=android :demo-app_check_test
             adb -s emulator-5554 logcat -c
             bazel run --noshow_progress --config=android :demo-app_install

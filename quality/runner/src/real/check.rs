@@ -774,6 +774,23 @@ impl RealBackend {
                     parsers::parse_jsonnetfmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "dfmt" => {
+                // One process per file: with two or more files dfmt edits them in place.
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    let invocation = commands::dfmt_check(&tool.binary, absolute.as_path());
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let input = std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                    let name = absolute.to_string_lossy();
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_dfmt(&out.stdout, &out.stderr, out.code, &input, &name),
+                    )?;
+                    findings.extend(found);
+                }
+                Ok(findings)
+            }
             "erlfmt" => {
                 let invocation = commands::erlfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

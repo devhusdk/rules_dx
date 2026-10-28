@@ -129,6 +129,11 @@ const ORMOLU_FIX_ARGS: &[&str] = &[
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
+/// The scratch directory holding the `.editorconfig` dfmt is pointed at; dfmt otherwise searches
+/// upward from each source file.
+pub const DFMT_CONFIG_DIR: &str = "dx-dfmt-default";
+const DFMT_CHECK_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR];
+const DFMT_FIX_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR, "--inplace"];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -987,6 +992,17 @@ pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn zig_fmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIG_FMT_FIX_ARGS, files, "")
+}
+
+/// dfmt has no check mode: one file without `--inplace` writes the formatted text to stdout.
+/// Pass exactly one file, since two or more switch dfmt to in-place editing. The relative
+/// `--config` makes the cwd the scratch root.
+pub fn dfmt_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, DFMT_CHECK_ARGS, &[file], "")
+}
+
+pub fn dfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DFMT_FIX_ARGS, files, "")
 }
 
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

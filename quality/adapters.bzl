@@ -39,6 +39,7 @@ REAL_ADAPTERS = {
     "csharpier": {"format": ["csharp"]},
     "cue": {"format": ["cue"]},
     "deadnix": {"lint": ["nix"]},
+    "dfmt": {"format": ["d"]},
     "djlint": {"format": ["html_template"], "lint": ["html_template"]},
     "erlfmt": {"format": ["erlang"]},
     "errcheck": {"lint": ["go"]},

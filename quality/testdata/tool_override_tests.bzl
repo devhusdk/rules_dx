@@ -1,6 +1,7 @@
 """Analysis proofs for the declared ruff tool override."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
@@ -21,6 +22,9 @@ _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
 _ZIG_POLICY = _CANONICAL + "//quality/testdata:zig_policy"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
+_D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
+_DFMT_SETTING = _CANONICAL + "//config:tool_dfmt"
+_DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
 _ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
@@ -85,6 +89,29 @@ qml_lint_subject = rule(
     attrs = {
         "target": attr.label(
             aspects = [real_lint_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _d_subject_impl(ctx):
+    """Exposes the resolved dfmt binary and the format results beside the real aspect."""
+    tool = ctx.attr._dfmt[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["dfmt"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "dfmt": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+d_subject = rule(
+    implementation = _d_subject_impl,
+    attrs = {
+        "_dfmt": attr.label(default = "//config:tool_dfmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
             mandatory = True,
         ),
     },
@@ -222,6 +249,51 @@ _qmllint_unset_test = analysistest.make(
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
     config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
+
+def _dfmt_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's dfmt."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["dfmt"])
+    asserts.true(env, fields["wrapper"].endswith("/dfmt") or fields["wrapper"].endswith("/dfmt.exe"), "want dfmt, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the D target")
+    return analysistest.end(env)
+
+_dfmt_default_test = analysistest.make(
+    _dfmt_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _D_POLICY},
+)
+
+def _dfmt_wired_impl(ctx):
+    """Asserts the flag wires dfmt and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["dfmt"].endswith("/dfmt") or fields["dfmt"].endswith("/dfmt.exe"), "want dfmt, got " + fields["dfmt"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the D target")
+    return analysistest.end(env)
+
+_dfmt_set_test = analysistest.make(
+    _dfmt_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _D_POLICY,
+        _DFMT_SETTING: _DFMT_TOOL,
+    },
+)
+
+def dfmt_flag_tests(name, subject):
+    """Instantiates the dfmt flag proofs; D targets build on linux x86_64 only."""
+    _dfmt_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _dfmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
 
 def _zig_default_impl(ctx):
     """Asserts an unset flag falls back to the wrapper's compiler."""

@@ -35,6 +35,12 @@ d_test(
   `import("file")` and are not D sources.
 - `D_COMPATIBLE_WITH` skips D targets on hosts without a D toolchain.
 
+## Formatting
+
+Select `dfmt` in a `d` quality family to check and fix D formatting. The D
+wrappers carry the pinned dfmt, so no flag is needed. See "D formatting" in
+`docs/cli/commands/quality.md`.
+
 ## Platforms
 
 | Host | LDC | Qualified |

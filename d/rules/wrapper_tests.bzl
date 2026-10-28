@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "D_COMPATIBLE_WITH", "d_quality_srcs")
+load(":defs.bzl", "D_COMPATIBLE_WITH", "D_QUALITY_TOOLS", "d_quality_srcs")
 
 def d_wrapper_contract_tests(name):
     """Instantiates D wrapper contract tests."""
@@ -10,6 +10,11 @@ def d_wrapper_contract_tests(name):
         name,
         file_classes = ["d"],
         extra_checks = [
+            expect_equal(
+                "wrappers carry dfmt",
+                sorted(D_QUALITY_TOOLS.keys()),
+                ["dfmt"],
+            ),
             expect_equal(
                 "modules and interface files are owned in order",
                 d_quality_srcs(["app.d", "api.di"]),

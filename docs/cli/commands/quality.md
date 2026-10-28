@@ -233,6 +233,7 @@ to.
 | `csharpier` | format | csharp |
 | `cue` | format | cue |
 | `deadnix` | lint | nix |
+| `dfmt` | format | d |
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
@@ -303,13 +304,14 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `gofumpt`, `qmlformat`, `qmllint`,
-  `zig_fmt`, `erlfmt` and `mix_format` have override flags.
+  `zig_fmt`, `dfmt`, `erlfmt` and `mix_format` have override flags.
 - The `ruff`, `terraform` and `hadolint` alternates must be a single
   executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt` and `mix_format`
-  alternates must be executable targets, such as `@dx_qt//:qmlformat`,
-  `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
+- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `dfmt`, `erlfmt` and
+  `mix_format` alternates must be executable targets, such as
+  `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
+  `@rules_dx//d/tools:dfmt`,
   `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
   A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
@@ -361,6 +363,34 @@ and names the flag. The check runs `zig fmt --check` and never writes.
 `--apply` runs `zig fmt`. A file with a syntax error reports an error at its
 line and column and stays untouched. Use the wrappers from
 `@rules_dx//zig/rules:defs.bzl`.
+
+### D formatting
+
+`dfmt` uses the pinned dfmt that `d_library`, `d_binary` and `d_test` carry.
+Select `dfmt` in a `d` family. No flag is needed. It runs on Linux x86_64
+only.
+
+```python
+quality_family(
+    name = "d_family",
+    family_id = "d",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["dfmt"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format
+bazel run @rules_dx//:dx -- format --apply
+```
+
+To use your own dfmt, set `--@rules_dx//config:tool_dfmt=@rules_dx//d/tools:dfmt`.
+
+dfmt has no check mode, so the check formats each file to standard output,
+compares it with the file and never writes. `--apply` runs `dfmt --inplace`. A
+file with a syntax error reports an error at its line and column and stays
+untouched. dx runs dfmt with its default style and LF line endings and ignores
+`.editorconfig` files for now.
 
 ### Erlang formatting
 

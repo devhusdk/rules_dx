@@ -63,6 +63,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "dfmt" {
+            mirrors.push(MirrorFile {
+                mirror_rel: Path::new(commands::DFMT_CONFIG_DIR).join(DFMT_DEFAULTS_FILE),
+                contents: MirrorContents::Bytes(DFMT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "statix" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(STATIX_DEFAULTS_REL),

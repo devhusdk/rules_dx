@@ -8,6 +8,10 @@ PYTHON_CASES = [
         "stages": ["pydoclint;python;quality/testdata/real_clean.py", "ruff;python;quality/testdata/real_clean.py"],
         "tool_names": ["pydoclint", "ruff"],
         "tool_binaries": ["//quality/tools/python:pydoclint", "@dx_tools//:ruff"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
         "expected_file": ":matrix/matrix_python_lint_pass.expected.txt",
     },
     {
@@ -17,6 +21,10 @@ PYTHON_CASES = [
         "stages": ["pydoclint;python;quality/testdata/real_dirty.py", "ruff;python;quality/testdata/real_dirty.py"],
         "tool_names": ["pydoclint", "ruff"],
         "tool_binaries": ["//quality/tools/python:pydoclint", "@dx_tools//:ruff"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
         "expected_file": ":matrix/matrix_python_lint_fail.expected.txt",
     },
     {
@@ -197,6 +205,10 @@ PYTHON_CASES = [
         "stages": ["ruff;jupyter;quality/testdata/jupyter/clean.ipynb"],
         "tool_names": ["ruff"],
         "tool_binaries": ["@dx_tools//:ruff"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
         "expected_file": ":matrix/matrix_jupyter_lint_pass.expected.txt",
     },
     {
@@ -206,6 +218,10 @@ PYTHON_CASES = [
         "stages": ["ruff;jupyter;quality/testdata/jupyter/lint_dirty.ipynb"],
         "tool_names": ["ruff"],
         "tool_binaries": ["@dx_tools//:ruff"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
         "expected_file": ":matrix/matrix_jupyter_lint_fail.expected.txt",
     },
     {

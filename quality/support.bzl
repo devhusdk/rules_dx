@@ -1078,7 +1078,7 @@ JUPYTER_RUFF_LINT_SUPPORT = {
     "execution": "direct",
     "family": "jupyter",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ruff",
     "transport": "batched",

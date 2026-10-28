@@ -17,7 +17,11 @@ pub const ECOSYSTEM_POWERSHELL: &str = "powershell";
 
 pub const ECOSYSTEM_CARGO: &str = "cargo";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo";
+pub const ECOSYSTEM_MAVEN: &str = "maven";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven";
+
+pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
 pub const CARGO_LOCK: &str = "Cargo.lock";
 
@@ -41,6 +45,7 @@ pub enum Ecosystem {
     Ruby,
     PowerShell,
     Cargo,
+    Maven,
 }
 
 impl Ecosystem {
@@ -52,6 +57,7 @@ impl Ecosystem {
             Ecosystem::Ruby => ECOSYSTEM_RUBY,
             Ecosystem::PowerShell => ECOSYSTEM_POWERSHELL,
             Ecosystem::Cargo => ECOSYSTEM_CARGO,
+            Ecosystem::Maven => ECOSYSTEM_MAVEN,
         }
     }
 
@@ -63,20 +69,21 @@ impl Ecosystem {
             ECOSYSTEM_RUBY => Some(Ecosystem::Ruby),
             ECOSYSTEM_POWERSHELL => Some(Ecosystem::PowerShell),
             ECOSYSTEM_CARGO => Some(Ecosystem::Cargo),
+            ECOSYSTEM_MAVEN => Some(Ecosystem::Maven),
             _ => None,
         }
     }
 
     pub fn supported_check(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo => "check",
+            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo | Ecosystem::Maven => "check",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo => "update",
+            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo | Ecosystem::Maven => "update",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
@@ -102,7 +109,8 @@ impl Ecosystem {
             | Ecosystem::Bazel
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
-            | Ecosystem::Cargo => "audit",
+            | Ecosystem::Cargo
+            | Ecosystem::Maven => "audit",
         }
     }
 
@@ -113,6 +121,7 @@ impl Ecosystem {
             Ecosystem::Npm => Some("npm"),
             Ecosystem::Ruby => Some("rubygems"),
             Ecosystem::Cargo => Some("cargo"),
+            Ecosystem::Maven => Some("maven"),
             Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
@@ -126,13 +135,14 @@ impl Ecosystem {
             Ecosystem::Ruby => "Gemfile",
             Ecosystem::PowerShell => "PSGallery.requirements.psd1",
             Ecosystem::Cargo => "Cargo.toml",
+            Ecosystem::Maven => MODULE_BAZEL,
         }
     }
 
     /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.
     pub fn uses_repository(self) -> bool {
         match self {
-            Ecosystem::Cargo => true,
+            Ecosystem::Cargo | Ecosystem::Maven => true,
             Ecosystem::Uv
             | Ecosystem::Npm
             | Ecosystem::Bazel
@@ -310,6 +320,14 @@ pub enum DependencySetsError {
         name: String,
         path: String,
         ecosystem: &'static str,
+    },
+    #[error("invalid {rel}: dependency set {name:?} must list exactly MODULE.bazel as its manifest (maven resolves through the root module)")]
+    MavenManifest { rel: String, name: String },
+    #[error("dependency set {name:?} cannot resolve maven hub {repository:?}: {detail}")]
+    UnsupportedMavenHub {
+        name: String,
+        repository: String,
+        detail: String,
     },
     #[error("invalid {rel}: dependency set {name:?} is missing repository (the Bazel repository name ecosystem {ecosystem} resolves through)")]
     MissingRepository {
@@ -541,6 +559,12 @@ fn validate_set(
             });
         }
     }
+    if ecosystem == Ecosystem::Maven && raw.manifests != [MODULE_BAZEL] {
+        return Err(DependencySetsError::MavenManifest {
+            rel: rel.to_owned(),
+            name,
+        });
+    }
     let mut dirs = BTreeSet::new();
     for manifest in &raw.manifests {
         dirs.insert(manifest_dir(std::slice::from_ref(manifest)));
@@ -686,7 +710,13 @@ fn check_conflicts(sets: &[DependencySet], rel: &str) -> Result<(), DependencySe
         if !set.writable {
             continue;
         }
-        for path in set.manifests.iter().chain(set.locks.iter()) {
+        // Maven hubs share the root MODULE.bazel; each set still owns its locks.
+        let manifests: &[String] = if set.ecosystem == Ecosystem::Maven {
+            &[]
+        } else {
+            &set.manifests
+        };
+        for path in manifests.iter().chain(set.locks.iter()) {
             writers
                 .entry(path.as_str())
                 .or_default()
@@ -716,6 +746,8 @@ const RUBY_PACKAGE_CHARSET: &str = "gem names use [A-Za-z0-9_.-] only";
 const POWERSHELL_PACKAGE_CHARSET: &str = "PowerShell module names use [A-Za-z0-9_.-] only";
 
 const CARGO_PACKAGE_CHARSET: &str = "crate names start alphanumerically and use [A-Za-z0-9_-] only";
+
+const MAVEN_PACKAGE_CHARSET: &str = "maven packages are group:artifact with [A-Za-z0-9_.-] parts";
 
 const NPM_PACKAGE_CHARSET: &str =
     "npm package names are [@scope/]name with lowercase [a-z0-9._-] parts";
@@ -760,6 +792,18 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Ok(())
             } else {
                 Err(CARGO_PACKAGE_CHARSET)
+            }
+        }
+        Ecosystem::Maven => {
+            let part = |part: &str| {
+                !part.is_empty()
+                    && part
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-')
+            };
+            match package.split_once(':') {
+                Some((group, artifact)) if part(group) && part(artifact) => Ok(()),
+                _ => Err(MAVEN_PACKAGE_CHARSET),
             }
         }
         Ecosystem::Uv | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
@@ -1093,6 +1137,131 @@ pub fn check_backend_settings(
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cargo => check_pinned_lock(set, CARGO_LOCK),
+        Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
+    }
+}
+
+const MAVEN_SIGNATURES: [&str; 2] = ["__INPUT_ARTIFACTS_HASH", "__RESOLVED_ARTIFACTS_HASH"];
+
+/// What check mode needs from the maven hub beyond what both modes need.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MavenHub {
+    lock: String,
+    policy: dx_module_bazel::RepinPolicy,
+}
+
+fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, DependencySetsError> {
+    let repository = set.repository.clone().unwrap_or_default();
+    let unsupported = |detail: String| DependencySetsError::UnsupportedMavenHub {
+        name: set.name.clone(),
+        repository: repository.clone(),
+        detail,
+    };
+    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
+        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
+    let read_include = |label: &str| -> Result<String, String> {
+        let rel = dx_module_bazel::include_rel("", label)?;
+        std::fs::read_to_string(workspace.join(rel))
+            .map_err(|error| format!("cannot read included {label}: {error}"))
+    };
+    let modules =
+        dx_module_bazel::load_with_includes(&root, &read_include).map_err(&unsupported)?;
+    let mut found = Vec::new();
+    let mut used = false;
+    for module in &modules {
+        let installs = module
+            .maven_installs()
+            .map_err(|error| unsupported(error.to_string()))?;
+        for install in installs {
+            if install.name == repository {
+                found.push((
+                    install.lock_file.map(str::to_owned),
+                    install.fail_if_repin_required,
+                ));
+            }
+        }
+        used |= module.calls_named("use_repo").any(|call| {
+            call.positional.iter().skip(1).any(|value| {
+                matches!(value, dx_module_bazel::Value::Str(literal) if literal.value == repository)
+            })
+        });
+    }
+    let (lock_file, policy) = match found.as_slice() {
+        [] => {
+            return Err(unsupported(format!(
+                "no maven.install(name = {repository:?}) tag in {MODULE_BAZEL}"
+            )));
+        }
+        [one] => one.clone(),
+        _ => {
+            return Err(unsupported(format!(
+                "{} maven.install tags are named {repository:?}",
+                found.len()
+            )));
+        }
+    };
+    if !used {
+        return Err(unsupported(format!(
+            "{MODULE_BAZEL} must list {repository:?} in use_repo without renaming it"
+        )));
+    }
+    let label = lock_file
+        .ok_or_else(|| unsupported("the maven.install tag needs a literal lock_file".to_owned()))?;
+    let lock = dx_module_bazel::label_path(&label).map_err(&unsupported)?;
+    if !set.locks.contains(&lock) {
+        return Err(unsupported(format!(
+            "lock_file {label} is not listed in the set's locks (want {lock})"
+        )));
+    }
+    if !workspace.join(&lock).is_file() {
+        return Err(unsupported(format!(
+            "{lock} does not exist; create an empty file before the first update"
+        )));
+    }
+    Ok(MavenHub { lock, policy })
+}
+
+/// Refuses a check when the pinned state cannot prove a stale lock fails closed.
+///
+/// rules_jvm_external only fails a stale lock when `fail_if_repin_required` is true and the
+/// lock carries its signatures; an empty or old-format lock merely prints a note.
+pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    match set.ecosystem {
+        Ecosystem::Maven => {
+            let hub = check_maven_hub(workspace, set)?;
+            let unsupported = |detail: String| DependencySetsError::UnsupportedMavenHub {
+                name: set.name.clone(),
+                repository: set.repository.clone().unwrap_or_default(),
+                detail,
+            };
+            match hub.policy {
+                dx_module_bazel::RepinPolicy::Unset | dx_module_bazel::RepinPolicy::True => {}
+                _ => {
+                    return Err(unsupported(
+                        "fail_if_repin_required must stay true so a stale lock fails the check"
+                            .to_owned(),
+                    ));
+                }
+            }
+            let text = std::fs::read_to_string(workspace.join(&hub.lock))
+                .map_err(|error| unsupported(format!("cannot read {}: {error}", hub.lock)))?;
+            let signed = serde_json::from_str::<serde_json::Value>(&text)
+                .ok()
+                .and_then(|json| {
+                    let object = json.as_object()?.clone();
+                    Some(MAVEN_SIGNATURES.iter().all(|key| object.contains_key(*key)))
+                })
+                .unwrap_or(false);
+            if !signed {
+                return Err(unsupported(format!(
+                    "{} has no {} signatures; run dx update --apply first",
+                    hub.lock,
+                    MAVEN_SIGNATURES.join(" and ")
+                )));
+            }
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -1843,7 +2012,7 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo"
+            "uv, npm, bazel, ruby, powershell, cargo, maven"
         );
     }
 
@@ -2312,5 +2481,201 @@ repository = "tool_crates"
                 "{package}"
             );
         }
+    }
+    const MAVEN_MODULE_TEXT: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"tool_maven\", lock_file = \"//tools:tool_install.json\")\nuse_repo(maven, \"maven\", \"tool_maven\")\n";
+
+    const MAVEN_SETS: &str = r#"
+schema_version = 1
+[[dependency_set]]
+name = "jvm"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/maven_install.json"]
+scopes = ["third_party"]
+repository = "maven"
+
+[[dependency_set]]
+name = "tools"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["tools/tool_install.json"]
+scopes = ["tools"]
+repository = "tool_maven"
+
+[[dependency_set]]
+name = "root"
+ecosystem = "bazel"
+manifests = ["MODULE.bazel"]
+locks = ["MODULE.bazel.lock"]
+scopes = ["MODULE.bazel"]
+"#;
+
+    const SIGNED_LOCK: &str = "{\"__AUTOGENERATED_FILE_DO_NOT_MODIFY_THIS_FILE_MANUALLY\":\"x\",\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2}";
+
+    fn maven_workspace(module: &str, lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-maven-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        std::fs::create_dir_all(root.join("third_party")).expect("dir");
+        std::fs::write(root.join("third_party/maven_install.json"), lock).expect("lock");
+        let registry = load_text(MAVEN_SETS);
+        let set = ResolvedSet::of(registry.find("jvm").expect("jvm"));
+        (scratch, set)
+    }
+
+    fn hub_detail(result: Result<(), DependencySetsError>) -> String {
+        match result {
+            Err(DependencySetsError::UnsupportedMavenHub { detail, .. }) => detail,
+            other => panic!("expected UnsupportedMavenHub, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn maven_sets_share_the_root_module_but_own_their_locks() {
+        let registry = load_text(MAVEN_SETS);
+        assert_eq!(registry.names(), vec!["jvm", "root", "tools"]);
+        let jvm = registry.find("jvm").expect("jvm");
+        assert_eq!(jvm.ecosystem, Ecosystem::Maven);
+        assert_eq!(jvm.repository.as_deref(), Some("maven"));
+        assert_eq!(Ecosystem::parse("maven"), Some(Ecosystem::Maven));
+        assert_eq!(Ecosystem::Maven.manifest_name(), "MODULE.bazel");
+        assert_eq!(
+            Ecosystem::Maven.supported_operations(),
+            "check, update, audit"
+        );
+        assert_eq!(Ecosystem::Maven.advisory_family(), Some("maven"));
+        assert!(Ecosystem::Maven.uses_repository());
+        let shared_lock =
+            MAVEN_SETS.replace("tools/tool_install.json", "third_party/maven_install.json");
+        assert!(matches!(
+            parse(&shared_lock, DX_TOML_REL),
+            Err(DependencySetsError::ConflictingOwnership { .. })
+        ));
+        let two_uv = load_text(TWO_UV_SETS);
+        assert!(two_uv.find("frontend").is_some());
+    }
+
+    #[test]
+    fn maven_manifest_must_be_the_root_module() {
+        let nested = MAVEN_SETS.replacen(
+            "manifests = [\"MODULE.bazel\"]",
+            "manifests = [\"sub/MODULE.bazel\"]",
+            1,
+        );
+        assert!(matches!(
+            parse(&nested, DX_TOML_REL),
+            Err(DependencySetsError::MavenManifest { .. })
+        ));
+        let repo_missing = MAVEN_SETS.replacen("repository = \"maven\"\n", "", 1);
+        assert!(matches!(
+            parse(&repo_missing, DX_TOML_REL),
+            Err(DependencySetsError::MissingRepository { .. })
+        ));
+        let duplicate = MAVEN_SETS.replace("tool_maven", "maven");
+        assert!(matches!(
+            parse(&duplicate, DX_TOML_REL),
+            Err(DependencySetsError::DuplicateRepository { .. })
+        ));
+    }
+
+    #[test]
+    fn maven_packages_are_group_and_artifact() {
+        let registry = load_text(MAVEN_SETS);
+        assert!(resolve(&registry, &["jvm:com.google.guava:guava".to_owned()]).is_ok());
+        for package in ["guava", "a:", ":b", "a:b:1.0", "a b:c", "a;x:b"] {
+            assert_eq!(
+                resolve(&registry, &[format!("jvm:{package}")]),
+                Err(DependencySetsError::InvalidPackage {
+                    set: "jvm".to_owned(),
+                    package: package.to_owned(),
+                    reason: MAVEN_PACKAGE_CHARSET,
+                }),
+                "{package}"
+            );
+        }
+    }
+
+    #[test]
+    fn maven_hub_must_exist_in_the_root_module() {
+        let (scratch, set) = maven_workspace(MAVEN_MODULE_TEXT, "");
+        let root = scratch.path();
+        assert_eq!(check_backend_settings(root, &set), Ok(()));
+        let cases = [
+            ("bazel_dep(name = \"x\", version = \"1\")\n", "no maven.install"),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\n",
+                "use_repo",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, m2 = \"maven\")\n",
+                "use_repo",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\")\nuse_repo(maven, \"maven\")\n",
+                "literal lock_file",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//other:lock.json\")\nuse_repo(maven, \"maven\")\n",
+                "not listed",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = L)\nuse_repo(maven, \"maven\")\n",
+                "literal name and lock_file",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, \"maven\")\n",
+                "2 maven.install",
+            ),
+        ];
+        for (module, want) in cases {
+            std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+            let detail = hub_detail(check_backend_settings(root, &set));
+            assert!(detail.contains(want), "{detail} should contain {want}");
+        }
+        std::fs::write(root.join("MODULE.bazel"), MAVEN_MODULE_TEXT).expect("module");
+        std::fs::remove_file(root.join("third_party/maven_install.json")).expect("rm");
+        assert!(hub_detail(check_backend_settings(root, &set)).contains("does not exist"));
+    }
+
+    #[test]
+    fn maven_check_needs_a_signed_lock_and_fail_if_repin_required() {
+        let (scratch, set) = maven_workspace(MAVEN_MODULE_TEXT, SIGNED_LOCK);
+        let root = scratch.path();
+        assert_eq!(check_lock_ready(root, &set), Ok(()));
+        let lock = root.join("third_party/maven_install.json");
+        for bad in [
+            "",
+            "{}",
+            "not json",
+            "[1]",
+            "{\"__INPUT_ARTIFACTS_HASH\":1}",
+            "{\"dependency_tree\":{}}",
+        ] {
+            std::fs::write(&lock, bad).expect("lock");
+            assert!(
+                hub_detail(check_lock_ready(root, &set)).contains("signatures"),
+                "{bad}"
+            );
+        }
+        std::fs::write(&lock, SIGNED_LOCK).expect("lock");
+        for policy in ["False", "FLAG"] {
+            let module = MAVEN_MODULE_TEXT.replacen(
+                "maven_install.json\")",
+                &format!("maven_install.json\", fail_if_repin_required = {policy})"),
+                1,
+            );
+            std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+            assert!(hub_detail(check_lock_ready(root, &set)).contains("fail_if_repin_required"));
+        }
+        let module = MAVEN_MODULE_TEXT.replacen(
+            "maven_install.json\")",
+            "maven_install.json\", fail_if_repin_required = True)",
+            1,
+        );
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        assert_eq!(check_lock_ready(root, &set), Ok(()));
+        let registry = load_text(TWO_UV_SETS);
+        let uv = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+        assert_eq!(check_lock_ready(root, &uv), Ok(()));
     }
 }

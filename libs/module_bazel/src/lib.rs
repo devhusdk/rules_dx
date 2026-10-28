@@ -102,6 +102,8 @@ pub enum ModuleError {
     ComputedArtifacts { line: usize },
     #[error("crate.from_cargo at line {line} needs literal name, cargo_lockfile and manifests")]
     ComputedCargoHub { line: usize },
+    #[error("maven.install at line {line} needs a literal name and lock_file")]
+    ComputedMavenHub { line: usize },
     #[error("{value:?} cannot be written into a Starlark string literal")]
     UnsafeString { value: String },
     #[error("{name:?} is already declared in MODULE.bazel")]
@@ -131,6 +133,25 @@ pub struct CargoHub<'a> {
     pub name: &'a str,
     pub cargo_lockfile: Option<&'a str>,
     pub manifests: Vec<&'a Str>,
+    pub line: usize,
+}
+
+/// How a `maven.install` tag sets `fail_if_repin_required`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RepinPolicy {
+    /// Not set, so the rules_jvm_external default (true) applies.
+    Unset,
+    True,
+    False,
+    Computed,
+}
+
+/// One rules_jvm_external `maven.install` tag: a hub and its literal lock file label.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MavenInstall<'a> {
+    pub name: &'a str,
+    pub lock_file: Option<&'a str>,
+    pub fail_if_repin_required: RepinPolicy,
     pub line: usize,
 }
 
@@ -456,6 +477,48 @@ impl ModuleFile {
             });
         }
         Ok(hubs)
+    }
+
+    /// Every rules_jvm_external `maven.install` tag in source order. The name defaults
+    /// to `maven`; a computed name or lock_file is an error.
+    pub fn maven_installs(&self) -> Result<Vec<MavenInstall<'_>>, ModuleError> {
+        let proxies = self.maven_proxies();
+        let mut installs = Vec::new();
+        for call in &self.calls {
+            let Some((proxy, "install")) = call.name.rsplit_once('.') else {
+                continue;
+            };
+            if !proxies.contains(&proxy) {
+                continue;
+            }
+            let computed = ModuleError::ComputedMavenHub { line: call.line };
+            if call.unpacked {
+                return Err(computed);
+            }
+            let name = match call.arg("name") {
+                None => "maven",
+                Some(Value::Str(literal)) => literal.value.as_str(),
+                Some(_) => return Err(computed),
+            };
+            let lock_file = match call.arg("lock_file") {
+                None => None,
+                Some(Value::Str(literal)) => Some(literal.value.as_str()),
+                Some(_) => return Err(computed),
+            };
+            let fail_if_repin_required = match call.arg("fail_if_repin_required") {
+                None => RepinPolicy::Unset,
+                Some(Value::Ident(word)) if word == "True" => RepinPolicy::True,
+                Some(Value::Ident(word)) if word == "False" => RepinPolicy::False,
+                Some(_) => RepinPolicy::Computed,
+            };
+            installs.push(MavenInstall {
+                name,
+                lock_file,
+                fail_if_repin_required,
+                line: call.line,
+            });
+        }
+        Ok(installs)
     }
 
     /// The source with `bazel_dep(name = name, version = version)` added after the

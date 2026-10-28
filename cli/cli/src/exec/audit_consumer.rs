@@ -777,4 +777,74 @@ repository = "crates"
         assert!(!out.contains("UNKNOWN"), "{out}");
         assert!(!out.contains("failed to assess"), "{out}");
     }
+    const MAVEN_TOML: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "jvm"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/maven_install.json"]
+scopes = ["third_party"]
+repository = "maven"
+"#;
+
+    const MAVEN_ADVISORY: &str = r#"[{
+        "id": "GHSA-maven-0001",
+        "modified": "2026-09-18T00:00:00Z",
+        "affected": [{
+            "package": {"ecosystem": "Maven", "name": "com.example:lib"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.0"}, {"fixed": "1.2"}]}]
+        }]
+    }]"#;
+
+    fn maven_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, MAVEN_TOML, false);
+        harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
+        harness.write_source(
+            "third_party/maven_install.json",
+            "{\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2,\"artifacts\":{\"com.example:lib\":{\"shasums\":{\"jar\":\"x\"},\"version\":\"1.1\"}}}\n",
+        );
+        harness
+    }
+
+    #[test]
+    fn consumer_maven_set_reads_its_declared_lock_and_the_maven_snapshot() {
+        let harness = maven_harness("maven-vuln");
+        write_advisory(&harness, "maven", MAVEN_ADVISORY);
+        let runner = clean_runner();
+        let (code, out, err) = run_with(&["security", "--output=json", "jvm"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("GHSA-maven-0001"), "{out}");
+        assert!(out.contains("third_party/maven_install.json"), "{out}");
+        harness.write_source(
+            "security.toml",
+            "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-maven-0001\"\n\
+             package = \"com.example:lib\"\nset = \"jvm\"\nversions = \"1.1\"\n\
+             reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
+        );
+        let (code, out, err) = run_with(&["security", "--output=json", "jvm"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("vuln/GHSA"), "{out}");
+    }
+
+    #[test]
+    fn consumer_maven_missing_snapshot_fails_and_is_never_clean() {
+        for extra in [None, Some("--offline")] {
+            let harness = maven_harness("maven-missing");
+            write_advisory(&harness, "pypi", NO_ADVISORIES);
+            let runner = clean_runner();
+            let mut argv = vec!["security", "--output=json"];
+            argv.extend(extra);
+            argv.push("jvm");
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{extra:?} {out}{err}");
+            assert!(out.contains("failed to assess jvm"), "{out}{err}");
+            assert!(out.contains(".dx/advisory/maven.json"), "{out}{err}");
+            assert!(!out.contains("audit_security_clean"), "{out}");
+            if extra.is_some() {
+                assert!(out.contains("offline_required"), "{out}{err}");
+            }
+        }
+    }
 }

@@ -543,6 +543,7 @@ rust_test(
         "//cli/cli/tests/affected:corpus_starlark",
         "//cli/cli/tests/agents:corpus_starlark",
         "//cli/cli/tests/cargo_sets:corpus_starlark",
+        "//cli/cli/tests/maven_sets:corpus_starlark",
         "//cli/cli/tests/cli_argv_e2e:corpus_starlark",
         "//cli/cli/tests/configured_discovery:corpus_starlark",
         "//cli/cli/tests/latency:corpus_starlark",

@@ -119,6 +119,11 @@ impl ScriptRunner {
             "npm".to_owned()
         } else if argv.contains(&"@maven//:pin".to_owned()) {
             "maven".to_owned()
+        } else if let Some(repository) = argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix('@')?.strip_suffix("//:pin"))
+        {
+            format!("consumer-maven:{repository}")
         } else if argv.iter().any(|arg| arg.contains("paket2bazel")) {
             "nuget".to_owned()
         } else if argv.contains(&"uv".to_owned())

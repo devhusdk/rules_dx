@@ -634,6 +634,40 @@ scopes = ["tools/ps"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    #[test]
+    fn consumer_maven_set_refuses_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-maven");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[[dependency_set]]\nname = \"jvm\"\necosystem = \"maven\"\nmanifests = [\"MODULE.bazel\"]\nlocks = [\"third_party/maven_install.json\"]\nscopes = [\"third_party\"]\nrepository = \"maven\"\n",
+        );
+        let files = [
+            ("MODULE.bazel", "module(name = \"app\")\n"),
+            ("third_party/maven_install.json", "{}\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        let (code, _, err) =
+            harness.run(&["bump", "jvm:com.google.guava:guava", "33.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "bump is not supported for ecosystem maven set jvm \
+(supported operations: check, update, audit)"
+            ),
+            "{err}"
+        );
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
     const BAZEL_SET_DX_TOML: &str = r#"
 schema_version = 1
 

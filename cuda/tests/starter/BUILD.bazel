@@ -8,7 +8,7 @@ rust_test(
     size = "enormous",
     srcs = ["starter_test.rs"],
     data = [
-        "starter_test.rs",
+        "//:module_srcs",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {

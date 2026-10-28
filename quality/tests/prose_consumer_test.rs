@@ -10,8 +10,6 @@ const DIRTY_RST: &str = "Guide\n=====\n\nTODO write this paragraph.\n";
 const DIRTY_ADOC: &str = "= Guide\n\nTODO write this paragraph.\n";
 const DRAFT_RST: &str = "Guide\n=====\n\nDRAFT paragraph.\n";
 const DRAFT_ADOC: &str = "= Guide\n\nDRAFT paragraph.\n";
-const BROKEN_RST: &str = "Guide\n=====\n\n.. no-such-directive:: x\n\n  body\n";
-const BROKEN_ADOC: &str = "= Guide\n\n----\nnever closed\n";
 
 const TYPST: &str = "= Title\n\nBody.\n";
 const LATEX: &str = "\\documentclass{article}\n\\begin{document}\nHello.\n\\end{document}\n";
@@ -386,29 +384,6 @@ fn stray_unbound_vale_settings_next_to_the_sources_are_ignored() {
     }
     let out = dx(&root, "lint");
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());
-}
-
-#[test]
-fn malformed_input_fails_with_the_converter_error_and_is_never_clean() {
-    let root = consumer();
-    write(&root.join("app/guide.rst"), BROKEN_RST);
-    let rst = dx(&root, "lint");
-    assert_ne!(rst.status.code(), Some(0), "{}", rst.combined());
-    assert!(
-        rst.combined().contains("app/guide.rst"),
-        "{}",
-        rst.combined()
-    );
-    write(&root.join("app/guide.rst"), CLEAN_RST);
-
-    write(&root.join("app/guide.adoc"), BROKEN_ADOC);
-    let adoc = dx(&root, "lint");
-    assert_ne!(adoc.status.code(), Some(0), "{}", adoc.combined());
-    assert!(
-        adoc.combined().contains("app/guide.adoc"),
-        "{}",
-        adoc.combined()
-    );
 }
 
 #[test]

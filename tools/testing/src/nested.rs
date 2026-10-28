@@ -715,7 +715,9 @@ pub fn alive(pid: u32) -> bool {
         Ok(stat) => !stat
             .rsplit_once(')')
             .is_some_and(|(_, rest)| rest.trim_start().starts_with('Z')),
-        Err(_) => true,
+        Err(_) if Path::new("/proc/self").exists() => true,
+        Err(_) => dx_process::probe("ps", ["-o", "stat=", "-p", &pid.to_string()])
+            .is_none_or(|stat| !stat.trim_start().starts_with('Z')),
     }
 }
 
@@ -3170,6 +3172,19 @@ mod portable_tests {
         let pid = child.id();
         child.wait().expect("wait");
         assert!(!alive(pid));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn alive_treats_an_unreaped_child_as_dead() {
+        let mut child = Command::new("true").spawn().expect("spawn");
+        let pid = child.id();
+        let start = std::time::Instant::now();
+        while alive(pid) && start.elapsed() < std::time::Duration::from_secs(10) {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        assert!(!alive(pid), "exited but unreaped child counted as alive");
+        child.wait().expect("reap");
     }
 
     /// Env names that a test target sets itself, so the root bazelrc need not forward them.

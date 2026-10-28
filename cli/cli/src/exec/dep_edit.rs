@@ -52,7 +52,7 @@ pub(crate) fn configured_bazel_set(
 /// The single manifest of a configured dx.toml set the selector names, if any.
 ///
 /// Bazel sets always qualify; uv and npm sets only when `foreign` is set, and then
-/// their kind comes back (`None` is a bazel set).
+/// their kind comes back.
 pub(crate) fn configured_set(
     verb: &EditVerb,
     invocation: &Invocation,
@@ -60,7 +60,7 @@ pub(crate) fn configured_set(
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
     foreign: bool,
-) -> Result<Option<(String, String, Option<dx_bump::ConfiguredKind>)>, i32> {
+) -> Result<Option<(String, String, dx_bump::ConfiguredKind)>, i32> {
     let registry = match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => registry,
         Ok(None) => return Ok(None),
@@ -75,16 +75,13 @@ pub(crate) fn configured_set(
         return Ok(None);
     };
     let kind = match set.ecosystem {
+        dx_adopt::dependency_sets::Ecosystem::Bazel => Some(dx_bump::ConfiguredKind::Bazel),
         dx_adopt::dependency_sets::Ecosystem::Uv if foreign => Some(dx_bump::ConfiguredKind::Uv),
         dx_adopt::dependency_sets::Ecosystem::Npm if foreign => Some(dx_bump::ConfiguredKind::Npm),
         _ => None,
     };
     match (set.ecosystem, kind) {
-        (dx_adopt::dependency_sets::Ecosystem::Bazel, _)
-        | (
-            dx_adopt::dependency_sets::Ecosystem::Uv | dx_adopt::dependency_sets::Ecosystem::Npm,
-            Some(_),
-        ) => {
+        (_, Some(kind)) => {
             if !set.writable {
                 return Err(operational(
                     invocation,
@@ -107,9 +104,9 @@ pub(crate) fn configured_set(
                         "{} needs exactly one {} in set {}",
                         verb.command,
                         match kind {
-                            None => "MODULE.bazel",
-                            Some(dx_bump::ConfiguredKind::Npm) => "package.json",
-                            Some(dx_bump::ConfiguredKind::Uv) => "pyproject.toml",
+                            dx_bump::ConfiguredKind::Bazel => "MODULE.bazel",
+                            dx_bump::ConfiguredKind::Npm => "package.json",
+                            dx_bump::ConfiguredKind::Uv => "pyproject.toml",
                         },
                         set.name
                     ),
@@ -118,7 +115,8 @@ pub(crate) fn configured_set(
             Ok(Some((set.name.clone(), manifest.clone(), kind)))
         }
         (
-            dx_adopt::dependency_sets::Ecosystem::Uv
+            dx_adopt::dependency_sets::Ecosystem::Bazel
+            | dx_adopt::dependency_sets::Ecosystem::Uv
             | dx_adopt::dependency_sets::Ecosystem::Npm
             | dx_adopt::dependency_sets::Ecosystem::Ruby
             | dx_adopt::dependency_sets::Ecosystem::PowerShell
@@ -175,6 +173,23 @@ pub(crate) fn preflight(
                 CODE_OFFLINE_REQUIRED,
                 &format!(
                     "cannot refresh {selector} without network: re-run without --offline once connected (no {} performed)",
+                    verb.noun,
+                ),
+            ));
+        }
+    }
+    if target.is_configured_bazel() {
+        // A foreign lock layout or a vanished set would only fail after the write.
+        if let Some((_, Err(dx_update::backend::BackendError::Unsupported { reason, .. }))) =
+            refresh_plan(workspace, invocation, target, None)
+        {
+            return Err(operational(
+                invocation,
+                out,
+                err,
+                verb.failure_code,
+                &format!(
+                    "cannot refresh {selector}: {reason} (no {} performed)",
                     verb.noun,
                 ),
             ));
@@ -279,6 +294,7 @@ pub(crate) fn write_and_refresh(
         );
     };
     let update_selector = request.refresh_selector();
+    let refresh_command = request.refresh_command();
     let plan = match planned_refresh {
         Ok(plan) => plan,
         Err(error) => match error {
@@ -330,7 +346,7 @@ pub(crate) fn write_and_refresh(
     };
     let refreshed = |note: &str| {
         let mut message = format!(
-            "{} and refreshed {update_selector} via `dx update {update_selector}` automatically ({note})",
+            "{} and refreshed {update_selector} via `{refresh_command}` automatically ({note})",
             edit.edited
         );
         if let Some(hint) = edit.hint {
@@ -339,88 +355,98 @@ pub(crate) fn write_and_refresh(
         message
     };
     let kept = &edit.kept;
-    match plan {
-        dx_update::backend::BackendPlan::Noop => {
-            let message = refreshed(verb.noop_note);
-            match emit_refreshed(
-                edit,
-                invocation,
-                out,
-                manifest,
-                &message,
-                &update_name,
-                verbose,
-            ) {
-                Ok(()) => 0,
-                Err(exit) => exit,
-            }
-        }
-        // Bump refuses nuget sets, the only ecosystem that plans a staged run.
-        dx_update::backend::BackendPlan::Staged(_) => refresh_failed(
+    let mut finish = |result: Result<(), String>, message: String| match result {
+        Ok(()) => match emit_refreshed(
             edit,
             invocation,
             out,
-            err,
             manifest,
-            &format!(
-                "failed to refresh {update_selector}: staged refresh is not supported ({kept})"
-            ),
-        ),
-        dx_update::backend::BackendPlan::Run { argv, env: extra } => {
-            let env_refs: Vec<(&str, &str)> = extra
-                .iter()
-                .map(|(key, value)| (key.as_str(), value.as_str()))
-                .collect();
-            match runner.run(&argv, workspace, &env_refs) {
-                Err(error) => refresh_failed(
-                    edit,
-                    invocation,
-                    out,
-                    err,
-                    manifest,
-                    &format!(
-                        "failed to refresh {update_selector}: failed to launch updater: {error} ({kept})"
-                    ),
-                ),
-                Ok(status) => match status.code {
-                    Some(0) => {
-                        let message = refreshed("resolver-owned");
-                        match emit_refreshed(
-                            edit,
-                            invocation,
-                            out,
-                            manifest,
-                            &message,
-                            &update_name,
-                            verbose,
-                        ) {
-                            Ok(()) => 0,
-                            Err(exit) => exit,
-                        }
-                    }
-                    Some(code) => refresh_failed(
-                        edit,
-                        invocation,
-                        out,
-                        err,
-                        manifest,
-                        &format!(
-                            "failed to refresh {update_selector}: updater exited {code} ({kept})"
-                        ),
-                    ),
-                    None => refresh_failed(
-                        edit,
-                        invocation,
-                        out,
-                        err,
-                        manifest,
-                        &format!(
-                            "failed to refresh {update_selector}: updater terminated by signal ({kept})"
-                        ),
-                    ),
-                },
-            }
+            &message,
+            &update_name,
+            verbose,
+        ) {
+            Ok(()) => 0,
+            Err(exit) => exit,
+        },
+        Err(failure) => refresh_failed(edit, invocation, out, err, manifest, &failure),
+    };
+    match plan {
+        RefreshPlan::Backend(dx_update::backend::BackendPlan::Noop) => {
+            finish(Ok(()), refreshed(verb.noop_note))
         }
+        // Bump refuses nuget sets, the only ecosystem that plans a staged run.
+        RefreshPlan::Backend(dx_update::backend::BackendPlan::Staged(_)) => finish(
+            Err(format!(
+                "failed to refresh {update_selector}: staged refresh is not supported ({kept})"
+            )),
+            String::new(),
+        ),
+        RefreshPlan::Backend(dx_update::backend::BackendPlan::Run { argv, env }) => {
+            let result = launch_refresh(
+                runner,
+                &argv,
+                &env,
+                workspace,
+                &update_selector,
+                "updater",
+                kept,
+            );
+            finish(result, refreshed("resolver-owned"))
+        }
+        RefreshPlan::InDir(run) => {
+            let lock = match run.dir.as_str() {
+                "." => "MODULE.bazel.lock".to_owned(),
+                dir => format!("{dir}/MODULE.bazel.lock"),
+            };
+            let result = launch_refresh(
+                runner,
+                &run.argv,
+                &run.env,
+                &workspace.join(&run.dir),
+                &lock,
+                &format!("`{refresh_command}` in {}", run.dir),
+                kept,
+            );
+            let message = format!(
+                "{} and refreshed {lock} via `{refresh_command}`",
+                edit.edited
+            );
+            let message = match edit.hint {
+                Some(hint) => format!("{message}; {hint}"),
+                None => message,
+            };
+            finish(result, message)
+        }
+    }
+}
+
+/// Runs one refresh process in `cwd`; the error is the full failure message.
+fn launch_refresh(
+    runner: &dyn dx_process::Runner,
+    argv: &[String],
+    env: &[(String, String)],
+    cwd: &std::path::Path,
+    subject: &str,
+    tool: &str,
+    kept: &str,
+) -> Result<(), String> {
+    let env_refs: Vec<(&str, &str)> = env
+        .iter()
+        .map(|(key, value)| (key.as_str(), value.as_str()))
+        .collect();
+    match runner.run(argv, cwd, &env_refs) {
+        Err(error) => Err(format!(
+            "failed to refresh {subject}: failed to launch {tool}: {error} ({kept})"
+        )),
+        Ok(status) => match status.code {
+            Some(0) => Ok(()),
+            Some(code) => Err(format!(
+                "failed to refresh {subject}: {tool} exited {code} ({kept})"
+            )),
+            None => Err(format!(
+                "failed to refresh {subject}: {tool} terminated by signal ({kept})"
+            )),
+        },
     }
 }
 
@@ -542,7 +568,7 @@ fn refresh_plan(
     tools: Option<(&dyn dx_process::Runner, &dyn dx_plan::resolve::QueryRunner)>,
 ) -> Option<(
     String,
-    Result<dx_update::backend::BackendPlan, dx_update::backend::BackendError>,
+    Result<RefreshPlan, dx_update::backend::BackendError>,
 )> {
     let Some(configured) = &target.configured else {
         let (set, request) = refresh_target(target)?;
@@ -554,7 +580,7 @@ fn refresh_plan(
             invocation.frozen,
             &invocation.bazel_head(),
         );
-        return Some((set.name().to_owned(), plan));
+        return Some((set.name().to_owned(), plan.map(RefreshPlan::Backend)));
     };
     let name = configured.name.clone();
     let gone = || dx_update::backend::BackendError::Unsupported {
@@ -571,6 +597,15 @@ fn refresh_plan(
         return Some((name.clone(), Err(gone())));
     };
     let (request, closure) = match configured.kind {
+        dx_bump::ConfiguredKind::Bazel => {
+            let plan = dx_update::backend::plan_configured_bazel_lock(
+                &set,
+                invocation.offline,
+                invocation.frozen,
+                &invocation.bazel_head(),
+            );
+            return Some((name, plan.map(RefreshPlan::InDir)));
+        }
         dx_bump::ConfiguredKind::Npm => (
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
@@ -599,7 +634,13 @@ fn refresh_plan(
         &invocation.bazel_head(),
         &closure,
     );
-    Some((name, plan))
+    Some((name, plan.map(RefreshPlan::Backend)))
+}
+
+/// What refreshes a dependency's lock: an updater plan, or `bazel mod deps` in a directory.
+enum RefreshPlan {
+    Backend(dx_update::backend::BackendPlan),
+    InDir(dx_update::backend::DirRun),
 }
 
 /// The `dx update` set and request that refresh the locks of `target`'s set.

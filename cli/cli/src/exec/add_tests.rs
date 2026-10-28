@@ -271,6 +271,18 @@ fn configured_bazel_set_adds_to_its_own_module_bazel() {
         format!("{BAZEL_SET_MODULE}bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n")
     );
     assert_eq!(read(&harness, "MODULE.bazel"), "module(name = \"root\")\n");
+    {
+        let runs = harness.build_argv.borrow();
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert_eq!(
+            runs[0][runs[0].len() - 3..],
+            ["mod", "deps", "--lockfile_mode=update"]
+        );
+        assert_eq!(
+            *harness.seen_cwd.borrow(),
+            vec![harness.workspace.join("tools")]
+        );
+    }
     harness.write_source(
         "dx.toml",
         &BAZEL_SET_DX_TOML.replace(
@@ -285,7 +297,21 @@ fn configured_bazel_set_adds_to_its_own_module_bazel() {
         "{err}"
     );
     assert!(!read(&harness, "tools/MODULE.bazel").contains("rules_java"));
-    assert!(harness.seen_env.borrow().is_empty());
+    assert_eq!(harness.build_argv.borrow().len(), 1);
+}
+
+#[test]
+fn configured_bazel_set_add_refresh_failure_keeps_the_edit() {
+    let mut harness = Harness::new("add-consumer-bazel-fail");
+    harness.bazel_code = 3;
+    harness.write_source("dx.toml", BAZEL_SET_DX_TOML);
+    harness.write_source("tools/MODULE.bazel", BAZEL_SET_MODULE);
+    let (code, _, err) = harness.run(&["add", "bazel-modules:rules_go", "0.50.0", "--apply"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("`bazel mod deps` in tools exited 3"), "{err}");
+    assert!(err.contains("run `bazel mod deps`"), "{err}");
+    assert!(!err.contains("dx update"), "{err}");
+    assert!(read(&harness, "tools/MODULE.bazel").contains("rules_go"));
 }
 
 #[test]

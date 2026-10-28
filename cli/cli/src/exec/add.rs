@@ -98,7 +98,11 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return operational(invocation, out, err, CODE_ADD_FAILED, &message);
     }
-    let refresh = request.refresh_selector();
+    let refresh = if request.target.is_configured_bazel() {
+        request.target.refresh_command()
+    } else {
+        format!("dx update --apply {}", request.refresh_selector())
+    };
     let edit = dep_edit::DepEdit {
         verb: &ADD_VERB,
         target: &request.target,
@@ -108,7 +112,7 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
             request.selector,
             request.version.display()
         ),
-        kept: format!("add kept in {manifest}; run `dx update --apply {refresh}` to lock it"),
+        kept: format!("add kept in {manifest}; run `{refresh}` to lock it"),
         hint: None,
     };
     let io = dep_edit::EditIo {

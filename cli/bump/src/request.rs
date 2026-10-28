@@ -10,20 +10,22 @@ pub struct BumpRequest {
     pub selector: String,
     pub raw_version: String,
     manifest: Option<String>,
-    /// The configured npm or uv set this request edits, if any.
+    /// The configured npm, uv or bazel set this request edits, if any.
     configured: Option<ConfiguredSet>,
     /// Which of a MODULE.bazel dep's two versions a bazel bump edits.
     pub dep_version: DepVersion,
 }
 
-/// The ecosystem of a configured dx.toml set a bump edits besides bazel.
+/// The ecosystem of a configured dx.toml set a bump edits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfiguredKind {
     Npm,
     Uv,
+    /// A bazel-modules set; its lock is refreshed with `bazel mod deps`.
+    Bazel,
 }
 
-/// A configured dx.toml npm or uv set: its name and ecosystem.
+/// A configured dx.toml npm, uv or bazel set: its name and ecosystem.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredSet {
     pub name: String,
@@ -145,7 +147,7 @@ pub struct DepTarget {
     pub set: BumpSet,
     pub package: String,
     pub manifest: Option<String>,
-    /// The configured npm or uv set the dependency belongs to, if any.
+    /// The configured npm, uv or bazel set the dependency belongs to, if any.
     pub configured: Option<ConfiguredSet>,
 }
 
@@ -162,6 +164,20 @@ impl DepTarget {
             .unwrap_or_else(|| refresh_selector(self.set, &self.package))
     }
 
+    /// Whether the dependency belongs to a configured bazel-modules set.
+    pub fn is_configured_bazel(&self) -> bool {
+        matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Bazel)
+    }
+
+    /// The command that refreshes this dependency's lock, as shown to the user.
+    pub fn refresh_command(&self) -> String {
+        if self.is_configured_bazel() {
+            "bazel mod deps".to_owned()
+        } else {
+            format!("dx update {}", self.refresh_selector())
+        }
+    }
+
     pub fn target_manifest(&self) -> &str {
         target_manifest(self.set, &self.package, self.manifest.as_deref())
     }
@@ -173,7 +189,7 @@ fn configured_refresh_selector(
 ) -> Option<String> {
     configured.map(|set| match set.kind {
         ConfiguredKind::Npm => format!("{}:{package}", set.name),
-        ConfiguredKind::Uv => set.name.clone(),
+        ConfiguredKind::Uv | ConfiguredKind::Bazel => set.name.clone(),
     })
 }
 
@@ -231,12 +247,12 @@ impl BumpRequest {
         selector: &str,
         version: &str,
     ) -> Result<BumpRequest, BumpError> {
-        Self::parse_configured_as(None, set_name, manifest, selector, version)
+        Self::parse_configured_as(ConfiguredKind::Bazel, set_name, manifest, selector, version)
     }
 
-    /// Parses a request against a configured set of `kind`; `None` is a bazel set.
+    /// Parses a request against a configured set of `kind`.
     pub fn parse_configured_as(
-        kind: Option<ConfiguredKind>,
+        kind: ConfiguredKind,
         set_name: &str,
         manifest: &str,
         selector: &str,
@@ -246,12 +262,14 @@ impl BumpRequest {
             return Err(BumpError::Empty);
         }
         let package = match kind {
-            None => parse_configured_selector(set_name, selector)?,
-            Some(kind) => parse_foreign_selector(set_name, kind, selector)?,
+            ConfiguredKind::Bazel => parse_configured_selector(set_name, selector)?,
+            ConfiguredKind::Npm | ConfiguredKind::Uv => {
+                parse_foreign_selector(set_name, kind, selector)?
+            }
         };
         let set = match kind {
-            Some(ConfiguredKind::Npm) => BumpSet::Npm,
-            Some(ConfiguredKind::Uv) | None => BumpSet::Bazel,
+            ConfiguredKind::Npm => BumpSet::Npm,
+            ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
         };
         let parsed = version::parse(set, version)?;
         Ok(BumpRequest {
@@ -261,7 +279,7 @@ impl BumpRequest {
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
             manifest: Some(manifest.to_owned()),
-            configured: kind.map(|kind| ConfiguredSet {
+            configured: Some(ConfiguredSet {
                 name: set_name.to_owned(),
                 kind,
             }),
@@ -314,7 +332,7 @@ impl BumpRequest {
     pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<BumpRequest, BumpError> {
         if dep_version != DepVersion::Tested
             && (self.set != BumpSet::Bazel
-                || self.configured.is_some()
+                || (self.configured.is_some() && !self.target().is_configured_bazel())
                 || self.package == ".bazelversion")
         {
             return Err(BumpError::FloorNotBazelDep {
@@ -328,8 +346,8 @@ impl BumpRequest {
     pub fn summary(&self) -> String {
         let through = if self.needs_update_refresh() {
             format!(
-                "then refresh via `dx update {}` automatically",
-                self.refresh_selector()
+                "then refresh via `{}` automatically",
+                self.target().refresh_command()
             )
         } else {
             "then preset flag-diff review plus `bazel build //...`".to_owned()
@@ -342,7 +360,8 @@ impl BumpRequest {
         let what = match (&self.dep_version, self.set, self.package.as_str()) {
             (DepVersion::Floor { .. }, _, _) => " floor",
             (DepVersion::Tested, BumpSet::Bazel, package)
-                if package != ".bazelversion" && self.configured.is_none() =>
+                if package != ".bazelversion"
+                    && (self.configured.is_none() || self.target().is_configured_bazel()) =>
             {
                 " tested override"
             }
@@ -492,7 +511,7 @@ fn parse_foreign_selector(
     };
     let set = match kind {
         ConfiguredKind::Npm => BumpSet::Npm,
-        ConfiguredKind::Uv => BumpSet::Bazel,
+        ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
     };
     if tail.is_empty() {
         return Err(BumpError::InvalidPackage {

@@ -129,7 +129,9 @@ fn configured_bazel_sets_insert_into_their_manifest() {
         AddRequest::parse_configured("tools", "tools/MODULE.bazel", "tools:demo", "1.2.3")
             .expect("request");
     assert_eq!(request.target_manifest(), "tools/MODULE.bazel");
-    assert!(!request.needs_update_refresh());
+    assert!(request.needs_update_refresh());
+    assert_eq!(request.target.refresh_command(), "bazel mod deps");
+    assert!(request.summary().contains("`bazel mod deps`"));
     let after = request
         .plan_insert("module(name = \"t\")\n")
         .expect("insert");

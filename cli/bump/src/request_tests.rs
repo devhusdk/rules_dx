@@ -1244,8 +1244,17 @@ fn configured_bazel_set_targets_its_own_module_bazel() {
     assert_eq!(bump.package, "rules_cc");
     assert_eq!(bump.selector, "bazel-modules:rules_cc");
     assert_eq!(bump.target_manifest(), "tools/MODULE.bazel");
-    assert!(!bump.needs_update_refresh());
+    assert!(bump.needs_update_refresh());
+    assert!(bump.target().needs_update_refresh());
+    assert_eq!(bump.target().refresh_command(), "bazel mod deps");
+    let summary = bump.summary();
+    assert!(
+        summary.contains("refresh via `bazel mod deps`"),
+        "{summary}"
+    );
+    assert!(!summary.contains("dx update"), "{summary}");
     let builtin = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
+    assert!(!builtin.needs_update_refresh());
     let module = "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n";
     assert_eq!(
         bump.plan_edit(module).expect("widen"),

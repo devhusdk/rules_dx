@@ -113,7 +113,7 @@ workspace_policy = rule(
     },
 )
 
-def family_section_error(family_id, capability, selection, disabled, wired_tools):
+def family_section_error(family_id, capability, selection, disabled, wired_tools, unpinned = {}):
     """Returns the diagnostic for one family/capability section, or ""."""
     if len(selection) == 0:
         if capability in disabled:
@@ -121,6 +121,10 @@ def family_section_error(family_id, capability, selection, disabled, wired_tools
         return ("policy: family '" + family_id + "' leaves capability '" + capability +
                 "' unconfigured; select tools or disable '" + capability + "'")
     for tool in selection:
+        if tool in unpinned:
+            return ("policy: family '" + family_id + "' selects " + capability + " tool '" +
+                    tool + "', which has no pinned build on " + ", ".join(unpinned[tool]) +
+                    "; disable '" + capability + "'")
         if tool not in wired_tools:
             return ("policy: family '" + family_id + "' selects " + capability + " tool '" +
                     tool + "' with no wired executable; select one of " +

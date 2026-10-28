@@ -109,6 +109,8 @@ const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
 const TYPSTYLE_CHECK_ARGS: &[&str] = &["--check"];
 const TYPSTYLE_FIX_ARGS: &[&str] = &["-i"];
+const LATEXINDENT_CHECK_ARGS: &[&str] = &["-k"];
+const LATEXINDENT_FIX_ARGS: &[&str] = &["-w"];
 const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
@@ -1017,6 +1019,59 @@ pub fn typstyle_check(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn typstyle_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TYPSTYLE_FIX_ARGS, files, "")
+}
+
+/// `latexindent -k` on one file. The log and the backups go to `cruft` (an absolute directory in
+/// the scratch tree) so nothing lands next to the source. The config is passed as `-l=<file>`
+/// only when bound: a bare `-l` would auto-load a `localSettings.yaml` from the source directory.
+pub fn latexindent_check(
+    binary: &Path,
+    file: &Path,
+    cruft: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    latexindent_invocation(binary, LATEXINDENT_CHECK_ARGS, file, cruft, config)
+}
+
+/// `latexindent -w` on one file; the backup `.bak` goes to `cruft`.
+pub fn latexindent_fix(
+    binary: &Path,
+    file: &Path,
+    cruft: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    latexindent_invocation(binary, LATEXINDENT_FIX_ARGS, file, cruft, config)
+}
+
+fn latexindent_invocation(
+    binary: &Path,
+    mode: &[&str],
+    file: &Path,
+    cruft: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    let mut argv: Vec<OsString> = vec![binary.as_os_str().to_owned()];
+    argv.extend(mode.iter().map(OsString::from));
+    argv.push(flag_value("-g=", &cruft.join("indent.log")));
+    let mut dir = cruft.as_os_str().to_owned();
+    dir.push("/");
+    let mut cruft_flag = OsString::from("-c=");
+    cruft_flag.push(dir);
+    argv.push(cruft_flag);
+    if let Some(path) = config {
+        argv.push(flag_value("-l=", path));
+    }
+    argv.push(file.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+fn flag_value(flag: &str, path: &Path) -> OsString {
+    let mut value = OsString::from(flag);
+    value.push(path.as_os_str());
+    value
 }
 
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {

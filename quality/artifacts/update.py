@@ -833,6 +833,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "latexindent": {
+        "upstream_version": "4.0.3",
+        "release_page": "https://github.com/cmhughes/latexindent.pl/releases/tag/V4.0.3",
+        "licenses": [
+            {
+                "name": "GPL-3.0-only",
+                "source": "https://github.com/cmhughes/latexindent.pl/blob/V4.0.3/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "latexindent-linux",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-linux",
+                "kind": "raw",
+                "executable": "latexindent-linux",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "latexindent-linux-arm64",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-linux-arm64",
+                "kind": "raw",
+                "executable": "latexindent-linux-arm64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "latexindent-macos",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-macos",
+                "kind": "raw",
+                "executable": "latexindent-macos",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "latexindent.exe",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent.exe",
+                "kind": "raw",
+                "executable": "latexindent.exe",
+            },
+        },
+    },
     "buf": {
         "upstream_version": "1.72.0",
         "release_page": "https://github.com/bufbuild/buf/releases/tag/v1.72.0",

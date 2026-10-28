@@ -577,6 +577,7 @@ Language rules:
 - `@rules_dx//jupyter/rules:defs.bzl`: Jupyter notebooks.
 - `@rules_dx//julia/rules:defs.bzl`: Julia.
 - `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//latex/rules:defs.bzl`: LaTeX.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
 - `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.
 - `@rules_dx//nix/rules:defs.bzl`: Nix.

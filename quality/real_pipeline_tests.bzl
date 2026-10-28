@@ -778,6 +778,30 @@ def real_pipeline_unit_tests(name):
                 "policy: family 'toml' selects format tool 'yamlfmt' with no wired executable; select one of biome, buildifier, google_java_format, ktfmt, prettier, ruff, rustfmt, taplo or disable 'format'",
             ),
             expect_equal(
+                "family_section_error names a tool with no pinned build",
+                family_section_error(
+                    "latex",
+                    "lint",
+                    ["chktex"],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                    {"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]},
+                ),
+                "policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_x86_64; disable 'lint'",
+            ),
+            expect_equal(
+                "family_section_error ignores the unpinned map for other tools",
+                family_section_error(
+                    "toml",
+                    "format",
+                    ["taplo"],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                    {"chktex": ["linux_x86_64"]},
+                ),
+                "",
+            ),
+            expect_equal(
                 "family_section_error rejects a tool that is wired for another capability",
                 family_section_error(
                     "toml",

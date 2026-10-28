@@ -394,6 +394,14 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_rego",
         },
         {
+            "case": "latex_formatted",
+            "expected_dx_results": [
+                "clean_latex-real-format-latex.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:latex_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_latex",
+        },
+        {
             "case": "lua_formatted",
             "expected_dx_results": [
                 "clean_lua-real-format-lua.pb",
@@ -578,6 +586,7 @@ test_suite(
         ":consumer_policy_jupyter_outputs_linted_test",
         ":consumer_policy_kubernetes_linted_test",
         ":consumer_policy_make_linted_test",
+        ":consumer_policy_latex_formatted_test",
         ":consumer_policy_nix_linted_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",

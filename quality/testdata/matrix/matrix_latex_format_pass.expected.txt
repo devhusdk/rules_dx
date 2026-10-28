@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_latex_format_pass
+capability FORMAT
+stages 1
+stage latexindent classes=latex sources=matrix/latex_clean.tex
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

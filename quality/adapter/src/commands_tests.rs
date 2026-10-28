@@ -1178,6 +1178,34 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&typstyle_fix(Path::new(BIN), &[typst])),
         vec![BIN, "-i", "/scratch/sample.typ"]
     );
+    let tex = Path::new("/scratch/doc/sample.tex");
+    let cruft = Path::new("/scratch/.latexindent");
+    assert_eq!(
+        argv_strings(&latexindent_check(Path::new(BIN), tex, cruft, None)),
+        vec![
+            BIN,
+            "-k",
+            "-g=/scratch/.latexindent/indent.log",
+            "-c=/scratch/.latexindent/",
+            "/scratch/doc/sample.tex"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&latexindent_fix(
+            Path::new(BIN),
+            tex,
+            cruft,
+            Some(Path::new("/scratch/cfg.yaml"))
+        )),
+        vec![
+            BIN,
+            "-w",
+            "-g=/scratch/.latexindent/indent.log",
+            "-c=/scratch/.latexindent/",
+            "-l=/scratch/cfg.yaml",
+            "/scratch/doc/sample.tex"
+        ]
+    );
     let zig = Path::new("/scratch/sample.zig");
     assert_eq!(
         argv_strings(&zig_fmt_check(Path::new(BIN), &[zig])),

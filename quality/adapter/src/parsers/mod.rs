@@ -32,6 +32,7 @@ pub mod keep_sorted;
 pub mod ktfmt;
 pub mod ktlint;
 pub mod kubeconform;
+pub mod latexindent;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
@@ -109,6 +110,7 @@ pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
 pub use kubeconform::{parse_kubeconform, KubeconformTarget};
+pub use latexindent::parse_latexindent;
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
@@ -2221,6 +2223,14 @@ mod tests {
         super::ty::parse_ty(input, code, files)
     }
 
+    fn fuzz_latexindent(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::latexindent::parse_latexindent(input, input, code, files)
+    }
+
     fn fuzz_typstyle(
         input: &[u8],
         code: Option<i32>,
@@ -2291,6 +2301,7 @@ mod tests {
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
         ("ansible_lint", fuzz_ansible_lint),
         ("kubeconform", fuzz_kubeconform),
+        ("latexindent", fuzz_latexindent),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("parse_markdown_findings", fuzz_markdown_findings),
@@ -2376,6 +2387,7 @@ mod tests {
         ("keep_sorted", include_str!("keep_sorted.rs")),
         ("ansible_lint", include_str!("ansible_lint.rs")),
         ("kubeconform", include_str!("kubeconform.rs")),
+        ("latexindent", include_str!("latexindent.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("markdown", include_str!("markdown.rs")),

@@ -93,7 +93,16 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
                 .flat_map(|record| record.platforms.iter())
                 .collect();
             if record.is_empty() {
-                return format!("`{tool}`");
+                let unsupported = facts.support.iter().any(|r| {
+                    r.tool == *tool
+                        && r.capability == capability
+                        && row.families.contains(&r.family)
+                });
+                return if unsupported {
+                    format!("`{tool}` unsupported")
+                } else {
+                    format!("`{tool}`")
+                };
             }
             let on: Vec<String> = record.into_iter().cloned().collect();
             format!("`{tool}` on {}", platform_cell(facts, &on))

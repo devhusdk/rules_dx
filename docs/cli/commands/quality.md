@@ -259,6 +259,7 @@ to.
 | `ktfmt` | format | kotlin |
 | `ktlint` | lint | kotlin |
 | `kubeconform` | lint | kubernetes |
+| `latexindent` | format | latex |
 | `markdown_check` | lint | markdown |
 | `credo` | lint | elixir |
 | `mix_format` | format | elixir |
@@ -1059,6 +1060,47 @@ targets own. An unformatted file is reported at the start of the file. A
 syntax error fails the run with the file named. `typstyle` exits 0 on a syntax
 error, so dx reads its warning and never counts that file as clean. `typstyle`
 has no config file, so it runs with its upstream defaults.
+
+### LaTeX
+
+`latexindent` 4.0.3 runs from the managed pin for format. Select it in a
+`latex` family. It runs on Linux x86_64, Linux arm64, macOS arm64 and Windows
+x86_64.
+
+```python
+quality_family(
+    name = "latex_family",
+    family_id = "latex",
+    format = ["latexindent"],
+    disabled = ["lint", "typecheck"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //docs/...
+bazel run @rules_dx//:dx -- format --apply //docs/...
+```
+
+Own LaTeX files with `latex_library` from `@rules_dx//latex/rules:defs.bzl`.
+List the `.tex`, `.sty` and `.cls` files of the package in `srcs`. A check
+never writes. `--apply` rewrites only the files the selected targets own.
+`latexindent` takes one document per process, so dx runs it once per file. Its
+log and backup files go to a scratch directory and never next to the sources.
+An unformatted file is reported at the start of the file. A fatal error fails
+the run with the file named.
+
+`latexindent` reads a config only when one is bound. Bind a YAML settings file
+with `latexindent_config` from `@rules_dx//quality:native_config.bzl`; dx
+passes it with `-l`. A `localSettings.yaml` next to the sources is ignored.
+`latexindent` itself skips a malformed or missing settings file without an
+error, so check a new config by formatting a file it should change.
+
+`chktex` lint is not available yet. No pinned build of `chktex` exists on any
+platform, so a policy that selects it fails with:
+
+```text
+policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_x86_64; disable 'lint'
+```
 
 ### Pkl
 

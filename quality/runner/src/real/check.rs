@@ -962,6 +962,24 @@ impl RealBackend {
                     parsers::parse_zig_fmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "latexindent" => {
+                // One process per file: latexindent takes a single document. Its log and
+                // backups go to a scratch directory, never next to the source.
+                let cruft = Self::latexindent_cruft(tool_id, scratch)?;
+                let mut merged = Vec::new();
+                for (name, path) in strs.iter().zip(refs.iter()) {
+                    let invocation =
+                        commands::latexindent_check(&tool.binary, path, &cruft, config.as_deref());
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_latexindent(&out.stdout, &out.stderr, out.code, &[*name]),
+                    )
+                    .map_err(|err| in_file(err, name))?;
+                    merged.extend(found);
+                }
+                Ok(merged)
+            }
             "stylua" => {
                 let invocation = commands::stylua_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

@@ -351,6 +351,12 @@ mod tests {
         ] {
             assert!(root.join("demo-app").join(file).is_file(), "{file}\n{err}");
         }
+        assert!(
+            !root
+                .join("demo-app/third_party/rules_dx/rules_android.rules_android.patch")
+                .exists(),
+            "rules_android needs no patch\n{err}"
+        );
         let build = std::fs::read_to_string(root.join("demo-app/BUILD.bazel")).expect("build");
         assert!(
             build.contains("app_id = \"com.example.demo_app\""),

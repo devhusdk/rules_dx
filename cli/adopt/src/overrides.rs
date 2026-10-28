@@ -249,15 +249,39 @@ fn observe(root: &Path, text: &str) -> Result<Observed, String> {
     Ok(observed)
 }
 
-/// Generated files that are missing or differ on disk.
+/// `*.patch` files directly in [`OVERRIDES_DIR`] that [`render_overrides`] no longer writes,
+/// sorted. Regular files only: no recursion, and symlinks are never followed or reported.
+fn orphaned_patches(root: &Path) -> Vec<String> {
+    let rendered: Vec<String> = render_overrides()
+        .into_iter()
+        .map(|(path, _)| path)
+        .collect();
+    let Ok(entries) = std::fs::read_dir(root.join(OVERRIDES_DIR)) else {
+        return Vec::new();
+    };
+    let mut orphans: Vec<String> = entries
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .filter_map(|entry| entry.file_name().to_str().map(str::to_owned))
+        .filter(|name| name.ends_with(".patch"))
+        .map(|name| format!("{OVERRIDES_DIR}/{name}"))
+        .filter(|path| !rendered.contains(path))
+        .collect();
+    orphans.sort();
+    orphans
+}
+
+/// Generated files that are missing or differ on disk, then orphaned patches.
 fn stale_files(root: &Path) -> Vec<String> {
-    render_overrides()
+    let mut stale: Vec<String> = render_overrides()
         .into_iter()
         .filter(|(path, content)| {
             std::fs::read(root.join(path)).map_or(true, |bytes| bytes != content.as_bytes())
         })
         .map(|(path, _)| path)
-        .collect()
+        .collect();
+    stale.extend(orphaned_patches(root));
+    stale
 }
 
 /// Compares the consumer's overrides with this dx build without writing anything.
@@ -336,9 +360,10 @@ pub fn preflight_overrides(root: &Path) -> Result<(), AdoptError> {
 
 /// Rewrites the generated files and adds the `include()` line when that is safe.
 ///
-/// Returns the written paths, then `refused:<path> (<reason>)` entries for what was left
-/// alone. `MODULE.bazel` gets the include only when it already depends on rules_dx (else the
-/// overridden modules are outside the graph) and owns none of the overrides itself.
+/// Returns the written paths, then `removed:<path>` for patches dx no longer ships, then
+/// `refused:<path> (<reason>)` entries for what was left alone. `MODULE.bazel` gets the
+/// include only when it already depends on rules_dx (else the overridden modules are
+/// outside the graph) and owns none of the overrides itself.
 pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
     let module_path = root.join("MODULE.bazel");
     let text = match std::fs::read_to_string(&module_path) {
@@ -366,6 +391,14 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
         if write_file(root, &rel, &content)? {
             entries.push(rel);
         }
+    }
+    for rel in orphaned_patches(root) {
+        let dest = crate::scaffold::scaffold_dest_within_root(root, &rel)?;
+        std::fs::remove_file(&dest).map_err(|e| AdoptError::WriteFile {
+            path: dest.display().to_string(),
+            detail: format!("cannot remove: {e}"),
+        })?;
+        entries.push(format!("removed:{rel}"));
     }
     let (Some(text), Some(observed)) = (text, observed) else {
         return Ok(entries);
@@ -511,6 +544,50 @@ mod tests {
         }
         apply_overrides(root).expect("repairs");
         assert_eq!(check_overrides(root), OverridesState::Ok);
+    }
+
+    #[test]
+    fn orphaned_patch_is_reported_and_pruned() {
+        let scratch = consumer(&dep_module());
+        let root = scratch.path();
+        apply_overrides(root).expect("applies");
+        let orphan = root
+            .join(OVERRIDES_DIR)
+            .join("rules_android.rules_android.patch");
+        std::fs::write(&orphan, "old patch\n").expect("seed");
+        match check_overrides(root) {
+            OverridesState::Error(detail) => {
+                assert!(
+                    detail.contains("rules_android.rules_android.patch"),
+                    "{detail}"
+                )
+            }
+            other => panic!("{other:?}"),
+        }
+        let entries = apply_overrides(root).expect("prunes");
+        assert_eq!(
+            entries,
+            vec![format!(
+                "removed:{OVERRIDES_DIR}/rules_android.rules_android.patch"
+            )]
+        );
+        assert!(!orphan.exists());
+        assert_eq!(check_overrides(root), OverridesState::Ok);
+    }
+
+    #[test]
+    fn non_patch_files_are_left_alone() {
+        let scratch = consumer(&dep_module());
+        let root = scratch.path();
+        apply_overrides(root).expect("applies");
+        let dir = root.join(OVERRIDES_DIR);
+        std::fs::write(dir.join("NOTES.txt"), "mine\n").expect("notes");
+        std::fs::create_dir(dir.join("nested.patch")).expect("dir");
+        std::fs::write(dir.join("nested.patch/inner.patch"), "x\n").expect("inner");
+        assert_eq!(check_overrides(root), OverridesState::Ok);
+        assert_eq!(apply_overrides(root).expect("again"), Vec::<String>::new());
+        assert!(dir.join("NOTES.txt").is_file());
+        assert!(dir.join("nested.patch/inner.patch").is_file());
     }
 
     #[test]

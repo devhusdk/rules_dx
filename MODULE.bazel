@@ -660,7 +660,7 @@ single_version_override(
 register_toolchains("//lua/toolchain:all")
 
 php = use_extension("//php/toolchain:repos.bzl", "php")
-use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpunit")
+use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpstan", "dx_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
 

@@ -6,6 +6,9 @@ use quality_adapter::{commands, parsers};
 
 use super::*;
 
+/// The rule level PHPStan runs at when the consumer binds no config.
+const PHPSTAN_LEVEL: u8 = 5;
+
 impl RealBackend {
     pub(super) fn run_check(
         &self,
@@ -587,6 +590,70 @@ impl RealBackend {
                 // staged absolute path.
                 for found in &mut findings {
                     if let Some((_, absolute)) = pairs.iter().find(|(rel, _)| *rel == found.file) {
+                        found.file = absolute.to_string_lossy().into_owned();
+                    }
+                }
+                Ok(findings)
+            }
+            "phpstan" => {
+                // PHPStan reports realpaths, so analyse and match the canonical ones.
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
+                for (workspace, absolute) in pairs {
+                    let real = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    owned.push((real, absolute));
+                }
+                let work = root.join(".dx-phpstan");
+                let tmp_dir = work.join("tmp");
+                std::fs::create_dir_all(&tmp_dir)
+                    .map_err(|err| execution(tool_id, format!("stage phpstan tmp: {err}")))?;
+                let scan_dirs: Vec<PathBuf> = ["dx-phpstan/scan", "dx-phpstan/pkg"]
+                    .iter()
+                    .filter(|dir| {
+                        tool.tool_files
+                            .iter()
+                            .any(|(rel, _)| rel.starts_with(&format!("{dir}/")))
+                    })
+                    .map(|dir| root.join(dir))
+                    .collect();
+                let scan_refs: Vec<&Path> = scan_dirs.iter().map(PathBuf::as_path).collect();
+                let consumer = match config.as_deref() {
+                    Some(path) => Some(std::fs::canonicalize(path).map_err(|err| {
+                        execution(tool_id, format!("resolve phpstan config: {err}"))
+                    })?),
+                    None => None,
+                };
+                let neon = work.join("dx.neon");
+                std::fs::write(
+                    &neon,
+                    commands::phpstan_neon(
+                        consumer.as_deref(),
+                        PHPSTAN_LEVEL,
+                        &tmp_dir,
+                        &scan_refs,
+                    ),
+                )
+                .map_err(|err| execution(tool_id, format!("write phpstan config: {err}")))?;
+                let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
+                let invocation = commands::phpstan_check(&tool.binary, &neon, &path_refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let real_names: Vec<String> = owned
+                    .iter()
+                    .map(|(real, _)| real.to_string_lossy().into_owned())
+                    .collect();
+                let real_strs: Vec<&str> = real_names.iter().map(String::as_str).collect();
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_phpstan(&out.stdout, out.code, &real_strs),
+                )?;
+                for found in &mut findings {
+                    if let Some((_, absolute)) = owned
+                        .iter()
+                        .find(|(real, _)| real.to_string_lossy() == found.file.as_str())
+                    {
                         found.file = absolute.to_string_lossy().into_owned();
                     }
                 }

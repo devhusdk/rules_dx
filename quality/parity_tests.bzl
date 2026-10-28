@@ -7,7 +7,6 @@ PARITY_SCHEMA_VERSION = 1
 
 PARITY_DEFERRED = {
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
-    "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
 }
 
 def _adapter_backed_classes():

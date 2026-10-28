@@ -111,6 +111,12 @@ const DIALYZER_ARGS: &[&str] = &[
     "--fullpath",
 ];
 
+const PHPSTAN_ARGS: &[&str] = &[
+    "analyse",
+    "--no-progress",
+    "--no-interaction",
+    "--error-format=json",
+];
 const SPOTBUGS_ARGS: &[&str] = &["-textui", "-effort:default", "-sarif"];
 const KTLINT_CHECK_ARGS: &[&str] = &["--relative", "--log-level=none", "--reporter=sarif"];
 const KTLINT_FIX_ARGS: &[&str] = &["--relative", "--format"];
@@ -988,6 +994,61 @@ pub fn dialyzer_check(
         argv,
         cwd_rel: String::new(),
     }
+}
+
+/// `phpstan analyse` over the owned sources with a generated config, JSON on stdout.
+pub fn phpstan_check(binary: &Path, neon: &Path, paths: &[&Path]) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(PHPSTAN_ARGS.iter().map(OsString::from));
+    argv.push(OsString::from("-c"));
+    argv.push(neon.as_os_str().to_owned());
+    argv.push(OsString::from("--"));
+    argv.extend(paths.iter().map(|p| p.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+/// The generated PHPStan config: the consumer's, when there is one, is included first so the
+/// values below (the cache directory, the scan directories, one process) always win.
+/// Without a consumer config the analysis runs at `level`.
+pub fn phpstan_neon(
+    consumer: Option<&Path>,
+    level: u8,
+    tmp_dir: &Path,
+    scan_dirs: &[&Path],
+) -> String {
+    let quote = |path: &Path| {
+        let text = path
+            .to_string_lossy()
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"");
+        format!("\"{text}\"")
+    };
+    let mut out = String::new();
+    if let Some(consumer) = consumer {
+        out.push_str("includes:\n    - ");
+        out.push_str(&quote(consumer));
+        out.push('\n');
+    }
+    out.push_str("parameters:\n");
+    if consumer.is_none() {
+        out.push_str(&format!("    level: {level}\n"));
+    }
+    out.push_str("    tmpDir: ");
+    out.push_str(&quote(tmp_dir));
+    out.push('\n');
+    if !scan_dirs.is_empty() {
+        out.push_str("    scanDirectories:\n");
+        for dir in scan_dirs {
+            out.push_str("        - ");
+            out.push_str(&quote(dir));
+            out.push('\n');
+        }
+    }
+    out.push_str("    parallel:\n        maximumNumberOfProcesses: 1\n");
+    out
 }
 
 pub fn ktlint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

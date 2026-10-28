@@ -154,10 +154,19 @@ resolve by PHP's lexical rules: the current namespace and the `use` aliases.
 
 ## Quality
 
-PHP sources form the `php` class, so `dx check` sees them. No formatter,
-linter or type checker runs yet, and there is no coverage: the pinned build
-has neither Xdebug nor PCOV. Until they land, the PHP rules add the
-`no-format`, `no-lint` and `no-typecheck` tags to every target.
+PHP sources form the `php` class, so `dx check` sees them. No formatter or
+linter runs yet, and there is no coverage: the pinned build has neither Xdebug
+nor PCOV. Until the formatter and linter land, the PHP rules add the
+`no-format` and `no-lint` tags to every target.
+
+PHPStan 2.3.3 type checks `php` targets. Select `phpstan` in a `php` family
+and pass the tool flag:
+
+```sh
+dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/tools:phpstan
+```
+
+Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 
 ## Platforms
 

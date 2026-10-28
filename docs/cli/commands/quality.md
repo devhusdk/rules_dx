@@ -245,6 +245,7 @@ to.
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang, elixir |
+| `phpstan` | typecheck | php |
 | `dart` | format, lint, typecheck | dart |
 | `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
@@ -332,19 +333,19 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
   `julia_format`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
-  `mix_format`, `credo`, `ormolu`
+  `phpstan`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dart`, `dfmt`,
-  `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `phpstan`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
-  `@rules_dx//erlang/tools:dialyzer`,
+  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//php/tools:phpstan`,
   `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
@@ -626,6 +627,39 @@ quality_family(
     typecheck = ["dialyzer"],
 )
 ```
+
+### PHP type checking
+
+`phpstan` has no default executable. Select `phpstan` in a `php` family and
+point the flag at the pinned PHPStan 2.3.3 on the pinned PHP.
+
+```starlark
+quality_family(
+    name = "php_family",
+    family_id = "php",
+    typecheck = ["phpstan"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/tools:phpstan
+```
+
+Without the flag, a policy that selects `phpstan` fails the analysis and names
+the flag. PHPStan analyses the target's own sources. The sources of its
+`php_library` deps and the files of their Composer packages are only scanned
+for the classes, functions and constants they declare, so a class from a
+dependency is known without running any code. Nothing is autoloaded.
+
+Without a config, PHPStan runs at level 5. Bind a `phpstan.neon` or
+`phpstan.neon.dist` with `phpstan_config` from `@rules_dx//quality:native_config.bzl`
+to change that. The config is included by a generated one that pins the cache
+directory, the scan directories and a single process, so those keys cannot be
+overridden. A consumer `bootstrapFiles` entry is run by PHPStan. Each finding is
+an error at its line with the rule as `phpstan/<identifier>`, or `phpstan/error`
+when PHPStan names none. Only findings in the target's own sources are
+reported. PHPStan never fixes, so `--apply` changes nothing. The platform is
+`linux_x86_64`, the only one with a pinned PHP.
 
 ### Elixir formatting
 

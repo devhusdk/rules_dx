@@ -27,6 +27,8 @@ load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
+load("//php/rules:php.bzl", "staged_path")
+load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//quality:support.bzl", "support_unpinned_tools")
 load("//rego/rules:providers.bzl", "RegoInfo")
@@ -136,6 +138,14 @@ _REAL_TOOL_TABLE = {
         "attr": attr.label(default = "//config:tool_dialyzer", allow_files = True, cfg = "exec"),
         "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//erlang/tools:dialyzer",
+        "kind": "setting",
+        "resources": "heavy",
+        "shard": "core",
+    },
+    "phpstan": {
+        "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
+        "capabilities": ["typecheck"],
+        "fallback": "=@rules_dx//php/tools:phpstan",
         "kind": "setting",
         "resources": "heavy",
         "shard": "core",
@@ -1162,6 +1172,27 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             owned_paths = {f.path: True for f in dialyzer_owned}
             dialyzer_aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
 
+    phpstan_scan = []
+    if "phpstan" in [stage["tool"] for stage in resolved]:
+        if PhpInfo not in target:
+            resolved = drop_pipeline_tool(resolved, "phpstan")
+            if len(resolved) == 0:
+                return []
+        else:
+            # Dependencies are scanned for their symbols, never analysed or run; the owned
+            # sources are the CLI paths, so they stay out of the scan set.
+            owned_paths = {f.path: True for f in path_to_file.values()}
+            info = target[PhpInfo]
+            seen_scan = {}
+            for scan_file in sorted(info.transitive_srcs.to_list() + info.autoload_files.to_list(), key = lambda f: f.path):
+                if scan_file.path not in owned_paths and scan_file.path not in seen_scan:
+                    seen_scan[scan_file.path] = True
+                    phpstan_scan.append(("dx-phpstan/scan/" + staged_path(scan_file), scan_file))
+            for pkg_file in sorted(info.package_files.to_list(), key = lambda f: f.path):
+                if pkg_file.path.endswith(".php") and pkg_file.path not in owned_paths and pkg_file.path not in seen_scan:
+                    seen_scan[pkg_file.path] = True
+                    phpstan_scan.append(("dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file))
+
     scalafix_owned = []
     scalafix_aux = []
     if "scalafix" in [stage["tool"] for stage in resolved]:
@@ -1466,6 +1497,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 seen_aux[beam.path] = True
                 tool_files.append(real_request_tool_file("dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam.path))
                 inputs.append(beam)
+        if tool == "phpstan":
+            for (rel, scan_file) in phpstan_scan:
+                tool_files.append(real_request_tool_file(rel, scan_file.path))
+                inputs.append(scan_file)
         if tool == "scalafix":
             for index, jar in enumerate(scalafix_owned):
                 tool_files.append(real_request_tool_file("dx-scalafix/owned/%d-%s" % (index, jar.basename), jar.path))

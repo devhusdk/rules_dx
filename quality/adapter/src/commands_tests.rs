@@ -2562,3 +2562,49 @@ fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
     assert!(!argv_strings(&bare).contains(&"--plts".to_owned()));
     assert!(!argv_strings(&bare).contains(&"-pa".to_owned()));
 }
+
+#[test]
+fn phpstan_check_passes_the_config_and_puts_paths_after_the_separator() {
+    let invocation = phpstan_check(
+        Path::new(BIN),
+        Path::new("/s/phpstan.neon"),
+        &[Path::new("/s/a.php"), Path::new("/s/b.php")],
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "analyse",
+            "--no-progress",
+            "--no-interaction",
+            "--error-format=json",
+            "-c",
+            "/s/phpstan.neon",
+            "--",
+            "/s/a.php",
+            "/s/b.php"
+        ]
+    );
+}
+
+#[test]
+fn phpstan_neon_includes_the_consumer_config_and_pins_our_values() {
+    let neon = phpstan_neon(
+        Some(Path::new("/s/phpstan.neon")),
+        5,
+        Path::new("/s/.tmp"),
+        &[Path::new("/s/scan"), Path::new("/s/pkg")],
+    );
+    assert_eq!(
+        neon,
+        "includes:\n    - \"/s/phpstan.neon\"\nparameters:\n    tmpDir: \"/s/.tmp\"\n    scanDirectories:\n        - \"/s/scan\"\n        - \"/s/pkg\"\n    parallel:\n        maximumNumberOfProcesses: 1\n"
+    );
+    let bare = phpstan_neon(None, 5, Path::new("/s/.tmp"), &[]);
+    assert!(
+        bare.contains("level: 5")
+            && !bare.contains("includes")
+            && !bare.contains("scanDirectories")
+    );
+    let odd = phpstan_neon(None, 5, Path::new("/s/a\"b"), &[]);
+    assert!(odd.contains("\"/s/a\\\"b\""), "{odd}");
+}

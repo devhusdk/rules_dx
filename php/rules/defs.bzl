@@ -2,7 +2,8 @@
 
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_macro_upstream_visibility", "dx_strip_none", "dx_wrap", "dx_wrap_binary", "dx_wrap_test", "dx_wrapper_macro_attrs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":php.bzl", "PHP_SOURCE_EXTS", _PhpInfo = "PhpInfo", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
+load(":php.bzl", "PHP_SOURCE_EXTS", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
+load(":providers.bzl", _PhpInfo = "PhpInfo")
 
 PhpInfo = _PhpInfo
 
@@ -15,7 +16,7 @@ PHP_COMPATIBLE_WITH = [
     Label("@platforms//cpu:x86_64"),
 ]
 
-PHP_DEFERRED_SKIP_TAGS = ["no-format", "no-lint", "no-typecheck"]
+PHP_DEFERRED_SKIP_TAGS = ["no-format", "no-lint"]
 
 _php_library_forward = dx_library_forward_rule(
     provides = [_PhpInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],

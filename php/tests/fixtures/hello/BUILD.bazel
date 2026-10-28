@@ -12,6 +12,7 @@ php_library(
 php_library(
     name = "greeter",
     srcs = ["src/Hello/Greeter.php"],
+    visibility = ["//quality/testdata:__pkg__"],
     deps = [":format"],
 )
 

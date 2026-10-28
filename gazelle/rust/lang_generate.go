@@ -455,11 +455,22 @@ type depsConcatExpr struct {
 	base    bzl.Expr
 	extra   []string
 	android []string
+	// platform maps a platform constraint to deps gated behind it.
+	platform map[string][]string
 }
 
 func (c depsConcatExpr) BzlExpr() bzl.Expr {
 	var out bzl.Expr = c.base
-	if out == nil || len(c.extra) > 0 || len(c.android) == 0 {
+	gates := map[string][]string{}
+	if len(c.android) > 0 {
+		gates[androidPlatformConstraint] = c.android
+	}
+	for k, v := range c.platform {
+		if len(v) > 0 {
+			gates[k] = v
+		}
+	}
+	if out == nil || len(c.extra) > 0 || len(gates) == 0 {
 		extra := make([]bzl.Expr, len(c.extra))
 		for i, dep := range c.extra {
 			extra[i] = &bzl.StringExpr{Value: dep}
@@ -471,21 +482,32 @@ func (c depsConcatExpr) BzlExpr() bzl.Expr {
 			out = &bzl.BinaryExpr{X: out, Op: "+", Y: list}
 		}
 	}
-	if len(c.android) == 0 {
+	if len(gates) == 0 {
 		return out
 	}
-	items := make([]bzl.Expr, len(c.android))
-	for i, dep := range c.android {
-		items[i] = &bzl.StringExpr{Value: dep}
+	keys := make([]string, 0, len(gates))
+	for k := range gates {
+		keys = append(keys, k)
 	}
-	sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: []*bzl.KeyValueExpr{
-		{Key: &bzl.StringExpr{Value: androidPlatformConstraint}, Value: &bzl.ListExpr{List: items}},
-		{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}},
-	}, ForceMultiLine: true}}}
-	if len(c.extra) == 0 && c.base == nil {
-		return sel
+	sort.Strings(keys)
+	first := len(c.extra) == 0 && c.base == nil
+	for _, k := range keys {
+		items := make([]bzl.Expr, len(gates[k]))
+		for i, dep := range gates[k] {
+			items[i] = &bzl.StringExpr{Value: dep}
+		}
+		sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: []*bzl.KeyValueExpr{
+			{Key: &bzl.StringExpr{Value: k}, Value: &bzl.ListExpr{List: items}},
+			{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}},
+		}, ForceMultiLine: true}}}
+		if first {
+			out = sel
+			first = false
+			continue
+		}
+		out = &bzl.BinaryExpr{X: out, Op: "+", Y: sel}
 	}
-	return &bzl.BinaryExpr{X: out, Op: "+", Y: sel}
+	return out
 }
 
 func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
@@ -496,7 +518,12 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	for _, dep := range c.android {
 		managed[dep] = true
 	}
-	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android}.BzlExpr()
+	for _, deps := range c.platform {
+		for _, dep := range deps {
+			managed[dep] = true
+		}
+	}
+	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform}.BzlExpr()
 }
 
 func unmanagedDepsLabels(other bzl.Expr, managed map[string]bool) []string {

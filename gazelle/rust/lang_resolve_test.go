@@ -938,3 +938,23 @@ func TestDepsConcatSelectMergeIsStable(t *testing.T) {
 		t.Errorf("merge not stable:\n%s\n%s", a, b)
 	}
 }
+
+func TestResolveWindowsCfgPathDepSelect(t *testing.T) {
+	l := &rustLang{}
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/win", "win"})
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	r := rule.NewRule(libraryKind, "app")
+	imports := targetImports{
+		production: []string{"win"},
+		gated:      map[string]bool{"win": true},
+		gateTarget: map[string]string{"win": "@platforms//os:windows"},
+	}
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "app", "app"))
+	got := bzl.FormatString(r.Attr("deps"))
+	for _, want := range []string{"select(", `"@platforms//os:windows": ["//lib/win"]`, `"//conditions:default": []`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("deps = %s, missing %s", got, want)
+		}
+	}
+}

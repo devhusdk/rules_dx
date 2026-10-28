@@ -258,6 +258,20 @@ FSHARP_FANTOMAS_SUPPORT = {
     "transport": "batched",
 }
 
+FSHARP_FSC_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["fsharp"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "fsharp",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "fsc",
+    "transport": "batched",
+}
+
 FSHARP_FSHARPLINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1001,6 +1015,7 @@ SUPPORT_RECORDS = [
     CSHARP_CSC_SUPPORT,
     CSHARP_ROSLYN_SUPPORT,
     FSHARP_FANTOMAS_SUPPORT,
+    FSHARP_FSC_SUPPORT,
     FSHARP_FSHARPLINT_SUPPORT,
     RUBY_RUBOCOP_SUPPORT,
     RUBY_STANDARDRB_SUPPORT,

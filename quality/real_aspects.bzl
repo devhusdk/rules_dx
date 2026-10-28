@@ -27,6 +27,7 @@ load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:compile_check.bzl", "CompileCheckInfo", "compile_check_aspect")
+load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
@@ -577,6 +578,12 @@ _REAL_TOOL_TABLE = {
         "shard": "ruby",
     },
     "csc": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "dotnet",
+    },
+    "fsc": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
         "resources": "heavy",
@@ -1390,6 +1397,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": roslyn and csc need a csharp_* target compiled with the SDK analyzers")
         roslyn = target[RoslynInfo]
 
+    fsc = None
+    if "fsc" in [stage["tool"] for stage in resolved]:
+        if FscUnsupportedInfo in target:
+            fail(what + ": fsc is unavailable: " + target[FscUnsupportedInfo].reason)
+        if FscInfo not in target:
+            fail(what + ": fsc needs an fsharp_* target")
+        fsc = target[FscInfo]
+
     clang_syntax = None
     if "clang_syntax" in [stage["tool"] for stage in resolved] or "clang_tidy" in [stage["tool"] for stage in resolved]:
         if ClangSyntaxInfo not in target:
@@ -1781,6 +1796,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(roslyn.sarifs[i])
                 tool_files.append(real_request_tool_file("dx-roslyn/" + roslyn.tfms[i] + "/exit", roslyn.statuses[i].path))
                 inputs.append(roslyn.statuses[i])
+        if tool == "fsc":
+            for i in range(len(fsc.tfms)):
+                upstream.append(fsc.logs[i].path)
+                inputs.append(fsc.logs[i])
+                tool_files.append(real_request_tool_file("dx-fsc/" + fsc.tfms[i] + "/exit", fsc.statuses[i].path))
+                inputs.append(fsc.statuses[i])
         if tool == "clang_tidy":
             for diagnostics in clang_syntax.tidy_diagnostics:
                 upstream.append(diagnostics.path)
@@ -1963,8 +1984,8 @@ _REAL_SHARD_SPECS = {
     },
     "real_dotnet_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive C# typecheck family aspect (csc compiler diagnostics).",
-        "requires": [roslyn_aspect],
+        "doc": "Additive C#/F# typecheck family aspect (csc and fsc compiler diagnostics).",
+        "requires": [fsc_aspect, roslyn_aspect],
         "shard": "dotnet",
         "suffix": "-dotnet",
     },

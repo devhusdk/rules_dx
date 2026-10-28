@@ -30,6 +30,7 @@ pub mod flake8;
 pub mod flang;
 pub mod flatc;
 pub mod fortitude;
+pub mod fsc;
 pub mod fsharplint;
 pub mod gersemi;
 mod gnu_diagnostics;
@@ -137,6 +138,7 @@ pub use flake8::parse_flake8;
 pub use flang::parse_flang;
 pub use flatc::{parse_flatc, FlatcReport};
 pub use fortitude::parse_fortitude;
+pub use fsc::parse_fsc;
 pub use fsharplint::parse_fsharplint;
 pub use gersemi::parse_gersemi;
 pub use go_analysis::{parse_go_analysis, parse_gotype};
@@ -1786,6 +1788,14 @@ mod tests {
         super::fortitude::parse_fortitude(input, code, files)
     }
 
+    fn fuzz_fsc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::fsc::parse_fsc(input, code, files)
+    }
+
     fn fuzz_fsharplint(
         input: &[u8],
         code: Option<i32>,
@@ -2637,6 +2647,7 @@ mod tests {
         ("flake8", fuzz_flake8),
         ("flatc", fuzz_flatc),
         ("fortitude", fuzz_fortitude),
+        ("fsc", fuzz_fsc),
         ("fsharplint", fuzz_fsharplint),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
@@ -2755,6 +2766,7 @@ mod tests {
         ("flake8", include_str!("flake8.rs")),
         ("flatc", include_str!("flatc.rs")),
         ("fortitude", include_str!("fortitude.rs")),
+        ("fsc", include_str!("fsc.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),

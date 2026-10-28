@@ -2,7 +2,29 @@ use quality_adapter::parsers::{self, FileFinding};
 
 use super::*;
 
-type SarifParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
+type LogParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
+
+/// Where a .NET compiler log comes from and how to read it.
+struct DotnetLog {
+    what: &'static str,
+    aspect: &'static str,
+    compiler: &'static str,
+    exit_prefix: &'static str,
+    parse: LogParser,
+}
+
+impl DotnetLog {
+    /// The csc SARIF log of the C# aspect.
+    fn csc_sarif(parse: LogParser) -> Self {
+        Self {
+            what: "SARIF log",
+            aspect: "C#",
+            compiler: "csc",
+            exit_prefix: "dx-roslyn",
+            parse,
+        }
+    }
+}
 
 type CompileLogParser =
     fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
@@ -66,7 +88,12 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
-        self.check_dotnet_sarif(tool_id, tool, pairs, parsers::parse_roslyn)
+        self.check_dotnet_log(
+            tool_id,
+            tool,
+            pairs,
+            &DotnetLog::csc_sarif(parsers::parse_roslyn),
+        )
     }
 
     pub(super) fn check_csc_delegated(
@@ -75,17 +102,45 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
-        self.check_dotnet_sarif(tool_id, tool, pairs, parsers::parse_csc)
+        self.check_dotnet_log(
+            tool_id,
+            tool,
+            pairs,
+            &DotnetLog::csc_sarif(parsers::parse_csc),
+        )
     }
 
-    /// Parses the per-TFM csc SARIF logs of the C# aspect with `parse` and merges them.
-    fn check_dotnet_sarif(
+    pub(super) fn check_fsc_delegated(
         &self,
         tool_id: &str,
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
-        parse: SarifParser,
     ) -> Result<Vec<FileFinding>, RunnerError> {
+        let source = DotnetLog {
+            what: "fsc output",
+            aspect: "F#",
+            compiler: "fsc",
+            exit_prefix: "dx-fsc",
+            parse: parsers::parse_fsc,
+        };
+        self.check_dotnet_log(tool_id, tool, pairs, &source)
+    }
+
+    /// Parses the per-TFM compiler logs of the C# or F# aspect and merges them.
+    fn check_dotnet_log(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+        source: &DotnetLog,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let DotnetLog {
+            what,
+            aspect,
+            compiler,
+            exit_prefix,
+            parse,
+        } = source;
         let workspaces: Vec<&str> = pairs
             .iter()
             .map(|(workspace, _)| workspace.as_str())
@@ -94,7 +149,7 @@ impl RealBackend {
             return Err(execution(
                 tool_id,
                 format!(
-                    "{tool_id} needs the SARIF log of the target compilation; the C# aspect did not supply it"
+                    "{tool_id} needs the {what} of the target compilation; the {aspect} aspect did not supply it"
                 ),
             ));
         }
@@ -109,12 +164,12 @@ impl RealBackend {
                     execution(
                         tool_id,
                         format!(
-                            "{tool_id} SARIF log {} names no target framework",
+                            "{tool_id} {what} {} names no target framework",
                             path.display()
                         ),
                     )
                 })?;
-            let key = format!("dx-roslyn/{tfm}/exit");
+            let key = format!("{exit_prefix}/{tfm}/exit");
             let code = tool
                 .tool_files
                 .iter()
@@ -125,11 +180,11 @@ impl RealBackend {
                     execution(
                         tool_id,
                         format!(
-                            "{tool_id} needs the csc exit status for {tfm}; the C# aspect did not supply it"
+                            "{tool_id} needs the {compiler} exit status for {tfm}; the {aspect} aspect did not supply it"
                         ),
                     )
                 })?;
-            let found = parsed(tool_id, parse(&bytes, Some(code), &workspaces))?;
+            let found = parsed(tool_id, (parse)(&bytes, Some(code), &workspaces))?;
             pivots.push((tfm.to_owned(), found));
         }
         let mut findings = merge_pivot_findings(pivots);
@@ -369,7 +424,7 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
         prefix: &str,
-        parse: SarifParser,
+        parse: LogParser,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let workspaces: Vec<&str> = pairs
             .iter()

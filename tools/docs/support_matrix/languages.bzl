@@ -282,7 +282,6 @@ GAP_ISSUES = {
     "lint:xml": 4618,
     "support:*": 4441,
     "typecheck:astro": 1767,
-    "typecheck:fsharp": 4529,
     "typecheck:haskell": 4530,
     "typecheck:javascript": 4524,
     "typecheck:julia": 4532,

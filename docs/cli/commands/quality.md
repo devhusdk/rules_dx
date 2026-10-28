@@ -263,6 +263,7 @@ to.
 | `flang` | typecheck | fortran |
 | `flatc` | lint, typecheck | flatbuffers |
 | `fortitude` | lint | fortran |
+| `fsc` | typecheck | fsharp |
 | `fsharplint` | lint | fsharp |
 | `gersemi` | format | cmake |
 | `gofumpt` | format | go |
@@ -1129,6 +1130,25 @@ fsharp_library(
 A syntax error is reported by both tools as an error at its line and column
 with its `FS` compiler code. It never counts as clean. A tool that fails to
 run, or prints output dx cannot read, fails the run with the cause named.
+
+### F# typecheck
+
+`fsc` type-checks an F# target. It runs the pinned F# compiler a second time
+with the target's sources in compile order, its dependency assemblies, its
+`defines`, `langversion`, `nowarn` and `compiler_options`, so the diagnostics
+match the build. Select it with `typecheck = ["fsc"]` in the `fsharp` family
+and drop `typecheck` from `disabled`.
+
+```sh
+bazel run @rules_dx//:dx -- typecheck //app/...
+```
+
+Findings keep the `FS` code, line and column. A warning is reported as a
+warning even though the build treats warnings as errors. An error with no
+file, an error in a file the target does not own, or a failing compile with
+no error diagnostic fails the run and never counts as clean. `fsc` is check
+only and runs each F# target twice under `dx typecheck`, at heavy resources.
+Supported on linux_x86_64.
 
 ### Objective-C
 

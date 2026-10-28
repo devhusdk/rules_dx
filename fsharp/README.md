@@ -110,6 +110,12 @@ bazel run @rules_dx//:dx -- format //app/...
 bazel run @rules_dx//:dx -- lint //app/...
 ```
 
+## Typecheck
+
+`dx typecheck` runs `fsc`, which compiles the target a second time with the
+pinned F# compiler and reports its `FS` diagnostics. See the Quality page of
+the command reference.
+
 ## Platforms
 
 | Cell | Format and lint |

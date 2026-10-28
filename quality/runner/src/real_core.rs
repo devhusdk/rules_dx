@@ -179,6 +179,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "flang",
             "flatc",
             "fortitude",
+            "fsc",
             "fsharplint",
             "gersemi",
             "gofumpt",

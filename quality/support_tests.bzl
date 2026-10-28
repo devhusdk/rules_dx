@@ -43,6 +43,7 @@ def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, em
 # (see matrix_case_platforms), never by editing a record. Tracked by #4441 and #1383.
 SUPPORT_EVIDENCE_PENDING = [
     "csc:typecheck:csharp:linux_x86_64",
+    "fsc:typecheck:fsharp:linux_x86_64",
     "fsharplint:lint:fsharp:linux_x86_64",
     "gersemi:format:cmake:linux_arm64",
     "gersemi:format:cmake:macos_arm64",

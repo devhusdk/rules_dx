@@ -43,6 +43,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "flang",
     "flatc",
     "fortitude",
+    "fsc",
     "fsharplint",
     "gersemi",
     "gofumpt",

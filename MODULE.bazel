@@ -719,10 +719,7 @@ python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "pyth
 python_interpreters.toolchain(python_version = "3.12")
 use_repo(
     python_interpreters,
-    "python_3_12_aarch64_apple_darwin",
     "python_3_12_aarch64_unknown_linux_gnu",
-    "python_3_12_x86_64_apple_darwin",
-    "python_3_12_x86_64_pc_windows_msvc",
     "python_3_12_x86_64_unknown_linux_gnu",
     "python_interpreters",
 )

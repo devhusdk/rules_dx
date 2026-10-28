@@ -125,7 +125,19 @@ dx format -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_for
 dx format --apply -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/tools:mix_format
 ```
 
-The compiler is the type and warning check. No Elixir linter runs yet.
+## Linting
+
+`dx lint` runs Credo 1.7.19 on the pinned Elixir. Select `credo` in the `lint`
+list of an `elixir` family and pass the tool flag:
+
+```sh
+dx lint -- --@rules_dx//config:tool_credo=@rules_dx//elixir/tools:credo
+```
+
+Findings are warnings named `credo/<Category.Check>`. A file Credo cannot parse
+is an error named `credo/syntax`. The defaults are Credo's own non-strict
+checks. Bind a `credo_config` to change them; `requires` and `plugins` are not
+supported. The compiler is still the type and warning check.
 
 ## Platforms
 

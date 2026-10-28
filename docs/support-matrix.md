@@ -68,7 +68,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | no |
 | CUDA | no | `clang_format` | no |
 | D | `dscanner` on `linux_x86_64` | `dfmt` | no |
-| Elixir | no | `mix_format` | no |
+| Elixir | `credo` | `mix_format` | no |
 | Erlang | no | `erlfmt` | no |
 | Fortran | no | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |

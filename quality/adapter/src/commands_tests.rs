@@ -1658,6 +1658,19 @@ fn file_family_lint_checks_are_check_only() {
             "--filter=vars.tf"
         ]
     );
+    assert_eq!(
+        argv_strings(&credo_check(
+            Path::new(BIN),
+            &[Path::new("/scratch/lib/a.ex")],
+            Path::new("/scratch/.credo.exs")
+        )),
+        vec![
+            BIN,
+            "--config-file",
+            "/scratch/.credo.exs",
+            "/scratch/lib/a.ex"
+        ]
+    );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),

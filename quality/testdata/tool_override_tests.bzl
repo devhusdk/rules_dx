@@ -37,6 +37,9 @@ _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/tools:mix_format"
+_ELIXIR_LINT_POLICY = _CANONICAL + "//quality/testdata:elixir_lint_policy"
+_CREDO_SETTING = _CANONICAL + "//config:tool_credo"
+_CREDO_TOOL = _CANONICAL + "//elixir/tools:credo"
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -510,6 +513,64 @@ def erlfmt_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_erlfmt",
     )
     _erlfmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+def _elixir_lint_subject_impl(ctx):
+    """Exposes the resolved credo launcher and the lint results beside the real aspect."""
+    tool = ctx.attr._credo[DefaultInfo].files_to_run.executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "credo": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+elixir_lint_subject = rule(
+    implementation = _elixir_lint_subject_impl,
+    attrs = {
+        "_credo": attr.label(default = "//config:tool_credo"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+_credo_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ELIXIR_LINT_POLICY},
+)
+
+def _credo_wired_impl(ctx):
+    """Asserts the flag wires the credo launcher and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["credo"].endswith("/credo"), "want the credo launcher, got " + fields["credo"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the elixir target")
+    return analysistest.end(env)
+
+_credo_set_test = analysistest.make(
+    _credo_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ELIXIR_LINT_POLICY,
+        _CREDO_SETTING: _CREDO_TOOL,
+    },
+)
+
+def credo_flag_tests(name, subject):
+    """Instantiates the credo flag proofs."""
+    _credo_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_credo",
+    )
+    _credo_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

@@ -89,6 +89,14 @@ _REAL_TOOL_TABLE = {
         "shard": "rust",
         "toolchain_file": "clippy_driver",
     },
+    "credo": {
+        "attr": attr.label(default = "//config:tool_credo", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "fallback": "=@rules_dx//elixir/tools:credo",
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+    },
     "csharpier": {
         "attr": attr.label(default = "//quality/tools/dotnet:csharpier", cfg = "exec", executable = True),
         "capabilities": ["format"],

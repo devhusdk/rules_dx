@@ -585,7 +585,7 @@ use_repo(erlang, "dx_erlang_toolchains", "dx_erlfmt", "rules_erlang")
 register_toolchains("@dx_erlang_toolchains//:all")
 
 elixir = use_extension("//elixir/toolchain:repos.bzl", "elixir")
-use_repo(elixir, "dx_elixir_toolchains", "rules_elixir")
+use_repo(elixir, "dx_credo", "dx_elixir_toolchains", "rules_elixir")
 
 register_toolchains("@dx_elixir_toolchains//:all")
 

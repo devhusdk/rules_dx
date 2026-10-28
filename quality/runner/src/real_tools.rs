@@ -3325,3 +3325,81 @@ fn tflint_plugin_failure_is_an_error_not_a_clean_run() {
         .expect_err("never clean");
     assert!(err.to_string().contains("tflint --init"), "{err}");
 }
+
+fn credo_fake(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--config-file"));
+    let config = PathBuf::from(&argv[2]);
+    assert!(
+        config.ends_with("dx-credo-default/.credo.exs"),
+        "unbound credo uses the scratch default, got {config:?}"
+    );
+    let file = last_file(argv);
+    assert!(
+        !Path::new(&file).is_absolute(),
+        "credo gets cwd-relative paths"
+    );
+    let text = std::fs::read_to_string(cwd.join(&file)).expect("read staged file");
+    let (issues, invalid) = if text.contains("broken") {
+        (
+            String::new(),
+            format!(r#"{{"path":"{file}","line":2,"column":8,"message":"missing terminator: )"}}"#),
+        )
+    } else if text.contains("IO.inspect") {
+        (
+            format!(
+                r#"{{"category":"warning","check":"Credo.Check.Warning.IoInspect","column":3,"filename":"{file}","line_no":2,"message":"There should be no calls to `IO.inspect/1`."}}"#
+            ),
+            String::new(),
+        )
+    } else {
+        (String::new(), String::new())
+    };
+    let code = i32::from(!issues.is_empty() || !invalid.is_empty());
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: format!(r#"{{"issues":[{issues}]}}"#).into_bytes(),
+        stderr: format!("dx-credo: {{\"invalid\":[{invalid}]}}\n").into_bytes(),
+    })
+}
+
+#[test]
+fn credo_reports_findings_as_warnings_with_the_default_config() {
+    let backend = backend_for("credo", plain_tool(), credo_fake);
+    let findings = backend
+        .diagnose("credo", "lint", &single("lib/a.ex", "x\nIO.inspect(1)\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "lib/a.ex");
+    assert_eq!(findings[0].rule_id, "credo/Warning.IoInspect");
+    let clean = backend
+        .diagnose("credo", "lint", &single("lib/a.ex", "ok\n"))
+        .expect("clean");
+    assert!(clean.is_empty());
+}
+
+#[test]
+fn credo_reports_a_file_it_could_not_parse() {
+    let backend = backend_for("credo", plain_tool(), credo_fake);
+    let findings = backend
+        .diagnose("credo", "lint", &single("lib/a.ex", "x\nbroken (\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "credo/syntax");
+    assert_eq!(findings[0].message, "missing terminator: )");
+}
+
+#[test]
+fn credo_lint_apply_leaves_bytes_unchanged() {
+    let backend = backend_for("credo", plain_tool(), credo_fake);
+    assert_eq!(
+        backend
+            .apply_fix("credo", "lib/a.ex", "IO.inspect(1)\n", "lint")
+            .expect("check-only"),
+        "IO.inspect(1)\n"
+    );
+}

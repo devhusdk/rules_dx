@@ -157,6 +157,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "clang_tidy",
             "clippy",
             "cppcheck",
+            "credo",
             "csharpier",
             "cue",
             "deadnix",

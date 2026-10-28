@@ -37,6 +37,7 @@ REAL_ADAPTERS = {
     "clippy": {"lint": ["rust"]},
     "cppcheck": {"lint": ["c", "cpp"]},
     "csharpier": {"format": ["csharp"]},
+    "credo": {"lint": ["elixir"]},
     "cue": {"format": ["cue"]},
     "deadnix": {"lint": ["nix"]},
     "dfmt": {"format": ["d"]},

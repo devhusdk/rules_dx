@@ -7,6 +7,7 @@ pub mod checkstyle;
 pub mod clang_format;
 pub mod clang_tidy;
 pub mod cppcheck;
+pub mod credo;
 pub mod csharpier;
 pub mod cue;
 pub mod deadnix;
@@ -82,6 +83,7 @@ pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
+pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
 pub use deadnix::parse_deadnix;
@@ -1913,6 +1915,14 @@ mod tests {
         super::dscanner::parse_dscanner(input, code, files)
     }
 
+    fn fuzz_credo(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::credo::parse_credo(input, b"dx-credo: {\"invalid\":[]}\n", code, files)
+    }
+
     fn fuzz_erlfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2245,6 +2255,7 @@ mod tests {
         ("clang_tidy", fuzz_clang_tidy),
         ("cppcheck", fuzz_cppcheck),
         ("csharpier", fuzz_csharpier),
+        ("credo", fuzz_credo),
         ("cue", fuzz_cue),
         ("deadnix", fuzz_deadnix),
         ("dfmt", fuzz_dfmt),
@@ -2331,6 +2342,7 @@ mod tests {
         ("clang_tidy", include_str!("clang_tidy.rs")),
         ("cppcheck", include_str!("cppcheck.rs")),
         ("csharpier", include_str!("csharpier.rs")),
+        ("credo", include_str!("credo.rs")),
         ("cue", include_str!("cue.rs")),
         ("deadnix", include_str!("deadnix.rs")),
         ("dfmt", include_str!("dfmt.rs")),

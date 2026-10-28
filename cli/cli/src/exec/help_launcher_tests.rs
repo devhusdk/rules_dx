@@ -92,7 +92,7 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
     for (argv, needle) in [
         (
             vec!["lintt"],
-            "some similar subcommands exist: 'list-tests', 'init', 'lint'",
+            "some similar subcommands exist: 'init', 'lint'",
         ),
         (
             vec!["lint", "--ouptut=json"],
@@ -116,6 +116,20 @@ fn clap_renders_the_error_and_supplies_the_suggestion() {
         assert!(
             !text.contains("Usage: dx <") && !text.contains("clap"),
             "dx {argv:?} prints the wrong usage:\n{text}"
+        );
+    }
+    for (argv, name) in [
+        (vec!["list-tests", "//..."], "list-tests"),
+        (vec!["tests", "--configured", "//pkg/..."], "tests"),
+    ] {
+        let text = rendered(&argv);
+        assert!(
+            text.contains(&format!("unsupported command '{name}'")),
+            "dx {argv:?} must name the removed command:\n{text}"
+        );
+        assert!(
+            text.contains("bazel query 'tests("),
+            "dx {argv:?} must carry the bazel query tip:\n{text}"
         );
     }
 }

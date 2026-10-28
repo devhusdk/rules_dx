@@ -6,8 +6,7 @@ with a scope.
 ## No Scope Means `//...`
 
 - `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`, `dx migrate`,
-  `dx list-tests`
+  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`, `dx migrate`
 
 ## No Scope Means The Repository
 
@@ -53,7 +52,7 @@ Patterns, paths, and multiple labels are usage errors.
   `bazel run` (`//path/...`, `//...` at the root). Never combines with
   explicit scopes. Accepted by `dx build`, `dx test`, `dx coverage`,
   `dx lint`, `dx typecheck`, `dx format`, `dx generate`, `dx check`,
-  `dx fix`, `dx security`, `dx license`, `dx list-tests`, and `dx docs`.
+  `dx fix`, `dx security`, `dx license`, and `dx docs`.
 - `--affected`: the targets your changes reach, described below. Never
   combines with explicit scopes or `--here`.
 - Targets that do not fit the target platform are skipped in `dx build`,
@@ -71,7 +70,7 @@ bazel run @rules_dx//:dx -- build //cli/...
 ## `--affected`
 
 `--affected` selects only what your changes can reach. It is accepted by
-`dx build`, `dx test`, `dx coverage`, `dx list-tests`, `dx lint`,
+`dx build`, `dx test`, `dx coverage`, `dx lint`,
 `dx typecheck`, `dx format`, `dx check`, `dx fix`, `dx security`, and
 `dx license`. `dx generate` and `dx docs` reject `--affected` (usage error,
 exit `2`).
@@ -84,7 +83,7 @@ exit `2`).
   `local_path_override` path outside the workspace widens to `//...`.
 - Each changed file maps to its owning targets, then to their reverse
   dependencies inside `//...`. Targets tagged `manual` are left out.
-- `dx test`, `dx coverage`, and `dx list-tests` keep only test targets.
+- `dx test` and `dx coverage` keep only test targets.
 - `dx security` and `dx license` keep only targets a dependency set owns.
 - `dx check --affected` runs generate, format, lint, and typecheck as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
@@ -199,7 +198,7 @@ exit `2`).
   runs the secrets scan. With `--output=json` it emits `command_started` (with
   `affected`) and `command_finished`; `mode` is `check` for `dx check`, and for `dx fix`,
   `lint`, `typecheck` and `format` unless `--apply` is given; `dx build`,
-  `test`, `coverage`, `list-tests`, `security` and `license` report `default`.
+  `test`, `coverage`, `security` and `license` report `default`.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:
@@ -224,7 +223,7 @@ exit `2`).
   that cannot start has code `query_launch_failed`.
 - dx runs at most one `bazel query`, `kind('rule', //...)`, to find the
   owning targets of the changed files and their reverse dependencies.
-  `dx test`, `dx coverage`, `dx list-tests`, and `dx check` then run one
+  `dx test`, `dx coverage`, and `dx check` then run one
   `tests(set(...))` query to find the affected tests. A change that widens
   to `//...` skips the tests query.
 - `dx security --affected` runs the secrets scan whenever a file changed.

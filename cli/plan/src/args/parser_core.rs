@@ -483,12 +483,12 @@ fn setup_is_rejected_with_env_and_codegen_tip() {
 }
 
 #[test]
-fn old_tests_command_is_rejected_with_list_tests_tip() {
+fn old_tests_command_is_rejected_with_bazel_query_tip() {
     let words = ["tests", "//..."];
     assert_usage(
         &words,
         parse(&strings(&words)).unwrap_err(),
-        &["unsupported command 'tests'", "dx list-tests"],
+        &["unsupported command 'tests'", "bazel query 'tests("],
     );
 }
 

@@ -80,7 +80,7 @@ ROWS = [
         "starters": ["cuda"],
         "title": "CUDA",
     },
-    {"ci_tests": ["//d/tests/fixtures/hello:greet_test"], "name": "d", "section": "languages", "title": "D"},
+    {"ci_tests": ["//d/tests/fixtures/hello:greet_test"], "name": "d", "section": "languages", "starters": ["d"], "title": "D"},
     {
         "ci_tests": ["//elixir/tests/runtime:probe_test"],
         "consumer_tests": ["//elixir/tests/starter:starter_test"],
@@ -97,7 +97,7 @@ ROWS = [
         "starters": ["erlang"],
         "title": "Erlang",
     },
-    {"ci_tests": ["//fortran/tests/runtime:stats_test"], "name": "fortran", "section": "languages", "title": "Fortran"},
+    {"ci_tests": ["//fortran/tests/runtime:stats_test"], "name": "fortran", "section": "languages", "starters": ["fortran"], "title": "Fortran"},
     {"ci_tests": _hello("fsharp"), "name": "fsharp", "section": "languages", "starters": ["fsharp"], "title": "F#"},
     {"ci_tests": _hello("go"), "name": "go", "section": "languages", "starters": ["go"], "title": "Go"},
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"], "name": "haskell", "section": "languages", "starters": ["haskell"], "title": "Haskell"},
@@ -108,8 +108,8 @@ ROWS = [
     {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"], "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
     {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"], "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
-    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"], "name": "perl", "section": "languages", "title": "Perl"},
-    {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "name": "php", "section": "languages", "title": "PHP"},
+    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"], "name": "perl", "section": "languages", "starters": ["perl"], "title": "Perl"},
+    {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "name": "php", "section": "languages", "starters": ["php"], "title": "PHP"},
     {"ci_tests": _hello("powershell"), "name": "powershell", "section": "languages", "starters": ["powershell"], "title": "PowerShell"},
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
@@ -222,7 +222,6 @@ GAP_ISSUES = {
     "consumer:*": 4436,
     "format:*": 4439,
     "lint:*": 4438,
-    "starter:*": 4437,
     "support:*": 4441,
     "typecheck:*": 4440,
 }

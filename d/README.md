@@ -4,6 +4,10 @@ Build, run and test D with the pinned `rules_d` 0.12.1 and LDC 1.43.0.
 Nothing needs to be installed. rules_dx registers the toolchain, so there is
 no setup in `MODULE.bazel`. Linking uses the hermetic LLVM C++ toolchain.
 
+## Start
+
+Scaffold a working project with `dx new --apply d demo-app`.
+
 ```python
 load("@rules_dx//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_binary", "d_library", "d_test")
 

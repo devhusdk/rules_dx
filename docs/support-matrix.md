@@ -20,10 +20,10 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C and C++ | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `windows_x86_64` | `c`, `cpp` |
 | C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `csharp` |
 | CUDA | `linux_x86_64` | `linux_x86_64` | `cuda` |
-| D | `linux_x86_64` | no | no |
+| D | `linux_x86_64` | no | `d` |
 | Elixir | `linux_x86_64` | `linux_x86_64` | `elixir` |
 | Erlang | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64` | `erlang` |
-| Fortran | `linux_x86_64` | no | no |
+| Fortran | `linux_x86_64` | no | `fortran` |
 | F# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `fsharp` |
 | Go | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `go` |
 | Haskell | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64` | `haskell` |
@@ -34,8 +34,8 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `lua` |
 | MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `mdx` |
 | OCaml | `linux_x86_64` | `linux_x86_64` | `ocaml` |
-| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64` | no |
-| PHP | `linux_x86_64` | no | no |
+| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64` | `perl` |
+| PHP | `linux_x86_64` | no | `php` |
 | PowerShell | `linux_x86_64`, `linux_arm64` | no | `powershell` |
 | Python | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `python` |
 | Ruby | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `ruby` |

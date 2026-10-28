@@ -9,6 +9,8 @@ target needs it. rules_dx registers the toolchain, so there is no setup in
 
 ## Start
 
+Scaffold a working project with `dx new --apply fortran demo-app`.
+
 ```python
 load("@rules_dx//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
 

@@ -491,6 +491,17 @@ fn pages_that_differ_only_in_case_fail() {
     );
 }
 
+#[test]
+fn dotnet_pages_that_differ_only_in_case_fail() {
+    for language in ["csharp", "fsharp"] {
+        let mut shard = java_shard("");
+        shard.symbols[0].id = format!("{language}:demo:a.Circle");
+        shard.symbols[1].id = format!("{language}:demo:a.circle");
+        let error = render(&[shard], "").expect_err("collision");
+        assert!(error.contains("differ only in case"), "{error}");
+    }
+}
+
 fn vue_shard() -> DocIr {
     let member = |name: &str, kind: SymbolKind, signature: &str| {
         let mut s = symbol(&format!("vue:ui:Button.{name}"), signature, "", 5);

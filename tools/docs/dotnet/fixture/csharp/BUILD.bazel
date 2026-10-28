@@ -1,0 +1,61 @@
+load("//csharp/rules:defs.bzl", "csharp_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    [
+        "core/Currency.cs",
+        "ledger/Account.cs",
+        "ledger/Nullable.cs",
+        "ledger/Types.cs",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+csharp_library(
+    name = "core",
+    srcs = ["core/Currency.cs"],
+)
+
+csharp_library(
+    name = "ledger",
+    srcs = [
+        "ledger/Account.cs",
+        "ledger/Nullable.cs",
+        "ledger/Types.cs",
+    ],
+    deps = [":core"],
+)
+
+csharp_library(
+    name = "ledger_extra",
+    srcs = [
+        "ledger/Account.cs",
+        "ledger/Nullable.cs",
+        "ledger/Types.cs",
+    ],
+    defines = ["DX_EXTRA"],
+    deps = [":core"],
+)
+
+csharp_doc_shard(
+    name = "ledger_docs",
+    library = ":ledger",
+    package = "Dx.Fixture.Ledger",
+)
+
+csharp_doc_shard(
+    name = "ledger_extra_docs",
+    library = ":ledger_extra",
+    package = "Dx.Fixture.Ledger",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

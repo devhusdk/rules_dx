@@ -17,6 +17,7 @@ public final class JavacCheckTest {
     clean(dir);
     typeError(dir);
     werror(dir);
+    sourceTarget(dir);
     srcjar(dir);
     sorted(dir);
     System.out.println("ok");
@@ -61,6 +62,19 @@ public final class JavacCheckTest {
     expect(log.contains("\"exit\":1"), "werror exits 1", log);
     expect(log.contains("\"severity\":\"warning\""), "warning kept", log);
     expect(log.contains("compiler.err.warnings.and.werror"), "unlocated werror error", log);
+  }
+
+  private static void sourceTarget(Path dir) throws IOException {
+    Path a = write(dir, "st/E.java", "class E { int f() { return 1; } }\n");
+    String log =
+        JavacCheck.check(
+            List.of(
+                "source=" + a,
+                "javacopt=-source",
+                "javacopt=17",
+                "javacopt=-target",
+                "javacopt=17"));
+    expect(log.contains("\"exit\":0"), "-source/-target 17 exits 0", log);
   }
 
   private static void srcjar(Path dir) throws IOException {

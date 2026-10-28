@@ -46,6 +46,7 @@ _FORMAT_SELECTIONS = {
 }
 
 _TYPECHECK_SELECTIONS = {
+    "java": ["javac"],
     "javascript": [],
     "json": [],
     "markdown": [],
@@ -230,6 +231,15 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("vale", "format"),
                 ],
                 [["markdown", "rst"], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns javac typecheck support only",
+                [
+                    real_supported_classes("javac", "typecheck"),
+                    real_supported_classes("javac", "lint"),
+                    real_supported_classes("javac", "format"),
+                ],
+                [["java"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns tsc typecheck support only",

@@ -248,7 +248,6 @@ quality_family(
 
 quality_family(
     name = "default_java_family",
-    disabled = ["typecheck"],
     family_id = "java",
     format = ["google_java_format"],
     lint = [
@@ -256,6 +255,7 @@ quality_family(
         "pmd",
         "spotbugs",
     ],
+    typecheck = ["javac"],
 )
 
 quality_family(
@@ -712,6 +712,7 @@ real_source_target(
         "support_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
+        "javac_check.bzl",
         "tsc.bzl",
     ],
     tags = ["corpus"],

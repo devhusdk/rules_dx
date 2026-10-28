@@ -205,7 +205,7 @@ workspace_policy(
 | `go` | `gofumpt` | disabled | disabled |
 | `graphql` | `prettier` | disabled | disabled |
 | `html` | `prettier` | disabled | disabled |
-| `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | disabled |
+| `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | `javac` |
 | `javascript` | `biome` | `biome` | disabled |
 | `json` | `prettier` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `ktlint` | disabled |
@@ -270,6 +270,7 @@ to.
 | `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
 | `hlint` | lint | haskell |
+| `javac` | typecheck | java |
 | `jsonnet_lint` | lint | jsonnet |
 | `jsonnetfmt` | format | jsonnet |
 | `julia_format` | format | julia |
@@ -710,6 +711,23 @@ an error at its line with the rule as `phpstan/<identifier>`, or `phpstan/error`
 when PHPStan names none. Only findings in the target's own sources are
 reported. PHPStan never fixes, so `--apply` changes nothing. The platform is
 `linux_x86_64`, the only one with a pinned PHP.
+
+### Java typechecking
+
+`javac` typechecks every `java_library`, `java_binary` and `java_test`. A
+Bazel action runs the JDK's javac up to flow analysis, without writing classes,
+over the target's sources and `.srcjar` files. It uses the compile classpath,
+boot classpath and javacopts that rules_java gives the target, minus the
+ErrorProne and JavaBuilder-only flags that plain javac rejects, and runs the
+target's annotation processors. The run only reports: a compiler error is a
+`javac/compiler.err.*` error at its line and column in the target's own
+sources, and a failed run with no error in those sources (for example an error
+only in generated code) fails the run instead of passing it. `-Werror` is
+honoured. `javac` never fixes, so `--apply` changes nothing. It adds a second
+javac pass on top of the real compile, only under `dx typecheck` and
+`dx check`; `bazel build` is unchanged. The classpath is the transitive compile
+classpath, so strict-deps violations are not reported. Java sources inside
+`kt_jvm_library` targets, Kotlin and Scala are not typechecked yet.
 
 ### TypeScript typechecking
 

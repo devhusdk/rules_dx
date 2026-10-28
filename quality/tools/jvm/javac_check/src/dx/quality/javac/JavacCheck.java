@@ -19,6 +19,7 @@ import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
 /** Runs javac up to flow analysis on a target's sources and renders a versioned JSON log. */
@@ -145,8 +146,8 @@ public final class JavacCheck {
         args.addAll(List.of("-classpath", String.join(java.io.File.pathSeparator, classpath)));
       }
       if (!bootclasspath.isEmpty()) {
-        args.addAll(
-            List.of("-bootclasspath", String.join(java.io.File.pathSeparator, bootclasspath)));
+        // A platform class path stands in for --system, which javac warns about under -source.
+        args.add("-Xlint:-options");
       }
       if (processors.isEmpty()) {
         args.add("-proc:none");
@@ -161,6 +162,15 @@ public final class JavacCheck {
       int exit;
       try (StandardJavaFileManager files =
           compiler.getStandardFileManager(collector, Locale.ROOT, StandardCharsets.UTF_8)) {
+        if (!bootclasspath.isEmpty()) {
+          // The -bootclasspath flag is rejected with -source/-target 9+; JavaBuilder sets the
+          // location on the file manager instead.
+          List<Path> boot = new ArrayList<>();
+          for (String entry : bootclasspath) {
+            boot.add(Path.of(entry));
+          }
+          files.setLocationFromPaths(StandardLocation.PLATFORM_CLASS_PATH, boot);
+        }
         List<java.io.File> units = new ArrayList<>();
         for (String input : inputs) {
           units.add(new java.io.File(input));

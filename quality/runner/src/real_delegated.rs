@@ -1449,3 +1449,62 @@ fn delegated_tsc_fails_closed_without_its_inputs() {
         .expect_err("missing diagnostics");
     assert!(error.to_string().contains("diagnostics"), "{error}");
 }
+
+const JAVAC_SOURCE: &str = "class A {\n  int f() { return \"s\"; }\n}\n";
+
+fn javac_log(exit: i32, file: &str) -> String {
+    let diagnostics = if exit == 0 {
+        String::new()
+    } else {
+        format!(
+            r#"{{"file":"{file}","line":2,"column":22,"severity":"error","code":"compiler.err.prob.found.req","message":"incompatible types"}}"#
+        )
+    };
+    format!(r#"{{"version":1,"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+}
+
+#[test]
+fn delegated_javac_is_clean_and_reports_owned_errors() {
+    let clean = upstream_file("javac", &javac_log(0, ""));
+    let findings = backend_for(
+        "javac",
+        delegated_tool(clean.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
+    .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("javac", &javac_log(1, "j/A.java"));
+    let findings = backend_for(
+        "javac",
+        delegated_tool(dirty.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
+    .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "j/A.java");
+    assert_eq!(findings[0].rule_id, "compiler.err.prob.found.req");
+}
+
+#[test]
+fn delegated_javac_never_reports_a_failing_target_clean() {
+    let generated = upstream_file("javac", &javac_log(1, "bazel-out/k8/bin/j/Gen.java"));
+    let result = backend_for(
+        "javac",
+        delegated_tool(generated.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE));
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn delegated_javac_fails_closed_without_its_log() {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("javac", tool, must_not_spawn)
+        .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
+        .expect_err("missing log");
+    assert!(error.to_string().contains("check log"), "{error}");
+}

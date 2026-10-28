@@ -11,6 +11,10 @@ RUST_CASES = [
         "edition_tools": ["rustfmt"],
         "edition_values": ["2021"],
         "expected_file": ":matrix/matrix_rust_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rust_format_fail",
@@ -24,6 +28,10 @@ RUST_CASES = [
         "edition_tools": ["rustfmt"],
         "edition_values": ["2021"],
         "expected_file": ":matrix/matrix_rust_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rust_format_edition_2015",

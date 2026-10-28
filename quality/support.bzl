@@ -427,6 +427,76 @@ GO_GOFUMPT_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+CC_CLANG_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["c", "cpp"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "cc",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "clang_format",
+    "transport": "batched",
+}
+
+CUDA_CLANG_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["cuda"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "cuda",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "clang_format",
+    "transport": "batched",
+}
+
+OBJC_CLANG_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["objc", "objcpp"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "objc",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "clang_format",
+    "transport": "batched",
+}
+
+CC_CPPCHECK_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["c", "cpp"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "cc",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "cppcheck",
+    "transport": "batched",
+}
+
+RUST_RUSTFMT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["rust"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "rust",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "rustfmt",
+    "transport": "batched",
+}
+
 PROTOBUF_BUF_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1379,6 +1449,11 @@ SUPPORT_RECORDS = [
     TERRAFORM_FORMAT_SUPPORT,
     TERRAFORM_TFLINT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
+    CC_CLANG_FORMAT_SUPPORT,
+    CUDA_CLANG_FORMAT_SUPPORT,
+    OBJC_CLANG_FORMAT_SUPPORT,
+    CC_CPPCHECK_LINT_SUPPORT,
+    RUST_RUSTFMT_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
     CSS_STYLELINT_LINT_SUPPORT,

@@ -207,6 +207,7 @@ impl RealBackend {
         tool_id: &str,
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
+        view: parsers::QmllintView,
     ) -> Result<Vec<FileFinding>, RunnerError> {
         let workspaces: Vec<&str> = pairs
             .iter()
@@ -218,7 +219,7 @@ impl RealBackend {
                 .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
             findings.extend(parsed(
                 tool_id,
-                parsers::parse_qmllint_report(&bytes, &workspaces),
+                parsers::parse_qmllint_report(&bytes, &workspaces, view),
             )?);
         }
         for found in &mut findings {

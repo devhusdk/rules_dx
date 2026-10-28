@@ -303,7 +303,6 @@ GAP_ISSUES = {
     "typecheck:mdx": 1768,
     "typecheck:ocaml": 4530,
     "typecheck:pkl": 4533,
-    "typecheck:qt": 4533,
     "typecheck:ruby": 4532,
     "typecheck:scala": 4528,
     "typecheck:svelte": 1766,

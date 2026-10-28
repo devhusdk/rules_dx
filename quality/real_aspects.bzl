@@ -480,7 +480,7 @@ _REAL_TOOL_TABLE = {
     },
     "qmllint": {
         "attr": attr.label(default = "//config:tool_qmllint", allow_files = True, cfg = "exec"),
-        "capabilities": ["lint"],
+        "capabilities": ["lint", "typecheck"],
         "fallback": "=@dx_qt//:qmllint",
         "kind": "setting",
         "resources": "medium",

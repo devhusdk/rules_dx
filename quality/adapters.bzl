@@ -92,7 +92,7 @@ REAL_ADAPTERS = {
     "pydoclint": {"lint": ["python", "python_stub"]},
     "pylint": {"lint": ["python", "python_stub"]},
     "qmlformat": {"format": ["qml"]},
-    "qmllint": {"lint": ["qml"]},
+    "qmllint": {"lint": ["qml"], "typecheck": ["qml"]},
     "remark": {"format": ["mdx"]},
     "roslyn": {"lint": ["csharp"]},
     "csc": {"typecheck": ["csharp"]},

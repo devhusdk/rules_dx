@@ -292,7 +292,7 @@ to.
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
 | `qmlformat` | format | qml |
-| `qmllint` | lint | qml |
+| `qmllint` | lint, typecheck | qml |
 | `redocly` | lint | api_spec |
 | `regal` | lint | rego |
 | `remark` | format | mdx |
@@ -808,6 +808,15 @@ module URI is not importable and is skipped. `QML_IMPORT_PATH` is not used. To
 set lint options, bind a config ending in `.qmllint.ini` to the QML targets
 with `aspect_hints`. dx copies it next to each linted file as `.qmllint.ini`.
 Without one, dx runs `qmllint` with `--ignore-settings`.
+
+`dx typecheck` runs the same `qmllint` invocation and keeps only the type
+findings: `import`, `unresolved-type`, `missing-type`, `incompatible-type`,
+`missing-property`, `read-only-property`, `required`, `restricted-type`,
+`uncreatable-type`, `unresolved-alias`, `non-list-property`,
+`enums-are-not-types`, `inheritance-cycle`, `alias-cycle`,
+`missing-enum-entry` and `bad-signal-handler-parameters`. `dx lint` reports
+everything else, including ids dx does not know. These ids no longer show up
+in `dx lint`. Syntax errors and files `qmllint` cannot open appear in both.
 
 ### Java lint
 

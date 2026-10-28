@@ -480,15 +480,27 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_lint_binary_fail.expected.txt",
     },
     {
-        "name": "matrix_qml_lint_binary_import",
+        "name": "matrix_qml_typecheck_binary_pass",
+        "generated": {
+            "matrix/qmltypecheck_binary_clean.qml": "import QtQuick\n\nItem {\n    property string greet: foo\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["qmllint;qml;matrix/qmltypecheck_binary_clean.qml"],
+        "tool_names": ["qmllint"],
+        "tool_binaries": ["@dx_qt//:qmllint"],
+        "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
+        "expected_file": ":matrix/matrix_qml_typecheck_binary_pass.expected.txt",
+    },
+    {
+        "name": "matrix_qml_typecheck_binary_import",
         "generated": {
             "matrix/qmllint_binary_import.qml": "import Nope.Missing\nItem {}\n",
         },
-        "capability": "lint",
+        "capability": "typecheck",
         "stages": ["qmllint;qml;matrix/qmllint_binary_import.qml"],
         "tool_names": ["qmllint"],
         "tool_binaries": ["@dx_qt//:qmllint"],
         "tool_env": ["qmllint=RUNFILES_DIR=$TEST_SRCDIR"],
-        "expected_file": ":matrix/matrix_qml_lint_binary_import.expected.txt",
+        "expected_file": ":matrix/matrix_qml_typecheck_binary_import.expected.txt",
     },
 ]

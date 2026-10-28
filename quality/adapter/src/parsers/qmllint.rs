@@ -30,6 +30,51 @@ struct QmlLintRecord {
     severity: String,
 }
 
+/// Which slice of one qmllint run a capability keeps.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QmllintView {
+    /// Style, unqualified access and every id not listed as a type error.
+    Lint,
+    /// Import, type resolution and property type errors.
+    Typecheck,
+}
+
+/// Category ids that report unresolved or mismatched types. Everything else,
+/// including ids this list does not know, stays in the lint view.
+const TYPECHECK_IDS: &[&str] = &[
+    "alias-cycle",
+    "bad-signal-handler-parameters",
+    "enums-are-not-types",
+    "import",
+    "incompatible-type",
+    "inheritance-cycle",
+    "missing-enum-entry",
+    "missing-property",
+    "missing-type",
+    "non-list-property",
+    "read-only-property",
+    "required",
+    "restricted-type",
+    "uncreatable-type",
+    "unresolved-alias",
+    "unresolved-type",
+];
+
+/// Records that mean the file was not analysed at all; both views keep them
+/// so an unreadable or unparseable file is never clean.
+fn is_fatal(record: &QmlLintRecord) -> bool {
+    record.id == "syntax"
+        || (record.id == "import" && record.message.starts_with("Failed to open file"))
+}
+
+fn in_view(record: &QmlLintRecord, view: QmllintView) -> bool {
+    if is_fatal(record) {
+        return true;
+    }
+    let typed = TYPECHECK_IDS.contains(&record.id.as_str());
+    typed == (view == QmllintView::Typecheck)
+}
+
 fn qmllint_severity(level: &str) -> Result<ToolSeverity, ParseError> {
     match level {
         "error" | "critical" => Ok(ToolSeverity::Error),
@@ -72,6 +117,7 @@ fn convert(
     report: &QmlLintReport,
     files: &[&str],
     require_all: bool,
+    view: QmllintView,
 ) -> Result<Vec<FileFinding>, ParseError> {
     let mut seen: Vec<&str> = Vec::new();
     let mut findings = Vec::new();
@@ -100,6 +146,9 @@ fn convert(
                     TOOL,
                     format!("malformed record for {}", file.filename),
                 ));
+            }
+            if !in_view(record, view) {
+                continue;
             }
             findings.push(FileFinding {
                 file: checked.to_owned(),
@@ -140,6 +189,7 @@ pub fn parse_qmllint(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
+    view: QmllintView,
 ) -> Result<Vec<FileFinding>, ParseError> {
     if stdout.iter().all(u8::is_ascii_whitespace) {
         return Err(ParseError::shape(
@@ -148,7 +198,7 @@ pub fn parse_qmllint(
         ));
     }
     let report = read_report(stdout)?;
-    let findings = convert(&report, files, true)?;
+    let findings = convert(&report, files, true, view)?;
     let want = implied_code(&report);
     if code != Some(want) {
         return Err(ParseError::shape(
@@ -164,9 +214,13 @@ pub fn parse_qmllint(
 }
 
 /// Parses one saved report; it may cover only some of the files.
-pub fn parse_qmllint_report(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
+pub fn parse_qmllint_report(
+    stdout: &[u8],
+    files: &[&str],
+    view: QmllintView,
+) -> Result<Vec<FileFinding>, ParseError> {
     let report = read_report(stdout)?;
-    convert(&report, files, false)
+    convert(&report, files, false, view)
 }
 
 #[cfg(test)]
@@ -182,14 +236,25 @@ mod tests {
     const CLEAN: &str =
         r#"{"files":[{"filename":"clean.qml","success":true,"warnings":[]}],"revision":4}"#;
 
+    fn lint(
+        stdout: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<FileFinding>, ParseError> {
+        parse_qmllint(stdout, code, files, QmllintView::Lint)
+    }
+
+    fn lint_report(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
+        parse_qmllint_report(stdout, files, QmllintView::Lint)
+    }
+
     fn warning() -> String {
         CRITICAL.replace("\"critical\"", "\"warning\"")
     }
 
     #[test]
     fn warnings_fail_the_run_and_keep_their_location() {
-        let findings =
-            parse_qmllint(warning().as_bytes(), Some(255), &["warn.qml"]).expect("parsed");
+        let findings = lint(warning().as_bytes(), Some(255), &["warn.qml"]).expect("parsed");
         assert_eq!(findings.len(), 1);
         let finding = &findings[0].finding;
         assert_eq!(findings[0].file, "warn.qml");
@@ -198,41 +263,46 @@ mod tests {
         assert_eq!(finding.severity, ToolSeverity::Warning);
         assert_eq!((finding.start.line, finding.start.column), (3, 28));
         assert_eq!(finding.encoding, ColumnEncoding::Utf16);
-        assert!(parse_qmllint(warning().as_bytes(), Some(0), &["warn.qml"]).is_err());
-        assert!(parse_qmllint(warning().as_bytes(), Some(1), &["warn.qml"]).is_err());
+        assert!(lint(warning().as_bytes(), Some(0), &["warn.qml"]).is_err());
+        assert!(lint(warning().as_bytes(), Some(1), &["warn.qml"]).is_err());
     }
 
     #[test]
     fn critical_records_are_errors() {
-        let findings =
-            parse_qmllint(CRITICAL.as_bytes(), Some(255), &["warn.qml"]).expect("parsed");
+        let findings = lint(CRITICAL.as_bytes(), Some(255), &["warn.qml"]).expect("parsed");
         assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
     }
 
     #[test]
     fn info_records_are_reported_and_exit_zero() {
-        let findings = parse_qmllint(INFO.as_bytes(), Some(0), &["warn.qml"]).expect("parsed");
+        let findings = lint(INFO.as_bytes(), Some(0), &["warn.qml"]).expect("parsed");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
-        assert!(parse_qmllint(INFO.as_bytes(), Some(255), &["warn.qml"]).is_err());
+        assert!(lint(INFO.as_bytes(), Some(255), &["warn.qml"]).is_err());
     }
 
     #[test]
     fn clean_reports_need_exit_zero() {
-        let clean = parse_qmllint(CLEAN.as_bytes(), Some(0), &["clean.qml"]).expect("parsed");
+        let clean = lint(CLEAN.as_bytes(), Some(0), &["clean.qml"]).expect("parsed");
         assert!(clean.is_empty());
-        assert!(parse_qmllint(CLEAN.as_bytes(), Some(255), &["clean.qml"]).is_err());
+        assert!(lint(CLEAN.as_bytes(), Some(255), &["clean.qml"]).is_err());
     }
 
     #[test]
     fn syntax_and_import_failures_are_findings() {
-        let syntax = parse_qmllint(SYNTAX.as_bytes(), Some(255), &["syntax.qml"]).expect("parsed");
+        let syntax = lint(SYNTAX.as_bytes(), Some(255), &["syntax.qml"]).expect("parsed");
         assert_eq!(syntax[0].finding.rule_id, "syntax");
         assert_eq!(
             (syntax[0].finding.start.line, syntax[0].finding.start.column),
             (4, 1)
         );
-        let import = parse_qmllint(IMPORT.as_bytes(), Some(255), &["imp.qml"]).expect("parsed");
+        let import = parse_qmllint(
+            IMPORT.as_bytes(),
+            Some(255),
+            &["imp.qml"],
+            QmllintView::Typecheck,
+        )
+        .expect("parsed");
         assert_eq!(import.len(), 3);
         assert!(import.iter().all(|found| found.finding.rule_id == "import"));
         assert!(import[1]
@@ -243,15 +313,15 @@ mod tests {
 
     #[test]
     fn utf16_columns_count_surrogate_pairs() {
-        let findings = parse_qmllint(EMOJI.as_bytes(), Some(255), &["emoji.qml"]).expect("parsed");
+        let findings = lint(EMOJI.as_bytes(), Some(255), &["emoji.qml"]).expect("parsed");
         assert_eq!(findings[0].finding.start.column, 50);
         assert_eq!(findings[0].finding.encoding, ColumnEncoding::Utf16);
     }
 
     #[test]
     fn a_record_without_a_location_is_an_infrastructure_failure() {
-        let err = parse_qmllint(MISSING_FILE.as_bytes(), Some(255), &["nonexist.qml"])
-            .expect_err("no location");
+        let err =
+            lint(MISSING_FILE.as_bytes(), Some(255), &["nonexist.qml"]).expect_err("no location");
         assert!(
             err.to_string().contains("Failed to open file nonexist.qml"),
             "{err}"
@@ -260,7 +330,7 @@ mod tests {
 
     #[test]
     fn every_requested_file_must_be_reported_once() {
-        let missing = parse_qmllint(CLEAN.as_bytes(), Some(0), &["clean.qml", "other.qml"]);
+        let missing = lint(CLEAN.as_bytes(), Some(0), &["clean.qml", "other.qml"]);
         assert!(missing
             .expect_err("missing")
             .to_string()
@@ -269,36 +339,70 @@ mod tests {
             "]",
             ",{\"filename\":\"clean.qml\",\"success\":true,\"warnings\":[]}]",
         );
-        assert!(parse_qmllint(twice.as_bytes(), Some(0), &["clean.qml"]).is_err());
-        assert!(parse_qmllint(CLEAN.as_bytes(), Some(0), &["other.qml"]).is_err());
+        assert!(lint(twice.as_bytes(), Some(0), &["clean.qml"]).is_err());
+        assert!(lint(CLEAN.as_bytes(), Some(0), &["other.qml"]).is_err());
     }
 
     #[test]
     fn unsupported_or_malformed_reports_are_never_clean() {
         let old = CLEAN.replace("\"revision\":4", "\"revision\":3");
-        assert!(parse_qmllint(old.as_bytes(), Some(0), &["clean.qml"]).is_err());
+        assert!(lint(old.as_bytes(), Some(0), &["clean.qml"]).is_err());
         let diagnostics_only = r#"{"diagnostics":[],"revision":4}"#;
-        assert!(parse_qmllint(diagnostics_only.as_bytes(), Some(0), &["clean.qml"]).is_err());
-        assert!(parse_qmllint(b"", Some(0), &["clean.qml"]).is_err());
-        assert!(parse_qmllint(b"", Some(255), &["clean.qml"]).is_err());
-        assert!(parse_qmllint(b"not json", Some(255), &["x"]).is_err());
-        assert!(parse_qmllint(&[0xff], Some(255), &["x"]).is_err());
+        assert!(lint(diagnostics_only.as_bytes(), Some(0), &["clean.qml"]).is_err());
+        assert!(lint(b"", Some(0), &["clean.qml"]).is_err());
+        assert!(lint(b"", Some(255), &["clean.qml"]).is_err());
+        assert!(lint(b"not json", Some(255), &["x"]).is_err());
+        assert!(lint(&[0xff], Some(255), &["x"]).is_err());
         let zero = warning().replace("\"line\":3", "\"line\":0");
-        assert!(parse_qmllint(zero.as_bytes(), Some(255), &["warn.qml"]).is_err());
+        assert!(lint(zero.as_bytes(), Some(255), &["warn.qml"]).is_err());
         let unknown = warning().replace("\"warning\"", "\"loud\"");
-        assert!(parse_qmllint(unknown.as_bytes(), Some(255), &["warn.qml"]).is_err());
+        assert!(lint(unknown.as_bytes(), Some(255), &["warn.qml"]).is_err());
         let lying = warning().replace("\"success\":false", "\"success\":true");
-        assert!(parse_qmllint(lying.as_bytes(), Some(0), &["warn.qml"]).is_err());
+        assert!(lint(lying.as_bytes(), Some(0), &["warn.qml"]).is_err());
     }
 
     #[test]
     fn saved_reports_derive_their_exit_from_the_report() {
-        let info = parse_qmllint_report(INFO.as_bytes(), &["warn.qml"]).expect("parsed");
+        let info = lint_report(INFO.as_bytes(), &["warn.qml"]).expect("parsed");
         assert_eq!(info.len(), 1);
-        let warned = parse_qmllint_report(warning().as_bytes(), &["warn.qml"]).expect("parsed");
+        let warned = lint_report(warning().as_bytes(), &["warn.qml"]).expect("parsed");
         assert_eq!(warned.len(), 1);
-        assert!(parse_qmllint_report(b"", &["warn.qml"]).is_err());
-        let partial = parse_qmllint_report(CLEAN.as_bytes(), &["clean.qml", "other.qml"]);
+        assert!(lint_report(b"", &["warn.qml"]).is_err());
+        let partial = lint_report(CLEAN.as_bytes(), &["clean.qml", "other.qml"]);
         assert!(partial.expect("one report per source").is_empty());
+    }
+
+    #[test]
+    fn views_split_type_ids_from_lint_ids() {
+        let both = r#"{"files":[{"filename":"a.qml","success":false,"warnings":[{"column":1,"id":"unqualified","line":1,"message":"u","type":"warning"},{"column":2,"id":"unresolved-type","line":2,"message":"t","type":"warning"},{"column":3,"id":"brand-new","line":3,"message":"n","type":"warning"}]}],"revision":4}"#;
+        let ids = |view| {
+            parse_qmllint(both.as_bytes(), Some(255), &["a.qml"], view)
+                .expect("parsed")
+                .into_iter()
+                .map(|f| f.finding.rule_id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ids(QmllintView::Lint), ["unqualified", "brand-new"]);
+        assert_eq!(ids(QmllintView::Typecheck), ["unresolved-type"]);
+    }
+
+    #[test]
+    fn fatal_records_land_in_both_views() {
+        for view in [QmllintView::Lint, QmllintView::Typecheck] {
+            let syntax =
+                parse_qmllint(SYNTAX.as_bytes(), Some(255), &["syntax.qml"], view).expect("parsed");
+            assert_eq!(syntax.len(), 1);
+        }
+        let import = parse_qmllint(
+            IMPORT.as_bytes(),
+            Some(255),
+            &["imp.qml"],
+            QmllintView::Lint,
+        )
+        .expect("parsed");
+        assert!(import.is_empty());
+        let report = parse_qmllint_report(IMPORT.as_bytes(), &["imp.qml"], QmllintView::Typecheck)
+            .expect("parsed");
+        assert_eq!(report.len(), 3);
     }
 }

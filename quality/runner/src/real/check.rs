@@ -935,8 +935,13 @@ impl RealBackend {
                 Ok(findings)
             }
             "qmllint" => {
+                let view = if capability == "typecheck" {
+                    parsers::QmllintView::Typecheck
+                } else {
+                    parsers::QmllintView::Lint
+                };
                 if !tool.upstream_diagnostics.is_empty() {
-                    self.check_qmllint_delegated(tool_id, tool, pairs)
+                    self.check_qmllint_delegated(tool_id, tool, pairs, view)
                 } else {
                     let roots = super::staging::qml_import_roots(tool_id, resolve_pairs)?;
                     let root_refs: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
@@ -948,7 +953,7 @@ impl RealBackend {
                     let out = self.run(tool_id, tool, &invocation, scratch)?;
                     parsed(
                         tool_id,
-                        parsers::parse_qmllint(&out.stdout, out.code, &strs),
+                        parsers::parse_qmllint(&out.stdout, out.code, &strs, view),
                     )
                 }
             }

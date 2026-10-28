@@ -710,12 +710,12 @@ def dx_args_label_references(args):
 
 def dx_args_label_error(name, args, visible_labels, upstream_only):
     """Returns an error when args expand a label the forwarder cannot see."""
-    visible = [str(native.package_relative_label(l)) for l in visible_labels]
+    visible = [str(native.package_relative_label(item)) for item in visible_labels]
     for label in dx_args_label_references(args):
         key = str(native.package_relative_label(label))
         if key in visible:
             continue
         for attr_name, labels in upstream_only.items():
-            if key in [str(native.package_relative_label(l)) for l in labels or []]:
+            if key in [str(native.package_relative_label(item)) for item in labels or []]:
                 return "%s: args names %s, which is only in %s; add it to data" % (name, label, attr_name)
     return None

@@ -107,6 +107,7 @@ type dispatchLang struct {
 	errors   []string
 	manifest *common.ManifestRecorder
 	configs  []*config.Config
+	snapshot common.BuildSnapshot
 }
 
 func NewLanguage() language.Language { return &dispatchLang{} }
@@ -119,6 +120,7 @@ var (
 func (l *dispatchLang) Before(context.Context) {
 	l.errors = nil
 	common.Errors.Reset()
+	l.snapshot.Reset()
 	l.configs = nil
 	l.manifest = nil
 	if rec, err := common.LoadManifestRecorder("dispatch"); err != nil {
@@ -226,7 +228,10 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 
 // AfterResolvingDeps runs last in the dispatch gazelle_binary, after every
 // language has added its errors to common.Errors. It emits the manifest only
-// when no language failed, and otherwise reports every error once and exits 1.
+// when no language failed, and otherwise restores every visited BUILD file,
+// reports every error once and exits 1. Gazelle 0.54 runs this hook after
+// BUILD files are written, so the restore keeps failed runs side-effect free.
+// A kill between the write and the restore is not covered.
 func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 	common.Errors.Add(languageName, "", l.errors...)
 	all := common.Errors.Take()
@@ -237,6 +242,9 @@ func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 		}
 	}
 	if len(all) > 0 {
+		if err := l.snapshot.Restore(); err != nil {
+			all = append(all, common.GenerationError{Language: languageName, Message: err.Error()})
+		}
 		reportFailure(all)
 	}
 }
@@ -257,6 +265,9 @@ func (l *dispatchLang) GenerateRules(args language.GenerateArgs) language.Genera
 	}
 	for _, msg := range checkAndroid(args) {
 		l.fail("%s", msg)
+	}
+	if args.Config != nil {
+		l.snapshot.RecordDir(args.Dir, args.Config.ValidBuildFileNames)
 	}
 	if l.manifest != nil {
 		l.manifest.Record(args, language.GenerateResult{})

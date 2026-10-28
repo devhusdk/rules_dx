@@ -18,7 +18,7 @@ const MODULE: &str = r#"module(name = "consumer")
 bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
-bazel_dep(name = "rules_go", version = "0.63.0")
+bazel_dep(name = "rules_go", version = "0.64.2")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")

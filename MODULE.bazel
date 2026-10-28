@@ -57,18 +57,18 @@ single_version_override(
     version = "1.9.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_go", version = "0.63.0")
+# floor: forced by rules_dart 0.8.0 MVS (#1783)
+bazel_dep(name = "rules_go", version = "0.64.2")
 single_version_override(
     module_name = "rules_go",
-    version = "0.63.0",
+    version = "0.64.2",
 )
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "gazelle", version = "0.52.2")
+# floor: forced by rules_dart 0.8.0 MVS (#1783)
+bazel_dep(name = "gazelle", version = "0.54.0")
 single_version_override(
     module_name = "gazelle",
-    version = "0.52.2",
+    version = "0.54.0",
 )
 
 # floor: equals tested; not yet searched (#3747)
@@ -233,11 +233,11 @@ single_version_override(
     version = "0.22.1",
 )
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "bazel_lib", version = "3.7.0")
+# floor: forced by rules_dart 0.8.0 MVS (#1783)
+bazel_dep(name = "bazel_lib", version = "3.7.2")
 single_version_override(
     module_name = "bazel_lib",
-    version = "3.7.0",
+    version = "3.7.2",
 )
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")

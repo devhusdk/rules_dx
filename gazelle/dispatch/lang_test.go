@@ -862,3 +862,36 @@ func TestAndroidNilFile(t *testing.T) {
 		t.Errorf("errors = %q, want none", errs)
 	}
 }
+
+func TestAfterResolvingDepsRestoresBuildFilesOnFailure(t *testing.T) {
+	t.Setenv(common.EnvIntendedManifest, "")
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "BUILD.bazel")
+	created := filepath.Join(dir, "BUILD")
+	if err := os.WriteFile(existing, []byte("# custom\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	cfg := testConfig()
+	cfg.ValidBuildFileNames = []string{"BUILD.bazel", "BUILD"}
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: dir})
+	if err := os.WriteFile(existing, []byte("# generated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(created, []byte("# generated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	common.Errors.Add("go", "", "go: unresolved import")
+	code, _ := stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
+	}
+	if got, _ := os.ReadFile(existing); string(got) != "# custom\n" {
+		t.Fatalf("existing BUILD = %q, want original bytes", got)
+	}
+	if _, err := os.Stat(created); !os.IsNotExist(err) {
+		t.Fatalf("created BUILD stat = %v, want removed", err)
+	}
+}

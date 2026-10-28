@@ -58,6 +58,27 @@ fn unreadable_source(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableSource { workspace, detail }
 }
 
+/// Stages every file under a tool directory (a tree artifact) as `rel/<path inside>`, in sorted
+/// order. An empty directory stages nothing.
+fn read_tool_directory(
+    rel: &str,
+    dir: &std::path::Path,
+    out: &mut Vec<(String, Vec<u8>)>,
+) -> std::io::Result<()> {
+    let mut children: Vec<std::fs::DirEntry> =
+        std::fs::read_dir(dir)?.collect::<std::io::Result<_>>()?;
+    children.sort_by_key(std::fs::DirEntry::file_name);
+    for child in children {
+        let child_rel = format!("{rel}/{}", child.file_name().to_string_lossy());
+        if child.path().is_dir() {
+            read_tool_directory(&child_rel, &child.path(), out)?;
+        } else {
+            out.push((child_rel, std::fs::read(child.path())?));
+        }
+    }
+    Ok(())
+}
+
 /// Builds the backend tool for one validated request entry.
 fn real_tool(
     tool_id: &str,
@@ -71,12 +92,17 @@ fn real_tool(
         .unwrap_or_default();
     let mut tool_files = Vec::with_capacity(entry.files.len());
     for (rel, exec) in &entry.files {
-        let bytes = std::fs::read(exec).map_err(|error| RunnerError::UnreadableToolFile {
+        let unreadable = |error: std::io::Error| RunnerError::UnreadableToolFile {
             rel: rel.clone(),
             tool: tool_id.to_owned(),
             detail: error.to_string(),
-        })?;
-        tool_files.push((rel.clone(), bytes));
+        };
+        if std::path::Path::new(exec).is_dir() {
+            read_tool_directory(rel, std::path::Path::new(exec), &mut tool_files)
+                .map_err(unreadable)?;
+        } else {
+            tool_files.push((rel.clone(), std::fs::read(exec).map_err(unreadable)?));
+        }
     }
     Ok(RealTool {
         binary,
@@ -293,6 +319,41 @@ mod tests {
             RunnerError::BadRequest { detail } => assert!(!detail.is_empty(), "{detail}"),
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[test]
+    fn directory_tool_files_are_staged_file_by_file_in_sorted_order() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let tree = dir.path().join("ebin");
+        std::fs::create_dir_all(tree.join("sub")).expect("layout");
+        std::fs::write(tree.join("b.beam"), b"b").expect("file");
+        std::fs::write(tree.join("a.app"), b"a").expect("file");
+        std::fs::write(tree.join("sub/c.beam"), b"c").expect("file");
+        let empty = dir.path().join("empty");
+        std::fs::create_dir(&empty).expect("empty");
+        let entry = RequestTool {
+            binary: None,
+            config_rel: None,
+            edition: None,
+            dialect: None,
+            files: vec![
+                ("owned/0/ebin".to_owned(), tree.display().to_string()),
+                ("owned/1/empty".to_owned(), empty.display().to_string()),
+            ],
+            env: Vec::new(),
+            upstream: Vec::new(),
+            search_paths: Vec::new(),
+            path_tools: Vec::new(),
+        };
+        let tool = real_tool("dialyzer", &entry, None).expect("tool");
+        assert_eq!(
+            tool.tool_files,
+            [
+                ("owned/0/ebin/a.app".to_owned(), b"a".to_vec()),
+                ("owned/0/ebin/b.beam".to_owned(), b"b".to_vec()),
+                ("owned/0/ebin/sub/c.beam".to_owned(), b"c".to_vec()),
+            ]
+        );
     }
 
     #[test]

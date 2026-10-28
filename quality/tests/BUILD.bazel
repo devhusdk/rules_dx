@@ -246,6 +246,43 @@ rust_clippy_test(
 
 # keep
 rust_test(
+    name = "dialyzer_elixir_consumer_test",
+    size = "enormous",
+    srcs = ["dialyzer_elixir_consumer_test.rs"],
+    data = [
+        "//:MODULE.bazel",
+        "//cli/cli:dx",
+        "//elixir/tests/runtime:lib/dx_runtime_probe.ex",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_CI_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "dialyzer_elixir_consumer_fmt_test",
+    targets = [":dialyzer_elixir_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "dialyzer_elixir_consumer_clippy_test",
+    targets = [":dialyzer_elixir_consumer_test"],
+)
+
+# keep
+rust_test(
     name = "mix_format_consumer_test",
     size = "enormous",
     srcs = ["mix_format_consumer_test.rs"],

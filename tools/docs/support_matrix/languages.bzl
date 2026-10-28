@@ -280,7 +280,6 @@ GAP_ISSUES = {
     "typecheck:dart": 4534,
     "typecheck:flatbuffers": 4534,
     "typecheck:jupyter": 4534,
-    "typecheck:elixir": 4531,
     "typecheck:fortran": 4530,
     "typecheck:fsharp": 4529,
     "typecheck:go": 4526,

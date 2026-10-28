@@ -102,6 +102,7 @@ dx typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyz
 
 The base PLT is built by Bazel from the pinned OTP tree. See
 `docs/cli/commands/quality.md` for the PLT application list and the rules.
+The tool is shared with Elixir: an `elixir_app` adds its own PLT.
 
 ## Runtime
 

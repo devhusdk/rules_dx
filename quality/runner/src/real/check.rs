@@ -549,29 +549,38 @@ impl RealBackend {
                 let beams: Vec<PathBuf> = staged("dx-dialyzer/owned/")
                     .into_iter()
                     .chain(staged("dx-dialyzer/aux/"))
+                    .filter(|path| path.extension().is_some_and(|ext| ext == "beam"))
                     .collect();
+                // A language's own compiler beams (Elixir's) go on the code path, so dialyzer can
+                // read the debug info of that language's beams.
+                let code_dir = scratch.root().join("dx-dialyzer/pa");
+                let code_dirs: Vec<&Path> = if staged("dx-dialyzer/pa/").is_empty() {
+                    Vec::new()
+                } else {
+                    vec![code_dir.as_path()]
+                };
+                let owned_beams = staged("dx-dialyzer/owned/")
+                    .iter()
+                    .any(|path| path.extension().is_some_and(|ext| ext == "beam"));
+                if !owned_beams {
+                    // An app with no sources has an empty ebin directory; there is nothing to analyse.
+                    return Ok(Vec::new());
+                }
                 let plt_refs: Vec<&Path> = plts.iter().map(PathBuf::as_path).collect();
                 let beam_refs: Vec<&Path> = beams.iter().map(PathBuf::as_path).collect();
-                // Beams built with +deterministic name sources by basename; the first owned
-                // path in sorted order stands for every owned file of that name.
-                let mut sorted_names: Vec<&String> = names.iter().collect();
-                sorted_names.sort();
-                let mut owned_names: std::collections::BTreeMap<&str, &str> =
-                    std::collections::BTreeMap::new();
-                for name in sorted_names {
-                    let base = name.rsplit('/').next().unwrap_or(name);
-                    owned_names.entry(base).or_insert(name.as_str());
-                }
-                let base_names: Vec<&str> = owned_names.keys().copied().collect();
-                let invocation = commands::dialyzer_check(&tool.binary, &plt_refs, &beam_refs);
+                let name_refs: Vec<&str> = pairs.iter().map(|(rel, _)| rel.as_str()).collect();
+                let invocation =
+                    commands::dialyzer_check(&tool.binary, &code_dirs, &plt_refs, &beam_refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 let mut findings = parsed(
                     tool_id,
-                    parsers::parse_dialyzer(&out.stdout, out.code, &base_names),
+                    parsers::parse_dialyzer(&out.stdout, out.code, &name_refs),
                 )?;
+                // The parser names owned files by workspace path; later stages key them by the
+                // staged absolute path.
                 for found in &mut findings {
-                    if let Some(path) = owned_names.get(found.file.as_str()) {
-                        (*path).clone_into(&mut found.file);
+                    if let Some((_, absolute)) = pairs.iter().find(|(rel, _)| *rel == found.file) {
+                        found.file = absolute.to_string_lossy().into_owned();
                     }
                 }
                 Ok(findings)

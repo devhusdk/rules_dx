@@ -99,16 +99,17 @@ def _beam_info_impl(ctx):
     owned = sorted([f.basename for f in info.owned.to_list()])
     asserts.equals(env, ctx.attr.owned, owned)
     asserts.equals(env, ctx.attr.app_name, info.app_name)
+    asserts.equals(env, ctx.attr.plts, sorted([f.basename for f in info.plts]))
     return analysistest.end(env)
 
 _beam_info_test = analysistest.make(
     _beam_info_impl,
-    attrs = {"app_name": attr.string(), "owned": attr.string_list()},
+    attrs = {"app_name": attr.string(), "owned": attr.string_list(), "plts": attr.string_list()},
 )
 
-def erlang_beam_info_test(name, target, app_name, owned):
-    """Asserts an erlang_app exports its compiled beams in BeamInfo."""
-    _beam_info_test(name = name, size = "small", target_under_test = target, app_name = app_name, owned = owned)
+def erlang_beam_info_test(name, target, app_name, owned, plts = [], **kwargs):
+    """Asserts an app rule exports its compiled beams (or ebin directories) and PLTs in BeamInfo."""
+    _beam_info_test(name = name, size = "small", target_under_test = target, app_name = app_name, owned = owned, plts = plts, **kwargs)
 
 def _nif_refusal_impl(ctx):
     env = analysistest.begin(ctx)
@@ -124,3 +125,14 @@ _nif_refusal_test = analysistest.make(
 def erlang_escript_nif_refusal_test(name, target, message, **kwargs):
     """Asserts an escript_archive that bundles a NIF app fails analysis with `message`."""
     _nif_refusal_test(name = name, size = "small", target_under_test = target, message = message, **kwargs)
+
+def _plt_needs_input_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, "set apps or beams")
+    return analysistest.end(env)
+
+_plt_needs_input_test = analysistest.make(_plt_needs_input_impl, expect_failure = True)
+
+def dialyzer_plt_needs_input_test(name, target):
+    """Asserts a dialyzer_plt with neither apps nor beams fails analysis."""
+    _plt_needs_input_test(name = name, size = "small", target_under_test = target)

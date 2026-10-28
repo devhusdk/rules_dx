@@ -45,6 +45,7 @@ _ERLANG_LINT_POLICY = _CANONICAL + "//quality/testdata:erlang_lint_policy"
 _ELVIS_SETTING = _CANONICAL + "//config:tool_elvis"
 _ELVIS_TOOL = _CANONICAL + "//erlang/tools:elvis"
 _ERLANG_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:erlang_typecheck_policy"
+_ELIXIR_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:elixir_typecheck_policy"
 _DIALYZER_SETTING = _CANONICAL + "//config:tool_dialyzer"
 _DIALYZER_TOOL = _CANONICAL + "//erlang/tools:dialyzer"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
@@ -914,6 +915,35 @@ def dialyzer_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_dialyzer",
     )
     _dialyzer_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_dialyzer_elixir_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ELIXIR_TYPECHECK_POLICY},
+)
+
+_dialyzer_elixir_set_test = analysistest.make(
+    _dialyzer_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ELIXIR_TYPECHECK_POLICY,
+        _DIALYZER_SETTING: _DIALYZER_TOOL,
+    },
+)
+
+def dialyzer_elixir_flag_tests(name, subject):
+    """Instantiates the dialyzer flag proofs for an elixir_app."""
+    _dialyzer_elixir_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_dialyzer",
+    )
+    _dialyzer_elixir_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

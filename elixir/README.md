@@ -140,6 +140,22 @@ is an error named `credo/syntax`. The defaults are Credo's own non-strict
 checks. Bind a `credo_config` to change them; `requires` and `plugins` are not
 supported. The compiler is still the type and warning check.
 
+## Type checking
+
+`dx typecheck` runs the OTP 29.1.2 dialyzer on the compiled beams of each
+`elixir_app`. Select `dialyzer` in the `typecheck` list of an `elixir` family
+and pass the tool flag (the same flag as Erlang):
+
+```sh
+dx typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer
+```
+
+Dialyzer checks code against its `@spec` contracts, which the compiler's own
+type checker does not. The Elixir PLT is built by Bazel from the pinned Elixir
+`elixir` and `logger` applications. Findings are warnings named
+`dialyzer/<rule>`. Silence one with `@dialyzer {:nowarn_function, name: arity}`.
+See `docs/cli/commands/quality.md`.
+
 ## Platforms
 
 | Cell | Status |

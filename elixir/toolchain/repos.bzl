@@ -5,6 +5,7 @@ load("//erlang/toolchain:pins.bzl", "CELLS")
 load(
     ":pins.bzl",
     "CREDO_PACKAGES",
+    "DIALYZER_PLT_ELIXIR",
     "ELIXIR_APPLICATIONS",
     "ELIXIR_CELLS",
     "ELIXIR_SHA256",
@@ -49,6 +50,13 @@ dx_elixir(
 elixir_toolchain(
     name = "elixir",
     elixir = ":elixir_tree",
+)
+{dialyzer_beams}"""
+
+_DIALYZER_BEAMS = """
+filegroup(
+    name = "dialyzer_beams_{app}",
+    srcs = glob(["lib/{app}/ebin/*.beam"]),
 )
 """
 
@@ -169,7 +177,7 @@ def _dist_impl(rctx):
     rctx.file("bin/elixir", elixir_script(rctx.read("bin/elixir")), executable = True)
     rctx.file(VERSION_FILE, ELIXIR_VERSION + "\n")
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", _DIST_BUILD.format(version_file = VERSION_FILE))
+    rctx.file("BUILD.bazel", _DIST_BUILD.format(version_file = VERSION_FILE, dialyzer_beams = "".join([_DIALYZER_BEAMS.format(app = app) for app in DIALYZER_PLT_ELIXIR])))
     return rctx.repo_metadata(reproducible = True)
 
 _dist = repository_rule(

@@ -1,10 +1,12 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load(":wrapper_tests.bzl", "erlang_wrapper_contract_tests")
+load(":dialyzer.bzl", "dialyzer_plt")
+load(":wrapper_tests.bzl", "dialyzer_plt_needs_input_test", "erlang_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "beam.bzl",
     "dialyzer.bzl",
     "plt_fixup.escript",
     "providers.bzl",
@@ -13,12 +15,25 @@ exports_files([
 
 erlang_wrapper_contract_tests(name = "wrapper_contract_tests")
 
+dialyzer_plt(
+    name = "empty_plt",
+    dialyzer = "//erlang/tools:dialyzer_bin",
+    escript = "//erlang/tools:escript_bin",
+    tags = ["manual"],
+)
+
+dialyzer_plt_needs_input_test(
+    name = "plt_needs_input_test",
+    target = ":empty_plt",
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "beam.bzl",
         "dialyzer.bzl",
         "providers.bzl",
         "wrapper_tests.bzl",

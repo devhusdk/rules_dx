@@ -1,6 +1,7 @@
 load("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app", "ex_unit_test")
 load("//elixir/toolchain:pins.bzl", "ELIXIR_VERSION")
 load("//erlang/toolchain:pins.bzl", "OTP_RELEASE")
+load("//erlang/rules:wrapper_tests.bzl", "erlang_beam_info_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -13,6 +14,15 @@ elixir_app(
     app_version = "1.0.0",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     visibility = ["//quality/testdata:__pkg__"],
+)
+
+erlang_beam_info_test(
+    name = "beam_info_test",
+    app_name = "dx_runtime_probe",
+    owned = ["ebin"],
+    plts = ["elixir_plt.plt"],
+    target = ":erlang_app",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
 elixir_app(

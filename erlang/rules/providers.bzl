@@ -6,8 +6,15 @@ BeamInfo = provider(
         "app_name": "The application name.",
         "deps": "depset of .beam files of the dependency applications.",
         "extra_apps": "List of OTP application names the app lists in extra_applications.",
-        "owned": "depset of .beam files this application compiled.",
+        "owned": "depset of .beam files this application compiled; a language that compiles to a directory lists the directory.",
+        "plts": "List of .plt files this language needs on top of the dialyzer tool's PLTs, in analysis order.",
+        "code": "List of .beam files dialyzer needs on its code path to read this language's beams (for example the compiler that wrote their debug info).",
     },
+)
+
+DialyzerPltInfo = provider(
+    doc = "One built PLT.",
+    fields = {"plt": "The .plt file."},
 )
 
 DialyzerToolInfo = provider(

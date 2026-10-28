@@ -7,9 +7,11 @@ const TOOL: &str = "dialyzer";
 /// Findings from `dialyzer --no_indentation --error_location column`, on exit 0 (clean) or 2 (warnings).
 ///
 /// Dialyzer prints every warning to stdout as `file:line:column: message`, followed by indented
-/// continuation lines, then the `Unknown functions:` and `Unknown types:` blocks. Beams built with
-/// `+deterministic` name files by basename, so `files` holds the checked basenames; a warning in
-/// any other file belongs to a dependency and is dropped. Exit 1 is dialyzer failing to analyse.
+/// continuation lines, then the `Unknown functions:` and `Unknown types:` blocks. `files` holds the
+/// owned workspace-relative source paths. Dialyzer names a file as the beam recorded it (absolute
+/// in a sandbox, relative to the execroot, or a bare basename for `+deterministic` Erlang beams),
+/// so a reported path is resolved to the owned path it ends with; a warning in a file nothing owned
+/// matches belongs to a dependency and is dropped. Exit 1 is dialyzer failing to analyse.
 pub fn parse_dialyzer(
     stdout: &[u8],
     code: Option<i32>,
@@ -22,6 +24,8 @@ pub fn parse_dialyzer(
             format!("exit {}: {}", code_name(code), failure(out)),
         ));
     }
+    let mut owned: Vec<&str> = files.to_vec();
+    owned.sort_unstable();
     let mut findings: Vec<FileFinding> = Vec::new();
     let mut unknown: Option<&'static str> = None;
     let mut open = false;
@@ -39,8 +43,8 @@ pub fn parse_dialyzer(
             open = false;
             if unknown.is_none() {
                 if let Some((file, row, column, message)) = header(line) {
-                    open = files.contains(&file);
-                    if open {
+                    if let Some(file) = resolve(&owned, file) {
+                        open = true;
                         findings.push(located_finding(file, row, column, message));
                     }
                 }
@@ -49,7 +53,7 @@ pub fn parse_dialyzer(
         }
         if let Some(rule) = unknown {
             if let Some((name, file, row, column)) = reference(line.trim()) {
-                if files.contains(&file) {
+                if let Some(file) = resolve(&owned, file) {
                     let what = if rule == "unknown_type" {
                         "type"
                     } else {
@@ -90,6 +94,29 @@ pub fn parse_dialyzer(
             ))
     });
     Ok(findings)
+}
+
+/// The owned path a reported file name stands for: the longest owned path the report ends with at
+/// a `/` boundary, else the first owned path (in sorted order) that ends with the report, which is
+/// how a bare basename resolves.
+fn resolve<'a>(owned: &[&'a str], reported: &str) -> Option<&'a str> {
+    let ends_with_path = |whole: &str, tail: &str| {
+        whole == tail
+            || whole
+                .strip_suffix(tail)
+                .is_some_and(|head| head.ends_with('/'))
+    };
+    owned
+        .iter()
+        .copied()
+        .filter(|path| ends_with_path(reported, path))
+        .max_by_key(|path| path.len())
+        .or_else(|| {
+            owned
+                .iter()
+                .copied()
+                .find(|path| ends_with_path(path, reported))
+        })
 }
 
 /// The run's own account of why it failed, without the banner and the log cache tail.
@@ -240,5 +267,37 @@ mod tests {
         assert!(err.to_string().contains("/s/nd.beam"), "{err}");
         assert!(!err.to_string().contains("log cache"), "{err}");
         assert!(parse_dialyzer(b"", None, &[]).is_err());
+    }
+
+    #[test]
+    fn dialyzer_resolves_reported_paths_to_owned_sources() {
+        let out = "/b/execroot/pkg/lib/b/worker.ex:3:2: Function f/0 has no local return\npkg/lib/a/worker.ex:4:1: Function g/0 has no local return\n/b/execroot/dep/lib/worker.ex:9:1: Function x/0 has no local return\nUnknown functions:\n  'Elixir.Foo':bar/1 (/b/execroot/pkg/lib/a/worker.ex:7:5)\n  'Elixir.Baz':q/0 (/b/external/dep/lib/other.ex:1:1)\n";
+        let owned = ["pkg/lib/b/worker.ex", "pkg/lib/a/worker.ex"];
+        let found = parse_dialyzer(out.as_bytes(), Some(2), &owned).expect("parsed");
+        let seen: Vec<_> = found
+            .iter()
+            .map(|f| (f.file.as_str(), f.finding.start.line))
+            .collect();
+        assert_eq!(
+            seen,
+            vec![
+                ("pkg/lib/a/worker.ex", 4),
+                ("pkg/lib/a/worker.ex", 7),
+                ("pkg/lib/b/worker.ex", 3),
+            ]
+        );
+        assert_eq!(
+            found[1].finding.message,
+            "Unknown function 'Elixir.Foo':bar/1"
+        );
+    }
+
+    #[test]
+    fn dialyzer_bare_basenames_resolve_to_the_first_owned_path() {
+        let out = "bad.erl:3:2: Function f/0 has no local return\ndep.erl:9:1: Function x/0 has no local return\n";
+        let owned = ["z/bad.erl", "a/bad.erl"];
+        let found = parse_dialyzer(out.as_bytes(), Some(2), &owned).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, "a/bad.erl");
     }
 }

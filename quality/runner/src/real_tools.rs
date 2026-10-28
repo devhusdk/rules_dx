@@ -4089,6 +4089,87 @@ fn dialyzer_shared_basenames_resolve_to_the_first_sorted_path() {
     );
 }
 
+fn dialyzer_elixir_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let pa = text
+        .iter()
+        .position(|a| a == "-pa")
+        .expect("code path flag");
+    assert!(text[pa + 1].ends_with("dx-dialyzer/pa"), "{text:?}");
+    assert!(text.iter().any(|a| a == "--fullpath"), "{text:?}");
+    let sep = text.iter().position(|a| a == "--").expect("separator");
+    let beams = &text[sep + 1..];
+    assert_eq!(beams.len(), 2, "{beams:?}");
+    assert!(
+        beams.iter().all(|b| b.ends_with(".beam")),
+        "only beams are analysed: {beams:?}"
+    );
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: b"  Proceeding with analysis...\n/sandbox/pkg/lib/b/w.ex:3:2: Function f/0 has no local return\npkg/lib/a/w.ex:4:1: Function g/0 has no local return\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn dialyzer_stages_owned_directories_and_reports_each_source_path() {
+    let tool = RealTool {
+        tool_files: vec![
+            ("dx-dialyzer/plt/000-core.plt".to_owned(), b"c".to_vec()),
+            ("dx-dialyzer/pa/elixir_erl.beam".to_owned(), b"p".to_vec()),
+            (
+                "dx-dialyzer/owned/0/ebin/Elixir.A.beam".to_owned(),
+                b"a".to_vec(),
+            ),
+            ("dx-dialyzer/owned/0/ebin/a.app".to_owned(), b"app".to_vec()),
+            (
+                "dx-dialyzer/owned/0/ebin/Elixir.B.beam".to_owned(),
+                b"b".to_vec(),
+            ),
+        ],
+        ..plain_tool()
+    };
+    let backend = backend_for("dialyzer", tool, dialyzer_elixir_report);
+    let mut files = single(
+        "pkg/lib/a/w.ex",
+        "defmodule A do\n\n\n  def g, do: 1\nend\n",
+    );
+    files.insert(
+        "pkg/lib/b/w.ex".to_owned(),
+        "defmodule B do\n\n  def f, do: 1\nend\n".to_owned(),
+    );
+    let findings = backend
+        .diagnose("dialyzer", "typecheck", &files)
+        .expect("diagnosed");
+    let seen: Vec<&str> = findings.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(seen, vec!["pkg/lib/a/w.ex", "pkg/lib/b/w.ex"]);
+}
+
+#[test]
+fn dialyzer_skips_an_app_without_beams() {
+    let tool = RealTool {
+        tool_files: vec![
+            ("dx-dialyzer/plt/000-core.plt".to_owned(), b"c".to_vec()),
+            ("dx-dialyzer/owned/0/ebin/a.app".to_owned(), b"app".to_vec()),
+        ],
+        ..plain_tool()
+    };
+    let backend = backend_for("dialyzer", tool, |_, _, _| {
+        panic!("dialyzer must not run without beams")
+    });
+    let findings = backend
+        .diagnose("dialyzer", "typecheck", &single("lib/a.ex", "x\n"))
+        .expect("skipped");
+    assert!(findings.is_empty());
+}
+
 #[test]
 fn dialyzer_is_check_only() {
     let backend = backend_for("dialyzer", dialyzer_tool(), dialyzer_report);

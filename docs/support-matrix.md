@@ -73,7 +73,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | CUDA | no | `clang_format` | no |
 | D | `dscanner` | `dfmt` | no |
 | Dart | no | no | no |
-| Elixir | `credo` | `mix_format` | no |
+| Elixir | `credo` | `mix_format` | `dialyzer` |
 | Erlang | `elvis` | `erlfmt` | `dialyzer` |
 | Fortran | `fortitude` on `linux_x86_64` | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |

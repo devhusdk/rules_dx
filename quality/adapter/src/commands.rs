@@ -108,6 +108,7 @@ const DIALYZER_ARGS: &[&str] = &[
     "--no_indentation",
     "--error_location",
     "column",
+    "--fullpath",
 ];
 
 const SPOTBUGS_ARGS: &[&str] = &["-textui", "-effort:default", "-sarif"];
@@ -934,8 +935,17 @@ pub fn spotbugs_check(
 
 /// `dialyzer` over compiled beams against pre-built PLTs. The PLT is trusted as is
 /// (`--no_check_plt`), and every beam, owned or auxiliary, is analysed.
-pub fn dialyzer_check(binary: &Path, plts: &[&Path], beams: &[&Path]) -> Invocation {
+pub fn dialyzer_check(
+    binary: &Path,
+    code_dirs: &[&Path],
+    plts: &[&Path],
+    beams: &[&Path],
+) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
+    for dir in code_dirs {
+        argv.push(OsString::from("-pa"));
+        argv.push(dir.as_os_str().to_owned());
+    }
     if !plts.is_empty() {
         argv.push(OsString::from("--plts"));
         argv.extend(plts.iter().map(|p| p.as_os_str().to_owned()));

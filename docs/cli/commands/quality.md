@@ -243,7 +243,7 @@ to.
 | `cue` | format | cue |
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
-| `dialyzer` | typecheck | erlang |
+| `dialyzer` | typecheck | erlang, elixir |
 | `dart` | format | dart |
 | `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
@@ -569,7 +569,7 @@ The `files` globs in a bound config match workspace-relative paths, such as
 matches none of the checked files fails the run unless it sets
 `allow_no_files => true`. Do not set `output_format` in the config.
 
-### Erlang type checking
+### Erlang and Elixir type checking
 
 `dialyzer` has no default executable. Select `dialyzer` in an `erlang` family
 and point the flag at the pinned OTP dialyzer and its PLTs.
@@ -603,6 +603,28 @@ and column, with the rule as `dialyzer/<rule>`: `no_return`, `pattern_match`,
 `unknown_type`, or `dialyzer` for the rest. Only findings in the target's own
 sources are reported. Dialyzer never fixes, so `--apply` changes nothing. To
 silence a warning, use a `-dialyzer(...)` attribute in the source.
+
+The same tool and flag check an `elixir` family. Select `dialyzer` in its
+`typecheck` list. Dialyzer checks the compiled `.beam` files of each
+`elixir_app`, which adds what the compiler does not: code against its `@spec`
+contracts, and success typing. Each `elixir_app` brings its own Elixir PLT
+(`//elixir/tools:elixir_plt`, the pinned Elixir `elixir` and `logger`
+applications on top of the OTP core PLT) through `BeamInfo.plts`, after the
+PLTs of the tool, and its `elixir` compiler beams for dialyzer's code path.
+A custom `tool_dialyzer` must use the same OTP as the pin. A call into an
+Elixir application outside `DIALYZER_PLT_ELIXIR` in `elixir/toolchain/pins.bzl`
+is reported as `dialyzer/unknown_function`. Findings are named by the source
+file the beam was built from, so two files with the same name in different
+folders are reported at their own paths. To silence a warning, use
+`@dialyzer {:nowarn_function, name: arity}` in the module.
+
+```starlark
+quality_family(
+    name = "elixir_family",
+    family_id = "elixir",
+    typecheck = ["dialyzer"],
+)
+```
 
 ### Elixir formatting
 

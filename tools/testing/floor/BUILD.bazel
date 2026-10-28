@@ -1,0 +1,56 @@
+load("@crates//:crates.bzl", "crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+
+package(default_visibility = [
+    "//modules:__pkg__",
+    "//tools/testing/hermetic:__pkg__",
+])
+
+# keep
+rust_library(
+    name = "dx_floor",
+    testonly = True,
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    crate_name = "dx_floor",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        ["serde_json"],
+        package_name = "tools/dx_testing",
+    ) + [
+        "//libs/module_bazel:dx_module_bazel",
+    ],
+)
+
+# keep
+rust_test(
+    name = "dx_floor_test",
+    size = "small",
+    compile_data = ["testdata/graph_bazel_9_2_0.json"],
+    crate = ":dx_floor",
+)
+
+rustfmt_test(
+    name = "dx_floor_fmt_test",
+    size = "small",
+    targets = [":dx_floor"],
+)
+
+rust_clippy_test(
+    name = "dx_floor_clippy_test",
+    size = "small",
+    targets = [":dx_floor"],
+)
+
+exports_files(["testdata/graph_bazel_9_2_0.json"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

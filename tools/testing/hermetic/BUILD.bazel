@@ -17,6 +17,13 @@ exports_files(
 
 LINUX = ["@platforms//os:linux"]
 
+# The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
+filegroup(
+    name = "module_fragments",
+    srcs = glob(["consumers/*/module_fragment.bazel"]),
+    visibility = ["//modules:__pkg__"],
+)
+
 rust_library(
     name = "hermetic",
     testonly = True,

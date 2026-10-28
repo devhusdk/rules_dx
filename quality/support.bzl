@@ -522,6 +522,34 @@ LUA_STYLUA_SUPPORT = {
     "transport": "batched",
 }
 
+JUPYTER_RUFF_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["jupyter"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ruff",
+    "transport": "batched",
+}
+
+JUPYTER_RUFF_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["jupyter"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ruff",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
@@ -560,6 +588,8 @@ SUPPORT_RECORDS = [
     LUA_STYLUA_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
+    JUPYTER_RUFF_FORMAT_SUPPORT,
+    JUPYTER_RUFF_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):

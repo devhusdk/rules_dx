@@ -31,6 +31,7 @@ WRAPPER_OWNERS = {
     "javascript": "//javascript/rules:defs.bzl",
     "json": "other",
     "jsonnet": "//jsonnet/rules:defs.bzl",
+    "jupyter": "//jupyter/rules:defs.bzl",
     "kotlin": "//kotlin/rules:defs.bzl",
     "kubernetes": "//kubernetes/rules:defs.bzl",
     "lua": "//lua/rules:defs.bzl",

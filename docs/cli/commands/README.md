@@ -567,6 +567,7 @@ Language rules:
 - `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
 - `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
 - `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
+- `@rules_dx//jupyter/rules:defs.bzl`: Jupyter notebooks.
 - `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
 - `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.

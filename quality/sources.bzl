@@ -56,6 +56,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "scala",
     "python",
     "python_stub",
+    "jupyter",
     "cue",
     "d",
     "elixir",

@@ -17,6 +17,7 @@ pub mod commands;
 pub mod exec;
 pub mod kubernetes_preflight;
 pub mod launch;
+pub mod notebook;
 pub mod parsers;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

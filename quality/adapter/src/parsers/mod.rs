@@ -1909,7 +1909,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::ruff::parse_ruff(input, code, files)
+        super::ruff::parse_ruff(input, code, files, &[])
     }
 
     fn fuzz_ruff_format(
@@ -1917,7 +1917,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::ruff::parse_ruff_format(input, code, files)
+        super::ruff::parse_ruff_format(input, code, files, &[])
     }
 
     fn fuzz_clippy(

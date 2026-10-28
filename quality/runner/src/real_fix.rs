@@ -503,7 +503,12 @@ impl<'a> FixSession<'a> {
             match outcome {
                 Outcome::Fixed => {
                     for (path, file) in batch_targets.iter().zip(&batch) {
-                        fixed.insert(path.clone(), RealBackend::reread_fixed(tool_id, file)?);
+                        let reread = RealBackend::reread_fixed(tool_id, file)?;
+                        let before = text_of(path)?;
+                        fixed.insert(
+                            path.clone(),
+                            RealBackend::settle(tool_id, path, &before, reread)?,
+                        );
                     }
                 }
                 Outcome::Kept if batch.len() == 1 => {
@@ -524,7 +529,10 @@ impl<'a> FixSession<'a> {
                             &session.scratch,
                             &names,
                         )? {
-                            Outcome::Fixed => RealBackend::reread_fixed(tool_id, file)?,
+                            Outcome::Fixed => {
+                                let reread = RealBackend::reread_fixed(tool_id, file)?;
+                                RealBackend::settle(tool_id, path, &text_of(path)?, reread)?
+                            }
                             Outcome::Kept => text_of(path)?,
                             Outcome::Failed(err) => return Err(err),
                         };
@@ -620,6 +628,28 @@ impl super::RealBackend {
         fixed.remove(path).ok_or(RunnerError::MissingFile {
             path: path.to_owned(),
         })
+    }
+
+    /// Decides which bytes a fix may return for one file. Notebooks never take
+    /// the tool's raw rewrite: Ruff re-indents the JSON, sorts its keys and adds
+    /// cell ids, so only the edited code-cell sources are copied back.
+    pub(super) fn settle(
+        tool_id: &str,
+        path: &str,
+        before: &str,
+        fixed: String,
+    ) -> Result<String, RunnerError> {
+        if !path.ends_with(".ipynb") {
+            return Ok(fixed);
+        }
+        if tool_id != "ruff" {
+            return Err(execution(
+                tool_id,
+                format!("{path}: only ruff may rewrite a notebook"),
+            ));
+        }
+        quality_adapter::notebook::splice_sources(before, &fixed)
+            .map_err(|err| execution(tool_id, format!("{path}: {err}")))
     }
 
     pub(super) fn reread_fixed(tool_id: &str, absolute: &Path) -> Result<String, RunnerError> {

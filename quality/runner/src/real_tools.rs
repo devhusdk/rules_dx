@@ -1374,7 +1374,7 @@ fn json_reporting_fixtures_escape_a_path_that_names_a_backslash() {
         ),
         (
             "ruff",
-            parsers::parse_ruff(&ruff.stdout, Some(1), &[absolute.as_str()]),
+            parsers::parse_ruff(&ruff.stdout, Some(1), &[absolute.as_str()], &[]),
             absolute.as_str(),
         ),
     ];
@@ -2737,4 +2737,114 @@ fn kubeconform_exit_zero_with_failures_fails_the_action() {
             &single("k8s/app.yaml", KUBECONFORM_MANIFEST),
         )
         .expect_err("exit 0 with failures is never clean");
+}
+
+const NOTEBOOK_DIRTY: &str = "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\"# Title\"]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": 7,\n      \"metadata\": {\"tags\": [\"keep\"]},\n      \"outputs\": [{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}],\n      \"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\"x   =   1\"]\n    }\n  ],\n  \"metadata\": {\"language_info\": {\"name\": \"python\"}},\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}\n";
+
+fn notebook_backend() -> RealBackend {
+    backend_for("ruff", plain_tool(), ruff_notebook_behavior)
+}
+
+#[test]
+fn ruff_notebook_findings_name_the_cell_and_file_line() {
+    let backend = notebook_backend();
+    let before = single("n.ipynb", NOTEBOOK_DIRTY);
+    let findings = backend
+        .diagnose("ruff", "lint", &before)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert!(
+        findings[0].message.starts_with("cell 2, line 1: "),
+        "{}",
+        findings[0].message
+    );
+    let os_at = NOTEBOOK_DIRTY.find("import os").expect("import") + "import ".len();
+    assert_eq!(findings[0].start_byte, Some(os_at as u64));
+    assert_eq!(before["n.ipynb"], NOTEBOOK_DIRTY, "check mode never writes");
+}
+
+#[test]
+fn ruff_notebook_fix_splices_only_the_edited_cell() {
+    let backend = notebook_backend();
+    let fixed = backend
+        .apply_fix("ruff", "n.ipynb", NOTEBOOK_DIRTY, "lint")
+        .expect("fixed");
+    let expected = NOTEBOOK_DIRTY.replace(
+        "\"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]",
+        "\"source\": [\n        \"print('hi')\"\n      ]",
+    );
+    assert_eq!(fixed, expected);
+    assert!(serde_json::from_str::<serde_json::Value>(&fixed).is_ok());
+    assert!(backend
+        .diagnose("ruff", "lint", &single("n.ipynb", &fixed))
+        .expect("diagnosed")
+        .is_empty());
+}
+
+#[test]
+fn ruff_notebook_batched_fix_handles_two_notebooks_and_a_python_file() {
+    let backend = notebook_backend();
+    let spec = stage(
+        "ruff",
+        &["jupyter", "python"],
+        &["a.ipynb", "b.ipynb", "c.py"],
+    );
+    let current = BTreeMap::from([
+        ("a.ipynb".to_owned(), NOTEBOOK_DIRTY.to_owned()),
+        (
+            "b.ipynb".to_owned(),
+            NOTEBOOK_DIRTY.replace("x   =   1", "y = 2"),
+        ),
+        ("c.py".to_owned(), "import os\nx = 1\n".to_owned()),
+    ]);
+    let known = BTreeSet::new();
+    let mut session = super::real_fix::FixSession::new(&backend, "lint", &known);
+    let fixed = session
+        .fix(0, &spec, &current, &spec.source_paths)
+        .expect("fixed");
+    session.close().expect("closes");
+    assert_eq!(fixed["c.py"], "x = 1\n");
+    for name in ["a.ipynb", "b.ipynb"] {
+        assert!(!fixed[name].contains("import os"), "{name}");
+        assert!(
+            fixed[name].starts_with("{\n  \"cells\""),
+            "{name} keeps its indent"
+        );
+        assert!(!fixed[name].contains("\"id\""), "{name} gains no ids");
+    }
+    assert!(fixed["b.ipynb"].contains("y = 2"));
+}
+
+#[test]
+fn ruff_notebook_in_another_language_fails_instead_of_reporting_clean() {
+    let backend = notebook_backend();
+    let r_notebook = NOTEBOOK_DIRTY.replace(
+        "{\"language_info\": {\"name\": \"python\"}}",
+        "{\"kernelspec\": {\"language\": \"R\"}}",
+    );
+    let err = backend
+        .diagnose("ruff", "lint", &single("n.ipynb", &r_notebook))
+        .expect_err("rejected");
+    assert!(err.to_string().contains("only Python notebooks"), "{err}");
+    let err = backend
+        .diagnose("ruff", "format", &single("n.ipynb", "{ not json"))
+        .expect_err("rejected");
+    assert!(err.to_string().contains("n.ipynb"), "{err}");
+}
+
+#[test]
+fn notebooks_only_settle_through_ruff() {
+    let err =
+        RealBackend::settle("prettier", "n.ipynb", "{}", "{}".to_owned()).expect_err("refused");
+    let text = err.to_string();
+    assert!(
+        text.contains("prettier") && text.contains("n.ipynb"),
+        "{text}"
+    );
+    let err = RealBackend::settle("ruff", "n.ipynb", "{}", "{}".to_owned()).expect_err("splice");
+    assert!(err.to_string().contains("n.ipynb"), "{err}");
+    assert_eq!(
+        RealBackend::settle("prettier", "a.md", "x", "y".to_owned()).expect("passes"),
+        "y"
+    );
 }

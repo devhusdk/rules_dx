@@ -258,6 +258,41 @@ def real_pipeline_unit_tests(name):
                 [["python", "python_stub"], [], []],
             ),
             expect_equal(
+                "real_supported_classes returns ruff notebook support for format and lint only",
+                [
+                    real_supported_classes("ruff", "format"),
+                    real_supported_classes("ruff", "lint"),
+                    real_supported_classes("ruff", "audit"),
+                ],
+                [
+                    ["jupyter", "python", "python_stub"],
+                    ["jupyter", "python", "python_stub"],
+                    ["python", "python_stub"],
+                ],
+            ),
+            expect_equal(
+                "pipeline_stages gives a jupyter-only target no stage under a python-only policy",
+                pipeline_stages(
+                    ["jupyter"],
+                    "lint",
+                    {"python": ["ruff"]},
+                    REAL_CLASS_TO_FAMILY,
+                    REAL_ADAPTERS,
+                ),
+                [],
+            ),
+            expect_equal(
+                "pipeline_stages gives a jupyter target ruff stages under a jupyter family",
+                pipeline_stages(
+                    ["jupyter"],
+                    "lint",
+                    {"jupyter": ["ruff"]},
+                    REAL_CLASS_TO_FAMILY,
+                    REAL_ADAPTERS,
+                ),
+                [{"classes": ["jupyter"], "tool": "ruff"}],
+            ),
+            expect_equal(
                 "authorize_classes maps each real tool to its own class",
                 authorize_classes(_LINT_SELECTIONS, REAL_CLASS_TO_FAMILY),
                 {

@@ -60,6 +60,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "python_stub",
     "jupyter",
     "cue",
+    "dart",
     "d",
     "elixir",
     "erlang",

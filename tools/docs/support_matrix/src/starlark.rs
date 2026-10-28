@@ -557,6 +557,10 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     ("d_test", Constraint::AsWritten),
     ("eunit", Constraint::AsWritten),
+    (
+        "dart_test",
+        Constraint::Appended("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH"),
+    ),
     ("ex_unit_test", Constraint::AsWritten),
     (
         "fortran_test",

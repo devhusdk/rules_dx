@@ -113,6 +113,9 @@ ZIG_VERSION = "0.16.0"
 
 FLOOR_RULES_JULIA = "0.8.0"
 TESTED_RULES_JULIA = "0.8.0"
+FLOOR_RULES_DART = "0.8.0"
+TESTED_RULES_DART = "0.8.0"
+DART_SDK_VERSION = "3.13.5"
 JULIA_VERSION = "1.12.5"
 FLOOR_RULES_PERL = "1.5.0"
 TESTED_RULES_PERL = "1.5.0"
@@ -149,6 +152,7 @@ CONSUMER_BAZEL_DEPS = {
     "rules_ruby": struct(floor = FLOOR_RULES_RUBY, tested = TESTED_RULES_RUBY),
     "rules_zig": struct(floor = FLOOR_RULES_ZIG, tested = TESTED_RULES_ZIG),
     "rules_julia": struct(floor = FLOOR_RULES_JULIA, tested = TESTED_RULES_JULIA),
+    "rules_dart": struct(floor = FLOOR_RULES_DART, tested = TESTED_RULES_DART),
     "rules_perl": struct(floor = FLOOR_RULES_PERL, tested = TESTED_RULES_PERL),
     "lua": struct(floor = FLOOR_LUA, tested = TESTED_LUA),
     "aspect_rules_py": struct(floor = FLOOR_ASPECT_RULES_PY, tested = TESTED_ASPECT_RULES_PY),

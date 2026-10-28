@@ -1,0 +1,26 @@
+load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
+load("//dart/tests:rules_tests.bzl", "dart_cross_refused_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+platform(
+    name = "linux_riscv64",
+    constraint_values = [
+        "@platforms//cpu:riscv64",
+        "@platforms//os:linux",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+dart_cross_refused_test(
+    name = "cross_sdk_refused_test",
+    target_compatible_with = DART_COMPATIBLE_WITH,
+    target_under_test = "//dart/rules:native_target",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

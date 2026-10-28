@@ -17,6 +17,7 @@ WRAPPER_OWNERS = {
     "dockerfile": "//dockerfile/rules:defs.bzl",
     "make": "//make/rules:defs.bzl",
     "d": "//d/rules:defs.bzl",
+    "dart": "//dart/rules:defs.bzl",
     "elixir": "//elixir/rules:defs.bzl",
     "erlang": "//erlang/rules:defs.bzl",
     "flatbuffers": "//flatbuffers/rules:defs.bzl",

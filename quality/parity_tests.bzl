@@ -9,6 +9,7 @@ PARITY_DEFERRED = {
     "fortran": ["ADR", "no Fortran formatter or linter is pinned"],
     "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
     "php": ["ADR", "php-cs-fixer and phpstan adapters pending in a later #1795 slice"],
+    "dart": ["ADR", "dart_analyze and dart_format adapters pending in a later #1783 slice"],
 }
 
 def _adapter_backed_classes():

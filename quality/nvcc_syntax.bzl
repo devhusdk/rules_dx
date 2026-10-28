@@ -91,6 +91,30 @@ def nvcc_syntax_source(argv):
             return argv[i + 1]
     return ""
 
+def _is_pic(argv):
+    for i in range(len(argv)):
+        if argv[i] == "-fPIC" or (argv[i] == "-Xcompiler" and i + 1 < len(argv) and argv[i + 1] == "-fPIC"):
+            return True
+    return False
+
+def nvcc_syntax_select(argvs):
+    """Returns the indices of one command line per translation unit, in first-seen order.
+
+    rules_cuda compiles each source several times (pic/non-pic, rdc/non-rdc). The variants
+    only differ in code generation flags, so one front-end replay per source is enough.
+    The non-pic variant wins over a pic one.
+    """
+    chosen = {}
+    order = []
+    for i in range(len(argvs)):
+        src = nvcc_syntax_source(list(argvs[i]))
+        if src not in chosen:
+            chosen[src] = i
+            order.append(src)
+        elif _is_pic(argvs[chosen[src]]) and not _is_pic(argvs[i]):
+            chosen[src] = i
+    return [chosen[src] for src in order]
+
 def _first(value):
     return value[0] if type(value) == "list" else value
 
@@ -126,7 +150,7 @@ def _nvcc_syntax_impl(target, ctx):
     sources = []
     diagnostics = []
     statuses = []
-    for i in range(len(actions)):
+    for i in nvcc_syntax_select([a.argv or [] for a in actions]):
         action = actions[i]
         argv = action.argv
         if argv == None:

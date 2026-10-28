@@ -1,7 +1,7 @@
 """Unit tests for the nvcc_syntax argv rewrite."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":nvcc_syntax.bzl", "nvcc_syntax_argv", "nvcc_syntax_source")
+load(":nvcc_syntax.bzl", "nvcc_syntax_argv", "nvcc_syntax_select", "nvcc_syntax_source")
 
 _NVCC = "external/cuda/bin/nvcc"
 
@@ -82,6 +82,16 @@ def nvcc_syntax_unit_tests(name):
                 "no -c means no source",
                 nvcc_syntax_source([_NVCC, "a.cu"]),
                 "",
+            ),
+            expect_equal(
+                "one replay per source, preferring the non-pic variant",
+                nvcc_syntax_select([
+                    [_NVCC, "-Xcompiler", "-fPIC", "-c", "a.cu", "-o", "a.pic.o"],
+                    [_NVCC, "-c", "a.cu", "-o", "a.o"],
+                    [_NVCC, "-Xcompiler", "-fPIC", "-c", "b.cu", "-o", "b.pic.o"],
+                    [_NVCC, "-Xcompiler", "-fPIC", "-rdc=true", "-c", "b.cu", "-o", "b.rdc.o"],
+                ]),
+                [1, 2],
             ),
         ],
     )

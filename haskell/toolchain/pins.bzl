@@ -83,5 +83,11 @@ CELLS = {
         ghc_url = "https://downloads.haskell.org/~ghc/" + GHC_VERSION + "/ghc-" + GHC_VERSION + "-aarch64-apple-darwin.tar.xz",
         # GMP is linked into the Darwin bindist, so there is no runtime closure.
         runtime = [],
+        # Ships the GMP LGPL text, which has no deb copyright file to come from.
+        gmp_license = struct(
+            name = "gmp",
+            sha256 = "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+            url = "https://www.gnu.org/licenses/lgpl-3.0.txt",
+        ),
     ),
 }

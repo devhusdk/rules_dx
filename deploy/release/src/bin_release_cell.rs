@@ -63,6 +63,7 @@ impl cell::Runner for CommandRunner {
 fn usage() -> i32 {
     eprintln!("usage: release_cell {}", cell::QUALIFY_USAGE);
     eprintln!("       release_cell {}", cell::VERIFY_USAGE);
+    eprintln!("       release_cell {}", cell::VERSION_USAGE);
     1
 }
 
@@ -77,8 +78,15 @@ fn run(argv: &[String]) -> i32 {
             Err(error) => dx_release_tools::bin_error(format!("release_cell: {error}")),
         },
         Some("verify") => match cell::verify_main(&argv[2..]) {
-            Ok(summary) => {
-                print!("{summary}");
+            Ok((ok, text)) => {
+                print!("{text}");
+                i32::from(!ok)
+            }
+            Err(error) => dx_release_tools::bin_error(format!("release_cell: {error}")),
+        },
+        Some("version") => match cell::version_main(&argv[2..], &CommandRunner) {
+            Ok(version) => {
+                println!("{version}");
                 0
             }
             Err(error) => dx_release_tools::bin_error(format!("release_cell: {error}")),

@@ -2,6 +2,8 @@ use quality_adapter::parsers::{self, FileFinding};
 
 use super::*;
 
+type SarifParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
+
 impl RealBackend {
     pub(super) fn check_clippy_delegated(
         &self,
@@ -61,6 +63,26 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
+        self.check_dotnet_sarif(tool_id, tool, pairs, parsers::parse_roslyn)
+    }
+
+    pub(super) fn check_csc_delegated(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        self.check_dotnet_sarif(tool_id, tool, pairs, parsers::parse_csc)
+    }
+
+    /// Parses the per-TFM csc SARIF logs of the C# aspect with `parse` and merges them.
+    fn check_dotnet_sarif(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        pairs: &[(String, PathBuf)],
+        parse: SarifParser,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
         let workspaces: Vec<&str> = pairs
             .iter()
             .map(|(workspace, _)| workspace.as_str())
@@ -68,8 +90,9 @@ impl RealBackend {
         if tool.upstream_diagnostics.is_empty() {
             return Err(execution(
                 tool_id,
-                "roslyn needs the SARIF log of the target compilation; the C# aspect did not supply it"
-                    .to_owned(),
+                format!(
+                    "{tool_id} needs the SARIF log of the target compilation; the C# aspect did not supply it"
+                ),
             ));
         }
         let mut pivots = Vec::with_capacity(tool.upstream_diagnostics.len());
@@ -83,7 +106,7 @@ impl RealBackend {
                     execution(
                         tool_id,
                         format!(
-                            "roslyn SARIF log {} names no target framework",
+                            "{tool_id} SARIF log {} names no target framework",
                             path.display()
                         ),
                     )
@@ -99,14 +122,11 @@ impl RealBackend {
                     execution(
                         tool_id,
                         format!(
-                            "roslyn needs the csc exit status for {tfm}; the C# aspect did not supply it"
+                            "{tool_id} needs the csc exit status for {tfm}; the C# aspect did not supply it"
                         ),
                     )
                 })?;
-            let found = parsed(
-                tool_id,
-                parsers::parse_roslyn(&bytes, Some(code), &workspaces),
-            )?;
+            let found = parsed(tool_id, parse(&bytes, Some(code), &workspaces))?;
             pivots.push((tfm.to_owned(), found));
         }
         let mut findings = merge_pivot_findings(pivots);

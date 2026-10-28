@@ -87,6 +87,10 @@ host runtime only. A finding that only some frameworks report ends with
 those frameworks, such as `[net8.0]`. When `target_frameworks` is a
 `select()`, only the framework it resolves to is analyzed.
 
+`dx typecheck` runs `csc`, which reports only the compiler diagnostics (`CS*`)
+from the same per-framework compilation that `roslyn` uses, so no extra
+compile runs. Analyzer findings stay with `roslyn`.
+
 ## Generating BUILD files
 
 `dx generate` writes `csharp_library`, `csharp_binary` and `csharp_test`

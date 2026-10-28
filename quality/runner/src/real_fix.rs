@@ -355,7 +355,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
     };
     match tool_id {
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
-        | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "dscanner" | "fortitude"
+        | "clippy" | "roslyn" | "csc" | "fsharplint" | "checkstyle" | "dscanner" | "fortitude"
         | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck"
         | "staticcheck" | "govet" | "errcheck" | "stylelint" | "rubocop" | "yamllint"
         | "shellcheck" | "hadolint" | "redocly" | "kubeconform" | "helm" | "checkmake"

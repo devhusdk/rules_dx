@@ -273,7 +273,6 @@ GAP_ISSUES = {
     "typecheck:apple": 4527,
     "typecheck:astro": 1767,
     "typecheck:cc": 4527,
-    "typecheck:csharp": 4529,
     "typecheck:cuda": 4527,
     "typecheck:cue": 4533,
     "typecheck:d": 4530,

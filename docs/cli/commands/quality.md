@@ -239,6 +239,7 @@ to.
 | `clang_tidy` | lint | cc |
 | `clippy` | lint | rust |
 | `cppcheck` | lint | cc |
+| `csc` | typecheck | csharp |
 | `csharpier` | format | csharp |
 | `cue` | format | cue |
 | `deadnix` | lint | nix |

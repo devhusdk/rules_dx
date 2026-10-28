@@ -7,6 +7,7 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "clippy",
         "rustc",
         "roslyn",
+        "csc",
         "fsharplint",
         "qmllint",
         "govet",
@@ -1130,4 +1131,30 @@ fn delegated_roslyn_fails_closed_on_one_malformed_framework_log() {
     assert!(backend_for("roslyn", tool, must_not_spawn)
         .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
         .is_err());
+}
+
+#[test]
+fn delegated_csc_keeps_compiler_diagnostics_and_drops_analyzers() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let sarif = roslyn_sarif(&[
+        roslyn_result("CS0029", 1, "cannot convert"),
+        roslyn_result("CA1822", 2, "static"),
+    ]);
+    let tool = roslyn_pivots(scratch.path(), &[("net8.0", &sarif, Some("0"))]);
+    let findings = backend_for("csc", tool, must_not_spawn)
+        .diagnose("csc", "typecheck", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].message, "cannot convert");
+}
+
+#[test]
+fn delegated_csc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let sarif = roslyn_sarif(&[]);
+    let tool = roslyn_pivots(scratch.path(), &[("net8.0", &sarif, None)]);
+    let error = backend_for("csc", tool, must_not_spawn)
+        .diagnose("csc", "typecheck", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("csc"), "{error}");
 }

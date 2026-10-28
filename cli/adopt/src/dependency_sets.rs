@@ -21,13 +21,19 @@ pub const ECOSYSTEM_MAVEN: &str = "maven";
 
 pub const ECOSYSTEM_NUGET: &str = "nuget";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget";
+pub const ECOSYSTEM_GO: &str = "go";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
 pub const CARGO_LOCK: &str = "Cargo.lock";
 
 pub const GEMFILE_LOCK: &str = "Gemfile.lock";
+
+pub const GO_MOD: &str = "go.mod";
+
+pub const GO_SUM: &str = "go.sum";
 
 pub const PAKET_LOCK: &str = "paket.lock";
 
@@ -51,6 +57,7 @@ pub enum Ecosystem {
     Cargo,
     Maven,
     Nuget,
+    Go,
 }
 
 impl Ecosystem {
@@ -64,6 +71,7 @@ impl Ecosystem {
             Ecosystem::Cargo => ECOSYSTEM_CARGO,
             Ecosystem::Maven => ECOSYSTEM_MAVEN,
             Ecosystem::Nuget => ECOSYSTEM_NUGET,
+            Ecosystem::Go => ECOSYSTEM_GO,
         }
     }
 
@@ -77,6 +85,7 @@ impl Ecosystem {
             ECOSYSTEM_CARGO => Some(Ecosystem::Cargo),
             ECOSYSTEM_MAVEN => Some(Ecosystem::Maven),
             ECOSYSTEM_NUGET => Some(Ecosystem::Nuget),
+            ECOSYSTEM_GO => Some(Ecosystem::Go),
             _ => None,
         }
     }
@@ -87,7 +96,8 @@ impl Ecosystem {
             | Ecosystem::Npm
             | Ecosystem::Cargo
             | Ecosystem::Maven
-            | Ecosystem::Nuget => "check",
+            | Ecosystem::Nuget
+            | Ecosystem::Go => "check",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
@@ -98,7 +108,8 @@ impl Ecosystem {
             | Ecosystem::Npm
             | Ecosystem::Cargo
             | Ecosystem::Maven
-            | Ecosystem::Nuget => "update",
+            | Ecosystem::Nuget
+            | Ecosystem::Go => "update",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
@@ -126,7 +137,8 @@ impl Ecosystem {
             | Ecosystem::PowerShell
             | Ecosystem::Cargo
             | Ecosystem::Maven
-            | Ecosystem::Nuget => "audit",
+            | Ecosystem::Nuget
+            | Ecosystem::Go => "audit",
         }
     }
 
@@ -139,6 +151,7 @@ impl Ecosystem {
             Ecosystem::Cargo => Some("cargo"),
             Ecosystem::Maven => Some("maven"),
             Ecosystem::Nuget => Some("nuget"),
+            Ecosystem::Go => Some("go"),
             Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
@@ -154,6 +167,7 @@ impl Ecosystem {
             Ecosystem::Cargo => "Cargo.toml",
             Ecosystem::Maven => MODULE_BAZEL,
             Ecosystem::Nuget => "paket.dependencies",
+            Ecosystem::Go => GO_MOD,
         }
     }
 
@@ -166,7 +180,8 @@ impl Ecosystem {
             | Ecosystem::Bazel
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
-            | Ecosystem::Nuget => false,
+            | Ecosystem::Nuget
+            | Ecosystem::Go => false,
         }
     }
 }
@@ -350,6 +365,8 @@ pub enum DependencySetsError {
     },
     #[error("dependency set {name:?} cannot run paket2bazel: {detail}")]
     UnsupportedNugetLayout { name: String, detail: String },
+    #[error("dependency set {name:?} cannot run go mod download: {detail}")]
+    UnsupportedGoLayout { name: String, detail: String },
     #[error("invalid {rel}: dependency set {name:?} is missing repository (the Bazel repository name ecosystem {ecosystem} resolves through)")]
     MissingRepository {
         rel: String,
@@ -829,6 +846,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 _ => Err(MAVEN_PACKAGE_CHARSET),
             }
         }
+        Ecosystem::Go => dx_identity::validate_go(package),
         Ecosystem::Uv
         | Ecosystem::Bazel
         | Ecosystem::Ruby
@@ -1167,6 +1185,7 @@ pub fn check_backend_settings(
         Ecosystem::Cargo => check_pinned_lock(set, CARGO_LOCK),
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
         Ecosystem::Nuget => check_nuget_layout(workspace, set),
+        Ecosystem::Go => check_go_layout(workspace, set),
     }
 }
 
@@ -1376,6 +1395,62 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
                 }
             }
         }
+    }
+    Ok(())
+}
+
+/// Refuses a go set whose staged `go mod download all` could not stay inside the declared locks.
+fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    let unsupported = |detail: String| DependencySetsError::UnsupportedGoLayout {
+        name: set.name.clone(),
+        detail,
+    };
+    check_pinned_lock(set, GO_SUM)?;
+    let sum = in_dir(&set.dir, GO_SUM);
+    if set.locks.len() != 1 || set.locks[0] != sum {
+        return Err(unsupported(format!(
+            "locks must list exactly {sum} (the run writes go.sum only)"
+        )));
+    }
+    let [manifest] = set.manifests.as_slice() else {
+        return Err(unsupported(
+            "a go set needs exactly one go.mod manifest".to_owned(),
+        ));
+    };
+    let text = std::fs::read_to_string(workspace.join(manifest))
+        .map_err(|error| unsupported(format!("cannot read {manifest}: {error}")))?;
+    let parsed = dx_gomod::parse_mod(&text)
+        .map_err(|error| unsupported(format!("cannot parse {manifest}: {error}")))?;
+    for replacement in &parsed.replace {
+        if let dx_gomod::GoReplacementTarget::FilePath(path) = &replacement.target {
+            return Err(unsupported(format!(
+                "{manifest} replaces {} with local path {path}; staging copies only go.mod and go.sum",
+                replacement.module
+            )));
+        }
+    }
+    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
+        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
+    let module = dx_module_bazel::ModuleFile::parse(&root)
+        .map_err(|error| unsupported(format!("cannot parse {MODULE_BAZEL}: {error}")))?;
+    let dep = module.bazel_dep("rules_go").map_err(|_| {
+        unsupported(format!(
+            "{MODULE_BAZEL} needs bazel_dep(name = \"rules_go\")"
+        ))
+    })?;
+    if dep.arg("repo_name").is_some() {
+        return Err(unsupported(
+            "the rules_go bazel_dep must not set repo_name".to_owned(),
+        ));
+    }
+    if root.lines().any(|line| {
+        let code = line.split('#').next().unwrap_or("");
+        code.contains("go_env")
+    }) {
+        return Err(unsupported(
+            "go sets use the default public proxy and checksum database and do not read go_deps.config(go_env=...); private modules are not supported"
+                .to_owned(),
+        ));
     }
     Ok(())
 }
@@ -2127,7 +2202,7 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go"
         );
     }
 
@@ -2937,6 +3012,109 @@ scopes = ["third_party/dotnet"]
         for (sets, module, dependencies, want) in cases {
             let (scratch, set) = nuget_workspace(&sets, module, dependencies);
             let detail = nuget_detail(check_backend_settings(scratch.path(), &set));
+            assert!(detail.contains(want), "{want}: {detail}");
+        }
+    }
+
+    const GO_SETS: &str = r#"
+schema_version = 1
+[[dependency_set]]
+name = "go"
+ecosystem = "go"
+manifests = ["third_party/go/go.mod"]
+locks = ["third_party/go/go.sum"]
+scopes = ["third_party/go"]
+"#;
+
+    const GO_MODULE: &str = "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n";
+
+    const GO_MOD_TEXT: &str =
+        "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.7.0\n";
+
+    fn go_workspace(
+        sets: &str,
+        module: &str,
+        go_mod: &str,
+    ) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-go-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        std::fs::create_dir_all(root.join("third_party/go")).expect("dir");
+        std::fs::write(root.join("third_party/go/go.mod"), go_mod).expect("go.mod");
+        let registry = load_text(sets);
+        let set = ResolvedSet::of(registry.find("go").expect("go"));
+        (scratch, set)
+    }
+
+    fn go_detail(result: Result<(), DependencySetsError>) -> String {
+        match result {
+            Err(DependencySetsError::UnsupportedGoLayout { detail, .. }) => detail,
+            other => panic!("expected UnsupportedGoLayout, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn go_sets_load_with_go_mod_manifests() {
+        let registry = load_text(GO_SETS);
+        let set = registry.find("go").expect("go");
+        assert_eq!(set.ecosystem, Ecosystem::Go);
+        assert_eq!(Ecosystem::parse("go"), Some(Ecosystem::Go));
+        assert_eq!(Ecosystem::Go.manifest_name(), "go.mod");
+        assert_eq!(Ecosystem::Go.supported_operations(), "check, update, audit");
+        assert_eq!(Ecosystem::Go.advisory_family(), Some("go"));
+        assert!(!Ecosystem::Go.uses_repository());
+        let wrong = GO_SETS.replace("go.mod", "go.work");
+        assert!(matches!(
+            parse(&wrong, DX_TOML_REL),
+            Err(DependencySetsError::InvalidManifest { .. })
+        ));
+        assert!(resolve(&registry, &["go:github.com/google/go-cmp".to_owned()]).is_ok());
+        assert!(matches!(
+            resolve(&registry, &["go:a b".to_owned()]),
+            Err(DependencySetsError::InvalidPackage { .. })
+        ));
+    }
+
+    #[test]
+    fn go_layout_accepts_one_go_mod_with_go_sum() {
+        let (scratch, set) = go_workspace(GO_SETS, GO_MODULE, GO_MOD_TEXT);
+        assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+    }
+
+    #[test]
+    fn go_layout_refuses_what_staging_cannot_reproduce() {
+        let (scratch, set) = go_workspace(
+            &GO_SETS.replace(
+                "locks = [\"third_party/go/go.sum\"]",
+                "locks = [\"third_party/go/go.work.sum\"]",
+            ),
+            GO_MODULE,
+            GO_MOD_TEXT,
+        );
+        assert!(matches!(
+            check_backend_settings(scratch.path(), &set),
+            Err(DependencySetsError::MissingPinnedLock { .. })
+        ));
+        let extra = GO_SETS.replace(
+            "locks = [\"third_party/go/go.sum\"]",
+            "locks = [\"third_party/go/go.sum\", \"third_party/go/go.work.sum\"]",
+        );
+        let replaced = format!("{GO_MOD_TEXT}\nreplace example.com/x => ../x\n");
+        let renamed = "bazel_dep(name = \"rules_go\", version = \"0.50.1\", repo_name = \"io_bazel_rules_go\")\n";
+        let with_env = format!(
+            "{GO_MODULE}\ngo_deps.config(go_env = {{\"GOPRIVATE\": \"corp.example.com\"}})\n"
+        );
+        let cases = [
+            (GO_SETS, with_env.as_str(), GO_MOD_TEXT, "go_env"),
+            (extra.as_str(), GO_MODULE, GO_MOD_TEXT, "exactly"),
+            (GO_SETS, GO_MODULE, replaced.as_str(), "local path"),
+            (GO_SETS, GO_MODULE, "not a go.mod {", "cannot parse"),
+            (GO_SETS, "", GO_MOD_TEXT, "bazel_dep(name = \"rules_go\")"),
+            (GO_SETS, renamed, GO_MOD_TEXT, "repo_name"),
+        ];
+        for (sets, module, go_mod, want) in cases {
+            let (scratch, set) = go_workspace(sets, module, go_mod);
+            let detail = go_detail(check_backend_settings(scratch.path(), &set));
             assert!(detail.contains(want), "{want}: {detail}");
         }
     }

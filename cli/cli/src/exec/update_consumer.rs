@@ -160,7 +160,8 @@ fn run_configured_target(
             | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
             | dependency_sets::DependencySetsError::MissingPinnedLock { .. }
             | dependency_sets::DependencySetsError::UnsupportedMavenHub { .. }
-            | dependency_sets::DependencySetsError::UnsupportedNugetLayout { .. } => {
+            | dependency_sets::DependencySetsError::UnsupportedNugetLayout { .. }
+            | dependency_sets::DependencySetsError::UnsupportedGoLayout { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
             _ => dx_update::outcome::SetStatus::Failed,
@@ -207,7 +208,8 @@ fn run_configured_target(
         | Ecosystem::PowerShell
         | Ecosystem::Cargo
         | Ecosystem::Maven
-        | Ecosystem::Nuget => dx_update::backend::UvClosure::default(),
+        | Ecosystem::Nuget
+        | Ecosystem::Go => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {
@@ -370,8 +372,44 @@ impl Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        remove_tree(&self.0);
     }
+}
+
+/// Removes a scratch tree, making read-only entries writable and retrying once
+/// (a go module cache is read-only unless it was created with `-modcacherw`).
+fn remove_tree(dir: &std::path::Path) {
+    if std::fs::remove_dir_all(dir).is_ok() {
+        return;
+    }
+    fn open_up(dir: &std::path::Path) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if meta.is_dir() {
+                let mut permissions = meta.permissions();
+                #[allow(clippy::permissions_set_readonly_false)]
+                permissions.set_readonly(false);
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    permissions.set_mode(0o700);
+                }
+                let _ = std::fs::set_permissions(&path, permissions);
+                open_up(&path);
+            }
+        }
+    }
+    if let Ok(meta) = std::fs::metadata(dir) {
+        let _ = std::fs::set_permissions(dir, meta.permissions());
+    }
+    open_up(dir);
+    let _ = std::fs::remove_dir_all(dir);
 }
 
 fn file_name(rel: &str) -> &str {
@@ -412,10 +450,18 @@ fn run_staged(
             return Ok(());
         }
     };
+    let inputs_dir = run.inputs_dir(&scratch.0);
+    let mut staged_inputs: BTreeMap<String, Vec<u8>> = BTreeMap::new();
     for rel in &run.inputs {
         let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
             .and_then(std::fs::read)
-            .and_then(|bytes| std::fs::write(scratch.0.join(file_name(rel)), bytes));
+            .and_then(|bytes| {
+                std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
+                if inputs_dir != scratch.0 {
+                    staged_inputs.insert(file_name(rel).to_owned(), bytes);
+                }
+                Ok(())
+            });
         if let Err(error) = copied {
             fail!("cannot stage {rel}: {error}");
             return Ok(());
@@ -424,7 +470,7 @@ fn run_staged(
     let argv = run.argv(&scratch.0);
     gate.before(&argv)?;
     let guarded = (mode == RunMode::Check).then(|| CheckGuard::take(workspace, set));
-    let launched = launch(gate, runner, workspace, &argv, &run.env);
+    let launched = launch(gate, runner, workspace, &argv, &run.env(&scratch.0));
     let wrote = guarded.and_then(|guard| guard.restore(workspace));
     let (status, message) = runner_status(
         launched,
@@ -439,9 +485,10 @@ fn run_staged(
             &set.name,
             SetStatus::Failed,
             format!(
-                "failed to {verb} {}: check_wrote: {} (restored); paket2bazel must only write into its scratch output folder",
+                "failed to {verb} {}: check_wrote: {} (restored); {} must only write into its scratch output folder",
                 set.name,
-                wrote.join(", ")
+                wrote.join(", "),
+                run.tool_name()
             ),
         );
         if let Some(detail) = details.get_mut(&set.name) {
@@ -479,6 +526,26 @@ fn run_staged(
         .iter()
         .map(|rel| (file_name(rel), rel))
         .collect();
+    // An input the tool left as it found it is not output; a changed one that is not a
+    // declared lock means the tool edited a manifest.
+    let mut changed_inputs: Vec<String> = Vec::new();
+    generated.retain(|name, bytes| match staged_inputs.get(name) {
+        Some(original) if !declared.contains_key(name.as_str()) => {
+            if original != bytes {
+                changed_inputs.push(name.clone());
+            }
+            false
+        }
+        _ => true,
+    });
+    if !changed_inputs.is_empty() {
+        let names = changed_inputs.join(", ");
+        fail!(
+            "{} changed {names}; dx writes only declared locks",
+            run.tool_name()
+        );
+        return Ok(());
+    }
     let undeclared: Vec<&str> = generated
         .keys()
         .map(String::as_str)
@@ -486,7 +553,8 @@ fn run_staged(
         .collect();
     if !undeclared.is_empty() {
         fail!(
-            "paket2bazel generated files not declared in locks: {}; list them in the set's locks",
+            "{} generated files not declared in locks: {}; list them in the set's locks",
+            run.tool_name(),
             undeclared.join(", ")
         );
         return Ok(());
@@ -498,7 +566,8 @@ fn run_staged(
         .collect();
     if !missing.is_empty() {
         fail!(
-            "paket2bazel did not generate declared locks: {}",
+            "{} did not generate declared locks: {}",
+            run.tool_name(),
             missing.join(", ")
         );
         return Ok(());
@@ -2658,6 +2727,239 @@ scopes = ["third_party/dotnet_tools"]
             assert!(runner.launches.borrow().is_empty());
             assert!(format!("{out}{err}").contains("rules_dotnet"), "{out}{err}");
         }
+    }
+
+    const GO_TOML_SETS: &str = r#"
+[[dependency_set]]
+name = "gomods"
+ecosystem = "go"
+manifests = ["third_party/go/go.mod"]
+locks = ["third_party/go/go.sum"]
+scopes = ["third_party/go"]
+"#;
+
+    const GO_FILES: [&str; 3] = [
+        "MODULE.bazel",
+        "third_party/go/go.mod",
+        "third_party/go/go.sum",
+    ];
+
+    const GO_MOD: &str =
+        "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.7.0\n";
+
+    fn go_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, &format!("{DX_TOML}{GO_TOML_SETS}"), true);
+        harness.write_source(
+            "MODULE.bazel",
+            "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n",
+        );
+        harness.write_source("third_party/go/go.mod", GO_MOD);
+        harness.write_source("third_party/go/go.sum", "old\n");
+        harness
+    }
+
+    fn go_bytes(harness: &Harness) -> Vec<Vec<u8>> {
+        GO_FILES
+            .iter()
+            .map(|rel| read_bytes(harness, rel))
+            .collect()
+    }
+
+    /// The `-C` directory the single recorded launch ran in.
+    fn go_scratch_out(runner: &ScriptRunner) -> std::path::PathBuf {
+        let launches = runner.launches.borrow();
+        let argv = &launches[0].argv;
+        let at = argv.iter().position(|arg| arg == "-C").expect("-C");
+        std::path::PathBuf::from(&argv[at + 1])
+    }
+
+    #[test]
+    fn consumer_go_check_runs_go_in_scratch_with_forced_env_and_cleans_up() {
+        let harness = go_harness("go-current");
+        let before = go_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
+        let (code, out, err) = run_with(&["update", "--check", "gomods"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("gomods lockfile current"), "{out}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1);
+        let argv = &launches[0].argv;
+        let mut head = dx_process::startup_argv(&[]);
+        head.extend(strings_of(&[
+            "run",
+            "--config=dx_dev",
+            "@rules_go//go",
+            "--",
+            "-C",
+        ]));
+        assert_eq!(argv[..head.len()], head[..], "{argv:?}");
+        assert_eq!(
+            argv[head.len() + 1..],
+            strings_of(&["mod", "download", "all"])[..],
+            "{argv:?}"
+        );
+        let out_dir = std::path::PathBuf::from(&argv[head.len()]);
+        let scratch = out_dir.parent().expect("scratch").to_path_buf();
+        assert!(out_dir.ends_with("out"));
+        assert!(!scratch.starts_with(&harness.workspace));
+        assert_eq!(launches[0].cwd, harness.workspace);
+        assert!(!launches[0].hermetic);
+        let env: std::collections::BTreeMap<&str, &str> = launches[0]
+            .env
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        assert_eq!(env["GOENV"], "off");
+        assert_eq!(env["GOWORK"], "off");
+        assert_eq!(env["GOTOOLCHAIN"], "local");
+        assert_eq!(env["GOFLAGS"], "-modcacherw");
+        for key in ["GOMODCACHE", "GOPATH", "GOCACHE"] {
+            let path = std::path::Path::new(env[key]);
+            assert!(
+                path.starts_with(&scratch) && !path.starts_with(&out_dir),
+                "{key}"
+            );
+        }
+        assert!(!scratch.exists(), "scratch must be removed: {scratch:?}");
+        assert_eq!(go_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_go_check_with_drift_fails_and_writes_nothing() {
+        let harness = go_harness("go-drift");
+        let before = go_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
+        let (code, out, err) = run_with(&["update", "--check", "gomods"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("stale generated locks: third_party/go/go.sum;"),
+            "{err}"
+        );
+        assert!(!out.contains("lockfile current"), "{out}");
+        assert_eq!(go_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_go_apply_writes_only_go_sum() {
+        let harness = go_harness("go-apply");
+        let before = go_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
+        let (code, out, err) = run_with(&["update", "--apply", "gomods"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("updated gomods"), "{out}");
+        let after = go_bytes(&harness);
+        assert_eq!(after[0], before[0]);
+        assert_eq!(after[1], before[1]);
+        assert_eq!(after[2], b"new\n");
+        assert!(!go_scratch_out(&runner).exists());
+    }
+
+    #[test]
+    fn consumer_go_changed_go_mod_fails_and_writes_nothing() {
+        for (name, files, want) in [(
+            "mod",
+            vec![("go.sum", "new\n"), ("go.mod", "module changed\n")],
+            "go changed go.mod",
+        )] {
+            let harness = go_harness(&format!("go-{name}"));
+            let before = go_bytes(&harness);
+            let runner = ScriptRunner::new(&[]);
+            stage(&runner, &files);
+            let (code, out, err) = run_with(&["update", "--apply", "gomods"], &runner, &harness);
+            assert_eq!(code, 1, "{name}: {out}{err}");
+            assert!(err.contains(want), "{name}: {err}");
+            assert_eq!(go_bytes(&harness), before, "{name}");
+        }
+    }
+
+    #[test]
+    fn consumer_go_failing_run_fails_only_its_set() {
+        let harness = go_harness("go-fail");
+        let before = go_bytes(&harness);
+        let key = ScriptRunner::key_for(&strings_of(&["@rules_go//go"]));
+        let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
+        stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
+        let (code, out, err) = run_with(&["update", "--apply", "gomods"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            format!("{out}{err}").contains("failed to update gomods"),
+            "{out}{err}"
+        );
+        assert_eq!(go_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_go_offline_and_frozen_apply_never_launch() {
+        let harness = go_harness("go-offline");
+        for (argv, want) in [
+            (
+                vec!["update", "--check", "--offline", "gomods"],
+                "offline_required",
+            ),
+            (
+                vec!["update", "--apply", "--offline", "gomods"],
+                "offline_required",
+            ),
+            (
+                vec!["update", "--apply", "--frozen", "gomods"],
+                "frozen_locked",
+            ),
+            (
+                vec!["update", "--apply", "gomods:github.com/google/go-cmp"],
+                "whole module graph",
+            ),
+        ] {
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{argv:?}: {out}{err}");
+            assert!(runner.launches.borrow().is_empty(), "{argv:?}");
+            let text = format!("{out}{err}");
+            assert!(text.contains(want), "{argv:?}: {text}");
+            assert!(!text.contains("lockfile current"), "{argv:?}");
+        }
+        // A frozen check only compares, so it still runs.
+        let runner = ScriptRunner::new(&[]);
+        stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
+        let (code, out, err) = run_with(
+            &["update", "--check", "--frozen", "gomods"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(runner.launches.borrow().len(), 1);
+    }
+
+    #[test]
+    fn consumer_go_layout_refusal_never_launches() {
+        let harness = go_harness("go-layout");
+        harness.write_source(
+            "third_party/go/go.mod",
+            &format!("{GO_MOD}\nreplace example.com/x => ../x\n"),
+        );
+        for mode in ["--check", "--apply"] {
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&["update", mode, "gomods"], &runner, &harness);
+            assert_ne!(code, 0, "{out}{err}");
+            assert!(runner.launches.borrow().is_empty());
+            assert!(format!("{out}{err}").contains("local path"), "{out}{err}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn scratch_removal_survives_a_read_only_module_cache() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = super::Scratch::create("readonly").expect("scratch");
+        let dir = scratch.0.join("gomodcache/pkg/mod");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(dir.join("f.go"), "package f\n").expect("file");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).expect("chmod");
+        let path = scratch.0.clone();
+        drop(scratch);
+        assert!(!path.exists(), "{path:?}");
     }
 
     #[cfg(unix)]

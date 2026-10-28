@@ -552,13 +552,13 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`, `npm`, `bazel`, `ruby`, `powershell`, `cargo`, `maven`, or `nuget`), workspace-relative
+(`uv`, `npm`, `bazel`, `ruby`, `powershell`, `cargo`, `maven`, `nuget`, or `go`), workspace-relative
 `manifests`, `locks`, and owning `scopes`. A `cargo` or `maven` record also names its
 `repository`; any other ecosystem fails with exit `2` when it sets one. Manifests are named for the
 ecosystem: `pyproject.toml` for `uv`, `package.json` for `npm`,
 `MODULE.bazel` for `bazel`, `Gemfile` for `ruby`,
 `PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`, `MODULE.bazel` for
-`maven`, `paket.dependencies` for `nuget`; any other name fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+`maven`, `paket.dependencies` for `nuget`, `go.mod` for `go`; any other name fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
 the workspace fails `security` and `license` for that set with exit `1`.
 Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
@@ -864,6 +864,46 @@ it stays off the network. `nuget` sets take no `set:package`: pins are exact in
 `.dx/advisory/nuget.json`, failing the set with `failed to assess <name>` when the
 snapshot is missing, and `dx license` reads `[[inventory]]` entries with
 `set = "nuget"`.
+
+A `go` set refreshes `go.sum` for one `go.mod`. Its `manifests` is exactly one
+`go.mod` and its `locks` is exactly the `go.sum` beside it. The `go.mod` must parse
+and carry no local-path `replace` (the scratch copy cannot see the replaced
+directory), and the root `MODULE.bazel` must have `bazel_dep(name = "rules_go")`
+with no `repo_name`. Violations are `unsupported`.
+
+```toml
+[[dependency_set]]
+name = "gomods"
+ecosystem = "go"
+manifests = ["third_party/go/go.mod"]
+locks = ["third_party/go/go.sum"]
+scopes = ["third_party/go"]
+```
+
+dx copies `go.mod` and `go.sum` into `<scratch>/out`, outside the workspace, and runs
+`bazel run @rules_go//go -- -C <scratch>/out mod download all` with the Bazel startup
+options but no rules_dx settings, then removes the scratch directory. `go mod download
+all` walks the module graph, which is the contract Gazelle's `go_deps.from_file` needs:
+a `go.sum` entry for every module in the build list. The run is forced to
+`GOENV=off`, `GOWORK=off`, `GOTOOLCHAIN=local`, `GOFLAGS=-modcacherw`, and an empty
+`GOMODCACHE`, `GOPATH` and `GOCACHE` under the scratch directory. It never edits
+`go.mod`; a changed `go.mod` fails the set. `--check` compares the generated `go.sum`
+with the committed one and fails on any difference; `--apply` writes `go.sum` only when
+the bytes differ. `go.sum` entries are added, never pruned: pruning is `go mod tidy`,
+which stays your call. The run always uses Go's default public proxy and checksum database; dx does not read
+`go_deps.config(go_env = ...)`, so private modules are not supported, and a root
+`MODULE.bazel` that mentions `go_env` makes the set `unsupported`. A host `GOPROXY`, `GOPRIVATE`,
+`GONOPROXY`, `GONOSUMDB`, `GONOSUMCHECK`, `GOSUMDB`, `GOINSECURE`, `GOVCS` or `GOAUTH`
+makes the set `unsupported` before anything launches, because host values can weaken checksum
+verification or leak private module names. Every
+run starts from an empty module cache, so `--offline` fails with `offline_required` in
+both modes; `--apply --frozen` fails with `frozen_locked` because `go.sum` is a lock
+write, while `--check --frozen` runs. The `-C` flag needs a Go SDK of 1.20 or newer; an
+older SDK fails the set. `go` sets take no `set:package`: sums cover the whole module
+graph, so edit the `require` in `go.mod` and run `dx update <set>`. `dx bump` refuses
+configured `go` sets; `dx security` matches the requirements in `go.mod` against
+`.dx/advisory/go.json`, failing the set with `failed to assess <name>` when the snapshot
+is missing.
 
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector

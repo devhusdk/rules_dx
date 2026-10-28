@@ -52,6 +52,7 @@ dx_rust_crate(
         "//cli/digest:dx_digest",
         "//cli/identity:dx_identity",
         "//cli/path:dx_path",
+        "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],

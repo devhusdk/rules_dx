@@ -544,6 +544,8 @@ fn parse_locked_for_configured(
                 dx_audit::locks::parse_psgallery_lock(text)
             }
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
+            // The versions live in go.mod; go.sum only holds hashes (see the builtin set).
+            dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
             dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
                 Some(name) if name.ends_with(".json") => dx_audit::locks::parse_maven_install(text),
                 _ => Ok(Vec::new()),
@@ -592,7 +594,13 @@ fn lock_texts_for_configured(
     set: &dx_adopt::dependency_sets::ResolvedSet,
 ) -> Result<Vec<(String, String)>, AuditError> {
     let mut out = Vec::new();
-    for rel in &set.locks {
+    // A go set audits its go.mod; go.sum lists hashes, not the requirement versions.
+    let files = if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Go {
+        &set.manifests
+    } else {
+        &set.locks
+    };
+    for rel in files {
         match read_workspace_text(workspace, rel) {
             Ok(text) => out.push((rel.clone(), text)),
             Err(AuditError::Read {

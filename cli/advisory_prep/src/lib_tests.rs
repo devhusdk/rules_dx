@@ -640,6 +640,17 @@ fn configured_nuget_sets_plan_the_nuget_family_once() {
     );
 }
 
+#[test]
+fn configured_go_sets_plan_the_go_family_once() {
+    let text = "schema_version = 1\n\n[[dependency_set]]\nname = \"gomods\"\necosystem = \"go\"\nmanifests = [\"g/go.mod\"]\nlocks = [\"g/go.sum\"]\nscopes = [\"g\"]\n";
+    let families = planned_families(&[
+        ("dx.toml", text),
+        ("g/go.mod", "module example.com/m\n"),
+        ("g/go.sum", ""),
+    ]);
+    assert_eq!(families.iter().filter(|family| **family == "go").count(), 1);
+}
+
 #[cfg(unix)]
 fn file_url(path: &Path) -> String {
     format!("file://{}", path.display())

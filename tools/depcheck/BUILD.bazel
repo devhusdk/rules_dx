@@ -231,8 +231,12 @@ rust_test(
         "//examples/adopt-rust:Cargo.toml",
         "//quality/tests/fixtures/prettier_consumer:package.json",
         "//quality/tests/fixtures/prettier_consumer:pnpm-lock.yaml",
+        "//tools/docs/components/tests/fixture/consumer:package.json",
+        "//tools/docs/components/tests/fixture/consumer:pnpm-lock.yaml",
     ],
     env = {
+        "DX_COMPONENT_FIXTURE_LOCK": "$(rootpath //tools/docs/components/tests/fixture/consumer:pnpm-lock.yaml)",
+        "DX_COMPONENT_FIXTURE_MANIFEST": "$(rootpath //tools/docs/components/tests/fixture/consumer:package.json)",
         "DX_DEPCHECK_BIN": "$(rootpath :depcheck)",
         "DX_GO_LOCK": "$(rootpath //examples/adopt-go:go.sum)",
         "DX_GO_MANIFEST": "$(rootpath //examples/adopt-go:go.mod)",

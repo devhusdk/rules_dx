@@ -20,6 +20,9 @@ const LibraryKind = "cc_library"
 
 const CudaKind = "cuda_library"
 
+// TestKind is the rule generated for each *_test C/C++ source.
+const TestKind = "cc_test"
+
 func IsTestSource(name string) bool {
 	base := path.Base(name)
 	stem := base

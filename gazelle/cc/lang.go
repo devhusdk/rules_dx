@@ -23,6 +23,7 @@ var ccKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+	TestKind: common.TestKindInfo(),
 	CudaKind: rule.KindInfo{
 		NonEmptyAttrs: map[string]bool{"srcs": true, "hdrs": true},
 		MergeableAttrs: map[string]bool{
@@ -59,7 +60,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          ccKinds,
 		DefsPackage:    "cc/rules:defs.bzl",
-		ExtraKinds:     []string{CudaKind},
+		ExtraKinds:     []string{CudaKind, TestKind},
 		KindDefs:       map[string]string{CudaKind: "cuda/rules:defs.bzl"},
 		IndexKinds:     []string{CudaKind},
 		Directives:     []string{archsDirective},
@@ -122,6 +123,11 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 			return r
 		},
 		Extend: androidAttrs,
+		Tests: &common.TestSpec{
+			Kind:     TestKind,
+			IsSource: func(name string) bool { return IsSource(name) && IsTestSource(name) },
+			Name:     func(src string) (string, error) { return common.SnakeName(src, SupportedSrcExts) },
+		},
 		Wrap:   common.WrapImportSet,
 	}, rep)
 }

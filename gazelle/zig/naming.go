@@ -19,6 +19,9 @@ var TestSourceSuffixes = []string{"_test"}
 
 const LibraryKind = "zig_library"
 
+// TestKind is the rule generated for each *_test.zig source.
+const TestKind = "zig_test"
+
 const ManifestFile = "build.zig.zon"
 
 var grammar = sync.OnceValue(func() *ts.Language { return zig.Language() })

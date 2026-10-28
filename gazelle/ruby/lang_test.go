@@ -86,7 +86,7 @@ func wantRefusal(t *testing.T, got, want string) {
 }
 
 func TestGeneratePackageLevelLibrary(t *testing.T) {
-	regular := []string{"demo.rb", "helper.rb", "notes.txt", "demo_spec.rb"}
+	regular := []string{"demo.rb", "helper.rb", "notes.txt"}
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/demo.rb":      "require \"acme/widget\"\n\nmodule Demo\n",
 		"pkg/demo/helper.rb":    "require \"json\"\n\nmodule Helper\n",
@@ -109,20 +109,27 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	}
 }
 
-func TestGenerateTestSourcesExcluded(t *testing.T) {
+func TestGenerateTestSourcesGetTestRule(t *testing.T) {
 	regular := []string{"demo.rb", "demo_spec.rb"}
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/demo.rb":      "module Demo\n",
 		"pkg/demo/demo_spec.rb": "require \"acme/only_by_test\"\n\nRSpec.describe Demo\n",
 	}, regular)
-	if len(result.Gen) != 1 || len(result.Imports) != 1 {
-		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 2 || len(result.Imports) != 2 {
+		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "demo.rb" {
 		t.Errorf("library srcs = %q, want demo.rb", got)
 	}
 	if got := result.Imports[0].(common.ImportSet); len(got.Names) != 0 {
 		t.Errorf("library imports = %+v, want empty", got.Names)
+	}
+	test := result.Gen[1]
+	if test.Kind() != TestKind || test.Name() != "demo_spec" || strings.Join(test.AttrStrings("srcs"), ",") != "demo_spec.rb" {
+		t.Errorf("test = %s(%s) srcs=%v, want ruby_test(demo_spec) srcs=[demo_spec.rb]", test.Kind(), test.Name(), test.AttrStrings("srcs"))
+	}
+	if got := result.Imports[1].(common.ImportSet); strings.Join(got.Names, ",") != "acme/only_by_test" {
+		t.Errorf("test imports = %+v, want [acme/only_by_test]", got.Names)
 	}
 }
 

@@ -58,7 +58,6 @@ func TestGenerateLibraryWithRootAndSources(t *testing.T) {
 	result := generate(t, lang, map[string]string{
 		"greet.zig":      "const util = @import(\"util.zig\");\nconst fmt = @import(\"fmt_lib\");\n",
 		"util.zig":       "const std = @import(\"std\");\n",
-		"greet_test.zig": "const t = @import(\"only_by_test\");\n",
 		"build.zig":      "const b = @import(\"never_parsed\");\n",
 		"notes.txt":      "not a source\n",
 	})
@@ -320,5 +319,23 @@ func TestGenerateRootPackage(t *testing.T) {
 		if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "util.zig" {
 			t.Errorf("repo %q: srcs = %q, want util.zig", tc.repoName, got)
 		}
+	}
+}
+
+func TestGenerateTestSourcesGetTestRule(t *testing.T) {
+	lang := NewLanguage()
+	result := generate(t, lang, map[string]string{
+		"greet.zig":      "const std = @import(\"std\");\n",
+		"greet_test.zig": "const std = @import(\"std\");\nconst greet = @import(\"greet.zig\");\n",
+	})
+	if failed(lang) || len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules (failed=%v), want 2", len(result.Gen), failed(lang))
+	}
+	if lib := result.Gen[0]; lib.Kind() != LibraryKind || lib.AttrString("main") != "greet.zig" || len(lib.AttrStrings("srcs")) != 0 {
+		t.Errorf("library = %s(%s) main=%q srcs=%v, want main greet.zig only", lib.Kind(), lib.Name(), lib.AttrString("main"), lib.AttrStrings("srcs"))
+	}
+	test := result.Gen[1]
+	if test.Kind() != TestKind || test.Name() != "greet_test" || test.AttrString("main") != "greet_test.zig" {
+		t.Errorf("test = %s(%s) main=%q, want zig_test(greet_test) main=greet_test.zig", test.Kind(), test.Name(), test.AttrString("main"))
 	}
 }

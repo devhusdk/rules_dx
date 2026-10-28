@@ -28,6 +28,7 @@ var zigKinds = map[string]rule.KindInfo{
 		},
 		ResolveAttrs: map[string]bool{"deps": true},
 	},
+	TestKind: common.TestKindInfo("main"),
 }
 
 type zigLang struct {
@@ -39,6 +40,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		Kinds:          zigKinds,
+		ExtraKinds:     []string{TestKind},
 		DefsPackage:    "zig/rules:defs.bzl",
 		ImportAttr:     "main",
 		Identity:       func(name string) string { return name },
@@ -93,6 +95,18 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			return trackFileRefs(r, files, contents, args.File)
 		},
 		Wrap:   common.WrapImportSet,
+		Tests: &common.TestSpec{
+			Kind: TestKind,
+			IsSource: func(file string) bool {
+				return isSupported(file) && IsTestSource(file) && !IsBuildScript(file)
+			},
+			Name: func(src string) (string, error) { return common.SnakeName(src, SupportedExts) },
+			Make: func(name, src string, _ []byte) (*rule.Rule, error) {
+				r := rule.NewRule(TestKind, name)
+				r.SetAttr("main", src)
+				return r, nil
+			},
+		},
 	}, rep)
 }
 

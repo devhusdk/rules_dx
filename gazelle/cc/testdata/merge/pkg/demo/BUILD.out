@@ -1,4 +1,4 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
 
 filegroup(
     name = "assets",
@@ -22,4 +22,10 @@ cc_library(
 filegroup(
     name = "retained",
     srcs = ["removed.txt"],
+)
+
+cc_test(
+    name = "demo_test",
+    srcs = ["demo_test.cc"],
+    deps = [":demo"],
 )

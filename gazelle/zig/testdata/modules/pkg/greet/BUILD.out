@@ -1,4 +1,4 @@
-load("@rules_dx//zig/rules:defs.bzl", "zig_library")
+load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
 
 zig_library(
     name = "greet",
@@ -8,4 +8,10 @@ zig_library(
         "greeting.txt",
     ],
     main = "greet.zig",
+)
+
+zig_test(
+    name = "greet_test",
+    main = "greet_test.zig",
+    deps = [":greet"],
 )

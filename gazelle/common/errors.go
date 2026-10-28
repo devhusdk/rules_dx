@@ -5,11 +5,23 @@ import (
 	"sync"
 )
 
+// PackageRef names the Bazel package a failure applies to. The zero value
+// means the package is unknown; InPackage("") is the root package.
+type PackageRef struct {
+	Rel   string
+	Known bool
+}
+
+// UnknownPackage marks a run-level failure with no single package.
+var UnknownPackage = PackageRef{}
+
+// InPackage returns a reference to the package at rel ("" is the root).
+func InPackage(rel string) PackageRef { return PackageRef{Rel: rel, Known: true} }
+
 // GenerationError is one failure a language recorded during generation.
-// Package is the Bazel package it applies to, or "" when unknown.
 type GenerationError struct {
 	Language string
-	Package  string
+	Package  PackageRef
 	Message  string
 }
 
@@ -23,16 +35,14 @@ type ErrorSink struct {
 // Errors is the sink every language writes to in AfterResolvingDeps.
 var Errors = &ErrorSink{}
 
-// Add records msgs for language and pkg.
-func (s *ErrorSink) Add(language, pkg string, msgs ...string) {
-	if len(msgs) == 0 {
+// Add records entries.
+func (s *ErrorSink) Add(entries ...GenerationError) {
+	if len(entries) == 0 {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, msg := range msgs {
-		s.entries = append(s.entries, GenerationError{Language: language, Package: pkg, Message: msg})
-	}
+	s.entries = append(s.entries, entries...)
 }
 
 // Reset drops every recorded error.
@@ -42,7 +52,7 @@ func (s *ErrorSink) Reset() {
 	s.entries = nil
 }
 
-// Take returns the recorded errors sorted by (Language, Package, Message)
+// Take returns the recorded errors sorted by (Language, Package, Message), unknown packages first,
 // without duplicates, and empties the sink.
 func (s *ErrorSink) Take() []GenerationError {
 	s.mu.Lock()
@@ -52,7 +62,7 @@ func (s *ErrorSink) Take() []GenerationError {
 	return SortErrors(entries)
 }
 
-// SortErrors orders entries by (Language, Package, Message), drops
+// SortErrors orders entries by (Language, Package, Message), unknown packages first,, drops
 // duplicates, and returns nil when none remain. It reuses entries' storage.
 func SortErrors(entries []GenerationError) []GenerationError {
 	sort.Slice(entries, func(i, j int) bool {
@@ -60,8 +70,11 @@ func SortErrors(entries []GenerationError) []GenerationError {
 		if a.Language != b.Language {
 			return a.Language < b.Language
 		}
-		if a.Package != b.Package {
-			return a.Package < b.Package
+		if a.Package.Known != b.Package.Known {
+			return !a.Package.Known
+		}
+		if a.Package.Rel != b.Package.Rel {
+			return a.Package.Rel < b.Package.Rel
 		}
 		return a.Message < b.Message
 	})

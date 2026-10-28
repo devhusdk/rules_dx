@@ -2,7 +2,6 @@ package golang
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"

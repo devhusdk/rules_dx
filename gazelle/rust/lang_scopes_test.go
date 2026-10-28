@@ -25,7 +25,7 @@ func TestResolveOverrideAndConflict(t *testing.T) {
 	ignore := &common.IgnoreEntry{Value: "mapped"}
 	cfg.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignore}}}
 	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(binaryKind, "conflict"), targetImports{production: []string{"mapped"}}, label.New("", "app", "conflict"))
-	if !ignore.Used() || len(l.errors) != 1 || !strings.Contains(l.errors[0], "both") {
+	if !ignore.Used() || len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "both") {
 		t.Errorf("mapping-ignore conflict = used:%v errors:%v", ignore.Used(), l.errors)
 	}
 }
@@ -39,11 +39,11 @@ func TestResolveAmbiguous(t *testing.T) {
 		struct{ pkg, name string }{"two", "same"},
 	)
 	l.Resolve(cfg, index, nil, rule.NewRule(binaryKind, "app"), targetImports{production: []string{"same"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") || !strings.Contains(l.errors[0], "//one:same") || !strings.Contains(l.errors[0], "//two:same") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "ambiguous") || !strings.Contains(l.errors[0].Message, "//one:same") || !strings.Contains(l.errors[0].Message, "//two:same") {
 		t.Errorf("ambiguity = %v", l.errors)
 	}
-	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve rust same <label>" to app/BUILD.bazel`) {
-		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
+	if len(l.errors) == 1 && !strings.Contains(l.errors[0].Message, `; add "# gazelle:resolve rust same <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0].Message)
 	}
 }
 
@@ -316,7 +316,7 @@ func TestGenerateCargoBuildScript(t *testing.T) {
 	writeFixture(t, badRoot, "build.rs", "use serde_json::Value;\nfn main() {\n    let _ = Value::Null;\n}\n")
 	bad := &rustLang{}
 	bad.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: badRoot}, Dir: badRoot, RegularFiles: []string{"Cargo.toml", "build.rs"}})
-	if len(bad.errors) != 1 || !strings.Contains(bad.errors[0], "build-dependencies") {
+	if len(bad.errors) != 1 || !strings.Contains(bad.errors[0].Message, "build-dependencies") {
 		t.Errorf("build scope errors = %v", bad.errors)
 	}
 }
@@ -364,7 +364,7 @@ func TestEmitBuildScriptInvalidPackageName(t *testing.T) {
 		map[string]sourceOwner{},
 		result,
 	)
-	if got := strings.Join(l.errors, "\n"); !strings.Contains(got, "normalizes to an empty target name") {
+	if got := strings.Join(common.Messages(l.errors), "\n"); !strings.Contains(got, "normalizes to an empty target name") {
 		t.Fatalf("errors = %q, want normalization error", got)
 	}
 	if len(result.Gen) != 0 || len(result.Imports) != 0 {
@@ -426,7 +426,7 @@ func TestGenerateCargoSliceFailures(t *testing.T) {
 			}
 			l := &rustLang{}
 			l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
-			if len(l.errors) == 0 || !strings.Contains(strings.Join(l.errors, "\n"), tc.want) {
+			if len(l.errors) == 0 || !strings.Contains(strings.Join(common.Messages(l.errors), "\n"), tc.want) {
 				t.Errorf("errors = %v, want %q", l.errors, tc.want)
 			}
 		})

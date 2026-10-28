@@ -251,17 +251,17 @@ func TestNativeConfigSelection(t *testing.T) {
 	}
 
 	l, _ := runNativeGenerate(t, "site", files, "# gazelle:dx_native_tools rustfmt bogus\n")
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown native tool "bogus"`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `unknown native tool "bogus"`) {
 		t.Errorf("unknown tool errors = %v", l.errors)
 	}
 
 	clippy, _ := runNativeGenerate(t, "site", files, "# gazelle:dx_native_tools clippy\n")
-	if len(clippy.errors) != 1 || !strings.Contains(clippy.errors[0], `unknown native tool "clippy"`) {
+	if len(clippy.errors) != 1 || !strings.Contains(clippy.errors[0].Message, `unknown native tool "clippy"`) {
 		t.Errorf("removed clippy tool errors = %v", clippy.errors)
 	}
 
 	bare, _ := runNativeGenerate(t, "site", files, "# gazelle:dx_native_tools\n")
-	if len(bare.errors) != 1 || !strings.Contains(bare.errors[0], "malformed") {
+	if len(bare.errors) != 1 || !strings.Contains(bare.errors[0].Message, "malformed") {
 		t.Errorf("bare directive errors = %v", bare.errors)
 	}
 }
@@ -499,7 +499,7 @@ rustfmt_config(
 	if len(result.Gen) != 0 || len(result.Empty) != 0 {
 		t.Error("ambiguous configs produced a partial result")
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "2 config targets") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "2 config targets") {
 		t.Errorf("ambiguous errors = %v", l.errors)
 	}
 }
@@ -716,7 +716,7 @@ func TestCorpusDirectiveRejectsMalformed(t *testing.T) {
 			t.Fatal(err)
 		}
 		l.Configure(cfg, "", file)
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], "malformed # gazelle:dx_corpus: want true or false") {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "malformed # gazelle:dx_corpus: want true or false") {
 			t.Fatalf("%q: errors = %v", value, l.errors)
 		}
 	}

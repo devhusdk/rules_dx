@@ -99,7 +99,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		libName, err = DirTargetName(args.Rel)
 	}
 	if err != nil {
-		rep.Fail("%s: %s: %v", languageName, args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
 	var claimants []common.Claimant
@@ -110,14 +110,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	for _, src := range tests {
 		name, err := TestTargetName(src)
 		if err != nil {
-			rep.Fail("%s: %s: %v", languageName, args.Rel, err)
+			rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 			return language.GenerateResult{}
 		}
 		testNames[src] = name
 		claimants = append(claimants, common.Claimant{Name: name, Source: src, Kind: TestKind})
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
-		rep.Fail("%s: %s: %v", languageName, args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
 	var result language.GenerateResult
@@ -161,7 +161,7 @@ func importsOf(args language.GenerateArgs, files []string, rep common.Reporter) 
 	for _, file := range files {
 		content, err := common.ReadSource(filepath.Join(args.Dir, filepath.FromSlash(file)))
 		if err != nil {
-			rep.Fail("%s: %s: read %s: %v", languageName, args.Rel, file, err)
+			rep.Fail(common.InPackage(args.Rel), "%s: %s: read %s: %v", languageName, args.Rel, file, err)
 			continue
 		}
 		for _, name := range ParseImports(content) {

@@ -122,6 +122,6 @@ func JSImportRefs(refs []ImportRef) []ImportRef {
 // nearest tsconfig/jsconfig paths.
 func ConfigureTSPathsExt(c *config.Config, rel string, _ *rule.File, rep Reporter) {
 	if err := ConfigureTSPaths(c, rel); err != nil {
-		rep.Fail("%v", err)
+		rep.Fail(InPackage(rel), "%v", err)
 	}
 }

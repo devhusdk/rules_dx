@@ -131,7 +131,7 @@ func TestGenerateEmptyNoRootAndSourceError(t *testing.T) {
 	writeFixture(t, bad, "src/lib.rs", "mod missing;\n")
 	broken := &rustLang{}
 	broken.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: bad}, Dir: bad})
-	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0], "orphan module") {
+	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0].Message, "orphan module") {
 		t.Errorf("source parse errors = %v", broken.errors)
 	}
 }
@@ -142,7 +142,7 @@ func TestGenerateCargoImplicitFailure(t *testing.T) {
 	writeFixture(t, root, "tests/---.rs", "")
 	l := &rustLang{}
 	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "empty target name") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "empty target name") {
 		t.Errorf("implicit target errors = %v", l.errors)
 	}
 }
@@ -154,7 +154,7 @@ func TestGenerateExistingNameCollisions(t *testing.T) {
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "demo"))
 	l := &rustLang{}
 	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo", File: f})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "existing filegroup") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "existing filegroup") {
 		t.Errorf("source collision errors = %v", l.errors)
 	}
 
@@ -165,7 +165,7 @@ func TestGenerateExistingNameCollisions(t *testing.T) {
 	cargoFile.Rules = append(cargoFile.Rules, rule.NewRule("filegroup", "app"))
 	cargo := &rustLang{}
 	cargo.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: cargoRoot}, Dir: cargoRoot, RegularFiles: []string{"Cargo.toml"}, File: cargoFile})
-	if len(cargo.errors) != 1 || !strings.Contains(cargo.errors[0], "existing filegroup") {
+	if len(cargo.errors) != 1 || !strings.Contains(cargo.errors[0].Message, "existing filegroup") {
 		t.Errorf("Cargo collision errors = %v", cargo.errors)
 	}
 }
@@ -701,7 +701,7 @@ func TestResolveBranches(t *testing.T) {
 	}
 
 	l.Resolve(cfg, index, nil, rule.NewRule(binaryKind, "unknown"), targetImports{production: []string{"unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import rust unknown" to app/BUILD.bazel`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "unresolved import") || !strings.Contains(l.errors[0].Message, `or add "# gazelle:dx_ignore_import rust unknown" to app/BUILD.bazel`) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
@@ -731,7 +731,7 @@ func TestResolveExactMappingForTestImports(t *testing.T) {
 	bare := resolverConfig(t, nil)
 	bare.Exts[languageName] = &rustConfig{}
 	unmapped.Resolve(bare, resolverIndex(unmapped), nil, rule.NewRule(testKind, "app_test"), targetImports{test: []string{"serde"}}, from)
-	if len(unmapped.errors) != 1 || !strings.Contains(unmapped.errors[0], `unresolved import "serde"`) {
+	if len(unmapped.errors) != 1 || !strings.Contains(unmapped.errors[0].Message, `unresolved import "serde"`) {
 		t.Errorf("unmapped errors = %v", unmapped.errors)
 	}
 }
@@ -773,7 +773,7 @@ func TestResolveRenamedImports(t *testing.T) {
 	// Conflicting names for one label.
 	conflict := rule.NewRule(libraryKind, "conflict")
 	l.Resolve(cfg, index, nil, conflict, targetImports{production: []string{"one", "two"}, renames: map[string]string{"one": "api", "two": "api"}}, from)
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "conflicting aliases") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "conflicting aliases") {
 		t.Errorf("conflict errors = %v", l.errors)
 	}
 
@@ -781,7 +781,7 @@ func TestResolveRenamedImports(t *testing.T) {
 	l.errors = nil
 	missing := rule.NewRule(libraryKind, "missing")
 	l.Resolve(cfg, index, nil, missing, targetImports{production: []string{"gone"}, renames: map[string]string{"gone": "nowhere"}}, from)
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `renamed package crate "nowhere"`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `renamed package crate "nowhere"`) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 

@@ -449,8 +449,8 @@ func TestResolveAmbiguous(t *testing.T) {
 func TestErrorsAbortBeforeEmission(t *testing.T) {
 	l := newLang()
 	l.Before(context.Background())
-	l.Fail("second")
-	l.Fail("first")
+	l.Fail(common.InPackage("x"), "second")
+	l.Fail(common.InPackage("x"), "first")
 	l.AfterResolvingDeps(context.Background())
 	if message := strings.Join(common.Messages(common.Errors.Take()), "\n"); message != "first\nsecond" {
 		t.Errorf("errors were not deterministic: %s", message)

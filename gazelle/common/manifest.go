@@ -307,8 +307,8 @@ func (r *ManifestRecorder) EmitFailed(errs []GenerationError) error {
 	sorted := SortErrors(append([]GenerationError(nil), errs...))
 	for _, e := range sorted {
 		item := IntendedError{Language: e.Language, Message: e.Message}
-		if e.Package != "" {
-			pkg := e.Package
+		if e.Package.Known {
+			pkg := e.Package.Rel
 			item.Package = &pkg
 		}
 		manifest.Errors = append(manifest.Errors, item)

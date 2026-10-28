@@ -247,6 +247,22 @@ rules_swift dependency; pin `rules_swift` in your own `MODULE.bazel`.
 `swift_library` keeps `alwayslink` on, so the `@main` module stays
 linked. Name the file something other than `main.swift`.
 
+Your `MODULE.bazel` needs `rules_swift` and the Apple C++ toolchain
+registration next to `rules_dx`:
+
+```python
+bazel_dep(name = "rules_swift", version = "4.1.1")
+bazel_dep(name = "apple_support", version = "2.9.1")
+
+apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
+use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+```
+
+Use `swift_binary` and `swift_test` for a macOS-native Swift tool; they
+need no simulator.
+
 ```python
 apple_ios_app(
     name = "ledger_app",

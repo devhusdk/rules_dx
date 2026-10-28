@@ -1,4 +1,10 @@
 //! Converts a JVM doc adapter's "jvm api v1" JSON into one validated DocIr shard.
+//!
+//! Id rules: Kotlin top-level declarations use the Kotlin FQ name, never `FileKt`. An
+//! overload list holds erased simple types without `?` or generics. An extension's receiver
+//! type comes first, so `fun Circle.grow(by: Double)` is `grow(Circle,Double)`. A companion
+//! object is `Circle.Companion`. Kinds `object`, `trait`, `typealias`, `function` and
+//! `property` are accepted only for the languages that have them.
 
 #![cfg_attr(
     not(test),
@@ -151,18 +157,66 @@ struct Kind {
     callable: bool,
 }
 
-fn kind_of(name: &str, at: &str) -> Result<Kind, String> {
+const JAVA_KINDS: &[&str] = &[
+    "constructor",
+    "method",
+    "field",
+    "constant",
+    "class",
+    "record",
+    "interface",
+    "annotation",
+    "enum",
+    "enum_constant",
+    "package",
+];
+const KOTLIN_KINDS: &[&str] = &[
+    "constructor",
+    "function",
+    "property",
+    "class",
+    "object",
+    "interface",
+    "annotation",
+    "enum",
+    "enum_constant",
+    "typealias",
+    "package",
+];
+const SCALA_KINDS: &[&str] = &[
+    "constructor",
+    "function",
+    "property",
+    "class",
+    "object",
+    "trait",
+    "typealias",
+    "package",
+];
+
+fn kind_of(name: &str, language: &str, at: &str) -> Result<Kind, String> {
     let (kind, callable) = match name {
         "constructor" | "method" => (SymbolKind::Method, true),
+        "function" => (SymbolKind::Function, true),
         "field" => (SymbolKind::Field, false),
+        "property" => (SymbolKind::Property, false),
         "constant" => (SymbolKind::Constant, false),
-        "class" | "record" => (SymbolKind::Class, false),
-        "interface" | "annotation" => (SymbolKind::Interface, false),
+        "class" | "record" | "object" => (SymbolKind::Class, false),
+        "interface" | "annotation" | "trait" => (SymbolKind::Interface, false),
         "enum" => (SymbolKind::Enum, false),
         "enum_constant" => (SymbolKind::EnumVariant, false),
+        "typealias" => (SymbolKind::TypeAlias, false),
         "package" => (SymbolKind::Module, false),
         other => return Err(format!("{at} has unknown kind '{other}'")),
     };
+    let allowed = match language {
+        "java" => JAVA_KINDS,
+        "kotlin" => KOTLIN_KINDS,
+        _ => SCALA_KINDS,
+    };
+    if !allowed.contains(&name) {
+        return Err(format!("{at} has kind '{name}', not valid for {language}"));
+    }
     Ok(Kind { kind, callable })
 }
 
@@ -285,7 +339,13 @@ struct Record {
     doc: String,
 }
 
-fn record(item: &Value, index: usize, prefix: &str, manifest: &Manifest) -> Result<Record, String> {
+fn record(
+    item: &Value,
+    index: usize,
+    prefix: &str,
+    language: &str,
+    manifest: &Manifest,
+) -> Result<Record, String> {
     let at = format!("JVM doc JSON symbol {index}");
     let item = item
         .as_object()
@@ -294,7 +354,7 @@ fn record(item: &Value, index: usize, prefix: &str, manifest: &Manifest) -> Resu
     if qualified.is_empty() || qualified.split('.').any(str::is_empty) {
         return Err(format!("{at} has an invalid name '{qualified}'"));
     }
-    let kind = kind_of(&string(item, "kind", &at)?, &at)?;
+    let kind = kind_of(&string(item, "kind", &at)?, language, &at)?;
     let overload = match optional(item, "overload") {
         Some(value) => Some(strings(value, "overload", &at)?),
         None => None,
@@ -429,7 +489,7 @@ pub fn convert(
     let mut records = Vec::new();
     let mut seen: BTreeMap<String, String> = BTreeMap::new();
     for (index, item) in items.iter().enumerate() {
-        let record = record(item, index, &prefix, &manifest)?;
+        let record = record(item, index, &prefix, language, &manifest)?;
         if let Some(first) = seen.insert(record.id.clone(), record.key.clone()) {
             return Err(format!(
                 "duplicate id {}: '{first}' and '{}'",

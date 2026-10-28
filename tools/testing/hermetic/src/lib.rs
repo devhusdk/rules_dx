@@ -1306,6 +1306,13 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         manifest.fragment_before_toolchains,
         source,
     )?;
+    // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
+    let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
+        Ok(spec) if !spec.trim().is_empty() => {
+            dx_floor::apply_overrides(&module, &dx_floor::parse_pairs(&spec)?)?
+        }
+        _ => module,
+    };
     write(&workspace.join("MODULE.bazel"), &module)?;
     copy(&manifest.bazelversion, &workspace.join(".bazelversion"))
 }

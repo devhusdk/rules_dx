@@ -1046,6 +1046,11 @@ crate.annotation(
     gen_binaries = ["deadnix"],
     repositories = ["dx_quality_crates"],
 )
+crate.annotation(
+    crate = "selene",
+    gen_binaries = ["selene"],
+    repositories = ["dx_quality_crates"],
+)
 crate.from_cargo(
     name = "dx_quality_crates",
     cargo_lockfile = "//quality/tools/rust:Cargo.lock",

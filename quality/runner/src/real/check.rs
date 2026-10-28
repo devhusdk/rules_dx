@@ -1422,6 +1422,14 @@ impl RealBackend {
                     parsers::parse_stylua(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "selene" => {
+                let invocation = commands::selene_check(&tool.binary, &refs, config.as_deref());
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_selene(&out.stdout, out.code, &strs),
+                )
+            }
             "ormolu" => {
                 // One process per file: ormolu formats files concurrently and interleaves
                 // their diffs on stderr, and exits 102 on mixed results.

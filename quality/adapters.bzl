@@ -104,6 +104,7 @@ REAL_ADAPTERS = {
     "rustfmt": {"format": ["rust"]},
     "scalafix": {"lint": ["scala"]},
     "scalafmt": {"format": ["scala"]},
+    "selene": {"lint": ["lua"]},
     "shellcheck": {"lint": ["shell"]},
     "shfmt": {"format": ["shell"]},
     "spotbugs": {"lint": ["java"]},

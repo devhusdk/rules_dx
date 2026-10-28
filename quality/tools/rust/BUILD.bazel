@@ -20,6 +20,11 @@ alias(
 )
 
 alias(
+    name = "selene",
+    actual = "@dx_quality_crates//:selene__selene",
+)
+
+alias(
     name = "statix",
     actual = "@dx_statix_src//:statix",
 )

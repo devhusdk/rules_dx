@@ -40,6 +40,16 @@ const RUFF_FORMAT_CHECK_TAIL: &[&str] = &["--check", "--output-format", "json"];
 /// Config discovery, the git ignore rules and the default excludes are all off, and
 /// `--force-exclude` stays off: with it an explicit file under a directory such as `build/` is
 /// skipped and reported clean.
+/// JSON lines, no summary and one thread so the output order is fixed. `--no-exclude` keeps a
+/// config `exclude` from silently skipping files that were passed explicitly.
+const SELENE_CHECK_ARGS: &[&str] = &[
+    "--display-style=json2",
+    "--no-summary",
+    "--no-exclude",
+    "--color=Never",
+    "--num-threads=1",
+];
+
 const FORTITUDE_CHECK_ARGS: &[&str] = &[
     "check",
     "--isolated",
@@ -1226,6 +1236,19 @@ pub fn fortitude_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FORTITUDE_CHECK_ARGS, files, "")
 }
 
+/// One batched lint of explicit Lua files with the staged config. It prints nothing when clean.
+pub fn selene_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        &[],
+        "--config",
+        config,
+        SELENE_CHECK_ARGS,
+        files,
+        "",
+    )
+}
+
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_CHECK_ARGS, files, "")
 }
@@ -2249,7 +2272,7 @@ pub enum ArgTransport {
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
-        | "deadnix" | "check_jsonschema" => ArgTransport::Batched,
+        | "deadnix" | "check_jsonschema" | "selene" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

@@ -306,6 +306,7 @@ to.
 | `rustfmt` | format | rust |
 | `scalafix` | lint | scala |
 | `scalafmt` | format | scala |
+| `selene` | lint | lua |
 | `shellcheck` | lint | shell |
 | `shfmt` | format | shell |
 | `spotbugs` | lint | java |
@@ -1600,8 +1601,20 @@ the run with the file, line and column. It never counts as clean. StyLua ignores
 Bind a `stylua_config` from `@rules_dx//quality:native_config.bzl` to change
 indent width, quote style or line width.
 
-No Lua linter or type check runs yet, so the Lua rules keep the `no-lint` and
-`no-typecheck` tags.
+`selene` 0.31.0 runs for lint, built from source with Lua 5.2 to 5.4 parsing on
+(upstream's prebuilt binaries parse Lua 5.1 only, which would reject valid 5.4
+code). Add `lint = ["selene"]` to the `lua` family. It runs on Linux x86_64 and
+checks against the dx `dx_lua54` standard library, which is `lua53` plus `warn`
+and `coroutine.close`. The default config allows layout lints
+(`multiple_statements`, `parenthese_conditions`, `mixed_table`), because StyLua
+owns layout. Bind a `selene_config` from `@rules_dx//quality:native_config.bzl`
+to replace the defaults; `std = "dx_lua54"` still resolves there. A parse error
+is a finding. An exit that disagrees with the report, a run with no report, or
+a finding in a file that was not passed fails and never counts as clean.
+`--apply` leaves the files alone. The pin is 0.31.0, the latest crates.io
+release; 0.32.0 only adds Luau syntax.
+
+No Lua type check runs yet, so the Lua rules keep the `no-typecheck` tag.
 
 To use another StyLua executable, point `tool_stylua` at it.
 

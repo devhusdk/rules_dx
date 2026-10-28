@@ -81,6 +81,7 @@ pub mod rustfmt;
 pub mod sarif;
 pub mod scalafix;
 pub mod scalafmt;
+pub mod selene;
 pub mod shellcheck;
 pub mod shfmt;
 pub mod spotbugs;
@@ -181,6 +182,7 @@ pub use rust::{parse_clippy, parse_rustc};
 pub use rustfmt::parse_rustfmt;
 pub use scalafix::parse_scalafix;
 pub use scalafmt::parse_scalafmt;
+pub use selene::parse_selene;
 pub use shellcheck::parse_shellcheck;
 pub use shfmt::parse_shfmt;
 pub use spotbugs::parse_spotbugs;
@@ -2399,6 +2401,14 @@ mod tests {
         super::scalafmt::parse_scalafmt(input, b"", code, files, std::path::Path::new("/"))
     }
 
+    fn fuzz_selene(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::selene::parse_selene(input, code, files)
+    }
+
     fn fuzz_shellcheck(
         input: &[u8],
         code: Option<i32>,
@@ -2647,6 +2657,7 @@ mod tests {
         ("sarif", fuzz_sarif),
         ("scalafix", fuzz_scalafix),
         ("scalafmt", fuzz_scalafmt),
+        ("selene", fuzz_selene),
         ("shellcheck", fuzz_shellcheck),
         ("shfmt", fuzz_shfmt),
         ("spotbugs", fuzz_spotbugs),
@@ -2752,6 +2763,7 @@ mod tests {
         ("sarif", include_str!("sarif.rs")),
         ("scalafix", include_str!("scalafix.rs")),
         ("scalafmt", include_str!("scalafmt.rs")),
+        ("selene", include_str!("selene.rs")),
         ("shellcheck", include_str!("shellcheck.rs")),
         ("shfmt", include_str!("shfmt.rs")),
         ("spotbugs", include_str!("spotbugs.rs")),

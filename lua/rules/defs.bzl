@@ -27,7 +27,7 @@ lua_executable_name = _lua_executable_name
 
 LUA_SOURCE_SPECS = [("lua", ["lua"])]
 
-LUA_DEFERRED_SKIP_TAGS = ["no-lint", "no-typecheck"]
+LUA_DEFERRED_SKIP_TAGS = ["no-typecheck"]
 
 def lua_quality_srcs(main, srcs):
     """Returns the Lua files one target owns: main first, then srcs."""

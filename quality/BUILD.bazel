@@ -419,6 +419,7 @@ consumer_policy_tests(
             "case": "lua_formatted",
             "expected_dx_results": [
                 "clean_lua-real-format-lua.pb",
+                "clean_lua-real-lint-lua.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:lua_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_lua",

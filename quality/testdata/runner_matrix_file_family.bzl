@@ -348,6 +348,51 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_latex_format_config_pass.expected.txt",
     },
     {
+        "name": "matrix_lua_lint_pass",
+        "generated": {
+            "matrix/lua_lint_clean.lua": "local half <const> = 7 // 2\nlocal mask = half & 3\nfor i = 1, 3 do\n\tif i == mask then\n\t\tgoto continue\n\tend\n\tprint(i)\n\t::continue::\nend\nwarn(\"done\")\n",
+        },
+        "capability": "lint",
+        "stages": ["selene;lua;matrix/lua_lint_clean.lua"],
+        "tool_names": ["selene"],
+        "tool_binaries": ["//quality/tools/rust:selene"],
+        "expected_file": ":matrix/matrix_lua_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_lua_lint_fail",
+        "generated": {
+            "matrix/lua_lint_dirty.lua": "print(undefined_name)\n",
+        },
+        "capability": "lint",
+        "stages": ["selene;lua;matrix/lua_lint_dirty.lua"],
+        "tool_names": ["selene"],
+        "tool_binaries": ["//quality/tools/rust:selene"],
+        "expected_file": ":matrix/matrix_lua_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_lua_lint_syntax_error",
+        "generated": {
+            "matrix/lua_lint_broken.lua": "local =\n",
+        },
+        "capability": "lint",
+        "stages": ["selene;lua;matrix/lua_lint_broken.lua"],
+        "tool_names": ["selene"],
+        "tool_binaries": ["//quality/tools/rust:selene"],
+        "expected_file": ":matrix/matrix_lua_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_lua_lint_multi",
+        "generated": {
+            "matrix/lua_lint_multi/clean.lua": "local value = 1\nprint(value)\n",
+            "matrix/lua_lint_multi/dirty.lua": "print(undefined_name)\n",
+        },
+        "capability": "lint",
+        "stages": ["selene;lua;matrix/lua_lint_multi/clean.lua,matrix/lua_lint_multi/dirty.lua"],
+        "tool_names": ["selene"],
+        "tool_binaries": ["//quality/tools/rust:selene"],
+        "expected_file": ":matrix/matrix_lua_lint_multi.expected.txt",
+    },
+    {
         "name": "matrix_lua_format_pass",
         "generated": {
             "matrix/lua_clean.lua": "local value = 1\nprint(value)\n",

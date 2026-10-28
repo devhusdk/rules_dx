@@ -851,6 +851,20 @@ PKL_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+LUA_SELENE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["lua"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "lua",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "selene",
+    "transport": "batched",
+}
+
 LUA_STYLUA_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1008,6 +1022,7 @@ SUPPORT_RECORDS = [
     LATEX_LATEXINDENT_FORMAT_SUPPORT,
     LATEX_CHKTEX_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
+    LUA_SELENE_LINT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,
     REGO_OPA_TYPECHECK_SUPPORT,

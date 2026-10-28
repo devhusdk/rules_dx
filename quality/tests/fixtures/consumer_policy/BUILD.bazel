@@ -682,12 +682,10 @@ real_source_target(
 
 quality_family(
     name = "lua_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "lua",
     format = ["stylua"],
+    lint = ["selene"],
 )
 
 workspace_policy(

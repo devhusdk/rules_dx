@@ -589,6 +589,13 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "scala",
     },
+    "selene": {
+        "attr": attr.label(default = "//quality/tools/rust:selene", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "lua",
+    },
     "shellcheck": {
         "attr": attr.label(default = "@dx_tools//:shellcheck", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -2128,6 +2135,12 @@ _REAL_SHARD_SPECS = {
         "shard": "cmake",
         "suffix": "-cmake",
     },
+    "real_lua_lint": {
+        "capability": "lint",
+        "doc": "Additive Lua lint family aspect (selene).",
+        "shard": "lua",
+        "suffix": "-lua",
+    },
     "real_lua_format": {
         "capability": "format",
         "doc": "Additive Lua format family aspect (stylua).",
@@ -2364,6 +2377,9 @@ real_typst_format_aspect = _make_real_aspect("real_typst_format")
 real_latex_format_aspect = _make_real_aspect("real_latex_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
+
+real_lua_lint_aspect = _make_real_aspect("real_lua_lint")
+
 real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
 
 real_cmake_lint_aspect = _make_real_aspect("real_cmake_lint")

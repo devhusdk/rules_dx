@@ -1209,6 +1209,36 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         ]
     );
     assert_eq!(
+        argv_strings(&selene_check(
+            Path::new(BIN),
+            &[Path::new("/scratch/a.lua")],
+            Some(Path::new("/scratch/selene.toml"))
+        )),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/selene.toml",
+            "--display-style=json2",
+            "--no-summary",
+            "--no-exclude",
+            "--color=Never",
+            "--num-threads=1",
+            "/scratch/a.lua"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&selene_check(Path::new(BIN), &[Path::new("/scratch/a.lua")], None)),
+        vec![
+            BIN,
+            "--display-style=json2",
+            "--no-summary",
+            "--no-exclude",
+            "--color=Never",
+            "--num-threads=1",
+            "/scratch/a.lua"
+        ]
+    );
+    assert_eq!(
         argv_strings(&fortitude_check(
             Path::new(BIN),
             &[Path::new("/scratch/a.f90"), Path::new("/scratch/b.F90")]

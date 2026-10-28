@@ -74,6 +74,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "rustfmt": [".toml"],
     "scalafix": [".conf"],
     "scalafmt": [".conf"],
+    "selene": [".toml"],
     "shellcheck": [".shellcheckrc", "shellcheckrc"],
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
@@ -207,6 +208,8 @@ def _make_native_config_rule(tool_id):
 buildifier_config = _make_native_config_rule("buildifier")
 
 stylua_config = _make_native_config_rule("stylua")
+
+selene_config = _make_native_config_rule("selene")
 
 taplo_config = _make_native_config_rule("taplo")
 

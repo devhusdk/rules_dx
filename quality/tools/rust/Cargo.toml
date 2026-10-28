@@ -13,6 +13,12 @@ path = "src/lib.rs"
 
 [dependencies]
 deadnix = "=1.3.1"
+# selene 0.31.0 (latest on crates.io; 0.32.0 only adds Luau syntax). Upstream's
+# binary builds selene-lib without the Lua 5.2+ parsers, which makes valid Lua
+# 5.4 code fail to parse. Cargo feature unification turns them on for the
+# selene binary through this direct selene-lib dependency.
+selene = { version = "=0.31.0", default-features = false }
+selene-lib = { version = "=0.31.0", default-features = false, features = ["lua52", "lua53", "lua54"] }
 
 # statix @ 52530001bdbc8e94aae0d406a929c7ad7f09d9d1
 anyhow = "=1.0.103"

@@ -275,7 +275,6 @@ GAP_ISSUES = {
     "lint:apple": 4616,
     "lint:cuda": 4616,
     "lint:julia": 4623,
-    "lint:lua": 4612,
     "lint:ocaml": 4621,
     "lint:pkl": 4623,
     "lint:sql": 4617,

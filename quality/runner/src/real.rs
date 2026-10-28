@@ -89,6 +89,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "rustfmt",
     "scalafix",
     "scalafmt",
+    "selene",
     "shellcheck",
     "shfmt",
     "spotbugs",
@@ -210,6 +211,33 @@ const GPLINT_DEFAULTS_BYTES: &[u8] = br#"{
   "no-unnamed-scenarios": "error",
   "no-unused-variables": "error"
 }
+"#;
+/// selene runs with the dx Lua 5.4 standard library and only meaning lints. Layout lints are
+/// allowed because StyLua owns layout. selene looks for a custom std in the working directory
+/// first, so `SELENE_STD_BYTES` is always staged at the scratch root.
+const SELENE_DEFAULTS_REL: &str = "dx-selene-default/selene.toml";
+const SELENE_DEFAULTS_BYTES: &[u8] = br#"std = "dx_lua54"
+
+[lints]
+multiple_statements = "allow"
+parenthese_conditions = "allow"
+mixed_table = "allow"
+"#;
+const SELENE_STD_REL: &str = "dx_lua54.yml";
+const SELENE_STD_BYTES: &[u8] = br#"base: lua53
+name: dx_lua54
+lua_versions:
+  - lua54
+globals:
+  warn:
+    args:
+      - type: any
+        required: false
+    must_use: false
+  coroutine.close:
+    args:
+      - type: any
+    must_use: false
 "#;
 const STYLELINT_DEFAULTS_REL: &str = "dx-stylelint-default/stylelint.json";
 const STYLELINT_DEFAULTS_BYTES: &[u8] = br#"{
@@ -755,7 +783,7 @@ mod tests {
     use super::{
         absolute_argv, javascript_manifest, own_runfiles_manifest, parsed, reads_own_manifest,
         resolves_launcher, spawn_argv, ALWAYS_OWN_MANIFEST, GPLINT_DEFAULTS_BYTES, REAL_TOOLS,
-        STYLELINT_DEFAULTS_BYTES,
+        SELENE_DEFAULTS_BYTES, SELENE_STD_BYTES, STYLELINT_DEFAULTS_BYTES,
     };
     use crate::RunnerError;
     use quality_adapter::launch::{policy_for, RunfilesPolicy};
@@ -1048,6 +1076,18 @@ mod tests {
     #[test]
     fn keep_sorted_runner_edge_is_present() {
         assert!(REAL_TOOLS.contains(&"keep_sorted"));
+    }
+
+    /// The selene defaults name the dx std and leave layout to StyLua; the std is Lua 5.4.
+    #[test]
+    fn the_selene_defaults_use_the_lua54_std_and_allow_layout_lints() {
+        let defaults = std::str::from_utf8(SELENE_DEFAULTS_BYTES).expect("utf8");
+        assert!(defaults.contains("std = \"dx_lua54\""));
+        assert!(defaults.contains("multiple_statements = \"allow\""));
+        assert!(defaults.contains("parenthese_conditions = \"allow\""));
+        let std = std::str::from_utf8(SELENE_STD_BYTES).expect("utf8");
+        assert!(std.contains("base: lua53"));
+        assert!(std.contains("- lua54"));
     }
 
     /// The gplint defaults parse and leave layout to prettier and cross-file checks out.

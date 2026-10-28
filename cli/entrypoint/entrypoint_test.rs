@@ -247,11 +247,12 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     );
     let bump = read("DX_SETS_BUMP_CARGO");
     assert!(
-        bump.contains(
-            "bump is not supported for ecosystem cargo set rs \
-(supported operations: check, update, audit)"
-        ),
-        "bump names the cargo operations: {bump}"
+        bump.contains("no declared requirement for \"serde\" in any manifest of set rs"),
+        "bump widens configured cargo manifests: {bump}"
+    );
+    assert!(
+        bump.contains("cannot resolve cargo hub \"crates\""),
+        "update refuses a cargo set without its crate_universe hub: {bump}"
     );
 }
 

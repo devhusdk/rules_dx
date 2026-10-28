@@ -132,6 +132,8 @@ pub const FLOOR_MARKER: &str = "# floor: ";
 pub struct CargoHub<'a> {
     pub name: &'a str,
     pub cargo_lockfile: Option<&'a str>,
+    /// The literal `lockfile` label (the cargo-bazel lock), when set.
+    pub lockfile: Option<&'a str>,
     pub manifests: Vec<&'a Str>,
     pub line: usize,
 }
@@ -510,6 +512,11 @@ impl ModuleFile {
                 Some(Value::Str(literal)) => Some(literal.value.as_str()),
                 Some(_) => return Err(computed),
             };
+            let lockfile = match call.arg("lockfile") {
+                None => None,
+                Some(Value::Str(literal)) => Some(literal.value.as_str()),
+                Some(_) => return Err(computed),
+            };
             let mut manifests = Vec::new();
             match call.arg("manifests") {
                 None => {}
@@ -526,11 +533,40 @@ impl ModuleFile {
             hubs.push(CargoHub {
                 name: &name.value,
                 cargo_lockfile,
+                lockfile,
                 manifests,
                 line: call.line,
             });
         }
         Ok(hubs)
+    }
+
+    /// The name a `from_cargo` hub is visible under in the root module: `x` for
+    /// `use_repo(crate, "x")`, `alias` for `use_repo(crate, alias = "x")`. None when
+    /// the hub is not imported. Bazel resolves `@<name>` in the root module by this
+    /// visible name, while crate_universe compares `CARGO_BAZEL_REPIN_ONLY` with the
+    /// hub's own name.
+    pub fn cargo_apparent(&self, hub: &CargoHub<'_>) -> Option<&str> {
+        let proxies = self.crate_proxies();
+        for call in self.calls_named("use_repo") {
+            if !matches!(call.positional.first(), Some(Value::Ident(v)) if proxies.contains(&v.as_str()))
+            {
+                continue;
+            }
+            for value in &call.positional[1..] {
+                if let Value::Str(repo) = value {
+                    if repo.value == hub.name {
+                        return Some(repo.value.as_str());
+                    }
+                }
+            }
+            for (alias, value) in &call.named {
+                if matches!(value, Value::Str(repo) if repo.value == hub.name) {
+                    return Some(alias.as_str());
+                }
+            }
+        }
+        None
     }
 
     /// Every rules_jvm_external `maven.install` tag in source order. The name defaults

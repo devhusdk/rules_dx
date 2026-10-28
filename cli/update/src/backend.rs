@@ -619,12 +619,18 @@ fn configured_pnpm_argv(
         run.push("--repository_disable_download");
     }
     run.extend(["@pnpm//:pnpm", "--", "--dir"]);
+    let ignore = if dependency_sets::npm_ignore_workspace(workspace, set) {
+        vec!["--ignore-workspace".to_owned()]
+    } else {
+        Vec::new()
+    };
     [
         bazel(head, "run", &run),
         vec![match set.dir.as_str() {
             "." => workspace.to_string_lossy().into_owned(),
             dir => workspace.join(dir).to_string_lossy().into_owned(),
         }],
+        ignore,
         command.to_vec(),
     ]
     .concat()
@@ -808,8 +814,10 @@ pub fn plan_configured(
                 });
             }
             let repository = cargo_repository(set)?;
+            let visible = dependency_sets::cargo_fetch_repository(workspace, set)
+                .unwrap_or_else(|| repository.to_owned());
             Ok(BackendPlan::Run {
-                argv: configured_fetch_argv(head, repository, false),
+                argv: configured_fetch_argv(head, &visible, false),
                 env: cargo_env("workspace", repository),
             })
         }
@@ -872,6 +880,8 @@ pub fn plan_configured(
                 });
             }
             let repository = cargo_repository(set)?;
+            let visible = dependency_sets::cargo_fetch_repository(workspace, set)
+                .unwrap_or_else(|| repository.to_owned());
             let [package] = packages.as_slice() else {
                 return Err(BackendError::Unsupported {
                     set: set.name.clone(),
@@ -885,7 +895,7 @@ pub fn plan_configured(
                 });
             }
             Ok(BackendPlan::Run {
-                argv: configured_fetch_argv(head, repository, false),
+                argv: configured_fetch_argv(head, &visible, false),
                 env: cargo_env(package, repository),
             })
         }
@@ -948,8 +958,10 @@ pub fn check_configured(
         }),
         (Ecosystem::Cargo, Selection::Full) => {
             let repository = cargo_repository(set)?;
+            let visible = dependency_sets::cargo_fetch_repository(workspace, set)
+                .unwrap_or_else(|| repository.to_owned());
             Ok(CheckPlan::Run {
-                argv: configured_fetch_argv(head, repository, offline),
+                argv: configured_fetch_argv(head, &visible, offline),
                 env: cargo_env("false", repository),
             })
         }
@@ -2593,6 +2605,76 @@ mod tests {
     }
 
     #[test]
+    fn configured_npm_ignores_a_root_only_parent_workspace() {
+        let scratch = dx_test_scratch::scratch("dx-update-npm-ignore-");
+        let root = scratch.path().to_path_buf();
+        std::fs::create_dir_all(root.join("apps/web")).expect("set dir");
+        std::fs::write(root.join("pnpm-workspace.yaml"), "packages:\n  - .\n").expect("workspace");
+        let set = npm_set("frontend", "apps/web");
+        let head = no_head();
+        let dir = root.join("apps/web").to_string_lossy().into_owned();
+        let pnpm = |tail: &[&str]| {
+            [
+                head.argv("run"),
+                strings(&["@pnpm//:pnpm", "--", "--dir"]),
+                vec![dir.clone()],
+                strings(tail),
+            ]
+            .concat()
+        };
+        let plan = |selection: &Selection| {
+            plan_configured(
+                &root,
+                &set,
+                selection,
+                false,
+                false,
+                &head,
+                &UvClosure::default(),
+            )
+        };
+        assert_eq!(
+            plan(&Selection::Full).expect("full"),
+            BackendPlan::Run {
+                argv: pnpm(&["--ignore-workspace", "install", "--lockfile-only"]),
+                env: npm_env_expected(),
+            }
+        );
+        assert_eq!(
+            plan(&Selection::Packages(vec!["react".to_owned()])).expect("packages"),
+            BackendPlan::Run {
+                argv: pnpm(&["--ignore-workspace", "update", "react", "--lockfile-only"]),
+                env: npm_env_expected(),
+            }
+        );
+        for (offline, want) in [(false, false), (true, true)] {
+            let CheckPlan::Run { argv, .. } = check_configured(
+                &root,
+                &set,
+                &Selection::Full,
+                offline,
+                false,
+                &head,
+                &UvClosure::default(),
+            )
+            .expect("check") else {
+                panic!("npm check runs pnpm");
+            };
+            assert!(argv.contains(&"--ignore-workspace".to_owned()), "{argv:?}");
+            assert_eq!(
+                argv.contains(&"--repository_disable_download".to_owned()),
+                want
+            );
+        }
+        // A set with its own workspace file is its own root.
+        std::fs::write(root.join("apps/web/pnpm-workspace.yaml"), "packages: []\n").expect("own");
+        let BackendPlan::Run { argv, .. } = plan(&Selection::Full).expect("own root") else {
+            panic!("runs pnpm");
+        };
+        assert!(!argv.contains(&"--ignore-workspace".to_owned()), "{argv:?}");
+    }
+
+    #[test]
     fn configured_npm_yarn_and_npm_locks_use_their_own_backends() {
         let head = dx_process::BazelHead {
             startup: vec![],
@@ -2871,6 +2953,61 @@ mod tests {
 
     fn cargo_fetch(head: &dx_process::BazelHead, args: &[&str]) -> Vec<String> {
         [head.argv("fetch"), strings(args)].concat()
+    }
+
+    #[test]
+    fn configured_cargo_fetches_the_visible_hub_name_and_repins_the_hub_name() {
+        let scratch = dx_test_scratch::scratch("dx-update-cargo-renamed-");
+        let root = scratch.path().to_path_buf();
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//apps/rs:Cargo.lock\",\n    lockfile = \"//apps/rs:cargo-bazel-lock.json\",\n    manifests = [\"//apps/rs:Cargo.toml\", \"//other:Cargo.toml\"],\n)\nuse_repo(crate, crates = \"dx_crates\")\n",
+        )
+        .expect("module");
+        let mut set = cargo_set("rs", "apps/rs", "dx_crates");
+        set.manifests.push("other/Cargo.toml".to_owned());
+        let head = no_head();
+        let plan = |selection: &Selection| {
+            plan_configured(
+                &root,
+                &set,
+                selection,
+                false,
+                false,
+                &head,
+                &UvClosure::default(),
+            )
+        };
+        assert_eq!(
+            plan(&Selection::Full).expect("apply"),
+            BackendPlan::Run {
+                argv: cargo_fetch(&head, &["--repo=@crates"]),
+                env: cargo_env_expected("workspace", "dx_crates"),
+            }
+        );
+        assert_eq!(
+            plan(&Selection::Packages(vec!["serde".to_owned()])).expect("package"),
+            BackendPlan::Run {
+                argv: cargo_fetch(&head, &["--repo=@crates"]),
+                env: cargo_env_expected("serde", "dx_crates"),
+            }
+        );
+        assert_eq!(
+            check_configured(
+                &root,
+                &set,
+                &Selection::Full,
+                false,
+                false,
+                &head,
+                &UvClosure::default()
+            )
+            .expect("check"),
+            CheckPlan::Run {
+                argv: cargo_fetch(&head, &["--repo=@crates"]),
+                env: cargo_env_expected("false", "dx_crates"),
+            }
+        );
     }
 
     #[test]

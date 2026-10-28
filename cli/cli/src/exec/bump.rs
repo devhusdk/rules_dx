@@ -614,7 +614,11 @@ scopes = ["tools/ps"]
     const CARGO_B: &str =
         "[package]\nname = \"b\"\nversion = \"0.1.0\"\n\n[dependencies]\nanyhow = \"1\"\n";
 
+    /// The crate_universe hubs behind `CARGO_SET_DX_TOML`; dx refuses a cargo set without its hub.
+    const CARGO_SET_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//rs/a:Cargo.lock\", manifests = [\"//rs/a:Cargo.toml\", \"//rs/c:Cargo.toml\"])\ncrate.from_cargo(name = \"tools\", cargo_lockfile = \"//rs/b:Cargo.lock\", manifests = [\"//rs/b:Cargo.toml\"])\nuse_repo(crate, \"crates\", \"tools\")\n";
+
     fn seed_cargo_set(harness: &Harness) {
+        harness.write_source("MODULE.bazel", CARGO_SET_MODULE);
         harness.write_source("dx.toml", CARGO_SET_DX_TOML);
         harness.write_source("rs/a/Cargo.toml", CARGO_A);
         harness.write_source("rs/b/Cargo.toml", CARGO_B);
@@ -660,6 +664,27 @@ scopes = ["tools/ps"]
             vec![dx_update::backend::cargo_env("workspace", "crates")]
         );
         assert_eq!(*harness.seen_cwd.borrow(), vec![harness.workspace.clone()]);
+    }
+
+    #[test]
+    fn consumer_cargo_set_over_two_directories_widens_every_declaring_manifest_and_repins_once() {
+        let harness = Harness::new("bump-consumer-cargo-multi");
+        seed_cargo_set(&harness);
+        harness.write_source("rs/c/Cargo.toml", CARGO_A);
+        harness.write_source(
+            "dx.toml",
+            &CARGO_SET_DX_TOML.replace(
+                "manifests = [\"rs/a/Cargo.toml\"]",
+                "manifests = [\"rs/a/Cargo.toml\", \"rs/c/Cargo.toml\"]",
+            ),
+        );
+        let (code, out, err) = harness.run(&["bump", "crates:serde", "2.0.0", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let widened = CARGO_A.replace("\"1\"", "\"2.0.0\"");
+        assert_eq!(read(&harness, "rs/a/Cargo.toml"), widened);
+        assert_eq!(read(&harness, "rs/c/Cargo.toml"), widened);
+        assert_eq!(read(&harness, "rs/b/Cargo.toml"), CARGO_B);
+        assert_eq!(harness.build_argv.borrow().len(), 1);
     }
 
     #[test]

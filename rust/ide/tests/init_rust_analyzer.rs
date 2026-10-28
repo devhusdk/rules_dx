@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use dx_lsp::Session;
 use dx_nested::{self as nested, Case};
-use dx_testing::{read_text, resolve_runfiles, write_text};
+use dx_testing::{read_text, resolve_runfiles, rules_dx_source, write_text};
 use serde_json::{json, Value};
 
 const MODULE: &str = r#"module(name = "shop")
@@ -42,22 +42,13 @@ const BROKEN_RS: &str = "fn main() {\n    println!(\"{}\", greet::missing());\n}
 const LOAD_DEADLINE: Duration = Duration::from_secs(25 * 60);
 const CHECK_DEADLINE: Duration = Duration::from_secs(10 * 60);
 
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("rust/ide/tests/init_rust_analyzer.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn env_path(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must be set"));
     resolve_runfiles(&rel)
 }
 
 fn stage(case: &Case) {
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     case.write(".bazelversion", &read_text(&rules.join(".bazelversion")));
     case.write(
         ".bazelrc",

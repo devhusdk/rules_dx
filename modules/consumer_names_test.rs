@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested as nested;
-use dx_testing::resolve_runfiles;
+use dx_testing::{read_text as read, rules_dx_source, write_text as write};
 
 const COMMON_NAMES: &[(&str, &str)] = &[
     ("npm", "@npm//:all"),
@@ -47,23 +47,6 @@ const PNPM_LOCK: &str = "lockfileVersion: '9.0'\n\nsettings:\n  autoInstallPeers
 
 const BUILD: &str = "load(\"@npm//:defs.bzl\", \"npm_link_all_packages\")\n\nnpm_link_all_packages(name = \"node_modules\")\n";
 
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {path:?}: {error}"))
-}
-
-fn write(path: &Path, text: &str) {
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("modules/consumer_names_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(2)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn gem_checksums(rules: &Path) -> String {
     let module = read(&rules.join("MODULE.bazel"));
     let start = module
@@ -79,7 +62,7 @@ fn gem_checksums(rules: &Path) -> String {
 fn common_upstream_repo_names_resolve_next_to_rules_dx() {
     let case = nested::case("consumer-names");
     let root = case.root();
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     write(
         &root.join(".bazelversion"),
         &read(&rules.join(".bazelversion")),

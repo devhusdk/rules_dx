@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rustfmt_test")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_rust_analyzer_tool")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 
@@ -31,7 +31,7 @@ nested_bazel_test(
     size = "enormous",
     srcs = ["tests/init_rust_analyzer.rs"],
     data = [
-        "tests/init_rust_analyzer.rs",
+        "//:module_srcs",
         "//cli/cli:dx",
         "@rust_analyzer_1.98.0_tools//:rust_analyzer",
     ],

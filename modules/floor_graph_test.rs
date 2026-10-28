@@ -5,29 +5,11 @@
 //! modules, it builds nothing. Set `DX_CONSUMER_OVERRIDES` (`module=version,...` or `tested`)
 //! to resolve candidate versions instead; each override becomes the expected version.
 
-use std::path::{Path, PathBuf};
-
 use dx_floor::{
     apply_overrides, check_graph, parse_overrides, parse_table, patched_modules, OVERRIDES_ENV,
 };
 use dx_nested as nested;
-use dx_testing::{read_runfiles, resolve_runfiles};
-
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("modules/floor_graph_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(2)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
-fn write(path: &Path, text: &str) {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
-    }
-    std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
-}
+use dx_testing::{read_runfiles, resolve_runfiles, rules_dx_source, write_text as write};
 
 #[test]
 fn a_dx_init_consumer_resolves_every_dep_at_its_floor() {
@@ -37,7 +19,7 @@ fn a_dx_init_consumer_resolves_every_dep_at_its_floor() {
     let overrides =
         parse_overrides(&spec, &table, &patched).unwrap_or_else(|error| panic!("{error}"));
 
-    let rules = rules_dx_root();
+    let rules = rules_dx_source();
     let case = nested::case("floor-graph");
     let root = case.root();
     write(

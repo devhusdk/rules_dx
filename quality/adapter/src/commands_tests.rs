@@ -1039,6 +1039,17 @@ fn structured_checks_encode_pinned_shapes() {
 }
 
 #[test]
+fn cue_vet_is_non_concrete_and_runs_from_the_module_root() {
+    let file = Path::new("/scratch/app/main.cue");
+    let inv = cue_vet(Path::new(BIN), &[file], "app");
+    assert_eq!(inv.cwd_rel, "app");
+    assert_eq!(
+        argv_strings(&inv),
+        vec![BIN, "vet", "-c=false", "-E", "/scratch/app/main.cue"]
+    );
+}
+
+#[test]
 fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let cue_file = Path::new("/scratch/Sample.cue");
     assert_eq!(

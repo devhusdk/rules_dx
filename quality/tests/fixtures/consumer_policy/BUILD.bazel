@@ -210,12 +210,10 @@ real_source_target(
 
 quality_family(
     name = "cue_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["lint"],
     family_id = "cue",
     format = ["cue"],
+    typecheck = ["cue"],
 )
 
 workspace_policy(

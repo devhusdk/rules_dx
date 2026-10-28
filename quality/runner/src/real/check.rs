@@ -842,6 +842,7 @@ impl RealBackend {
                     )
                 }
             }
+            "cue" if capability == "typecheck" => self.check_cue_vet(tool_id, tool, staged),
             "cue" => {
                 let invocation = commands::cue_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -1543,6 +1544,112 @@ impl RealBackend {
     /// several so the error points at the spawn that broke.
     /// Reads every staged notebook and refuses any that Ruff would skip, so a
     /// non-Python or malformed notebook never reports clean.
+    /// `cue vet -c=false` once per package: the owned files of one directory and package clause,
+    /// run from the enclosing CUE module root so imports resolve inside the module.
+    fn check_cue_vet(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        staged: &StagedScratch,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let scratch = &staged.scratch;
+        let modules: Vec<String> = staged
+            .pairs
+            .iter()
+            .chain(staged.resolve_pairs.iter())
+            .filter_map(|(ws, _)| {
+                if ws == "cue.mod/module.cue" {
+                    Some(String::new())
+                } else {
+                    ws.strip_suffix("/cue.mod/module.cue").map(str::to_owned)
+                }
+            })
+            .collect();
+        let mut groups: std::collections::BTreeMap<(String, String, String), Vec<&Path>> =
+            std::collections::BTreeMap::new();
+        for (ws, absolute) in &staged.pairs {
+            if ws.starts_with("cue.mod/") || ws.contains("/cue.mod/") {
+                continue;
+            }
+            let dir = ws.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
+            let root = modules
+                .iter()
+                .filter(|root| {
+                    root.is_empty() || dir == **root || dir.starts_with(&format!("{root}/"))
+                })
+                .max_by_key(|root| root.len())
+                .cloned()
+                .unwrap_or_else(|| dir.clone());
+            let text = std::fs::read_to_string(absolute)
+                .map_err(|err| execution(tool_id, format!("read {ws}: {err}")))?;
+            let package = text
+                .lines()
+                .map(str::trim)
+                .find(|line| !line.is_empty() && !line.starts_with("//"))
+                .and_then(|line| line.strip_prefix("package "))
+                .map(|name| name.trim().to_owned())
+                .unwrap_or_default();
+            groups
+                .entry((root, dir, package))
+                .or_default()
+                .push(absolute.as_path());
+        }
+        let owned: Vec<String> = staged
+            .pairs
+            .iter()
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        let owned: Vec<&str> = owned.iter().map(String::as_str).collect();
+        let mut known_paths: Vec<String> = owned.iter().map(|path| (*path).to_owned()).collect();
+        for (_, absolute) in &staged.resolve_pairs {
+            let text = absolute.to_string_lossy().into_owned();
+            if !known_paths.contains(&text) {
+                known_paths.push(text);
+            }
+        }
+        let known: Vec<&str> = known_paths.iter().map(String::as_str).collect();
+        let mut findings = Vec::new();
+        let mut reported = Vec::new();
+        for ((root, _, _), files) in &groups {
+            let invocation = commands::cue_vet(&tool.binary, files, root);
+            let out = self.run(tool_id, tool, &invocation, scratch)?;
+            let cwd = scratch.root().join(root);
+            let found = parsed(
+                tool_id,
+                parsers::parse_cue_vet(&out.stdout, &out.stderr, out.code, &owned, &known, &cwd),
+            )?;
+            for item in found {
+                if owned.contains(&item.file.as_str()) {
+                    findings.push(item);
+                } else {
+                    reported.push(item.file);
+                }
+            }
+        }
+        if findings.is_empty() && !reported.is_empty() {
+            let mut names: Vec<String> = staged
+                .resolve_pairs
+                .iter()
+                .filter(|(_, absolute)| {
+                    reported
+                        .iter()
+                        .any(|r| r.as_str() == absolute.to_string_lossy())
+                })
+                .map(|(ws, _)| ws.clone())
+                .collect();
+            names.sort();
+            names.dedup();
+            return Err(execution(
+                tool_id,
+                format!(
+                    "cue vet failed in dependencies before the owned files were checked: {}",
+                    names.join(", ")
+                ),
+            ));
+        }
+        Ok(findings)
+    }
+
     fn read_notebooks(
         tool_id: &str,
         pairs: &[(String, PathBuf)],

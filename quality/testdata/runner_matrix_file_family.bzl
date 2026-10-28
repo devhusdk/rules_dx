@@ -436,6 +436,55 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_rego_format_syntax_error.expected.txt",
     },
     {
+        "name": "matrix_cue_typecheck_pass",
+        "srcs": ["//quality/tests/fixtures/consumer_policy:cue_module"],
+        "capability": "typecheck",
+        "stages": ["cue;cue;" + ",".join([
+            _CUE_MODULE + "cue.mod/module.cue",
+            _CUE_MODULE + "lib/greeting.cue",
+            _CUE_MODULE + "main.cue",
+            _CUE_MODULE + "values.cue",
+        ])],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_typecheck_pass.expected.txt",
+    },
+    {
+        "name": "matrix_cue_typecheck_fail",
+        "generated": {
+            "matrix/cue_tc_bad/cue.mod/module.cue": "module: \"example.com/app\"\nlanguage: version: \"v0.17.0\"\n",
+            "matrix/cue_tc_bad/lib/greeting.cue": "package lib\n\n#Greeting: {\n\tname: string\n}\n",
+            "matrix/cue_tc_bad/main.cue": "package app\n\nimport \"example.com/app/lib\"\n\ngreeting: lib.#Greeting & {\n\tname: 1\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["cue;cue;matrix/cue_tc_bad/cue.mod/module.cue,matrix/cue_tc_bad/lib/greeting.cue,matrix/cue_tc_bad/main.cue"],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_typecheck_fail.expected.txt",
+    },
+    {
+        "name": "matrix_cue_typecheck_syntax_error",
+        "generated": {
+            "matrix/cue_tc_broken.cue": "package sample\n\nvalue: {\n",
+        },
+        "capability": "typecheck",
+        "stages": ["cue;cue;matrix/cue_tc_broken.cue"],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_typecheck_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_cue_typecheck_schema_only",
+        "generated": {
+            "matrix/cue_tc_schema.cue": "package schema\n\n#Name: string\nopen: string\nport: int & >0\n",
+        },
+        "capability": "typecheck",
+        "stages": ["cue;cue;matrix/cue_tc_schema.cue"],
+        "tool_names": ["cue"],
+        "tool_binaries": ["@dx_tools//:cue"],
+        "expected_file": ":matrix/matrix_cue_typecheck_schema_only.expected.txt",
+    },
+    {
         "name": "matrix_rego_typecheck_pass",
         "generated": {
             "matrix/rego_module/lib/lib.rego": "package lib\n\nanswer := 42\n",

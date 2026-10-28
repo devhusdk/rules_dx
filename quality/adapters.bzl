@@ -38,7 +38,7 @@ REAL_ADAPTERS = {
     "cppcheck": {"lint": ["c", "cpp"]},
     "csharpier": {"format": ["csharp"]},
     "credo": {"lint": ["elixir"]},
-    "cue": {"format": ["cue"]},
+    "cue": {"format": ["cue"], "typecheck": ["cue"]},
     "dart": {"format": ["dart"], "lint": ["dart"], "typecheck": ["dart"]},
     "deadnix": {"lint": ["nix"]},
     "dfmt": {"format": ["d"]},

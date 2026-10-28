@@ -144,11 +144,13 @@ ROWS = [
             "//apple/tests:linux_consumer_test",
             "//apple/tests:macos_consumer_test",
             "//apple/tests:macos_app_consumer_test",
+            "//apple/tests:macos_swift_consumer_test",
         ],
         "consumer_tests": [
             "//apple/tests:linux_consumer_test",
             "//apple/tests:macos_consumer_test",
             "//apple/tests:macos_app_consumer_test",
+            "//apple/tests:macos_swift_consumer_test",
         ],
         "families": ["objc"],
         "name": "apple",

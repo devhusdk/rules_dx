@@ -105,6 +105,40 @@ mod tests {
     }
 
     #[test]
+    fn a_flatbuffers_rust_shard_graph_expands_to_the_shard_plus_the_schema() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fbs-rs-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule_of_kind(
+                "//schema:lib",
+                "flatbuffers_library",
+                &["//schema:a.fbs"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//schema:lib_rs_generated",
+                "_flatbuffers_rust_srcs",
+                &["//schema:lib"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//schema:lib_rs_shard",
+                "flatbuffers_codegen_shard",
+                &["//schema:lib_rs_generated"],
+                &[],
+            ),
+        ]))]);
+        let got = expand_codegen_roots("//schema:lib", &workspace, &query, &[]).expect("expand");
+        assert_eq!(
+            got,
+            vec![
+                "//schema:lib".to_owned(),
+                "//schema:lib_rs_shard".to_owned()
+            ]
+        );
+    }
+
+    #[test]
     fn an_openapi_shard_graph_expands_to_the_shard_plus_the_spec() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-openapi-");
         let workspace = scratch.path().to_path_buf();

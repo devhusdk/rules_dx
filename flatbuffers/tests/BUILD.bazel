@@ -1,7 +1,8 @@
 load("//cc/rules:defs.bzl", "cc_test")
-load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard")
+load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_rust_library")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":failure_tests.bzl", "flatbuffers_codegen_failure_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -72,6 +73,44 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_cc_shard",
 )
 
+# Rust: one crate per root schema; flatc --rust --gen-all inlines the base schema.
+flatbuffers_rust_library(
+    name = "shapes_rs",
+    library = "//flatbuffers/tests/api",
+)
+
+rust_test(
+    name = "rs_roundtrip_test",
+    size = "small",
+    srcs = ["rs_roundtrip_test.rs"],
+    deps = [
+        ":shapes_rs",
+        "//flatbuffers:runtime_rust",
+    ],
+)
+
+flatbuffers_codegen_shard(
+    name = "shapes_rs_shard",
+    entries = ["gen/api/shape_generated.rs|gen|dx.api|flatbuffers/tests/shapes_rs_generated_fbs_rs/shape_generated.rs"],
+    language = "rust",
+    library = ":shapes_rs_generated",
+)
+
+codegen_shard_argv_test(
+    name = "shapes_rs_shard_argv_test",
+    expected = [
+        "--producer",
+        "//flatbuffers/tests:shapes_rs_shard",
+        "--language",
+        "rust",
+        "--entry",
+        "gen/api/shape_generated.rs|gen|dx.api|flatbuffers/tests/shapes_rs_generated_fbs_rs/shape_generated.rs",
+        "--output",
+    ],
+    output = "flatbuffers/tests/shapes_rs_shard.dxcodegen.pb",
+    target_under_test = ":shapes_rs_shard",
+)
+
 # Failing fixtures: only built by the analysis tests below.
 flatbuffers_codegen_shard(
     name = "unclaimed_shard",
@@ -87,6 +126,59 @@ flatbuffers_codegen_shard(
     language = "python",
     library = ":shapes_cc",
     tags = ["manual"],
+)
+
+flatbuffers_rust_library(
+    name = "no_root_rs",
+    library = "//flatbuffers/tests/multi",
+    tags = ["manual"],
+)
+
+flatbuffers_rust_library(
+    name = "foreign_root_rs",
+    library = "//flatbuffers/tests/api",
+    root = "//flatbuffers/tests/base:common.fbs",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_shard(
+    name = "cpp_shard_on_rust",
+    entries = ["gen/api/shape_generated.rs|gen|dx.api|flatbuffers/tests/shapes_rs_generated_fbs_rs/shape_generated.rs"],
+    language = "cpp",
+    library = ":shapes_rs_generated",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_shard(
+    name = "stray_rs_shard",
+    entries = ["gen/api/other.rs|gen|dx.api|flatbuffers/tests/other.rs"],
+    language = "rust",
+    library = ":shapes_rs_generated",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_failure_test(
+    name = "rust_missing_root_test",
+    message = "root is required because",
+    target_under_test = ":no_root_rs_generated",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "rust_foreign_root_test",
+    message = "is not owned by",
+    target_under_test = ":foreign_root_rs_generated",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "rust_language_mismatch_test",
+    message = "does not match",
+    target_under_test = ":cpp_shard_on_rust",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "rust_stray_entry_test",
+    message = "matches no flatbuffers_generated_srcs artifact",
+    target_under_test = ":stray_rs_shard",
 )
 
 flatbuffers_codegen_failure_test(

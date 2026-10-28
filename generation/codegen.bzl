@@ -38,6 +38,7 @@ DX_CODEGEN_ADMITTED_PAIRS = (
     ("protobuf", "rust"),
     ("openapi", "typescript"),
     ("flatbuffers", "cpp"),
+    ("flatbuffers", "rust"),
 )
 
 def codegen_path_error(path):

@@ -64,7 +64,7 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")` and `("openapi", "typescript")`.
+`("flatbuffers", "cpp")`, `("flatbuffers", "rust")` and `("openapi", "typescript")`.
 
 The openapi/typescript pair comes from `openapi_typescript_client` in
 `@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
@@ -93,8 +93,18 @@ with an `EXEC_PATH` suffix to each generated header. The headers are compiled
 against the C++ runtime of the same pinned archive, so the compiler and the
 runtime cannot drift. `gen_object_api = True` adds the object API; each variant writes under its own `_fbs` or `_fbs_obj` directory, so both can share one library. The shard
 lists the headers of the libraries in the `deps` of the `flatbuffers_cc_library`
-only; a library reached through those deps needs its own target and shard. Rust
-and Java generation and `--conform` are not implemented yet.
+only; a library reached through those deps needs its own target and shard.
+
+The flatbuffers/rust pair comes from `flatbuffers_rust_library` in the same file.
+It makes one crate per root schema: `flatc --rust --gen-all` runs on the `root`
+(optional when the library owns one schema, otherwise required and one of its
+srcs) and writes one `<root>_generated.rs` that inlines the include closure,
+because flatc's Rust output uses `crate::` and `super::` paths that only compile
+inside one crate. The crate links the Rust runtime built from the same pinned
+archive. Bind the shard to the `NAME_generated` target, not to `NAME`; it binds
+only the flatc file, never the `lib.rs` dx writes. Two crates whose roots share a
+schema each get their own copy of its types, and those copies are not
+interchangeable. Java generation and `--conform` are not implemented yet.
 
 ## Android inputs
 

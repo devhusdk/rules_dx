@@ -1,0 +1,22 @@
+load("//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//flatbuffers:__subpackages__"])
+
+# Owns two schemas, so a Rust crate over it must name its root.
+flatbuffers_library(
+    name = "multi",
+    srcs = [
+        "one.fbs",
+        "two.fbs",
+    ],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

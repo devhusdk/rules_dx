@@ -2,12 +2,21 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(["pins.bzl"])
 
+# Rust runtime, built from the pinned flatbuffers archive.
+alias(
+    name = "runtime_rust",
+    actual = "@dx_flatbuffers_rust//:flatbuffers",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "bitflags.BUILD.bazel",
         "pins.bzl",
+        "rust_runtime.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

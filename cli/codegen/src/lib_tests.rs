@@ -924,3 +924,27 @@ fn projection_rejects_bad_indexes() {
         Err(CollectError::UnreportedArtifact { .. })
     ));
 }
+
+#[test]
+fn collect_records_counts_one_file_reported_by_two_targets_once() {
+    let generated = ("/bazel-out/k8-fastbuild/bin/api/client.ts", vec![1]);
+    let outputs = vec![
+        output(
+            "//api:client_shard",
+            vec![
+                (
+                    "/out/client_shard.dxcodegen.pb",
+                    shard_bytes(
+                        "//api:client_shard",
+                        "typescript",
+                        vec![("gen/client.ts", "gen", "pets", "api/client.ts")],
+                    ),
+                ),
+                generated.clone(),
+            ],
+        ),
+        output("//api:client", vec![generated]),
+    ];
+    let records = collect_records(&outputs).expect("collect");
+    assert_eq!(records.len(), 1);
+}

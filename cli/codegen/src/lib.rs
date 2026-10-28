@@ -188,7 +188,12 @@ pub fn decode_shards(outputs: &[TargetOutput]) -> Result<Vec<CodegenRecord>, Col
 }
 
 fn generated_artifact_paths(outputs: &[TargetOutput]) -> Vec<String> {
-    dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX)
+    // A file the plan reaches through several targets (a generating rule and
+    // the shard that binds it) is still one artifact.
+    let mut paths = dx_bep::non_shard_artifact_paths(outputs, SHARD_SUFFIX);
+    let mut seen = std::collections::BTreeSet::new();
+    paths.retain(|path| seen.insert(path.clone()));
+    paths
 }
 
 type Bound<'a> = [(&'a CodegenRecord, &'a CodegenEntry)];

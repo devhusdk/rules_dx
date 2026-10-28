@@ -1,0 +1,20 @@
+---
+import logo from "../assets/logo.png";
+import Card from "../components/Card.astro";
+import Counter from "../components/Counter.tsx";
+import Header from "../components/Header.astro";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Astro app</title>
+  </head>
+  <body>
+    <Header title="Hello from Astro" />
+    <img src={logo.src} width={logo.width} height={logo.height} alt="Logo" />
+    <Card heading="Counter" count={2}>
+      <Counter client:load start={2} />
+    </Card>
+  </body>
+</html>

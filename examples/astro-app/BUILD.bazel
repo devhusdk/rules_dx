@@ -1,0 +1,68 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@npm_astro_app//:defs.bzl", "npm_link_all_packages")
+load("//astro/rules:defs.bzl", "astro_build", "astro_check", "astro_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+])
+
+npm_link_all_packages(name = "node_modules")
+
+_SRCS = glob(["src/**"])
+
+_DEPS = [
+    ":node_modules/@astrojs/preact",
+    ":node_modules/preact",
+]
+
+astro_library(
+    name = "components",
+    srcs = glob(["src/**/*.astro"]),
+)
+
+astro_build(
+    name = "site",
+    srcs = _SRCS,
+    config = "astro.config.mjs",
+    node_modules = ":node_modules",
+    package_json = "package.json",
+    public = glob(["public/**"]),
+    deps = _DEPS,
+)
+
+astro_check(
+    name = "check",
+    srcs = _SRCS,
+    config = "astro.config.mjs",
+    node_modules = ":node_modules",
+    package_json = "package.json",
+    tsconfig = "tsconfig.json",
+    deps = _DEPS,
+)
+
+build_test(
+    name = "build_test",
+    targets = [
+        ":components",
+        ":site",
+    ],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

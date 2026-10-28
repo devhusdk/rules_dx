@@ -1,0 +1,13 @@
+{
+	"name": "astro-app-example",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@10.34.5",
+	"dependencies": {
+		"@astrojs/check": "0.9.12",
+		"@astrojs/preact": "6.0.6",
+		"astro": "7.3.8",
+		"preact": "10.29.8",
+		"typescript": "6.0.3"
+	}
+}

@@ -438,6 +438,16 @@ impl ModuleFile {
 
     /// Every literal coordinate in the `artifacts` of rules_jvm_external `maven.install` tags.
     pub fn maven_artifacts(&self) -> Result<Vec<&Str>, ModuleError> {
+        self.maven_artifacts_matching(None)
+    }
+
+    /// The literal coordinates in the `artifacts` of the `maven.install` named `install`
+    /// only (`maven` when the tag has no name). A computed name is an error.
+    pub fn maven_artifacts_of(&self, install: &str) -> Result<Vec<&Str>, ModuleError> {
+        self.maven_artifacts_matching(Some(install))
+    }
+
+    fn maven_artifacts_matching(&self, install: Option<&str>) -> Result<Vec<&Str>, ModuleError> {
         let proxies = self.maven_proxies();
         let mut artifacts = Vec::new();
         for call in &self.calls {
@@ -446,6 +456,20 @@ impl ModuleFile {
             };
             if !proxies.contains(&proxy) {
                 continue;
+            }
+            if let Some(wanted) = install {
+                let computed = ModuleError::ComputedMavenHub { line: call.line };
+                if call.unpacked {
+                    return Err(computed);
+                }
+                let name = match call.arg("name") {
+                    None => "maven",
+                    Some(Value::Str(literal)) => literal.value.as_str(),
+                    Some(_) => return Err(computed),
+                };
+                if name != wanted {
+                    continue;
+                }
             }
             match call.arg("artifacts") {
                 None if !call.unpacked => {}

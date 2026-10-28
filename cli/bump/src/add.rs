@@ -130,6 +130,8 @@ impl AddRequest {
                 configured: Some(ConfiguredSet {
                     name: set_name.to_owned(),
                     kind: ConfiguredKind::Bazel,
+                    manifests: vec![manifest.to_owned()],
+                    repository: None,
                 }),
             },
             version: parsed,

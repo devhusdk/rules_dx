@@ -45,14 +45,24 @@ pub(crate) fn configured_bazel_set(
 ) -> Result<Option<(String, String)>, i32> {
     Ok(
         configured_set(verb, invocation, out, err, workspace, false)?
-            .map(|(name, manifest, _)| (name, manifest)),
+            .map(|mut target| (target.name, target.manifests.remove(0))),
     )
+}
+
+/// A configured dx.toml set a dependency verb edits.
+pub(crate) struct ConfiguredTarget {
+    pub(crate) name: String,
+    /// Every manifest of the set; a bazel, uv, npm, maven or nuget set has exactly one.
+    pub(crate) manifests: Vec<String>,
+    pub(crate) kind: dx_bump::ConfiguredKind,
+    /// The hub repository a maven set names.
+    pub(crate) repository: Option<String>,
 }
 
 /// The single manifest of a configured dx.toml set the selector names, if any.
 ///
-/// Bazel sets always qualify; uv and npm sets only when `foreign` is set, and then
-/// their kind comes back.
+/// Bazel sets always qualify; uv, npm, cargo, maven and nuget sets only when `foreign`
+/// is set, and then their kind comes back.
 pub(crate) fn configured_set(
     verb: &EditVerb,
     invocation: &Invocation,
@@ -60,7 +70,7 @@ pub(crate) fn configured_set(
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
     foreign: bool,
-) -> Result<Option<(String, String, dx_bump::ConfiguredKind)>, i32> {
+) -> Result<Option<ConfiguredTarget>, i32> {
     let registry = match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => registry,
         Ok(None) => return Ok(None),
@@ -78,6 +88,15 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Bazel => Some(dx_bump::ConfiguredKind::Bazel),
         dx_adopt::dependency_sets::Ecosystem::Uv if foreign => Some(dx_bump::ConfiguredKind::Uv),
         dx_adopt::dependency_sets::Ecosystem::Npm if foreign => Some(dx_bump::ConfiguredKind::Npm),
+        dx_adopt::dependency_sets::Ecosystem::Cargo if foreign => {
+            Some(dx_bump::ConfiguredKind::Cargo)
+        }
+        dx_adopt::dependency_sets::Ecosystem::Maven if foreign => {
+            Some(dx_bump::ConfiguredKind::Maven)
+        }
+        dx_adopt::dependency_sets::Ecosystem::Nuget if foreign => {
+            Some(dx_bump::ConfiguredKind::Nuget)
+        }
         _ => None,
     };
     match (set.ecosystem, kind) {
@@ -94,25 +113,38 @@ pub(crate) fn configured_set(
                     ),
                 ));
             }
-            let [manifest] = set.manifests.as_slice() else {
+            let arity_ok = if kind == dx_bump::ConfiguredKind::Cargo {
+                !set.manifests.is_empty()
+            } else {
+                set.manifests.len() == 1
+            };
+            if !arity_ok {
                 return Err(operational(
                     invocation,
                     out,
                     err,
                     verb.failure_code,
                     &format!(
-                        "{} needs exactly one {} in set {}",
+                        "{} needs {} in set {}",
                         verb.command,
                         match kind {
-                            dx_bump::ConfiguredKind::Bazel => "MODULE.bazel",
-                            dx_bump::ConfiguredKind::Npm => "package.json",
-                            dx_bump::ConfiguredKind::Uv => "pyproject.toml",
+                            dx_bump::ConfiguredKind::Bazel => "exactly one MODULE.bazel",
+                            dx_bump::ConfiguredKind::Npm => "exactly one package.json",
+                            dx_bump::ConfiguredKind::Uv => "exactly one pyproject.toml",
+                            dx_bump::ConfiguredKind::Cargo => "at least one Cargo.toml",
+                            dx_bump::ConfiguredKind::Maven => "exactly one MODULE.bazel",
+                            dx_bump::ConfiguredKind::Nuget => "exactly one paket.dependencies",
                         },
                         set.name
                     ),
                 ));
-            };
-            Ok(Some((set.name.clone(), manifest.clone(), kind)))
+            }
+            Ok(Some(ConfiguredTarget {
+                name: set.name.clone(),
+                manifests: set.manifests.clone(),
+                kind,
+                repository: set.repository.clone(),
+            }))
         }
         (
             dx_adopt::dependency_sets::Ecosystem::Bazel
@@ -179,7 +211,24 @@ pub(crate) fn preflight(
             ));
         }
     }
-    if target.is_configured_bazel() {
+    if let Some(refusal) = hub_gate_refusal(workspace, target) {
+        return Err(operational(
+            invocation,
+            out,
+            err,
+            verb.failure_code,
+            &format!(
+                "cannot refresh {selector}: {refusal} (no {} performed)",
+                verb.noun
+            ),
+        ));
+    }
+    if target.is_configured_bazel()
+        || matches!(&target.configured, Some(set) if matches!(
+            set.kind,
+            dx_bump::ConfiguredKind::Cargo | dx_bump::ConfiguredKind::Maven
+        ))
+    {
         // A foreign lock layout or a vanished set would only fail after the write.
         if let Some((_, Err(dx_update::backend::BackendError::Unsupported { reason, .. }))) =
             refresh_plan(workspace, invocation, target, None)
@@ -197,6 +246,31 @@ pub(crate) fn preflight(
         }
     }
     Ok(())
+}
+
+/// Why a configured cargo or maven set cannot be refreshed, checked before any write.
+///
+/// These are the same refusals `dx update` makes for the set: missing files, an
+/// unsupported lock layout and host environment that redirects resolution.
+fn hub_gate_refusal(workspace: &std::path::Path, target: &dx_bump::DepTarget) -> Option<String> {
+    let configured = target.configured.as_ref()?;
+    if !matches!(
+        configured.kind,
+        dx_bump::ConfiguredKind::Cargo | dx_bump::ConfiguredKind::Maven
+    ) {
+        return None;
+    }
+    let registry = dx_adopt::dependency_sets::load(workspace).ok()??;
+    let set = registry.find(&configured.name)?;
+    let set = dx_adopt::dependency_sets::ResolvedSet::of(set);
+    if let Err(error) = dx_adopt::dependency_sets::check_files(workspace, &set, false) {
+        return Some(error.to_string());
+    }
+    if let Err(error) = dx_adopt::dependency_sets::check_backend_settings(workspace, &set) {
+        return Some(error.to_string());
+    }
+    dx_update::backend::host_env_refusal(&set, false, &|key| std::env::var_os(key).is_some())
+        .map(|error| error.to_string())
 }
 
 /// The workspace, updater runner and output streams one edit uses.
@@ -248,10 +322,13 @@ pub(crate) fn write_and_refresh(
         .join(", ");
     let manifest = manifest.as_str();
     if !request.needs_update_refresh() {
-        let mut message = format!(
-            "{} (then run preset flag-diff review plus `bazel build //...`)",
-            edit.edited
-        );
+        let mut message = match request.follow_up() {
+            Some(follow_up) => format!("{} ({follow_up})", edit.edited),
+            None => format!(
+                "{} (then run preset flag-diff review plus `bazel build //...`)",
+                edit.edited
+            ),
+        };
         if let Some(hint) = edit.hint {
             message.push_str(&format!("; {hint}"));
         }
@@ -611,6 +688,13 @@ fn refresh_plan(
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),
+        // A hub repin re-resolves the whole lock; it only touches changed requirements.
+        dx_bump::ConfiguredKind::Cargo | dx_bump::ConfiguredKind::Maven => (
+            dx_adopt::dependency_sets::Selection::Full,
+            dx_update::backend::UvClosure::default(),
+        ),
+        // Nothing re-resolves paket.lock, so a nuget bump never plans a refresh.
+        dx_bump::ConfiguredKind::Nuget => return None,
         dx_bump::ConfiguredKind::Uv => (
             dx_adopt::dependency_sets::Selection::Full,
             match tools {

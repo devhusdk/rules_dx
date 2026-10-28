@@ -348,21 +348,27 @@ pub(super) fn plan_go_mod(
 }
 
 pub(super) fn plan_maven_module_bazel(
+    manifest: &str,
     content: &str,
     package: &str,
     version: &WidenVersion,
+    install: Option<&str>,
 ) -> Result<String, BumpError> {
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
             return Err(BumpError::UnsupportedManifest {
-                manifest: "MODULE.bazel".to_owned(),
+                manifest: manifest.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
     };
     let module = dx_module_bazel::ModuleFile::parse(content).map_err(module_error(package))?;
-    let artifacts = module.maven_artifacts().map_err(module_error(package))?;
+    let artifacts = match install {
+        Some(install) => module.maven_artifacts_of(install),
+        None => module.maven_artifacts(),
+    }
+    .map_err(module_error(package))?;
     let mut selected = Vec::new();
     for literal in artifacts {
         let parts: Vec<&str> = literal.value.split(':').collect();
@@ -372,7 +378,7 @@ pub(super) fn plan_maven_module_bazel(
         }
         if !(3..=5).contains(&parts.len()) || parts.iter().any(|part| part.trim().is_empty()) {
             return Err(BumpError::UnsupportedManifest {
-                manifest: "MODULE.bazel".to_owned(),
+                manifest: manifest.to_owned(),
                 reason: format!("malformed Maven coordinate {:?}", literal.value),
             });
         }
@@ -380,7 +386,7 @@ pub(super) fn plan_maven_module_bazel(
     }
     match selected.as_slice() {
         [] => Err(BumpError::NotFound {
-            manifest: "MODULE.bazel".to_owned(),
+            manifest: manifest.to_owned(),
             package: package.to_owned(),
         }),
         [(literal, parts)] => {
@@ -392,7 +398,7 @@ pub(super) fn plan_maven_module_bazel(
                 .map_err(module_error(package))
         }
         many => Err(BumpError::Ambiguous {
-            manifest: "MODULE.bazel".to_owned(),
+            manifest: manifest.to_owned(),
             package: package.to_owned(),
             count: many.len(),
         }),
@@ -400,16 +406,17 @@ pub(super) fn plan_maven_module_bazel(
 }
 
 pub(super) fn plan_paket_dependencies(
+    manifest: &str,
     content: &str,
     package: &str,
     version: &WidenVersion,
 ) -> Result<String, BumpError> {
-    const MANIFEST: &str = "third_party/dotnet/paket.dependencies";
+    let manifest_path = manifest;
     let new = match version {
         WidenVersion::Semver(version) => version.to_string(),
         _ => {
             return Err(BumpError::UnsupportedManifest {
-                manifest: MANIFEST.to_owned(),
+                manifest: manifest_path.to_owned(),
                 reason: "expected exact semver".to_owned(),
             });
         }
@@ -425,21 +432,21 @@ pub(super) fn plan_paket_dependencies(
     let (at, line) = match targets.as_slice() {
         [] => {
             return Err(BumpError::NotFound {
-                manifest: MANIFEST.to_owned(),
+                manifest: manifest_path.to_owned(),
                 package: package.to_owned(),
             });
         }
         [one] => *one,
         many => {
             return Err(BumpError::Ambiguous {
-                manifest: MANIFEST.to_owned(),
+                manifest: manifest_path.to_owned(),
                 package: package.to_owned(),
                 count: many.len(),
             });
         }
     };
     let unsupported = |reason: String| BumpError::UnsupportedManifest {
-        manifest: MANIFEST.to_owned(),
+        manifest: manifest_path.to_owned(),
         reason: format!("{package:?}: {reason}"),
     };
     let decl = parse_paket_declaration(line).map_err(unsupported)?;

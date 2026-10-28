@@ -1545,3 +1545,136 @@ fn a_maven_bump_never_touches_floors_or_overrides() {
     assert!(widened.starts_with(SPLIT_DEP), "{widened}");
     assert_eq!(widened, module.replace("g:a:1.0.0", "g:a:2.0.0"));
 }
+
+fn configured(
+    kind: ConfiguredKind,
+    manifests: &[&str],
+    repository: Option<&str>,
+    selector: &str,
+    version: &str,
+) -> Result<BumpRequest, BumpError> {
+    let manifests: Vec<String> = manifests.iter().map(|m| (*m).to_owned()).collect();
+    BumpRequest::parse_configured_set(kind, "set", &manifests, repository, selector, version)
+}
+
+#[test]
+fn configured_cargo_maven_and_nuget_parse_their_own_grammar() {
+    let cargo = configured(
+        ConfiguredKind::Cargo,
+        &["a/Cargo.toml", "b/Cargo.toml"],
+        Some("crates"),
+        "set:serde",
+        "2.0.0",
+    )
+    .expect("cargo");
+    assert_eq!(cargo.set, BumpSet::Cargo);
+    assert_eq!(cargo.configured_manifests().expect("manifests").len(), 2);
+    assert_eq!(cargo.target().refresh_selector(), "set");
+    assert!(cargo.needs_update_refresh());
+    assert!(
+        cargo
+            .summary()
+            .contains("every manifest of set set that declares the crate"),
+        "{}",
+        cargo.summary()
+    );
+    let maven = configured(
+        ConfiguredKind::Maven,
+        &["MODULE.bazel"],
+        Some("maven"),
+        "set:junit:junit",
+        "4.13.3",
+    )
+    .expect("maven");
+    assert_eq!(maven.package, "junit:junit");
+    let nuget = configured(
+        ConfiguredKind::Nuget,
+        &["d/paket.dependencies"],
+        None,
+        "set:Newtonsoft.Json",
+        "13.0.3",
+    )
+    .expect("nuget");
+    assert!(!nuget.needs_update_refresh());
+    assert_eq!(
+        nuget.target().follow_up().as_deref(),
+        Some("paket.lock is not re-resolved: run `paket update` in d, then `dx update set`")
+    );
+    assert!(
+        nuget.summary().contains("paket update"),
+        "{}",
+        nuget.summary()
+    );
+    for kind in [
+        ConfiguredKind::Cargo,
+        ConfiguredKind::Maven,
+        ConfiguredKind::Nuget,
+    ] {
+        assert_eq!(
+            configured(kind, &["m"], Some("r"), "set", "1.0.0"),
+            Err(BumpError::BareSet {
+                set: "set".to_owned()
+            })
+        );
+        assert!(matches!(
+            configured(kind, &["m"], Some("r"), "set:", "1.0.0"),
+            Err(BumpError::InvalidPackage { .. })
+        ));
+        let request = configured(kind, &["m"], Some("r"), "set:a:b", "1.0.0");
+        if let Ok(request) = request {
+            assert_eq!(
+                request.with_dep_version(DepVersion::Floor {
+                    reason: "x".to_owned()
+                }),
+                Err(BumpError::FloorNotBazelDep {
+                    selector: "set:a:b".to_owned()
+                })
+            );
+        }
+    }
+}
+
+#[test]
+fn configured_maven_edits_only_the_named_install_and_names_the_manifest() {
+    let source = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"one\", artifacts = [\"junit:junit:4.12\"])\nmaven.install(name = \"two\", artifacts = [\"junit:junit:4.11\"])\n";
+    let request = configured(
+        ConfiguredKind::Maven,
+        &["jvm/MODULE.bazel"],
+        Some("two"),
+        "set:junit:junit",
+        "4.13.3",
+    )
+    .expect("maven");
+    assert_eq!(
+        request.plan_edit(source).expect("widen"),
+        source.replace("junit:junit:4.11", "junit:junit:4.13.3")
+    );
+    let missing = configured(
+        ConfiguredKind::Maven,
+        &["jvm/MODULE.bazel"],
+        Some("three"),
+        "set:junit:junit",
+        "4.13.3",
+    )
+    .expect("maven");
+    match missing.plan_edit(source) {
+        Err(BumpError::NotFound { manifest, .. }) => assert_eq!(manifest, "jvm/MODULE.bazel"),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn configured_nuget_edit_names_its_paket_dependencies() {
+    let request = configured(
+        ConfiguredKind::Nuget,
+        &["d/paket.dependencies"],
+        None,
+        "set:Missing",
+        "1.0.0",
+    )
+    .expect("nuget");
+    match request.plan_edit("nuget Other 1.0.0\n") {
+        Err(BumpError::NotFound { manifest, .. }) => assert_eq!(manifest, "d/paket.dependencies"),
+        other => panic!("{other:?}"),
+    }
+}

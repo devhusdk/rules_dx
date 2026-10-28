@@ -23,13 +23,36 @@ pub enum ConfiguredKind {
     Uv,
     /// A bazel-modules set; its lock is refreshed with `bazel mod deps`.
     Bazel,
+    /// A cargo set; every manifest that declares the crate is widened.
+    Cargo,
+    /// A maven set; only its own `maven.install` is edited.
+    Maven,
+    /// A nuget set; `paket.dependencies` is edited and `paket.lock` is not re-resolved.
+    Nuget,
 }
 
-/// A configured dx.toml npm, uv or bazel set: its name and ecosystem.
+impl ConfiguredKind {
+    /// The selector and version grammar of this ecosystem.
+    pub fn grammar(self) -> BumpSet {
+        match self {
+            ConfiguredKind::Cargo => BumpSet::Cargo,
+            ConfiguredKind::Maven => BumpSet::Maven,
+            ConfiguredKind::Nuget => BumpSet::NuGet,
+            ConfiguredKind::Npm => BumpSet::Npm,
+            ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
+        }
+    }
+}
+
+/// A configured dx.toml set a bump edits: its name, ecosystem, manifests and hub repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredSet {
     pub name: String,
     pub kind: ConfiguredKind,
+    /// Every manifest of the set; a configured bump never reads the builtin tables.
+    pub manifests: Vec<String>,
+    /// The hub repository of a maven set; it names the `maven.install` to edit.
+    pub repository: Option<String>,
 }
 
 /// The version of a MODULE.bazel dependency a bazel bump edits.
@@ -154,7 +177,7 @@ pub struct DepTarget {
 impl DepTarget {
     pub fn needs_update_refresh(&self) -> bool {
         match &self.configured {
-            Some(_) => true,
+            Some(set) => set.kind != ConfiguredKind::Nuget,
             None => self.set.needs_update_refresh(),
         }
     }
@@ -167,6 +190,22 @@ impl DepTarget {
     /// Whether the dependency belongs to a configured bazel-modules set.
     pub fn is_configured_bazel(&self) -> bool {
         matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Bazel)
+    }
+
+    /// What the user must do after the edit when nothing re-resolves the lock.
+    pub fn follow_up(&self) -> Option<String> {
+        let set = self.configured.as_ref()?;
+        (set.kind == ConfiguredKind::Nuget).then(|| {
+            let dir = set
+                .manifests
+                .first()
+                .and_then(|manifest| manifest.rsplit_once('/'))
+                .map_or(".", |(dir, _)| dir);
+            format!(
+                "paket.lock is not re-resolved: run `paket update` in {dir}, then `dx update {}`",
+                set.name
+            )
+        })
     }
 
     /// The command that refreshes this dependency's lock, as shown to the user.
@@ -189,7 +228,11 @@ fn configured_refresh_selector(
 ) -> Option<String> {
     configured.map(|set| match set.kind {
         ConfiguredKind::Npm => format!("{}:{package}", set.name),
-        ConfiguredKind::Uv | ConfiguredKind::Bazel => set.name.clone(),
+        ConfiguredKind::Uv
+        | ConfiguredKind::Bazel
+        | ConfiguredKind::Cargo
+        | ConfiguredKind::Maven
+        | ConfiguredKind::Nuget => set.name.clone(),
     })
 }
 
@@ -258,19 +301,37 @@ impl BumpRequest {
         selector: &str,
         version: &str,
     ) -> Result<BumpRequest, BumpError> {
+        Self::parse_configured_set(
+            kind,
+            set_name,
+            &[manifest.to_owned()],
+            None,
+            selector,
+            version,
+        )
+    }
+
+    /// Parses a request against a configured set of `kind` with all its manifests.
+    pub fn parse_configured_set(
+        kind: ConfiguredKind,
+        set_name: &str,
+        manifests: &[String],
+        repository: Option<&str>,
+        selector: &str,
+        version: &str,
+    ) -> Result<BumpRequest, BumpError> {
         if selector.is_empty() || version.is_empty() {
             return Err(BumpError::Empty);
         }
         let package = match kind {
             ConfiguredKind::Bazel => parse_configured_selector(set_name, selector)?,
-            ConfiguredKind::Npm | ConfiguredKind::Uv => {
-                parse_foreign_selector(set_name, kind, selector)?
-            }
+            ConfiguredKind::Npm
+            | ConfiguredKind::Uv
+            | ConfiguredKind::Cargo
+            | ConfiguredKind::Maven
+            | ConfiguredKind::Nuget => parse_foreign_selector(set_name, kind, selector)?,
         };
-        let set = match kind {
-            ConfiguredKind::Npm => BumpSet::Npm,
-            ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
-        };
+        let set = kind.grammar();
         let parsed = version::parse(set, version)?;
         Ok(BumpRequest {
             set,
@@ -278,10 +339,12 @@ impl BumpRequest {
             version: parsed,
             selector: selector.to_owned(),
             raw_version: version.to_owned(),
-            manifest: Some(manifest.to_owned()),
+            manifest: manifests.first().cloned(),
             configured: Some(ConfiguredSet {
                 name: set_name.to_owned(),
                 kind,
+                manifests: manifests.to_vec(),
+                repository: repository.map(str::to_owned),
             }),
             dep_version: DepVersion::Tested,
         })
@@ -297,6 +360,16 @@ impl BumpRequest {
 
     pub fn target_manifest(&self) -> &str {
         target_manifest(self.set, &self.package, self.manifest.as_deref())
+    }
+
+    /// Every manifest of the configured set this request edits, if it has one.
+    pub fn configured_manifests(&self) -> Option<&[String]> {
+        self.configured.as_ref().map(|set| set.manifests.as_slice())
+    }
+
+    /// The name of the configured set this request edits, if it has one.
+    pub fn configured_name(&self) -> Option<&str> {
+        self.configured.as_ref().map(|set| set.name.as_str())
     }
 
     /// The set, package and manifest this request edits.
@@ -344,7 +417,9 @@ impl BumpRequest {
     }
 
     pub fn summary(&self) -> String {
-        let through = if self.needs_update_refresh() {
+        let through = if let Some(follow_up) = self.target().follow_up() {
+            follow_up
+        } else if self.needs_update_refresh() {
             format!(
                 "then refresh via `{}` automatically",
                 self.target().refresh_command()
@@ -352,10 +427,16 @@ impl BumpRequest {
         } else {
             "then preset flag-diff review plus `bazel build //...`".to_owned()
         };
-        let place = if self.set == BumpSet::Cargo && self.manifest.is_none() {
-            "every manifest of the crate.from_cargo hub in MODULE.bazel"
+        let place = if let Some(set) = self
+            .configured
+            .as_ref()
+            .filter(|set| set.kind == ConfiguredKind::Cargo)
+        {
+            format!("every manifest of set {} that declares the crate", set.name)
+        } else if self.set == BumpSet::Cargo && self.manifest.is_none() {
+            "every manifest of the crate.from_cargo hub in MODULE.bazel".to_owned()
         } else {
-            self.target_manifest()
+            self.target_manifest().to_owned()
         };
         let what = match (&self.dep_version, self.set, self.package.as_str()) {
             (DepVersion::Floor { .. }, _, _) => " floor",
@@ -399,8 +480,18 @@ impl BumpRequest {
             BumpSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
             BumpSet::Npm => plan_package_json(content, &self.package, &self.version),
             BumpSet::Go => plan_go_mod(content, &self.package, &self.version),
-            BumpSet::Maven => plan_maven_module_bazel(content, &self.package, &self.version),
-            BumpSet::NuGet => plan_paket_dependencies(content, &self.package, &self.version),
+            BumpSet::Maven => plan_maven_module_bazel(
+                manifest,
+                content,
+                &self.package,
+                &self.version,
+                self.configured
+                    .as_ref()
+                    .and_then(|set| set.repository.as_deref()),
+            ),
+            BumpSet::NuGet => {
+                plan_paket_dependencies(manifest, content, &self.package, &self.version)
+            }
             BumpSet::GithubActions => plan_github_workflow(content, &self.package, &self.version),
         }
     }
@@ -509,10 +600,7 @@ fn parse_foreign_selector(
             set: set_name.to_owned(),
         });
     };
-    let set = match kind {
-        ConfiguredKind::Npm => BumpSet::Npm,
-        ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
-    };
+    let set = kind.grammar();
     if tail.is_empty() {
         return Err(BumpError::InvalidPackage {
             set: set.name(),

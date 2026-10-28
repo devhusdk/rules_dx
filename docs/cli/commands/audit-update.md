@@ -451,7 +451,16 @@ the resolved commit SHA, never a tag, and the pin is rewritten in every
 A configured `bazel` set from `dx.toml` is selected as `<set>:<module>`. It
 rewrites the one literal `version` of that `bazel_dep` in the set's own
 `MODULE.bazel`. A read-only set and `<set>:.bazelversion` fail without
-writing. Configured `uv` and `npm` sets fail with `bump is not supported`.
+writing. Configured `uv` and `npm` sets widen `pyproject.toml` or `package.json`
+and refresh their lock. A configured `cargo` set widens the crate in its
+manifests and repins the whole hub with `dx update --apply <set>`. A configured
+`maven` set edits only the literal coordinate in its own `maven.install` (named
+by the set's `repository`) and runs `@<repository>//:pin`. A configured `nuget`
+set edits `paket.dependencies` only; nothing re-resolves `paket.lock`, so the
+report names the next steps: `paket update`, then `dx update <set>`. Each
+refusal that `dx update` makes for the set (read-only, missing files, `--offline`,
+`--frozen`, host environment) happens before any write. Configured `go`,
+`ruby`, and `powershell` sets fail with `bump is not supported`.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
 `dx update --apply <set>`. A failed refresh keeps the widen and exits `1`. `bazel`
@@ -822,7 +831,7 @@ backstop for the former. `--check --offline` adds
 `--repository_disable_download`, `--apply --offline` fails with
 `offline_required`, and `--apply --frozen` fails with `frozen_locked`.
 `maven` sets take no `set:package`: pins are exact in `MODULE.bazel`.
-`dx bump` refuses `maven` sets; `dx security` matches the lock's `artifacts`
+`dx bump <set>:<group>:<artifact>` widens one coordinate; `dx security` matches the lock's `artifacts`
 against `.dx/advisory/maven.json`, failing the set with `failed to assess
 <name>` when the snapshot is missing, and `dx license` reads
 `[[inventory]]` entries with `set = "maven"`.
@@ -860,7 +869,7 @@ files that differ, and writes nothing when an undeclared or missing file turns u
 `offline_required` in both modes: Paket has no offline switch, so dx cannot prove
 it stays off the network. `nuget` sets take no `set:package`: pins are exact in
 `paket.lock`; edit `paket.dependencies`, run `paket update`, then `dx update
-<set>`. `dx bump` refuses `nuget` sets; `dx security` matches `paket.lock` against
+<set>`. `dx bump <set>:<package>` edits `paket.dependencies` only; `dx security` matches `paket.lock` against
 `.dx/advisory/nuget.json`, failing the set with `failed to assess <name>` when the
 snapshot is missing, and `dx license` reads `[[inventory]]` entries with
 `set = "nuget"`.
@@ -953,8 +962,8 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` refuses configured `uv`, `npm`, `ruby`,
-`powershell`, and `cargo` sets;
+PEP 440 `versions` range. `dx bump` refuses configured `ruby`, `go`, and
+`powershell` sets;
 configured `bazel` sets widen as described under `dx bump`.
 
 ```sh

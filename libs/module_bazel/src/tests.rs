@@ -292,6 +292,29 @@ fn maven_artifacts_follow_the_rules_jvm_external_extension() {
 }
 
 #[test]
+fn maven_artifacts_of_returns_only_the_named_install() {
+    let source = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(artifacts = [\"junit:junit:4.13.2\"])\nmaven.install(name = \"other\", artifacts = [\"junit:junit:4.12\", \"a:b:1\"])\n";
+    let file = parse(source);
+    let values = |name: &str| -> Vec<String> {
+        file.maven_artifacts_of(name)
+            .expect("artifacts")
+            .iter()
+            .map(|a| a.value.clone())
+            .collect()
+    };
+    assert_eq!(values("maven"), ["junit:junit:4.13.2"]);
+    assert_eq!(values("other"), ["junit:junit:4.12", "a:b:1"]);
+    assert!(values("missing").is_empty());
+    let computed = parse(
+        "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = NAME, artifacts = [\"a:b:1\"])\n",
+    );
+    assert_eq!(
+        computed.maven_artifacts_of("maven"),
+        Err(ModuleError::ComputedMavenHub { line: 2 })
+    );
+}
+
+#[test]
 fn load_labels_lists_plain_and_relative_loads_in_order() {
     let source = "load(\"//tools:defs.bzl\", \"x\")\nload(\":local.bzl\", y = \"z\")\n\ndef f(*, a):\n    return a\n\nload(\"@rules_cc//cc:defs.bzl\", \"cc_library\")\n";
     assert_eq!(

@@ -80,9 +80,17 @@ real formatter: it runs the `dart` binary of the resolved SDK (nothing is
 fetched until a Dart target is analysed), formats each file at the language
 version of its package, and `dx format` fixes what it reports. Formatter options
 come from a `dart_config` (an `analysis_options.yaml`) bound with
-`aspect_hints`, from `@rules_dx//quality:native_config.bzl`. No analyzer runs
-yet, so the Dart rules still add the `no-lint` and `no-typecheck` tags to every
-target.
+`aspect_hints`, from `@rules_dx//quality:native_config.bzl`.
+
+`dx lint` and `dx typecheck` run one `dart analyze --format=json` per capability over the
+target's sources, with its transitive Dart sources and external packages staged for resolution.
+The two share the run's output and split it by diagnostic type: typecheck keeps
+`COMPILE_TIME_ERROR` and `SYNTACTIC_ERROR`; lint keeps `LINT`, `HINT`, `STATIC_WARNING` and
+`TODO`. Any other type fails closed. The staged `analysis_options.yaml` is analyzed too, so an
+unusable `include:` or an unknown lint is an error, not a silent pass. Without a `dart_config`
+only the analyzer's default warnings are reported and no lint rules are on. An
+`include: package:...` (for example `package:lints/recommended.yaml`) fails closed for now.
+`dx lint --fix` does not rewrite Dart sources.
 
 ## Platforms
 

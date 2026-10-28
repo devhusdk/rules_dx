@@ -1124,6 +1124,54 @@ impl RealBackend {
                     parsers::parse_mix_format(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "dart" if capability != "format" => {
+                // The analyzer prints canonical paths, so check and report the canonical ones.
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let mut files: Vec<(String, PathBuf)> = Vec::with_capacity(pairs.len());
+                for (workspace, absolute) in pairs {
+                    let file = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    files.push((workspace.clone(), file));
+                }
+                let file_refs: Vec<&Path> = files.iter().map(|(_, file)| file.as_path()).collect();
+                let file_names: Vec<String> = files
+                    .iter()
+                    .map(|(_, file)| file.to_string_lossy().into_owned())
+                    .collect();
+                let file_strs: Vec<&str> = file_names.iter().map(String::as_str).collect();
+                let options = root.join("analysis_options.yaml");
+                let cache = root.join(".dx-dart-analysis");
+                let invocation = commands::dart_analyze(&tool.binary, &cache, &options, &file_refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let view = if capability == "typecheck" {
+                    parsers::DartAnalyzeView::Typecheck
+                } else {
+                    parsers::DartAnalyzeView::Lint
+                };
+                let found = parsed(
+                    tool_id,
+                    parsers::parse_dart_analyze(
+                        &out.stdout,
+                        &out.stderr,
+                        out.code,
+                        &file_strs,
+                        &options.to_string_lossy(),
+                        view,
+                    ),
+                )?;
+                let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+                let mut owned = Vec::with_capacity(found.len());
+                for mut item in found {
+                    if let Some(at) = file_names.iter().position(|name| *name == item.file) {
+                        item.file = names[at].clone();
+                    }
+                    item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                    owned.push(item);
+                }
+                Ok(owned)
+            }
             "dart" => {
                 let invocation = commands::dart_format_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

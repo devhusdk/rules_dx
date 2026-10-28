@@ -6,6 +6,7 @@ load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
+load(":dart_context_tests.bzl", "dart_context_unit_tests")
 load(":fixtures_tests.bzl", "fixtures_unit_tests")
 load(":js_responsibilities_tests.bzl", "js_responsibilities_unit_tests")
 load(":native_config.bzl", "checkstyle_config", "vale_config")
@@ -28,6 +29,7 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "coverage_sources.bzl",
+    "dart_context.bzl",
     "execution_requirements.bzl",
     "fixtures.bzl",
     "native_config.bzl",
@@ -341,6 +343,8 @@ registry_unit_tests(name = "registry_unit")
 wrapper_unit_tests(name = "wrapper_owners_unit")
 
 real_pipeline_unit_tests(name = "real_pipeline_unit")
+
+dart_context_unit_tests(name = "dart_context_unit")
 
 native_config_unit_tests(name = "native_config_unit")
 
@@ -662,6 +666,8 @@ real_source_target(
         "curated_defaults_tests.bzl",
         "execution_requirements.bzl",
         "execution_requirements_tests.bzl",
+        "dart_context.bzl",
+        "dart_context_tests.bzl",
         "fixtures.bzl",
         "fixtures_tests.bzl",
         "js_responsibilities_tests.bzl",

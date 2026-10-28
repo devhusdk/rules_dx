@@ -506,6 +506,82 @@ pub(super) fn dart_formats_without_a_home_and_never_trusts_a_silent_exit() {
     assert_eq!(kept, "broken\n");
 }
 
+fn dart_analyze_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[2], OsString::from("analyze"));
+    assert_eq!(argv[3], OsString::from("--format=json"));
+    assert!(argv[4].to_string_lossy().starts_with("--cache="));
+    let options = argv[5].to_string_lossy().into_owned();
+    assert!(options.ends_with("analysis_options.yaml"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let diagnostic = |path: &str, code: &str, severity: &str, kind: &str| {
+        format!(
+            r#"{{"code":"{code}","severity":"{severity}","type":"{kind}","location":{{"file":"{path}","range":{{"start":{{"offset":0,"line":1,"column":1}},"end":{{"offset":1,"line":1,"column":2}}}}}},"problemMessage":"msg."}}"#
+        )
+    };
+    let (code, diagnostics) = if text.contains("badoptions") {
+        (
+            3,
+            vec![diagnostic(
+                &options,
+                "undefined_lint",
+                "ERROR",
+                "COMPILE_TIME_ERROR",
+            )],
+        )
+    } else if text.contains("mismatch") {
+        (
+            0,
+            vec![diagnostic(&file, "unused_import", "WARNING", "HINT")],
+        )
+    } else if text.contains("both") {
+        (
+            3,
+            vec![
+                diagnostic(&file, "unused_import", "WARNING", "HINT"),
+                diagnostic(&file, "invalid_assignment", "ERROR", "COMPILE_TIME_ERROR"),
+            ],
+        )
+    } else {
+        (0, Vec::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: format!(
+            r#"{{"version":1,"diagnostics":[{}]}}"#,
+            diagnostics.join(",")
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn dart_analyze_splits_lint_from_typecheck_and_never_trusts_a_bad_run() {
+    let backend = backend_for("dart", plain_tool(), dart_analyze_behavior);
+    let run = |capability: &str, text: &str| {
+        backend.diagnose("dart", capability, &single("a.dart", text))
+    };
+    assert!(run("lint", "ok\n").expect("lint").is_empty());
+    let lint = run("lint", "both\n").expect("lint");
+    let types = run("typecheck", "both\n").expect("typecheck");
+    assert_eq!(lint.len(), 1);
+    assert_eq!(lint[0].rule_id, "unused_import");
+    assert_eq!(types.len(), 1);
+    assert_eq!(types[0].rule_id, "invalid_assignment");
+    assert!(run("lint", "badoptions\n").is_err());
+    assert!(run("typecheck", "mismatch\n").is_err());
+    let kept = backend
+        .apply_fix("dart", "a.dart", "both\n", "lint")
+        .expect("fix round");
+    assert_eq!(kept, "both\n");
+}
+
 fn dscanner_behavior(
     argv: &[OsString],
     cwd: &Path,

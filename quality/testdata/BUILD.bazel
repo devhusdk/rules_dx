@@ -69,6 +69,9 @@ exports_files(
     [
         "biome_cfg/biome.json",
         "buildifier_cfg/.buildifier.json",
+        "dart_cfg/analysis_options.yaml",
+        "dart_cfg/bad_analysis_options.yaml",
+        "dart_cfg/package_config.json",
         "ruff.toml",
         "styles/Dx/Markers.yml",
         "vale_test.ini",

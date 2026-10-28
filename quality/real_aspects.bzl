@@ -17,6 +17,7 @@ load(
     "REAL_ADAPTERS",
     "REAL_CLASS_TO_FAMILY",
 )
+load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_package_entries", "dart_pubspec_stubs")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
 load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "native_config_scratch_rel", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
@@ -163,7 +164,7 @@ _REAL_TOOL_TABLE = {
     },
     "dart": {
         "attr": attr.label(default = "//config:tool_dart", allow_files = True, cfg = "exec"),
-        "capabilities": ["format"],
+        "capabilities": ["format", "lint", "typecheck"],
         "kind": "setting",
         "resources": "medium",
         "shard": "core",
@@ -900,41 +901,36 @@ def _helm_context(target, ctx, what):
 _DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
 _DART_OPTIONS_REL = "analysis_options.yaml"
 
-def _dart_context(target, ctx, what):
+def _dart_info(target, what):
+    if DartInfo in target:
+        return target[DartInfo]
+    if DartAnalyzableInfo in target:
+        return target[DartAnalyzableInfo].dart_info
+    fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
+
+def _dart_context(target, ctx, what, capability):
     """Writes the package config that gives each Dart file the language version Dart itself would use.
 
     The version is the one of the in-repo package whose root holds the file (`test/` and `bin/`
     included); a package that states none is listed without one, so it formats at the newest
-    version like a file in no package. Returns (package_config, empty_options).
+    version like a file in no package. The analyzer view (lint and typecheck) also resolves the
+    external packages under `_external/` and gets one stub `pubspec.yaml` per in-repo package
+    root. Returns (package_config, empty_options, stubs) where stubs are (scratch path, File).
     """
-    if DartInfo in target:
-        info = target[DartInfo]
-    elif DartAnalyzableInfo in target:
-        info = target[DartAnalyzableInfo].dart_info
-    else:
-        fail(what + ": dart needs a dart_library, dart_binary or dart_test target")
-    roots = {}
-    for pkg in info.transitive_packages.to_list():
-        if pkg.lib_root.startswith("../") or pkg.lib_root in roots:
-            continue
-        roots[pkg.lib_root] = pkg
-    packages = []
-    for lib_root in sorted(roots):
-        pkg = roots[lib_root]
-        entry = {
-            "name": pkg.package_name or "dx_package_%d" % len(packages),
-            "packageUri": "lib/",
-            "rootUri": "../" + lib_root,
-        }
-        version = getattr(pkg, "language_version", "")
-        if version:
-            entry["languageVersion"] = version
-        packages.append(entry)
-    config = ctx.actions.declare_file(target.label.name + "-dart-package-config.json")
-    ctx.actions.write(output = config, content = json.encode({"configVersion": 2, "packages": packages}))
-    options = ctx.actions.declare_file(target.label.name + "-dart-analysis-options.yaml")
+    info = _dart_info(target, what)
+    mode = DART_FORMAT if capability == "format" else DART_ANALYZE
+    packages = info.transitive_packages.to_list()
+    config = ctx.actions.declare_file(target.label.name + "-dart-package-config-" + capability + ".json")
+    ctx.actions.write(output = config, content = json.encode({"configVersion": 2, "packages": dart_package_entries(packages, mode)}))
+    options = ctx.actions.declare_file(target.label.name + "-dart-analysis-options-" + capability + ".yaml")
     ctx.actions.write(output = options, content = "")
-    return (config, options)
+    stubs = []
+    if mode == DART_ANALYZE:
+        for index, (path, content) in enumerate(dart_pubspec_stubs(packages)):
+            stub = ctx.actions.declare_file("%s-dart-pubspec-%s-%d.yaml" % (target.label.name, capability, index))
+            ctx.actions.write(output = stub, content = content)
+            stubs.append((path, stub))
+    return (config, options, stubs)
 
 # Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
 _TARGET_TOOL_OWNERS = {
@@ -1180,8 +1176,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         helm_context = _helm_context(target, ctx, what)
     dart_package_config = None
     dart_options = None
+    dart_stubs = []
     if "dart" in [stage["tool"] for stage in resolved]:
-        (dart_package_config, dart_options) = _dart_context(target, ctx, what)
+        (dart_package_config, dart_options, dart_stubs) = _dart_context(target, ctx, what, capability)
 
     roslyn = None
     if "roslyn" in [stage["tool"] for stage in resolved] or "csc" in [stage["tool"] for stage in resolved]:
@@ -1319,6 +1316,19 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if f.basename != "qmldir" and f.extension not in _QML_CONTEXT_EXTENSIONS:
                 continue
             resolve_pairs[ws_path] = f
+    if "dart" in stage_tools and capability != "format":
+        for f in _dart_info(target, what).transitive_srcs.to_list():
+            ws_path = f.short_path
+            if ws_path.startswith("../"):
+                ws_path = dart_external_root(ws_path)
+            if ".." in ws_path.split("/") or f.extension != "dart":
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
+        for (stub_path, _) in dart_stubs:
+            if stub_path in path_to_file or stub_path in sibling_pairs or stub_path in resolve_pairs:
+                fail(what + ": generated pubspec.yaml stub collides with the staged source " + stub_path)
     if "cue" in stage_tools:
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
@@ -1507,6 +1517,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 tool_files.append(real_request_tool_file(_DART_OPTIONS_REL, options.path))
             tool_files.append(real_request_tool_file(_DART_PACKAGE_CONFIG_REL, dart_package_config.path))
             inputs.append(dart_package_config)
+            for (stub_path, stub) in dart_stubs:
+                if stub_path == config_rel:
+                    fail(what + ": generated pubspec.yaml stub collides with the config " + stub_path)
+                tool_files.append(real_request_tool_file(stub_path, stub.path))
+                inputs.append(stub)
         upstream = []
         if tool == "clippy" and clippy_delegated:
             for diagnostics in clippy_diagnostics:

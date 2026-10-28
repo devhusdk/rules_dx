@@ -245,7 +245,7 @@ to.
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang, elixir |
-| `dart` | format | dart |
+| `dart` | format, lint, typecheck | dart |
 | `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
 | `elvis` | lint | erlang |

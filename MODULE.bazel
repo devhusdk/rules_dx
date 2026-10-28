@@ -1136,7 +1136,7 @@ _web_consumer_repo(
 
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-cosign = use_extension("//deploy/release:repos.bzl", "cosign")
+cosign = use_extension("//deploy/release:repos.bzl", "cosign", dev_dependency = True)
 use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 
 nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
@@ -1429,7 +1429,7 @@ use_repo(
 yard = use_extension("//tools/docs/ruby:repos.bzl", "yard")
 use_repo(yard, "dx_yard")
 
-firefox = use_extension("//tools/docs/site/browser:repos.bzl", "firefox")
+firefox = use_extension("//tools/docs/site/browser:repos.bzl", "firefox", dev_dependency = True)
 use_repo(
     firefox,
     "dx_firefox",

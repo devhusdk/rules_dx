@@ -695,7 +695,11 @@ pub(crate) fn lease_locked(
         std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
     }
     pool.write(&placeholder)?;
-    let bases = scan_output_bases(&host.output_roots(&host.servers()));
+    let bases = if stale.is_empty() {
+        Vec::new()
+    } else {
+        scan_output_bases(&host.output_roots(&host.servers()))
+    };
     for slot in &stale {
         // A stale slot that cannot be deleted stays recorded as broken; `add` goes on with its own slot.
         let _ = delete_slot(pool, host, *slot, &bases);
@@ -1974,18 +1978,25 @@ fn low_disk_reading(
         return (Some(space), Some((base.to_path_buf(), space)));
     }
     let nested = host.nested_root().filter(|root| root.is_dir());
-    let low = host
-        .output_roots(&host.servers())
-        .into_iter()
-        .filter(|root| root.is_dir())
-        .chain(nested)
-        .filter_map(|root| {
-            host.disk_space(&root)
-                .filter(|space| is_low(*space))
-                .map(|space| (root, space))
-        })
-        .min_by_key(|(_, space)| space.free);
-    (Some(space), low)
+    let lowest = |roots: Vec<PathBuf>| {
+        roots
+            .into_iter()
+            .filter(|root| root.is_dir())
+            .filter_map(|root| {
+                host.disk_space(&root)
+                    .filter(|space| is_low(*space))
+                    .map(|space| (root, space))
+            })
+            .min_by_key(|(_, space)| space.free)
+    };
+    let mut config = host.config_output_roots();
+    config.extend(nested.clone());
+    if lowest(config).is_none() {
+        return (Some(space), None);
+    }
+    let mut all = host.output_roots(&host.servers());
+    all.extend(nested);
+    (Some(space), lowest(all))
 }
 
 /// Deletes the output bases and reports whether all of them are gone.

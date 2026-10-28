@@ -138,7 +138,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/docs.html",
         "docs/cli/commands/init.html",
         "docs/cli/commands/migrate.html",
-        "docs/cli/commands/new-upgrade.html",
+        "docs/cli/commands/upgrade-rollback.html",
         "docs/cli/commands/offline-bundle.html",
         "docs/cli/commands/status-version.html",
         "docs/cli/commands/watch.html",

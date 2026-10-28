@@ -1,0 +1,17 @@
+#include <cstdio>
+#include <vector>
+
+#include "scale.h"
+
+int main() {
+  const std::vector<float> x = {1.0f, 2.0f, 3.0f};
+  std::vector<float> y(x.size(), 0.0f);
+  scale_cpu(static_cast<int>(x.size()), 2.0f, x.data(), y.data());
+  for (size_t i = 0; i < x.size(); ++i) {
+    if (y[i] != 2.0f * x[i]) {
+      std::fprintf(stderr, "unexpected value at %zu: %g\n", i, y[i]);
+      return 1;
+    }
+  }
+  return 0;
+}

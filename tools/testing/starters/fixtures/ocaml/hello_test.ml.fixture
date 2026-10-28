@@ -1,0 +1,1 @@
+let () = assert (Hello.greet "world" = "hello world")

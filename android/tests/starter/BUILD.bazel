@@ -9,8 +9,12 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:rust-android",
     ],
-    env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:rust-android)",
+    },
     env_inherit = [
         "ANDROID_HOME",
         "ANDROID_NDK_REVISION",

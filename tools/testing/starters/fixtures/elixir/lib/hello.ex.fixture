@@ -1,0 +1,10 @@
+defmodule Hello do
+  @moduledoc """
+  Greets people.
+  """
+
+  @doc """
+  Returns a greeting for `name`.
+  """
+  def greet(name), do: "hello " <> name
+end

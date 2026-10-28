@@ -1,0 +1,5 @@
+program hello_test
+  use hello, only: greet
+  implicit none
+  if (greet("world") /= "hello world") error stop "unexpected greeting"
+end program hello_test

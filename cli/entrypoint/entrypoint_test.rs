@@ -257,35 +257,15 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
 }
 
 #[test]
-fn consumer_new_applies_a_stdlib_cpp_project() {
-    let apply = read("DX_NEW_APPLY");
-    let wrote: Vec<&str> = apply
-        .lines()
-        .filter(|line| line.starts_with("wrote myproj/"))
-        .collect();
-    assert_eq!(
-        wrote.len(),
-        37,
-        "new --apply writes init wiring, launcher, overrides, hooks, agents block and a standalone C++ consumer: {apply}"
-    );
+fn consumer_init_creates_a_new_directory() {
+    let apply = read("DX_INIT_DIR_APPLY");
     for path in [
-        "wrote myproj/.bazelignore",
-        "wrote myproj/.bazelrc",
-        "wrote myproj/.bazelversion",
-        "wrote myproj/.dx/version",
-        "wrote myproj/BUILD.bazel",
-        "wrote myproj/MODULE.bazel",
-        "wrote myproj/MODULE.bazel.snippet",
-        "wrote myproj/README.md",
-        "wrote myproj/hello.cc",
-        "wrote myproj/hello.h",
-        "wrote myproj/hello_test.cc",
-        "wrote myproj/main.cc",
-        "wrote myproj/tools/dx",
-        "wrote myproj/tools/dx.cmd",
-        "wrote myproj/third_party/rules_dx/rules_dx.MODULE.bazel",
-        "wrote myproj/.claude/settings.json",
-        "wrote myproj/AGENTS.md",
+        "wrote myproj/MODULE.bazel\n",
+        "wrote myproj/.bazelversion\n",
+        "wrote myproj/MODULE.bazel.snippet\n",
+        "wrote myproj/.dx/version\n",
+        "wrote myproj/tools/dx\n",
+        "wrote myproj/third_party/rules_dx/rules_dx.MODULE.bazel\n",
     ] {
         assert!(apply.contains(path), "apply lacks {path}: {apply}");
     }
@@ -293,19 +273,18 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         apply.contains("exit=0"),
         "apply records its exit code: {apply}"
     );
-    let cc = read("DX_SCAFFOLD_HELLO_CC");
+    let module = read("DX_SCAFFOLD_MODULE");
     assert!(
-        cc.contains("#include \"hello.h\""),
-        "hello.cc includes its own header: {cc}"
-    );
-    let header = read("DX_SCAFFOLD_HELLO_H");
-    assert!(
-        header.contains("#pragma once"),
-        "hello.h is a guarded header: {header}"
+        module.contains("name = \"myproj\""),
+        "the module is named after the directory: {module}"
     );
     assert!(
-        header.contains("#include <string>"),
-        "hello.h is stdlib-only: {header}"
+        module.contains("include(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")"),
+        "the module includes the rules_dx wiring: {module}"
+    );
+    assert!(
+        !read("DX_SCAFFOLD_BAZELVERSION").trim().is_empty(),
+        "a fresh directory pins Bazel"
     );
     let snippet = read("DX_SCAFFOLD_SNIPPET");
     assert!(
@@ -313,95 +292,35 @@ fn consumer_new_applies_a_stdlib_cpp_project() {
         "snippet registers hermetic LLVM: {snippet}"
     );
     assert!(
-        snippet.contains("register_toolchains(\"@rust_toolchains//:all\")"),
-        "snippet registers hermetic Rust: {snippet}"
-    );
-    assert!(
         !read("DX_SCAFFOLD_VERSION").trim().is_empty(),
-        "the scaffolded project pins a dx version"
+        "the new directory pins a dx version"
     );
-}
-
-#[test]
-fn consumer_new_checks_before_applying_and_refuses_to_overwrite() {
-    let check = read("DX_NEW_CHECK");
-    assert!(
-        check.contains("new drift: missing"),
-        "check mode reports drift instead of writing: {check}"
-    );
-    assert!(
-        check.contains("checkonly/.dx/version"),
-        "check mode names the missing scaffold: {check}"
-    );
-    assert!(check.contains("exit=1"), "check mode fails: {check}");
-    let reapply = read("DX_NEW_REAPPLY");
-    assert!(
-        reapply.contains("absent-only, left untouched"),
-        "re-apply refuses existing files: {reapply}"
-    );
+    let reapply = read("DX_INIT_DIR_REAPPLY");
     assert!(
         reapply.contains("exit=0"),
-        "re-apply still succeeds: {reapply}"
+        "re-apply into the now-initialised directory succeeds: {reapply}"
     );
-    let invalid = read("DX_NEW_INVALID");
     assert!(
-        invalid.contains("unknown language"),
-        "an unknown language fails: {invalid}"
+        !reapply.contains("wrote myproj/MODULE.bazel\n"),
+        "re-apply leaves MODULE.bazel alone: {reapply}"
     );
-    assert!(invalid.contains("exit=2"), "usage errors exit 2: {invalid}");
 }
 
 #[test]
-fn consumer_new_rejects_removed_spellings() {
+fn consumer_new_is_removed_and_points_at_init() {
     let removed = read("DX_NEW_REMOVED");
-    assert_eq!(
-        removed.lines().filter(|line| *line == "exit=2").count(),
-        3,
-        "each removed spelling exits 2: {removed}"
+    assert!(
+        removed.contains("unsupported command 'new'"),
+        "dx new is a removed command: {removed}"
     );
-    for (spelling, canonical) in [("cc", "cpp"), ("c-sharp", "csharp"), ("f#", "fsharp")] {
-        assert!(
-            removed.contains(&format!(
-                "language spelling for dx new was removed: {spelling} (use {canonical})"
-            )),
-            "{spelling} names {canonical}: {removed}"
-        );
-    }
+    assert!(
+        removed.contains("dx init"),
+        "the error names dx init: {removed}"
+    );
+    assert!(removed.contains("exit=2"), "usage errors exit 2: {removed}");
     assert!(
         !removed.contains("wrote "),
-        "removed spellings write nothing: {removed}"
-    );
-}
-
-#[test]
-fn consumer_new_applies_a_pure_c_project() {
-    let apply = read("DX_NEW_C_APPLY");
-    for path in [
-        "wrote myc/BUILD.bazel",
-        "wrote myc/MODULE.bazel",
-        "wrote myc/hello.c",
-        "wrote myc/hello.h",
-        "wrote myc/hello_test.c",
-        "wrote myc/main.c",
-    ] {
-        assert!(apply.contains(path), "apply lacks {path}: {apply}");
-    }
-    assert!(!apply.contains(".cc\n"), "c writes no C++ source: {apply}");
-    assert!(
-        apply.contains("exit=0"),
-        "apply records its exit code: {apply}"
-    );
-    let c = read("DX_SCAFFOLD_HELLO_C");
-    assert!(c.contains("#include <stdio.h>"), "hello.c is C: {c}");
-    assert!(!c.contains("#include <string>"), "hello.c is not C++: {c}");
-    let header = read("DX_SCAFFOLD_C_H");
-    assert!(
-        header.contains("#include <stddef.h>"),
-        "hello.h is a C header: {header}"
-    );
-    assert!(
-        !header.contains("#include <string>"),
-        "hello.h is not C++: {header}"
+        "dx new writes nothing: {removed}"
     );
 }
 
@@ -427,6 +346,10 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
             "init writes {file}: {apply}"
         );
     }
+    assert!(
+        !apply.contains("wrote MODULE.bazel\n"),
+        "init leaves a non-empty tree without MODULE.bazel: {apply}"
+    );
     for file in [
         ".envrc",
         ".vscode/settings.json",
@@ -456,14 +379,14 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     assert!(check.contains("exit=1"), "check mode fails: {check}");
     let clean = read("DX_INIT_CLEAN");
     assert!(
-        clean.contains("init current: demo"),
+        clean.contains("init current: my_project"),
         "an applied tree rechecks clean: {clean}"
     );
     assert!(clean.contains("exit=0"), "a clean tree passes: {clean}");
     let bad = read("DX_INIT_BAD");
     assert!(
-        bad.contains("invalid module name"),
-        "an invalid module fails: {bad}"
+        bad.contains("invalid directory for dx init"),
+        "a directory outside the workspace fails: {bad}"
     );
     assert!(bad.contains("exit=2"), "usage errors exit 2: {bad}");
     let snippet = read("DX_INIT_SNIPPET");

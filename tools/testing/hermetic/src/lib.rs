@@ -150,7 +150,6 @@ pub struct Manifest {
     pub covered: Vec<String>,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: Option<PathBuf>,
-    pub starter: Option<String>,
     pub fragment_before_toolchains: bool,
     pub dx: PathBuf,
     pub module_file: PathBuf,
@@ -293,10 +292,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     }
     let failures = parse_failures(&value)?;
     let (coverage, covered) = parse_coverage(&value, &files)?;
-    let starter = value["starter"]
-        .as_str()
-        .filter(|starter| !starter.is_empty())
-        .map(str::to_owned);
     let fragment = value["module_fragment"].as_str().unwrap_or("");
     let fragment_before_toolchains = value["fragment_before_toolchains"]
         .as_bool()
@@ -309,21 +304,8 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     } else {
         Some(base.join(fragment))
     };
-    if starter.is_some() {
-        if repo_name != "rules_dx" {
-            return Err("a starter manifest must name rules_dx as repo_name".to_owned());
-        }
-        if fragment_before_toolchains
-            || !rust_target_triples.is_empty()
-            || !rust_extra_rustc_flags.is_empty()
-        {
-            return Err(
-                "a starter manifest cannot edit the dx init snippet (fragment_before_toolchains, rust_target_triples, rust_extra_rustc_flags)"
-                    .to_owned(),
-            );
-        }
-    } else if module_fragment.is_none() {
-        return Err("manifest needs a module_fragment unless it names a starter".to_owned());
+    if module_fragment.is_none() {
+        return Err("manifest needs a module_fragment".to_owned());
     }
     Ok(Manifest {
         label: string(&value, "label")?,
@@ -339,7 +321,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         covered,
         files,
         module_fragment,
-        starter,
         fragment_before_toolchains,
         dx: base.join(string(&value, "dx")?),
         module_file: base.join(string(&value, "module_file")?),
@@ -401,28 +382,6 @@ fn rules_dx_override(rules_dx: &Path) -> String {
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
         starlark_string(&rules_dx.to_string_lossy()),
     )
-}
-
-/// Points the MODULE.bazel `dx new` wrote at this checkout, keeping its own toolchain wiring.
-pub fn starter_module(
-    text: &str,
-    fragment: Option<&str>,
-    rules_dx: &Path,
-) -> Result<String, String> {
-    if text.matches("bazel_dep(name = \"rules_dx\", ").count() != 1 {
-        return Err(format!(
-            "dx new MODULE.bazel must declare rules_dx exactly once: {text}"
-        ));
-    }
-    if text.contains("local_path_override(") {
-        return Err("dx new MODULE.bazel already carries a local_path_override".to_owned());
-    }
-    let mut module = format!("{}\n", text.trim_end());
-    if let Some(fragment) = fragment {
-        module.push_str(&format!("{}\n", fragment.trim_end()));
-    }
-    module.push_str(&rules_dx_override(rules_dx));
-    Ok(module)
 }
 
 /// Builds the consumer MODULE.bazel from the `dx init` snippet.
@@ -722,33 +681,6 @@ pub struct Probe<'a> {
     pub expect: Expect,
 }
 
-/// Builds the isolated `dx new` command line that scaffolds the starter into `workspace_dir`.
-pub fn scaffold_argv(
-    dx: &Path,
-    starter: &str,
-    workspace_dir: &str,
-    root: &Path,
-    home: &Path,
-) -> Vec<String> {
-    vec![
-        "/usr/bin/env".to_owned(),
-        "-i".to_owned(),
-        format!("HOME={}", home.display()),
-        format!("PATH={ACTION_PATH}"),
-        "/bin/sh".to_owned(),
-        "-c".to_owned(),
-        "cd \"$0\" && exec \"$@\"".to_owned(),
-        root.to_string_lossy().into_owned(),
-        dx.to_string_lossy().into_owned(),
-        "new".to_owned(),
-        "--apply".to_owned(),
-        starter.to_owned(),
-        workspace_dir.to_owned(),
-        "--workspace".to_owned(),
-        root.to_string_lossy().into_owned(),
-    ]
-}
-
 pub struct Session {
     pub manifest: Manifest,
     pub root: PathBuf,
@@ -800,26 +732,6 @@ impl Session {
             &argv,
             recorded,
             &probe.expect,
-        )
-    }
-
-    /// Scaffolds the starter inside the isolation with the network denied.
-    pub fn scaffold(&mut self, starter: &str, home: &Path) -> Result<Outcome, String> {
-        let argv = scaffold_argv(
-            &self.manifest.dx,
-            starter,
-            &self.manifest.workspace_dir,
-            &self.root,
-            home,
-        );
-        let recorded = argv.clone();
-        self.execute(
-            "scaffold",
-            Net::Denied,
-            home,
-            &argv,
-            recorded,
-            &Expect::Pass,
         )
     }
 
@@ -1044,9 +956,6 @@ fn required_probes(manifest: &Manifest) -> Vec<(String, &str, &str, Net)> {
         required.push(("fetch_coverage".to_owned(), "pass", "", Net::Allowed));
         required.push(("coverage".to_owned(), "pass", "", Net::Denied));
     }
-    if manifest.starter.is_some() {
-        required.push(("scaffold".to_owned(), "pass", "", Net::Denied));
-    }
     for (label, marker) in &manifest.failures {
         required.push((failure_probe_name(label), "fail", marker, Net::Denied));
     }
@@ -1267,13 +1176,7 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
     let workspace_text = workspace.to_string_lossy().into_owned();
     let init = dx_testing::run(
         &manifest.dx,
-        &[
-            "init",
-            "--apply",
-            &manifest.module,
-            "--workspace",
-            &workspace_text,
-        ],
+        &["init", "--apply", "--workspace", &workspace_text],
         &[],
     )
     .map_err(|err| format!("cannot run dx init: {err}"))?;
@@ -1327,26 +1230,7 @@ pub fn materialize(
     std::fs::create_dir_all(workspace)
         .map_err(|err| format!("cannot create {}: {err}", workspace.display()))?;
     let repo = &manifest.repo_name;
-    if manifest.starter.is_some() {
-        let path = workspace.join("MODULE.bazel");
-        let text = std::fs::read_to_string(&path)
-            .map_err(|err| format!("dx new wrote no MODULE.bazel: {err}"))?;
-        let fragment = match &manifest.module_fragment {
-            Some(path) => Some(
-                std::fs::read_to_string(path)
-                    .map_err(|err| format!("cannot read {}: {err}", path.display()))?,
-            ),
-            None => None,
-        };
-        write(&path, &starter_module(&text, fragment.as_deref(), source)?)?;
-        for (_, dest) in &manifest.files {
-            if workspace.join(dest).exists() {
-                return Err(format!("{dest} would overwrite dx new output"));
-            }
-        }
-    } else {
-        materialize_init(manifest, workspace, source)?;
-    }
+    materialize_init(manifest, workspace, source)?;
     for (src, dest) in &manifest.files {
         if dest.ends_with("BUILD.bazel") {
             let text = std::fs::read_to_string(src)
@@ -1481,10 +1365,6 @@ fn run_all(
     let planted_home = root.join("home-planted");
     std::fs::create_dir_all(&clean_home)
         .map_err(|err| format!("cannot create {}: {err}", clean_home.display()))?;
-    if let Some(starter) = session.manifest.starter.clone() {
-        evidence["consumer"]["starter"] = json!(starter);
-        session.scaffold(&starter, &clean_home)?;
-    }
     materialize(
         &session.manifest,
         &session.workspace,

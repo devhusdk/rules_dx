@@ -1,0 +1,7 @@
+#include "hello.h"
+
+#include <stdio.h>
+
+int hello(const char *name, char *out, size_t size) {
+  return snprintf(out, size, "hello %s", name);
+}

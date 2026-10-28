@@ -1,0 +1,34 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_test")
+
+ocaml_module(
+    name = "hello",
+    struct = "hello.ml",
+)
+
+ocaml_library(
+    name = "demo-app",
+    manifest = [":hello"],
+)
+
+ocaml_module(
+    name = "main",
+    struct = "main.ml",
+    deps = [":demo-app"],
+)
+
+ocaml_binary(
+    name = "demo-app_bin",
+    main = ":main",
+)
+
+ocaml_module(
+    name = "hello_test_main",
+    testonly = True,
+    struct = "hello_test.ml",
+    deps = [":demo-app"],
+)
+
+ocaml_test(
+    name = "demo-app_test",
+    main = ":hello_test_main",
+)

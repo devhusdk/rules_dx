@@ -82,7 +82,6 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         Command::Worktree => &[],
         Command::Init => &[CODE_INIT_PLAN_PARTIAL],
         Command::Migrate
-        | Command::New
         | Command::Upgrade
         | Command::Status
         | Command::Version

@@ -115,7 +115,6 @@ fn required_words(command: Command) -> Vec<String> {
         "bump" | "add" => &["cargo:demo", "1.0.0"],
         "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
-        "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
         "install" => &["--tag", "v1.2.3", "--archive", "a.tar.gz"],
@@ -2695,45 +2694,6 @@ fn completion_help_banner_and_page_name_exactly_the_shells() {
     }
     let page = std::fs::read_to_string(docs_dir().join("completion.md")).expect("completion page");
     slot_lists(&page, registry);
-}
-
-#[test]
-fn new_help_and_page_name_exactly_the_languages() {
-    let registry = dx_adopt::SUPPORTED_NEW_LANGUAGES;
-    slot_lists(Command::New.scopes_text(), registry);
-    let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new page");
-    slot_lists(&page, registry);
-    for entry in dx_adopt::NEW_LANGUAGES {
-        let sentence = format!("- `{}` takes {}.", entry.name, entry.identity.doc_name());
-        assert!(
-            page.contains(&sentence),
-            "docs/cli/commands/new-upgrade.md must state the package identity of `{}` as: {sentence}",
-            entry.name
-        );
-    }
-    let identity_terms: Vec<String> = page
-        .lines()
-        .filter(|line| line.contains(" takes "))
-        .flat_map(|line| bullet_terms(line))
-        .collect();
-    let table_names: Vec<String> = dx_adopt::NEW_LANGUAGES
-        .iter()
-        .map(|entry| entry.name.to_string())
-        .collect();
-    assert_eq!(
-        identity_terms, table_names,
-        "docs/cli/commands/new-upgrade.md identity bullets must match the language table"
-    );
-    for spelling in ["cc", "c#", "c-sharp", "f#", "f-sharp"] {
-        assert!(
-            dx_adopt::removed_new_language(spelling).is_some(),
-            "{spelling} is a removed spelling"
-        );
-        assert!(
-            page.contains(&format!("`{spelling}`")),
-            "docs/cli/commands/new-upgrade.md must name the removed {spelling} spelling"
-        );
-    }
 }
 
 fn versions_pin(name: &str) -> String {

@@ -1250,7 +1250,7 @@ mod tests {
     }
 
     #[test]
-    fn init_and_new_share_absent_only_collision_behavior() {
+    fn init_leaves_existing_files_untouched() {
         let scratch = dx_test_scratch::scratch("dx-adopt-shared-collision-");
         let root = scratch.path().join("root");
         std::fs::create_dir_all(&root).expect("root");
@@ -1261,17 +1261,6 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(root.join(".envrc")).unwrap(),
             "mine\n"
-        );
-        std::fs::create_dir_all(root.join("app")).expect("app");
-        std::fs::write(root.join("app/Cargo.toml"), "# mine\n").expect("manual build");
-        let new = entries(|a| super::super::apply_new(&root, "rust", "app", a)).expect("new");
-        assert!(
-            new.contains(&"refused:app/Cargo.toml".to_owned()),
-            "{new:?}"
-        );
-        assert_eq!(
-            std::fs::read_to_string(root.join("app/Cargo.toml")).unwrap(),
-            "# mine\n"
         );
         scratch.close().expect("cleanup");
     }

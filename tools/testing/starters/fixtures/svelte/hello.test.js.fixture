@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { parse } from "svelte/compiler";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const source = fs.readFileSync(path.join(here, "Hello.svelte"), "utf8");
+const ast = parse(source, { modern: true });
+
+assert.ok(ast.fragment.nodes.length > 0);
+assert.notEqual(ast.instance, null);
+assert.ok(
+  source.slice(ast.instance.start, ast.instance.end).includes("./helper.js"),
+);
+console.log("PASS");

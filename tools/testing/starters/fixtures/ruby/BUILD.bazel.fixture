@@ -1,0 +1,19 @@
+load("@rules_dx//ruby/rules:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
+
+ruby_library(
+    name = "demo-app",
+    srcs = ["hello.rb"],
+)
+
+ruby_binary(
+    name = "demo-app_bin",
+    srcs = ["main.rb"],
+    main = "main.rb",
+    deps = [":demo-app"],
+)
+
+ruby_test(
+    name = "demo-app_test",
+    srcs = ["hello_test.rb"],
+    deps = [":demo-app"],
+)

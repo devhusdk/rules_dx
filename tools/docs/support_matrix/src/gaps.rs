@@ -46,9 +46,6 @@ pub fn gaps(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Vec<St
                 }
             }
         }
-        if row.section == "languages" && row.starters.is_empty() {
-            out.push(format!("starter:{}", row.name));
-        }
         if !crate::render::shows_quality(row) {
             continue;
         }
@@ -156,7 +153,7 @@ mod tests {
             "consumer:*:windows_*",
             "consumer:rust:windows_arm64"
         ));
-        assert!(matches("starter:julia", "starter:julia"));
+        assert!(matches("consumer:julia", "consumer:julia"));
         assert!(!matches(
             "consumer:*:windows_*",
             "consumer:rust:linux_x86_64"
@@ -195,12 +192,12 @@ mod tests {
 
     #[test]
     fn ledger_is_bidirectional() {
-        let ledger = BTreeMap::from([("starter:*".to_owned(), 1), ("build:*".to_owned(), 2)]);
-        let gaps = vec!["starter:julia".to_owned()];
+        let ledger = BTreeMap::from([("consumer:*".to_owned(), 1), ("build:*".to_owned(), 2)]);
+        let gaps = vec!["consumer:julia".to_owned()];
         let error = check_ledger(&gaps, &ledger).expect_err("build:* is stale");
         assert!(error.contains("build:*"), "{error}");
-        let gaps = vec!["starter:julia".to_owned(), "lint:d".to_owned()];
-        let ledger = BTreeMap::from([("starter:*".to_owned(), 1)]);
+        let gaps = vec!["consumer:julia".to_owned(), "lint:d".to_owned()];
+        let ledger = BTreeMap::from([("consumer:*".to_owned(), 1)]);
         let error = check_ledger(&gaps, &ledger).expect_err("lint:d is untracked");
         assert!(error.contains("lint:d"), "{error}");
         let ledger = BTreeMap::from([("*".to_owned(), 1)]);

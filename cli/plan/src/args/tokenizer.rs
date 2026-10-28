@@ -118,6 +118,7 @@ pub(crate) const REMOVED_COMMANDS: &[(&str, &str)] = &[
     ("list-tests", "run `bazel query 'tests(<scope>)'` to list test targets, or `dx test` to run them; wrap the expression in single quotes"),
     ("rerun", "run `dx test <target>` for the targets you want to run again"),
     ("doctor", "run `dx status` for diagnostics"),
+    ("new", "run `dx init <dir>` to start a workspace; languages are wired when their sources appear"),
 ];
 
 /// Command names dx never takes, and the tip each error carries.

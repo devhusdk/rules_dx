@@ -136,7 +136,7 @@ jobs:
           adb -s emulator-5554 shell wm dismiss-keyguard
       - name: Run the device scenario
         run: sh android/tests/fixtures/rust_apk/device_run.sh emulator-5554 evidence
-      - name: Run the rust-android starter on the emulator
+      - name: Run the rust-android fixture on the emulator
         run: |
           # The generated consumer builds locally: the BuildBuddy configs live in rules_dx's .bazelrc.
           set -o pipefail
@@ -147,7 +147,17 @@ jobs:
           starter() {
             set -e
             cd "$RUNNER_TEMP"
-            ./dx new --apply rust-android demo-app --workspace "$RUNNER_TEMP"
+            ./dx init --apply demo-app --workspace "$RUNNER_TEMP"
+            fixture="$checkout/tools/testing/starters/fixtures/rust-android"
+            (cd "$fixture" && find . -type f -name '*.fixture') | while read -r file; do
+              dest="demo-app/${file#./}"
+              dest="${dest%.fixture}"
+              mkdir -p "$(dirname "$dest")"
+              case "$dest" in
+                demo-app/MODULE.bazel | demo-app/.bazelrc) printf '\n' >> "$dest" && cat "$fixture/$file" >> "$dest" ;;
+                *) cp "$fixture/$file" "$dest" ;;
+              esac
+            done
             cd demo-app
             printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
             bazel build --noshow_progress --config=android :demo-app_apk_file

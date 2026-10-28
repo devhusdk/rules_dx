@@ -1,0 +1,6 @@
+# demo-app
+
+```sh
+bazel build //...
+bazel test //...
+```

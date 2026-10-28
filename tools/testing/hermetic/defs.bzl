@@ -29,7 +29,6 @@ def _hermetic_manifest_impl(ctx):
         "repo_name": ctx.attr.repo_name,
         "rust_extra_rustc_flags": ctx.attr.rust_extra_rustc_flags,
         "rust_target_triples": ctx.attr.rust_target_triples,
-        "starter": ctx.attr.starter,
         "workspace_dir": ctx.attr.workspace_dir,
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
@@ -63,7 +62,6 @@ hermetic_manifest = rule(
         "rust_extra_rustc_flags": attr.string_list(doc = "rustc flags added to the dx init rust.toolchain as extra_rustc_flags."),
         "rust_target_triples": attr.string_list(doc = "Rust target triples added to the dx init rust.toolchain."),
         "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
-        "starter": attr.string(doc = "dx new starter to scaffold inside the isolation instead of running dx init."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
         "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
@@ -100,7 +98,6 @@ def hermetic_qualification(
         rust_extra_rustc_flags = [],
         rust_target_triples = [],
         srcs = [],
-        starter = "",
         workspace_dir = "consumer ws",
         **kwargs):
     """Declares one consumer qualification test and its manifest."""
@@ -121,7 +118,6 @@ def hermetic_qualification(
         rust_extra_rustc_flags = rust_extra_rustc_flags,
         rust_target_triples = rust_target_triples,
         srcs = srcs,
-        starter = starter,
         target_compatible_with = HERMETIC_COMPATIBLE_WITH,
         workspace_dir = workspace_dir,
     )

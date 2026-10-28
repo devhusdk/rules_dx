@@ -7,12 +7,12 @@ the toolchain, so there is no setup in `MODULE.bazel`.
 ## Start
 
 ```sh
-bazel run @rules_dx//:dx -- new --apply powershell demo
+bazel run @rules_dx//:dx -- init --apply demo
 cd demo
-bazel build //...
-bazel run :demo_bin
-bazel test //...
 ```
+
+Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
+wired when its sources appear.
 
 The targets are Linux only. They set `target_compatible_with` to
 `@platforms//os:linux`.

@@ -7,7 +7,7 @@ dx install --tag <tag> --archive <path> [--dir DIR] [--apply]
 Verifies a downloaded dx release archive and installs it under a per-user
 directory. It does not use Bazel (so no `@rules_dx//:dx` launcher), does not need a
 workspace, and never touches
-a `.dx/version` pin. Use [`dx rollback`](new-upgrade.md) for pins; use this
+a `.dx/version` pin. Use [`dx rollback`](upgrade-rollback.md) for pins; use this
 page to put the `dx` binary itself on a machine.
 
 `dx install` never downloads anything. You download the archive, the checksum

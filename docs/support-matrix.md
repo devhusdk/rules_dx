@@ -1,6 +1,6 @@
 # Support matrix
 
-This page lists, for each language and target, the platforms CI tests it on, its `dx new` starter, and its lint, format, and typecheck tools.
+This page lists, for each language and target, the platforms CI tests it on and its lint, format, and typecheck tools.
 
 An empty cell or `no` is a missing test, tracked as an issue.
 
@@ -14,52 +14,52 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 "Builds and tests on" lists the platforms where CI runs the language's rule tests. "Consumer test on" lists the platforms where CI builds it from a module other than `rules_dx`.
 
-| Language | Builds and tests on | Consumer test on | `dx new` starter |
-| --- | --- | --- | --- |
-| Astro | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `astro` |
-| C and C++ | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `c`, `cpp` |
-| C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `csharp` |
-| CUDA | `linux_x86_64` | `linux_x86_64` | `cuda` |
-| D | `linux_x86_64` | `linux_x86_64` | `d` |
-| Dart | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
-| Elixir | `linux_x86_64` | `linux_x86_64` | `elixir` |
-| Erlang | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `erlang` |
-| Fortran | `linux_x86_64` | `linux_x86_64` | `fortran` |
-| F# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `fsharp` |
-| Go | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `go` |
-| Haskell | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `haskell` |
-| Java | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `java` |
-| JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `javascript` |
-| Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `julia` |
-| Kotlin | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `kotlin` |
-| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `lua` |
-| MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `mdx` |
-| OCaml | `linux_x86_64` | `linux_x86_64` | `ocaml` |
-| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `perl` |
-| PHP | `linux_x86_64` | `linux_x86_64` | `php` |
-| PowerShell | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` | `powershell` |
-| Python | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `python` |
-| Ruby | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `ruby` |
-| Rust | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `rust`, `rust-android`, `rust-web` |
-| Scala | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | `scala` |
-| Svelte | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `svelte` |
-| TypeScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `typescript` |
-| Vue | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `vue` |
-| Zig | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `zig` |
+| Language | Builds and tests on | Consumer test on |
+| --- | --- | --- |
+| Astro | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| C and C++ | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| C# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| CUDA | `linux_x86_64` | `linux_x86_64` |
+| D | `linux_x86_64` | `linux_x86_64` |
+| Dart | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Elixir | `linux_x86_64` | `linux_x86_64` |
+| Erlang | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64` |
+| Fortran | `linux_x86_64` | `linux_x86_64` |
+| F# | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Go | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Haskell | `linux_x86_64`, `linux_arm64`, `macos_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64` |
+| Java | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` |
+| Kotlin | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| OCaml | `linux_x86_64` | `linux_x86_64` |
+| Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` |
+| PHP | `linux_x86_64` | `linux_x86_64` |
+| PowerShell | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` |
+| Python | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| Ruby | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| Rust | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
+| Scala | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
+| Svelte | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| TypeScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Vue | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
+| Zig | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` |
 
 ## Targets
 
-| Target | Builds and tests on | Consumer test on | `dx new` starter |
-| --- | --- | --- | --- |
-| Android | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
-| AppImage | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
-| Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` | no |
-| CMake | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
-| Dockerfile | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
-| Make | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
-| MSIX | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
-| Qt | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` | no |
-| WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
+| Target | Builds and tests on | Consumer test on |
+| --- | --- | --- |
+| Android | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
+| AppImage | `linux_x86_64`, `linux_arm64` | `linux_x86_64` |
+| Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` |
+| CMake | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
+| Dockerfile | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| Make | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no |
+| MSIX | `linux_x86_64`, `linux_arm64` | `linux_x86_64` |
+| Qt | `linux_x86_64`, `linux_arm64` | `linux_x86_64`, `linux_arm64` |
+| WASI | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` |
 
 ## Quality
 

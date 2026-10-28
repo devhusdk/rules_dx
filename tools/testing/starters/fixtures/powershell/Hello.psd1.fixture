@@ -1,0 +1,6 @@
+@{
+    RootModule = 'Hello.psm1'
+    ModuleVersion = '0.1.0'
+    GUID = '5b0f3a52-7c1e-4d0e-9a57-3f1c2b8e6d41'
+    PowerShellVersion = '7.0'
+}

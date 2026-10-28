@@ -7,12 +7,12 @@ it. rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 ## Start
 
 ```sh
-bazel run @rules_dx//:dx -- new --apply ruby demo
+bazel run @rules_dx//:dx -- init --apply demo
 cd demo
-bazel build //...
-bazel run :demo_bin
-bazel test //...
 ```
+
+Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
+wired when its sources appear.
 
 ## Rules
 

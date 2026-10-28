@@ -42,7 +42,7 @@ fn run() -> Result<ExitCode, String> {
     let mode = std::env::args().nth(1).unwrap_or_default();
     let source = RunfilesSource::create()?;
     let facts = source.read(FACTS)?;
-    let matrix = generate(&facts, &source, dx_adopt::new::SUPPORTED_NEW_LANGUAGES)?;
+    let matrix = generate(&facts, &source)?;
     match mode.as_str() {
         "--write" => {
             let Ok(workspace) = std::env::var("BUILD_WORKSPACE_DIRECTORY") else {

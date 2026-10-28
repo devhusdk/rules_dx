@@ -48,21 +48,8 @@ pub enum AdoptError {
     PinRecordUnreadable { detail: String },
     #[error("write pin record: {detail}")]
     WritePinRecord { detail: String },
-    #[error(
-        "unknown language for dx new: {language} (want one of {})",
-        crate::new::new_language_name_list()
-    )]
-    NewUnknownLanguage { language: String },
-    #[error("language spelling for dx new was removed: {language} (use {canonical})")]
-    NewRemovedLanguage { language: String, canonical: String },
-    #[error("invalid destination for dx new: {name:?}: {reason}")]
-    NewInvalidDestination { name: String, reason: String },
-    #[error("invalid package identity for dx new {language}: {name:?}: {reason}")]
-    NewInvalidIdentity {
-        language: String,
-        name: String,
-        reason: String,
-    },
+    #[error("invalid directory for dx init: {dir:?}: {reason}")]
+    InitInvalidDir { dir: String, reason: String },
     #[error("invalid module name for dx init: {module:?}: {reason}")]
     InitInvalidModule { module: String, reason: String },
     #[error("init MODULE.bazel snippet: {detail}")]
@@ -117,21 +104,12 @@ mod tests {
     #[test]
     fn scaffold_errors_render_stably() {
         assert_eq!(
-            AdoptError::NewInvalidDestination {
-                name: "../evil".to_owned(),
-                reason: "destinations stay inside the workspace (no absolute paths)".to_owned(),
+            AdoptError::InitInvalidDir {
+                dir: "../evil".to_owned(),
+                reason: "directories stay inside the current directory (no empty, '.' or '..' segments)".to_owned(),
             }
             .to_string(),
-            "invalid destination for dx new: \"../evil\": destinations stay inside the workspace (no absolute paths)"
-        );
-        assert_eq!(
-            AdoptError::NewInvalidIdentity {
-                language: "rust".to_owned(),
-                name: String::new(),
-                reason: "cargo crate names use [A-Za-z0-9_-] only".to_owned(),
-            }
-            .to_string(),
-            "invalid package identity for dx new rust: \"\": cargo crate names use [A-Za-z0-9_-] only"
+            "invalid directory for dx init: \"../evil\": directories stay inside the current directory (no empty, '.' or '..' segments)"
         );
         assert_eq!(
             AdoptError::InitInvalidModule {

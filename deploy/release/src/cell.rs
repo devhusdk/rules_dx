@@ -13,7 +13,7 @@ pub const MOVED_DIR: &str = "moved \u{fc}";
 
 /// The ASCII dir `qualify` stages the consumer workspace in, under the work dir.
 pub const CONSUMER_DIR: &str = "consumer";
-/// The module name `dx init --apply` is given for the consumer workspace.
+/// The module name the staged consumer MODULE.bazel declares.
 pub const CONSUMER_MODULE: &str = "dx_release_consumer";
 /// Template file and the name it takes in the staged consumer workspace.
 pub const CONSUMER_FILES: [(&str, &str); 2] = [
@@ -440,13 +440,7 @@ pub fn stage_consumer(
     ran(
         runner,
         exe,
-        &[
-            "init",
-            "--apply",
-            CONSUMER_MODULE,
-            "--workspace",
-            &workspace,
-        ],
+        &["init", "--apply", "--workspace", &workspace],
         &dir,
     )
     .map_err(|error| format!("stage: {error}"))?;

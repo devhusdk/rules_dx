@@ -1,0 +1,19 @@
+# demo-app
+
+A CUDA starter. The toolkit (13.4) and its host compiler are pinned in `MODULE.bazel`,
+so no CUDA install is needed to build. Linux x86_64 only.
+
+```sh
+bazel build //...
+bazel test //...
+bazel run :demo-app_bin
+```
+
+The binary runs the kernel when a GPU and driver are present and falls back to the CPU
+otherwise. The test checks host-side logic only and launches no kernel.
+
+## License
+
+`MODULE.bazel` contains `cuda_license.license(accept = ["cuda-eula"])`. That line accepts
+the NVIDIA CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) on your behalf.
+Remove it to decline; CUDA targets then fail to build with a message that names the license.

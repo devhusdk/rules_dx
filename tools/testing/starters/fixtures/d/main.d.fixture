@@ -1,0 +1,9 @@
+module main;
+
+import hello : greet;
+import std.stdio : writeln;
+
+void main()
+{
+    writeln(greet("world"));
+}

@@ -1,0 +1,135 @@
+# Hello-world projects for the consumer tests, one directory per language.
+# Every file ends in .fixture so Bazel, Gazelle and the linters leave it alone;
+# dx_nested::scaffold_fixture strips the suffix after `dx init --apply`; the hermetic
+# qualifications map single files to their workspace paths.
+
+exports_files(
+    glob(["**/*.fixture"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "astro",
+    srcs = glob(["astro/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "c",
+    srcs = glob(["c/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "cpp",
+    srcs = glob(["cpp/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "cuda",
+    srcs = glob(["cuda/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "d",
+    srcs = glob(["d/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "elixir",
+    srcs = glob(["elixir/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "erlang",
+    srcs = glob(["erlang/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "fortran",
+    srcs = glob(["fortran/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "haskell",
+    srcs = glob(["haskell/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "julia",
+    srcs = glob(["julia/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "lua",
+    srcs = glob(["lua/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "mdx",
+    srcs = glob(["mdx/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "ocaml",
+    srcs = glob(["ocaml/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "perl",
+    srcs = glob(["perl/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "php",
+    srcs = glob(["php/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "powershell",
+    srcs = glob(["powershell/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "ruby",
+    srcs = glob(["ruby/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "rust-android",
+    srcs = glob(["rust-android/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "svelte",
+    srcs = glob(["svelte/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "vue",
+    srcs = glob(["vue/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "zig",
+    srcs = glob(["zig/**"]),
+    visibility = ["//visibility:public"],
+)

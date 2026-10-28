@@ -1,0 +1,7 @@
+# demo-app
+
+```sh
+bazel build //...
+bazel run :DemoApp_bin
+bazel test //...
+```

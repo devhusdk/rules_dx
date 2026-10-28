@@ -1,0 +1,6 @@
+using DemoApp
+using Test
+
+@testset "DemoApp" begin
+    @test greet("world") == "hello world"
+end

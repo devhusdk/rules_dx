@@ -1,0 +1,8 @@
+{
+  "name": "demo-app",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@vue/compiler-sfc": "3.5.42"
+  }
+}

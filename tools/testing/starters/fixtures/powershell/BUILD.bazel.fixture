@@ -1,0 +1,23 @@
+load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
+
+pwsh_library(
+    name = "demo-app",
+    srcs = [
+        "Hello.psd1",
+        "Hello.psm1",
+    ],
+)
+
+pwsh_binary(
+    name = "demo-app_bin",
+    srcs = ["Main.ps1"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":demo-app"],
+)
+
+pwsh_test(
+    name = "demo-app_test",
+    srcs = ["Hello.Tests.ps1"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [":demo-app"],
+)

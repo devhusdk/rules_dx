@@ -127,10 +127,10 @@ mod tests {
         assert!(err.is_empty(), "{err}");
 
         let scratch = dx_test_scratch::scratch("dx-adopt-run-refused-");
-        let (code, out, err) = run(&invocation(&["new", "swift", "demo"]), scratch.path());
+        let (code, out, err) = run(&invocation(&["init", "../escape"]), scratch.path());
         assert_eq!(code, pre_exec_code());
         assert!(out.is_empty(), "{out}");
-        assert!(err.contains("unknown language"), "{err}");
+        assert!(err.contains("invalid directory for dx init"), "{err}");
     }
 
     #[test]

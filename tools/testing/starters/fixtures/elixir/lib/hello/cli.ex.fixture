@@ -1,0 +1,10 @@
+defmodule Hello.CLI do
+  @moduledoc """
+  Prints a greeting.
+  """
+
+  @doc """
+  Escript entry point.
+  """
+  def main(_args), do: IO.puts(Hello.greet("world"))
+end

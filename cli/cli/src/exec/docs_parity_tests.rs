@@ -76,58 +76,26 @@ fn clean_page_names_every_clean_notice_code() {
 }
 
 #[test]
-fn first_build_page_and_json_list_the_new_languages_in_order() {
-    let want: Vec<&str> = dx_adopt::NEW_LANGUAGES.iter().map(|l| l.name).collect();
-    let docs = workspace_root().join("docs");
-    let json = std::fs::read_to_string(docs.join("first-build.json")).expect("first-build.json");
-    let json: serde_json::Value = serde_json::from_str(&json).expect("first-build.json parses");
-    let rows: Vec<&str> = json["languages"]
-        .as_array()
-        .expect("languages array")
-        .iter()
-        .map(|row| row["name"].as_str().expect("row name"))
-        .collect();
-    assert_eq!(rows, want, "docs/first-build.json rows drifted from NEW_LANGUAGES");
-    let page = std::fs::read_to_string(docs.join("first-build.md")).expect("first-build.md");
-    let listed: Vec<&str> = page
-        .lines()
-        .filter_map(|line| line.strip_prefix("| `"))
-        .filter_map(|rest| rest.split_once('`').map(|(name, _)| name))
-        .collect();
-    assert_eq!(listed, want, "docs/first-build.md table drifted from NEW_LANGUAGES");
-}
-
-#[test]
-fn new_upgrade_page_names_codes_and_starter_files() {
-    use crate::adopt::{CODE_NEW_FAILED, CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
-    let page = std::fs::read_to_string(docs_dir().join("new-upgrade.md")).expect("new-upgrade.md");
-    let section = |name: &str| -> Vec<String> {
-        let (_, body) = sections(&page)
-            .into_iter()
-            .find(|(heading, _)| heading == name)
-            .unwrap_or_else(|| panic!("new-upgrade.md has a {name} section"));
-        backticked(&body)
-    };
-    let init_files: Vec<String> = dx_adopt::plan_init_files("demo", dx_adopt::InitParts::ALL)
-        .expect("demo is a valid module name")
-        .into_iter()
-        .map(|file| file.path)
-        .collect();
-    let mut new_names = vec![CODE_NEW_FAILED.to_owned()];
-    new_names.extend(init_files);
+fn upgrade_rollback_page_names_codes() {
+    use crate::adopt::{CODE_STATUS_PIN_MISMATCH, CODE_UPGRADE_FAILED};
+    let page = std::fs::read_to_string(docs_dir().join("upgrade-rollback.md"))
+        .expect("upgrade-rollback.md");
     for (heading, names) in [
-        ("`dx new`", new_names),
         ("`dx upgrade`", vec![CODE_UPGRADE_FAILED.to_owned()]),
         (
             "`dx rollback`",
             vec![CODE_STATUS_PIN_MISMATCH.to_owned(), "pin".to_owned()],
         ),
     ] {
-        let tokens = section(heading);
+        let (_, body) = sections(&page)
+            .into_iter()
+            .find(|(found, _)| found == heading)
+            .unwrap_or_else(|| panic!("upgrade-rollback.md has a {heading} section"));
+        let tokens = backticked(&body);
         for name in names {
             assert!(
                 tokens.iter().any(|token| *token == name),
-                "new-upgrade.md {heading} section never names `{name}`"
+                "upgrade-rollback.md {heading} section never names `{name}`"
             );
         }
     }

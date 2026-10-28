@@ -1,0 +1,7 @@
+module Main (main) where
+
+import Hello (greet)
+import System.Exit (exitFailure)
+
+main :: IO ()
+main = if greet "world" == "hello world" then putStrLn "PASS" else exitFailure

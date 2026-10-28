@@ -6,7 +6,8 @@ no setup in `MODULE.bazel`. Linking uses the hermetic LLVM C++ toolchain.
 
 ## Start
 
-Scaffold a working project with `dx new --apply d demo-app`.
+Run `dx init --apply demo-app` and add sources. The language is wired when
+its sources appear.
 
 ```python
 load("@rules_dx//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_binary", "d_library", "d_test")

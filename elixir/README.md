@@ -8,11 +8,12 @@ target needs it. rules_dx registers the toolchain, so there is no setup in
 ## Start
 
 ```sh
-bazel run @rules_dx//:dx -- new --apply elixir demo
+bazel run @rules_dx//:dx -- init --apply demo
 cd demo
-bazel test //...
-bazel run :demo_bin
 ```
+
+Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
+wired when its sources appear. See `examples/elixir-app` for a working app.
 
 ## Rules
 

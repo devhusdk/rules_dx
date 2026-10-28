@@ -1,0 +1,27 @@
+# demo-app
+
+Rust core packaged as a debug Android APK (com.example.demo_app) for arm64-v8a and x86_64.
+
+The host build and tests need no Android SDK:
+
+```sh
+bazel build //...
+bazel test //...
+```
+
+The APK and its launchers are tagged manual. They need an installed Android SDK
+with platform android-34, build-tools 35.0.0 and an NDK:
+
+```sh
+export ANDROID_HOME=$HOME/Android/Sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export ANDROID_NDK_REVISION=<installed ndk version>
+bazel build --config=android :demo-app_apk_file
+bazel test --config=android :demo-app_check_test
+bazel run --config=android :demo-app_install
+bazel run --config=android :demo-app_start
+bazel run --config=android :demo-app_log
+```
+
+The launchers name emulator-5554. The APK is debug-signed, so no keys are needed.
+The app ID, ABIs and API level are attributes of `:demo-app_apk` in BUILD.bazel.

@@ -1,0 +1,8 @@
+{
+  "name": "demo-app",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@astrojs/compiler": "4.0.0"
+  }
+}

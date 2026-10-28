@@ -1,0 +1,14 @@
+module hello
+  implicit none
+  private
+  public :: greet
+
+contains
+
+  function greet(name) result(text)
+    character(*), intent(in) :: name
+    character(:), allocatable :: text
+    text = "hello " // name
+  end function greet
+
+end module hello

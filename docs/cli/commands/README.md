@@ -25,7 +25,7 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx status`, `dx version`](status-version.md)
 - [`dx completion`](completion.md)
 - [`dx migrate`](migrate.md)
-- [`dx new`, `dx upgrade`, `dx rollback`](new-upgrade.md)
+- [`dx upgrade`, `dx rollback`](upgrade-rollback.md)
 - [`dx watch`](watch.md)
 - [`dx worktree`](worktree.md)
 
@@ -541,7 +541,7 @@ the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
 file redirects once to that workspace. A relative `workspace` key resolves
 from the directory of the file that sets it. `-h`, `--help`, `help`, `-V`, and
-`--version` print without reading a broken config. `dx new` and
+`--version` print without reading a broken config. `dx init` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.
 

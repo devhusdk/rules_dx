@@ -7,9 +7,9 @@ load(":languages.bzl", "COMPUTED_CONSTRAINTS", "GAP_ENFORCEMENT", "GAP_ISSUES", 
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
-_ROW_KEYS = ["ci_tests", "consumer_tests", "families", "name", "section", "starters", "title", "workflows"]
+_ROW_KEYS = ["ci_tests", "consumer_tests", "families", "name", "section", "title", "workflows"]
 
-_BUILD_KEYS = ["ci_tests", "consumer_tests", "starters", "workflows"]
+_BUILD_KEYS = ["ci_tests", "consumer_tests", "workflows"]
 
 def _quality():
     families = {}
@@ -31,7 +31,6 @@ def support_matrix_facts_dict():
     if SUPPORT_MATRIX_SCHEMA_VERSION != 1:
         fail("support matrix: unsupported schema v" + str(SUPPORT_MATRIX_SCHEMA_VERSION))
     quality = _quality()
-    starters = {}
     names = {}
     for row in ROWS:
         for key in row:
@@ -51,10 +50,6 @@ def support_matrix_facts_dict():
             for key in _BUILD_KEYS:
                 if row.get(key, []):
                     fail("support matrix: format row " + row["name"] + " sets " + key)
-        for starter in row.get("starters", []):
-            if starter in starters:
-                fail("support matrix: starter " + starter + " is listed twice")
-            starters[starter] = True
     support = []
     for record in SUPPORT_RECORDS:
         support.append({
@@ -82,7 +77,6 @@ def support_matrix_facts_dict():
                 "families": row.get("families", [row["name"]]),
                 "name": row["name"],
                 "section": row["section"],
-                "starters": row.get("starters", []),
                 "title": row["title"],
                 "workflows": row.get("workflows", []),
             }

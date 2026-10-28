@@ -61,9 +61,9 @@ USER_BOOK = [
     mdbook_page("Init", "docs/cli/commands/init.md", "//docs:cli/commands/init.md"),
     mdbook_page("Migrate", "docs/cli/commands/migrate.md", "//docs:cli/commands/migrate.md"),
     mdbook_page(
-        "New, Upgrade",
-        "docs/cli/commands/new-upgrade.md",
-        "//docs:cli/commands/new-upgrade.md",
+        "Upgrade, Rollback",
+        "docs/cli/commands/upgrade-rollback.md",
+        "//docs:cli/commands/upgrade-rollback.md",
     ),
     mdbook_page("Explain", "docs/cli/commands/explain.md", "//docs:cli/commands/explain.md"),
     mdbook_page("Install", "docs/cli/commands/install.md", "//docs:cli/commands/install.md"),

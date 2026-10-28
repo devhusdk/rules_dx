@@ -51,7 +51,7 @@ real_source_target(
         "cli/commands/init.md",
         "cli/commands/install.md",
         "cli/commands/migrate.md",
-        "cli/commands/new-upgrade.md",
+        "cli/commands/upgrade-rollback.md",
         "cli/commands/offline-bundle.md",
         "cli/commands/quality.md",
         "cli/commands/scope-defaults.md",

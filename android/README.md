@@ -343,8 +343,8 @@ sign a generated test bundle with a disposable key and verify it.
 
 ## Qualified SDK for packaging builds
 
-To start a new app, `dx new --apply rust-android <name>` scaffolds a
-consumer with these targets; see [`dx new rust-android`](../docs/cli/commands/new-upgrade.md#dx-new-rust-android).
+To start a new app, run `dx init --apply <dir>` and add the sources and
+targets above.
 
 Packaging builds read the installed SDK through the upstream
 `androidsdk` repository, which stays empty without `ANDROID_HOME`.
@@ -354,7 +354,7 @@ installed under `ANDROID_HOME`.
 
 Breaking change for consumers (#3739): the `rules_android` floor is 0.8.0, the
 patch and its `single_version_override` are gone (remove them from your
-`MODULE.bazel`), and any repo adopted without `dx new` must add
+`MODULE.bazel`), and any repo not set up by `dx init --apply` must add
 `build --tool_java_runtime_version=remotejdk_21` and
 `build --tool_java_language_version=17` to its `.bazelrc`.
 Build one APK for both tuples on a qualified host:

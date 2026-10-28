@@ -870,7 +870,7 @@ fn init_adopts_the_c_and_cpp_applications_without_touching_sources() {
     let case = consumer();
     let dir = case.root();
     let before = files_under(dir);
-    let checked = dx(&case, &["init", "shop"]);
+    let checked = dx(&case, &["init"]);
     assert_eq!(checked.status.code(), Some(1), "{}", checked.combined());
     assert!(
         checked.combined().contains("init drift"),
@@ -878,7 +878,7 @@ fn init_adopts_the_c_and_cpp_applications_without_touching_sources() {
         checked.combined()
     );
     assert_eq!(files_under(dir), before);
-    let applied = dx(&case, &["init", "--apply", "shop"]);
+    let applied = dx(&case, &["init", "--apply"]);
     assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
     assert!(dir.join(".dx/version").is_file());
     assert!(dir.join("MODULE.bazel.snippet").is_file());

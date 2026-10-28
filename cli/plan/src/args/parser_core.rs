@@ -184,7 +184,6 @@ fn plain_words(command: Command) -> Vec<String> {
         Command::Run | Command::Deploy => {
             words.push("//:demo".to_owned());
         }
-        Command::New => words.push("rust".to_owned()),
         Command::Watch => words.extend(strings(&["run", "//:demo"])),
         Command::Completion => words.push("bash".to_owned()),
         Command::Install => words.extend(strings(&["--tag", "v1.2.3", "--archive", "a.tar.gz"])),

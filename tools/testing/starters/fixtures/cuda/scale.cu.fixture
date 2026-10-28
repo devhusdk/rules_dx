@@ -1,0 +1,45 @@
+#include <cuda_runtime.h>
+
+#include "scale.cuh"
+#include "scale.h"
+
+__global__ void scale_kernel(int n, float a, const float* x, float* y) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    y[i] = scale_one(a, x[i]);
+  }
+}
+
+extern "C" int scale_device_count(void) {
+  int count = 0;
+  if (cudaGetDeviceCount(&count) != cudaSuccess) {
+    return 0;
+  }
+  return count;
+}
+
+extern "C" int scale_gpu(int n, float a, const float* x, float* y) {
+  size_t bytes = static_cast<size_t>(n) * sizeof(float);
+  float* dx = nullptr;
+  float* dy = nullptr;
+  if (cudaMalloc(&dx, bytes) != cudaSuccess) {
+    return 1;
+  }
+  if (cudaMalloc(&dy, bytes) != cudaSuccess) {
+    cudaFree(dx);
+    return 1;
+  }
+  cudaMemcpy(dx, x, bytes, cudaMemcpyHostToDevice);
+  scale_kernel<<<(n + 255) / 256, 256>>>(n, a, dx, dy);
+  cudaError_t status = cudaDeviceSynchronize();
+  cudaMemcpy(y, dy, bytes, cudaMemcpyDeviceToHost);
+  cudaFree(dx);
+  cudaFree(dy);
+  return status == cudaSuccess ? 0 : 1;
+}
+
+extern "C" void scale_cpu(int n, float a, const float* x, float* y) {
+  for (int i = 0; i < n; ++i) {
+    y[i] = scale_one(a, x[i]);
+  }
+}

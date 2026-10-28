@@ -1,0 +1,9 @@
+#!/usr/bin/env pwsh
+$ErrorActionPreference = "Stop"
+Import-Module (Join-Path $PSScriptRoot "Hello.psm1") -Force
+$got = Get-Greeting
+if ($got -ne "hello world") {
+    Write-Error "unexpected greeting: $got"
+    exit 1
+}
+exit 0

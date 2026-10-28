@@ -29,8 +29,8 @@ zig_test(
 - `extra_srcs` carries files read with `@embedFile`.
 - Other attributes pass through to `rules_zig`.
 
-Start a project with `dx new --apply zig demo`. See `examples/zig-app` for a
-multi-package app.
+Start a project with `dx init --apply demo` and add sources. See
+`examples/zig-app` for a multi-package app.
 
 ## Formatting
 

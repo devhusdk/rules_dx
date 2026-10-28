@@ -1,0 +1,5 @@
+#pragma once
+
+#include <stddef.h>
+
+int hello(const char *name, char *out, size_t size);

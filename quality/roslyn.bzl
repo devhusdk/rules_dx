@@ -1,6 +1,7 @@
 """Compiles a C# target with the SDK analyzers and records the SARIF log."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
@@ -151,6 +152,7 @@ def _roslyn_impl(target, ctx):
             inputs = inputs,
             outputs = [sarif, status, out_tree],
             env = env,
+            resource_set = dx_quality_heavy_resources,
         )
     else:
         ctx.actions.run_shell(
@@ -161,6 +163,7 @@ def _roslyn_impl(target, ctx):
             inputs = inputs,
             outputs = [sarif, status, out_tree],
             env = env,
+            resource_set = dx_quality_heavy_resources,
         )
     return [RoslynInfo(sarifs = [sarif], statuses = [status], tfms = [tfm])]
 

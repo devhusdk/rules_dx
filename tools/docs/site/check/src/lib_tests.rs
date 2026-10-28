@@ -48,6 +48,7 @@ fn inputs(dir: &Path) -> Inputs {
         shards: vec![named("shard.ir.pb")],
         prose: vec![named("guide.md")],
         data: vec![],
+        records: None,
     }
 }
 
@@ -247,6 +248,35 @@ fn a_missing_book_file_is_reported_as_a_missing_title() {
         shards: vec!["absent".into()],
         prose: vec!["absent.md".into()],
         data: vec![],
+        records: None,
     };
     assert_eq!(check(&inputs), "book has no title");
+}
+
+fn records_site(name: &str, records: &str) -> String {
+    let guard = dx_test_scratch::scratch(name);
+    let dir = guard.path();
+    write(dir, "book.toml", "title = \"demo\"\n");
+    write(
+        dir,
+        "api.md",
+        "# API\n\n- [`demo::T`](api/rust/demo/T.md)\n",
+    );
+    write_shard(dir, &["rust:demo:T"]);
+    write(dir, "guide.md", "# Guide\n");
+    write(dir, "records.json", records);
+    let mut inputs = inputs(dir);
+    inputs.records = Some(dir.join("records.json").to_string_lossy().into_owned());
+    check(&inputs)
+}
+
+#[test]
+fn a_search_record_url_must_resolve_to_a_rendered_page() {
+    let good = "[{\"url\": \"api/rust/demo/T.html\", \"title\": \"demo::T\"}]";
+    assert_eq!(records_site("records-ok", good), "");
+    let bad = "[{\"title\": \"x\", \"url\": \"api/rust/demo/Gone.html\"}]";
+    assert_eq!(
+        records_site("records-bad", bad),
+        "search record url 'api/rust/demo/Gone.html' has no rendered page"
+    );
 }

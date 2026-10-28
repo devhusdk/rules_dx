@@ -46,13 +46,17 @@ def _shard_impl(ctx):
             fail(_where(ctx) + ": dep " + str(dep.label) + " uses the same package '" + package + "'")
         dep_shards.append(shard_info.shard)
 
-    own_paths = {f.path: True for f in own}
     java_info = lib[JavaInfo]
-    own_jars = {f.path: True for f in java_info.compile_jars.to_list()}
+    own_jars = {}
+    for output in java_info.java_outputs:
+        if output.compile_jar:
+            own_jars[output.compile_jar.path] = True
+        if output.class_jar:
+            own_jars[output.class_jar.path] = True
     classpath = sorted([
         f
         for f in java_info.transitive_compile_time_jars.to_list()
-        if f.path not in own_jars and f.path not in own_paths
+        if f.path not in own_jars
     ], key = lambda f: f.path)
 
     manifest = ctx.actions.declare_file(ctx.label.name + ".srcs.tsv")

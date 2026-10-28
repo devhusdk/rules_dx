@@ -393,7 +393,15 @@ final class Docs {
           break;
         case "pre":
           if (pre != null) {
-            out += "\n\n```\n" + dedent(pre) + "\n```\n\n";
+            String block = dedent(pre);
+            int longest = 0;
+            int run = 0;
+            for (int index = 0; index < block.length(); index++) {
+              run = block.charAt(index) == '`' ? run + 1 : 0;
+              longest = Math.max(longest, run);
+            }
+            String fence = "`".repeat(Math.max(3, longest + 1));
+            out += "\n\n" + fence + "\n" + block + "\n" + fence + "\n\n";
             pre = null;
           }
           break;

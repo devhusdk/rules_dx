@@ -85,3 +85,36 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+write_file(
+    name = "reexport_src",
+    out = "reexport/dx/fixture/reexport/Reexport.java",
+    content = [
+        "package dx.fixture.reexport;",
+        "",
+        "import dx.fixture.shapes.Shape;",
+        "",
+        "/** Uses a type from an exported dependency. */",
+        "public interface Reexport {",
+        "  /** Returns the shape. */",
+        "  Shape shape();",
+        "}",
+        "",
+    ],
+    tags = ["manual"],
+)
+
+java_library(
+    name = "reexport",
+    srcs = [":reexport_src"],
+    tags = ["manual"],
+    exports = [":shapes"],
+    deps = [":shapes"],
+)
+
+java_doc_shard(
+    name = "reexport_docs",
+    lib = ":reexport",
+    package = "reexport",
+    tags = ["manual"],
+)

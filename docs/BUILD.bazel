@@ -51,6 +51,7 @@ real_source_target(
         "cli/commands/worktree.md",
         "github-ci.md",
         "support-matrix.md",
+        "module-families.md",
     ],
     tags = ["corpus"],
 )

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_capnp_lint_syntax_error
+capability LINT
+stages 1
+stage capnp classes=capnp sources=matrix/capnp_syntax.capnp
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR capnp error matrix/capnp_syntax.capnp 51 51 fixable=false "Parse error."
+terminal 1
+terminal ERROR capnp error matrix/capnp_syntax.capnp 51 51 fixable=false "Parse error."
+replacements 0

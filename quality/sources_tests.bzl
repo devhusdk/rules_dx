@@ -7,6 +7,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "julia",
     "text",
     "c",
+    "capnp",
     "cpp",
     "cuda",
     "csharp",

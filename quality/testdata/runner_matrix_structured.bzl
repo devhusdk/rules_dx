@@ -144,6 +144,117 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_flatbuffers_lint_include_undeclared.expected.txt",
     },
     {
+        "name": "matrix_capnp_lint_pass",
+        "generated": {
+            "quality/testdata/matrix/capnp_pass/main.capnp": "@0xd0b9ad1f14bf0b37;\n\nusing Cxx = import \"/capnp/c++.capnp\";\n$Cxx.namespace(\"fixtures\");\n\nusing Base = import \"base.capnp\";\nusing Abs = import \"/quality/testdata/matrix/capnp_pass/base.capnp\";\n\nstruct Sample {\n  base @0 :Base.Base;\n  again @1 :Abs.Base;\n}\n",
+        },
+        "siblings": [
+            ":matrix/capnp_pass/base.capnp",
+        ],
+        "staged_siblings": {
+            "@dx_capnproto//src/capnp:capnp_system_library": "/src/capnp/:capnp/",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;quality/testdata/matrix/capnp_pass/main.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_typecheck_pass",
+        "generated": {
+            "quality/testdata/matrix/capnp_pass/main.capnp": "@0xd0b9ad1f14bf0b37;\n\nusing Cxx = import \"/capnp/c++.capnp\";\n$Cxx.namespace(\"fixtures\");\n\nusing Base = import \"base.capnp\";\nusing Abs = import \"/quality/testdata/matrix/capnp_pass/base.capnp\";\n\nstruct Sample {\n  base @0 :Base.Base;\n  again @1 :Abs.Base;\n}\n",
+        },
+        "siblings": [
+            ":matrix/capnp_pass/base.capnp",
+        ],
+        "staged_siblings": {
+            "@dx_capnproto//src/capnp:capnp_system_library": "/src/capnp/:capnp/",
+        },
+        "capability": "typecheck",
+        "stages": ["capnp;capnp;quality/testdata/matrix/capnp_pass/main.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_typecheck_pass.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_typecheck_semantic_fail",
+        "generated": {
+            "matrix/capnp_semantic.capnp": "@0xc0b9ad1f14bf0b38;\n\nstruct Sample {\n  x @0 :Nope;\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["capnp;capnp;matrix/capnp_semantic.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_typecheck_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_lint_semantic_fail",
+        "generated": {
+            "matrix/capnp_semantic.capnp": "@0xc0b9ad1f14bf0b38;\n\nstruct Sample {\n  x @0 :Nope;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;matrix/capnp_semantic.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_lint_syntax_error",
+        "generated": {
+            "matrix/capnp_syntax.capnp": "@0xc1b9ad1f14bf0b38;\n\nstruct Sample {\n  x @0 UInt8\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;matrix/capnp_syntax.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_lint_missing_id",
+        "generated": {
+            "matrix/capnp_missing_id.capnp": "struct Sample {\n  x @0 :UInt8;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;matrix/capnp_missing_id.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_missing_id.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_lint_import_undeclared",
+        "generated": {
+            "matrix/capnp_import.capnp": "@0xc2b9ad1f14bf0b38;\n\nusing Other = import \"undeclared.capnp\";\n",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;matrix/capnp_import.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_import_undeclared.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_lint_import_escape_parent",
+        "generated": {
+            "matrix/capnp_escape_parent.capnp": "@0xc3b9ad1f14bf0b38;\n\nusing Other = import \"../../outside.capnp\";\n",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;matrix/capnp_escape_parent.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_import_escape_parent.expected.txt",
+    },
+    {
+        "name": "matrix_capnp_lint_import_escape_absolute",
+        "generated": {
+            "matrix/capnp_escape_absolute.capnp": "@0xc4b9ad1f14bf0b38;\n\nusing Other = import \"/etc/hostname\";\n",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;matrix/capnp_escape_absolute.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_import_escape_absolute.expected.txt",
+    },
+    {
         "name": "matrix_qml_format_pass",
         "generated": {
             "matrix/qmlformat_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",

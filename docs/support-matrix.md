@@ -105,6 +105,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | AsciiDoc | `vale` on `linux_x86_64` | no | n/a |
+| Cap'n Proto | `capnp` on `linux_x86_64` | n/a | `capnp` on `linux_x86_64` |
 | CloudFormation | `cfn_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | CUE | n/a | `cue` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `cue` on `linux_x86_64` |
 | FlatBuffers | `flatc` on `linux_x86_64` | n/a | `flatc` on `linux_x86_64` |
@@ -129,6 +130,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 
 Not applicable for `format`:
 
+- `capnp`: schema IDL; no maintained .capnp formatter exists, capnp only validates
 - `flatbuffers`: schema IDL; no maintained .fbs formatter exists, flatc only validates
 
 Not applicable for `lint`:

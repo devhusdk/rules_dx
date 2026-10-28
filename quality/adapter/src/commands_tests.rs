@@ -2908,3 +2908,27 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
     let bare: serde_json::Value = serde_json::from_str(&luals_luarc(None, None, &[])).unwrap();
     assert_eq!(bare["workspace.library"], serde_json::json!([]));
 }
+
+#[test]
+fn capnp_check_compiles_to_stdout_inside_one_import_root() {
+    let invocation = capnp_check(
+        Path::new(BIN),
+        Path::new("pkg/x.capnp"),
+        Path::new("/scratch"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "compile",
+            "--no-standard-import",
+            "-I",
+            "/scratch",
+            "--src-prefix",
+            "/scratch",
+            "-o-",
+            "pkg/x.capnp"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}

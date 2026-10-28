@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_capnp_lint_import_undeclared
+capability LINT
+stages 1
+stage capnp classes=capnp sources=matrix/capnp_import.capnp
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR capnp error matrix/capnp_import.capnp 43 43 fixable=false "Import failed: undeclared.capnp"
+terminal 1
+terminal ERROR capnp error matrix/capnp_import.capnp 43 43 fixable=false "Import failed: undeclared.capnp"
+replacements 0

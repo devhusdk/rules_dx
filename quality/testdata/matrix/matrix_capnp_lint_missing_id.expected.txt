@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_capnp_lint_missing_id
+capability LINT
+stages 1
+stage capnp classes=capnp sources=matrix/capnp_missing_id.capnp
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR capnp error matrix/capnp_missing_id.capnp 0 0 fixable=false "File does not declare an ID; generate one with `capnp id`"
+terminal 1
+terminal ERROR capnp error matrix/capnp_missing_id.capnp 0 0 fixable=false "File does not declare an ID; generate one with `capnp id`"
+replacements 0

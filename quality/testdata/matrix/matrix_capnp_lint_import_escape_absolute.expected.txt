@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_capnp_lint_import_escape_absolute
+capability LINT
+stages 1
+stage capnp classes=capnp sources=matrix/capnp_escape_absolute.capnp
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR capnp error matrix/capnp_escape_absolute.capnp 43 43 fixable=false "Import failed: /etc/hostname"
+terminal 1
+terminal ERROR capnp error matrix/capnp_escape_absolute.capnp 43 43 fixable=false "Import failed: /etc/hostname"
+replacements 0

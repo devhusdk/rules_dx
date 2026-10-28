@@ -366,9 +366,9 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "fortitude" | "perlcritic" | "jsonnet_lint" | "pmd" | "spotbugs" | "qmllint"
         | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "gplint" | "errcheck"
         | "stylelint" | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "hlint"
-        | "redocly" | "kubeconform" | "helm" | "checkmake" | "flatc" | "tflint" | "cfn_lint"
-        | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype" | "luals" | "phpcs"
-        | "phpstan" | "regal" | "sqlfluff" | "tsc" | "javac" | "flang" | "ldc"
+        | "redocly" | "kubeconform" | "helm" | "capnp" | "checkmake" | "flatc" | "tflint"
+        | "cfn_lint" | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype" | "luals"
+        | "phpcs" | "phpstan" | "regal" | "sqlfluff" | "tsc" | "javac" | "flang" | "ldc"
         | "zig_ast_check" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),

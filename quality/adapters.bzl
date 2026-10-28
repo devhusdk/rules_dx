@@ -33,6 +33,7 @@ REAL_ADAPTERS = {
     "buildifier": {"format": ["starlark"], "lint": ["starlark"]},
     "checkstyle": {"lint": ["java"]},
     "cfn_lint": {"lint": ["cloudformation"]},
+    "capnp": {"lint": ["capnp"], "typecheck": ["capnp"]},
     "clang_format": {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
     "clang_syntax": {"typecheck": ["c", "cpp", "objc", "objcpp"]},
     "clang_tidy": {"lint": ["c", "cpp"]},
@@ -150,6 +151,7 @@ REAL_CLASS_TO_FAMILY = {
     "cue": "cue",
     "dockerfile": "dockerfile",
     "make": "make",
+    "capnp": "capnp",
     "cmake": "cmake",
     "d": "d",
     "dart": "dart",
@@ -226,6 +228,7 @@ NOT_APPLICABLE = {
         "cue": "cue vet is the only CUE analysis and it is already the typecheck capability; the pinned cue binary has no separate linter",
     },
     "format": {
+        "capnp": "schema IDL; no maintained .capnp formatter exists, capnp only validates",
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
     },
     "typecheck": {

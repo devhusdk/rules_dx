@@ -90,6 +90,20 @@ MAKE_CHECKMAKE_SUPPORT = {
     "transport": "batched",
 }
 
+CMAKE_GERSEMI_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["cmake"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "cmake",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "gersemi",
+    "transport": "batched",
+}
+
 SHELL_SHFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -817,6 +831,7 @@ SUPPORT_RECORDS = [
     KUBERNETES_KUBECONFORM_SUPPORT,
     ANSIBLE_ANSIBLE_LINT_SUPPORT,
     MAKE_CHECKMAKE_SUPPORT,
+    CMAKE_GERSEMI_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
     TERRAFORM_TFLINT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,

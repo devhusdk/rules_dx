@@ -574,6 +574,58 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "gersemi": {
+        "upstream_version": "0.29.2",
+        "release_page": "https://github.com/BlankSpruce/gersemi/releases/tag/0.29.2",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/BlankSpruce/gersemi/blob/0.29.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "gersemi-linux",
+                "url": "https://github.com/BlankSpruce/gersemi/releases/download/0.29.2/gersemi-linux",
+                "kind": "raw",
+                "executable": "gersemi-linux",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "gersemi-linux-arm",
+                "url": "https://github.com/BlankSpruce/gersemi/releases/download/0.29.2/gersemi-linux-arm",
+                "kind": "raw",
+                "executable": "gersemi-linux-arm",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "gersemi-macos-arm",
+                "url": "https://github.com/BlankSpruce/gersemi/releases/download/0.29.2/gersemi-macos-arm",
+                "kind": "raw",
+                "executable": "gersemi-macos-arm",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "gersemi-windows.exe",
+                "url": "https://github.com/BlankSpruce/gersemi/releases/download/0.29.2/gersemi-windows.exe",
+                "kind": "raw",
+                "executable": "gersemi-windows.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "gersemi-windows-arm.exe",
+                "url": "https://github.com/BlankSpruce/gersemi/releases/download/0.29.2/gersemi-windows-arm.exe",
+                "kind": "raw",
+                "executable": "gersemi-windows-arm.exe",
+            },
+        },
+    },
     "tflint": {
         "upstream_version": "0.65.0",
         "release_page": "https://github.com/terraform-linters/tflint/releases/tag/v0.65.0",

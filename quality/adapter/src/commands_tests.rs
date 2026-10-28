@@ -1122,6 +1122,39 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Sample.rb"
         ]
     );
+    let cmake = Path::new("/scratch/CMakeLists.txt");
+    let gersemi_config = Path::new("/scratch/.gersemirc");
+    assert_eq!(
+        argv_strings(&gersemi_check(Path::new(BIN), &[cmake], gersemi_config)),
+        vec![
+            BIN,
+            "--check",
+            "--diff",
+            "--no-cache",
+            "--no-color",
+            "-w",
+            "1",
+            "--config",
+            "/scratch/.gersemirc",
+            "--",
+            "/scratch/CMakeLists.txt"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&gersemi_fix(Path::new(BIN), &[cmake], gersemi_config)),
+        vec![
+            BIN,
+            "-i",
+            "--no-cache",
+            "--no-color",
+            "-w",
+            "1",
+            "--config",
+            "/scratch/.gersemirc",
+            "--",
+            "/scratch/CMakeLists.txt"
+        ]
+    );
     let lua = Path::new("/scratch/sample.lua");
     let stylua_config = Path::new("/scratch/stylua.toml");
     assert_eq!(

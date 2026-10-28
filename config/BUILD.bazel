@@ -36,6 +36,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_gersemi",
+    build_setting_default = "@dx_tools//:gersemi",
+)
+
+label_flag(
     name = "tool_opa",
     build_setting_default = "@dx_tools//:opa",
 )

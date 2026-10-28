@@ -238,6 +238,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "gersemi",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "stylua",
         config: FixConfig::Optional,
         keep_exit_one: false,
@@ -892,6 +898,10 @@ impl super::RealBackend {
                             tool_id,
                             "latexindent fixes one file at a time".to_owned(),
                         )),
+                    },
+                    "gersemi" => match config.as_deref() {
+                        Some(config) => Ok(commands::gersemi_fix(&tool.binary, refs, config)),
+                        None => Err(execution(tool_id, "gersemi needs a config path".to_owned())),
                     },
                     "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config.as_deref())),
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),

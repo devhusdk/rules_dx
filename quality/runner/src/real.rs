@@ -38,6 +38,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "flatc",
     "fortitude",
     "fsharplint",
+    "gersemi",
     "gofumpt",
     "google_java_format",
     "govet",
@@ -137,6 +138,9 @@ const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
 const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
 const REGAL_DEFAULTS_REL: &str = ".regal/config.yaml";
 const REGAL_DEFAULTS_BYTES: &[u8] = b"";
+const GERSEMI_DEFAULTS_REL: &str = "dx-gersemi-default/.gersemirc";
+/// An empty config loads and keeps every option at its default.
+const GERSEMI_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";

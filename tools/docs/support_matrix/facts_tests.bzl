@@ -50,7 +50,7 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "typecheck n/a families are an explicit snapshot",
                 sorted(NOT_APPLICABLE["typecheck"].keys()),
-                ["ansible", "api_spec", "dockerfile", "gherkin", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "sql", "typst", "xml", "yaml"],
+                ["ansible", "api_spec", "cmake", "dockerfile", "gherkin", "html_template", "jsonnet", "kubernetes", "latex", "make", "nix", "perl", "powershell", "sql", "typst", "xml", "yaml"],
             ),
             expect_true("rows are listed", len(facts["rows"]) > 0),
         ],

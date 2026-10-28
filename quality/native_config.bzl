@@ -41,6 +41,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "eslint": [".js", ".mjs", ".cjs"],
     "credo": [".exs"],
     "fsharplint": [".json"],
+    "gersemi": [".gersemirc", ".yaml", ".yml"],
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
     "kubeconform": [".kubeconform.json"],
@@ -253,6 +254,7 @@ ansible_lint_config = _make_native_config_rule("ansible_lint")
 hadolint_config = _make_native_config_rule("hadolint")
 regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
+gersemi_config = _make_native_config_rule("gersemi")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
 

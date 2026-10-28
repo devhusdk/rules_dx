@@ -63,6 +63,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(CHECKMAKE_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "gersemi" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(GERSEMI_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(GERSEMI_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "hadolint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(HADOLINT_DEFAULTS_REL),
@@ -211,6 +217,13 @@ impl RealBackend {
         }
         if tool_id == "checkmake" {
             let rel = tool.config_rel.as_deref().unwrap_or(CHECKMAKE_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "gersemi" {
+            let rel = tool.config_rel.as_deref().unwrap_or(GERSEMI_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

@@ -536,6 +536,13 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "ruby",
     },
+    "gersemi": {
+        "attr": attr.label(default = "//config:tool_gersemi", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "cmake",
+    },
     "stylua": {
         "attr": attr.label(default = "//config:tool_stylua", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1769,6 +1776,12 @@ _REAL_SHARD_SPECS = {
         "shard": "latex",
         "suffix": "-latex",
     },
+    "real_cmake_format": {
+        "capability": "format",
+        "doc": "Additive CMake format family aspect (gersemi).",
+        "shard": "cmake",
+        "suffix": "-cmake",
+    },
     "real_lua_format": {
         "capability": "format",
         "doc": "Additive Lua format family aspect (stylua).",
@@ -1991,6 +2004,7 @@ real_typst_format_aspect = _make_real_aspect("real_typst_format")
 real_latex_format_aspect = _make_real_aspect("real_latex_format")
 
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
+real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 
 real_rego_format_aspect = _make_real_aspect("real_rego_format")

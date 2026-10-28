@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cmake_format_syntax_error
+capability FORMAT
+stages 1
+stage gersemi classes=cmake sources=matrix/cmake_broken/CMakeLists.txt
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR gersemi syntax matrix/cmake_broken/CMakeLists.txt 34 34 fixable=false "unbalanced parentheses"
+terminal 1
+terminal ERROR gersemi syntax matrix/cmake_broken/CMakeLists.txt 34 34 fixable=false "unbalanced parentheses"
+replacements 0

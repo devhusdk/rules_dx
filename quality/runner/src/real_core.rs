@@ -174,6 +174,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "flatc",
             "fortitude",
             "fsharplint",
+            "gersemi",
             "gofumpt",
             "google_java_format",
             "govet",

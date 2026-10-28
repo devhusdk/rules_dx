@@ -1,0 +1,18 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+# Inputs the launcher must reject; the isolation test runs it on them directly.
+filegroup(
+    name = "project",
+    testonly = True,
+    srcs = glob(["src/*"]) + ["tsconfig.json"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

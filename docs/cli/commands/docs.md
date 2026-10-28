@@ -159,6 +159,46 @@ Put extra TypeDoc flags in `options`. The rule owns `plugin`, `options`, `tsconf
 one of them. TypeDoc still reports an error if `typedocOptions` sets `options` or
 `tsconfig`.
 
+## Vue component API reference
+
+`vue_doc_shard` from `@rules_dx//tools/docs/components:defs.bzl` reads the props,
+events, slots and exposed members of Vue components with the pinned
+`vue-component-meta` and produces a docs IR shard with language `vue`. Pass the
+shard to `docs_site` beside any other shards.
+
+```starlark
+load("@rules_dx//tools/docs/components:defs.bzl", "vue_doc_shard")
+
+vue_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.vue"]),
+    entry_points = ["src/Button.vue"],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+```
+
+Supported shapes are `.vue` single file components with `<script setup lang="ts">` or
+`defineComponent`. Each entry point is one component, taken from its default export.
+Symbol ids are `vue:<package>:<Component>`, and the members are
+`<Component>.prop_<name>`, `.event_<name>`, `.slot_<name>` and `.exposed_<name>`.
+Component names are file names without the extension and must be unique in a shard.
+Events and exposed members carry no source link when `vue-component-meta` reports no
+declaration for them.
+
+`node_modules` is the consumer's npm link target. Only its `vue` package is read, for
+the type declarations. The metadata tools are pinned by dx, so their versions and the
+TypeScript version of the extractor are part of the shard's configuration identity.
+
+The rule runs through an isolated launcher. It rejects `vueCompilerOptions.plugins` in
+the tsconfig and in every file it extends, refuses to load modules outside its own
+`node_modules`, and never runs Vite or other consumer JavaScript. A type error in an
+entry point, a missing tsconfig, an entry without a default export and a malformed
+result all fail the build with a nonzero exit and never write a stub shard.
+
+Svelte, Astro and MDX components are not supported yet.
+
 ## Go API reference
 
 `go_doc_shard` from `@rules_dx//tools/docs/go:defs.bzl` reads one Go library's

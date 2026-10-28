@@ -730,6 +730,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "component_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "console"
 version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"

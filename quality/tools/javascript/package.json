@@ -35,6 +35,7 @@
     "typedoc": "0.28.20",
     "typescript": "5.9.3",
     "unified": "11.0.5",
+    "vue-component-meta": "3.3.13",
     "vue-eslint-parser": "10.4.1",
     "wrangler": "4.152.0"
   },

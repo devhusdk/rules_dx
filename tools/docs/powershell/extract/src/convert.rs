@@ -140,6 +140,7 @@ fn symbol(api: &Api, public: &Public<'_>, settings: &Settings, config: &str) -> 
         visibility: Visibility::Public as i32,
         relations: None,
         extensions,
+        ..Symbol::default()
     }
 }
 

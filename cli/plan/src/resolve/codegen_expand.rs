@@ -105,6 +105,37 @@ mod tests {
     }
 
     #[test]
+    fn an_openapi_shard_graph_expands_to_the_shard_plus_the_spec() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-openapi-");
+        let workspace = scratch.path().to_path_buf();
+        let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
+            graph_rule_of_kind(
+                "//shop:spec",
+                "api_spec_library",
+                &["//shop:openapi.yaml"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//shop:client",
+                "openapi_typescript_client",
+                &["//shop:spec"],
+                &[],
+            ),
+            graph_rule_of_kind(
+                "//shop:client_shard",
+                "openapi_codegen_shard",
+                &["//shop:client"],
+                &[],
+            ),
+        ]))]);
+        let got = expand_codegen_roots("//shop:spec", &workspace, &query, &[]).expect("expand");
+        assert_eq!(
+            got,
+            vec!["//shop:spec".to_owned(), "//shop:client_shard".to_owned()]
+        );
+    }
+
+    #[test]
     fn a_graph_without_shards_keeps_the_single_label() {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-empty-");
         let workspace = scratch.path().to_path_buf();

@@ -1,0 +1,27 @@
+openapi: 3.1.0
+info:
+  title: Shop
+  version: 1.0.0
+paths:
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: One order.
+          content:
+            application/json:
+              schema:
+                $ref: refs/order.yaml#/Order
+        "404":
+          description: No such order.
+          content:
+            application/json:
+              schema:
+                $ref: shared/error.yaml#/ProblemDetail

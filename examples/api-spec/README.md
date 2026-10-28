@@ -29,6 +29,14 @@ A clean spec exits `0`. A finding exits `1` and names the root file, line,
 column, rule and message. A finding in a ref lands on line 1 of the root and
 starts with the ref's own `file:line:col`.
 
+`//examples/api-spec/pets:client` generates a TypeScript client from the same
+spec, and `//examples/api-spec/pets:client_shard` binds it to `dx codegen`:
+
+```sh
+bazel build //examples/api-spec/pets:client
+bazel run @rules_dx//:dx -- codegen --check //examples/api-spec/pets:client_shard
+```
+
 For the rules, the config and the checks dx runs before Redocly, see
 `docs/cli/commands/quality.md`.
 

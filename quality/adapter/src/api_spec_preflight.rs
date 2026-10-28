@@ -209,6 +209,29 @@ fn root_problem(keys: &[(String, Option<String>)]) -> Option<String> {
     }
 }
 
+/// The problem with a root that is not an OpenAPI 3.0, 3.1 or 3.2 document, for code generation.
+pub fn openapi_root_problem(text: &str) -> Option<Problem> {
+    let message = match scan(text) {
+        Err(problem) => return Some(problem),
+        Ok(scanned) => {
+            let is_openapi = scanned.root_keys.iter().any(|(key, _)| key == "openapi");
+            match root_problem(&scanned.root_keys) {
+                Some(message) => message,
+                None if is_openapi => return None,
+                None => {
+                    "code generation needs an OpenAPI root; AsyncAPI is not supported".to_owned()
+                }
+            }
+        }
+    };
+    Some(Problem {
+        rule: RULE_ROOT,
+        line: 1,
+        column: 1,
+        message,
+    })
+}
+
 /// Whether a `$ref` names a URL (`scheme:` or `//host`) rather than a relative file.
 pub fn is_remote(reference: &str) -> bool {
     if reference.starts_with("//") || reference.starts_with("\\\\") {
@@ -419,6 +442,22 @@ mod tests {
 
     fn rules(problems: &[Problem]) -> Vec<&'static str> {
         problems.iter().map(|problem| problem.rule).collect()
+    }
+
+    #[test]
+    fn openapi_root_problem_accepts_only_openapi() {
+        assert_eq!(openapi_root_problem("openapi: 3.1.0\n"), None);
+        for text in [
+            "asyncapi: 3.0.0\n",
+            "swagger: '2.0'\n",
+            "info: {}\n",
+            "openapi: 2.0.0\n",
+        ] {
+            let problem = openapi_root_problem(text);
+            assert_eq!(problem.map(|p| p.rule), Some(RULE_ROOT), "{text}");
+        }
+        let syntax = openapi_root_problem("openapi: [\n");
+        assert_eq!(syntax.map(|p| p.rule), Some(RULE_SYNTAX));
     }
 
     #[test]

@@ -6,9 +6,59 @@ load("//tools/visibility:visibility.bzl", "VIS_QUALITY", "VIS_QUALITY_CLI")
 package(default_visibility = VIS_QUALITY)
 
 rust_library(
+    name = "api_spec_preflight",
+    srcs = ["src/api_spec_preflight.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_adapter",
+        normal = True,
+    ),
+    crate_name = "api_spec_preflight",
+    crate_root = "src/api_spec_preflight.rs",
+    edition = "2021",
+    visibility = VIS_QUALITY + ["//api_spec/codegen:__pkg__"],
+    deps = all_crate_deps(
+        package_name = "quality/quality_adapter",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "api_spec_preflight_test",
+    size = "small",
+    srcs = ["src/api_spec_preflight.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_adapter",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "api_spec_preflight",
+    crate_root = "src/api_spec_preflight.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "quality/quality_adapter",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+rustfmt_test(
+    name = "api_spec_preflight_fmt_test",
+    size = "small",
+    targets = [
+        ":api_spec_preflight_test",
+        ":api_spec_preflight",
+    ],
+)
+
+rust_clippy_test(
+    name = "api_spec_preflight_clippy_test",
+    size = "small",
+    targets = [":api_spec_preflight"],
+)
+
+rust_library(
     name = "quality_adapter",
     srcs = [
-        "src/api_spec_preflight.rs",
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/exec.rs",
@@ -113,6 +163,7 @@ rust_library(
         package_name = "quality/quality_adapter",
         normal = True,
     ) + [
+        ":api_spec_preflight",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
@@ -127,7 +178,6 @@ rust_test(
     name = "quality_adapter_test",
     size = "small",
     srcs = [
-        "src/api_spec_preflight.rs",
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
@@ -247,6 +297,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        ":api_spec_preflight",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
         "//cli/process:dx_process",

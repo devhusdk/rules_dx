@@ -148,6 +148,7 @@ fn is_shard_kind_matches_shard_rules() {
         "dx_codegen_shard",
         "prost_codegen_shard",
         "flatbuffers_codegen_shard",
+        "openapi_codegen_shard",
     ] {
         assert!(is_shard_kind(kind), "{kind}");
     }

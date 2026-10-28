@@ -1884,6 +1884,15 @@ a config Redocly rejects, output dx cannot read, or a tool that fails to run
 fails the run with the cause named. It never counts as clean. Telemetry and
 update notices are off.
 
+#### Code generation
+
+`openapi_typescript_client(spec = ":pets")` from
+`@rules_dx//api_spec/rules:codegen.bzl` generates one self-contained TypeScript
+client from an OpenAPI root of the library, and `openapi_codegen_shard` binds it
+into the `dx codegen` plan. The same preflight checks run first, and the root
+must be OpenAPI. See `docs/cli/commands/generate.md` for the fixed flags and the
+verification with `dx codegen --check`.
+
 ### Svelte
 
 `svelte_library` from `@rules_dx//svelte/rules:defs.bzl` owns `.svelte` files.

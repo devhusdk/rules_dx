@@ -1,0 +1,47 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//api_spec/rules:__pkg__"])
+
+rust_binary(
+    name = "preflight",
+    srcs = ["preflight_main.rs"],
+    crate_name = "openapi_codegen_preflight",
+    crate_root = "preflight_main.rs",
+    edition = "2021",
+    deps = ["//quality/adapter:api_spec_preflight"],
+)
+
+rust_test(
+    name = "preflight_test",
+    size = "small",
+    srcs = ["preflight_main.rs"],
+    crate_name = "openapi_codegen_preflight",
+    crate_root = "preflight_main.rs",
+    edition = "2021",
+    deps = ["//quality/adapter:api_spec_preflight"],
+)
+
+rustfmt_test(
+    name = "preflight_fmt_test",
+    size = "small",
+    targets = [
+        ":preflight",
+        ":preflight_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "preflight_clippy_test",
+    size = "small",
+    targets = [":preflight"],
+)
+
+exports_files(["redocly.yaml"])
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

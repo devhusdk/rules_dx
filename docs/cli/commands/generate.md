@@ -61,6 +61,13 @@ run still emits its `change` events and `changes` with `applied` and `refused`.
 An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 `change` events and no `changes`.
 
+## Codegen pairs
+
+The codegen plan admits the generator/language pairs `("protobuf", "rust")` and
+`("openapi", "typescript")`. The openapi/typescript pair is admitted in the plan
+registry only; its `dx_codegen_shard` producer and `dx generate --check`
+coverage are not yet implemented.
+
 ## Android inputs
 
 The `cc` language reads `<android/*.h>` includes and native entry points in a

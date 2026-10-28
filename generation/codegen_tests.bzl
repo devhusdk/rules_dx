@@ -51,6 +51,11 @@ def codegen_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "codegen admits the openapi/typescript pair (#2311)",
+                codegen_pair_error("openapi", "typescript"),
+                "",
+            ),
+            expect_equal(
                 "codegen_path_error accepts relative paths",
                 [codegen_path_error("src/a.rs"), codegen_path_error("a")],
                 ["", ""],

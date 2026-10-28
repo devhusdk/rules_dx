@@ -56,7 +56,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Dockerfile | none |
 | Make | none |
 | MSIX | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
-| Qt | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| Qt | `windows_x86_64`, `windows_arm64`: not tested yet |
 | WASI | none |
 
 ## Quality

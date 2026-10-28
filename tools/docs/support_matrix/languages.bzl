@@ -14,6 +14,8 @@ load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:platforms.bzl", "RULES_PERL_PLATFORMS")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
+load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
+load("//qt/sdk:repos.bzl", "qualified_cells")
 
 SUPPORT_MATRIX_SCHEMA_VERSION = 1
 
@@ -56,6 +58,7 @@ COMPUTED_CONSTRAINTS = {
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(RULES_PERL_PLATFORMS),
     "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _all_of(PHP_COMPATIBLE_WITH),
+    "//qt/rules:defs.bzl%QT_HOST_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
 def _hello(lang):
@@ -199,7 +202,7 @@ ROWS = [
     },
     {"ci_tests": ["//msix/tests:pack_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
     {
-        "ci_tests": ["//qt/tests:qt_tasks_test"],
+        "ci_tests": ["//qt/tests:qt_tasks_test", "//qt/tests:qt_test"],
         "consumer_tests": ["//qt/tests:qt_app_consumer_test"],
         "families": ["qml"],
         "name": "qt",
@@ -281,7 +284,7 @@ GAP_ISSUES = {
     "build:ocaml:*": 4550,
     "build:php:*": 4552,
     "build:powershell:*": 4553,
-    "build:qt:*": 4554,
+    "build:qt:windows_*": 4554,
     "consumer:*": 4436,
     "format:asciidoc": 4439,
     "format:cloudformation": 4439,

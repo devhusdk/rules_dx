@@ -38,6 +38,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "csharpier": [".yaml"],
     "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
+    "credo": [".exs"],
     "fsharplint": [".json"],
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
@@ -238,6 +239,7 @@ ansible_lint_config = _make_native_config_rule("ansible_lint")
 hadolint_config = _make_native_config_rule("hadolint")
 checkmake_config = _make_native_config_rule("checkmake")
 tflint_config = _make_native_config_rule("tflint")
+credo_config = _make_native_config_rule("credo")
 
 rubocop_config = _make_native_config_rule("rubocop")
 

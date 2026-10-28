@@ -260,6 +260,7 @@ to.
 | `ktlint` | lint | kotlin |
 | `kubeconform` | lint | kubernetes |
 | `markdown_check` | lint | markdown |
+| `credo` | lint | elixir |
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
 | `nixfmt` | format | nix |
@@ -315,16 +316,17 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `erlfmt`, `mix_format`, `ormolu`
+  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `erlfmt`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
-  `dscanner`, `erlfmt` and `mix_format` alternates must be executable targets, such as
+  `dscanner`, `erlfmt`, `mix_format` and `credo` alternates must be executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
-  `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
+  `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//elixir/tools:mix_format` and
+  `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
@@ -502,6 +504,44 @@ formatter options and never writes. `--apply` runs `mix format`. A file with a
 syntax error reports an error at its line and column and stays untouched. The
 formatter reads no `.formatter.exs`, Mix project or Hex home. Elixir sources
 come from the rules in `@rules_dx//elixir/rules:defs.bzl`.
+
+### Elixir linting
+
+`credo` has no default executable. Select `credo` in the `lint` list of an
+`elixir` family and point the flag at the pinned Credo 1.7.19, which runs on the
+pinned Elixir 1.20.4 and OTP.
+
+```python
+quality_family(
+    name = "elixir_family",
+    family_id = "elixir",
+    disabled = ["audit", "format", "typecheck"],
+    lint = ["credo"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_credo=@rules_dx//elixir/tools:credo
+```
+
+- Without the flag, a policy that selects `credo` fails the analysis and names
+  the flag.
+- Credo reports every finding as a warning with the rule `credo/<Category.Check>`,
+  for example `credo/Warning.IoInspect`. It never writes, so `--apply` leaves
+  the sources as written.
+- A file Credo cannot parse is dropped from Credo's own report. dx reports it as
+  an error with the rule `credo/syntax` at the parser's line and column, so it
+  never counts as clean.
+- Without a bound config the run uses Credo's own non-strict default checks over
+  every file Bazel owns. A `credo_config` rule from
+  `@rules_dx//quality:native_config.bzl` binds a `.exs` config instead. The
+  runner always passes `--config-file`, so a `.credo.exs` in a parent directory
+  is never read.
+- `requires` and `plugins` in a config are not supported: only the pinned Credo
+  and its three dependencies are on the code path. HOME, Mix and Hex homes are
+  locked down and nothing is fetched at run time.
+- Consistency checks compare the files of one run. Findings can differ with how
+  Bazel batches the files into runs.
 
 ### QML linting
 

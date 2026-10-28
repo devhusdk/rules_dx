@@ -51,6 +51,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(TFLINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "credo" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(CREDO_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(CREDO_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "checkmake" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(CHECKMAKE_DEFAULTS_REL),
@@ -179,6 +185,13 @@ impl RealBackend {
         }
         if tool_id == "tflint" {
             let rel = tool.config_rel.as_deref().unwrap_or(TFLINT_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "credo" {
+            let rel = tool.config_rel.as_deref().unwrap_or(CREDO_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

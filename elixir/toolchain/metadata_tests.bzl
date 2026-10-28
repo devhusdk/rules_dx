@@ -1,13 +1,30 @@
 """Elixir toolchain pin and launcher tests."""
 
+load("//elixir/tools:launcher.bzl", "MIX_FORMAT_ENV", "launcher_preamble")
 load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
-load(":pins.bzl", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
-load(":repos.bzl", "DROPPED_PATHS", "elixir_script", "hub_build")
+load(":pins.bzl", "CREDO_PACKAGES", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
+load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_script", "hub_build")
 
 _SOURCE = """#!/bin/sh
 set -- "$ERTS_BIN$ERL_EXEC" -noshell -pa "$SCRIPT_PATH"/../lib/elixir/ebin $ELIXIR_ERL_OPTIONS $ERL "$@"
 """
+
+def _credo_checks():
+    preamble = launcher_preamble("otp", "elixir")
+    return [
+        expect_equal("credo packages", sorted(CREDO_PACKAGES.keys()), ["bunt", "credo", "file_system", "jason"]),
+        expect_equal("credo pin", CREDO_PACKAGES["credo"].version, "1.7.19"),
+        expect_equal("every credo digest is sha256", [len(pin.sha256) for pin in CREDO_PACKAGES.values()], [64, 64, 64, 64]),
+        expect_equal("every rewritten package is pinned", [name for name in CREDO_REWRITES if name not in CREDO_PACKAGES], []),
+        expect_equal("a marker present once is rewritten", credo_rewrites("credo", "lib/credo/cli/output/ui.ex", "if Mix.env() == :test do", "1"), "if false do"),
+        expect_equal("the version is pinned to the literal", credo_rewrites("bunt", "lib/bunt.ex", "@version Mix.Project.config()[:version]", "1.0.0"), '@version "1.0.0"'),
+        expect_equal("other files pass through", credo_rewrites("credo", "lib/other.ex", "Mix.env()", "1"), "Mix.env()"),
+        expect_contains("credo builds with the dependency chain", credo_build("credo"), '"//file_system:erlang_app"'),
+        expect_contains("vendored apps do not fail on warnings", credo_build("jason"), "elixirc_opts = []"),
+        expect_contains("launcher locks the home down", preamble, "export HOME='/nonexistent/dx_mix_format'"),
+        expect_equal("launcher env keeps its name", MIX_FORMAT_ENV["HEX_OFFLINE"], "1"),
+    ]
 
 def _checks():
     script = elixir_script(_SOURCE)
@@ -27,7 +44,7 @@ def _checks():
         expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
         expect_false("launcher keeps no bare options", "-ebin $ELIXIR_ERL_OPTIONS" in script),
         expect_equal("windows launchers are dropped", [path for path in DROPPED_PATHS if path.endswith(".bat") or path.endswith(".ps1")], ["bin/elixir.bat", "bin/elixirc.bat", "bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]),
-    ]
+    ] + _credo_checks()
 
 def elixir_metadata_tests(name):
     """Declares the Elixir toolchain metadata test."""

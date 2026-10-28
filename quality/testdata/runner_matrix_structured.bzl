@@ -198,6 +198,39 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_format_syntax.expected.txt",
     },
     {
+        "name": "matrix_elixir_lint_pass",
+        "generated": {
+            "matrix/credo_clean.ex": "defmodule CredoClean do\n  @moduledoc false\n  def add(a, b), do: a + b\nend\n",
+        },
+        "capability": "lint",
+        "stages": ["credo;elixir;matrix/credo_clean.ex"],
+        "tool_names": ["credo"],
+        "tool_binaries": ["//elixir/tools:credo"],
+        "expected_file": ":matrix/matrix_elixir_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_elixir_lint_fail",
+        "generated": {
+            "matrix/credo_dirty.ex": "defmodule CredoDirty do\n  def show(a), do: IO.inspect(a)\nend\n",
+        },
+        "capability": "lint",
+        "stages": ["credo;elixir;matrix/credo_dirty.ex"],
+        "tool_names": ["credo"],
+        "tool_binaries": ["//elixir/tools:credo"],
+        "expected_file": ":matrix/matrix_elixir_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_elixir_lint_syntax",
+        "generated": {
+            "matrix/credo_broken.ex": "defmodule CredoBroken do\n  @moduledoc false\n  def add(a, b), do: a * * b\nend\n",
+        },
+        "capability": "lint",
+        "stages": ["credo;elixir;matrix/credo_broken.ex"],
+        "tool_names": ["credo"],
+        "tool_binaries": ["//elixir/tools:credo"],
+        "expected_file": ":matrix/matrix_elixir_lint_syntax.expected.txt",
+    },
+    {
         "name": "matrix_zig_format_pass",
         "generated": {
             "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",

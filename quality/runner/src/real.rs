@@ -21,6 +21,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "clang_tidy",
     "clippy",
     "cppcheck",
+    "credo",
     "csharpier",
     "cue",
     "deadnix",
@@ -112,6 +113,15 @@ plugin \"terraform\" {
 ";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
+const CREDO_DEFAULTS_REL: &str = "dx-credo-default/.credo.exs";
+/// Credo's own default checks over every staged file: Bazel decides which files are owned, so
+/// no excluded path pattern may drop one.
+const CREDO_DEFAULTS_BYTES: &[u8] = b"%{
+  configs: [
+    %{name: \"default\", files: %{included: [\"**/*.{ex,exs}\"], excluded: []}}
+  ]
+}
+";
 const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
 /// An empty ini loads and keeps every rule at its default.
 const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";

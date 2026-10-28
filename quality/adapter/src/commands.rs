@@ -1057,6 +1057,21 @@ pub fn erlfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ERLFMT_FIX_ARGS, files, "")
 }
 
+/// Always `--config-file <config>`: Credo otherwise reads `.credo.exs` from every parent
+/// directory. The dx driver adds `--format json` and picks the exit code.
+pub fn credo_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut argv = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--config-file"),
+        config.as_os_str().to_owned(),
+    ];
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, MIX_FORMAT_CHECK_ARGS, files, "")
 }

@@ -1,8 +1,10 @@
 """Hermetic Elixir acquisition and toolchain registration."""
 
+load("//elixir/rules:hex.bzl", "hex_extract")
 load("//erlang/toolchain:pins.bzl", "CELLS")
 load(
     ":pins.bzl",
+    "CREDO_PACKAGES",
     "ELIXIR_APPLICATIONS",
     "ELIXIR_CELLS",
     "ELIXIR_SHA256",
@@ -16,6 +18,8 @@ load(
 HUB_NAME = "dx_elixir_toolchains"
 
 DIST_NAME = "dx_elixir"
+
+CREDO_NAME = "dx_credo"
 
 VERSION_FILE = "DX_ELIXIR_VERSION"
 
@@ -56,6 +60,78 @@ _TOOLCHAIN = """toolchain(
     toolchain_type = "@rules_elixir//:toolchain_type",
 )
 """
+
+_CREDO_ROOT = '"../../../../"'
+
+# Credo reads Mix at compile time and its default files from the working
+# directory; elixirc runs outside Mix, so each site is pinned to a literal.
+CREDO_REWRITES = {
+    "bunt": {
+        "lib/bunt.ex": [("@version Mix.Project.config()[:version]", '@version "{version}"')],
+    },
+    "credo": {
+        "lib/credo.ex": [("@version Mix.Project.config()[:version]", '@version "{version}"')],
+        "lib/credo/check.ex": [
+            ("app = Mix.Project.config()[:app]", "app = :credo"),
+            ('Code.eval_file(".credo.exs")', 'Code.eval_file(Path.expand("../../.credo.exs", __DIR__))'),
+        ],
+        "lib/credo/cli/command/gen.check.ex": [("File.read!(@check_template_filename)", "File.read!(Path.expand(" + _CREDO_ROOT + " <> @check_template_filename, __DIR__))")],
+        "lib/credo/cli/command/gen.config.ex": [("File.read!(@config_filename)", "File.read!(Path.expand(" + _CREDO_ROOT + " <> @config_filename, __DIR__))")],
+        "lib/credo/cli/output/ui.ex": [("if Mix.env() == :test do", "if false do")],
+        "lib/credo/execution/task/append_default_config.ex": [("File.read!(@default_config_filename)", "File.read!(Path.expand(" + _CREDO_ROOT + " <> @default_config_filename, __DIR__))")],
+        "lib/credo/execution/task/write_debug_report.ex": [('File.read!(".template.debug.html")', "File.read!(Path.expand(" + _CREDO_ROOT + ' <> ".template.debug.html", __DIR__))')],
+    },
+}
+
+def credo_rewrites(package, path, text, version):
+    """Returns one Credo-family source with its compile-time Mix reads pinned; fails unless each marker appears once."""
+    for old, new in CREDO_REWRITES.get(package, {}).get(path, []):
+        if text.count(old) != 1:
+            fail("{} {} no longer has exactly one `{}`".format(package, path, old))
+        text = text.replace(old, new.replace("{version}", version))
+    return text
+
+_CREDO_BUILD = """load("@rules_dx//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
+
+package(default_visibility = ["//visibility:public"])
+
+elixir_app(
+    app_name = "{package}",
+    app_version = "{version}",
+    data = glob([".*", "LICENSE*"], allow_empty = True),
+    deps = [{deps}],
+    elixirc_opts = [],
+    srcs = glob(["lib/**/*.ex"], exclude = ["lib/mix/**"]),
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+"""
+
+_CREDO_DEPS = {
+    "bunt": [],
+    "credo": ["bunt", "file_system", "jason"],
+    "file_system": [],
+    "jason": [],
+}
+
+def credo_build(package):
+    """Returns the BUILD file of one vendored Credo-family package."""
+    deps = ", ".join(['"//{}:erlang_app"'.format(dep) for dep in _CREDO_DEPS[package]])
+    return _CREDO_BUILD.format(package = package, version = CREDO_PACKAGES[package].version, deps = deps)
+
+def _credo_impl(rctx):
+    for package, pin in CREDO_PACKAGES.items():
+        hex_extract(rctx, package, pin.version, pin.sha256, output = package)
+        for path in CREDO_REWRITES.get(package, {}):
+            rctx.file(package + "/" + path, credo_rewrites(package, path, rctx.read(package + "/" + path), pin.version))
+        rctx.file(package + "/BUILD.bazel", credo_build(package))
+    rctx.file("REPO.bazel", "")
+    rctx.file("BUILD.bazel", "")
+    return rctx.repo_metadata(reproducible = True)
+
+_credo = repository_rule(
+    implementation = _credo_impl,
+    doc = "Builds the pinned Credo and its dependencies from Hex sources.",
+)
 
 def _rules_elixir_impl(rctx):
     rctx.download_and_extract(
@@ -130,6 +206,7 @@ def _elixir_impl(mctx):
     )
     _dist(name = DIST_NAME)
     _hub(name = HUB_NAME)
+    _credo(name = CREDO_NAME)
     return mctx.extension_metadata(reproducible = True)
 
 elixir = module_extension(

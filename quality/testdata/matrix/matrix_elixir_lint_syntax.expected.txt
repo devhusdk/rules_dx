@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_elixir_lint_syntax
+capability LINT
+stages 1
+stage credo classes=elixir sources=matrix/credo_broken.ex
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR credo credo/syntax matrix/credo_broken.ex 69 69 fixable=false "syntax error before: '*'"
+terminal 1
+terminal ERROR credo credo/syntax matrix/credo_broken.ex 69 69 fixable=false "syntax error before: '*'"
+replacements 0

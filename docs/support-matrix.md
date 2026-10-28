@@ -29,7 +29,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | JavaScript | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `javascript` |
 | Julia | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
 | Kotlin | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `kotlin` |
-| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
+| Lua | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `lua` |
 | MDX | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | `mdx` |
 | OCaml | `linux_x86_64` | no | `ocaml` |
 | Perl | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
@@ -67,8 +67,8 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | no |
 | C# | `roslyn` on `linux_x86_64` | `csharpier` on `linux_x86_64` | no |
 | CUDA | no | `clang_format` | no |
-| D | `dscanner` on `linux_x86_64` | `dfmt` | no |
-| Elixir | no | `mix_format` | no |
+| D | `dscanner` | `dfmt` | no |
+| Elixir | `credo` | `mix_format` | no |
 | Erlang | no | `erlfmt` | no |
 | Fortran | no | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |

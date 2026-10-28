@@ -776,10 +776,10 @@ use_repo(
 
 register_toolchains("@rust_toolchains//:all")
 
-dx_rustdoc = use_extension("//tools/docs/rust:extensions.bzl", "dx_rustdoc")
+dx_rustdoc = use_extension("//tools/docs/rust:extensions.bzl", "dx_rustdoc", dev_dependency = True)
 use_repo(dx_rustdoc, "dx_rustdoc_toolchains")
 
-register_toolchains("@dx_rustdoc_toolchains//:all")
+register_toolchains("@dx_rustdoc_toolchains//:all", dev_dependency = True)
 
 wasm_bindgen = use_extension("@rules_rust_wasm_bindgen//:extensions.bzl", "rust_ext")
 use_repo(

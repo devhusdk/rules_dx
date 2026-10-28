@@ -45,6 +45,7 @@ SUPPORT_EVIDENCE_PENDING = [
     "checkmake:lint:make:linux_arm64",
     "checkmake:lint:make:macos_arm64",
     "checkmake:lint:make:windows_x86_64",
+    "csc:typecheck:csharp:linux_x86_64",
     "fsharplint:lint:fsharp:linux_x86_64",
     "gersemi:format:cmake:linux_arm64",
     "gersemi:format:cmake:macos_arm64",

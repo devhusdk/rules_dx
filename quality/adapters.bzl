@@ -90,6 +90,7 @@ REAL_ADAPTERS = {
     "qmllint": {"lint": ["qml"]},
     "remark": {"format": ["mdx"]},
     "roslyn": {"lint": ["csharp"]},
+    "csc": {"typecheck": ["csharp"]},
     "ruff": {"audit": ["python", "python_stub"], "format": ["python", "python_stub", "jupyter"], "lint": ["python", "python_stub", "jupyter"]},
     "rustc": {"typecheck": ["rust"]},
     "rustfmt": {"format": ["rust"]},

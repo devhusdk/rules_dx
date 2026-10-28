@@ -116,37 +116,100 @@ fn analyzer_failure(result: &Value) -> Option<String> {
     Some(format!("{rule}: {message}"))
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Scope {
+    All,
+    Compiler,
+}
+
+fn is_compiler_rule(run: &Value, result: &Value) -> bool {
+    let rule = result
+        .get("ruleId")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let descriptor = result
+        .get("ruleIndex")
+        .and_then(Value::as_u64)
+        .and_then(|index| {
+            run.pointer("/tool/driver/rules")
+                .and_then(Value::as_array)
+                .and_then(|rules| rules.get(usize::try_from(index).ok()?))
+        });
+    if let Some(descriptor) = descriptor {
+        let category = descriptor
+            .pointer("/properties/category")
+            .and_then(Value::as_str)
+            == Some("Compiler");
+        let tagged = descriptor
+            .pointer("/properties/tags")
+            .and_then(Value::as_array)
+            .is_some_and(|tags| tags.iter().any(|tag| tag.as_str() == Some("Compiler")));
+        return category || tagged;
+    }
+    rule.strip_prefix("CS")
+        .is_some_and(|digits| !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
+}
+
 pub fn parse_roslyn(
     sarif: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    check_output_size(TOOL, sarif)?;
+    parse_scoped(TOOL, Scope::All, sarif, code, files)
+}
+
+/// Compiler diagnostics (CS*) only, taken from the same SARIF log as roslyn.
+pub fn parse_csc(
+    sarif: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    parse_scoped("csc", Scope::Compiler, sarif, code, files)
+}
+
+fn parse_scoped(
+    tool: &'static str,
+    scope: Scope,
+    sarif: &[u8],
+    code: Option<i32>,
+    files: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    check_output_size(tool, sarif)?;
     let mut log: Value = serde_json::from_slice(sarif).map_err(|err| ParseError::Json {
-        tool: TOOL,
+        tool,
         detail: err.to_string(),
     })?;
-    let mut has_error = false;
+    let mut any_error = false;
     for run in log
         .get_mut("runs")
         .and_then(Value::as_array_mut)
         .into_iter()
         .flatten()
     {
-        let Some(results) = run.get_mut("results").and_then(Value::as_array_mut) else {
+        let Some(all) = run
+            .get_mut("results")
+            .and_then(Value::as_array_mut)
+            .map(std::mem::take)
+        else {
             continue;
         };
-        let mut kept = Vec::with_capacity(results.len());
-        for mut result in results.drain(..) {
+        let mut kept = Vec::with_capacity(all.len());
+        for mut result in all {
             if result
                 .get("ruleId")
                 .and_then(Value::as_str)
                 .is_none_or(str::is_empty)
             {
                 return Err(ParseError::Shape {
-                    tool: TOOL,
+                    tool,
                     detail: "result without a rule id".to_owned(),
                 });
+            }
+            if result.get("level").and_then(Value::as_str) == Some("error") {
+                any_error = true;
+            }
+            if scope == Scope::Compiler && !is_compiler_rule(run, &result) {
+                continue;
             }
             let rule = result["ruleId"].as_str().unwrap_or_default();
             if !rule.starts_with("AD")
@@ -167,13 +230,12 @@ pub fn parse_roslyn(
                 .is_some_and(|locations| !locations.is_empty());
             if !has_locations {
                 if let Some(detail) = analyzer_failure(&result) {
-                    return Err(ParseError::Incomplete { tool: TOOL, detail });
+                    return Err(ParseError::Incomplete { tool, detail });
                 }
                 continue;
             }
             if keep_locations(&mut result, files) {
                 map_related_locations(&mut result, files);
-                has_error |= result.get("level").and_then(Value::as_str) == Some("error");
                 kept.push(result);
             } else if result.get("level").and_then(Value::as_str) == Some("error") {
                 let rule = result["ruleId"].as_str().unwrap_or_default();
@@ -182,25 +244,31 @@ pub fn parse_roslyn(
                     .and_then(Value::as_str)
                     .unwrap_or_default();
                 return Err(ParseError::Incomplete {
-                    tool: TOOL,
+                    tool,
                     detail: format!("{rule} outside the checked files: {message}"),
                 });
             }
         }
-        *results = kept;
+        run["results"] = Value::Array(kept);
     }
-    if code != Some(0) && !has_error {
+    if code != Some(0) && !any_error {
         let exit = code.map_or_else(|| "signal".to_owned(), |code| code.to_string());
         return Err(ParseError::Incomplete {
-            tool: TOOL,
+            tool,
             detail: format!("csc exit {exit} without error results"),
         });
     }
     let bytes = serde_json::to_vec(&log).map_err(|err| ParseError::Json {
-        tool: TOOL,
+        tool,
         detail: err.to_string(),
     })?;
-    parse_sarif(TOOL, &bytes, code, files, ColumnEncoding::Utf16)
+    // A compiler-only view already checked the exit status against every error above.
+    let code = if scope == Scope::Compiler {
+        Some(0)
+    } else {
+        code
+    };
+    parse_sarif(tool, &bytes, code, files, ColumnEncoding::Utf16)
 }
 
 #[cfg(test)]
@@ -449,5 +517,48 @@ mod tests {
             parse_roslyn(compile_error.as_bytes(), Some(1), &["a.cs"]).expect("compile error");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].finding.rule_id, "CS0103");
+    }
+
+    fn mixed(exit_level: &str) -> String {
+        format!(
+            r#"{{"version": "2.1.0", "runs": [{{"tool": {{"driver": {{"name": "csc", "rules": [
+            {{"id": "CS0029", "properties": {{"category": "Compiler", "tags": ["Compiler"]}}}},
+            {{"id": "CA1822", "properties": {{"category": "Performance"}}}}]}}}},
+            "results": [
+            {{"ruleId": "CS0029", "ruleIndex": 0, "level": "{exit_level}", "message": {{"text": "cannot convert"}}, "locations": [{{"physicalLocation": {{"artifactLocation": {{"uri": "a.cs"}}, "region": {{"startLine": 3, "startColumn": 5}}}}}}]}},
+            {{"ruleId": "CA1822", "ruleIndex": 1, "level": "warning", "message": {{"text": "static"}}, "locations": [{{"physicalLocation": {{"artifactLocation": {{"uri": "a.cs"}}, "region": {{"startLine": 4, "startColumn": 1}}}}}}]}}]}}]}}"#
+        )
+    }
+
+    #[test]
+    fn csc_keeps_only_compiler_diagnostics() {
+        let log = mixed("error");
+        let found = parse_csc(log.as_bytes(), Some(1), &["a.cs"]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.rule_id, "CS0029");
+        let all = parse_roslyn(log.as_bytes(), Some(1), &["a.cs"]).expect("parsed");
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn csc_ignores_analyzer_only_failures() {
+        let log = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "csc"}}, "results": [{"ruleId": "CA2000", "level": "error", "message": {"text": "x"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "a.cs"}, "region": {"startLine": 1, "startColumn": 1}}}]}]}]}"#;
+        let found = parse_csc(log.as_bytes(), Some(1), &["a.cs"]).expect("clean");
+        assert!(found.is_empty());
+    }
+
+    #[test]
+    fn csc_silent_failure_is_incomplete() {
+        let log = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "csc"}}, "results": []}]}"#;
+        let err = parse_csc(log.as_bytes(), Some(1), &["a.cs"]).expect_err("incomplete");
+        assert!(matches!(err, ParseError::Incomplete { tool: "csc", .. }));
+    }
+
+    #[test]
+    fn csc_falls_back_to_the_rule_id_without_a_descriptor() {
+        let log = r#"{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "csc"}}, "results": [{"ruleId": "CS0168", "level": "warning", "message": {"text": "x"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "a.cs"}, "region": {"startLine": 1, "startColumn": 1}}}]}, {"ruleId": "CA1822", "level": "warning", "message": {"text": "x"}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": "a.cs"}, "region": {"startLine": 2, "startColumn": 1}}}]}]}]}"#;
+        let found = parse_csc(log.as_bytes(), Some(0), &["a.cs"]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].finding.rule_id, "CS0168");
     }
 }

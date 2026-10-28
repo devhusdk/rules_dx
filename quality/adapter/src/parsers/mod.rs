@@ -151,7 +151,7 @@ pub use qmllint::{parse_qmllint, parse_qmllint_report};
 pub use redocly::parse_redocly;
 pub use regal::parse_regal;
 pub use remark::parse_remark;
-pub use roslyn::parse_roslyn;
+pub use roslyn::{parse_csc, parse_roslyn};
 pub use rubocop::parse_rubocop;
 pub use ruff::{parse_ruff, parse_ruff_format};
 pub use rust::{parse_clippy, parse_rustc};
@@ -2084,6 +2084,14 @@ mod tests {
         super::qmllint::parse_qmllint(input, code, files)
     }
 
+    fn fuzz_csc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::roslyn::parse_csc(input, code, files)
+    }
+
     fn fuzz_roslyn(
         input: &[u8],
         code: Option<i32>,
@@ -2460,6 +2468,7 @@ mod tests {
         ("redocly", fuzz_redocly),
         ("regal", fuzz_regal),
         ("remark", fuzz_remark),
+        ("csc", fuzz_csc),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
         ("ruff", fuzz_ruff),
@@ -2556,6 +2565,7 @@ mod tests {
         ("redocly", include_str!("redocly.rs")),
         ("regal", include_str!("regal.rs")),
         ("remark", include_str!("remark.rs")),
+        ("csc", include_str!("roslyn.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),
         ("ruff", include_str!("ruff.rs")),

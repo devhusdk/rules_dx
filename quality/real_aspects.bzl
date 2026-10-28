@@ -468,6 +468,12 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "ruby",
     },
+    "csc": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "dotnet",
+    },
     "roslyn": {
         "capabilities": ["lint"],
         "kind": "upstream",
@@ -1159,9 +1165,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         (dart_package_config, dart_options) = _dart_context(target, ctx, what)
 
     roslyn = None
-    if "roslyn" in [stage["tool"] for stage in resolved]:
+    if "roslyn" in [stage["tool"] for stage in resolved] or "csc" in [stage["tool"] for stage in resolved]:
         if RoslynInfo not in target:
-            fail(what + ": roslyn needs a csharp_* target compiled with the SDK analyzers")
+            fail(what + ": roslyn and csc need a csharp_* target compiled with the SDK analyzers")
         roslyn = target[RoslynInfo]
 
     sql_dialect = None
@@ -1480,7 +1486,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
-        if tool == "roslyn":
+        if tool == "roslyn" or tool == "csc":
             for i in range(len(roslyn.tfms)):
                 upstream.append(roslyn.sarifs[i].path)
                 inputs.append(roslyn.sarifs[i])
@@ -1629,6 +1635,13 @@ _REAL_SHARD_SPECS = {
     "real_dotnet_lint": {
         "capability": "lint",
         "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).",
+        "requires": [roslyn_aspect],
+        "shard": "dotnet",
+        "suffix": "-dotnet",
+    },
+    "real_dotnet_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive C# typecheck family aspect (csc compiler diagnostics).",
         "requires": [roslyn_aspect],
         "shard": "dotnet",
         "suffix": "-dotnet",
@@ -2054,6 +2067,8 @@ real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
 real_dotnet_format_aspect = _make_real_aspect("real_dotnet_format")
 
 real_dotnet_lint_aspect = _make_real_aspect("real_dotnet_lint")
+
+real_dotnet_typecheck_aspect = _make_real_aspect("real_dotnet_typecheck")
 
 real_ruby_format_aspect = _make_real_aspect("real_ruby_format")
 

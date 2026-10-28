@@ -188,6 +188,20 @@ CSHARP_ROSLYN_SUPPORT = {
     "transport": "batched",
 }
 
+CSHARP_CSC_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["csharp"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "csharp",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "csc",
+    "transport": "batched",
+}
+
 FSHARP_FANTOMAS_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -841,6 +855,7 @@ SUPPORT_RECORDS = [
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
     CSHARP_CSHARPIER_SUPPORT,
+    CSHARP_CSC_SUPPORT,
     CSHARP_ROSLYN_SUPPORT,
     FSHARP_FANTOMAS_SUPPORT,
     FSHARP_FSHARPLINT_SUPPORT,

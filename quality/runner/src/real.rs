@@ -22,6 +22,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "clippy",
     "cppcheck",
     "credo",
+    "csc",
     "csharpier",
     "cue",
     "dart",

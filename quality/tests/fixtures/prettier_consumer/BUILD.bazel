@@ -1,0 +1,21 @@
+exports_files([
+    ".npmrc",
+    "app_data.BUILD.bazel",
+    "data_test.mjs",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+])
+
+filegroup(
+    name = "node_consumer",
+    srcs = [
+        ".npmrc",
+        "app_data.BUILD.bazel",
+        "data_test.mjs",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+    ],
+    visibility = ["//quality/tests:__pkg__"],
+)

@@ -1,0 +1,11 @@
+{
+  "name": "prettier-consumer",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "dependencies": {
+    "graphql": "16.14.2",
+    "json5": "2.2.3",
+    "jsonc-parser": "3.3.1"
+  }
+}

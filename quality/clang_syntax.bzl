@@ -149,6 +149,7 @@ def _clang_syntax_impl(target, ctx):
         context = target[CcInfo].compilation_context
         headers = depset(context.direct_private_headers, transitive = [context.headers])
     tidy = ctx.file._clang_tidy
+    runner = ctx.file._clang_tidy_run
     argvs = []
     envs = []
     inputs = []
@@ -190,9 +191,9 @@ def _clang_syntax_impl(target, ctx):
         ctx.actions.run_shell(
             mnemonic = "ClangTidy",
             progress_message = "clang-tidy %{label}: " + src,
-            command = 'log="$1"; shift; "$@" > "$log" 2>&1; true',
-            arguments = [tidy_log.path] + tidy_argv.argv,
-            inputs = depset([tidy], transitive = [all_inputs]),
+            command = 'bash "$@"',
+            arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
+            inputs = depset([tidy, runner], transitive = [all_inputs]),
             outputs = [tidy_log],
             env = action.env,
             execution_requirements = requirements,
@@ -216,5 +217,6 @@ clang_syntax_aspect = aspect(
     attr_aspects = ["upstream"],
     attrs = apple_support.action_required_attrs() | {
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
+        "_clang_tidy_run": attr.label(default = "//quality:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),
     },
 )

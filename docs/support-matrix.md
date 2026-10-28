@@ -95,7 +95,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | TypeScript | `biome` | `biome`, `prettier` | `tsc` |
 | Vue | `eslint` | `prettier` | no |
 | Zig | `zig_ast_check` | `zig_fmt` | no |
-| Apple | no | `clang_format` | `clang_syntax` |
+| Apple | `clang_tidy` | `clang_format` | `clang_syntax` |
 | CMake | `cmakelint` | `gersemi` | n/a |
 | Dockerfile | `hadolint` | `prettier` | n/a |
 | Make | `checkmake` | `mbake` | n/a |

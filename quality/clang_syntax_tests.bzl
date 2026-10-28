@@ -19,6 +19,11 @@ def clang_syntax_unit_tests(name):
                 ["tidy", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],
             ),
             expect_equal(
+                "clang-tidy keeps Apple placeholders for the runner and Objective-C flags",
+                clang_tidy_argv("tidy", ["wrapped_clang", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m").argv[:6],
+                ["tidy", "pkg/a.m", "--", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc"],
+            ),
+            expect_equal(
                 "-c becomes -fsyntax-only and output flags are dropped",
                 _rewrite([_CLANG, "-MD", "-MF", "a.d", "-DX=1", "-c", "a.c", "-o", "a.o"]).argv,
                 [_CLANG, "-DX=1", "-fsyntax-only", "a.c", "-fno-caret-diagnostics", "-fno-color-diagnostics"],

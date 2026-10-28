@@ -1,4 +1,5 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests")
@@ -31,6 +32,7 @@ exports_files([
     "BUILD.bazel",
     "adapters.bzl",
     "applicability.bzl",
+    "clang_tidy_run.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
     "execution_requirements.bzl",
@@ -637,6 +639,13 @@ support_unit_tests(name = "support_unit")
 
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
+sh_test(
+    name = "clang_tidy_run_test",
+    srcs = ["clang_tidy_run_test.sh"],
+    args = ["$(location :clang_tidy_run.sh)"],
+    data = [":clang_tidy_run.sh"],
+)
+
 nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
 compile_check_unit_tests(name = "compile_check_unit")
 
@@ -645,6 +654,7 @@ test_suite(
     tests = [
         ":consumer_policy_ansible_linted_test",
         ":consumer_policy_api_spec_linted_test",
+        ":clang_tidy_run_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
         ":consumer_policy_cloudformation_linted_test",

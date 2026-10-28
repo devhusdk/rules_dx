@@ -142,6 +142,60 @@ fn job_platforms(body: &serde_json::Value) -> Option<Vec<&'static str>> {
 /// never match a saved cache until a saver exists for that platform (#3284),
 /// so each entry is a cold-start gap. Remove an entry once a donor covers it.
 const UNCOVERED: &[&str] = &["Linux-X64", "Linux-ARM64", "macOS-ARM64", "Windows-X64"];
+const VALIDATE_SOURCE: &str = "tools/ci/input_validation.py";
+const VALIDATE_RUNNERS: &str = "fromJSON(needs.validate.outputs.runners)";
+
+/// Runner labels in each `PLATFORMS = { "<key>": "<label>", }` map.
+fn platforms_map_labels(text: &str) -> Vec<String> {
+    let mut labels = Vec::new();
+    let mut inside = false;
+    for line in text.lines().map(str::trim) {
+        if line == "PLATFORMS = {" {
+            inside = true;
+        } else if line == "}" {
+            inside = false;
+        } else if inside {
+            if let Some((_, label)) = line.trim_end_matches(',').split_once(": ") {
+                labels.push(label.trim_matches('"').to_owned());
+            }
+        }
+    }
+    labels
+}
+
+/// Every `runner.os`-`runner.arch` platform the validate jobs can hand out,
+/// from the PLATFORMS maps in `tools/ci/input_validation.py` and the workflows.
+fn validate_platforms(workflow_texts: &[(String, String)]) -> Vec<&'static str> {
+    let mut labels = platforms_map_labels(&read_runfiles(VALIDATE_SOURCE));
+    for (_, text) in workflow_texts {
+        labels.extend(platforms_map_labels(text));
+    }
+    labels.sort();
+    labels.dedup();
+    assert!(!labels.is_empty(), "no PLATFORMS runner map found");
+    labels
+        .iter()
+        .map(|label| {
+            runner_platform(label)
+                .unwrap_or_else(|| panic!("validate runner {label} has no known platform"))
+        })
+        .collect()
+}
+
+/// Platforms a restore-only job can run on: every validate runner when `runs-on`
+/// is `fromJSON(needs.validate.outputs.runners)[matrix.<key>]`, else `job_platforms`.
+fn restore_job_platforms(
+    body: &serde_json::Value,
+    validate: &[&'static str],
+) -> Option<Vec<&'static str>> {
+    if body["runs-on"]
+        .as_str()
+        .is_some_and(|runs_on| runs_on.contains(VALIDATE_RUNNERS))
+    {
+        return Some(validate.to_vec());
+    }
+    job_platforms(body)
+}
 const STAMP: &str = "Stamp the restored Bazel repository cache";
 const PRUNE: &str = "Prune the Bazel repository cache to this run's downloads";
 const STAMP_FILE: &str = "$RUNNER_TEMP/dx-repo-cache.stamp";
@@ -176,6 +230,7 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
     let info = "bazel --nohome_rc --nosystem_rc info repository_cache";
     let prefix = "dx-repo-${{ runner.os }}-${{ runner.arch }}-";
     let key = repo_cache_key(prefix);
+    let validate = validate_platforms(&workflows());
     let mut checked = 0;
     let mut restore_only = 0;
     let mut savers_seen = Vec::new();
@@ -283,7 +338,7 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                     "{name} job {job} is not a listed saver but saves, stamps or prunes the repository cache"
                 );
                 restore_only += 1;
-                if let Some(platforms) = job_platforms(body) {
+                if let Some(platforms) = restore_job_platforms(body, &validate) {
                     restore_only_platforms.extend(
                         platforms
                             .into_iter()

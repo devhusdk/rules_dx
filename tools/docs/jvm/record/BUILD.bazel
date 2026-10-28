@@ -1,0 +1,42 @@
+load("//java/rules:defs.bzl", "java_library", "java_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+java_library(
+    name = "api_record_writer",
+    srcs = ["src/dx/docs/jvm/ApiRecordWriter.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+)
+
+java_test(
+    name = "api_record_writer_test",
+    size = "small",
+    srcs = ["test/dx/docs/jvm/ApiRecordWriterTest.java"],
+    args = [
+        "execute",
+        "--select-class",
+        "dx.docs.jvm.ApiRecordWriterTest",
+    ],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "org.junit.platform.console.ConsoleLauncher",
+    use_testrunner = False,
+    runtime_deps = [
+        "@maven//:org_junit_jupiter_junit_jupiter_engine",
+        "@maven//:org_junit_platform_junit_platform_console",
+        "@maven//:org_junit_platform_junit_platform_engine",
+        "@maven//:org_junit_platform_junit_platform_launcher",
+    ],
+    deps = [
+        ":api_record_writer",
+        "@maven//:org_junit_jupiter_junit_jupiter_api",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

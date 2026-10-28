@@ -1,0 +1,25 @@
+load("//java/rules:defs.bzl", "java_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+java_binary(
+    name = "javadoc_extract",
+    srcs = [
+        "src/dx/docs/javadoc/Docs.java",
+        "src/dx/docs/javadoc/IrDoclet.java",
+        "src/dx/docs/javadoc/Main.java",
+        "src/dx/docs/javadoc/Names.java",
+    ],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "dx.docs.javadoc.Main",
+    deps = ["//tools/docs/jvm/record:api_record_writer"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

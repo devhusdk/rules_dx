@@ -1,0 +1,120 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//java/rules:defs.bzl", "java_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/jvm:defs.bzl", "java_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    [
+        "java/dx/fixture/paint/Square.java",
+        "java/dx/fixture/shapes/Circle.java",
+        "java/dx/fixture/shapes/Shape.java",
+        "java/dx/fixture/shapes/package-info.java",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+java_library(
+    name = "shapes",
+    srcs = [
+        "java/dx/fixture/shapes/Circle.java",
+        "java/dx/fixture/shapes/Internal.java",
+        "java/dx/fixture/shapes/Shape.java",
+        "java/dx/fixture/shapes/package-info.java",
+    ],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+)
+
+java_library(
+    name = "paint",
+    srcs = ["java/dx/fixture/paint/Square.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    deps = [":shapes"],
+)
+
+java_doc_shard(
+    name = "shapes_docs",
+    lib = ":shapes",
+    package = "shapes",
+)
+
+java_doc_shard(
+    name = "paint_docs",
+    lib = ":paint",
+    package = "paint",
+    deps = [":shapes_docs"],
+)
+
+java_doc_shard(
+    name = "paint_nodep_docs",
+    lib = ":paint",
+    package = "paint",
+    tags = ["manual"],
+)
+
+write_file(
+    name = "empty_src",
+    out = "empty/Hidden.java",
+    content = [
+        "package dx.fixture.empty;",
+        "",
+        "class Hidden {}",
+        "",
+    ],
+    tags = ["manual"],
+)
+
+java_library(
+    name = "empty",
+    srcs = [":empty_src"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    tags = ["manual"],
+)
+
+java_doc_shard(
+    name = "empty_docs",
+    lib = ":empty",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+write_file(
+    name = "reexport_src",
+    out = "reexport/dx/fixture/reexport/Reexport.java",
+    content = [
+        "package dx.fixture.reexport;",
+        "",
+        "import dx.fixture.shapes.Shape;",
+        "",
+        "/** Uses a type from an exported dependency. */",
+        "public interface Reexport {",
+        "  /** Returns the shape. */",
+        "  Shape shape();",
+        "}",
+        "",
+    ],
+    tags = ["manual"],
+)
+
+java_library(
+    name = "reexport",
+    srcs = [":reexport_src"],
+    tags = ["manual"],
+    exports = [":shapes"],
+    deps = [":shapes"],
+)
+
+java_doc_shard(
+    name = "reexport_docs",
+    lib = ":reexport",
+    package = "reexport",
+    tags = ["manual"],
+)

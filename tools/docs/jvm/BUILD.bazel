@@ -1,0 +1,66 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    ["defs.bzl"],
+    visibility = VIS_TOOLS,
+)
+
+filegroup(
+    name = "fixture_shapes_json",
+    testonly = True,
+    srcs = ["//tools/docs/jvm/fixture:shapes_docs"],
+    output_group = "api_json",
+)
+
+# keep
+rust_test(
+    name = "java_extract_test",
+    size = "small",
+    srcs = ["java_extract_test.rs"],
+    data = [
+        ":fixture_shapes_json",
+        "//tools/docs/jvm/convert:jvm_convert",
+        "//tools/docs/jvm/fixture:java/dx/fixture/shapes/Circle.java",
+        "//tools/docs/jvm/fixture:java/dx/fixture/shapes/Shape.java",
+        "//tools/docs/jvm/fixture:paint_docs",
+        "//tools/docs/jvm/fixture:paint_nodep_docs",
+        "//tools/docs/jvm/fixture:shapes_docs",
+        "//tools/docs/jvm/javadoc:javadoc_extract",
+    ],
+    env = {
+        "DX_CIRCLE_JAVA": "$(rootpath //tools/docs/jvm/fixture:java/dx/fixture/shapes/Circle.java)",
+        "DX_JAVADOC_EXTRACT": "$(rootpath //tools/docs/jvm/javadoc:javadoc_extract)",
+        "DX_JVM_CONVERT": "$(rootpath //tools/docs/jvm/convert:jvm_convert)",
+        "DX_PAINT_NODEP_SHARD": "$(rootpath //tools/docs/jvm/fixture:paint_nodep_docs)",
+        "DX_PAINT_SHARD": "$(rootpath //tools/docs/jvm/fixture:paint_docs)",
+        "DX_SHAPES_JSON": "$(rootpath :fixture_shapes_json)",
+        "DX_SHAPES_SHARD": "$(rootpath //tools/docs/jvm/fixture:shapes_docs)",
+        "DX_SHAPE_JAVA": "$(rootpath //tools/docs/jvm/fixture:java/dx/fixture/shapes/Shape.java)",
+    },
+    tags = ["no-coverage"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "java_extract_fmt_test",
+    size = "small",
+    targets = [":java_extract_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

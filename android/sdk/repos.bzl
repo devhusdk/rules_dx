@@ -362,8 +362,10 @@ def package_no_match_error(package):
     """Returns the diagnostic for a platform with no pinned opt-in package."""
     return "rules_dx: no pinned Android " + package + " artifact for this platform; want one of linux_x86_64"
 
-def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = "", *, platform_repo = "", platform_tools_repos = {}, emulator_repos = {}):
+def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = "", platform_tools_repos = {}, emulator_repos = {}):
     """Returns the hub BUILD file for one acquisition state."""
+    if bundletool_repo == "":
+        fail("rules_dx: hub_build needs the bundletool repository name")
     lines = []
     for platform in sorted(PLATFORM_CONSTRAINTS.keys()):
         lines.append("config_setting(")
@@ -382,7 +384,7 @@ def hub_build(ndk_repos, build_tools_repos = {}, bundletool_repo = "", *, platfo
     lines.append("")
     _hub_target(lines, "apksigner_jar", build_tools_repos, "apksigner_jar", build_tools_no_match_error())
     lines.append("")
-    _hub_alias(lines, "bundletool_jar", "@%s//file" % bundletool_repo if bundletool_repo != "" else "")
+    _hub_alias(lines, "bundletool_jar", "@%s//file" % bundletool_repo)
     lines.append("")
     _hub_alias(lines, "android_jar", "@%s//:android_jar" % platform_repo if platform_repo != "" else "")
     lines.append("")
@@ -671,7 +673,7 @@ _android_sdk_hub_repo = repository_rule(
         ),
         "bundletool_repo": attr.string(
             doc = "Repository name that provides the bundletool jar.",
-            default = "",
+            mandatory = True,
         ),
         "emulator_repos": attr.string(
             doc = "JSON map of emulator repository names by host.",

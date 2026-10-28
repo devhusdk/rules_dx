@@ -312,7 +312,7 @@ def _android_checks():
     checks.append(expect_true("local request differs from remote", local_repos != package_repositories(_request())))
     checks.append(expect_equal(
         "disabled hub selects nothing",
-        hub_build({}, {}),
+        hub_build({}, {}, BUNDLETOOL_REPOSITORY),
         "\n".join([
             "config_setting(",
             '    name = "linux_x86_64",',
@@ -346,9 +346,9 @@ def _android_checks():
             '    visibility = ["//visibility:public"],',
             ")",
             "",
-            "filegroup(",
+            "alias(",
             '    name = "bundletool_jar",',
-            "    srcs = [],",
+            '    actual = "@dx_android_bundletool//file",',
             '    visibility = ["//visibility:public"],',
             ")",
             "",
@@ -384,6 +384,8 @@ def _android_checks():
     checks.append(expect_contains("enabled hub keeps emulator a target", enabled_hub, 'name = "emulator"'))
     opt_in_hub = hub_build(
         {},
+        {},
+        BUNDLETOOL_REPOSITORY,
         platform_tools_repos = {"linux_x86_64": "dx_android_platform_tools_linux_x86_64"},
         emulator_repos = {"linux_x86_64": "dx_android_emulator_linux_x86_64"},
     )

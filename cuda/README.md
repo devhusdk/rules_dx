@@ -117,7 +117,7 @@ analysis. `cuda-eula` is the only license name.
 ## Rules
 
 ```python
-load("@rules_dx//cuda/rules:defs.bzl", "cuda_binary", "cuda_library", "cuda_test")
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_binary", "cuda_library", "cuda_objects", "cuda_test")
 
 cuda_library(
     name = "kernels",
@@ -135,8 +135,16 @@ cuda_library(
 - `cuda_binary`: a `cc_binary`. Its `.cu` and `.cuh` sources go through a
   `cuda_library` with the same `archs`. The other sources compile as C++.
 - `cuda_test`: the same as `cuda_binary`, as a `cc_test`.
+- `cuda_objects`: compiles `srcs` into relocatable device objects without
+  linking them. It only goes into `deps` of a `cuda_library`, `cuda_binary`
+  or `cuda_test` with `rdc = True`.
 
-`archs` is required on all three. Each entry is one of:
+`cuda_library`, `cuda_binary` and `cuda_test` take `rdc` (default `False`).
+`rdc = True` compiles relocatable device code and device-links it, so
+`__device__` functions can call across `.cu` files and across libraries.
+`rdc` supports `sm_` archs.
+
+`archs` is required on all four. Each entry is one of:
 
 - `sm_XY`: SASS for compute capability X.Y.
 - `compute_XY`: PTX for X.Y, compiled for the device at load time.

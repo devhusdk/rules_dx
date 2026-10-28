@@ -75,6 +75,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "stylua",
     "taplo",
     "terraform",
+    "tflint",
     "ty",
     "typstyle",
     "vale",
@@ -95,6 +96,19 @@ ktlint_standard_function-signature = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
 ";
+const TFLINT_DEFAULTS_REL: &str = "dx-tflint-default/.tflint.hcl";
+/// Only the bundled terraform ruleset, recommended preset; module calls stay off.
+const TFLINT_DEFAULTS_BYTES: &[u8] = b"config {
+  call_module_type = \"none\"
+}
+
+plugin \"terraform\" {
+  enabled = true
+  preset  = \"recommended\"
+}
+";
+/// Empty plugin home: tflint never downloads or finds a provider ruleset.
+const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
 const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
 /// An empty ini loads and keeps every rule at its default.
 const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
@@ -422,6 +436,32 @@ impl RealBackend {
                 env.push(pair);
             }
         }
+        if tool_id == "tflint" {
+            let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);
+            std::fs::create_dir_all(&plugins)
+                .map_err(|err| execution(tool_id, format!("plugin dir: {err}")))?;
+            env.retain(|(key, _)| key != "TFLINT_CONFIG_FILE");
+            env.push((
+                OsString::from("TFLINT_PLUGIN_DIR"),
+                plugins.into_os_string(),
+            ));
+            env.push((OsString::from("TFLINT_LOG"), OsString::new()));
+            if cfg!(unix) {
+                // The bundled ruleset talks over a unix socket made in TMPDIR, and
+                // a long scratch path overflows the socket path limit.
+                let short = short_socket_dir()
+                    .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
+                for (key, value) in &mut env {
+                    if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
+                        *value = short.path().as_os_str().to_owned();
+                    }
+                }
+                let result = (self.spawn)(&spawn_argv(tool_id, invocation), &cwd, &env)
+                    .map_err(|err| execution(tool_id, format!("spawn: {err}")));
+                drop(short);
+                return result;
+            }
+        }
         if tool_id == "typstyle" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
         }
@@ -445,6 +485,39 @@ impl RealBackend {
             }
         }
         (self.spawn)(&argv, &cwd, &env).map_err(|err| execution(tool_id, format!("spawn: {err}")))
+    }
+}
+
+/// A short-named temp directory, removed on drop, for tools that bind unix sockets there.
+struct SocketDir(PathBuf);
+
+impl SocketDir {
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for SocketDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn short_socket_dir() -> io::Result<SocketDir> {
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let base = if Path::new("/tmp").is_dir() {
+        PathBuf::from("/tmp")
+    } else {
+        std::env::temp_dir()
+    };
+    loop {
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = base.join(format!("dxtfl-{}-{n}", std::process::id()));
+        match std::fs::create_dir(&dir) {
+            Ok(()) => return Ok(SocketDir(dir)),
+            Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(err) => return Err(err),
+        }
     }
 }
 

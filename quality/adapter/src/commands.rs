@@ -1110,6 +1110,34 @@ pub fn terraform_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_CHECK_ARGS, files, "")
 }
 
+/// One tflint spawn for one module directory, run from the mirror root.
+///
+/// `--chdir` makes tflint report workspace-relative paths, `--filter` (relative to
+/// `--chdir`) narrows the report to the owned files, and `--config` is always passed so
+/// `./.tflint.hcl` and `~/.tflint.hcl` never load. `--call-module-type=none` stops it
+/// reading local module sources outside the mirror. Exit codes (v0.65.0 `cmd/cli.go`):
+/// 0 clean, 1 failure (JSON `errors`), 2 issues found.
+pub fn tflint_check(binary: &Path, dir_rel: &str, files: &[&Path], config: &Path) -> Invocation {
+    let mut argv = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+        OsString::from(format!("--chdir={dir_rel}")),
+        OsString::from("--format=json"),
+        OsString::from("--no-color"),
+        OsString::from("--call-module-type=none"),
+    ];
+    for file in files {
+        let mut flag = OsString::from("--filter=");
+        flag.push(file.as_os_str());
+        argv.push(flag);
+    }
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_FIX_ARGS, files, "")
 }

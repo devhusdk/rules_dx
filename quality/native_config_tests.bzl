@@ -198,7 +198,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "biome, buf, buildifier, checkmake, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, kubeconform, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, vale, yamlfmt, yamllint",
+                "biome, buf, buildifier, checkmake, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, kubeconform, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",

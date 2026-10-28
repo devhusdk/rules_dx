@@ -285,6 +285,20 @@ TERRAFORM_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+TERRAFORM_TFLINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["terraform"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "terraform",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "tflint",
+    "transport": "batched",
+}
+
 GO_GOFUMPT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -659,6 +673,7 @@ SUPPORT_RECORDS = [
     KUBERNETES_KUBECONFORM_SUPPORT,
     MAKE_CHECKMAKE_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
+    TERRAFORM_TFLINT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,

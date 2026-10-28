@@ -1590,6 +1590,25 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/Makefile"
         ]
     );
+    assert_eq!(
+        argv_strings(&tflint_check(
+            Path::new(BIN),
+            "infra/a",
+            &[Path::new("main.tf"), Path::new("vars.tf")],
+            Path::new("/scratch/.tflint.hcl")
+        )),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/.tflint.hcl",
+            "--chdir=infra/a",
+            "--format=json",
+            "--no-color",
+            "--call-module-type=none",
+            "--filter=main.tf",
+            "--filter=vars.tf"
+        ]
+    );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),

@@ -43,6 +43,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "kubeconform": [".kubeconform.json"],
     "checkmake": [".ini"],
     "pmd": [".xml"],
+    "tflint": [".hcl"],
     "prettier": [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
     "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
@@ -233,6 +234,7 @@ yamllint_config = _make_native_config_rule("yamllint")
 
 hadolint_config = _make_native_config_rule("hadolint")
 checkmake_config = _make_native_config_rule("checkmake")
+tflint_config = _make_native_config_rule("tflint")
 
 rubocop_config = _make_native_config_rule("rubocop")
 

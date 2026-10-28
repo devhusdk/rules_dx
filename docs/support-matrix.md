@@ -103,7 +103,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Jsonnet | no | `jsonnetfmt` on `linux_x86_64` | no |
 | Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| Terraform | no | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
+| Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | YAML | `yamllint` on `linux_x86_64` | `yamlfmt` on `linux_x86_64` | no |

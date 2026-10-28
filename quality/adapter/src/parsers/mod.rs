@@ -3,6 +3,7 @@ pub mod buf;
 pub mod buildifier;
 pub mod checkmake;
 pub mod checkstyle;
+pub mod tflint;
 pub mod clang_format;
 pub mod clang_tidy;
 pub mod cppcheck;
@@ -72,6 +73,7 @@ pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
 pub use checkmake::parse_checkmake;
+pub use tflint::parse_tflint;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
@@ -1965,6 +1967,14 @@ mod tests {
         super::checkmake::parse_checkmake(input, input, code, files, None)
     }
 
+    fn fuzz_tflint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::tflint::parse_tflint(input, code, files)
+    }
+
     fn fuzz_hadolint(
         input: &[u8],
         code: Option<i32>,
@@ -2188,6 +2198,7 @@ mod tests {
         ("buf_format", fuzz_buf_format),
         ("checkmake", fuzz_checkmake),
         ("checkstyle", fuzz_checkstyle),
+        ("tflint", fuzz_tflint),
         ("clang_format", fuzz_clang_format),
         ("clang_tidy", fuzz_clang_tidy),
         ("cppcheck", fuzz_cppcheck),
@@ -2269,6 +2280,7 @@ mod tests {
         ("buildifier", include_str!("buildifier.rs")),
         ("checkmake", include_str!("checkmake.rs")),
         ("checkstyle", include_str!("checkstyle.rs")),
+        ("tflint", include_str!("tflint.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_tidy", include_str!("clang_tidy.rs")),
         ("cppcheck", include_str!("cppcheck.rs")),

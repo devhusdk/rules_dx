@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 
 use clap::{Args, Parser};
@@ -65,7 +66,6 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
-    pub(crate) configured: bool,
     pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
@@ -85,9 +85,13 @@ pub(crate) struct Flags {
     pub(crate) bases: bool,
     pub(crate) with: Vec<String>,
     pub(crate) full: bool,
+    pub(crate) rust_target_triple: Vec<String>,
     pub(crate) explain: bool,
     pub(crate) old_log: Option<String>,
     pub(crate) new_log: Option<String>,
+    pub(crate) install_tag: Option<String>,
+    pub(crate) install_archive: Option<OsString>,
+    pub(crate) install_dir: Option<OsString>,
     pub(crate) bazel_startup_options: Vec<String>,
     pub(crate) bazel_options: Vec<String>,
 }
@@ -417,11 +421,20 @@ flag_group! {
     }
 }
 
+flag_group! {
+    /// Add extra Rust target triples to the MODULE.bazel.snippet toolchain.
+    InitRustTargetTripleFlag, {
+        #[arg(long, value_name = "TRIPLES", require_equals = true, value_delimiter = ',')]
+        rust_target_triple: Vec<String>,
+    }
+}
+
 composite_group! {
     /// The flags that pick the optional init parts.
     InitPartsArgs, {
         with: InitWithFlag,
         full: InitFullFlag,
+        rust_target_triple: InitRustTargetTripleFlag,
     }
 }
 
@@ -438,6 +451,47 @@ flag_group! {
     RollbackApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
+    }
+}
+
+flag_group! {
+    /// Write the install instead of only checking it.
+    InstallApplyFlag, {
+        #[arg(long, overrides_with = "apply")]
+        apply: bool,
+    }
+}
+
+flag_group! {
+    /// Release tag the archive must belong to (for example from gh release view).
+    InstallTagFlag, {
+        #[arg(long = "tag", value_name = "TAG", overrides_with = "install_tag", value_parser = non_empty)]
+        install_tag: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Downloaded dx release archive (.tar.gz or .zip) to install.
+    InstallArchiveFlag, {
+        #[arg(long = "archive", value_name = "PATH", overrides_with = "install_archive")]
+        install_archive: Option<OsString>,
+    }
+}
+
+flag_group! {
+    /// Install root (default: the per-user dx data directory).
+    InstallDirFlag, {
+        #[arg(long = "dir", value_name = "DIR", overrides_with = "install_dir")]
+        install_dir: Option<OsString>,
+    }
+}
+
+composite_group! {
+    /// The inputs dx install verifies and installs.
+    InstallArgs, {
+        install_tag: InstallTagFlag,
+        install_archive: InstallArchiveFlag,
+        install_dir: InstallDirFlag,
     }
 }
 
@@ -462,14 +516,6 @@ flag_group! {
     PruneUnobservedFlag, {
         #[arg(long = "prune-unobserved", overrides_with = "prune_unobserved")]
         prune_unobserved: bool,
-    }
-}
-
-flag_group! {
-    /// Use cquery instead of query.
-    ConfiguredFlag, {
-        #[arg(long, overrides_with = "configured")]
-        configured: bool,
     }
 }
 
@@ -579,14 +625,6 @@ composite_group! {
     FloorArgs, {
         floor: FloorFlag,
         reason: ReasonFlag,
-    }
-}
-
-flag_group! {
-    /// Enumerate supported test cases via the test runtime.
-    CasesFlag, {
-        #[arg(long = "cases", overrides_with = "cases")]
-        cases: bool,
     }
 }
 
@@ -921,6 +959,7 @@ command_args! {
         output: ReadOutputFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
+        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -939,6 +978,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         check: CheckFlag,
         fail_on: FailOnFlag,
+        explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -1010,18 +1050,10 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx list-tests` accepts.
-    ListTests => 28, BazelTail, {
-        output: ReadOutputFlag,
-        own: CasesFlag,
-        configured: ConfiguredFlag,
-        here: HereFlag,
-        affected: AffectedFlag,
-    };
     /// The flags `dx rollback` accepts.
-    Rollback => 29, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
+    Rollback => 28, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 30, NoPassthroughTail, {
+    Worktree => 29, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,
@@ -1030,7 +1062,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 31, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
+    Explain => 30, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
+    /// The flags `dx install` accepts.
+    Install => 31, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]
@@ -1051,7 +1085,12 @@ pub fn cli_command() -> clap::Command {
     use clap::CommandFactory;
     let cwd = dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let start = dx_process::workspace_start(&cwd);
-    super::completion::with_scope_completers(Cli::command(), std::env::args_os().skip(1), &start)
+    super::completion::with_scope_completers(
+        Cli::command(),
+        std::env::args_os().skip(1),
+        &start,
+        &cwd,
+    )
 }
 
 /// Renders the section 1 man page for the dx command.
@@ -1063,25 +1102,41 @@ pub fn man_page() -> std::io::Result<Vec<u8>> {
     Ok(buffer)
 }
 
-pub(crate) const VALUE_OPTIONS: &[&str] = &[
-    "--workspace",
-    "--output",
-    "-o",
-    "--report",
-    "--fail-on",
-    "--min-coverage",
-    "--min-changed-line-coverage",
-    "--from",
-    "--to",
-    "--port",
-    "--host",
-    "--color",
-    "--build-slots",
-    "--bazel-startup-option",
-    "--bazel-option",
-    "--old",
-    "--new",
-];
+/// Every long and short option in the clap command tree that takes a value, e.g. `--output` and `-o`.
+pub(crate) fn value_options() -> &'static BTreeSet<String> {
+    static OPTIONS: std::sync::OnceLock<BTreeSet<String>> = std::sync::OnceLock::new();
+    OPTIONS.get_or_init(|| {
+        let mut command = <Cli as clap::CommandFactory>::command();
+        command.build();
+        let mut options = BTreeSet::new();
+        collect_value_options(&command, &mut options);
+        options
+    })
+}
+
+/// Adds the value-taking options of one command and its subcommands.
+fn collect_value_options(command: &clap::Command, options: &mut BTreeSet<String>) {
+    for arg in command.get_arguments().filter(|arg| takes_next_word(arg)) {
+        if let Some(short) = arg.get_short() {
+            options.insert(format!("-{short}"));
+        }
+        if let Some(long) = arg.get_long() {
+            options.insert(format!("--{long}"));
+        }
+    }
+    for sub in command.get_subcommands() {
+        collect_value_options(sub, options);
+    }
+}
+
+/// Whether an argument takes its value from the next word, not only after `=`.
+fn takes_next_word(arg: &clap::Arg) -> bool {
+    !arg.is_require_equals_set()
+        && arg.get_action().takes_values()
+        && arg
+            .get_num_args()
+            .is_some_and(|range| range.min_values() >= 1)
+}
 
 /// Every short letter in the clap command tree.
 pub(crate) fn short_flags() -> &'static [char] {
@@ -1105,13 +1160,9 @@ fn collect_shorts(command: &clap::Command, letters: &mut Vec<char>) {
     }
 }
 
-/// Whether a short letter is listed in VALUE_OPTIONS.
+/// Whether a short letter is a value option.
 fn short_takes_value(letter: char) -> bool {
-    letter != '-'
-        && VALUE_OPTIONS.iter().any(|option| {
-            let mut chars = option.chars();
-            chars.next() == Some('-') && chars.next() == Some(letter) && chars.next().is_none()
-        })
+    letter != '-' && value_options().contains(&format!("-{letter}"))
 }
 
 /// Splits a short cluster into its value letter, value, and whether it used the next word.
@@ -1152,7 +1203,7 @@ pub(crate) fn consumes_next(word: &str, next: Option<&str>) -> bool {
         return false;
     }
     if word.starts_with("--") {
-        return VALUE_OPTIONS.contains(&word);
+        return value_options().contains(word);
     }
     short_cluster(word, next).is_some_and(|(_, _, used_next)| used_next)
 }
@@ -1391,35 +1442,45 @@ mod tests {
     }
 
     #[test]
-    fn value_options_list_every_value_taking_short_flag() {
+    fn value_options_list_every_value_taking_flag() {
         let mut command = <Cli as clap::CommandFactory>::command();
         command.build();
         let mut stack = vec![&command];
         let mut seen = 0;
         while let Some(command) = stack.pop() {
             for arg in command.get_arguments() {
-                let Some(letter) = arg.get_short() else {
-                    continue;
-                };
-                seen += 1;
-                assert!(
-                    short_flags().contains(&letter),
-                    "-{letter} is in short_flags"
-                );
-                let takes_value = arg.get_action().takes_values()
-                    && arg
-                        .get_num_args()
-                        .is_some_and(|range| range.min_values() >= 1);
-                assert_eq!(
-                    VALUE_OPTIONS.contains(&format!("-{letter}").as_str()),
-                    takes_value,
-                    "-{letter} in {} must match VALUE_OPTIONS",
-                    command.get_name()
-                );
+                let expected = takes_next_word(arg);
+                if let Some(letter) = arg.get_short() {
+                    seen += 1;
+                    assert!(
+                        short_flags().contains(&letter),
+                        "-{letter} is in short_flags"
+                    );
+                    assert_eq!(
+                        value_options().contains(format!("-{letter}").as_str()),
+                        expected,
+                        "-{letter} in {} must match value_options",
+                        command.get_name()
+                    );
+                }
+                if let Some(long) = arg.get_long() {
+                    assert_eq!(
+                        value_options().contains(format!("--{long}").as_str()),
+                        expected,
+                        "--{long} in {} must match value_options",
+                        command.get_name()
+                    );
+                }
             }
             stack.extend(command.get_subcommands());
         }
         assert!(seen > 0);
+        for option in ["--output", "-o", "--workspace", "--bazel-option"] {
+            assert!(value_options().contains(option), "{option} takes a value");
+        }
+        for flag in ["-q", "-v", "--verbose"] {
+            assert!(!value_options().contains(flag), "{flag} takes no value");
+        }
     }
 
     #[test]

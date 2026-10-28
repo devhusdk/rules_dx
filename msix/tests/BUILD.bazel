@@ -101,6 +101,26 @@ dx_msix(
     version = "1.0.0.0",
 )
 
+filegroup(
+    name = "greeting_group",
+    srcs = ["fixtures/greeting.txt"],
+)
+
+dx_msix(
+    name = "dup_listed",
+    binary = ":cell_exe",
+    data = [
+        "fixtures/greeting.txt",
+        ":greeting_group",
+    ],
+    identity_name = "Dx.Cell",
+    logo = "fixtures/logo.png",
+    notice = ["fixtures/NOTICE.txt"],
+    publisher = "CN=Dx Cell, O=Dx",
+    tags = ["manual"],
+    version = "1.0.0.0",
+)
+
 dx_msix_sign(
     name = "cell_sign",
     package = ":cell",
@@ -305,6 +325,12 @@ data_paths_test(
         "share/github-ci.md",
     ],
     target_under_test = ":root_data",
+)
+
+data_paths_test(
+    name = "dup_listed_data_test",
+    expected = ["share/fixtures/greeting.txt"],
+    target_under_test = ":dup_listed",
 )
 
 x64_action_test(

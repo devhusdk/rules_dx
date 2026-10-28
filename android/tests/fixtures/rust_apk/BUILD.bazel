@@ -3,10 +3,11 @@
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android/packaging:defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
+load("//android/packaging:defs.bzl", "android_aab_check", "android_aab_release_sign", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "android_apk_set", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_static_library", "rust_test", "rustfmt_test")
+load(":starlark_platforms.bzl", "starlark_platforms")
 
 package(
     default_testonly = True,
@@ -100,6 +101,31 @@ android_aab_check(
     name = "check_test_bundle_test",
     aab = ":test_bundle.aab",
     abis = ["x86_64"],
+)
+
+android_apk_set(
+    name = "test_bundle_set",
+    aab = ":test_bundle.aab",
+    device_spec = ":device_x86_64.json",
+)
+
+android_adb_install(
+    name = "install_set_probe",
+    apk_set = ":test_bundle_set",
+    serial = "emulator-5554",
+)
+
+android_apk_set(
+    name = "app_apk_set",
+    aab = ":app_apk_aab_file",
+    device_spec = ":device_x86_64.json",
+    tags = ["manual"],
+)
+
+android_adb_install(
+    name = "install_set",
+    apk_set = ":app_apk_set",
+    serial = "emulator-5554",
 )
 
 android_adb_start(
@@ -224,6 +250,25 @@ android_aab_check(
     tags = ["manual"],
 )
 
+# rules_android 0.8.0 prefers its Starlark android_platforms flag over the native option.
+# A narrower Starlark value from outside must not drop the bundle's own ABIs.
+starlark_platforms(
+    name = "app_apk_aab_file_x86_64_flag",
+    src = ":app_apk_aab_file",
+    platforms = ["//android/platforms:x86_64"],
+    tags = ["manual"],
+)
+
+android_aab_check(
+    name = "check_app_aab_starlark_flag_test",
+    aab = ":app_apk_aab_file_x86_64_flag",
+    abis = [
+        "arm64-v8a",
+        "x86_64",
+    ],
+    tags = ["manual"],
+)
+
 sh_test(
     name = "check_aab_missing_abi_test",
     srcs = ["check_aab_rejects_one.sh"],
@@ -326,7 +371,6 @@ sh_test(
         "@dx_android_sdk//:zipalign",
         "@rules_java//toolchains:current_java_runtime",
     ],
-    tags = ["manual"],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
@@ -423,7 +467,9 @@ sh_test(
     data = [
         ":app_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
     ],
+    env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )
 
@@ -445,7 +491,9 @@ sh_test(
     data = [
         ":custom_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
     ],
+    env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )
 
@@ -595,11 +643,69 @@ sh_test(
     data = ["device_check.sh"] + glob(["testdata/**"]),
 )
 
+sh_test(
+    name = "install_set_test",
+    size = "small",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install-multiple",
+        "$(rootpath :install_set_probe)",
+        "$(rootpath :fake_adb.sh)",
+        "$(rootpath :test_bundle_set)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":install_set_probe",
+        ":test_bundle_set",
+    ],
+)
+
+sh_test(
+    name = "install_set_exit_test",
+    size = "small",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install-multiple",
+        "$(rootpath :install_set_probe)",
+        "$(rootpath :fake_adb.sh)",
+        "$(rootpath :test_bundle_set)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":install_set_probe",
+        ":test_bundle_set",
+    ],
+    env = {"ADB_EXIT": "4"},
+)
+
+sh_test(
+    name = "apk_set_mismatch_test",
+    size = "small",
+    srcs = ["apk_set_rejects.sh"],
+    args = [
+        "$(rootpath //android/packaging:build_apk_set.sh)",
+        "$(rootpath //android/packaging:bundletool)",
+        "$(rootpath :test_bundle.aab)",
+        "$(rootpath :device_arm64.json)",
+        "$(rootpath @rules_android//tools/android:debug_keystore)",
+    ],
+    data = [
+        ":device_arm64.json",
+        ":test_bundle.aab",
+        "//android/packaging:build_apk_set.sh",
+        "//android/packaging:bundletool",
+        "@rules_android//tools/android:debug_keystore",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "starlark_platforms.bzl",
+    ],
     tags = ["corpus"],
 )
 
@@ -620,6 +726,8 @@ sh_test(
     data = [
         ":arm_apk_file",
         "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
     ],
+    env = {"DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)"},
     tags = ["manual"],
 )

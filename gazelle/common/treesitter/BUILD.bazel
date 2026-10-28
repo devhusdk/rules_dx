@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//gazelle:__subpackages__"])
+
+go_library(
+    name = "treesitter",
+    srcs = ["treesitter.go"],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/common/treesitter",
+    deps = ["@com_github_odvcencio_gotreesitter//:gotreesitter"],
+)
+
+go_test(
+    name = "treesitter_test",
+    srcs = ["treesitter_test.go"],
+    embed = [":treesitter"],
+    pure = "on",
+    deps = ["@com_github_odvcencio_gotreesitter//grammars/java"],
+)

@@ -68,6 +68,11 @@ Each check reports once per platform as `<check> (<platform>)`, for example
 data once per run for every `security-audit` cell. `dx-ci (aggregate)` passes
 only when every check that should run succeeds.
 
+On `windows_arm64`, tools without a native build run their `windows_x86_64`
+binary under Windows x64 emulation; those tools are listed in `EMULATED_TOOLS`
+(`quality/artifacts/hub.bzl`). The platform is selectable but not
+qualified.
+
 Inputs:
 
 - `rules_dx_version`: the version your `rules_dx` declaration carries. The
@@ -75,7 +80,7 @@ Inputs:
 - `disabled_checks`: job IDs above to skip, comma-separated. Empty runs all
   nine. Surrounding spaces are ignored. An unknown ID, a repeated ID and an
   empty ID fail.
-- `platforms`: JSON array of platform labels, such as `["linux_x86_64"]`.
+- `platforms`: JSON array of platform labels, such as `["linux_x86_64"]`. The label-to-runner table is `PLATFORMS` in `tools/ci/input_validation.py`; every other copy is pinned to it by `input_validation_test`.
   Omit it to run `["linux_x86_64"]`. Valid labels: `linux_x86_64`, `linux_arm64`,
   `macos_arm64`, `windows_x86_64`, `windows_arm64`. Malformed JSON, a JSON value
   that is not an array, an empty array, a repeated label, an unknown label and a

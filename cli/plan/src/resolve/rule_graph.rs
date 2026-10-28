@@ -16,23 +16,32 @@ pub struct RuleGraph {
     kinds: HashMap<String, String>,
 }
 
+const QUERY_FLAGS: [&str; 9] = [
+    "query",
+    "--keep_going",
+    "--output=streamed_jsonproto",
+    "--proto:output_rule_attrs=tags",
+    "--noproto:default_values",
+    "--noproto:locations",
+    "--noproto:instantiation_stack",
+    "--",
+    EXPRESSION,
+];
+
 #[allow(clippy::disallowed_methods)] // query takes no build settings
 fn query_argv(startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
-    for flag in [
-        "query",
-        "--keep_going",
-        "--output=streamed_jsonproto",
-        "--proto:output_rule_attrs=tags",
-        "--noproto:default_values",
-        "--noproto:locations",
-        "--noproto:instantiation_stack",
-        "--",
-        EXPRESSION,
-    ] {
-        argv.push(flag.to_owned());
-    }
+    argv.extend(QUERY_FLAGS.iter().map(|flag| (*flag).to_owned()));
     argv
+}
+
+/// Whether `argv` is the workspace rule-graph query built by `RuleGraph::load`.
+pub(crate) fn is_graph_query(argv: &[String]) -> bool {
+    argv.len() >= QUERY_FLAGS.len()
+        && argv[argv.len() - QUERY_FLAGS.len()..]
+            .iter()
+            .zip(QUERY_FLAGS)
+            .all(|(have, want)| have == want)
 }
 
 fn has_manual_tag(rule: &Value) -> bool {
@@ -190,6 +199,24 @@ impl RuleGraph {
             .filter(|label| label.starts_with("@@"))
     }
 
+    /// The workspace-relative paths of every main-repo label some rule uses as an input.
+    ///
+    /// The query is unconfigured, so every `select()` branch and every manual rule counts.
+    pub fn main_repo_input_paths(&self) -> HashSet<String> {
+        self.users
+            .keys()
+            .filter_map(|label| label.strip_prefix("//"))
+            .filter_map(|rest| rest.split_once(':'))
+            .map(|(package, name)| {
+                if package.is_empty() {
+                    name.to_owned()
+                } else {
+                    format!("{package}/{name}")
+                }
+            })
+            .collect()
+    }
+
     /// Rules affected by the scopes, without manual rules.
     pub fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
@@ -247,13 +274,7 @@ impl RuleGraph {
                 input
                     .strip_prefix("@@")
                     .and_then(|canonical| canonical.split_once("//"))
-                    .is_some_and(|(repo, path)| {
-                        path == rest
-                            && (repo == name
-                                || repo.strip_suffix('+') == Some(name)
-                                || repo.ends_with(&format!("+{name}"))
-                                || repo.ends_with(&format!("~{name}")))
-                    })
+                    .is_some_and(|(repo, path)| path == rest && apparent_repo_matches(repo, name))
             })
             .map(str::to_owned)
             .collect();
@@ -301,6 +322,14 @@ impl RuleGraph {
     }
 }
 
+/// Whether canonical repo `repo` is apparent repo `name` or a generated form of it.
+pub(crate) fn apparent_repo_matches(repo: &str, name: &str) -> bool {
+    repo == name
+        || repo.strip_suffix('+') == Some(name)
+        || repo.ends_with(&format!("+{name}"))
+        || repo.ends_with(&format!("~{name}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,6 +372,25 @@ mod tests {
             rule("//c:t", &["//c:m"], &[]),
             rule("//d:lone", &["@@android+sdk//:core"], &[]),
         ])
+    }
+
+    #[test]
+    fn main_repo_input_paths_map_labels_to_workspace_paths() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:a.rs", "//a/sub:b.rs", "//:root.rs"], &[]),
+            rule(
+                "//c:m",
+                &["@@ext+x//:ruby", "@//d:d.rs", "//c:sel_arm.rs"],
+                &["manual"],
+            ),
+        ]);
+        let paths = graph.main_repo_input_paths();
+        for want in ["a/a.rs", "a/sub/b.rs", "root.rs", "c/sel_arm.rs"] {
+            assert!(paths.contains(want), "{want}: {paths:?}");
+        }
+        assert!(!paths
+            .iter()
+            .any(|path| path.contains("ruby") || path.contains("d.rs")));
     }
 
     fn shard_graph() -> RuleGraph {
@@ -454,6 +502,16 @@ mod tests {
         assert!(graph
             .dependents_of_kind("@other//pkg:schema", dx_codegen::is_shard_kind)
             .is_empty());
+    }
+
+    #[test]
+    fn apparent_repo_matches_name_forms_only() {
+        for repo in ["repo", "repo+", "x+repo", "x~repo", "y++x+repo"] {
+            assert!(apparent_repo_matches(repo, "repo"), "{repo}");
+        }
+        for repo in ["myrepo+", "repo1", "x+repo+", "repo~x"] {
+            assert!(!apparent_repo_matches(repo, "repo"), "{repo}");
+        }
     }
 
     #[test]

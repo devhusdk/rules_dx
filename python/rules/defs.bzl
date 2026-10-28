@@ -1,7 +1,7 @@
 """Minimal Python wrappers."""
 
 load("@aspect_rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo", _py_binary = "py_binary", _py_library = "py_library", _py_pytest_test = "py_pytest_test", _py_test = "py_test")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_PY_LIBRARY_PROVIDES = [
@@ -96,7 +96,7 @@ def python_binary(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_binary."""
     srcs = srcs if srcs != None else []
     upstream_kwargs = _python_main_kwargs("python_binary", name, srcs, kwargs)
-    dx_wrap(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, executable = True, **kwargs)
+    dx_wrap_binary(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
 
 def python_test_rejection(kwargs):
     """Returns the rejection for forbidden python_test kwargs, or None."""

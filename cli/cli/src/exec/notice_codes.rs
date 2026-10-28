@@ -15,6 +15,7 @@ pub(crate) const CODE_UPDATE_SET_CURRENT: &str = "update_set_current";
 pub(crate) const CODE_UPDATE_SET_PINNED: &str = "update_set_pinned";
 pub(crate) const CODE_UPDATE_SET_BLOCKED: &str = "update_set_blocked";
 pub(crate) const CODE_BUILD_EVENTS_INCOMPLETE: &str = "build_events_incomplete";
+pub(crate) const CODE_CHANGES_PROPOSED: &str = "changes_proposed";
 pub(crate) const CODE_TESTS_FILTERED: &str = "tests_filtered";
 pub(crate) const CODE_MANAGED_DRIFT: &str = "managed_drift";
 pub(crate) const CODE_UMBRELLA_PHASE_SKIPPED: &str = "umbrella_phase_skipped";
@@ -42,6 +43,7 @@ pub(crate) const SHARED_NOTICE_CODES: &[&str] = &[
 ];
 
 const WORKFLOW_CODES: &[&str] = &[CODE_BUILD_EVENTS_INCOMPLETE];
+const QUALITY_CODES: &[&str] = &[CODE_BUILD_EVENTS_INCOMPLETE, CODE_CHANGES_PROPOSED];
 const TEST_CODES: &[&str] = &[CODE_BUILD_EVENTS_INCOMPLETE, CODE_TESTS_FILTERED];
 const AUDIT_CODES: &[&str] = &[CODE_AUDIT_SECURITY_CLEAN, CODE_AUDIT_LICENSE_CLEAN];
 const UMBRELLA_CODES: &[&str] = &[CODE_UMBRELLA_PHASE_SKIPPED, CODE_UMBRELLA_PHASE_FINDINGS];
@@ -51,7 +53,7 @@ const UMBRELLA_CODES: &[&str] = &[CODE_UMBRELLA_PHASE_SKIPPED, CODE_UMBRELLA_PHA
 pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
     match command {
         Command::Security | Command::License => AUDIT_CODES,
-        Command::Lint | Command::Typecheck | Command::Format => WORKFLOW_CODES,
+        Command::Lint | Command::Typecheck | Command::Format => QUALITY_CODES,
         Command::Build | Command::Run | Command::Deploy => WORKFLOW_CODES,
         Command::Test | Command::Coverage => TEST_CODES,
         Command::Generate => &[dx_plan::generate::IGNORED_IMPORT_CODE],
@@ -86,8 +88,8 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         | Command::Watch
         | Command::Completion
         | Command::Docs
-        | Command::ListTests
         | Command::Explain
+        | Command::Install
         | Command::Rollback => &[],
     }
 }

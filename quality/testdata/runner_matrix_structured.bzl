@@ -50,6 +50,64 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_protobuf_lint_fail.expected.txt",
     },
     {
+        "name": "matrix_flatbuffers_lint_pass",
+        "generated": {
+            "quality/testdata/matrix/flatbuffers_pass/main.fbs": "include \"common.fbs\";\n\nnamespace fixtures;\n\ntable Sample {\n  common:Common;\n}\n",
+        },
+        "siblings": [
+            ":matrix/flatbuffers_pass/common.fbs",
+        ],
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;quality/testdata/matrix/flatbuffers_pass/main.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_warning_fail",
+        "generated": {
+            "matrix/flatbuffers_warning.fbs": "table Sample {\n  camelCase:int;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_warning.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_warning_fail.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_semantic_fail",
+        "generated": {
+            "matrix/flatbuffers_semantic.fbs": "table Sample {\n  x:Nope;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_semantic.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_syntax_error",
+        "generated": {
+            "matrix/flatbuffers_syntax.fbs": "table Sample {\n  x int;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_syntax.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_flatbuffers_lint_include_undeclared",
+        "generated": {
+            "matrix/flatbuffers_include.fbs": "include \"undeclared.fbs\";\n\ntable Sample {\n  x:int;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["flatc;flatbuffers;matrix/flatbuffers_include.fbs"],
+        "tool_names": ["flatc"],
+        "tool_binaries": ["@dx_flatbuffers//:flatc"],
+        "expected_file": ":matrix/matrix_flatbuffers_lint_include_undeclared.expected.txt",
+    },
+    {
         "name": "matrix_qml_format_pass",
         "generated": {
             "matrix/qmlformat_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",
@@ -140,6 +198,39 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_elixir_format_syntax.expected.txt",
     },
     {
+        "name": "matrix_elixir_lint_pass",
+        "generated": {
+            "matrix/credo_clean.ex": "defmodule CredoClean do\n  @moduledoc false\n  def add(a, b), do: a + b\nend\n",
+        },
+        "capability": "lint",
+        "stages": ["credo;elixir;matrix/credo_clean.ex"],
+        "tool_names": ["credo"],
+        "tool_binaries": ["//elixir/tools:credo"],
+        "expected_file": ":matrix/matrix_elixir_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_elixir_lint_fail",
+        "generated": {
+            "matrix/credo_dirty.ex": "defmodule CredoDirty do\n  def show(a), do: IO.inspect(a)\nend\n",
+        },
+        "capability": "lint",
+        "stages": ["credo;elixir;matrix/credo_dirty.ex"],
+        "tool_names": ["credo"],
+        "tool_binaries": ["//elixir/tools:credo"],
+        "expected_file": ":matrix/matrix_elixir_lint_fail.expected.txt",
+    },
+    {
+        "name": "matrix_elixir_lint_syntax",
+        "generated": {
+            "matrix/credo_broken.ex": "defmodule CredoBroken do\n  @moduledoc false\n  def add(a, b), do: a * * b\nend\n",
+        },
+        "capability": "lint",
+        "stages": ["credo;elixir;matrix/credo_broken.ex"],
+        "tool_names": ["credo"],
+        "tool_binaries": ["//elixir/tools:credo"],
+        "expected_file": ":matrix/matrix_elixir_lint_syntax.expected.txt",
+    },
+    {
         "name": "matrix_zig_format_pass",
         "generated": {
             "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",
@@ -160,6 +251,28 @@ STRUCTURED_CASES = [
         "tool_names": ["zig_fmt"],
         "tool_binaries": ["//zig/tools:zig"],
         "expected_file": ":matrix/matrix_zig_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_julia_format_pass",
+        "generated": {
+            "matrix/julia_clean.jl": "function add(a, b)\n    return a + b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["julia_format;julia;matrix/julia_clean.jl"],
+        "tool_names": ["julia_format"],
+        "tool_binaries": ["//julia/tools:julia_format"],
+        "expected_file": ":matrix/matrix_julia_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_julia_format_fail",
+        "generated": {
+            "matrix/julia_dirty.jl": "function add(a, b)\n        return a + b\nend\n",
+        },
+        "capability": "format",
+        "stages": ["julia_format;julia;matrix/julia_dirty.jl"],
+        "tool_names": ["julia_format"],
+        "tool_binaries": ["//julia/tools:julia_format"],
+        "expected_file": ":matrix/matrix_julia_format_fail.expected.txt",
     },
     {
         "name": "matrix_qml_lint_pass",

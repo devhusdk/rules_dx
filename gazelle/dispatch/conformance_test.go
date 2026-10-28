@@ -66,13 +66,20 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"go": {
 		files: map[string]string{"demo.go": "package demo\n"},
+		inert: []string{"notes.txt"},
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
 		symbols: []string{"go_library", "go_test"},
+	},
+	"haskell": {
+		files: map[string]string{"Demo.hs": "module Demo where\n\nimport Data.List (sort)\n"},
+		kind:  "haskell_library", target: "demo", defs: "haskell/rules:defs.bzl",
+		symbols: []string{"haskell_library"},
 	},
 	"java": {
 		files: map[string]string{"Demo.java": "package demo;\n\npublic class Demo {}\n"},
 		kind:  "java_library", target: "demo", defs: "java/rules:defs.bzl",
-		symbols: []string{"java_library"},
+		symbols:    []string{"java_library", "java_test"},
+		extraLoads: map[string][]string{"@rules_dx//android/rules:defs.bzl": {"java_android_library"}},
 	},
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
@@ -83,12 +90,25 @@ var conformanceRows = map[string]conformanceRow{
 	"kotlin": {
 		files: map[string]string{"Demo.kt": "package demo\n\nclass Demo\n"},
 		kind:  "kotlin_library", target: "demo", defs: "kotlin/rules:defs.bzl",
-		symbols: []string{"kotlin_library"},
+		symbols:    []string{"kotlin_library"},
+		extraLoads: map[string][]string{"@rules_dx//android/rules:defs.bzl": {"kotlin_android_library"}},
 	},
 	"mdx": {
 		files: map[string]string{"demo.mdx": webScript + "\n# Demo\n\nContent.\n"},
 		kind:  "mdx_library", target: "demo", defs: "mdx/rules:defs.bzl",
 		symbols: []string{"mdx_library"},
+	},
+	"perl": {
+		files: map[string]string{"Demo.pm": "package Demo;\n1;\n"},
+		kind:  "perl_library", target: "demo", defs: "perl/rules:defs.bzl",
+		symbols: []string{"perl_library", "perl_test"},
+		inert:   []string{"script.pl"},
+	},
+	"php": {
+		files: map[string]string{"Demo.php": "<?php\nclass Demo {}\n"},
+		kind:  "php_library", target: "demo", defs: "php/rules:defs.bzl",
+		symbols: []string{"php_library", "php_test"},
+		inert:   []string{"bin/x.php"},
 	},
 	"powershell": {
 		files: map[string]string{"Demo.psm1": "function Get-Greeting { 'hi' }\n"},

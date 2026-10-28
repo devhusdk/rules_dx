@@ -446,6 +446,7 @@ fn backend_error_codes_match_the_shared_constants() {
         tool: "uv",
         var: "DX_UV_BIN",
         what: "uv",
+        detail: None,
     };
     assert_eq!(
         BackendError::OfflineRequired { set: set.clone() }.code(),
@@ -536,6 +537,7 @@ fn backend_and_runner_statuses_keep_their_wording() {
                 tool: "uv",
                 var: "DX_UV_BIN",
                 what: "the pinned uv",
+                detail: None,
             },
             true,
             missing,

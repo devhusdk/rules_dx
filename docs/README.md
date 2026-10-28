@@ -24,16 +24,17 @@ guides below.
 - [Audit and update](cli/commands/audit-update.md): security, license, update, bump, add.
 - [Init](cli/commands/init.md): set up a workspace.
 - [Status and version](cli/commands/status-version.md): health report and the version pin.
-- [List tests](cli/commands/list-tests.md): list test targets.
 - [Completion](cli/commands/completion.md): shell completions.
 - [Migrate](cli/commands/migrate.md): move to the current layout.
 - [New, upgrade, rollback](cli/commands/new-upgrade.md): create modules and change the pin.
 - [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.
 - [Worktree](cli/commands/worktree.md): worktree slots.
+- [Module families](module-families.md): the plan for splitting core and family modules.
 
 ## CI And Examples
 
 - [GitHub CI](github-ci.md): run `dx` in GitHub Actions.
 - [Examples](../examples/README.md): starter callers and per-language adoption workspaces.
 - [Docs site](https://devhusdk.github.io/rules_dx/): rendered reference.
+- [Starlark rule reference](https://devhusdk.github.io/rules_dx/rules/): generated rule and aspect docs.

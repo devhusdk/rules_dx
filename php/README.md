@@ -64,8 +64,89 @@ PHPUnit's `--bootstrap`.
 
 The class map lists only classes from the target and its `deps`. A class
 from a library that is not in `deps` fails with `Class "..." not found`.
-PSR-4 layout is not required, and Composer packages from Packagist are not
-supported yet.
+PSR-4 layout is not required.
+
+## Composer packages
+
+Packages come from a `composer.lock` that Composer wrote. Bazel fetches every
+package through its repository cache; Composer never runs at fetch time and
+no resolver runs.
+
+```starlark
+composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
+composer.lock(
+    name = "vendor",
+    digests = "//:composer.digests.json",
+    lock = "//:composer.lock",
+)
+use_repo(composer, "vendor")
+```
+
+Set `dev = True` on the tag when you use the extension with `dev_dependency = True`.
+
+Each package is the label `@vendor//<vendor>/<name>`, for example
+`@vendor//psr/http-factory`; put it in the `deps` of a `php_library`,
+`php_binary` or `php_test`. Its `require`, `replace` and `provide` entries
+become deps, so a requirement that matches no package in the lock fails the
+build. `@vendor//:all_packages` and `@vendor//:dev_packages` group the
+`packages` and `packages-dev` entries. A target stages its packages under
+`vendor/<name>/` and writes their lock entries into
+`vendor/composer/installed.json`; the same `composer dump-autoload` then builds
+the PSR-4, PSR-0, classmap and `files` autoload. A class whose package is not in
+`deps` still fails with `Class "..." not found`. Package files are not linted.
+
+`composer.digests.json` pins the archives, because GitHub dists have an empty
+`shasum` in the lock:
+
+```json
+{
+  "version": 1,
+  "packages": {
+    "psr/log": {
+      "reference": "<dist reference of composer.lock>",
+      "sha256": "<archive sha256>",
+      "urls": ["https://mirror.example/psr-log.zip"]
+    }
+  }
+}
+```
+
+`urls` is optional; those URLs are tried before the lock mirrors and
+`dist.url`. GitHub keeps the files of a commit stable but not the zip bytes,
+so mirror archives you depend on. After `composer update` a digest whose
+`reference` no longer matches the lock fails with "re-pin". A missing or stale
+digest downloads the archive without a checksum, then fails and prints the
+entry to commit; review it in the diff.
+
+Refused: `composer-plugin` packages, packages without a zip or tar dist
+(source-only), and `ext-*` requirements the pinned PHP lacks. Scripts never
+run. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
+pinned PHPUnit phar.
+
+## Generating BUILD files
+
+`dx generate` writes `php_library` and `php_test` rules. Each package takes
+its own `.php` files plus every `.php` under `src/` that has no `BUILD` file of
+its own, and gets one `php_test` per `*Test.php` under `tests/` or `test/`
+(`GreeterTest.php` becomes `greeter_test`). One library holds a whole tree, so
+namespaces that refer to each other do not form dependency cycles.
+
+A class is found by what a file declares, not by its path, to match the
+classmap autoload: the parser indexes every class, interface, trait and enum
+declared at the top level of a file or namespace body, plus namespaced
+functions and constants. References come from `use` clauses and from the
+class positions of the code (`extends`, `implements`, `new`, `X::`,
+`instanceof`, `catch`, type declarations, attributes and `::class`). They
+resolve by PHP's lexical rules: the current namespace and the `use` aliases.
+
+- Classes, functions and constants that ship with PHP need no dep.
+  `PHPUnit\` names need none in a `php_test`.
+- A Composer package needs one mapping, for example
+  `# gazelle:resolve php Monolog\Logger @vendor//monolog/monolog`.
+- Unqualified function and constant names are skipped, because PHP falls back
+  to the global one. `require` and `include` are not read.
+- `php_binary` targets and `bin/` scripts stay hand-written. A hand-set
+  `autoload_files` stays out of `srcs` and its declarations are indexed.
 
 ## Quality
 

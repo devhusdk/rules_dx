@@ -54,10 +54,12 @@ pub fn with_scope_completers(
     command: clap::Command,
     words: impl IntoIterator<Item = OsString>,
     start: &Path,
+    base: &Path,
 ) -> clap::Command {
     let request = Request {
         words: words.into_iter().collect(),
         start: start.to_path_buf(),
+        base: base.to_path_buf(),
         env_workspace: std::env::var(super::DX_WORKSPACE_ENV).ok(),
         is_ci: dx_process::is_ci(),
     };
@@ -151,10 +153,11 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
     out
 }
 
-/// The typed words, the start directory, and the environment one request reads.
+/// The typed words, the start and user base directories, and the environment one request reads.
 struct Request {
     words: Vec<OsString>,
     start: PathBuf,
+    base: PathBuf,
     env_workspace: Option<String>,
     is_ci: bool,
 }
@@ -176,11 +179,15 @@ impl Request {
             .filter(|value| !value.is_empty());
         let raw = super::parser::startup_workspace(
             &self.start,
+            &self.base,
             flag,
             self.env_workspace.clone(),
             self.is_ci,
         );
-        let workspace = dx_process::discover_real(&self.start, raw.as_deref().map(Path::new))
+        // A relative workspace is typed relative to the user's directory, not the workspace start.
+        let override_dir =
+            raw.map(|raw| dx_process::resolve_override_display(Path::new(&raw), &self.base));
+        let workspace = dx_process::discover_real(&self.start, override_dir.as_deref())
             .unwrap_or_else(|_| dx_process::canonicalize_or_keep(&self.start));
         dx_process::configure_real(&workspace);
         let startup = tokens
@@ -575,6 +582,7 @@ mod tests {
         let request = Request {
             words: passed,
             start: workspace.to_path_buf(),
+            base: workspace.to_path_buf(),
             env_workspace: None,
             is_ci: false,
         };
@@ -707,7 +715,8 @@ mod tests {
                 | Command::Version
                 | Command::Rollback
                 | Command::Worktree
-                | Command::Explain => {
+                | Command::Explain
+                | Command::Install => {
                     assert!(fixed.is_empty(), "{command:?} takes no candidates");
                     assert!(!labels, "{command:?} takes no labels");
                 }
@@ -944,7 +953,7 @@ mod tests {
             ["//pkg"]
         );
         assert_eq!(
-            prior_scopes(&words(&["--", "dx", "list-tests", "a.rs", ""])),
+            prior_scopes(&words(&["--", "dx", "test", "a.rs", ""])),
             ["a.rs"]
         );
         assert_eq!(
@@ -1043,6 +1052,7 @@ mod tests {
         Request {
             words: words_of(words),
             start: start.to_path_buf(),
+            base: start.to_path_buf(),
             env_workspace: env_workspace.map(str::to_owned),
             is_ci,
         }
@@ -1051,6 +1061,27 @@ mod tests {
 
     fn real(path: &Path) -> PathBuf {
         dx_process::canonicalize_or_keep(path)
+    }
+
+    #[test]
+    fn a_relative_workspace_resolves_against_the_user_base() {
+        let outer = tempfile::tempdir().expect("scratch");
+        let start = outer.path().join("ws");
+        let base = start.join("sub");
+        let other = outer.path().join("other");
+        for dir in [&base, &other] {
+            std::fs::create_dir_all(dir).expect("mkdir");
+            std::fs::write(dir.join("MODULE.bazel"), "").expect("marker");
+        }
+        std::fs::write(start.join("MODULE.bazel"), "").expect("marker");
+        let request = Request {
+            words: words_of(&["build", "--workspace=../../other", ""]),
+            start: start.clone(),
+            base: base.clone(),
+            env_workspace: None,
+            is_ci: false,
+        };
+        assert_eq!(request.select().workspace, real(&other));
     }
 
     #[test]
@@ -1174,6 +1205,7 @@ mod tests {
         let request = Request {
             words: passed,
             start: start.to_path_buf(),
+            base: start.to_path_buf(),
             env_workspace: env_workspace.map(str::to_owned),
             is_ci: false,
         };

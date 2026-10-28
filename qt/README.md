@@ -81,7 +81,7 @@ without them `@dx_qt//:needs` fails analysis and says why.
 | `@dx_qt//:test` | `qtbase` | QtTest headers and library |
 | `@dx_qt//:fonts` | `qtbase` | `fonts.conf` and the DejaVu Sans fonts |
 | `@dx_qt//:platforms` | `qtbase` | `minimal` and `offscreen` platform plugins |
-| `@dx_qt//:display_wayland` | `qtbase` | `wayland` platform plugin, `xdg-shell` and `bradient` plugins |
+| `@dx_qt//:display_wayland` | `qtbase` | `wayland` platform plugin, `xdg-shell`, `bradient` and `wayland-egl` plugins |
 | `@dx_qt//:display_xcb` | `qtbase` | `xcb` platform plugin and its `glx` and `egl` GL integration plugins |
 | `@dx_qt//:plugins_imageformats` | `qtbase` | `gif`, `ico` and `jpeg` image format plugins |
 | `@dx_qt//:plugins_platformthemes` | `qtbase` | `xdgdesktopportal` platform theme plugin |
@@ -218,7 +218,9 @@ QT_QPA_PLATFORM=offscreen bazel run //app:viewer
 `bazel run` and `bazel test` carry only `minimal` and `offscreen`. Any other
 plugin fails with `Could not find the Qt platform plugin`. `qt_bundle` ships
 `xcb` and `wayland` with `display`. They carry no image format, TLS or theme
-plugins either; `qt_bundle` ships those with `plugins`. The target's `env`
+plugins either; list `imageformats`, `platformthemes` or `tls` in `plugins` on
+`qt_cc_binary`, `qt_cc_test` or `qt_bundle` to ship them; the first two also
+put them on `QT_PLUGIN_PATH`. The target's `env`
 overrides these variables.
 
 Run Qt Quick Test suites through `quick_test_main`, and pass the `tst_*.qml`
@@ -345,7 +347,8 @@ and `glibc-2.39` on `linux_arm64`.
 - `display`: display platforms to ship, `xcb` and `wayland`. Each adds its
   platform plugin and the libraries it needs. `xcb` also ships the
   `glx` and `egl` GL integration plugins that Qt Quick loads for an OpenGL
-  context. Defaults to none.
+  context. `wayland` likewise ships the `wayland-egl` graphics integration
+  plugin and `libwayland-egl`. Defaults to none.
 - `plugins`: plugin types to ship, `imageformats`, `platformthemes` and `tls`.
   Each adds its plugins and the libraries they need. Defaults to none. The
   `tls` OpenSSL backend loads the host's OpenSSL 3 `libssl.so.3` at run time.

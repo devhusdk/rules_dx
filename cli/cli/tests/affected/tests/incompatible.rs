@@ -1,4 +1,4 @@
-use dx_testing::mkscratch;
+use dx_test_scratch::scratch;
 
 mod support;
 
@@ -18,9 +18,9 @@ custom_test(name = "d_never_test", data = ["d.txt"], target_compatible_with = ["
 
 #[test]
 fn affected_skips_targets_incompatible_with_the_host() {
-    let root =
-        mkscratch("dx-affected-incompatible").unwrap_or_else(|error| panic!("scratch: {error}"));
-    fixture(&root);
+    let root_dir = scratch("dx-affected-incompatible");
+    let root = root_dir.path();
+    fixture(root);
     write(
         &root.join(".gitignore"),
         "/bazel-*\n/MODULE.bazel.lock\n/.dx/\n",
@@ -28,13 +28,13 @@ fn affected_skips_targets_incompatible_with_the_host() {
     write(&root.join("BUILD.bazel"), ROOT_CONSTRAINTS);
     write(&root.join("d/BUILD.bazel"), D_BUILD);
     write(&root.join("d/d.txt"), "d\n");
-    commit(&root);
+    commit(root);
     write(&root.join("d/d.txt"), "changed\n");
 
-    let built = dx_in(&root, &["build", "--affected"]);
+    let built = dx_in(root, &["build", "--affected"]);
     assert_eq!(built.status.code(), Some(0), "{}", built.combined());
 
-    let ran = dx_in(&root, &["test", "--affected"]);
+    let ran = dx_in(root, &["test", "--affected"]);
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
     let all = ran.combined();
     assert!(all.contains("//d:d_ok_test"), "{all}");
@@ -43,7 +43,7 @@ fn affected_skips_targets_incompatible_with_the_host() {
         "{all}"
     );
 
-    let json = dx_in(&root, &["test", "--affected", "--output=json"]);
+    let json = dx_in(root, &["test", "--affected", "--output=json"]);
     assert_eq!(json.status.code(), Some(0), "{}", json.combined());
     let skipped = json
         .stdout
@@ -53,7 +53,7 @@ fn affected_skips_targets_incompatible_with_the_host() {
     assert!(skipped.contains("\"outcome\":\"skipped\""), "{skipped}");
 
     let strict = dx_in(
-        &root,
+        root,
         &[
             "test",
             "--affected",

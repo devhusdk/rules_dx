@@ -16,8 +16,33 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_nixfmt",
+    build_setting_default = "@dx_tools//:nixfmt",
+)
+
+label_flag(
+    name = "tool_ormolu",
+    build_setting_default = "@dx_tools//:ormolu",
+)
+
+label_flag(
     name = "tool_pkl",
     build_setting_default = "@dx_tools//:pkl",
+)
+
+label_flag(
+    name = "tool_stylua",
+    build_setting_default = "@dx_tools//:stylua",
+)
+
+label_flag(
+    name = "tool_opa",
+    build_setting_default = "@dx_tools//:opa",
+)
+
+label_flag(
+    name = "tool_regal",
+    build_setting_default = "@dx_tools//:regal",
 )
 
 label_flag(
@@ -26,14 +51,36 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_helm",
+    build_setting_default = "@dx_tools//:helm",
+)
+
+label_flag(
+    name = "tool_kubeconform",
+    build_setting_default = "@dx_tools//:kubeconform",
+)
+
+label_flag(
     name = "tool_gofumpt",
     build_setting_default = "@cc_mvdan_gofumpt//:gofumpt",
+)
+
+label_flag(
+    name = "tool_flatc",
+    build_setting_default = "@dx_flatbuffers//:flatc",
 )
 
 label_flag(
     name = "tool_terraform",
     build_setting_default = "@dx_tools//:terraform",
 )
+
+label_flag(
+    name = "tool_credo",
+    build_setting_default = ":no_credo",
+)
+
+filegroup(name = "no_credo")
 
 label_flag(
     name = "tool_erlfmt",
@@ -69,6 +116,34 @@ label_flag(
 )
 
 filegroup(name = "no_zig_fmt")
+
+label_flag(
+    name = "tool_dfmt",
+    build_setting_default = ":no_dfmt",
+)
+
+filegroup(name = "no_dfmt")
+
+label_flag(
+    name = "tool_perltidy",
+    build_setting_default = ":no_perltidy",
+)
+
+filegroup(name = "no_perltidy")
+
+label_flag(
+    name = "tool_dscanner",
+    build_setting_default = ":no_dscanner",
+)
+
+filegroup(name = "no_dscanner")
+
+label_flag(
+    name = "tool_julia_format",
+    build_setting_default = ":no_julia_format",
+)
+
+filegroup(name = "no_julia_format")
 
 alias(
     name = "clippy_output_diagnostics",

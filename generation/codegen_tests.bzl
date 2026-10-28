@@ -51,6 +51,20 @@ def codegen_defs_unit_tests(name):
                 "",
             ),
             expect_equal(
+                "codegen admits the openapi/typescript pair (#2311)",
+                codegen_pair_error("openapi", "typescript"),
+                "",
+            ),
+            expect_equal(
+                "codegen admits the flatbuffers cpp pair (#2316) and defers other languages",
+                [
+                    codegen_pair_error("flatbuffers", "cpp") == "",
+                    codegen_pair_error("flatbuffers", "rust") == "",
+                    codegen_pair_error("flatbuffers", "python") == "",
+                ],
+                [True, False, False],
+            ),
+            expect_equal(
                 "codegen_path_error accepts relative paths",
                 [codegen_path_error("src/a.rs"), codegen_path_error("a")],
                 ["", ""],

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_flatbuffers_lint_include_undeclared
+capability LINT
+stages 1
+stage flatc classes=flatbuffers sources=matrix/flatbuffers_include.fbs
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR flatc error matrix/flatbuffers_include.fbs 24 24 fixable=false "unable to load include file: undeclared.fbs"
+terminal 1
+terminal ERROR flatc error matrix/flatbuffers_include.fbs 24 24 fixable=false "unable to load include file: undeclared.fbs"
+replacements 0

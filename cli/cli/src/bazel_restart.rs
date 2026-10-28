@@ -209,7 +209,24 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         })
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn run_app(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: Option<&dyn Fn() -> bool>,
+        held: &[&std::fs::File],
+    ) -> io::Result<Option<ChildStatus>> {
+        // Restarted clients may start a new Bazel server that would inherit the
+        // handles, so only the first attempt carries them.
+        let first = std::cell::Cell::new(true);
+        self.attempts(argv, cwd, withdraw.unwrap_or(&|| false), &|| {
+            let carried: &[&std::fs::File] = if first.replace(false) { held } else { &[] };
+            self.inner.run_app(argv, cwd, env, withdraw, carried)
+        })
+    }
+
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         self.inner.pinned_tool(var)
     }
 
@@ -343,6 +360,24 @@ mod tests {
         }
     }
 
+    #[test]
+    fn forwards_the_pinned_tool_state() {
+        struct Relative;
+        impl Runner for Relative {
+            fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+                Err(io::Error::other("unexpected run"))
+            }
+            fn pinned_tool(&self, _: &str) -> dx_process::PinnedVar {
+                dx_process::PinnedVar::NotAbsolute
+            }
+        }
+        let runner = RestartingRunner::new(Relative);
+        assert_eq!(
+            runner.pinned_tool("DX_X_BIN"),
+            dx_process::PinnedVar::NotAbsolute
+        );
+    }
+
     struct Shared(Rc<RefCell<Vec<u8>>>);
 
     impl Write for Shared {
@@ -394,6 +429,44 @@ mod tests {
             argv.push("--build_event_json_file=bep.json".to_owned());
         }
         argv
+    }
+
+    struct Apps(RefCell<Vec<usize>>);
+
+    impl Runner for Apps {
+        fn run(&self, _: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
+            unreachable!("apps go through run_app")
+        }
+
+        fn run_app(
+            &self,
+            _: &[String],
+            _: &Path,
+            _: &[(&str, &str)],
+            _: Option<&dyn Fn() -> bool>,
+            held: &[&std::fs::File],
+        ) -> io::Result<Option<ChildStatus>> {
+            let mut seen = self.0.borrow_mut();
+            seen.push(held.len());
+            let code = if seen.len() == 1 { 37 } else { 0 };
+            Ok(Some(ChildStatus::exited(code)))
+        }
+    }
+
+    #[test]
+    fn run_app_forwards_held_on_the_first_attempt_only() {
+        let s = setup();
+        let r = RestartingRunner::with_policy(
+            Apps(RefCell::default()),
+            policy(s.stop.clone(), s.out.clone()),
+        );
+        let file = tempfile::tempfile().expect("file");
+        let status = r
+            .run_app(&argv("bazel", true), s.dir.path(), &[], None, &[&file])
+            .unwrap()
+            .unwrap();
+        assert_eq!(status.code, Some(0));
+        assert_eq!(*r.inner.0.borrow(), vec![1, 0]);
     }
 
     #[test]

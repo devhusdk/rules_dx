@@ -1,3 +1,5 @@
+load("//api_spec/rules:defs.bzl", "api_spec_library")
+load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
@@ -267,6 +269,64 @@ real_source_target(
 )
 
 quality_family(
+    name = "typst_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "typst",
+    format = ["typstyle"],
+)
+
+workspace_policy(
+    name = "typst_policy",
+    families = [":typst_family"],
+)
+
+filegroup(
+    name = "typst_module",
+    srcs = [
+        "typst_module/lib/helpers.typ",
+        "typst_module/main.typ",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_typst",
+    typst_srcs = [":typst_module"],
+)
+
+quality_family(
+    name = "latex_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "latex",
+    format = ["latexindent"],
+)
+
+workspace_policy(
+    name = "latex_policy",
+    families = [":latex_family"],
+)
+
+filegroup(
+    name = "latex_module",
+    srcs = [
+        "latex_module/lib/helpers.sty",
+        "latex_module/main.tex",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_latex",
+    latex_srcs = [":latex_module"],
+)
+
+quality_family(
     name = "yaml_family",
     disabled = ["typecheck"],
     family_id = "yaml",
@@ -291,6 +351,170 @@ real_source_target(
 )
 
 quality_family(
+    name = "make_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "make",
+    lint = ["checkmake"],
+)
+
+workspace_policy(
+    name = "make_policy",
+    families = [":make_family"],
+)
+
+filegroup(
+    name = "make_module",
+    srcs = [
+        "make_module/Makefile",
+        "make_module/sub/rules.mk",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_make",
+    make_srcs = [":make_module"],
+)
+
+quality_family(
+    name = "nix_family",
+    disabled = ["typecheck"],
+    family_id = "nix",
+    format = ["nixfmt"],
+    lint = [
+        "deadnix",
+        "statix",
+    ],
+)
+
+workspace_policy(
+    name = "nix_policy",
+    families = [":nix_family"],
+)
+
+filegroup(
+    name = "nix_module",
+    srcs = [
+        "nix_module/clean.nix",
+        "nix_module/greeting.nix",
+    ],
+)
+
+quality_family(
+    name = "jupyter_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff"],
+)
+
+workspace_policy(
+    name = "jupyter_policy",
+    families = [":jupyter_family"],
+)
+
+quality_family(
+    name = "jupyter_outputs_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = [
+        "ruff",
+        "notebook_outputs",
+    ],
+)
+
+workspace_policy(
+    name = "jupyter_outputs_policy",
+    families = [":jupyter_outputs_family"],
+)
+
+filegroup(
+    name = "jupyter_module",
+    srcs = ["jupyter_module/clean.ipynb"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_nix",
+    nix_srcs = [":nix_module"],
+)
+
+real_source_target(
+    name = "clean_jupyter",
+    aspect_hints = ["//:ruff_config"],
+    jupyter_srcs = [":jupyter_module"],
+)
+
+quality_family(
+    name = "kubernetes_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "kubernetes",
+    lint = ["kubeconform"],
+)
+
+workspace_policy(
+    name = "kubernetes_policy",
+    families = [":kubernetes_family"],
+)
+
+kubernetes_schemas(
+    name = "kubernetes_schemas",
+    kubernetes_version = "1.32.0",
+    schemas = ["//quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
+
+filegroup(
+    name = "kubernetes_module",
+    srcs = ["kubernetes_module/clean.yaml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_kubernetes",
+    aspect_hints = [":kubernetes_schemas"],
+    kubernetes_srcs = [":kubernetes_module"],
+)
+
+quality_family(
+    name = "ansible_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "ansible",
+    lint = ["ansible_lint"],
+)
+
+workspace_policy(
+    name = "ansible_policy",
+    families = [":ansible_family"],
+)
+
+filegroup(
+    name = "ansible_module",
+    srcs = ["ansible_module/playbooks/site.yml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_ansible",
+    ansible_srcs = [":ansible_module"],
+)
+
+quality_family(
     name = "html_template_family",
     disabled = ["typecheck"],
     family_id = "html_template",
@@ -312,6 +536,35 @@ filegroup(
 real_source_target(
     name = "clean_html_template",
     html_template_srcs = [":html_template_module"],
+)
+
+quality_family(
+    name = "haskell_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "haskell",
+    format = ["ormolu"],
+)
+
+workspace_policy(
+    name = "haskell_policy",
+    families = [":haskell_family"],
+)
+
+filegroup(
+    name = "haskell_module",
+    srcs = [
+        "haskell_module/Lib/Greeting.hs",
+        "haskell_module/Main.hs",
+    ],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_haskell",
+    haskell_srcs = [":haskell_module"],
 )
 
 quality_family(
@@ -341,4 +594,68 @@ filegroup(
 real_source_target(
     name = "clean_pkl",
     pkl_srcs = [":pkl_module"],
+)
+
+quality_family(
+    name = "lua_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "lua",
+    format = ["stylua"],
+)
+
+workspace_policy(
+    name = "lua_policy",
+    families = [":lua_family"],
+)
+
+real_source_target(
+    name = "clean_lua",
+    lua_srcs = ["lua_module/greet.lua"],
+)
+
+quality_family(
+    name = "api_spec_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "api_spec",
+    lint = ["redocly"],
+)
+
+workspace_policy(
+    name = "api_spec_policy",
+    families = [":api_spec_family"],
+)
+
+filegroup(
+    name = "api_spec_module",
+    srcs = ["api_spec_module/clean.yaml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+api_spec_library(
+    name = "clean_api_spec",
+    srcs = [":api_spec_module"],
+)
+
+quality_family(
+    name = "rego_family",
+    family_id = "rego",
+    format = ["opa"],
+    lint = ["regal"],
+    typecheck = ["opa"],
+)
+
+workspace_policy(
+    name = "rego_policy",
+    families = [":rego_family"],
+)
+
+real_source_target(
+    name = "clean_rego",
+    rego_srcs = ["rego_module/greet.rego"],
 )

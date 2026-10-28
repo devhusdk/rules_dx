@@ -209,15 +209,28 @@ pub fn inventory_text_present(
     package: &LockedPackage,
     inventory: &[crate::license_policy::LicenseInventory],
 ) -> bool {
-    for entry in inventory {
-        if entry.set != package.set
-            || !crate::vuln::same_package(&package.set, &entry.package, &package.name)
-        {
-            continue;
-        }
-        if crate::vuln::version_affected(&package.set, &entry.versions, &package.version) {
-            return entry.text_present;
-        }
+    match first_inventory_match(package, inventory) {
+        Some(entry) => entry.text_present || entry.text.is_some(),
+        None => false,
     }
-    false
+}
+
+/// The recorded workspace-relative license text path of the first matching
+/// inventory entry (the same first-match rule as `inventory_text_present`).
+pub fn inventory_text<'a>(
+    package: &LockedPackage,
+    inventory: &'a [crate::license_policy::LicenseInventory],
+) -> Option<&'a str> {
+    first_inventory_match(package, inventory).and_then(|entry| entry.text.as_deref())
+}
+
+fn first_inventory_match<'a>(
+    package: &LockedPackage,
+    inventory: &'a [crate::license_policy::LicenseInventory],
+) -> Option<&'a crate::license_policy::LicenseInventory> {
+    inventory.iter().find(|entry| {
+        entry.set == package.set
+            && crate::vuln::same_package(&package.set, &entry.package, &package.name)
+            && crate::vuln::version_affected(&package.set, &entry.versions, &package.version)
+    })
 }

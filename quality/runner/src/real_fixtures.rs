@@ -41,6 +41,7 @@ pub(super) fn plain_tool() -> RealTool {
         extra_env: Vec::new(),
         config_rel: None,
         edition: None,
+        dialect: None,
         tool_files: Vec::new(),
         upstream_diagnostics: Vec::new(),
         search_paths: Vec::new(),
@@ -1392,4 +1393,201 @@ pub(super) fn roundtrip_redocly(
         .into_bytes(),
         stderr: Vec::new(),
     })
+}
+
+/// The `source` of one notebook cell as one string.
+fn notebook_cell_text(cell: &serde_json::Value) -> String {
+    match &cell["source"] {
+        serde_json::Value::String(text) => text.clone(),
+        serde_json::Value::Array(lines) => lines.iter().filter_map(|l| l.as_str()).collect(),
+        _ => String::new(),
+    }
+}
+
+/// Re-serializes a notebook the way Ruff writes it: sorted keys, one-space
+/// indent and seeded cell ids.
+fn ruff_style_notebook(mut notebook: serde_json::Value) -> Vec<u8> {
+    use serde::Serialize;
+    if let Some(cells) = notebook["cells"].as_array_mut() {
+        for (at, cell) in cells.iter_mut().enumerate() {
+            cell["id"] = serde_json::Value::String(format!("seed{at}"));
+        }
+    }
+    let mut out = Vec::new();
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(b" ");
+    let mut serializer = serde_json::Serializer::with_formatter(&mut out, formatter);
+    notebook.serialize(&mut serializer).expect("serializes");
+    out.push(b'\n');
+    out
+}
+
+/// Ruff lint over a mix of `.py` and `.ipynb` files. Check mode reports each
+/// `import os` line with its cell index; `--fix` drops those lines and writes
+/// notebooks back reserialized.
+pub(super) fn ruff_notebook_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_ruff_hermetic(argv, env);
+    let fix = argv.iter().any(|arg| arg == "--fix");
+    let files: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .filter(|arg| arg.ends_with(".py") || arg.ends_with(".ipynb"))
+        .collect();
+    let mut entries = Vec::new();
+    for file in &files {
+        let text = std::fs::read_to_string(file).expect("staged file is readable");
+        if file.ends_with(".ipynb") {
+            let mut notebook: serde_json::Value = serde_json::from_str(&text).expect("notebook");
+            let count = notebook["cells"].as_array().map_or(0, Vec::len);
+            for at in 0..count {
+                let cell = &mut notebook["cells"][at];
+                if cell["cell_type"] != "code" {
+                    continue;
+                }
+                let source = notebook_cell_text(cell);
+                if fix {
+                    let kept: Vec<&str> = source
+                        .split_inclusive('\n')
+                        .filter(|line| !line.contains("import os"))
+                        .collect();
+                    cell["source"] = serde_json::Value::Array(
+                        kept.iter()
+                            .map(|line| serde_json::Value::String((*line).to_owned()))
+                            .collect(),
+                    );
+                    continue;
+                }
+                for (row, line) in source.lines().enumerate() {
+                    if line.contains("import os") {
+                        entries.push(
+                            RUFF_F401
+                                .trim_start_matches('[')
+                                .trim_end_matches(']')
+                                .replace("FILE", &json_escape(file))
+                                .replace("\"cell\":null", &format!("\"cell\":{}", at + 1))
+                                .replace("\"row\":1", &format!("\"row\":{}", row + 1)),
+                        );
+                    }
+                }
+            }
+            if fix {
+                std::fs::write(file, ruff_style_notebook(notebook)).expect("rewrite");
+            }
+        } else if fix {
+            let kept: String = text
+                .split_inclusive('\n')
+                .filter(|line| !line.contains("import os"))
+                .collect();
+            std::fs::write(file, kept).expect("rewrite");
+        } else if text.contains("import os") {
+            entries.push(
+                RUFF_F401
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .replace("FILE", &json_escape(file)),
+            );
+        }
+    }
+    let code = i32::from(!fix && !entries.is_empty());
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: format!("[{}]", entries.join(",")).into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+/// Runs the real `quality_notebook` CLI logic over the staged files, so the
+/// fake spawn behaves like the shipped tool.
+fn notebook_outputs_cli(argv: &[OsString]) -> ChildOutput {
+    let args: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .skip_while(|arg| arg != "outputs")
+        .collect();
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let code = quality_notebook::run_cli(
+        &args,
+        &|path| std::fs::read(path),
+        &mut |path, bytes| std::fs::write(path, bytes),
+        &mut |line| {
+            stdout.push_str(line);
+            stdout.push('\n');
+        },
+        &mut |line| {
+            stderr.push_str(line);
+            stderr.push('\n');
+        },
+    );
+    ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: stderr.into_bytes(),
+    }
+}
+
+/// The shipped `quality_notebook outputs` behavior.
+pub(super) fn notebook_outputs_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(notebook_outputs_cli(argv))
+}
+
+/// A misbehaving tool that also rewrites a markdown cell during `--fix`.
+pub(super) fn notebook_outputs_tampering_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let out = notebook_outputs_cli(argv);
+    if argv.iter().any(|arg| arg == "--fix") {
+        for arg in argv
+            .iter()
+            .filter(|arg| arg.to_string_lossy().ends_with(".ipynb"))
+        {
+            let text = std::fs::read_to_string(arg)?;
+            std::fs::write(arg, text.replace("# Title", "# Tampered"))?;
+        }
+    }
+    Ok(out)
+}
+
+/// A tool that exits 1 with output the parser cannot read.
+pub(super) fn notebook_outputs_malformed_behavior(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: b"not json\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+/// A tool that dies without a clean exit.
+pub(super) fn notebook_outputs_crash_behavior(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(101),
+        stdout: Vec::new(),
+        stderr: b"panicked".to_vec(),
+    })
+}
+
+/// A tool binary that cannot be started.
+pub(super) fn notebook_outputs_missing_behavior(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
 }

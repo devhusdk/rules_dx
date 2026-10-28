@@ -1,6 +1,7 @@
 """Unit tests for real-adapter pipeline construction."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//sql/rules:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
@@ -255,6 +256,68 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("pylint", "typecheck"),
                 ],
                 [["python", "python_stub"], [], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns ruff notebook support for format and lint only",
+                [
+                    real_supported_classes("ruff", "format"),
+                    real_supported_classes("ruff", "lint"),
+                    real_supported_classes("ruff", "audit"),
+                ],
+                [
+                    ["jupyter", "python", "python_stub"],
+                    ["jupyter", "python", "python_stub"],
+                    ["python", "python_stub"],
+                ],
+            ),
+            expect_equal(
+                "pipeline_stages gives a jupyter-only target no stage under a python-only policy",
+                pipeline_stages(
+                    ["jupyter"],
+                    "lint",
+                    {"python": ["ruff"]},
+                    REAL_CLASS_TO_FAMILY,
+                    REAL_ADAPTERS,
+                ),
+                [],
+            ),
+            expect_equal(
+                "pipeline_stages gives a jupyter target ruff stages under a jupyter family",
+                pipeline_stages(
+                    ["jupyter"],
+                    "lint",
+                    {"jupyter": ["ruff"]},
+                    REAL_CLASS_TO_FAMILY,
+                    REAL_ADAPTERS,
+                ),
+                [{"classes": ["jupyter"], "tool": "ruff"}],
+            ),
+            expect_equal(
+                "notebook_outputs is opt-in: jupyter lint only, absent under a ruff-only family",
+                [
+                    real_supported_classes("notebook_outputs", "lint"),
+                    real_supported_classes("notebook_outputs", "format"),
+                    pipeline_stages(
+                        ["jupyter"],
+                        "lint",
+                        {"jupyter": ["ruff"]},
+                        REAL_CLASS_TO_FAMILY,
+                        REAL_ADAPTERS,
+                    ),
+                    pipeline_stages(
+                        ["jupyter"],
+                        "lint",
+                        {"jupyter": ["notebook_outputs"]},
+                        REAL_CLASS_TO_FAMILY,
+                        REAL_ADAPTERS,
+                    ),
+                ],
+                [
+                    ["jupyter"],
+                    [],
+                    [{"classes": ["jupyter"], "tool": "ruff"}],
+                    [{"classes": ["jupyter"], "tool": "notebook_outputs"}],
+                ],
             ),
             expect_equal(
                 "authorize_classes maps each real tool to its own class",
@@ -594,9 +657,39 @@ def real_pipeline_unit_tests(name):
                 "real aspects: table tool 'qmlformat' needs exactly one of fallback or target_tool",
             ),
             expect_equal(
-                "fallback stays on setting tools",
+                "a file tool may carry a fallback for an optional pin",
                 real_tool_table_shape_error({"biome": _FILE_TOOL | {"fallback": "=x"}}),
-                "real aspects: table tool 'biome' sets fallback or target_tool outside the setting kind",
+                "",
+            ),
+            expect_equal(
+                "target_tool stays on setting tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"target_tool": True}}),
+                "real aspects: table tool 'biome' sets target_tool outside the setting kind",
+            ),
+            expect_equal(
+                "a target_tool needs a wrapper owner",
+                real_tool_table_shape_error({"qmlformat": _SETTING_TOOL | {"target_tool": True}}),
+                "real aspects: table tool 'qmlformat' has no wrapper owner in _TARGET_TOOL_OWNERS",
+            ),
+            expect_equal(
+                "dscanner is an owned target_tool",
+                real_tool_table_shape_error({"dscanner": _SETTING_TOOL | {"capabilities": ["lint"], "target_tool": True}}),
+                "",
+            ),
+            expect_equal(
+                "perltidy is an owned target_tool",
+                real_tool_table_shape_error({"perltidy": _SETTING_TOOL | {"target_tool": True}}),
+                "",
+            ),
+            expect_equal(
+                "dfmt is an owned target_tool",
+                real_tool_table_shape_error({"dfmt": _SETTING_TOOL | {"target_tool": True}}),
+                "",
+            ),
+            expect_equal(
+                "fallback stays off executable tools",
+                real_tool_table_shape_error({"biome": _FILE_TOOL | {"kind": "executable", "fallback": "=x"}}),
+                "real aspects: table tool 'biome' sets fallback outside the setting and file kinds",
             ),
             expect_equal(
                 "extra stays on executable tools",
@@ -690,6 +783,30 @@ def real_pipeline_unit_tests(name):
                 "policy: family 'toml' selects format tool 'yamlfmt' with no wired executable; select one of biome, buildifier, google_java_format, ktfmt, prettier, ruff, rustfmt, taplo or disable 'format'",
             ),
             expect_equal(
+                "family_section_error names a tool with no pinned build",
+                family_section_error(
+                    "latex",
+                    "lint",
+                    ["chktex"],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                    {"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]},
+                ),
+                "policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64; disable 'lint'",
+            ),
+            expect_equal(
+                "family_section_error ignores the unpinned map for other tools",
+                family_section_error(
+                    "toml",
+                    "format",
+                    ["taplo"],
+                    [],
+                    _WIRED_FORMAT_TOOLS,
+                    {"chktex": ["linux_x86_64"]},
+                ),
+                "",
+            ),
+            expect_equal(
                 "family_section_error rejects a tool that is wired for another capability",
                 family_section_error(
                     "toml",
@@ -760,6 +877,19 @@ def real_pipeline_unit_tests(name):
                 "real_request_tool omits unset binary config and edition",
                 real_request_tool(upstream = ["out/clippy.diag"]),
                 {"env": [], "files": [], "upstream": ["out/clippy.diag"]},
+            ),
+            expect_equal(
+                "real_request_tool carries a dialect only when set",
+                real_request_tool(binary_path = "bin/prettier", dialect = "postgresql"),
+                {"binary": "bin/prettier", "dialect": "postgresql", "env": [], "files": [], "upstream": []},
+            ),
+            expect_equal(
+                "sql_dialect_error accepts a matching suffix and ignores unknown segments",
+                [
+                    sql_dialect_error(["a.postgresql.sql", "b.sql", "foo.v2.sql"], "postgresql"),
+                    sql_dialect_error(["a.mysql.sql"], "postgresql"),
+                ],
+                [None, "a.mysql.sql has the mysql dialect suffix but dialect = postgresql"],
             ),
             expect_equal(
                 "real_request_tool keeps a declared binary",

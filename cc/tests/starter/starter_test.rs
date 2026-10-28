@@ -15,15 +15,6 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-fn rules_dx_root() -> PathBuf {
-    let source = resolve_runfiles("cc/tests/starter/starter_test.rs");
-    let real = std::fs::canonicalize(&source).unwrap_or_else(|error| panic!("{source:?}: {error}"));
-    real.ancestors()
-        .nth(4)
-        .unwrap_or_else(|| panic!("no workspace above {real:?}"))
-        .to_path_buf()
-}
-
 fn dx(workspace: &Path, args: &[&str]) -> (Option<i32>, String) {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(resolve_runfiles(&rel))
@@ -107,7 +98,7 @@ fn scaffold_safely(scratch: &Path, starter: &Starter) -> PathBuf {
 }
 
 fn point_at_this_checkout(root: &Path) {
-    let rules = rules_dx_root();
+    let rules = dx_testing::rules_dx_source();
     let module = read(&root.join("MODULE.bazel"));
     assert!(module.contains("bazel_dep(name = \"rules_dx\""), "{module}");
     write(
@@ -135,7 +126,7 @@ fn assert_builds_runs_and_tests(root: &Path) {
     );
     let (code, out, err) = bazel(root, &["run", "--color=no", "--curses=no", ":demo-app_bin"]);
     assert_eq!(code, Some(0), "{out}{err}");
-    assert_eq!(out, "hello world\n", "{err}");
+    assert_eq!(out.replace("\r\n", "\n"), "hello world\n", "{err}");
 }
 
 fn assert_llvm_compiles(root: &Path, starter: &Starter) {
@@ -153,11 +144,14 @@ fn assert_llvm_compiles(root: &Path, starter: &Starter) {
         .split("\n\n")
         .find(|action| action.contains(&head))
         .unwrap_or_else(|| panic!("no compile of hello.{}:\n{out}", starter.ext));
-    let tail = format!("/bin/{} \\", starter.compiler);
+    let compiler = starter.compiler;
     assert!(
-        action
-            .lines()
-            .any(|line| line.contains("external/llvm+") && line.trim_end().ends_with(&tail)),
+        action.lines().any(|line| {
+            let line = line.replace('\\', "/");
+            let line = line.trim_end().trim_end_matches('\\').trim_end();
+            let line = line.strip_suffix(".exe").unwrap_or(line);
+            line.contains("external/llvm+") && line.ends_with(&format!("/bin/{compiler}"))
+        }),
         "{action}"
     );
     if starter.ext == "c" {

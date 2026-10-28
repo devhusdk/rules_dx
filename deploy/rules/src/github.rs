@@ -85,7 +85,7 @@ const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "DBUS_SESSION_BUS_ADDRESS",
 ];
 
-/// Runs the GitHub deploy launcher.
+/// Runs the GitHub deploy tool.
 pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "github_deploy",

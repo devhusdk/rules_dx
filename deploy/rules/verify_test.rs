@@ -1,7 +1,5 @@
-use std::io::{Read, Write};
-use std::net::TcpListener;
+use dx_testing::http::{requests, serve as serve_with, Reply, RequestLog};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
 fn data(name: &str) -> PathBuf {
     let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name a test input"));
@@ -319,9 +317,9 @@ fn resources_case() {
     );
 }
 
-fn oci_stage(prog: &Path, name: &str) -> PathBuf {
+fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
     let outdir = dx_testing::mkscratch(name).expect("scratch");
-    let run = dx_testing::run(prog, &[outdir.to_string_lossy().as_ref()], &[])
+    let run = run_deploy(prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
         .expect("oci deploy must execute");
     let out = run.combined();
     assert!(run.status.success(), "oci deploy failed\n{out}");
@@ -332,7 +330,7 @@ fn oci_stage(prog: &Path, name: &str) -> PathBuf {
 }
 
 fn oci_case() {
-    let layout = oci_stage(&data("DX_OCI_PROG"), "oci-demo");
+    let layout = oci_stage(&data("DX_OCI_PROG"), "DX_OCI_CONFIG", "oci-demo");
     let blobs = layout.join("blobs").join("sha256");
     for entry in std::fs::read_dir(&blobs).expect("read blobs") {
         let path = entry.expect("blob entry").path();
@@ -355,7 +353,11 @@ fn oci_case() {
     );
     let manifest = blob(&index["manifests"][0]["digest"]);
     if std::env::var_os("DX_OCI_BASE_PROG").is_some() {
-        let base = oci_stage(&data("DX_OCI_BASE_PROG"), "oci-demo-base");
+        let base = oci_stage(
+            &data("DX_OCI_BASE_PROG"),
+            "DX_OCI_BASE_CONFIG",
+            "oci-demo-base",
+        );
         let base_index = dx_testing::read_json(&base.join("index.json")).expect("base index");
         let base_blobs = base.join("blobs").join("sha256");
         let digest = base_index["manifests"][0]["digest"]
@@ -386,74 +388,37 @@ fn oci_case() {
     );
 }
 
-type RequestLog = Arc<Mutex<Vec<String>>>;
-
 fn serve(root: PathBuf) -> (String, RequestLog) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
-    let port = listener.local_addr().expect("local addr").port();
-    let log: RequestLog = Arc::new(Mutex::new(Vec::new()));
-    let seen = Arc::clone(&log);
-    std::thread::spawn(move || {
-        for stream in listener.incoming() {
-            let Ok(stream) = stream else { continue };
-            let root = root.clone();
-            let seen = Arc::clone(&seen);
-            std::thread::spawn(move || answer(stream, &root, &seen));
+    serve_with(move |target| {
+        let path = target.split(['?', '#']).next().unwrap_or_default();
+        let segments: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
+        let mut file = root.clone();
+        for segment in &segments {
+            file.push(segment);
         }
-    });
-    (format!("http://127.0.0.1:{port}"), log)
-}
-
-fn answer(mut stream: std::net::TcpStream, root: &Path, seen: &RequestLog) {
-    let mut head = Vec::new();
-    let mut byte = [0u8; 1];
-    while !head.ends_with(b"\r\n\r\n") {
-        match stream.read(&mut byte) {
-            Ok(1) => head.push(byte[0]),
-            _ => break,
+        if path.ends_with('/') || file.is_dir() {
+            file.push("index.html");
         }
-    }
-    let text = String::from_utf8_lossy(&head).into_owned();
-    let mut words = text.split_whitespace();
-    let method = words.next().unwrap_or_default().to_owned();
-    let target = words.next().unwrap_or_default().to_owned();
-    if let Ok(mut log) = seen.lock() {
-        log.push(target.clone());
-    }
-    let path = target.split(['?', '#']).next().unwrap_or_default();
-    let segments: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
-    let mut file = root.to_path_buf();
-    for segment in &segments {
-        file.push(segment);
-    }
-    if path.ends_with('/') || file.is_dir() {
-        file.push("index.html");
-    }
-    let found = !segments.contains(&"..") && file.is_file();
-    let (status, kind, body) = if found {
-        let kind = if file.extension().is_some_and(|ext| ext == "html") {
+        if segments.contains(&"..") || !file.is_file() {
+            return None;
+        }
+        let content_type = if file.extension().is_some_and(|ext| ext == "html") {
             "text/html"
         } else {
             "application/octet-stream"
         };
-        ("200 OK", kind, std::fs::read(&file).unwrap_or_default())
-    } else {
-        ("404 Not Found", "text/plain", Vec::new())
-    };
-    let reply = format!(
-        "HTTP/1.1 {status}\r\nContent-Length: {}\r\nContent-Type: {kind}\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    let _ = stream.write_all(reply.as_bytes());
-    if method != "HEAD" {
-        let _ = stream.write_all(&body);
-    }
+        Some(Reply {
+            content_type,
+            body: std::fs::read(&file).unwrap_or_default(),
+        })
+    })
+    .expect("start loopback server")
 }
 
-fn stage(var: &str, house_name: &str, target_name: &str) -> PathBuf {
+fn stage(var: &str, config_var: &str, house_name: &str, target_name: &str) -> PathBuf {
     let prog = data(var);
     let outdir = dx_testing::mkscratch("pypi-out").expect("scratch outdir");
-    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
+    let run = run_deploy(&prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
         .expect("pypi_deploy program must execute");
     assert!(run.status.success(), "{}", run.combined());
     let house = outdir.join(house_name);
@@ -528,13 +493,14 @@ fn install(url: &str, spelling: &str) {
     );
 }
 
-fn requests(log: &RequestLog) -> Vec<String> {
-    log.lock().map(|log| log.clone()).unwrap_or_default()
-}
-
 fn pypi_case() {
     let wheel = "dx_pypi_probe-1.0-py3-none-any.whl";
-    let house = stage("DX_PYPI_PROG", "dx_pypi_probe-wheelhouse", "dx_pypi_probe");
+    let house = stage(
+        "DX_PYPI_PROG",
+        "DX_PYPI_CONFIG",
+        "dx_pypi_probe-wheelhouse",
+        "dx_pypi_probe",
+    );
     let (url, log) = serve(house.clone());
     for spelling in [
         "Dx_Pypi.Probe",
@@ -568,6 +534,7 @@ fn pypi_case() {
     let legacy = "Dx_Pypi.Probe-1.0-py3-none-any.whl";
     let house = stage(
         "DX_PYPI_RENAMED_PROG",
+        "DX_PYPI_RENAMED_CONFIG",
         "pypi_probe_release-wheelhouse",
         "pypi_probe_release",
     );
@@ -583,8 +550,13 @@ fn pypi_case() {
 
     let prog = data("DX_PYPI_MISMATCH_PROG");
     let outdir = dx_testing::mkscratch("pypi-mismatch").expect("scratch outdir");
-    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
-        .expect("pypi_deploy program must execute");
+    let run = run_deploy(
+        &prog,
+        "DX_PYPI_MISMATCH_CONFIG",
+        &[outdir.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("pypi_deploy program must execute");
     assert!(!run.status.success(), "{}", run.combined());
     assert!(
         run.stderr.contains(

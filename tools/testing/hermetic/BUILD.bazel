@@ -2,16 +2,29 @@ load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
+load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS_CLI_TEST)
 
-exports_files([
-    "consumers/cuda/module_fragment.bazel",
-    "qualification_test.rs",
-])
+exports_files(
+    [
+        "BUILD.bazel",
+        "consumers/cuda/module_fragment.bazel",
+        "defs.bzl",
+        "qualification_test.rs",
+    ],
+    visibility = VIS_TOOLS_CLI_TEST,
+)
 
 LINUX = ["@platforms//os:linux"]
+
+# The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
+filegroup(
+    name = "module_fragments",
+    srcs = glob(["consumers/*/module_fragment.bazel"]),
+    visibility = ["//modules:__pkg__"],
+)
 
 rust_library(
     name = "hermetic",
@@ -51,8 +64,14 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":hermetic",
-    data = [":cpp_rust_manifest"],
-    env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
+    data = [
+        ":c_starter_manifest",
+        ":cpp_rust_manifest",
+    ],
+    env = {
+        "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
+        "DX_HERMETIC_STARTER_MANIFEST": "$(rootpath :c_starter_manifest)",
+    },
     tags = ["no-remote-exec"],
     target_compatible_with = LINUX,
     deps = crate_deps(
@@ -279,6 +298,28 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "lua",
+    files = {
+        "//examples/lua-app:BUILD.bazel": "examples/lua-app/BUILD.bazel",
+        "//examples/lua-app:inspect.BUILD.bazel": "examples/lua-app/inspect.BUILD.bazel",
+        "//examples/lua-app/catalog:BUILD.bazel": "examples/lua-app/catalog/BUILD.bazel",
+        "//examples/lua-app/catalog:catalog_test.lua": "examples/lua-app/catalog/catalog_test.lua",
+        "//examples/lua-app/catalog:init.lua": "examples/lua-app/catalog/init.lua",
+        "//examples/lua-app/catalog:parse.lua": "examples/lua-app/catalog/parse.lua",
+        "//examples/lua-app/catalog:units.tsv": "examples/lua-app/catalog/units.tsv",
+        "//examples/lua-app/cli:BUILD.bazel": "examples/lua-app/cli/BUILD.bazel",
+        "//examples/lua-app/cli:exit_codes.sh": "examples/lua-app/cli/exit_codes.sh",
+        "//examples/lua-app/cli:main.lua": "examples/lua-app/cli/main.lua",
+        "//examples/lua-app/report:BUILD.bazel": "examples/lua-app/report/BUILD.bazel",
+        "//examples/lua-app/report:init.lua": "examples/lua-app/report/init.lua",
+        "//examples/lua-app/report:report_test.lua": "examples/lua-app/report/report_test.lua",
+    },
+    languages = ["lua"],
+    module_fragment = "consumers/lua/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "erlang",
     files = {
         "//examples/erlang-app/proto:BUILD.bazel": "examples/erlang-app/proto/BUILD.bazel",
@@ -299,6 +340,68 @@ hermetic_qualification(
     },
     languages = ["erlang"],
     module_fragment = "consumers/erlang/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
+    name = "haskell",
+    failures = {"//examples/haskell-app/cli:report_without_split": "Could not find module"},
+    files = {
+        "//examples/haskell-app:split.BUILD.bazel": "examples/haskell-app/stock/split.BUILD.bazel",
+        "//examples/haskell-app/stock:BUILD.bazel": "examples/haskell-app/stock/BUILD.bazel",
+        "//examples/haskell-app/stock:VERSION": "examples/haskell-app/stock/VERSION",
+        "//examples/haskell-app/stock:cbits/checksum.c": "examples/haskell-app/stock/cbits/checksum.c",
+        "//examples/haskell-app/stock:cbits/checksum.h": "examples/haskell-app/stock/cbits/checksum.h",
+        "//examples/haskell-app/stock:src/Stock.hs": "examples/haskell-app/stock/src/Stock.hs",
+        "//examples/haskell-app/stock:test/StockTest.hs": "examples/haskell-app/stock/test/StockTest.hs",
+        "//examples/haskell-app/cli:BUILD.bazel": "examples/haskell-app/cli/BUILD.bazel",
+        "//examples/haskell-app/cli:src/Cli.hs": "examples/haskell-app/cli/src/Cli.hs",
+        "//examples/haskell-app/cli:src/Main.hs": "examples/haskell-app/cli/src/Main.hs",
+        "//examples/haskell-app/cli:src/ReportWithoutSplit.hs": "examples/haskell-app/cli/src/ReportWithoutSplit.hs",
+        "//examples/haskell-app/cli:test/CliTest.hs": "examples/haskell-app/cli/test/CliTest.hs",
+    },
+    languages = ["haskell"],
+    module_fragment = "consumers/haskell/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
+    name = "ocaml",
+    failures = {
+        "//examples/ocaml-app/cli:report_without_astring": "Unbound module Astring",
+        "//examples/ocaml-app/diagnostics:syntax_error": "Syntax error",
+    },
+    files = {
+        "//examples/ocaml-app:BUILD.bazel": "examples/ocaml-app/BUILD.bazel",
+        "//examples/ocaml-app:astring.BUILD.bazel": "examples/ocaml-app/astring.BUILD.bazel",
+        "//examples/ocaml-app/lexer:BUILD.bazel": "examples/ocaml-app/lexer/BUILD.bazel",
+        "//examples/ocaml-app/lexer:lexer_test.ml": "examples/ocaml-app/lexer/lexer_test.ml",
+        "//examples/ocaml-app/lexer:tokens.mll": "examples/ocaml-app/lexer/tokens.mll",
+        "//examples/ocaml-app/ledger:BUILD.bazel": "examples/ocaml-app/ledger/BUILD.bazel",
+        "//examples/ocaml-app/ledger:ledger.ml": "examples/ocaml-app/ledger/ledger.ml",
+        "//examples/ocaml-app/ledger:ledger.mli": "examples/ocaml-app/ledger/ledger.mli",
+        "//examples/ocaml-app/ledger:ledger_test.ml": "examples/ocaml-app/ledger/ledger_test.ml",
+        "//examples/ocaml-app/checksum:BUILD.bazel": "examples/ocaml-app/checksum/BUILD.bazel",
+        "//examples/ocaml-app/checksum:checksum.mli": "examples/ocaml-app/checksum/checksum.mli",
+        "//examples/ocaml-app/checksum:checksum_test.ml": "examples/ocaml-app/checksum/checksum_test.ml",
+        "//examples/ocaml-app/checksum/native:BUILD.bazel": "examples/ocaml-app/checksum/native/BUILD.bazel",
+        "//examples/ocaml-app/checksum/native:checksum.c": "examples/ocaml-app/checksum/native/checksum.c",
+        "//examples/ocaml-app/checksum/native:checksum.h": "examples/ocaml-app/checksum/native/checksum.h",
+        "//examples/ocaml-app/checksum/native:checksum.ml": "examples/ocaml-app/checksum/native/checksum.ml",
+        "//examples/ocaml-app/checksum/portable:BUILD.bazel": "examples/ocaml-app/checksum/portable/BUILD.bazel",
+        "//examples/ocaml-app/checksum/portable:checksum.ml": "examples/ocaml-app/checksum/portable/checksum.ml",
+        "//examples/ocaml-app/cli:BUILD.bazel": "examples/ocaml-app/cli/BUILD.bazel",
+        "//examples/ocaml-app/cli:exit_codes.sh": "examples/ocaml-app/cli/exit_codes.sh",
+        "//examples/ocaml-app/cli:good.txt": "examples/ocaml-app/cli/good.txt",
+        "//examples/ocaml-app/cli:main.ml": "examples/ocaml-app/cli/main.ml",
+        "//examples/ocaml-app/cli:malformed.txt": "examples/ocaml-app/cli/malformed.txt",
+        "//examples/ocaml-app/cli:over_limit.txt": "examples/ocaml-app/cli/over_limit.txt",
+        "//examples/ocaml-app/cli:report_without_astring.ml": "examples/ocaml-app/cli/report_without_astring.ml",
+        "//examples/ocaml-app/diagnostics:BUILD.bazel": "examples/ocaml-app/diagnostics/BUILD.bazel",
+        "//examples/ocaml-app/diagnostics:syntax_error.ml": "examples/ocaml-app/diagnostics/syntax_error.ml",
+    },
+    languages = ["ocaml"],
+    module_fragment = "consumers/ocaml/module_fragment.bazel",
     patterns = ["//..."],
 )
 
@@ -429,6 +532,56 @@ hermetic_qualification(
     patterns = ["//..."],
 )
 
+rust_test(
+    name = "cuda_gpu_facts_test",
+    size = "small",
+    srcs = ["cuda_gpu_test.rs"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# Needs a CUDA GPU; run it by hand: bazel test //tools/testing/hermetic:cuda_gpu_nested_test
+nested_bazel_test(
+    name = "cuda_gpu_nested_test",
+    size = "enormous",
+    srcs = ["cuda_gpu_test.rs"],
+    args = ["--ignored"],
+    data = [
+        "consumers/cuda/module_fragment.bazel",
+        "//:module_srcs",
+        "//examples/cuda-app/gpu:BUILD.bazel",
+        "//examples/cuda-app/gpu:gpu_test.cu",
+        "//examples/cuda-app/kernels:common.cuh",
+        "//examples/cuda-app/kernels:kernels.h",
+        "//examples/cuda-app/kernels:reduce.cu",
+        "//examples/cuda-app/kernels:stencil.cu",
+        "//examples/cuda-app/kernels:vector_add.cu",
+    ],
+    env = {
+        "DX_CUDA_FILES": " ".join([
+            "$(rlocationpath //examples/cuda-app/gpu:BUILD.bazel)=examples/cuda-app/gpu/BUILD.bazel",
+            "$(rlocationpath //examples/cuda-app/gpu:gpu_test.cu)=examples/cuda-app/gpu/gpu_test.cu",
+            "$(rlocationpath //examples/cuda-app/kernels:common.cuh)=examples/cuda-app/kernels/common.cuh",
+            "$(rlocationpath //examples/cuda-app/kernels:kernels.h)=examples/cuda-app/kernels/kernels.h",
+            "$(rlocationpath //examples/cuda-app/kernels:reduce.cu)=examples/cuda-app/kernels/reduce.cu",
+            "$(rlocationpath //examples/cuda-app/kernels:stencil.cu)=examples/cuda-app/kernels/stencil.cu",
+            "$(rlocationpath //examples/cuda-app/kernels:vector_add.cu)=examples/cuda-app/kernels/vector_add.cu",
+        ]),
+        "DX_CUDA_FRAGMENT": "$(rlocationpath consumers/cuda/module_fragment.bazel)",
+    },
+    network = True,
+    tags = [
+        "manual",
+        "requires-gpu",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 pwsh_test(
     name = "msix_consumer_sign_test",
     size = "enormous",
@@ -510,6 +663,7 @@ hermetic_qualification(
     files = {
         "consumers/rust_wasi/app.BUILD.bazel": "examples/shared-rust/BUILD.bazel",
         "consumers/rust_wasi/consumer_report.rs": "examples/shared-rust/consumer_report.rs",
+        "consumers/rust_wasi/custom_runtime.sh": "examples/shared-rust/custom_runtime.sh",
         "consumers/rust_wasi/root.BUILD.bazel": "BUILD.bazel",
         "//examples/shared-rust:adler2.BUILD.bazel": "examples/shared-rust/adler2.build",
         "//examples/shared-rust:assets/board.txt": "examples/shared-rust/assets/board.txt",
@@ -544,9 +698,7 @@ hermetic_qualification(
         "//examples/adopt-android/native:summary.h": "examples/adopt-android/native/summary.h",
         "//examples/adopt-android/native:summary_test.cc": "examples/adopt-android/native/summary_test.cc",
         "//examples/adopt-android:BUILD.bazel": "examples/adopt-android/BUILD.bazel",
-        "//patches/rules_android:rules_android.patch": "third_party/rules_dx/rules_android.rules_android.patch",
         "consumers/adopt_android/consumer.bazelrc": ".bazelrc",
-        "consumers/adopt_android/third_party.BUILD.bazel": "third_party/rules_dx/BUILD.bazel",
     },
     languages = [
         "cpp",
@@ -587,6 +739,67 @@ hermetic_qualification(
     patterns = ["//..."],
 )
 
+hermetic_qualification(
+    name = "python",
+    files = {
+        "//examples/python-service/ledger/cli:__init__.py": "ledger/cli/__init__.py",
+        "//examples/python-service/ledger/cli:broken_main.py": "ledger/cli/broken_main.py",
+        "//examples/python-service/ledger/cli:broken_test.py": "ledger/cli/broken_test.py",
+        "//examples/python-service/ledger/cli:cli_test.py": "ledger/cli/cli_test.py",
+        "//examples/python-service/ledger/cli:cli_unittest_test.py": "ledger/cli/cli_unittest_test.py",
+        "//examples/python-service/ledger/cli:main.py": "ledger/cli/main.py",
+        "//examples/python-service/ledger/core:__init__.py": "ledger/core/__init__.py",
+        "//examples/python-service/ledger/core:build_info_test.py": "ledger/core/build_info_test.py",
+        "//examples/python-service/ledger/core:catalog.py": "ledger/core/catalog.py",
+        "//examples/python-service/ledger/core:catalog_test.py": "ledger/core/catalog_test.py",
+        "//examples/python-service/ledger/core:config.py": "ledger/core/config.py",
+        "//examples/python-service/ledger/core:gen_build_info.py": "ledger/core/gen_build_info.py",
+        "//examples/python-service/ledger/core:items.json": "ledger/core/items.json",
+        "//examples/python-service/ledger/service:__init__.py": "ledger/service/__init__.py",
+        "//examples/python-service/ledger/service:server.py": "ledger/service/server.py",
+        "//examples/python-service/ledger/service:server_test.py": "ledger/service/server_test.py",
+        "//examples/python-service:pyproject.toml": "pyproject.toml",
+        "//examples/python-service:uv.lock": "uv.lock",
+        "consumers/python/cli.BUILD.bazel": "ledger/cli/BUILD.bazel",
+        "consumers/python/core.BUILD.bazel": "ledger/core/BUILD.bazel",
+        "consumers/python/ledger_init.py": "ledger/__init__.py",
+        "consumers/python/root.BUILD.bazel": "BUILD.bazel",
+        "consumers/python/ruff.toml": "ruff.toml",
+        "consumers/python/service.BUILD.bazel": "ledger/service/BUILD.bazel",
+    },
+    languages = ["python"],
+    module_fragment = "consumers/python/module_fragment.bazel",
+    patterns = ["//ledger/..."],
+)
+
+hermetic_qualification(
+    name = "c_starter",
+    failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
+    files = {
+        "consumers/cc_starter/c_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_starter/c_only.c": "probe/c_only.c",
+        "consumers/cc_starter/cxx_in_c.c": "probe/cxx_in_c.c",
+    },
+    languages = ["c"],
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+    starter = "c",
+)
+
+hermetic_qualification(
+    name = "cpp_starter",
+    failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
+    files = {
+        "consumers/cc_starter/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
+        "consumers/cc_starter/cxx_only.cc": "probe/cxx_only.cc",
+        "consumers/cc_starter/c_in_cxx.cc": "probe/c_in_cxx.cc",
+    },
+    languages = ["cpp"],
+    patterns = ["//..."],
+    repo_name = "rules_dx",
+    starter = "cpp",
+)
+
 rustfmt_test(
     name = "hermetic_fmt_test",
     size = "small",
@@ -594,13 +807,17 @@ rustfmt_test(
     targets = [
         ":adopt_android",
         ":appimage",
+        ":c_starter",
         ":cpp_rust",
+        ":cpp_starter",
         ":cuda",
         ":elixir",
         ":erlang",
         ":hermetic",
         ":msix",
+        ":lua",
         ":perl",
+        ":python",
         ":qt_rust",
         ":qt_tasks",
         ":rust_wasi",
@@ -618,13 +835,17 @@ rust_clippy_test(
     targets = [
         ":adopt_android",
         ":appimage",
+        ":c_starter",
         ":cpp_rust",
+        ":cpp_starter",
         ":cuda",
         ":elixir",
         ":erlang",
         ":hermetic",
         ":msix",
+        ":lua",
         ":perl",
+        ":python",
         ":qt_rust",
         ":qt_tasks",
         ":rust_wasi",
@@ -640,7 +861,8 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "consumers/adopt_android/third_party.BUILD.bazel",
+        "consumers/cc_starter/c_probe.BUILD.bazel",
+        "consumers/cc_starter/cpp_probe.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",
         "consumers/cpp_rust/apps/c_store.BUILD.bazel",
         "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",

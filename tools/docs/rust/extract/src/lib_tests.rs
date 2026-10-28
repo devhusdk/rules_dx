@@ -403,3 +403,336 @@ fn types_print_as_source_text() {
         "*const T"
     );
 }
+
+fn module_item(id: u32, name: &str, items: &[u32]) -> Value {
+    item(
+        id,
+        Some(name),
+        "public",
+        None,
+        json!({"module": {"is_crate": false, "items": items, "is_stripped": false}}),
+    )
+}
+
+fn fn_item(id: u32, name: &str) -> Value {
+    item(
+        id,
+        Some(name),
+        "public",
+        None,
+        function(json!([]), Value::Null),
+    )
+}
+
+fn struct_item(id: u32, name: &str, fields: &[u32], impls: &[u32]) -> Value {
+    item(
+        id,
+        Some(name),
+        "public",
+        None,
+        json!({"struct": {
+            "kind": {"plain": {"fields": fields, "has_stripped_fields": false}},
+            "generics": no_generics(),
+            "impls": impls,
+        }}),
+    )
+}
+
+fn field_item(id: u32, name: &str) -> Value {
+    item(
+        id,
+        Some(name),
+        "public",
+        None,
+        json!({"struct_field": {"primitive": "f64"}}),
+    )
+}
+
+fn impl_item(id: u32, owner: u32, items: &[u32]) -> Value {
+    item(
+        id,
+        None,
+        "default",
+        None,
+        json!({"impl": {
+            "is_unsafe": false,
+            "generics": no_generics(),
+            "provided_trait_methods": [],
+            "trait": null,
+            "for": {"resolved_path": {"path": "T", "id": owner, "args": null}},
+            "items": items,
+            "is_negative": false,
+            "is_synthetic": false,
+            "blanket_impl": null,
+        }}),
+    )
+}
+
+fn use_item(id: u32, source: &str, name: &str, target: Option<u32>, glob: bool) -> Value {
+    item(
+        id,
+        None,
+        "public",
+        None,
+        json!({"use": {"source": source, "name": name, "id": target, "is_glob": glob}}),
+    )
+}
+
+fn ids(value: &Value) -> Vec<String> {
+    run(value)
+        .expect("extract")
+        .symbols
+        .into_iter()
+        .map(|symbol| symbol.id)
+        .collect()
+}
+
+fn symbol(shard: &documentation_ir::proto::DocIr, id: &str) -> documentation_ir::proto::Symbol {
+    shard
+        .symbols
+        .iter()
+        .find(|symbol| symbol.id == id)
+        .unwrap_or_else(|| panic!("missing {id}"))
+        .clone()
+}
+
+#[test]
+fn a_module_and_a_function_with_one_name_keep_the_type_id_plain() {
+    let value = crate_json(vec![fn_item(1, "foo"), module_item(2, "foo", &[])], &[1, 2]);
+    assert_eq!(ids(&value), vec!["rust:demo:foo", "rust:demo:foo@fn"]);
+    let shard = run(&value).expect("extract");
+    assert_eq!(
+        symbol(&shard, "rust:demo:foo").kind,
+        SymbolKind::Module as i32
+    );
+}
+
+#[test]
+fn a_field_and_methods_of_one_name_get_tags_in_source_order() {
+    let value = crate_json(
+        vec![
+            struct_item(1, "Point", &[2], &[3, 5, 7]),
+            field_item(2, "x"),
+            impl_item(3, 1, &[4]),
+            fn_item(4, "x"),
+            impl_item(5, 1, &[6]),
+            fn_item(6, "x"),
+            impl_item(7, 1, &[8]),
+            fn_item(8, "x"),
+        ],
+        &[1],
+    );
+    let expected = vec![
+        "rust:demo:Point",
+        "rust:demo:Point.x",
+        "rust:demo:Point.x@method",
+        "rust:demo:Point.x@method-2",
+        "rust:demo:Point.x@method-3",
+    ];
+    assert_eq!(ids(&value), expected);
+    let shard = run(&value).expect("extract");
+    for id in &expected[1..] {
+        let relations = symbol(&shard, id).relations.expect("relations");
+        assert_eq!(relations.member_of, vec!["rust:demo:Point".to_string()]);
+    }
+    assert_eq!(
+        symbol(&shard, "rust:demo:Point.x").kind,
+        SymbolKind::Field as i32
+    );
+}
+
+#[test]
+fn a_variant_wins_over_a_method_of_the_same_name() {
+    let value = crate_json(
+        vec![
+            item(
+                1,
+                Some("Kind"),
+                "public",
+                None,
+                json!({"enum": {
+                    "generics": no_generics(),
+                    "has_stripped_variants": false,
+                    "variants": [2],
+                    "impls": [3],
+                }}),
+            ),
+            item(
+                2,
+                Some("A"),
+                "default",
+                None,
+                json!({"variant": {"kind": "plain", "discriminant": null}}),
+            ),
+            impl_item(3, 1, &[4]),
+            fn_item(4, "A"),
+        ],
+        &[1],
+    );
+    assert_eq!(
+        ids(&value),
+        vec![
+            "rust:demo:Kind",
+            "rust:demo:Kind.A",
+            "rust:demo:Kind.A@method"
+        ]
+    );
+}
+
+#[test]
+fn ids_do_not_depend_on_the_order_rustdoc_lists_items() {
+    let items = vec![
+        struct_item(1, "Point", &[2], &[3, 5]),
+        field_item(2, "x"),
+        impl_item(3, 1, &[4]),
+        fn_item(4, "x"),
+        impl_item(5, 1, &[6]),
+        fn_item(6, "x"),
+        fn_item(9, "foo"),
+        module_item(10, "foo", &[]),
+    ];
+    let forward = crate_json(items.clone(), &[1, 9, 10]);
+    let mut shuffled = items;
+    shuffled.reverse();
+    let mut reversed = crate_json(shuffled, &[10, 9, 1]);
+    reversed["index"]["1"]["inner"]["struct"]["impls"] = json!([5, 3]);
+    assert_eq!(run(&forward).expect("a"), run(&reversed).expect("b"));
+}
+
+#[test]
+fn a_reexport_in_another_namespace_gets_a_tag_and_is_listed() {
+    let value = crate_json(
+        vec![
+            module_item(3, "foo", &[4]),
+            fn_item(4, "foo"),
+            use_item(8, "foo::foo", "foo", Some(4), false),
+        ],
+        &[3, 8],
+    );
+    assert_eq!(ids(&value), vec!["rust:demo:foo", "rust:demo:foo.foo"]);
+    let shard = run(&value).expect("extract");
+    let relations = symbol(&shard, "rust:demo:foo.foo")
+        .relations
+        .expect("relations");
+    assert_eq!(
+        relations.reexported_as,
+        vec!["rust:demo:foo@fn".to_string()]
+    );
+}
+
+#[test]
+fn a_glob_of_a_local_enum_reexports_its_variants() {
+    let value = crate_json(
+        vec![
+            item(
+                1,
+                Some("Kind"),
+                "public",
+                None,
+                json!({"enum": {
+                    "generics": no_generics(),
+                    "has_stripped_variants": false,
+                    "variants": [2, 3],
+                    "impls": [],
+                }}),
+            ),
+            item(
+                2,
+                Some("A"),
+                "default",
+                None,
+                json!({"variant": {"kind": "plain", "discriminant": null}}),
+            ),
+            item(
+                3,
+                Some("B"),
+                "default",
+                None,
+                json!({"variant": {"kind": "plain", "discriminant": null}}),
+            ),
+            use_item(8, "self::Kind", "Kind", Some(1), true),
+        ],
+        &[1, 8],
+    );
+    let shard = run(&value).expect("extract");
+    assert_eq!(
+        symbol(&shard, "rust:demo:Kind.A")
+            .relations
+            .expect("relations")
+            .reexported_as,
+        vec!["rust:demo:A".to_string()]
+    );
+    assert_eq!(
+        symbol(&shard, "rust:demo:Kind.B")
+            .relations
+            .expect("relations")
+            .reexported_as,
+        vec!["rust:demo:B".to_string()]
+    );
+}
+
+#[test]
+fn a_glob_of_a_foreign_module_becomes_one_glob_symbol() {
+    let value = crate_json(vec![use_item(8, "core::cmp", "cmp", None, true)], &[8]);
+    let shard = run(&value).expect("extract");
+    assert_eq!(
+        shard
+            .symbols
+            .iter()
+            .map(|s| s.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["rust:demo:cmp@glob"]
+    );
+    assert_eq!(shard.symbols[0].signature_text, "pub use core::cmp::*;");
+}
+
+#[test]
+fn glob_names_follow_rusts_shadowing_rules() {
+    // An explicit local item shadows a glob name.
+    let shadowed = crate_json(
+        vec![
+            module_item(1, "m", &[2]),
+            struct_item(2, "S", &[], &[]),
+            struct_item(3, "S", &[], &[]),
+            use_item(8, "m", "m", Some(1), true),
+        ],
+        &[1, 3, 8],
+    );
+    let shard = run(&shadowed).expect("shadowed");
+    assert!(symbol(&shard, "rust:demo:m.S")
+        .relations
+        .is_none_or(|r| r.reexported_as.is_empty()));
+    // Two globs that give one name make that name unusable.
+    let ambiguous = crate_json(
+        vec![
+            module_item(1, "a", &[2]),
+            struct_item(2, "S", &[], &[]),
+            module_item(3, "b", &[4]),
+            struct_item(4, "S", &[], &[]),
+            use_item(8, "a", "a", Some(1), true),
+            use_item(9, "b", "b", Some(3), true),
+        ],
+        &[1, 3, 8, 9],
+    );
+    let shard = run(&ambiguous).expect("ambiguous");
+    for id in ["rust:demo:a.S", "rust:demo:b.S"] {
+        assert!(symbol(&shard, id)
+            .relations
+            .is_none_or(|r| r.reexported_as.is_empty()));
+    }
+}
+
+#[test]
+fn an_explicit_reexport_in_the_same_namespace_is_an_error() {
+    let value = crate_json(
+        vec![
+            struct_item(1, "S", &[], &[]),
+            module_item(2, "m", &[3]),
+            struct_item(3, "T", &[], &[]),
+            use_item(8, "m::T", "S", Some(3), false),
+        ],
+        &[1, 2, 8],
+    );
+    let error = run(&value).expect_err("collision");
+    assert!(error.contains("rust:demo:S"), "{error}");
+}

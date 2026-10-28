@@ -13,6 +13,10 @@ use std::time::{Duration, Instant, SystemTime};
 
 use crate::args::Command;
 use dx_adopt::defaults::BuildSlots;
+pub use dx_process::slot_pool::{
+    available_memory, cgroup_limit_in, lock_slot, parse_cgroup_limit, parse_meminfo, slot_count,
+    slot_path, slots_dir, BYTES_PER_NESTED_BAZEL, BYTES_PER_SLOT, MAX_SLOTS,
+};
 use dx_worktree::host::{self, Host, Server, SystemHost};
 
 /// Notice code for the one info notice a run prints while it waits for a free build slot.
@@ -37,9 +41,6 @@ pub const SHARE_ENV_VAR: &str = "DX_BUILD_SHARE";
 /// Set by Bazel in every test action, so dx inside a test takes no slot.
 pub const BAZEL_TEST_ENV_VAR: &str = "BAZEL_TEST";
 
-/// Memory one Bazel server plus its build is planned to use.
-pub const BYTES_PER_SLOT: u64 = 3 << 30;
-
 /// Memory one remote-execution Bazel server plus its build is planned to use.
 pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
 
@@ -51,12 +52,6 @@ pub const NESTED_BAZEL_SLOTS_ENV: &str = dx_path::nested_bazel::SLOTS_ENV;
 
 /// Nested Bazel test servers rules_dx tests run at once by default.
 pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::DEFAULT_SLOTS as u64;
-
-/// Memory one nested Bazel test server is planned to use.
-pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
-
-/// Most slots dx ever offers.
-pub const MAX_SLOTS: usize = 16;
 
 const POLL: Duration = Duration::from_millis(200);
 
@@ -72,13 +67,43 @@ pub struct Slot {
     _reserve: Vec<File>,
     holder: PathBuf,
     pub index: usize,
-    pub share: Option<dx_process::LocalShare>,
+    sizing: Option<Arc<ShareSizing>>,
+    token: Option<dx_process::ShareToken>,
+}
+
+/// What a slot needs to work out its share of the host from the slots held right now.
+#[derive(Debug)]
+struct ShareSizing {
+    dir: PathBuf,
+    indices: Vec<usize>,
+    own: usize,
+    resources: Resources,
+}
+
+impl ShareSizing {
+    fn share(&self) -> dx_process::LocalShare {
+        let held = held(&self.dir, self.indices.iter().copied(), self.own);
+        local_share(
+            self.resources.cpus,
+            self.resources.memory,
+            self.resources.reserved,
+            held,
+        )
+    }
+}
+
+impl Slot {
+    /// The share this slot gets now, split over the slots held at this moment.
+    pub fn share(&self) -> Option<dx_process::LocalShare> {
+        self.sizing.as_ref().map(|sizing| sizing.share())
+    }
 }
 
 impl Drop for Slot {
     fn drop(&mut self) {
-        if let Some(share) = &self.share {
-            dx_process::clear_share(share);
+        // Clear the source before the holder goes, so no share runs against a half-removed slot.
+        if let Some(token) = self.token.take() {
+            dx_process::clear_share_source(token);
         }
         let _ = std::fs::remove_file(&self.holder);
     }
@@ -87,7 +112,14 @@ impl Drop for Slot {
 /// A runner whose children see `DX_BUILD_SLOT=1` and the slot's share while the slot is held.
 pub struct SlotEnv<'a> {
     inner: &'a dyn dx_process::Runner,
-    share: Option<String>,
+    sizing: Option<Arc<ShareSizing>>,
+}
+
+impl SlotEnv<'_> {
+    /// The share as of this call, so a child started later sees the current split.
+    fn share_env(&self) -> Option<String> {
+        self.sizing.as_ref().map(|sizing| sizing.share().to_env())
+    }
 }
 
 impl Slot {
@@ -95,7 +127,7 @@ impl Slot {
     pub fn runner<'a>(&'a self, inner: &'a dyn dx_process::Runner) -> SlotEnv<'a> {
         SlotEnv {
             inner,
-            share: self.share.as_ref().map(dx_process::LocalShare::to_env),
+            sizing: self.sizing.clone(),
         }
     }
 }
@@ -129,8 +161,8 @@ impl dx_process::Runner for SlotEnv<'_> {
         cwd: &Path,
         env: &[(&str, &str)],
     ) -> io::Result<dx_process::ChildStatus> {
-        self.inner
-            .run(argv, cwd, &slot_env(env, self.share.as_deref()))
+        let share = self.share_env();
+        self.inner.run(argv, cwd, &slot_env(env, share.as_deref()))
     }
 
     fn run_hermetic(
@@ -149,11 +181,25 @@ impl dx_process::Runner for SlotEnv<'_> {
         env: &[(&str, &str)],
         withdraw: &dyn Fn() -> bool,
     ) -> io::Result<Option<dx_process::ChildStatus>> {
+        let share = self.share_env();
         self.inner
-            .run_withdrawable(argv, cwd, &slot_env(env, self.share.as_deref()), withdraw)
+            .run_withdrawable(argv, cwd, &slot_env(env, share.as_deref()), withdraw)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn run_app(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: Option<&dyn Fn() -> bool>,
+        held: &[&std::fs::File],
+    ) -> io::Result<Option<dx_process::ChildStatus>> {
+        let share = self.share_env();
+        self.inner
+            .run_app(argv, cwd, &slot_env(env, share.as_deref()), withdraw, held)
+    }
+
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         self.inner.pinned_tool(var)
     }
 
@@ -185,7 +231,6 @@ pub fn needs_slot(command: Command) -> bool {
             | Command::Security
             | Command::License
             | Command::Docs
-            | Command::ListTests
     )
 }
 
@@ -201,18 +246,13 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
     if !is_rules_dx {
         return 0;
     }
-    let servers = env_get(NESTED_BAZEL_SLOTS_ENV)
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_NESTED_BAZEL_SLOTS);
-    servers.saturating_mul(BYTES_PER_NESTED_BAZEL)
-}
-
-/// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
-pub fn slot_count(memory: u64, reserved: u64) -> usize {
-    usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
-        .unwrap_or(MAX_SLOTS)
-        .clamp(1, MAX_SLOTS)
+    let read = |path: &Path| std::fs::read_to_string(path).ok();
+    let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
+    if !dx_process::rc::nested_bazel_selected(env_get, workspace, &read, read_user_rc, &[], &[]) {
+        return 0;
+    }
+    let servers = dx_path::nested_bazel::servers(env_get(NESTED_BAZEL_SLOTS_ENV).as_deref());
+    u64::from(servers).saturating_mul(BYTES_PER_NESTED_BAZEL)
 }
 
 /// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.
@@ -269,43 +309,61 @@ pub fn local_share(cpus: u64, memory: u64, reserved: u64, held: usize) -> dx_pro
     }
 }
 
-/// The slot directory under the user cache.
-pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
-    let cache = dx_process::user_cache_dir(env_get)?;
-    Some(cache.join("dx").join("slots"))
+/// Build slots held right now and the share a run started now would get, probing the locks read-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ShareReport {
+    pub held: usize,
+    pub count: usize,
+    pub next: dx_process::LocalShare,
 }
 
-fn slot_path(dir: &Path, index: usize) -> PathBuf {
-    dir.join(format!("slot-{index}.lock"))
+/// The held slots and the next run's share for `setting`; `None` when the gate is off or memory is unknown.
+pub fn share_report(
+    workspace: &Path,
+    env_get: &dyn Fn(&str) -> Option<String>,
+    setting: BuildSlots,
+) -> Option<ShareReport> {
+    let dir = slots_dir(env_get)?;
+    let memory = available_memory()?;
+    let reserved = nested_reserve(workspace, env_get);
+    let size = sizing(setting, memory, reserved)?;
+    let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
+    let cpus = u64::try_from(cpus).unwrap_or(1);
+    // `usize::MAX` is no slot, so `held` counts every held slot plus the new run.
+    let with_new = held(&dir, 0..size.count, usize::MAX);
+    Some(ShareReport {
+        held: with_new - 1,
+        count: size.count,
+        next: local_share(cpus, memory, reserved, with_new),
+    })
 }
 
-/// Locks a slot file shared or exclusive, falling back to a read-only open when it cannot be written.
-fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
-    let locked = if shared {
-        dx_atomic_fs::lease::try_lock_file_shared(path, true)
-    } else {
-        dx_atomic_fs::lease::try_lock_file(path, true)
+/// Lists the `slot-N.lock` files in `dir` that dx cannot open, without creating or locking anything.
+pub fn unusable_slot_files(dir: &Path) -> Vec<(PathBuf, io::Error)> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
     };
-    let error = match locked {
-        Err(error) if error.kind() == io::ErrorKind::PermissionDenied => error,
-        other => return other,
-    };
-    let Ok(file) = OpenOptions::new().read(true).open(path) else {
-        return Err(error);
-    };
-    if !file.metadata().is_ok_and(|meta| meta.is_file()) {
-        return Err(error);
-    }
-    let locked = if shared {
-        file.try_lock_shared()
-    } else {
-        file.try_lock()
-    };
-    match locked {
-        Ok(()) => Ok(Some(file)),
-        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
-        Err(std::fs::TryLockError::Error(_)) => Err(error),
-    }
+    let mut found: Vec<(PathBuf, io::Error)> = entries
+        .flatten()
+        .filter(|entry| {
+            let name = entry.file_name();
+            name.to_str()
+                .and_then(|n| n.strip_prefix("slot-")?.strip_suffix(".lock"))
+                .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        })
+        .filter_map(|entry| {
+            let path = entry.path();
+            match OpenOptions::new().read(true).open(&path) {
+                Err(error) => Some((path, error)),
+                Ok(file) if !file.metadata().is_ok_and(|meta| meta.is_file()) => {
+                    Some((path, io::Error::other("not a regular file")))
+                }
+                Ok(_) => None,
+            }
+        })
+        .collect();
+    found.sort_by(|a, b| a.0.cmp(&b.0));
+    found
 }
 
 fn holder_path(dir: &Path, index: usize) -> PathBuf {
@@ -619,7 +677,8 @@ fn scan(
                     _reserve: Vec::new(),
                     holder,
                     index,
-                    share: None,
+                    sizing: None,
+                    token: None,
                 };
                 return (Ok(Some(slot)), skipped);
             }
@@ -968,77 +1027,6 @@ pub fn wait_message(holder: &str) -> String {
     format!("waiting for a build slot (held by {holder})")
 }
 
-/// Total memory visible to this process, honoring a cgroup limit.
-pub fn available_memory() -> Option<u64> {
-    #[cfg(target_os = "linux")]
-    {
-        let total = std::fs::read_to_string("/proc/meminfo")
-            .ok()
-            .and_then(|text| parse_meminfo(&text));
-        let limit = cgroup_limit();
-        return match (total, limit) {
-            (Some(total), Some(limit)) => Some(total.min(limit)),
-            (total, limit) => total.or(limit),
-        };
-    }
-    #[cfg(target_os = "macos")]
-    {
-        let mut value: u64 = 0;
-        let mut size = std::mem::size_of::<u64>();
-        let name = c"hw.memsize";
-        let status = unsafe {
-            libc::sysctlbyname(
-                name.as_ptr(),
-                (&mut value as *mut u64).cast(),
-                &mut size,
-                std::ptr::null_mut(),
-                0,
-            )
-        };
-        return (status == 0).then_some(value);
-    }
-    #[cfg(windows)]
-    {
-        #[repr(C)]
-        struct MemoryStatus {
-            length: u32,
-            load: u32,
-            total_phys: u64,
-            avail_phys: u64,
-            total_page: u64,
-            avail_page: u64,
-            total_virtual: u64,
-            avail_virtual: u64,
-            avail_extended: u64,
-        }
-        extern "system" {
-            fn GlobalMemoryStatusEx(status: *mut MemoryStatus) -> i32;
-        }
-        let mut status = MemoryStatus {
-            length: std::mem::size_of::<MemoryStatus>() as u32,
-            load: 0,
-            total_phys: 0,
-            avail_phys: 0,
-            total_page: 0,
-            avail_page: 0,
-            total_virtual: 0,
-            avail_virtual: 0,
-            avail_extended: 0,
-        };
-        let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
-        return (ok != 0).then_some(status.total_phys);
-    }
-    #[allow(unreachable_code)]
-    None
-}
-
-/// Reads `MemTotal` from `/proc/meminfo` text, in bytes.
-pub fn parse_meminfo(text: &str) -> Option<u64> {
-    let line = text.lines().find(|line| line.starts_with("MemTotal:"))?;
-    let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
-    kib.checked_mul(1024)
-}
-
 /// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
 pub fn parse_mem_available(text: &str) -> Option<u64> {
     let line = text
@@ -1046,59 +1034,6 @@ pub fn parse_mem_available(text: &str) -> Option<u64> {
         .find(|line| line.starts_with("MemAvailable:"))?;
     let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
     kib.checked_mul(1024)
-}
-
-/// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
-pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
-    text.trim().parse().ok().filter(|value| *value < 1 << 62)
-}
-
-#[cfg(target_os = "linux")]
-fn cgroup_limit() -> Option<u64> {
-    let own = std::fs::read_to_string("/proc/self/cgroup").ok()?;
-    cgroup_limit_in(&own, Path::new("/sys/fs/cgroup"))
-}
-
-/// Reads the memory limit of the cgroup named in `own` under `root`.
-pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
-    let v2 = own
-        .lines()
-        .find_map(|line| line.strip_prefix("0::"))
-        .unwrap_or("/");
-    let v1 = own.lines().find_map(|line| {
-        let mut parts = line.splitn(3, ':');
-        parts.next()?;
-        let controllers = parts.next()?;
-        let path = parts.next()?;
-        controllers
-            .split(',')
-            .any(|c| c == "memory")
-            .then_some(path)
-    });
-    let v2_limit = walk_limit(root, v2, "memory.max");
-    let v1_limit =
-        v1.and_then(|path| walk_limit(&root.join("memory"), path, "memory.limit_in_bytes"));
-    match (v2_limit, v1_limit) {
-        (Some(a), Some(b)) => Some(a.min(b)),
-        (a, b) => a.or(b),
-    }
-}
-
-fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
-    let mut dir = base.join(relative.trim_start_matches('/'));
-    let mut limit: Option<u64> = None;
-    loop {
-        let found = std::fs::read_to_string(dir.join(file))
-            .ok()
-            .and_then(|text| parse_cgroup_limit(&text));
-        limit = match (limit, found) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
-        };
-        if dir == base || !dir.pop() || !dir.starts_with(base) {
-            return limit;
-        }
-    }
 }
 
 /// Where this dx process takes its slots, fixed at startup.
@@ -1290,26 +1225,34 @@ impl Gate {
         } = sizing(setting, memory, reserved)?;
         let read = |path: &Path| std::fs::read_to_string(path).ok();
         let read_user_rc = dx_process::RcPolicy::from_env(env_get, workspace, &read).read_user_rc;
+        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
+        let startup = own_startup_options(&args);
         let remote = dx_process::rc::remote_execution(
             env_get,
             workspace,
             &read,
             read_user_rc,
+            startup.as_deref().unwrap_or_default(),
             bazel_options,
         );
         let cpus = std::thread::available_parallelism().map_or(1, |cpus| cpus.get());
         let cpus = u64::try_from(cpus).unwrap_or(1);
-        let args: Vec<OsString> = std::env::args_os().skip(1).collect();
-        let warm = own_startup_options(&args).map(|startup_options| Warmth {
+        let paths = dx_process::rc::startup_output_paths(
+            env_get,
+            workspace,
+            &read,
+            read_user_rc,
+            startup.as_deref().unwrap_or_default(),
+        );
+        let default_roots = host::default_output_roots(env_get);
+        let roots = reap_roots(&default_roots, &paths);
+        let warm = startup.map(|startup_options| Warmth {
             workspace: workspace.to_path_buf(),
             startup_options,
+            output_user_root: paths.output_user_root.clone(),
+            output_base: paths.output_base.clone(),
+            default_roots,
         });
-        let mut roots = host::default_output_roots(env_get);
-        if let Some(root) = warm.as_ref().and_then(|warm| {
-            startup_value(&warm.startup_options, "--output_user_root").map(PathBuf::from)
-        }) {
-            roots.push(root);
-        }
         let reclaim_in = workspace.to_path_buf();
         Some(Gate {
             warm,
@@ -1423,11 +1366,15 @@ impl Gate {
         match result {
             Ok(mut slot) => {
                 if let Some(resources) = self.resources {
-                    let held = held(&self.dir, layout.counted(), slot.index);
-                    let share =
-                        local_share(resources.cpus, resources.memory, resources.reserved, held);
-                    slot.share = Some(share);
-                    dx_process::set_share(Some(share));
+                    let sizing = Arc::new(ShareSizing {
+                        dir: self.dir.clone(),
+                        indices: layout.counted().collect(),
+                        own: slot.index,
+                        resources,
+                    });
+                    let live = Arc::clone(&sizing);
+                    slot.token = Some(dx_process::set_share_source(move || live.share()));
+                    slot.sizing = Some(sizing);
                 }
                 self.reclaim(command, err, events);
                 Ok(Some(slot))
@@ -1476,6 +1423,17 @@ impl Gate {
 struct Warmth {
     workspace: PathBuf,
     startup_options: Vec<String>,
+    /// The `--output_user_root` and `--output_base` in effect (rc files and command line).
+    output_user_root: Option<PathBuf>,
+    output_base: Option<PathBuf>,
+    default_roots: Vec<PathBuf>,
+}
+
+/// The output roots the reaper acts on: the defaults plus the root rc files or the command line set.
+fn reap_roots(defaults: &[PathBuf], paths: &dx_process::rc::StartupPaths) -> Vec<PathBuf> {
+    let mut roots = defaults.to_vec();
+    roots.extend(paths.output_user_root.clone());
+    roots
 }
 
 /// The Bazel startup options on a dx command line, or `None` when it does not parse.
@@ -1505,13 +1463,6 @@ fn idle_limit(cmdline: &str) -> Option<u64> {
         .and_then(|value| value.trim().parse().ok())
 }
 
-fn startup_value<'a>(options: &'a [String], name: &str) -> Option<&'a str> {
-    options
-        .iter()
-        .rev()
-        .find_map(|option| option.strip_prefix(name)?.strip_prefix('='))
-}
-
 fn default_output_base(dir: &Path, root: &Path) -> bool {
     dir.parent()
         .is_some_and(|parent| host::same_path(parent, root))
@@ -1521,15 +1472,14 @@ fn default_output_base(dir: &Path, root: &Path) -> bool {
             .is_some_and(|name| name.len() == 32 && name.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
-/// The one running server a Bazel call from `workspace` with `options` would reach.
+/// The one running server a Bazel call from `workspace` with this `root` and `base` would reach.
 fn own_server<'a>(
     servers: &'a [Server],
     workspace: &Path,
-    options: &[String],
+    root: Option<&Path>,
+    base: Option<&Path>,
     default_roots: &[PathBuf],
 ) -> Option<&'a Server> {
-    let base = startup_value(options, "--output_base");
-    let root = startup_value(options, "--output_user_root");
     let mut found = servers.iter().filter(|server| {
         let (Some(dir), Some(output_base), Some(user_root)) = (
             server.workspace.as_deref(),
@@ -1539,13 +1489,13 @@ fn own_server<'a>(
             return false;
         };
         let root_matches = match root {
-            Some(root) => host::same_path(user_root, Path::new(root)),
+            Some(root) => host::same_path(user_root, root),
             None => default_roots
                 .iter()
                 .any(|default| host::same_path(user_root, default)),
         };
         let base_matches = match base {
-            Some(base) => host::same_path(output_base, Path::new(base)),
+            Some(base) => host::same_path(output_base, base),
             None => default_output_base(output_base, user_root),
         };
         host::same_path(dir, workspace) && root_matches && base_matches
@@ -1564,6 +1514,15 @@ trait Warm {
     fn stop(&self, ping: Self::Ping);
 }
 
+impl Warmth {
+    /// The full command a ping runs: launcher, startup options, then a lock-free `info`.
+    fn ping_argv(&self) -> Vec<String> {
+        let mut argv = dx_process::startup_argv(&self.startup_options);
+        argv.extend(["--noblock_for_lock", "info", "server_pid"].map(str::to_owned));
+        argv
+    }
+}
+
 impl Warm for Warmth {
     type Ping = Child;
 
@@ -1572,8 +1531,9 @@ impl Warm for Warmth {
         let server = own_server(
             &servers,
             &self.workspace,
-            &self.startup_options,
-            &host::default_output_roots(&|name| std::env::var(name).ok()),
+            self.output_user_root.as_deref(),
+            self.output_base.as_deref(),
+            &self.default_roots,
         )?;
         let idle = server
             .output_base
@@ -1589,11 +1549,10 @@ impl Warm for Warmth {
 
     #[allow(clippy::disallowed_methods)] // info takes no build settings
     fn ping(&self) -> Option<Child> {
-        let argv = dx_process::startup_argv(&self.startup_options);
+        let argv = self.ping_argv();
         let (program, args) = argv.split_first()?;
         std::process::Command::new(program)
             .args(args)
-            .args(["--noblock_for_lock", "info", "server_pid"])
             .current_dir(&self.workspace)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -1829,7 +1788,7 @@ impl<W: Write> Write for AfterFirstLine<W> {
 }
 
 #[cfg(test)]
-const SETTLE_LIMIT: Duration = Duration::from_secs(1);
+const SETTLE_LIMIT: Duration = Duration::from_secs(5);
 #[cfg(test)]
 const SETTLE_POLL: Duration = Duration::from_millis(10);
 
@@ -2246,13 +2205,13 @@ mod tests {
             let (base, _, _) = take_gate(&gate);
             let (extra, _, _) = take_gate(&gate);
             assert_eq!(extra.index, 1);
-            let share = extra.share.expect("share");
+            let share = extra.share().expect("share");
             assert_eq!((share.cpus, share.memory_mb), (6, 6 << 10));
             drop(base);
             let local = remote_gate(&dir, false, None).sharing(12, 12 << 30, 0);
             let (again, _, _) = take_gate(&local);
             assert_eq!(again.index, 0);
-            assert_eq!(again.share.expect("share").memory_mb, 6 << 10);
+            assert_eq!(again.share().expect("share").memory_mb, 6 << 10);
         });
     }
 
@@ -2351,15 +2310,61 @@ mod tests {
             cpus: 300,
             memory_mb: 4096,
         };
-        assert_eq!(slot.share, Some(want));
+        assert_eq!(slot.share(), Some(want));
         assert_eq!(dx_process::share(), Some(want));
         drop(slot);
         assert_eq!(dx_process::share(), None);
         drop(other);
         let plain = Gate::new(dir, 2, "plain".to_owned(), false);
         let (slot, _, _) = take_gate(&plain);
-        assert_eq!(slot.share, None);
+        assert_eq!(slot.share(), None);
         assert_eq!(dx_process::share(), None);
+    }
+
+    #[test]
+    fn share_shrinks_when_another_slot_is_taken() {
+        alone("share_shrinks_when_another_slot_is_taken", || {
+            let scratch = dx_test_scratch::scratch("dx-slots-live-share-");
+            let dir = scratch.path().join("slots");
+            let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(12, 12 << 30, 0);
+            let (slot, _, _) = take_gate(&gate);
+            let cpus = || dx_process::share().map(|share| share.cpus);
+            assert_eq!(cpus(), Some(12));
+            let other = try_take(&dir, 2, "other").expect("try").expect("other");
+            assert_eq!(cpus(), Some(6));
+            drop(other);
+            assert_eq!(cpus(), Some(12));
+            drop(slot);
+            assert_eq!(cpus(), None);
+        });
+    }
+
+    #[test]
+    fn slot_runner_exports_the_current_share() {
+        use dx_process::Runner as _;
+        alone("slot_runner_exports_the_current_share", || {
+            let scratch = dx_test_scratch::scratch("dx-slots-live-env-");
+            let dir = scratch.path().join("slots");
+            let gate = Gate::new(dir.clone(), 2, "me".to_owned(), false).sharing(12, 12 << 30, 0);
+            let (slot, _, _) = take_gate(&gate);
+            let inner = EnvRecorder::default();
+            let held = slot.runner(&inner);
+            held.run(&["bazel".to_owned()], scratch.path(), &[])
+                .expect("run");
+            let other = try_take(&dir, 2, "other").expect("try").expect("other");
+            held.run(&["bazel".to_owned()], scratch.path(), &[])
+                .expect("run");
+            drop(other);
+            let shares: Vec<String> = inner
+                .seen
+                .borrow()
+                .iter()
+                .flat_map(|(_, env)| env.iter())
+                .filter(|(name, _)| name == SHARE_ENV_VAR)
+                .map(|(_, value)| value.clone())
+                .collect();
+            assert_eq!(shares, vec!["cpu=12,memory=12288", "cpu=6,memory=6144"]);
+        });
     }
 
     #[test]
@@ -2447,6 +2452,26 @@ mod tests {
     }
 
     #[test]
+    fn rules_dx_reserve_is_zero_when_tag_filters_exclude_nested_bazel() {
+        for (filters, reserved) in [
+            ("-resources:nested_bazel:1,-exclusive", false),
+            ("-resources:nested_bazel", false),
+            ("-exclusive", true),
+            ("smoke", false),
+            ("smoke,resources:nested_bazel:1", true),
+        ] {
+            let scratch = rules_dx_layout("dx-slots-tag-filters-");
+            std::fs::write(
+                scratch.path().join(".bazelrc"),
+                format!("test --test_tag_filters={filters}\n"),
+            )
+            .expect("rc");
+            let want = if reserved { 3 * (2 << 30) } else { 0 };
+            assert_eq!(nested_reserve(scratch.path(), &|_| None), want, "{filters}");
+        }
+    }
+
+    #[test]
     fn rules_dx_reserve_follows_the_nested_slot_env() {
         let scratch = rules_dx_layout("dx-slots-rules-dx-env-");
         let with = |value: &'static str| {
@@ -2455,6 +2480,35 @@ mod tests {
         assert_eq!(nested_reserve(scratch.path(), &with("5")), 10 << 30);
         for fallback in ["0", "x", ""] {
             assert_eq!(nested_reserve(scratch.path(), &with(fallback)), 6 << 30);
+        }
+    }
+
+    #[test]
+    fn auto_gate_reserve_is_the_shared_reserve_range() {
+        for gib in [4_u64, 8, 12, 16, 24, 64] {
+            let memory = gib << 30;
+            let reserved = u64::from(DEFAULT_NESTED_BAZEL_SLOTS as u16) * BYTES_PER_NESTED_BAZEL;
+            let size = sizing(BuildSlots::Auto, memory, reserved).expect("sizing");
+            let range = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
+            assert_eq!(size.count..size.pool, range, "{gib} GiB");
+        }
+    }
+
+    #[test]
+    fn a_consumer_gate_leaves_the_held_reserve_alone() {
+        let scratch = dx_test_scratch::scratch("dx-slots-reserve-held-");
+        let dir = scratch.path().join("dx").join("slots");
+        let memory = 16_u64 << 30;
+        let reserve = dx_process::slot_pool::reserve_range(memory, DEFAULT_NESTED_BAZEL_SLOTS);
+        let held = dx_process::slot_pool::hold_reserve(&dir, reserve.clone());
+        assert!(held.busy.is_empty());
+        let count = reserve.start;
+        let slots: Vec<Slot> = (0..count)
+            .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("slot"))
+            .collect();
+        assert!(slots.iter().all(|slot| slot.index < count));
+        for index in reserve {
+            assert!(!free(&dir, index), "reserve index {index} is held");
         }
     }
 
@@ -2585,6 +2639,24 @@ mod tests {
         fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
             Some(9)
         }
+
+        fn pinned_tool(&self, _var: &str) -> dx_process::PinnedVar {
+            dx_process::PinnedVar::NotAbsolute
+        }
+    }
+
+    #[test]
+    fn slot_runner_forwards_the_pinned_tool_state() {
+        use dx_process::Runner as _;
+        let scratch = dx_test_scratch::scratch("dx-slots-pinned-");
+        let dir = scratch.path().join("slots");
+        let slot = try_take(&dir, 1, "pinned").expect("try").expect("free");
+        let inner = EnvRecorder::default();
+        let held = slot.runner(&inner);
+        assert_eq!(
+            held.pinned_tool("DX_X_BIN"),
+            dx_process::PinnedVar::NotAbsolute
+        );
     }
 
     #[test]
@@ -2644,7 +2716,6 @@ mod tests {
             Command::Security,
             Command::License,
             Command::Docs,
-            Command::ListTests,
         ] {
             assert!(needs_slot(command));
         }
@@ -2665,10 +2736,16 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-slots-share-env-");
         let dir = scratch.path().join("slots");
         let mut slot = try_take(&dir, 1, "env").expect("try").expect("free");
-        slot.share = Some(dx_process::LocalShare {
-            cpus: 7,
-            memory_mb: 777,
-        });
+        slot.sizing = Some(Arc::new(ShareSizing {
+            dir: dir.clone(),
+            indices: vec![0],
+            own: 0,
+            resources: Resources {
+                cpus: 7,
+                memory: 777 << 20,
+                reserved: 0,
+            },
+        }));
         let inner = EnvRecorder::default();
         let held = slot.runner(&inner);
         held.run(&["bazel".to_owned()], scratch.path(), &[])
@@ -2702,7 +2779,13 @@ mod tests {
         let slot = with_gate(Some(gate), || {
             take(Command::Run, &mut Vec::new(), &mut Vec::new())
         });
-        assert!(matches!(slot, Ok(Some(Slot { share: Some(_), .. }))));
+        assert!(matches!(
+            slot,
+            Ok(Some(Slot {
+                sizing: Some(_),
+                ..
+            }))
+        ));
         assert!(scratch
             .path()
             .join("dx")
@@ -2905,6 +2988,30 @@ mod tests {
             assert!(phase.slot().is_none());
             assert!(slot_settles_free(&dir, 1));
         });
+    }
+
+    #[test]
+    fn share_report_counts_held_slots_read_only() {
+        let scratch = dx_test_scratch::scratch("dx-slots-report-");
+        let cache = scratch.path().display().to_string();
+        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
+        let dir = slots_dir(&get).expect("dir");
+        std::fs::create_dir_all(&dir).expect("dir");
+        let report = |get: &dyn Fn(&str) -> Option<String>| {
+            share_report(
+                scratch.path(),
+                get,
+                BuildSlots::Count(2.try_into().expect("two")),
+            )
+        };
+        let idle = report(&get).expect("report");
+        assert_eq!((idle.held, idle.count), (0, 2));
+        let _held = try_take(&dir, 2, "me").expect("try").expect("slot");
+        std::fs::write(holder_path(&dir, 0), "me").expect("holder");
+        let busy = report(&get).expect("report");
+        assert_eq!(busy.held, 1);
+        assert!(busy.next.cpus <= idle.next.cpus);
+        assert!(!slot_path(&dir, 1).exists(), "the probe creates no slot");
     }
 
     #[test]
@@ -3744,47 +3851,6 @@ mod tests {
     }
 
     #[test]
-    fn list_tests_waits_for_a_slot() {
-        let command = Command::ListTests;
-        let scratch = dx_test_scratch::scratch("dx-slots-list-tests-");
-        let cache = scratch.path().to_string_lossy().into_owned();
-        let dir = scratch.path().join("dx").join("slots");
-        let count = slot_count(available_memory().expect("memory"), 0);
-        let held: Vec<Slot> = (0..count)
-            .map(|index| acquire(&dir, count, &format!("tree-{index}"), &mut |_| {}).expect("fill"))
-            .collect();
-        let get = move |name: &str| (name == "XDG_CACHE_HOME").then(|| cache.clone());
-        let (mut err, rx) = Announce::new();
-        let releaser = std::thread::spawn(move || released_after_wait(&rx, held));
-        let mut events = Vec::new();
-        let slot = hold(
-            command,
-            Path::new("/ws"),
-            &get,
-            &mut err,
-            false,
-            &mut events,
-        );
-        assert!(
-            releaser.join().expect("join"),
-            "waiter never announced a wait"
-        );
-        assert!(matches!(slot, Ok(Some(_))), "{}", command.name());
-        let text = err.text();
-        assert!(text.contains(&wait_message(&busy(count))), "{text}");
-        let nested = |name: &str| (name == SLOT_ENV_VAR).then(|| "1".to_owned());
-        let slot = hold(
-            command,
-            Path::new("/ws"),
-            &nested,
-            &mut Vec::new(),
-            false,
-            &mut Vec::new(),
-        );
-        assert!(matches!(slot, Ok(None)));
-    }
-
-    #[test]
     fn update_holds_no_process_slot() {
         let scratch = dx_test_scratch::scratch("dx-slots-update-");
         let cache = scratch.path().to_string_lossy().into_owned();
@@ -4066,16 +4132,22 @@ mod tests {
             ),
             server(2, "/ws", "/c/_bazel_u", &base),
         ];
-        let pid = |options: &[&str]| {
-            let options: Vec<String> = options.iter().map(|o| (*o).to_owned()).collect();
-            own_server(&servers, Path::new("/ws"), &options, &roots).map(|found| found.pid)
+        let pid = |root: Option<&str>, base: Option<&str>| {
+            own_server(
+                &servers,
+                Path::new("/ws"),
+                root.map(Path::new),
+                base.map(Path::new),
+                &roots,
+            )
+            .map(|found| found.pid)
         };
-        assert_eq!(pid(&[]), Some(2));
-        assert_eq!(pid(&[&format!("--output_base={base}")]), Some(2));
-        assert_eq!(pid(&["--output_base=/elsewhere"]), None);
-        assert_eq!(pid(&["--output_user_root=/elsewhere"]), None);
+        assert_eq!(pid(None, None), Some(2));
+        assert_eq!(pid(None, Some(&base)), Some(2));
+        assert_eq!(pid(None, Some("/elsewhere")), None);
+        assert_eq!(pid(Some("/elsewhere"), None), None);
         assert_eq!(
-            own_server(&servers, Path::new("/nope"), &[], &roots).map(|found| found.pid),
+            own_server(&servers, Path::new("/nope"), None, None, &roots).map(|found| found.pid),
             None
         );
     }
@@ -4084,14 +4156,15 @@ mod tests {
     fn own_server_skips_servers_a_plain_call_would_not_reach() {
         let roots = vec![PathBuf::from("/c/_bazel_u")];
         let custom = vec![server(3, "/ws", "/c/_bazel_u", "/c/_bazel_u/custom")];
-        assert!(own_server(&custom, Path::new("/ws"), &[], &roots).is_none());
+        assert!(own_server(&custom, Path::new("/ws"), None, None, &roots).is_none());
         let other_root = vec![server(4, "/ws", "/r", &format!("/r/{BASE}"))];
-        assert!(own_server(&other_root, Path::new("/ws"), &[], &roots).is_none());
+        assert!(own_server(&other_root, Path::new("/ws"), None, None, &roots).is_none());
         assert_eq!(
             own_server(
                 &other_root,
                 Path::new("/ws"),
-                &["--output_user_root=/r".to_owned()],
+                Some(Path::new("/r")),
+                None,
                 &roots
             )
             .map(|found| found.pid),
@@ -4106,7 +4179,41 @@ mod tests {
                 "/c/_bazel_u/fedcba9876543210fedcba9876543210",
             ),
         ];
-        assert!(own_server(&two, Path::new("/ws"), &[], &roots).is_none());
+        assert!(own_server(&two, Path::new("/ws"), None, None, &roots).is_none());
+    }
+
+    #[test]
+    fn own_server_follows_an_rc_root_and_base() {
+        let roots = vec![PathBuf::from("/c/_bazel_u")];
+        let servers = vec![server(7, "/ws", "/r", "/r/custom")];
+        let pid = |root: Option<&str>, base: Option<&str>| {
+            own_server(
+                &servers,
+                Path::new("/ws"),
+                root.map(Path::new),
+                base.map(Path::new),
+                &roots,
+            )
+            .map(|found| found.pid)
+        };
+        assert_eq!(pid(Some("/r"), Some("/r/custom")), Some(7));
+        assert_eq!(pid(None, Some("/r/custom")), None);
+        assert_eq!(pid(Some("/r"), None), None);
+    }
+
+    #[test]
+    fn reap_roots_add_the_rc_root_to_the_defaults() {
+        let defaults = vec![PathBuf::from("/c/_bazel_u")];
+        let none = dx_process::rc::StartupPaths::default();
+        assert_eq!(reap_roots(&defaults, &none), defaults);
+        let paths = dx_process::rc::StartupPaths {
+            output_user_root: Some(PathBuf::from("/r")),
+            output_base: None,
+        };
+        assert_eq!(
+            reap_roots(&defaults, &paths),
+            vec![PathBuf::from("/c/_bazel_u"), PathBuf::from("/r")]
+        );
     }
 
     #[derive(Default)]
@@ -4252,12 +4359,34 @@ mod tests {
         assert_eq!(idle_log.borrow().stopped, 0);
     }
 
+    #[test]
+    fn ping_argv_carries_startup_options_before_the_info_verb() {
+        let warmth = Warmth {
+            workspace: PathBuf::from("/ws"),
+            startup_options: vec!["--output_base=/ob".to_owned()],
+            output_user_root: None,
+            output_base: None,
+            default_roots: Vec::new(),
+        };
+        let argv = warmth.ping_argv();
+        let base = argv.iter().position(|arg| arg == "--output_base=/ob");
+        let info = argv.iter().position(|arg| arg == "info");
+        assert!(base.is_some() && base < info, "{argv:?}");
+        assert_eq!(
+            argv[argv.len() - 3..],
+            ["--noblock_for_lock", "info", "server_pid"]
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn a_real_ping_child_is_reaped_on_stop() {
         let warmth = Warmth {
             workspace: std::env::temp_dir(),
             startup_options: Vec::new(),
+            output_user_root: None,
+            output_base: None,
+            default_roots: Vec::new(),
         };
         let mut child = Process::new("sleep")
             .arg("30")

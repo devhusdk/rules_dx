@@ -75,6 +75,23 @@ rust_test(
 
 # keep
 rust_test(
+    name = "macos_app_script_test",
+    size = "small",
+    srcs = ["macos_app_script_test.rs"],
+    data = [
+        "//apple/macos:app_check.sh",
+        "//apple/macos:run_app.sh",
+    ],
+    env = {
+        "DX_MACOS_APP_CHECK": "$(rootpath //apple/macos:app_check.sh)",
+        "DX_MACOS_RUN_APP": "$(rootpath //apple/macos:run_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
     name = "linux_consumer_test",
     size = "large",
     srcs = [
@@ -141,8 +158,38 @@ rust_test(
         "consumer.rs",
         "macos.rs",
         "macos_app_consumer_test.rs",
+        "signing.rs",
     ],
     crate_root = "macos_app_consumer_test.rs",
+    data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+rust_test(
+    name = "macos_swift_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_swift_consumer_test.rs",
+        "signing.rs",
+    ],
+    crate_root = "macos_swift_consumer_test.rs",
     data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
     env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = [
@@ -197,6 +244,34 @@ rust_test(
 
 # keep
 rust_test(
+    name = "macos_bundle_consumer_test",
+    size = "large",
+    srcs = [
+        "consumer.rs",
+        "macos.rs",
+        "macos_bundle_consumer_test.rs",
+    ],
+    crate_root = "macos_bundle_consumer_test.rs",
+    data = ["//apple:module_srcs"] + NESTED_BAZEL_DATA,
+    env = {"RUST_TEST_THREADS": "1"} | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the Apple toolchain archives.
+    tags = NESTED_BAZEL_NETWORK_TAGS + ["manual"],
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep
+rust_test(
     name = "macos_shared_rust_consumer_test",
     size = "large",
     srcs = [
@@ -231,6 +306,7 @@ rustfmt_test(
     targets = [
         ":device_script_test",
         ":linux_consumer_test",
+        ":macos_app_script_test",
         ":probe_script_test",
         ":signing_script_test",
         ":simulator_script_test",
@@ -243,6 +319,7 @@ rust_clippy_test(
     targets = [
         ":device_script_test",
         ":linux_consumer_test",
+        ":macos_app_script_test",
         ":probe_script_test",
         ":signing_script_test",
         ":simulator_script_test",
@@ -254,9 +331,11 @@ rustfmt_test(
     name = "macos_consumer_fmt_test",
     targets = [
         ":macos_app_consumer_test",
+        ":macos_bundle_consumer_test",
         ":macos_consumer_test",
         ":macos_framework_consumer_test",
         ":macos_shared_rust_consumer_test",
+        ":macos_swift_consumer_test",
     ],
 )
 
@@ -264,9 +343,11 @@ rust_clippy_test(
     name = "macos_consumer_clippy_test",
     targets = [
         ":macos_app_consumer_test",
+        ":macos_bundle_consumer_test",
         ":macos_consumer_test",
         ":macos_framework_consumer_test",
         ":macos_shared_rust_consumer_test",
+        ":macos_swift_consumer_test",
     ],
 )
 

@@ -1,16 +1,16 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
-load("@rules_dx//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+load("@rules_dx//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 exports_files([
     "Cargo.toml",
     "src/lib.rs",
     "src/lib_tests.rs",
     "src/main.rs",
-])
+], visibility = VIS_TOOLS)
 
 rust_library(
     name = "dx_site_build",
@@ -22,7 +22,7 @@ rust_library(
     crate_name = "dx_site_build",
     crate_root = "src/lib.rs",
     edition = "2021",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [],
 )
 

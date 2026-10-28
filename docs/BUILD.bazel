@@ -7,6 +7,14 @@ filegroup(
     srcs = glob(["cli/commands/*.md"]),
 )
 
+filegroup(
+    name = "first_build_data",
+    srcs = [
+        "first-build.json",
+        "first-build.md",
+    ],
+)
+
 real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
@@ -30,6 +38,7 @@ real_source_target(
         "AGENTS.md",
         "README.md",
         "adopting-existing-bazel.md",
+        "first-build.md",
         "cli/commands/README.md",
         "cli/commands/audit-update.md",
         "cli/commands/build-test-coverage.md",
@@ -40,17 +49,18 @@ real_source_target(
         "cli/commands/generate.md",
         "cli/commands/explain.md",
         "cli/commands/init.md",
+        "cli/commands/install.md",
         "cli/commands/migrate.md",
         "cli/commands/new-upgrade.md",
         "cli/commands/offline-bundle.md",
         "cli/commands/quality.md",
         "cli/commands/scope-defaults.md",
         "cli/commands/status-version.md",
-        "cli/commands/list-tests.md",
         "cli/commands/watch.md",
         "cli/commands/worktree.md",
         "github-ci.md",
         "support-matrix.md",
+        "module-families.md",
     ],
     tags = ["corpus"],
 )

@@ -36,10 +36,7 @@ java_test(
     srcs = ["CliTest.java"],
     aspect_hints = ["//quality:corpus_checkstyle_config"],
     test_class = "cli.CliTest",
-    deps = [
-        ":cli",
-        "@maven//:junit_junit",
-    ],
+    deps = [":cli"],
 )
 
 # keep

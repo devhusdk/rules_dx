@@ -569,7 +569,10 @@ fn unchanged_terminal_reuses_initial_diagnostics() {
     let result = synthetic::run_pipeline("//quality:test", "lint", &stages, &files).unwrap();
     assert_eq!(result.convergence, Convergence::Stable as i32);
     assert_eq!(result.completed_rounds, 1);
-    assert_eq!(result.initial_diagnostics, result.terminal_diagnostics);
+    let mut initial = result.initial_diagnostics.clone();
+    assert_eq!(initial[0].unfixable_reason, "no_change");
+    initial[0].unfixable_reason.clear();
+    assert_eq!(initial, result.terminal_diagnostics);
     assert_eq!(result.initial_diagnostics.len(), 1);
     assert!(result.replacements.is_empty());
     assert!(encode_validated(&result).is_ok());

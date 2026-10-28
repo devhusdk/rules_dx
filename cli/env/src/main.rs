@@ -117,12 +117,10 @@ fn run() -> i32 {
         }) => (workspace, staged_bin, metadata, lock_timeout),
         Err(message) => return usage_error(&message),
     };
+    let cwd = dx_process::current_directory().unwrap_or_else(|_| PathBuf::from("."));
     let start = match workspace {
-        Some(dir) => PathBuf::from(dir),
-        None => {
-            let cwd = dx_process::current_directory().unwrap_or_else(|_| PathBuf::from("."));
-            dx_process::workspace_start(&cwd)
-        }
+        Some(dir) => dx_process::resolve_override_display(Path::new(&dir), &cwd),
+        None => dx_process::workspace_start(&cwd),
     };
     let (staged_bin, metadata) = match (staged_bin, metadata) {
         (Some(bin), Some(meta)) => (PathBuf::from(bin), PathBuf::from(meta)),

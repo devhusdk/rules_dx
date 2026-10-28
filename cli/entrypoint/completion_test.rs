@@ -35,6 +35,8 @@ fn the_shell_callback_queries_the_flag_workspace_with_ordered_startup_tokens() {
         lines,
         vec![
             "ROOT/consumer ws \u{fc}",
+            "--nohome_rc",
+            "--nosystem_rc",
             "--noblock_for_lock",
             "--output_base=ROOT/base \u{fc}",
             "--output_user_root=ROOT/user root",

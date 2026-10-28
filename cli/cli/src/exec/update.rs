@@ -328,6 +328,9 @@ fn run_backends(
                 dx_update::backend::BackendPlan::Run { argv, env } => {
                     dx_update::backend::CheckPlan::Run { argv, env }
                 }
+                dx_update::backend::BackendPlan::Staged(run) => {
+                    dx_update::backend::CheckPlan::Staged(run)
+                }
                 dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
             }),
             RunMode::Check => dx_update::backend::check(
@@ -353,6 +356,16 @@ fn run_backends(
                 );
             }
             Ok(dx_update::backend::CheckPlan::Unavailable) => {
+                record_named(
+                    &mut attempted,
+                    &mut details,
+                    name,
+                    dx_update::outcome::SetStatus::Unsupported,
+                    unavailable_message(name),
+                );
+            }
+            // Builtin sets never plan a staged run; only configured nuget sets do.
+            Ok(dx_update::backend::CheckPlan::Staged(_)) => {
                 record_named(
                     &mut attempted,
                     &mut details,
@@ -778,6 +791,16 @@ fn success_line(set: dx_update::sets::SetId, request: &dx_update::selector::SetR
 mod update_check;
 #[path = "update_consumer.rs"]
 mod update_consumer;
+
+/// The pinned uv and interpreter a configured uv set refreshes with.
+pub(super) fn configured_uv_closure(
+    runner: &dyn dx_process::Runner,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &std::path::Path,
+    invocation: &Invocation,
+) -> dx_update::backend::UvClosure {
+    update_consumer::uv_closure(runner, query_runner, workspace, invocation)
+}
 #[cfg(test)]
 #[path = "update_live.rs"]
 mod update_live;

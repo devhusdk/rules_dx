@@ -8,6 +8,7 @@ LAYOUT = struct(
         "wayland": [
             "plugins/platforms/libqwayland.so",
             "plugins/wayland-decoration-client/libbradient.so",
+            "plugins/wayland-graphics-integration-client/libqt-plugin-wayland-egl.so",
             "plugins/wayland-shell-integration/libxdg-shell.so",
         ],
         "xcb": [

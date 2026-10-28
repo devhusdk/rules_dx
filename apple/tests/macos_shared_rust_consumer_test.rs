@@ -20,6 +20,7 @@ rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
     extra_target_triples = [
+        "aarch64-apple-darwin",
         "aarch64-apple-ios",
         "aarch64-apple-ios-sim",
     ],
@@ -49,6 +50,7 @@ const FRAMEWORK_ID: &str = "com.example.pockettasks";
 
 const POCKET_BUILD: &str = r#"load("@dx//apple/ios:app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_framework")
 load("@dx//apple/ios:simulator.bzl", "apple_simulator_boot", "apple_simulator_launch")
+load("@dx//apple/macos:app.bzl", "apple_macos_app")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_static_library")
 
@@ -76,6 +78,11 @@ objc_library(
         "PocketAppDelegate.h",
         "pocket_api.h",
     ],
+)
+
+objc_library(
+    name = "pocket_c_headers",
+    hdrs = ["pocket_api.h"],
 )
 
 apple_ios_app(
@@ -126,6 +133,22 @@ apple_ios_framework(
     ],
     version = "3.1",
     xcode_version = "XCODE",
+)
+
+apple_macos_app(
+    name = "pocket_mac_app",
+    srcs = ["mac_main.m"],
+    arch = "arm64",
+    bundle_id = "com.example.pocketmac",
+    deployment = "14.0",
+    library = ":pocket_rust",
+    resources = [
+        "board.txt",
+        "notes.txt",
+    ],
+    version = "3.1",
+    xcode_version = "XCODE",
+    deps = [":pocket_c_headers"],
 )
 
 apple_simulator_boot(
@@ -245,6 +268,8 @@ pub extern "C" fn pocket_build() -> *mut c_char {
         "iphonesimulator"
     } else if cfg!(target_os = "ios") {
         "iphoneos"
+    } else if cfg!(target_os = "macos") {
+        "macos"
     } else {
         "other"
     };
@@ -440,6 +465,49 @@ static NSString *Take(char *value) {
 }
 
 @end
+"#;
+
+const MAC_MAIN_M: &str = r#"#import <Foundation/Foundation.h>
+
+#import "pocket/pocket_api.h"
+
+static NSString *Take(char *value) {
+  if (value == NULL) {
+    return nil;
+  }
+  NSString *text = [NSString stringWithUTF8String:value];
+  pocket_free(value);
+  return text;
+}
+
+static NSString *Resource(NSString *name) {
+  NSString *path = [[NSBundle mainBundle] pathForResource:name ofType:@"txt"];
+  return path == nil ? nil : [NSString stringWithContentsOfFile:path
+                                                       encoding:NSUTF8StringEncoding
+                                                          error:NULL];
+}
+
+int main(int argc, char *argv[]) {
+  @autoreleasepool {
+    NSString *board = Resource(@"board");
+    int32_t loaded = board == nil ? -2 : pocket_load(board.UTF8String);
+    NSData *notes = [NSData dataWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"notes"
+                                                                                   ofType:@"txt"]];
+    NSArray<NSString *> *replies = @[
+      Take(pocket_apply("add Ship the simulator build")),
+      Take(pocket_apply("done 1")),
+      Take(pocket_apply("done 9")),
+    ];
+    NSString *report = notes == nil ? @"missing notes.txt"
+                                    : Take(pocket_asset("notes.txt", notes.bytes, notes.length));
+    NSString *state = [NSString stringWithFormat:@"%@\nloaded=%d\nreplies=%@\nsummary=%@\n%@\n",
+                                                 Take(pocket_build()), loaded,
+                                                 [replies componentsJoinedByString:@";"],
+                                                 Take(pocket_summary()), report];
+    fputs(state.UTF8String, stdout);
+    return loaded == 2 ? 0 : 1;
+  }
+}
 "#;
 
 const MAIN_M: &str = r#"#import <UIKit/UIKit.h>
@@ -820,6 +888,7 @@ fn pocket(xcode: &str, runtime: &str, simulator: &str) -> Case {
     write(&root.join("pocket/PocketAppDelegate.h"), DELEGATE_H);
     write(&root.join("pocket/PocketAppDelegate.m"), DELEGATE_M);
     write(&root.join("pocket/main.m"), MAIN_M);
+    write(&root.join("pocket/mac_main.m"), MAC_MAIN_M);
     write(&root.join("pocket/PocketAppTests.m"), TESTS_M);
     write(&root.join("pocket/board.txt"), BOARD);
     write(&root.join("pocket/notes.txt"), NOTES);
@@ -961,6 +1030,72 @@ fn the_shared_core_runs_as_a_relocated_native_macos_release_cli() {
                 .map(|command| format!("command={command}"))
                 .collect::<Vec<_>>()
                 .join("\n"),
+            NATIVE_STATE.trim_end().replace('\n', ";")
+        ),
+    );
+}
+
+#[test]
+fn the_shared_core_runs_in_a_relocated_release_macos_app() {
+    let xcode = installed_xcode();
+    let sdk_version = tool("xcrun", &["--sdk", "iphonesimulator", "--show-sdk-version"]);
+    let runtime = runtime_for(&sdk_version);
+    let root = pocket(&xcode, &runtime, "unused");
+
+    passes(&bazel(
+        &root,
+        "build",
+        &["//pocket:pocket_mac_app"],
+        &["--config=release", "--macos_cpus=arm64"],
+    ));
+    let relocated =
+        mkscratch("apple-shared-rust-macos-app").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let zipped = relocated.join("pocket_mac_app.zip");
+    std::fs::copy(root.join("bazel-bin/pocket/pocket_mac_app.zip"), &zipped)
+        .unwrap_or_else(|error| panic!("copy zip: {error}"));
+    tool(
+        "ditto",
+        &[
+            "-x",
+            "-k",
+            &zipped.to_string_lossy(),
+            &relocated.to_string_lossy(),
+        ],
+    );
+    let app = relocated.join("pocket_mac_app.app");
+    let info = app.join("Contents/Info.plist");
+    assert_eq!(plist(&info, "CFBundleIdentifier"), "com.example.pocketmac");
+    assert_eq!(plist(&info, "CFBundleShortVersionString"), "3.1");
+    assert_eq!(plist(&info, "LSMinimumSystemVersion"), "14.0");
+    assert_eq!(read(&app.join("Contents/Resources/board.txt")), BOARD);
+    assert_eq!(read(&app.join("Contents/Resources/notes.txt")), NOTES);
+    let binary = app.join("Contents/MacOS/pocket_mac_app");
+    assert_eq!(
+        tool("xcrun", &["lipo", "-archs", &binary.to_string_lossy()]),
+        "arm64"
+    );
+    keep("pocket_mac_app.otool.txt", &{
+        let path = binary.to_string_lossy().into_owned();
+        let loads = tool("xcrun", &["otool", "-l", &path]);
+        assert_eq!(field(&loads, "platform"), ["1"], "{loads}");
+        loads
+    });
+
+    let ran = run(&binary, &[], &[]).unwrap_or_else(|error| panic!("pocket_mac_app: {error}"));
+    keep(
+        "pocket-mac-app-run.txt",
+        &format!("exit={:?}\n{}", ran.status.code(), ran.combined()),
+    );
+    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
+    assert_eq!(ran.stdout, NATIVE_STATE);
+
+    let rustc = rustc_identity(&root);
+    assert!(rustc.starts_with(RUSTC), "{rustc}");
+    keep(
+        "pocket-mac-app-evidence.txt",
+        &format!(
+            "{}rustc={rustc}\nbuild=bazel build --config=release --macos_cpus=arm64 //pocket:pocket_mac_app\nslice=macos/arm64 platform=1 minos=14.0 profile=release executed=relocated-app-executable\nstate={}\n",
+            executor(&xcode),
             NATIVE_STATE.trim_end().replace('\n', ";")
         ),
     );

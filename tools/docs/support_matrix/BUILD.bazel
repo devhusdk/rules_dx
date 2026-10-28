@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":facts.bzl", "support_matrix_facts")
 load(":facts_tests.bzl", "support_matrix_facts_tests")
 load(":languages.bzl", "support_matrix_inputs")
@@ -8,7 +9,7 @@ load(":languages.bzl", "support_matrix_inputs")
 # gazelle:resolve rust serde_json @crates//:serde_json
 # gazelle:resolve rust yaml_serde @crates//:yaml_serde
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 support_matrix_facts(name = "facts")
 

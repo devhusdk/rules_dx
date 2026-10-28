@@ -66,6 +66,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "raw",
                 "executable": "buildifier-windows-amd64.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "buildifier-windows-arm64.exe",
+                "url": "https://github.com/bazel-contrib/buildtools/releases/download/v8.5.1/buildifier-windows-arm64.exe",
+                "kind": "raw",
+                "executable": "buildifier-windows-arm64.exe",
+            },
         },
     },
     "biome": {
@@ -114,6 +122,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "raw",
                 "executable": "biome-win32-x64.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "biome-win32-arm64.exe",
+                "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-win32-arm64.exe",
+                "kind": "raw",
+                "executable": "biome-win32-arm64.exe",
+            },
         },
     },
     "taplo": {
@@ -155,6 +171,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "taplo-windows-x86_64.zip",
                 "url": "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-x86_64.zip",
+                "kind": "zip",
+                "executable": "taplo.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "taplo-windows-aarch64.zip",
+                "url": "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-aarch64.zip",
                 "kind": "zip",
                 "executable": "taplo.exe",
             },
@@ -206,6 +230,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "vale.exe",
                 "checksums_url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_checksums.txt",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "vale_3.20.0_Windows_arm64.zip",
+                "url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_Windows_arm64.zip",
+                "kind": "zip",
+                "executable": "vale.exe",
+                "checksums_url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_checksums.txt",
+            },
         },
     },
     "ruff": {
@@ -253,6 +286,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "zip",
                 "executable": "ruff.exe",
                 "checksums_url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-x86_64-pc-windows-msvc.zip.sha256",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "ruff-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "ruff.exe",
+                "checksums_url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-aarch64-pc-windows-msvc.zip.sha256",
             },
         },
     },
@@ -306,6 +348,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "uv.exe",
                 "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip.sha256",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "uv-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "uv.exe",
+                "checksums_url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-pc-windows-msvc.zip.sha256",
+            },
         },
     },
     "gitleaks": {
@@ -350,6 +401,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "gitleaks_8.30.1_windows_x64.zip",
                 "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip",
+                "kind": "zip",
+                "executable": "gitleaks.exe",
+                "checksums_url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "gitleaks_8.30.1_windows_arm64.zip",
+                "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_arm64.zip",
                 "kind": "zip",
                 "executable": "gitleaks.exe",
                 "checksums_url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt",
@@ -402,6 +462,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "actionlint.exe",
                 "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "actionlint_1.7.12_windows_arm64.zip",
+                "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_arm64.zip",
+                "kind": "zip",
+                "executable": "actionlint.exe",
+                "checksums_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+            },
         },
     },
     "shellcheck": {
@@ -445,6 +514,111 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip",
                 "kind": "zip",
                 "executable": "shellcheck.exe",
+            },
+        },
+    },
+    "checkmake": {
+        "upstream_version": "0.3.2",
+        "release_page": "https://github.com/checkmake/checkmake/releases/tag/v0.3.2",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/checkmake/checkmake/blob/v0.3.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "checkmake-v0.3.2.linux.amd64",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.linux.amd64",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.linux.amd64",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "checkmake-v0.3.2.linux.arm64",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.linux.arm64",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.linux.arm64",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "checkmake-v0.3.2.darwin.arm64",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.darwin.arm64",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.darwin.arm64",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "checkmake-v0.3.2.windows.amd64.exe",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.amd64.exe",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.windows.amd64.exe",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "checkmake-v0.3.2.windows.arm64.exe",
+                "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.arm64.exe",
+                "kind": "raw",
+                "executable": "checkmake-v0.3.2.windows.arm64.exe",
+                "checksums_url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checksums.txt",
+            },
+        },
+    },
+    "tflint": {
+        "upstream_version": "0.65.0",
+        "release_page": "https://github.com/terraform-linters/tflint/releases/tag/v0.65.0",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/terraform-linters/tflint/blob/v0.65.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "tflint_linux_amd64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_amd64.zip",
+                "kind": "zip",
+                "executable": "tflint",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "tflint_linux_arm64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_arm64.zip",
+                "kind": "zip",
+                "executable": "tflint",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "tflint_darwin_arm64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_darwin_arm64.zip",
+                "kind": "zip",
+                "executable": "tflint",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "tflint_windows_amd64.zip",
+                "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "tflint.exe",
+                "checksums_url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/checksums.txt",
             },
         },
     },
@@ -496,6 +670,120 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "helm": {
+        "upstream_version": "4.3.1",
+        "release_page": "https://github.com/helm/helm/releases/tag/v4.3.1",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/helm/helm/blob/v4.3.1/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "helm-v4.3.1-linux-amd64.tar.gz",
+                "url": "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "linux-amd64/helm",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz.sha256sum",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "helm-v4.3.1-linux-arm64.tar.gz",
+                "url": "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "linux-arm64/helm",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz.sha256sum",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "helm-v4.3.1-darwin-arm64.tar.gz",
+                "url": "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "darwin-arm64/helm",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz.sha256sum",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "helm-v4.3.1-windows-amd64.zip",
+                "url": "https://get.helm.sh/helm-v4.3.1-windows-amd64.zip",
+                "kind": "zip",
+                "executable": "windows-amd64/helm.exe",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-windows-amd64.zip.sha256sum",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "helm-v4.3.1-windows-arm64.zip",
+                "url": "https://get.helm.sh/helm-v4.3.1-windows-arm64.zip",
+                "kind": "zip",
+                "executable": "windows-arm64/helm.exe",
+                "checksums_url": "https://get.helm.sh/helm-v4.3.1-windows-arm64.zip.sha256sum",
+            },
+        },
+    },
+    "kubeconform": {
+        "upstream_version": "0.8.0",
+        "release_page": "https://github.com/yannh/kubeconform/releases/tag/v0.8.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/yannh/kubeconform/blob/v0.8.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "kubeconform-linux-amd64.tar.gz",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "kubeconform",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "kubeconform-linux-arm64.tar.gz",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "kubeconform",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "kubeconform-darwin-arm64.tar.gz",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "kubeconform",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "kubeconform-windows-amd64.zip",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-amd64.zip",
+                "kind": "zip",
+                "executable": "kubeconform.exe",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "kubeconform-windows-arm64.zip",
+                "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-arm64.zip",
+                "kind": "zip",
+                "executable": "kubeconform.exe",
+                "checksums_url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS",
+            },
+        },
+    },
     "ty": {
         "upstream_version": "0.0.80",
         "release_page": "https://github.com/astral-sh/ty/releases/tag/0.0.80",
@@ -538,6 +826,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "ty-x86_64-pc-windows-msvc.zip",
                 "url": "https://github.com/astral-sh/ty/releases/download/0.0.80/ty-x86_64-pc-windows-msvc.zip",
+                "kind": "zip",
+                "executable": "ty.exe",
+                "checksums_url": "https://github.com/astral-sh/ty/releases/download/0.0.80/sha256.sum",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "ty-aarch64-pc-windows-msvc.zip",
+                "url": "https://github.com/astral-sh/ty/releases/download/0.0.80/ty-aarch64-pc-windows-msvc.zip",
                 "kind": "zip",
                 "executable": "ty.exe",
                 "checksums_url": "https://github.com/astral-sh/ty/releases/download/0.0.80/sha256.sum",
@@ -588,6 +885,102 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "typstyle": {
+        "upstream_version": "0.15.2",
+        "release_page": "https://github.com/typstyle-rs/typstyle/releases/tag/v0.15.2",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/typstyle-rs/typstyle/blob/v0.15.2/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "typstyle-x86_64-unknown-linux-gnu",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-unknown-linux-gnu",
+                "kind": "raw",
+                "executable": "typstyle-x86_64-unknown-linux-gnu",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "typstyle-aarch64-unknown-linux-gnu",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-unknown-linux-gnu",
+                "kind": "raw",
+                "executable": "typstyle-aarch64-unknown-linux-gnu",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "typstyle-aarch64-apple-darwin",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-apple-darwin",
+                "kind": "raw",
+                "executable": "typstyle-aarch64-apple-darwin",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "typstyle-x86_64-pc-windows-msvc.exe",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-pc-windows-msvc.exe",
+                "kind": "raw",
+                "executable": "typstyle-x86_64-pc-windows-msvc.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "typstyle-aarch64-pc-windows-msvc.exe",
+                "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-pc-windows-msvc.exe",
+                "kind": "raw",
+                "executable": "typstyle-aarch64-pc-windows-msvc.exe",
+            },
+        },
+    },
+    "latexindent": {
+        "upstream_version": "4.0.3",
+        "release_page": "https://github.com/cmhughes/latexindent.pl/releases/tag/V4.0.3",
+        "licenses": [
+            {
+                "name": "GPL-3.0-only",
+                "source": "https://github.com/cmhughes/latexindent.pl/blob/V4.0.3/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "latexindent-linux",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-linux",
+                "kind": "raw",
+                "executable": "latexindent-linux",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "latexindent-linux-arm64",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-linux-arm64",
+                "kind": "raw",
+                "executable": "latexindent-linux-arm64",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "latexindent-macos",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-macos",
+                "kind": "raw",
+                "executable": "latexindent-macos",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "latexindent.exe",
+                "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent.exe",
+                "kind": "raw",
+                "executable": "latexindent.exe",
+            },
+        },
+    },
     "buf": {
         "upstream_version": "1.72.0",
         "release_page": "https://github.com/bufbuild/buf/releases/tag/v1.72.0",
@@ -634,6 +1027,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "executable": "buf-Windows-x86_64.exe",
                 "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "buf-Windows-arm64.exe",
+                "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Windows-arm64.exe",
+                "kind": "raw",
+                "executable": "buf-Windows-arm64.exe",
+                "checksums_url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/sha256.txt",
+            },
         },
     },
     "cue": {
@@ -675,6 +1077,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "cue_v0.17.1_windows_amd64.zip",
                 "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "cue.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "cue_v0.17.1_windows_arm64.zip",
+                "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_arm64.zip",
                 "kind": "zip",
                 "executable": "cue.exe",
             },
@@ -722,6 +1132,66 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "kind": "tar.gz",
                 "executable": "jsonnetfmt.exe",
             },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnetfmt.exe",
+            },
+        },
+    },
+    "jsonnet_lint": {
+        "upstream_version": "0.22.0",
+        "release_page": "https://github.com/google/go-jsonnet/releases/tag/v0.22.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/google/go-jsonnet/blob/v0.22.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "go-jsonnet_0.22.0_linux_amd64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_linux_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "go-jsonnet_0.22.0_windows_amd64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_amd64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "jsonnet-lint.exe",
+            },
         },
     },
     "yamlfmt": {
@@ -765,6 +1235,62 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_x86_64.tar.gz",
                 "kind": "tar.gz",
                 "executable": "yamlfmt.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "yamlfmt_0.21.0_Windows_arm64.tar.gz",
+                "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_arm64.tar.gz",
+                "kind": "tar.gz",
+                "executable": "yamlfmt.exe",
+            },
+        },
+    },
+    "ormolu": {
+        "upstream_version": "0.9.0.0",
+        "release_page": "https://github.com/tweag/ormolu/releases/tag/0.9.0.0",
+        "licenses": [
+            {
+                "name": "BSD-3-Clause",
+                "source": "https://github.com/tweag/ormolu/blob/0.9.0.0/LICENSE.md",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "ormolu-x86_64-linux.zip",
+                "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-linux.zip",
+                "kind": "zip",
+                "executable": "ormolu",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "ormolu-x86_64-windows.zip",
+                "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-windows.zip",
+                "kind": "zip",
+                "executable": "ormolu.exe",
+            },
+        },
+    },
+    "nixfmt": {
+        "upstream_version": "1.5.0",
+        "release_page": "https://github.com/NixOS/nixfmt/releases/tag/v1.5.0",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/NixOS/nixfmt/blob/v1.5.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "nixfmt",
+                "url": "https://github.com/NixOS/nixfmt/releases/download/v1.5.0/nixfmt",
+                "kind": "raw",
+                "executable": "nixfmt",
             },
         },
     },
@@ -854,6 +1380,15 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "cpu": "x86_64",
                 "asset": "terraform_1.16.1_windows_amd64.zip",
                 "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_amd64.zip",
+                "kind": "zip",
+                "executable": "terraform.exe",
+                "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "terraform_1.16.1_windows_arm64.zip",
+                "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_arm64.zip",
                 "kind": "zip",
                 "executable": "terraform.exe",
                 "checksums_url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_SHA256SUMS",
@@ -952,6 +1487,146 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "stylua": {
+        "upstream_version": "2.6.0",
+        "release_page": "https://github.com/JohnnyMorganz/StyLua/releases/tag/v2.6.0",
+        "licenses": [
+            {
+                "name": "MPL-2.0",
+                "source": "https://github.com/JohnnyMorganz/StyLua/blob/v2.6.0/LICENSE.md",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "stylua-linux-x86_64-musl.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64-musl.zip",
+                "kind": "zip",
+                "executable": "stylua",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "stylua-linux-aarch64-musl.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-aarch64-musl.zip",
+                "kind": "zip",
+                "executable": "stylua",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "stylua-macos-aarch64.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-macos-aarch64.zip",
+                "kind": "zip",
+                "executable": "stylua",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "stylua-windows-x86_64.zip",
+                "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-windows-x86_64.zip",
+                "kind": "zip",
+                "executable": "stylua.exe",
+            },
+        },
+    },
+    "opa": {
+        "upstream_version": "1.21.4",
+        "release_page": "https://github.com/open-policy-agent/opa/releases/tag/v1.21.4",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/open-policy-agent/opa/blob/v1.21.4/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "opa_linux_amd64_static",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_amd64_static",
+                "kind": "raw",
+                "executable": "opa_linux_amd64_static",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_amd64_static.sha256",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "opa_linux_arm64_static",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_arm64_static",
+                "kind": "raw",
+                "executable": "opa_linux_arm64_static",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_arm64_static.sha256",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "opa_darwin_arm64_static",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_darwin_arm64_static",
+                "kind": "raw",
+                "executable": "opa_darwin_arm64_static",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_darwin_arm64_static.sha256",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "opa_windows_amd64.exe",
+                "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_windows_amd64.exe",
+                "kind": "raw",
+                "executable": "opa_windows_amd64.exe",
+                "checksums_url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_windows_amd64.exe.sha256",
+            },
+        },
+    },
+    "regal": {
+        "upstream_version": "0.43.0",
+        "release_page": "https://github.com/StyraInc/regal/releases/tag/v0.43.0",
+        "licenses": [
+            {
+                "name": "Apache-2.0",
+                "source": "https://github.com/StyraInc/regal/blob/v0.43.0/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "regal_Linux_x86_64",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Linux_x86_64",
+                "kind": "raw",
+                "executable": "regal_Linux_x86_64",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "regal_Linux_arm64",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Linux_arm64",
+                "kind": "raw",
+                "executable": "regal_Linux_arm64",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "regal_Darwin_arm64",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Darwin_arm64",
+                "kind": "raw",
+                "executable": "regal_Darwin_arm64",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "regal_Windows_x86_64.exe",
+                "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Windows_x86_64.exe",
+                "kind": "raw",
+                "executable": "regal_Windows_x86_64.exe",
+                "checksums_url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/checksums.txt",
+            },
+        },
+    },
     "mdbook": {
         "upstream_version": "0.4.52",
         "release_page": "https://github.com/rust-lang/mdBook/releases/tag/v0.4.52",
@@ -1037,6 +1712,14 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-x86_64-windows.zip",
                 "kind": "zip",
                 "executable": "wasmtime-v49.0.2-x86_64-windows/wasmtime.exe",
+            },
+            "windows_arm64": {
+                "os": "windows",
+                "cpu": "arm64",
+                "asset": "wasmtime-v49.0.2-aarch64-windows.zip",
+                "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-windows.zip",
+                "kind": "zip",
+                "executable": "wasmtime-v49.0.2-aarch64-windows/wasmtime.exe",
             },
             "macos_x86_64": {
                 "os": "macos",
@@ -1256,11 +1939,50 @@ def _abi_floor(path):
 
 
 def _native_bounds(tool, spec):
-    if tool in ("buf", "buildifier", "keep_sorted", "shfmt", "terraform"):
+    if tool in (
+        "buf",
+        "buildifier",
+        "helm",
+        "keep_sorted",
+        "kubeconform",
+        "shfmt",
+        "terraform",
+    ):
         linkage = "static"
     else:
         linkage = "dynamic"
     return linkage, None, [], {"kernel": None, "libc": None, "libstdcxx": None}
+
+
+PE_MACHINES = {"x86_64": 0x8664, "arm64": 0xAA64}
+
+
+def _pe_machine(path):
+    """Returns the COFF machine field of a PE file, or exits if it is not a PE."""
+    with open(path, "rb") as handle:
+        head = handle.read(0x40)
+        if len(head) < 0x40 or head[:2] != b"MZ":
+            sys.exit("update: %s is not a PE file (no MZ header)" % path)
+        offset = int.from_bytes(head[0x3C:0x40], "little")
+        handle.seek(offset)
+        coff = handle.read(6)
+    if len(coff) < 6 or coff[:4] != b"PE\0\0":
+        sys.exit("update: %s is not a PE file (no PE signature)" % path)
+    return int.from_bytes(coff[4:6], "little")
+
+
+def _check_pe_machine(asset, spec, exe_path):
+    expected = PE_MACHINES.get(spec["cpu"])
+    if expected is None:
+        sys.exit(
+            "update: %s: no PE machine type known for cpu %r" % (asset, spec["cpu"])
+        )
+    machine = _pe_machine(exe_path)
+    if machine != expected:
+        sys.exit(
+            "update: %s: PE machine 0x%04X, expected 0x%04X for %s"
+            % (asset, machine, expected, spec["cpu"])
+        )
 
 
 def _starlark(value, indent=4):
@@ -1311,8 +2033,11 @@ def _collect(tool, platform_key, spec, workdir):
         with open(checksums_path, encoding="utf-8") as handle:
             for line in handle.read().splitlines():
                 parts = line.split()
-                if len(parts) == 2:
-                    published[parts[1].lstrip("*")] = parts[0]
+                if len(parts) == 4 and parts[1].startswith("(") and parts[2] == "=":
+                    # BSD style: SHA256 (name) = digest
+                    published[parts[1].strip("()")] = parts[3]
+                elif len(parts) == 2:
+                    published[os.path.basename(parts[1].lstrip("*"))] = parts[0]
         expected = published.get(spec["asset"])
         if expected != digest:
             sys.exit(
@@ -1350,6 +2075,9 @@ def _collect(tool, platform_key, spec, workdir):
         archive = {"format": "zip", "members": members}
     else:
         sys.exit("update: unknown asset kind %r" % kind)
+
+    if spec["os"] == "windows":
+        _check_pe_machine(spec["asset"], spec, exe_path)
 
     if spec["os"] == "linux":
         linkage, interpreter, needed = _elf_linkage(exe_path)

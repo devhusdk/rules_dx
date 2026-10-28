@@ -4,6 +4,8 @@ pub enum AdoptError {
     CreateParent { parent: String, detail: String },
     #[error("write {path}: {detail}")]
     WriteFile { path: String, detail: String },
+    #[error("read {path}: {detail}")]
+    ReadFile { path: String, detail: String },
     #[error("read version pin: {detail}")]
     ReadVersionPin { detail: String },
     #[error("read MODULE.bazel: {detail}")]
@@ -63,6 +65,8 @@ pub enum AdoptError {
     },
     #[error("invalid module name for dx init: {module:?}: {reason}")]
     InitInvalidModule { module: String, reason: String },
+    #[error("init MODULE.bazel snippet: {detail}")]
+    InitSnippet { detail: String },
     #[error(
         "unknown dx init part: {name} (want one of {})",
         crate::init_parts::INIT_PART_NAMES.join(", ")

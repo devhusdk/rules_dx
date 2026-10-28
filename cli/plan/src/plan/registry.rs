@@ -1,3 +1,4 @@
+use super::rules_dx_label;
 use crate::args::Command;
 use crate::reports::StandardFormat;
 
@@ -21,58 +22,73 @@ pub fn spec(command: Command) -> CommandSpec {
         Command::Lint => CommandSpec {
             command,
             aspects: &[
-                "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
+                "quality:real_aspects.bzl%real_cc_lint_aspect",
+                "quality:real_aspects.bzl%real_dockerfile_lint_aspect",
+                "quality:real_aspects.bzl%real_make_lint_aspect",
+                "quality:real_aspects.bzl%real_terraform_lint_aspect",
+                "quality:real_aspects.bzl%real_dotnet_lint_aspect",
+                "quality:real_aspects.bzl%real_flatbuffers_lint_aspect",
+                "quality:real_aspects.bzl%real_lint_aspect",
+                "quality:real_aspects.bzl%real_js_lint_aspect",
+                "quality:real_aspects.bzl%real_python_lint_aspect",
+                "quality:real_aspects.bzl%real_protobuf_lint_aspect",
+                "quality:real_aspects.bzl%real_powershell_lint_aspect",
+                "quality:real_aspects.bzl%real_jvm_lint_aspect",
+                "quality:real_aspects.bzl%real_ruby_lint_aspect",
+                "quality:real_aspects.bzl%real_rust_lint_aspect",
+                "quality:real_aspects.bzl%real_scala_lint_aspect",
+                "quality:real_aspects.bzl%real_shell_lint_aspect",
+                "quality:real_aspects.bzl%real_text_lint_aspect",
+                "quality:real_aspects.bzl%real_html_template_lint_aspect",
+                "quality:real_aspects.bzl%real_yaml_lint_aspect",
+                "quality:real_aspects.bzl%real_nix_lint_aspect",
+                "quality:real_aspects.bzl%real_kubernetes_lint_aspect",
+                "quality:real_aspects.bzl%real_ansible_lint_aspect",
+                "quality:real_aspects.bzl%real_rego_lint_aspect",
+                "quality:real_aspects.bzl%real_jsonnet_lint_aspect",
             ],
-            probe: Some("@rules_dx//quality:real_aspects.bzl%real_lint_probe_aspect"),
+            probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
         },
         Command::Typecheck => CommandSpec {
             command,
             aspects: &[
-                "@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "quality:real_aspects.bzl%real_typecheck_aspect",
+                "quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "quality:real_aspects.bzl%real_rego_typecheck_aspect",
             ],
-            probe: Some("@rules_dx//quality:real_aspects.bzl%real_typecheck_probe_aspect"),
+            probe: Some("quality:real_aspects.bzl%real_typecheck_probe_aspect"),
             reports: &[StandardFormat::Sarif],
         },
         Command::Format => CommandSpec {
             command,
             aspects: &[
-                "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_go_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_jsonnet_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_pkl_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_protobuf_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_powershell_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_ruby_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
+                "quality:real_aspects.bzl%real_cc_format_aspect",
+                "quality:real_aspects.bzl%real_cue_format_aspect",
+                "quality:real_aspects.bzl%real_dotnet_format_aspect",
+                "quality:real_aspects.bzl%real_format_aspect",
+                "quality:real_aspects.bzl%real_go_format_aspect",
+                "quality:real_aspects.bzl%real_haskell_format_aspect",
+                "quality:real_aspects.bzl%real_js_format_aspect",
+                "quality:real_aspects.bzl%real_jsonnet_format_aspect",
+                "quality:real_aspects.bzl%real_jvm_format_aspect",
+                "quality:real_aspects.bzl%real_lua_format_aspect",
+                "quality:real_aspects.bzl%real_nix_format_aspect",
+                "quality:real_aspects.bzl%real_pkl_format_aspect",
+                "quality:real_aspects.bzl%real_protobuf_format_aspect",
+                "quality:real_aspects.bzl%real_powershell_format_aspect",
+                "quality:real_aspects.bzl%real_rego_format_aspect",
+                "quality:real_aspects.bzl%real_ruby_format_aspect",
+                "quality:real_aspects.bzl%real_rust_format_aspect",
+                "quality:real_aspects.bzl%real_scala_format_aspect",
+                "quality:real_aspects.bzl%real_shell_format_aspect",
+                "quality:real_aspects.bzl%real_terraform_format_aspect",
+                "quality:real_aspects.bzl%real_typst_format_aspect",
+                "quality:real_aspects.bzl%real_latex_format_aspect",
+                "quality:real_aspects.bzl%real_html_template_format_aspect",
+                "quality:real_aspects.bzl%real_yaml_format_aspect",
             ],
-            probe: Some("@rules_dx//quality:real_aspects.bzl%real_format_probe_aspect"),
+            probe: Some("quality:real_aspects.bzl%real_format_probe_aspect"),
             reports: &[],
         },
         Command::Generate => CommandSpec {
@@ -132,12 +148,6 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: None,
             reports: &[StandardFormat::Sarif],
         },
-        Command::ListTests => CommandSpec {
-            command,
-            aspects: &[],
-            probe: None,
-            reports: &[],
-        },
         Command::Clean => CommandSpec {
             command,
             aspects: &[],
@@ -156,6 +166,7 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Rollback
         | Command::Worktree
         | Command::Explain
+        | Command::Install
         | Command::Status
         | Command::Version
         | Command::Watch
@@ -175,7 +186,11 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[],
             probe: None,
-            reports: &[StandardFormat::Sarif, StandardFormat::Spdx],
+            reports: &[
+                StandardFormat::Sarif,
+                StandardFormat::Spdx,
+                StandardFormat::Notice,
+            ],
         },
         Command::Update => CommandSpec {
             command,
@@ -213,7 +228,7 @@ pub fn all_aspect_labels() -> Vec<String> {
             let entry = spec(*command);
             entry.aspects.iter().copied().chain(entry.probe)
         })
-        .map(str::to_owned)
+        .map(rules_dx_label)
         .collect();
     labels.push(dx_codegen::CODEGEN_ASPECT.to_owned());
     labels.push(dx_env_plan::ENV_ASPECT.to_owned());
@@ -246,27 +261,46 @@ mod tests {
     }
 
     #[test]
+    fn registry_aspects_are_relative_to_rules_dx() {
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            let entry = spec(*command);
+            for aspect in entry.aspects.iter().copied().chain(entry.probe) {
+                assert!(!aspect.starts_with('@'), "{command:?}: {aspect}");
+            }
+        }
+    }
+
+    #[test]
     fn registry_entries_match_command_contract() {
         let lint = spec(Command::Lint);
         assert_eq!(
             lint.aspects,
             &[
-                "@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
+                "quality:real_aspects.bzl%real_cc_lint_aspect",
+                "quality:real_aspects.bzl%real_dockerfile_lint_aspect",
+                "quality:real_aspects.bzl%real_make_lint_aspect",
+                "quality:real_aspects.bzl%real_terraform_lint_aspect",
+                "quality:real_aspects.bzl%real_dotnet_lint_aspect",
+                "quality:real_aspects.bzl%real_flatbuffers_lint_aspect",
+                "quality:real_aspects.bzl%real_lint_aspect",
+                "quality:real_aspects.bzl%real_js_lint_aspect",
+                "quality:real_aspects.bzl%real_python_lint_aspect",
+                "quality:real_aspects.bzl%real_protobuf_lint_aspect",
+                "quality:real_aspects.bzl%real_powershell_lint_aspect",
+                "quality:real_aspects.bzl%real_jvm_lint_aspect",
+                "quality:real_aspects.bzl%real_ruby_lint_aspect",
+                "quality:real_aspects.bzl%real_rust_lint_aspect",
+                "quality:real_aspects.bzl%real_scala_lint_aspect",
+                "quality:real_aspects.bzl%real_shell_lint_aspect",
+                "quality:real_aspects.bzl%real_text_lint_aspect",
+                "quality:real_aspects.bzl%real_html_template_lint_aspect",
+                "quality:real_aspects.bzl%real_yaml_lint_aspect",
+                "quality:real_aspects.bzl%real_nix_lint_aspect",
+                "quality:real_aspects.bzl%real_kubernetes_lint_aspect",
+                "quality:real_aspects.bzl%real_ansible_lint_aspect",
+                "quality:real_aspects.bzl%real_rego_lint_aspect",
+                "quality:real_aspects.bzl%real_jsonnet_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
@@ -274,8 +308,9 @@ mod tests {
         assert_eq!(
             typecheck.aspects,
             &[
-                "@rules_dx//quality:real_aspects.bzl%real_typecheck_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "quality:real_aspects.bzl%real_typecheck_aspect",
+                "quality:real_aspects.bzl%real_rust_typecheck_aspect",
+                "quality:real_aspects.bzl%real_rego_typecheck_aspect",
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
@@ -283,24 +318,30 @@ mod tests {
         assert_eq!(
             format.aspects,
             &[
-                "@rules_dx//quality:real_aspects.bzl%real_cc_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_cue_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_dotnet_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_go_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_js_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_jsonnet_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_jvm_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_pkl_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_protobuf_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_powershell_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_ruby_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_scala_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_shell_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_terraform_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_html_template_format_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_yaml_format_aspect",
+                "quality:real_aspects.bzl%real_cc_format_aspect",
+                "quality:real_aspects.bzl%real_cue_format_aspect",
+                "quality:real_aspects.bzl%real_dotnet_format_aspect",
+                "quality:real_aspects.bzl%real_format_aspect",
+                "quality:real_aspects.bzl%real_go_format_aspect",
+                "quality:real_aspects.bzl%real_haskell_format_aspect",
+                "quality:real_aspects.bzl%real_js_format_aspect",
+                "quality:real_aspects.bzl%real_jsonnet_format_aspect",
+                "quality:real_aspects.bzl%real_jvm_format_aspect",
+                "quality:real_aspects.bzl%real_lua_format_aspect",
+                "quality:real_aspects.bzl%real_nix_format_aspect",
+                "quality:real_aspects.bzl%real_pkl_format_aspect",
+                "quality:real_aspects.bzl%real_protobuf_format_aspect",
+                "quality:real_aspects.bzl%real_powershell_format_aspect",
+                "quality:real_aspects.bzl%real_rego_format_aspect",
+                "quality:real_aspects.bzl%real_ruby_format_aspect",
+                "quality:real_aspects.bzl%real_rust_format_aspect",
+                "quality:real_aspects.bzl%real_scala_format_aspect",
+                "quality:real_aspects.bzl%real_shell_format_aspect",
+                "quality:real_aspects.bzl%real_terraform_format_aspect",
+                "quality:real_aspects.bzl%real_typst_format_aspect",
+                "quality:real_aspects.bzl%real_latex_format_aspect",
+                "quality:real_aspects.bzl%real_html_template_format_aspect",
+                "quality:real_aspects.bzl%real_yaml_format_aspect",
             ]
         );
         assert!(format.reports.is_empty());
@@ -348,7 +389,11 @@ mod tests {
         assert_eq!(spec(Command::Security).reports, &[StandardFormat::Sarif]);
         assert_eq!(
             spec(Command::License).reports,
-            &[StandardFormat::Sarif, StandardFormat::Spdx]
+            &[
+                StandardFormat::Sarif,
+                StandardFormat::Spdx,
+                StandardFormat::Notice
+            ]
         );
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());

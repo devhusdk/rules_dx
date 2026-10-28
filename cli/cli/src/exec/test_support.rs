@@ -14,9 +14,13 @@ use quality_result::{encode_validated, SCHEMA_MAJOR, SCHEMA_MINOR};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::io::{self};
+#[cfg(unix)]
+use std::os::fd::AsRawFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+#[cfg(unix)]
+use std::time::{Duration, Instant};
 
 pub(crate) use crate::test_support::parsed as invocation;
 pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, graph_rule, json_events};
@@ -82,6 +86,10 @@ pub(crate) struct Harness {
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
     pub(crate) actions: ActionTally,
+    /// Process table root `dx clean` observes; point at a missing dir to make observation unknown.
+    pub(crate) proc_root: std::path::PathBuf,
+    /// Commit JSON path injected for bump GitHub tag resolution.
+    pub(crate) bump_commit_json: Option<String>,
     /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
     pub(crate) probe_shards: Option<Vec<String>>,
     /// An exit code the fake shard probe returns instead of answering.
@@ -97,6 +105,7 @@ pub(crate) struct Harness {
 /// The audit date every test harness pins.
 pub(crate) const TEST_AUDIT_TODAY: &str = "2026-01-15";
 
+#[derive(Default)]
 pub(crate) struct ScriptQuery {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
     pub(crate) expressions: RefCell<Vec<String>>,
@@ -108,10 +117,13 @@ pub(crate) struct ScriptQuery {
     /// never consume scripted cquery answers. Empty means git fails to launch.
     pub(crate) git_outputs: RefCell<Vec<QueryResult>>,
     pub(crate) git_calls: RefCell<Vec<Vec<String>>>,
+    /// Answers for the checkout and tracked-file queries of `dx coverage`, kept apart so
+    /// they never consume the answers scripted for other git queries. Empty means not a work tree.
+    pub(crate) checkout_git_outputs: RefCell<Vec<QueryResult>>,
 }
 
 impl ScriptQuery {
-    pub(crate) fn script_owners(&self, owners: &str) {
+    pub(crate) fn script_stdout(&self, owners: &str) {
         self.outputs.borrow_mut().push(QueryResult {
             code: Some(0),
             stdout: owners.as_bytes().to_vec(),
@@ -128,11 +140,19 @@ impl ScriptQuery {
     }
 
     pub(crate) fn script_graph(&self, rules: &[String]) {
-        self.script_owners(&dx_testing::cli::graph_stdout(rules));
+        self.script_stdout(&dx_testing::cli::graph_stdout(rules));
     }
 
     pub(crate) fn script_git(&self, code: i32, stdout: &str) {
         self.git_outputs.borrow_mut().push(QueryResult {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
+    pub(crate) fn script_checkout_git(&self, code: i32, stdout: &str) {
+        self.checkout_git_outputs.borrow_mut().push(QueryResult {
             code: Some(code),
             stdout: stdout.as_bytes().to_vec(),
             stderr: Vec::new(),
@@ -150,6 +170,23 @@ impl ScriptQuery {
 
 impl QueryRunner for ScriptQuery {
     fn run_query(&self, argv: &[String], _cwd: &Path) -> io::Result<QueryResult> {
+        if argv.first().map(String::as_str) == Some("git")
+            && argv.iter().any(|arg| {
+                [
+                    "--is-inside-work-tree",
+                    "--cached",
+                    "--porcelain",
+                    "HEAD^{commit}",
+                ]
+                .contains(&arg.as_str())
+            })
+        {
+            let mut outputs = self.checkout_git_outputs.borrow_mut();
+            if outputs.is_empty() {
+                return Err(io::Error::other("unscripted checkout query"));
+            }
+            return Ok(outputs.remove(0));
+        }
         if argv.first().map(String::as_str) == Some("git") {
             self.git_calls.borrow_mut().push(argv.to_vec());
             let mut outputs = self.git_outputs.borrow_mut();
@@ -167,7 +204,11 @@ impl QueryRunner for ScriptQuery {
         };
         self.expressions.borrow_mut().push(expression);
         self.calls.borrow_mut().push(argv.to_vec());
-        Ok(self.outputs.borrow_mut().remove(0))
+        let mut outputs = self.outputs.borrow_mut();
+        if outputs.is_empty() {
+            return Err(io::Error::other("unscripted query"));
+        }
+        Ok(outputs.remove(0))
     }
 
     fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
@@ -218,6 +259,7 @@ impl Harness {
                 free_disk_bytes: Cell::new(None),
                 git_outputs: RefCell::new(Vec::new()),
                 git_calls: RefCell::new(Vec::new()),
+                checkout_git_outputs: RefCell::new(Vec::new()),
             },
             intended: None,
             patch: None,
@@ -225,6 +267,8 @@ impl Harness {
             free_disk_bytes: None,
             audit_today: Some(TEST_AUDIT_TODAY.to_owned()),
             actions: ActionTally::default(),
+            proc_root: std::path::PathBuf::from("/proc"),
+            bump_commit_json: None,
             probe_shards: None,
             probe_code: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
@@ -334,6 +378,7 @@ impl Harness {
             start_byte: Some(0),
             end_byte: Some(1),
             fixable,
+            unfixable_reason: String::new(),
             related: Vec::new(),
         }
     }
@@ -567,6 +612,8 @@ impl Harness {
             ci: false,
             audit_today: self.audit_today.as_deref(),
             actions: &self.actions,
+            proc_root: &self.proc_root,
+            bump_commit_json: self.bump_commit_json.as_deref(),
         }
     }
 
@@ -818,6 +865,22 @@ pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored:
         "diff_found"
     };
     intended_witness_with_result(mode, result, complete, files, ignored)
+}
+
+/// A failed-run witness: no files, an incomplete scope, and the given error
+/// objects (comma-separated JSON).
+pub(crate) fn intended_witness_failed(mode: &str, errors: &str) -> Vec<u8> {
+    let errors_value: Vec<serde_json::Value> =
+        serde_json::from_str(&format!("[{errors}]")).expect("errors JSON");
+    serde_json::to_vec(&serde_json::json!({
+        "schema_major": 1,
+        "schema_minor": 2,
+        "mode": mode,
+        "result": "failed",
+        "scopes": [{"value": "//...", "results_complete": false}],
+        "errors": errors_value,
+    }))
+    .expect("witness JSON")
 }
 
 pub(crate) fn intended_witness_with_result(
@@ -1206,4 +1269,45 @@ pub(crate) fn failed_action(
         },
     })
     .to_string()
+}
+
+// Pipe helpers: dropping a reader is not enough when a forked child may
+// still hold a copy of the read end, so wait until the kernel reports it gone.
+#[cfg(unix)]
+/// Reports whether the pipe behind `writer` has no reader left in any process.
+#[cfg(unix)]
+pub(crate) fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
+    let mut fd = libc::pollfd {
+        fd: writer.as_raw_fd(),
+        events: 0,
+        revents: 0,
+    };
+    let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
+    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
+}
+
+/// Drops `reader` and waits until no process holds a copy of the read end.
+#[cfg(unix)]
+pub(crate) fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
+    drop(reader);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !reader_gone(writer, 1000) {
+        assert!(Instant::now() < deadline, "pipe reader still held");
+    }
+}
+
+/// Returns the write end of a pipe whose read end is closed everywhere.
+#[cfg(unix)]
+pub(crate) fn closed_pipe() -> io::PipeWriter {
+    let (reader, writer) = io::pipe().expect("pipe");
+    hang_up(reader, &writer);
+    writer
+}
+
+/// Windows has no poll on pipes, so dropping the only reader is the best available.
+#[cfg(windows)]
+pub(crate) fn closed_pipe() -> io::PipeWriter {
+    let (reader, writer) = io::pipe().expect("pipe");
+    drop(reader);
+    writer
 }

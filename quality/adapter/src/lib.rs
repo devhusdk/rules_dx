@@ -12,8 +12,10 @@ use line_index::LineIndex;
 use quality_result::proto::{self, Diagnostic, Severity};
 
 pub mod api_spec_preflight;
+pub mod cloudformation_preflight;
 pub mod commands;
 pub mod exec;
+pub mod kubernetes_preflight;
 pub mod launch;
 pub mod parsers;
 
@@ -250,6 +252,7 @@ pub fn place_finding_with<'t>(
         start_byte: Some(start),
         end_byte: Some(end),
         fixable: false,
+        unfixable_reason: String::new(),
         related,
     })
 }

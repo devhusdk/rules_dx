@@ -93,6 +93,11 @@ impl RealBackend {
             "ruff" => {
                 let config_ref = config.as_deref();
                 let format = capability == "format";
+                let notebooks = Self::read_notebooks(tool_id, pairs)?;
+                let notebook_refs: Vec<(&str, &str)> = notebooks
+                    .iter()
+                    .map(|(path, text)| (path.as_str(), text.as_str()))
+                    .collect();
                 self.check_files(
                     tool_id,
                     tool,
@@ -109,11 +114,35 @@ impl RealBackend {
                         if format {
                             parsed(
                                 tool_id,
-                                parsers::parse_ruff_format(&out.stdout, out.code, names),
+                                parsers::parse_ruff_format(
+                                    &out.stdout,
+                                    out.code,
+                                    names,
+                                    &notebook_refs,
+                                ),
                             )
                         } else {
-                            parsed(tool_id, parsers::parse_ruff(&out.stdout, out.code, names))
+                            parsed(
+                                tool_id,
+                                parsers::parse_ruff(&out.stdout, out.code, names, &notebook_refs),
+                            )
                         }
+                    },
+                )
+            }
+            "notebook_outputs" => {
+                Self::read_notebooks_any(tool_id, pairs)?;
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::notebook_outputs_check(&tool.binary, files)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_notebook_outputs(&out.stdout, out.code, names),
+                        )
                     },
                 )
             }
@@ -200,10 +229,29 @@ impl RealBackend {
                 };
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 if capability == "format" {
-                    parsed(
+                    let batch = parsed(
                         tool_id,
                         parsers::parse_taplo_format_check(&out.stderr, out.code, &strs),
-                    )
+                    );
+                    if batch.is_ok() || refs.len() < 2 {
+                        return batch;
+                    }
+                    // Re-check each file alone to name the file taplo rejected.
+                    let mut merged = Vec::new();
+                    for (name, path) in strs.iter().zip(refs.iter()) {
+                        let single = commands::taplo_format(
+                            &tool.binary,
+                            std::slice::from_ref(path),
+                            config.as_deref(),
+                            true,
+                        );
+                        let out = self.run(tool_id, tool, &single, scratch)?;
+                        merged.extend(parsed(
+                            tool_id,
+                            parsers::parse_taplo_format_check(&out.stderr, out.code, &[*name]),
+                        )?);
+                    }
+                    Ok(merged)
                 } else {
                     parsed(
                         tool_id,
@@ -300,8 +348,13 @@ impl RealBackend {
             }
             "prettier" => {
                 let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                let invocation = commands::prettier_check(&launch, &refs, config.as_deref())
-                    .map_err(|err| execution(tool_id, err.to_string()))?;
+                let invocation = commands::prettier_check(
+                    &launch,
+                    &refs,
+                    config.as_deref(),
+                    tool.dialect.as_deref(),
+                )
+                .map_err(|err| execution(tool_id, err.to_string()))?;
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 let workspaces: Vec<&str> = pairs
                     .iter()
@@ -642,6 +695,44 @@ impl RealBackend {
                     Ok(owned)
                 }
             }
+            "flatc" => {
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let out_dir = root.join(".dx-flatc-out");
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    // flatc prints realpaths, so check and report the canonical one.
+                    let file = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    let invocation = commands::flatc_check(&tool.binary, &file, &root, &out_dir);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    if !matches!(out.code, Some(0 | 1)) {
+                        let code = out
+                            .code
+                            .map_or_else(|| "signal".to_owned(), |code| code.to_string());
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        return Err(execution(
+                            tool_id,
+                            format!("exit {code}: {}", stderr.trim()),
+                        ));
+                    }
+                    let name = file.to_string_lossy().into_owned();
+                    let report = parsed(
+                        tool_id,
+                        parsers::parse_flatc(&out.stdout, &out.stderr, out.code, &[name.as_str()]),
+                    )?;
+                    declared_input_escape(tool_id, workspace, &root, &report.dependencies)?;
+                    let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+                    for mut item in report.findings {
+                        item.file = absolute.to_string_lossy().into_owned();
+                        // Messages name other schemas by scratch path; keep them workspace-relative.
+                        item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                        findings.push(item);
+                    }
+                }
+                Ok(findings)
+            }
             "qmlformat" => {
                 let mut findings = Vec::new();
                 for (workspace, absolute) in pairs {
@@ -691,6 +782,106 @@ impl RealBackend {
                     parsers::parse_cue(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "regal" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "regal needs a config path".to_owned()));
+                };
+                std::fs::create_dir_all(scratch.root().join(".regal"))
+                    .map_err(|err| execution(tool_id, format!("stage .regal: {err}")))?;
+                let relative: Vec<&Path> = pairs
+                    .iter()
+                    .map(|(workspace, _)| Path::new(workspace.as_str()))
+                    .collect();
+                let workspaces: Vec<&str> = pairs
+                    .iter()
+                    .map(|(workspace, _)| workspace.as_str())
+                    .collect();
+                let invocation = commands::regal_lint(&tool.binary, &relative, config);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_regal(&out.stdout, &out.stderr, out.code, &workspaces),
+                )?;
+                for item in &mut findings {
+                    item.file = reanchor(tool_id, pairs, &item.file)?
+                        .to_string_lossy()
+                        .into_owned();
+                }
+                Ok(findings)
+            }
+            "opa" => {
+                if capability == "format" {
+                    let mut findings = Vec::new();
+                    for (workspace, absolute) in pairs {
+                        let invocation = commands::opa_fmt_check(&tool.binary, absolute);
+                        let out = self.run(tool_id, tool, &invocation, scratch)?;
+                        let input = std::fs::read(absolute).map_err(|err| {
+                            execution(tool_id, format!("read {workspace}: {err}"))
+                        })?;
+                        let file = absolute.to_string_lossy();
+                        findings.extend(parsed(
+                            tool_id,
+                            parsers::parse_opa_fmt(
+                                &out.stdout,
+                                &out.stderr,
+                                out.code,
+                                &input,
+                                &file,
+                            ),
+                        )?);
+                    }
+                    Ok(findings)
+                } else {
+                    let mut all: Vec<&Path> = refs.clone();
+                    for (_, absolute) in resolve_pairs {
+                        if !all.contains(&absolute.as_path()) {
+                            all.push(absolute.as_path());
+                        }
+                    }
+                    let invocation = commands::opa_check(&tool.binary, &all);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let known: Vec<String> = all
+                        .iter()
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .collect();
+                    let known: Vec<&str> = known.iter().map(String::as_str).collect();
+                    let mut findings = parsed(
+                        tool_id,
+                        parsers::parse_opa_check(&out.stdout, &out.stderr, out.code, &known),
+                    )?;
+                    let reported: Vec<String> = findings.iter().map(|f| f.file.clone()).collect();
+                    findings.retain(|found| strs.contains(&found.file.as_str()));
+                    if findings.is_empty() && !reported.is_empty() {
+                        let mut names: Vec<String> = resolve_pairs
+                            .iter()
+                            .filter(|(_, absolute)| {
+                                reported
+                                    .iter()
+                                    .any(|r| r.as_str() == absolute.to_string_lossy())
+                            })
+                            .map(|(workspace, _)| workspace.clone())
+                            .collect();
+                        names.sort();
+                        names.dedup();
+                        return Err(execution(
+                            tool_id,
+                            format!(
+                                "opa check failed in dependencies before the owned files were type checked: {}",
+                                names.join(", ")
+                            ),
+                        ));
+                    }
+                    Ok(findings)
+                }
+            }
+            "jsonnet_lint" => {
+                let invocation = commands::jsonnet_lint_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_jsonnet_lint(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "jsonnetfmt" => {
                 let invocation = commands::jsonnetfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -699,6 +890,62 @@ impl RealBackend {
                     parsers::parse_jsonnetfmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "dfmt" => {
+                // One process per file: with two or more files dfmt edits them in place.
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    let invocation = commands::dfmt_check(&tool.binary, absolute.as_path());
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let input = std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                    let name = absolute.to_string_lossy();
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_dfmt(&out.stdout, &out.stderr, out.code, &input, &name),
+                    )?;
+                    findings.extend(found);
+                }
+                Ok(findings)
+            }
+            "dscanner" => {
+                // dscanner silently skips a file it cannot read, so read each one first.
+                for (workspace, absolute) in pairs {
+                    std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                }
+                let invocation = commands::dscanner_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_dscanner(&out.stdout, out.code, &strs),
+                )
+            }
+            "typstyle" => {
+                let invocation = commands::typstyle_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let cwd = scratch.root().join(&cwd_rel);
+                parsed(
+                    tool_id,
+                    parsers::parse_typstyle(&out.stdout, &out.stderr, out.code, &strs, &cwd),
+                )
+            }
+            "perltidy" => {
+                // One process per file: --standard-output takes a single file.
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    let invocation = commands::perltidy_check(&tool.binary, absolute.as_path());
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let input = std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                    let name = absolute.to_string_lossy();
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_perltidy(&out.stdout, &out.stderr, out.code, &input, &name),
+                    )?;
+                    findings.extend(found);
+                }
+                Ok(findings)
+            }
             "erlfmt" => {
                 let invocation = commands::erlfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -706,6 +953,41 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_erlfmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
+            }
+            "credo" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "credo needs a config path".to_owned()));
+                };
+                // Credo prints paths relative to its working directory, so it gets them that way.
+                let cwd = scratch.root().join(&cwd_rel);
+                let relative = refs
+                    .iter()
+                    .map(|absolute| {
+                        absolute.strip_prefix(&cwd).map_err(|_| {
+                            execution(
+                                tool_id,
+                                format!("{} is outside {}", absolute.display(), cwd.display()),
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<&Path>, RunnerError>>()?;
+                let relative_names: Vec<String> = relative
+                    .iter()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .collect();
+                let relative_strs: Vec<&str> = relative_names.iter().map(String::as_str).collect();
+                let invocation = commands::credo_check(&tool.binary, &relative, config);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_credo(&out.stdout, &out.stderr, out.code, &relative_strs),
+                )?;
+                for found in &mut findings {
+                    if let Some(at) = relative_names.iter().position(|name| *name == found.file) {
+                        found.file.clone_from(&names[at]);
+                    }
+                }
+                Ok(findings)
             }
             "mix_format" => {
                 let invocation = commands::mix_format_check(&tool.binary, &refs);
@@ -716,6 +998,14 @@ impl RealBackend {
                     parsers::parse_mix_format(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "julia_format" => {
+                let invocation = commands::julia_format_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_julia_format(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "zig_fmt" => {
                 let invocation = commands::zig_fmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -723,6 +1013,49 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_zig_fmt(&out.stdout, &out.stderr, out.code, &strs),
                 )
+            }
+            "latexindent" => {
+                // One process per file: latexindent takes a single document. Its log and
+                // backups go to a scratch directory, never next to the source.
+                let cruft = Self::latexindent_cruft(tool_id, scratch)?;
+                let mut merged = Vec::new();
+                for (name, path) in strs.iter().zip(refs.iter()) {
+                    let invocation =
+                        commands::latexindent_check(&tool.binary, path, &cruft, config.as_deref());
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_latexindent(&out.stdout, &out.stderr, out.code, &[*name]),
+                    )
+                    .map_err(|err| in_file(err, name))?;
+                    merged.extend(found);
+                }
+                Ok(merged)
+            }
+            "stylua" => {
+                let invocation = commands::stylua_check(&tool.binary, &refs, config.as_deref());
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_stylua(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
+            "ormolu" => {
+                // One process per file: ormolu formats files concurrently and interleaves
+                // their diffs on stderr, and exits 102 on mixed results.
+                let mut merged = Vec::new();
+                for (name, path) in strs.iter().zip(refs.iter()) {
+                    let invocation =
+                        commands::ormolu_check(&tool.binary, std::slice::from_ref(path));
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let found = parsed(
+                        tool_id,
+                        parsers::parse_ormolu(&out.stdout, &out.stderr, out.code, &[*name]),
+                    )
+                    .map_err(|err| in_file(err, name))?;
+                    merged.extend(found);
+                }
+                Ok(merged)
             }
             "pkl" => {
                 let invocation = commands::pkl_check(&tool.binary, &refs);
@@ -736,6 +1069,35 @@ impl RealBackend {
                 let invocation = commands::modfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 parsed(tool_id, parsers::parse_modfmt(&out.stdout, out.code, &strs))
+            }
+            "tflint" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "tflint needs a config path".to_owned()));
+                };
+                let mut merged = Vec::new();
+                for (dir, members) in group_by_parent(scratch.root(), pairs) {
+                    let names: Vec<&Path> = members
+                        .iter()
+                        .map(|(name, _, _)| Path::new(name.as_str()))
+                        .collect();
+                    let invocation = commands::tflint_check(&tool.binary, &dir, &names, config);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let reported: Vec<&str> =
+                        members.iter().map(|(_, rel, _)| rel.as_str()).collect();
+                    let mut found = parsed(
+                        tool_id,
+                        parsers::parse_tflint(&out.stdout, out.code, &reported),
+                    )?;
+                    for entry in &mut found {
+                        if let Some((_, _, absolute)) =
+                            members.iter().find(|(_, rel, _)| *rel == entry.file)
+                        {
+                            entry.file.clone_from(absolute);
+                        }
+                    }
+                    merged.extend(found);
+                }
+                Ok(merged)
             }
             "terraform" => {
                 let invocation = commands::terraform_check(&tool.binary, &refs);
@@ -821,7 +1183,7 @@ impl RealBackend {
                     parsers::parse_psscriptanalyzer(&out.stdout, out.code, &strs),
                 )
             }
-            "rubocop" | "yamllint" | "shellcheck" | "hadolint" => {
+            "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "checkmake" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
                 } else {
@@ -831,6 +1193,15 @@ impl RealBackend {
                         }
                         "yamllint" => {
                             commands::yamllint_check(&tool.binary, &refs, config.as_deref())
+                        }
+                        "checkmake" => {
+                            let Some(config) = config.as_deref() else {
+                                return Err(execution(
+                                    tool_id,
+                                    "checkmake needs a config path".to_owned(),
+                                ));
+                            };
+                            commands::checkmake_check(&tool.binary, &refs, config)
                         }
                         "hadolint" => {
                             let Some(config) = config.as_deref() else {
@@ -853,6 +1224,13 @@ impl RealBackend {
                             scratch.root(),
                         ),
                         "yamllint" => parsers::parse_yamllint(&out.stdout, out.code, &strs),
+                        "checkmake" => parsers::parse_checkmake(
+                            &out.stdout,
+                            &out.stderr,
+                            out.code,
+                            &strs,
+                            config.as_deref().and_then(std::path::Path::to_str),
+                        ),
                         "hadolint" => {
                             parsers::parse_hadolint(&out.stdout, &out.stderr, out.code, &strs)
                         }
@@ -861,6 +1239,68 @@ impl RealBackend {
                     parsed(tool_id, report)
                 }
             }
+            "statix" => {
+                if !tool.upstream_diagnostics.is_empty() {
+                    return self.check_file_family_delegated(tool_id, tool, pairs);
+                }
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "statix needs a config path".to_owned()));
+                };
+                let mut findings = Vec::new();
+                for name in &strs {
+                    let invocation = commands::statix_check(&tool.binary, Path::new(name), config);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    let report =
+                        parsers::parse_statix(&out.stdout, &out.stderr, out.code, &[*name]);
+                    findings.extend(parsed(tool_id, report)?);
+                }
+                Ok(findings)
+            }
+            "deadnix" => {
+                if !tool.upstream_diagnostics.is_empty() {
+                    return self.check_file_family_delegated(tool_id, tool, pairs);
+                }
+                self.check_files(
+                    tool_id,
+                    tool,
+                    scratch,
+                    pairs,
+                    |files| Ok(commands::deadnix_check(&tool.binary, files)),
+                    |out, names| {
+                        parsed(
+                            tool_id,
+                            parsers::parse_deadnix(&out.stdout, &out.stderr, out.code, names),
+                        )
+                    },
+                )
+            }
+            "nixfmt" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::nixfmt_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_nixfmt(&out.stdout, &out.stderr, out.code, names),
+                    )
+                },
+            ),
+            "ansible_lint" => {
+                let invocation = commands::ansible_lint_check(
+                    &tool.binary,
+                    &refs,
+                    config.as_deref(),
+                    scratch.root(),
+                );
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_ansible_lint(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
+            "kubeconform" => self.check_kubeconform(tool_id, tool, staged, config.as_deref()),
             "keep_sorted" => {
                 if !tool.upstream_diagnostics.is_empty() {
                     self.check_file_family_delegated(tool_id, tool, pairs)
@@ -891,6 +1331,47 @@ impl RealBackend {
     ///
     /// Findings merge in a stable order, and a failing batch names itself when there are
     /// several so the error points at the spawn that broke.
+    /// Reads every staged notebook and refuses any that Ruff would skip, so a
+    /// non-Python or malformed notebook never reports clean.
+    fn read_notebooks(
+        tool_id: &str,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<(String, String)>, RunnerError> {
+        Self::read_notebooks_with(tool_id, pairs, quality_notebook::preflight)
+    }
+
+    /// Like `read_notebooks`, for tools that accept any kernel language.
+    fn read_notebooks_any(
+        tool_id: &str,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<(String, String)>, RunnerError> {
+        Self::read_notebooks_with(tool_id, pairs, quality_notebook::validate)
+    }
+
+    fn read_notebooks_with(
+        tool_id: &str,
+        pairs: &[(String, PathBuf)],
+        validate: fn(&str) -> Result<quality_notebook::Info, quality_notebook::NotebookError>,
+    ) -> Result<Vec<(String, String)>, RunnerError> {
+        let mut notebooks = Vec::new();
+        for (workspace, absolute) in pairs {
+            if absolute.extension().and_then(|ext| ext.to_str()) != Some("ipynb") {
+                continue;
+            }
+            let bytes = std::fs::read(absolute)
+                .map_err(|err| execution(tool_id, format!("{workspace}: read notebook: {err}")))?;
+            let text = String::from_utf8(bytes).map_err(|err| {
+                execution(
+                    tool_id,
+                    format!("{workspace}: notebook is not UTF-8: {err}"),
+                )
+            })?;
+            validate(&text).map_err(|err| execution(tool_id, format!("{workspace}: {err}")))?;
+            notebooks.push((absolute.to_string_lossy().into_owned(), text));
+        }
+        Ok(notebooks)
+    }
+
     fn check_files(
         &self,
         tool_id: &str,
@@ -948,6 +1429,21 @@ impl RealBackend {
     }
 }
 
+/// Names the file whose output failed to parse.
+fn in_file(err: RunnerError, name: &str) -> RunnerError {
+    match err {
+        RunnerError::ToolExecution { tool_id, detail } => RunnerError::ToolExecution {
+            tool_id,
+            detail: format!("{name}: {detail}"),
+        },
+        RunnerError::ToolOutput { tool_id, detail } => RunnerError::ToolOutput {
+            tool_id,
+            detail: format!("{name}: {detail}"),
+        },
+        other => other,
+    }
+}
+
 /// Names the failing batch in an error when a selection ran as several spawns.
 fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
     if total <= 1 {
@@ -964,6 +1460,43 @@ fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
         },
         other => other,
     }
+}
+
+/// Lexically resolves `.` and `..` without touching the filesystem.
+fn lexical_normal(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for part in path.components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
+}
+
+/// Fails when a dependency a tool reports from a read-only dependency scan
+/// lies outside the canonical scratch `root`, so a lookup that escaped the
+/// declared inputs is never reported clean.
+fn declared_input_escape(
+    tool_id: &str,
+    source: &str,
+    root: &Path,
+    dependencies: &[String],
+) -> Result<(), RunnerError> {
+    for dependency in dependencies {
+        let normal = lexical_normal(Path::new(dependency));
+        let inside = std::fs::canonicalize(&normal).is_ok_and(|real| real.starts_with(root));
+        if !inside {
+            return Err(execution(
+                tool_id,
+                format!("include '{dependency}' is outside the declared inputs of {source}"),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn import_path_copy(
@@ -1060,4 +1593,67 @@ mod clamp_tests {
             assert_eq!(byte, Some(text.len() as u64 + 2), "{encoding:?}");
         }
     }
+}
+
+#[cfg(test)]
+mod declared_input_tests {
+    use super::declared_input_escape;
+
+    #[test]
+    fn dependencies_inside_the_root_pass_and_escapes_fail() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let root = std::fs::canonicalize(dir.path()).expect("root");
+        std::fs::create_dir_all(root.join("root/pkg")).expect("pkg");
+        std::fs::write(root.join("root/pkg/a.fbs"), "table A {}").expect("a");
+        std::fs::write(root.join("outside.fbs"), "table O {}").expect("outside");
+        let inner = root.join("root");
+        let ok = vec![inner.join("pkg/a.fbs").to_string_lossy().into_owned()];
+        declared_input_escape("flatc", "pkg/a.fbs", &inner, &ok).expect("inside");
+        let up = vec![inner
+            .join("pkg/../../outside.fbs")
+            .to_string_lossy()
+            .into_owned()];
+        let err = declared_input_escape("flatc", "pkg/a.fbs", &inner, &up).expect_err("escape");
+        assert!(err
+            .to_string()
+            .contains("is outside the declared inputs of pkg/a.fbs"));
+        let missing = vec![inner.join("pkg/none.fbs").to_string_lossy().into_owned()];
+        assert!(declared_input_escape("flatc", "pkg/a.fbs", &inner, &missing).is_err());
+    }
+}
+
+/// Groups staged files by their directory under the scratch root, in sorted directory order.
+///
+/// Each member is the file name inside its directory, its scratch-root-relative path
+/// (the spelling a `--chdir` tool reports) and its absolute path. A file at the root
+/// belongs to the directory `.`. Reusable by any directory-scoped linter.
+pub(super) type DirGroups = std::collections::BTreeMap<String, Vec<(String, String, String)>>;
+
+pub(super) fn group_by_parent(root: &Path, pairs: &[(String, PathBuf)]) -> DirGroups {
+    let mut groups = DirGroups::new();
+    for (_, absolute) in pairs {
+        let rel = absolute.strip_prefix(root).unwrap_or(absolute);
+        let dir = rel
+            .parent()
+            .map(|dir| dir.to_string_lossy().replace('\\', "/"))
+            .filter(|dir| !dir.is_empty())
+            .unwrap_or_else(|| ".".to_owned());
+        let name = rel
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let rel = if dir == "." {
+            name.clone()
+        } else {
+            format!("{dir}/{name}")
+        };
+        groups
+            .entry(dir)
+            .or_default()
+            .push((name, rel, absolute.to_string_lossy().into_owned()));
+    }
+    for members in groups.values_mut() {
+        members.sort();
+    }
+    groups
 }

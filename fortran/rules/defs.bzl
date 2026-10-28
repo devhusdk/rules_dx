@@ -99,4 +99,4 @@ def fortran_binary(name, srcs = None, visibility = None, **kwargs):
 
 def fortran_test(name, srcs = None, visibility = None, **kwargs):
     """Compiles Fortran sources with rules_fortran and links them with cc_test."""
-    dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, **with_defaults(kwargs))
+    dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, coverage_collector = False, **with_defaults(kwargs))

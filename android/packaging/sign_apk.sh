@@ -32,8 +32,8 @@ runfile() {
 zipalign="$(runfile "${DX_SIGN_ZIPALIGN:-}")"
 jar="$(runfile "${DX_SIGN_APKSIGNER_JAR:-}")"
 java="$(runfile "${DX_SIGN_JAVA:-}")"
-[ -f "$zipalign" ] && [ -x "$zipalign" ] || fail "no zipalign: configure the android_sdk extension to acquire build-tools" 127
-[ -f "$jar" ] && [ -r "$jar" ] || fail "no apksigner: configure the android_sdk extension to acquire build-tools" 127
+[ -f "$zipalign" ] && [ -x "$zipalign" ] || fail "no zipalign: build-tools ${DX_SIGN_BUILD_TOOLS:-unknown} is missing; with local_path install sdk/build-tools/${DX_SIGN_BUILD_TOOLS:-unknown} into that SDK, otherwise configure the android_sdk extension to acquire build-tools" 127
+[ -f "$jar" ] && [ -r "$jar" ] || fail "no apksigner: build-tools ${DX_SIGN_BUILD_TOOLS:-unknown} is missing; with local_path install sdk/build-tools/${DX_SIGN_BUILD_TOOLS:-unknown} into that SDK, otherwise configure the android_sdk extension to acquire build-tools" 127
 [ -f "$java" ] && [ -x "$java" ] || fail "no java runtime: select one with --java_runtime_version" 127
 [ -f "$DX_SIGN_APK" ] || fail "no APK at $DX_SIGN_APK"
 [ -f "$DX_SIGN_KEYSTORE" ] || fail "no keystore at $DX_SIGN_KEYSTORE"

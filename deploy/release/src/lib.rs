@@ -13,6 +13,7 @@ use std::path::Path;
 
 pub mod candidate;
 pub mod cell;
+mod deploy;
 pub mod inventory;
 mod provenance;
 mod publish;
@@ -32,6 +33,10 @@ pub use publish::{
     publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
 };
 
+pub use deploy::{
+    bcr_deploy, release_deploy_tool_main, signing_deploy, BcrDeployConfig, ReleaseDeployConfig,
+    SigningDeployConfig,
+};
 pub use tool::release_tool_run;
 
 use spdx::SpdxDocument;
@@ -723,106 +728,10 @@ pub fn sbom_verify_files(
     Ok(format!("sbom OK: SPDX-2.3 + SLSA v1 bind {digest}\n"))
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NoticeEntry {
-    pub package: String,
-    pub set: String,
-    pub version: String,
-    pub license: String,
-    pub text_path: String,
-    pub text_sha256: String,
-}
-
-pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
-    let mut entries = Vec::new();
-    for (index, raw) in text.lines().enumerate() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let fields: Vec<&str> = line.split('|').collect();
-        if fields.len() != 6 {
-            return Err(format!(
-                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256' where text is a per-package relative path (for example 'cargo/serde/LICENSE'), got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
-                index + 1,
-                fields.len()
-            ));
-        }
-        let entry = NoticeEntry {
-            package: fields[0].trim().to_owned(),
-            set: fields[1].trim().to_owned(),
-            version: fields[2].trim().to_owned(),
-            license: fields[3].trim().to_owned(),
-            text_path: fields[4].trim().to_owned(),
-            text_sha256: fields[5].trim().to_owned(),
-        };
-        if entry.package.is_empty()
-            || entry.set.is_empty()
-            || entry.version.is_empty()
-            || entry.license.is_empty()
-        {
-            return Err(format!(
-                "notice manifest line {}: package, set, version, and license must be non-empty",
-                index + 1
-            ));
-        }
-        if entry.text_path.is_empty() {
-            if !entry.text_sha256.is_empty() {
-                return Err(format!(
-                    "notice manifest line {}: sha256 must be empty when no text file is named",
-                    index + 1
-                ));
-            }
-        } else if let Err(problem) = notice_text_path_error(&entry.text_path) {
-            return Err(format!(
-                "notice manifest line {}: text '{}' {problem}",
-                index + 1,
-                entry.text_path
-            ));
-        } else if !dx_digest::is_lower_hex(&entry.text_sha256, 32) {
-            return Err(format!(
-                "notice manifest line {}: sha256 for text '{}' must be 64 lowercase hex characters",
-                index + 1,
-                entry.text_path
-            ));
-        }
-        entries.push(entry);
-    }
-    entries.sort_by(|a, b| {
-        (&a.package, &a.set, &a.version, &a.license)
-            .cmp(&(&b.package, &b.set, &b.version, &b.license))
-    });
-    for pair in entries.windows(2) {
-        let (a, b) = (&pair[0], &pair[1]);
-        if (&a.package, &a.set, &a.version, &a.license)
-            == (&b.package, &b.set, &b.version, &b.license)
-        {
-            return Err(format!(
-                "notice manifest: duplicate entry {}@{} ({}) [{}]",
-                a.package, a.version, a.license, a.set
-            ));
-        }
-    }
-    Ok(entries)
-}
-
-/// Checks that a manifest text path is a safe per-package relative path:
-/// '/'-separated, no leading '/', no '\\', and no empty, '.', or '..'
-/// components. Bare basenames are valid (the shortest suffix).
-pub fn notice_text_path_error(text_path: &str) -> Result<(), String> {
-    if text_path.contains('\\') {
-        return Err("must use '/' separators, not '\\'".to_owned());
-    }
-    if text_path.starts_with('/') {
-        return Err("must be a relative path (no leading '/')".to_owned());
-    }
-    for component in text_path.split('/') {
-        if component.is_empty() || component == "." || component == ".." {
-            return Err("must not contain empty, '.', or '..' path components".to_owned());
-        }
-    }
-    Ok(())
-}
+pub use dx_audit::notice_manifest::{
+    notice_text_path_error, notice_text_sha256, parse_notice_manifest, render_notice_manifest,
+    NoticeEntry,
+};
 
 /// The NOTICE section header one inventory entry renders as.
 pub fn notice_entry_header(entry: &NoticeEntry) -> String {
@@ -859,14 +768,6 @@ pub fn notice_entry_body<'a>(
         offset += line.len();
     }
     start.map(|begin| &notice_text[begin..])
-}
-
-/// The sha256 of the body `render_notice` writes under an entry header
-/// (the words with trailing newlines replaced by exactly one `\n`).
-pub fn notice_text_sha256(words: &str) -> String {
-    let mut body = words.trim_end_matches('\n').to_owned();
-    body.push('\n');
-    dx_digest::sha256_hex(body.as_bytes())
 }
 
 /// Shared NOTICE verifier for the release and install sides. Errors carry no

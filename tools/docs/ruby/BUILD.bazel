@@ -1,15 +1,18 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 load(":defs.bzl", "ruby_doc_runtime")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "defs.bzl",
-    "repos.bzl",
-    "yard_dump.rb",
-])
+exports_files(
+    [
+        "defs.bzl",
+        "repos.bzl",
+        "yard_dump.rb",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 # The shard rule runs the driver itself with the pinned YARD on its load path.
 # gazelle:exclude yard_dump.rb

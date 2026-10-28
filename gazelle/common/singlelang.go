@@ -72,6 +72,8 @@ type SingleLangSpec struct {
 	// own index has no match.
 	Fallback []string
 	Lookups  func(pkg, name string) []string
+	// Find replaces Lookups and Candidates with one lookup of the whole ref.
+	Find func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
 	Generate func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 
 	// KindDefs maps a kind to the defs package that exports it. Kinds without
@@ -93,7 +95,7 @@ type SingleLangSpec struct {
 type SingleLang struct {
 	language.BaseLang
 	spec      SingleLangSpec
-	errors    []string
+	errors    []GenerationError
 	ignores   []*IgnoreEntry
 	generated GeneratedRels
 }
@@ -124,13 +126,13 @@ func (l *SingleLang) KnownDirectives() []string {
 func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
 	declared, errs := DeclaredIgnores(l.spec.LanguageName, rel, f)
 	for _, msg := range errs {
-		l.fail("%s", msg)
+		l.fail(InPackage(rel), "%s", msg)
 	}
 	l.ignores = append(l.ignores, declared...)
 	c.Exts[l.spec.LanguageName] = &IgnoreConfig{Ignores: MergeIgnores(InheritedIgnores(c, l.spec.LanguageName), declared)}
 	if l.spec.External != "" {
 		for _, msg := range ConfigureExternal(c, rel, f) {
-			l.fail("%s", msg)
+			l.fail(InPackage(rel), "%s", msg)
 		}
 	}
 	if l.spec.ConfigureExt != nil {
@@ -138,15 +140,13 @@ func (l *SingleLang) Configure(c *config.Config, rel string, f *rule.File) {
 	}
 }
 
-func (l *SingleLang) fail(format string, args ...interface{}) {
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
+func (l *SingleLang) fail(pkg PackageRef, format string, args ...interface{}) {
+	l.errors = append(l.errors, GenerationError{Language: l.spec.LanguageName, Package: pkg, Message: fmt.Sprintf(format, args...)})
 }
 
 func (l *SingleLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range StaleIgnores(l.spec.LanguageName, l.ignores, l.generated) {
-		l.fail("%s", msg)
-	}
-	Errors.Add(l.spec.LanguageName, "", l.errors...)
+	l.errors = append(l.errors, StaleIgnores(l.spec.LanguageName, l.ignores, l.generated)...)
+	Errors.Add(l.errors...)
 }
 
 func (l *SingleLang) Name() string { return l.spec.LanguageName }
@@ -238,12 +238,14 @@ func (l *SingleLang) GenerateRules(args language.GenerateArgs) language.Generate
 	return l.spec.Generate(args, l.spec.Kinds, l)
 }
 
-func (l *SingleLang) Fail(format string, args ...interface{}) { l.fail(format, args...) }
+func (l *SingleLang) Fail(pkg PackageRef, format string, args ...interface{}) {
+	l.fail(pkg, format, args...)
+}
 
 func (l *SingleLang) Failed() bool { return len(l.errors) > 0 }
 
 // Errors returns a copy of the errors reported so far.
-func (l *SingleLang) Errors() []string { return slices.Clone(l.errors) }
+func (l *SingleLang) Errors() []string { return Messages(l.errors) }
 
 func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	ResolveSingle(c, ix, r, raw, from, l.ResolveSpecFor(c, r, from))
@@ -256,6 +258,12 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 	if slices.Contains(l.spec.ExtraKinds, r.Kind()) {
 		want = r.Kind()
 	}
+	attr := "deps"
+	if info, ok := l.spec.Kinds[want]; ok && len(info.ResolveAttrs) == 1 {
+		for a := range info.ResolveAttrs {
+			attr = a
+		}
+	}
 	var external func(name string) ([]label.Label, string)
 	if eco := l.spec.External; eco != "" {
 		external = func(name string) ([]label.Label, string) { return ExternalLabels(c, eco, name) }
@@ -263,13 +271,14 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 	return ResolveSpec{
 		LanguageName:   l.spec.LanguageName,
 		WantKind:       want,
-		Attr:           "deps",
+		Attr:           attr,
 		Unwrap:         UnwrapImportSet,
 		UnwrapRefs:     UnwrapRefImportSet,
 		Fallback:       l.spec.Fallback,
 		IsStdLib:       l.spec.IsStdLib,
 		Candidates:     l.spec.Candidates,
 		Lookups:        l.spec.Lookups,
+		Find:           l.spec.Find,
 		External:       external,
 		MarkUsed: func(name string) bool {
 			if ignore := MatchingIgnore(c, l.spec.LanguageName, name); ignore != nil {
@@ -279,16 +288,16 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 			return false
 		},
 		FailConflict: func(from label.Label, name string) {
-			l.fail("%s: %s: import %q has both an exact resolve mapping and ignore", l.spec.LanguageName, from, name)
+			l.fail(InPackage(from.Pkg), "%s: %s: import %q has both an exact resolve mapping and ignore", l.spec.LanguageName, from, name)
 		},
 		FailUnresolved: func(from label.Label, name string, hint string) {
 			if hint != "" {
 				hint += "; "
 			}
-			l.fail("%s", UnresolvedImport(c, l.spec.LanguageName, from, name, hint+l.spec.UnresolvedHint))
+			l.fail(InPackage(from.Pkg), "%s", UnresolvedImport(c, l.spec.LanguageName, from, name, hint+l.spec.UnresolvedHint))
 		},
 		FailAmbiguous: func(from label.Label, name string, matches string) {
-			l.fail("%s", AmbiguousImport(c, l.spec.LanguageName, from, name, matches))
+			l.fail(InPackage(from.Pkg), "%s", AmbiguousImport(c, l.spec.LanguageName, from, name, matches))
 		},
 	}
 }

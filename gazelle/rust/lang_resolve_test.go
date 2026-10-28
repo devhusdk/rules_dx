@@ -131,7 +131,7 @@ func TestGenerateEmptyNoRootAndSourceError(t *testing.T) {
 	writeFixture(t, bad, "src/lib.rs", "mod missing;\n")
 	broken := &rustLang{}
 	broken.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: bad}, Dir: bad})
-	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0], "orphan module") {
+	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0].Message, "orphan module") {
 		t.Errorf("source parse errors = %v", broken.errors)
 	}
 }
@@ -142,7 +142,7 @@ func TestGenerateCargoImplicitFailure(t *testing.T) {
 	writeFixture(t, root, "tests/---.rs", "")
 	l := &rustLang{}
 	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "empty target name") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "empty target name") {
 		t.Errorf("implicit target errors = %v", l.errors)
 	}
 }
@@ -154,7 +154,7 @@ func TestGenerateExistingNameCollisions(t *testing.T) {
 	f.Rules = append(f.Rules, rule.NewRule("filegroup", "demo"))
 	l := &rustLang{}
 	l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo", File: f})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "existing filegroup") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "existing filegroup") {
 		t.Errorf("source collision errors = %v", l.errors)
 	}
 
@@ -165,7 +165,7 @@ func TestGenerateExistingNameCollisions(t *testing.T) {
 	cargoFile.Rules = append(cargoFile.Rules, rule.NewRule("filegroup", "app"))
 	cargo := &rustLang{}
 	cargo.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: cargoRoot}, Dir: cargoRoot, RegularFiles: []string{"Cargo.toml"}, File: cargoFile})
-	if len(cargo.errors) != 1 || !strings.Contains(cargo.errors[0], "existing filegroup") {
+	if len(cargo.errors) != 1 || !strings.Contains(cargo.errors[0].Message, "existing filegroup") {
 		t.Errorf("Cargo collision errors = %v", cargo.errors)
 	}
 }
@@ -701,7 +701,7 @@ func TestResolveBranches(t *testing.T) {
 	}
 
 	l.Resolve(cfg, index, nil, rule.NewRule(binaryKind, "unknown"), targetImports{production: []string{"unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import rust unknown" to app/BUILD.bazel`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "unresolved import") || !strings.Contains(l.errors[0].Message, `or add "# gazelle:dx_ignore_import rust unknown" to app/BUILD.bazel`) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
@@ -731,7 +731,7 @@ func TestResolveExactMappingForTestImports(t *testing.T) {
 	bare := resolverConfig(t, nil)
 	bare.Exts[languageName] = &rustConfig{}
 	unmapped.Resolve(bare, resolverIndex(unmapped), nil, rule.NewRule(testKind, "app_test"), targetImports{test: []string{"serde"}}, from)
-	if len(unmapped.errors) != 1 || !strings.Contains(unmapped.errors[0], `unresolved import "serde"`) {
+	if len(unmapped.errors) != 1 || !strings.Contains(unmapped.errors[0].Message, `unresolved import "serde"`) {
 		t.Errorf("unmapped errors = %v", unmapped.errors)
 	}
 }
@@ -773,7 +773,7 @@ func TestResolveRenamedImports(t *testing.T) {
 	// Conflicting names for one label.
 	conflict := rule.NewRule(libraryKind, "conflict")
 	l.Resolve(cfg, index, nil, conflict, targetImports{production: []string{"one", "two"}, renames: map[string]string{"one": "api", "two": "api"}}, from)
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "conflicting aliases") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "conflicting aliases") {
 		t.Errorf("conflict errors = %v", l.errors)
 	}
 
@@ -781,7 +781,7 @@ func TestResolveRenamedImports(t *testing.T) {
 	l.errors = nil
 	missing := rule.NewRule(libraryKind, "missing")
 	l.Resolve(cfg, index, nil, missing, targetImports{production: []string{"gone"}, renames: map[string]string{"gone": "nowhere"}}, from)
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `renamed package crate "nowhere"`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `renamed package crate "nowhere"`) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 
@@ -840,6 +840,121 @@ func TestResolveRenamedProviders(t *testing.T) {
 	for key, want := range map[string]string{"apiv": "api_core", "missing": "nope_pkg", "escape": "esc", "plain": ""} {
 		if got := m.normalDeps[key].crate; got != want {
 			t.Errorf("%s crate = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestBuiltinRunfilesImport(t *testing.T) {
+	cfg := &config.Config{}
+	bare := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{}, devDeps: map[string]cargoDependency{}}
+	if err := validateCargoImports(cfg, bare, libraryKind, targetImports{production: []string{"runfiles"}}); err != nil {
+		t.Errorf("builtin runfiles rejected in library: %v", err)
+	}
+	if err := validateCargoImports(cfg, bare, testKind, targetImports{test: []string{"runfiles"}}); err != nil {
+		t.Errorf("builtin runfiles rejected in test: %v", err)
+	}
+	if err := validateExampleImports(cfg, bare, targetImports{production: []string{"runfiles"}}); err != nil {
+		t.Errorf("builtin runfiles rejected in example: %v", err)
+	}
+	imports := targetImports{production: []string{"runfiles"}, test: []string{"runfiles"}}
+	if got := localCargoImports(cfg, bare, imports, true); strings.Join(got.production, ",") != "runfiles" || strings.Join(got.test, ",") != "runfiles" {
+		t.Errorf("local imports = %v / %v, want runfiles kept", got.production, got.test)
+	}
+	if got := localCargoExampleImports(cfg, bare, imports); strings.Join(got.production, ",") != "runfiles" {
+		t.Errorf("example imports = %v, want runfiles kept", got.production)
+	}
+
+	// A declared crate named runfiles keeps its own dependency path, so the built-in never applies.
+	declared := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{"runfiles": {external: true}}, devDeps: map[string]cargoDependency{}}
+	if err := validateCargoImports(cfg, declared, libraryKind, targetImports{production: []string{"runfiles"}}); err != nil {
+		t.Errorf("declared runfiles rejected: %v", err)
+	}
+	if got := localCargoImports(cfg, declared, imports, true); len(got.production)+len(got.test) != 0 {
+		t.Errorf("declared external runfiles became local: %v / %v", got.production, got.test)
+	}
+
+	l := &rustLang{}
+	newCfg := func() *config.Config {
+		c := resolverConfig(t, nil)
+		c.Exts[languageName] = &rustConfig{}
+		return c
+	}
+	empty := resolverIndex(l)
+	app := rule.NewRule(binaryKind, "app")
+	l.Resolve(newCfg(), empty, nil, app, targetImports{production: []string{"runfiles"}}, label.New("", "app", "app"))
+	if got := strings.Join(app.AttrStrings("deps"), ","); got != builtinRunfilesLabel {
+		t.Errorf("builtin deps = %q, want %s", got, builtinRunfilesLabel)
+	}
+
+	// A local crate named runfiles found in the index still wins over the built-in.
+	local := resolverIndex(l, struct{ pkg, name string }{"lib/runfiles", "runfiles"})
+	won := rule.NewRule(binaryKind, "won")
+	l.Resolve(newCfg(), local, nil, won, targetImports{production: []string{"runfiles"}}, label.New("", "app", "won"))
+	if got := strings.Join(won.AttrStrings("deps"), ","); got != "//lib/runfiles" {
+		t.Errorf("local deps = %q, want //lib/runfiles", got)
+	}
+
+	// An ignore directive still suppresses the import instead of applying the built-in.
+	ignoring := newCfg()
+	ignored := &common.IgnoreEntry{Value: "runfiles"}
+	ignoring.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}
+	skipped := rule.NewRule(binaryKind, "skipped")
+	l.Resolve(ignoring, empty, nil, skipped, targetImports{production: []string{"runfiles"}}, label.New("", "app", "skipped"))
+	if skipped.Attr("deps") != nil || !ignored.Used() {
+		t.Errorf("ignored runfiles = deps:%v used:%v", skipped.Attr("deps"), ignored.Used())
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("builtin runfiles errors = %v", l.errors)
+	}
+}
+
+func TestResolveAndroidCfgPathDepSelect(t *testing.T) {
+	l := &rustLang{}
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/droid", "droid"}, struct{ pkg, name string }{"lib/plain", "plain"})
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	r := rule.NewRule(libraryKind, "app")
+	imports := targetImports{
+		production: []string{"droid", "plain"},
+		gated:      map[string]bool{"droid": true, "plain": false},
+	}
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "app", "app"))
+	got := bzl.FormatString(r.Attr("deps"))
+	for _, want := range []string{`"//lib/plain"`, "select(", `"@platforms//os:android": ["//lib/droid"]`, `"//conditions:default": []`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("deps = %s, missing %s", got, want)
+		}
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestDepsConcatSelectMergeIsStable(t *testing.T) {
+	src := depsConcatExpr{extra: []string{"//a"}, android: []string{"//droid"}}
+	first := src.Merge(nil)
+	second := src.Merge(first)
+	if a, b := bzl.FormatString(first), bzl.FormatString(second); a != b {
+		t.Errorf("merge not stable:\n%s\n%s", a, b)
+	}
+}
+
+func TestResolveWindowsCfgPathDepSelect(t *testing.T) {
+	l := &rustLang{}
+	index := resolverIndex(l, struct{ pkg, name string }{"lib/win", "win"})
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	r := rule.NewRule(libraryKind, "app")
+	imports := targetImports{
+		production: []string{"win"},
+		gated:      map[string]bool{"win": true},
+		gateTarget: map[string]string{"win": "@platforms//os:windows"},
+	}
+	l.Resolve(cfg, index, nil, r, imports, label.New("", "app", "app"))
+	got := bzl.FormatString(r.Attr("deps"))
+	for _, want := range []string{"select(", `"@platforms//os:windows": ["//lib/win"]`, `"//conditions:default": []`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("deps = %s, missing %s", got, want)
 		}
 	}
 }

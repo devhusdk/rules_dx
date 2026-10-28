@@ -20,10 +20,20 @@ pub struct ProjectedFile {
     pub failure_code: Option<String>,
 }
 
+/// One generation failure reported by a language extension.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectedError {
+    pub language: String,
+    /// `None` when the failing package is unknown; `Some("")` is the root.
+    pub package: Option<String>,
+    pub message: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectedManifest {
     pub files: Vec<ProjectedFile>,
     pub notices: Vec<NoticeEvent>,
+    pub errors: Vec<ProjectedError>,
     pub results_complete: bool,
     pub is_check: bool,
 }
@@ -204,9 +214,19 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
             import: Some(ignored.import.clone()),
         });
     }
+    let errors = manifest
+        .errors
+        .iter()
+        .map(|e| ProjectedError {
+            language: e.language.clone(),
+            package: e.package.clone(),
+            message: e.message.clone(),
+        })
+        .collect();
     Ok(ProjectedManifest {
         files,
         notices,
+        errors,
         results_complete,
         is_check,
     })
@@ -345,6 +365,7 @@ mod tests {
                 "",
             )],
             ignored_imports: vec![ignored("pkg/a.rs", "rust", "optional")],
+            errors: vec![],
         }
     }
 
@@ -365,6 +386,7 @@ mod tests {
                 ),
             ],
             ignored_imports: vec![ignored("pkg/a.rs", "rust", "optional")],
+            errors: vec![],
         }
     }
 
@@ -511,6 +533,7 @@ mod tests {
             scopes: vec![scope("//...", true)],
             files: vec![],
             ignored_imports: vec![],
+            errors: vec![],
         };
         let projected = project(&manifest).unwrap();
         assert!(projected.files.is_empty());
@@ -547,6 +570,7 @@ mod tests {
             scopes: vec![scope("//...", true)],
             files: vec![create_file("e/BUILD.bazel", b"", WriteOutcome::Applied, "")],
             ignored_imports: vec![],
+            errors: vec![],
         };
         let projected = project(&manifest).unwrap();
         assert_eq!(projected.files[0].candidate, "");
@@ -580,6 +604,7 @@ mod tests {
                 "",
             )],
             ignored_imports: vec![],
+            errors: vec![],
         };
         let success = project(&success_manifest).unwrap();
         assert_eq!(success.exit_code(0), 0);
@@ -592,6 +617,7 @@ mod tests {
             scopes: vec![scope("//...", true)],
             files: vec![],
             ignored_imports: vec![],
+            errors: vec![],
         };
         let check_empty = project(&check_empty_manifest).unwrap();
         assert_eq!(check_empty.exit_code(0), 0);
@@ -665,6 +691,30 @@ mod tests {
     }
 
     #[test]
+    fn project_carries_errors_and_is_incomplete() {
+        let mut manifest = default_manifest();
+        manifest.files.clear();
+        manifest.ignored_imports.clear();
+        manifest.scopes = vec![scope("//...", false)];
+        manifest.errors = vec![generation_result::proto::GenerationError {
+            language: "go".to_owned(),
+            package: Some("pkg".to_owned()),
+            message: "bad".to_owned(),
+        }];
+        generation_result::validate(&manifest).unwrap();
+        let projected = project(&manifest).unwrap();
+        assert!(!projected.results_complete);
+        assert_eq!(
+            projected.errors,
+            vec![ProjectedError {
+                language: "go".to_owned(),
+                package: Some("pkg".to_owned()),
+                message: "bad".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
     fn diff_errors_surface_unrepresentable_paths() {
         let projected = ProjectedManifest {
             files: vec![
@@ -694,6 +744,7 @@ mod tests {
                 },
             ],
             notices: vec![],
+            errors: vec![],
             results_complete: true,
             is_check: true,
         };

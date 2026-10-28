@@ -1,0 +1,999 @@
+{
+ "docstyle": "google",
+ "format": 1,
+ "griffe": "2.4.1",
+ "module": {
+  "analysis": "static",
+  "docstring": {
+   "endlineno": 1,
+   "lineno": 1,
+   "parsed": [
+    {
+     "kind": "text",
+     "value": "Shapes library."
+    }
+   ],
+   "value": "Shapes library."
+  },
+  "exports": [
+   "area",
+   "Shape",
+   "Color",
+   "Helper",
+   "LIMIT",
+   "Alias",
+   "Circle"
+  ],
+  "filepath": "/root/mylib/__init__.py",
+  "imports": {
+   "Circle": "mylib.shapes.Circle",
+   "Enum": "enum.Enum",
+   "Helper": "mylib._impl.Helper",
+   "_priv": "mylib._priv",
+   "area": "mylib._impl.area"
+  },
+  "is_class_private": false,
+  "is_deprecated": false,
+  "is_exported": false,
+  "is_imported": false,
+  "is_private": false,
+  "is_public": true,
+  "is_special": false,
+  "is_wildcard_exposed": false,
+  "kind": "module",
+  "members": {
+   "Alias": {
+    "analysis": "static",
+    "endlineno": 14,
+    "filepath": "/root/mylib/__init__.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "type alias",
+    "lineno": 14,
+    "name": "Alias",
+    "path": "mylib.Alias",
+    "relative_filepath": "pkg/src/mylib/__init__.py",
+    "relative_package_filepath": "mylib/__init__.py",
+    "runtime": true,
+    "value": "list[int]"
+   },
+   "Circle": {
+    "analysis": "static",
+    "endlineno": 6,
+    "inherited": false,
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": true,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "alias",
+    "lineno": 6,
+    "name": "Circle",
+    "path": "mylib.Circle",
+    "runtime": true,
+    "target_path": "mylib.shapes.Circle"
+   },
+   "Color": {
+    "analysis": "static",
+    "bases": [
+     "Enum"
+    ],
+    "decorators": [],
+    "docstring": {
+     "endlineno": 18,
+     "lineno": 18,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "Colors."
+      }
+     ],
+     "value": "Colors."
+    },
+    "endlineno": 21,
+    "filepath": "/root/mylib/__init__.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "class",
+    "lineno": 17,
+    "members": {
+     "GREEN": {
+      "analysis": "static",
+      "endlineno": 21,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "attribute",
+      "labels": [
+       "class-attribute",
+       "instance-attribute"
+      ],
+      "lineno": 21,
+      "name": "GREEN",
+      "path": "mylib.Color.GREEN",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "runtime": true,
+      "value": "2"
+     },
+     "RED": {
+      "analysis": "static",
+      "endlineno": 20,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "attribute",
+      "labels": [
+       "class-attribute",
+       "instance-attribute"
+      ],
+      "lineno": 20,
+      "name": "RED",
+      "path": "mylib.Color.RED",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "runtime": true,
+      "value": "1"
+     }
+    },
+    "name": "Color",
+    "path": "mylib.Color",
+    "relative_filepath": "pkg/src/mylib/__init__.py",
+    "relative_package_filepath": "mylib/__init__.py",
+    "runtime": true
+   },
+   "Enum": {
+    "analysis": "static",
+    "endlineno": 3,
+    "inherited": false,
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": false,
+    "is_imported": true,
+    "is_private": false,
+    "is_public": false,
+    "is_special": false,
+    "is_wildcard_exposed": false,
+    "kind": "alias",
+    "lineno": 3,
+    "name": "Enum",
+    "path": "mylib.Enum",
+    "runtime": true,
+    "target_path": "enum.Enum"
+   },
+   "Helper": {
+    "analysis": "static",
+    "endlineno": 5,
+    "inherited": false,
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": true,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "alias",
+    "lineno": 5,
+    "name": "Helper",
+    "path": "mylib.Helper",
+    "runtime": true,
+    "target_path": "mylib._impl.Helper"
+   },
+   "LIMIT": {
+    "analysis": "static",
+    "annotation": "int",
+    "docstring": {
+     "endlineno": 12,
+     "lineno": 12,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "Upper bound."
+      }
+     ],
+     "value": "Upper bound."
+    },
+    "endlineno": 11,
+    "filepath": "/root/mylib/__init__.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "attribute",
+    "labels": [
+     "module-attribute"
+    ],
+    "lineno": 11,
+    "name": "LIMIT",
+    "path": "mylib.LIMIT",
+    "relative_filepath": "pkg/src/mylib/__init__.py",
+    "relative_package_filepath": "mylib/__init__.py",
+    "runtime": true,
+    "value": "10"
+   },
+   "Shape": {
+    "analysis": "static",
+    "bases": [
+     "Helper"
+    ],
+    "decorators": [],
+    "docstring": {
+     "endlineno": 29,
+     "lineno": 25,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "A shape."
+      },
+      {
+       "kind": "parameters",
+       "value": [
+        {
+         "annotation": "str",
+         "description": "The shape name.",
+         "name": "name"
+        }
+       ]
+      }
+     ],
+     "value": "A shape.\n\nArgs:\n    name: The shape name."
+    },
+    "endlineno": 57,
+    "filepath": "/root/mylib/__init__.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "class",
+    "lineno": 24,
+    "members": {
+     "__init__": {
+      "analysis": "static",
+      "decorators": [],
+      "endlineno": 35,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": true,
+      "is_wildcard_exposed": false,
+      "kind": "function",
+      "lineno": 34,
+      "name": "__init__",
+      "parameters": [
+       {
+        "annotation": null,
+        "default": null,
+        "kind": "positional or keyword",
+        "name": "self"
+       },
+       {
+        "annotation": "str",
+        "default": null,
+        "kind": "positional or keyword",
+        "name": "name"
+       },
+       {
+        "annotation": "int",
+        "default": "0",
+        "kind": "keyword-only",
+        "name": "sides"
+       }
+      ],
+      "path": "mylib.Shape.__init__",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "returns": "None",
+      "runtime": true
+     },
+     "_hidden": {
+      "analysis": "static",
+      "decorators": [],
+      "endlineno": 57,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": true,
+      "is_public": false,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "function",
+      "lineno": 56,
+      "name": "_hidden",
+      "parameters": [
+       {
+        "annotation": null,
+        "default": null,
+        "kind": "positional or keyword",
+        "name": "self"
+       }
+      ],
+      "path": "mylib.Shape._hidden",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "returns": null,
+      "runtime": true
+     },
+     "grow": {
+      "analysis": "static",
+      "decorators": [],
+      "docstring": {
+       "endlineno": 53,
+       "lineno": 43,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "Grow it."
+        },
+        {
+         "kind": "parameters",
+         "value": [
+          {
+           "annotation": "float",
+           "description": "The multiplier.",
+           "name": "factor",
+           "value": "2.0"
+          }
+         ]
+        },
+        {
+         "kind": "returns",
+         "value": [
+          {
+           "annotation": "Shape",
+           "description": "The grown shape.",
+           "name": ""
+          }
+         ]
+        },
+        {
+         "kind": "examples",
+         "value": [
+          [
+           "examples",
+           ">>> Shape(\"a\").grow()"
+          ]
+         ]
+        }
+       ],
+       "value": "Grow it.\n\nArgs:\n    factor: The multiplier.\n\nReturns:\n    The grown shape.\n\nExamples:\n    >>> Shape(\"a\").grow()"
+      },
+      "endlineno": 54,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "function",
+      "lineno": 42,
+      "name": "grow",
+      "parameters": [
+       {
+        "annotation": null,
+        "default": null,
+        "kind": "positional or keyword",
+        "name": "self"
+       },
+       {
+        "annotation": "float",
+        "default": "2.0",
+        "kind": "positional or keyword",
+        "name": "factor"
+       }
+      ],
+      "path": "mylib.Shape.grow",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "returns": "Shape",
+      "runtime": true
+     },
+     "label": {
+      "analysis": "static",
+      "annotation": "str",
+      "docstring": {
+       "endlineno": 39,
+       "lineno": 39,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "The label."
+        }
+       ],
+       "value": "The label."
+      },
+      "endlineno": 40,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "attribute",
+      "labels": [
+       "property"
+      ],
+      "lineno": 38,
+      "name": "label",
+      "path": "mylib.Shape.label",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "runtime": true
+     },
+     "name": {
+      "analysis": "static",
+      "endlineno": 35,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "attribute",
+      "labels": [
+       "instance-attribute"
+      ],
+      "lineno": 35,
+      "name": "name",
+      "path": "mylib.Shape.name",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "runtime": true,
+      "value": "name"
+     },
+     "scale": {
+      "analysis": "static",
+      "annotation": "float",
+      "docstring": {
+       "endlineno": 32,
+       "lineno": 32,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "Scale factor."
+        }
+       ],
+       "value": "Scale factor."
+      },
+      "endlineno": 31,
+      "filepath": "/root/mylib/__init__.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": false,
+      "kind": "attribute",
+      "labels": [
+       "class-attribute",
+       "instance-attribute"
+      ],
+      "lineno": 31,
+      "name": "scale",
+      "path": "mylib.Shape.scale",
+      "relative_filepath": "pkg/src/mylib/__init__.py",
+      "relative_package_filepath": "mylib/__init__.py",
+      "runtime": true,
+      "value": "1.0"
+     }
+    },
+    "name": "Shape",
+    "path": "mylib.Shape",
+    "relative_filepath": "pkg/src/mylib/__init__.py",
+    "relative_package_filepath": "mylib/__init__.py",
+    "runtime": true
+   },
+   "__all__": {
+    "analysis": "static",
+    "endlineno": 9,
+    "filepath": "/root/mylib/__init__.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": false,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": false,
+    "is_special": true,
+    "is_wildcard_exposed": false,
+    "kind": "attribute",
+    "labels": [
+     "module-attribute"
+    ],
+    "lineno": 9,
+    "name": "__all__",
+    "path": "mylib.__all__",
+    "relative_filepath": "pkg/src/mylib/__init__.py",
+    "relative_package_filepath": "mylib/__init__.py",
+    "runtime": true,
+    "value": "['area', 'Shape', 'Color', 'Helper', 'LIMIT', 'Alias', 'Circle']"
+   },
+   "_impl": {
+    "analysis": "static",
+    "docstring": {
+     "endlineno": 1,
+     "lineno": 1,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "Impl."
+      }
+     ],
+     "value": "Impl."
+    },
+    "filepath": "/root/mylib/_impl.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": false,
+    "is_imported": false,
+    "is_private": true,
+    "is_public": false,
+    "is_special": false,
+    "is_wildcard_exposed": false,
+    "kind": "module",
+    "members": {
+     "Helper": {
+      "analysis": "static",
+      "bases": [],
+      "decorators": [],
+      "docstring": {
+       "endlineno": 18,
+       "lineno": 18,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "Helper base."
+        }
+       ],
+       "value": "Helper base."
+      },
+      "endlineno": 18,
+      "filepath": "/root/mylib/_impl.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": true,
+      "kind": "class",
+      "lineno": 17,
+      "name": "Helper",
+      "path": "mylib._impl.Helper",
+      "relative_filepath": "pkg/src/mylib/_impl.py",
+      "relative_package_filepath": "mylib/_impl.py",
+      "runtime": true
+     },
+     "area": {
+      "analysis": "static",
+      "decorators": [],
+      "docstring": {
+       "endlineno": 13,
+       "lineno": 5,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "Compute area."
+        },
+        {
+         "kind": "parameters",
+         "value": [
+          {
+           "annotation": "int",
+           "description": "Width.",
+           "name": "width"
+          },
+          {
+           "annotation": "int",
+           "description": "Height.",
+           "name": "height",
+           "value": "1"
+          }
+         ]
+        },
+        {
+         "kind": "returns",
+         "value": [
+          {
+           "annotation": "int",
+           "description": "The area.",
+           "name": ""
+          }
+         ]
+        }
+       ],
+       "value": "Compute area.\n\nArgs:\n    width: Width.\n    height: Height.\n\nReturns:\n    The area."
+      },
+      "endlineno": 14,
+      "filepath": "/root/mylib/_impl.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": true,
+      "kind": "function",
+      "lineno": 4,
+      "name": "area",
+      "parameters": [
+       {
+        "annotation": "int",
+        "default": null,
+        "kind": "positional or keyword",
+        "name": "width"
+       },
+       {
+        "annotation": "int",
+        "default": "1",
+        "kind": "positional or keyword",
+        "name": "height"
+       }
+      ],
+      "path": "mylib._impl.area",
+      "relative_filepath": "pkg/src/mylib/_impl.py",
+      "relative_package_filepath": "mylib/_impl.py",
+      "returns": "int",
+      "runtime": true
+     }
+    },
+    "name": "_impl",
+    "path": "mylib._impl",
+    "relative_filepath": "pkg/src/mylib/_impl.py",
+    "relative_package_filepath": "mylib/_impl.py",
+    "runtime": true
+   },
+   "_priv": {
+    "analysis": "static",
+    "docstring": {
+     "endlineno": 1,
+     "lineno": 1,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "Private."
+      }
+     ],
+     "value": "Private."
+    },
+    "filepath": "/root/mylib/_priv.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": false,
+    "is_imported": true,
+    "is_private": true,
+    "is_public": false,
+    "is_special": false,
+    "is_wildcard_exposed": false,
+    "kind": "module",
+    "members": {
+     "secret": {
+      "analysis": "static",
+      "decorators": [],
+      "docstring": {
+       "endlineno": 5,
+       "lineno": 5,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "Secret."
+        }
+       ],
+       "value": "Secret."
+      },
+      "endlineno": 5,
+      "filepath": "/root/mylib/_priv.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": true,
+      "kind": "function",
+      "lineno": 4,
+      "name": "secret",
+      "parameters": [],
+      "path": "mylib._priv.secret",
+      "relative_filepath": "pkg/src/mylib/_priv.py",
+      "relative_package_filepath": "mylib/_priv.py",
+      "returns": null,
+      "runtime": true
+     }
+    },
+    "name": "_priv",
+    "path": "mylib._priv",
+    "relative_filepath": "pkg/src/mylib/_priv.py",
+    "relative_package_filepath": "mylib/_priv.py",
+    "runtime": true
+   },
+   "area": {
+    "analysis": "static",
+    "endlineno": 5,
+    "inherited": false,
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": true,
+    "is_imported": true,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": true,
+    "kind": "alias",
+    "lineno": 5,
+    "name": "area",
+    "path": "mylib.area",
+    "runtime": true,
+    "target_path": "mylib._impl.area"
+   },
+   "shapes": {
+    "analysis": "static",
+    "docstring": {
+     "endlineno": 1,
+     "lineno": 1,
+     "parsed": [
+      {
+       "kind": "text",
+       "value": "Circle module."
+      }
+     ],
+     "value": "Circle module."
+    },
+    "filepath": "/root/mylib/shapes.py",
+    "is_class_private": false,
+    "is_deprecated": false,
+    "is_exported": false,
+    "is_imported": false,
+    "is_private": false,
+    "is_public": true,
+    "is_special": false,
+    "is_wildcard_exposed": false,
+    "kind": "module",
+    "members": {
+     "Circle": {
+      "analysis": "static",
+      "bases": [],
+      "decorators": [],
+      "docstring": {
+       "endlineno": 5,
+       "lineno": 5,
+       "parsed": [
+        {
+         "kind": "text",
+         "value": "A circle."
+        }
+       ],
+       "value": "A circle."
+      },
+      "endlineno": 15,
+      "filepath": "/root/mylib/shapes.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": true,
+      "kind": "class",
+      "lineno": 4,
+      "members": {
+       "load": {
+        "analysis": "static",
+        "decorators": [
+         {
+          "endlineno": 12,
+          "lineno": 12,
+          "value": "classmethod"
+         }
+        ],
+        "docstring": {
+         "endlineno": 14,
+         "lineno": 14,
+         "parsed": [
+          {
+           "kind": "text",
+           "value": "Load one."
+          }
+         ],
+         "value": "Load one."
+        },
+        "endlineno": 15,
+        "filepath": "/root/mylib/shapes.py",
+        "is_class_private": false,
+        "is_deprecated": false,
+        "is_exported": false,
+        "is_imported": false,
+        "is_private": false,
+        "is_public": true,
+        "is_special": false,
+        "is_wildcard_exposed": false,
+        "kind": "function",
+        "labels": [
+         "async",
+         "classmethod"
+        ],
+        "lineno": 12,
+        "name": "load",
+        "parameters": [
+         {
+          "annotation": null,
+          "default": null,
+          "kind": "positional-only",
+          "name": "cls"
+         },
+         {
+          "annotation": "str",
+          "default": null,
+          "kind": "positional-only",
+          "name": "path"
+         },
+         {
+          "annotation": "str",
+          "default": "()",
+          "kind": "variadic positional",
+          "name": "names"
+         },
+         {
+          "annotation": "bool",
+          "default": "False",
+          "kind": "keyword-only",
+          "name": "strict"
+         },
+         {
+          "annotation": "int",
+          "default": "{}",
+          "kind": "variadic keyword",
+          "name": "extra"
+         }
+        ],
+        "path": "mylib.shapes.Circle.load",
+        "relative_filepath": "pkg/src/mylib/shapes.py",
+        "relative_package_filepath": "mylib/shapes.py",
+        "returns": "Circle",
+        "runtime": true
+       },
+       "unit": {
+        "analysis": "static",
+        "decorators": [
+         {
+          "endlineno": 7,
+          "lineno": 7,
+          "value": "staticmethod"
+         }
+        ],
+        "docstring": {
+         "endlineno": 9,
+         "lineno": 9,
+         "parsed": [
+          {
+           "kind": "text",
+           "value": "The unit circle."
+          }
+         ],
+         "value": "The unit circle."
+        },
+        "endlineno": 10,
+        "filepath": "/root/mylib/shapes.py",
+        "is_class_private": false,
+        "is_deprecated": false,
+        "is_exported": false,
+        "is_imported": false,
+        "is_private": false,
+        "is_public": true,
+        "is_special": false,
+        "is_wildcard_exposed": false,
+        "kind": "function",
+        "labels": [
+         "staticmethod"
+        ],
+        "lineno": 7,
+        "name": "unit",
+        "parameters": [],
+        "path": "mylib.shapes.Circle.unit",
+        "relative_filepath": "pkg/src/mylib/shapes.py",
+        "relative_package_filepath": "mylib/shapes.py",
+        "returns": "Circle",
+        "runtime": true
+       }
+      },
+      "name": "Circle",
+      "path": "mylib.shapes.Circle",
+      "relative_filepath": "pkg/src/mylib/shapes.py",
+      "relative_package_filepath": "mylib/shapes.py",
+      "runtime": true
+     },
+     "helper": {
+      "analysis": "static",
+      "decorators": [],
+      "endlineno": 19,
+      "filepath": "/root/mylib/shapes.py",
+      "is_class_private": false,
+      "is_deprecated": false,
+      "is_exported": false,
+      "is_imported": false,
+      "is_private": false,
+      "is_public": true,
+      "is_special": false,
+      "is_wildcard_exposed": true,
+      "kind": "function",
+      "lineno": 18,
+      "name": "helper",
+      "parameters": [],
+      "path": "mylib.shapes.helper",
+      "relative_filepath": "pkg/src/mylib/shapes.py",
+      "relative_package_filepath": "mylib/shapes.py",
+      "returns": null,
+      "runtime": true
+     }
+    },
+    "name": "shapes",
+    "path": "mylib.shapes",
+    "relative_filepath": "pkg/src/mylib/shapes.py",
+    "relative_package_filepath": "mylib/shapes.py",
+    "runtime": true
+   }
+  },
+  "name": "mylib",
+  "path": "mylib",
+  "relative_filepath": "pkg/src/mylib/__init__.py",
+  "relative_package_filepath": "mylib/__init__.py",
+  "runtime": true
+ },
+ "package": "mylib",
+ "python": "3.12.15"
+}

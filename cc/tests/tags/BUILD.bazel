@@ -14,6 +14,15 @@ cc_library(
 )
 
 cc_binary(
+    name = "bin_auto",
+    srcs = ["main.c"],
+    tags = [
+        "no-lint",
+        "no-remote-exec",
+    ],
+)
+
+cc_binary(
     name = "bin",
     srcs = ["main.c"],
     tags = [
@@ -38,6 +47,8 @@ tag_subject(
     testonly = True,
     targets = [
         ":bin",
+        ":bin_auto",
+        ":bin_auto_upstream",
         ":bin_upstream",
         ":lib",
         ":lib_upstream",
@@ -50,13 +61,15 @@ starlark_test(
     name = "tags_test",
     expected_observations = """subject //cc/tests/tags:tags_subject
 field bin=manual,no-lint,no-remote-exec
+field bin_auto=no-lint,no-remote-exec
+field bin_auto_upstream=dx:no-lint,manual,no-remote-exec
 field bin_upstream=dx:no-lint,manual,no-remote-exec
 field lib=manual,no-lint,no-remote-exec
 field lib_upstream=dx:no-lint,manual,no-remote-exec
 field unit=manual,no-lint,no-remote-exec
 field unit_upstream=dx:no-lint,manual,no-remote-exec
 aspect_field aspect_seen=True
-aspect_field field_count=6
+aspect_field field_count=8
 aspect_field has_subject=True
 aspect_field subject_label=//cc/tests/tags:tags_subject
 aspect_field transitive_count=0

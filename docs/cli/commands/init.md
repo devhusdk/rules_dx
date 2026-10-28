@@ -21,11 +21,12 @@ Adopts `dx` into an existing tree. Use `dx new` to start a new project. Checks b
 defaults to `my_project`. The module name starts with `[a-z0-9]` and uses
 `[a-z0-9._-]` only. An invalid module name fails before any file is written.
 Writes each file only when it is missing. The exceptions are the marked
-block in `AGENTS.md` and stale launchers (see below).
+block in `AGENTS.md`, stale launchers and stale Bazel preset layers (see below).
 
 By default it writes only the essentials: `.dx/version`, `.gitignore`,
 `.bazelignore`, `MODULE.bazel.snippet`, the launcher (`tools/dx` and
-`tools/dx.cmd`) and the [rules_dx overrides](#rules_dx-overrides). Add optional
+`tools/dx.cmd`), the [rules_dx overrides](#rules_dx-overrides) and the
+[Bazel preset](#bazel-preset). Add optional
 parts with `--with=<parts>`, a comma-separated list that can repeat, or all of
 them with `--full`:
 
@@ -44,6 +45,11 @@ bazel run @rules_dx//:dx -- init --apply --full
 
 An unknown part name is a usage error that lists the five names. `--with` and
 `--full` cannot be combined.
+
+`--rust-target-triple=<triples>` (comma-separated, repeatable) adds
+`extra_target_triples` to the Rust toolchain in `MODULE.bazel.snippet`, for
+example `--rust-target-triple=wasm32-unknown-unknown,wasm32-wasip1`. It only
+shapes the snippet; it is not recorded in `.dx/init.toml`.
 
 `--apply` records the parts it was given in `.dx/init.toml`. Commit it:
 
@@ -69,7 +75,7 @@ See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a G
 creating the file when it is missing (see below). It writes `CLAUDE.md` with an
 `@AGENTS.md` import when the import is missing, so Claude Code reads the block.
 The new `.claude/settings.json` also carries a `permissions.allow` list for the
-read-only commands `tools/dx check *`, `test *`, `build *`, `list-tests *`,
+read-only commands `tools/dx check *`, `test *`, `build *`,
 `status *` and `version *`. If a hooks file
 already exists, it is left alone and the missing hook and allow entries are printed to
 stderr. Without the `agents` part, init never reads or writes these files.
@@ -96,7 +102,7 @@ Output: text only. Check mode looks for the essentials (`.dx/version`,
 `--with` or `--full`. With no record and no flag it checks the essentials only,
 so a tree from an older full `dx init` is not flagged for optional files it
 dropped.
-It also flags a dx-written launcher whose version differs from `.dx/version`
+It also flags a missing or stale Bazel preset layer and a missing preset import. It flags a dx-written launcher whose version differs from `.dx/version`
 and an empty or non-semver `.dx/version`. With the `agents` part it flags
 missing `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`,
 an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
@@ -124,6 +130,23 @@ write fails, apply still lists the files it already wrote, then the
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
 extra positionals, an unknown part, or an invalid module name, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
+
+## Init plan
+
+When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-only plan of
+what adopting rules_dx would change, found from the declared files alone. It runs no Bazel
+and writes nothing. Sections:
+
+- `version raises`: a `bazel_dep` you declare below the version rules_dx needs (the higher of
+  its own `bazel_dep` floors and the snippet init would write). Advisory.
+- `override conflicts`: a `*_override` you own. One on a module dx patches
+  (`single_version_override` of `rules_rust`, for example) is hard, because dx cannot add its
+  patches; one on another rules_dx dependency is advisory.
+
+Each finding names the file and line, including `include()`d `.MODULE.bazel` files. The
+plan covers declared deps only, so transitive raises are not shown. Hard findings add an
+`init plan: N hard conflicts (...)` clause to `init drift` and exit 1; advisory ones never
+change the exit code.
 
 ## rules_dx overrides
 
@@ -231,3 +254,25 @@ Enforce the same check in CI. See [GitHub CI](../../github-ci.md).
 
 To adopt `rules_dx` in a repo that already uses upstream rules, see
 [Adopting rules_dx In An Existing Bazel Repo](../../adopting-existing-bazel.md).
+
+## Bazel preset
+
+`dx init --apply` writes the execution preset as three generated layers,
+`.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc` and `resources.bazelrc`,
+and puts three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines at the top
+of the root `.bazelrc` (created when missing; its other bytes, BOM and line
+endings stay as they are). `dx new` writes the same files.
+
+- A layer file is created when missing and rewritten when it carries the dx
+  header and differs from this dx. A file without the header, or a symlink, is
+  left alone with a note.
+- Opt out of a layer by commenting its import out (`# import ...`). Commenting
+  out all three drops the preset; the files may then be deleted. Imports are added
+  only when no line, active or commented, names a `.dx/bazelrc` layer. If some
+  are present and one is missing, check mode reports it and apply prints a note.
+- If the root `.bazelrc` repeats lines the preset owns, or is a symlink, apply
+  prints a note and adds no imports.
+- In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.
+- `dx upgrade` refreshes existing stale layers. `dx rollback` refreshes them only
+  when the restored pin is this dx; otherwise it prints a hint to run
+  `tools/dx init --apply` under the restored pin.

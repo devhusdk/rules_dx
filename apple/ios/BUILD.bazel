@@ -295,6 +295,49 @@ failure_test(
 )
 
 apple_ios_app(
+    name = "entry_and_srcs",
+    srcs = ["main.m"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    entry = ":share_stub",
+    environment = "simulator",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "entry_and_srcs_test",
+    expected_failure_substring = "set srcs or entry for the app entry point, not both",
+    target = ":entry_and_srcs_selection",
+)
+
+apple_ios_app(
+    name = "swift_entry_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    entry = ":share_stub",
+    environment = "simulator",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.4",
+)
+
+cell_failure_test(
+    name = "swift_entry_app_on_device_test",
+    config = "device",
+    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; pass --ios_multi_cpus=sim_arm64",
+    target = ":swift_entry_app_library",
+)
+
+cell_failure_test(
+    name = "swift_entry_app_without_xcode_test",
+    config = "simulator_no_xcode",
+    expected_failure_substring = "no Xcode resolved for this build",
+    target = ":swift_entry_app_library",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+apple_ios_app(
     name = "no_deployment",
     bundle_id = "com.example.share",
     environment = "simulator",
@@ -494,6 +537,21 @@ failure_test(
     name = "no_device_type_test",
     expected_failure_substring = "device_type names the simulator device",
     target = ":no_device_type_app_selection",
+)
+
+apple_ios_app_test(
+    name = "test_no_sources_app",
+    app = ":simulator_app",
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "test_no_sources_test",
+    expected_failure_substring = "srcs or deps needs the XCTest cases",
+    target = ":test_no_sources_app_selection",
 )
 
 apple_simulator_boot(name = "boot_nowhere")

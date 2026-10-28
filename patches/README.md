@@ -29,9 +29,9 @@ files but leaves the `include()` out and says so on stderr. Without a
 | Module | Version | Patches | Why |
 | --- | --- | --- | --- |
 | `rules_rust` | 0.74.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch` | Rust on Windows (lld-link, MSVC stdlib link flags) |
-| `rules_android` | 0.6.6 | `rules_android.patch` | Android resources and App Bundles |
-| `rules_dotnet` | 0.22.1 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
-| `rules_ruby` | 0.28.0 | `reproducible.patch`, `coverage.patch` | Ruby toolchain from the repository cache; Ruby coverage without a bundle and on Windows |
+| `rules_cuda` | 0.3.0 | `dlink_includes.patch` | CUDA device link (`rdc`) in the sandbox |
+| `rules_dotnet` | 0.22.2 | `reproducible.patch`, `fsharp_signature.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs` |
+| `rules_ruby` | 0.29.0 | `reproducible.patch`, `coverage.patch` | Ruby toolchain from the repository cache; Ruby coverage without a bundle and on Windows |
 | `aspect_rules_py` | 2.0.0-alpha.6 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.0 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |
 | `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |

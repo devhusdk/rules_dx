@@ -6,8 +6,7 @@ with a scope.
 ## No Scope Means `//...`
 
 - `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`, `dx migrate`,
-  `dx list-tests`
+  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`, `dx migrate`
 
 ## No Scope Means The Repository
 
@@ -39,11 +38,11 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## No Scopes
 
-- `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx rollback`, `dx worktree`, `dx explain`
+- `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx rollback`, `dx worktree`, `dx explain`, `dx install`
 
 ## Scope Shapes
 
-- Labels and patterns: `//...`, `//pkg:target`, `@repo//...`.
+- Labels and patterns: `//...`, `//pkg:target`. `@repo//...` is accepted only by `dx run`; other commands reject external repos.
 - Files and dirs: workspace-relative paths, also under `bazel run`. A file
   resolves through one `bazel query` of the workspace rules to the rules
   that use it directly. Owners in other packages are included. External
@@ -53,7 +52,7 @@ Patterns, paths, and multiple labels are usage errors.
   `bazel run` (`//path/...`, `//...` at the root). Never combines with
   explicit scopes. Accepted by `dx build`, `dx test`, `dx coverage`,
   `dx lint`, `dx typecheck`, `dx format`, `dx generate`, `dx check`,
-  `dx fix`, `dx security`, `dx license`, `dx list-tests`, and `dx docs`.
+  `dx fix`, `dx security`, `dx license`, and `dx docs`.
 - `--affected`: the targets your changes reach, described below. Never
   combines with explicit scopes or `--here`.
 - Targets that do not fit the target platform are skipped in `dx build`,
@@ -71,7 +70,7 @@ bazel run @rules_dx//:dx -- build //cli/...
 ## `--affected`
 
 `--affected` selects only what your changes can reach. It is accepted by
-`dx build`, `dx test`, `dx coverage`, `dx list-tests`, `dx lint`,
+`dx build`, `dx test`, `dx coverage`, `dx lint`,
 `dx typecheck`, `dx format`, `dx check`, `dx fix`, `dx security`, and
 `dx license`. `dx generate` and `dx docs` reject `--affected` (usage error,
 exit `2`).
@@ -84,7 +83,7 @@ exit `2`).
   `local_path_override` path outside the workspace widens to `//...`.
 - Each changed file maps to its owning targets, then to their reverse
   dependencies inside `//...`. Targets tagged `manual` are left out.
-- `dx test`, `dx coverage`, and `dx list-tests` keep only test targets.
+- `dx test` and `dx coverage` keep only test targets.
 - `dx security` and `dx license` keep only targets a dependency set owns.
 - `dx check --affected` runs generate, format, lint, and typecheck as usual,
   then the affected tests. `dx fix --affected` runs the same phases without
@@ -99,10 +98,15 @@ exit `2`).
   through `import` or `try-import %workspace%/...`, including nested imports.
   Other `*.bazelrc` files do not widen. So does a file that `MODULE.bazel` or an
   included segment names by label in an extension tag, repo rule, or
-  override, such as `pnpm-lock.yaml`, `go.mod` and its `go.sum`,
-  `maven_install.json`, `requirements_lock.txt`, or a patch, and the included
+  override, such as `requirements_lock.txt`, or a patch, and the included
   segment itself. A `crate.from_cargo` lockfile in an included segment counts
-  as a lock input. When dx cannot read every value in `MODULE.bazel`, any
+  as a lock input, as does the `lock_file` of a `maven.install`
+  with literal arguments: only the users of artifacts whose entry changed in
+  `maven_install.json` are selected. A `go.mod` named by `go_deps.from_file` and
+  its `go.sum` do not widen: dx diffs their requirements and checksums and
+  selects the users of the changed modules' Gazelle repositories, widening only
+  for other `go.mod` edits (`replace`, `exclude`, `go`, `toolchain`). When dx
+  cannot read every value in `MODULE.bazel`, any
   `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`,
   `go.work.sum`, `maven_install.json`, or `requirements_lock.txt`, at any
   depth, widens to `//...`. A deleted, removed, or renamed-from file
@@ -123,7 +127,14 @@ exit `2`).
   `*.lock` file, an added or deleted lock, a lock dx cannot read, or a
   crate_universe lockfile change in another key outside `crates` (such as
   `conditions`) widens to `//...`. A changed crate_universe manifest such as `Cargo.toml` does
-  not widen; it selects its owners like any other file.
+  not widen; it selects its owners like any other file. A patch or
+  `additive_build_file` named in a `crate.annotation` tag widens to `//...`.
+- A change to the `pnpm_lock` named by an `npm.npm_translate_lock` call in
+  `MODULE.bazel` selects the targets that use the npm packages whose name or
+  version changed (the `@npm//name` targets and the per-version spoke repos),
+  plus their reverse dependencies. A change to the lock's top-level settings
+  (such as `patchedDependencies` or `overrides`), or a lock dx cannot read,
+  widens to `//...`.
 - A root `MODULE.bazel` change that only edits `bazel_dep` version strings,
   with the matching `MODULE.bazel.lock` change, selects the targets in the
   repos of the changed modules and of every module that depends on them, plus
@@ -161,7 +172,11 @@ exit `2`).
   toolchain or platform package. Those packages are the ones named by
   `register_toolchains` or `register_execution_platforms` in `MODULE.bazel`,
   or by `--extra_toolchains`, `--extra_execution_platforms`, `--platforms`,
-  or `--host_platform` in `.bazelrc`. It also widens to `//...` when a BUILD
+  or `--host_platform` in `.bazelrc`. The same applies to the rule
+  implementation behind a `toolchain(toolchain = ...)` target in those
+  packages: the BUILD file of a workspace label, or, for an `@repo` label,
+  the loaded `.bzl` files that name the repo and the `.bzl` files they
+  reference through `Label(...)`. It also widens to `//...` when a BUILD
   or `.bzl` file does not parse. A `.bzl` or `.scl` file nothing loads selects nothing.
   A deleted `.bzl` or `.scl` file selects the packages that still load it, or nothing.
 - dx prints each widening and its reason on stderr:
@@ -183,7 +198,7 @@ exit `2`).
   runs the secrets scan. With `--output=json` it emits `command_started` (with
   `affected`) and `command_finished`; `mode` is `check` for `dx check`, and for `dx fix`,
   `lint`, `typecheck` and `format` unless `--apply` is given; `dx build`,
-  `test`, `coverage`, `list-tests`, `security` and `license` report `default`.
+  `test`, `coverage`, `security` and `license` report `default`.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:
@@ -208,7 +223,7 @@ exit `2`).
   that cannot start has code `query_launch_failed`.
 - dx runs at most one `bazel query`, `kind('rule', //...)`, to find the
   owning targets of the changed files and their reverse dependencies.
-  `dx test`, `dx coverage`, `dx list-tests`, and `dx check` then run one
+  `dx test`, `dx coverage`, and `dx check` then run one
   `tests(set(...))` query to find the affected tests. A change that widens
   to `//...` skips the tests query.
 - `dx security --affected` runs the secrets scan whenever a file changed.

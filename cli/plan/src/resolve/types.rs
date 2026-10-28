@@ -58,6 +58,8 @@ pub enum ResolveError {
     OutsideWorkspace { scope: String },
     #[error("unknown path {scope:?}: no such file or directory under the workspace")]
     PathNotFound { scope: String },
+    #[error("no targets found for {scope:?}: no BUILD file exists under that package path")]
+    NoTargets { scope: String },
     #[error("unsupported path {scope:?}: scope paths must be regular files or directories")]
     NotFileOrDir { scope: String },
     #[error(

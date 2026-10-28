@@ -9,7 +9,7 @@ bazel run @rules_dx//:dx -- clean
 ## `dx check` And `dx fix`
 
 ```text
-dx check [--here] [--affected] [--check] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--check] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 dx fix [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
@@ -56,6 +56,10 @@ and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one o
 or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts with exit `2`.
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
 `--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
+`dx check --explain` saves one execution log for `dx explain`: each Bazel phase
+(and the affected tests) writes its own log, and dx joins them into one
+`.dx/explain/<n>.binpb.zst`, keeping the two newest. A `-- bazel-options` entry
+that sets another execution log is refused.
 `--check` passes through to every phase. `--fail-on` applies to `format`,
 `lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
 `typecheck` phases into one document. `generate` and `test` take neither. A
@@ -73,7 +77,7 @@ never clears it. The run stops, and marks the remaining phases skipped, only
 on a bad scope or configuration, when Bazel cannot run (it fails to launch, is
 killed by a signal, or the disk is full), or on a cancel. A phase whose only
 failures are compile errors does not stop `dx check`, but it stops `dx fix`:
-the remaining phases are skipped with
+the remaining phases are skipped (after `fix --apply` applied changes, `generate` still reruns once) with
 `<phase> skipped after <phase> failed to compile`. The skipped phases are named
 in the JSON `umbrella_phase_skipped` notice events. In text output, a run with a failed
 phase ends with a `dx: phases:` line on stderr that says how each phase ended.
@@ -163,14 +167,15 @@ nothing. `--check` is that default: it reports and deletes nothing. Pass `--appl
 holds is never pruned. When process observation is unavailable (`/proc` cannot be listed, or any
 process cannot be read, such as one owned by another user or blocked by ptrace
 restrictions), dx keeps unobserved state and reports it; pass `--prune-unobserved` to prune it
-anyway; this still keeps state used by readable processes and never overrides a held lease. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes. It manages only setup records and generations and leaves other `.dx` entries alone; `dx worktree prune --apply --bases` reclaims tagged rebuildable caches in free slots.
+anyway; this still keeps state used by readable processes and never overrides a held lease. Never touches Bazel outputs; run `bazel clean` for those. Takes no scopes. It manages setup records and generations, and `--apply` also deletes the execution logs `--explain` saved under `.dx/explain` (a `dx clean: pruned <n> execution logs from .dx/explain` line, or a `pruned` notice with that path in JSON); it leaves other `.dx` entries alone; `dx worktree prune --apply --bases` reclaims tagged rebuildable caches in free slots.
 
 Output: `--output text|json`. `--quiet` silences text output.
 
 Text, check mode, when something can be pruned or is preserved:
 
 - `dx clean: reclaimable managed state`
-- `process observation unavailable: unobserved state is preserved, never assumed idle`
+- `process observation unavailable: unobserved state is preserved, never assumed idle` when unobserved state is preserved
+- `process observation unavailable: unobserved state pruned under --prune-unobserved` when unobserved state is pruned by `--prune-unobserved`
 - `prune setup record: .dx/setups/<hex> (<n> bytes)`
 - `prune generation: .dx/<environments|generated>/<hex> (<n> bytes)`
 - `preserve current: .dx/setups/<hex>`, or `no current selection`

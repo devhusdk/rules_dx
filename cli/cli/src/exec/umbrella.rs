@@ -1,4 +1,5 @@
 use super::common::*;
+use super::explain_store;
 use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
@@ -11,12 +12,10 @@ use dx_output::{
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::QueryRunner;
-use dx_process::{interrupted, ChildStatus, Runner};
+use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner};
+use dx_process::{interrupted, Runner};
 use serde_json::{json, Value};
 use serde_sarif::sarif::Sarif;
-use std::cell::Cell;
-use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -573,73 +572,6 @@ struct Verification {
     ended: Option<i32>,
 }
 
-/// Runner that forwards every call and records whether Bazel failed to launch or was signalled.
-struct LaunchWatch<'a> {
-    inner: &'a dyn Runner,
-    failed: Cell<bool>,
-}
-
-impl<'a> LaunchWatch<'a> {
-    fn new(inner: &'a dyn Runner) -> Self {
-        Self {
-            inner,
-            failed: Cell::new(false),
-        }
-    }
-
-    fn failed(&self) -> bool {
-        self.failed.get()
-    }
-
-    fn watch(&self, result: io::Result<ChildStatus>) -> io::Result<ChildStatus> {
-        if !matches!(result, Ok(ChildStatus { code: Some(_), .. })) {
-            self.failed.set(true);
-        }
-        result
-    }
-}
-
-impl Runner for LaunchWatch<'_> {
-    fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
-        self.watch(self.inner.run(argv, cwd, env))
-    }
-
-    fn run_hermetic(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-    ) -> io::Result<ChildStatus> {
-        self.watch(self.inner.run_hermetic(argv, cwd, env))
-    }
-
-    fn run_withdrawable(
-        &self,
-        argv: &[String],
-        cwd: &Path,
-        env: &[(&str, &str)],
-        withdraw: &dyn Fn() -> bool,
-    ) -> io::Result<Option<ChildStatus>> {
-        match self.inner.run_withdrawable(argv, cwd, env, withdraw) {
-            Ok(None) => Ok(None),
-            Ok(Some(status)) => self.watch(Ok(status)).map(Some),
-            Err(error) => self.watch(Err(error)).map(Some),
-        }
-    }
-
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
-        self.inner.pinned_tool(var)
-    }
-
-    fn tool_version(&self, path: &Path) -> Option<String> {
-        self.inner.tool_version(path)
-    }
-
-    fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
-        self.inner.free_disk_bytes(path)
-    }
-}
-
 /// Runs the affected tests as the last `dx check --affected` phase.
 fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
     let Env {
@@ -654,13 +586,14 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
         ci,
         audit_today,
         actions,
+        proc_root,
+        bump_commit_json,
     } = env;
-    let watch = LaunchWatch::new(runner);
-    let (code, complete) = super::workflow::execute_workflow_phase(
+    let (code, complete, host) = super::workflow::execute_workflow_phase(
         test,
         Env {
             workspace,
-            runner: &watch,
+            runner,
             query_runner,
             temp_dir,
             pid,
@@ -670,18 +603,20 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
             ci,
             audit_today,
             actions,
+            proc_root,
+            bump_commit_json,
         },
     );
     PhaseRun {
         code,
-        kind: test_phase_kind(code, complete, watch.failed()),
+        kind: test_phase_kind(code, complete, host),
         effects: PhaseEffects::default(),
     }
 }
 
-/// Classifies the test phase from the dx test exit code, result completeness and whether Bazel launched.
-fn test_phase_kind(code: i32, complete: bool, launch_failed: bool) -> PhaseKind {
-    if launch_failed && code != 0 {
+/// Classifies the test phase from the dx test exit code, result completeness and whether Bazel failed on the host.
+fn test_phase_kind(code: i32, complete: bool, host: bool) -> PhaseKind {
+    if host && code != 0 {
         return PhaseKind::Host;
     }
     PhaseKind::from_bazel_exit(code, code == BAZEL_TESTS_FAILED && complete)
@@ -698,6 +633,8 @@ struct VerifyContext<'a> {
     ci: bool,
     audit_today: Option<&'a str>,
     actions: &'a ActionTally,
+    proc_root: &'a Path,
+    bump_commit_json: Option<&'a str>,
 }
 
 /// Re-runs umbrella phases read-only through `through` after `fix --apply` touched them.
@@ -746,6 +683,8 @@ fn verify_fix(
                 ci: context.ci,
                 audit_today: context.audit_today,
                 actions: context.actions,
+                proc_root: context.proc_root,
+                bump_commit_json: context.bump_commit_json,
             };
             if *phase == Command::Generate {
                 execute_generate_request(&request.verify_generate_request(), phase_env)
@@ -908,6 +847,8 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
         ci,
         audit_today,
         actions,
+        proc_root,
+        bump_commit_json,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_umbrella(
@@ -924,6 +865,8 @@ pub(crate) fn execute_umbrella_request(request: &UmbrellaRequest, env: Env<'_>) 
             ci,
             audit_today,
             actions,
+            proc_root,
+            bump_commit_json,
         },
     );
     latched.exit_code(code)
@@ -942,8 +885,13 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         ci,
         audit_today,
         actions,
+        proc_root,
+        bump_commit_json,
     } = env;
     let fix_apply = request.command == Command::Fix && request.applies();
+    // One rule-graph load serves every phase until a phase may have rewritten BUILD files.
+    let graph_memo = MemoizedGraphQuery::new(query_runner);
+    let query_runner: &dyn QueryRunner = &graph_memo;
     let phase_check = !fix_apply;
     let mode = if phase_check { "check" } else { "default" };
     let command = request.command.name();
@@ -976,8 +924,27 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             return exit;
         }
     }
+    let explain_log = if request.explain {
+        match explain_store::reserve(workspace) {
+            Ok(reserved) => Some(reserved),
+            Err(error) => {
+                return operational_output(
+                    request.common.output,
+                    out,
+                    err,
+                    explain_store::CODE_EXPLAIN_LOG_UNWRITABLE,
+                    &format!("could not create an execution log under .dx/explain: {error}"),
+                );
+            }
+        }
+    } else {
+        None
+    };
     if request.common.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(command, mode)) {
+            if let Some(reserved) = &explain_log {
+                let _ = std::fs::remove_file(&reserved.path);
+            }
             return exit;
         }
     }
@@ -1035,6 +1002,16 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         if let Some(capture) = sarif_capture {
             collector.require_capture(index, capture);
         }
+        let phase_log = explain_log.as_ref().map(|_| {
+            temp_dir.join(format!(
+                "umbrella-explain-{pid}-{phase_nonce}{}",
+                explain_store::SUFFIX
+            ))
+        });
+        let phase_log_text = phase_log
+            .as_ref()
+            .and_then(|path| path.to_str())
+            .map(str::to_owned);
         let mut phase_out = Vec::new();
         let mut phase_err = Vec::new();
         let PhaseRun {
@@ -1054,14 +1031,23 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 ci,
                 audit_today,
                 actions,
+                proc_root,
+                bump_commit_json,
             };
             if phase == Command::Generate {
-                execute_generate_phase(&request.phase_generate_request(phase_reports), phase_env)
+                let mut generate = request.phase_generate_request(phase_reports);
+                generate.exec_log = phase_log_text.clone();
+                execute_generate_phase(&generate, phase_env)
             } else if let (Command::Test, Some(test)) = (phase, request.test.as_deref()) {
-                execute_test_phase(test, phase_env)
+                let mut test = test.clone();
+                test.exec_log = phase_log_text.clone();
+                execute_test_phase(&test, phase_env)
             } else {
                 match request.phase_quality_request(phase, phase_reports) {
-                    Ok(phase_request) => execute_quality_phase(&phase_request, phase_env),
+                    Ok(mut phase_request) => {
+                        phase_request.exec_log = phase_log_text.clone();
+                        execute_quality_phase(&phase_request, phase_env)
+                    }
                     Err(message) if request.common.output == OutputMode::Json => PhaseRun {
                         code: pre_exec(
                             request.common.output,
@@ -1083,11 +1069,17 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                 }
             }
         };
+        if let (Some(reserved), Some(path)) = (&explain_log, &phase_log) {
+            append_phase_log(&reserved.path, path);
+        }
         if code != 0 && interrupted().is_some() {
             kind = PhaseKind::Cancelled;
         }
         if effects.touched() {
             last_touched = Some(index);
+        }
+        if fix_apply && (code != 0 || effects.changes + effects.applied + effects.not_applied > 0) {
+            graph_memo.invalidate();
         }
         if phase == Command::Generate {
             generate_clean |= code == 0 && label == phase.name();
@@ -1124,6 +1116,21 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             if !kind.continues(request.command) {
                 stop_code = Some(code);
                 skip_cause = format!("{label} {}", kind.stop_reason());
+                if kind == PhaseKind::Compile
+                    && fix_apply
+                    && generate_clean
+                    && quality_applied
+                    && !rerun_planned
+                {
+                    // A compile error may need a dep that generate adds, so
+                    // skip only the phases after this one and rerun generate.
+                    rerun_planned = true;
+                    collector.skip_remaining(skip_cause.clone());
+                    phases.push((Command::Generate, RERUN_GENERATE));
+                    collector.plan(Command::Generate, RERUN_GENERATE);
+                    index = phases.len() - 1;
+                    continue;
+                }
                 break;
             }
             failed_code.get_or_insert(code);
@@ -1194,6 +1201,14 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
     }
     collector.cleanup();
+    if let Some(reserved) = &explain_log {
+        let _ = explain_store::prune(workspace, explain_store::KEEP, reserved.number);
+        if stdout_exit.is_none() {
+            if let Err(exit) = announce_explain_log(request, out, err, &reserved.path) {
+                stdout_exit = Some(exit);
+            }
+        }
+    }
     if !matches!(request.common.output, OutputMode::Json)
         && (stop_code.is_some() || failed_code.is_some())
     {
@@ -1207,6 +1222,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         None
     };
     if let Some(through) = verify_through {
+        graph_memo.invalidate();
         let context = VerifyContext {
             workspace,
             runner,
@@ -1217,6 +1233,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
             ci,
             audit_today,
             actions,
+            proc_root,
+            bump_commit_json,
         };
         let verification = verify_fix(request, &context, through, &failed_phases);
         reports_ok &= verification.readable;
@@ -1253,6 +1271,42 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         let _ = write_event(out, &finished);
     }
     code
+}
+
+/// Appends one finished phase's execution log to the run's store file, then removes the phase file.
+/// Concatenated zstd frames are one valid log, so `dx explain` reads the phases as segments.
+fn append_phase_log(store: &Path, phase: &Path) {
+    if let Ok(bytes) = std::fs::read(phase) {
+        if let Ok(mut file) = std::fs::OpenOptions::new().append(true).open(store) {
+            let _ = file.write_all(&bytes);
+        }
+    }
+    let _ = std::fs::remove_file(phase);
+}
+
+/// Names the saved execution log: a notice in JSON, one stderr line in text.
+fn announce_explain_log(
+    request: &UmbrellaRequest,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    path: &Path,
+) -> Result<(), i32> {
+    let shown = path.display().to_string();
+    if request.common.output == OutputMode::Json {
+        let notice = NoticeEvent {
+            related_command: Some(request.command.name().to_owned()),
+            path: Some(shown),
+            ..NoticeEvent::info(
+                explain_store::CODE_EXPLAIN_LOG,
+                "saved the execution log for dx explain",
+            )
+        };
+        return emit_built(out, notice_event(&notice));
+    }
+    if request.common.chatty() {
+        let _ = writeln!(err, "dx: execution log {shown}");
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -3625,16 +3679,17 @@ mod tests {
             (4, true, false, PhaseKind::Selection),
             (8, false, false, PhaseKind::Cancelled),
             (36, false, false, PhaseKind::Tool),
+            (36, false, true, PhaseKind::Host),
             (141, true, false, PhaseKind::Tool),
             (1, false, true, PhaseKind::Host),
             (1, true, true, PhaseKind::Host),
             (0, true, true, PhaseKind::Clean),
         ];
-        for (code, complete, launch_failed, kind) in cases {
+        for (code, complete, host, kind) in cases {
             assert_eq!(
-                test_phase_kind(code, complete, launch_failed),
+                test_phase_kind(code, complete, host),
                 kind,
-                "{code} {complete} {launch_failed}"
+                "{code} {complete} {host}"
             );
         }
     }
@@ -3741,23 +3796,13 @@ mod tests {
     }
 
     #[test]
-    fn test_phase_launch_watch_forwards_the_inner_runner() {
+    fn test_phase_reports_full_disk_as_host() {
         let harness = Harness {
-            raw_bep: Some(Vec::new()),
-            ..Harness::new("umbrella-test-phase-watch")
+            bazel_code: 36,
+            free_disk_bytes: Some(1 << 20),
+            ..Harness::new("umbrella-test-phase-disk-full")
         };
-        let mut runner = harness.runner();
-        runner.free_disk_bytes = Some(4096);
-        let argv = vec!["bazel".to_owned()];
-        let watch = LaunchWatch::new(&runner);
-        assert_eq!(watch.free_disk_bytes(&harness.temp), Some(4096));
-        assert!(watch.run(&argv, &harness.temp, &[]).is_ok());
-        assert!(!watch.failed());
-
-        runner.io_error = true;
-        let watch = LaunchWatch::new(&runner);
-        assert!(watch.run(&argv, &harness.temp, &[]).is_err());
-        assert!(watch.failed());
+        assert_eq!(run_test_phase(&harness), (36, PhaseKind::Host));
     }
 
     /// Runs `check` where format passes and lint reports findings.
@@ -3789,7 +3834,7 @@ mod tests {
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
         inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
-        inv.test_targets = Some(Vec::new());
+        inv.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
         let (code, out, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 1, "{out}{err}");
         assert!(
@@ -3807,7 +3852,7 @@ mod tests {
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
         inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
-        inv.test_targets = Some(Vec::new());
+        inv.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
         let (code, out, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("Running generate for //test/..."), "{out}");
@@ -4482,6 +4527,98 @@ mod tests {
             parse_capture(br#"{"runs":[]}"#),
             Err(CaptureState::Malformed),
             "a document without a version is not SARIF 2.1.0"
+        );
+    }
+
+    fn graph_calls(harness: &Harness) -> usize {
+        harness
+            .query
+            .calls
+            .borrow()
+            .iter()
+            .filter(|argv| argv.last().map(String::as_str) == Some("kind('rule', //...)"))
+            .count()
+    }
+
+    fn pkg_harness(name: &str) -> Harness {
+        let harness = umbrella_clean(name);
+        harness.write_source("pkg/BUILD.bazel", "");
+        harness.write_source("pkg/a.py", "x = 1\n");
+        harness
+    }
+
+    #[test]
+    fn check_loads_the_rule_graph_once_across_phases() {
+        let harness = pkg_harness("umbrella-graph-once-check");
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:extra", &["//pkg:a.py"], &[]),
+        ]);
+        let (code, out, err) = harness.run(&["check", "--output=text", "pkg/a.py"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(harness.seen_env.borrow().len(), 4, "every phase ran");
+        assert_eq!(
+            out.matches("for //pkg:extra //pkg:lib").count(),
+            4,
+            "every phase plans the same owners: {out}"
+        );
+        assert_eq!(graph_calls(&harness), 1, "one graph load for the run");
+    }
+
+    #[test]
+    fn fix_without_changes_loads_the_rule_graph_once() {
+        let harness = pkg_harness("umbrella-graph-once-fix");
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        let (code, out, err) = harness.run(&["fix", "--output=text", "pkg/a.py"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(graph_calls(&harness), 1, "default fix never writes");
+    }
+
+    #[test]
+    fn fix_apply_reloads_the_rule_graph_after_a_write() {
+        let mut harness = pkg_harness("umbrella-graph-reload");
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+        );
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        harness
+            .query
+            .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:new", &["//pkg:a.py"], &[]),
+        ]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:new", &["//pkg:a.py"], &[]),
+        ]);
+        harness.query.script_graph(&[
+            graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
+            graph_rule("//pkg:new", &["//pkg:a.py"], &[]),
+        ]);
+        let staged = harness.staged_artifacts();
+        let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+        let verify_files: Vec<(PathBuf, Vec<u8>)> = staged
+            .iter()
+            .map(|(path, _)| (path.clone(), clean.clone()))
+            .collect();
+        let (_, out, err) = fix_apply_with_staged_verify(
+            &harness,
+            verify_files,
+            Some(intended_witness("check", true, "", "")),
+            5,
+            &["fix", "--apply", "--output=text", "pkg/a.py"],
+        );
+        assert!(
+            graph_calls(&harness) >= 2,
+            "a phase that applied edits invalidates the graph: {out}{err}"
+        );
+        assert!(
+            out.contains("//pkg:new"),
+            "later plans see the new owner: {out}"
         );
     }
 }

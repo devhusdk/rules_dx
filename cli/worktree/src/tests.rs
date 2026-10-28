@@ -178,7 +178,11 @@ impl Host for FakeHost {
         self.servers.lock().expect("servers").clone()
     }
 
-    fn output_roots(&self) -> Vec<PathBuf> {
+    fn config_output_roots(&self) -> Vec<PathBuf> {
+        self.roots.lock().expect("roots").clone()
+    }
+
+    fn output_roots(&self, _servers: &[Server]) -> Vec<PathBuf> {
         self.root_scans.fetch_add(1, Ordering::SeqCst);
         self.roots.lock().expect("roots").clone()
     }
@@ -1088,6 +1092,20 @@ fn run_dx_in(pool: &Pool, slot: u32) -> dx_atomic_fs::lease::SharedLease {
 }
 
 #[test]
+fn a_slot_with_a_running_dx_command_lists_as_busy() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(20);
+    ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let idle = ops::list(&pool, &host, false).expect("list");
+    assert!(!slot_one(&idle).busy);
+    let _running = run_dx_in(&pool, 1);
+    let listing = ops::list(&pool, &host, false).expect("list");
+    assert!(slot_one(&listing).busy);
+}
+
+#[test]
 fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -1101,6 +1119,7 @@ fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
     let running = run_dx_in(&pool, 1);
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
+    assert!(slot_one(&listing).busy);
     let refused = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a")).expect_err("busy");
     assert_eq!(refused.code, "branch_held");
     let mut forced = existing("feature/a");
@@ -1442,7 +1461,8 @@ fn low_disk_add_leases_the_warmest_slot_and_drops_other_free_bases_oldest_first(
     assert_eq!(
         warnings[0].message,
         format!(
-            "low disk: 5.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}, {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}, {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             slots[0].slot, slots[1].slot
         )
     );
@@ -1611,9 +1631,17 @@ fn low_disk_reclaim_keeps_a_free_slot_base_whose_server_will_not_stop() {
     host.serve(83, &a.path);
     host.stubborn(83);
     host.script_space(&[LOW]);
-    let _ = ops::reclaim_if_low(&pool, &host, None).expect("reclaim");
+    let reclaimed = ops::reclaim_if_low(&pool, &host, None)
+        .expect("reclaim")
+        .expect("low disk");
     assert_eq!(host.shutdown_paths(), vec![a.path.clone()]);
     assert!(base.exists(), "a base with a running server stays");
+    assert!(reclaimed.skipped, "the skip is reported");
+    assert!(
+        reclaimed.warning.message.contains("server would not stop"),
+        "{}",
+        reclaimed.warning.message
+    );
 }
 
 #[test]
@@ -1930,7 +1958,8 @@ fn reclaim_keeps_the_workspace_slot() {
     assert_eq!(
         message,
         format!(
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             b.slot
         )
     );
@@ -1964,7 +1993,7 @@ fn reclaim_for_build_skips_plenty_or_unknown_disk() {
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         None
     );
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
 }
 
@@ -1981,8 +2010,11 @@ fn reclaim_for_build_without_a_pool_drops_orphans_and_creates_no_pool() {
     let orphan = output_base(&roots, "orphan", &fixture.main.join("gone"));
     host.script_space(&[LOW, LOW, OK]);
     assert_eq!(
-        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host).as_deref(),
-        Some("low disk: 5.0 GiB free; removed 1 orphaned output base(s); 50.0 GiB free now")
+        super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
+        Some(format!(
+            "low disk at {}: 5.0 GiB free; removed 1 orphaned output base(s); 50.0 GiB free now",
+            fixture.cache.display()
+        ))
     );
     assert!(!orphan.exists());
     assert!(!fixture.cache.exists());
@@ -2038,7 +2070,7 @@ fn reclaim_for_build_without_a_pool_skips_plenty_or_unknown_disk() {
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         None
     );
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 1);
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
     assert!(!fixture.cache.exists());
 }
@@ -2092,7 +2124,8 @@ fn reclaim_for_build_reports_a_removed_free_base() {
     assert_eq!(
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         Some(format!(
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             a.slot
         ))
     );
@@ -2129,7 +2162,7 @@ fn plenty_of_disk_reclaims_nothing_and_takes_no_lock() {
         None,
         "under 20 GiB but over 10% free is not low"
     );
-    assert_eq!(host.root_scans.load(Ordering::SeqCst), 2);
+    assert_eq!(host.root_scans.load(Ordering::SeqCst), 0);
     assert!(orphan.exists());
 }
 
@@ -2156,7 +2189,10 @@ fn low_disk_keeps_orphan_bases_a_server_still_uses() {
     assert!(!reclaimed.removed);
     assert_eq!(
         reclaimed.warning.message,
-        "low disk: 5.0 GiB free; nothing to reclaim; run dx worktree prune --apply"
+        format!(
+            "low disk at {}: 5.0 GiB free; nothing to reclaim; run dx worktree prune --apply",
+            fixture.cache.join("repo").display()
+        )
     );
 }
 
@@ -2192,7 +2228,8 @@ fn release_on_low_disk_drops_the_least_recently_used_free_base_first() {
     assert_eq!(
         released.warnings[0].message,
         format!(
-            "low disk: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            "low disk at {}: 5.0 GiB free; removed the output bases of free slot(s) {}; 50.0 GiB free now",
+            fixture.cache.join("repo").display(),
             b.slot
         )
     );
@@ -2227,7 +2264,8 @@ fn low_disk_on_another_output_root_reclaims_bases_on_that_root() {
     assert_eq!(
         reclaimed.warning.message,
         format!(
-            "low disk: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            "low disk at {}: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            roots.display(),
             a.slot
         )
     );
@@ -2269,7 +2307,8 @@ fn low_disk_on_another_output_root_keeps_bases_on_a_root_with_room() {
     assert_eq!(
         reclaimed.warning.message,
         format!(
-            "low disk: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            "low disk at {}: 3.0 GiB free; removed 1 orphaned output base(s) and the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            low.display(),
             b.slot
         )
     );
@@ -2318,7 +2357,8 @@ fn low_disk_on_another_output_root_reclaims_before_a_build() {
     assert_eq!(
         super::reclaim_for_build_with(&fixture.main, &fixture.cache, &host),
         Some(format!(
-            "low disk: 3.0 GiB free; removed the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            "low disk at {}: 3.0 GiB free; removed the output bases of free slot(s) {}; 3.0 GiB free now; run dx worktree prune --apply",
+            roots.display(),
             a.slot
         ))
     );
@@ -2631,16 +2671,152 @@ fn the_lease_is_found_from_a_path_inside_the_slot() {
 mod hooks {
     use super::*;
     use crate::hook;
+    use crate::pool::Record;
+    use std::cell::Cell;
+
+    fn guard(input: &serde_json::Value) -> hook::Guard {
+        hook::guard(input, &who("s1", 1), &|_| None)
+    }
+
+    fn lease_record(agent: Option<&str>) -> Record {
+        serde_json::from_value(serde_json::json!({
+            "slot": 1, "held": true, "session": "s1", "agent": agent, "pid": 7, "leased_at": 0, "last_used": 0, "lock_digest": null,
+        }))
+        .expect("record")
+    }
+
+    /// Runs `command` in `cwd` as agent `caller`, where every slot is held by agent a1.
+    fn in_foreign_slot(command: &str, cwd: &str, caller: &str, calls: &Cell<u32>) -> hook::Guard {
+        let input = serde_json::json!({
+            "cwd": cwd, "agent_id": caller, "session_id": "s1",
+            "tool_input": {"command": command},
+        });
+        let lookup = |dir: &Path| {
+            calls.set(calls.get() + 1);
+            let slot = dir
+                .ancestors()
+                .find(|p| p.starts_with("/pool") && p.parent() == Some(Path::new("/pool")))?;
+            Some((slot.to_path_buf(), lease_record(Some("a1"))))
+        };
+        hook::guard(&input, &who("s1", 1), &lookup)
+    }
+
+    fn blocked_in(command: &str, cwd: &str, caller: &str) -> Option<String> {
+        match in_foreign_slot(command, cwd, caller, &Cell::new(0)) {
+            hook::Guard::Block(line) => Some(line),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn slot_switching_git_is_blocked_in_another_agents_slot() {
+        for command in [
+            "git checkout x",
+            "git switch x",
+            "git reset --hard",
+            "git rebase main",
+            "/usr/bin/git switch x",
+            "FOO=1 git reset --hard",
+            "git -c a=b rebase main",
+            "ls && git checkout x",
+        ] {
+            let line = blocked_in(command, "/pool/1/sub", "a2").unwrap_or_default();
+            assert!(line.contains("agent a1"), "{command}: {line}");
+            assert!(line.contains("dx worktree add"), "{command}: {line}");
+        }
+        assert_eq!(blocked_in("git checkout x", "/pool/1", "a1"), None);
+    }
+
+    #[test]
+    fn read_only_and_quoted_git_is_allowed_without_a_lookup() {
+        for command in [
+            "git status",
+            "git log",
+            "git fetch",
+            "git worktree list",
+            "echo git checkout x",
+            "echo 'git reset --hard'",
+            "cat <<EOF\ngit checkout x\nEOF",
+        ] {
+            let calls = Cell::new(0);
+            let guard = in_foreign_slot(command, "/pool/1", "a2", &calls);
+            assert_eq!(guard, hook::Guard::Allow, "{command}");
+            assert_eq!(calls.get(), 0, "{command}");
+        }
+    }
+
+    #[test]
+    fn slot_switching_follows_cd_and_dash_c() {
+        let cases = [
+            ("git -C /pool/1 checkout x", "/elsewhere", true),
+            ("git -C 1 checkout x", "/pool", true),
+            ("cd /pool/1 && git checkout x", "/elsewhere", true),
+            ("cd x; git -C y switch z", "/pool/1", true),
+            ("cd /elsewhere && git checkout x", "/pool/1", false),
+            ("git -C /elsewhere checkout x", "/pool/1", false),
+            ("cd $D && git reset", "/pool/1", false),
+            ("cd - && git reset", "/pool/1", false),
+            ("cd && git reset", "/pool/1", false),
+            ("git --work-tree=w checkout x", "/pool/1", false),
+            ("git --git-dir g checkout x", "/pool/1", false),
+        ];
+        for (command, cwd, blocks) in cases {
+            assert_eq!(
+                blocked_in(command, cwd, "a2").is_some(),
+                blocks,
+                "{command}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_caller_session_prefers_the_environment_over_the_payload() {
+        let input = |session: &str| {
+            serde_json::json!({
+                "cwd": "/pool/1", "agent_id": "a1", "session_id": session,
+                "tool_input": {"command": "git checkout x"},
+            })
+        };
+        let lookup = |_: &Path| Some((PathBuf::from("/pool/1"), lease_record(Some("a1"))));
+        let none = Who {
+            session: None,
+            agent: None,
+            pid: 1,
+        };
+        assert_eq!(
+            hook::guard(&input("s1"), &none, &lookup),
+            hook::Guard::Allow
+        );
+        assert!(matches!(
+            hook::guard(&input("s2"), &none, &lookup),
+            hook::Guard::Block(_)
+        ));
+        assert_eq!(
+            hook::guard(&input("s2"), &who("s1", 1), &lookup),
+            hook::Guard::Allow
+        );
+    }
+
+    #[test]
+    fn a_block_beats_the_dx_rewrite() {
+        let guard = in_foreign_slot(
+            "git checkout x && tools/dx build //x",
+            "/pool/1",
+            "a2",
+            &Cell::new(0),
+        );
+        assert!(matches!(guard, hook::Guard::Block(_)));
+    }
 
     fn blocked(command: &str) -> Option<String> {
-        match hook::guard(&serde_json::json!({"tool_input": {"command": command}})) {
+        match guard(&serde_json::json!({"tool_input": {"command": command}})) {
             hook::Guard::Block(line) => Some(line),
             _ => None,
         }
     }
 
     fn guard_for_agent(command: &str) -> hook::Guard {
-        hook::guard(&serde_json::json!({
+        guard(&serde_json::json!({
             "agent_id": "a'1",
             "tool_input": {"command": command, "description": "d"},
         }))
@@ -2703,7 +2879,7 @@ mod hooks {
             hook::Guard::Block(_)
         ));
         assert_eq!(
-            hook::guard(&serde_json::json!({"tool_input": {"command": "dx worktree list"}})),
+            guard(&serde_json::json!({"tool_input": {"command": "dx worktree list"}})),
             hook::Guard::Allow
         );
     }
@@ -2783,24 +2959,39 @@ mod hooks {
     #[test]
     fn guard_blocks_git_worktree_for_every_agent() {
         for agent in ["claude", "codex", "cursor", "gemini"] {
-            let guard = hook::guard(&payload(agent, "git worktree add ../x"));
-            assert!(matches!(guard, hook::Guard::Block(_)), "{agent}: {guard:?}");
-            let guard = hook::guard(&payload(agent, "ls -la"));
-            assert_eq!(guard, hook::Guard::Allow, "{agent}");
+            let verdict = guard(&payload(agent, "git worktree add ../x"));
+            assert!(matches!(verdict, hook::Guard::Block(_)), "{agent}: {verdict:?}");
+            let verdict = guard(&payload(agent, "ls -la"));
+            assert_eq!(verdict, hook::Guard::Allow, "{agent}");
         }
+    }
+
+    #[test]
+    fn guard_holds_codex_subagent_by_its_own_thread() {
+        let input = payload("codex", "tools/dx test //x");
+        let session = input["session_id"].as_str().unwrap().to_owned();
+        let same = |_: &str| Some(session.clone());
+        assert_eq!(hook::guard_with(&input, &who("s1", 1), &|_| None, &same), hook::Guard::Allow);
+        let other = |_: &str| Some("main-thread".to_owned());
+        let hook::Guard::Rewrite(out) = hook::guard_with(&input, &who("s1", 1), &|_| None, &other) else {
+            panic!("a subagent thread is rewritten");
+        };
+        let command = out["hookSpecificOutput"]["updatedInput"]["command"]
+            .as_str()
+            .unwrap();
+        assert!(command.starts_with(&format!("export DX_WORKTREE_HOLDER='{session}'")));
     }
 
     #[test]
     fn guard_names_the_session_only_for_agents_whose_shells_lack_one() {
         for agent in ["claude", "codex"] {
             assert_eq!(
-                hook::guard(&payload(agent, "tools/dx test //x")),
+                guard(&payload(agent, "tools/dx test //x")),
                 hook::Guard::Allow,
                 "{agent}"
             );
         }
-        let hook::Guard::Rewrite(cursor) = hook::guard(&payload("cursor", "tools/dx test //x"))
-        else {
+        let hook::Guard::Rewrite(cursor) = guard(&payload("cursor", "tools/dx test //x")) else {
             panic!("cursor dx commands are rewritten");
         };
         let output = &cursor["hookSpecificOutput"];
@@ -2812,7 +3003,7 @@ mod hooks {
         assert_eq!(output["updatedInput"]["working_directory"], "/r/sub");
         assert!(output.get("permissionDecision").is_none());
         let hook::Guard::Rewrite(gemini) =
-            hook::guard(&payload("gemini", "cd sub && tools/dx worktree add b"))
+            guard(&payload("gemini", "cd sub && tools/dx worktree add b"))
         else {
             panic!("gemini dx commands are rewritten");
         };
@@ -2827,14 +3018,14 @@ mod hooks {
         assert_eq!(output["tool_input"]["dir_path"], "sub");
         let mut no_session = payload("gemini", "tools/dx test //x");
         no_session["session_id"] = serde_json::Value::Null;
-        assert_eq!(hook::guard(&no_session), hook::Guard::Allow);
+        assert_eq!(guard(&no_session), hook::Guard::Allow);
     }
 
     #[test]
     fn guard_exports_the_session_before_the_subagent() {
         let mut input = payload("cursor", "tools/dx worktree release");
         input["agent_id"] = serde_json::json!("a1");
-        let hook::Guard::Rewrite(output) = hook::guard(&input) else {
+        let hook::Guard::Rewrite(output) = guard(&input) else {
             panic!("rewritten");
         };
         assert_eq!(
@@ -2928,7 +3119,7 @@ mod hooks {
         assert!(block("git status").is_none());
         assert!(block("echo git worktree add").is_none());
         assert!(block("dx worktree add feature/x").is_none());
-        assert_eq!(hook::guard(&serde_json::json!({})), hook::Guard::Allow);
+        assert_eq!(guard(&serde_json::json!({})), hook::Guard::Allow);
     }
 
     #[test]
@@ -3227,6 +3418,205 @@ mod hooks {
         );
     }
 
+    fn push_agent_branch(fixture: &Fixture, branch: &str) -> PathBuf {
+        let clone = fixture.clone_origin();
+        git(&clone, &["checkout", "--quiet", "-b", branch]);
+        std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
+        git(&clone, &["add", "."]);
+        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
+        git(&clone, &["push", "--quiet", "origin", branch]);
+        clone
+    }
+
+    #[test]
+    fn a_second_create_with_a_held_name_gets_the_next_branch() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        host.live(10);
+        host.live(20);
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let first = hook::create(&pool, &host, &who("s1", 10), &input).expect("first");
+        let same = hook::create(&pool, &host, &who("s1", 10), &input).expect("same session");
+        let other = hook::create(&pool, &host, &who("s2", 20), &input).expect("other session");
+        assert_ne!(first.slot, same.slot);
+        assert_ne!(same.slot, other.slot);
+        assert_eq!(
+            git(&first.path, &["branch", "--show-current"]),
+            "worktree-agent-two"
+        );
+        assert_eq!(
+            git(&same.path, &["branch", "--show-current"]),
+            "worktree-agent-two-2"
+        );
+        assert_eq!(
+            git(&other.path, &["branch", "--show-current"]),
+            "worktree-agent-two-3"
+        );
+    }
+
+    #[test]
+    fn concurrent_creates_with_one_name_get_different_branches() {
+        for shared_session in [true, false] {
+            let fixture = Fixture::new();
+            let host = FakeHost::new();
+            for n in 0..3u32 {
+                host.live(100 + n);
+            }
+            let input = serde_json::json!({"name": "agent", "cwd": fixture.main});
+            let results: Vec<_> = std::thread::scope(|scope| {
+                let handles: Vec<_> = (0..3u32)
+                    .map(|n| {
+                        let pool = fixture.pool();
+                        let host = &host;
+                        let input = &input;
+                        scope.spawn(move || {
+                            let session = if shared_session {
+                                "s".to_owned()
+                            } else {
+                                format!("s{n}")
+                            };
+                            hook::create(&pool, host, &who(&session, 100 + n), input)
+                        })
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|h| h.join().expect("joins"))
+                    .collect()
+            });
+            let mut slots = Vec::new();
+            let mut branches = Vec::new();
+            for result in results {
+                let added = result.expect("create");
+                slots.push(added.slot);
+                branches.push(git(&added.path, &["branch", "--show-current"]));
+            }
+            slots.sort_unstable();
+            slots.dedup();
+            branches.sort();
+            branches.dedup();
+            assert_eq!(slots.len(), 3);
+            assert_eq!(branches.len(), 3);
+        }
+    }
+
+    #[test]
+    fn create_ignores_a_deleted_origin_branch() {
+        let fixture = Fixture::new();
+        let clone = push_agent_branch(&fixture, "worktree-agent-two");
+        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+        git(
+            &clone,
+            &[
+                "push",
+                "--quiet",
+                "origin",
+                "--delete",
+                "worktree-agent-two",
+            ],
+        );
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &who("s1", 10), &input)
+            .expect("create")
+            .path;
+        assert_eq!(
+            git(&path, &["branch", "--show-current"]),
+            "worktree-agent-two"
+        );
+        git(
+            &fixture.main,
+            &[
+                "show-ref",
+                "--verify",
+                "refs/remotes/origin/worktree-agent-two",
+            ],
+        );
+    }
+
+    #[test]
+    fn create_falls_back_to_local_refs_when_origin_is_unreachable() {
+        let fixture = Fixture::new();
+        push_agent_branch(&fixture, "worktree-agent-two");
+        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+        let missing = fixture.main.parent().expect("root").join("missing.git");
+        git(
+            &fixture.main,
+            &["remote", "set-url", "origin", &missing.to_string_lossy()],
+        );
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let input = serde_json::json!({"name": "agent two", "cwd": fixture.main});
+        let created = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
+        assert_eq!(created.warnings[0].code, "fetch_failed");
+        assert_eq!(
+            git(&created.path, &["branch", "--show-current"]),
+            "worktree-agent-two-2"
+        );
+    }
+
+    fn advance_origin_main(fixture: &Fixture) {
+        let clone = fixture.clone_origin();
+        git(&clone, &["checkout", "--quiet", "main"]);
+        std::fs::write(clone.join("later.txt"), "l\n").expect("write");
+        git(&clone, &["add", "."]);
+        git(&clone, &["commit", "--quiet", "-m", "later"]);
+        git(&clone, &["push", "--quiet", "origin", "main"]);
+        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+    }
+
+    #[test]
+    fn create_skips_a_local_agent_branch_already_behind_the_base() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &me, &input)
+            .expect("create")
+            .path;
+        let removal = serde_json::json!({"worktree_path": path});
+        hook::remove(&pool, &host, &me, &removal).expect("remove");
+        advance_origin_main(&fixture);
+        let again = hook::create(&pool, &host, &me, &input)
+            .expect("create again")
+            .path;
+        assert_eq!(
+            git(&again, &["branch", "--show-current"]),
+            "worktree-agent-one-2"
+        );
+    }
+
+    #[test]
+    fn create_resumes_a_local_agent_branch_with_unmerged_commits() {
+        let fixture = Fixture::new();
+        let pool = fixture.pool();
+        let host = FakeHost::new();
+        let me = who("s1", 10);
+        let input = serde_json::json!({"name": "agent one", "cwd": fixture.main});
+        let path = hook::create(&pool, &host, &me, &input)
+            .expect("create")
+            .path;
+        std::fs::write(path.join("work.txt"), "w\n").expect("write");
+        git(&path, &["add", "."]);
+        git(&path, &["commit", "--quiet", "-m", "work"]);
+        git(&path, &["push", "--quiet", "origin", "worktree-agent-one"]);
+        let work = git(&path, &["rev-parse", "HEAD"]);
+        let removal = serde_json::json!({"worktree_path": path});
+        hook::remove(&pool, &host, &me, &removal).expect("remove");
+        advance_origin_main(&fixture);
+        let again = hook::create(&pool, &host, &me, &input)
+            .expect("create again")
+            .path;
+        assert_eq!(
+            git(&again, &["branch", "--show-current"]),
+            "worktree-agent-one"
+        );
+        assert_eq!(git(&again, &["rev-parse", "HEAD"]), work);
+    }
+
     #[test]
     fn a_local_agent_branch_wins_over_origin() {
         let fixture = Fixture::new();
@@ -3475,6 +3865,19 @@ fn release_removes_a_clean_pushed_external_worktree() {
     assert!(host.servers().is_empty());
     assert!(!git(&fixture.main, &["worktree", "list"]).contains("by-hand"));
     assert!(git(&fixture.main, &["branch", "--list", "by-hand"]).contains("by-hand"));
+}
+
+#[test]
+fn release_reports_busy_when_an_external_worktree_cannot_be_deleted() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let hand = hand_checkout(&fixture, "by-hand");
+    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    host.stick(&hand);
+    let refused = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("busy");
+    assert_eq!(refused.code, "busy");
+    assert!(hand.exists());
 }
 
 #[test]
@@ -4527,7 +4930,7 @@ fn reclaim_drops_stale_downloads_before_free_slot_bases() {
     assert!(base.exists(), "the free slot keeps its output base");
     assert_eq!(
         reclaimed.warning.message,
-        "low disk: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now"
+        format!("low disk at {}: 5.0 GiB free; removed 1 repository cache download(s); 50.0 GiB free now", fixture.cache.join("repo").display())
     );
 }
 
@@ -4863,7 +5266,7 @@ fn reclaim_drops_nested_cases_when_the_nested_root_disk_is_low() {
     assert!(busy.exists(), "a held nested slot keeps its cases");
     assert_eq!(
         reclaimed.warning.message,
-        "low disk: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply"
+        format!("low disk at {}: 3.0 GiB free; removed 1 nested Bazel output base(s); 3.0 GiB free now; run dx worktree prune --apply", root.display())
     );
 }
 
@@ -5034,4 +5437,22 @@ mod reaping {
         );
         assert!(host.stopped().is_empty());
     }
+}
+
+#[test]
+fn missing_output_root_is_not_read_as_a_low_ancestor_disk() {
+    let fixture = Fixture::new();
+    let host = FakeHost::new();
+    host.roots
+        .lock()
+        .expect("roots")
+        .push(fixture.cache.join("no-such-root"));
+    host.script_space(&[
+        OK,
+        DiskSpace {
+            free: GIB,
+            total: 50 * GIB,
+        },
+    ]);
+    assert_eq!(ops::low_disk(&host, &fixture.cache), None);
 }

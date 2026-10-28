@@ -17,15 +17,27 @@ pub const ECOSYSTEM_POWERSHELL: &str = "powershell";
 
 pub const ECOSYSTEM_CARGO: &str = "cargo";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo";
+pub const ECOSYSTEM_MAVEN: &str = "maven";
+
+pub const ECOSYSTEM_NUGET: &str = "nuget";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget";
+
+pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
 pub const CARGO_LOCK: &str = "Cargo.lock";
 
 pub const GEMFILE_LOCK: &str = "Gemfile.lock";
 
+pub const PAKET_LOCK: &str = "paket.lock";
+
 pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
 
 pub const PNPM_LOCK: &str = "pnpm-lock.yaml";
+
+pub const YARN_LOCK: &str = "yarn.lock";
+
+pub const NPM_LOCK: &str = "package-lock.json";
 
 pub const PNPM_WORKSPACE: &str = "pnpm-workspace.yaml";
 
@@ -37,6 +49,8 @@ pub enum Ecosystem {
     Ruby,
     PowerShell,
     Cargo,
+    Maven,
+    Nuget,
 }
 
 impl Ecosystem {
@@ -48,6 +62,8 @@ impl Ecosystem {
             Ecosystem::Ruby => ECOSYSTEM_RUBY,
             Ecosystem::PowerShell => ECOSYSTEM_POWERSHELL,
             Ecosystem::Cargo => ECOSYSTEM_CARGO,
+            Ecosystem::Maven => ECOSYSTEM_MAVEN,
+            Ecosystem::Nuget => ECOSYSTEM_NUGET,
         }
     }
 
@@ -59,20 +75,30 @@ impl Ecosystem {
             ECOSYSTEM_RUBY => Some(Ecosystem::Ruby),
             ECOSYSTEM_POWERSHELL => Some(Ecosystem::PowerShell),
             ECOSYSTEM_CARGO => Some(Ecosystem::Cargo),
+            ECOSYSTEM_MAVEN => Some(Ecosystem::Maven),
+            ECOSYSTEM_NUGET => Some(Ecosystem::Nuget),
             _ => None,
         }
     }
 
     pub fn supported_check(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo => "check",
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Cargo
+            | Ecosystem::Maven
+            | Ecosystem::Nuget => "check",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
 
     pub fn supported_update(self) -> &'static str {
         match self {
-            Ecosystem::Uv | Ecosystem::Npm | Ecosystem::Cargo => "update",
+            Ecosystem::Uv
+            | Ecosystem::Npm
+            | Ecosystem::Cargo
+            | Ecosystem::Maven
+            | Ecosystem::Nuget => "update",
             Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => "pinned",
         }
     }
@@ -98,7 +124,9 @@ impl Ecosystem {
             | Ecosystem::Bazel
             | Ecosystem::Ruby
             | Ecosystem::PowerShell
-            | Ecosystem::Cargo => "audit",
+            | Ecosystem::Cargo
+            | Ecosystem::Maven
+            | Ecosystem::Nuget => "audit",
         }
     }
 
@@ -109,6 +137,8 @@ impl Ecosystem {
             Ecosystem::Npm => Some("npm"),
             Ecosystem::Ruby => Some("rubygems"),
             Ecosystem::Cargo => Some("cargo"),
+            Ecosystem::Maven => Some("maven"),
+            Ecosystem::Nuget => Some("nuget"),
             Ecosystem::Bazel | Ecosystem::PowerShell => None,
         }
     }
@@ -122,18 +152,21 @@ impl Ecosystem {
             Ecosystem::Ruby => "Gemfile",
             Ecosystem::PowerShell => "PSGallery.requirements.psd1",
             Ecosystem::Cargo => "Cargo.toml",
+            Ecosystem::Maven => MODULE_BAZEL,
+            Ecosystem::Nuget => "paket.dependencies",
         }
     }
 
     /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.
     pub fn uses_repository(self) -> bool {
         match self {
-            Ecosystem::Cargo => true,
+            Ecosystem::Cargo | Ecosystem::Maven => true,
             Ecosystem::Uv
             | Ecosystem::Npm
             | Ecosystem::Bazel
             | Ecosystem::Ruby
-            | Ecosystem::PowerShell => false,
+            | Ecosystem::PowerShell
+            | Ecosystem::Nuget => false,
         }
     }
 }
@@ -287,6 +320,12 @@ pub enum DependencySetsError {
         path: String,
         rel: String,
     },
+    #[error("dependency set {name:?} path {path} leaves the workspace (declared in {rel})")]
+    OutsideWorkspace {
+        name: String,
+        path: String,
+        rel: String,
+    },
     #[error("dependency set {name:?} relies on uv settings dx does not apply: {detail}; keep resolver settings out of uv.toml and [tool.uv]")]
     UnsupportedSettings { name: String, detail: String },
     #[error("dependency set {name:?} cannot run pnpm in {dir}: {detail}")]
@@ -301,6 +340,16 @@ pub enum DependencySetsError {
         path: String,
         ecosystem: &'static str,
     },
+    #[error("invalid {rel}: dependency set {name:?} must list exactly MODULE.bazel as its manifest (maven resolves through the root module)")]
+    MavenManifest { rel: String, name: String },
+    #[error("dependency set {name:?} cannot resolve maven hub {repository:?}: {detail}")]
+    UnsupportedMavenHub {
+        name: String,
+        repository: String,
+        detail: String,
+    },
+    #[error("dependency set {name:?} cannot run paket2bazel: {detail}")]
+    UnsupportedNugetLayout { name: String, detail: String },
     #[error("invalid {rel}: dependency set {name:?} is missing repository (the Bazel repository name ecosystem {ecosystem} resolves through)")]
     MissingRepository {
         rel: String,
@@ -531,6 +580,12 @@ fn validate_set(
             });
         }
     }
+    if ecosystem == Ecosystem::Maven && raw.manifests != [MODULE_BAZEL] {
+        return Err(DependencySetsError::MavenManifest {
+            rel: rel.to_owned(),
+            name,
+        });
+    }
     let mut dirs = BTreeSet::new();
     for manifest in &raw.manifests {
         dirs.insert(manifest_dir(std::slice::from_ref(manifest)));
@@ -676,7 +731,13 @@ fn check_conflicts(sets: &[DependencySet], rel: &str) -> Result<(), DependencySe
         if !set.writable {
             continue;
         }
-        for path in set.manifests.iter().chain(set.locks.iter()) {
+        // Maven hubs share the root MODULE.bazel; each set still owns its locks.
+        let manifests: &[String] = if set.ecosystem == Ecosystem::Maven {
+            &[]
+        } else {
+            &set.manifests
+        };
+        for path in manifests.iter().chain(set.locks.iter()) {
             writers
                 .entry(path.as_str())
                 .or_default()
@@ -706,6 +767,10 @@ const RUBY_PACKAGE_CHARSET: &str = "gem names use [A-Za-z0-9_.-] only";
 const POWERSHELL_PACKAGE_CHARSET: &str = "PowerShell module names use [A-Za-z0-9_.-] only";
 
 const CARGO_PACKAGE_CHARSET: &str = "crate names start alphanumerically and use [A-Za-z0-9_-] only";
+
+const MAVEN_PACKAGE_CHARSET: &str = "maven packages are group:artifact with [A-Za-z0-9_.-] parts";
+
+const NUGET_PACKAGE_CHARSET: &str = "nuget package ids use [A-Za-z0-9._-] only";
 
 const NPM_PACKAGE_CHARSET: &str =
     "npm package names are [@scope/]name with lowercase [a-z0-9._-] parts";
@@ -752,8 +817,25 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Err(CARGO_PACKAGE_CHARSET)
             }
         }
-        Ecosystem::Uv | Ecosystem::Bazel | Ecosystem::Ruby | Ecosystem::PowerShell => {
+        Ecosystem::Maven => {
+            let part = |part: &str| {
+                !part.is_empty()
+                    && part
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-')
+            };
+            match package.split_once(':') {
+                Some((group, artifact)) if part(group) && part(artifact) => Ok(()),
+                _ => Err(MAVEN_PACKAGE_CHARSET),
+            }
+        }
+        Ecosystem::Uv
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Nuget => {
             let charset = match ecosystem {
+                Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
                 Ecosystem::Ruby => RUBY_PACKAGE_CHARSET,
                 Ecosystem::PowerShell => POWERSHELL_PACKAGE_CHARSET,
@@ -980,25 +1062,66 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     ordered
 }
 
+/// Fails closed before any backend launches: manifests must exist and every
+/// manifest and lock must stay inside the workspace after links resolve.
+/// `need_lock` only controls whether a lock must exist; containment of a lock
+/// is always checked. A link created after this check is not caught.
 pub fn check_files(
     workspace: &Path,
     set: &ResolvedSet,
     need_lock: bool,
 ) -> Result<(), DependencySetsError> {
-    for path in set.manifests.iter().chain(if need_lock {
-        set.locks.iter()
-    } else {
-        [].iter()
-    }) {
-        if !workspace.join(path).is_file() {
-            return Err(DependencySetsError::MissingFile {
-                name: set.name.clone(),
-                path: path.clone(),
-                rel: DX_TOML_REL.to_owned(),
-            });
+    let missing = |path: &String| DependencySetsError::MissingFile {
+        name: set.name.clone(),
+        path: path.clone(),
+        rel: DX_TOML_REL.to_owned(),
+    };
+    let outside = |path: &String| DependencySetsError::OutsideWorkspace {
+        name: set.name.clone(),
+        path: path.clone(),
+        rel: DX_TOML_REL.to_owned(),
+    };
+    for path in &set.manifests {
+        resolve_existing(workspace, path, &missing, &outside)?;
+    }
+    for path in &set.locks {
+        if need_lock {
+            resolve_existing(workspace, path, &missing, &outside)?;
+        } else {
+            match dx_path::workspace::resolve_target_in_workspace(workspace, path) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => {
+                    return Err(outside(path));
+                }
+                Err(error) => {
+                    return Err(DependencySetsError::Read {
+                        rel: path.clone(),
+                        detail: error.to_string(),
+                    });
+                }
+            }
         }
     }
     Ok(())
+}
+
+fn resolve_existing(
+    workspace: &Path,
+    path: &String,
+    missing: &dyn Fn(&String) -> DependencySetsError,
+    outside: &dyn Fn(&String) -> DependencySetsError,
+) -> Result<std::path::PathBuf, DependencySetsError> {
+    match dx_path::workspace::resolve_in_workspace(workspace, path) {
+        Ok(resolved) if resolved.is_file() => Ok(resolved),
+        Ok(_) => Err(missing(path)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(missing(path)),
+        Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => Err(outside(path)),
+        Err(error) => Err(DependencySetsError::Read {
+            rel: path.clone(),
+            detail: error.to_string(),
+        }),
+    }
 }
 
 fn uv_workspace_root(path: &Path) -> bool {
@@ -1042,7 +1165,219 @@ pub fn check_backend_settings(
         Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
         Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cargo => check_pinned_lock(set, CARGO_LOCK),
+        Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
+        Ecosystem::Nuget => check_nuget_layout(workspace, set),
     }
+}
+
+const MAVEN_SIGNATURES: [&str; 2] = ["__INPUT_ARTIFACTS_HASH", "__RESOLVED_ARTIFACTS_HASH"];
+
+/// What check mode needs from the maven hub beyond what both modes need.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MavenHub {
+    lock: String,
+    policy: dx_module_bazel::RepinPolicy,
+}
+
+fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, DependencySetsError> {
+    let repository = set.repository.clone().unwrap_or_default();
+    let unsupported = |detail: String| DependencySetsError::UnsupportedMavenHub {
+        name: set.name.clone(),
+        repository: repository.clone(),
+        detail,
+    };
+    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
+        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
+    let read_include = |label: &str| -> Result<String, String> {
+        let rel = dx_module_bazel::include_rel("", label)?;
+        std::fs::read_to_string(workspace.join(rel))
+            .map_err(|error| format!("cannot read included {label}: {error}"))
+    };
+    let modules =
+        dx_module_bazel::load_with_includes(&root, &read_include).map_err(&unsupported)?;
+    let mut found = Vec::new();
+    let mut used = false;
+    for module in &modules {
+        let installs = module
+            .maven_installs()
+            .map_err(|error| unsupported(error.to_string()))?;
+        for install in installs {
+            if install.name == repository {
+                found.push((
+                    install.lock_file.map(str::to_owned),
+                    install.fail_if_repin_required,
+                ));
+            }
+        }
+        used |= module.calls_named("use_repo").any(|call| {
+            call.positional.iter().skip(1).any(|value| {
+                matches!(value, dx_module_bazel::Value::Str(literal) if literal.value == repository)
+            })
+        });
+    }
+    let (lock_file, policy) = match found.as_slice() {
+        [] => {
+            return Err(unsupported(format!(
+                "no maven.install(name = {repository:?}) tag in {MODULE_BAZEL}"
+            )));
+        }
+        [one] => one.clone(),
+        _ => {
+            return Err(unsupported(format!(
+                "{} maven.install tags are named {repository:?}",
+                found.len()
+            )));
+        }
+    };
+    if !used {
+        return Err(unsupported(format!(
+            "{MODULE_BAZEL} must list {repository:?} in use_repo without renaming it"
+        )));
+    }
+    let label = lock_file
+        .ok_or_else(|| unsupported("the maven.install tag needs a literal lock_file".to_owned()))?;
+    let lock = dx_module_bazel::label_path(&label).map_err(&unsupported)?;
+    if !set.locks.contains(&lock) {
+        return Err(unsupported(format!(
+            "lock_file {label} is not listed in the set's locks (want {lock})"
+        )));
+    }
+    if !workspace.join(&lock).is_file() {
+        return Err(unsupported(format!(
+            "{lock} does not exist; create an empty file before the first update"
+        )));
+    }
+    Ok(MavenHub { lock, policy })
+}
+
+/// Refuses a check when the pinned state cannot prove a stale lock fails closed.
+///
+/// rules_jvm_external only fails a stale lock when `fail_if_repin_required` is true and the
+/// lock carries its signatures; an empty or old-format lock merely prints a note.
+pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    match set.ecosystem {
+        Ecosystem::Maven => {
+            let hub = check_maven_hub(workspace, set)?;
+            let unsupported = |detail: String| DependencySetsError::UnsupportedMavenHub {
+                name: set.name.clone(),
+                repository: set.repository.clone().unwrap_or_default(),
+                detail,
+            };
+            match hub.policy {
+                dx_module_bazel::RepinPolicy::Unset | dx_module_bazel::RepinPolicy::True => {}
+                _ => {
+                    return Err(unsupported(
+                        "fail_if_repin_required must stay true so a stale lock fails the check"
+                            .to_owned(),
+                    ));
+                }
+            }
+            let text = std::fs::read_to_string(workspace.join(&hub.lock))
+                .map_err(|error| unsupported(format!("cannot read {}: {error}", hub.lock)))?;
+            let signed = serde_json::from_str::<serde_json::Value>(&text)
+                .ok()
+                .and_then(|json| {
+                    let object = json.as_object()?.clone();
+                    Some(MAVEN_SIGNATURES.iter().all(|key| object.contains_key(*key)))
+                })
+                .unwrap_or(false);
+            if !signed {
+                return Err(unsupported(format!(
+                    "{} has no {} signatures; run dx update --apply first",
+                    hub.lock,
+                    MAVEN_SIGNATURES.join(" and ")
+                )));
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Refuses a nuget set whose `paket2bazel` run could not stay inside the declared locks.
+fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    let unsupported = |detail: String| DependencySetsError::UnsupportedNugetLayout {
+        name: set.name.clone(),
+        detail,
+    };
+    check_pinned_lock(set, PAKET_LOCK)?;
+    let mut folders = BTreeSet::new();
+    let mut groups: BTreeMap<String, (bool, bool)> = BTreeMap::new();
+    for lock in &set.locks {
+        let (folder, file) = lock.rsplit_once('/').unwrap_or((".", lock));
+        if file == PAKET_LOCK {
+            continue;
+        }
+        let Some(stem) = file
+            .strip_prefix("paket.")
+            .and_then(|rest| rest.strip_suffix(".bzl"))
+        else {
+            return Err(unsupported(format!(
+                "lock {lock} is neither paket.lock nor a generated paket.<group>.bzl file"
+            )));
+        };
+        folders.insert(folder.to_owned());
+        let (group, extension) = match stem.strip_suffix("_extension") {
+            Some(group) => (group, true),
+            None => (stem, false),
+        };
+        if group.is_empty() {
+            return Err(unsupported(format!("lock {lock} names no paket group")));
+        }
+        let entry = groups.entry(group.to_owned()).or_default();
+        if extension {
+            entry.1 = true;
+        } else {
+            entry.0 = true;
+        }
+    }
+    if groups.is_empty() {
+        return Err(unsupported(
+            "locks list no generated paket.<group>.bzl files".to_owned(),
+        ));
+    }
+    if folders.len() != 1 {
+        return Err(unsupported(
+            "generated paket .bzl locks must share one folder".to_owned(),
+        ));
+    }
+    for (group, (plain, extension)) in &groups {
+        if !(*plain && *extension) {
+            return Err(unsupported(format!(
+                "group {group} needs both paket.{group}.bzl and paket.{group}_extension.bzl in locks"
+            )));
+        }
+    }
+    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
+        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
+    let module = dx_module_bazel::ModuleFile::parse(&root)
+        .map_err(|error| unsupported(format!("cannot parse {MODULE_BAZEL}: {error}")))?;
+    let dep = module.bazel_dep("rules_dotnet").map_err(|_| {
+        unsupported(format!(
+            "{MODULE_BAZEL} needs bazel_dep(name = \"rules_dotnet\")"
+        ))
+    })?;
+    if dep.arg("repo_name").is_some() {
+        return Err(unsupported(
+            "the rules_dotnet bazel_dep must not set repo_name".to_owned(),
+        ));
+    }
+    for manifest in &set.manifests {
+        let text = std::fs::read_to_string(workspace.join(manifest))
+            .map_err(|error| unsupported(format!("cannot read {manifest}: {error}")))?;
+        for line in text.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("source ") {
+                let rest = rest.trim();
+                if !(rest.starts_with("http://") || rest.starts_with("https://")) {
+                    return Err(unsupported(format!(
+                        "{manifest} source {rest:?} is not http(s); staging copies only paket.dependencies and paket.lock"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySetsError> {
@@ -1057,6 +1392,26 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
     })
 }
 
+/// The package manager a configured npm set runs, chosen by the lock its `locks` list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NpmBackend {
+    Pnpm,
+    Yarn,
+    Npm,
+}
+
+/// Picks the backend from the locks beside the manifest; pnpm wins over yarn over npm.
+pub fn npm_backend(set: &ResolvedSet) -> Option<NpmBackend> {
+    [
+        (PNPM_LOCK, NpmBackend::Pnpm),
+        (YARN_LOCK, NpmBackend::Yarn),
+        (NPM_LOCK, NpmBackend::Npm),
+    ]
+    .into_iter()
+    .find(|(file, _)| set.locks.contains(&in_dir(&set.dir, file)))
+    .map(|(_, backend)| backend)
+}
+
 fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     let lock = in_dir(&set.dir, PNPM_LOCK);
     let unsupported = |detail: String| DependencySetsError::UnsupportedNpmLayout {
@@ -1064,10 +1419,15 @@ fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependenc
         dir: set.dir.clone(),
         detail,
     };
-    if !set.locks.contains(&lock) {
-        return Err(unsupported(format!(
-            "locks must include {lock}, the lock pnpm writes"
-        )));
+    let backend = npm_backend(set).ok_or_else(|| {
+        unsupported(format!(
+            "locks must include {lock}, {}, or {}",
+            in_dir(&set.dir, YARN_LOCK),
+            in_dir(&set.dir, NPM_LOCK)
+        ))
+    })?;
+    if backend != NpmBackend::Pnpm {
+        return Ok(());
     }
     for dir in parent_dirs(&set.dir).into_iter().skip(1) {
         let config = in_dir(dir, PNPM_WORKSPACE);
@@ -1110,11 +1470,25 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
         };
     }
     for manifest in &set.manifests {
-        let bytes =
-            std::fs::read(workspace.join(manifest)).map_err(|error| DependencySetsError::Read {
-                rel: manifest.clone(),
-                detail: error.to_string(),
+        let resolved =
+            dx_path::workspace::resolve_in_workspace(workspace, manifest).map_err(|error| {
+                if error.kind() == std::io::ErrorKind::InvalidInput {
+                    DependencySetsError::OutsideWorkspace {
+                        name: set.name.clone(),
+                        path: manifest.clone(),
+                        rel: DX_TOML_REL.to_owned(),
+                    }
+                } else {
+                    DependencySetsError::Read {
+                        rel: manifest.clone(),
+                        detail: error.to_string(),
+                    }
+                }
             })?;
+        let bytes = std::fs::read(resolved).map_err(|error| DependencySetsError::Read {
+            rel: manifest.clone(),
+            detail: error.to_string(),
+        })?;
         let text = String::from_utf8(bytes).map_err(|_| DependencySetsError::NotUtf8 {
             rel: manifest.clone(),
         })?;
@@ -1642,6 +2016,83 @@ scopes = ["apps/leaf"]
         ));
     }
 
+    #[cfg(unix)]
+    mod link_confinement {
+        use super::*;
+
+        fn setup() -> (dx_test_scratch::TempDir, std::path::PathBuf, ResolvedSet) {
+            let outer = dx_test_scratch::scratch("dx-linkconf-");
+            let workspace = outer.path().join("ws");
+            std::fs::create_dir_all(&workspace).expect("ws");
+            let registry = load_text(TWO_UV_SETS);
+            let set = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+            (outer, workspace, set)
+        }
+
+        fn link_out(outer: &Path, workspace: &Path, rel: &str) -> std::path::PathBuf {
+            let outside = outer.join("outside.txt");
+            std::fs::write(&outside, "x").expect("outside");
+            let at = workspace.join(rel);
+            std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+            std::os::unix::fs::symlink(&outside, at).expect("link");
+            outside
+        }
+
+        fn is_outside(result: Result<(), DependencySetsError>) -> bool {
+            matches!(result, Err(DependencySetsError::OutsideWorkspace { .. }))
+        }
+
+        #[test]
+        fn manifest_linking_outside_is_rejected() {
+            let (outer, workspace, set) = setup();
+            link_out(outer.path(), &workspace, &set.manifests[0]);
+            assert!(is_outside(check_files(&workspace, &set, false)));
+        }
+
+        #[test]
+        fn lock_linking_outside_is_rejected_with_and_without_need_lock() {
+            let (outer, workspace, set) = setup();
+            for manifest in &set.manifests {
+                let at = workspace.join(manifest);
+                std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+                std::fs::write(at, "").expect("manifest");
+            }
+            link_out(outer.path(), &workspace, &set.locks[0]);
+            assert!(is_outside(check_files(&workspace, &set, false)));
+            assert!(is_outside(check_files(&workspace, &set, true)));
+        }
+
+        #[test]
+        fn dangling_lock_link_is_rejected_without_need_lock() {
+            let (outer, workspace, set) = setup();
+            for manifest in &set.manifests {
+                let at = workspace.join(manifest);
+                std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+                std::fs::write(at, "").expect("manifest");
+            }
+            let at = workspace.join(&set.locks[0]);
+            std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+            std::os::unix::fs::symlink(outer.path().join("nope"), at).expect("link");
+            assert!(is_outside(check_files(&workspace, &set, false)));
+        }
+
+        #[test]
+        fn lock_linking_inside_is_accepted() {
+            let (_outer, workspace, set) = setup();
+            for manifest in &set.manifests {
+                let at = workspace.join(manifest);
+                std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+                std::fs::write(at, "").expect("manifest");
+            }
+            let real = workspace.join("real.lock");
+            std::fs::write(&real, "x").expect("real");
+            let at = workspace.join(&set.locks[0]);
+            std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
+            std::os::unix::fs::symlink(&real, at).expect("link");
+            assert_eq!(check_files(&workspace, &set, true), Ok(()));
+        }
+    }
+
     const TWO_NPM_SETS: &str = r#"
 schema_version = 1
 
@@ -1676,7 +2127,7 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget"
         );
     }
 
@@ -1820,16 +2271,24 @@ scopes = ["services/worker"]
         let scratch = npm_workspace("other-lock");
         let workspace = scratch.path().to_path_buf();
         let mut other = frontend.clone();
-        other.locks = vec!["apps/web/package-lock.json".to_owned()];
+        other.locks = vec!["apps/web/bun.lockb".to_owned()];
         assert_eq!(
             check_backend_settings(&workspace, &other),
             Err(DependencySetsError::UnsupportedNpmLayout {
                 name: "frontend".to_owned(),
                 dir: "apps/web".to_owned(),
-                detail: "locks must include apps/web/pnpm-lock.yaml, the lock pnpm writes"
+                detail: "locks must include apps/web/pnpm-lock.yaml, apps/web/yarn.lock, or apps/web/package-lock.json"
                     .to_owned(),
             })
         );
+        for (lock, backend) in [
+            ("apps/web/yarn.lock", NpmBackend::Yarn),
+            ("apps/web/package-lock.json", NpmBackend::Npm),
+        ] {
+            other.locks = vec![lock.to_owned()];
+            assert_eq!(check_backend_settings(&workspace, &other), Ok(()), "{lock}");
+            assert_eq!(npm_backend(&other), Some(backend));
+        }
     }
 
     const PINNED_SETS: &str = r#"
@@ -2136,6 +2595,349 @@ repository = "tool_crates"
                 }),
                 "{package}"
             );
+        }
+    }
+    const MAVEN_MODULE_TEXT: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"tool_maven\", lock_file = \"//tools:tool_install.json\")\nuse_repo(maven, \"maven\", \"tool_maven\")\n";
+
+    const MAVEN_SETS: &str = r#"
+schema_version = 1
+[[dependency_set]]
+name = "jvm"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/maven_install.json"]
+scopes = ["third_party"]
+repository = "maven"
+
+[[dependency_set]]
+name = "tools"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["tools/tool_install.json"]
+scopes = ["tools"]
+repository = "tool_maven"
+
+[[dependency_set]]
+name = "root"
+ecosystem = "bazel"
+manifests = ["MODULE.bazel"]
+locks = ["MODULE.bazel.lock"]
+scopes = ["MODULE.bazel"]
+"#;
+
+    const SIGNED_LOCK: &str = "{\"__AUTOGENERATED_FILE_DO_NOT_MODIFY_THIS_FILE_MANUALLY\":\"x\",\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2}";
+
+    fn maven_workspace(module: &str, lock: &str) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-maven-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        std::fs::create_dir_all(root.join("third_party")).expect("dir");
+        std::fs::write(root.join("third_party/maven_install.json"), lock).expect("lock");
+        let registry = load_text(MAVEN_SETS);
+        let set = ResolvedSet::of(registry.find("jvm").expect("jvm"));
+        (scratch, set)
+    }
+
+    fn hub_detail(result: Result<(), DependencySetsError>) -> String {
+        match result {
+            Err(DependencySetsError::UnsupportedMavenHub { detail, .. }) => detail,
+            other => panic!("expected UnsupportedMavenHub, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn maven_sets_share_the_root_module_but_own_their_locks() {
+        let registry = load_text(MAVEN_SETS);
+        assert_eq!(registry.names(), vec!["jvm", "root", "tools"]);
+        let jvm = registry.find("jvm").expect("jvm");
+        assert_eq!(jvm.ecosystem, Ecosystem::Maven);
+        assert_eq!(jvm.repository.as_deref(), Some("maven"));
+        assert_eq!(Ecosystem::parse("maven"), Some(Ecosystem::Maven));
+        assert_eq!(Ecosystem::Maven.manifest_name(), "MODULE.bazel");
+        assert_eq!(
+            Ecosystem::Maven.supported_operations(),
+            "check, update, audit"
+        );
+        assert_eq!(Ecosystem::Maven.advisory_family(), Some("maven"));
+        assert!(Ecosystem::Maven.uses_repository());
+        let shared_lock =
+            MAVEN_SETS.replace("tools/tool_install.json", "third_party/maven_install.json");
+        assert!(matches!(
+            parse(&shared_lock, DX_TOML_REL),
+            Err(DependencySetsError::ConflictingOwnership { .. })
+        ));
+        let two_uv = load_text(TWO_UV_SETS);
+        assert!(two_uv.find("frontend").is_some());
+    }
+
+    #[test]
+    fn maven_manifest_must_be_the_root_module() {
+        let nested = MAVEN_SETS.replacen(
+            "manifests = [\"MODULE.bazel\"]",
+            "manifests = [\"sub/MODULE.bazel\"]",
+            1,
+        );
+        assert!(matches!(
+            parse(&nested, DX_TOML_REL),
+            Err(DependencySetsError::MavenManifest { .. })
+        ));
+        let repo_missing = MAVEN_SETS.replacen("repository = \"maven\"\n", "", 1);
+        assert!(matches!(
+            parse(&repo_missing, DX_TOML_REL),
+            Err(DependencySetsError::MissingRepository { .. })
+        ));
+        let duplicate = MAVEN_SETS.replace("tool_maven", "maven");
+        assert!(matches!(
+            parse(&duplicate, DX_TOML_REL),
+            Err(DependencySetsError::DuplicateRepository { .. })
+        ));
+    }
+
+    #[test]
+    fn maven_packages_are_group_and_artifact() {
+        let registry = load_text(MAVEN_SETS);
+        assert!(resolve(&registry, &["jvm:com.google.guava:guava".to_owned()]).is_ok());
+        for package in ["guava", "a:", ":b", "a:b:1.0", "a b:c", "a;x:b"] {
+            assert_eq!(
+                resolve(&registry, &[format!("jvm:{package}")]),
+                Err(DependencySetsError::InvalidPackage {
+                    set: "jvm".to_owned(),
+                    package: package.to_owned(),
+                    reason: MAVEN_PACKAGE_CHARSET,
+                }),
+                "{package}"
+            );
+        }
+    }
+
+    #[test]
+    fn maven_hub_must_exist_in_the_root_module() {
+        let (scratch, set) = maven_workspace(MAVEN_MODULE_TEXT, "");
+        let root = scratch.path();
+        assert_eq!(check_backend_settings(root, &set), Ok(()));
+        let cases = [
+            ("bazel_dep(name = \"x\", version = \"1\")\n", "no maven.install"),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\n",
+                "use_repo",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, m2 = \"maven\")\n",
+                "use_repo",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\")\nuse_repo(maven, \"maven\")\n",
+                "literal lock_file",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//other:lock.json\")\nuse_repo(maven, \"maven\")\n",
+                "not listed",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = L)\nuse_repo(maven, \"maven\")\n",
+                "literal name and lock_file",
+            ),
+            (
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, \"maven\")\n",
+                "2 maven.install",
+            ),
+        ];
+        for (module, want) in cases {
+            std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+            let detail = hub_detail(check_backend_settings(root, &set));
+            assert!(detail.contains(want), "{detail} should contain {want}");
+        }
+        std::fs::write(root.join("MODULE.bazel"), MAVEN_MODULE_TEXT).expect("module");
+        std::fs::remove_file(root.join("third_party/maven_install.json")).expect("rm");
+        assert!(hub_detail(check_backend_settings(root, &set)).contains("does not exist"));
+    }
+
+    #[test]
+    fn maven_check_needs_a_signed_lock_and_fail_if_repin_required() {
+        let (scratch, set) = maven_workspace(MAVEN_MODULE_TEXT, SIGNED_LOCK);
+        let root = scratch.path();
+        assert_eq!(check_lock_ready(root, &set), Ok(()));
+        let lock = root.join("third_party/maven_install.json");
+        for bad in [
+            "",
+            "{}",
+            "not json",
+            "[1]",
+            "{\"__INPUT_ARTIFACTS_HASH\":1}",
+            "{\"dependency_tree\":{}}",
+        ] {
+            std::fs::write(&lock, bad).expect("lock");
+            assert!(
+                hub_detail(check_lock_ready(root, &set)).contains("signatures"),
+                "{bad}"
+            );
+        }
+        std::fs::write(&lock, SIGNED_LOCK).expect("lock");
+        for policy in ["False", "FLAG"] {
+            let module = MAVEN_MODULE_TEXT.replacen(
+                "maven_install.json\")",
+                &format!("maven_install.json\", fail_if_repin_required = {policy})"),
+                1,
+            );
+            std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+            assert!(hub_detail(check_lock_ready(root, &set)).contains("fail_if_repin_required"));
+        }
+        let module = MAVEN_MODULE_TEXT.replacen(
+            "maven_install.json\")",
+            "maven_install.json\", fail_if_repin_required = True)",
+            1,
+        );
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        assert_eq!(check_lock_ready(root, &set), Ok(()));
+        let registry = load_text(TWO_UV_SETS);
+        let uv = ResolvedSet::of(registry.find("frontend").expect("frontend"));
+        assert_eq!(check_lock_ready(root, &uv), Ok(()));
+    }
+
+    const NUGET_SETS: &str = r#"
+schema_version = 1
+[[dependency_set]]
+name = "dotnet"
+ecosystem = "nuget"
+manifests = ["third_party/dotnet/paket.dependencies"]
+locks = [
+  "third_party/dotnet/paket.lock",
+  "third_party/dotnet/deps/paket.main.bzl",
+  "third_party/dotnet/deps/paket.main_extension.bzl",
+]
+scopes = ["third_party/dotnet"]
+"#;
+
+    const NUGET_MODULE: &str = "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\n";
+
+    fn nuget_workspace(
+        sets: &str,
+        module: &str,
+        dependencies: &str,
+    ) -> (dx_test_scratch::TempDir, ResolvedSet) {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-nuget-");
+        let root = scratch.path();
+        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
+        std::fs::create_dir_all(root.join("third_party/dotnet/deps")).expect("dir");
+        std::fs::write(
+            root.join("third_party/dotnet/paket.dependencies"),
+            dependencies,
+        )
+        .expect("dependencies");
+        let registry = load_text(sets);
+        let set = ResolvedSet::of(registry.find("dotnet").expect("dotnet"));
+        (scratch, set)
+    }
+
+    fn nuget_detail(result: Result<(), DependencySetsError>) -> String {
+        match result {
+            Err(DependencySetsError::UnsupportedNugetLayout { detail, .. }) => detail,
+            other => panic!("expected UnsupportedNugetLayout, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nuget_sets_load_with_paket_manifests() {
+        let registry = load_text(NUGET_SETS);
+        let dotnet = registry.find("dotnet").expect("dotnet");
+        assert_eq!(dotnet.ecosystem, Ecosystem::Nuget);
+        assert_eq!(Ecosystem::parse("nuget"), Some(Ecosystem::Nuget));
+        assert_eq!(Ecosystem::Nuget.manifest_name(), "paket.dependencies");
+        assert_eq!(
+            Ecosystem::Nuget.supported_operations(),
+            "check, update, audit"
+        );
+        assert_eq!(Ecosystem::Nuget.advisory_family(), Some("nuget"));
+        assert!(!Ecosystem::Nuget.uses_repository());
+        let wrong = NUGET_SETS.replace("paket.dependencies", "packages.config");
+        assert!(matches!(
+            parse(&wrong, DX_TOML_REL),
+            Err(DependencySetsError::InvalidManifest { .. })
+        ));
+        assert!(resolve(&registry, &["dotnet:Newtonsoft.Json".to_owned()]).is_ok());
+        for package in ["a b", "a;b", "a/b"] {
+            assert_eq!(
+                resolve(&registry, &[format!("dotnet:{package}")]),
+                Err(DependencySetsError::InvalidPackage {
+                    set: "dotnet".to_owned(),
+                    package: package.to_owned(),
+                    reason: NUGET_PACKAGE_CHARSET,
+                }),
+                "{package}"
+            );
+        }
+    }
+
+    #[test]
+    fn nuget_layout_accepts_one_folder_of_paired_groups() {
+        let (scratch, set) = nuget_workspace(
+            NUGET_SETS,
+            NUGET_MODULE,
+            "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
+        );
+        assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+    }
+
+    #[test]
+    fn nuget_layout_refuses_what_staging_cannot_reproduce() {
+        let dependencies = "source https://api.nuget.org/v3/index.json\n";
+        let cases = [
+            (
+                NUGET_SETS.replace("paket.main.bzl", "notes.txt"),
+                NUGET_MODULE,
+                dependencies,
+                "neither paket.lock",
+            ),
+            (
+                NUGET_SETS.replace(
+                    "deps/paket.main_extension.bzl",
+                    "other/paket.main_extension.bzl",
+                ),
+                NUGET_MODULE,
+                dependencies,
+                "share one folder",
+            ),
+            (
+                NUGET_SETS.replace(
+                    "  \"third_party/dotnet/deps/paket.main_extension.bzl\",\n",
+                    "",
+                ),
+                NUGET_MODULE,
+                dependencies,
+                "needs both",
+            ),
+            (
+                NUGET_SETS.to_owned(),
+                "bazel_dep(name = \"other\", version = \"1\")\n",
+                dependencies,
+                "rules_dotnet",
+            ),
+            (
+                NUGET_SETS.to_owned(),
+                "bazel_dep(name = \"rules_dotnet\", version = \"1\", repo_name = \"dn\")\n",
+                dependencies,
+                "repo_name",
+            ),
+            (
+                NUGET_SETS.to_owned(),
+                NUGET_MODULE,
+                "source ../local-feed\n",
+                "not http(s)",
+            ),
+        ];
+        let (scratch, set) = nuget_workspace(
+            &NUGET_SETS.replace("  \"third_party/dotnet/paket.lock\",\n", ""),
+            NUGET_MODULE,
+            dependencies,
+        );
+        assert!(matches!(
+            check_backend_settings(scratch.path(), &set),
+            Err(DependencySetsError::MissingPinnedLock { .. })
+        ));
+        for (sets, module, dependencies, want) in cases {
+            let (scratch, set) = nuget_workspace(&sets, module, dependencies);
+            let detail = nuget_detail(check_backend_settings(scratch.path(), &set));
+            assert!(detail.contains(want), "{want}: {detail}");
         }
     }
 }

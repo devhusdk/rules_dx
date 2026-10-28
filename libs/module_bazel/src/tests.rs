@@ -687,6 +687,51 @@ fn cargo_hubs_follow_the_rules_rust_crate_extension() {
 }
 
 #[test]
+fn maven_installs_follow_the_rules_jvm_external_extension() {
+    let source = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"a:b:1\"],\n    lock_file = \"//:maven_install.json\",\n)\nmaven.install(name = \"tool\", lock_file = \"//t:lock.json\", fail_if_repin_required = False)\nmaven.install(name = \"c\", fail_if_repin_required = FLAG)\nmaven.install(name = \"d\", fail_if_repin_required = True)\nfake = use_extension(\"@fake//:extensions.bzl\", \"maven\")\nfake.install(name = \"no\")\n";
+    let view = |i: &MavenInstall<'_>| {
+        (
+            i.name.to_owned(),
+            i.lock_file.map(str::to_owned),
+            i.fail_if_repin_required,
+            i.line,
+        )
+    };
+    let file = parse(source);
+    let installs = file.maven_installs().expect("installs");
+    assert_eq!(
+        installs.iter().map(view).collect::<Vec<_>>(),
+        [
+            (
+                "maven".to_owned(),
+                Some("//:maven_install.json".to_owned()),
+                RepinPolicy::Unset,
+                2
+            ),
+            (
+                "tool".to_owned(),
+                Some("//t:lock.json".to_owned()),
+                RepinPolicy::False,
+                6
+            ),
+            ("c".to_owned(), None, RepinPolicy::Computed, 7),
+            ("d".to_owned(), None, RepinPolicy::True, 8),
+        ]
+    );
+    for (source, line) in [
+        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = N)\n", 2),
+        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = L)\n", 2),
+        ("maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(**KW)\n", 2),
+    ] {
+        assert_eq!(
+            parse(source).maven_installs(),
+            Err(ModuleError::ComputedMavenHub { line }),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn label_path_maps_main_repository_labels_only() {
     assert_eq!(label_path("//:Cargo.toml"), Ok("Cargo.toml".to_owned()));
     assert_eq!(
@@ -877,4 +922,32 @@ fn module_versions_follow_bazel_order() {
         assert_eq!(compare_module_versions(a, b), order, "{a} vs {b}");
         assert_eq!(compare_module_versions(b, a), order.reverse(), "{b} vs {a}");
     }
+}
+
+#[test]
+fn extensions_lists_literal_use_extension_calls() {
+    let source = "a = use_extension(\"@a//:e.bzl\", \"ext\")\nb = use_extension(extension_bzl_file = \"//:l.bzl\", extension_name = \"l\")\nc = use_extension(F, \"c\")\n";
+    let module = ModuleFile::parse(source).expect("parses");
+    assert_eq!(
+        module.extensions(),
+        vec![("@a//:e.bzl", "ext"), ("//:l.bzl", "l")]
+    );
+}
+
+#[test]
+fn labeled_loader_pairs_files_with_include_labels() {
+    let read = |label: &str| -> Result<String, String> {
+        match label {
+            "//:a.MODULE.bazel" => Ok("include(\"//:b.MODULE.bazel\")\n".to_owned()),
+            "//:b.MODULE.bazel" => Ok("bazel_dep(name = \"x\", version = \"1\")\n".to_owned()),
+            other => Err(other.to_owned()),
+        }
+    };
+    let files =
+        load_with_includes_labeled("include(\"//:a.MODULE.bazel\")\n", &read).expect("loads");
+    let labels: Vec<Option<&str>> = files.iter().map(|(l, _)| l.as_deref()).collect();
+    assert_eq!(
+        labels,
+        [None, Some("//:a.MODULE.bazel"), Some("//:b.MODULE.bazel")]
+    );
 }

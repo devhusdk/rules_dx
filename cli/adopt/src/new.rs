@@ -144,7 +144,23 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         identity: IdentityRule::BazelModule,
     },
     NewLanguage {
+        name: "ocaml",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "haskell",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
         name: "cuda",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "lua",
+        identity: IdentityRule::BazelModule,
+    },
+    NewLanguage {
+        name: "julia",
         identity: IdentityRule::BazelModule,
     },
 ];
@@ -691,7 +707,7 @@ ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state,
 "#;
 
 const RUST_ANDROID_BUILD: &str = r#"# gazelle:ignore
-load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "rust_android_apk")
+load("@rules_dx//android/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_check", "android_apk_release_sign", "rust_android_apk")
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_static_library", "rust_test", "rustfmt_test")
 
@@ -752,6 +768,11 @@ android_apk_check(
     tags = ["manual"],
 )
 
+android_apk_release_sign(
+    name = "@NAME@_release_sign",
+    apk = ":@NAME@_apk_unsigned_file",
+)
+
 android_adb_install(
     name = "@NAME@_install",
     apk = ":@NAME@_apk_file",
@@ -808,7 +829,7 @@ fn rust_android_bazelrc() -> String {
 
 fn rust_android_readme(identity: &str, app_id: &str) -> String {
     format!(
-        "# {identity}\n\nRust core packaged as a debug Android APK ({app_id}) for arm64-v8a and x86_64.\n\nThe host build and tests need no Android SDK:\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nThe APK and its launchers are tagged manual. They need an installed Android SDK\nwith platform android-34, build-tools 34.0.0 and an NDK:\n\n```sh\nexport ANDROID_HOME=$HOME/Android/Sdk\nexport ANDROID_SDK_ROOT=$ANDROID_HOME\nexport ANDROID_NDK_REVISION=<installed ndk version>\nbazel build --config=android :{identity}_apk_file\nbazel test --config=android :{identity}_check_test\nbazel run --config=android :{identity}_install\nbazel run --config=android :{identity}_start\nbazel run --config=android :{identity}_log\n```\n\nThe launchers name {serial}. The APK is debug-signed, so no keys are needed.\nThe app ID, ABIs and API level are attributes of `:{identity}_apk` in BUILD.bazel.\n",
+        "# {identity}\n\nRust core packaged as a debug Android APK ({app_id}) for arm64-v8a and x86_64.\n\nThe host build and tests need no Android SDK:\n\n```sh\nbazel build //...\nbazel test //...\n```\n\nThe APK and its launchers are tagged manual. They need an installed Android SDK\nwith platform android-34, build-tools 35.0.0 and an NDK:\n\n```sh\nexport ANDROID_HOME=$HOME/Android/Sdk\nexport ANDROID_SDK_ROOT=$ANDROID_HOME\nexport ANDROID_NDK_REVISION=<installed ndk version>\nbazel build --config=android :{identity}_apk_file\nbazel test --config=android :{identity}_check_test\nbazel run --config=android :{identity}_install\nbazel run --config=android :{identity}_start\nbazel run --config=android :{identity}_log\n```\n\nThe launchers name {serial}. The APK is debug-signed, so no keys are needed.\nThe app ID, ABIs and API level are attributes of `:{identity}_apk` in BUILD.bazel.\n",
         serial = RUST_ANDROID_SERIAL,
     )
 }
@@ -858,7 +879,7 @@ fn consumer_module_bazel(identity: &str, platforms: bool) -> String {
 }
 
 fn consumer_bazelrc() -> String {
-    "build --java_runtime_version=remotejdk_21\n".to_owned()
+    "build --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\nbuild --tool_java_language_version=17\n".to_owned()
 }
 
 fn consumer_bazelversion() -> String {
@@ -897,11 +918,16 @@ bazel test //...
 ```
 "#
     .replace("IDENTITY", identity);
+    let checksums: String = crate::scaffold::CONSUMER_PORTABLE_RUBY_CHECKSUMS
+        .iter()
+        .map(|(name, digest)| format!("        \"{name}\": \"{digest}\",\n"))
+        .collect();
     let module = format!(
-        "{}bazel_dep(name = \"rules_ruby\", version = \"{rules_ruby}\")\n\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(\n    name = \"ruby\",\n    portable_ruby = True,\n    version = \"{ruby}\",\n)\nuse_repo(ruby, \"ruby_toolchains\")\n\nregister_toolchains(\"@ruby_toolchains//:all\")\n",
+        "{}bazel_dep(name = \"rules_ruby\", version = \"{rules_ruby}\")\n\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(\n    name = \"ruby\",\n    portable_ruby = True,\n    portable_ruby_checksums = {{\n{checksums}    }},\n    version = \"{ruby}\",\n)\nuse_repo(ruby, \"ruby_toolchains\")\n\nregister_toolchains(\"@ruby_toolchains//:all\")\n",
         consumer_module_bazel(identity, false),
         rules_ruby = crate::scaffold::CONSUMER_RULES_RUBY_VERSION,
         ruby = crate::scaffold::CONSUMER_RUBY_VERSION,
+        checksums = checksums,
     );
     vec![
         ("MODULE.bazel".to_owned(), module),
@@ -974,6 +1000,180 @@ bazel test //...
         ),
         ("README.md".to_owned(), readme),
     ]
+}
+
+fn lua_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//lua/rules:defs.bzl", "lua_binary", "lua_library", "lua_test")
+
+lua_library(
+    name = "IDENTITY",
+    srcs = ["hello.lua"],
+)
+
+lua_binary(
+    name = "IDENTITY_bin",
+    srcs = ["main.lua"],
+    main = "main.lua",
+    deps = [":IDENTITY"],
+)
+
+lua_test(
+    name = "IDENTITY_test",
+    srcs = ["hello_test.lua"],
+    main = "hello_test.lua",
+    deps = [":IDENTITY"],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "hello.lua".to_owned(),
+            "local M = {}\n\nfunction M.greet(name)\n\treturn \"hello \" .. name\nend\n\nreturn M\n".to_owned(),
+        ),
+        (
+            "main.lua".to_owned(),
+            "local hello = require(\"hello\")\n\nprint(hello.greet(\"world\"))\n".to_owned(),
+        ),
+        (
+            "hello_test.lua".to_owned(),
+            "local hello = require(\"hello\")\n\nif hello.greet(\"world\") ~= \"hello world\" then\n\tio.stderr:write(\"unexpected greeting\\n\")\n\tos.exit(1)\nend\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+/// Julia module names that would shadow what the starter itself loads.
+const JULIA_RESERVED_MODULES: [&str; 4] = ["Base", "Core", "Main", "Test"];
+
+/// Returns the UpperCamelCase Julia module for `identity` (`demo-app` -> `DemoApp`).
+///
+/// rules_julia only finds the package entry, and so only precompiles, when the
+/// library label equals `src/<label>.jl`, so the library is named after this.
+fn julia_module_name(identity: &str) -> Result<String, AdoptError> {
+    let refused = |reason: &str| AdoptError::NewInvalidIdentity {
+        language: "julia".to_owned(),
+        name: identity.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let mut module = String::new();
+    for part in identity.split(['-', '_', '.']).filter(|p| !p.is_empty()) {
+        if !part.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return Err(refused(
+                "julia names use ASCII letters, digits, '-', '_' and '.' so they form a module name",
+            ));
+        }
+        let mut chars = part.chars();
+        if let Some(first) = chars.next() {
+            module.push(first.to_ascii_uppercase());
+            module.push_str(chars.as_str());
+        }
+    }
+    if !module.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        return Err(refused(
+            "julia names start with a letter so they form a module name",
+        ));
+    }
+    if JULIA_RESERVED_MODULES.contains(&module.as_str()) {
+        return Err(refused(
+            "julia names must not become Base, Core, Main or Test, which the starter itself uses",
+        ));
+    }
+    Ok(module)
+}
+
+/// Returns a stable UUID for the starter's `Project.toml`, derived from the identity.
+///
+/// The digest input must never change: it would alter every later starter's uuid.
+fn julia_project_uuid(identity: &str) -> String {
+    let hex = dx_digest::sha256_hex(format!("rules_dx julia starter:{identity}").as_bytes());
+    let variant = match u8::from_str_radix(&hex[16..17], 16).unwrap_or(0) & 0x3 {
+        0 => '8',
+        1 => '9',
+        2 => 'a',
+        _ => 'b',
+    };
+    format!(
+        "{}-{}-8{}-{}{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[13..16],
+        variant,
+        &hex[17..20],
+        &hex[20..32]
+    )
+}
+
+fn julia_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    let module = julia_module_name(identity)?;
+    let build =
+        r#"load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
+
+julia_library(
+    name = "MODULE",
+    srcs = ["src/MODULE.jl"],
+    data = ["Project.toml"],
+)
+
+julia_binary(
+    name = "MODULE_bin",
+    srcs = ["main.jl"],
+    deps = [":MODULE"],
+)
+
+julia_test(
+    name = "MODULE_test",
+    srcs = ["test/runtests.jl"],
+    deps = [":MODULE"],
+)
+"#
+        .replace("MODULE", &module);
+    let project = format!(
+        "name = \"{module}\"\nuuid = \"{}\"\nversion = \"0.1.0\"\n",
+        julia_project_uuid(identity)
+    );
+    let library =
+        format!("module {module}\n\nexport greet\n\ngreet(name) = \"hello \" * name\n\nend\n");
+    let main = format!("using {module}\n\nprintln(greet(\"world\"))\n");
+    let tests = format!(
+        "using {module}\nusing Test\n\n@testset \"{module}\" begin\n    @test greet(\"world\") == \"hello world\"\nend\n"
+    );
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :MODULE_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity)
+    .replace("MODULE", &module);
+    Ok(vec![
+        (
+            "MODULE.bazel".to_owned(),
+            consumer_module_bazel(identity, false),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        ("Project.toml".to_owned(), project),
+        (format!("src/{module}.jl"), library),
+        ("main.jl".to_owned(), main),
+        ("test/runtests.jl".to_owned(), tests),
+        ("README.md".to_owned(), readme),
+    ])
 }
 
 fn cc_starter(identity: &str, ext: &str, sources: [String; 4]) -> Vec<(String, String)> {
@@ -1281,6 +1481,139 @@ bazel test //...
     ]
 }
 
+fn ocaml_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_test")
+
+ocaml_module(
+    name = "hello",
+    struct = "hello.ml",
+)
+
+ocaml_library(
+    name = "IDENTITY",
+    manifest = [":hello"],
+)
+
+ocaml_module(
+    name = "main",
+    struct = "main.ml",
+    deps = [":IDENTITY"],
+)
+
+ocaml_binary(
+    name = "IDENTITY_bin",
+    main = ":main",
+)
+
+ocaml_module(
+    name = "hello_test_main",
+    testonly = True,
+    struct = "hello_test.ml",
+    deps = [":IDENTITY"],
+)
+
+ocaml_test(
+    name = "IDENTITY_test",
+    main = ":hello_test_main",
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        (
+            "MODULE.bazel".to_owned(),
+            consumer_module_bazel(identity, false),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "hello.ml".to_owned(),
+            "let greet name = \"hello \" ^ name\n".to_owned(),
+        ),
+        (
+            "main.ml".to_owned(),
+            "let () = print_endline (Hello.greet \"world\")\n".to_owned(),
+        ),
+        (
+            "hello_test.ml".to_owned(),
+            "let () = assert (Hello.greet \"world\" = \"hello world\")\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
+fn haskell_files(identity: &str) -> Vec<(String, String)> {
+    let build = r#"load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+
+haskell_library(
+    name = "IDENTITY",
+    srcs = ["src/Hello.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = ["@rules_dx//haskell/toolchain:base"],
+)
+
+haskell_binary(
+    name = "IDENTITY_bin",
+    srcs = ["src/Main.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":IDENTITY",
+        "@rules_dx//haskell/toolchain:base",
+    ],
+)
+
+haskell_test(
+    name = "IDENTITY_test",
+    srcs = ["test/HelloTest.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        ":IDENTITY",
+        "@rules_dx//haskell/toolchain:base",
+    ],
+)
+"#
+    .replace("IDENTITY", identity);
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :IDENTITY_bin
+bazel test //...
+```
+
+The targets need Linux x86_64.
+"#
+    .replace("IDENTITY", identity);
+    vec![
+        ("MODULE.bazel".to_owned(), consumer_module_bazel(identity, false)),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        (
+            "src/Hello.hs".to_owned(),
+            "module Hello (greet) where\n\ngreet :: String -> String\ngreet name = \"hello \" ++ name\n".to_owned(),
+        ),
+        (
+            "src/Main.hs".to_owned(),
+            "module Main (main) where\n\nimport Hello (greet)\n\nmain :: IO ()\nmain = putStrLn (greet \"world\")\n".to_owned(),
+        ),
+        (
+            "test/HelloTest.hs".to_owned(),
+            "module Main (main) where\n\nimport Hello (greet)\nimport System.Exit (exitFailure)\n\nmain :: IO ()\nmain = if greet \"world\" == \"hello world\" then putStrLn \"PASS\" else exitFailure\n".to_owned(),
+        ),
+        ("README.md".to_owned(), readme),
+    ]
+}
+
 fn powershell_files(identity: &str) -> Vec<(String, String)> {
     let build =
         r#"load("@rules_dx//powershell/rules:defs.bzl", "pwsh_binary", "pwsh_library", "pwsh_test")
@@ -1351,7 +1684,7 @@ struct JsStarter {
     version: &'static str,
     lock: &'static str,
     component_source: &'static str,
-    test_source: &'static str,
+    test_source: Option<&'static str>,
 }
 
 fn js_starter_files(identity: &str, starter: &JsStarter) -> Vec<(String, String)> {
@@ -1360,11 +1693,47 @@ fn js_starter_files(identity: &str, starter: &JsStarter) -> Vec<(String, String)
         dx = super::DX_VERSION,
         js = ASPECT_RULES_JS_VERSION,
     );
+    let (js_loads, rule_loads, check) = match starter.test_source {
+        Some(_) => (
+            "\"javascript_js_test\", \"javascript_library\"",
+            format!("\"{}_library\"", starter.rule),
+            format!(
+                r#"javascript_js_test(
+    name = "IDENTITY_test",
+    size = "small",
+    srcs = ["hello.test.js"],
+    data = [
+        ":IDENTITY",
+        ":node_modules/{package}",
+    ],
+    entry_point = "hello.test.js",
+    package_json = ":package_json",
+)
+"#,
+                package = starter.package,
+            ),
+        ),
+        None => (
+            "\"javascript_library\"",
+            format!("\"{0}_check\", \"{0}_library\"", starter.rule),
+            format!(
+                r#"{rule}_check(
+    name = "IDENTITY_check",
+    srcs = ["{component}"],
+    node_modules = ":node_modules",
+    package_json = ":package_json",
+)
+"#,
+                rule = starter.rule,
+                component = starter.component,
+            ),
+        ),
+    };
     let build = format!(
         r#"load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@demo_npm//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test", "javascript_library")
-load("@rules_dx//{rule}/rules:defs.bzl", "{rule}_library")
+load("@rules_dx//javascript/rules:defs.bzl", {js_loads})
+load("@rules_dx//{rule}/rules:defs.bzl", {rule_loads})
 
 npm_link_all_packages(name = "node_modules")
 
@@ -1384,21 +1753,9 @@ javascript_library(
     deps = [":helper"],
 )
 
-javascript_js_test(
-    name = "IDENTITY_test",
-    size = "small",
-    srcs = ["hello.test.js"],
-    data = [
-        ":IDENTITY",
-        ":node_modules/{package}",
-    ],
-    entry_point = "hello.test.js",
-    package_json = ":package_json",
-)
-"#,
+{check}"#,
         rule = starter.rule,
         component = starter.component,
-        package = starter.package,
     )
     .replace("IDENTITY", identity);
     let package_json = format!(
@@ -1408,7 +1765,7 @@ javascript_js_test(
         starter.version
     );
     let readme = format!("# {identity}\n\n```sh\nbazel build //...\nbazel test //...\n```\n");
-    vec![
+    let mut files = vec![
         ("MODULE.bazel".to_owned(), module),
         (".bazelversion".to_owned(), consumer_bazelversion()),
         (".bazelrc".to_owned(), consumer_bazelrc()),
@@ -1429,9 +1786,12 @@ javascript_js_test(
             "helper.js".to_owned(),
             "export function helper(name) {\n  return `hello ${name}`;\n}\n".to_owned(),
         ),
-        ("hello.test.js".to_owned(), starter.test_source.to_owned()),
         ("README.md".to_owned(), readme),
-    ]
+    ];
+    if let Some(test_source) = starter.test_source {
+        files.push(("hello.test.js".to_owned(), test_source.to_owned()));
+    }
+    files
 }
 
 fn astro_files(identity: &str) -> Vec<(String, String)> {
@@ -1444,7 +1804,9 @@ fn astro_files(identity: &str) -> Vec<(String, String)> {
             version: ASTRO_COMPILER_VERSION,
             lock: super::new_locks::ASTRO_LOCK,
             component_source: "---\nimport { helper } from \"./helper.js\";\n\nconst message = helper(\"world\");\n---\n\n<div class=\"hello\">{message}</div>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@astrojs/compiler/sync\";\nimport { is } from \"@astrojs/compiler/utils\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst result = parse(fs.readFileSync(path.join(here, \"Hello.astro\"), \"utf8\"));\n\nassert.deepEqual(result.diagnostics, []);\nassert.ok(result.ast.children.some((node) => is.frontmatter(node)));\nassert.ok(\n  result.ast.children.some((node) => is.element(node) && node.name === \"div\"),\n);\nconsole.log(\"PASS\");\n",
+            test_source: Some(
+                "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@astrojs/compiler/sync\";\nimport { is } from \"@astrojs/compiler/utils\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst result = parse(fs.readFileSync(path.join(here, \"Hello.astro\"), \"utf8\"));\n\nassert.deepEqual(result.diagnostics, []);\nassert.ok(result.ast.children.some((node) => is.frontmatter(node)));\nassert.ok(\n  result.ast.children.some((node) => is.element(node) && node.name === \"div\"),\n);\nconsole.log(\"PASS\");\n",
+            ),
         },
     )
 }
@@ -1459,7 +1821,9 @@ fn svelte_files(identity: &str) -> Vec<(String, String)> {
             version: SVELTE_VERSION,
             lock: super::new_locks::SVELTE_LOCK,
             component_source: "<script>\n  import { helper } from \"./helper.js\";\n\n  let name = \"world\";\n  let message = $derived(helper(name));\n</script>\n\n<div class=\"hello\">{message}</div>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"svelte/compiler\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.svelte\"), \"utf8\");\nconst ast = parse(source, { modern: true });\n\nassert.ok(ast.fragment.nodes.length > 0);\nassert.notEqual(ast.instance, null);\nassert.ok(\n  source.slice(ast.instance.start, ast.instance.end).includes(\"./helper.js\"),\n);\nconsole.log(\"PASS\");\n",
+            test_source: Some(
+                "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"svelte/compiler\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.svelte\"), \"utf8\");\nconst ast = parse(source, { modern: true });\n\nassert.ok(ast.fragment.nodes.length > 0);\nassert.notEqual(ast.instance, null);\nassert.ok(\n  source.slice(ast.instance.start, ast.instance.end).includes(\"./helper.js\"),\n);\nconsole.log(\"PASS\");\n",
+            ),
         },
     )
 }
@@ -1474,7 +1838,9 @@ fn vue_files(identity: &str) -> Vec<(String, String)> {
             version: VUE_COMPILER_VERSION,
             lock: super::new_locks::VUE_LOCK,
             component_source: "<template>\n  <div class=\"hello\">{{ message }}</div>\n</template>\n\n<script setup>\nimport { helper } from \"./helper.js\";\n\nconst message = helper(\"world\");\n</script>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@vue/compiler-sfc\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.vue\"), \"utf8\");\nconst { descriptor, errors } = parse(source);\n\nassert.deepEqual(errors, []);\nassert.notEqual(descriptor.template, null);\nassert.ok(descriptor.scriptSetup.content.includes(\"./helper.js\"));\nconsole.log(\"PASS\");\n",
+            test_source: Some(
+                "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { parse } from \"@vue/compiler-sfc\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.vue\"), \"utf8\");\nconst { descriptor, errors } = parse(source);\n\nassert.deepEqual(errors, []);\nassert.notEqual(descriptor.template, null);\nassert.ok(descriptor.scriptSetup.content.includes(\"./helper.js\"));\nconsole.log(\"PASS\");\n",
+            ),
         },
     )
 }
@@ -1489,7 +1855,7 @@ fn mdx_files(identity: &str) -> Vec<(String, String)> {
             version: MDX_VERSION,
             lock: super::new_locks::MDX_LOCK,
             component_source: "import { helper } from \"./helper.js\";\n\n# Hello\n\n<div className=\"hello\">{helper(\"world\")}</div>\n",
-            test_source: "import assert from \"node:assert/strict\";\nimport fs from \"node:fs\";\nimport path from \"node:path\";\nimport { fileURLToPath } from \"node:url\";\nimport { compile } from \"@mdx-js/mdx\";\n\nconst here = path.dirname(fileURLToPath(import.meta.url));\nconst source = fs.readFileSync(path.join(here, \"Hello.mdx\"), \"utf8\");\nconst output = String(await compile(source));\n\nassert.ok(output.includes(\"./helper.js\"));\nassert.ok(output.includes(\"Hello\"));\nconsole.log(\"PASS\");\n",
+            test_source: None,
         },
     )
 }
@@ -1651,7 +2017,11 @@ fn new_language_files(
         "zig" => zig_files(identity),
         "elixir" => elixir_files(identity),
         "erlang" => erlang_files(identity),
+        "ocaml" => ocaml_files(identity),
+        "haskell" => haskell_files(identity),
         "cuda" => cuda_files(identity),
+        "lua" => lua_files(identity),
+        "julia" => julia_files(identity)?,
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -1731,7 +2101,13 @@ mod tests {
             assert!(read("pnpm-lock.yaml").contains(&format!("specifier: {version}")));
             let build = read("BUILD.bazel");
             assert!(build.contains(&format!("{language}_library(")), "{build}");
-            assert!(build.contains("javascript_js_test("), "{build}");
+            if language == "mdx" {
+                assert!(build.contains("mdx_check("), "{build}");
+                assert!(!build.contains("javascript_js_test("), "{build}");
+                assert!(!files.iter().any(|f| f.path.ends_with("hello.test.js")));
+            } else {
+                assert!(build.contains("javascript_js_test("), "{build}");
+            }
             assert!(
                 build.contains("package_json = \":package_json\""),
                 "{build}"
@@ -1739,6 +2115,20 @@ mod tests {
             assert!(!build.contains("jest"), "{build}");
             let module = read("MODULE.bazel");
             assert!(module.contains("module(name = \"demo-app\")"), "{module}");
+        }
+    }
+
+    #[test]
+    fn ruby_scaffold_hashes_the_portable_ruby_downloads() {
+        let files = ruby_files("demo");
+        let module = &files
+            .iter()
+            .find(|(path, _)| path == "MODULE.bazel")
+            .expect("MODULE.bazel")
+            .1;
+        assert!(module.contains("portable_ruby_checksums"));
+        for (name, digest) in crate::scaffold::CONSUMER_PORTABLE_RUBY_CHECKSUMS {
+            assert!(module.contains(&format!("\"{name}\": \"{digest}\"")));
         }
     }
 
@@ -1759,7 +2149,63 @@ mod tests {
         assert_eq!(normalize_new_language("zig"), Some("zig"));
         assert_eq!(normalize_new_language("elixir"), Some("elixir"));
         assert_eq!(normalize_new_language("erlang"), Some("erlang"));
+        assert_eq!(normalize_new_language("ocaml"), Some("ocaml"));
+        assert_eq!(normalize_new_language("haskell"), Some("haskell"));
         assert_eq!(normalize_new_language("cuda"), Some("cuda"));
+        assert_eq!(normalize_new_language("lua"), Some("lua"));
+        assert_eq!(normalize_new_language("julia"), Some("julia"));
+    }
+
+    #[test]
+    fn lua_starter_names_targets_and_stays_hermetic() {
+        let files = lua_files("demo-app");
+        let all = files
+            .iter()
+            .map(|(path, text)| format!("{path}\n{text}"))
+            .collect::<String>();
+        for target in ["\"demo-app\"", "\"demo-app_bin\"", "\"demo-app_test\""] {
+            assert!(all.contains(target), "{target}");
+        }
+        assert!(all.contains("require(\"hello\")"));
+        assert!(!all.to_lowercase().contains("luarocks"));
+        assert!(!all.contains("package.path"));
+    }
+
+    #[test]
+    fn julia_starter_names_targets_and_stays_hermetic() {
+        assert_eq!(julia_module_name("demo-app").as_deref(), Ok("DemoApp"));
+        for reserved in ["base", "core", "main", "test"] {
+            assert!(julia_module_name(reserved).is_err(), "{reserved}");
+        }
+        assert!(julia_module_name("1abc").is_err());
+        let uuid = julia_project_uuid("demo-app");
+        assert_eq!(uuid, julia_project_uuid("demo-app"));
+        assert_ne!(uuid, julia_project_uuid("other"));
+        let parts = uuid.split('-').map(str::len).collect::<Vec<_>>();
+        assert_eq!(parts, [8, 4, 4, 4, 12], "{uuid}");
+        assert!(uuid.split('-').nth(2).is_some_and(|p| p.starts_with('8')));
+        assert!(uuid
+            .split('-')
+            .nth(3)
+            .is_some_and(|p| p.starts_with(['8', '9', 'a', 'b'])));
+        assert!(uuid.chars().all(|c| c == '-' || c.is_ascii_hexdigit()));
+        let files = julia_files("demo-app").expect("plans");
+        let all = files
+            .iter()
+            .map(|(path, text)| format!("{path}\n{text}"))
+            .collect::<String>();
+        for target in ["\"DemoApp\"", "\"DemoApp_bin\"", "\"DemoApp_test\""] {
+            assert!(all.contains(target), "{target}");
+        }
+        assert!(all.contains("src/DemoApp.jl"));
+        assert!(all.contains(&format!("uuid = \"{uuid}\"")));
+        let module = files
+            .iter()
+            .find(|(path, _)| path == "MODULE.bazel")
+            .map(|(_, text)| text.as_str())
+            .expect("module");
+        assert!(!module.contains("pkg."));
+        assert!(!module.contains("http"));
     }
 
     #[test]

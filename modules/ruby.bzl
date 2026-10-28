@@ -31,3 +31,12 @@ GEM_CHECKSUMS = {
     "unicode-display_width-3.3.0": "4b7aa66a4b11db50f6f7e98411215cd0dd10eaecb665d36eec5bcacb3fa0b613",
     "unicode-emoji-4.3.0": "11c02fa73290378c066bb0562cd4c87d8e1b706fbbe0059ca12746a4244de8ce",
 }
+
+# portable-ruby release 3.4.12-1. rules_ruby 0.29.0 ships no checksums for 3.4.12, so
+# the root and consumer toolchains pass these (sha256 of the release assets).
+PORTABLE_RUBY_CHECKSUMS = {
+    "ruby-3.4.12.arm64_darwin.tar.gz": "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
+    "ruby-3.4.12.arm64_linux.tar.gz": "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
+    "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
+    "ruby-3.4.12.x86_64_linux.tar.gz": "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
+}

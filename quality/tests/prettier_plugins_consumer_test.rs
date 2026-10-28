@@ -387,6 +387,50 @@ fn a_dialect_statement_is_a_syntax_error_without_its_dialect_suffix() {
 }
 
 #[test]
+fn a_dialect_attr_formats_a_plain_sql_file() {
+    let root = consumer();
+    write(&root.join("db/report.sql"), REPORT_SQL);
+    std::fs::remove_file(root.join("db/report.postgresql.sql"))
+        .unwrap_or_else(|error| panic!("rm: {error}"));
+    write(
+        &root.join("db/BUILD.bazel"),
+        &DB_BUILD
+            .replace("report.postgresql.sql", "report.sql")
+            .replace(
+                "    deps = [\":limits\"],",
+                "    deps = [\":limits\"],\n    dialect = \"postgresql\",",
+            ),
+    );
+    let out = dx(&root, "format", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    assert_eq!(read(&root.join("db/report.sql")), REPORT_SQL);
+}
+
+#[test]
+fn a_conflicting_dialect_suffix_fails_analysis() {
+    let root = consumer();
+    write(&root.join("db/report.mysql.sql"), "SELECT 1;\n");
+    write(
+        &root.join("db/BUILD.bazel"),
+        &DB_BUILD
+            .replace("report.postgresql.sql", "report.mysql.sql")
+            .replace(
+                "    deps = [\":limits\"],",
+                "    deps = [\":limits\"],\n    dialect = \"postgresql\",",
+            ),
+    );
+    let out = dx(&root, "format", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().contains("has the mysql dialect suffix"),
+        "{}",
+        out.combined()
+    );
+}
+
+#[test]
 fn the_formatted_documents_are_consumed_by_the_built_bundle() {
     let root = consumer();
     for (path, _, dirty) in FILES {

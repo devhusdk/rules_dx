@@ -9,6 +9,7 @@ load(
     "native_config_error",
     "native_config_extension",
     "native_config_extensions",
+    "native_config_scratch_rel",
 )
 
 _HINTS = [
@@ -38,6 +39,24 @@ def native_config_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "native_config_scratch_rel keeps in-repo paths and remaps external ones",
+                [
+                    native_config_scratch_rel("pkg/.prettierrc.json"),
+                    native_config_scratch_rel("../shared_prettier+/cfg/.prettierrc.json"),
+                    native_config_scratch_rel("../+ext+x/a.json"),
+                ],
+                [
+                    "pkg/.prettierrc.json",
+                    "_external/shared_prettier+/cfg/.prettierrc.json",
+                    "_external/+ext+x/a.json",
+                ],
+            ),
+            expect_equal(
+                "native_config_scratch_rel rejects remaining parent segments",
+                [native_config_scratch_rel("../a/../../b"), native_config_scratch_rel("pkg/../../x")],
+                [None, None],
+            ),
             expect_equal(
                 "native_config_extension pins the buildifier/biome JSON transport",
                 [
@@ -198,7 +217,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "biome, buf, buildifier, checkstyle, clang_format, clang_tidy, cppcheck, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, stylelint, taplo, vale, yamlfmt, yamllint",
+                "ansible_lint, biome, buf, buildifier, checkmake, checkstyle, clang_format, clang_tidy, cppcheck, credo, csharpier, djlint, eslint, fsharplint, graphql_eslint, hadolint, kubeconform, latexindent, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",
@@ -291,6 +310,11 @@ def native_config_unit_tests(name):
                 "missing_required_config_error names an unbound buildifier lint stage",
                 missing_required_config_error("buildifier", "lint", {}, "//q:t"),
                 "//q:t: Buildifier needs a config. Declare buildifier_config(name = \"buildifier_config\", src = \".buildifier.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":buildifier_config\"], or tag the target no-lint.",
+            ),
+            expect_equal(
+                "missing_required_config_error uses the tool hint for kubeconform",
+                missing_required_config_error("kubeconform", "lint", {}, "//q:t"),
+                "//q:t: kubeconform needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
             ),
             expect_equal(
                 "missing_required_config_error names an unbound checkstyle lint stage",

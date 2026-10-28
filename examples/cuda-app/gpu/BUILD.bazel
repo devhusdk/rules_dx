@@ -1,0 +1,37 @@
+load("@rules_dx//cuda/rules:defs.bzl", "cuda_gpu_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files([
+    "BUILD.bazel",
+    "gpu_test.cu",
+])
+
+# Runs only on a host with a GPU; //tools/testing/hermetic:cuda_gpu_nested_test drives it through a nested consumer.
+cuda_gpu_test(
+    name = "gpu_test",
+    srcs = ["gpu_test.cu"],
+    archs = [
+        "compute_80:compute_80,sm_80",
+        "sm_90",
+    ],
+    min_compute_capability = "8.0",
+    min_driver = "13.0",
+    tags = ["manual"],
+    deps = ["//examples/cuda-app/kernels"],
+)
+
+filegroup(
+    name = "format_srcs",
+    srcs = ["gpu_test.cu"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

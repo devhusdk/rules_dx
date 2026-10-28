@@ -565,9 +565,19 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("fsharp_test", Constraint::AsWritten),
     ("go_test", Constraint::AsWritten),
     ("haskell_test", Constraint::AsWritten),
+    (
+        "hermetic_qualification",
+        Constraint::DefaultIfUnset(
+            "//tools/testing/hermetic:defs.bzl",
+            "HERMETIC_COMPATIBLE_WITH",
+        ),
+    ),
     ("java_test", Constraint::AsWritten),
     ("javascript_test", Constraint::AsWritten),
-    ("julia_test", Constraint::AsWritten),
+    (
+        "julia_test",
+        Constraint::Appended("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH"),
+    ),
     ("kotlin_test", Constraint::AsWritten),
     ("lua_test", Constraint::AsWritten),
     (
@@ -690,6 +700,15 @@ pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFa
             Value::Str(_) => return Err(eval.err("tags is a string")),
         },
     };
+    let mut tags = tags;
+    if call.kind == "hermetic_qualification" {
+        // The macro adds these itself (tools/testing/hermetic/defs.bzl).
+        for tag in ["hermetic-consumer", "hermetic-qualification", "manual"] {
+            if !tags.iter().any(|have| have == tag) {
+                tags.push(tag.to_owned());
+            }
+        }
+    }
     Ok(TestFacts {
         compatible_with,
         tags,

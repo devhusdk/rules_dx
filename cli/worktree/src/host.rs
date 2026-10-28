@@ -30,7 +30,9 @@ pub trait Host {
     fn process_alive(&self, pid: u32) -> bool;
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
-    fn output_roots(&self) -> Vec<PathBuf>;
+    /// The output roots that need no server scan: the defaults and the custom roots the rc files name.
+    fn config_output_roots(&self) -> Vec<PathBuf>;
+    fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf>;
     /// Runs `bazel shutdown` in workspace; callers decide whether a server runs there.
     fn bazel_shutdown(&self, workspace: &Path);
     /// Whether no Bazel client holds the server's output-base lock; `None` when unknown.
@@ -435,6 +437,51 @@ pub fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<Pat
     roots
 }
 
+/// Custom `--output_user_root` values that `startup` lines in the rc files `files` name,
+/// following `import` and `try-import` lines.
+pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
+    let mut pending = files;
+    let mut seen: Vec<PathBuf> = Vec::new();
+    let mut roots = Vec::new();
+    while let Some(file) = pending.pop() {
+        if seen.contains(&file) || seen.len() > 64 {
+            continue;
+        }
+        seen.push(file.clone());
+        let Ok(text) = std::fs::read_to_string(&file) else {
+            continue;
+        };
+        for line in text.lines() {
+            let mut tokens = line.split_whitespace();
+            match tokens.next() {
+                Some("startup") => {
+                    for token in tokens {
+                        if token.starts_with('#') {
+                            break;
+                        }
+                        if let Some(root) = token.strip_prefix("--output_user_root=") {
+                            let root = PathBuf::from(root.trim_matches('"'));
+                            if root.is_absolute() && !roots.contains(&root) {
+                                roots.push(root);
+                            }
+                        }
+                    }
+                }
+                Some("import" | "try-import") => {
+                    let Some(path) = tokens.next() else { continue };
+                    let path = path.trim_matches('"');
+                    pending.push(match path.strip_prefix("%workspace%") {
+                        Some(rest) => workspace.join(rest.trim_start_matches(['/', '\\'])),
+                        None => PathBuf::from(path),
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+    roots
+}
+
 fn find_bazel() -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path) {
@@ -482,9 +529,25 @@ impl Host for SystemHost {
         }
     }
 
-    fn output_roots(&self) -> Vec<PathBuf> {
+    fn config_output_roots(&self) -> Vec<PathBuf> {
         let mut roots = default_output_roots(&|name| std::env::var(name).ok());
-        for server in self.servers() {
+        if let Ok(workspace) = std::env::current_dir() {
+            let mut files = vec![workspace.join(".bazelrc")];
+            if let Some(home) = home(&|name| std::env::var(name).ok()) {
+                files.push(home.join(".bazelrc"));
+            }
+            for root in rc_output_roots(files, &workspace) {
+                if !roots.contains(&root) {
+                    roots.push(root);
+                }
+            }
+        }
+        roots
+    }
+
+    fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf> {
+        let mut roots = self.config_output_roots();
+        for server in servers.iter().cloned() {
             if let Some(root) = server.output_user_root {
                 if !roots.contains(&root) {
                     roots.push(root);
@@ -961,5 +1024,27 @@ mod tests {
         let pid = child.id();
         child.wait().expect("wait");
         assert!(!host.process_alive(pid));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rc_output_roots_read_startup_lines_and_imports() {
+        let dir = tempfile::tempdir().expect("dir");
+        std::fs::write(
+            dir.path().join(".bazelrc"),
+            "build --foo\nstartup --output_user_root=/mnt/big/bazel # c\nimport %workspace%/extra.rc\n",
+        )
+        .expect("rc");
+        std::fs::write(
+            dir.path().join("extra.rc"),
+            "startup --output_user_root=/mnt/other\nstartup --output_user_root=rel\n",
+        )
+        .expect("extra");
+        let mut roots = rc_output_roots(vec![dir.path().join(".bazelrc")], dir.path());
+        roots.sort();
+        assert_eq!(
+            roots,
+            vec![PathBuf::from("/mnt/big/bazel"), PathBuf::from("/mnt/other")]
+        );
     }
 }

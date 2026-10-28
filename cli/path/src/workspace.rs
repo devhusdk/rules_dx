@@ -41,9 +41,174 @@ impl fmt::Display for WorkspaceRelativePath {
     }
 }
 
+/// The message carried by the `InvalidInput` error of the resolvers.
+pub const LEAVES_WORKSPACE: &str = "path leaves the workspace";
+
+fn leaves_workspace() -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidInput, LEAVES_WORKSPACE)
+}
+
+/// Resolves an existing workspace-relative path and fails with
+/// `InvalidInput` if it leaves the workspace through a link.
+///
+/// `NotFound` passes through. The check is made before use, so a link
+/// created between the check and a later open is not caught; the threat is
+/// repository content, not a concurrent attacker. Messages should name the
+/// relative path, never the canonical one.
+pub fn resolve_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<PathBuf> {
+    let root = std::fs::canonicalize(workspace)?;
+    let target = std::fs::canonicalize(workspace.join(rel))?;
+    if target.starts_with(&root) {
+        Ok(target)
+    } else {
+        Err(leaves_workspace())
+    }
+}
+
+/// Like [`resolve_in_workspace`] for a write target that may not exist yet.
+///
+/// A dangling leaf link, or a missing leaf below a directory that links out
+/// of the workspace, fails with `InvalidInput`. A missing workspace root is
+/// `NotFound`.
+pub fn resolve_target_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<PathBuf> {
+    let root = std::fs::canonicalize(workspace)?;
+    let joined = workspace.join(rel);
+    match std::fs::canonicalize(&joined) {
+        Ok(target) => {
+            return if target.starts_with(&root) {
+                Ok(target)
+            } else {
+                Err(leaves_workspace())
+            };
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+    if std::fs::symlink_metadata(&joined).is_ok() {
+        return Err(leaves_workspace());
+    }
+    let mut missing: Vec<std::ffi::OsString> = Vec::new();
+    let mut cursor = joined.as_path();
+    let existing = loop {
+        if let Ok(canonical) = std::fs::canonicalize(cursor) {
+            break canonical;
+        }
+        if std::fs::symlink_metadata(cursor).is_ok() {
+            return Err(leaves_workspace());
+        }
+        match (cursor.file_name(), cursor.parent()) {
+            (Some(name), Some(parent)) => {
+                missing.push(name.to_owned());
+                cursor = parent;
+            }
+            _ => return Err(leaves_workspace()),
+        }
+    };
+    if !existing.starts_with(&root) {
+        return Err(leaves_workspace());
+    }
+    let mut resolved = existing;
+    for name in missing.iter().rev() {
+        resolved.push(name);
+    }
+    Ok(resolved)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolve_in_workspace_reads_a_file_inside() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("apps")).unwrap();
+        std::fs::write(dir.path().join("apps/uv.lock"), "x").unwrap();
+        let resolved = resolve_in_workspace(dir.path(), "apps/uv.lock").unwrap();
+        assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
+    }
+
+    #[test]
+    fn resolve_in_workspace_passes_not_found_through() {
+        let dir = tempfile::tempdir().unwrap();
+        let error = resolve_in_workspace(dir.path(), "missing.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_in_workspace_rejects_a_symlink_leaving_the_workspace() {
+        let outer = tempfile::tempdir().unwrap();
+        let workspace = outer.path().join("ws");
+        std::fs::create_dir_all(&workspace).unwrap();
+        let outside = outer.path().join("uv.lock");
+        std::fs::write(&outside, "x").unwrap();
+        std::os::unix::fs::symlink(&outside, workspace.join("uv.lock")).unwrap();
+        let error = resolve_in_workspace(&workspace, "uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains(LEAVES_WORKSPACE), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_in_workspace_follows_a_symlink_inside_the_workspace() {
+        let outer = tempfile::tempdir().unwrap();
+        let real = outer.path().join("real");
+        std::fs::create_dir_all(real.join("locks")).unwrap();
+        std::fs::write(real.join("locks/uv.lock"), "x").unwrap();
+        std::os::unix::fs::symlink(real.join("locks/uv.lock"), real.join("uv.lock")).unwrap();
+        let linked = outer.path().join("linked");
+        std::os::unix::fs::symlink(&real, &linked).unwrap();
+        let resolved = resolve_in_workspace(&linked, "uv.lock").unwrap();
+        assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_missing_leaf_with_parent_inside_is_accepted() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("apps")).unwrap();
+        let resolved = resolve_target_in_workspace(dir.path(), "apps/uv.lock").unwrap();
+        assert!(resolved.ends_with("apps/uv.lock"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_dangling_leaf_link_is_rejected() {
+        let outer = tempfile::tempdir().unwrap();
+        let workspace = outer.path().join("ws");
+        std::fs::create_dir_all(&workspace).unwrap();
+        std::os::unix::fs::symlink(outer.path().join("nope"), workspace.join("uv.lock")).unwrap();
+        let error = resolve_target_in_workspace(&workspace, "uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_under_a_parent_linking_outside_is_rejected() {
+        let outer = tempfile::tempdir().unwrap();
+        let workspace = outer.path().join("ws");
+        let outside = outer.path().join("out");
+        std::fs::create_dir_all(&workspace).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, workspace.join("apps")).unwrap();
+        let error = resolve_target_in_workspace(&workspace, "apps/uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_under_a_missing_parent_inside_is_accepted() {
+        let dir = tempfile::tempdir().unwrap();
+        let resolved = resolve_target_in_workspace(dir.path(), "a/b/uv.lock").unwrap();
+        assert!(resolved.ends_with("a/b/uv.lock"));
+    }
+
+    #[test]
+    fn target_missing_root_is_not_found() {
+        let dir = tempfile::tempdir().unwrap();
+        let error = resolve_target_in_workspace(&dir.path().join("gone"), "uv.lock").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    }
 
     #[test]
     fn canonical_spellings_drop_empty_components() {

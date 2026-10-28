@@ -8,6 +8,7 @@ PUBLIC_RUST_CRATES = [
     "//deploy/offline/bootstrap:dx_bootstrap",
     "//deploy/rules:dx_deploy_tools",
     "//quality/tools/javascript/launcher:dx_js_launcher",
+    "//tools/docs/components/extract:dx_docs_component_extract",
     "//tools/docs/rust/extract:dx_docs_rust_extract",
     "//tools/docs/site/aggregate:dx_site_aggregate",
     "//tools/docs/site/browser:dx_site_browser",
@@ -22,6 +23,6 @@ def user_api_shards():
     shards = []
     for crate in PUBLIC_RUST_CRATES:
         name = crate.split(":")[1] + "_docs"
-        rust_doc_shard(name = name, crate = crate)
+        rust_doc_shard(name = name, crate = crate, crate_features = [])
         shards.append(":" + name)
     return shards

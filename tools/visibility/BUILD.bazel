@@ -1,14 +1,95 @@
+load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":visibility_tests.bzl", "visibility_unit_tests")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = [":tools_repo"])
 
-exports_files([
-    "visibility.bzl",
-    "visibility_tests.bzl",
-])
+package_group(
+    name = "tools_repo",
+    packages = [
+        "//...",
+        "-//cli/...",
+        "-//dx/...",
+    ],
+)
+
+package_group(
+    name = "tools_public",
+    packages = [
+        "public",
+        "-//cli/...",
+        "-//dx/...",
+    ],
+)
+
+package_group(
+    name = "tools_cli_test",
+    packages = [
+        "//...",
+        "-//dx/...",
+    ],
+)
+
+package_group(
+    name = "dx_roots",
+    packages = [
+        "public",
+        "-//env/...",
+        "-//gazelle/...",
+        "-//generation/...",
+        "-//quality/...",
+        "-//tools/...",
+    ],
+)
+
+package_group(
+    name = "dx_commands",
+    packages = [
+        "public",
+        "-//cli/...",
+        "-//env/...",
+        "-//gazelle/...",
+        "-//generation/...",
+        "-//quality/...",
+        "-//tools/...",
+    ],
+)
+
+exports_files(
+    [
+        "visibility.bzl",
+        "visibility_tests.bzl",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 visibility_unit_tests(name = "visibility_unit")
+
+filegroup(
+    name = "layer_sentinel",
+    srcs = ["visibility.bzl"],
+)
+
+filegroup(
+    name = "tools_reaches_dx_probe",
+    srcs = ["//dx:codegen"],
+    tags = ["manual"],
+)
+
+[
+    failure_test(
+        name = name + "_fails",
+        expected_failure_substring = "is not visible from",
+        target = target,
+    )
+    for name, target in {
+        "cli_reaches_tools": "//cli/roots:cli_reaches_tools_probe",
+        "cli_reaches_tools_file": "//cli/roots:cli_reaches_tools_file_probe",
+        "cli_reaches_dx_commands": "//cli/roots:cli_reaches_dx_commands_probe",
+        "dx_reaches_tools": "//dx:dx_reaches_tools_probe",
+        "tools_reaches_dx": ":tools_reaches_dx_probe",
+    }.items()
+]
 
 real_source_target(
     name = "corpus_starlark",

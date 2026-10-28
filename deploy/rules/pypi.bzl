@@ -1,9 +1,8 @@
 """Local-first PyPI publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "only_chars")
 
 _VALID_NAME_CHARS = NAME_CHARS
 
@@ -16,8 +15,7 @@ def pypi_name_error(dist_name):
                 "': want a non-empty name (for example 'pypi_demo')")
     if not only_chars(dist_name, _VALID_NAME_CHARS):
         return ("pypi_deploy: invalid distribution name '" + dist_name +
-                "': want only [A-Za-z0-9._-] so the name embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def pypi_repository_error(repository_url):
@@ -29,10 +27,6 @@ def pypi_repository_error(repository_url):
     if not repository_url.startswith("https://"):
         return ("pypi_deploy: invalid repository_url '" + repository_url +
                 "': want an https URL so uploads never go over plaintext")
-    if has_any(repository_url, EMBED_UNSAFE):
-        return ("pypi_deploy: invalid repository_url '" + repository_url +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the URL embeds safely in the deploy launcher")
     return ""
 
 def pypi_wheel_error(filename):
@@ -43,14 +37,10 @@ def pypi_wheel_error(filename):
     if not filename.endswith(".whl"):
         return ("pypi_deploy: invalid wheel '" + filename +
                 "': want a filename ending in .whl")
-    if has_any(filename, EMBED_UNSAFE):
-        return ("pypi_deploy: invalid wheel '" + filename +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the filename embeds safely in the deploy launcher")
     return ""
 
-def _pypi_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one PyPI deployment."""
+def _pypi_config_impl(ctx):
+    """Writes the deploy config for one PyPI deployment."""
     wheel_files = ctx.attr.wheel[DefaultInfo].files.to_list()
     if len(wheel_files) != 1:
         fail("pypi_deploy " + str(ctx.label) + ": wheel " +
@@ -62,7 +52,12 @@ def _pypi_launcher_impl(ctx):
         fail(wheel_error + " (in " + str(ctx.label) + ")")
     wheel_rloc = rlocation_path(ctx, wheel_file)
 
-    sdist_rloc = ""
+    values = {
+        "dist_name": ctx.attr.dist_name,
+        "repository_url": ctx.attr.repository_url,
+        "wheel_rloc": wheel_rloc,
+    }
+    files = [wheel_file]
     if ctx.attr.sdist:
         sdist_files = ctx.attr.sdist[DefaultInfo].files.to_list()
         if len(sdist_files) != 1:
@@ -73,22 +68,14 @@ def _pypi_launcher_impl(ctx):
         if not sdist_file.basename.endswith(".tar.gz"):
             fail("pypi_deploy " + str(ctx.label) + ": sdist '" +
                  sdist_file.basename + "' must end in .tar.gz")
-        sdist_rloc = rlocation_path(ctx, sdist_file)
+        values["sdist_rloc"] = rlocation_path(ctx, sdist_file)
+        files.append(sdist_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const WHEEL_RLOC: &str = \"" + wheel_rloc + "\";\n" +
-                  "const SDIST_RLOC: &str = \"" + sdist_rloc + "\";\n" +
-                  "const DIST_NAME: &str = \"" + ctx.attr.dist_name + "\";\n" +
-                  "const REPOSITORY_URL: &str = \"" + ctx.attr.repository_url + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::pypi_main(WHEEL_RLOC, SDIST_RLOC, DIST_NAME, REPOSITORY_URL, &std::env::args().collect::<Vec<_>>())); }\n",
-    )
-    return [DefaultInfo(files = depset([launcher]))]
+    return deploy_config(ctx, "pypi", values, ctx.runfiles(files = files))
 
-_pypi_launcher = rule(
-    implementation = _pypi_launcher_impl,
-    doc = "Writes the launcher Rust source for one PyPI deployment.",
+_pypi_config = rule(
+    implementation = _pypi_config_impl,
+    doc = "Writes the deploy config for one PyPI deployment.",
     attrs = {
         "dist_name": attr.string(
             doc = "PyPI distribution name, taken from the deployment target name.",
@@ -119,28 +106,18 @@ def pypi_deploy(name, wheel, sdist = None, repository_url = PYPI_DEFAULT_REPOSIT
     if repository_error != "":
         fail(repository_error + " (in " + native.package_name() + ":" + name + ")")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _pypi_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _pypi_config(
+        name = config_target,
         dist_name = name,
         repository_url = repository_url,
         sdist = sdist,
         wheel = wheel,
     )
 
-    data = [wheel]
-    if sdist != None:
-        data.append(sdist)
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = data,
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

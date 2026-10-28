@@ -27,3 +27,14 @@ func AmbiguousImport(c *config.Config, lang string, from label.Label, name, matc
 	return fmt.Sprintf("%s: %s: ambiguous import %q resolves to %s; add \"# gazelle:resolve %s %s <label>\" to %s",
 		lang, from, name, matches, lang, name, BuildFilePath(c, from.Pkg))
 }
+
+// ClaimError formats a claim conflict with a remedy. buildFile is the workspace-relative BUILD file holding the
+// handwritten rule have; it is empty when have comes from another generator's output, which the user cannot edit.
+func ClaimError(name, kind, source, have, buildFile string) string {
+	if buildFile == "" {
+		return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename one of the sources that generate it",
+			name, kind, source, have)
+	}
+	return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename or delete existing %s %q in %s, or change it to %s",
+		name, kind, source, have, have, name, buildFile, kind)
+}

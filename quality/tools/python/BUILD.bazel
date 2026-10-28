@@ -64,6 +64,53 @@ py_binary(
     deps = ["@pypi//yamllint"],
 )
 
+py_binary(
+    name = "ansible_lint",
+    srcs = [
+        "ansible_lint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "ansible_lint_main.py",
+    deps = [
+        "@pypi//ansible_core",
+        "@pypi//ansible_lint",
+    ],
+)
+
+py_unittest_test(
+    name = "ansible_lint_main_test",
+    srcs = [
+        "ansible_lint_main.py",
+        "ansible_lint_main_test.py",
+        "tool_bootstrap.py",
+    ],
+)
+
+py_binary(
+    name = "griffe_dump",
+    srcs = [
+        "griffe_dump.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    imports = ["."],
+    main = "griffe_dump.py",
+    visibility = ["//tools/docs/python:__subpackages__"],
+    deps = ["@pypi//griffelib"],
+)
+
+py_unittest_test(
+    name = "griffe_dump_test",
+    srcs = [
+        "griffe_dump.py",
+        "griffe_dump_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//griffelib"],
+)
+
 py_unittest_test(
     name = "tool_bootstrap_test",
     srcs = [

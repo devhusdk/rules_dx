@@ -1,5 +1,6 @@
 use super::common::*;
 use super::dep_edit;
+pub use dx_bump::gha::COMMIT_JSON_ENV;
 use dx_output::{
     command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
@@ -14,8 +15,10 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         runner,
+        query_runner,
         out,
         err,
+        bump_commit_json,
         ..
     } = env;
     match plan_reports(
@@ -52,7 +55,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             Ok(request) => request,
             Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
         };
-    let request = match resolve_gha_tag_request(&request) {
+    let request = match resolve_gha_tag_request(&request, bump_commit_json) {
         Ok(request) => request,
         Err(message) => {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
@@ -127,6 +130,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let io = dep_edit::EditIo {
         workspace,
         runner,
+        query_runner,
         out,
         err,
     };
@@ -148,12 +152,13 @@ fn configured_request(
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
 ) -> Result<Option<dx_bump::BumpRequest>, i32> {
-    let Some((set_name, manifest)) =
-        dep_edit::configured_bazel_set(&BUMP_VERB, invocation, out, err, workspace)?
+    let Some((set_name, manifest, kind)) =
+        dep_edit::configured_set(&BUMP_VERB, invocation, out, err, workspace, true)?
     else {
         return Ok(None);
     };
-    dx_bump::BumpRequest::parse_configured(
+    dx_bump::BumpRequest::parse_configured_as(
+        kind,
         &set_name,
         &manifest,
         &invocation.targets[0],
@@ -187,7 +192,8 @@ fn check_bump(
     };
     let mut drifted: Vec<String> = Vec::new();
     for (manifest, widened, _) in &planned {
-        let current = std::fs::read(workspace.join(manifest))
+        let current = dx_path::workspace::resolve_in_workspace(workspace, manifest)
+            .and_then(std::fs::read)
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok());
         if current.as_deref() != Some(widened.as_str()) {
@@ -304,12 +310,21 @@ fn plan_widens(
     let targets = widen_targets(request, workspace)?;
     for manifest in &targets {
         let manifest = manifest.clone();
-        let original = std::fs::read(workspace.join(&manifest)).map_err(|_| {
-            format!(
-                "failed to widen {}: cannot read {manifest}",
-                request.selector
-            )
-        })?;
+        let original = dx_path::workspace::resolve_in_workspace(workspace, &manifest)
+            .and_then(std::fs::read)
+            .map_err(|error| {
+                if error.kind() == std::io::ErrorKind::InvalidInput {
+                    format!(
+                        "failed to widen {}: {manifest} leaves the workspace",
+                        request.selector
+                    )
+                } else {
+                    format!(
+                        "failed to widen {}: cannot read {manifest}",
+                        request.selector
+                    )
+                }
+            })?;
         let text = String::from_utf8(original).map_err(|_| {
             format!(
                 "failed to widen {}: {manifest} is not valid UTF-8",
@@ -357,15 +372,17 @@ fn plan_widens(
     Ok(planned)
 }
 
-fn resolve_gha_tag_request(request: &dx_bump::BumpRequest) -> Result<dx_bump::BumpRequest, String> {
+fn resolve_gha_tag_request(
+    request: &dx_bump::BumpRequest,
+    commit_json: Option<&str>,
+) -> Result<dx_bump::BumpRequest, String> {
     let is_gha_tag = matches!(&request.version, dx_bump::WidenVersion::GitTag(_))
         && request.set == dx_bump::BumpSet::GithubActions;
     if !is_gha_tag {
         return Ok(request.clone());
     }
-    let path = match std::env::var(dx_bump::gha::COMMIT_JSON_ENV) {
-        Ok(path) => path,
-        Err(_) => return Ok(request.clone()),
+    let Some(path) = commit_json else {
+        return Ok(request.clone());
     };
     let text = std::fs::read_to_string(&path).map_err(|_| {
         format!(
@@ -490,27 +507,32 @@ dependencies = ["anyio>=4"]
 "#;
 
     #[test]
-    fn consumer_configured_set_reports_unsupported_bump_without_mutation() {
+    fn consumer_configured_uv_set_needs_a_package_and_widens_pyproject() {
         let harness = Harness::new("bump-consumer");
         harness.write_source("dx.toml", CONSUMER_DX_TOML);
         harness.write_source("apps/frontend/pyproject.toml", CONSUMER_PYPROJECT);
-        for selector in ["frontend", "frontend:anyio"] {
-            let (code, _, err) = harness.run(&["bump", selector, "4.1.0", "--apply"]);
-            assert_eq!(code, 1, "{err}");
-            assert!(
-                err.contains(
-                    "bump is not supported for ecosystem uv set frontend \
-(supported operations: check, update, audit)"
-                ),
-                "{err}"
-            );
-        }
+        let (code, _, err) = harness.run(&["bump", "frontend", "4.1.0", "--apply"]);
+        assert_ne!(code, 0, "{err}");
+        assert!(
+            err.contains("bump needs one package, not a whole set"),
+            "{err}"
+        );
         assert_eq!(
             std::fs::read(harness.workspace.join("apps/frontend/pyproject.toml"))
                 .expect("manifest"),
             CONSUMER_PYPROJECT.as_bytes()
         );
         assert!(harness.seen_env.borrow().is_empty());
+        // The refresh cannot run offline, but the widen is refused before any write.
+        let (code, _, err) =
+            harness.run(&["bump", "frontend:anyio", "4.1.0", "--apply", "--offline"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("without network"), "{err}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("apps/frontend/pyproject.toml"))
+                .expect("manifest"),
+            CONSUMER_PYPROJECT.as_bytes()
+        );
     }
 
     const PINNED_DX_TOML: &str = r#"
@@ -598,6 +620,78 @@ scopes = ["tools/ps"]
         assert!(
             err.contains(
                 "bump is not supported for ecosystem cargo set crates \
+(supported operations: check, update, audit)"
+            ),
+            "{err}"
+        );
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_maven_set_refuses_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-maven");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[[dependency_set]]\nname = \"jvm\"\necosystem = \"maven\"\nmanifests = [\"MODULE.bazel\"]\nlocks = [\"third_party/maven_install.json\"]\nscopes = [\"third_party\"]\nrepository = \"maven\"\n",
+        );
+        let files = [
+            ("MODULE.bazel", "module(name = \"app\")\n"),
+            ("third_party/maven_install.json", "{}\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        let (code, _, err) =
+            harness.run(&["bump", "jvm:com.google.guava:guava", "33.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "bump is not supported for ecosystem maven set jvm \
+(supported operations: check, update, audit)"
+            ),
+            "{err}"
+        );
+        for (rel, text) in files {
+            assert_eq!(
+                std::fs::read(harness.workspace.join(rel)).expect("unchanged"),
+                text.as_bytes(),
+                "{rel}"
+            );
+        }
+        assert!(harness.seen_env.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_nuget_set_refuses_bump_without_mutation() {
+        let harness = Harness::new("bump-consumer-nuget");
+        harness.write_source(
+            "dx.toml",
+            "schema_version = 1\n[[dependency_set]]\nname = \"dotnet\"\necosystem = \"nuget\"\nmanifests = [\"paket.dependencies\"]\nlocks = [\"paket.lock\", \"paket.main.bzl\", \"paket.main_extension.bzl\"]\nscopes = [\".\"]\n",
+        );
+        let files = [
+            (
+                "paket.dependencies",
+                "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
+            ),
+            ("paket.lock", "NUGET\n"),
+            ("paket.main.bzl", "main\n"),
+            ("paket.main_extension.bzl", "ext\n"),
+        ];
+        for (rel, text) in files {
+            harness.write_source(rel, text);
+        }
+        let (code, _, err) = harness.run(&["bump", "dotnet:Newtonsoft.Json", "13.0.3", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(
+            err.contains(
+                "bump is not supported for ecosystem nuget set dotnet \
 (supported operations: check, update, audit)"
             ),
             "{err}"
@@ -1358,7 +1452,6 @@ scopes = ["tools"]
 
     #[test]
     fn live_github_tag_resolution_matrix() {
-        std::env::remove_var(dx_bump::gha::COMMIT_JSON_ENV);
         let harness = Harness::new("bump-live-gha-tag");
         harness.write_source(
             ".github/workflows/ci.yml",
@@ -1372,7 +1465,7 @@ scopes = ["tools"]
 
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         let commit_json = format!("{{\"sha\": \"{sha}\", \"commit\": {{\"message\": \"v5\"}}}}");
-        let harness = Harness::new("bump-live-gha-resolved");
+        let mut harness = Harness::new("bump-live-gha-resolved");
         harness.write_source(
             ".github/workflows/ci.yml",
             "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
@@ -1386,10 +1479,8 @@ scopes = ["tools"]
             "jobs:\n  b:\n    steps:\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
         harness.write_source("commit.json", &commit_json);
-        std::env::set_var(
-            dx_bump::gha::COMMIT_JSON_ENV,
-            harness.workspace.join("commit.json"),
-        );
+        harness.bump_commit_json =
+            Some(harness.workspace.join("commit.json").display().to_string());
         let (code, out, err) = harness.run(&[
             "bump",
             "github-actions:actions/checkout",
@@ -1424,16 +1515,14 @@ scopes = ["tools"]
         );
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
 
-        let harness = Harness::new("bump-live-gha-nochange");
+        let mut harness = Harness::new("bump-live-gha-nochange");
         harness.write_source(
             ".github/workflows/ci.yml",
             &format!("jobs:\n  b:\n    steps:\n      - uses: actions/checkout@{sha} # v5\n"),
         );
         harness.write_source("commit.json", &commit_json);
-        std::env::set_var(
-            dx_bump::gha::COMMIT_JSON_ENV,
-            harness.workspace.join("commit.json"),
-        );
+        harness.bump_commit_json =
+            Some(harness.workspace.join("commit.json").display().to_string());
         let (code, out, err) = harness.run(&[
             "bump",
             "github-actions:actions/checkout",
@@ -1468,7 +1557,7 @@ scopes = ["tools"]
             ("missing-sha", Some("{\"commit\": {}}")),
             ("invalid-sha", Some("{\"sha\": \"v5\"}")),
         ] {
-            let harness = Harness::new(&format!("bump-live-gha-fail-{name}"));
+            let mut harness = Harness::new(&format!("bump-live-gha-fail-{name}"));
             harness.write_source(
                 ".github/workflows/ci.yml",
                 "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n",
@@ -1476,16 +1565,12 @@ scopes = ["tools"]
             match body {
                 Some(body) => {
                     harness.write_source("commit.json", body);
-                    std::env::set_var(
-                        dx_bump::gha::COMMIT_JSON_ENV,
-                        harness.workspace.join("commit.json"),
-                    );
+                    harness.bump_commit_json =
+                        Some(harness.workspace.join("commit.json").display().to_string());
                 }
                 None => {
-                    std::env::set_var(
-                        dx_bump::gha::COMMIT_JSON_ENV,
-                        harness.workspace.join("absent.json"),
-                    );
+                    harness.bump_commit_json =
+                        Some(harness.workspace.join("absent.json").display().to_string());
                 }
             }
             let (code, out, err) =
@@ -1499,7 +1584,6 @@ scopes = ["tools"]
                 "{name}: failed lookup must not widen"
             );
         }
-        std::env::remove_var(dx_bump::gha::COMMIT_JSON_ENV);
     }
 
     #[test]

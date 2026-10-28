@@ -1,0 +1,52 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature", "ocaml_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "checksum.mli",
+        "checksum_test.ml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# C stubs need the native (sys) cell; the bytecode cell links no C code.
+# `//ocaml/toolchain:emitter` picks the C-backed module or the portable one.
+
+ocaml_signature(
+    name = "checksum_sig",
+    src = "checksum.mli",
+)
+
+alias(
+    name = "checksum",
+    actual = select({
+        "@rules_dx//ocaml/toolchain:emitter_sys": "//examples/ocaml-app/checksum/native",
+        "//conditions:default": "//examples/ocaml-app/checksum/portable",
+    }),
+)
+
+ocaml_module(
+    name = "checksum_test_main",
+    testonly = True,
+    struct = "checksum_test.ml",
+    deps = [":checksum"],
+)
+
+ocaml_test(
+    name = "checksum_test",
+    size = "small",
+    main = ":checksum_test_main",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

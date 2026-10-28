@@ -1,9 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("@rules_dx//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+load("@rules_dx//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
 filegroup(
     name = "firefox",
@@ -22,7 +22,7 @@ exports_files([
     "repos.bzl",
     "src/lib.rs",
     "src/lib_tests.rs",
-])
+], visibility = VIS_TOOLS)
 
 rust_library(
     name = "dx_site_browser",

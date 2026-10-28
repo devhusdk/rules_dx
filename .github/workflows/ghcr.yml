@@ -36,9 +36,9 @@ jobs:
           # Tag tracks the single-version dx == module pin.
           docker build \
             -f .devcontainer/Dockerfile.prebuilt \
-            -t "ghcr.io/${{ github.repository }}/devcontainer:0.0.0-ci-${{ github.sha }}" \
+            -t "ghcr.io/${GITHUB_REPOSITORY}/devcontainer:0.0.0-ci-${GITHUB_SHA}" \
             .
-          docker images "ghcr.io/${{ github.repository }}/devcontainer" --digests
+          docker images "ghcr.io/${GITHUB_REPOSITORY}/devcontainer" --digests
       - name: Verify admissibility (pinned bootstrap, Bazel delegation, no ambient tools)
         run: |
           set -euo pipefail
@@ -57,9 +57,11 @@ jobs:
           echo "admissibility: pinned bootstrap + Bazel delegation + no ambient tools"
       - name: Write job summary (build-only by default)
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
           {
-            echo "### ghcr-prebuilt — ${{ job.status }}"
+            echo "### ghcr-prebuilt — ${JOB_STATUS}"
             echo ""
             echo "- base: \`ubuntu:24.04@sha256:69cecf4...\` (pinned digest, resolved 2026-09-17; re-pin deliberately)."
             echo "- Bazel: Bazelisk v1.29.0 (pinned sha256) + Bazel 9.2.0 via USE_BAZEL_VERSION; no ambient toolchains."
@@ -87,15 +89,17 @@ jobs:
           persist-credentials: false
       - name: Push to GHCR (owner approval only)
         id: push
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           # Tag carries the single-version dx == module pin plus sha.
-          tag="ghcr.io/${{ github.repository }}/devcontainer:0.0.0-sha-${{ github.sha }}"
+          tag="ghcr.io/${GITHUB_REPOSITORY}/devcontainer:0.0.0-sha-${GITHUB_SHA}"
           docker build -f .devcontainer/Dockerfile.prebuilt -t "$tag" .
           docker push "$tag"
           echo "pushed: $tag"
-          name="ghcr.io/${{ github.repository }}/devcontainer"
+          name="ghcr.io/${GITHUB_REPOSITORY}/devcontainer"
           ref="$(docker inspect --format='{{index .RepoDigests 0}}' "$tag")"
           digest="${ref#*@}"
           if [[ "$ref" != "$name@"* || ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -122,9 +126,9 @@ jobs:
           install -m755 /tmp/cosign /tmp/cosign-bin
           rm /tmp/cosign /tmp/cosign_checksums
           echo "signing: cosign sign <digest> on the #311 trust root (https://tuf-repo-cdn.sigstore.dev) for $ref plus actions/attest provenance + gh attestation verify (owner-approved human-run path)."
-          /tmp/cosign-bin sign --yes --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
-          /tmp/cosign-bin verify --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
-          echo "verify: cosign verify $ref; actions/attest provenance + gh attestation verify oci://$ref --owner ${{ github.repository_owner }} follow."
+          /tmp/cosign-bin sign --yes --certificate-identity-regexp "https://github.com/${GITHUB_REPOSITORY}/.*" --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
+          /tmp/cosign-bin verify --certificate-identity-regexp "https://github.com/${GITHUB_REPOSITORY}/.*" --certificate-oidc-issuer https://token.actions.githubusercontent.com "$ref"
+          echo "verify: cosign verify $ref; actions/attest provenance + gh attestation verify oci://$ref --owner ${GITHUB_REPOSITORY_OWNER} follow."
           {
             echo "## GHCR prebuilt push"
             echo ""
@@ -146,4 +150,4 @@ jobs:
           SUBJECT: ${{ steps.push.outputs.name }}@${{ steps.push.outputs.digest }}
         run: |
           set -euo pipefail
-          gh attestation verify "oci://$SUBJECT" --owner "${{ github.repository_owner }}"
+          gh attestation verify "oci://$SUBJECT" --owner "${GITHUB_REPOSITORY_OWNER}"

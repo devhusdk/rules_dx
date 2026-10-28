@@ -178,7 +178,43 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "latexindent",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "typstyle",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "julia_format",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "zig_fmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "nixfmt",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "ormolu",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "opa",
         config: FixConfig::None,
         keep_exit_one: false,
         crash_stderr: None,
@@ -198,6 +234,12 @@ const FIX_SPECS: &[FixSpec] = &[
     FixSpec {
         tool: "terraform",
         config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "stylua",
+        config: FixConfig::Optional,
         keep_exit_one: false,
         crash_stderr: None,
     },
@@ -228,6 +270,18 @@ const FIX_SPECS: &[FixSpec] = &[
     FixSpec {
         tool: "psscriptanalyzer",
         config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "statix",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
+        tool: "deadnix",
+        config: FixConfig::None,
         keep_exit_one: false,
         crash_stderr: None,
     },
@@ -289,9 +343,11 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
     };
     match tool_id {
         "vale" | "markdown_check" | "rustc" | "ty" | "pydoclint" | "flake8" | "pylint"
-        | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "pmd" | "spotbugs" | "qmllint"
-        | "clang_tidy" | "cppcheck" | "staticcheck" | "govet" | "errcheck" | "stylelint"
-        | "rubocop" | "yamllint" | "shellcheck" | "hadolint" | "redocly" => Ok(Route::Keep),
+        | "clippy" | "roslyn" | "fsharplint" | "checkstyle" | "dscanner" | "jsonnet_lint"
+        | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
+        | "errcheck" | "stylelint" | "rubocop" | "yamllint" | "shellcheck" | "hadolint"
+        | "redocly" | "kubeconform" | "checkmake" | "flatc" | "tflint" | "ansible_lint"
+        | "credo" | "regal" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(
@@ -299,7 +355,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 "graphql_eslint requires a config".to_owned(),
             )),
         },
-        "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark" => {
+        "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark" | "opa" => {
             if capability == "format" {
                 spec(true)
             } else {
@@ -307,12 +363,15 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             }
         }
         "rustfmt" => Ok(Route::Rustfmt),
+        "notebook_outputs" => Ok(Route::Rewrite(commands::notebook_outputs_fix)),
         "ruff" => Ok(Route::Spec {
             format: capability == "format",
             placeholders: &["py", "pyi"],
         }),
         "scalafix" => Ok(Route::Scalafix),
+        "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
         "erlfmt" => Ok(Route::Rewrite(commands::erlfmt_fix)),
+        "perltidy" => Ok(Route::Rewrite(commands::perltidy_fix)),
         "mix_format" => Ok(Route::Rewrite(commands::mix_format_fix)),
         "keep_sorted" => {
             if tool.upstream_diagnostics.is_empty() {
@@ -458,9 +517,14 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        let batches = commands::plan_invocation_batches(&refs, |batch| {
-            backend.fix_invocation(route, tool_id, tool, batch, &session.scratch)
-        })?;
+        // statix, opa and latexindent fix exactly one target per run.
+        let batches = if matches!(tool_id, "statix" | "opa" | "latexindent") {
+            refs.iter().map(|file| vec![*file]).collect()
+        } else {
+            commands::plan_invocation_batches(&refs, |batch| {
+                backend.fix_invocation(route, tool_id, tool, batch, &session.scratch)
+            })?
+        };
         let mut fixed = BTreeMap::new();
         let mut offset = 0;
         for batch in batches {
@@ -472,7 +536,12 @@ impl<'a> FixSession<'a> {
             match outcome {
                 Outcome::Fixed => {
                     for (path, file) in batch_targets.iter().zip(&batch) {
-                        fixed.insert(path.clone(), RealBackend::reread_fixed(tool_id, file)?);
+                        let reread = RealBackend::reread_fixed(tool_id, file)?;
+                        let before = text_of(path)?;
+                        fixed.insert(
+                            path.clone(),
+                            RealBackend::settle(tool_id, path, &before, reread)?,
+                        );
                     }
                 }
                 Outcome::Kept if batch.len() == 1 => {
@@ -493,7 +562,10 @@ impl<'a> FixSession<'a> {
                             &session.scratch,
                             &names,
                         )? {
-                            Outcome::Fixed => RealBackend::reread_fixed(tool_id, file)?,
+                            Outcome::Fixed => {
+                                let reread = RealBackend::reread_fixed(tool_id, file)?;
+                                RealBackend::settle(tool_id, path, &text_of(path)?, reread)?
+                            }
                             Outcome::Kept => text_of(path)?,
                             Outcome::Failed(err) => return Err(err),
                         };
@@ -591,6 +663,42 @@ impl super::RealBackend {
         })
     }
 
+    /// Decides which bytes a fix may return for one file. Notebooks never take
+    /// the tool's raw rewrite: Ruff re-indents the JSON, sorts its keys and adds
+    /// cell ids, so only the edited code-cell sources are copied back.
+    pub(super) fn settle(
+        tool_id: &str,
+        path: &str,
+        before: &str,
+        fixed: String,
+    ) -> Result<String, RunnerError> {
+        if !path.ends_with(".ipynb") {
+            return Ok(fixed);
+        }
+        if tool_id == "notebook_outputs" {
+            // The single allow-list entry besides ruff: the tool may only
+            // clear outputs and execution counts, so its rewrite must equal
+            // what the library computes from the original bytes.
+            let want = quality_notebook::strip_outputs(before)
+                .map_err(|err| execution(tool_id, format!("{path}: {err}")))?;
+            if fixed != want {
+                return Err(execution(
+                    tool_id,
+                    format!("{path}: rewrite changed more than outputs and execution counts"),
+                ));
+            }
+            return Ok(fixed);
+        }
+        if tool_id != "ruff" {
+            return Err(execution(
+                tool_id,
+                format!("{path}: only ruff may rewrite a notebook"),
+            ));
+        }
+        quality_notebook::splice_sources(before, &fixed)
+            .map_err(|err| execution(tool_id, format!("{path}: {err}")))
+    }
+
     pub(super) fn reread_fixed(tool_id: &str, absolute: &Path) -> Result<String, RunnerError> {
         let fixed = std::fs::read(absolute)
             .map_err(|err| execution(tool_id, format!("re-read fixed file: {err}")))?;
@@ -674,6 +782,37 @@ impl super::RealBackend {
                     Outcome::Kept
                 }
             }
+            Route::Rewrite(_) if tool_id == "dfmt" => {
+                // dfmt prints `[warn]` lines for valid code; only an `[error]`
+                // line or a non-zero exit means the file was not formatted.
+                let errored = String::from_utf8_lossy(&out.stderr).contains("[error]");
+                if out.code == Some(0) && !errored {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Kept
+                }
+            }
+            Route::Rewrite(_) if tool_id == "notebook_outputs" => {
+                if out.code == Some(0) {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Failed(execution(
+                        tool_id,
+                        format!(
+                            "quality_notebook exited {:?}: {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr).trim()
+                        ),
+                    ))
+                }
+            }
+            Route::Rewrite(_) if tool_id == "perltidy" => {
+                if out.code == Some(0) {
+                    Outcome::Fixed
+                } else {
+                    Outcome::Kept
+                }
+            }
             Route::Rewrite(_) => {
                 if out.code == Some(0) && out.stderr.is_empty() {
                     Outcome::Fixed
@@ -742,6 +881,19 @@ impl super::RealBackend {
                         refs,
                         config.as_deref(),
                     )),
+                    "latexindent" => match refs {
+                        [file] => Ok(commands::latexindent_fix(
+                            &tool.binary,
+                            file,
+                            &Self::latexindent_cruft(tool_id, scratch)?,
+                            config.as_deref(),
+                        )),
+                        _ => Err(execution(
+                            tool_id,
+                            "latexindent fixes one file at a time".to_owned(),
+                        )),
+                    },
+                    "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config.as_deref())),
                     "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config.as_deref())),
                     "djlint" => Ok(commands::djlint_format_fix(
                         &tool.binary,
@@ -770,8 +922,13 @@ impl super::RealBackend {
                     )),
                     "prettier" => {
                         let launch = ResolvedTool::javascript(tool_id, &tool.binary);
-                        Ok(commands::prettier_fix(&launch, refs, config.as_deref())
-                            .map_err(|err| execution(tool_id, err.to_string()))?)
+                        Ok(commands::prettier_fix(
+                            &launch,
+                            refs,
+                            config.as_deref(),
+                            tool.dialect.as_deref(),
+                        )
+                        .map_err(|err| execution(tool_id, err.to_string()))?)
                     }
                     "remark" => {
                         let launch = ResolvedTool::javascript(tool_id, &tool.binary);
@@ -779,6 +936,15 @@ impl super::RealBackend {
                             .map_err(|err| execution(tool_id, err.to_string()))?)
                     }
                     "ktlint" => Ok(commands::ktlint_fix(&tool.binary, refs, config.as_deref())),
+                    "statix" => match (refs, config.as_deref()) {
+                        ([file], Some(config)) => {
+                            Ok(commands::statix_fix(&tool.binary, file, config))
+                        }
+                        _ => Err(execution(
+                            tool_id,
+                            "statix fixes one file with a config".to_owned(),
+                        )),
+                    },
                     "clang_format" => Ok(commands::clang_format_fix(
                         &tool.binary,
                         refs,
@@ -802,12 +968,24 @@ impl super::RealBackend {
                 )),
                 "cue" => Ok(commands::cue_fix(&tool.binary, refs)),
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
+                "nixfmt" => Ok(commands::nixfmt_fix(&tool.binary, refs)),
+                "ormolu" => Ok(commands::ormolu_fix(&tool.binary, refs)),
+                "typstyle" => Ok(commands::typstyle_fix(&tool.binary, refs)),
+                "opa" => match refs {
+                    [file] => Ok(commands::opa_fmt_fix(&tool.binary, file)),
+                    _ => Err(execution(
+                        tool_id,
+                        "opa fixes one file at a time".to_owned(),
+                    )),
+                },
                 "pkl" => Ok(commands::pkl_fix(&tool.binary, refs)),
+                "julia_format" => Ok(commands::julia_format_fix(&tool.binary, refs)),
                 "zig_fmt" => Ok(commands::zig_fmt_fix(&tool.binary, refs)),
                 "modfmt" => Ok(commands::modfmt_fix(&tool.binary, refs)),
                 "terraform" => Ok(commands::terraform_fix(&tool.binary, refs)),
                 "shfmt" => Ok(commands::shfmt_fix(&tool.binary, refs)),
                 "keep_sorted" => Ok(commands::keep_sorted_fix(&tool.binary, refs)),
+                "deadnix" => Ok(commands::deadnix_fix(&tool.binary, refs)),
                 _ => Err(execution(
                     tool_id,
                     format!("unsupported real tool: {tool_id}"),

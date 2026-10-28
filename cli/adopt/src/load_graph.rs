@@ -453,7 +453,8 @@ fn pattern_builds(
         .collect()
 }
 
-fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, String> {
+/// The `.bazelignore` prefixes of the workspace, without `./` or trailing slashes.
+pub fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, String> {
     let Some(text) = read(workspace, ".bazelignore")? else {
         return Ok(Vec::new());
     };
@@ -656,6 +657,7 @@ fn impact_graph<'a>(
     for (pattern, package) in patterns {
         toolchain_roots.extend(pattern_builds(pattern, package, &roots.names, &builds));
     }
+    toolchain_roots.extend(implementation_roots(&mut graph, &toolchain_roots.clone())?);
     let extension_inputs = graph.closure(&extension_roots);
     let aspect_inputs = graph.closure(&aspect_roots);
     let toolchain_inputs = graph.closure(&toolchain_roots);
@@ -676,6 +678,110 @@ fn impact_graph<'a>(
         loaders,
         packages,
     })
+}
+
+/// Double-quoted string literals of `source`.
+fn string_literals(source: &str) -> Vec<&str> {
+    let mut found = Vec::new();
+    let mut rest = source;
+    while let Some(start) = rest.find('"') {
+        let tail = &rest[start + 1..];
+        let Some(end) = tail.find('"') else { break };
+        found.push(&tail[..end]);
+        rest = &tail[end + 1..];
+    }
+    found
+}
+
+/// Labels given as `toolchain = "..."` in `source`.
+fn toolchain_attr_labels(source: &str) -> Vec<&str> {
+    let mut found = Vec::new();
+    for (at, _) in source.match_indices("toolchain") {
+        let before = source[..at].chars().next_back();
+        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let tail = source[at + "toolchain".len()..].trim_start();
+        let Some(tail) = tail.strip_prefix('=') else {
+            continue;
+        };
+        let Some(tail) = tail.trim_start().strip_prefix('"') else {
+            continue;
+        };
+        if let Some(end) = tail.find('"') {
+            found.push(&tail[..end]);
+        }
+    }
+    found
+}
+
+/// Extra roots for the rule implementations behind `toolchain()` targets: the
+/// package of each workspace `toolchain =` label, and for each external one the
+/// loaded .bzl files that name the repository, with the .bzl files they reference
+/// through `Label(...)` (a repository rule can generate a BUILD that loads them).
+fn implementation_roots(
+    graph: &mut LoadGraph<'_>,
+    toolchain_builds: &[String],
+) -> Result<Vec<String>, String> {
+    let mut roots = Vec::new();
+    let mut repos: BTreeSet<String> = BTreeSet::new();
+    for rel in toolchain_builds {
+        let Some(source) = read(graph.workspace, rel)? else {
+            continue;
+        };
+        let package = rel.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
+        for label in toolchain_attr_labels(&source) {
+            if let Some((target, _)) = label_path(label, &package, &graph.names) {
+                let dir = target.rsplit_once('/').map_or("", |(dir, _)| dir);
+                for name in ["BUILD.bazel", "BUILD"] {
+                    let build = if dir.is_empty() {
+                        name.to_owned()
+                    } else {
+                        format!("{dir}/{name}")
+                    };
+                    if graph.workspace.join(&build).is_file() {
+                        graph.add(&build, dir)?;
+                        roots.push(build);
+                    }
+                }
+            } else if let Some(repo) = label_repo(label) {
+                repos.insert(repo.to_owned());
+            }
+        }
+    }
+    if repos.is_empty() {
+        return Ok(roots);
+    }
+    let candidates: Vec<String> = graph
+        .loads
+        .keys()
+        .filter(|rel| rel.ends_with(".bzl"))
+        .cloned()
+        .collect();
+    for rel in candidates {
+        let Some(source) = read(graph.workspace, &rel)? else {
+            continue;
+        };
+        let literals = string_literals(&source);
+        if !literals
+            .iter()
+            .any(|lit| repos.iter().any(|repo| repo_matches(lit, repo)))
+        {
+            continue;
+        }
+        let dir = rel.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
+        roots.push(rel.clone());
+        for lit in literals {
+            if !lit.ends_with(".bzl") {
+                continue;
+            }
+            if let Some((target, package)) = label_path(lit, &dir, &graph.names) {
+                graph.add(&target, &package)?;
+                roots.push(target);
+            }
+        }
+    }
+    Ok(roots)
 }
 
 impl ImpactGraph<'_> {
@@ -1242,6 +1348,49 @@ mod tests {
                 global("rules/helper.bzl", "toolchain input"),
                 global("rules/plat.bzl", "toolchain input"),
                 global("rules/tc.bzl", "toolchain input"),
+            ]
+        );
+    }
+
+    #[test]
+    fn toolchain_implementation_bzl_widens() {
+        let scratch = dx_test_scratch::scratch("dx-load-toolchain-impl-");
+        let root = scratch.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\nregister_toolchains(\"//tc:all\")\n",
+        );
+        write(
+            root,
+            "tc/BUILD.bazel",
+            "toolchain(\n    name = \"a\",\n    toolchain = \"@hub//:a\",\n    toolchain_type = \"//m:type\",\n)\ntoolchain(\n    name = \"b\",\n    toolchain = \"//impl:b\",\n)\n",
+        );
+        write(root, "impl/BUILD.bazel", "load(\"//impl:b.bzl\", \"b\")\n");
+        write(root, "impl/b.bzl", "B = 1\n");
+        write(
+            root,
+            "m/repos.bzl",
+            "HUB = \"hub\"\nTEXT = str(Label(\":tool.bzl\"))\n",
+        );
+        write(root, "m/tool.bzl", "T = 1\n");
+        write(
+            root,
+            "m/BUILD.bazel",
+            "load(\":repos.bzl\", \"HUB\")\nload(\":tool.bzl\", \"T\")\n",
+        );
+        write(root, "m/other.bzl", "O = 1\n");
+        write(
+            root,
+            "m/user/BUILD.bazel",
+            "load(\"//m:other.bzl\", \"O\")\n",
+        );
+        assert_eq!(
+            impact(root, &["impl/b.bzl", "m/tool.bzl", "m/other.bzl"], &[]),
+            [
+                global("impl/b.bzl", "toolchain input"),
+                packages("m/other.bzl", &["//m/user:all"]),
+                global("m/tool.bzl", "toolchain input"),
             ]
         );
     }

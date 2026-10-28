@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use ci_workflow::{document, jobs, triggers};
+use ci_workflow::{document, jobs, steps, triggers};
 use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
@@ -252,6 +252,75 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
     }
 }
 
+#[test]
+fn ci_can_be_dispatched_but_takes_no_inputs() {
+    let on = triggers(CI_WORKFLOW);
+    assert!(
+        on.get("workflow_dispatch").is_some(),
+        "{CI_WORKFLOW} must be dispatchable so a qualify/<sha> branch can run the matrix: {on}"
+    );
+    assert!(
+        on["workflow_dispatch"].get("inputs").is_none(),
+        "{CI_WORKFLOW} dispatch must take no inputs so it cannot change the matrix: {on}"
+    );
+    assert_eq!(on["merge_group"]["types"], json!(["checks_requested"]));
+}
+
+#[test]
+fn ci_runs_on_a_schedule_so_main_has_a_known_result() {
+    let on = triggers(CI_WORKFLOW);
+    let cron = on["schedule"][0]["cron"]
+        .as_str()
+        .expect("ci.yml needs a schedule cron");
+    let minute = cron.split_whitespace().next().unwrap();
+    assert_ne!(
+        minute, "0",
+        "schedule must avoid the top of the hour: {cron}"
+    );
+    assert!(minute.chars().all(|c| c.is_ascii_digit()), "{cron}");
+}
+
+#[test]
+fn preflight_passes_no_runner_specific_test_args() {
+    for step in steps(CI_WORKFLOW, "preflight") {
+        let run = step["run"].as_str().unwrap_or_default();
+        assert!(
+            !run.contains("--test_arg"),
+            "preflight mixes Rust, Zig, Julia, C and quality runners, so no global --test_arg: {run}"
+        );
+    }
+}
+
+#[test]
+fn every_matrix_cell_records_its_runner_image() {
+    for (workflow, job) in [
+        (CI_WORKFLOW, "preflight"),
+        (CONSUMER_WORKFLOW, "checks"),
+        (CONSUMER_WORKFLOW, "coverage"),
+    ] {
+        let all = steps(workflow, job);
+        let found = all
+            .iter()
+            .find(|step| step["name"] == json!("Record the runner image"))
+            .unwrap_or_else(|| panic!("{workflow} job {job} must record the runner image"));
+        assert_eq!(found["if"], json!("always()"), "{workflow} {job} if");
+        let run = found["run"].as_str().unwrap_or_default();
+        for needle in [
+            "RUNNER_OS",
+            "RUNNER_ARCH",
+            "${ImageOS:-unknown}",
+            "${ImageVersion:-unknown}",
+            "bazel --version",
+            "|| true",
+        ] {
+            assert!(
+                run.contains(needle),
+                "{workflow} {job} step lacks {needle}: {run}"
+            );
+        }
+    }
+}
+
 /// Returns the env table and run script of one job's only step.
 fn cancel_step(job: &str) -> (Value, String) {
     let document = document(CANCEL_WORKFLOW);
@@ -309,7 +378,7 @@ fn closed_pull_requests_join_the_ci_concurrency_group() {
     assert_eq!(ci["name"], json!("ci"));
     assert_eq!(
         ci["concurrency"]["group"],
-        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"),
+        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}"),
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],

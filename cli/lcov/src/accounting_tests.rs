@@ -522,3 +522,54 @@ fn duplicate_records_union_with_max_hits() {
     let result = account(&manifests, &documents, &load);
     assert_eq!((result.covered_lines, result.eligible_lines), (2, 3));
 }
+
+fn strings(items: &[&str]) -> Vec<String> {
+    items.iter().map(|item| (*item).to_owned()).collect()
+}
+
+#[test]
+fn orphan_candidates_keep_covered_languages_only() {
+    let tracked = strings(&[
+        "b/lib.rs",
+        "a/main.go",
+        "a/main.go",
+        "include/api.h",
+        "types/api.d.ts",
+        "types/api.ts",
+        "README.md",
+        ".dx/state/x.rs",
+        "vendor/dep/x.rs",
+        "vendored/x.rs",
+    ]);
+    let ignored = strings(&["vendor"]);
+    assert_eq!(
+        orphan_candidates(&tracked, &ignored),
+        strings(&[
+            "a/main.go",
+            "b/lib.rs",
+            "include/api.h",
+            "types/api.ts",
+            "vendored/x.rs"
+        ])
+    );
+}
+
+#[test]
+fn recorded_orphans_become_sorted_deduped_errors() {
+    let mut result = CellAccount {
+        eligible_lines: 1,
+        covered_lines: 1,
+        ..CellAccount::default()
+    };
+    assert!(result.meets(0));
+    result.record_orphans(strings(&["z.rs", "a.rs", "z.rs"]));
+    assert_eq!(result.orphans, strings(&["a.rs", "z.rs"]));
+    assert_eq!(
+        result.errors,
+        vec![
+            "tracked source not owned by any Bazel target: a.rs",
+            "tracked source not owned by any Bazel target: z.rs"
+        ]
+    );
+    assert!(!result.meets(0));
+}

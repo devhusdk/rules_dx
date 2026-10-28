@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  # Gives main a known pass or fail twice a day. Scheduled runs share the
+  # per-SHA concurrency group below, are never swept by cancel-stale (it lists
+  # event=push only), and never publish (publish needs event_name == 'push').
+  schedule:
+    - cron: "17 3,15 * * *"
   merge_group:
     types: [checks_requested]
 
@@ -19,7 +25,8 @@ env:
   BAZELISK_VERSION: "1.29.0"
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Main pushes get one group per commit so a newer push never replaces a waiting main run.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -104,8 +111,10 @@ jobs:
           EOF
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### devcontainer-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### devcontainer-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
@@ -174,9 +183,69 @@ jobs:
           retention-days: 7
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### hermetic (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+  hermetic-arm64:
+    name: hermetic-arm64 (rust_wasi qualification on native linux_arm64)
+    timeout-minutes: 90
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Allow unprivileged user namespaces
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Qualify rust_wasi without installs or network
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          targets=//tools/testing/hermetic:rust_wasi
+          echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $targets
+      - name: Verify the evidence
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
+          done < "$RUNNER_TEMP/hermetic-targets"
+      - name: Collect the evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
+          while read -r label; do
+            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
+            cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+          done < "$RUNNER_TEMP/hermetic-targets"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: hermetic-evidence-linux_arm64
+          path: ${{ runner.temp }}/hermetic-evidence
+          retention-days: 7
+      - name: Write job summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          echo "### hermetic-arm64 (linux_arm64, rust_wasi) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Qualified the WASI Rust consumer on a native aarch64 Linux runner with the network denied. Evidence is in the hermetic-evidence-linux_arm64 artifact." >> "$GITHUB_STEP_SUMMARY"
   network:
     name: network (requires-network nested consumer tests)
     timeout-minutes: 75
@@ -211,6 +280,8 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
       - name: Run the opted-in requires-network consumer tests
+        env:
+          REPO_CACHE_PATH: ${{ steps.repo-cache.outputs.path }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
@@ -218,11 +289,13 @@ jobs:
           test -n "$targets"
           echo "$targets" > "$RUNNER_TEMP/network-targets"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${{ steps.repo-cache.outputs.path }}" "$@" $targets
+          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### network (linux_x86_64) — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### network (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Ran the tests tagged network-consumer. A FLAKY result means the test passed on its single retry." >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$RUNNER_TEMP/network-targets" ]; then
             sed 's/^/- /' "$RUNNER_TEMP/network-targets" >> "$GITHUB_STEP_SUMMARY"
@@ -239,19 +312,19 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_jupyter_format_pass //quality/testdata:matrix_jupyter_lint_fail //quality/testdata:matrix_jupyter_outputs_fail //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error //quality/testdata:matrix_flatbuffers_lint_pass"
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_jupyter_format_pass //quality/testdata:matrix_jupyter_lint_fail //quality/testdata:matrix_jupyter_outputs_fail //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: macos_arm64
             runner: macos-15
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_jupyter_format_pass //quality/testdata:matrix_jupyter_lint_fail //quality/testdata:matrix_jupyter_outputs_fail //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: windows_x86_64
             runner: windows-latest
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass"
+            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_jupyter_format_pass //quality/testdata:matrix_jupyter_lint_fail //quality/testdata:matrix_jupyter_outputs_fail //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass //quality/testdata:matrix_pkl_format_pass //quality/testdata:matrix_pkl_format_fail //quality/testdata:matrix_pkl_format_syntax_error //quality/testdata:matrix_html_format_pass //quality/testdata:matrix_json_format_pass //quality/testdata:matrix_prettier_sql_dialect_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error"
           - platform: windows_arm64
             runner: windows-11-arm
-            quality: ""
+            quality: "//quality/testdata:matrix_python_format_pass"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -293,12 +366,29 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all --test_arg=--nocapture "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //examples/zig-app/... //zig/tests/fixtures/hello:all $QUALITY_TARGETS
+          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //examples/zig-app/... //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all $QUALITY_TARGETS
+      - name: Run the PyPI probe verification
+        if: ${{ matrix.platform != 'windows_arm64' }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/rules:pypi_probe_verify
       - name: Write job summary
         if: always()
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          JOB_STATUS: ${{ job.status }}
+          RUNNER_LABEL: ${{ matrix.runner }}
         run: |
-          echo "### preflight ${{ matrix.platform }} — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python and JavaScript tools, and the Zig example and hello fixture on ${{ matrix.runner }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python, JavaScript, and YAML tools, and the Zig example and hello fixture on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+      - name: Record the runner image
+        if: always()
+        shell: bash
+        run: |
+          line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
+          echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
       - name: Prune the Bazel repository cache to this run's downloads
         if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
@@ -357,18 +447,25 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test "$@"
+          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test "$@"
       - name: Fail when bazel mod tidy would change MODULE.bazel
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel mod tidy "$@"
           git diff --exit-code -- MODULE.bazel
+      - name: Fail when a public rust library is missing from PUBLIC_RUST_CRATES
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          tools/docs/site/public_rust_crates_guard.sh "$@"
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### workflow-check — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
+          echo "### workflow-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}
@@ -408,6 +505,8 @@ jobs:
           DX_AGGREGATE
       - name: Write job summary
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "### ci — ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ci — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"

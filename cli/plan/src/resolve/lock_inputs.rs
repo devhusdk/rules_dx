@@ -2,6 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{Call, ModuleFile, Value};
 
+use super::rule_graph::apparent_repo_matches;
+
 /// Changed crate names with every base and head version that changed.
 pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
 
@@ -11,6 +13,14 @@ pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
 pub(crate) struct LockChange {
     pub(crate) crates: ChangedCrates,
     pub(crate) aliases: BTreeSet<String>,
+    /// The names are Python packages of a `pip.parse` hub, not crates.
+    pub(crate) pip: bool,
+    /// The names are Maven artifacts of a `maven.install` hub.
+    pub(crate) maven: bool,
+    /// Gazelle repository names of the changed Go modules.
+    pub(crate) go_repos: BTreeSet<String>,
+    /// Whether the names are npm packages of an `npm_translate_lock` hub.
+    pub(crate) npm: bool,
 }
 
 /// One `crate.from_cargo` hub with the lock files it reads.
@@ -19,6 +29,17 @@ pub(crate) struct Hub {
     pub(crate) name: String,
     pub(crate) cargo_lockfile: String,
     pub(crate) lockfile: Option<String>,
+    /// A `pip.parse` hub; `cargo_lockfile` then holds a requirements file.
+    pub(crate) pip: bool,
+    /// A `maven.install` hub; `cargo_lockfile` then holds `lock_file`.
+    pub(crate) maven: bool,
+    /// A `go_deps.from_file` hub: `cargo_lockfile` is its go.mod, `lockfile` its go.sum.
+    pub(crate) go: bool,
+    /// The `pnpm_lock` of an `npm.npm_translate_lock` hub, which has no Cargo
+    /// lock (`cargo_lockfile` is empty).
+    pub(crate) pnpm_lockfile: Option<String>,
+    /// A `ruby.bundle_fetch` repo; `cargo_lockfile` then holds its Gemfile.lock.
+    pub(crate) gems: bool,
 }
 
 /// The lock format of one changed path and the hubs it feeds.
@@ -26,13 +47,26 @@ pub(crate) struct Hub {
 pub(crate) enum LockKind {
     Cargo(Vec<String>),
     CrateBazelLock(Vec<String>),
+    Pip(Vec<String>),
+    Maven(Vec<String>),
+    /// A go.mod or go.sum named by `go_deps.from_file`.
+    Go(Vec<String>),
+    Pnpm(Vec<String>),
+    /// A Gemfile.lock named by `ruby.bundle_fetch`.
+    Gemfile(Vec<String>),
     Unknown,
 }
 
 impl LockKind {
     pub(crate) fn hubs(&self) -> &[String] {
         match self {
-            LockKind::Cargo(hubs) | LockKind::CrateBazelLock(hubs) => hubs,
+            LockKind::Cargo(hubs)
+            | LockKind::CrateBazelLock(hubs)
+            | LockKind::Pip(hubs)
+            | LockKind::Maven(hubs)
+            | LockKind::Go(hubs)
+            | LockKind::Pnpm(hubs)
+            | LockKind::Gemfile(hubs) => hubs,
             LockKind::Unknown => &[],
         }
     }
@@ -42,8 +76,31 @@ impl LockKind {
             LockKind::Cargo(_) => Ok(LockChange {
                 crates: changed_crates(base, head)?,
                 aliases: BTreeSet::new(),
+                pip: false,
+                maven: false,
+                go_repos: BTreeSet::new(),
+                npm: false,
+            }),
+            LockKind::Pip(_) => Ok(LockChange {
+                crates: changed_requirements(base, head),
+                aliases: BTreeSet::new(),
+                pip: true,
+                maven: false,
+                go_repos: BTreeSet::new(),
+                npm: false,
+            }),
+            LockKind::Maven(_) => Ok(LockChange {
+                crates: changed_maven_artifacts(base, head)?,
+                aliases: BTreeSet::new(),
+                pip: false,
+                maven: true,
+                go_repos: BTreeSet::new(),
+                npm: false,
             }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
+            LockKind::Go(_) => Err("use changed_go".to_owned()),
+            LockKind::Pnpm(_) => changed_npm_packages(base, head),
+            LockKind::Gemfile(_) => changed_gems(base, head),
             LockKind::Unknown => Err("unknown lock format".to_owned()),
         }
     }
@@ -51,6 +108,7 @@ impl LockKind {
 
 pub(crate) const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
 const DEFAULT_HUB: &str = "crates";
+const NPM_EXTENSION_BZL: &str = "npm:extensions.bzl";
 
 type Key = (String, String);
 
@@ -107,6 +165,7 @@ fn workspace_path(label: &str) -> Result<String, String> {
 pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
     let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
     let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    let mut npm_bindings: BTreeSet<&str> = BTreeSet::new();
     for call in module.calls_named("use_extension") {
         if call.unpacked {
             return Err(format!(
@@ -121,9 +180,47 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
                 bindings.insert(binding);
             }
         }
+        if bzl.ends_with(NPM_EXTENSION_BZL) && name == "npm" {
+            if let Some(binding) = &call.binding {
+                npm_bindings.insert(binding);
+            }
+        }
     }
     let mut hubs = Vec::new();
     for call in module.calls() {
+        if let Some((binding, "npm_translate_lock")) = call.name.split_once('.') {
+            if npm_bindings.contains(binding) {
+                if call.unpacked {
+                    return Err(format!(
+                        "{} at MODULE.bazel line {} unpacks its arguments",
+                        call.name, call.line
+                    ));
+                }
+                let name = literal(call, "name", Some(0))?.ok_or_else(|| {
+                    format!(
+                        "{} at MODULE.bazel line {} has no name",
+                        call.name, call.line
+                    )
+                })?;
+                let pnpm_lock = literal(call, "pnpm_lock", None)?.ok_or_else(|| {
+                    format!(
+                        "{} at MODULE.bazel line {} has no pnpm_lock",
+                        call.name, call.line
+                    )
+                })?;
+                hubs.push(Hub {
+                    name,
+                    cargo_lockfile: String::new(),
+                    lockfile: None,
+                    pip: false,
+                    maven: false,
+                    go: false,
+                    gems: false,
+                    pnpm_lockfile: Some(workspace_path(&pnpm_lock)?),
+                });
+            }
+            continue;
+        }
         let Some((binding, "from_cargo")) = call.name.split_once('.') else {
             continue;
         };
@@ -150,9 +247,135 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             name,
             cargo_lockfile: workspace_path(&cargo_lockfile)?,
             lockfile,
+            pip: false,
+            maven: false,
+            go: false,
+            gems: false,
+            pnpm_lockfile: None,
         });
     }
+    hubs.extend(go_hubs(&module));
     Ok(hubs)
+}
+
+/// `go_deps.from_file` calls with a literal go.mod label; anything computed is
+/// skipped, which leaves its files as workspace inputs.
+fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        let bzl = literal(call, "extension_bzl_file", Some(0)).ok().flatten();
+        let name = literal(call, "extension_name", Some(1)).ok().flatten();
+        if bzl.is_some_and(|bzl| bzl.ends_with("extensions.bzl"))
+            && name.as_deref() == Some("go_deps")
+        {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "from_file")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) || call.unpacked {
+            continue;
+        }
+        let Some(go_mod) = literal(call, "go_mod", None)
+            .ok()
+            .flatten()
+            .and_then(|label| workspace_path(&label).ok())
+        else {
+            continue;
+        };
+        let dir = go_mod.strip_suffix("go.mod").unwrap_or("");
+        if dir.len() + "go.mod".len() != go_mod.len() {
+            continue;
+        }
+        hubs.push(Hub {
+            name: "go_deps".to_owned(),
+            lockfile: Some(format!("{dir}go.sum")),
+            cargo_lockfile: go_mod,
+            pip: false,
+            maven: false,
+            go: true,
+            gems: false,
+            pnpm_lockfile: None,
+        });
+    }
+    hubs
+}
+
+/// Gazelle's repository name for a Go module path.
+pub(crate) fn go_repo_name(module: &str) -> String {
+    let lower = module.to_lowercase();
+    let mut parts = lower.split('/');
+    let host = parts.next().unwrap_or_default();
+    let mut names: Vec<&str> = host.split('.').rev().collect();
+    names.extend(parts);
+    names.join("_").replace(['-', '.'], "_")
+}
+
+/// The Gazelle repositories of the modules a go.mod or go.sum edit changes, or
+/// an error when the edit is more than requirement or checksum lines.
+pub(crate) fn changed_go(path: &str, base: &str, head: &str) -> Result<LockChange, String> {
+    let sum = path.ends_with("go.sum");
+    let parse = |text: &str| {
+        let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
+        let mut other: BTreeSet<String> = BTreeSet::new();
+        for line in text.lines() {
+            let line = line.split("//").next().unwrap_or_default().trim();
+            let line = line.strip_prefix("require ").unwrap_or(line).trim();
+            let words: Vec<&str> = line.split_whitespace().collect();
+            let is_module = if sum {
+                words.len() == 3
+            } else {
+                words.len() == 2 && words[1].starts_with('v') && words[0] != "go"
+            };
+            if is_module {
+                modules.insert((words[0].to_owned(), words[1..].join(" ")));
+            } else if !sum && !line.is_empty() && line != "require (" && line != ")" {
+                other.insert(line.to_owned());
+            }
+        }
+        (modules, other)
+    };
+    let (base_modules, base_other) = parse(base);
+    let (head_modules, head_other) = parse(head);
+    if base_other != head_other {
+        return Err("go.mod changed beyond its requirements".to_owned());
+    }
+    let go_repos = base_modules
+        .symmetric_difference(&head_modules)
+        .map(|(module, _)| go_repo_name(module))
+        .collect();
+    Ok(LockChange {
+        crates: ChangedCrates::new(),
+        aliases: BTreeSet::new(),
+        pip: false,
+        maven: false,
+        go_repos,
+        npm: false,
+    })
+}
+
+/// Labels inside the changed Go module repositories.
+pub(crate) fn go_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    repos: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+                .is_some_and(|(repo, _)| repos.iter().any(|name| apparent_repo_matches(repo, name)))
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 fn closure(base: &Nodes, head: &Nodes) -> ChangedCrates {
@@ -391,14 +614,14 @@ pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<L
             }
         }
     }
-    Ok(LockChange { crates, aliases })
-}
-
-fn repo_is(repo: &str, name: &str) -> bool {
-    repo == name
-        || repo
-            .strip_suffix(name)
-            .is_some_and(|prefix| prefix.ends_with('+') || prefix.ends_with('~'))
+    Ok(LockChange {
+        crates,
+        aliases,
+        pip: false,
+        maven: false,
+        go_repos: BTreeSet::new(),
+        npm: false,
+    })
 }
 
 pub(crate) fn seeds<'a>(
@@ -427,12 +650,304 @@ pub(crate) fn seeds<'a>(
             else {
                 return false;
             };
-            if repo_is(repo, hub) {
+            if apparent_repo_matches(repo, hub) {
                 let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
                 return names.contains(name)
                     || prefixes.iter().any(|prefix| name.starts_with(prefix));
             }
-            spokes.iter().any(|spoke| repo_is(repo, spoke))
+            spokes
+                .iter()
+                .any(|spoke| apparent_repo_matches(repo, spoke))
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+const PIP_EXTENSION_BZL: &str = "python/extensions:pip.bzl";
+const PIP_REQUIREMENT_ARGS: &[&str] = &[
+    "requirements_lock",
+    "requirements_linux",
+    "requirements_darwin",
+    "requirements_windows",
+];
+
+/// `pip.parse` hubs and the literal requirements files they read. Calls with
+/// computed arguments are skipped, so their files keep the wide fallback.
+pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
+    let Ok(module) = ModuleFile::parse(module_text) else {
+        return Vec::new();
+    };
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        if call.unpacked {
+            continue;
+        }
+        let bzl = literal(call, "extension_bzl_file", Some(0))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        let name = literal(call, "extension_name", Some(1))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        if bzl.ends_with(PIP_EXTENSION_BZL) && name == "pip" {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "parse")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) || call.unpacked {
+            continue;
+        }
+        let Ok(Some(name)) = literal(call, "hub_name", None) else {
+            continue;
+        };
+        for arg in PIP_REQUIREMENT_ARGS {
+            let Ok(Some(label)) = literal(call, arg, None) else {
+                continue;
+            };
+            if let Ok(path) = workspace_path(&label) {
+                hubs.push(Hub {
+                    name: name.clone(),
+                    cargo_lockfile: path,
+                    lockfile: None,
+                    pip: true,
+                    maven: false,
+                    go: false,
+                    gems: false,
+                    pnpm_lockfile: None,
+                });
+            }
+        }
+    }
+    hubs
+}
+
+/// PEP 503 name with `-`, `_` and `.` runs folded to one `-`.
+fn pip_name(raw: &str) -> String {
+    let mut out = String::new();
+    let mut separator = false;
+    for ch in raw.trim().chars() {
+        if matches!(ch, '-' | '_' | '.') {
+            separator = true;
+        } else {
+            if separator && !out.is_empty() {
+                out.push('-');
+            }
+            separator = false;
+            out.push(ch.to_ascii_lowercase());
+        }
+    }
+    out
+}
+
+/// Requirement name to its whole logical line (version, markers, hashes).
+fn requirement_lines(text: &str) -> BTreeMap<String, String> {
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    let mut logical = String::new();
+    let mut flush = |logical: &mut String| {
+        let line = logical.split_whitespace().collect::<Vec<_>>().join(" ");
+        logical.clear();
+        if line.is_empty() || line.starts_with('-') {
+            return;
+        }
+        let end = line
+            .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
+            .unwrap_or(line.len());
+        let name = pip_name(&line[..end]);
+        if !name.is_empty() {
+            let rest = &line[end..];
+            out.entry(name.clone())
+                .or_default()
+                .push_str(&format!("{name}{rest}\n"));
+        }
+    };
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.starts_with('#') {
+            continue;
+        }
+        if let Some(rest) = line.strip_suffix('\\') {
+            logical.push_str(rest);
+            logical.push(' ');
+        } else {
+            logical.push_str(line);
+            flush(&mut logical);
+        }
+    }
+    flush(&mut logical);
+    out
+}
+
+pub(crate) fn changed_requirements(base: &str, head: &str) -> ChangedCrates {
+    let (base, head) = (requirement_lines(base), requirement_lines(head));
+    let mut out = ChangedCrates::new();
+    for name in base.keys().chain(head.keys()) {
+        if base.get(name) != head.get(name) {
+            out.entry(name.clone()).or_default();
+        }
+    }
+    out
+}
+
+/// Labels of the changed packages in a `pip.parse` hub, and in its per
+/// package spoke repos (`<hub>_<name>` or `<hub>_<python>_<name>`).
+pub(crate) fn pip_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    hub: &str,
+    packages: &ChangedCrates,
+) -> Vec<String> {
+    let forms: BTreeSet<String> = packages
+        .keys()
+        .flat_map(|name| [name.clone(), name.replace('-', "_")])
+        .collect();
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            let Some((repo, target)) = label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+            else {
+                return false;
+            };
+            if apparent_repo_matches(repo, hub) {
+                let package = target
+                    .split_once(':')
+                    .map_or(target, |(package, _)| package);
+                let top = package.split('/').next().unwrap_or_default();
+                return forms.contains(&pip_name(top)) || forms.contains(top);
+            }
+            let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+            last.strip_prefix(&format!("{hub}_")).is_some_and(|rest| {
+                forms
+                    .iter()
+                    .any(|form| rest.ends_with(&format!("_{form}")) || rest == form)
+            })
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+const MAVEN_EXTENSION: &str = "extensions.bzl";
+
+/// `maven.install` hubs and their literal `lock_file`. Calls with computed
+/// arguments are skipped, so their files keep the wide fallback.
+pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
+    let Ok(module) = ModuleFile::parse(module_text) else {
+        return Vec::new();
+    };
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        if call.unpacked {
+            continue;
+        }
+        let bzl = literal(call, "extension_bzl_file", Some(0))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        let name = literal(call, "extension_name", Some(1))
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+        if bzl.contains("rules_jvm_external") && bzl.ends_with(MAVEN_EXTENSION) && name == "maven" {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "install")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) || call.unpacked {
+            continue;
+        }
+        let Ok(name) = literal(call, "name", None) else {
+            continue;
+        };
+        let Ok(Some(label)) = literal(call, "lock_file", None) else {
+            continue;
+        };
+        if let Ok(path) = workspace_path(&label) {
+            hubs.push(Hub {
+                name: name.unwrap_or_else(|| "maven".to_owned()),
+                cargo_lockfile: path,
+                lockfile: None,
+                pip: false,
+                maven: true,
+                go: false,
+                gems: false,
+                pnpm_lockfile: None,
+            });
+        }
+    }
+    hubs
+}
+
+/// Underscore form of a Maven coordinate, as used in repo and target names.
+fn maven_name(coordinate: &str) -> String {
+    coordinate.replace(['.', '-', ':'], "_")
+}
+
+fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(text).map_err(|error| format!("invalid JSON: {error}"))?;
+    let artifacts = value
+        .get("artifacts")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "no artifacts table".to_owned())?;
+    Ok(artifacts
+        .iter()
+        .map(|(key, entry)| (maven_name(key), entry.to_string()))
+        .collect())
+}
+
+/// Artifacts added, removed or changed (version or checksum) between two
+/// `maven_install.json` files, by underscore name.
+pub(crate) fn changed_maven_artifacts(base: &str, head: &str) -> Result<ChangedCrates, String> {
+    let (base, head) = (maven_artifacts(base)?, maven_artifacts(head)?);
+    let mut out = ChangedCrates::new();
+    for name in base.keys().chain(head.keys()) {
+        if base.get(name) != head.get(name) {
+            out.entry(name.clone()).or_default();
+        }
+    }
+    Ok(out)
+}
+
+/// Labels of the changed artifacts in a `maven.install` hub, and in its
+/// per artifact repos (`<hub>_<artifact>`).
+pub(crate) fn maven_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    hub: &str,
+    artifacts: &ChangedCrates,
+) -> Vec<String> {
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            let Some((repo, target)) = label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+            else {
+                return false;
+            };
+            if apparent_repo_matches(repo, hub) {
+                let name = target.rsplit_once(':').map_or(target, |(_, name)| name);
+                return artifacts.contains_key(name);
+            }
+            let last = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+            last.strip_prefix(&format!("{hub}_"))
+                .is_some_and(|rest| artifacts.contains_key(rest))
         })
         .map(str::to_owned)
         .collect();
@@ -442,9 +957,44 @@ pub(crate) fn seeds<'a>(
 }
 
 pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
+    let gems: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.gems && hub.cargo_lockfile == path)
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !gems.is_empty() {
+        return LockKind::Gemfile(gems);
+    }
+    let maven: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.maven && hub.cargo_lockfile == path)
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !maven.is_empty() {
+        return LockKind::Maven(maven);
+    }
+    let pip: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.pip && hub.cargo_lockfile == path)
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !pip.is_empty() {
+        return LockKind::Pip(pip);
+    }
+    let go: Vec<String> = hubs
+        .iter()
+        .filter(|hub| {
+            hub.go && (hub.cargo_lockfile == path || hub.lockfile.as_deref() == Some(path))
+        })
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !go.is_empty() {
+        return LockKind::Go(go);
+    }
+    let hubs: Vec<Hub> = hubs.iter().filter(|hub| !hub.go).cloned().collect();
     let cargo: Vec<String> = hubs
         .iter()
-        .filter(|hub| hub.cargo_lockfile == path)
+        .filter(|hub| !hub.pip && !hub.maven && hub.cargo_lockfile == path)
         .map(|hub| hub.name.clone())
         .collect();
     if !cargo.is_empty() {
@@ -452,13 +1002,233 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     }
     let bazel: Vec<String> = hubs
         .iter()
-        .filter(|hub| hub.lockfile.as_deref() == Some(path))
+        .filter(|hub| !hub.pip && !hub.maven && hub.lockfile.as_deref() == Some(path))
         .map(|hub| hub.name.clone())
         .collect();
     if !bazel.is_empty() {
         return LockKind::CrateBazelLock(bazel);
     }
+    let pnpm: Vec<String> = hubs
+        .iter()
+        .filter(|hub| hub.pnpm_lockfile.as_deref() == Some(path))
+        .map(|hub| hub.name.clone())
+        .collect();
+    if !pnpm.is_empty() {
+        return LockKind::Pnpm(pnpm);
+    }
     LockKind::Unknown
+}
+
+/// The `ruby.bundle_fetch` repos with the Gemfile.lock each one reads.
+pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
+    let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
+    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    for call in module.calls_named("use_extension") {
+        if call.unpacked {
+            return Err(format!(
+                "use_extension at MODULE.bazel line {} unpacks its arguments",
+                call.line
+            ));
+        }
+        let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
+        let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
+        if bzl.contains("rules_ruby") && name == "ruby" {
+            if let Some(binding) = &call.binding {
+                bindings.insert(binding);
+            }
+        }
+    }
+    let mut hubs = Vec::new();
+    for call in module.calls() {
+        let Some((binding, "bundle_fetch")) = call.name.split_once('.') else {
+            continue;
+        };
+        if !bindings.contains(binding) {
+            continue;
+        }
+        if call.unpacked {
+            return Err(format!(
+                "{} at MODULE.bazel line {} unpacks its arguments",
+                call.name, call.line
+            ));
+        }
+        let name = literal(call, "name", None)?.ok_or_else(|| {
+            format!(
+                "{} at MODULE.bazel line {} has no name",
+                call.name, call.line
+            )
+        })?;
+        let gemfile_lock = literal(call, "gemfile_lock", None)?.ok_or_else(|| {
+            format!(
+                "{} at MODULE.bazel line {} has no gemfile_lock",
+                call.name, call.line
+            )
+        })?;
+        hubs.push(Hub {
+            name,
+            cargo_lockfile: workspace_path(&gemfile_lock)?,
+            lockfile: None,
+            pip: false,
+            maven: false,
+            go: false,
+            pnpm_lockfile: None,
+            gems: true,
+        });
+    }
+    Ok(hubs)
+}
+
+/// The Gemfile.lock diff as crate-style name/version changes.
+fn changed_gems(base: &str, head: &str) -> Result<LockChange, String> {
+    let gems = |text: &str| -> Result<BTreeSet<(String, String)>, String> {
+        Ok(dx_audit::locks::parse_gemfile_lock(text)?
+            .into_iter()
+            .map(|package| {
+                let version = match package.platform {
+                    Some(platform) => format!("{}-{platform}", package.version),
+                    None => package.version,
+                };
+                (package.name, version)
+            })
+            .collect())
+    };
+    let (base, head) = (gems(base)?, gems(head)?);
+    let mut crates = ChangedCrates::new();
+    for (name, version) in base.symmetric_difference(&head) {
+        crates
+            .entry(name.clone())
+            .or_default()
+            .insert(version.clone());
+    }
+    Ok(LockChange {
+        crates,
+        aliases: BTreeSet::new(),
+        pip: false,
+        maven: false,
+        go_repos: BTreeSet::new(),
+        npm: false,
+    })
+}
+
+/// Labels of a bundle repo; rules_ruby names its per-gem targets and repos
+/// differently across versions, so any label in the repo counts as a user.
+pub(crate) fn gem_seeds<'a>(labels: impl Iterator<Item = &'a str>, hub: &str) -> Vec<String> {
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+                .is_some_and(|(repo, _)| apparent_repo_matches(repo, hub))
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Top-level sections of a pnpm lock other than the package tables, which
+/// feed `npm_translate_lock` through settings, overrides and patches.
+fn pnpm_settings(text: &str) -> BTreeMap<String, String> {
+    let mut out: BTreeMap<String, String> = BTreeMap::new();
+    let mut key: Option<String> = None;
+    for line in text.lines() {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if !line.starts_with(' ') && !line.starts_with('-') {
+            let name = line.split(':').next().unwrap_or(line).to_owned();
+            key = Some(name);
+        }
+        if let Some(key) = &key {
+            if !matches!(key.as_str(), "importers" | "packages" | "snapshots") {
+                let entry = out.entry(key.clone()).or_default();
+                entry.push_str(line);
+                entry.push('\n');
+            }
+        }
+    }
+    out
+}
+
+/// The npm packages (name and version) that differ between two pnpm locks.
+pub(crate) fn changed_npm_packages(base: &str, head: &str) -> Result<LockChange, String> {
+    if pnpm_settings(base) != pnpm_settings(head) {
+        return Err("pnpm lock settings changed".to_owned());
+    }
+    let packages = |text: &str| -> Result<BTreeSet<(String, String)>, String> {
+        Ok(dx_audit::locks::parse_pnpm_lock(text)?
+            .into_iter()
+            .map(|package| (package.name, package.version))
+            .collect())
+    };
+    let (base, head) = (packages(base)?, packages(head)?);
+    let mut crates = ChangedCrates::new();
+    for (name, version) in base.symmetric_difference(&head) {
+        crates
+            .entry(name.clone())
+            .or_default()
+            .insert(version.clone());
+    }
+    Ok(LockChange {
+        crates,
+        aliases: BTreeSet::new(),
+        pip: false,
+        maven: false,
+        go_repos: BTreeSet::new(),
+        npm: true,
+    })
+}
+
+/// Repo-name form of an npm package: `@scope/name` becomes `at_scope_name`.
+fn npm_repo_name(name: &str) -> String {
+    match name.strip_prefix('@') {
+        Some(scoped) => format!("at_{}", scoped.replace('/', "_")),
+        None => name.to_owned(),
+    }
+}
+
+/// Labels of changed npm packages: the hub's `@npm//name` targets and the
+/// per-version `npm__name__version` spoke repositories.
+pub(crate) fn npm_seeds<'a>(
+    labels: impl Iterator<Item = &'a str>,
+    hub: &str,
+    packages: &ChangedCrates,
+) -> Vec<String> {
+    let mut packages_dirs: BTreeSet<&str> = BTreeSet::new();
+    let mut prefixes: Vec<String> = Vec::new();
+    for (name, versions) in packages {
+        packages_dirs.insert(name);
+        let repo = npm_repo_name(name);
+        for version in versions {
+            prefixes.push(format!("{hub}__{repo}__{version}"));
+        }
+    }
+    let mut out: Vec<String> = labels
+        .filter(|label| {
+            let Some((repo, target)) = label
+                .strip_prefix("@@")
+                .and_then(|rest| rest.split_once("//"))
+            else {
+                return false;
+            };
+            if apparent_repo_matches(repo, hub) {
+                let package = target
+                    .split_once(':')
+                    .map_or(target, |(package, _)| package);
+                let package = package.strip_prefix("node_modules/").unwrap_or(package);
+                return packages_dirs.contains(package);
+            }
+            prefixes.iter().any(|prefix| {
+                let local = repo.rsplit(['+', '~']).next().unwrap_or(repo);
+                local.starts_with(prefix.as_str())
+            })
+        })
+        .map(str::to_owned)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 #[cfg(test)]
@@ -510,6 +1280,48 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
+    fn maven_artifacts_diff_by_entry() {
+        let base = r#"{"artifacts":{"com.a:b-c":{"version":"1","shasums":{"jar":"x"}},"d:e":{"version":"2"}}}"#;
+        let head = r#"{"artifacts":{"com.a:b-c":{"version":"1","shasums":{"jar":"x"}},"d:e":{"version":"3"},"f:g":{"version":"1"}}}"#;
+        let changed = changed_maven_artifacts(base, head).expect("diff");
+        assert_eq!(changed.keys().cloned().collect::<Vec<_>>(), ["d_e", "f_g"]);
+        assert!(changed_maven_artifacts("{}", head).is_err());
+        let labels = [
+            "@@//:x",
+            "@@maven//:d_e",
+            "@@maven//:other",
+            "@@rules_jvm_external++maven+maven_f_g//jar:jar",
+        ];
+        assert_eq!(
+            maven_seeds(labels.iter().copied(), "maven", &changed),
+            [
+                "@@maven//:d_e",
+                "@@rules_jvm_external++maven+maven_f_g//jar:jar"
+            ]
+        );
+    }
+
+    #[test]
+    fn gem_hubs_and_changed_gems() {
+        let module = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:Gemfile.lock\")\n";
+        let hubs = gem_hubs(module).expect("hubs");
+        assert_eq!(
+            classify("third_party/ruby/Gemfile.lock", &hubs),
+            LockKind::Gemfile(vec!["bundle".to_owned()])
+        );
+        assert_eq!(classify("Cargo.lock", &hubs), LockKind::Unknown);
+        let lock = |rake: &str| {
+            format!("GEM\n  remote: https://rubygems.org/\n  specs:\n    rake ({rake})\n    racc (1.8.1)\n\nPLATFORMS\n  ruby\n")
+        };
+        let change = changed_gems(&lock("13.0.0"), &lock("13.1.0")).expect("diff");
+        assert_eq!(change.crates, crates(&[("rake", &["13.0.0", "13.1.0"])]));
+        assert!(changed_gems(&lock("1"), &lock("1"))
+            .expect("same")
+            .crates
+            .is_empty());
+    }
+
+    #[test]
     fn crate_hubs_read_literal_from_cargo_calls() {
         let hubs = crate_hubs(MODULE).expect("hubs");
         assert_eq!(
@@ -519,11 +1331,21 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                     name: "crates".to_owned(),
                     cargo_lockfile: "Cargo.lock".to_owned(),
                     lockfile: Some("cargo-bazel-lock.json".to_owned()),
+                    pip: false,
+                    maven: false,
+                    go: false,
+                    gems: false,
+                    pnpm_lockfile: None,
                 },
                 Hub {
                     name: "tools".to_owned(),
                     cargo_lockfile: "tools/rust/Cargo.lock".to_owned(),
                     lockfile: None,
+                    pip: false,
+                    maven: false,
+                    go: false,
+                    gems: false,
+                    pnpm_lockfile: None,
                 },
             ]
         );
@@ -533,6 +1355,44 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         let other_repo = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"@other//:Cargo.lock\")\n";
         assert!(crate_hubs(other_repo).is_err());
         assert!(crate_hubs("crate.from_cargo(\n").is_err());
+    }
+
+    #[test]
+    fn go_deps_files_classify_and_diff_to_repos() {
+        let module = "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n";
+        let hubs = crate_hubs(module).expect("hubs");
+        let kind = LockKind::Go(vec!["go_deps".to_owned()]);
+        assert_eq!(classify("third_party/go/go.mod", &hubs), kind);
+        assert_eq!(classify("third_party/go/go.sum", &hubs), kind);
+        assert_eq!(classify("go.sum", &hubs), LockKind::Unknown);
+        assert_eq!(
+            go_repo_name("github.com/Foo-Bar/baz.v2"),
+            "com_github_foo_bar_baz_v2"
+        );
+        let base = "module x\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgolang.org/x/net v0.1.0 // indirect\n)\n";
+        let head = base.replace("v1.0.0", "v1.1.0");
+        let change = changed_go("go.mod", base, &head).expect("go.mod");
+        assert_eq!(
+            change.go_repos,
+            BTreeSet::from(["com_github_a_b".to_owned()])
+        );
+        let toolchain = base.replace("go 1.22", "go 1.23");
+        assert!(changed_go("go.mod", base, &toolchain).is_err());
+        let sum = "github.com/a/b v1.0.0 h1:x\ngithub.com/a/b v1.0.0/go.mod h1:y\ngolang.org/x/net v0.1.0 h1:z\n";
+        let sum_head = sum.replace("h1:x", "h1:w");
+        let change = changed_go("go.sum", sum, &sum_head).expect("go.sum");
+        assert_eq!(
+            change.go_repos,
+            BTreeSet::from(["com_github_a_b".to_owned()])
+        );
+        let labels = [
+            "@@gazelle++go_deps+com_github_a_b//:b",
+            "@@gazelle++go_deps+org_golang_x_net//:net",
+        ];
+        assert_eq!(
+            go_seeds(labels.iter().copied(), &change.go_repos),
+            ["@@gazelle++go_deps+com_github_a_b//:b"]
+        );
     }
 
     #[test]
@@ -706,6 +1566,8 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
             "@@rules_rust++crate+my_crates//:serde",
             "@@crates//:serde",
+            "@@mycrates+//:serde",
+            "@@crates+//:serde",
             "//a:serde",
             "@@rules_rust++crate+crates//:serde__bin",
             "@@rules_rust++crate+crates//:serde-1.0.2__bin",
@@ -723,6 +1585,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 &names(&["serde1"])
             ),
             [
+                "@@crates+//:serde",
                 "@@crates//:serde",
                 "@@rules_rust++crate+crates//:serde",
                 "@@rules_rust++crate+crates//:serde-1.0.2",
@@ -732,6 +1595,93 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 "@@rules_rust++crate+crates//serde:serde",
                 "@@rules_rust++crate+crates__serde-1.0.1//:serde",
                 "@@rules_rust~~crate~crates__serde-1.0.2//:serde",
+            ]
+        );
+    }
+
+    #[test]
+    fn pip_requirements_diff_by_package() {
+        let base = "requests==2.0 \\\n    --hash=sha256:a\nFoo_Bar==1\n# c\nnumpy==1\n";
+        let head = "requests==2.1 \\\n    --hash=sha256:b\nfoo-bar==1\nflask==3\n";
+        let changed = changed_requirements(base, head);
+        let names: Vec<&str> = changed.keys().map(String::as_str).collect();
+        assert_eq!(names, ["flask", "numpy", "requests"]);
+    }
+
+    #[test]
+    fn pip_hubs_and_seeds() {
+        let module = "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\npip.parse(hub_name = \"pypi\", requirements_lock = \"//py:requirements_lock.txt\")\n";
+        let hubs = pip_hubs(module);
+        assert_eq!(
+            classify("py/requirements_lock.txt", &hubs),
+            LockKind::Pip(vec!["pypi".to_owned()])
+        );
+        let changed = changed_requirements("foo-bar==1\n", "foo-bar==2\n");
+        let labels = [
+            "@@rules_python++pip+pypi//foo_bar:pkg",
+            "@@rules_python++pip+pypi_311_foo_bar//:pkg",
+            "@@rules_python++pip+pypi//other:pkg",
+            "@@rules_python++pip+pypi_311_other//:pkg",
+        ];
+        assert_eq!(
+            pip_seeds(labels.iter().copied(), "pypi", &changed),
+            [labels[0], labels[1]]
+        );
+    }
+
+    const NPM_MODULE: &str = r#"
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:pnpm-lock.yaml")
+"#;
+
+    fn pnpm_lock(packages: &[(&str, &str)], settings: &str) -> String {
+        let mut out = format!("lockfileVersion: '9.0'\n\nsettings:\n  {settings}\n\npackages:\n");
+        for (name, version) in packages {
+            out.push_str(&format!(
+                "\n  {name}@{version}:\n    resolution: {{integrity: sha512-abc}}\n"
+            ));
+        }
+        out
+    }
+
+    #[test]
+    fn npm_translate_lock_hubs_classify_pnpm_locks() {
+        let hubs = crate_hubs(NPM_MODULE).expect("hubs");
+        assert_eq!(
+            classify("web/pnpm-lock.yaml", &hubs),
+            LockKind::Pnpm(vec!["npm".to_owned()])
+        );
+        assert_eq!(classify("pnpm-lock.yaml", &hubs), LockKind::Unknown);
+        assert!(crate_hubs(&NPM_MODULE.replace("\"//web:pnpm-lock.yaml\"", "LOCK")).is_err());
+    }
+
+    #[test]
+    fn pnpm_diff_names_changed_packages_only() {
+        let base = pnpm_lock(&[("left-pad", "1.0.0"), ("lodash", "4.0.0")], "a: 1");
+        let head = pnpm_lock(&[("left-pad", "1.0.0"), ("lodash", "4.1.0")], "a: 1");
+        let change = changed_npm_packages(&base, &head).expect("diff");
+        assert!(change.npm);
+        assert_eq!(change.crates, crates(&[("lodash", &["4.0.0", "4.1.0"])]));
+        let settings = pnpm_lock(&[("left-pad", "1.0.0"), ("lodash", "4.0.0")], "a: 2");
+        assert!(changed_npm_packages(&base, &settings).is_err());
+    }
+
+    #[test]
+    fn npm_seeds_match_hub_targets_and_version_spokes() {
+        let labels = [
+            "@@aspect_rules_js++npm+npm//lodash:pkg",
+            "@@aspect_rules_js++npm+npm//left-pad:pkg",
+            "@@aspect_rules_js++npm+npm__lodash__4.1.0//:pkg",
+            "@@aspect_rules_js++npm+npm__lodash__3.0.0//:pkg",
+            "@@aspect_rules_js++npm+npm__at_scope_a__1.0.0//:pkg",
+        ];
+        let changed = crates(&[("lodash", &["4.1.0"]), ("@scope/a", &["1.0.0"])]);
+        assert_eq!(
+            npm_seeds(labels.iter().copied(), "npm", &changed),
+            [
+                "@@aspect_rules_js++npm+npm//lodash:pkg",
+                "@@aspect_rules_js++npm+npm__at_scope_a__1.0.0//:pkg",
+                "@@aspect_rules_js++npm+npm__lodash__4.1.0//:pkg",
             ]
         );
     }

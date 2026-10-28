@@ -74,6 +74,8 @@ pub struct Warning {
 pub(crate) struct Reclaim {
     pub(crate) warning: Warning,
     pub(crate) removed: bool,
+    /// Whether a free slot's output base was kept because its Bazel server would not stop.
+    pub(crate) skipped: bool,
 }
 
 /// The slot a `release` freed.
@@ -97,6 +99,8 @@ pub struct Row {
     pub state: State,
     pub reason: Option<&'static str>,
     pub server: bool,
+    /// A dx command is running in the slot, whether or not it is held.
+    pub busy: bool,
     pub disk_bytes: Option<u64>,
 }
 
@@ -403,7 +407,7 @@ fn first_quiet<'a>(
 }
 
 /// Finds the held record on a branch.
-fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
+pub(crate) fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
     records
         .iter()
         .find(|record| record.held && record.branch.as_deref() == Some(branch))
@@ -492,6 +496,7 @@ pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Result<Vec<Warning>, Work
     let mut warnings = Vec::new();
     stop_check(host)?;
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
+        // No `--prune`: `git::unpushed` relies on stale remote refs of deleted branches.
         let fetched = git::run_until(
             &pool.main,
             &["fetch", "--quiet", "origin"],
@@ -516,10 +521,23 @@ pub(crate) fn lease(
     who: &Who,
     request: &AddRequest,
     skip: &[u32],
+    warnings: Vec<Warning>,
+) -> Result<Added, WorktreeError> {
+    let lock = pool.lock()?;
+    lease_locked(pool, host, who, request, skip, warnings, lock)
+}
+
+/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`.
+pub(crate) fn lease_locked(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    request: &AddRequest,
+    skip: &[u32],
     mut warnings: Vec<Warning>,
+    lock: dx_atomic_fs::lease::ExclusiveLease,
 ) -> Result<Added, WorktreeError> {
     let branch = request.branch.as_str();
-    let lock = pool.lock()?;
     pool.forget_missing();
     let now = host.now();
     let records = pool.records();
@@ -677,7 +695,11 @@ pub(crate) fn lease(
         std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
     }
     pool.write(&placeholder)?;
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = if stale.is_empty() {
+        Vec::new()
+    } else {
+        scan_output_bases(&host.output_roots(&host.servers()))
+    };
     for slot in &stale {
         // A stale slot that cannot be deleted stays recorded as broken; `add` goes on with its own slot.
         let _ = delete_slot(pool, host, *slot, &bases);
@@ -740,7 +762,7 @@ fn make_room(
     };
     if let Some(slot) = reuse {
         let path = pool.slot_path(slot);
-        let bases = scan_output_bases(&host.output_roots());
+        let bases = scan_output_bases(&host.output_roots(&host.servers()));
         let owned: Vec<&OutputBase> = bases_of(&bases, &path)
             .into_iter()
             .filter(|base| disk_low(host, &base.dir))
@@ -1101,8 +1123,16 @@ fn release_external(
         }
     }
     let _lock = pool.lock()?;
-    let bases = scan_output_bases(&host.output_roots());
-    let _ = remove_external(pool, host, &checkout.path, &bases)?;
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
+    if !remove_external(pool, host, &checkout.path, &bases)? {
+        return Err(WorktreeError::refused(
+            "busy",
+            &format!(
+                "worktree {} could not be fully removed and is still on disk; its servers and git registration may already be gone, so close what holds it and run release again",
+                checkout.path.display()
+            ),
+        ));
+    }
     Ok(Released {
         slot: None,
         path: checkout.path,
@@ -1216,7 +1246,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     pool.forget_missing();
     let servers = host.servers();
     let bases = if disk {
-        scan_output_bases(&host.output_roots())
+        scan_output_bases(&host.output_roots(&servers))
     } else {
         Vec::new()
     };
@@ -1224,7 +1254,8 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     let mut slot_disk = 0;
     for record in pool.records() {
         let path = pool.slot_path(record.slot);
-        let held = hold(pool, host, &record);
+        let busy = pool.busy(record.slot);
+        let held = hold_known(pool, host, &record, record.held && busy);
         stop_check(host)?;
         let state = match held {
             Hold::Free => State::Free,
@@ -1254,6 +1285,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
                 _ => None,
             },
             server: server_in(&servers, &path),
+            busy,
             disk_bytes,
             path,
         });
@@ -1274,6 +1306,7 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
             state: State::External,
             reason: None,
             server: server_in(&servers, &checkout.path),
+            busy: false,
             disk_bytes,
             path: checkout.path,
         });
@@ -1441,7 +1474,7 @@ pub(crate) fn prune_plan(
     pool.forget_missing();
     let now = host.now();
     let servers = host.servers();
-    let roots = host.output_roots();
+    let roots = host.output_roots(&servers);
     let bases = scan_output_bases(&roots);
     let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut plan = PrunePlan::default();
@@ -1737,7 +1770,7 @@ pub(crate) fn prune_apply(
     plan: &PrunePlan,
     _lock: &dx_atomic_fs::lease::ExclusiveLease,
 ) -> Result<Applied, WorktreeError> {
-    let bases = scan_output_bases(&host.output_roots());
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
     let mut skipped_slots = Vec::new();
     let mut skipped = Vec::new();
     for slot in &plan.slots {
@@ -1945,17 +1978,25 @@ fn low_disk_reading(
         return (Some(space), Some((base.to_path_buf(), space)));
     }
     let nested = host.nested_root().filter(|root| root.is_dir());
-    let low = host
-        .output_roots()
-        .into_iter()
-        .chain(nested)
-        .filter_map(|root| {
-            host.disk_space(&root)
-                .filter(|space| is_low(*space))
-                .map(|space| (root, space))
-        })
-        .min_by_key(|(_, space)| space.free);
-    (Some(space), low)
+    let lowest = |roots: Vec<PathBuf>| {
+        roots
+            .into_iter()
+            .filter(|root| root.is_dir())
+            .filter_map(|root| {
+                host.disk_space(&root)
+                    .filter(|space| is_low(*space))
+                    .map(|space| (root, space))
+            })
+            .min_by_key(|(_, space)| space.free)
+    };
+    let mut config = host.config_output_roots();
+    config.extend(nested.clone());
+    if lowest(config).is_none() {
+        return (Some(space), None);
+    }
+    let mut all = host.output_roots(&host.servers());
+    all.extend(nested);
+    (Some(space), lowest(all))
 }
 
 /// Deletes the output bases and reports whether all of them are gone.
@@ -1974,6 +2015,7 @@ pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option
         Err(error) => Some(Reclaim {
             warning: reclaim_failed(&error),
             removed: false,
+            skipped: false,
         }),
     }
 }
@@ -2026,12 +2068,13 @@ fn reclaim_host_wide(
     host: &dyn Host,
     (disk, before): (PathBuf, DiskSpace),
 ) -> Reclaim {
-    let roots = host.output_roots();
-    let bases = scan_output_bases(&roots);
     let servers = host.servers();
+    let roots = host.output_roots(&servers);
+    let bases = scan_output_bases(&roots);
     let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
+    let mut kept: Vec<u32> = Vec::new();
     for base in bases.iter().filter(|base| {
         !base.workspace.exists()
             && !under(nested_root.as_deref(), &base.dir)
@@ -2080,6 +2123,7 @@ fn reclaim_host_wide(
         for (slot, owned) in picked {
             let path = pool.slot_path(slot);
             if stop_server(host, &path) {
+                kept.push(slot);
                 continue;
             }
             if drop_bases(host, &owned) {
@@ -2088,7 +2132,7 @@ fn reclaim_host_wide(
         }
     }
     let after = host.disk_space(&disk).unwrap_or(before);
-    let mut message = format!("low disk: {} free", size(before.free));
+    let mut message = format!("low disk at {}: {} free", disk.display(), size(before.free));
     let mut removed = Vec::new();
     if orphans > 0 {
         removed.push(format!("{orphans} orphaned output base(s)"));
@@ -2116,6 +2160,13 @@ fn reclaim_host_wide(
             size(after.free)
         ));
     }
+    if !kept.is_empty() {
+        let numbers: Vec<String> = kept.iter().map(u32::to_string).collect();
+        message.push_str(&format!(
+            "; kept the output bases of free slot(s) {} (server would not stop)",
+            numbers.join(", ")
+        ));
+    }
     if is_low(after) {
         message.push_str("; run dx worktree prune --apply");
     }
@@ -2125,6 +2176,7 @@ fn reclaim_host_wide(
             message,
         },
         removed: reclaimed,
+        skipped: !kept.is_empty(),
     }
 }
 

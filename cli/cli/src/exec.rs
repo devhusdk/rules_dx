@@ -6,6 +6,9 @@ mod bump;
 mod changed_coverage;
 mod clean;
 pub mod common;
+mod coverage_candidate;
+#[cfg(test)]
+mod current_dir_guard_tests;
 #[cfg(test)]
 mod delivery_sink;
 mod dep_edit;
@@ -22,6 +25,7 @@ mod generate;
 mod guidance;
 #[cfg(test)]
 mod help_launcher_tests;
+mod install;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -31,6 +35,7 @@ mod migrate;
 mod notice_codes;
 #[cfg(test)]
 mod package_identity;
+mod pinned_tool;
 mod quality;
 mod quality_apply;
 mod quality_baseline;
@@ -44,7 +49,6 @@ mod rustc_stderr;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
 mod test_filter;
-mod test_inventory;
 mod test_reports;
 #[cfg(test)]
 pub(crate) mod test_support;
@@ -58,6 +62,7 @@ use dx_plan::args::{Command, Invocation};
 pub(crate) use umbrella::UMBRELLA_PHASES;
 
 pub use audit::AUDIT_TODAY_ENV;
+pub use bump::COMMIT_JSON_ENV as BUMP_COMMIT_JSON_ENV;
 pub use common::{print_actions, ActionTally, Env};
 pub use failure::{cancelled, set_usage_command};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
@@ -86,7 +91,11 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
 fn slot_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Worktree | Command::Version | Command::Completion | Command::Explain
+        Command::Worktree
+            | Command::Version
+            | Command::Completion
+            | Command::Explain
+            | Command::Install
     )
 }
 
@@ -135,6 +144,8 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
         ci,
         audit_today,
         actions,
+        proc_root,
+        bump_commit_json,
     } = env;
     let mut latched = common::LatchedOut::new(out);
     let code = dispatch(
@@ -151,6 +162,8 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
             ci,
             audit_today,
             actions,
+            proc_root,
+            bump_commit_json,
         },
     );
     if code == 0 {
@@ -175,7 +188,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
             "option \"--here\" needs cwd resolution",
         );
     }
-    let _busy = match hold_slot(
+    let busy = match hold_slot(
         invocation.command,
         env.workspace,
         dx_worktree::pool::POOL_LOCK_WAIT,
@@ -184,12 +197,42 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
             let Env { out, err, .. } = env;
             return common::refusal(invocation.output, out, err, &refusal);
         }
-        held => held,
+        held => held
+            .and_then(Result::ok)
+            .map(dx_atomic_fs::lease::SharedLease::into_file),
     };
     if let Some(refusal) = lease_refusal(invocation, env.workspace) {
         let Env { out, err, .. } = env;
         return common::refusal(invocation.output, out, err, &refusal);
     }
+    // The busy handle rides only on app children (`run_app`); builds get none.
+    let holding = busy
+        .as_ref()
+        .map(|file| dx_process::Holding::new(env.runner, vec![file]));
+    match &holding {
+        Some(holding) => dispatch_command(
+            invocation,
+            Env {
+                workspace: env.workspace,
+                runner: holding,
+                query_runner: env.query_runner,
+                temp_dir: env.temp_dir,
+                pid: env.pid,
+                nonce: env.nonce,
+                out: &mut *env.out,
+                err: &mut *env.err,
+                ci: env.ci,
+                audit_today: env.audit_today,
+                actions: env.actions,
+                proc_root: env.proc_root,
+                bump_commit_json: env.bump_commit_json,
+            },
+        ),
+        None => dispatch_command(invocation, env),
+    }
+}
+
+fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }
@@ -218,7 +261,6 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check | Command::Fix => umbrella::execute_umbrella(invocation, env),
-        Command::ListTests => test_inventory::execute_tests(invocation, env),
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             workflow::execute_workflow(invocation, env)
         }
@@ -236,6 +278,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Explain => explain::execute_explain(invocation, env),
+        Command::Install => install::execute_install(invocation, env),
     }
 }
 
@@ -300,7 +343,7 @@ mod tests {
         (Command::Fix, &["fix"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 15] = [
+    const NO_BAZEL_BUILD: [Command; 14] = [
         Command::Security,
         Command::License,
         Command::Clean,
@@ -312,7 +355,6 @@ mod tests {
         Command::Status,
         Command::Version,
         Command::Watch,
-        Command::ListTests,
         Command::Rollback,
         Command::Worktree,
         Command::Explain,
@@ -635,6 +677,7 @@ mod tests {
             Command::Version,
             Command::Completion,
             Command::Explain,
+            Command::Install,
         ] {
             assert!(hold_slot(command, &slot, Duration::ZERO).is_none());
         }
@@ -668,6 +711,7 @@ mod tests {
             Command::Version,
             Command::Completion,
             Command::Explain,
+            Command::Install,
         ] {
             assert!(lease_refusal_for(command, &slot, &who(Some("s2"))).is_none());
         }

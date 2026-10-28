@@ -18,6 +18,9 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/kotlin",
         "@gazelle//language",
     ],
 )
@@ -109,6 +112,8 @@ real_source_target(
     name = "corpus_markdown",
     aspect_hints = ["//quality:corpus_vale_config"],
     markdown_srcs = [
+        "testdata/android_bridge/README.md",
+        "testdata/android_keep/README.md",
         "testdata/compile_external/README.md",
         "testdata/entries/README.md",
         "testdata/merge/README.md",

@@ -118,10 +118,18 @@ def signing_errors(environment, provisioning_profile):
         return ["apple_app: simulator builds sign ad hoc; leave provisioning_profile empty"]
     return []
 
-def entry_errors(srcs):
-    """Returns one error string when the app has no native entry source."""
-    if len(srcs) == 0:
-        return ["apple_app: srcs needs the native entry point that calls UIApplicationMain"]
+def entry_errors(srcs, entry):
+    """Returns one error string unless exactly one of srcs or entry names the app entry point."""
+    if len(srcs) == 0 and entry == "":
+        return ["apple_app: srcs needs the native entry point that calls UIApplicationMain, or entry names a Swift @main module"]
+    if len(srcs) > 0 and entry != "":
+        return ["apple_app: set srcs or entry for the app entry point, not both"]
+    return []
+
+def test_source_errors(srcs, deps):
+    """Returns one error string when a test has neither native sources nor test modules."""
+    if len(srcs) == 0 and len(deps) == 0:
+        return ["apple_app_test: srcs or deps needs the XCTest cases"]
     return []
 
 def default_app(environment):
@@ -131,6 +139,7 @@ def default_app(environment):
         bundle_id = "",
         deployment = "",
         entitlements = "",
+        entry = "",
         environment = environment,
         frameworks = [],
         library = "",
@@ -154,9 +163,9 @@ def app_errors(config):
     errors.extend(app_resource_errors(config.resources))
     errors.extend(entitlement_errors(config.entitlements))
     errors.extend(signing_errors(config.environment, config.provisioning_profile))
-    errors.extend(entry_errors(config.srcs))
-    if config.library == "" and len(config.frameworks) == 0:
-        errors.append("apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks")
+    errors.extend(entry_errors(config.srcs, config.entry))
+    if config.library == "" and len(config.frameworks) == 0 and config.entry == "":
+        errors.append("apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks, or a Swift @main module in entry")
     return errors
 
 def test_errors(device_type, os_version, deployment):
@@ -185,6 +194,7 @@ def _app_selection_impl(ctx):
         bundle_id = ctx.attr.bundle_id,
         deployment = ctx.attr.deployment,
         entitlements = ctx.attr.entitlements,
+        entry = ctx.attr.entry,
         environment = ctx.attr.environment,
         frameworks = list(ctx.attr.framework_imports),
         library = ctx.attr.library,
@@ -213,6 +223,10 @@ _app_selection = rule(
         "deployment": attr.string(doc = "Minimum iOS version the app supports.", mandatory = True),
         "entitlements": attr.string(
             doc = "Path of the entitlements file, or empty for none.",
+            mandatory = True,
+        ),
+        "entry": attr.string(
+            doc = "Label text of the Swift @main module, or empty.",
             mandatory = True,
         ),
         "environment": attr.string(
@@ -468,6 +482,7 @@ def apple_ios_app(
         name,
         library = None,
         frameworks = [],
+        entry = None,
         srcs = [],
         hdrs = [],
         deps = [],
@@ -485,14 +500,18 @@ def apple_ios_app(
         tags = [],
         testonly = False,
         visibility = None):
-    """Builds one upstream iOS application bundle over a Rust library cell or XCFramework imports."""
-    composed = library != None or len(frameworks) > 0
+    """Builds one upstream iOS application bundle over a Rust library cell, XCFramework imports, or a Swift @main module.
+
+    entry takes any CcInfo or SwiftInfo target holding the @main module, such as a rules_swift swift_library, instead of srcs.
+    """
+    composed = library != None or len(frameworks) > 0 or entry != None
     _app_selection(
         name = name + "_selection" if composed else name,
         arch = arch,
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = label_text(entitlements),
+        entry = label_text(entry),
         environment = environment,
         framework_imports = [label_text(framework) for framework in frameworks],
         library = label_text(library),
@@ -518,19 +537,27 @@ def apple_ios_app(
         testonly = testonly,
         visibility = ["//visibility:private"],
     )
-    objc_library(
-        name = name + "_entry",
-        srcs = srcs,
-        hdrs = hdrs,
-        deps = [
+    if entry == None:
+        objc_library(
+            name = name + "_entry",
+            srcs = srcs,
+            hdrs = hdrs,
+            deps = [
+                ":" + name + "_selection",
+                ":" + name + "_library",
+            ] + frameworks + deps,
+            tags = ["manual"],
+            testonly = testonly,
+            target_compatible_with = APPLE_HOSTS,
+            visibility = ["//visibility:private"],
+        )
+        app_deps = [":" + name + "_entry"]
+    else:
+        app_deps = [
+            entry,
             ":" + name + "_selection",
             ":" + name + "_library",
-        ] + frameworks + deps,
-        tags = ["manual"],
-        testonly = testonly,
-        target_compatible_with = APPLE_HOSTS,
-        visibility = ["//visibility:private"],
-    )
+        ] + frameworks + deps
     apple_bundle_version(
         name = name + "_version",
         build_version = version,
@@ -562,7 +589,7 @@ def apple_ios_app(
             provisioning_profile = provisioning_profile,
             resources = resources,
             version = ":" + name + "_version",
-            deps = [":" + name + "_entry"],
+            deps = app_deps,
             tags = ["manual"],
             testonly = testonly,
             target_compatible_with = APPLE_HOSTS,
@@ -588,7 +615,7 @@ def apple_ios_app(
         provisioning_profile = provisioning_profile,
         resources = resources,
         version = ":" + name + "_version",
-        deps = [":" + name + "_entry"],
+        deps = app_deps,
         tags = tags,
         testonly = testonly,
         target_compatible_with = APPLE_HOSTS,
@@ -597,6 +624,7 @@ def apple_ios_app(
 
 def _test_selection_impl(ctx):
     failures = test_errors(ctx.attr.device_type, ctx.attr.os_version, ctx.attr.deployment)
+    failures.extend(test_source_errors(ctx.attr.srcs, ctx.attr.deps))
     if len(failures) > 0:
         fail("; ".join(failures))
     return [CcInfo()]
@@ -613,8 +641,16 @@ _test_selection = rule(
             doc = "Simulator device type to run tests on, such as iPhone 16.",
             mandatory = True,
         ),
+        "deps": attr.string_list(
+            doc = "Label texts of test modules.",
+            mandatory = True,
+        ),
         "os_version": attr.string(
             doc = "Simulator runtime version to run tests on, such as 18.5.",
+            mandatory = True,
+        ),
+        "srcs": attr.string_list(
+            doc = "Label texts of native XCTest sources.",
             mandatory = True,
         ),
     },
@@ -623,7 +659,7 @@ _test_selection = rule(
 def apple_ios_app_test(
         name,
         app,
-        srcs,
+        srcs = [],
         deployment = "",
         device_type = "",
         os_version = "",
@@ -637,19 +673,25 @@ def apple_ios_app_test(
         deployment = deployment,
         device_type = device_type,
         os_version = os_version,
+        srcs = [label_text(src) for src in srcs],
+        deps = [label_text(dep) for dep in deps],
         tags = ["manual"],
         testonly = True,
         visibility = ["//visibility:private"],
     )
-    objc_library(
-        name = name + "_lib",
-        srcs = srcs,
-        deps = [":" + name + "_selection"] + deps,
-        tags = ["manual"],
-        testonly = True,
-        target_compatible_with = APPLE_HOSTS,
-        visibility = ["//visibility:private"],
-    )
+    if len(srcs) > 0:
+        objc_library(
+            name = name + "_lib",
+            srcs = srcs,
+            deps = [":" + name + "_selection"] + deps,
+            tags = ["manual"],
+            testonly = True,
+            target_compatible_with = APPLE_HOSTS,
+            visibility = ["//visibility:private"],
+        )
+        test_deps = [":" + name + "_lib"]
+    else:
+        test_deps = [":" + name + "_selection"] + deps
     ios_xctestrun_runner(
         name = name + "_runner",
         clean_up_simulator_action = Label("//apple/ios:delete_test_simulator"),
@@ -666,7 +708,7 @@ def apple_ios_app_test(
         minimum_os_version = deployment,
         runner = ":" + name + "_runner",
         test_host = app,
-        deps = [":" + name + "_lib"],
+        deps = test_deps,
         tags = sorted(set(tags + ["no-sandbox"])),
         target_compatible_with = APPLE_HOSTS,
         visibility = visibility,

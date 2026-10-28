@@ -87,10 +87,10 @@ func wantRefusal(t *testing.T, got, want string) {
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"Demo.cs", "Helper.cs", "notes.txt", "DemoTest.cs"}
 	result := generateFixture(t, map[string]string{
-		"pkg/demo/Demo.cs":     "namespace Demo;\n\nusing Acme.Widget;\n\nclass Demo\n",
-		"pkg/demo/Helper.cs":   "namespace Demo;\n\nusing System.Collections.Generic;\n\nclass Helper\n",
+		"pkg/demo/Demo.cs":     "namespace Demo;\n\nusing Acme.Widget;\n\nclass Demo {}\n",
+		"pkg/demo/Helper.cs":   "namespace Demo;\n\nusing System.Collections.Generic;\n\nclass Helper {}\n",
 		"pkg/demo/notes.txt":   "not a source\n",
-		"pkg/demo/DemoTest.cs": "namespace Demo;\n\nusing System;\n\nclass DemoTest\n",
+		"pkg/demo/DemoTest.cs": "namespace Demo;\n\nusing System;\n\nclass DemoTest {}\n",
 	}, regular)
 	if len(result.Gen) != 1 || len(result.Imports) != 1 {
 		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
@@ -111,8 +111,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 func TestGenerateTestSourcesExcluded(t *testing.T) {
 	regular := []string{"Demo.cs", "DemoTest.cs"}
 	result := generateFixture(t, map[string]string{
-		"pkg/demo/Demo.cs":     "namespace Demo;\n\nclass Demo\n",
-		"pkg/demo/DemoTest.cs": "namespace Demo;\n\nusing Acme.OnlyByTest;\n\nclass DemoTest\n",
+		"pkg/demo/Demo.cs":     "namespace Demo;\n\nclass Demo {}\n",
+		"pkg/demo/DemoTest.cs": "namespace Demo;\n\nusing Acme.OnlyByTest;\n\nclass DemoTest {}\n",
 	}, regular)
 	if len(result.Gen) != 1 || len(result.Imports) != 1 {
 		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
@@ -128,8 +128,8 @@ func TestGenerateTestSourcesExcluded(t *testing.T) {
 func TestGenerateMixedPackagesFail(t *testing.T) {
 	regular := []string{"A.cs", "B.cs"}
 	got := refuseFixture(t, map[string]string{
-		"pkg/demo/A.cs": "namespace Alpha;\n\nclass A\n",
-		"pkg/demo/B.cs": "namespace Beta;\n\nclass B\n",
+		"pkg/demo/A.cs": "namespace Alpha;\n\nclass A {}\n",
+		"pkg/demo/B.cs": "namespace Beta;\n\nclass B {}\n",
 	}, regular)
 	wantRefusal(t, got, "csharp: pkg/demo: mixed packages Alpha, Beta in one directory;")
 }
@@ -137,7 +137,7 @@ func TestGenerateMixedPackagesFail(t *testing.T) {
 func TestGenerateMainFails(t *testing.T) {
 	regular := []string{"Demo.cs", "Main.cs"}
 	got := refuseFixture(t, map[string]string{
-		"pkg/demo/Demo.cs": "namespace Demo;\n\nclass Demo\n",
+		"pkg/demo/Demo.cs": "namespace Demo;\n\nclass Demo {}\n",
 		"pkg/demo/Main.cs": "namespace Demo;\n\nclass Main {\n  static void Main(string[] args) {}\n}\n",
 	}, regular)
 	wantRefusal(t, got, "csharp: pkg/demo: Main.cs defines main;")
@@ -146,7 +146,7 @@ func TestGenerateMainFails(t *testing.T) {
 func TestGenerateTopLevelStatementsFail(t *testing.T) {
 	regular := []string{"Demo.cs", "Program.cs"}
 	got := refuseFixture(t, map[string]string{
-		"pkg/demo/Demo.cs":    "namespace Demo;\n\nclass Demo\n",
+		"pkg/demo/Demo.cs":    "namespace Demo;\n\nclass Demo {}\n",
 		"pkg/demo/Program.cs": "using System;\n\nConsole.WriteLine(\"hi\");\n",
 	}, regular)
 	wantRefusal(t, got, "csharp: pkg/demo: Program.cs defines main;")
@@ -260,8 +260,8 @@ func TestResolveNamespaceExactParentAndAmbiguous(t *testing.T) {
 func TestAspectHintsSurviveRegen(t *testing.T) {
 	root := t.TempDir()
 	for name, content := range map[string]string{
-		"pkg/demo/Demo.cs":   "namespace Demo;\n\nclass Demo\n",
-		"pkg/demo/Helper.cs": "namespace Demo;\n\nclass Helper\n",
+		"pkg/demo/Demo.cs":   "namespace Demo;\n\nclass Demo {}\n",
+		"pkg/demo/Helper.cs": "namespace Demo;\n\nclass Helper {}\n",
 	} {
 		writeFixture(t, root, name, content)
 	}
@@ -325,7 +325,7 @@ func generateRoot(t *testing.T, repoName string, files map[string]string) langua
 
 func TestGenerateRootPackage(t *testing.T) {
 	for _, tc := range []struct{ repoName, want string }{{"demo-repo", "demo_repo"}, {"", "lib"}} {
-		result := generateRoot(t, tc.repoName, map[string]string{"Lib.cs": "namespace Lib;\n\nclass Lib\n"})
+		result := generateRoot(t, tc.repoName, map[string]string{"Lib.cs": "namespace Lib;\n\nclass Lib {}\n"})
 		if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind || result.Gen[0].Name() != tc.want {
 			t.Fatalf("repo %q: generated %+v, want one csharp_library(%s)", tc.repoName, result.Gen, tc.want)
 		}
@@ -379,7 +379,7 @@ func TestResolveNuGetNamespaceUsesMappingAndFailsWhenUnmapped(t *testing.T) {
 
 func TestGenerateBOMKeepsUsing(t *testing.T) {
 	result := generateFixture(t, map[string]string{
-		"pkg/demo/Demo.cs": "\xEF\xBB\xBFusing Acme.Shared;\n\nnamespace Demo;\n\nclass Demo\n",
+		"pkg/demo/Demo.cs": "\xEF\xBB\xBFusing Acme.Shared;\n\nnamespace Demo;\n\nclass Demo {}\n",
 	}, []string{"Demo.cs"})
 	if len(result.Imports) != 1 {
 		t.Fatalf("generated %d import sets, want 1", len(result.Imports))

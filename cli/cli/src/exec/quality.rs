@@ -1,6 +1,7 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
+use super::notice_codes::CODE_CHANGES_PROPOSED;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_baseline::{analyzed_scope, apply_baseline, BaselineGate, BaselineView};
 use super::quality_emit::{emit_findings, EmitInputs};
@@ -11,8 +12,8 @@ use super::quality_reports::{
 use super::results::collect_results;
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    command_finished, command_started, meets_threshold, ActionCounts, FinishedCounts, OutputMode,
-    Severity,
+    command_finished, command_started, meets_threshold, notice_event, ActionCounts, FinishedCounts,
+    NoticeEvent, OutputMode, Severity,
 };
 use dx_plan::args::{Command, Invocation, QualityRequest};
 use dx_plan::plan::{bep_path, plan_build_with, plan_probe, SHARD_OUTPUT_GROUP};
@@ -82,6 +83,8 @@ fn run_quality(
         ci,
         audit_today,
         actions,
+        proc_root,
+        bump_commit_json,
     } = env;
     let mut latched = LatchedOut::new(out);
     let code = run_quality_request(
@@ -98,6 +101,8 @@ fn run_quality(
             ci,
             audit_today,
             actions,
+            proc_root,
+            bump_commit_json,
         },
         fs,
         kind,
@@ -289,6 +294,8 @@ fn run_quality_request(
         ci: _,
         audit_today: _,
         actions,
+        proc_root: _,
+        bump_commit_json: _,
     } = env;
     let planned_reports = match plan_reports(
         workspace,
@@ -333,6 +340,7 @@ fn run_quality_request(
         bep_text,
         &request.bazel_startup_options,
         None,
+        request.exec_log.as_deref(),
     )
     .map_err(|error| format!("{error}"))
     {
@@ -372,6 +380,7 @@ fn run_quality_request(
                 bep_text,
                 &request.bazel_startup_options,
                 Some(&shards),
+                request.exec_log.as_deref(),
             ) {
                 build = narrowed;
             }
@@ -418,11 +427,11 @@ fn run_quality_request(
         (Some(probe), Some(build)) => Some(probe + build),
         (probe, build) => probe.or(build),
     };
-    let compile_only = if bazel_code == 0 {
-        false
+    let (compile_only, build_stage) = if bazel_code == 0 {
+        (false, false)
     } else {
         match report_build_failures(&bep, request.common.output, out, err) {
-            Ok(reported) => reported.compile_only,
+            Ok(reported) => (reported.compile_only, reported.build_stage),
             Err(exit) => {
                 let _ = std::fs::remove_file(&bep);
                 return exit;
@@ -439,8 +448,17 @@ fn run_quality_request(
     };
     let _ = std::fs::remove_file(&bep);
     if bazel_code != 0 {
-        let (code, failed, fix) = if compile_only {
+        let crashed = bazel_code == crate::bazel_restart::RESTART_EXIT;
+        let (code, failed, fix) = if crashed {
+            (
+                CODE_SERVER_CRASHED,
+                "run",
+                "run the command again after the Bazel server crash",
+            )
+        } else if compile_only {
             (CODE_BAZEL_FAILED, "build", "fix the compile errors above")
+        } else if build_stage {
+            (CODE_BAZEL_FAILED, "build", "fix the build errors above")
         } else {
             (
                 CODE_ANALYSIS_FAILED,
@@ -584,11 +602,21 @@ fn run_quality_request(
     let not_applied_count = emit_counts.not_applied_count;
     let change_count = collected.changes.len() as u64;
 
-    if !apply
-        && !collected.changes.is_empty()
-        && matches!(request.common.output, OutputMode::Text { .. })
-    {
-        let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+    if !apply && !collected.changes.is_empty() {
+        if matches!(request.common.output, OutputMode::Text { .. }) {
+            let _ = writeln!(err, "{}", apply_hint(request, collected.changes.len()));
+        } else if request.common.output == OutputMode::Json {
+            let notice = NoticeEvent {
+                related_command: Some(request.command.name().to_owned()),
+                ..NoticeEvent::info(
+                    CODE_CHANGES_PROPOSED,
+                    apply_hint(request, collected.changes.len()),
+                )
+            };
+            if let Err(exit) = emit_built(out, notice_event(&notice)) {
+                return exit;
+            }
+        }
     }
     if request.common.output != OutputMode::Json
         && not_applied
@@ -692,7 +720,9 @@ fn run_quality_request(
         }
     }
     *kind = if !collected.complete {
-        if compile_only {
+        if bazel_code == crate::bazel_restart::RESTART_EXIT {
+            PhaseKind::Host
+        } else if compile_only {
             PhaseKind::Compile
         } else if bazel_code != 0 {
             PhaseKind::Tool

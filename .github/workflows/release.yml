@@ -36,14 +36,19 @@ jobs:
         include:
           - name: dx-linux-x86_64
             runner: ubuntu-latest
+            format: tar.gz
           - name: dx-linux-arm64
             runner: ubuntu-24.04-arm
+            format: tar.gz
           - name: dx-macos-arm64
             runner: macos-15
+            format: tar.gz
           - name: dx-windows-x86_64
             runner: windows-latest
+            format: zip
           - name: dx-windows-arm64
             runner: windows-11-arm
+            format: zip
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -76,25 +81,52 @@ jobs:
       - name: Build and checksum dx
         env:
           ASSET: ${{ matrix.name }}
+          FORMAT: ${{ matrix.format }}
         run: |
           set -euo pipefail
-          bazel build --config=dx_release //cli/cli:dx
+          bazel build --config=dx_release //cli/cli:dx //deploy/release:dx_host_cell
           bin="$(bazel cquery --config=dx_release --output=files //cli/cli:dx)"
           mkdir -p out
           cp "$bin" "out/$ASSET"
           chmod +x "out/$ASSET"
-          want="dx $(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          want="dx ${RELEASE_TAG#v}"
           got="$("out/$ASSET" --version)"
           if [ "$got" != "$want" ]; then
-            echo "out/$ASSET --version printed '$got', want '$want' from cli/prebuilt/pins.bzl" >&2
+            echo "out/$ASSET --version printed '$got', want '$want' from the tag $RELEASE_TAG" >&2
             exit 1
           fi
+          archive="$(bazel cquery --config=dx_release --output=files //deploy/release:dx_host_cell)"
+          case "$archive" in
+            *"/$ASSET.$FORMAT") ;;
+            *) echo "dx_host_cell built '$archive', want $ASSET.$FORMAT" >&2; exit 1 ;;
+          esac
+          cp "$archive" "out/$ASSET.$FORMAT"
+          python3 -I - "out/$ASSET.$FORMAT" "out/$ASSET" "$FORMAT" <<'PY'
+          import sys, tarfile, zipfile
+          archive, raw, fmt = sys.argv[1:4]
+          want = open(raw, "rb").read()
+          if fmt == "zip":
+              with zipfile.ZipFile(archive) as z:
+                  got = z.read("dx.exe")
+          else:
+              with tarfile.open(archive) as t:
+                  member = t.extractfile("dx")
+                  got = member.read()
+          if got != want:
+              sys.exit(archive + ": dx differs from " + raw)
+          PY
           if command -v sha256sum >/dev/null 2>&1; then
             hash="$(sha256sum "out/$ASSET" | cut -d' ' -f1)"
           else
             hash="$(shasum -a 256 "out/$ASSET" | cut -d' ' -f1)"
           fi
           printf '%s  %s\n' "$hash" "$ASSET" > "out/$ASSET.sha256"
+          if command -v sha256sum >/dev/null 2>&1; then
+            ahash="$(sha256sum "out/$ASSET.$FORMAT" | cut -d' ' -f1)"
+          else
+            ahash="$(shasum -a 256 "out/$ASSET.$FORMAT" | cut -d' ' -f1)"
+          fi
+          printf '%s  %s\n' "$ahash" "$ASSET.$FORMAT" > "out/$ASSET.$FORMAT.sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.name }}
@@ -129,6 +161,14 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Check the committed version equals the tag
+        run: |
+          set -euo pipefail
+          committed="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          if [ "$committed" != "${RELEASE_TAG#v}" ]; then
+            echo "cli/prebuilt/pins.bzl says DX_VERSION $committed but the tag is $RELEASE_TAG; land the version bump first." >&2
+            exit 1
+          fi
       - name: Check the tag names the candidate commit
         run: |
           set -euo pipefail
@@ -152,40 +192,97 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: out
           merge-multiple: true
+      - name: Collect and check the checksum manifest
+        run: |
+          set -euo pipefail
+          : > sums.tmp
+          files="dx-sha256sums.txt dx-sha256sums.txt.sigstore.json"
+          for asset in dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64; do
+            case "$asset" in dx-windows-*) archive="$asset.zip" ;; *) archive="$asset.tar.gz" ;; esac
+            for file in "$asset" "$asset.sha256" "$archive" "$archive.sha256"; do
+              test -s "out/$file"
+            done
+            cat "out/$asset.sha256" "out/$archive.sha256" >> sums.tmp
+            files="$files $asset $asset.sha256 $archive $archive.sha256"
+          done
+          printf '%s\n' "$files" > files.list
+          LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 10
+          (cd out && sha256sum -c dx-sha256sums.txt)
+          src="rules_dx-${RELEASE_TAG#v}.tar.gz"
+          test -s "out/$src"
+          test -s "out/$src.sha256"
+          test -s out/source.json
+      - name: Reuse or plan the attestation
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_REF_FULL: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "No release for $RELEASE_TAG. Run //cli/cli:github_draft, then re-run this workflow with the tag." >&2
+            exit 1
+          fi
+          existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
+          if printf '%s\n' "$existing_names" | grep -Fxq dx-sha256sums.txt.sigstore.json; then
+            gh release download "$RELEASE_TAG" --pattern dx-sha256sums.txt.sigstore.json --dir out
+            echo "attest=false" >> "$GITHUB_OUTPUT"
+          else
+            if [ "$GITHUB_REF_FULL" != "refs/tags/$RELEASE_TAG" ]; then
+              echo "Refusing to sign from $GITHUB_REF_FULL; dispatch with --ref $RELEASE_TAG." >&2
+              exit 1
+            fi
+            echo "attest=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Attest the checksum manifest
+        id: attest
+        if: steps.plan.outputs.attest == 'true' && github.ref == format('refs/tags/{0}', env.RELEASE_TAG)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: out/dx-sha256sums.txt
+      - name: Keep the attestation bundle
+        if: steps.plan.outputs.attest == 'true'
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          test -n "$BUNDLE_PATH"
+          cp "$BUNDLE_PATH" out/dx-sha256sums.txt.sigstore.json
+      - name: Verify the archives against the bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for archive in dx-linux-x86_64.tar.gz dx-linux-arm64.tar.gz dx-macos-arm64.tar.gz dx-windows-x86_64.zip dx-windows-arm64.zip; do
+            gh attestation verify "out/$archive" \
+              --bundle out/dx-sha256sums.txt.sigstore.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --cert-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$RELEASE_TAG" \
+              --cert-oidc-issuer https://token.actions.githubusercontent.com \
+              --source-ref "refs/tags/$RELEASE_TAG" \
+              --deny-self-hosted-runners
+          done
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          files=""
-          : > sums.tmp
-          for asset in dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64; do
-            test -s "out/$asset"
-            test -s "out/$asset.sha256"
-            cat "out/$asset.sha256" >> sums.tmp
-            files="$files $asset $asset.sha256"
-          done
-          LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 5
-          (cd out && sha256sum -c dx-sha256sums.txt)
-          version="${RELEASE_TAG#v}"
-          src="rules_dx-$version.tar.gz"
-          test -s "out/$src"
-          test -s "out/$src.sha256"
-          test -s out/source.json
-          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "No release for $RELEASE_TAG. Run //cli/cli:github_draft, then re-run this workflow with the tag." >&2
-            exit 1
-          fi
+          files="$(cat files.list)"
+          src="rules_dx-${RELEASE_TAG#v}.tar.gz"
           existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
           mkdir -p existing
-          for file in $files dx-sha256sums.txt "$src" "$src.sha256" source.json; do
+          for file in $files "$src" "$src.sha256" source.json; do
             if printf '%s\n' "$existing_names" | grep -Fxq "$file"; then
               gh release download "$RELEASE_TAG" --pattern "$file" --dir existing
               if ! cmp -s "existing/$file" "out/$file"; then
@@ -199,3 +296,5 @@ jobs:
           mkdir -p verify
           gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
           (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)
+          tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx
+          verify/dx install --tag "$RELEASE_TAG" --archive verify/dx-linux-x86_64.tar.gz --output json

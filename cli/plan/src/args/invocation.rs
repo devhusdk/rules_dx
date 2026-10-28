@@ -1,7 +1,16 @@
+use std::path::PathBuf;
+
 use dx_output::{dx_text_visible, ColorMode, OutputMode, Threshold};
 
 use super::profile::{resolve_profile, Profile};
 use super::Command;
+
+/// Typed marker that an invocation was handed off from an affected plan,
+/// carrying the planned test targets.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AffectedHandoff {
+    pub tests: Vec<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportRequest {
@@ -61,6 +70,8 @@ pub struct QualityRequest {
     pub fail_on: Threshold,
     pub baseline: Option<String>,
     pub origin: Option<UmbrellaOrigin>,
+    /// The execution log file an umbrella `--explain` run has this phase write.
+    pub exec_log: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +82,8 @@ pub struct GenerateRequest {
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
     pub common: CommonOptions,
+    /// The execution log file an umbrella `--explain` run has this phase write.
+    pub exec_log: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +101,8 @@ pub struct UmbrellaRequest {
     pub common: CommonOptions,
     pub fail_on: Threshold,
     pub baseline: Option<String>,
+    /// `dx check --explain`: save one execution log across the phases.
+    pub explain: bool,
 }
 
 impl CommonOptions {
@@ -194,6 +209,7 @@ impl UmbrellaRequest {
             fail_on: self.fail_on,
             baseline: self.baseline.clone(),
             origin: Some(self.origin()),
+            exec_log: None,
         })
     }
 
@@ -209,6 +225,7 @@ impl UmbrellaRequest {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
+            exec_log: None,
         }
     }
 }
@@ -238,12 +255,11 @@ pub struct Invocation {
     pub(super) bazel_options: Vec<String>,
     pub(super) app_args: Vec<String>,
     pub prune_unobserved: bool,
-    pub configured: bool,
     pub from: Option<String>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
-    pub test_targets: Option<Vec<String>>,
+    pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
     pub host: Option<String>,
@@ -263,12 +279,22 @@ pub struct Invocation {
     pub bases: bool,
     /// The optional `dx init` parts `--with` or `--full` selected.
     pub init_parts: dx_adopt::InitParts,
+    /// Extra Rust target triples `--rust-target-triple` adds to the init snippet.
+    pub init_rust_target_triples: Vec<String>,
     /// `build`/`test --explain`: save the execution log for `dx explain`.
     pub explain: bool,
+    /// An umbrella phase's execution log file; set instead of `explain` so the umbrella owns the store entry.
+    pub exec_log: Option<String>,
     /// `dx explain --old`.
     pub old_log: Option<String>,
     /// `dx explain --new`.
     pub new_log: Option<String>,
+    /// `dx install --tag`.
+    pub install_tag: Option<String>,
+    /// `dx install --archive`, as typed (the CLI resolves it from the invocation cwd).
+    pub install_archive: Option<PathBuf>,
+    /// `dx install --dir`, absolute (resolved from the invocation cwd).
+    pub install_dir: Option<PathBuf>,
     pub path_only: bool,
     pub agent: bool,
     pub bazel_startup_options: Vec<String>,
@@ -409,6 +435,7 @@ impl Invocation {
             fail_on: self.fail_on,
             baseline: self.baseline.clone(),
             origin: None,
+            exec_log: None,
         })
     }
 
@@ -426,12 +453,13 @@ impl Invocation {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
+            exec_log: None,
         })
     }
 
     /// Reports whether the targets came from an affected plan.
     pub fn is_affected_plan(&self) -> bool {
-        self.test_targets.is_some()
+        self.affected_handoff.is_some()
     }
 
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
@@ -442,16 +470,17 @@ impl Invocation {
             ));
         }
         let affected = self.is_affected_plan();
-        let test = match (&self.test_targets, self.command) {
-            (Some(tests), Command::Check) if !tests.is_empty() => {
+        let test = match (&self.affected_handoff, self.command) {
+            (Some(AffectedHandoff { tests }), Command::Check) if !tests.is_empty() => {
                 let mut test = self.clone();
                 test.command = Command::Test;
                 test.check = false;
                 test.apply = false;
                 test.reports = Vec::new();
+                test.explain = false;
                 test.include_edits = false;
                 test.targets = tests.clone();
-                test.test_targets = None;
+                test.affected_handoff = None;
                 Some(Box::new(test))
             }
             _ => None,
@@ -478,6 +507,7 @@ impl Invocation {
             common: self.common_options(),
             fail_on: self.fail_on,
             baseline: self.baseline.clone(),
+            explain: self.explain,
         })
     }
 }
@@ -608,12 +638,11 @@ mod tests {
             bazel_options: Vec::new(),
             app_args: Vec::new(),
             prune_unobserved: false,
-            configured: false,
             from: None,
             to: None,
             here: true,
             affected: false,
-            test_targets: None,
+            affected_handoff: None,
             serve: false,
             port: None,
             host: None,
@@ -628,9 +657,14 @@ mod tests {
             disk: false,
             bases: false,
             init_parts: dx_adopt::InitParts::NONE,
+            init_rust_target_triples: Vec::new(),
             explain: false,
+            exec_log: None,
             old_log: None,
             new_log: None,
+            install_tag: None,
+            install_archive: None,
+            install_dir: None,
             path_only: false,
             agent: false,
             bazel_startup_options: Vec::new(),
@@ -659,7 +693,7 @@ mod tests {
     #[test]
     fn umbrella_phases_carry_the_user_scope() {
         let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y"]);
-        affected.test_targets = Some(Vec::new());
+        affected.affected_handoff = Some(AffectedHandoff::default());
         let request = affected.umbrella_request().expect("umbrella");
         assert_eq!(request.scope, HintScope::Affected);
         let phase = request
@@ -705,7 +739,7 @@ mod tests {
     fn affected_fix_scopes_generate_apply_and_verify_to_packages() {
         let mut fix = invocation_for(Command::Fix, &["//a:x", "//b:y"]);
         fix.apply = true;
-        fix.test_targets = Some(Vec::new());
+        fix.affected_handoff = Some(AffectedHandoff::default());
         let request = fix.umbrella_request().expect("umbrella");
         let want = vec!["//a/...".to_owned(), "//b/...".to_owned()];
         let phase = request.phase_generate_request(Vec::new());
@@ -719,7 +753,7 @@ mod tests {
     #[test]
     fn affected_repo_scope_keeps_generate_repo_wide() {
         let mut check = invocation_for(Command::Check, &["//..."]);
-        check.test_targets = Some(Vec::new());
+        check.affected_handoff = Some(AffectedHandoff::default());
         let request = check.umbrella_request().expect("umbrella");
         assert_eq!(
             request.phase_generate_request(Vec::new()).targets,
@@ -963,7 +997,7 @@ mod tests {
             .quality_request()
             .expect("request");
         let debug = format!("{request:?}");
-        for unrelated in ["serve", "offline", "frozen", "min_coverage", "configured"] {
+        for unrelated in ["serve", "offline", "frozen", "min_coverage"] {
             assert!(
                 !debug.contains(unrelated),
                 "typed quality request cannot represent {unrelated}: {debug}"

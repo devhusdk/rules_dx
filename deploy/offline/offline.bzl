@@ -76,22 +76,7 @@ def offline_bundle_layout(name, advisory, launchers, advisory_meta = {}):
     return sorted(entries)
 
 def offline_bundle(name, advisory, launchers, advisory_meta):
-    """Assembles one vendored offline bundle tree.
-
-    The tree is `<name>/advisory/<set>.json`, `<name>/advisory/<set>.meta.json`,
-    `<name>/advisory/SHA256SUMS`, `<name>/bazelisk/<launcher>` and
-    `<name>/bazelisk/SHA256SUMS`: the layout bootstrap_offline reads. The
-    manifest pins every file, so the recorded date cannot change unseen.
-
-    Args:
-      name: the bundle target name, also the tree directory.
-      advisory: dict of advisory set name to snapshot label.
-      launchers: bazelisk launcher labels, named like the bootstrap expects.
-      advisory_meta: dict of advisory set name to the identity file
-        `advisory_prep` wrote next to that snapshot (`<set>.meta.json`). It
-        carries the `retrieved_at` date and the snapshot `sha256`. Every set in
-        `advisory` needs one, and no other set may appear.
-    """
+    """Assembles one vendored offline bundle tree pinned by a manifest."""
     where = " (in " + native.package_name() + ":" + name + ")"
     for set in advisory:
         set_err = offline_set_error(set)

@@ -434,6 +434,69 @@ fn stacked_comments(name: &str, text: &str) -> Vec<String> {
 }
 
 #[test]
+fn root_config_headers_keep_one_line_comments() {
+    for rel in [".npmrc", "pnpm-workspace.yaml", "licenses.toml"] {
+        let text = read_runfiles(rel);
+        let stacked = stacked_comments(rel, &text);
+        assert!(
+            stacked.is_empty(),
+            "{rel} stacks a comment on the line above; AGENTS.md allows one line: {}",
+            stacked.join(", ")
+        );
+        assert_comments_bare(rel, &text);
+    }
+}
+
+/// The line number of every docstring line that ends mid-sentence, such as a dangling "See." or article.
+fn truncated_docstrings(name: &str, text: &str) -> Vec<String> {
+    const DANGLING: [&str; 9] = [
+        "See.",
+        " the.",
+        " a.",
+        " an.",
+        " of.",
+        " to.",
+        " against the frozen.",
+        " and.",
+        " or.",
+    ];
+    let mut out = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        let body = line.trim().trim_end_matches('"').trim();
+        let in_doc = line.trim_start().starts_with('"') || line.trim_end().ends_with("\"\"\"");
+        if in_doc && DANGLING.iter().any(|tail| body.ends_with(tail)) {
+            out.push(format!("{name}:{}: {body:?}", index + 1));
+        }
+    }
+    out
+}
+
+#[test]
+fn starlark_docstrings_do_not_end_mid_sentence() {
+    for rel in [
+        "deploy/rules/config.bzl",
+        "quality/native_config.bzl",
+        "quality/native_config_tests.bzl",
+    ] {
+        let found = truncated_docstrings(rel, &read_runfiles(rel));
+        assert!(
+            found.is_empty(),
+            "docstring ends mid-sentence: {}",
+            found.join("; ")
+        );
+    }
+}
+
+#[test]
+fn the_docstring_check_flags_a_dangling_see() {
+    assert_eq!(
+        truncated_docstrings("x.bzl", "\"\"\"Runs it. See.\"\"\"").len(),
+        1
+    );
+    assert!(truncated_docstrings("x.bzl", "\"\"\"Runs it.\"\"\"").is_empty());
+}
+
+#[test]
 fn every_workflow_comment_is_one_line() {
     let mut comments = 0usize;
     for rel in dx_testing::workflow_files() {
@@ -458,11 +521,35 @@ fn no_workflow_comment_names_an_issue_or_another_page() {
 }
 
 #[test]
-fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
-    assert_comments_bare(
-        "deploy/rules/launcher.bzl",
-        &read_runfiles("deploy/rules/launcher.bzl"),
-    );
+fn root_and_container_config_comments_are_one_bare_line() {
+    for rel in [
+        ".bazelrc",
+        ".bazelignore",
+        ".gitignore",
+        ".devcontainer/Dockerfile.prebuilt",
+    ] {
+        let text = read_runfiles(rel);
+        assert_comments_bare(rel, &text);
+        let stacked = stacked_comments(rel, &text);
+        assert!(
+            stacked.is_empty(),
+            "{rel} stacks a comment on the line above; AGENTS.md allows one line: {}",
+            stacked.join(", ")
+        );
+        for (index, line) in text.lines().enumerate().filter(|(_, l)| is_comment(l)) {
+            let numbered = line
+                .split('#')
+                .skip(2)
+                .any(|rest| rest.starts_with(|c: char| c.is_ascii_digit()));
+            let bare = line.trim_start().starts_with('#')
+                && line.trim_start()[1..].starts_with(|c: char| c.is_ascii_digit());
+            assert!(
+                !numbered && !bare,
+                "{rel}:{}: the comment names an issue number: {line:?}",
+                index + 1
+            );
+        }
+    }
 }
 
 /// Returns the name of the dx state directory, read from its constant in dx_env.

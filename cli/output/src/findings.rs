@@ -94,6 +94,7 @@ pub struct DiagnosticEvent {
     pub range: Option<(u64, u64)>,
     pub snapshot: Snapshot,
     pub fixable: bool,
+    pub unfixable_reason: Option<String>,
     pub resolution: Option<Resolution>,
     pub related: Vec<RelatedEvent>,
     pub origins: Vec<Origin>,
@@ -112,6 +113,7 @@ impl DiagnosticEvent {
             range: None,
             snapshot: Snapshot::Terminal,
             fixable: false,
+            unfixable_reason: None,
             resolution: None,
             related: Vec::new(),
             origins: Vec::new(),
@@ -235,6 +237,9 @@ pub fn finding_value(record: &FindingRecord) -> Value {
         ),
     );
     map.insert("fixable".to_owned(), Value::Bool(diagnostic.fixable));
+    if let Some(reason) = &diagnostic.unfixable_reason {
+        map.insert("unfixable_reason".to_owned(), Value::String(reason.clone()));
+    }
     if let Some(resolution) = diagnostic.resolution {
         map.insert(
             "resolution".to_owned(),

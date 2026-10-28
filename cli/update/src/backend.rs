@@ -1,6 +1,6 @@
 use super::selector::SetRequest;
 use super::sets::SetId;
-use dx_adopt::dependency_sets::{Ecosystem, ResolvedSet, Selection};
+use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, Selection};
 use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -9,7 +9,38 @@ pub enum BackendPlan {
         argv: Vec<String>,
         env: Vec<(String, String)>,
     },
+    /// Runs a generator against a staged copy of its inputs; the caller compares the output.
+    Staged(StagedRun),
     Noop,
+}
+
+/// A generator run on copies of `inputs` in a scratch directory, never in the workspace.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StagedRun {
+    /// The command up to, not including, the paths into the scratch directory.
+    pub argv_head: Vec<String>,
+    pub env: Vec<(String, String)>,
+    /// Workspace-relative files copied into the scratch directory by file name.
+    pub inputs: Vec<String>,
+    /// Workspace-relative locks the run may produce; compared by file name against `out/`.
+    pub outputs: Vec<String>,
+}
+
+impl StagedRun {
+    /// The full command for a scratch directory (an absolute path).
+    pub fn argv(&self, scratch: &Path) -> Vec<String> {
+        let mut argv = self.argv_head.clone();
+        argv.push("--dependencies-file".to_owned());
+        argv.push(
+            scratch
+                .join("paket.dependencies")
+                .to_string_lossy()
+                .into_owned(),
+        );
+        argv.push("--output-folder".to_owned());
+        argv.push(scratch.join("out").to_string_lossy().into_owned());
+        argv
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -20,13 +51,22 @@ pub enum BackendError {
     OfflineRequired { set: String },
     #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
     FrozenLocked { set: String },
-    #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched")]
+    #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched{}", resolution_suffix(.detail))]
     BackendUnavailable {
         set: String,
         tool: &'static str,
         var: &'static str,
         what: &'static str,
+        /// Why the Bazel fallback could not resolve the tool, when it was tried.
+        detail: Option<String>,
     },
+}
+
+fn resolution_suffix(detail: &Option<String>) -> String {
+    detail
+        .as_ref()
+        .map(|detail| format!("; Bazel resolution failed: {detail}"))
+        .unwrap_or_default()
 }
 
 impl BackendError {
@@ -46,6 +86,16 @@ pub const UV_BIN_VAR: &str = "DX_UV_BIN";
 
 pub const UV_PYTHON_VAR: &str = "DX_UV_PYTHON";
 
+pub const UV_LABEL: &str = "@dx_tools//:uv";
+
+pub const UV_PYTHON_LABEL: &str = "@rules_dx//cli/update:python_interpreter";
+
+/// Shell command that exports the pinned uv path for a local run.
+pub const UV_RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)\"";
+
+/// Shell command that exports the pinned uv Python interpreter path for a local run.
+pub const UV_PYTHON_RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)\"";
+
 pub const UV_VERSION_LINE: &str = "uv 0.12.23";
 
 const UV_BIN_WHAT: &str = "the pinned uv 0.12.23 from @dx_tools//:uv";
@@ -56,6 +106,73 @@ const UV_PYTHON_WHAT: &str = "a pinned Python interpreter";
 pub struct UvClosure {
     pub uv: Option<String>,
     pub python: Option<String>,
+    /// Why the Bazel fallback could not resolve uv, when it was tried.
+    pub uv_detail: Option<String>,
+    /// Why the Bazel fallback could not resolve the interpreter, when it was tried.
+    pub python_detail: Option<String>,
+    /// Absolute path from `DX_YARN_BIN`, for yarn.lock npm sets.
+    pub yarn: Option<String>,
+    /// Absolute path from `DX_NPM_BIN`, for package-lock.json npm sets.
+    pub npm: Option<String>,
+}
+
+pub const YARN_BIN_VAR: &str = "DX_YARN_BIN";
+
+pub const NPM_BIN_VAR: &str = "DX_NPM_BIN";
+
+fn node_tool(
+    set: &ResolvedSet,
+    path: &Option<String>,
+    tool: &'static str,
+    var: &'static str,
+    what: &'static str,
+) -> Result<String, BackendError> {
+    match path {
+        Some(path) if Path::new(path).is_absolute() => Ok(path.clone()),
+        _ => Err(BackendError::BackendUnavailable {
+            set: set.name.clone(),
+            tool,
+            var,
+            what,
+            detail: None,
+        }),
+    }
+}
+
+/// Builds the yarn or npm argv for a configured npm set; `None` means pnpm.
+fn configured_node_argv(
+    workspace: &Path,
+    set: &ResolvedSet,
+    closure: &UvClosure,
+    command: &[String],
+) -> Result<Option<Vec<String>>, BackendError> {
+    let dir = match set.dir.as_str() {
+        "." => workspace.to_string_lossy().into_owned(),
+        dir => workspace.join(dir).to_string_lossy().into_owned(),
+    };
+    match dependency_sets::npm_backend(set) {
+        Some(dependency_sets::NpmBackend::Yarn) => {
+            let yarn = node_tool(
+                set,
+                &closure.yarn,
+                "yarn",
+                YARN_BIN_VAR,
+                "a yarn 2+ (berry) executable",
+            )?;
+            let mut argv = strings(&["sh", "-c", "cd \"$0\" && exec \"$@\""]);
+            argv.push(dir);
+            argv.push(yarn);
+            argv.extend(command.iter().cloned());
+            Ok(Some(argv))
+        }
+        Some(dependency_sets::NpmBackend::Npm) => {
+            let npm = node_tool(set, &closure.npm, "npm", NPM_BIN_VAR, "an npm executable")?;
+            let mut argv = vec![npm, "--prefix".to_owned(), dir];
+            argv.extend(command.iter().cloned());
+            Ok(Some(argv))
+        }
+        _ => Ok(None),
+    }
 }
 
 pub fn plan(
@@ -236,6 +353,7 @@ pub enum CheckPlan {
     },
     Pinned,
     Unavailable,
+    Staged(StagedRun),
 }
 
 pub fn check(
@@ -290,7 +408,8 @@ fn npm_env() -> Vec<(String, String)> {
         .collect()
 }
 
-/// The env crate_universe reads to decide whether to repin; both triggers are forced so a host
+/// The env crate_universe reads to decide whether to repin; `repin` may also be one crate name,
+/// which crate_universe turns into `cargo update --package <name>`. Both triggers are forced so a host
 /// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write.
 pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     vec![
@@ -301,8 +420,53 @@ pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     ]
 }
 
-/// Fetches the crate_universe hub, which re-evaluates the `crate` extension under `cargo_env`.
-fn configured_cargo_argv(
+/// The env rules_jvm_external's pin script reads. Only the maven-specific variable is set: `REPIN`
+/// would also trigger crate_universe. A check sets nothing, and `host_env_refusal` keeps the host
+/// from supplying either variable, because any value suppresses the stale-lock failure.
+pub fn maven_env(apply: bool) -> Vec<(String, String)> {
+    if apply {
+        vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())]
+    } else {
+        Vec::new()
+    }
+}
+
+const MAVEN_REPIN_ENV: [&str; 2] = ["REPIN", "RULES_JVM_EXTERNAL_REPIN"];
+
+/// Coursier settings that would redirect where the pin resolves from; dx cannot neutralise them.
+const MAVEN_COURSIER_ENV: [&str; 5] = [
+    "COURSIER_MIRRORS",
+    "COURSIER_REPOSITORIES",
+    "COURSIER_CREDENTIALS",
+    "COURSIER_CONFIG_DIR",
+    "SCALA_CLI_CONFIG",
+];
+
+/// Refuses sets whose backend would read host env dx cannot override (the runner only adds env).
+/// `lookup` tells whether a variable is set in the host environment.
+pub fn host_env_refusal(
+    set: &ResolvedSet,
+    check: bool,
+    lookup: &dyn Fn(&str) -> bool,
+) -> Option<BackendError> {
+    if set.ecosystem != Ecosystem::Maven {
+        return None;
+    }
+    let reason = if check && MAVEN_REPIN_ENV.iter().any(|key| lookup(key)) {
+        "unset REPIN and RULES_JVM_EXTERNAL_REPIN: any value stops rules_jvm_external from failing a stale lock"
+    } else if MAVEN_COURSIER_ENV.iter().any(|key| lookup(key)) {
+        "unset COURSIER_MIRRORS, COURSIER_REPOSITORIES, COURSIER_CREDENTIALS, COURSIER_CONFIG_DIR and SCALA_CLI_CONFIG: they redirect where maven artifacts resolve from"
+    } else {
+        return None;
+    };
+    Some(BackendError::Unsupported {
+        set: set.name.clone(),
+        reason,
+    })
+}
+
+/// Fetches a configured hub repository (cargo or maven), re-evaluating its module extension.
+fn configured_fetch_argv(
     head: &dx_process::BazelHead,
     repository: &str,
     offline: bool,
@@ -316,17 +480,57 @@ fn configured_cargo_argv(
     bazel(head, "fetch", &args)
 }
 
-fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+fn set_repository<'a>(set: &'a ResolvedSet, reason: &'static str) -> Result<&'a str, BackendError> {
     set.repository
         .as_deref()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "cargo sets must name their crate_universe repository in dx.toml",
+            reason,
         })
 }
 
-const CARGO_SELECTIVE: &str =
-    "crate_universe repins the whole Cargo.lock; select the set without a package";
+fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+    set_repository(
+        set,
+        "cargo sets must name their crate_universe repository in dx.toml",
+    )
+}
+
+fn maven_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
+    set_repository(
+        set,
+        "maven sets must name their rules_jvm_external repository in dx.toml",
+    )
+}
+
+const MAVEN_ONE_PACKAGE: &str =
+    "maven pins are exact in MODULE.bazel; select the set without a package";
+
+const CARGO_CHECK_SELECTIVE: &str =
+    "crate_universe checks the whole Cargo.lock; select the set without a package";
+const CARGO_ONE_PACKAGE: &str = "crate_universe repins one crate per run; select one package per cargo set, or the set without a package";
+const CARGO_RESERVED: &str =
+    "crate_universe reads this crate name as a repin mode; select the set without a package";
+
+/// Values crate_universe reads as a repin mode (or as "skip the repin") instead of a crate name.
+fn cargo_reserved_repin(name: &str) -> bool {
+    const WORDS: [&str; 13] = [
+        "eager",
+        "full",
+        "all",
+        "1",
+        "yes",
+        "true",
+        "on",
+        "workspace",
+        "minimal",
+        "false",
+        "no",
+        "0",
+        "off",
+    ];
+    WORDS.iter().any(|word| word.eq_ignore_ascii_case(name))
+}
 
 fn configured_pnpm_argv(
     workspace: &Path,
@@ -416,17 +620,42 @@ pub fn plan_configured(
                     set: set.name.clone(),
                 });
             }
-            let command = match request {
-                Selection::Full => strings(&["install", "--lockfile-only"]),
-                Selection::Packages(packages) => [
+            let backend = dependency_sets::npm_backend(set);
+            let command = match (backend, request) {
+                (Some(dependency_sets::NpmBackend::Yarn), Selection::Full) => {
+                    strings(&["install", "--mode=update-lockfile"])
+                }
+                (Some(dependency_sets::NpmBackend::Yarn), Selection::Packages(packages)) => {
+                    [
+                        strings(&["up"]),
+                        packages.clone(),
+                        strings(&["--mode=update-lockfile"]),
+                    ]
+                    .concat()
+                }
+                (Some(dependency_sets::NpmBackend::Npm), Selection::Full) => {
+                    strings(&["install", "--package-lock-only", "--ignore-scripts"])
+                }
+                (Some(dependency_sets::NpmBackend::Npm), Selection::Packages(packages)) => [
+                    strings(&["update"]),
+                    packages.clone(),
+                    strings(&["--package-lock-only", "--ignore-scripts"]),
+                ]
+                .concat(),
+                (_, Selection::Full) => strings(&["install", "--lockfile-only"]),
+                (_, Selection::Packages(packages)) => [
                     strings(&["update"]),
                     packages.clone(),
                     strings(&["--lockfile-only"]),
                 ]
                 .concat(),
             };
+            let argv = match configured_node_argv(workspace, set, closure, &command)? {
+                Some(argv) => argv,
+                None => configured_pnpm_argv(workspace, head, set, false, &command),
+            };
             Ok(BackendPlan::Run {
-                argv: configured_pnpm_argv(workspace, head, set, false, &command),
+                argv,
                 env: npm_env(),
             })
         }
@@ -443,14 +672,74 @@ pub fn plan_configured(
             }
             let repository = cargo_repository(set)?;
             Ok(BackendPlan::Run {
-                argv: configured_cargo_argv(head, repository, false),
+                argv: configured_fetch_argv(head, repository, false),
                 env: cargo_env("workspace", repository),
             })
         }
-        (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
+        (Ecosystem::Maven, Selection::Full) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let target = format!("@{}//:pin", maven_repository(set)?);
+            // The pin script needs no rules_dx diagnostics settings, and a consumer
+            // without rules_dx cannot resolve them.
+            let pin_head = dx_process::BazelHead {
+                settings: Vec::new(),
+                ..head.clone()
+            };
+            Ok(BackendPlan::Run {
+                argv: bazel(&pin_head, "run", &[&target]),
+                env: maven_env(true),
+            })
+        }
+        (Ecosystem::Maven, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: CARGO_SELECTIVE,
+            reason: MAVEN_ONE_PACKAGE,
         }),
+        // paket.lock never changes, so a frozen run is a pinned fetch and stays allowed.
+        (Ecosystem::Nuget, Selection::Full) => {
+            Ok(BackendPlan::Staged(nuget_staged(set, head, offline)?))
+        }
+        (Ecosystem::Nuget, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: NUGET_PINS_EXACT,
+        }),
+        (Ecosystem::Cargo, Selection::Packages(packages)) => {
+            if offline {
+                return Err(BackendError::OfflineRequired {
+                    set: set.name.clone(),
+                });
+            }
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let repository = cargo_repository(set)?;
+            let [package] = packages.as_slice() else {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: CARGO_ONE_PACKAGE,
+                });
+            };
+            if cargo_reserved_repin(package) {
+                return Err(BackendError::Unsupported {
+                    set: set.name.clone(),
+                    reason: CARGO_RESERVED,
+                });
+            }
+            Ok(BackendPlan::Run {
+                argv: configured_fetch_argv(head, repository, false),
+                env: cargo_env(package, repository),
+            })
+        }
     }
 }
 
@@ -482,36 +771,117 @@ pub fn check_configured(
             reason: "uv repin refreshes the whole uv lock; select the set without a package",
         }),
         (Ecosystem::Npm, Selection::Full) => {
-            let mut command = strings(&["install", "--lockfile-only", "--frozen-lockfile"]);
-            if offline {
+            let backend = dependency_sets::npm_backend(set);
+            let mut command = match backend {
+                Some(dependency_sets::NpmBackend::Yarn) => {
+                    strings(&["install", "--immutable", "--mode=update-lockfile"])
+                }
+                Some(dependency_sets::NpmBackend::Npm) => {
+                    strings(&["ci", "--dry-run", "--ignore-scripts"])
+                }
+                _ => strings(&["install", "--lockfile-only", "--frozen-lockfile"]),
+            };
+            if offline && backend != Some(dependency_sets::NpmBackend::Yarn) {
                 command.push("--offline".to_owned());
             }
+            let argv = match configured_node_argv(workspace, set, closure, &command)? {
+                Some(argv) => argv,
+                None => configured_pnpm_argv(workspace, head, set, offline, &command),
+            };
             Ok(CheckPlan::Run {
-                argv: configured_pnpm_argv(workspace, head, set, offline, &command),
+                argv,
                 env: npm_env(),
             })
         }
         (Ecosystem::Npm, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "pnpm checks the whole lock; select the set without a package",
+            reason: "the npm package manager checks the whole lock; select the set without a package",
         }),
         (Ecosystem::Cargo, Selection::Full) => {
             let repository = cargo_repository(set)?;
             Ok(CheckPlan::Run {
-                argv: configured_cargo_argv(head, repository, offline),
+                argv: configured_fetch_argv(head, repository, offline),
                 env: cargo_env("false", repository),
             })
         }
         (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: CARGO_SELECTIVE,
+            reason: CARGO_CHECK_SELECTIVE,
+        }),
+        (Ecosystem::Maven, Selection::Full) => {
+            let repository = maven_repository(set)?;
+            Ok(CheckPlan::Run {
+                argv: configured_fetch_argv(head, repository, offline),
+                env: maven_env(false),
+            })
+        }
+        (Ecosystem::Maven, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: MAVEN_ONE_PACKAGE,
+        }),
+        (Ecosystem::Nuget, Selection::Full) => {
+            Ok(CheckPlan::Staged(nuget_staged(set, head, offline)?))
+        }
+        (Ecosystem::Nuget, Selection::Packages(_)) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: NUGET_PINS_EXACT,
         }),
     }
+}
+
+const NUGET_PINS_EXACT: &str = "nuget pins are exact in paket.lock; edit paket.dependencies, run `paket update`, then `dx update <set>`";
+
+/// Plans `paket2bazel` on a staged copy of paket.dependencies and paket.lock.
+fn nuget_staged(
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    offline: bool,
+) -> Result<StagedRun, BackendError> {
+    // Paket has no offline switch, so dx cannot keep it off the network.
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    // The run needs no rules_dx diagnostics settings, and a consumer without rules_dx
+    // cannot resolve them.
+    let pin_head = dx_process::BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    let lock = set
+        .locks
+        .iter()
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::PAKET_LOCK))
+        .cloned()
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "a nuget set must list paket.lock in locks",
+        })?;
+    let mut inputs = set.manifests.clone();
+    inputs.push(lock.clone());
+    let outputs = set
+        .locks
+        .iter()
+        .filter(|path| **path != lock)
+        .cloned()
+        .collect();
+    Ok(StagedRun {
+        argv_head: bazel(
+            &pin_head,
+            "run",
+            &["@rules_dotnet//tools/paket2bazel", "--"],
+        ),
+        env: Vec::new(),
+        inputs,
+        outputs,
+    })
 }
 
 fn closure_path(
     set: &ResolvedSet,
     path: &Option<String>,
+    detail: &Option<String>,
     var: &'static str,
     what: &'static str,
 ) -> Result<String, BackendError> {
@@ -522,6 +892,7 @@ fn closure_path(
             tool: "uv",
             var,
             what,
+            detail: detail.clone(),
         }),
     }
 }
@@ -532,8 +903,20 @@ fn configured_uv_argv(
     check: bool,
     offline: bool,
 ) -> Result<Vec<String>, BackendError> {
-    let uv = closure_path(set, &closure.uv, UV_BIN_VAR, UV_BIN_WHAT)?;
-    let python = closure_path(set, &closure.python, UV_PYTHON_VAR, UV_PYTHON_WHAT)?;
+    let uv = closure_path(
+        set,
+        &closure.uv,
+        &closure.uv_detail,
+        UV_BIN_VAR,
+        UV_BIN_WHAT,
+    )?;
+    let python = closure_path(
+        set,
+        &closure.python,
+        &closure.python_detail,
+        UV_PYTHON_VAR,
+        UV_PYTHON_WHAT,
+    )?;
     let mut argv = vec![uv, "lock".to_owned()];
     if check {
         argv.push("--check".to_owned());
@@ -723,7 +1106,7 @@ mod tests {
                 assert!(argv.contains(&"third_party/dotnet/deps".to_owned()));
                 assert!(env.is_empty());
             }
-            BackendPlan::Noop => panic!("nuget runs paket2bazel"),
+            BackendPlan::Noop | BackendPlan::Staged(_) => panic!("nuget runs paket2bazel"),
         }
         assert_eq!(
             plan(ws(), SetId::Go, &SetRequest::Full, false, false, &no_head()).expect("go"),
@@ -756,7 +1139,7 @@ mod tests {
                 );
                 assert!(env.is_empty());
             }
-            BackendPlan::Noop => panic!("npm-tools runs pnpm"),
+            BackendPlan::Noop | BackendPlan::Staged(_) => panic!("npm-tools runs pnpm"),
         }
         let uv = plan(ws(), SetId::Uv, &SetRequest::Full, false, false, &no_head()).expect("uv");
         assert_eq!(
@@ -887,7 +1270,7 @@ mod tests {
             let argv = match plan(ws(), set, &request, false, false, &no_head()).expect(set.name())
             {
                 BackendPlan::Run { argv, .. } => argv,
-                BackendPlan::Noop => panic!("{} runs pnpm", set.name()),
+                BackendPlan::Noop | BackendPlan::Staged(_) => panic!("{} runs pnpm", set.name()),
             };
             let at = argv
                 .iter()
@@ -1082,10 +1465,29 @@ mod tests {
                 tool: "uv",
                 var: UV_BIN_VAR,
                 what: "uv",
+                detail: None,
             },
         ] {
             assert!(error.to_string().starts_with(error.code()), "{error}");
         }
+    }
+
+    #[test]
+    fn unavailable_renders_the_bazel_detail_and_keeps_the_pin_text() {
+        let error = BackendError::BackendUnavailable {
+            set: "s".to_owned(),
+            tool: "uv",
+            var: UV_BIN_VAR,
+            what: "uv",
+            detail: Some("exit 1: boom".to_owned()),
+        };
+        let text = error.to_string();
+        assert!(text.contains("set DX_UV_BIN"), "{text}");
+        assert!(text.contains("PATH is never searched"), "{text}");
+        assert!(
+            text.ends_with("; Bazel resolution failed: exit 1: boom"),
+            "{text}"
+        );
     }
 
     #[test]
@@ -1152,6 +1554,7 @@ mod tests {
         UvClosure {
             uv: Some(abs("uv")),
             python: Some(abs("python3")),
+            ..UvClosure::default()
         }
     }
 
@@ -1245,6 +1648,7 @@ mod tests {
                 UvClosure {
                     uv: Some("uv".to_owned()),
                     python: Some(abs("python3")),
+                    ..UvClosure::default()
                 },
                 UV_BIN_VAR,
             ),
@@ -1252,6 +1656,7 @@ mod tests {
                 UvClosure {
                     uv: Some(abs("uv")),
                     python: None,
+                    ..UvClosure::default()
                 },
                 UV_PYTHON_VAR,
             ),
@@ -1259,6 +1664,7 @@ mod tests {
                 UvClosure {
                     uv: Some(abs("uv")),
                     python: Some("python3".to_owned()),
+                    ..UvClosure::default()
                 },
                 UV_PYTHON_VAR,
             ),
@@ -1933,6 +2339,57 @@ mod tests {
     }
 
     #[test]
+    fn configured_npm_yarn_and_npm_locks_use_their_own_backends() {
+        let head = dx_process::BazelHead {
+            startup: vec![],
+            ..Default::default()
+        };
+        let mut yarn = npm_set("frontend", "apps/web");
+        yarn.locks = vec!["apps/web/yarn.lock".to_owned()];
+        let mut npm = yarn.clone();
+        npm.locks = vec!["apps/web/package-lock.json".to_owned()];
+        let tools = UvClosure {
+            yarn: Some(abs("yarn")),
+            npm: Some(abs("npm")),
+            ..UvClosure::default()
+        };
+        let ws = Path::new("/ws");
+        let plan = |set: &ResolvedSet, closure: &UvClosure| {
+            plan_configured(ws, set, &Selection::Full, false, false, &head, closure)
+        };
+        match plan(&yarn, &tools) {
+            Ok(BackendPlan::Run { argv, .. }) => {
+                assert_eq!(argv[0], "sh");
+                assert!(argv.contains(&abs("yarn")), "{argv:?}");
+                assert!(
+                    argv.contains(&"--mode=update-lockfile".to_owned()),
+                    "{argv:?}"
+                );
+            }
+            other => panic!("{other:?}"),
+        }
+        match plan(&npm, &tools) {
+            Ok(BackendPlan::Run { argv, .. }) => {
+                assert_eq!(argv[0], abs("npm"));
+                assert!(argv.contains(&"--package-lock-only".to_owned()), "{argv:?}");
+            }
+            other => panic!("{other:?}"),
+        }
+        for (set, var) in [(&yarn, YARN_BIN_VAR), (&npm, NPM_BIN_VAR)] {
+            match plan(set, &UvClosure::default()) {
+                Err(BackendError::BackendUnavailable { var: got, .. }) => assert_eq!(got, var),
+                other => panic!("{other:?}"),
+            }
+        }
+        match check_configured(ws, &npm, &Selection::Full, false, false, &head, &tools) {
+            Ok(CheckPlan::Run { argv, .. }) => {
+                assert!(argv.contains(&"ci".to_owned()), "{argv:?}");
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
     fn configured_npm_check_verifies_the_lock_without_writing() {
         let set = npm_set("frontend", "apps/web");
         for frozen in [false, true] {
@@ -2281,10 +2738,282 @@ mod tests {
             );
         }
         let packages = Selection::Packages(vec!["serde".to_owned()]);
-        let want = BackendError::Unsupported {
-            set: "crates".to_owned(),
-            reason: CARGO_SELECTIVE,
+        for (offline, frozen, want) in [
+            (
+                true,
+                false,
+                BackendError::OfflineRequired {
+                    set: "crates".to_owned(),
+                },
+            ),
+            (
+                false,
+                true,
+                BackendError::FrozenLocked {
+                    set: "crates".to_owned(),
+                },
+            ),
+        ] {
+            assert_eq!(
+                plan_configured(
+                    ws(),
+                    &set,
+                    &packages,
+                    offline,
+                    frozen,
+                    &no_head(),
+                    &UvClosure::default()
+                ),
+                Err(want)
+            );
+        }
+        assert_eq!(
+            check_configured(
+                ws(),
+                &set,
+                &packages,
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            ),
+            Err(BackendError::Unsupported {
+                set: "crates".to_owned(),
+                reason: CARGO_CHECK_SELECTIVE,
+            })
+        );
+    }
+
+    fn nuget_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "dotnet".to_owned(),
+            ecosystem: Ecosystem::Nuget,
+            dir: "third_party/dotnet".to_owned(),
+            manifests: vec!["third_party/dotnet/paket.dependencies".to_owned()],
+            locks: vec![
+                "third_party/dotnet/paket.lock".to_owned(),
+                "third_party/dotnet/deps/paket.main.bzl".to_owned(),
+                "third_party/dotnet/deps/paket.main_extension.bzl".to_owned(),
+            ],
+            writable: true,
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn configured_nuget_stages_paket2bazel_without_rules_dx_settings() {
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/ob".to_owned()],
+            options: vec!["--config=dx_dev".to_owned()],
+            settings: vec!["--@rules_dx//config:x=true".to_owned()],
         };
+        let set = nuget_set();
+        let expected = StagedRun {
+            argv_head: [
+                dx_process::BazelHead {
+                    settings: Vec::new(),
+                    ..head.clone()
+                }
+                .argv("run"),
+                strings(&["@rules_dotnet//tools/paket2bazel", "--"]),
+            ]
+            .concat(),
+            env: Vec::new(),
+            inputs: vec![
+                "third_party/dotnet/paket.dependencies".to_owned(),
+                "third_party/dotnet/paket.lock".to_owned(),
+            ],
+            outputs: vec![
+                "third_party/dotnet/deps/paket.main.bzl".to_owned(),
+                "third_party/dotnet/deps/paket.main_extension.bzl".to_owned(),
+            ],
+        };
+        let closure = UvClosure::default();
+        // Frozen is allowed: paket.lock never changes, so the run is a pinned fetch.
+        for frozen in [false, true] {
+            assert_eq!(
+                plan_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
+                Ok(BackendPlan::Staged(expected.clone()))
+            );
+            assert_eq!(
+                check_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),
+                Ok(CheckPlan::Staged(expected.clone()))
+            );
+        }
+        assert!(expected.argv_head.contains(&"--output_base=/ob".to_owned()));
+        assert!(!expected
+            .argv_head
+            .iter()
+            .any(|arg| arg.contains("rules_dx")));
+        let argv = expected.argv(Path::new("/scratch/1"));
+        assert_eq!(
+            argv[expected.argv_head.len()..],
+            strings(&[
+                "--dependencies-file",
+                "/scratch/1/paket.dependencies",
+                "--output-folder",
+                "/scratch/1/out"
+            ])
+        );
+    }
+
+    #[test]
+    fn configured_nuget_requires_network_and_refuses_packages() {
+        let set = nuget_set();
+        let head = no_head();
+        let closure = UvClosure::default();
+        for frozen in [false, true] {
+            let offline = Err(BackendError::OfflineRequired {
+                set: "dotnet".to_owned(),
+            });
+            assert_eq!(
+                plan_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
+                offline
+            );
+            assert_eq!(
+                check_configured(ws(), &set, &Selection::Full, true, frozen, &head, &closure),
+                Err(BackendError::OfflineRequired {
+                    set: "dotnet".to_owned()
+                })
+            );
+        }
+        let packages = Selection::Packages(vec!["Newtonsoft.Json".to_owned()]);
+        let unsupported = Err(BackendError::Unsupported {
+            set: "dotnet".to_owned(),
+            reason: NUGET_PINS_EXACT,
+        });
+        assert_eq!(
+            plan_configured(ws(), &set, &packages, false, false, &head, &closure),
+            unsupported
+        );
+        assert_eq!(
+            check_configured(ws(), &set, &packages, false, false, &head, &closure),
+            Err(BackendError::Unsupported {
+                set: "dotnet".to_owned(),
+                reason: NUGET_PINS_EXACT,
+            })
+        );
+    }
+
+    fn maven_set(name: &str, repository: &str) -> ResolvedSet {
+        ResolvedSet {
+            name: name.to_owned(),
+            ecosystem: Ecosystem::Maven,
+            dir: ".".to_owned(),
+            manifests: vec!["MODULE.bazel".to_owned()],
+            locks: vec![format!("{repository}_install.json")],
+            writable: true,
+            repository: Some(repository.to_owned()),
+        }
+    }
+
+    #[test]
+    fn configured_maven_update_runs_only_its_pin_target() {
+        let head = dx_process::BazelHead {
+            startup: vec!["--output_base=/ob".to_owned()],
+            options: vec!["--config=dx_dev".to_owned()],
+            settings: vec!["--@rules_dx//config:x=true".to_owned()],
+        };
+        let set = maven_set("tools", "tool_maven");
+        let plan = plan_configured(
+            ws(),
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &head,
+            &UvClosure::default(),
+        )
+        .expect("maven update");
+        assert_eq!(
+            plan,
+            BackendPlan::Run {
+                argv: [
+                    dx_process::BazelHead {
+                        settings: Vec::new(),
+                        ..head.clone()
+                    }
+                    .argv("run"),
+                    strings(&["@tool_maven//:pin"])
+                ]
+                .concat(),
+                env: vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())],
+            }
+        );
+        let BackendPlan::Run { argv, env } = plan else {
+            unreachable!()
+        };
+        assert!(argv.contains(&"--output_base=/ob".to_owned()), "{argv:?}");
+        assert!(env.iter().all(|(key, _)| key != "REPIN"));
+    }
+
+    #[test]
+    fn configured_maven_check_fetches_without_repin_env() {
+        let set = maven_set("tools", "tool_maven");
+        for (offline, args) in [
+            (false, vec!["--repo=@tool_maven"]),
+            (
+                true,
+                vec!["--repository_disable_download", "--repo=@tool_maven"],
+            ),
+        ] {
+            assert_eq!(
+                check_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    offline,
+                    false,
+                    &no_head(),
+                    &UvClosure::default()
+                )
+                .expect("maven check"),
+                CheckPlan::Run {
+                    argv: cargo_fetch(&no_head(), &args),
+                    env: Vec::new(),
+                },
+                "offline {offline}"
+            );
+        }
+    }
+
+    #[test]
+    fn configured_maven_refuses_offline_frozen_and_packages() {
+        let set = maven_set("jvm", "maven");
+        for (offline, frozen, want) in [
+            (
+                true,
+                false,
+                BackendError::OfflineRequired {
+                    set: "jvm".to_owned(),
+                },
+            ),
+            (
+                false,
+                true,
+                BackendError::FrozenLocked {
+                    set: "jvm".to_owned(),
+                },
+            ),
+        ] {
+            assert_eq!(
+                plan_configured(
+                    ws(),
+                    &set,
+                    &Selection::Full,
+                    offline,
+                    frozen,
+                    &no_head(),
+                    &UvClosure::default()
+                ),
+                Err(want)
+            );
+        }
+        let packages = Selection::Packages(vec!["com.google.guava:guava".to_owned()]);
+        let unsupported = Err(BackendError::Unsupported {
+            set: "jvm".to_owned(),
+            reason: MAVEN_ONE_PACKAGE,
+        });
         assert_eq!(
             plan_configured(
                 ws(),
@@ -2295,7 +3024,7 @@ mod tests {
                 &no_head(),
                 &UvClosure::default()
             ),
-            Err(want.clone())
+            unsupported
         );
         assert_eq!(
             check_configured(
@@ -2307,7 +3036,86 @@ mod tests {
                 &no_head(),
                 &UvClosure::default()
             ),
-            Err(want)
+            unsupported.map(|_: BackendPlan| CheckPlan::Pinned)
+        );
+    }
+
+    #[test]
+    fn maven_host_env_refusal_truth_table() {
+        let maven = maven_set("jvm", "maven");
+        let cargo = cargo_set("crates", "apps/rs", "crates");
+        let with = |key: &'static str| move |name: &str| name == key;
+        for key in ["REPIN", "RULES_JVM_EXTERNAL_REPIN"] {
+            assert!(
+                host_env_refusal(&maven, true, &with(key)).is_some(),
+                "{key}"
+            );
+            assert_eq!(host_env_refusal(&maven, false, &with(key)), None, "{key}");
+            assert_eq!(host_env_refusal(&cargo, true, &with(key)), None, "{key}");
+        }
+        for key in MAVEN_COURSIER_ENV {
+            for check in [false, true] {
+                assert!(
+                    host_env_refusal(&maven, check, &with(key)).is_some(),
+                    "{key}"
+                );
+            }
+            assert_eq!(host_env_refusal(&cargo, true, &with(key)), None, "{key}");
+        }
+        assert_eq!(host_env_refusal(&maven, true, &|_| false), None);
+    }
+
+    #[test]
+    fn configured_cargo_package_update_repins_one_crate() {
+        let set = cargo_set("crates", "apps/rs", "crates");
+        assert_eq!(
+            plan_configured(
+                ws(),
+                &set,
+                &Selection::Packages(vec!["serde".to_owned()]),
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default()
+            )
+            .expect("cargo package plan"),
+            BackendPlan::Run {
+                argv: cargo_fetch(&no_head(), &["--repo=@crates"]),
+                env: cargo_env_expected("serde", "crates"),
+            }
+        );
+    }
+
+    #[test]
+    fn configured_cargo_package_update_refuses_modes_and_many_crates() {
+        let set = cargo_set("crates", "apps/rs", "crates");
+        let plan = |names: &[&str]| {
+            plan_configured(
+                ws(),
+                &set,
+                &Selection::Packages(names.iter().map(|n| (*n).to_owned()).collect()),
+                false,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        for name in ["all", "Workspace", "OFF", "0", "1", "minimal"] {
+            assert_eq!(
+                plan(&[name]),
+                Err(BackendError::Unsupported {
+                    set: "crates".to_owned(),
+                    reason: CARGO_RESERVED,
+                }),
+                "{name}"
+            );
+        }
+        assert_eq!(
+            plan(&["serde", "tokio"]),
+            Err(BackendError::Unsupported {
+                set: "crates".to_owned(),
+                reason: CARGO_ONE_PACKAGE,
+            })
         );
     }
 }

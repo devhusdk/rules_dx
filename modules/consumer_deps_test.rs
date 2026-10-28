@@ -100,6 +100,103 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
     problems
 }
 
+/// Every `bazel_dep` in `source` on a table module that is not at its floor.
+///
+/// Hermetic consumers build their MODULE.bazel from a fragment with rules_dx as a non-root
+/// module, so the root `single_version_override`s do not apply to them. A fragment that pins a
+/// consumer dep above its floor would hide a floor that no longer holds (#3747).
+fn fragment_violations(source: &str, label: &str, table: &Table) -> Vec<String> {
+    let module = match ModuleFile::parse(source) {
+        Ok(module) => module,
+        Err(error) => return vec![format!("{label}: {error}")],
+    };
+    let mut problems = Vec::new();
+    for call in module.calls_named("bazel_dep") {
+        let (Some(name), Some(version)) = (call.str("name"), call.str("version")) else {
+            continue;
+        };
+        if let Some((floor, _)) = table.get(name) {
+            if version != floor {
+                problems.push(format!(
+                    "{label}: bazel_dep {name:?} is {version} but its floor is {floor}"
+                ));
+            }
+        }
+    }
+    problems
+}
+
+/// The `MODULE` raw string that consumer_names_test.rs writes into its consumer.
+fn inline_module(source: &str) -> String {
+    let start = source
+        .find("const MODULE: &str = r#\"")
+        .expect("consumer_names_test.rs has a MODULE const")
+        + "const MODULE: &str = r#\"".len();
+    let end = source[start..].find("\"#;").expect("MODULE const ends");
+    // The placeholder stands for a dict argument the real test splices in.
+    source[start..start + end].replace("GEM_CHECKSUMS", "")
+}
+
+#[test]
+fn consumer_fragments_pin_consumer_deps_at_their_floors() {
+    let table = table(&dx_testing::read_runfiles(
+        "modules/consumer_deps_json.json",
+    ));
+    let probe = dx_testing::resolve_runfiles(
+        "tools/testing/hermetic/consumers/cpp_rust/module_fragment.bazel",
+    );
+    let consumers = probe
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("consumers directory");
+    let mut problems = Vec::new();
+    let mut seen = 0;
+    for entry in std::fs::read_dir(consumers).expect("read consumers") {
+        let path = entry
+            .expect("consumer entry")
+            .path()
+            .join("module_fragment.bazel");
+        if let Ok(source) = std::fs::read_to_string(&path) {
+            seen += 1;
+            let label = path
+                .parent()
+                .and_then(|dir| dir.file_name())
+                .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
+            problems.extend(fragment_violations(&source, &label, &table));
+        }
+    }
+    assert!(
+        seen >= 10,
+        "found only {seen} module fragments under {consumers:?}"
+    );
+    let names = dx_testing::read_runfiles("modules/consumer_names_test.rs");
+    problems.extend(fragment_violations(
+        &inline_module(&names),
+        "consumer_names_test.rs",
+        &table,
+    ));
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn a_fragment_above_its_floor_fails() {
+    let table = fixture_table(&[("demo", "1.0.0", "1.2.0")]);
+    let at_floor = "bazel_dep(name = \"demo\", version = \"1.0.0\")\nbazel_dep(name = \"other\", version = \"9\")\n";
+    assert!(fragment_violations(at_floor, "f", &table).is_empty());
+    let problems = fragment_violations(&at_floor.replace("1.0.0", "1.2.0"), "f", &table);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].contains("is 1.2.0 but its floor is 1.0.0"),
+        "{problems:?}"
+    );
+}
+
+#[test]
+fn the_inline_module_const_is_found() {
+    let source = "x\nconst MODULE: &str = r#\"module(name = \"c\")\n\"#;\ny";
+    assert_eq!(inline_module(source), "module(name = \"c\")\n");
+}
+
 #[test]
 fn root_module_matches_the_consumer_table() {
     let source = dx_testing::read_runfiles("MODULE.bazel");

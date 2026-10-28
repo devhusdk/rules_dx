@@ -429,17 +429,26 @@ impl ModuleInputPaths {
     }
 }
 
-fn is_crate_extension(extension: &Option<(String, String)>) -> bool {
+/// Lock and manifest inputs of the crate extension are handled by the lock
+/// narrowing; other tags (such as `crate.annotation` patches and
+/// `additive_build_file`) change repo contents and widen like any input.
+fn is_crate_lock_input(extension: &Option<(String, String)>, tag: &str) -> bool {
     extension.as_ref().is_some_and(|(bzl, name)| {
-        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL) && name == "crate"
+        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL)
+            && name == "crate"
+            && matches!(tag, "from_cargo" | "from_specs")
     })
 }
 
 fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     let hubs_of = |path: &Path| {
-        std::fs::read_to_string(path)
-            .ok()
-            .and_then(|text| lock_inputs::crate_hubs(&text).ok())
+        std::fs::read_to_string(path).ok().and_then(|text| {
+            let mut hubs = lock_inputs::crate_hubs(&text).ok()?;
+            hubs.extend(lock_inputs::pip_hubs(&text));
+            hubs.extend(lock_inputs::maven_hubs(&text));
+            hubs.extend(lock_inputs::gem_hubs(&text).ok()?);
+            Some(hubs)
+        })
     };
     let root_hubs = hubs_of(&workspace.join("MODULE.bazel"));
     let mut hubs = root_hubs.clone().unwrap_or_default();
@@ -457,7 +466,7 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
                     None => segments_ok = false,
                 }
             }
-            if is_crate_extension(&file.extension) {
+            if is_crate_lock_input(&file.extension, &file.tag) {
                 continue;
             }
             let sibling = match file_name_of(&file.path) {
@@ -529,9 +538,12 @@ fn lock_change(
     let base = show_at_base(git, workspace, runner, base, path)
         .map_err(|detail| format!("cannot read {path}: {detail}"))?
         .ok_or_else(workspace_input)?;
-    let changed = kind
-        .changed(&base, &head)
-        .map_err(|detail| format!("cannot read {path}: {detail}"))?;
+    let changed = if matches!(kind, LockKind::Go(_)) {
+        lock_inputs::changed_go(path, &base, &head)
+    } else {
+        kind.changed(&base, &head)
+    }
+    .map_err(|detail| format!("cannot read {path}: {detail}"))?;
     Ok(kind
         .hubs()
         .iter()
@@ -982,11 +994,60 @@ pub fn resolve_affected(
                 repos,
             });
         }
+        let gem_hubs: BTreeSet<&String> = hubs
+            .iter()
+            .filter(|hub| hub.gems)
+            .map(|hub| &hub.name)
+            .collect();
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
+            let go_changed = changed
+                .iter()
+                .any(|(_, change)| !change.go_repos.is_empty());
             for (hub, change) in changed {
-                let LockChange { crates, aliases } = change;
+                let LockChange {
+                    crates,
+                    aliases,
+                    pip,
+                    maven,
+                    go_repos,
+                    npm,
+                } = change;
+                if gem_hubs.contains(hub) {
+                    seeds.extend(lock_inputs::gem_seeds(loaded.external_inputs(), hub));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+                    continue;
+                }
+                if *maven {
+                    seeds.extend(lock_inputs::maven_seeds(
+                        loaded.external_inputs(),
+                        hub,
+                        crates,
+                    ));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
+                    continue;
+                }
+                if *pip {
+                    seeds.extend(lock_inputs::pip_seeds(
+                        loaded.external_inputs(),
+                        hub,
+                        crates,
+                    ));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//{name}")));
+                    continue;
+                }
+                if *npm {
+                    seeds.extend(lock_inputs::npm_seeds(
+                        loaded.external_inputs(),
+                        hub,
+                        crates,
+                    ));
+                    repos.extend(crates.keys().map(|name| format!("@{hub}//{name}")));
+                    continue;
+                }
+                seeds.extend(lock_inputs::go_seeds(loaded.external_inputs(), go_repos));
+                repos.extend(go_repos.iter().map(|name| format!("@{name}//...")));
                 seeds.extend(lock_inputs::seeds(
                     loaded.external_inputs(),
                     hub,
@@ -1013,7 +1074,11 @@ pub fn resolve_affected(
                 let repos: Vec<String> = repos.into_iter().collect();
                 widened.push(WidenedScope {
                     scope: rdeps_scope(&repos),
-                    reason: format!("changed crates in {path}"),
+                    reason: if go_changed {
+                        format!("changed Go modules in {path}")
+                    } else {
+                        format!("changed crates in {path}")
+                    },
                     repos,
                 });
             }
@@ -1559,16 +1624,24 @@ mod tests {
             "deps/go.MODULE.bazel",
             "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
         );
-        for changed in [
-            "pnpm-lock.yaml",
-            "third_party/go/go.mod",
-            "third_party/go/go.sum",
-            "third_party/jvm/maven_install.json",
-            "requirements_lock.txt",
-            "py/requirements_linux.txt",
-            "deps/go.MODULE.bazel",
-        ] {
+        for changed in ["py/requirements_linux.txt", "deps/go.MODULE.bazel"] {
             write(workspace, changed, "x\n");
+            widens_as_workspace_input(workspace, changed);
+        }
+    }
+
+    #[test]
+    fn crate_annotation_patches_and_build_files_widen() {
+        let scratch = crate_workspace("dx-changed-crate-annotation-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.annotation(crate = \"serde\", patches = [\"//third_party:serde.patch\"], additive_build_file = \"//third_party:serde.BUILD\")\n",
+        );
+        write(workspace, "third_party/serde.patch", "x\n");
+        write(workspace, "third_party/serde.BUILD", "x\n");
+        for changed in ["third_party/serde.patch", "third_party/serde.BUILD"] {
             widens_as_workspace_input(workspace, changed);
         }
     }
@@ -2123,6 +2196,55 @@ mod tests {
                     repos: strings(&["@crates//:serde"]),
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn pnpm_lock_bump_selects_only_users_of_changed_packages() {
+        let scratch = dx_test_scratch::scratch("dx-changed-pnpm-lock-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            concat!(
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
+                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\n",
+            ),
+        );
+        write(workspace, "BUILD.bazel", "");
+        let lock = |lodash: &str| {
+            format!(
+                "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {{integrity: sha512-a}}\n\n  lodash@{lodash}:\n    resolution: {{integrity: sha512-b}}\n"
+            )
+        };
+        write(workspace, "pnpm-lock.yaml", &lock("4.1.0"));
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&lock("4.0.0")),
+            graph(&[
+                ("//a:lib", &["@@aspect_rules_js++npm+npm//lodash:pkg"]),
+                ("//b:lib", &["@@aspect_rules_js++npm+npm//left-pad:pkg"]),
+            ]),
+        ]);
+        let selection = resolve_affected(
+            &[change("pnpm-lock.yaml", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            base(),
+        )
+        .expect("pnpm lock narrows");
+        assert_eq!(
+            selection.targets,
+            strings(&["@@aspect_rules_js++npm+npm//lodash:pkg"])
+        );
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @npm//lodash)".to_owned(),
+                reason: "changed crates in pnpm-lock.yaml".to_owned(),
+                repos: strings(&["@npm//lodash"]),
+            }]
         );
     }
 

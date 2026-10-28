@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_prettier_sql_attr_dialect_mixed_pass
+capability FORMAT
+stages 1
+stage prettier classes=sql,json sources=matrix/prettier_attr_mixed.sql,matrix/prettier_attr_mixed.json
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

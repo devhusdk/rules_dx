@@ -3,4 +3,4 @@
 Verifies conventional package-level library generation without
 authoritative manifests or generated sidecars.
 Demo assets preserved through generation.
-Test-owned sources never enter the library.
+Test sources stay out of the library and each gets its own `java_test`.

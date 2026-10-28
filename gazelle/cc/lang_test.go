@@ -333,13 +333,13 @@ func TestCudaStaleOwnedTargetIsEmptied(t *testing.T) {
 	}
 }
 
-func TestImportsIndexCudaHeadersOnly(t *testing.T) {
+func TestImportsIndexCudaLibraryHeaders(t *testing.T) {
 	lang := NewLanguage()
 	r := rule.NewRule(CudaKind, "demo_cuda")
-	r.SetAttr("hdrs", []string{"k.cuh", "shared.h"})
+	r.SetAttr("hdrs", []string{"k.cuh", "shared.h", "impl.cu"})
 	got := lang.Imports(&config.Config{}, r, nil)
-	if len(got) != 1 || got[0].Imp != "k.cuh" {
-		t.Fatalf("imports = %+v, want only k.cuh", got)
+	if len(got) != 2 || got[0].Imp != "k.cuh" || got[1].Imp != "shared.h" {
+		t.Fatalf("imports = %+v, want k.cuh and shared.h", got)
 	}
 }
 
@@ -435,5 +435,27 @@ func TestCcKindsLeaveAndroidAttrsUnmergeable(t *testing.T) {
 				t.Errorf("%s: %s must stay unmergeable", kind, attr)
 			}
 		}
+	}
+}
+
+func TestHandwrittenLibraryKeptWhenNamedDifferently(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/demo.cc", "int x;\n")
+	writeFixture(t, root, "pkg/demo/facts.cc", "int y;\n")
+	f, err := rule.LoadData(filepath.Join(root, "pkg/demo/BUILD.bazel"), "pkg/demo",
+		[]byte("cc_library(name = \"facts\", srcs = [\"facts.cc\"], copts = [\"-O2\"])\n"+
+			"cc_library(name = \"old\", srcs = [\"gone.cc\"])\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		File:         f,
+		RegularFiles: []string{"demo.cc"},
+	})
+	if len(result.Empty) != 1 || result.Empty[0].Name() != "old" {
+		t.Errorf("emptied %d rules, want only the stale old", len(result.Empty))
 	}
 }

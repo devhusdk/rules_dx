@@ -730,6 +730,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "component_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "console"
 version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1331,6 +1338,15 @@ name = "documentation_ir"
 version = "0.0.0"
 
 [[package]]
+name = "dotnet_extract"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "dsa"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1539,6 +1555,7 @@ dependencies = [
  "quick-xml",
  "rand 0.8.8",
  "rustls",
+ "ruzstd",
  "serde",
  "serde_json",
  "sha1",
@@ -1639,7 +1656,6 @@ version = "0.0.0"
 name = "dx_lcov"
 version = "0.0.0"
 dependencies = [
- "clap",
  "lcov",
  "regex",
  "thiserror 2.0.20",
@@ -2774,6 +2790,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "jvm_convert"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "k256"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3762,6 +3785,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "python_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "qt-build-utils"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3815,6 +3845,13 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
  "unicode-properties",
+]
+
+[[package]]
+name = "quality_notebook"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

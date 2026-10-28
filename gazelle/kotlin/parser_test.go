@@ -100,3 +100,34 @@ func TestNestedBlockCommentInert(t *testing.T) {
 		t.Error("DefinesMain matched a main inside a nested comment")
 	}
 }
+
+// Intended behavior change from the regex parser: several imports on one line
+// are all recognized, where the line-anchored regex missed them.
+func TestParseImportsTreeSitterShapes(t *testing.T) {
+	tests := []struct {
+		name, src string
+		want      []string
+	}{
+		{"two imports on one line", "import a.B; import c.D\n", []string{"a.B", "c.D"}},
+		{"backticked segments", "import `foo bar`.Baz\nimport a.`when`.C\n", []string{"a.when.C", "foo bar.Baz"}},
+		{"string template inert", "import a.B\nval s = \"import x.Y $x ${y}\"\n", []string{"a.B"}},
+		{"raw string inert", "import a.B\nval s = \"\"\"\nimport x.Y\n\"\"\"\n", []string{"a.B"}},
+		{"comment between segments", "import a./*c*/B\n", []string{"a.B"}},
+		{"alias and wildcard", "import a.B as C\nimport d.e.*\n", []string{"a.B", "d.e.*"}},
+		{"truncated import", "import a.B\nimport c.D\nimport e.", []string{"a.B", "c.D"}},
+		{"unclosed string after imports", "package p\nimport a.B\nimport c.D\nfun f() { val s = \"oops\n", []string{"a.B", "c.D"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParseImports([]byte(tt.src)); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseImports = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefinesMainNested(t *testing.T) {
+	if !DefinesMain([]byte("class A {\n  companion object {\n    @JvmStatic fun main(args: Array<String>) {}\n  }\n}\n")) {
+		t.Error("DefinesMain missed a nested main")
+	}
+}

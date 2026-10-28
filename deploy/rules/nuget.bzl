@@ -1,9 +1,8 @@
 """Local-first NuGet publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
 _VALID_ID_CHARS = NAME_CHARS
 
@@ -18,8 +17,7 @@ def nuget_id_error(package_id):
                 "': want a non-empty id (for example 'nuget_demo')")
     if not only_chars(package_id, _VALID_ID_CHARS):
         return ("nuget_deploy: invalid package id '" + package_id +
-                "': want only [A-Za-z0-9._-] so the id embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def nuget_version_error(version):
@@ -29,8 +27,7 @@ def nuget_version_error(version):
                 "': want a non-empty version (for example '0.0.0')")
     if not only_chars(version, _VALID_VERSION_CHARS):
         return ("nuget_deploy: invalid version '" + version +
-                "': want only [A-Za-z0-9._-+] so the version embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-+]")
     return ""
 
 def nuget_nupkg_error(filename):
@@ -41,10 +38,6 @@ def nuget_nupkg_error(filename):
     if not filename.endswith(".nupkg"):
         return ("nuget_deploy: invalid nupkg '" + filename +
                 "': want a filename ending in .nupkg")
-    if has_any(filename, EMBED_UNSAFE):
-        return ("nuget_deploy: invalid nupkg '" + filename +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def nuget_source_error(source):
@@ -56,14 +49,10 @@ def nuget_source_error(source):
     if not source.startswith("https://"):
         return ("nuget_deploy: invalid source '" + source +
                 "': want an https URL so pushes never go over plaintext")
-    if has_any(source, EMBED_UNSAFE):
-        return ("nuget_deploy: invalid source '" + source +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the URL embeds safely in the deploy launcher")
     return ""
 
-def _nuget_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one NuGet deployment."""
+def _nuget_config_impl(ctx):
+    """Writes the deploy config for one NuGet deployment."""
     nupkg_files = ctx.attr.nupkg[DefaultInfo].files.to_list()
     if len(nupkg_files) != 1:
         fail("nuget_deploy " + str(ctx.label) + ": nupkg " +
@@ -75,33 +64,35 @@ def _nuget_launcher_impl(ctx):
         fail(nupkg_error + " (in " + str(ctx.label) + ")")
     nupkg_rloc = rlocation_path(ctx, nupkg_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const NUPKG_RLOC: &str = \"" + nupkg_rloc + "\";\n" +
-                  "const TARGET_NAME: &str = \"" + ctx.label.name + "\";\n" +
-                  "const PACKAGE_ID: &str = \"" + ctx.attr.package_id + "\";\n" +
-                  "const PACKAGE_VERSION: &str = \"" + ctx.attr.version + "\";\n" +
-                  "const PACKAGE_SOURCE: &str = \"" + ctx.attr.source + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::nuget_main(NUPKG_RLOC, TARGET_NAME, PACKAGE_ID, PACKAGE_VERSION, PACKAGE_SOURCE, &std::env::args().collect::<Vec<_>>())); }\n",
+    return deploy_config(
+        ctx,
+        "nuget",
+        {
+            "deploy_name": ctx.attr.deploy_name,
+            "nupkg_rloc": nupkg_rloc,
+            "package_id": ctx.attr.package_id,
+            "source": ctx.attr.source,
+            "version": ctx.attr.version,
+        },
+        ctx.runfiles(files = [nupkg_file]),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_nuget_launcher = rule(
-    implementation = _nuget_launcher_impl,
-    doc = "Writes the launcher Rust source for one NuGet deployment.",
+_nuget_config = rule(
+    implementation = _nuget_config_impl,
+    doc = "Writes the deploy config for one NuGet deployment.",
     attrs = {
+        "deploy_name": attr.string(doc = "Deploy target name.", mandatory = True),
         "nupkg": attr.label(
             doc = "Single NuGet package file that is published.",
             allow_single_file = True,
             mandatory = True,
         ),
-        "package_id": attr.string(doc = "NuGet package id embedded in the generated launcher."),
+        "package_id": attr.string(doc = "NuGet package id the deploy config pins."),
         "source": attr.string(
-            doc = "HTTPS NuGet feed URL the launcher publishes to.",
+            doc = "HTTPS NuGet feed URL the deploy tool publishes to.",
             mandatory = True,
         ),
-        "version": attr.string(doc = "NuGet package version embedded in the generated launcher."),
+        "version": attr.string(doc = "NuGet package version the deploy config pins."),
     },
 )
 
@@ -122,25 +113,19 @@ def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFA
     if source_error != "":
         fail(source_error + " (in " + native.package_name() + ":" + name + ")")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _nuget_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _nuget_config(
+        name = config_target,
+        deploy_name = name,
         nupkg = nupkg,
         package_id = package_id,
         source = source,
         version = version,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = [nupkg],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

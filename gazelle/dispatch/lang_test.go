@@ -262,6 +262,27 @@ func TestCollectUsedIgnoresMergesUsers(t *testing.T) {
 	}
 }
 
+func readFailedManifest(t *testing.T, path string) common.IntendedManifest {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile manifest: %v", err)
+	}
+	var manifest common.IntendedManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("Unmarshal manifest: %v", err)
+	}
+	if manifest.Result != common.IntendedResultFailed || len(manifest.Files) != 0 {
+		t.Fatalf("manifest = %+v, want a failed result without files", manifest)
+	}
+	for _, scope := range manifest.Scopes {
+		if scope.ResultsComplete {
+			t.Fatalf("scope %+v is complete in a failure manifest", scope)
+		}
+	}
+	return manifest
+}
+
 func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "intended.json")
 	t.Setenv(common.EnvIntendedManifest, out)
@@ -285,8 +306,24 @@ func TestAfterResolvingDepsFailsClosedOnBadScope(t *testing.T) {
 	if !strings.HasPrefix(errOut.String(), "Generation failed:\n") || strings.Count(errOut.String(), "\n") < 2 {
 		t.Fatalf("stderr = %q, want the scope mismatch under one header", errOut.String())
 	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Fatalf("manifest stat = %v, want no manifest written", err)
+	manifest := readFailedManifest(t, out)
+	if len(manifest.Errors) == 0 || manifest.Errors[0].Language != languageName {
+		t.Fatalf("manifest errors = %+v, want the scope error", manifest.Errors)
+	}
+}
+
+func TestAfterResolvingDepsWithoutManifestEnvWritesNothing(t *testing.T) {
+	t.Setenv(common.EnvIntendedManifest, "")
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	common.Errors.Add(common.GenerationError{Language: "go", Message: "go: boom"})
+	code, _ := stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
+	}
+	if l.manifest != nil {
+		t.Fatalf("manifest recorder = %+v, want nil", l.manifest)
 	}
 }
 
@@ -348,7 +385,7 @@ func TestCollectUsedIgnoresCoversEveryIgnoreLanguage(t *testing.T) {
 
 type failingLanguage interface {
 	Before(context.Context)
-	Fail(string, ...interface{})
+	Fail(common.PackageRef, string, ...interface{})
 	AfterResolvingDeps(context.Context)
 }
 
@@ -364,11 +401,12 @@ func stubExit(t *testing.T) (*int, *bytes.Buffer) {
 }
 
 func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
-	t.Setenv(common.EnvIntendedManifest, "")
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
 	l := &dispatchLang{}
 	l.Before(context.Background())
-	common.Errors.Add("go", "", "go: //b:b: unresolved import \"x\"")
-	common.Errors.Add("cc", "", "cc: //a:a: unresolved import \"y\"")
+	common.Errors.Add(common.GenerationError{Language: "go", Message: "go: //b:b: unresolved import \"x\""})
+	common.Errors.Add(common.GenerationError{Language: "cc", Message: "cc: //a:a: unresolved import \"y\""})
 	code, errOut := stubExit(t)
 	l.AfterResolvingDeps(context.Background())
 	if *code != 1 {
@@ -380,6 +418,10 @@ func TestAfterResolvingDepsReportsEveryLanguage(t *testing.T) {
 	}
 	if got := common.Errors.Take(); got != nil {
 		t.Fatalf("sink after report = %#v, want empty", got)
+	}
+	manifest := readFailedManifest(t, out)
+	if len(manifest.Errors) != 2 || manifest.Errors[0].Language != "cc" || manifest.Errors[1].Language != "go" {
+		t.Fatalf("manifest errors = %+v, want cc then go", manifest.Errors)
 	}
 }
 
@@ -411,7 +453,7 @@ func TestBeforeFailsClosedOnBadGenerateMode(t *testing.T) {
 	t.Setenv(common.EnvGenerateMode, "bogus")
 	l := &dispatchLang{}
 	l.Before(context.Background())
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "must be") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "must be") {
 		t.Fatalf("errors = %v, want one generate-mode rejection", l.errors)
 	}
 	if l.manifest != nil {
@@ -484,8 +526,12 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"csharp": csharp,
 		"fsharp": oneSource,
 		"java":   jvm,
+		"javascript": oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
 		"kotlin": jvm,
 		"mdx":    oneSourceRelative,
+		"perl":   oneSource,
+		"php":    "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",
+		"python": oneSource,
 		"ruby":   oneSource,
 		"scala":  jvm,
 		"svelte": oneSourceRelative,
@@ -569,12 +615,12 @@ func TestConfigureRejectsUnknownIgnoreLanguage(t *testing.T) {
 			}
 			continue
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) || !strings.Contains(l.errors[0], "//pkg") {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, tc.want) || !strings.Contains(l.errors[0].Message, "//pkg") {
 			t.Errorf("%q: errors = %v, want one containing %q", tc.value, l.errors, tc.want)
 			continue
 		}
-		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0], "use one of: astro, cc,") {
-			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0])
+		if strings.HasPrefix(tc.want, "unknown") && !strings.Contains(l.errors[0].Message, "use one of: astro, cc,") {
+			t.Errorf("%q: error %q must list the accepted languages", tc.value, l.errors[0].Message)
 		}
 	}
 	l := &dispatchLang{}
@@ -624,12 +670,10 @@ func TestAfterResolvingDepsFailsOnUnknownIgnoreLanguage(t *testing.T) {
 	if *code != 1 {
 		t.Fatalf("exit code = %d, want 1", *code)
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unknown language "pyton"`) || !strings.Contains(errOut.String(), `unknown language "pyton"`) {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `unknown language "pyton"`) || !strings.Contains(errOut.String(), `unknown language "pyton"`) {
 		t.Fatalf("errors = %v, stderr = %q, want the unknown language", l.errors, errOut.String())
 	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Fatalf("manifest stat = %v, want no manifest written", err)
-	}
+	readFailedManifest(t, out)
 }
 
 func langFile(value string) *rule.File {
@@ -662,7 +706,7 @@ func TestConfigureRejectsLangWithoutDispatch(t *testing.T) {
 			}
 			continue
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], "//pkg") || !strings.Contains(l.errors[0], languageName) {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "//pkg") || !strings.Contains(l.errors[0].Message, languageName) {
 			t.Errorf("%s: errors = %v, want one naming //pkg and %s", tc.name, l.errors, languageName)
 		}
 	}
@@ -686,9 +730,7 @@ func TestAfterResolvingDepsFailsOnLangWithoutDispatch(t *testing.T) {
 	if *code != 1 {
 		t.Fatalf("exit code = %d, want 1", *code)
 	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Fatalf("manifest stat = %v, want no manifest written", err)
-	}
+	readFailedManifest(t, out)
 }
 
 func TestFallbackLanguagesAreComposed(t *testing.T) {
@@ -776,8 +818,8 @@ func wantAndroidErrors(t *testing.T, l *dispatchLang, want ...string) {
 		t.Fatalf("errors = %q, want %d", l.errors, len(want))
 	}
 	for i, w := range want {
-		if !strings.Contains(l.errors[i], w) {
-			t.Errorf("error %d = %q, want containing %q", i, l.errors[i], w)
+		if !strings.Contains(l.errors[i].Message, w) {
+			t.Errorf("error %d = %q, want containing %q", i, l.errors[i].Message, w)
 		}
 	}
 }
@@ -856,5 +898,66 @@ func TestAndroidCheckWritesNothing(t *testing.T) {
 func TestAndroidNilFile(t *testing.T) {
 	if errs := checkAndroid(language.GenerateArgs{Rel: "app"}); errs != nil {
 		t.Errorf("errors = %q, want none", errs)
+	}
+}
+
+func TestAfterResolvingDepsRestoresBuildFilesOnFailure(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "BUILD.bazel")
+	created := filepath.Join(dir, "BUILD")
+	if err := os.WriteFile(existing, []byte("# custom\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	cfg := testConfig()
+	cfg.ValidBuildFileNames = []string{"BUILD.bazel", "BUILD"}
+	l.GenerateRules(language.GenerateArgs{Config: cfg, Dir: dir})
+	if err := os.WriteFile(existing, []byte("# generated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(created, []byte("# generated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	common.Errors.Add(common.GenerationError{Language: "go", Message: "go: unresolved import"})
+	code, _ := stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	if *code != 1 {
+		t.Fatalf("exit code = %d, want 1", *code)
+	}
+	if got, _ := os.ReadFile(existing); string(got) != "# custom\n" {
+		t.Fatalf("existing BUILD = %q, want original bytes", got)
+	}
+	if _, err := os.Stat(created); !os.IsNotExist(err) {
+		t.Fatalf("created BUILD stat = %v, want removed", err)
+	}
+	readFailedManifest(t, out)
+}
+
+func TestFailureManifestCarriesPackages(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	t.Setenv(common.EnvIntendedManifest, out)
+	t.Setenv(common.EnvGenerateScope, `[{"element":"//a:one","dirs":["a"]}]`)
+	l := &dispatchLang{}
+	l.Before(context.Background())
+	l.fail(common.InPackage(""), "lang: root")
+	l.fail(common.InPackage("a"), "lang: a")
+	l.fail(common.UnknownPackage, "lang: unknown")
+	stubExit(t)
+	l.AfterResolvingDeps(context.Background())
+	var got []string
+	for _, e := range readFailedManifest(t, out).Errors {
+		switch {
+		case e.Package == nil:
+			got = append(got, e.Message+"=unset")
+		default:
+			got = append(got, e.Message+"="+*e.Package)
+		}
+	}
+	want := []string{"lang: unknown=unset", "lang: root=", "lang: a=a"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("manifest error packages = %v, want %v", got, want)
 	}
 }

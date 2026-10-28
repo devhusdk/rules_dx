@@ -1,14 +1,14 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//fsharp/rules:defs.bzl", "fsharp_binary")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":framework.bzl", "FSHARPLINT_FRAMEWORK", "framework_pinned")
+load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK", "framework_pinned")
 
 package(default_visibility = ["//:__subpackages__"])
 
 fsharp_binary(
     name = "runner",
     srcs = ["Program.fs"],
-    target_frameworks = [FSHARPLINT_FRAMEWORK],
+    target_frameworks = [DOTNET_TOOL_FRAMEWORK],
     deps = [
         "@paket.fsharplint//fsharp.compiler.service",
         "@paket.fsharplint//fsharp.core",
@@ -33,7 +33,6 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
-        "framework.bzl",
     ],
     tags = ["corpus"],
 )

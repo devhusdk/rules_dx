@@ -15,6 +15,11 @@ CONFIG_REQUIRED_TOOLS = {
     "checkstyle": struct(name = "Checkstyle", src = "checkstyle.xml"),
     "eslint": struct(name = "ESLint", src = "eslint.config.mjs"),
     "graphql_eslint": struct(name = "graphql-eslint", src = "graphql_lint.json"),
+    "kubeconform": struct(
+        name = "kubeconform",
+        src = "kubernetes.kubeconform.json",
+        hint = "Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
+    ),
     "ruff": struct(name = "Ruff", src = "ruff.toml"),
     "scalafix": struct(name = "Scalafix", src = ".scalafix.conf"),
     "scalafmt": struct(name = "Scalafmt", src = ".scalafmt.conf"),
@@ -22,6 +27,7 @@ CONFIG_REQUIRED_TOOLS = {
 }
 
 _NATIVE_CONFIG_SUFFIXES = {
+    "ansible_lint": [".ansible-lint", ".yml", ".yaml"],
     "biome": [".json"],
     "buf": [".yaml"],
     "buildifier": [".json"],
@@ -32,15 +38,21 @@ _NATIVE_CONFIG_SUFFIXES = {
     "csharpier": [".yaml"],
     "djlint": ["djlint.toml", ".djlintrc"],
     "eslint": [".js", ".mjs", ".cjs"],
+    "credo": [".exs"],
     "fsharplint": [".json"],
     "graphql_eslint": [".json"],
     "hadolint": [".yaml", ".yml"],
+    "kubeconform": [".kubeconform.json"],
+    "latexindent": [".yaml", ".yml"],
+    "checkmake": [".ini"],
     "pmd": [".xml"],
+    "tflint": [".hcl"],
     "prettier": [".prettierrc", ".json", ".json5", ".yaml", ".yml", ".toml", ".mjs", ".cjs", ".js"],
     "psscriptanalyzer": [".psd1"],
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
     "redocly": [".yaml", ".yml"],
+    "regal": [".yaml", ".yml"],
     "remark": [".json"],
     "rubocop": [".yml", ".yaml"],
     "ruff": [".toml"],
@@ -50,7 +62,9 @@ _NATIVE_CONFIG_SUFFIXES = {
     "shellcheck": [".shellcheckrc", "shellcheckrc"],
     "standardrb": [".yml", ".yaml"],
     "staticcheck": [".conf"],
+    "statix": [".toml"],
     "stylelint": [".json"],
+    "stylua": [".toml"],
     "taplo": [".toml"],
     "vale": [".ini"],
     "yamlfmt": [".yaml", ".yml", ".yamlfmt"],
@@ -75,6 +89,15 @@ def _native_config_suffix_error(tool_id, config_path, wants):
     quoted = ["'" + want + "'" for want in wants]
     return ("native_config (" + tool_id + "): src must end in one of " +
             ", ".join(quoted) + ", got " + config_path)
+
+def native_config_scratch_rel(short_path):
+    """Maps a short_path to a scratch-relative path ('../repo/p' -> '_external/repo/p'), or None if it still escapes."""
+    rel = short_path
+    if rel.startswith("../"):
+        rel = "_external/" + rel[3:]
+    if ".." in rel.split("/"):
+        return None
+    return rel
 
 def native_config_error(tool_id, config_path, config_is_source, data, allow_generated = False):
     """Returns the validation error for a native config, or "" when valid."""
@@ -111,6 +134,8 @@ def missing_required_config_error(tool, capability, configs_by_tool, what):
     if tool not in CONFIG_REQUIRED_TOOLS or tool in configs_by_tool:
         return ""
     info = CONFIG_REQUIRED_TOOLS[tool]
+    if hasattr(info, "hint"):
+        return what + ": " + info.name + " needs a config. " + info.hint
     return (what + ": " + info.name + " needs a config. Declare " + tool + "_config(name = \"" +
             tool + "_config\", src = \"" + info.src + "\") from @rules_dx//quality:native_config.bzl" +
             " and add aspect_hints = [\":" + tool + "_config\"], or tag the target no-" + capability + ".")
@@ -161,7 +186,11 @@ def _make_native_config_rule(tool_id):
 
 buildifier_config = _make_native_config_rule("buildifier")
 
+stylua_config = _make_native_config_rule("stylua")
+
 taplo_config = _make_native_config_rule("taplo")
+
+latexindent_config = _make_native_config_rule("latexindent")
 
 vale_config = _make_native_config_rule("vale")
 
@@ -218,8 +247,16 @@ shellcheck_config = _make_native_config_rule("shellcheck")
 
 yamllint_config = _make_native_config_rule("yamllint")
 
+ansible_lint_config = _make_native_config_rule("ansible_lint")
+
 hadolint_config = _make_native_config_rule("hadolint")
+regal_config = _make_native_config_rule("regal")
+checkmake_config = _make_native_config_rule("checkmake")
+tflint_config = _make_native_config_rule("tflint")
+credo_config = _make_native_config_rule("credo")
 
 rubocop_config = _make_native_config_rule("rubocop")
 
 standardrb_config = _make_native_config_rule("standardrb")
+
+statix_config = _make_native_config_rule("statix")

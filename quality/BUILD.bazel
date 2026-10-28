@@ -377,6 +377,48 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_jsonnet",
         },
         {
+            "case": "typst_formatted",
+            "expected_dx_results": [
+                "clean_typst-real-format-typst.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:typst_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_typst",
+        },
+        {
+            "case": "rego_checked",
+            "expected_dx_results": [
+                "clean_rego-real-format-rego.pb",
+                "clean_rego-real-lint-rego.pb",
+                "clean_rego-real-typecheck-rego.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:rego_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_rego",
+        },
+        {
+            "case": "latex_formatted",
+            "expected_dx_results": [
+                "clean_latex-real-format-latex.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:latex_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_latex",
+        },
+        {
+            "case": "lua_formatted",
+            "expected_dx_results": [
+                "clean_lua-real-format-lua.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:lua_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_lua",
+          },
+          {
+            "case": "haskell_formatted",
+            "expected_dx_results": [
+                "clean_haskell-real-format-haskell.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:haskell_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_haskell",
+        },
+        {
             "case": "pkl_formatted",
             "expected_dx_results": [
                 "clean_pkl-real-format-pkl.pb",
@@ -409,6 +451,65 @@ consumer_policy_tests(
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:yaml_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_yaml",
+        },
+        {
+            "case": "make_linted",
+            "expected_dx_results": [
+                "clean_make-real-lint-make.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:make_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_make",
+        },
+        {
+            "case": "jupyter_formatted",
+            "expected_dx_results": [
+                "clean_jupyter-real-format.pb",
+                "clean_jupyter-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:jupyter_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_jupyter",
+        },
+        {
+            "case": "jupyter_outputs_linted",
+            "expected_dx_results": [
+                "clean_jupyter-real-format.pb",
+                "clean_jupyter-real-lint.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:jupyter_outputs_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_jupyter",
+        },
+        {
+            "case": "nix_linted",
+            "expected_dx_results": [
+                "clean_nix-real-format-nix.pb",
+                "clean_nix-real-lint-nix.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:nix_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_nix",
+        },
+        {
+            "case": "kubernetes_linted",
+            "expected_dx_results": [
+                "clean_kubernetes-real-lint-kubernetes.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:kubernetes_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_kubernetes",
+        },
+        {
+            "case": "ansible_linted",
+            "expected_dx_results": [
+                "clean_ansible-real-lint-ansible.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:ansible_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_ansible",
+        },
+        {
+            "case": "api_spec_linted",
+            "expected_dx_results": [
+                "clean_api_spec-real-lint-js.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:api_spec_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_api_spec",
         },
         {
             "case": "toml_format_off",
@@ -474,14 +575,23 @@ support_unit_tests(name = "support_unit")
 test_suite(
     name = "all",
     tests = [
+        ":consumer_policy_ansible_linted_test",
+        ":consumer_policy_api_spec_linted_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_json_biome_test",
         ":consumer_policy_json_prettier_test",
+        ":consumer_policy_jupyter_formatted_test",
+        ":consumer_policy_jupyter_outputs_linted_test",
+        ":consumer_policy_kubernetes_linted_test",
+        ":consumer_policy_make_linted_test",
+        ":consumer_policy_latex_formatted_test",
+        ":consumer_policy_nix_linted_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
+        ":consumer_policy_typst_formatted_test",
         ":consumer_policy_yaml_formatted_test",
         ":curated_defaults_unit",
         ":execution_requirements_unit",
@@ -564,6 +674,7 @@ rust_test(
         "//cli/atomic_fs:src/lib.rs",
         "//cli/audit:src/lib.rs",
         "//cli/bep:src/lib.rs",
+        "//cli/binfmt:src/lib.rs",
         "//cli/bump:src/lib.rs",
         "//cli/clean:src/lib.rs",
         "//cli/cli:src/bin_man.rs",
@@ -596,12 +707,14 @@ rust_test(
         "//deploy/install:src/main.rs",
         "//deploy/offline/bootstrap:src/lib.rs",
         "//deploy/offline/bootstrap:src/main.rs",
+        "//deploy/release:src/bin_release_deploy_tool.rs",
         "//deploy/release:src/bin_release_driver.rs",
         "//deploy/release:src/bin_release_tool.rs",
         "//deploy/release:src/bin_source_archive.rs",
         "//deploy/release:src/lib.rs",
         "//deploy/rules:src/bin_archiver.rs",
         "//deploy/rules:src/bin_deploy_app.rs",
+        "//deploy/rules:src/bin_deploy_tool.rs",
         "//deploy/rules:src/bin_deploy_program.rs",
         "//deploy/rules:src/bin_hasher.rs",
         "//deploy/rules:src/bin_npm_pack.rs",
@@ -619,6 +732,8 @@ rust_test(
         "//quality/adapter:src/lib.rs",
         "//quality/markdown:src/lib.rs",
         "//quality/markdown:src/main.rs",
+        "//quality/notebook:src/lib.rs",
+        "//quality/notebook:src/main.rs",
         "//quality/result:src/lib.rs",
         "//quality/result:src/print.rs",
         "//quality/runner:src/lib.rs",
@@ -627,7 +742,6 @@ rust_test(
         "//quality/tools/javascript/launcher:src/main.rs",
         "//tools/bazelrc:src/bin_preset_update.rs",
         "//tools/bazelrc:src/lib.rs",
-        "//tools/coverage:src/main.rs",
         "//tools/depcheck:src/lib.rs",
         "//tools/depcheck:src/main.rs",
         "//tools/docs/ir/ir:src/lib.rs",

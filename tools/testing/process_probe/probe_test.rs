@@ -44,6 +44,7 @@ fn help_names_every_flag_and_exits_zero() {
         "--marker",
         "--alive-lock",
         "--descendant-alive-lock",
+        "--descendant-gate",
         "--raise-signal",
         "--count-sigint",
         "--help",
@@ -398,6 +399,21 @@ impl Drop for Probe {
     }
 }
 
+/// Opens its gate file on drop, so a probe waiting on it ends even if the test panics.
+struct Release(std::path::PathBuf);
+
+impl Release {
+    fn fire(&self) {
+        let _ = std::fs::write(&self.0, b"");
+    }
+}
+
+impl Drop for Release {
+    fn drop(&mut self) {
+        self.fire();
+    }
+}
+
 #[cfg(unix)]
 fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -424,9 +440,11 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     let scratch_tmp = dx_test_scratch::scratch("dx-probe-sigint");
     let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("sigint.log");
+    let gate = scratch.join("probe.release");
     let mut child = Probe(
         std::process::Command::new(probe())
             .arg(format!("--count-sigint={}", log.display()))
+            .arg(format!("--gate={}", gate.display()))
             .arg("--sleep-ms=30000")
             .spawn()
             .expect("probe starts"),
@@ -446,6 +464,19 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
         "the probe died from a SIGINT"
     );
     assert_eq!(std::fs::read(&log).expect("log"), b"II");
+    std::fs::write(&gate, b"").expect("release the probe");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let status = loop {
+        if let Some(status) = child.0.try_wait().expect("probe status") {
+            break status;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the probe did not exit after its gate opened"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_eq!(status.code(), Some(0), "the probe must exit cleanly");
 }
 
 #[test]
@@ -454,6 +485,7 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
     let scratch = scratch_tmp.path().to_path_buf();
     let marker = scratch.join("descendant.finished");
     let lock = scratch.join("descendant.alive");
+    let release = Release(scratch.join("descendant.release"));
     let run = run(&[
         "--detached-descendant",
         "--descendant-own-group",
@@ -461,6 +493,7 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
         "--descendant-stdout-bytes=16",
         &format!("--descendant-marker={}", marker.display()),
         &format!("--descendant-alive-lock={}", lock.display()),
+        &format!("--descendant-gate={}", release.0.display()),
     ]);
     assert_eq!(run.status.code(), Some(0));
     assert!(run.stdout.is_empty(), "{:?}", run.stdout);
@@ -473,6 +506,8 @@ fn an_own_group_descendant_does_not_hold_the_parent_output() {
         dx_testing::alive_lock_held(&lock),
         "output() must return while the descendant lives"
     );
+    release.fire();
+    dx_testing::assert_alive_lock_released(&lock);
 }
 
 #[test]
@@ -504,11 +539,13 @@ fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
     let scratch_tmp = dx_test_scratch::scratch("dx-probe-descendant-lock");
     let scratch = scratch_tmp.path().to_path_buf();
     let lock = scratch.join("descendant.alive");
+    let release = Release(scratch.join("descendant.release"));
     let run = run(&[
         "--detached-descendant",
         "--descendant-own-group",
         "--descendant-sleep-ms=30000",
         &format!("--descendant-alive-lock={}", lock.display()),
+        &format!("--descendant-gate={}", release.0.display()),
     ]);
     assert_eq!(run.status.code(), Some(0), "{}", run.stderr);
     assert!(
@@ -519,4 +556,6 @@ fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
         dx_testing::alive_lock_held(&lock),
         "the descendant must hold its lock"
     );
+    release.fire();
+    dx_testing::assert_alive_lock_released(&lock);
 }

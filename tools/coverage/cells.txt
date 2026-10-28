@@ -1,0 +1,6 @@
+# Expected native coverage cells, one per line. The aggregate fails when any is absent.
+linux_x86_64
+linux_arm64
+macos_arm64
+windows_x86_64
+windows_arm64

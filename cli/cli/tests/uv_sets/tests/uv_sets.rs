@@ -1,9 +1,8 @@
-use std::io::{Read, Write};
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 
-use dx_testing::{mkscratch, resolve_runfiles, run, Run};
+use dx_test_scratch::{scratch, TempDir};
+use dx_testing::http::{requests, serve, Reply, RequestLog};
+use dx_testing::{resolve_runfiles, run, Run};
 
 const DX_TOML: &str = r#"schema_version = 1
 
@@ -74,64 +73,26 @@ fn pyproject_with(name: &str, requires: &str, url: Option<&str>, wheels: &[&str]
 
 struct Index {
     url: String,
-    seen: Arc<Mutex<Vec<String>>>,
+    seen: RequestLog,
 }
 
 impl Index {
     fn start(wheels: Vec<(String, Vec<u8>)>) -> Index {
-        let listener =
-            TcpListener::bind("127.0.0.1:0").unwrap_or_else(|error| panic!("bind: {error}"));
-        let port = listener
-            .local_addr()
-            .unwrap_or_else(|error| panic!("addr: {error}"))
-            .port();
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let log = Arc::clone(&seen);
-        std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                let Ok(mut stream) = stream else { continue };
-                let mut head = Vec::new();
-                let mut byte = [0u8; 1];
-                while !head.ends_with(b"\r\n\r\n") {
-                    match stream.read(&mut byte) {
-                        Ok(1) => head.push(byte[0]),
-                        _ => break,
-                    }
-                }
-                let text = String::from_utf8_lossy(&head).into_owned();
-                let mut words = text.split_whitespace();
-                let method = words.next().unwrap_or_default().to_owned();
-                let path = words.next().unwrap_or_default().to_owned();
-                if let Ok(mut log) = log.lock() {
-                    log.push(path.clone());
-                }
-                let found = wheels
-                    .iter()
-                    .find(|(name, _)| path.ends_with(name.as_str()));
-                let status = if found.is_some() {
-                    "200 OK"
-                } else {
-                    "404 Not Found"
-                };
-                let body: &[u8] = found.map_or(b"", |(_, bytes)| bytes);
-                let reply = format!(
-                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n",
-                    body.len()
-                );
-                let _ = stream.write_all(reply.as_bytes());
-                if method != "HEAD" {
-                    let _ = stream.write_all(body);
-                }
-            }
-        });
-        Index {
-            url: format!("http://127.0.0.1:{port}"),
-            seen,
-        }
+        let (url, seen) = serve(move |path| {
+            wheels
+                .iter()
+                .find(|(name, _)| path.ends_with(name.as_str()))
+                .map(|(_, bytes)| Reply {
+                    content_type: "application/octet-stream",
+                    body: bytes.clone(),
+                })
+        })
+        .unwrap_or_else(|error| panic!("serve: {error}"));
+        Index { url, seen }
     }
 
     fn requests(&self) -> Vec<String> {
-        self.seen.lock().map(|log| log.clone()).unwrap_or_default()
+        requests(&self.seen)
     }
 }
 
@@ -156,11 +117,14 @@ struct Consumer {
     root: PathBuf,
     ambient: PathBuf,
     index: Index,
+    /// Declared last so it drops after the index server stops.
+    _guard: TempDir,
 }
 
 impl Consumer {
     fn new(name: &str) -> Consumer {
-        let base = mkscratch(name).unwrap_or_else(|error| panic!("scratch: {error}"));
+        let guard = scratch(name);
+        let base = guard.path().to_path_buf();
         let root = base.join("ws");
         let ambient = base.join("ambient");
         let python = runfile("UV_SETS_PYTHON");
@@ -208,11 +172,20 @@ impl Consumer {
             );
             std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755))
                 .unwrap_or_else(|error| panic!("chmod: {error}"));
+            // An unset DX_UV_BIN makes dx ask Bazel; this one fails fast without a server.
+            let bazel = ambient.join("bin/bazel");
+            write(
+                &bazel,
+                "#!/bin/sh\necho \"ERROR: no such repository '@dx_tools'\" >&2\nexit 2\n",
+            );
+            std::fs::set_permissions(&bazel, std::fs::Permissions::from_mode(0o755))
+                .unwrap_or_else(|error| panic!("chmod: {error}"));
         }
         Consumer {
             root,
             ambient,
             index,
+            _guard: guard,
         }
     }
 

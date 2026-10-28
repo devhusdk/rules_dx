@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "packages": {
+    "psr/http-factory": {
+      "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a",
+      "sha256": "a3c397252b6c1c15e60ad6fae927d61edbf4059f3473080bb1b3b40deabf80d2"
+    },
+    "psr/http-message": {
+      "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+      "sha256": "d561d2c36e2e3c0ee8b54e0e9652b3bfa13cd763e5e6f93400969001f3a7968d"
+    },
+    "symfony/deprecation-contracts": {
+      "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62",
+      "sha256": "7e357a38d42e163006ee3d5131aeabb81b3634167dc159023563a131ab969fae"
+    }
+  }
+}

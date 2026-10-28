@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_haskell_format_module
+capability FORMAT
+stages 1
+stage ormolu classes=haskell sources=quality/tests/fixtures/consumer_policy/haskell_module/Lib/Greeting.hs,quality/tests/fixtures/consumer_policy/haskell_module/Main.hs
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

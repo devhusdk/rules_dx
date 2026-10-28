@@ -179,12 +179,12 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 	manifestPath := path.Join(args.Rel, "Cargo.toml")
 	content, err := os.ReadFile(filepath.Join(args.Dir, "Cargo.toml"))
 	if err != nil {
-		l.fail("rust: %s: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return language.GenerateResult{}
 	}
 	manifest, err := parseCargoManifest(manifestPath, content)
 	if err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	if manifest.virtual {
@@ -195,15 +195,15 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		existsSet[name] = true
 	}
 	if err := manifest.withImplicitTargets(existsSet, args.Rel); err != nil {
-		l.fail("rust: %s: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return language.GenerateResult{}
 	}
 	if err := l.inheritWorkspace(args, manifestPath, manifest); err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	if err := l.checkPathDepVersions(args, manifestPath, manifest); err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
 	l.resolveRenamedProviders(args, manifest)
@@ -219,17 +219,17 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 			if (target.kind == libraryKind && target.path == "src/lib.rs") || (target.kind == binaryKind && target.path == "src/main.rs") {
 				continue
 			}
-			l.fail("rust: %s: Cargo target %s(%s) root %s does not exist", manifestPath, target.kind, target.name, target.path)
+			l.fail(common.InPackage(args.Rel), "rust: %s: Cargo target %s(%s) root %s does not exist", manifestPath, target.kind, target.name, target.path)
 			continue
 		}
 		tree, loadErr := LoadCrate(root, read, func(name string) bool { return existsSet[name] })
 		if loadErr != nil {
-			l.fail("%v", loadErr)
+			l.fail(common.InPackage(args.Rel), "%v", loadErr)
 			continue
 		}
 		includeDev := target.kind == testKind || target.kind == exampleKind || target.kind == benchKind
 		if err := claimSources(owners, target.name, includeDev, tree); err != nil {
-			l.fail("%v", err)
+			l.fail(common.InPackage(args.Rel), "%v", err)
 			continue
 		}
 		splitTests := excludesTestOnly(target) && hasTestOnly(tree)
@@ -241,11 +241,11 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		imports := importsForEdition(tree, manifest.edition, root)
 		if target.kind == exampleKind || target.kind == benchKind {
 			if err := validateExampleImports(args.Config, manifest, imports); err != nil {
-				l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
+				l.fail(common.InPackage(args.Rel), "rust: %s: target %s: %v", manifestPath, target.name, err)
 				continue
 			}
 		} else if err := validateCargoImports(args.Config, manifest, target.kind, imports); err != nil {
-			l.fail("rust: %s: target %s: %v", manifestPath, target.name, err)
+			l.fail(common.InPackage(args.Rel), "rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
 		setCargoAttrs(r, args.Rel, manifest, includeDev)
@@ -327,26 +327,26 @@ func wantsUnitTest(target cargoTarget, tree map[string]*FileFacts) bool {
 func (l *rustLang) emitBuildScript(args language.GenerateArgs, manifestPath string, manifest *cargoManifest, existsSet map[string]bool, read func(string) ([]byte, error), owners map[string]sourceOwner, result *language.GenerateResult) {
 	scriptName, err := BuildScriptName(manifest.packageName)
 	if err != nil {
-		l.fail("rust: %s: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: %v", manifestPath, err)
 		return
 	}
 	root := path.Join(args.Rel, manifest.build.path)
 	if !existsSet[root] {
-		l.fail("rust: %s: build script %s does not exist", manifestPath, manifest.build.path)
+		l.fail(common.InPackage(args.Rel), "rust: %s: build script %s does not exist", manifestPath, manifest.build.path)
 		return
 	}
 	tree, loadErr := LoadCrate(root, read, func(name string) bool { return existsSet[name] })
 	if loadErr != nil {
-		l.fail("%v", loadErr)
+		l.fail(common.InPackage(args.Rel), "%v", loadErr)
 		return
 	}
 	if err := claimSources(owners, scriptName, false, tree); err != nil {
-		l.fail("%v", err)
+		l.fail(common.InPackage(args.Rel), "%v", err)
 		return
 	}
 	imports := importsForEdition(tree, manifest.edition, root)
 	if err := validateBuildImports(args.Config, manifest, imports); err != nil {
-		l.fail("rust: %s: build script: %v", manifestPath, err)
+		l.fail(common.InPackage(args.Rel), "rust: %s: build script: %v", manifestPath, err)
 		return
 	}
 	r := rule.NewRule(scriptKind, scriptName)
@@ -452,16 +452,65 @@ func (c aliasesUnionExpr) BzlExpr() bzl.Expr {
 func (c aliasesUnionExpr) Merge(bzl.Expr) bzl.Expr { return c.BzlExpr() }
 
 type depsConcatExpr struct {
-	base  bzl.Expr
-	extra []string
+	base    bzl.Expr
+	extra   []string
+	android []string
+	// platform maps a platform constraint to deps gated behind it.
+	platform map[string][]string
 }
 
 func (c depsConcatExpr) BzlExpr() bzl.Expr {
-	extra := make([]bzl.Expr, len(c.extra))
-	for i, dep := range c.extra {
-		extra[i] = &bzl.StringExpr{Value: dep}
+	var out bzl.Expr = c.base
+	gates := map[string][]string{}
+	if len(c.android) > 0 {
+		gates[androidPlatformConstraint] = c.android
 	}
-	return &bzl.BinaryExpr{X: c.base, Op: "+", Y: &bzl.ListExpr{List: extra}}
+	for k, v := range c.platform {
+		if len(v) > 0 {
+			gates[k] = v
+		}
+	}
+	// Keys may be comma-joined constraint sets sharing one dep list.
+	if out == nil || len(c.extra) > 0 || len(gates) == 0 {
+		extra := make([]bzl.Expr, len(c.extra))
+		for i, dep := range c.extra {
+			extra[i] = &bzl.StringExpr{Value: dep}
+		}
+		list := &bzl.ListExpr{List: extra}
+		if out == nil {
+			out = list
+		} else {
+			out = &bzl.BinaryExpr{X: out, Op: "+", Y: list}
+		}
+	}
+	if len(gates) == 0 {
+		return out
+	}
+	keys := make([]string, 0, len(gates))
+	for k := range gates {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	first := len(c.extra) == 0 && c.base == nil
+	for _, k := range keys {
+		items := make([]bzl.Expr, len(gates[k]))
+		for i, dep := range gates[k] {
+			items[i] = &bzl.StringExpr{Value: dep}
+		}
+		var entries []*bzl.KeyValueExpr
+		for _, key := range strings.Split(k, ",") {
+			entries = append(entries, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: key}, Value: &bzl.ListExpr{List: items}})
+		}
+		entries = append(entries, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}})
+		sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: entries, ForceMultiLine: true}}}
+		if first {
+			out = sel
+			first = false
+			continue
+		}
+		out = &bzl.BinaryExpr{X: out, Op: "+", Y: sel}
+	}
+	return out
 }
 
 func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
@@ -469,7 +518,15 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	for _, dep := range c.extra {
 		managed[dep] = true
 	}
-	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed))}.BzlExpr()
+	for _, dep := range c.android {
+		managed[dep] = true
+	}
+	for _, deps := range c.platform {
+		for _, dep := range deps {
+			managed[dep] = true
+		}
+	}
+	return depsConcatExpr{base: c.base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform}.BzlExpr()
 }
 
 func unmanagedDepsLabels(other bzl.Expr, managed map[string]bool) []string {
@@ -739,6 +796,9 @@ func staleRules(file *rule.File, desired map[string]bool) language.GenerateResul
 		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
 			continue
 		}
+		if hasHandwrittenAttr(existing) {
+			continue
+		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())
 		result.Empty = append(result.Empty, empty)
 	}
@@ -757,4 +817,15 @@ func siblingLibName(manifest *cargoManifest, bin cargoTarget) string {
 		}
 	}
 	return ""
+}
+
+// hasHandwrittenAttr reports whether r sets attributes the generator never
+// writes, so the rule is handwritten and must not be removed as stale.
+func hasHandwrittenAttr(r *rule.Rule) bool {
+	for _, attr := range []string{"env", "rustc_env", "data", "compile_data", "rustc_flags", "args"} {
+		if r.Attr(attr) != nil {
+			return true
+		}
+	}
+	return false
 }

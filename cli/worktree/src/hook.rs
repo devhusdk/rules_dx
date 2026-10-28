@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
@@ -5,7 +6,7 @@ use serde_json::Value;
 use super::git;
 use super::host::Host;
 use super::ops::{self, AddRequest, Added, Released};
-use super::pool::{Pool, Who, HOLDER_ENV, SESSION_ENV};
+use super::pool::{Pool, Record, Who, HOLDER_ENV, SESSION_ENV};
 use super::WorktreeError;
 
 fn field(input: &Value, name: &str) -> Option<String> {
@@ -162,22 +163,47 @@ pub fn branch_for(name: &str) -> String {
     )
 }
 
-/// The first agent branch name that is local or not on origin.
-fn free_branch(main: &Path, name: &str) -> String {
-    let stem = branch_for(name);
+/// The first agent branch name no pool record holds, no checkout has, and
+/// origin does not carry (unless it is also local with unmerged work). `remote` is the live
+/// origin branch set, or `None` to fall back to local `origin/*` refs.
+fn free_branch(
+    main: &Path,
+    stem: &str,
+    records: &[Record],
+    checkouts: &[git::Checkout],
+    remote: Option<&HashSet<String>>,
+) -> String {
+    let base = git::default_base(main).ok();
     (1..)
         .map(|n| {
             if n == 1 {
-                stem.clone()
+                stem.to_owned()
             } else {
                 format!("{stem}-{n}")
             }
         })
         .find(|candidate| {
-            git::branch_exists(main, candidate)
-                || !git::ref_exists(main, &format!("origin/{candidate}"))
+            if ops::held_on(records, candidate).is_some()
+                || checkouts
+                    .iter()
+                    .any(|checkout| checkout.branch.as_deref() == Some(candidate.as_str()))
+            {
+                return false;
+            }
+            if git::branch_exists(main, candidate) {
+                // A leftover already merged into the base is stale; one with
+                // unmerged commits stays reusable so resume-by-name works.
+                return base
+                    .as_deref()
+                    .is_none_or(|base| !git::branch_behind(main, candidate, base));
+            }
+            let on_origin = match remote {
+                Some(set) => set.contains(candidate),
+                None => git::ref_exists(main, &format!("origin/{candidate}")),
+            };
+            !on_origin
         })
-        .unwrap_or(stem)
+        .unwrap_or_else(|| stem.to_owned())
 }
 
 fn recycle_gone(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
@@ -221,8 +247,30 @@ pub fn create(
     let name = field(input, "name").ok_or_else(|| missing(HookKind::Create, "name"))?;
     let freed = recycle_gone(pool, host, who);
     let warnings = ops::refresh(pool, host)?;
-    let branch = free_branch(&pool.main, &name);
-    ops::check_branch(pool, &branch)?;
+    let stem = branch_for(&name);
+    // Every `-N` form of a valid stem is valid too.
+    ops::check_branch(pool, &stem)?;
+    let has_origin = git::succeeds(&pool.main, &["remote", "get-url", "origin"]);
+    let fetched = !warnings.iter().any(|w| w.code == "fetch_failed");
+    let remote = if has_origin && fetched {
+        match git::remote_heads(&pool.main, &stem, &|| host.interrupted()) {
+            Ok(set) => Some(set),
+            Err(error) => match host.interrupted() {
+                Some(signo) => return Err(WorktreeError::stopped(signo)),
+                None => {
+                    let _ = error;
+                    None
+                }
+            },
+        }
+    } else {
+        None
+    };
+    let lock = pool.lock()?;
+    pool.forget_missing();
+    let records = pool.records();
+    let checkouts = pool.checkouts()?;
+    let branch = free_branch(&pool.main, &stem, &records, &checkouts, remote.as_ref());
     let owner = Who {
         agent: Some(branch.clone()),
         ..who.clone()
@@ -233,7 +281,7 @@ pub fn create(
         force: false,
         unclaimed: true,
     };
-    ops::lease(pool, host, &owner, &request, &freed, warnings)
+    ops::lease_locked(pool, host, &owner, &request, &freed, warnings, lock)
 }
 
 /// Frees the slot of an agent worktree and returns what the release did,
@@ -689,10 +737,35 @@ pub enum Guard {
     Rewrite(Value),
 }
 
-/// Blocks `git worktree add|remove|prune`, names the subagent for every dx command,
-/// and names the session for dx when the agent's shells do not.
-pub fn guard(input: &Value) -> Guard {
+/// Looks up the lease of the slot a directory is in.
+pub type LeaseLookup<'a> = &'a dyn Fn(&Path) -> Option<(PathBuf, Record)>;
+
+/// Git subcommands that change the checkout of the slot they run in.
+const SLOT_SWITCHING: &[&str] = &["checkout", "switch", "reset", "rebase"];
+
+/// Blocks `git worktree add|remove|prune`, blocks a checkout-changing git command in a slot
+/// another agent holds, names the subagent for every dx command, and names the session for dx
+/// when the agent's shells do not. `who` carries the environment's session and pid; the agent
+/// comes from the payload, because the rewrite below only reaches later dx commands.
+pub fn guard(input: &Value, who: &Who, lease: LeaseLookup) -> Guard {
+    guard_with(input, who, lease, &|name| std::env::var(name).ok())
+}
+
+/// `guard` with the environment passed in.
+///
+/// Codex sends no `agent_id`, and its shells share one `CODEX_THREAD_ID`. A
+/// payload `session_id` that differs from that thread id names a subagent's
+/// own thread, so it becomes the holder.
+pub fn guard_with(
+    input: &Value,
+    who: &Who,
+    lease: LeaseLookup,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Guard {
     if let Some(line) = blocked(input) {
+        return Guard::Block(line);
+    }
+    if let Some(line) = foreign_slot(input, who, lease) {
         return Guard::Block(line);
     }
     let Some(tool) = input.get("tool_input").and_then(Value::as_object) else {
@@ -708,7 +781,11 @@ pub fn guard(input: &Value) -> Guard {
             exports.push(format!("export {SESSION_ENV}={}", shell_quote(&session)));
         }
     }
-    if let Some(agent) = field(input, "agent_id") {
+    let codex_thread = env_get("CODEX_THREAD_ID").filter(|id| !id.is_empty());
+    let subagent_thread = field(input, "session_id").filter(|id| {
+        dialect == Dialect::Claude && codex_thread.as_deref().is_some_and(|t| t != id)
+    });
+    if let Some(agent) = field(input, "agent_id").or(subagent_thread) {
         if runs_dx(command) {
             exports.push(format!("export {HOLDER_ENV}={}", shell_quote(&agent)));
         }
@@ -722,6 +799,91 @@ pub fn guard(input: &Value) -> Guard {
         Value::String(format!("{}\n{command}", exports.join("\n"))),
     );
     Guard::Rewrite(dialect.rewrite(Value::Object(updated)))
+}
+
+/// The refusal for a `git checkout|switch|reset|rebase` that runs in a slot someone else holds.
+/// The lookup is only called for such commands whose directory is known.
+fn foreign_slot(input: &Value, who: &Who, lease: LeaseLookup) -> Option<String> {
+    let command = input
+        .get("tool_input")
+        .and_then(|tool| tool.get("command"))
+        .and_then(Value::as_str)?;
+    let dirs = switching_dirs(command, cwd(input));
+    if dirs.is_empty() {
+        return None;
+    }
+    let caller = Who {
+        session: who.session.clone().or_else(|| field(input, "session_id")),
+        agent: field(input, "agent_id"),
+        pid: who.pid,
+    };
+    dirs.iter().find_map(|dir| {
+        let (path, record) = lease(dir)?;
+        record.refuses(&caller).then(|| {
+            format!(
+                "{} is leased to {}; run dx worktree add <branch> for your own slot",
+                path.display(),
+                record.holder(true).unwrap_or_default()
+            )
+        })
+    })
+}
+
+/// The directories where `command` runs a slot-switching git subcommand. Directories follow
+/// `cd` and `git -C`; a call whose directory cannot be told statically is left out.
+fn switching_dirs(command: &str, start: Option<PathBuf>) -> Vec<PathBuf> {
+    let mut current = start;
+    let mut found = Vec::new();
+    for segment in segments(command) {
+        let Some((first, tail)) = segment.split_first() else {
+            continue;
+        };
+        let words: Vec<&str> = tail.iter().map(String::as_str).collect();
+        if base(first) == "cd" {
+            let target = words
+                .iter()
+                .copied()
+                .find(|word| !matches!(*word, "--" | "-L" | "-P" | "-e" | "-@"));
+            current = target.and_then(|target| move_to(current.as_deref(), target));
+            continue;
+        }
+        if !is_git(first) {
+            continue;
+        }
+        let mut dir = current.clone();
+        let mut rest = words.iter().copied();
+        while let Some(option) = rest.next() {
+            if option == "-C" {
+                dir = rest.next().and_then(|value| move_to(dir.as_deref(), value));
+            } else if option == "--git-dir"
+                || option == "--work-tree"
+                || option.starts_with("--git-dir=")
+                || option.starts_with("--work-tree=")
+            {
+                dir = None;
+                if !option.contains('=') {
+                    rest.next();
+                }
+            } else if GIT_VALUES.contains(&option) {
+                rest.next();
+            } else if option.starts_with('-') {
+            } else {
+                if SLOT_SWITCHING.contains(&option) {
+                    found.extend(dir);
+                }
+                break;
+            }
+        }
+    }
+    found
+}
+
+/// `target` seen from `from`, or none when the path depends on the shell or on `from`.
+fn move_to(from: Option<&Path>, target: &str) -> Option<PathBuf> {
+    if target == "-" || target.starts_with('~') || target.contains(['$', '`']) {
+        return None;
+    }
+    Some(from?.join(target))
 }
 
 /// The line that blocks a `git worktree add|remove|prune` command, if the command is one.

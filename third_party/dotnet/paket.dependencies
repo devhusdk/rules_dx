@@ -33,3 +33,9 @@ nuget Microsoft.Build.Framework 17.14.28
 nuget Microsoft.Build.Tasks.Core 17.14.28
 nuget Microsoft.Build.Utilities.Core 17.14.28
 nuget Microsoft.NET.StringTools 17.14.28
+
+group docs_csharp
+source https://api.nuget.org/v3/index.json
+framework: net10.0
+
+nuget Docfx.Dotnet 2.81.0

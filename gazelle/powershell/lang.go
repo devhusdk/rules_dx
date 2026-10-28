@@ -98,7 +98,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if len(modules) > 0 {
 		var err error
 		if name, err = common.PackageTargetName(args); err != nil {
-			rep.Fail("powershell: %s: %v", args.Rel, err)
+			rep.Fail(common.InPackage(args.Rel), "powershell: %s: %v", args.Rel, err)
 			return language.GenerateResult{}
 		}
 		claimants = append(claimants, common.Claimant{Name: name, Source: args.Rel, Kind: LibraryKind})
@@ -107,14 +107,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	for i, src := range tests {
 		testName, err := TestTargetName(src)
 		if err != nil {
-			rep.Fail("powershell: %s: %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "powershell: %s: %s: %v", args.Rel, src, err)
 			return language.GenerateResult{}
 		}
 		testNames[i] = testName
 		claimants = append(claimants, common.Claimant{Name: testName, Source: filepath.ToSlash(filepath.Join(args.Rel, src)), Kind: TestKind})
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
-		rep.Fail("powershell: %s: %v; rename the handwritten rule or add # gazelle:exclude for this directory", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "powershell: %s: %v; rename the handwritten rule or add # gazelle:exclude for this directory", args.Rel, err)
 		return language.GenerateResult{}
 	}
 	own := make(map[string]bool, len(modules))
@@ -153,7 +153,7 @@ func readImports(args language.GenerateArgs, files []string, own map[string]bool
 	for _, file := range files {
 		content, err := common.ReadSource(filepath.Join(args.Dir, file))
 		if err != nil {
-			rep.Fail("powershell: %s: read %s: %v", args.Rel, file, err)
+			rep.Fail(common.InPackage(args.Rel), "powershell: %s: read %s: %v", args.Rel, file, err)
 			return nil, false
 		}
 		for _, name := range ParseImports(content, strings.HasSuffix(file, ManifestExt)) {

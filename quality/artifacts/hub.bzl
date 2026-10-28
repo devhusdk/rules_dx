@@ -6,6 +6,7 @@ PLATFORM_CONSTRAINTS = {
     "macos_arm64": ["os_macos", "cpu_arm64"],
     "windows_x86_64": ["os_windows", "cpu_x86_64"],
     "macos_x86_64": ["os_macos", "cpu_x86_64"],
+    "windows_arm64": ["os_windows", "cpu_arm64"],
 }
 
 # The qualified execution set: every dx tool ships for each of these, and
@@ -17,6 +18,48 @@ TOOL_PLATFORMS = [
     "macos_arm64",
     "windows_x86_64",
 ]
+
+# Selectable platforms without a native build resolve to a qualified platform's
+# artifact, run under OS emulation (Windows on Arm runs x64 via Prism). Keys must
+# be outside TOOL_PLATFORMS and values inside it: qualified platforms never run
+# emulated binaries. A native artifact on the key platform always wins.
+PLATFORM_FALLBACKS = {
+    "windows_arm64": "windows_x86_64",
+}
+
+# Inventory of tools whose upstream release ships no native build for a
+# fallback platform, so they run emulated there. Inventory only: resolution
+# stays in PLATFORM_FALLBACKS. A test requires every tool with a pin on the
+# fallback target to be either natively pinned on the key platform or listed
+# here (sorted), so a new upstream build forces this list to shrink.
+EMULATED_TOOLS = {
+    "windows_arm64": [
+        "hadolint",
+        "keep_sorted",
+        "latexindent",
+        "mdbook",
+        "opa",
+        "ormolu",
+        "pkl",
+        "scalafmt",
+        "shellcheck",
+        "shfmt",
+        "stylua",
+        "tflint",
+    ],
+}
+
+# Tools pinned on only some qualified platforms (upstream ships no build for the
+# rest). The hub renders a default branch to an empty file set for them instead
+# of failing analysis, so unrelated builds on other platforms keep working;
+# consumers that need the tool fail with a hint to set a tool override.
+PARTIAL_TOOL_PLATFORMS = {
+    "nixfmt": ["linux_x86_64"],
+    "ormolu": ["linux_x86_64", "windows_x86_64"],
+}
+
+# Name of the empty target a partial tool resolves to on an unpinned platform.
+UNAVAILABLE_TARGET = "dx_unavailable"
 
 # Every platform the hub renders a config_setting for and accepts artifacts on.
 # Platforms outside TOOL_PLATFORMS are selectable but unqualified.
@@ -49,6 +92,14 @@ def decode_artifacts(raw):
 def ordered_platforms(entries):
     """Returns the platform keys one tool map holds, in platform order."""
     return [platform for platform in ARTIFACT_PLATFORMS if platform in entries]
+
+def resolved_entries(entries):
+    """Returns one tool map plus fallback platforms it has no native artifact for."""
+    resolved = dict(entries)
+    for platform, source in PLATFORM_FALLBACKS.items():
+        if platform not in resolved and source in entries:
+            resolved[platform] = entries[source]
+    return resolved
 
 def artifact_metadata_errors(artifacts):
     """Returns one error string per artifact with missing or duplicated metadata."""
@@ -123,8 +174,10 @@ def no_match_error(entries, tool):
 def hub_build(artifacts, constraints):
     """Renders the hub BUILD file for one tool-to-platform repository map."""
     lines = [_config_settings(constraints)]
+    if [tool for tool in artifacts if tool in PARTIAL_TOOL_PLATFORMS]:
+        lines.append('filegroup(\n    name = "%s",\n    srcs = [],\n)\n' % UNAVAILABLE_TARGET)
     for tool in sorted(artifacts.keys()):
-        lines.append(_alias(artifacts[tool], tool))
+        lines.append(_alias(resolved_entries(artifacts[tool]), tool))
     return "\n".join(lines)
 
 def _platform_names():
@@ -150,10 +203,14 @@ def _alias(entries, tool):
     lines.append("        {")
     for platform in ordered_platforms(entries):
         lines.append('            ":%s": "@%s//:tool",' % (platform, entries[platform]))
-    lines.append("        },")
-    lines.append("        no_match_error = (")
-    lines.extend(_message_lines("            ", no_match_error(entries, tool)))
-    lines.append("        ),")
+    if tool in PARTIAL_TOOL_PLATFORMS:
+        lines.append('            "//conditions:default": ":%s",' % UNAVAILABLE_TARGET)
+        lines.append("        },")
+    else:
+        lines.append("        },")
+        lines.append("        no_match_error = (")
+        lines.extend(_message_lines("            ", no_match_error(entries, tool)))
+        lines.append("        ),")
     lines.append("    ),")
     lines.append('    visibility = ["//visibility:public"],')
     lines.append(")")

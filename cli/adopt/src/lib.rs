@@ -21,6 +21,8 @@ pub mod migrate;
 pub mod new;
 mod new_locks;
 pub mod overrides;
+pub mod preflight;
+pub mod preset;
 pub mod preset_fragment;
 pub mod scaffold;
 pub mod status;
@@ -52,9 +54,15 @@ pub use new::{
 pub use overrides::{
     apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
+pub use preflight::{preflight, render_plan_text, Finding, Preflight};
+pub use preset::{
+    inspect_preset, preflight_preset, preset_drift, refresh_preset, write_preset, PresetDrift,
+    PresetState,
+};
 pub use scaffold::{
-    apply_init, bazelignore_covers_dx, plan_init_files, preflight_destinations,
-    render_consumer_module_setup, Applied,
+    apply_init, apply_init_triples, bazelignore_covers_dx, plan_init_files,
+    plan_init_files_triples, preflight_destinations, render_consumer_module_setup,
+    validate_rust_target_triples, Applied,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{plan_upgrade, UpgradeIntent};

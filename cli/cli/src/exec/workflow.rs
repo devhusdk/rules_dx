@@ -16,27 +16,39 @@ use dx_process::ForwardError;
 use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
-    run_workflow(invocation, env, &mut false)
+    run_workflow(invocation, env, &mut false, &mut false)
 }
 
-/// Runs one workflow command and reports whether its test results are complete.
-pub(crate) fn execute_workflow_phase(invocation: &Invocation, env: Env<'_>) -> (i32, bool) {
+/// Runs one workflow command and reports its exit code, whether its test results are complete,
+/// and whether Bazel failed on the host (launch failure, signal, or a full disk).
+pub(crate) fn execute_workflow_phase(invocation: &Invocation, env: Env<'_>) -> (i32, bool, bool) {
     let mut complete = false;
-    let code = run_workflow(invocation, env, &mut complete);
-    (code, complete)
+    let mut host = false;
+    let code = run_workflow(invocation, env, &mut complete, &mut host);
+    (code, complete, host)
 }
 
-fn run_workflow(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
+fn run_workflow(
+    invocation: &Invocation,
+    env: Env<'_>,
+    complete: &mut bool,
+    host: &mut bool,
+) -> i32 {
     if invocation.command == Command::Run {
         return execute_run(invocation, env);
     }
     if invocation.command == Command::Deploy {
         return execute_deploy(invocation, env);
     }
-    execute_checked(invocation, env, complete)
+    execute_checked(invocation, env, complete, host)
 }
 
-fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -> i32 {
+fn execute_checked(
+    invocation: &Invocation,
+    env: Env<'_>,
+    complete: &mut bool,
+    host: &mut bool,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -49,6 +61,8 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         ci: _,
         audit_today: _,
         actions,
+        proc_root: _,
+        bump_commit_json: _,
     } = env;
     let results_default = invocation.output == OutputMode::Json
         && invocation.command != Command::Build
@@ -189,7 +203,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
                 );
             }
         },
-        None => None,
+        None => invocation.exec_log.clone(),
     };
     let profile = if verb == WorkflowVerb::Coverage {
         None
@@ -242,6 +256,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         Err(exit) => {
             let _ = std::fs::remove_file(&bep);
             discard_log();
+            *host = true;
             return exit;
         }
     };
@@ -311,6 +326,7 @@ fn execute_checked(invocation: &Invocation, env: Env<'_>, complete: &mut bool) -
         query_runner,
         results_complete: complete,
         actions: action_counts,
+        whole_repo: resolved.targets == ["//..."],
     })
 }
 
@@ -381,7 +397,7 @@ mod tests {
         let runner = harness.runner();
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(phase, (0, false));
+        assert_eq!(phase, (0, false, false));
 
         let harness = Harness::new("workflow-phase-test");
         let uri = write_bep_artifact(
@@ -405,7 +421,7 @@ mod tests {
         let runner = harness.runner();
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
-        assert_eq!(phase, (0, true));
+        assert_eq!(phase, (0, true, false));
     }
 
     #[test]
@@ -626,7 +642,7 @@ mod tests {
     fn test_and_coverage_forward_test_binary_args_to_bazel() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-test-args");
-            harness.query.script_owners("py_test rule //pkg:unit\n");
+            harness.query.script_stdout("py_test rule //pkg:unit\n");
             let inv = invocation(&[command, "--", "--test_arg=--exact", "--test_filter=unit"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(run.argv.len(), 1, "{command}: {run:?}");
@@ -650,10 +666,10 @@ mod tests {
     fn test_filter_reaches_rust_test_binaries_as_a_libtest_filter() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-rust-filter");
-            harness.query.script_owners(
+            harness.query.script_stdout(
                 "_rust_forward_test rule //cli:dx_cli_test\nrust_test rule //cli:raw_test\nrustfmt_test rule //cli:fmt_test\nrust_clippy_test rule //cli:clippy_test\n",
             );
-            harness.query.script_owners("");
+            harness.query.script_stdout("");
             let inv = invocation(&[command, "--", "--test_filter=slots"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             let queries = harness.query.calls.borrow();
@@ -693,8 +709,8 @@ mod tests {
             let harness = Harness::new("wf-rust-no-harness");
             harness
                 .query
-                .script_owners("_rust_forward_test rule //cli:raw_test\n");
-            harness.query.script_owners("//cli:raw_test_upstream\n");
+                .script_stdout("_rust_forward_test rule //cli:raw_test\n");
+            harness.query.script_stdout("//cli:raw_test_upstream\n");
             let inv = invocation(&[command, "--", "--test_filter=slots"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             assert_eq!(harness.query.calls.borrow().len(), 2, "{command}");
@@ -728,8 +744,8 @@ mod tests {
             let harness = Harness::new("wf-rust-filter-options");
             harness
                 .query
-                .script_owners("_rust_forward_test rule //cli:dx_cli_test\n");
-            harness.query.script_owners("");
+                .script_stdout("_rust_forward_test rule //cli:dx_cli_test\n");
+            harness.query.script_stdout("");
             let inv = invocation(&[
                 command,
                 "--",
@@ -785,7 +801,7 @@ mod tests {
             "",
         ] {
             let harness = Harness::new("wf-mixed-filter");
-            harness.query.script_owners(kinds);
+            harness.query.script_stdout(kinds);
             let inv = invocation(&["test", "--", "--test_filter", "unit"]);
             let run = harness.probe_with(&inv, &[Some(0)]);
             let argv = &run.argv[0];
@@ -1060,10 +1076,10 @@ mod tests {
             graph_rule("//pkg:lib", &["//pkg:a.py"], &[]),
             graph_rule("//pkg:unit", &["//pkg:lib"], &[]),
         ]);
-        harness.query.script_owners("//pkg:unit\n");
+        harness.query.script_stdout("//pkg:unit\n");
         harness
             .query
-            .script_owners("//pkg:lib (abc)\n//pkg:unit (abc)\n");
+            .script_stdout("//pkg:lib (abc)\n//pkg:unit (abc)\n");
         let inv = invocation(&["test", "pkg/a.py", "--", "--platforms=//:x"]);
         let run = harness.probe_with(&inv, &[Some(0)]);
         let queries = harness.query.calls.borrow();

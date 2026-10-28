@@ -46,7 +46,7 @@ func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Report
 		}
 		archs := strings.Fields(d.Value)
 		if len(archs) == 0 {
-			rep.Fail("cc: %s: # gazelle:%s needs at least one arch", rel, archsDirective)
+			rep.Fail(common.InPackage(rel), "cc: %s: # gazelle:%s needs at least one arch", rel, archsDirective)
 			continue
 		}
 		c.Exts[archsDirective] = archs
@@ -69,13 +69,17 @@ func NewLanguage() language.Language {
 		PathIdentity:   true,
 		QualifiedIDs:   HeaderBasename,
 		Lookups:        IncludeKeys,
-		IsImportSource: func(name string) bool { return IsHeader(name) || IsCudaHeader(name) },
-		IsIndexSource:  IsCudaHeader,
+		IsImportSource: isCudaLibraryHeader,
+		IsIndexSource:  isCudaLibraryHeader,
 		IsTestSource:   IsTestSource,
 		UnresolvedHint: "includes with a directory resolve by workspace or package-relative path; otherwise add a local one-header library or an exact # gazelle:resolve mapping",
 		Generate:       generateRules,
 	})
 }
+
+// isCudaLibraryHeader reports whether a cuda_library hdrs entry is indexed for
+// includes: plain C/C++ headers and .cuh headers both count.
+func isCudaLibraryHeader(name string) bool { return IsHeader(name) || IsCudaHeader(name) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	// Gazelle owns only <dir>_cuda, so MergeStale must never see cuda_library.
@@ -97,6 +101,7 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,
+		OwnsByName:   true,
 		IsSource:     func(name string) bool { return IsSource(name) && !IsTestSource(name) },
 		IsHeader:     func(name string) bool { return IsHeader(name) && !IsTestSource(name) },
 		IsMainFile:   IsSource,

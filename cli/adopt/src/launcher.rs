@@ -41,10 +41,20 @@ impl LauncherPins {
     /// line per release asset, hash as 64 lowercase hex, nothing else.
     pub fn from_sha256sums(text: &str) -> Result<Self, AdoptError> {
         let mut pins = Self::default();
+        let mut seen_archives = std::collections::BTreeSet::new();
         for line in text.lines() {
             let Some((hash, asset)) = line.split_once("  ") else {
                 return Err(pins_error(format!("bad manifest line {line:?}")));
             };
+            let archive = RELEASE_ASSETS
+                .iter()
+                .any(|known| asset == archive_name(known));
+            if archive {
+                if !seen_archives.insert(asset.to_owned()) {
+                    return Err(pins_error(format!("{asset} is listed twice")));
+                }
+                continue;
+            }
             let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
             };
@@ -69,6 +79,16 @@ impl LauncherPins {
 /// real pins through the release source archive is the follow-up to #2294.
 pub fn release_pins(_version: &str) -> Result<LauncherPins, AdoptError> {
     Ok(LauncherPins::unreleased())
+}
+
+/// The archive asset name for a raw release asset: `.zip` on Windows, `.tar.gz` elsewhere.
+fn archive_name(raw: &str) -> String {
+    let suffix = if raw.contains("windows") {
+        ".zip"
+    } else {
+        ".tar.gz"
+    };
+    format!("{raw}{suffix}")
 }
 
 fn valid_pin(pin: &str) -> bool {
@@ -597,6 +617,31 @@ mod tests {
         for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
             assert_eq!(launcher_version(dir.path(), rel).as_deref(), Some("1.2.3"));
         }
+    }
+
+    #[test]
+    fn from_sha256sums_skips_archive_lines() {
+        let a = "a".repeat(64);
+        let archives = format!(
+            "{a}  dx-linux-x86_64.tar.gz\n{a}  dx-linux-arm64.tar.gz\n{a}  dx-macos-arm64.tar.gz\n\
+             {a}  dx-windows-x86_64.zip\n{a}  dx-windows-arm64.zip\n"
+        );
+        let combined = format!("{MANIFEST}{archives}");
+        assert_eq!(
+            LauncherPins::from_sha256sums(&combined).expect("combined"),
+            LauncherPins::from_sha256sums(MANIFEST).expect("manifest")
+        );
+        for extra in [
+            format!("{a}  dx-linux-x86_64.tar.gz\n"),
+            format!("{a}  dx-foo.tar.gz\n"),
+            format!("{a}  dx-linux-x86_64.zip\n"),
+            format!("{a}  dx-windows-arm64.tar.gz\n"),
+        ] {
+            let text = format!("{combined}{extra}");
+            assert!(LauncherPins::from_sha256sums(&text).is_err(), "{extra:?}");
+        }
+        let unknown = format!("{MANIFEST}{a}  dx-foo.tar.gz\n");
+        assert!(LauncherPins::from_sha256sums(&unknown).is_err());
     }
 
     #[test]

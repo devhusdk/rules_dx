@@ -20,6 +20,16 @@ fn skip_value_payload<S: AsRef<OsStr>>(args: &[S], index: usize) -> usize {
     }
 }
 
+/// Index of the word after the flag `arg` at `index`, skipping its separate value word.
+fn skip_flag<S: AsRef<OsStr>>(args: &[S], index: usize, arg: &str) -> usize {
+    let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
+    if consumes_next(arg, next) {
+        skip_value_payload(args, index)
+    } else {
+        index + 1
+    }
+}
+
 pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
     let mut index = 0;
     while index < args.len() {
@@ -29,12 +39,7 @@ pub fn help_command_in<S: AsRef<OsStr>>(args: &[S]) -> Option<Command> {
             return None;
         }
         if arg.starts_with('-') {
-            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
-            if consumes_next(arg, next) {
-                index = skip_value_payload(args, index);
-                continue;
-            }
-            index += 1;
+            index = skip_flag(args, index, arg);
             continue;
         }
         return Command::parse(arg);
@@ -54,12 +59,7 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             break;
         }
         if arg.starts_with('-') {
-            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
-            if consumes_next(arg, next) {
-                index = skip_value_payload(args, index);
-                continue;
-            }
-            index += 1;
+            index = skip_flag(args, index, arg);
             continue;
         }
         if arg == "help" {
@@ -80,12 +80,7 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
             break;
         }
         if arg.starts_with('-') {
-            let next = args.get(scan + 1).and_then(|next| next.as_ref().to_str());
-            if consumes_next(arg, next) {
-                scan = skip_value_payload(args, scan);
-                continue;
-            }
-            scan += 1;
+            scan = skip_flag(args, scan, arg);
             continue;
         }
         target = Some(arg.to_owned());
@@ -157,7 +152,7 @@ fn render_env_help() -> String {
     out.push_str("  BUILD_WORKSPACE_DIRECTORY=<dir>\n");
     out.push_str("      Workspace start under `bazel run`.\n");
     out.push_str("  BUILD_WORKING_DIRECTORY=<dir>\n");
-    out.push_str("      Current directory under `bazel run`.\n");
+    out.push_str("      Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.\n");
     out.push_str(&format!(
         "  {} (committed) and {} (local-only, gitignored) carry the same defaults as the DX_ variables, below the environment.\n      Local beats committed. In CI the local file and DX_ variables are ignored; flags still win.\n      An unknown key is a usage error.\n",
         dx_adopt::defaults::DX_TOML_REL,
@@ -200,6 +195,7 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::New
             | Command::Worktree
             | Command::Explain
+            | Command::Install
     )
 }
 
@@ -292,6 +288,12 @@ mod tests {
             Some(Command::Lint)
         );
         assert_eq!(super::help_command_in(&["-qo", "lint"]), None);
+    }
+
+    #[test]
+    fn help_scan_skips_short_cluster_value_words() {
+        assert!(super::help_verb_error_in(&["-qo", "json", "help"]).is_some());
+        assert!(super::help_verb_error_in(&["-qo", "json", "lint"]).is_none());
     }
 
     #[test]
@@ -579,6 +581,7 @@ mod tests {
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["lint"]),
             Command::New => owned(&["rust"]),
+            Command::Install => owned(&["--tag", "v1.2.3", "--archive", "a.tar.gz"]),
             _ => Vec::new(),
         }
     }

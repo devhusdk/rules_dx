@@ -1,5 +1,5 @@
 {
-  "checksum": "57c7eb359eba2a80f7fb830e4d4d4f13c280878ca4c8fbc86d0812c6166ebaa3",
+  "checksum": "a3758fbf82e2e8d3a9ad9742c86a66a97755c56a32902fc6a5d392ea983c9b9f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3592,6 +3592,29 @@
       ],
       "version": "4.6.9"
     },
+    "component_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_component_extract",
+      "name": "component_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_component_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "console 0.15.11": {
       "common_attrs": {
         "crate_features": [
@@ -6240,6 +6263,37 @@
       ],
       "version": "0.0.0"
     },
+    "dotnet_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "sha2 0.10.9",
+            "target": "sha2"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_dotnet_extract",
+      "name": "dotnet_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_dotnet_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dsa 0.6.3": {
       "common_attrs": {
         "deps": [
@@ -7014,6 +7068,10 @@
             "target": "rustls"
           },
           {
+            "id": "ruzstd 0.9.1",
+            "target": "ruzstd"
+          },
+          {
             "id": "serde 1.0.229",
             "target": "serde"
           },
@@ -7372,10 +7430,6 @@
     "dx_lcov 0.0.0": {
       "common_attrs": {
         "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          },
           {
             "id": "lcov 0.8.2",
             "target": "lcov"
@@ -12477,6 +12531,29 @@
       ],
       "version": "0.60.2"
     },
+    "jvm_convert 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_jvm_convert",
+      "name": "jvm_convert",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_jvm_convert",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "k256 0.13.4": {
       "common_attrs": {
         "crate_features": [
@@ -16958,6 +17035,29 @@
       ],
       "version": "0.13.4"
     },
+    "python_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_docs_python_extract",
+      "name": "python_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_python_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "qt-build-utils 0.10.0": {
       "common_attrs": {
         "crate_features": [
@@ -17158,6 +17258,29 @@
         {
           "Library": {
             "crate_name": "quality_markdown",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "quality_notebook 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "quality_notebook",
+      "name": "quality_notebook",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "quality_notebook",
             "crate_root": "src/lib.rs"
           }
         }
@@ -27444,7 +27567,9 @@
     "appimage_packer 0.0.0": "appimage/appimage_packer",
     "cc_context 0.0.0": "cc/cc_context",
     "codegen_shard 0.0.0": "generation/codegen_shard",
+    "component_extract 0.0.0": "tools/docs/components/component_extract",
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
+    "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",
@@ -27496,10 +27621,13 @@
     "generation_result 0.0.0": "generation/generation_result",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
+    "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
+    "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",
     "quality_adapter 0.0.0": "quality/quality_adapter",
     "quality_markdown 0.0.0": "quality/quality_markdown",
+    "quality_notebook 0.0.0": "quality/quality_notebook",
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "repin_all 0.0.0": "tools/repin_all",

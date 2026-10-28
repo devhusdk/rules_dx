@@ -343,3 +343,40 @@ fn the_declared_stylelint_is_acquired_from_the_cache_with_the_network_denied() {
         miss.combined()
     );
 }
+
+const MODULES_BUILD: &str = r#"load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+
+javascript_library(
+    name = "modules",
+    srcs = ["modules.css"],
+    visibility = ["//visibility:public"],
+)
+"#;
+
+const MODULES_CSS: &str = ".card :global(.theme) {\n  composes: base from \"./base.css\";\n  color: red;\n}\n\n:local(.title) {\n  margin: 0;\n}\n\n:export {\n  accent: #336699;\n}\n";
+
+#[test]
+fn css_modules_syntax_lints_clean_and_typos_are_still_flagged() {
+    let root = consumer();
+    write(&root.join("modules/BUILD.bazel"), MODULES_BUILD);
+    write(&root.join("modules/modules.css"), MODULES_CSS);
+    let clean = dx(&root, "lint", &[]);
+    assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
+
+    write(
+        &root.join("modules/modules.css"),
+        &format!("{MODULES_CSS}\n.card {{\n  colr: red;\n}}\n"),
+    );
+    let dirty = dx(&root, "lint", &[]);
+    assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
+    assert!(
+        dirty.combined().contains("modules/modules.css:"),
+        "{}",
+        dirty.combined()
+    );
+    assert!(
+        dirty.combined().contains("property-no-unknown"),
+        "{}",
+        dirty.combined()
+    );
+}

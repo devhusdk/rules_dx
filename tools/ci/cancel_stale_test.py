@@ -119,3 +119,10 @@ def test_main_sweep_skips_runs_with_jobs():
     assert jobs < skip < cancel
     assert "--jq '.total_count'" in sweep
     assert "select(.status" not in sweep
+
+
+def test_main_sweep_lists_only_push_runs():
+    """Scheduled and dispatched main runs are never listed, so never cancelled."""
+    text = (ROOT / WORKFLOW).read_text(encoding="utf-8")
+    assert "-f event=push -f branch=main" in text
+    assert "event=schedule" not in text

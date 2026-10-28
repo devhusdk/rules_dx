@@ -8,6 +8,9 @@ registers the Lua toolchain, so there is no toolchain setup in
 
 ## Start
 
+`dx new lua` scaffolds a standalone consumer with a library, a binary and a
+test on Linux x86_64.
+
 Load the rules from `@rules_dx//lua/rules:defs.bzl`.
 
 ```python
@@ -111,8 +114,21 @@ lua_library(
 
 ## Quality
 
-Lua sources form the `lua` class, so `dx check` sees them. The Lua rules add
-the `no-format`, `no-lint` and `no-typecheck` tags to every target.
+Lua sources form the `lua` class, so `dx check` sees them. StyLua formats them
+when a `lua` family selects it.
+
+```python
+quality_family(
+    name = "lua_family",
+    family_id = "lua",
+    format = ["stylua"],
+)
+```
+
+StyLua never reads a `stylua.toml` or `.editorconfig` next to the sources. Bind
+a `stylua_config` from `@rules_dx//quality:native_config.bzl` to set indent
+width or quote style. No Lua linter or type check runs yet, so the Lua rules add
+the `no-lint` and `no-typecheck` tags to every target.
 
 ## Platforms
 

@@ -323,7 +323,27 @@ impl RealBackend {
                 ),
                 "yamllint" => parsers::parse_yamllint(&bytes, Some(0), &workspaces),
                 "shellcheck" => parsers::parse_shellcheck(&bytes, Some(0), &workspaces),
+                "checkmake" => parsers::parse_checkmake(&bytes, &[], Some(0), &workspaces, None),
                 "hadolint" => parsers::parse_hadolint(&bytes, &[], Some(0), &workspaces),
+                "statix" => {
+                    let code = i32::from(!String::from_utf8_lossy(&bytes).trim().is_empty());
+                    parsers::parse_statix(&bytes, &[], Some(code), &workspaces)
+                }
+                "deadnix" => parsers::parse_deadnix(&bytes, &[], Some(0), &workspaces),
+                "kubeconform" => {
+                    let targets: Vec<parsers::KubeconformTarget<'_>> = workspaces
+                        .iter()
+                        .map(|workspace| parsers::KubeconformTarget {
+                            reported: workspace,
+                            file: workspace,
+                            documents: &[],
+                        })
+                        .collect();
+                    let text = String::from_utf8_lossy(&bytes);
+                    let failing =
+                        text.contains("\"statusInvalid\"") || text.contains("\"statusError\"");
+                    parsers::parse_kubeconform(&bytes, &[], Some(i32::from(failing)), &targets)
+                }
                 "keep_sorted" => parsers::parse_keep_sorted(&bytes, Some(0), &workspaces),
                 "djlint" => parsers::parse_djlint(&bytes, Some(0), &workspaces),
                 _ => {

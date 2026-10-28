@@ -1,0 +1,15 @@
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "ocaml_app_astring",
+    build_file = "//examples/ocaml-app:astring.BUILD.bazel",
+    sha256 = "63e22783e06d17db027367e82fc08954c55f81a7db40fb7057a73713c16f3523",
+    strip_prefix = "astring-0.8.5",
+    urls = ["https://github.com/dbuenzli/astring/archive/refs/tags/v0.8.5.tar.gz"],
+)
+
+ocaml = use_extension("@my_dx//ocaml/toolchain:repos.bzl", "ocaml")
+use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")

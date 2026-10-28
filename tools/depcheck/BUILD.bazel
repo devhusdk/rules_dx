@@ -1,8 +1,9 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 rust_library(
     name = "depcheck_lib",
@@ -158,7 +159,10 @@ rust_clippy_test(
     ],
 )
 
-exports_files(["Cargo.toml"])
+exports_files(
+    ["Cargo.toml"],
+    visibility = VIS_TOOLS,
+)
 
 # keep
 rust_test(
@@ -225,6 +229,8 @@ rust_test(
         "//examples/adopt-ruby:Gemfile.lock",
         "//examples/adopt-rust:Cargo.lock",
         "//examples/adopt-rust:Cargo.toml",
+        "//quality/tests/fixtures/prettier_consumer:package.json",
+        "//quality/tests/fixtures/prettier_consumer:pnpm-lock.yaml",
     ],
     env = {
         "DX_DEPCHECK_BIN": "$(rootpath :depcheck)",
@@ -232,6 +238,8 @@ rust_test(
         "DX_GO_MANIFEST": "$(rootpath //examples/adopt-go:go.mod)",
         "DX_JS_LOCK": "$(rootpath //examples/adopt-js-ts:pnpm-lock.yaml)",
         "DX_JS_MANIFEST": "$(rootpath //examples/adopt-js-ts:package.json)",
+        "DX_PRETTIER_FIXTURE_LOCK": "$(rootpath //quality/tests/fixtures/prettier_consumer:pnpm-lock.yaml)",
+        "DX_PRETTIER_FIXTURE_MANIFEST": "$(rootpath //quality/tests/fixtures/prettier_consumer:package.json)",
         "DX_PG_JS_LOCK": "$(rootpath //examples/adopt-polyglot:pnpm-lock.yaml)",
         "DX_PG_JS_MANIFEST": "$(rootpath //examples/adopt-polyglot:package.json)",
         "DX_PG_PY_LOCK": "$(rootpath //examples/adopt-polyglot:uv.lock)",

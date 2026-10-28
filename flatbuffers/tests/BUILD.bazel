@@ -1,0 +1,113 @@
+load("//cc/rules:defs.bzl", "cc_test")
+load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard")
+load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":failure_tests.bzl", "flatbuffers_codegen_failure_test")
+
+package(default_visibility = ["//visibility:private"])
+
+# C++ headers for both libraries; the schema in api/ includes the one in base/.
+flatbuffers_cc_library(
+    name = "shapes_cc",
+    deps = [
+        "//flatbuffers/tests/api",
+        "//flatbuffers/tests/base",
+    ],
+)
+
+cc_test(
+    name = "cc_roundtrip_test",
+    size = "small",
+    srcs = ["cc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [":shapes_cc"],
+)
+
+# The same libraries with the object API: both variants over one shared library
+# must not declare conflicting actions, even in one binary.
+flatbuffers_cc_library(
+    name = "shapes_cc_obj",
+    gen_object_api = True,
+    deps = [
+        "//flatbuffers/tests/api",
+        "//flatbuffers/tests/base",
+    ],
+)
+
+cc_test(
+    name = "cc_both_variants_test",
+    size = "small",
+    srcs = ["cc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [
+        ":shapes_cc",
+        ":shapes_cc_obj",
+    ],
+)
+
+flatbuffers_codegen_shard(
+    name = "shapes_cc_shard",
+    entries = [
+        "gen/base/common_generated.h|gen|dx.base|flatbuffers/tests/base/common_generated.h",
+        "gen/api/shape_generated.h|gen|dx.api|flatbuffers/tests/api/shape_generated.h",
+    ],
+    language = "cpp",
+    library = ":shapes_cc",
+)
+
+codegen_shard_argv_test(
+    name = "shapes_cc_shard_argv_test",
+    expected = [
+        "--producer",
+        "//flatbuffers/tests:shapes_cc_shard",
+        "--language",
+        "cpp",
+        "--entry",
+        "gen/base/common_generated.h|gen|dx.base|flatbuffers/tests/base/common_generated.h",
+        "--entry",
+        "gen/api/shape_generated.h|gen|dx.api|flatbuffers/tests/api/shape_generated.h",
+        "--output",
+    ],
+    output = "flatbuffers/tests/shapes_cc_shard.dxcodegen.pb",
+    target_under_test = ":shapes_cc_shard",
+)
+
+# Failing fixtures: only built by the analysis tests below.
+flatbuffers_codegen_shard(
+    name = "unclaimed_shard",
+    entries = ["gen/base/common_generated.h|gen|dx.base|flatbuffers/tests/base/common_generated.h"],
+    language = "cpp",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_shard(
+    name = "python_shard",
+    entries = ["gen/a.py|gen|a|common_generated.h"],
+    language = "python",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_failure_test(
+    name = "unclaimed_artifact_test",
+    message = "unreported flatbuffers_generated_srcs artifact",
+    target_under_test = ":unclaimed_shard",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "non_admitted_pair_test",
+    message = "unsupported codegen pair ('flatbuffers', 'python')",
+    target_under_test = ":python_shard",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "failure_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -197,6 +197,53 @@ fn overrides_check(root: &Path) -> StatusCheck {
     }
 }
 
+/// Whether the Bazel preset layers under `.dx/bazelrc` are present, current and imported (#3733).
+fn preset_check(root: &Path) -> StatusCheck {
+    use crate::preset::{layer_rel, LayerFile};
+    use crate::preset_fragment::ImportState;
+    let hint = "tools/dx init --apply";
+    let state = match crate::preset::inspect_preset(root) {
+        Ok(state) => state,
+        Err(error) => return check("preset", "warn", format!("unknown: {error}"), hint),
+    };
+    if !state.applicable {
+        return check(
+            "preset",
+            "ok",
+            "not applicable: the workspace keeps the preset in tools/bazelrc".to_owned(),
+            hint,
+        );
+    }
+    let mut problems = Vec::new();
+    let mut fine = Vec::new();
+    for (layer, import, file) in &state.layers {
+        let rel = layer_rel(*layer);
+        match (import, file) {
+            (ImportState::CommentedOut, _) => fine.push(format!("{rel} opted out")),
+            (ImportState::Absent, _) => problems.push(format!("{rel} is not imported")),
+            (_, LayerFile::Missing) => problems.push(format!("{rel} is missing")),
+            (_, LayerFile::Stale) => problems.push(format!("{rel} is stale")),
+            (_, LayerFile::Custom) => fine.push(format!("{rel} is customized")),
+            (_, LayerFile::Symlink | LayerFile::Current) => fine.push(format!("{rel} current")),
+        }
+    }
+    if problems.is_empty() {
+        check(
+            "preset",
+            "ok",
+            format!("available: {}", fine.join("; ")),
+            hint,
+        )
+    } else {
+        check(
+            "preset",
+            "warn",
+            format!("unknown: {}", problems.join("; ")),
+            hint,
+        )
+    }
+}
+
 fn toolchain_check(root: &Path) -> StatusCheck {
     let hint = "bazel build //...";
     let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
@@ -382,6 +429,7 @@ pub fn observed_status_checks(root: &Path, pinned: &str, tools: StatusCheck) -> 
         overrides_check(root),
         host_check(std::env::consts::OS, std::env::consts::ARCH),
         exec_tools_check(root),
+        preset_check(root),
         tools,
         pin_check(pinned),
     ];
@@ -659,6 +707,36 @@ mod tests {
     }
 
     #[test]
+    fn preset_check_follows_the_layers_and_imports() {
+        let dir = scratch("preset-check");
+        let na = super::preset_check(&dir);
+        assert_eq!(na.status, "warn", "{}", na.detail);
+        let (mut applied, mut notes) = (crate::Applied::default(), Vec::new());
+        crate::write_preset(&dir, &mut applied, &mut notes).expect("write");
+        let ok = super::preset_check(&dir);
+        assert_eq!(
+            (ok.status.as_str(), ok.detail.starts_with("available:")),
+            ("ok", true)
+        );
+        let rc = std::fs::read_to_string(dir.join(".bazelrc")).expect("rc");
+        let line = crate::preset_fragment::import_line(
+            crate::preset_fragment::CONSUMER_DIR,
+            crate::preset_fragment::Layer::Resources,
+        );
+        std::fs::write(dir.join(".bazelrc"), rc.replace(&format!("{line}\n"), "")).expect("rc");
+        let warn = super::preset_check(&dir);
+        assert_eq!(warn.status, "warn");
+        assert!(warn.detail.contains("resources.bazelrc"), "{}", warn.detail);
+        std::fs::write(
+            dir.join(".bazelrc"),
+            rc.replace(&line, &format!("# {line}")),
+        )
+        .expect("rc");
+        assert_eq!(super::preset_check(&dir).status, "ok");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn observed_checks_take_the_observed_tools_check() {
         let dir = std::env::temp_dir().join(format!("dx-status-observed-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("dir");
@@ -679,11 +757,12 @@ mod tests {
                 "overrides",
                 "host",
                 "exec_tools",
+                "preset",
                 "tools",
                 "pin"
             ]
         );
-        assert_eq!(checks[6], tools);
+        assert_eq!(checks[7], tools);
         std::fs::remove_dir_all(&dir).ok();
     }
 

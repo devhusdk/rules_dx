@@ -124,10 +124,7 @@ fn resolving_line(base: &str) -> String {
 }
 
 fn tests_only(command: Command) -> bool {
-    matches!(
-        command,
-        Command::Test | Command::Coverage | Command::ListTests
-    )
+    matches!(command, Command::Test | Command::Coverage)
 }
 
 fn git_text(runner: &dyn QueryRunner, workspace: &Path, args: &[&str]) -> Option<String> {
@@ -437,6 +434,8 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
         ci,
         audit_today,
         actions,
+        proc_root,
+        bump_commit_json,
     } = env;
     let text = !invocation.quiet && matches!(invocation.output, OutputMode::Text { .. });
     let base = match affected_base(workspace, query_runner) {
@@ -471,7 +470,7 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut next = invocation.clone();
     next.affected = false;
     next.targets = plan.targets.clone();
-    next.test_targets = Some(plan.tests.clone());
+    next.affected_handoff = Some(dx_plan::args::AffectedHandoff { tests: plan.tests.clone() });
     if invocation.output != OutputMode::Json {
         return execute(
             &next,
@@ -487,6 +486,8 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ci,
                 audit_today,
                 actions,
+                proc_root,
+                bump_commit_json,
             },
         );
     }
@@ -505,6 +506,8 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
             ci,
             audit_today,
             actions,
+            proc_root,
+            bump_commit_json,
         },
     );
     let _ = injector.finish();
@@ -675,7 +678,7 @@ mod tests {
         use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 17] = [
+        let cases: [(&[&str], &str); 16] = [
             (&["check", "--affected", "--output=json"], "check"),
             (&["fix", "--affected", "--output=json"], "check"),
             (
@@ -701,7 +704,6 @@ mod tests {
             (&["build", "--affected", "--output=json"], "default"),
             (&["test", "--affected", "--output=json"], "default"),
             (&["coverage", "--affected", "--output=json"], "default"),
-            (&["list-tests", "--affected", "--output=json"], "default"),
             (&["security", "--affected", "--output=json"], "default"),
             (&["license", "--affected", "--output=json"], "default"),
             (
@@ -737,7 +739,7 @@ mod tests {
             assert!(first["affected"].is_object(), "{words:?}");
             if words[0] == "check" {
                 assert_eq!(first["affected"]["tests"], json!([]), "{words:?}");
-            } else if matches!(words[0], "test" | "list-tests") {
+            } else if words[0] == "test" {
                 assert!(first["affected"].get("tests").is_none(), "{words:?}");
             }
         }

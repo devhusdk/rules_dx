@@ -107,65 +107,54 @@ const SAVERS: &[(&str, &str, &str)] = &[
         "matrix.platform == 'windows_arm64'",
     ),
 ];
-const DONOR: (&str, &str) = (".github/workflows/ci.yml", "preflight");
+/// Runner labels whose `runner.os` and `runner.arch` we can resolve statically.
+fn runner_platform(label: &str) -> Option<&'static str> {
+    match label {
+        "ubuntu-latest" | "ubuntu-24.04" | "ubuntu-22.04" => Some("Linux-X64"),
+        "ubuntu-24.04-arm" | "ubuntu-22.04-arm" => Some("Linux-ARM64"),
+        "macos-15" | "macos-latest" | "macos-14" => Some("macOS-ARM64"),
+        "windows-latest" | "windows-2025" | "windows-2022" => Some("Windows-X64"),
+        "windows-11-arm" => Some("Windows-ARM64"),
+        _ => None,
+    }
+}
+
+/// Every `runner.os`-`runner.arch` platform a job can run on, when `runs-on`
+/// is a literal label or `matrix.<key>` over literal include entries.
+fn job_platforms(body: &serde_json::Value) -> Option<Vec<&'static str>> {
+    let runs_on = body["runs-on"].as_str()?.trim();
+    if let Some(platform) = runner_platform(runs_on) {
+        return Some(vec![platform]);
+    }
+    let key = runs_on
+        .strip_prefix("${{")?
+        .strip_suffix("}}")?
+        .trim()
+        .strip_prefix("matrix.")?;
+    let include = body["strategy"]["matrix"]["include"].as_array()?;
+    include
+        .iter()
+        .map(|entry| runner_platform(entry[key].as_str()?))
+        .collect()
+}
+
+/// Restore-only platforms with no donor job. Their `restore-keys` prefix can
+/// never match a saved cache until a saver exists for that platform (#3284),
+/// so each entry is a cold-start gap. Remove an entry once a donor covers it.
+const UNCOVERED: &[&str] = &["Linux-X64", "Linux-ARM64", "macOS-ARM64", "Windows-X64"];
 const STAMP: &str = "Stamp the restored Bazel repository cache";
 const PRUNE: &str = "Prune the Bazel repository cache to this run's downloads";
 const STAMP_FILE: &str = "$RUNNER_TEMP/dx-repo-cache.stamp";
 
-/// The OS and arch a GitHub runner label resolves to, as `runner.os`-`runner.arch`.
-fn runner_platform(label: &str) -> String {
-    let arm = label.ends_with("-arm");
-    let os = if label.starts_with("ubuntu") {
-        "linux"
-    } else if label.starts_with("macos") {
-        "macos"
-    } else if label.starts_with("windows") {
-        "windows"
-    } else {
-        panic!("unknown runner label {label}")
-    };
-    let arch = if arm || (os == "macos" && !label.ends_with("-intel") && !label.ends_with("-13")) {
-        "arm64"
-    } else {
-        "x64"
-    };
-    format!("{os}-{arch}")
-}
-
-/// Runner labels a job statically runs on: a literal, `matrix.runner` over the
-/// job's own matrix include, or the quoted literals of an expression such as
-/// `inputs.runner || 'macos-15'`. Dynamic expressions (`fromJSON`) resolve to none.
-fn static_runners(body: &serde_json::Value) -> Vec<String> {
-    let Some(runs_on) = body["runs-on"].as_str() else {
-        return Vec::new();
-    };
-    let expr = runs_on.trim();
-    let Some(inner) = expr
-        .strip_prefix("${{")
-        .and_then(|inner| inner.strip_suffix("}}"))
-    else {
-        return vec![expr.to_owned()];
-    };
-    if inner.trim() == "matrix.runner" {
-        return body["strategy"]["matrix"]["include"]
-            .as_array()
-            .map(|include| {
-                include
-                    .iter()
-                    .filter_map(|entry| entry["runner"].as_str().map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default();
+/// The platform a saver guard pins through `matrix.platform == '<name>'`.
+fn steps_guard_platform(guard: &str) -> Option<&'static str> {
+    match guard
+        .strip_prefix("matrix.platform == ")?
+        .trim_matches('\'')
+    {
+        "windows_arm64" => Some("Windows-ARM64"),
+        _ => None,
     }
-    if inner.contains("fromJSON") {
-        return Vec::new();
-    }
-    inner
-        .split('\'')
-        .skip(1)
-        .step_by(2)
-        .map(str::to_owned)
-        .collect()
 }
 
 fn steps_named(steps: &[serde_json::Value], name: &str) -> Vec<usize> {
@@ -190,9 +179,9 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
     let mut checked = 0;
     let mut restore_only = 0;
     let mut savers_seen = Vec::new();
-    let mut restore_runners = Vec::new();
-    let mut donor_platforms = Vec::new();
     let mut prune_runs = Vec::new();
+    let mut restore_only_platforms: Vec<(String, String, &str)> = Vec::new();
+    let mut donor_platforms: Vec<&str> = Vec::new();
     for (name, document) in setup_bazel_documents() {
         let jobs = document["jobs"]
             .as_object()
@@ -285,12 +274,6 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
             let saves = indices("actions/cache/save");
             let stamps = steps_named(&steps, STAMP);
             let prunes = steps_named(&steps, PRUNE);
-            if (name.as_str(), job.as_str()) == DONOR {
-                donor_platforms = static_runners(body)
-                    .iter()
-                    .map(|label| runner_platform(label))
-                    .collect();
-            }
             let Some(&(_, _, guard)) = SAVERS
                 .iter()
                 .find(|(file, saver, _)| *file == name && saver == job)
@@ -300,12 +283,24 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                     "{name} job {job} is not a listed saver but saves, stamps or prunes the repository cache"
                 );
                 restore_only += 1;
-                for label in static_runners(body) {
-                    restore_runners.push((name.clone(), job.clone(), label));
+                if let Some(platforms) = job_platforms(body) {
+                    restore_only_platforms.extend(
+                        platforms
+                            .into_iter()
+                            .map(|p| (name.clone(), job.clone(), p)),
+                    );
                 }
                 continue;
             };
             savers_seen.push((name.clone(), job.clone()));
+            if let Some(platforms) = job_platforms(body) {
+                let guard_platform = steps_guard_platform(guard);
+                donor_platforms.extend(
+                    platforms
+                        .into_iter()
+                        .filter(|p| guard_platform.is_none_or(|g| g == *p)),
+                );
+            }
             assert_eq!(
                 (saves.len(), stamps.len(), prunes.len()),
                 (1, 1, 1),
@@ -388,18 +383,19 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
         );
     }
     assert!(
-        !donor_platforms.is_empty(),
-        "{} job {} has no static runner matrix",
-        DONOR.0,
-        DONOR.1
+        donor_platforms.contains(&"Windows-ARM64"),
+        "the ci.yml preflight saver must resolve to Windows-ARM64, got {donor_platforms:?}"
     );
-    for (file, job, label) in &restore_runners {
-        let platform = runner_platform(label);
+    for (file, job, platform) in &restore_only_platforms {
+        let donated = donor_platforms.contains(platform);
         assert!(
-            donor_platforms.contains(&platform),
-            "{file} job {job} restores the repository cache on {label} ({platform}), but {} job {} never saves for it",
-            DONOR.0,
-            DONOR.1
+            donated != UNCOVERED.contains(platform),
+            "{file} job {job} runs on {platform}: {}",
+            if donated {
+                "a donor covers it, so drop it from UNCOVERED"
+            } else {
+                "no saver job runs on that OS and arch, so its restore-keys prefix never hits; add a donor or list it in UNCOVERED"
+            }
         );
     }
     assert!(

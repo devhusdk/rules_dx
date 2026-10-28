@@ -15,7 +15,7 @@ const FIXED_LINT: &str = "\n\ndef add(a: int, b: int) -> int:\n    return a + b\
 
 const MODULE: &str = r#"module(name = "renamed_quality_consumer")
 
-bazel_dep(name = "rules_dx", version = "0.0.0")
+bazel_dep(name = "rules_dx", version = "0.0.0", repo_name = "dxr")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
 bazel_dep(name = "rules_rust", version = "0.74.0")
@@ -33,8 +33,8 @@ python.toolchain(python_version = "3.12")
 use_repo(python, "python_3_12")
 "#;
 
-const BUILD: &str = r#"load("@rules_dx//quality:native_config.bzl", "ruff_config")
-load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+const BUILD: &str = r#"load("@dxr//quality:native_config.bzl", "ruff_config")
+load("@dxr//quality:policy.bzl", "quality_family", "workspace_policy")
 
 quality_family(
     name = "python_family",
@@ -61,7 +61,7 @@ ruff_config(
 
 const RUFF_TOML: &str = "line-length = 88\n";
 
-const APP_BUILD: &str = r#"load("@rules_dx//python/rules:defs.bzl", "python_library")
+const APP_BUILD: &str = r#"load("@dxr//python/rules:defs.bzl", "python_library")
 
 python_library(
     name = "app",
@@ -105,7 +105,7 @@ fn dx_in(root: &Case, command: &str, args: &[&str], shim: Option<&Path>) -> Run 
         workspace.as_str(),
         "//...",
         "--",
-        "--@rules_dx//config:workspace=//:policy",
+        "--@dxr//config:workspace=//:policy",
     ]);
     let envs = [("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")];
     match shim {

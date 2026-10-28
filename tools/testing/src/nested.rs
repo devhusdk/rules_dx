@@ -80,6 +80,8 @@ pub struct Config {
     pub offline: bool,
     /// The native `bazel` shim installed in each slot; without it Unix falls back to a sh wrapper.
     pub shim: Option<PathBuf>,
+    /// The dx slot directory and the slot indices this harness keeps back from consumer dx runs.
+    pub reserve: Option<(PathBuf, std::ops::Range<usize>)>,
 }
 
 impl Config {
@@ -110,10 +112,16 @@ impl Config {
             Some(base) => base,
             None => default_base()?,
         };
-        let slots = text(SLOTS_ENV)
-            .and_then(|slots| slots.parse::<usize>().ok())
-            .filter(|slots| *slots > 0)
-            .unwrap_or(DEFAULT_SLOTS);
+        let servers = nested_bazel::servers(text(SLOTS_ENV).as_deref());
+        let slots = usize::from(servers);
+        let reserve = dx_process::user_cache_dir(&|name| text(name))
+            .zip(dx_process::slot_pool::available_memory())
+            .map(|(cache, memory)| {
+                (
+                    cache.join("dx").join("slots"),
+                    dx_process::slot_pool::reserve_range(memory, u64::from(servers)),
+                )
+            });
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
@@ -146,6 +154,7 @@ impl Config {
             repository_cache,
             offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
             shim,
+            reserve,
         })
     }
 }
@@ -550,6 +559,23 @@ mod signal {
     pub fn alive(pid: u32) -> bool {
         send(pid, 0)
     }
+
+    #[cfg(target_os = "linux")]
+    const STOP: i32 = 19;
+    #[cfg(target_os = "linux")]
+    const CONT: i32 = 18;
+    #[cfg(not(target_os = "linux"))]
+    const STOP: i32 = 17;
+    #[cfg(not(target_os = "linux"))]
+    const CONT: i32 = 19;
+
+    pub fn suspend(pid: u32) -> bool {
+        send(pid, STOP)
+    }
+
+    pub fn resume(pid: u32) -> bool {
+        send(pid, CONT)
+    }
 }
 
 #[cfg(windows)]
@@ -564,7 +590,14 @@ mod signal {
     const SYNCHRONIZE: u32 = 0x0010_0000;
     const PROCESS_TERMINATE: u32 = 0x0001;
     const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+    const PROCESS_SUSPEND_RESUME: u32 = 0x0800;
     const WAIT_TIMEOUT: u32 = 0x0000_0102;
+
+    #[link(name = "ntdll", kind = "raw-dylib")]
+    unsafe extern "system" {
+        fn NtSuspendProcess(process: Handle) -> i32;
+        fn NtResumeProcess(process: Handle) -> i32;
+    }
 
     unsafe extern "system" {
         fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
@@ -599,6 +632,26 @@ mod signal {
         }
         waited == WAIT_TIMEOUT
     }
+
+    fn with_handle(pid: u32, act: unsafe extern "system" fn(Handle) -> i32) -> bool {
+        let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
+        if handle.is_null() {
+            return false;
+        }
+        let status = unsafe { act(handle) };
+        unsafe {
+            CloseHandle(handle);
+        }
+        status >= 0
+    }
+
+    pub fn suspend(pid: u32) -> bool {
+        with_handle(pid, NtSuspendProcess)
+    }
+
+    pub fn resume(pid: u32) -> bool {
+        with_handle(pid, NtResumeProcess)
+    }
 }
 
 #[cfg(not(any(unix, windows)))]
@@ -612,6 +665,44 @@ mod signal {
 
     pub fn alive(_pid: u32) -> bool {
         false
+    }
+
+    pub fn suspend(_pid: u32) -> bool {
+        false
+    }
+
+    pub fn resume(_pid: u32) -> bool {
+        false
+    }
+}
+
+/// A process frozen by `suspend`; it is resumed on drop.
+pub struct Suspended {
+    pid: u32,
+    held: bool,
+}
+
+/// Freezes every thread of `pid` until the guard resumes or drops.
+pub fn suspend(pid: u32) -> Result<Suspended, String> {
+    if signal::suspend(pid) {
+        Ok(Suspended { pid, held: true })
+    } else {
+        Err(format!("cannot suspend process {pid}"))
+    }
+}
+
+impl Suspended {
+    /// Resumes the process now; later calls and the drop do nothing.
+    pub fn resume(&mut self) -> bool {
+        let done = self.held && signal::resume(self.pid);
+        self.held = false;
+        done
+    }
+}
+
+impl Drop for Suspended {
+    fn drop(&mut self) {
+        self.resume();
     }
 }
 
@@ -913,6 +1004,23 @@ fn stripped(key: &str) -> bool {
             .any(|prefix| key.starts_with(prefix))
 }
 
+/// Takes shared locks on the dx slot files in the configured reserve, so consumer dx runs leave
+/// those build slots to the nested servers. Busy indices are reported and never fail the test.
+fn hold_dx_reserve(config: &Config) -> Vec<File> {
+    let Some((dir, range)) = &config.reserve else {
+        return Vec::new();
+    };
+    let reserve = dx_process::slot_pool::hold_reserve(dir, range.clone());
+    if !reserve.busy.is_empty() {
+        eprintln!(
+            "dx build slots {:?} under {} are busy; continuing without them",
+            reserve.busy,
+            dir.display()
+        );
+    }
+    reserve.held
+}
+
 /// One nested Bazel server: a locked slot, its output user root and its workspace.
 pub struct Server {
     config: Config,
@@ -920,6 +1028,8 @@ pub struct Server {
     workspace: Option<PathBuf>,
     _slot: File,
     reaper: Option<Child>,
+    /// Shared locks on the dx slot files kept for nested servers; released after the servers stop.
+    _reserve: Vec<File>,
 }
 
 impl Server {
@@ -940,7 +1050,10 @@ impl Server {
                     .open(&lock)
                     .map_err(|error| format!("cannot open {}: {error}", lock.display()))?;
                 match file.try_lock() {
-                    Ok(()) => return Server::claim(config, home, file),
+                    Ok(()) => {
+                        let reserve = hold_dx_reserve(&config);
+                        return Server::claim(config, home, file, reserve);
+                    }
                     Err(std::fs::TryLockError::WouldBlock) => {}
                     Err(std::fs::TryLockError::Error(error)) => {
                         return Err(format!("cannot lock {}: {error}", lock.display()))
@@ -959,13 +1072,19 @@ impl Server {
         }
     }
 
-    fn claim(config: Config, home: PathBuf, slot: File) -> Result<Server, String> {
+    fn claim(
+        config: Config,
+        home: PathBuf,
+        slot: File,
+        reserve: Vec<File>,
+    ) -> Result<Server, String> {
         let mut server = Server {
             config,
             home,
             workspace: None,
             _slot: slot,
             reaper: None,
+            _reserve: reserve,
         };
         kill_slot_servers(
             &server.user_root(),
@@ -1749,6 +1868,7 @@ mod tests {
             repository_cache: None,
             offline: false,
             shim: None,
+            reserve: None,
         }
     }
 
@@ -2366,6 +2486,86 @@ common --repository_cache=/rc/repos
         );
     }
 
+    fn exclusive_is_blocked(path: &Path) -> bool {
+        let file = File::options().write(true).open(path).expect("slot file");
+        matches!(file.try_lock(), Err(std::fs::TryLockError::WouldBlock))
+    }
+
+    #[test]
+    fn from_parts_plans_the_reserve_in_the_dx_slots_dir() {
+        let fixture = Fixture::new();
+        let cache = fixture.dir.path().join("cache");
+        let cache_text = cache.to_str().expect("utf8");
+        let config = fixture.config(&[("XDG_CACHE_HOME", cache_text)], "", None);
+        let Some(memory) = dx_process::slot_pool::available_memory() else {
+            return;
+        };
+        assert_eq!(
+            config.reserve,
+            Some((
+                cache.join("dx").join("slots"),
+                dx_process::slot_pool::reserve_range(memory, 3)
+            ))
+        );
+        let five = fixture.config(
+            &[("XDG_CACHE_HOME", cache_text), (SLOTS_ENV, "5")],
+            "",
+            None,
+        );
+        assert_eq!(five.slots, 5);
+        assert_eq!(
+            five.reserve.map(|(_, range)| range),
+            Some(dx_process::slot_pool::reserve_range(memory, 5))
+        );
+    }
+
+    #[test]
+    fn an_acquired_server_holds_the_reserve_shared_until_it_drops() {
+        let dir = scratch("nested-reserve-");
+        let (bazel, _log) = recorder(dir.path());
+        let slots = dir.path().join("dx-slots");
+        let mut cfg = config(&dir.path().join("base"), &bazel);
+        cfg.reserve = Some((slots.clone(), 0..2));
+        let server = Server::acquire(cfg).expect("slot");
+        for index in 0..2 {
+            let path = dx_process::slot_pool::slot_path(&slots, index);
+            assert!(exclusive_is_blocked(&path), "slot {index} is held");
+            assert!(matches!(
+                dx_process::slot_pool::lock_slot(&path, true),
+                Ok(Some(_))
+            ));
+        }
+        drop(server);
+        for index in 0..2 {
+            let path = dx_process::slot_pool::slot_path(&slots, index);
+            assert!(!exclusive_is_blocked(&path), "slot {index} is free");
+        }
+    }
+
+    #[test]
+    fn a_busy_reserve_index_does_not_block_acquire() {
+        let dir = scratch("nested-reserve-busy-");
+        let (bazel, _log) = recorder(dir.path());
+        let slots = dir.path().join("dx-slots");
+        std::fs::create_dir_all(&slots).expect("dir");
+        let _other =
+            dx_process::slot_pool::lock_slot(&dx_process::slot_pool::slot_path(&slots, 0), false)
+                .expect("lock")
+                .expect("free");
+        let mut cfg = config(&dir.path().join("base"), &bazel);
+        cfg.reserve = Some((slots, 0..2));
+        let server = Server::acquire(cfg).expect("slot");
+        assert_eq!(server._reserve.len(), 1);
+    }
+
+    #[test]
+    fn no_reserve_plan_takes_no_locks() {
+        let dir = scratch("nested-no-reserve-");
+        let (bazel, _log) = recorder(dir.path());
+        let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
+        assert!(server._reserve.is_empty());
+    }
+
     #[test]
     fn slots_are_exclusive_and_commands_go_through_the_wrapper() {
         let dir = scratch("nested-slot-");
@@ -2425,6 +2625,7 @@ common --repository_cache=/rc/repos
         let (bazel, log) = recorder(dir.path());
         let shimmed = Config {
             shim: Some(shim.clone()),
+            reserve: None,
             ..config(&dir.path().join("base"), &bazel)
         };
         let mut server = Server::acquire(shimmed).expect("slot");
@@ -2786,6 +2987,7 @@ mod portable_tests {
             repository_cache: None,
             offline: true,
             shim: None,
+            reserve: None,
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");
@@ -2905,5 +3107,149 @@ mod portable_tests {
         let pid = child.id();
         child.wait().expect("wait");
         assert!(!alive(pid));
+    }
+
+    /// Env names that a test target sets itself, so the root bazelrc need not forward them.
+    const TARGET_SET_ENV: &[&str] = &[
+        "DX_NESTED_BAZEL_NETWORK",
+        "DX_NESTED_BAZEL_PINNED",
+        "DX_NESTED_BAZEL_SHIM",
+    ];
+
+    /// The `DX_NESTED_BAZEL*` names read by `from_parts`, including the ones held in path-crate constants.
+    fn env_names_from_parts() -> Vec<String> {
+        let code = include_str!("nested.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or_default();
+        let mut names = vec![
+            nested_bazel::ROOT_ENV.to_owned(),
+            nested_bazel::SLOTS_ENV.to_owned(),
+        ];
+        for (at, _) in code.match_indices("\"DX_NESTED_BAZEL") {
+            let rest = &code[at + 1..];
+            if let Some(end) = rest.find('"') {
+                let name = &rest[..end];
+                if name.bytes().all(|b| b.is_ascii_uppercase() || b == b'_') {
+                    names.push(name.to_owned());
+                }
+            }
+        }
+        names.sort();
+        names.dedup();
+        names
+    }
+
+    #[test]
+    fn root_bazelrc_forwards_each_env_name_from_parts_reads() {
+        let key = std::env::var("DX_TEST_ROOT_BAZELRC").expect("DX_TEST_ROOT_BAZELRC");
+        let path = resolve_runfile("DX_TEST_ROOT_BAZELRC", &key).expect("root bazelrc");
+        let rc = dx_testing::read_text(&path);
+        let forwarded: Vec<&str> = rc
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                line.strip_prefix("test --test_env=")
+                    .or_else(|| line.strip_prefix("common --test_env="))
+            })
+            .collect();
+        let names = env_names_from_parts();
+        assert!(
+            names.iter().any(|name| name == nested_bazel::ROOT_ENV),
+            "no env names found in from_parts: {names:?}"
+        );
+        for name in names
+            .iter()
+            .filter(|name| !TARGET_SET_ENV.contains(&name.as_str()))
+        {
+            assert!(
+                forwarded.contains(&name.as_str()),
+                "{name} is read by from_parts but the root .bazelrc has no `test --test_env={name}`"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod suspend_tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn heartbeat(file: &Path) -> std::process::Child {
+        #[cfg(unix)]
+        let mut command = {
+            let mut command = std::process::Command::new("sh");
+            command.arg("-c").arg(format!(
+                "while true; do echo x >> '{}'; sleep 0.02; done",
+                file.display()
+            ));
+            command
+        };
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = std::process::Command::new("powershell");
+            command.args(["-NoProfile", "-Command"]).arg(format!(
+                "while ($true) {{ Add-Content -Path '{}' -Value x; Start-Sleep -Milliseconds 20 }}",
+                file.display()
+            ));
+            command
+        };
+        command.spawn().expect("spawn heartbeat")
+    }
+
+    fn size(file: &Path) -> u64 {
+        std::fs::metadata(file).map_or(0, |meta| meta.len())
+    }
+
+    fn wait_for_growth(file: &Path, from: u64) -> bool {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while std::time::Instant::now() < deadline {
+            if size(file) > from {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        false
+    }
+
+    #[test]
+    fn suspend_stops_a_child_and_resume_restarts_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("beat");
+        let mut child = heartbeat(&file);
+        assert!(wait_for_growth(&file, 0));
+        let mut frozen = suspend(child.id()).expect("suspend");
+        std::thread::sleep(Duration::from_millis(200));
+        let held = size(&file);
+        std::thread::sleep(Duration::from_millis(500));
+        assert_eq!(size(&file), held, "the child kept running while suspended");
+        assert!(frozen.resume());
+        assert!(wait_for_growth(&file, held), "the child did not restart");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn dropping_the_guard_resumes_the_child() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("beat");
+        let mut child = heartbeat(&file);
+        assert!(wait_for_growth(&file, 0));
+        let frozen = suspend(child.id()).expect("suspend");
+        std::thread::sleep(Duration::from_millis(200));
+        let held = size(&file);
+        drop(frozen);
+        assert!(wait_for_growth(&file, held), "the child did not restart");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn suspending_a_dead_pid_fails() {
+        let mut child = heartbeat(&std::env::temp_dir().join("nested-suspend-dead"));
+        let pid = child.id();
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(suspend(pid).is_err());
     }
 }

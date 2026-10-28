@@ -10,7 +10,7 @@ load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/toolchain:pins.bzl", "CELLS")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 ErlangAppInfo = _ErlangAppInfo
@@ -146,7 +146,7 @@ def _erlang_test_coverage(ctx, upstream):
 
 _erlang_forward_test = dx_executable_forward_rule(
     kind = "test",
-    provides = [DefaultInfo, QualitySourcesInfo],
+    provides = DX_EXEC_PROVIDES,
     required_providers = [],
     quality_specs = _SPECS,
     what = "erlang test",
@@ -214,9 +214,7 @@ def erlang_bytecode(name, srcs, visibility = None, **kwargs):
 def escript_archive(name, visibility = None, **kwargs):
     """Thin wrapper over rules_erlang escript_archive that runs on the pinned runtime."""
     srcs = kwargs.get("srcs", [])
-    upstream = dict(kwargs)
-    upstream["visibility"] = ["//visibility:private"]
-    _escript_archive(name = name + "_upstream", **upstream)
+    _escript_archive(name = name + "_upstream", **dx_binary_upstream_kwargs(kwargs, srcs))
     _escript_binary(
         name = name,
         upstream = ":" + name + "_upstream",
@@ -248,7 +246,7 @@ def ct_suite(name, suite_name = "", visibility = None, **kwargs):
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
 
     # ct_run_extra_args names the node, so rules_erlang must not add -hidden -sname.
-    kwargs.setdefault("auto_sname", False)
+    kwargs = dx_setdefaults(kwargs, {"auto_sname": False})
     _ct_suite(name = name + "_upstream", suite_name = suite, **dx_test_upstream_kwargs(kwargs))
     _erlang_forward_test(
         name = name,

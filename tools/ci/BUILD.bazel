@@ -1,8 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 filegroup(
     name = "module_pin_fixtures",
@@ -76,7 +77,7 @@ python_library(
 python_binary(
     name = "input_validation_bin",
     main = "input_validation.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":input_validation"],
 )
 
@@ -91,10 +92,10 @@ python_test(
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
         ":input_validation_fixtures",
-        "//.github:workflows/android.yml",
-        "//.github:workflows/apple.yml",
+        "//.github:actionlint.yaml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
+        "//.github:workflows/release.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",
@@ -118,7 +119,7 @@ python_library(
 python_binary(
     name = "resource_peaks_bin",
     main = "resource_peaks.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":resource_peaks"],
 )
 
@@ -150,7 +151,7 @@ python_library(
 python_binary(
     name = "docs_scope_bin",
     main = "docs_scope.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":docs_scope"],
 )
 
@@ -182,7 +183,7 @@ python_library(
 python_binary(
     name = "module_pin_bin",
     main = "module_pin.py",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC,
     deps = [":module_pin"],
 )
 
@@ -401,6 +402,22 @@ rust_test(
 
 # keep
 rust_test(
+    name = "workflow_expressions_test",
+    size = "small",
+    srcs = ["workflow_expressions_test.rs"],
+    data = [
+        "//.github:workflows",
+    ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
+)
+
+# keep
+rust_test(
     name = "bump_auth_test",
     size = "small",
     srcs = ["bump_auth_test.rs"],
@@ -470,14 +487,18 @@ rust_test(
         "//:.buildifier.json",
         "//:.editorconfig",
         "//:.gitignore",
+        "//:.npmrc",
         "//:.shellcheckrc",
         "//:.vale.ini",
         "//:biome.json",
+        "//.devcontainer:Dockerfile.prebuilt",
         "//.github:workflows",
+        "//:licenses.toml",
+        "//:pnpm-workspace.yaml",
         "//:ruff.toml",
         "//cli/env:src/lib.rs",
         "//deploy/offline/bootstrap:src/lib.rs",
-        "//deploy/rules:launcher.bzl",
+        "//deploy/rules:config.bzl",
         "//docs:github-ci.md",
         "//quality:corpus_styles/Dx/Markers.yml",
         "//quality:corpus_vale.ini",
@@ -511,6 +532,7 @@ rust_test(
         "//android/sdk/tests/fetch:corpus_starlark",
         "//android/tests/fixtures/native_lib:corpus_starlark",
         "//android/tests/fixtures/rust_apk:corpus_starlark",
+        "//ansible/rules:corpus_starlark",
         "//appimage/packer:corpus_starlark",
         "//appimage/tests:corpus_starlark",
         "//apple/tests:corpus_starlark",
@@ -521,9 +543,11 @@ rust_test(
         "//cli/cli/tests/affected:corpus_starlark",
         "//cli/cli/tests/agents:corpus_starlark",
         "//cli/cli/tests/cargo_sets:corpus_starlark",
-        "//cli/cli/tests/configured_discovery:corpus_starlark",
+        "//cli/cli/tests/cli_argv_e2e:corpus_starlark",
         "//cli/cli/tests/latency:corpus_starlark",
+        "//cli/cli/tests/maven_sets:corpus_starlark",
         "//cli/cli/tests/npm_sets:corpus_starlark",
+        "//cli/cli/tests/nuget_sets:corpus_starlark",
         "//cli/cli/tests/results_consumer:corpus_starlark",
         "//cli/cli/tests/startup_consistency:corpus_starlark",
         "//cli/cli/tests/uv_sets:corpus_starlark",
@@ -561,6 +585,7 @@ rust_test(
         "//examples/java-app/diagnostics:corpus_starlark",
         "//examples/kotlin-app/cli:corpus_starlark",
         "//examples/kotlin-app/diagnostics:corpus_starlark",
+        "//examples/lua-app/diagnostics:corpus_starlark",
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
         "//examples/qt-rust/ledger:corpus_starlark",
@@ -573,12 +598,15 @@ rust_test(
         "//gazelle/scala:corpus_starlark",
         "//generation/codegen_shard:corpus_starlark",
         "//generation/result:corpus_starlark",
+        "//haskell:corpus_starlark",
         "//haskell/tests/negative:corpus_starlark",
+        "//haskell/tests/starter:corpus_starlark",
         "//javascript/tests/fixtures/web_app:corpus_starlark",
         "//lua/tests/negative:corpus_starlark",
         "//modules:corpus_starlark",
         "//ocaml/tests/negative:corpus_starlark",
         "//perl/tests/negative:corpus_starlark",
+        "//php/composer:corpus_starlark",
         "//php/tests/negative:corpus_starlark",
         "//python/tests/consumer:corpus_starlark",
         "//qt/rust:corpus_starlark",
@@ -586,6 +614,7 @@ rust_test(
         "//quality:corpus_starlark",
         "//quality/adapter:corpus_starlark",
         "//quality/markdown:corpus_starlark",
+        "//quality/notebook:corpus_starlark",
         "//quality/result:corpus_starlark",
         "//quality/runner:corpus_starlark",
         "//quality/testdata:corpus_starlark",
@@ -611,8 +640,10 @@ rust_test(
         "//tools/docs/go:corpus_starlark",
         "//tools/docs/go/extract:corpus_starlark",
         "//tools/docs/ir/ir:corpus_starlark",
+        "//tools/docs/jvm/convert:corpus_starlark",
         "//tools/docs/powershell:corpus_starlark",
         "//tools/docs/powershell/extract:corpus_starlark",
+        "//tools/docs/dotnet/extract:corpus_starlark",
         "//tools/docs/ruby:corpus_starlark",
         "//tools/docs/ruby/extract:corpus_starlark",
         "//tools/docs/rust:corpus_starlark",
@@ -655,6 +686,7 @@ rust_test(
         "//appimage:corpus_starlark",
         "//apple/bundle:corpus_starlark",
         "//apple/ios:corpus_starlark",
+        "//apple/macos:corpus_starlark",
         "//apple/provisioning:corpus_starlark",
         "//apple/signing:corpus_starlark",
         "//astro/rules:corpus_starlark",
@@ -686,6 +718,9 @@ rust_test(
         "//java/rules:corpus_starlark",
         "//javascript/rules:corpus_starlark",
         "//jsonnet/rules:corpus_starlark",
+        "//julia/rules:corpus_starlark",
+        "//julia/tests/starter:corpus_starlark",
+        "//julia/tools:corpus_starlark",
         "//kotlin/rules:corpus_starlark",
         "//libs/starlark:corpus_starlark",
         "//libs/testing:corpus_starlark",
@@ -772,6 +807,7 @@ rust_test(
         "//cli/adopt:src/launcher.rs",
         "//cli/adopt:src/version.rs",
         "//cli/prebuilt:pins.bzl",
+        "//deploy/install:src/trust.rs",
     ],
     deps = ["//tools/testing:dx_testing"],
 )
@@ -805,7 +841,7 @@ rust_test(
         "//:d/README.md",
         "//:elixir/README.md",
         "//:fsharp/README.md",
-        "//:haskell/README.md",
+        "//:julia/README.md",
         "//:lua/README.md",
         "//:perl/README.md",
         "//:php/README.md",
@@ -824,6 +860,7 @@ rust_test(
         "//examples:README.md",
         "//examples:example_readmes",
         "//examples:example_starlark",
+        "//haskell:README.md",
         "//msix:README.md",
         "//qt:README.md",
         "//rust/rules:README.md",
@@ -925,7 +962,76 @@ rustfmt_test(
         ":starlark_docs_test",
         ":tool_resolve_test",
         ":user_docs_test",
+        ":workflow_expressions_test",
         ":workflow_permissions_test",
         ":workflow_pins_test",
+    ],
+)
+
+# keep
+rust_library(
+    name = "coverage_cells",
+    srcs = ["coverage_cells.rs"],
+    crate_name = "coverage_cells",
+    deps = ["@crates//:serde_json"],
+)
+
+# keep
+rust_binary(
+    name = "coverage_cells_bin",
+    srcs = ["coverage_cells_main.rs"],
+    deps = [":coverage_cells"],
+)
+
+# keep
+rust_test(
+    name = "coverage_cells_test",
+    size = "small",
+    srcs = ["coverage_cells_test.rs"],
+    data = ["//tools/coverage:cells.txt"],
+    deps = [
+        ":coverage_cells",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+filegroup(
+    name = "first_build_fixtures",
+    srcs = glob(["first_build_fixtures/**"]),
+)
+
+# keep
+python_library(
+    name = "first_build",
+    srcs = ["first_build.py"],
+    aspect_hints = ["//:ruff_config"],
+    imports = ["."],
+)
+
+# keep
+python_binary(
+    name = "first_build_bin",
+    main = "first_build.py",
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":first_build"],
+)
+
+# keep
+python_test(
+    name = "first_build_test",
+    size = "small",
+    srcs = ["first_build_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    data = [
+        "first_build.py",
+        ":first_build_fixtures",
+        "//docs:first_build_data",
+    ],
+    dep_group = "hello",
+    deps = [
+        ":first_build",
+        ":workflow_testing",
+        "@pypi//pytest",
     ],
 )

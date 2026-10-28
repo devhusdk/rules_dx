@@ -122,3 +122,35 @@ func TestNDKLib(t *testing.T) {
 		}
 	}
 }
+
+func TestIsAndroidSDKPlatform(t *testing.T) {
+	for spec, want := range map[string]bool{
+		"android.app.Activity":     true,
+		"android":                  true,
+		"dalvik.system.DexFile":    true,
+		"android.support.v4.View":  false,
+		"android.arch.lifecycle.X": false,
+		"androidx.core.Foo":        false,
+		"androidish.Foo":           false,
+		"org.json.JSONObject":      false,
+	} {
+		if got := IsAndroidSDKPlatform(spec); got != want {
+			t.Errorf("IsAndroidSDKPlatform(%q) = %v, want %v", spec, got, want)
+		}
+	}
+}
+
+func TestIsAndroidPlatformImport(t *testing.T) {
+	for spec, want := range map[string]bool{
+		"android.os.Bundle":        true,
+		"org.json.JSONObject":      true,
+		"org.xmlpull.v1.XmlParser": true,
+		"org.apache.http.Client":   false,
+		"android.support.v4.View":  false,
+		"com.google.common.base.X": false,
+	} {
+		if got := IsAndroidPlatformImport(spec); got != want {
+			t.Errorf("IsAndroidPlatformImport(%q) = %v, want %v", spec, got, want)
+		}
+	}
+}

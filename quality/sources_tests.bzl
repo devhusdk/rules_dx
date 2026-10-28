@@ -1,9 +1,10 @@
 """Versioned semantic-class registry tests (freeze)."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "SOURCES_REGISTRY_SCHEMA_VERSION", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "sources_schema_error", "upstream_source_class")
+load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "SOURCES_REGISTRY_SCHEMA_VERSION", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "sources_schema_error", "upstream_source_class")
 
 FROZEN_SEMANTIC_FILE_CLASSES = [
+    "julia",
     "text",
     "c",
     "cpp",
@@ -33,15 +34,18 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "toml",
     "xml",
     "yaml",
+    "ansible",
     "api_spec",
     "java",
     "kotlin",
     "scala",
     "python",
     "python_stub",
+    "jupyter",
     "cue",
     "elixir",
     "erlang",
+    "flatbuffers",
     "fortran",
     "gherkin",
     "go",
@@ -87,6 +91,10 @@ _DOCKERFILE_REJECTED = [
     "README.md",
 ]
 
+_MAKE_ACCEPTED = ["Makefile", "makefile", "GNUmakefile", "rules.mk", "b.mk"]
+
+_MAKE_REJECTED = ["Makefile.am", "Makefile.in", "x.mak", ".mk", "MAKEFILE", "GNUMakefile", "README.md"]
+
 def sources_registry_tests(name):
     starlark_test(
         name = name,
@@ -107,6 +115,7 @@ def sources_registry_tests(name):
                 [c for c in FROZEN_SEMANTIC_FILE_CLASSES if not is_known_semantic_class(c)],
                 [],
             ),
+            expect_equal("kubernetes class is known", is_known_semantic_class("kubernetes"), True),
             expect_equal("RUST class ID", RUST, "rust"),
             expect_equal(
                 "upstream rust extension maps to rust",
@@ -152,6 +161,21 @@ def sources_registry_tests(name):
                 "Dockerfile name error lists the accepted patterns",
                 [dockerfile_name_error("Dockerfile.dev"), dockerfile_name_error("Dockerfile-dev")],
                 ["", "'Dockerfile-dev' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)],
+            ),
+            expect_equal(
+                "make matcher accepts Makefile, makefile, GNUmakefile and *.mk",
+                [n for n in _MAKE_ACCEPTED if not is_named_source("make", n)],
+                [],
+            ),
+            expect_equal(
+                "make matcher rejects autotools inputs, .mak and case variants",
+                [n for n in _MAKE_REJECTED if is_named_source("make", n)],
+                [],
+            ),
+            expect_equal(
+                "make name error lists the accepted names",
+                [named_source_class_error("make", "Makefile"), named_source_class_error("make", "Makefile.in")],
+                ["", "'Makefile.in' is not a make file name; accepted names: GNUmakefile, Makefile, makefile, *.mk"],
             ),
             expect_equal(
                 "upstream unknown extension maps to empty",

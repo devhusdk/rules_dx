@@ -1,11 +1,12 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load(":child_runfiles.bzl", "child_runfiles")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
+load(":child_runfiles.bzl", "child_runfiles")
 load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_COMPATIBLE_WITH", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 exports_files([
     "child_runfiles.bzl",
@@ -20,13 +21,14 @@ exports_files([
     "nested_bazel.bzl",
     "node_diagnostics_test.rs",
     "node_format_test.rs",
-])
+], visibility = VIS_TOOLS_CLI_TEST)
 
 rust_library(
     name = "dx_testing",
     srcs = [
         "src/cli.rs",
         "src/fatbin.rs",
+        "src/http.rs",
         "src/latency.rs",
         "src/lib.rs",
     ],
@@ -93,8 +95,14 @@ rust_test(
     name = "dx_nested_test",
     size = "small",
     crate = ":dx_nested",
-    data = [":nested_bazel_shim"],
-    env = {"DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)"},
+    data = [
+        ":nested_bazel_shim",
+        "//:.bazelrc",
+    ],
+    env = {
+        "DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)",
+        "DX_TEST_ROOT_BAZELRC": "$(rlocationpath //:.bazelrc)",
+    },
     deps = crate_deps(
         ["tempfile"],
         package_name = "tools/dx_testing",
@@ -318,7 +326,7 @@ rust_binary(
     crate_name = "starlark_harness",
     crate_root = "starlark_harness.rs",
     edition = "2021",
-    visibility = ["//visibility:public"],
+    visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
     deps = crate_deps(
         ["serde_json"],
         package_name = "tools/dx_testing",
@@ -383,7 +391,7 @@ rust_test(
     ],
 )
 
-exports_files(["Cargo.toml"])
+exports_files(["Cargo.toml"], visibility = VIS_TOOLS_CLI_TEST)
 
 real_source_target(
     name = "corpus_starlark",

@@ -35,7 +35,17 @@ Inside a `dx worktree` slot it adds a `lease` check that names the holder and br
 The checks are `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`,
 `tools`, `pin`, and `agents`. With a dx launcher there is also `launcher`.
 Inside a worktree slot there is also `lease`.
+The `share` check appears only while build slots are held.
+The `slots` check appears only when a `slot-N.lock` file under the dx slots
+directory cannot be opened.
 
+- `slots`: `warn` and names each `slot-N.lock` file dx cannot open, the files
+  the once-per-run skip warning also mentions. It only reads; it creates and
+  locks nothing.
+- `share`: `ok` and appears only while build slots are held. It names how many
+  slots are held and the CPUs and memory a run started now would get (the
+  machine split over the held slots plus that run), assuming the default slot
+  setting. It only reads; it creates and locks nothing.
 - `toolchain`: reads the rust toolchain versions and the `rules_rust` version
   declared in `MODULE.bazel`. `ok` when they match the versions `dx` is tested
   with. `warn` when `MODULE.bazel` is missing, does not parse, declares no rust
@@ -57,8 +67,11 @@ Inside a worktree slot there is also `lease`.
 - `host`: checks the machine is a v1 execution platform: linux_x86_64,
   linux_arm64, macos_arm64, windows_x86_64, or windows_arm64. The target platform never
   selects tools. This is not native qualification.
-- `exec_tools`: reads `.bazelrc` and the vendored preset. `warn` when
+- `exec_tools`: reads `.bazelrc` and the preset files it imports. `warn` when
   `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.
+- `preset`: reads `.bazelrc` and `.dx/bazelrc`. `warn` naming each layer file that
+  is missing, stale or not imported; a commented-out import is an opt-out and `ok`.
+  `not applicable` in rules_dx itself. The hint is `tools/dx init --apply`.
 - `tools`: reads the managed tools `dx env --apply` selected under
   `.dx/setups/current`. `warn` when none is selected. `error` when the
   selection is foreign, its environment or `values.json` is missing or
@@ -83,7 +96,7 @@ Inside a worktree slot there is also `lease`.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
 the hint is the fix, for example `dx upgrade --from <version> --to <version> --apply`.
-The `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`, and `tools` detail text starts with
+The `toolchain`, `bazel`, `module`, `overrides`, `host`, `exec_tools`, `preset`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
 
@@ -172,8 +185,8 @@ example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
 `1.3.0`, so `dx build` stops with
 `version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
-- Runs anyway: `version`, `status`, `rollback`, `upgrade`, `completion`, `worktree`, `explain`.
-- Warns and runs: `check`, `security`, `license`, `list-tests`.
+- Runs anyway: `version`, `status`, `rollback`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
+- Warns and runs: `check`, `security`, `license`.
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it

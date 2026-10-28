@@ -1,7 +1,7 @@
 """Unit tests for the shared deploy charset validators."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "genrule_arg", "has_any", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "genrule_arg", "only_chars")
 
 def validate_unit_tests(name):
     """Declares unit tests for the shared deploy validators."""
@@ -23,21 +23,6 @@ def validate_unit_tests(name):
                 "only_chars accepts an empty value",
                 only_chars("", NAME_CHARS),
                 True,
-            ),
-            expect_equal(
-                "has_any finds an embed-unsafe char",
-                has_any("my file.tar", EMBED_UNSAFE),
-                True,
-            ),
-            expect_equal(
-                "has_any misses when no char matches",
-                has_any("my_file.tar", EMBED_UNSAFE),
-                False,
-            ),
-            expect_equal(
-                "EMBED_UNSAFE keeps its 7 entries",
-                len(EMBED_UNSAFE),
-                7,
             ),
             expect_equal("genrule_arg quotes a plain value", genrule_arg("dx"), "'dx'"),
             expect_equal("genrule_arg escapes a single quote", genrule_arg("O'Neil"), "'O'\\''Neil'"),

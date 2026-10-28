@@ -1,5 +1,5 @@
 use std::ffi::{OsStr, OsString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::launch::{LaunchError, ResolvedTool};
 
@@ -107,9 +107,71 @@ const CUE_CHECK_ARGS: &[&str] = &["fmt", "--check", "--diff"];
 const CUE_FIX_ARGS: &[&str] = &["fmt"];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
+const TYPSTYLE_CHECK_ARGS: &[&str] = &["--check"];
+const TYPSTYLE_FIX_ARGS: &[&str] = &["-i"];
+const LATEXINDENT_CHECK_ARGS: &[&str] = &["-k"];
+const LATEXINDENT_FIX_ARGS: &[&str] = &["-w"];
+const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
+const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
+const STYLUA_CONFIG_FLAG: &str = "--config-path";
+const NIXFMT_CHECK_ARGS: &[&str] = &["--check"];
+const ORMOLU_CHECK_ARGS: &[&str] = &[
+    "--mode",
+    "check",
+    "--no-cabal",
+    "--no-dot-ormolu",
+    "--color",
+    "never",
+];
+const ORMOLU_FIX_ARGS: &[&str] = &[
+    "--mode",
+    "inplace",
+    "--no-cabal",
+    "--no-dot-ormolu",
+    "--color",
+    "never",
+];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
+const OPA_FMT_CHECK_ARGS: &[&str] = &["fmt"];
+const OPA_FMT_FIX_ARGS: &[&str] = &["fmt", "-w"];
+const OPA_CHECK_ARGS: &[&str] = &["check", "--format", "json", "--max-errors=-1"];
 const ZIG_FMT_CHECK_ARGS: &[&str] = &["fmt", "--check", "--color", "off"];
+/// The scratch directory holding the `.editorconfig` dfmt is pointed at; dfmt otherwise searches
+/// upward from each source file.
+pub const DFMT_CONFIG_DIR: &str = "dx-dfmt-default";
+const DFMT_CHECK_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR];
+const DFMT_FIX_ARGS: &[&str] = &["--config", DFMT_CONFIG_DIR, "--inplace"];
+/// The scratch path of the `dscanner.ini` dscanner is pointed at; with `--config` it never reads
+/// `$HOME/.config/dscanner` or a `dscanner.ini` in a parent directory.
+pub const DSCANNER_CONFIG_REL: &str = "dx-dscanner-default/dscanner.ini";
+/// The sentinel, then tab-separated fields; the message is last because upstream substitutes it
+/// before `{type}` and `{name}`.
+pub const DSCANNER_FORMAT: &str =
+    "dx\t{filepath}\t{line}\t{column}\t{endLine}\t{endColumn}\t{type}\t{name}\t{message}";
+const DSCANNER_CHECK_ARGS: &[&str] = &[
+    "--styleCheck",
+    "--config",
+    DSCANNER_CONFIG_REL,
+    "--errorFormat",
+    DSCANNER_FORMAT,
+];
+const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
+const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
+/// Always first: it stops perltidy reading `~/.perltidyrc`, `./.perltidyrc` and `$PERLTIDY`.
+const PERLTIDY_CHECK_ARGS: &[&str] = &[
+    "--noprofile",
+    "--standard-output",
+    "--standard-error-output",
+    "--output-line-ending=unix",
+];
+const PERLTIDY_FIX_ARGS: &[&str] = &[
+    "--noprofile",
+    "-b",
+    "-bext=/",
+    "--standard-error-output",
+    "--output-line-ending=unix",
+];
 const ERLFMT_CHECK_ARGS: &[&str] = &["--check"];
 const ERLFMT_FIX_ARGS: &[&str] = &["--write"];
 const MIX_FORMAT_CHECK_ARGS: &[&str] = &["--check-formatted"];
@@ -138,9 +200,26 @@ const RUBOCOP_ARGS: &[&str] = &["--format", "json", "--cache", "false"];
 const YAMLLINT_PREFIX: &[&str] = &["-f", "parsable"];
 const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
+const CHECKMAKE_PREFIX: &[&str] = &["--debug", "--output", "json"];
+const CHECKMAKE_TAIL: &[&str] = &["--"];
+const REGAL_LINT_PREFIX: &[&str] = &[
+    "lint",
+    "--format",
+    "json",
+    "--no-color",
+    "--fail-level",
+    "warning",
+];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
+const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
+const STATIX_FIX_PREFIX: &[&str] = &["fix"];
+const END_OF_FLAGS: &[&str] = &["--"];
+const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
+const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
 const KEEP_SORTED_CHECK_ARGS: &[&str] = &["--mode", "lint"];
 const KEEP_SORTED_FIX_ARGS: &[&str] = &["--mode", "fix"];
+const NOTEBOOK_OUTPUTS_CHECK_ARGS: &[&str] = &["outputs"];
+const NOTEBOOK_OUTPUTS_FIX_ARGS: &[&str] = &["outputs", "--fix"];
 const CLANG_FORMAT_CHECK_PREFIX: &[&str] = &["--dry-run", "--Werror"];
 const CLANG_FORMAT_FIX_PREFIX: &[&str] = &["-i"];
 const CLANG_TIDY_PREFIX: &[&str] = &["--quiet"];
@@ -437,12 +516,20 @@ pub fn eslint_fix(
 /// The shim owns `--config`, `--no-config` and `--ignore-path`, so dx never sends those.
 pub const PRETTIER_DX_CONFIG: &str = "--dx-config=";
 
-fn prettier_args(config: Option<&Path>, tail: &[&str]) -> Vec<OsString> {
-    let mut args = Vec::with_capacity(tail.len() + 2);
+/// dx-private flag the Prettier shim strips and turns into `--language` for the SQL plugin.
+pub const PRETTIER_DX_SQL_DIALECT: &str = "--dx-sql-dialect=";
+
+fn prettier_args(config: Option<&Path>, dialect: Option<&str>, tail: &[&str]) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(tail.len() + 3);
     if let Some(cfg) = config {
         let mut flag = OsString::from(PRETTIER_DX_CONFIG);
         flag.push(cfg.as_os_str());
         args.push(flag);
+    }
+    if let Some(dialect) = dialect {
+        args.push(OsString::from(format!(
+            "{PRETTIER_DX_SQL_DIALECT}{dialect}"
+        )));
     }
     args.push(OsString::from(PRETTIER_NO_EDITORCONFIG));
     args.extend(tail.iter().map(OsString::from));
@@ -453,16 +540,18 @@ pub fn prettier_check(
     launch: &ResolvedTool,
     files: &[&Path],
     config: Option<&Path>,
+    dialect: Option<&str>,
 ) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(config, PRETTIER_CHECK_TAIL), files)
+    launch.resolve(&prettier_args(config, dialect, PRETTIER_CHECK_TAIL), files)
 }
 
 pub fn prettier_fix(
     launch: &ResolvedTool,
     files: &[&Path],
     config: Option<&Path>,
+    dialect: Option<&str>,
 ) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(config, PRETTIER_FIX_TAIL), files)
+    launch.resolve(&prettier_args(config, dialect, PRETTIER_FIX_TAIL), files)
 }
 
 fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {
@@ -861,6 +950,25 @@ fn buf(
     }
 }
 
+/// Validates one schema with `flatc -M --cpp`, which parses it, prints its
+/// dependency list and writes nothing. Includes resolve next to the schema
+/// first, then under `root`.
+pub fn flatc_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invocation {
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            OsString::from("-M"),
+            OsString::from("--cpp"),
+            OsString::from("-o"),
+            out.as_os_str().to_owned(),
+            OsString::from("-I"),
+            root.as_os_str().to_owned(),
+            file.as_os_str().to_owned(),
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn buf_lint_check(
     binary: &Path,
     files: &[&Path],
@@ -918,12 +1026,79 @@ pub fn cue_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, CUE_FIX_ARGS, files, "")
 }
 
+/// One batched lint. It prints nothing when every file is clean.
+pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, &[], files, "")
+}
+
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_CHECK_ARGS, files, "")
 }
 
 pub fn jsonnetfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_FIX_ARGS, files, "")
+}
+
+/// `typstyle --check`; no `-q`, which would hide the `Would reformat` lines.
+pub fn typstyle_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TYPSTYLE_CHECK_ARGS, files, "")
+}
+
+pub fn typstyle_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TYPSTYLE_FIX_ARGS, files, "")
+}
+
+/// `latexindent -k` on one file. The log and the backups go to `cruft` (an absolute directory in
+/// the scratch tree) so nothing lands next to the source. The config is passed as `-l=<file>`
+/// only when bound: a bare `-l` would auto-load a `localSettings.yaml` from the source directory.
+pub fn latexindent_check(
+    binary: &Path,
+    file: &Path,
+    cruft: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    latexindent_invocation(binary, LATEXINDENT_CHECK_ARGS, file, cruft, config)
+}
+
+/// `latexindent -w` on one file; the backup `.bak` goes to `cruft`.
+pub fn latexindent_fix(
+    binary: &Path,
+    file: &Path,
+    cruft: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    latexindent_invocation(binary, LATEXINDENT_FIX_ARGS, file, cruft, config)
+}
+
+fn latexindent_invocation(
+    binary: &Path,
+    mode: &[&str],
+    file: &Path,
+    cruft: &Path,
+    config: Option<&Path>,
+) -> Invocation {
+    let mut argv: Vec<OsString> = vec![binary.as_os_str().to_owned()];
+    argv.extend(mode.iter().map(OsString::from));
+    argv.push(flag_value("-g=", &cruft.join("indent.log")));
+    let mut dir = cruft.as_os_str().to_owned();
+    dir.push("/");
+    let mut cruft_flag = OsString::from("-c=");
+    cruft_flag.push(dir);
+    argv.push(cruft_flag);
+    if let Some(path) = config {
+        argv.push(flag_value("-l=", path));
+    }
+    argv.push(file.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+fn flag_value(flag: &str, path: &Path) -> OsString {
+    let mut value = OsString::from(flag);
+    value.push(path.as_os_str());
+    value
 }
 
 pub fn zig_fmt_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -934,12 +1109,61 @@ pub fn zig_fmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ZIG_FMT_FIX_ARGS, files, "")
 }
 
+/// dfmt has no check mode: one file without `--inplace` writes the formatted text to stdout.
+/// Pass exactly one file, since two or more switch dfmt to in-place editing. The relative
+/// `--config` makes the cwd the scratch root.
+pub fn dfmt_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, DFMT_CHECK_ARGS, &[file], "")
+}
+
+pub fn dfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DFMT_FIX_ARGS, files, "")
+}
+
+/// One batched style check. The relative `--config` makes the cwd the scratch root.
+pub fn dscanner_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DSCANNER_CHECK_ARGS, files, "")
+}
+
+pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, JULIA_FORMAT_CHECK_ARGS, files, "")
+}
+
+pub fn julia_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, JULIA_FORMAT_FIX_ARGS, files, "")
+}
+
+/// perltidy `--standard-output` takes one file and writes the formatted text to stdout.
+pub fn perltidy_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, PERLTIDY_CHECK_ARGS, &[file], "")
+}
+
+/// `-b -bext=/` rewrites in place without a backup; `-se` keeps `.ERR` files from appearing.
+pub fn perltidy_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, PERLTIDY_FIX_ARGS, files, "")
+}
+
 pub fn erlfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ERLFMT_CHECK_ARGS, files, "")
 }
 
 pub fn erlfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, ERLFMT_FIX_ARGS, files, "")
+}
+
+/// Always `--config-file <config>`: Credo otherwise reads `.credo.exs` from every parent
+/// directory. The dx driver adds `--format json` and picks the exit code.
+pub fn credo_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut argv = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--config-file"),
+        config.as_os_str().to_owned(),
+    ];
+    argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn mix_format_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -950,12 +1174,66 @@ pub fn mix_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, &[], files, "")
 }
 
+/// Explicit owned `.nix` paths only: the default RFC style at width 100, no `--follow-symlinks`
+/// (which would write through a link into the source tree) and no style flags.
+pub fn nixfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, NIXFMT_CHECK_ARGS, files, "")
+}
+
+pub fn nixfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, &[], files, "")
+}
+
+pub fn ormolu_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ORMOLU_CHECK_ARGS, files, "")
+}
+
+pub fn ormolu_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, ORMOLU_FIX_ARGS, files, "")
+}
+
 pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_CHECK_ARGS, files, "")
 }
 
 pub fn pkl_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_FIX_ARGS, files, "")
+}
+
+pub fn opa_fmt_check(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, OPA_FMT_CHECK_ARGS, &[file], "")
+}
+
+pub fn opa_fmt_fix(binary: &Path, file: &Path) -> Invocation {
+    fixed(binary, OPA_FMT_FIX_ARGS, &[file], "")
+}
+
+pub fn opa_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, OPA_CHECK_ARGS, files, "")
+}
+
+pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        STYLUA_CHECK_ARGS,
+        STYLUA_CONFIG_FLAG,
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
+pub fn stylua_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        STYLUA_FIX_ARGS,
+        STYLUA_CONFIG_FLAG,
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
 }
 
 pub fn modfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
@@ -968,6 +1246,34 @@ pub fn modfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn terraform_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_CHECK_ARGS, files, "")
+}
+
+/// One tflint spawn for one module directory, run from the mirror root.
+///
+/// `--chdir` makes tflint report workspace-relative paths, `--filter` (relative to
+/// `--chdir`) narrows the report to the owned files, and `--config` is always passed so
+/// `./.tflint.hcl` and `~/.tflint.hcl` never load. `--call-module-type=none` stops it
+/// reading local module sources outside the mirror. Exit codes (v0.65.0 `cmd/cli.go`):
+/// 0 clean, 1 failure (JSON `errors`), 2 issues found.
+pub fn tflint_check(binary: &Path, dir_rel: &str, files: &[&Path], config: &Path) -> Invocation {
+    let mut argv = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+        OsString::from(format!("--chdir={dir_rel}")),
+        OsString::from("--format=json"),
+        OsString::from("--no-color"),
+        OsString::from("--call-module-type=none"),
+    ];
+    for file in files {
+        let mut flag = OsString::from("--filter=");
+        flag.push(file.as_os_str());
+        argv.push(flag);
+    }
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
@@ -1160,6 +1466,31 @@ pub fn psscriptanalyzer_format_fix(
     )
 }
 
+/// `--offline --nocolor -f sarif --project-dir <dir>` with an optional `-c <config>` before the files.
+pub fn ansible_lint_check(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    project_dir: &Path,
+) -> Invocation {
+    let mut args: Vec<OsString> = ["--offline", "--nocolor", "-f", "sarif", "--project-dir"]
+        .iter()
+        .map(OsString::from)
+        .collect();
+    args.push(project_dir.as_os_str().to_owned());
+    if let Some(config) = config {
+        args.push(OsString::from("-c"));
+        args.push(config.as_os_str().to_owned());
+    }
+    args.extend(files.iter().map(|file| file.as_os_str().to_owned()));
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(args);
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn yamllint_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     match config {
         Some(_) => optional_flag(
@@ -1201,6 +1532,19 @@ pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -
     )
 }
 
+/// Always `--config-file <config>`: without it regal searches upward for `.regal/`, which is not hermetic.
+pub fn regal_lint(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    required_flag(
+        binary,
+        REGAL_LINT_PREFIX,
+        "--config-file",
+        config,
+        END_OF_FLAGS,
+        files,
+        "",
+    )
+}
+
 /// Always `--config <config>`: without it hadolint reads the cwd, XDG and HOME configs.
 pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     optional_flag(
@@ -1214,8 +1558,260 @@ pub fn hadolint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
     )
 }
 
+/// Always `--config <config>`: without it statix searches upward from the cwd for `statix.toml`.
+/// statix takes one target per call.
+pub fn statix_check(binary: &Path, file: &Path, config: &Path) -> Invocation {
+    required_flag(
+        binary,
+        STATIX_CHECK_PREFIX,
+        "--config",
+        config,
+        END_OF_FLAGS,
+        &[file],
+        "",
+    )
+}
+
+/// Always `--config <config>`: checkmake otherwise falls back to `$HOME/checkmake.ini`.
+/// `--debug` makes it log the config it loaded, which the parser requires.
+pub fn checkmake_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        CHECKMAKE_PREFIX,
+        "--config",
+        Some(config),
+        CHECKMAKE_TAIL,
+        files,
+        "",
+    )
+}
+
+pub fn statix_fix(binary: &Path, file: &Path, config: &Path) -> Invocation {
+    required_flag(
+        binary,
+        STATIX_FIX_PREFIX,
+        "--config",
+        config,
+        END_OF_FLAGS,
+        &[file],
+        "",
+    )
+}
+
+pub fn deadnix_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DEADNIX_CHECK_ARGS, files, "")
+}
+
+pub fn deadnix_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, DEADNIX_FIX_ARGS, files, "")
+}
+
+/// The suffix of a kubeconform config file.
+pub const KUBECONFORM_CONFIG_SUFFIX: &str = ".kubeconform.json";
+const KUBECONFORM_CORE_TEMPLATE: &str = "{{.ResourceKind}}{{.KindSuffix}}.json";
+const KUBECONFORM_CRD_TEMPLATE: &str = "{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json";
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct KubeconformConfigFile {
+    schema_version: u32,
+    kubernetes_version: String,
+    #[serde(default)]
+    strict: bool,
+    #[serde(default)]
+    skip_kinds: Vec<String>,
+    core_dir: String,
+    crd_dir: String,
+}
+
+/// A parsed `<name>.kubeconform.json` with its schema directories resolved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KubeconformConfig {
+    pub kubernetes_version: String,
+    pub strict: bool,
+    pub skip_kinds: Vec<String>,
+    pub core_dir: PathBuf,
+    pub crd_dir: PathBuf,
+}
+
+fn remote_location(location: &str) -> bool {
+    location == "default" || location.contains("://")
+}
+
+fn schema_dir(base: &Path, key: &str, rel: &str) -> Result<PathBuf, String> {
+    if remote_location(rel) {
+        return Err(format!(
+            "kubeconform {key} must be a local directory, got {rel:?}"
+        ));
+    }
+    let bad = rel.is_empty()
+        || rel.starts_with('/')
+        || rel.contains('\\')
+        || rel.contains(':')
+        || rel
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..");
+    if bad {
+        return Err(format!(
+            "kubeconform {key} must be a relative forward-slash path below the config, got {rel:?}"
+        ));
+    }
+    Ok(rel
+        .split('/')
+        .fold(base.to_path_buf(), |dir, part| dir.join(part)))
+}
+
+/// Parses a kubeconform config; its schema directories resolve against the config's directory.
+pub fn kubeconform_config(config: &Path, bytes: &[u8]) -> Result<KubeconformConfig, String> {
+    let name = config
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    if !name.ends_with(KUBECONFORM_CONFIG_SUFFIX) {
+        return Err(format!(
+            "kubeconform config {} must end with {KUBECONFORM_CONFIG_SUFFIX}",
+            config.display()
+        ));
+    }
+    let raw: KubeconformConfigFile = serde_json::from_slice(bytes)
+        .map_err(|err| format!("kubeconform config {}: {err}", config.display()))?;
+    if raw.schema_version != 1 {
+        return Err(format!(
+            "kubeconform config schema_version must be 1, got {}",
+            raw.schema_version
+        ));
+    }
+    let version = &raw.kubernetes_version;
+    if version.is_empty()
+        || !version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-'))
+    {
+        return Err(format!(
+            "kubeconform kubernetes_version is not a version: {version:?}"
+        ));
+    }
+    for kind in &raw.skip_kinds {
+        if kind.is_empty() || kind.contains(',') || kind.chars().any(char::is_whitespace) {
+            return Err(format!(
+                "kubeconform skip_kinds entry is not a kind: {kind:?}"
+            ));
+        }
+    }
+    let base = config.parent().unwrap_or(Path::new(""));
+    Ok(KubeconformConfig {
+        core_dir: schema_dir(base, "core_dir", &raw.core_dir)?,
+        crd_dir: schema_dir(base, "crd_dir", &raw.crd_dir)?,
+        kubernetes_version: raw.kubernetes_version,
+        strict: raw.strict,
+        skip_kinds: raw.skip_kinds,
+    })
+}
+
+fn schema_location(dir: &Path, template: &str) -> Result<String, String> {
+    let dir = dir
+        .to_str()
+        .ok_or_else(|| format!("kubeconform schema dir is not UTF-8: {}", dir.display()))?;
+    let location = format!("{}/{template}", dir.trim_end_matches(['/', '\\']));
+    if dir.is_empty() || remote_location(dir) {
+        return Err(format!(
+            "kubeconform schema location must be local, got {location:?}"
+        ));
+    }
+    Ok(location)
+}
+
+/// Exactly two local schema locations; never `-ignore-missing-schemas`.
+pub fn kubeconform_check(
+    binary: &Path,
+    config: &KubeconformConfig,
+    files: &[&Path],
+) -> Result<Invocation, String> {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("-output"),
+        OsString::from("json"),
+        OsString::from("-summary=false"),
+        OsString::from("-kubernetes-version"),
+        OsString::from(&config.kubernetes_version),
+    ];
+    if config.strict {
+        head.push(OsString::from("-strict"));
+    }
+    if !config.skip_kinds.is_empty() {
+        head.push(OsString::from("-skip"));
+        head.push(OsString::from(config.skip_kinds.join(",")));
+    }
+    for (dir, template) in [
+        (&config.core_dir, KUBECONFORM_CORE_TEMPLATE),
+        (&config.crd_dir, KUBECONFORM_CRD_TEMPLATE),
+    ] {
+        head.push(OsString::from("-schema-location"));
+        head.push(OsString::from(schema_location(dir, template)?));
+    }
+    Ok(assemble(binary, head, files, ""))
+}
+
+/// `helm lint <chart> --quiet --kube-version V -f <values>...`; never fetches dependencies.
+pub fn helm_lint(
+    binary: &Path,
+    chart_dir: &Path,
+    values: &[&Path],
+    kube_version: &str,
+) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("lint"),
+        chart_dir.as_os_str().to_owned(),
+        OsString::from("--quiet"),
+        OsString::from("--kube-version"),
+        OsString::from(kube_version),
+    ];
+    helm_values(&mut head, values);
+    assemble(binary, head, &[], "")
+}
+
+/// `helm template <release> <chart> --namespace NS --kube-version V -f <values>...`.
+pub fn helm_template(
+    binary: &Path,
+    release: &str,
+    namespace: &str,
+    chart_dir: &Path,
+    values: &[&Path],
+    kube_version: &str,
+) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("template"),
+        OsString::from(release),
+        chart_dir.as_os_str().to_owned(),
+        OsString::from("--namespace"),
+        OsString::from(namespace),
+        OsString::from("--kube-version"),
+        OsString::from(kube_version),
+    ];
+    helm_values(&mut head, values);
+    assemble(binary, head, &[], "")
+}
+
+/// Values files in declared order; later files override earlier ones.
+fn helm_values(head: &mut Vec<OsString>, values: &[&Path]) {
+    for path in values {
+        head.push(OsString::from("-f"));
+        head.push(path.as_os_str().to_owned());
+    }
+}
+
 pub fn keep_sorted_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, KEEP_SORTED_CHECK_ARGS, files, "")
+}
+
+pub fn notebook_outputs_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, NOTEBOOK_OUTPUTS_CHECK_ARGS, files, "")
+}
+
+pub fn notebook_outputs_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, NOTEBOOK_OUTPUTS_FIX_ARGS, files, "")
 }
 
 pub fn keep_sorted_fix(binary: &Path, files: &[&Path]) -> Invocation {
@@ -1247,7 +1843,8 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "keep_sorted" | "ruff" | "flake8" | "pydoclint" | "buildifier" => ArgTransport::Batched,
+        "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
+        | "deadnix" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

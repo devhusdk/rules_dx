@@ -155,18 +155,18 @@ fn the_upload_never_overwrites() {
         .expect("cmp guard");
     let put = upload.find("gh release upload").expect("upload");
     assert!(guard < put);
-    assert!(upload
-        .contains("for file in $files dx-sha256sums.txt \"$src\" \"$src.sha256\" source.json; do"));
-    assert!(upload.contains("files=\"$files $asset $asset.sha256\""));
+    assert!(upload.contains("for file in $files \"$src\" \"$src.sha256\" source.json; do"));
+    assert!(upload.contains("files=\"$files $asset $asset.sha256 $archive $archive.sha256\""));
+    assert!(upload.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
 }
 
 #[test]
 fn the_checksum_manifest_is_built_checked_and_uploaded() {
     let text = workflow();
     for needle in [
-        "cat \"out/$asset.sha256\" >> sums.tmp",
+        "cat \"out/$asset.sha256\" \"out/$archive.sha256\" >> sums.tmp",
         "LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt",
-        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 5",
+        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 10",
         "(cd out && sha256sum -c dx-sha256sums.txt)",
         "--pattern 'dx-*' --dir verify",
         "sha256sum -c dx-sha256sums.txt)",
@@ -300,14 +300,140 @@ fn the_prebuilt_version_matches_the_module_and_the_cli() {
 }
 
 #[test]
-fn the_release_build_checks_the_binary_version_against_the_pins() {
+fn the_release_build_checks_the_binary_version_against_the_tag() {
     let text = workflow();
     let check = text
-        .find("want=\"dx $(sed -n 's/^DX_VERSION = \"\\(.*\\)\"$/\\1/p' cli/prebuilt/pins.bzl)\"")
+        .find("want=\"dx ${RELEASE_TAG#v}\"")
         .expect("version check");
     let hash = text.find("hash=\"$(sha256sum").expect("hash");
     assert!(
         check < hash,
         "{WORKFLOW} hashes before checking the version"
     );
+}
+
+#[test]
+fn the_source_job_refuses_a_tag_the_committed_version_does_not_match() {
+    let text = workflow();
+    let source = text.find("\n  source:\n").expect("source job");
+    let gate = text
+        .find("[ \"$committed\" != \"${RELEASE_TAG#v}\" ]")
+        .expect("version gate");
+    let driver = text.find("release_driver").expect("driver");
+    assert!(source < gate && gate < driver);
+    assert!(text.contains("land the version bump first"));
+}
+
+const TRUST: &str = "deploy/install/src/trust.rs";
+
+fn trust_const(name: &str) -> String {
+    let trust = read_runfiles(TRUST);
+    let at = trust
+        .find(&format!("pub const {name}: &str = \""))
+        .unwrap_or_else(|| panic!("{TRUST} lacks {name}"));
+    let rest = &trust[at..];
+    let start = rest.find('"').expect("open quote") + 1;
+    let end = start + rest[start..].find('"').expect("close quote");
+    rest[start..end].to_owned()
+}
+
+#[test]
+fn the_manifest_and_bundle_names_match_the_install_engine() {
+    let text = workflow();
+    let manifest = trust_const("MANIFEST_NAME");
+    let bundle = trust_const("BUNDLE_NAME");
+    assert!(text.contains(&format!("out/{manifest}")));
+    assert!(text.contains(&format!("out/{bundle}")));
+    assert!(text.contains(&format!("files=\"{manifest} {bundle}\"")));
+}
+
+#[test]
+fn the_archives_match_the_install_engine_cells() {
+    let trust = read_runfiles(TRUST);
+    let text = workflow();
+    for asset in ASSETS {
+        let suffix = if asset.contains("windows") {
+            ".zip"
+        } else {
+            ".tar.gz"
+        };
+        assert!(
+            trust.contains(&format!("name: \"{asset}\",")),
+            "{TRUST} lacks {asset}"
+        );
+        assert!(
+            trust.contains(&format!("suffix: \"{suffix}\",")),
+            "{TRUST} lacks {suffix}"
+        );
+        let format = suffix.trim_start_matches('.');
+        assert!(
+            text.contains(&format!("- name: {asset}\n            runner:"))
+                && text.contains(&format!("            format: {format}\n")),
+            "{WORKFLOW} format for {asset}"
+        );
+    }
+    assert!(text.contains("dx-windows-*) archive=\"$asset.zip\""));
+    assert!(text.contains("*) archive=\"$asset.tar.gz\""));
+}
+
+#[test]
+fn the_attestation_is_signed_once_from_the_tag_in_the_upload_job() {
+    let text = workflow();
+    let step = "uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2";
+    assert_eq!(text.matches("actions/attest@").count(), 1);
+    let upload = text.find("\n  upload:\n").expect("upload job");
+    let at = text.find(step).expect("pinned attest step");
+    assert!(at > upload);
+    let head = &text[text[..at].rfind("      - name:").expect("step")..at];
+    assert!(head.contains("steps.plan.outputs.attest == 'true'"));
+    assert!(head.contains("github.ref == format('refs/tags/{0}', env.RELEASE_TAG)"));
+    assert!(text.contains("subject-checksums: out/dx-sha256sums.txt"));
+    assert!(text.contains("grep -Fxq dx-sha256sums.txt.sigstore.json"));
+    assert!(text.contains("dispatch with --ref $RELEASE_TAG"));
+    for permission in [
+        "id-token: write",
+        "attestations: write",
+        "artifact-metadata: write",
+    ] {
+        assert_eq!(text.matches(permission).count(), 1, "{permission}");
+        assert!(text.find(permission).expect("permission") > upload);
+    }
+}
+
+#[test]
+fn the_archives_are_verified_with_the_install_engine_flags() {
+    let text = workflow();
+    let trust = read_runfiles(TRUST);
+    for flag in [
+        "--bundle",
+        "--repo",
+        "--cert-identity",
+        "--cert-oidc-issuer",
+        "--source-ref",
+        "--deny-self-hosted-runners",
+    ] {
+        assert!(
+            trust.contains(&format!("\"{flag}\"")),
+            "{TRUST} lacks {flag}"
+        );
+        assert!(text.contains(&format!("{flag}")), "{WORKFLOW} lacks {flag}");
+    }
+    assert!(text.contains("release.yml@refs/tags/$RELEASE_TAG"));
+    assert!(text.contains("--source-ref \"refs/tags/$RELEASE_TAG\""));
+    let verify = text.find("gh attestation verify").expect("verify");
+    let put = text.find("gh release upload").expect("upload");
+    assert!(verify < put);
+}
+
+#[test]
+fn a_published_release_is_checked_with_dx_install() {
+    let text = workflow();
+    let download = text
+        .find("--pattern 'dx-*' --dir verify")
+        .expect("download");
+    let install = text
+        .find("verify/dx install --tag \"$RELEASE_TAG\" --archive verify/dx-linux-x86_64.tar.gz --output json")
+        .expect("dx install check");
+    assert!(download < install);
+    assert!(!text.contains("--apply"));
 }

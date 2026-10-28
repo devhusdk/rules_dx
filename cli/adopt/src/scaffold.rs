@@ -38,7 +38,7 @@ pub const ENVRC_CONTENT: &str = concat!(
 pub const CONSUMER_RULES_CC_VERSION: &str = "0.2.27";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_LLVM` in `modules/versions.bzl`.
-pub const CONSUMER_LLVM_VERSION: &str = "0.8.23";
+pub const CONSUMER_LLVM_VERSION: &str = "0.8.25";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUST` in `modules/versions.bzl`.
 pub const CONSUMER_RULES_RUST_VERSION: &str = "0.74.0";
@@ -50,9 +50,30 @@ pub const CONSUMER_RUST_VERSION: &str = "1.98.0";
 pub const CONSUMER_RUSTFMT_VERSION: &str = "1.98.0";
 
 /// The `bazel_dep` floor `dx init` writes: `FLOOR_RULES_RUBY` in `modules/versions.bzl`.
-pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.28.0";
+pub const CONSUMER_RULES_RUBY_VERSION: &str = "0.29.0";
 
-pub const CONSUMER_RUBY_VERSION: &str = "3.4.9";
+pub const CONSUMER_RUBY_VERSION: &str = "3.4.12";
+
+/// Portable Ruby asset digests for `CONSUMER_RUBY_VERSION`: `PORTABLE_RUBY_CHECKSUMS` in
+/// `modules/ruby.bzl`. rules_ruby does not ship them for this Ruby, so the toolchain passes them.
+pub const CONSUMER_PORTABLE_RUBY_CHECKSUMS: &[(&str, &str)] = &[
+    (
+        "ruby-3.4.12.arm64_darwin.tar.gz",
+        "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
+    ),
+    (
+        "ruby-3.4.12.arm64_linux.tar.gz",
+        "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
+    ),
+    (
+        "ruby-3.4.12.x86_64_darwin.tar.gz",
+        "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
+    ),
+    (
+        "ruby-3.4.12.x86_64_linux.tar.gz",
+        "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
+    ),
+];
 
 /// Bazel output base that rust-analyzer discovery runs on.
 pub const IDE_OUTPUT_BASE: &str = ".dx/ide/rust";
@@ -70,9 +91,39 @@ pub const RUST_FLYCHECK_LABEL: &str = "@rules_rust//tools/rust_analyzer:flycheck
 /// Content `dx init` writes to a new `.bazelignore`.
 pub const BAZELIGNORE_CONTENT: &str = ".dx\n";
 
+/// Checks `--rust-target-triple` values: non-empty, lowercase triple characters only.
+pub fn validate_rust_target_triples(triples: &[String]) -> Result<Vec<String>, String> {
+    let mut out: Vec<String> = Vec::new();
+    for triple in triples {
+        let ok = !triple.is_empty()
+            && triple.contains('-')
+            && triple.chars().all(|c| {
+                c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | '.')
+            });
+        if !ok {
+            return Err(format!("invalid Rust target triple: {triple:?}"));
+        }
+        if !out.contains(triple) {
+            out.push(triple.clone());
+        }
+    }
+    Ok(out)
+}
+
 pub fn render_consumer_module_setup() -> String {
+    render_consumer_module_setup_with(&[])
+}
+
+/// The consumer setup with `extra_target_triples` on the Rust toolchain when non-empty.
+pub fn render_consumer_module_setup_with(triples: &[String]) -> String {
+    let extra = if triples.is_empty() {
+        String::new()
+    } else {
+        let list: Vec<String> = triples.iter().map(|t| format!("\"{t}\"")).collect();
+        format!("    extra_target_triples = [{}],\n", list.join(", "))
+    };
     format!(
-        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n)\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
+        "bazel_dep(name = \"rules_dx\", version = \"{dx}\")\nbazel_dep(name = \"rules_cc\", version = \"{cc}\")\nbazel_dep(name = \"llvm\", version = \"{llvm}\")\nbazel_dep(name = \"rules_rust\", version = \"{rust_rules}\")\n\nrust = use_extension(\"@rules_rust//rust:extensions.bzl\", \"rust\")\nrust.toolchain(\n    edition = \"{edition}\",\n    rustfmt_version = \"{rustfmt}\",\n    versions = [\"{rust}\"],\n{extra})\nuse_repo(rust, \"rust_toolchains\")\n\nregister_toolchains(\"@llvm//toolchain:all\")\nregister_toolchains(\"@rust_toolchains//:all\")\n",
         dx = DX_VERSION,
         cc = CONSUMER_RULES_CC_VERSION,
         llvm = CONSUMER_LLVM_VERSION,
@@ -80,34 +131,46 @@ pub fn render_consumer_module_setup() -> String {
         edition = CONSUMER_RUST_EDITION,
         rustfmt = CONSUMER_RUSTFMT_VERSION,
         rust = CONSUMER_RUST_VERSION,
+        extra = extra,
     )
 }
 
-/// Puts the CUDA stanza ahead of the consumer's `register_toolchains` lines.
+/// Puts the CUDA stanza ahead of the first `register_toolchains` call.
 ///
 /// The first registered toolchain wins, and the CUDA host compiler only applies when its
 /// flag is on. If `@llvm//toolchain:all` came first, it would also match for nvcc's host
 /// compilation and nvcc would get a clang it does not support.
-fn with_cuda_stanza(setup: &str) -> String {
+fn with_cuda_stanza(setup: &str) -> Result<String, AdoptError> {
     let stanza = format!(
         "# CUDA: this workspace has .cu sources, so the pinned toolkit and its host compiler follow.\n{}\n",
         crate::cuda_stanza::render_cuda_module_stanza("rules_dx"),
     );
-    match setup.find("register_toolchains(") {
+    let module = parse_init_snippet(setup)?;
+    let first = module
+        .calls_named("register_toolchains")
+        .next()
+        .map(|call| call.span.start);
+    Ok(match first {
         Some(at) => format!("{}{}{}", &setup[..at], stanza, &setup[at..]),
         None => format!("{setup}\n{stanza}"),
-    }
+    })
 }
 
 /// Adds the include of the dx-written overrides right after the rules_dx `bazel_dep`.
-fn with_overrides_include(setup: &str) -> String {
-    match setup.split_once('\n') {
-        Some((first, rest)) => format!(
-            "{first}\ninclude(\"{}\")\n{rest}",
-            crate::overrides::OVERRIDES_INCLUDE
-        ),
-        None => setup.to_owned(),
-    }
+fn with_overrides_include(setup: &str) -> Result<String, AdoptError> {
+    let module = parse_init_snippet(setup)?;
+    let included = module
+        .insert_include(crate::overrides::OVERRIDES_INCLUDE, "rules_dx")
+        .map_err(|error| AdoptError::InitSnippet {
+            detail: error.to_string(),
+        })?;
+    Ok(included)
+}
+
+fn parse_init_snippet(setup: &str) -> Result<dx_module_bazel::ModuleFile, AdoptError> {
+    dx_module_bazel::ModuleFile::parse(setup).map_err(|error| AdoptError::InitSnippet {
+        detail: error.to_string(),
+    })
 }
 
 pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
@@ -225,6 +288,15 @@ pub fn plan_init_files_for_host(
     plan_init_files_with(module_name, windows, false, parts)
 }
 
+/// Like `plan_init_files`, with extra Rust target triples in the module snippet.
+pub fn plan_init_files_triples(
+    module_name: &str,
+    parts: InitParts,
+    triples: &[String],
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_full(module_name, cfg!(windows), false, parts, triples)
+}
+
 /// Plans the essential init files plus the files of each selected part.
 ///
 /// `cuda` appends the pinned CUDA stanza to `MODULE.bazel.snippet`.
@@ -234,7 +306,23 @@ pub fn plan_init_files_with(
     cuda: bool,
     parts: InitParts,
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
+    plan_init_files_full(module_name, windows, cuda, parts, &[])
+}
+
+fn plan_init_files_full(
+    module_name: &str,
+    windows: bool,
+    cuda: bool,
+    parts: InitParts,
+    triples: &[String],
+) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
+    let consumer_setup = if cuda {
+        with_cuda_stanza(&render_consumer_module_setup_with(triples))?
+    } else {
+        render_consumer_module_setup_with(triples)
+    };
+    let setup = with_overrides_include(&consumer_setup)?;
     let files = vec![
         ScaffoldFile {
             path: ".dx/version".to_owned(),
@@ -273,11 +361,6 @@ pub fn plan_init_files_with(
             path: "MODULE.bazel.snippet".to_owned(),
             content: format!(
                 "# Add to MODULE.bazel: hermetic C/C++ and Rust defaults.\n# Own toolchains: keep the bazel_dep lines, drop the register_toolchains lines.\n# module: {module}\n{setup}",
-                setup = with_overrides_include(&if cuda {
-                    with_cuda_stanza(&render_consumer_module_setup())
-                } else {
-                    render_consumer_module_setup()
-                }),
             ),
         },
     ];
@@ -322,29 +405,15 @@ pub fn scaffold_dest_within_root(
 }
 
 fn ensure_physically_within(root: &Path, relative: &str) -> Result<(), AdoptError> {
-    let escapes = || AdoptError::ScaffoldEscapesRoot {
-        path: relative.to_owned(),
-    };
-    let canonical_root = match root.canonicalize() {
-        Ok(path) => path,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(_) => return Err(escapes()),
-    };
-    let mut current = root.to_path_buf();
-    for part in Path::new(relative).components() {
-        current.push(part);
-        match std::fs::symlink_metadata(&current) {
-            Ok(meta) if meta.file_type().is_symlink() => {
-                let resolved = current.canonicalize().map_err(|_| escapes())?;
-                if !resolved.starts_with(&canonical_root) {
-                    return Err(escapes());
-                }
-            }
-            Ok(_) => {}
-            Err(_) => break,
+    match dx_path::resolve_target_in_workspace(root, relative) {
+        Err(e) if e.kind() == std::io::ErrorKind::InvalidInput => {
+            Err(AdoptError::ScaffoldEscapesRoot {
+                path: relative.to_owned(),
+            })
         }
+        // A missing root, or a file where a directory belongs, is reported by the write itself.
+        _ => Ok(()),
     }
-    Ok(())
 }
 
 /// Fails when a destination escapes the root or has a parent that is not a directory.
@@ -418,10 +487,21 @@ pub fn apply_init(
     parts: InitParts,
     applied: &mut Applied,
 ) -> Result<(), AdoptError> {
+    apply_init_triples(root, module_name, parts, &[], applied)
+}
+
+/// Like `apply_init`, with extra Rust target triples in the module snippet.
+pub fn apply_init_triples(
+    root: &Path,
+    module_name: &str,
+    parts: InitParts,
+    triples: &[String],
+    applied: &mut Applied,
+) -> Result<(), AdoptError> {
     let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
     apply_scaffold(
         root,
-        &plan_init_files_with(module_name, cfg!(windows), cuda, parts)?,
+        &plan_init_files_full(module_name, cfg!(windows), cuda, parts, triples)?,
         applied,
     )
 }
@@ -448,10 +528,11 @@ mod tests {
     use super::{
         apply_init, entries, plan_init_files, plan_init_files_for_host, plan_init_files_with,
         render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
-        CONSUMER_RUBY_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUBY_VERSION,
-        CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION,
-        CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
-        CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
+        CONSUMER_PORTABLE_RUBY_CHECKSUMS, CONSUMER_RUBY_VERSION, CONSUMER_RULES_CC_VERSION,
+        CONSUMER_RULES_RUBY_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
+        CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
+        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
+        DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -985,6 +1066,24 @@ mod tests {
     }
 
     #[test]
+    fn rust_target_triples_extend_the_toolchain_and_default_is_unchanged() {
+        let triples = vec![
+            "wasm32-unknown-unknown".to_owned(),
+            "wasm32-wasip1".to_owned(),
+        ];
+        assert_eq!(
+            super::render_consumer_module_setup_with(&[]),
+            super::render_consumer_module_setup()
+        );
+        let text = super::render_consumer_module_setup_with(&triples);
+        assert!(text.contains(
+            "    extra_target_triples = [\"wasm32-unknown-unknown\", \"wasm32-wasip1\"],\n)"
+        ));
+        assert!(super::validate_rust_target_triples(&["Bad Triple".to_owned()]).is_err());
+        assert!(super::validate_rust_target_triples(&[String::new()]).is_err());
+    }
+
+    #[test]
     fn cuda_snippet_adds_the_stanza_and_registers_the_host_compiler_first() {
         let plain =
             plan_init_files_with("demo", false, false, crate::InitParts::ALL).expect("plans");
@@ -1012,6 +1111,20 @@ mod tests {
             ]
         );
         assert!(cuda.contains("cuda-eula"));
+    }
+
+    #[test]
+    fn snippet_edits_follow_parsed_calls_not_text() {
+        let setup = "# register_toolchains(\nbazel_dep(name = \"rules_dx\", version = \"1\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
+        let included = super::with_overrides_include(setup).expect("include");
+        assert!(included.contains(&format!(
+            "bazel_dep(name = \"rules_dx\", version = \"1\")\ninclude(\"{}\")\n",
+            crate::overrides::OVERRIDES_INCLUDE
+        )));
+        let staged = super::with_cuda_stanza(&included).expect("stanza");
+        let stanza_at = staged.find("# CUDA:").expect("stanza");
+        assert!(stanza_at > staged.find("include(").expect("include"));
+        assert!(stanza_at < staged.find("register_toolchains(\"@llvm").expect("llvm"));
     }
 
     #[test]
@@ -1054,7 +1167,7 @@ mod tests {
         let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
         let text = std::fs::read_to_string(
             std::path::Path::new(&source)
-                .join(workspace)
+                .join(&workspace)
                 .join("modules/versions.bzl"),
         )
         .expect("modules/versions.bzl ships as test data");
@@ -1071,6 +1184,18 @@ mod tests {
             assert!(
                 text.contains(&format!("{key} = \"{value}\"")),
                 "{key} drifts from modules/versions.bzl"
+            );
+        }
+        let ruby = std::fs::read_to_string(
+            std::path::Path::new(&source)
+                .join(&workspace)
+                .join("modules/ruby.bzl"),
+        )
+        .expect("modules/ruby.bzl ships as test data");
+        for (name, digest) in CONSUMER_PORTABLE_RUBY_CHECKSUMS {
+            assert!(
+                ruby.contains(&format!("\"{name}\": \"{digest}\"")),
+                "{name} drifts from modules/ruby.bzl"
             );
         }
     }

@@ -7,9 +7,11 @@ import (
 
 // ClassLangSpec describes a one-library-per-directory language named by class.
 type ClassLangSpec struct {
-	LanguageName   string
-	LibraryKind    string
-	MainRule       string
+	LanguageName string
+	LibraryKind  string
+	MainRule     string
+	// Variant swaps LibraryKind for a platform kind; see KindVariant.
+	Variant        *KindVariant
 	DefsPackage    string
 	UnresolvedHint string
 	Exts           []string
@@ -27,6 +29,11 @@ type ClassLangSpec struct {
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
 	// External is the dx_external ecosystem third-party imports resolve through.
 	External string
+	// Tests, when set, generates one test rule per test source; its IsSource
+	// defaults to the TestSuffixes match. TestMergeable names attributes of
+	// the test kind refreshed on merge beyond srcs and deps.
+	Tests         *TestSpec
+	TestMergeable []string
 }
 
 // Spec returns the SingleLangSpec the class language runs on.
@@ -34,6 +41,14 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 	isSource := func(name string) bool { return HasExt(name, s.Exts) }
 	isTest := func(name string) bool { return IsTestSource(name, s.Exts, s.TestSuffixes) }
 	identity := func(name string) string { return ClassIdentity(name, s.Exts) }
+	var tests *TestSpec
+	if s.Tests != nil {
+		t := *s.Tests
+		if t.IsSource == nil {
+			t.IsSource = func(name string) bool { return isSource(name) && isTest(name) }
+		}
+		tests = &t
+	}
 	spec := SingleLangSpec{
 		LanguageName:   s.LanguageName,
 		LibraryKind:    s.LibraryKind,
@@ -62,9 +77,21 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 				Candidates:   s.Candidates,
 				OrderSrcs:    s.OrderSrcs,
 				MakeRule:     s.MakeRule,
+				Variant:      s.Variant,
 				Wrap:         WrapImportSet,
+				Tests:        tests,
 			}, rep)
 		},
+	}
+	if v := s.Variant; v != nil {
+		spec.Kinds[v.Kind] = LibraryKindInfo()
+		spec.ExtraKinds = []string{v.Kind}
+		spec.IndexKinds = []string{v.Kind}
+		spec.KindDefs = map[string]string{v.Kind: v.DefsPackage}
+	}
+	if tests != nil {
+		spec.Kinds[tests.Kind] = TestKindInfo(s.TestMergeable...)
+		spec.ExtraKinds = append(spec.ExtraKinds, tests.Kind)
 	}
 	if s.ClassIDs {
 		spec.Identity = identity

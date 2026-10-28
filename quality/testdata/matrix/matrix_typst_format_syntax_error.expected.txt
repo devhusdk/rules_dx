@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_typst_format_syntax_error
+capability FORMAT
+stages 1
+stage typstyle classes=typst sources=matrix/typst_broken.typ
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR typstyle - matrix/typst_broken.typ 0 0 fixable=false "syntax error: the source is erroneous"
+terminal 1
+terminal ERROR typstyle - matrix/typst_broken.typ 0 0 fixable=false "syntax error: the source is erroneous"
+replacements 0

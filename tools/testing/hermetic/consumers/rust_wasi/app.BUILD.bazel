@@ -1,4 +1,5 @@
 load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rust_wasi_module", "rust_wasi_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 _PUBLIC = ["//visibility:public"]
 
@@ -119,5 +120,34 @@ rust_wasi_test(
     binary = ":tasks",
     expected_code = 2,
     expected_stderr_substring = "err:unreadable: /board/board.txt",
+    tags = ["block-network"],
+)
+
+sh_binary(
+    name = "custom_runtime",
+    srcs = ["custom_runtime.sh"],
+)
+
+rust_wasi_test(
+    name = "wasi_env_test",
+    binary = ":consumer_report",
+    env = {"DX_WASI_NOTE": "declared"},
+    expected_stderr_substring = "--env DX_WASI_NOTE=declared",
+    expected_stdout = "\n".join([
+        "ok:done 2",
+        "summary tasks=2 done=2 open=0 assets=0",
+        "core=2.0.0 toolchain=consumer",
+    ]),
+    runtime = ":custom_runtime",
+    tags = ["block-network"],
+)
+
+rust_wasi_test(
+    name = "wasi_runtime_test",
+    args = ["/board/board.txt"],
+    binary = ":tasks",
+    expected_code = 2,
+    expected_stderr_substring = "runtime=custom run",
+    runtime = ":custom_runtime",
     tags = ["block-network"],
 )

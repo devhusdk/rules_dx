@@ -38,6 +38,7 @@ md-5 = "0.10"
 pgp = { version = "0.21", default-features = false }
 quick-xml = "0.41"
 rand = "0.8"
+ruzstd = "0.9"
 rustls = { version = "0.23", default-features = false, features = [
   "ring",
   "std",

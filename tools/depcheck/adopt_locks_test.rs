@@ -36,6 +36,12 @@ fn check_pair(eco: &str, manifest: &Path, lock: &Path, label: &str) {
 #[test]
 fn adopt_locks_consistent() {
     check_pair(
+        "js",
+        &data("DX_PRETTIER_FIXTURE_MANIFEST"),
+        &data("DX_PRETTIER_FIXTURE_LOCK"),
+        "prettier_consumer fixture package.json plus pnpm-lock.yaml",
+    );
+    check_pair(
         "go",
         &data("DX_GO_MANIFEST"),
         &data("DX_GO_LOCK"),

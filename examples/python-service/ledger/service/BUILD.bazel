@@ -41,3 +41,10 @@ real_source_target(
     tags = ["corpus"],
     visibility = ["//examples:__pkg__"],
 )
+
+exports_files([
+    "BUILD.bazel",
+    "__init__.py",
+    "server.py",
+    "server_test.py",
+])

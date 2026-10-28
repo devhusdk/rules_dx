@@ -110,7 +110,7 @@ const EXEMPT: [(&str, &str); 4] = [
 ];
 
 /// Packages whose BUILD.bazel declares Rust targets; their :corpus_starlark is in the test data.
-const PACKAGES: [&str; 127] = [
+const PACKAGES: [&str; 130] = [
     ".devcontainer",
     "android/sdk/tests/fetch",
     "android/tests/fixtures/native_lib",
@@ -125,7 +125,6 @@ const PACKAGES: [&str; 127] = [
     "cli/cli/tests/affected",
     "cli/cli/tests/agents",
     "cli/cli/tests/cargo_sets",
-    "cli/cli/tests/configured_discovery",
     "cli/cli/tests/latency",
     "cli/cli/tests/npm_sets",
     "cli/cli/tests/results_consumer",
@@ -165,6 +164,7 @@ const PACKAGES: [&str; 127] = [
     "examples/java-app/diagnostics",
     "examples/kotlin-app/cli",
     "examples/kotlin-app/diagnostics",
+    "examples/lua-app/diagnostics",
     "examples/node-app/cli",
     "examples/node-app/diagnostics",
     "examples/qt-rust/ledger",
@@ -179,6 +179,7 @@ const PACKAGES: [&str; 127] = [
     "generation/result",
     "haskell/tests/negative",
     "javascript/tests/fixtures/web_app",
+    "julia/tests/starter",
     "lua/tests/negative",
     "modules",
     "ocaml/tests/negative",
@@ -215,8 +216,10 @@ const PACKAGES: [&str; 127] = [
     "tools/docs/go",
     "tools/docs/go/extract",
     "tools/docs/ir/ir",
+    "tools/docs/jvm/convert",
     "tools/docs/powershell",
     "tools/docs/powershell/extract",
+    "tools/docs/dotnet/extract",
     "tools/docs/ruby",
     "tools/docs/ruby/extract",
     "tools/docs/rust",

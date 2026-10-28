@@ -21,7 +21,41 @@ LIBDIR = "lib"
 
 VERSION_FILE = "DX_GHC_VERSION"
 
-GHC_LIBRARY_DIR = LIBDIR + "/x86_64-linux-ghc-" + GHC_VERSION
+def ghc_library_dir(cell):
+    """Returns the bindist library directory of one cell."""
+    return LIBDIR + "/" + CELLS[cell].ghc_libdir_triple + "-ghc-" + GHC_VERSION
+
+def cell_matches_host(cell, os_name, arch):
+    """Returns whether the cell's binaries run on the host.
+
+    Args:
+        cell: Cell key.
+        os_name: Host rctx.os.name.
+        arch: Host rctx.os.arch.
+
+    Returns:
+        True if the host can run the cell's bindist.
+    """
+    host = CELLS[cell].host
+    return any([os_name.lower().startswith(os) for os in host.os]) and arch in host.arch
+
+_UNAVAILABLE_BUILD = """package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "toolchain-impl",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+filegroup(
+    name = "gmp",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+filegroup(
+    name = "licenses",
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+"""
 
 GMP_PACKAGE = "ghc-bignum"
 
@@ -171,6 +205,7 @@ _ROOT_BUILD = """exports_files(["LICENSE"])
 """
 
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -185,7 +220,7 @@ haskell_toolchain(
     fully_static_link = False,
     libdir = [":lib"],
     libraries = toolchain_libraries,
-    locale = "C.UTF-8",
+    locale = "{locale}",
     static_runtime = False,
     tools = [":bin"],
     version = "{version}",
@@ -201,14 +236,22 @@ filegroup(
     srcs = glob(["{libdir}/**", "{closure}/**"]),
 )
 
-cc_import(
-    name = "gmp",
-    shared_library = "{closure}/lib/libgmp.so.10",
-)
+{gmp}
 
 filegroup(
     name = "licenses",
     srcs = glob(["{closure}/licenses/*"]),
+)
+"""
+
+_GMP_IMPORT = """cc_import(
+    name = "gmp",
+    shared_library = "{closure}/lib/libgmp.so.10",
+)
+"""
+
+_GMP_EMPTY = """cc_library(
+    name = "gmp",
 )
 """
 
@@ -312,6 +355,12 @@ def _gmp_registration(rctx):
 
 def _ghc_repo_impl(rctx):
     cell = CELLS[rctx.attr.cell]
+    if not cell_matches_host(rctx.attr.cell, rctx.os.name, rctx.os.arch):
+        # The bindist cannot run here, so fetch nothing and run nothing. Targets
+        # stay incompatible, and toolchain resolution picks the host's own cell.
+        rctx.file("REPO.bazel", "")
+        rctx.file("BUILD.bazel", _UNAVAILABLE_BUILD)
+        return rctx.repo_metadata(reproducible = True)
     rctx.download_and_extract(
         url = cell.ghc_url,
         sha256 = cell.ghc_sha256,
@@ -319,18 +368,27 @@ def _ghc_repo_impl(rctx):
     )
     for path in GHC_DROPPED_PATHS:
         rctx.delete(path)
-    deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
-    rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
-    for package in cell.runtime:
-        for soname in package.libraries:
-            rctx.symlink(CLOSURE_DIR + "/lib/" + soname, GHC_LIBRARY_DIR + "/" + soname)
+    if cell.runtime:
+        deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
+        rctx.symlink(CLOSURE_DIR + "/lib/libgmp.so.10", CLOSURE_DIR + "/lib/libgmp.so")
+        for package in cell.runtime:
+            for soname in package.libraries:
+                rctx.symlink(CLOSURE_DIR + "/lib/" + soname, ghc_library_dir(rctx.attr.cell) + "/" + soname)
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings")), executable = False)
-    _gmp_registration(rctx)
+    if cell.runtime:
+        _gmp_registration(rctx)
+    gmp_license = getattr(cell, "gmp_license", None)
+    if gmp_license:
+        rctx.download(
+            url = gmp_license.url,
+            output = CLOSURE_DIR + "/licenses/" + gmp_license.name,
+            sha256 = gmp_license.sha256,
+        )
     _execute(rctx, ["bin/ghc-pkg", "recache", "--global"])
     version = _execute(rctx, ["bin/ghc", "--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:
         fail("GHC bindist reports {}, not {}".format(version, GHC_VERSION))
-    python = rctx.path(rctx.attr._python)
+    python = rctx.path(rctx.attr.python)
     script = rctx.path(rctx.attr._pkgdb_to_bzl)
     result = json.decode(_execute(rctx, [python, "-E", "-s", "-B", script, rctx.name, LIBDIR]).stdout)
     if "#SYMLINK:" in result["file_content"]:
@@ -339,8 +397,10 @@ def _ghc_repo_impl(rctx):
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _GHC_BUILD.format(
         closure = CLOSURE_DIR,
+        gmp = (_GMP_IMPORT if cell.runtime else _GMP_EMPTY).format(closure = CLOSURE_DIR),
         libdir = LIBDIR,
         libraries = result["file_content"],
+        locale = cell.locale,
         version = GHC_VERSION,
         version_file = VERSION_FILE,
     ))
@@ -352,7 +412,7 @@ _ghc_repo = repository_rule(
     attrs = {
         "cell": attr.string(mandatory = True, doc = "Qualified host cell."),
         "_pkgdb_to_bzl": attr.label(default = Label("@rules_haskell//haskell:private/pkgdb_to_bzl.py")),
-        "_python": attr.label(default = Label("@python_3_12_x86_64_unknown_linux_gnu//:bin/python3")),
+        "python": attr.label(mandatory = True, doc = "Host interpreter for the package database conversion."),
     },
 )
 
@@ -394,7 +454,11 @@ def _haskell_impl(mctx):
         url = RULES_HASKELL_URL,
     )
     for cell in sorted(CELLS.keys()):
-        _ghc_repo(name = cell_repository_name(cell), cell = cell)
+        _ghc_repo(
+            name = cell_repository_name(cell),
+            cell = cell,
+            python = Label(CELLS[cell].python + "//:bin/python3"),
+        )
     _hub(name = HUB_NAME)
     return mctx.extension_metadata(reproducible = True)
 

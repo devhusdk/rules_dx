@@ -90,6 +90,44 @@ pub(crate) fn classify_run_scopes(
     classify(scopes, workspace, cache, true)
 }
 
+/// Rejects `//pkg/...` labels when no BUILD file exists under `pkg`, so the
+/// failure surfaces once as an input error instead of as Bazel's
+/// "no targets found" warning turning into an analysis failure per phase.
+fn check_recursive_label_has_packages(raw: &str, workspace: &Path) -> Result<(), ResolveError> {
+    let Some(prefix) = raw.strip_suffix("/...") else {
+        return Ok(());
+    };
+    let rel = prefix.trim_start_matches('/');
+    if rel.is_empty() || rel.contains(':') || rel.contains("...") {
+        return Ok(());
+    }
+    if has_build_file_under(&workspace.join(rel)) {
+        Ok(())
+    } else {
+        Err(ResolveError::NoTargets {
+            scope: raw.to_owned(),
+        })
+    }
+}
+
+fn has_build_file_under(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    let mut subdirs = Vec::new();
+    for entry in entries.flatten() {
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
+        if kind.is_dir() {
+            subdirs.push(entry.path());
+        } else if entry.file_name() == "BUILD" || entry.file_name() == "BUILD.bazel" {
+            return true;
+        }
+    }
+    subdirs.iter().any(|sub| has_build_file_under(sub))
+}
+
 fn classify(
     scopes: &[String],
     workspace: &Path,
@@ -104,6 +142,9 @@ fn classify(
     };
     for raw in scopes {
         if raw.starts_with("//") || (allow_external && raw.starts_with('@') && raw.contains("//")) {
+            if raw.starts_with("//") {
+                check_recursive_label_has_packages(raw, workspace)?;
+            }
             classified.labels.push(raw.clone());
             continue;
         }
@@ -207,6 +248,21 @@ mod tests {
     }
 
     #[test]
+    fn recursive_label_without_build_files_is_no_targets() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-notargets-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "empty/sub/file.txt", "x");
+        write(&workspace, "pkg/deep/BUILD.bazel", "");
+        let query = NeverQuery;
+        let err = resolve(&strings(&["//empty/..."]), &workspace, &query, &[]).unwrap_err();
+        assert!(matches!(err, ResolveError::NoTargets { .. }), "{err:?}");
+        let err = resolve(&strings(&["//missing/..."]), &workspace, &query, &[]).unwrap_err();
+        assert!(matches!(err, ResolveError::NoTargets { .. }), "{err:?}");
+        let ok = resolve(&strings(&["//pkg/..."]), &workspace, &query, &[]).expect("resolve");
+        assert_eq!(ok.targets, strings(&["//pkg/..."]));
+    }
+
+    #[test]
     fn empty_scope_selects_repository() {
         let query = NeverQuery;
         let scratch = dx_test_scratch::scratch("dx-resolve-test-empty-");
@@ -221,6 +277,7 @@ mod tests {
         let query = NeverQuery;
         let scratch = dx_test_scratch::scratch("dx-resolve-test-labels-");
         let workspace = scratch.path().to_path_buf();
+        write(&workspace, "b/BUILD.bazel", "");
         let input = strings(&["//b/...", "//a:one", "@repo//c/..."]);
         let err = resolve(&input, &workspace, &query, &[]).expect_err("external must fail");
         assert_eq!(

@@ -1,5 +1,6 @@
 """Explicit tool support records."""
 
+load("//quality/artifacts:hub.bzl", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
 SUPPORT_SCHEMA_VERSION = 1
@@ -43,6 +44,49 @@ DOCKERFILE_HADOLINT_SUPPORT = {
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "hadolint",
+    "transport": "batched",
+}
+
+ANSIBLE_ANSIBLE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["ansible"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "ansible",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "qualified",
+    "tool": "ansible_lint",
+    "transport": "batched",
+    "unsupported": ["windows_x86_64"],
+}
+
+KUBERNETES_KUBECONFORM_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["kubernetes"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "kubernetes",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "kubeconform",
+    "transport": "batched",
+}
+
+MAKE_CHECKMAKE_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["make"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "make",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "checkmake",
     "transport": "batched",
 }
 
@@ -180,7 +224,7 @@ YAML_YAMLFMT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamlfmt",
     "transport": "batched",
@@ -194,9 +238,52 @@ YAML_YAMLLINT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamllint",
+    "transport": "batched",
+}
+
+NIX_STATIX_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["nix"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "nix",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "statix",
+    "transport": "single",
+}
+
+NIX_NIXFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["nix"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "nix",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "nixfmt",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+}
+
+NIX_DEADNIX_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["nix"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "nix",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "deadnix",
     "transport": "batched",
 }
 
@@ -214,6 +301,20 @@ TERRAFORM_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+TERRAFORM_TFLINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["terraform"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "terraform",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "tflint",
+    "transport": "batched",
+}
+
 GO_GOFUMPT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -222,7 +323,7 @@ GO_GOFUMPT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "go",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "gofumpt",
     "transport": "batched",
@@ -253,6 +354,20 @@ PROTOBUF_BUF_LINT_SUPPORT = {
     "platforms": ["linux_x86_64"],
     "state": "supported",
     "tool": "buf",
+    "transport": "batched",
+}
+
+FLATBUFFERS_FLATC_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["flatbuffers"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "flatbuffers",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "flatc",
     "transport": "batched",
 }
 
@@ -292,7 +407,7 @@ API_SPEC_REDOCLY_LINT_SUPPORT = {
     "execution": "direct",
     "family": "api_spec",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "redocly",
     "transport": "single",
@@ -382,6 +497,64 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+JSONNET_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["jsonnet"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jsonnet",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "jsonnet_lint",
+    "transport": "batched",
+}
+
+TYPST_TYPSTYLE_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["typst"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "typst",
+    "fix": "supported",
+    "platforms": ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "typstyle",
+    "transport": "batched",
+}
+
+LATEX_LATEXINDENT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["latex"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "latex",
+    "fix": "supported",
+    "platforms": ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "latexindent",
+    "transport": "single",
+}
+
+# chktex has no pinned build on any platform yet. Selecting it fails the policy check by name.
+LATEX_CHKTEX_LINT_SUPPORT = {
+    "artifact": "missing",
+    "capability": "lint",
+    "classes": ["latex"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "latex",
+    "fix": "check_only",
+    "platforms": [],
+    "state": "known",
+    "tool": "chktex",
+    "transport": "single",
+    "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
 POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -438,6 +611,20 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "transport": "single",
 }
 
+HASKELL_ORMOLU_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["haskell"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "haskell",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "ormolu",
+    "transport": "single",
+}
+
 PKL_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -452,7 +639,106 @@ PKL_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+LUA_STYLUA_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["lua"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "lua",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "stylua",
+    "transport": "batched",
+}
+
+JUPYTER_RUFF_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["jupyter"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ruff",
+    "transport": "batched",
+}
+
+JUPYTER_RUFF_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["jupyter"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ruff",
+    "transport": "batched",
+}
+
+JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["jupyter"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "notebook_outputs",
+    "transport": "batched",
+}
+
+REGO_OPA_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["rego"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "rego",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "opa",
+    "transport": "single",
+}
+
+REGO_OPA_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["rego"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "rego",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "opa",
+    "transport": "batched",
+}
+
+REGO_REGAL_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["rego"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "rego",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "regal",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
+    FLATBUFFERS_FLATC_LINT_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
     CSHARP_CSHARPIER_SUPPORT,
@@ -463,13 +749,20 @@ SUPPORT_RECORDS = [
     RUBY_STANDARDRB_SUPPORT,
     YAML_YAMLFMT_SUPPORT,
     YAML_YAMLLINT_SUPPORT,
+    NIX_STATIX_SUPPORT,
+    NIX_DEADNIX_SUPPORT,
+    NIX_NIXFMT_SUPPORT,
     HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,
     SHELL_SHELLCHECK_SUPPORT,
     SHELL_SHFMT_SUPPORT,
     DOCKERFILE_HADOLINT_SUPPORT,
+    KUBERNETES_KUBECONFORM_SUPPORT,
+    ANSIBLE_ANSIBLE_LINT_SUPPORT,
+    MAKE_CHECKMAKE_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
+    TERRAFORM_TFLINT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
     PROTOBUF_BUF_FORMAT_SUPPORT,
     PROTOBUF_BUF_LINT_SUPPORT,
@@ -482,9 +775,21 @@ SUPPORT_RECORDS = [
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
     CUE_FORMAT_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
+    JSONNET_LINT_SUPPORT,
+    HASKELL_ORMOLU_FORMAT_SUPPORT,
+    TYPST_TYPSTYLE_FORMAT_SUPPORT,
+    LATEX_LATEXINDENT_FORMAT_SUPPORT,
+    LATEX_CHKTEX_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
+    LUA_STYLUA_SUPPORT,
+    REGO_OPA_FORMAT_SUPPORT,
+    REGO_OPA_TYPECHECK_SUPPORT,
+    REGO_REGAL_LINT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
+    JUPYTER_RUFF_FORMAT_SUPPORT,
+    JUPYTER_RUFF_LINT_SUPPORT,
+    JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT,
 ]
 
 def _is_canonical_token(text):
@@ -495,6 +800,32 @@ def _is_canonical_token(text):
         if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
             return False
     return True
+
+# Every platform a support record may name: the qualified execution set plus the selectable
+# fallback platforms (hub.bzl). A sixth platform is one edit there.
+SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
+
+def _is_unbuilt(record):
+    """Reports whether a record names a tool with no pinned build on any platform.
+
+    Only a known record with a missing artifact may leave `platforms` empty, and it must list
+    every platform as unsupported.
+    """
+    unsupported = record.get("unsupported", [])
+    return (
+        record["artifact"] == "missing" and
+        record["state"] == "known" and
+        type(unsupported) == "list" and
+        sorted(unsupported) == sorted(SUPPORT_PLATFORMS)
+    )
+
+def support_unpinned_tools(capability):
+    """Maps each tool of one capability with no pinned build anywhere to its unsupported platforms."""
+    unpinned = {}
+    for record in SUPPORT_RECORDS:
+        if record["capability"] == capability and len(record["platforms"]) == 0 and _is_unbuilt(record):
+            unpinned[record["tool"]] = sorted(record["unsupported"])
+    return unpinned
 
 def support_record_error(record):
     """Validates one support record against the adapter taxonomy."""
@@ -535,11 +866,23 @@ def support_record_error(record):
     if record["context"] not in ["owned", "target_coupled"]:
         return "support: tool '" + tool + "' needs context 'owned' or 'target_coupled', got '" + str(record["context"]) + "'"
     platforms = record["platforms"]
-    if type(platforms) != "list" or len(platforms) == 0:
+    if type(platforms) != "list":
+        return "support: tool '" + tool + "' needs a non-empty platform list"
+    if len(platforms) == 0 and not _is_unbuilt(record):
         return "support: tool '" + tool + "' needs a non-empty platform list"
     for platform in platforms:
         if not _is_canonical_token(platform):
             return "support: non-canonical platform '" + str(platform) + "' for tool '" + tool + "'"
+        if platform not in SUPPORT_PLATFORMS:
+            return "support: unknown platform '" + str(platform) + "' for tool '" + tool + "'"
+    unsupported = record.get("unsupported", [])
+    if type(unsupported) != "list":
+        return "support: tool '" + tool + "' needs 'unsupported' to be a list"
+    for platform in unsupported:
+        if platform not in SUPPORT_PLATFORMS:
+            return "support: unknown unsupported platform '" + str(platform) + "' for tool '" + tool + "'"
+        if platform in platforms:
+            return "support: platform '" + platform + "' is both supported and unsupported for tool '" + tool + "'"
     if record["state"] not in ["known", "qualified", "supported"]:
         return "support: tool '" + tool + "' needs state 'known', 'supported' or 'qualified', got '" + str(record["state"]) + "'"
     if record["artifact"] not in ["missing", "pinned"]:

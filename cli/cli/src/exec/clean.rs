@@ -1,6 +1,7 @@
 use super::common::*;
+use super::explain_store;
 use dx_clean::{
-    apply_plan, collect_inventory_with_scan, measure_preserved_bytes, measure_prune_bytes,
+    apply_plan, collect_inventory_with_scan_from, measure_preserved_bytes, measure_prune_bytes,
     render_prune_listing, GenerationView, PruneBytes, UnobservedPolicy, PRUNE_UNOBSERVED_FLAG,
 };
 use dx_output::{
@@ -12,6 +13,7 @@ use dx_plan::args::Invocation;
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
+        proc_root,
         out,
         err,
         ..
@@ -35,7 +37,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else {
         UnobservedPolicy::Preserve
     };
-    let inventory = match collect_inventory_with_scan(workspace, unobserved) {
+    let inventory = match collect_inventory_with_scan_from(workspace, proc_root, unobserved) {
         Ok(inventory) => inventory,
         Err(error) => {
             return operational(invocation, out, err, CODE_CLEAN_FAILED, &error.to_string());
@@ -66,6 +68,40 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if let Err(exit) = report_applied(out, &plan, &outcome, &bytes, &preserved, json, verbose) {
         return exit;
+    }
+    match explain_store::clear(workspace) {
+        Ok(0) => {}
+        Ok(removed) => {
+            if json {
+                let notice = NoticeEvent {
+                    related_command: Some("clean".to_owned()),
+                    path: Some(".dx/explain".to_owned()),
+                    ..NoticeEvent::info(
+                        CODE_CLEAN_PRUNED,
+                        format!("pruned {removed} execution logs .dx/explain"),
+                    )
+                };
+                if let Err(exit) = emit_built(out, notice_event(&notice)) {
+                    return exit;
+                }
+            } else if verbose {
+                if let Err(exit) = check_stdout_write(writeln!(
+                    out,
+                    "dx clean: pruned {removed} execution logs from .dx/explain"
+                )) {
+                    return exit;
+                }
+            }
+        }
+        Err(error) => {
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_CLEAN_FAILED,
+                &format!("could not prune .dx/explain: {error}"),
+            );
+        }
     }
     if json {
         if let Err(exit) = emit_event(out, &command_finished(0, &FinishedCounts::default())) {
@@ -333,6 +369,22 @@ mod tests {
     use super::super::test_support::*;
     use dx_atomic_fs::lease;
     use dx_setup::{read_current_pair, setup_hex};
+
+    #[test]
+    fn clean_apply_preserves_unobserved_records_when_proc_is_unavailable() {
+        let mut harness = Harness::new("clean-apply-unobserved");
+        harness.proc_root = harness.workspace.join("no-such-proc");
+        let stale = commit_clean_pair(&harness, '3', '4');
+        let current = commit_clean_pair(&harness, '1', '2');
+        let (code, out, err) = harness.run(&["clean", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        let dx_dir = harness.workspace.join(".dx");
+        assert!(
+            dx_dir.join("setups").join(&stale).exists(),
+            "unobserved stale record is preserved: {out}{err}"
+        );
+        assert!(dx_dir.join("setups").join(&current).exists());
+    }
 
     #[test]
     fn clean_apply_prunes_stale_record_and_orphaned_generations() {

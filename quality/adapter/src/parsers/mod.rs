@@ -1,30 +1,47 @@
+pub mod ansible_lint;
 pub mod biome;
 pub mod buf;
 pub mod buildifier;
+pub mod checkmake;
 pub mod checkstyle;
 pub mod clang_format;
 pub mod clang_tidy;
 pub mod cppcheck;
+pub mod credo;
 pub mod csharpier;
 pub mod cue;
+pub mod deadnix;
+pub mod dfmt;
 pub mod djlint;
+pub mod dscanner;
 pub mod erlfmt;
 pub mod errcheck;
 pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
+pub mod flatc;
 pub mod fsharplint;
 pub mod gofumpt;
 pub mod google_java_format;
 pub mod govet;
 pub mod hadolint;
+pub mod helm;
+pub mod jsonnet_lint;
 pub mod jsonnetfmt;
+pub mod julia_format;
 pub mod keep_sorted;
 pub mod ktfmt;
 pub mod ktlint;
+pub mod kubeconform;
+pub mod latexindent;
 pub mod markdown;
 pub mod mix_format;
 pub mod modfmt;
+pub mod nixfmt;
+pub mod notebook_outputs;
+pub mod opa;
+pub mod ormolu;
+pub mod perltidy;
 pub mod pkl;
 pub mod pmd;
 pub mod prettier;
@@ -34,6 +51,7 @@ pub mod pylint;
 pub mod qmlformat;
 pub mod qmllint;
 pub mod redocly;
+pub mod regal;
 pub mod remark;
 pub mod roslyn;
 pub mod rubocop;
@@ -48,42 +66,63 @@ pub mod shfmt;
 pub mod spotbugs;
 pub mod standardrb;
 pub mod staticcheck;
+pub mod statix;
 pub mod stylelint;
+pub mod stylua;
 pub mod taplo;
 pub mod terraform;
+pub mod tflint;
 pub mod ty;
+pub mod typstyle;
 pub mod vale;
 pub mod yamlfmt;
 pub mod yamllint;
 pub mod zig_fmt;
 
+pub use ansible_lint::parse_ansible_lint;
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
+pub use checkmake::parse_checkmake;
 pub use checkstyle::{checkstyle_tab_width, parse_checkstyle};
 pub use clang_format::parse_clang_format;
 pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
+pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
 pub use cue::parse_cue;
+pub use deadnix::parse_deadnix;
+pub use dfmt::parse_dfmt;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
+pub use dscanner::parse_dscanner;
 pub use erlfmt::parse_erlfmt;
 pub use errcheck::parse_errcheck;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
+pub use flatc::{parse_flatc, FlatcReport};
 pub use fsharplint::parse_fsharplint;
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
 pub use govet::parse_govet;
 pub use hadolint::parse_hadolint;
+pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, RenderedFile};
+pub use jsonnet_lint::parse_jsonnet_lint;
 pub use jsonnetfmt::parse_jsonnetfmt;
+pub use julia_format::parse_julia_format;
 pub use keep_sorted::{parse_keep_sorted, parse_keep_sorted_lint};
 pub use ktfmt::parse_ktfmt;
 pub use ktlint::parse_ktlint;
+pub use kubeconform::{parse_kubeconform, KubeconformTarget};
+pub use latexindent::parse_latexindent;
 pub use markdown::parse_markdown_findings;
 pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
+pub use nixfmt::parse_nixfmt;
+pub use notebook_outputs::parse_notebook_outputs;
+pub use opa::{parse_opa_check, parse_opa_fmt};
+pub use ormolu::parse_ormolu;
+pub use perltidy::parse_perltidy;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
@@ -93,6 +132,7 @@ pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
 pub use qmllint::{parse_qmllint, parse_qmllint_report};
 pub use redocly::parse_redocly;
+pub use regal::parse_regal;
 pub use remark::parse_remark;
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
@@ -106,10 +146,14 @@ pub use shfmt::parse_shfmt;
 pub use spotbugs::parse_spotbugs;
 pub use standardrb::parse_standardrb;
 pub use staticcheck::parse_staticcheck;
+pub use statix::parse_statix;
 pub use stylelint::parse_stylelint;
+pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
+pub use tflint::parse_tflint;
 pub use ty::parse_ty;
+pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
@@ -1444,6 +1488,7 @@ mod tests {
         "/s/a.txt",
         "/s/a.pp",
         "/s/a.mdx",
+        "/s/a.fbs",
     ];
 
     const FUZZ_SEEDS: &[&[u8]] = &[
@@ -1469,6 +1514,9 @@ mod tests {
         br#"{"diagnostics":[{"file":"/s/a.qml","line":1,"message":"m"}]}"#,
         br#"{"path":"/s/a.scala","line":1,"column":1,"rule":"r","message":"m","severity":"error"}"#,
         b"path:1:1: E100 message\n",
+        b"\nerror:\n  /s/a.fbs:1: 19: error: msg\n\n",
+        b"\nerror:\n  /s/a.fbs(1, 19): error: msg\n",
+        b"/s/o/a_generated.h: \\\n /s/a.fbs\n",
         b"error: bad\n  \xe2\x94\x8c\xe2\x94\x80 /s/x.toml:1:5\n",
         b"Diff in /s/x.rs:1:\n-fn  main(){}\n+fn main() {}\n",
         b"--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a\n+b\n",
@@ -1646,6 +1694,15 @@ mod tests {
         super::flake8::parse_flake8(input, code, files)
     }
 
+    fn fuzz_flatc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let both = super::flatc::parse_flatc(input, input, code, files)?;
+        Ok(both.findings)
+    }
+
     fn fuzz_fsharplint(
         input: &[u8],
         code: Option<i32>,
@@ -1676,6 +1733,24 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::govet::parse_govet(input, code, files)
+    }
+
+    fn fuzz_helm(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let _ = super::helm::parse_helm_template_error(input, "", files);
+        let _ = super::helm::split_rendered(input);
+        super::helm::parse_helm_lint(input, code, "", files)
+    }
+
+    fn fuzz_jsonnet_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jsonnet_lint::parse_jsonnet_lint(input, input, code, files)
     }
 
     fn fuzz_jsonnetfmt(
@@ -1726,12 +1801,72 @@ mod tests {
         super::markdown::parse_markdown_findings(input, code, files)
     }
 
+    fn fuzz_notebook_outputs(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::notebook_outputs::parse_notebook_outputs(input, code, files)
+    }
+
     fn fuzz_modfmt(
         input: &[u8],
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::modfmt::parse_modfmt(input, code, files)
+    }
+
+    fn fuzz_nixfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::nixfmt::parse_nixfmt(input, input, code, files)
+    }
+
+    fn fuzz_ormolu(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ormolu::parse_ormolu(input, input, code, files)
+    }
+
+    fn fuzz_opa_fmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::opa::parse_opa_fmt(
+            input,
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
+    }
+
+    fn fuzz_opa_check(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::opa::parse_opa_check(input, input, code, files)
+    }
+
+    fn fuzz_perltidy(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::perltidy::parse_perltidy(
+            input,
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
     }
 
     fn fuzz_pkl(
@@ -1798,6 +1933,36 @@ mod tests {
         super::qmlformat::parse_qmlformat(input, code, b"", files.first().copied().unwrap_or(""))
     }
 
+    fn fuzz_dfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dfmt::parse_dfmt(
+            input,
+            input,
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
+    }
+
+    fn fuzz_dscanner(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::dscanner::parse_dscanner(input, code, files)
+    }
+
+    fn fuzz_credo(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::credo::parse_credo(input, b"dx-credo: {\"invalid\":[]}\n", code, files)
+    }
+
     fn fuzz_erlfmt(
         input: &[u8],
         code: Option<i32>,
@@ -1812,6 +1977,14 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::mix_format::parse_mix_format(b"", input, code, files, std::path::Path::new("/"))
+    }
+
+    fn fuzz_julia_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::julia_format::parse_julia_format(input, input, code, files)
     }
 
     fn fuzz_zig_fmt(
@@ -1838,6 +2011,62 @@ mod tests {
         super::roslyn::parse_roslyn(input, code, files)
     }
 
+    fn fuzz_deadnix(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::deadnix::parse_deadnix(input, input, code, files)
+    }
+
+    fn fuzz_statix(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::statix::parse_statix(input, input, code, files)
+    }
+
+    fn fuzz_ansible_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ansible_lint::parse_ansible_lint(input, input, code, files)
+    }
+
+    fn fuzz_kubeconform(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let targets: Vec<super::KubeconformTarget<'_>> = files
+            .iter()
+            .map(|file| super::KubeconformTarget {
+                reported: file,
+                file,
+                documents: &[],
+            })
+            .collect();
+        super::kubeconform::parse_kubeconform(input, input, code, &targets)
+    }
+
+    fn fuzz_checkmake(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::checkmake::parse_checkmake(input, input, code, files, None)
+    }
+
+    fn fuzz_tflint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::tflint::parse_tflint(input, code, files)
+    }
+
     fn fuzz_hadolint(
         input: &[u8],
         code: Option<i32>,
@@ -1859,7 +2088,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::ruff::parse_ruff(input, code, files)
+        super::ruff::parse_ruff(input, code, files, &[])
     }
 
     fn fuzz_ruff_format(
@@ -1867,7 +2096,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::ruff::parse_ruff_format(input, code, files)
+        super::ruff::parse_ruff_format(input, code, files, &[])
     }
 
     fn fuzz_clippy(
@@ -1966,6 +2195,14 @@ mod tests {
         super::staticcheck::parse_staticcheck(input, code, files)
     }
 
+    fn fuzz_regal(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::regal::parse_regal(input, input, code, files)
+    }
+
     fn fuzz_remark(
         input: &[u8],
         code: Option<i32>,
@@ -1980,6 +2217,14 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::stylelint::parse_stylelint(input, code, files)
+    }
+
+    fn fuzz_stylua(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::stylua::parse_stylua(input, input, code, files)
     }
 
     fn fuzz_taplo_lint(
@@ -2014,6 +2259,22 @@ mod tests {
         super::ty::parse_ty(input, code, files)
     }
 
+    fn fuzz_latexindent(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::latexindent::parse_latexindent(input, input, code, files)
+    }
+
+    fn fuzz_typstyle(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::typstyle::parse_typstyle(input, input, code, files, std::path::Path::new("/"))
+    }
+
     fn fuzz_vale(
         input: &[u8],
         code: Option<i32>,
@@ -2043,12 +2304,18 @@ mod tests {
         ("biome_format", fuzz_biome_format),
         ("buf_lint", fuzz_buf_lint),
         ("buf_format", fuzz_buf_format),
+        ("checkmake", fuzz_checkmake),
         ("checkstyle", fuzz_checkstyle),
+        ("tflint", fuzz_tflint),
         ("clang_format", fuzz_clang_format),
         ("clang_tidy", fuzz_clang_tidy),
         ("cppcheck", fuzz_cppcheck),
         ("csharpier", fuzz_csharpier),
+        ("credo", fuzz_credo),
         ("cue", fuzz_cue),
+        ("deadnix", fuzz_deadnix),
+        ("dfmt", fuzz_dfmt),
+        ("dscanner", fuzz_dscanner),
         ("djlint", fuzz_djlint),
         ("djlint_format", fuzz_djlint_format),
         ("erlfmt", fuzz_erlfmt),
@@ -2056,20 +2323,33 @@ mod tests {
         ("eslint", fuzz_eslint),
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
+        ("flatc", fuzz_flatc),
         ("fsharplint", fuzz_fsharplint),
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
         ("graphql_eslint", fuzz_graphql_eslint),
         ("govet", fuzz_govet),
         ("hadolint", fuzz_hadolint),
+        ("helm", fuzz_helm),
+        ("jsonnet_lint", fuzz_jsonnet_lint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
+        ("julia_format", fuzz_julia_format),
         ("keep_sorted", fuzz_keep_sorted),
         ("keep_sorted_lint", fuzz_keep_sorted_lint),
+        ("ansible_lint", fuzz_ansible_lint),
+        ("kubeconform", fuzz_kubeconform),
+        ("latexindent", fuzz_latexindent),
         ("ktfmt", fuzz_ktfmt),
         ("ktlint", fuzz_ktlint),
         ("parse_markdown_findings", fuzz_markdown_findings),
+        ("parse_notebook_outputs", fuzz_notebook_outputs),
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
+        ("nixfmt", fuzz_nixfmt),
+        ("ormolu", fuzz_ormolu),
+        ("opa_fmt", fuzz_opa_fmt),
+        ("opa_check", fuzz_opa_check),
+        ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
@@ -2080,6 +2360,7 @@ mod tests {
         ("qmlformat", fuzz_qmlformat),
         ("qmllint", fuzz_qmllint),
         ("redocly", fuzz_redocly),
+        ("regal", fuzz_regal),
         ("remark", fuzz_remark),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
@@ -2097,11 +2378,14 @@ mod tests {
         ("spotbugs", fuzz_spotbugs),
         ("standardrb", fuzz_standardrb),
         ("staticcheck", fuzz_staticcheck),
+        ("statix", fuzz_statix),
         ("stylelint", fuzz_stylelint),
+        ("stylua", fuzz_stylua),
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
         ("ty", fuzz_ty),
+        ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
@@ -2112,30 +2396,48 @@ mod tests {
         ("biome", include_str!("biome.rs")),
         ("buf", include_str!("buf.rs")),
         ("buildifier", include_str!("buildifier.rs")),
+        ("checkmake", include_str!("checkmake.rs")),
         ("checkstyle", include_str!("checkstyle.rs")),
+        ("tflint", include_str!("tflint.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_tidy", include_str!("clang_tidy.rs")),
         ("cppcheck", include_str!("cppcheck.rs")),
         ("csharpier", include_str!("csharpier.rs")),
+        ("credo", include_str!("credo.rs")),
         ("cue", include_str!("cue.rs")),
+        ("deadnix", include_str!("deadnix.rs")),
+        ("dfmt", include_str!("dfmt.rs")),
+        ("dscanner", include_str!("dscanner.rs")),
         ("djlint", include_str!("djlint.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
         ("errcheck", include_str!("errcheck.rs")),
         ("eslint", include_str!("eslint.rs")),
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
+        ("flatc", include_str!("flatc.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
         ("govet", include_str!("govet.rs")),
         ("hadolint", include_str!("hadolint.rs")),
+        ("helm", include_str!("helm.rs")),
+        ("jsonnet_lint", include_str!("jsonnet_lint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
+        ("julia_format", include_str!("julia_format.rs")),
         ("keep_sorted", include_str!("keep_sorted.rs")),
+        ("ansible_lint", include_str!("ansible_lint.rs")),
+        ("kubeconform", include_str!("kubeconform.rs")),
+        ("latexindent", include_str!("latexindent.rs")),
         ("ktfmt", include_str!("ktfmt.rs")),
         ("ktlint", include_str!("ktlint.rs")),
         ("markdown", include_str!("markdown.rs")),
+        ("notebook_outputs", include_str!("notebook_outputs.rs")),
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
+        ("nixfmt", include_str!("nixfmt.rs")),
+        ("ormolu", include_str!("ormolu.rs")),
+        ("opa", include_str!("opa.rs")),
+        ("perltidy", include_str!("perltidy.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),
         ("prettier", include_str!("prettier.rs")),
@@ -2145,6 +2447,7 @@ mod tests {
         ("qmlformat", include_str!("qmlformat.rs")),
         ("qmllint", include_str!("qmllint.rs")),
         ("redocly", include_str!("redocly.rs")),
+        ("regal", include_str!("regal.rs")),
         ("remark", include_str!("remark.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),
@@ -2159,10 +2462,13 @@ mod tests {
         ("spotbugs", include_str!("spotbugs.rs")),
         ("standardrb", include_str!("standardrb.rs")),
         ("staticcheck", include_str!("staticcheck.rs")),
+        ("statix", include_str!("statix.rs")),
         ("stylelint", include_str!("stylelint.rs")),
+        ("stylua", include_str!("stylua.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
         ("ty", include_str!("ty.rs")),
+        ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
@@ -2189,7 +2495,7 @@ mod tests {
     fn every_declared_parser_is_in_the_fuzz_table() {
         let declared = declared_parser_names();
         assert!(
-            declared.len() >= 57,
+            declared.len() >= 60,
             "expected the full parser set, got {declared:?}"
         );
         let bare: Vec<String> = declared

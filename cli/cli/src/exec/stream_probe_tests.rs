@@ -1,3 +1,4 @@
+use super::super::test_support::{closed_pipe, hang_up, reader_gone};
 use std::ffi::{CStr, CString};
 use std::fs;
 use std::io::{self, Write};
@@ -888,33 +889,6 @@ fn bazel_starts(base: &Path) -> usize {
         .count()
 }
 
-/// Reports whether the pipe behind `writer` has no reader left in any process.
-fn reader_gone(writer: &io::PipeWriter, timeout_ms: i32) -> bool {
-    let mut fd = libc::pollfd {
-        fd: writer.as_raw_fd(),
-        events: 0,
-        revents: 0,
-    };
-    let ready = unsafe { libc::poll(&mut fd, 1, timeout_ms) };
-    ready > 0 && fd.revents & (libc::POLLERR | libc::POLLHUP) != 0
-}
-
-/// Drops `reader` and waits until no process holds a copy of the read end.
-fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
-    drop(reader);
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !reader_gone(writer, 1000) {
-        assert!(Instant::now() < deadline, "pipe reader still held");
-    }
-}
-
-/// Returns the write end of a pipe whose read end is closed everywhere.
-fn closed_pipe() -> io::PipeWriter {
-    let (reader, writer) = io::pipe().expect("pipe");
-    hang_up(reader, &writer);
-    writer
-}
-
 #[test]
 fn hang_up_waits_for_every_reader_copy() {
     let (reader, writer) = io::pipe().expect("pipe");
@@ -1211,6 +1185,31 @@ fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
     (child, stdout, stderr)
 }
 
+const DEPENDENCY_SETS: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "crates"
+ecosystem = "cargo"
+manifests = ["app/Cargo.toml"]
+locks = ["app/Cargo.lock", "app/cargo-bazel-lock.json"]
+scopes = ["app"]
+repository = "crates"
+"#;
+
+fn write_dependency_sets(base: &Path) {
+    let workspace = base.join("ws");
+    fs::create_dir_all(workspace.join("app")).expect("app dir");
+    fs::write(workspace.join("dx.toml"), DEPENDENCY_SETS).expect("dx.toml");
+    fs::write(
+        workspace.join("app/Cargo.toml"),
+        "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("manifest");
+    fs::write(workspace.join("app/Cargo.lock"), "version = 4\n").expect("lock");
+    fs::write(workspace.join("app/cargo-bazel-lock.json"), "{}\n").expect("bazel lock");
+}
+
 #[test]
 fn a_build_waiting_for_a_slot_starts_with_command_started() {
     let scratch = dx_test_scratch::scratch("dx-stream-slot-");
@@ -1235,10 +1234,28 @@ fn a_build_waiting_for_a_slot_starts_with_command_started() {
 fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
     let text: &[&str] = &["build", "//..."];
     let json: &[&str] = &["build", "//...", "--output=json"];
+    let run_text: &[&str] = &["run", "//demo:app"];
+    let run_json: &[&str] = &["run", "//demo:app", "--output=json"];
+    let update_text: &[&str] = &["update", "--apply", "cargo"];
+    let update_json: &[&str] = &["update", "--apply", "cargo", "--output=json"];
+    let sets_text: &[&str] = &["update", "--apply", "crates"];
+    let sets_json: &[&str] = &["update", "--apply", "crates", "--output=json"];
     for signo in [libc::SIGINT, libc::SIGTERM] {
-        for words in [text, json] {
+        for (words, configured) in [
+            (text, false),
+            (json, false),
+            (run_text, false),
+            (run_json, false),
+            (update_text, false),
+            (update_json, false),
+            (sets_text, true),
+            (sets_json, true),
+        ] {
             let scratch = dx_test_scratch::scratch("dx-stream-slot-stop-");
             let base = scratch.path();
+            if configured {
+                write_dependency_sets(base);
+            }
             let held = hold_all_slots(base);
             let (mut child, stdout, stderr) = spawn_waiting(base, words);
             let pid = i32::try_from(child.id()).expect("pid");
@@ -1266,7 +1283,7 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
                 err.contains(&format!("dx: cancelled: stopped by signal {signo}")),
                 "{signo} {words:?}\n{err}"
             );
-            if words == json {
+            if words.contains(&"--output=json") {
                 let events = json_events(&out);
                 assert_eq!(finished_exit(&events), None, "{signo} {words:?} {events:?}");
                 assert!(

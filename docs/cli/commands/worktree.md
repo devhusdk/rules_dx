@@ -63,13 +63,13 @@ free nested-Bazel slots, then free slots' output bases, each oldest first, and p
 the slot line. `add` and `hook create` keep the output base of the slot they
 lease, so it stays warm for the build that follows.
 
-- `dx worktree: low disk: <free> free; removed <what>; <free> free now`
-- `dx worktree: low disk: <free> free; nothing to reclaim`
+- `dx worktree: low disk at <path>: <free> free; removed <what>; <free> free now`
+- `dx worktree: low disk at <path>: <free> free; nothing to reclaim`
 - `dx worktree: low disk, cannot reclaim output bases: <error>`
 
 The first two end with `; run dx worktree prune --apply` while disk stays low,
 so a pool with nothing to reclaim prints
-`low disk: <free> free; nothing to reclaim; run dx worktree prune --apply`.
+`low disk at <path>: <free> free; nothing to reclaim; run dx worktree prune --apply`.
 All three use the `disk_low` notice code. JSON emits a `notice` event with
 level `warning` and code `disk_low` before the `slot` event.
 Reclaim stops the idle Bazel server of a free slot before it deletes that
@@ -90,6 +90,8 @@ its slot.
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and optional
 `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, and `entries`.
+`busy` is also set on `list` rows: `true` when a dx command is running in
+the slot, even if the slot is free.
 `base` is set on `add` when it starts a new branch. `disk_bytes` is set for
 `prune`, `prune_base`, `prune_cache`, and `prune_downloads` events other than `kept` and
 `skipped`, and for `list` with `--disk`. `entries` is set for
@@ -225,7 +227,8 @@ $ dx worktree list --disk
 above would allow taking it), or `external` (a worktree outside the pool). A
 held slot whose holder is gone but which has uncommitted changes or unpushed
 commits shows why after `held`, such as `held (holder gone, commits are not
-pushed)`.
+pushed)`. A slot where a dx command is running has ` busy` appended to its
+state, such as `free busy`, and `busy: true` in the JSON event.
 
 `path <branch>` prints the path of the checkout that holds `<branch>`, and
 fails with exit `1` when none does.
@@ -405,14 +408,25 @@ event that runs it.
   not marked; they stay held until the session ends. Cursor's `subagentStop` input has
   no `agent_id`; `stop` does nothing for it and exits `0`.
 - `guard` reads `tool_input.command`. It exits `2` with a message on stderr
-  when the command runs `git worktree add`, `remove`, or `prune`. It tells
+  when the command runs `git worktree add`, `remove`, or `prune`. It also
+  exits `2` when the command runs `git checkout`, `switch`, `reset`, or
+  `rebase` in a slot that another agent holds (the same rule as the slot
+  commands: another session, or another agent of the same session). The
+  directory is the input `cwd`, moved by `cd` and `git -C`; the caller is the
+  input `agent_id` plus the environment's session, else the input
+  `session_id`. Unclaimed slots, slots of gone holders, and commands whose
+  directory the guard cannot tell (`cd -`, `~`, `$`, `--git-dir`,
+  `--work-tree`) are allowed. It tells
   the agent from the input: `hook_event_name` `BeforeTool` is Gemini CLI,
   `cursor_version` or `conversation_id` is Cursor, and anything else has the
   Claude Code shape that Codex also sends. For Cursor and Gemini CLI, whose
   shells carry no session id, a command that runs `dx` gets
   `export DX_WORKTREE_SESSION=<id>` before it, where the id is `session_id`
   or else `conversation_id`. When `agent_id` is set and the command runs
-  any `dx` command, it also exports `DX_WORKTREE_HOLDER=<agent_id>`. The
+  any `dx` command, it also exports `DX_WORKTREE_HOLDER=<agent_id>`. Codex
+  sends no `agent_id`; when `CODEX_THREAD_ID` is set and differs from the
+  payload `session_id`, that `session_id` (the subagent's own thread) is
+  exported as the holder instead. The
   rewritten command goes in `hookSpecificOutput.updatedInput`, or
   `hookSpecificOutput.tool_input` for Gemini CLI, and keeps the other
   `tool_input` fields. The guard never approves a command for the agent.
@@ -435,7 +449,6 @@ not need to be on `PATH`:
       "Bash(tools/dx check *)",
       "Bash(tools/dx test *)",
       "Bash(tools/dx build *)",
-      "Bash(tools/dx list-tests *)",
       "Bash(tools/dx status *)",
       "Bash(tools/dx version *)"
     ]
@@ -489,6 +502,10 @@ slot from `hook create` that no agent has claimed, and a holder that is gone
 keep the session rule. `dx status`
 inside a slot shows the lease. Every other `dx` command marks the slot busy
 while it runs, so no `add`, `release`, or `hook create` resets or frees it.
+`dx run`, `dx deploy`, and `dx watch` hand the busy lock to the app they start,
+so the slot stays busy until the app, and any descendant that keeps the
+descriptor, exits. On Windows the app tree ends with dx. An app that closes
+inherited descriptors loses this protection.
 While `add` switches a slot, such a command waits, and exits `2` with `slot N is
 being switched by dx worktree; run the command again` if the switch takes
 longer than two minutes. `worktree`, `version`, and `completion` always run.

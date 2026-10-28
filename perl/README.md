@@ -72,11 +72,30 @@ lock, add a `cpan_compiler` target from
 `@rules_perl//perl/cpan:cpan_compiler.bzl` next to the `cpanfile` and run it.
 A wrong digest fails the fetch.
 
+## Generating BUILD files
+
+`dx generate` writes `perl_library` and `perl_test` rules. Each package takes
+its own `.pm` files plus every `.pm` under `lib/` that has no `BUILD` file of
+its own, and gets one `perl_test` per `t/*.t`. A module is named by its path
+under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
+`package` statement. This matches the default `includes` of rules_perl.
+
+- Modules that ship with Perl need no dep.
+- A CPAN module needs one mapping, for example
+  `# gazelle:resolve perl Text::CSV @cpan//:Text-CSV`.
+- `perl_binary` targets and `.pl` scripts stay hand-written.
+- Loads inside `eval` are optional and are skipped. Loads in POD, heredocs,
+  strings and after `__END__` are ignored.
+- Helper libraries under `t/lib` are not generated.
+
 ## Quality
 
-Perl sources form the `perl` class, so `dx check` sees them. No Perl
-formatter or linter runs yet. Until one does, the Perl rules add the
-`no-format`, `no-lint` and `no-typecheck` tags to every target.
+Perl sources form the `perl` class, so `dx check` sees them. The Perl
+wrappers carry perltidy 20260826, which `dx check` and `dx fix` run as the
+formatter with its default style, LF line endings and no profile, so
+`.perltidyrc` and `$PERLTIDY` are never read. No Perl linter runs yet. Until one
+does, the Perl rules add the `no-lint` and `no-typecheck` tags to every target.
+Set `--@rules_dx//config:tool_perltidy` to use another perltidy.
 
 ## Platforms
 

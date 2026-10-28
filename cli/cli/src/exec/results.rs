@@ -168,6 +168,8 @@ fn map_diagnostic(diagnostic: &proto::Diagnostic, snapshot: Snapshot) -> Option<
         range,
         snapshot,
         fixable: diagnostic.fixable,
+        unfixable_reason: (!diagnostic.unfixable_reason.is_empty())
+            .then(|| diagnostic.unfixable_reason.clone()),
         related: diagnostic.related.iter().map(map_related).collect(),
         ..DiagnosticEvent::new(
             map_severity(diagnostic.severity)?,
@@ -671,18 +673,23 @@ mod tests {
     }
 
     #[test]
-    fn a_bad_line_mid_stream_is_invalid_bep() {
+    fn a_bad_line_mid_stream_is_reported_not_fatal() {
         let harness = Harness::new("producers-mid-stream");
         let mut lines = vec!["{\"id\":{\"targetCo".to_owned()];
         lines.extend(produced(&harness, "//a:one", "0"));
         lines.push(LAST_EVENT.to_owned());
         let bep = harness.temp.join("events.json");
         std::fs::write(&bep, lines.join("\n")).expect("bep");
-        let Err((code, message)) = collect_results_in(&bep, "dx_results", &harness.workspace)
-        else {
-            panic!("a bad line mid-stream must fail");
-        };
-        assert_eq!(code, CODE_INVALID_BEP);
-        assert!(message.contains("line 1: invalid JSON"), "{message}");
+        let collected = collect_results_in(&bep, "dx_results", &harness.workspace)
+            .expect("a garbled line must not fail the run");
+        assert!(
+            collected
+                .problems
+                .iter()
+                .any(|p| p.contains("line 1: invalid JSON")),
+            "{:?}",
+            collected.problems
+        );
+        assert!(!collected.tools.is_empty(), "{:?}", collected.tools);
     }
 }

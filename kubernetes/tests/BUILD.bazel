@@ -1,0 +1,80 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//kubernetes/rules:defs.bzl", "kubernetes_manifests", "kubernetes_schemas")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "owns_kubernetes_class_test", "schemas_config_test")
+
+kubernetes_manifests(
+    name = "app",
+    srcs = ["fixtures/app.yaml"],
+)
+
+owns_kubernetes_class_test(
+    name = "owns_kubernetes_class_test",
+    size = "small",
+    target_under_test = ":app",
+)
+
+kubernetes_schemas(
+    name = "schemas",
+    crd_schemas = {"fixtures/widget_v1.json": "example.com"},
+    kubernetes_version = "1.32.0",
+    schemas = ["fixtures/deployment-apps-v1.json"],
+)
+
+schemas_config_test(
+    name = "schemas_config_test",
+    size = "small",
+    target_under_test = ":schemas",
+)
+
+kubernetes_schemas(
+    name = "bad_version",
+    kubernetes_version = "1.32",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_version_fails",
+    expected_failure_substring = "kubernetes_version '1.32' must look like X.Y.Z",
+    target = ":bad_version",
+)
+
+kubernetes_schemas(
+    name = "bad_crd_name",
+    crd_schemas = {"fixtures/badname.json": "example.com"},
+    kubernetes_version = "1.32.0",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_crd_name_fails",
+    expected_failure_substring = "CRD schema 'badname.json' must be named <kind>_<version>.json",
+    target = ":bad_crd_name",
+)
+
+kubernetes_schemas(
+    name = "duplicate_schema",
+    kubernetes_version = "1.32.0",
+    schemas = [
+        "fixtures/deployment-apps-v1.json",
+        "fixtures/dup/deployment-apps-v1.json",
+    ],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "duplicate_schema_fails",
+    expected_failure_substring = "duplicate schema basename 'deployment-apps-v1.json'",
+    target = ":duplicate_schema",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

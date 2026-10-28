@@ -189,6 +189,43 @@ fn lease_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
     })
 }
 
+fn slots_check(dir: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
+    let bad = dx_plan::slots::unusable_slot_files(dir);
+    if bad.is_empty() {
+        return None;
+    }
+    let list: Vec<String> = bad
+        .iter()
+        .map(|(path, error)| format!("{} ({error})", path.display()))
+        .collect();
+    Some(dx_adopt::StatusCheck {
+        name: "slots".to_owned(),
+        status: "warn".to_owned(),
+        detail: format!("dx cannot use slot files: {}", list.join(", ")),
+        hint: "fix the permissions of or remove these slot files".to_owned(),
+    })
+}
+
+fn share_check(
+    workspace: &std::path::Path,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Option<dx_adopt::StatusCheck> {
+    let report =
+        dx_plan::slots::share_report(workspace, env_get, dx_adopt::defaults::BuildSlots::Auto)?;
+    if report.held == 0 {
+        return None;
+    }
+    Some(dx_adopt::StatusCheck {
+        name: "share".to_owned(),
+        status: "ok".to_owned(),
+        detail: format!(
+            "{} of {} build slots held; a new run gets {} cpus and {} MB",
+            report.held, report.count, report.next.cpus, report.next.memory_mb
+        ),
+        hint: "dx splits the machine across held build slots".to_owned(),
+    })
+}
+
 pub(crate) fn execute_status(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -216,6 +253,13 @@ pub(crate) fn execute_status(
     let mut checks = dx_adopt::observed_status_checks(workspace, &pinned, tools);
     checks.push(agents_check(workspace));
     if let Some(check) = lease_check(workspace) {
+        checks.push(check);
+    }
+    let env_get = |name: &str| std::env::var(name).ok();
+    if let Some(check) = dx_plan::slots::slots_dir(&env_get).and_then(|dir| slots_check(&dir)) {
+        checks.push(check);
+    }
+    if let Some(check) = share_check(workspace, &env_get) {
         checks.push(check);
     }
     if invocation.output == OutputMode::Json {
@@ -322,6 +366,22 @@ mod tests {
         );
         assert!(check.detail.contains("feature/a"), "{}", check.detail);
         assert!(lease_check(scratch.path()).is_none());
+    }
+
+    #[test]
+    fn slots_check_names_unusable_slot_files_and_creates_nothing() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-status-slots-");
+        let dir = scratch.path();
+        assert!(slots_check(dir).is_none());
+        std::fs::write(dir.join("slot-0.lock"), "").expect("file");
+        std::fs::create_dir(dir.join("slot-1.lock")).expect("dir");
+        std::fs::write(dir.join("other.txt"), "").expect("other");
+        let check = slots_check(dir).expect("slots check");
+        assert_eq!(check.name, "slots");
+        assert_eq!(check.status, "warn");
+        assert!(check.detail.contains("slot-1.lock"), "{}", check.detail);
+        assert!(!check.detail.contains("slot-0.lock"), "{}", check.detail);
+        assert_eq!(std::fs::read_dir(dir).expect("dir").count(), 3);
     }
 
     #[test]

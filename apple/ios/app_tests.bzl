@@ -17,6 +17,7 @@ load(
     "signing_errors",
     "slice_errors",
     "test_errors",
+    "test_source_errors",
 )
 load(":simulator.bzl", "simulator_errors")
 
@@ -27,6 +28,7 @@ def _app(**kwargs):
         "bundle_id",
         "deployment",
         "entitlements",
+        "entry",
         "environment",
         "frameworks",
         "library",
@@ -135,10 +137,24 @@ def _app_checks():
     ))
     checks.append(expect_equal(
         "app without entry source fails",
-        entry_errors([]),
-        ["apple_app: srcs needs the native entry point that calls UIApplicationMain"],
+        entry_errors([], ""),
+        ["apple_app: srcs needs the native entry point that calls UIApplicationMain, or entry names a Swift @main module"],
     ))
-    checks.append(expect_equal("app entry source is clean", entry_errors(["main.m"]), []))
+    checks.append(expect_equal(
+        "app with srcs and entry fails",
+        entry_errors(["main.m"], "//app:main"),
+        ["apple_app: set srcs or entry for the app entry point, not both"],
+    ))
+    checks.append(expect_equal("app entry source is clean", entry_errors(["main.m"], ""), []))
+    checks.append(expect_equal("app entry module is clean", entry_errors([], "//app:main"), []))
+    checks.append(expect_equal("test without sources fails", test_source_errors([], []), ["apple_app_test: srcs or deps needs the XCTest cases"]))
+    checks.append(expect_equal("test with srcs is clean", test_source_errors(["t.m"], []), []))
+    checks.append(expect_equal("test with deps is clean", test_source_errors([], ["//app:tests"]), []))
+    checks.append(expect_equal(
+        "entry alone composes the app",
+        app_errors(_app(library = "", srcs = [], entry = "//app:main")),
+        [],
+    ))
     checks.append(expect_equal("clean simulator app", app_errors(_app()), []))
     checks.append(expect_equal(
         "clean signed device app",
@@ -156,7 +172,7 @@ def _app_checks():
     checks.append(expect_contains(
         "missing library fails the app",
         app_errors(_app(library = "")),
-        "apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks",
+        "apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks, or a Swift @main module in entry",
     ))
     checks.append(expect_equal(
         "framework imports alone compose the app",
@@ -186,7 +202,7 @@ def _app_checks():
     checks.append(expect_contains(
         "missing entry fails the app",
         app_errors(_app(srcs = [])),
-        "apple_app: srcs needs the native entry point that calls UIApplicationMain",
+        "apple_app: srcs needs the native entry point that calls UIApplicationMain, or entry names a Swift @main module",
     ))
     checks.append(expect_contains(
         "device x86_64 names the simulator cell",

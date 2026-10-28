@@ -127,7 +127,27 @@ pub(crate) fn execute_rollback(
     }
     let refreshed = match &target {
         Some(previous) => match dx_adopt::refresh_launcher_files(workspace, previous) {
-            Ok(wrote) => wrote,
+            Ok(mut wrote) => {
+                if previous == dx_adopt::MODULE_VERSION {
+                    match dx_adopt::refresh_preset(workspace) {
+                        Ok(paths) => wrote.extend(paths),
+                        Err(error) => {
+                            let message = format!(
+                                "pinned {previous} but preset not refreshed: {error} (run `bazel run @rules_dx//:dx -- init --apply`)"
+                            );
+                            return refuse(invocation, out, err, &message);
+                        }
+                    }
+                } else if dx_adopt::inspect_preset(workspace)
+                    .is_ok_and(|state| state.applicable && !state.unwired())
+                {
+                    let _ = writeln!(
+                        err,
+                        "dx: the Bazel preset under .dx/bazelrc is not refreshed for {previous}; run `tools/dx init --apply` under the restored pin"
+                    );
+                }
+                wrote
+            }
             Err(error) => {
                 let message = format!(
                     "pinned {previous} but launchers not refreshed: {error} (run `bazel run @rules_dx//:dx -- init --apply`)"
@@ -277,6 +297,48 @@ mod tests {
             std::fs::read_to_string(root.join("tools/dx.cmd")).expect("cmd"),
             "@echo off\r\nmine\r\n"
         );
+    }
+
+    fn preset_workspace(root: &std::path::Path, target: &str) -> std::path::PathBuf {
+        dx_adopt::write_version_pin(root, "9.9.9").expect("pin");
+        dx_adopt::record_pin_operation(root, Some(target), Some("9.9.9")).expect("record");
+        let (mut applied, mut notes) = (dx_adopt::Applied::default(), Vec::new());
+        dx_adopt::write_preset(root, &mut applied, &mut notes).expect("preset");
+        let layer = root.join(".dx/bazelrc/resources.bazelrc");
+        std::fs::write(
+            &layer,
+            format!("{}old\n", dx_adopt::preset_fragment::HEADER_MARKER),
+        )
+        .expect("stale");
+        layer
+    }
+
+    #[test]
+    fn rollback_apply_refreshes_a_stale_preset_layer() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-rollback-preset-");
+        let root = scratch.path().to_path_buf();
+        let layer = preset_workspace(&root, dx_adopt::MODULE_VERSION);
+        let (code, out, err) = run(&invocation(&["rollback", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert!(out.contains("wrote .dx/bazelrc/resources.bazelrc"), "{out}");
+        assert_eq!(
+            std::fs::read_to_string(layer).expect("layer"),
+            dx_adopt::preset_fragment::render_layer(dx_adopt::preset_fragment::Layer::Resources)
+        );
+    }
+
+    #[test]
+    fn rollback_to_another_version_leaves_the_preset_and_hints() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-rollback-preset-hint-");
+        let root = scratch.path().to_path_buf();
+        let layer = preset_workspace(&root, "0.0.1");
+        let (code, out, err) = run(&invocation(&["rollback", "--apply"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(out, "pinned 0.0.1 (rollback)\n");
+        assert!(err.contains("tools/dx init --apply"), "{err}");
+        assert!(std::fs::read_to_string(layer)
+            .expect("layer")
+            .ends_with("old\n"));
     }
 
     #[test]

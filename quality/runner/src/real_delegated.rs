@@ -18,6 +18,10 @@ fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
         "shellcheck",
         "yamllint",
         "hadolint",
+        "statix",
+        "deadnix",
+        "kubeconform",
+        "checkmake",
     ] {
         let scratch = tempfile::tempdir().expect("scratch");
         let tool = delegated_tool(scratch.path().join("missing"));
@@ -62,8 +66,24 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
         ),
         ("shellcheck", "src/a.scala:1:1: warning: finding [SC2086]\n"),
         (
+            "checkmake",
+            r#"[{"rule":"minphony","violation":"finding","file_name":"src/a.scala","line_number":1}]"#,
+        ),
+        (
             "hadolint",
             r#"[{"code":"DL4006","column":1,"file":"src/a.scala","level":"warning","line":1,"message":"finding"}]"#,
+        ),
+        (
+            "statix",
+            r#"{"file":"src/a.scala","report":[{"note":"finding","code":2,"severity":"Warn","diagnostics":[{"at":{"from":{"line":1,"column":1},"to":{"line":1,"column":2}},"message":"finding","suggestion":null}]}]}"#,
+        ),
+        (
+            "deadnix",
+            r#"{"file":"src/a.scala","results":[{"column":1,"endColumn":2,"line":1,"message":"Unused let binding: finding"}]}"#,
+        ),
+        (
+            "kubeconform",
+            r#"{"resources":[{"filename":"src/a.scala","kind":"Pod","name":"a","version":"v1","status":"statusInvalid","msg":"finding","validationErrors":[{"path":"/spec","msg":"finding"}]}]}"#,
         ),
         (
             "yamllint",
@@ -148,21 +168,30 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "clang_format",
         "cue",
         "csharpier",
+        "dfmt",
         "djlint",
         "erlfmt",
         "fantomas",
         "gofumpt",
         "jsonnetfmt",
+        "julia_format",
+        "latexindent",
         "ktlint",
         "mix_format",
         "modfmt",
+        "nixfmt",
+        "ormolu",
+        "opa",
+        "perltidy",
         "pkl",
         "psscriptanalyzer",
         "qmlformat",
         "scalafmt",
         "shfmt",
         "standardrb",
+        "stylua",
         "terraform",
+        "typstyle",
         "yamlfmt",
         "zig_fmt",
     ] {
@@ -203,6 +232,10 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
         ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
         ("shellcheck", ""),
         ("hadolint", "[]"),
+        ("statix", ""),
+        ("deadnix", ""),
+        ("kubeconform", r#"{"resources":[]}"#),
+        ("checkmake", ""),
         ("staticcheck", ""),
         ("yamllint", ""),
     ] {
@@ -251,6 +284,496 @@ pub(super) fn erlfmt_fix_keeps_a_file_it_reported_an_error_for() {
         .apply_fix("erlfmt", "a.erl", broken, "format")
         .expect("fix round");
     assert_eq!(kept, broken);
+}
+
+fn dfmt_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--config"));
+    assert_eq!(argv[2], OsString::from("dx-dfmt-default"));
+    let staged = std::fs::read_to_string(cwd.join("dx-dfmt-default/.editorconfig"))
+        .expect("the staged dfmt default");
+    assert!(staged.starts_with("root = true\n"), "{staged}");
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let broken = text.contains("broken");
+    let warned = text.contains("warned");
+    let inplace = argv[3] == OsString::from("--inplace");
+    let formatted = text.replace("(){", "()\n{");
+    let stderr = if broken {
+        format!("{file}(2:5)[error]: Primary expression expected\n").into_bytes()
+    } else if warned {
+        format!("{file}(1:1)[warn]: Empty declaration\n").into_bytes()
+    } else {
+        Vec::new()
+    };
+    if inplace {
+        std::fs::write(&file, &formatted).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr,
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: formatted.into_bytes(),
+        stderr,
+    })
+}
+
+#[test]
+pub(super) fn dfmt_checks_one_file_at_a_time_and_never_trusts_a_run_that_printed_an_error() {
+    let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);
+    let clean = backend
+        .diagnose("dfmt", "format", &single("a.d", "void f()\n{}\n"))
+        .expect("check");
+    assert!(clean.is_empty());
+    let dirty = backend
+        .diagnose("dfmt", "format", &single("a.d", "void f(){}\n"))
+        .expect("check");
+    assert_eq!(dirty.len(), 1);
+    let broken = backend
+        .diagnose("dfmt", "format", &single("a.d", "void f(){\nbroken }\n"))
+        .expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+}
+
+fn jsonnet_lint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (1, "ERROR: boom\n".to_owned())
+    } else if text.contains("unused") {
+        (
+            2,
+            format!("{file}:1:7-17 Unused variable: x\n\nlocal x = 1;\n\n\nProblems found!\n"),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn jsonnet_lint_reports_problems_and_never_trusts_a_failed_run() {
+    let backend = backend_for("jsonnet_lint", plain_tool(), jsonnet_lint_behavior);
+    let lint = |text: &str| backend.diagnose("jsonnet_lint", "lint", &single("a.jsonnet", text));
+    assert!(lint("{}\n").expect("check").is_empty());
+    let warned = lint("local x = 1; unused\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].message, "Unused variable: x");
+    assert!(lint("crash\n").is_err());
+}
+
+fn dscanner_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[2], OsString::from("--config"));
+    assert_eq!(argv[3], OsString::from("dx-dscanner-default/dscanner.ini"));
+    let staged = std::fs::read_to_string(cwd.join("dx-dscanner-default/dscanner.ini"))
+        .expect("the staged dscanner default");
+    assert!(
+        staged.starts_with("[analysis.config.StaticAnalysisConfig]\n"),
+        "{staged}"
+    );
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("silent") {
+        (1, String::new())
+    } else if text.contains("phantom") {
+        (0, format!("dx\t{file}\t1\t1\t1\t2\twarn\tx\tm\n"))
+    } else if text.contains("broken") {
+        (
+            1,
+            format!("dx\t{file}\t2\t5\t2\t5\terror\t\tPrimary expression expected\n"),
+        )
+    } else if text.contains("unused") {
+        (
+            1,
+            format!(
+                "dx\t{file}\t1\t9\t1\t10\twarn\tunused_variable_check\tVariable x is never used.\n"
+            ),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn dscanner_lints_a_batch_and_never_trusts_an_exit_that_disagrees_with_its_output() {
+    let backend = backend_for("dscanner", plain_tool(), dscanner_behavior);
+    let lint = |text: &str| backend.diagnose("dscanner", "lint", &single("a.d", text));
+    assert!(lint("void f()\n{}\n").expect("check").is_empty());
+    let warned = lint("void f() { int unused; }\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "unused_variable_check");
+    let broken = lint("void f(){\nbroken }\n").expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+    assert!(lint("silent\n").is_err());
+    assert!(lint("phantom\n").is_err());
+}
+
+#[test]
+pub(super) fn dfmt_fix_keeps_a_file_it_reported_an_error_for() {
+    let backend = backend_for("dfmt", plain_tool(), dfmt_behavior);
+    let fixed = backend
+        .apply_fix("dfmt", "a.d", "void f(){}\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "void f()\n{}\n");
+    let broken = "void f(){\nbroken }\n";
+    let kept = backend
+        .apply_fix("dfmt", "a.d", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+    let fixed = backend
+        .apply_fix("dfmt", "a.d", "void f(){} // warned\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "void f()\n{} // warned\n");
+}
+
+fn perltidy_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--noprofile"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let inplace = argv.contains(&OsString::from("-b"));
+    if text.contains("broken") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: if inplace {
+                Vec::new()
+            } else {
+                text.into_bytes()
+            },
+            stderr: format!("{file}:1: final indentation level: 1\n").into_bytes(),
+        });
+    }
+    let formatted = text.replace("f{", "f {");
+    if inplace {
+        std::fs::write(&file, &formatted).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: formatted.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn perltidy_checks_one_file_at_a_time_and_reports_a_syntax_error() {
+    let backend = backend_for("perltidy", plain_tool(), perltidy_behavior);
+    let clean = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f {}\n"))
+        .expect("check");
+    assert!(clean.is_empty());
+    let dirty = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f{}\n"))
+        .expect("check");
+    assert_eq!(dirty.len(), 1);
+    let broken = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f { broken\n"))
+        .expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+}
+
+#[test]
+pub(super) fn perltidy_fix_keeps_a_file_it_could_not_parse() {
+    let backend = backend_for("perltidy", plain_tool(), perltidy_behavior);
+    let fixed = backend
+        .apply_fix("perltidy", "a.pm", "sub f{}\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "sub f {}\n");
+    let broken = "sub f { broken\n";
+    let kept = backend
+        .apply_fix("perltidy", "a.pm", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+}
+
+fn opa_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let done = |code, stdout: &str, stderr: String| {
+        Ok(ChildOutput {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: stderr.into_bytes(),
+        })
+    };
+    if argv[1] == OsString::from("check") {
+        if text.contains("noise") {
+            return done(0, "", "warning: noise\n".to_owned());
+        }
+        if text.contains("missing") {
+            let report = format!(
+                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}"
+            );
+            return done(1, "", report);
+        }
+        return done(0, "", String::new());
+    }
+    if text.contains(":= :=") {
+        return done(
+            2,
+            "",
+            format!("failed to format Rego source file: 1 error occurred:\n{file}:2: rego_parse_error: unexpected assign token\n"),
+        );
+    }
+    let formatted = "package a\n\nx := 1\n";
+    if argv[2] == OsString::from("-w") {
+        std::fs::write(&file, formatted).expect("fix writes back");
+        return done(0, "", String::new());
+    }
+    done(0, formatted, String::new())
+}
+
+#[test]
+pub(super) fn opa_format_reports_unformatted_files_and_parse_errors() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let clean = single("a.rego", "package a\n\nx := 1\n");
+    assert!(backend
+        .diagnose("opa", "format", &clean)
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose(
+            "opa",
+            "format",
+            &single("a.rego", "package a\n\nx   := 1\n"),
+        )
+        .expect("unformatted");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].message, "file is not formatted");
+    let broken = single("a.rego", "package a\nx := := 1\n");
+    let findings = backend
+        .diagnose("opa", "format", &broken)
+        .expect("parse error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "rego_parse_error");
+}
+
+#[test]
+pub(super) fn opa_fix_rewrites_an_owned_file() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let fixed = backend
+        .apply_fix("opa", "a.rego", "package a\n\nx   := 1\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "package a\n\nx := 1\n");
+}
+
+#[test]
+pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let clean = single("a.rego", "package a\n\nx := 1\n");
+    assert!(backend
+        .diagnose("opa", "typecheck", &clean)
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose(
+            "opa",
+            "typecheck",
+            &single("a.rego", "package a\n\nx := data.lib.missing(1)\n"),
+        )
+        .expect("type error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "rego_type_error");
+    assert_eq!(findings[0].path, "a.rego");
+    assert!(backend
+        .diagnose("opa", "typecheck", &single("a.rego", "noise\n"))
+        .is_err());
+}
+
+fn regal_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(cwd.join(".regal").is_dir(), "regal config dir is staged");
+    let config = argv
+        .iter()
+        .position(|arg| arg == "--config-file")
+        .map(|index| PathBuf::from(&argv[index + 1]))
+        .expect("regal is always given a config file");
+    assert!(config.is_file(), "the config file exists");
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).is_relative(),
+        "paths are workspace-relative"
+    );
+    let text = std::fs::read_to_string(cwd.join(&file)).expect("read staged file");
+    let report = |level: &str, count: u64| {
+        format!(
+            "{{\"violations\":[{{\"title\":\"use-assignment-operator\",\"description\":\"Prefer :=\",\"category\":\"style\",\"level\":\"{level}\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":3}}}}],\"summary\":{{\"files_scanned\":1,\"files_failed\":1,\"rules_skipped\":0,\"num_violations\":{count}}}}}"
+        )
+    };
+    let done = |code: i32, stdout: String, stderr: &str| {
+        Ok(ChildOutput {
+            code: Some(code),
+            stdout: stdout.into_bytes(),
+            stderr: stderr.as_bytes().to_vec(),
+        })
+    };
+    if text.contains("errors") {
+        return done(3, report("error", 1), "");
+    }
+    if text.contains("warnings") {
+        return done(2, report("warning", 1), "");
+    }
+    if text.contains("exit0") {
+        return done(0, report("error", 1), "");
+    }
+    if text.contains("garbage") {
+        return done(0, "not json".to_owned(), "");
+    }
+    if text.contains("crash") {
+        return done(1, "{\"errors\":[\"parse failure\"]}".to_owned(), "boom\n");
+    }
+    done(
+        0,
+        "{\"violations\":[],\"summary\":{\"files_scanned\":1,\"files_failed\":0,\"rules_skipped\":0,\"num_violations\":0}}"
+            .to_owned(),
+        "",
+    )
+}
+
+#[test]
+pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_clean() {
+    let mut tool = plain_tool();
+    tool.extra_env = vec![("REGAL_DISABLE_VERSION_CHECK".to_owned(), "1".to_owned())];
+    let backend = backend_for("regal", tool, regal_behavior);
+    assert!(backend
+        .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose(
+            "regal",
+            "lint",
+            &single("p/a.rego", "package p\n\nerrors = 1\n"),
+        )
+        .expect("errors");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "style/use-assignment-operator");
+    assert_eq!(findings[0].path, "p/a.rego");
+    let findings = backend
+        .diagnose(
+            "regal",
+            "lint",
+            &single("p/a.rego", "package p\n\nwarnings = 1\n"),
+        )
+        .expect("warnings are findings");
+    assert_eq!(findings.len(), 1);
+    for body in ["package p\n\nexit0 = 1\n", "garbage\n", "crash\n"] {
+        assert!(
+            backend
+                .diagnose("regal", "lint", &single("p/a.rego", body))
+                .is_err(),
+            "{body}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn regal_lint_with_a_missing_binary_is_an_error() {
+    let backend = backend_for("regal", plain_tool(), |_, _, _| {
+        Err(io::Error::new(io::ErrorKind::NotFound, "no regal"))
+    });
+    assert!(backend
+        .diagnose("regal", "lint", &single("a.rego", "package a\n"))
+        .is_err());
+}
+
+fn opa_dependency_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mut errors = Vec::new();
+    for arg in &argv[2..] {
+        let file = arg.to_string_lossy().into_owned();
+        if !Path::new(&file).is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&file).expect("read staged file");
+        if text.contains("broken") {
+            errors.push(format!(
+                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}"
+            ));
+        }
+    }
+    let (code, stderr) = if errors.is_empty() {
+        (0, String::new())
+    } else {
+        (1, format!("{{\"errors\":[{}]}}", errors.join(",")))
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn opa_typecheck_never_reports_clean_when_only_a_dependency_is_broken() {
+    let backend = backend_for("opa", plain_tool(), opa_dependency_behavior);
+    let owned = single("app/app.rego", "package app\n\nx := 1\n");
+    let clean = single("lib/base.rego", "package lib\n\ny := 1\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &clean)
+        .expect("clean dependency");
+    assert!(found.is_empty());
+    let broken = single("lib/base.rego", "package lib\nbroken\n");
+    let error = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &broken)
+        .expect_err("broken dependency is never clean");
+    assert!(error.to_string().contains("lib/base.rego"), "{error}");
+    let both = single("app/app.rego", "package app\nbroken\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &both, &BTreeMap::new(), &broken)
+        .expect("owned error");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "app/app.rego");
 }
 
 fn mix_format_behavior(

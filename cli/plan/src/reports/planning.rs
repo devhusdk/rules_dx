@@ -15,6 +15,7 @@ pub enum StandardFormat {
     Spdx,
     Failures,
     Results,
+    Notice,
 }
 
 impl StandardFormat {
@@ -27,6 +28,7 @@ impl StandardFormat {
             StandardFormat::Spdx => "spdx",
             StandardFormat::Failures => "failures",
             StandardFormat::Results => "results",
+            StandardFormat::Notice => "notice",
         }
     }
 
@@ -39,6 +41,7 @@ impl StandardFormat {
             "spdx" => Some(StandardFormat::Spdx),
             "failures" => Some(StandardFormat::Failures),
             "results" => Some(StandardFormat::Results),
+            "notice" => Some(StandardFormat::Notice),
             _ => None,
         }
     }
@@ -551,6 +554,7 @@ mod tests {
             (Command::Security, "sarif"),
             (Command::License, "sarif"),
             (Command::License, "spdx"),
+            (Command::License, "notice"),
         ] {
             plan_reports(
                 workspace.path(),
@@ -571,6 +575,7 @@ mod tests {
             (Command::Update, "sarif"),
             (Command::Run, "junit"),
             (Command::Security, "spdx"),
+            (Command::Security, "notice"),
         ] {
             let err = plan_reports(
                 workspace.path(),

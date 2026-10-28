@@ -41,6 +41,54 @@ const CLOSURE_REPOS: [&str; 2] = [
     "--repo=@@rules_nodejs++node+nodejs_linux_amd64",
 ];
 
+const NODE_REPOS: [&str; 3] = [
+    "--repo=@@aspect_rules_js++npm+prettier_consumer_npm__graphql__16.14.2",
+    "--repo=@@aspect_rules_js++npm+prettier_consumer_npm__json5__2.2.3",
+    "--repo=@@aspect_rules_js++npm+prettier_consumer_npm__jsonc-parser__3.3.1",
+];
+
+const NODE_MODULE: &str = r#"
+bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "prettier_consumer_npm",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "prettier_consumer_npm")
+"#;
+
+const NODE_DATA_TEST: &str = r#"
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_js_test")
+
+javascript_js_test(
+    name = "data_test",
+    srcs = ["data_test.mjs"],
+    args = [
+        "$(rootpath //config:settings)",
+        "$(rootpath //config:tsconfig)",
+        "$(rootpath //api:schema)",
+        "$(rootpath //api:query)",
+        "$(rootpath //api:fragment)",
+    ],
+    data = [
+        "//:node_modules/graphql",
+        "//:node_modules/json5",
+        "//:node_modules/jsonc-parser",
+        "//api:fragment",
+        "//api:query",
+        "//api:schema",
+        "//config:settings",
+        "//config:tsconfig",
+    ],
+    entry_point = "data_test.mjs",
+    package_json = "//:package_json",
+    tags = ["no-format", "no-lint", "no-typecheck"],
+)
+"#;
+
 const MODULE: &str = r#"module(name = "consumer")
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
@@ -228,6 +276,53 @@ fn consumer() -> Case {
     root
 }
 
+fn with_node(root: &Case) {
+    let rel = std::env::var("DX_PRETTIER_NODE_FIXTURE")
+        .unwrap_or_else(|_| panic!("DX_PRETTIER_NODE_FIXTURE must name the pinned lock"));
+    let lock = resolve_runfiles(&rel);
+    let dir = lock
+        .parent()
+        .unwrap_or_else(|| panic!("{lock:?} has no parent"))
+        .to_path_buf();
+    for name in [
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        ".npmrc",
+    ] {
+        write(&root.join(name), &read(&dir.join(name)));
+    }
+    write(
+        &root.join("app/data_test.mjs"),
+        &read(&dir.join("data_test.mjs")),
+    );
+    write(&root.join(".bazelignore"), "node_modules\n");
+    let module = read(&root.join("MODULE.bazel"));
+    write(
+        &root.join("MODULE.bazel"),
+        &format!("{module}{NODE_MODULE}"),
+    );
+    let build = read(&dir.join("app_data.BUILD.bazel"));
+    let top = read(&root.join("BUILD.bazel"));
+    let top = top.replacen(
+        "load(\"@rules_dx//quality:policy.bzl\"",
+        "load(\"@aspect_rules_js//js:defs.bzl\", \"js_library\")\nload(\"@prettier_consumer_npm//:defs.bzl\", \"npm_link_all_packages\")\nload(\"@rules_dx//quality:policy.bzl\"",
+        1,
+    );
+    let _ = build;
+    write(
+        &root.join("BUILD.bazel"),
+        &format!(
+            "{top}\njs_library(\n    name = \"package_json\",\n    srcs = [\"package.json\"],\n    visibility = [\"//visibility:public\"],\n)\n\nnpm_link_all_packages(name = \"node_modules\")\n"
+        ),
+    );
+    let app = read(&root.join("app/BUILD.bazel"));
+    write(
+        &root.join("app/BUILD.bazel"),
+        &format!("{app}{NODE_DATA_TEST}"),
+    );
+}
+
 fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
@@ -369,6 +464,7 @@ fn the_formatted_page_is_served_by_the_built_web_app() {
 #[test]
 fn the_declared_prettier_is_acquired_from_the_cache_with_the_network_denied() {
     let root = consumer();
+    with_node(&root);
     let warm = dx(&root, "format", &[]);
     assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
 
@@ -381,6 +477,7 @@ fn the_declared_prettier_is_acquired_from_the_cache_with_the_network_denied() {
     assert!(expunged.status.success(), "{}", expunged.combined());
     let mut fetch: Vec<&str> = vec!["fetch"];
     fetch.extend(CLOSURE_REPOS);
+    fetch.extend(NODE_REPOS);
     fetch.push(denied_flag.as_str());
     let offline = root.bazel(&fetch);
     assert!(offline.status.success(), "{}", offline.combined());
@@ -391,6 +488,7 @@ fn the_declared_prettier_is_acquired_from_the_cache_with_the_network_denied() {
     assert!(expunged.status.success(), "{}", expunged.combined());
     let mut cold: Vec<&str> = vec!["fetch"];
     cold.extend(CLOSURE_REPOS);
+    cold.extend(NODE_REPOS);
     cold.push(cache_flag.as_str());
     cold.push(denied_flag.as_str());
     let miss = root.bazel(&cold);
@@ -508,4 +606,55 @@ fn an_invalid_json_config_fails_the_run() {
     assert_ne!(run.status.code(), Some(0), "{}", run.combined());
     let applied = dx(&root, "format", &["--apply"]);
     assert_ne!(applied.status.code(), Some(0), "{}", applied.combined());
+}
+
+const QUERY_UNKNOWN_FIELD: &str =
+    "query Greet($name: String!) {\n  greeting(name: $name)\n  nope\n}\n";
+
+fn node_consumer() -> Case {
+    let root = consumer();
+    with_node(&root);
+    root
+}
+
+#[test]
+fn the_formatted_data_is_parsed_by_a_declared_test() {
+    let root = node_consumer();
+    for (path, _, dirty) in FILES {
+        write(&root.join(path), dirty);
+    }
+    let applied = dx(&root, "format", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(0), "{}", applied.combined());
+    for (path, clean, _) in FILES {
+        assert_eq!(read(&root.join(path)), clean, "{path}");
+    }
+    let test = root.bazel(&["test", "//app:data_test", "--test_output=errors"]);
+    assert!(test.status.success(), "{}", test.combined());
+    let again = dx(&root, "format", &[]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn a_query_the_schema_rejects_fails_the_declared_test() {
+    let root = node_consumer();
+    write(&root.join("api/query.graphql"), QUERY_UNKNOWN_FIELD);
+    let run = dx(&root, "format", &[]);
+    assert_eq!(run.status.code(), Some(0), "{}", run.combined());
+    let test = root.bazel(&["test", "//app:data_test", "--test_output=errors"]);
+    assert_ne!(test.status.code(), Some(0), "{}", test.combined());
+    assert!(
+        test.combined().contains("Cannot query field"),
+        "{}",
+        test.combined()
+    );
+}
+
+#[test]
+fn a_broken_json5_fails_format_and_the_declared_test() {
+    let root = node_consumer();
+    write(&root.join("config/settings.json5"), BROKEN_JSON5);
+    let run = dx(&root, "format", &[]);
+    assert_ne!(run.status.code(), Some(0), "{}", run.combined());
+    let test = root.bazel(&["test", "//app:data_test", "--test_output=errors"]);
+    assert_ne!(test.status.code(), Some(0), "{}", test.combined());
 }

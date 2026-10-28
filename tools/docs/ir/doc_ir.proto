@@ -19,7 +19,10 @@ enum SymbolKind {
   TYPE_ALIAS = 11;
   MACRO = 12;
   VARIABLE = 13;
-  reserved 14 to 15;
+  COMPONENT = 14;
+  EVENT = 15;
+  SLOT = 16;
+  reserved 17 to 20;
 }
 
 enum Visibility {
@@ -66,10 +69,12 @@ message Extension {
 
 message Symbol {
   // Stable identity: language:package:qualified_name plus the normalized
-  // overload suffix where applicable.
+  // disambiguating suffix where applicable. `@` introduces it, for example
+  // `@fn` or `@method-2` for Rust items that share a name.
   string id = 1;
   SymbolKind kind = 2;
   string signature_text = 3;
+  // Links to other symbols use the target dx:<symbol id>.
   string doc_markdown = 4;
   repeated Param params = 5;
   Returns returns = 6;

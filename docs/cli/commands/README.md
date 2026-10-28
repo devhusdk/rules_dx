@@ -1,6 +1,6 @@
 # Command Reference
 
-Every `dx` command runs through Bazel. Put `dx` flags after the command,
+Every `dx` command except [`dx install`](install.md) runs through Bazel. Put `dx` flags after the command,
 Bazel flags after `--`. `@rules_dx//:dx` is the public launcher; inside this
 checkout `//:dx` is the same target.
 
@@ -21,8 +21,8 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx docs`](docs.md)
 - [`dx explain`](explain.md)
 - [`dx init`](init.md)
+- [`dx install`](install.md)
 - [`dx status`, `dx version`](status-version.md)
-- [`dx list-tests`](list-tests.md)
 - [`dx completion`](completion.md)
 - [`dx migrate`](migrate.md)
 - [`dx new`, `dx upgrade`, `dx rollback`](new-upgrade.md)
@@ -40,8 +40,8 @@ from stops most commands. See [Version Skew](status-version.md#version-skew).
 ## Build Slots
 
 `dx build`, `test`, `coverage`, `deploy`, `lint`, `typecheck`,
-`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license`,
-`docs` and `list-tests` take a build slot before they call Bazel.
+`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license` and
+`docs` take a build slot before they call Bazel.
 `dx run` holds a slot only while it builds and frees it before the app starts.
 `dx watch` takes one slot per iteration and holds none while it waits for
 changes. `dx update` takes one slot at its first updater that runs Bazel and
@@ -54,7 +54,8 @@ at least one and never more than 16.
 `--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` and
 `build-slots` in `dx.toml` or `dx.local.toml` set a default, and the flag wins.
 The default is `auto`, the count above. In CI the env var and
-`dx.local.toml` are ignored, like every other default.
+`dx.local.toml` are ignored, like every other default. CI runs still take a
+slot and pass its `--local_resources` share to Bazel.
 
 - `auto`: the memory-based count above, with the remote extras below.
 - `<n>`: exactly `n` slots, from 1 to 1024. There is no 16 cap and no remote
@@ -132,6 +133,9 @@ Bazel work ends or dx exits, including when it crashes.
 While dx waits, it keeps the worktree's running Bazel server from shutting down
 for idleness. It never starts a server, and it leaves a server alone that was started
 with `--max_idle_secs=0`, since that one never shuts down.
+It finds that server and the idle-server reaper's output roots from `startup
+--output_user_root` and `--output_base` in rc files (including `startup:<os>` lines
+for the host OS) and from `--bazel-startup-option`; the command line wins.
 
 Before it prints the wait line, dx stops idle Bazel servers to free memory for
 the running builds. A server is idle when no Bazel client holds its output base
@@ -209,7 +213,7 @@ output base of the workspace being built. dx prints one of these lines to
 stderr only when it removed something or could not reclaim:
 
 ```text
-dx: low disk: <free> free; removed <what>; <free> free now
+dx: low disk at <path>: <free> free; removed <what>; <free> free now
 dx: low disk, cannot reclaim output bases: <error>
 ```
 
@@ -292,7 +296,7 @@ error prints the command list and a `see dx <command> --help` hint.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.4`.
+`event` name and a `schema` with `major` and `minor`. The schema is `3.5`.
 Readers accept any `3.x` and reject other majors. The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
@@ -329,7 +333,7 @@ per result, so a target with four shards counts four. Equal
 `build_failure` and `diagnostic` events from different targets and
 configurations appear once, with a `count`.
 
-- `command_started`: the command and its mode.
+- `command_started`: the `command` and its `mode`.
 - `build_failure`: one failure Bazel reported while building, from `dx build`,
   `dx test`, and `dx coverage`. It has `record_version`, `target`,
   `configuration`, `target_kind`, `stage`, `category`, `action`, `tool`,
@@ -339,7 +343,7 @@ configurations appear once, with a `count`.
 - `capability`: one declared capability, with `name`, `source`,
   `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`,
   `effect`, and `passthrough`.
-- `operation`: a phase, with the scopes it resolved to.
+- `operation`: a `phase` of a `command`, with the optional `scope` it resolved to.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
@@ -350,7 +354,8 @@ configurations appear once, with a `count`.
 - `coverage`: one cell's owned-source line account from `dx coverage`, with
   `cell`, `covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
   `eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
-  `passed`, `errors`, and `dx_version`, plus optional `minimum`.
+  `passed`, `errors`, and `dx_version`, plus optional `minimum`, `sha`, `dirty`,
+  and `collector`.
 - `changed_line_coverage`: the `--min-changed-line-coverage` gate from
   `dx coverage`, with `base`, `merge_base`, `minimum`, `covered_lines`,
   `eligible_lines`, `uncovered` (`path` and `line` items), `uninstrumented`,
@@ -366,7 +371,8 @@ configurations appear once, with a `count`.
   and `servers_rss_bytes`, plus optional `disk_bytes` and `disk_cache_bytes`.
 - `diagnostic`: one finding, with `severity`, `tool`, `message`, `location`,
   `snapshot`, `fixable`, and `count`, plus optional `rule`, `path`, `range`,
-  `package`, `resolution`, `baseline`, `origins`, and `related`. `location` is
+  `package`, `resolution`, `unfixable_reason` (`no_change`, `unstable`, or
+  `persists`, set when `fixable` is false), `baseline`, `origins`, and `related`. `location` is
   `unknown`, `file`, `bytes`, or `lines`. A `range` with `lines` location adds
   `start_line`, `start_column`, `end_line`, and `end_column`, all 1-based.
   `count` is how many identical findings this one stands for. `baseline` is
@@ -446,7 +452,7 @@ default off.
 - `DX_BUILD_SLOTS=auto|<n>|off`: default for `--build-slots`.
 - `NO_COLOR=<any>`: disables color in `auto` mode, even when empty. `--color always` still colors.
 - `BUILD_WORKSPACE_DIRECTORY=<dir>`: workspace start under `bazel run`.
-- `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`.
+- `BUILD_WORKING_DIRECTORY=<dir>`: current directory under `bazel run`, for `--here` and a relative `worktree release <path>`.
 
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.
@@ -531,8 +537,8 @@ ignored. Flags still win. CI never implies `--apply`.
 The command line wins over the environment, and the environment wins over
 the file. Defaults load from the selected workspace: `--workspace` or
 `DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. A relative `workspace` key starts
-from the workspace start. `-h`, `--help`, `help`, `-V`, and
+file redirects once to that workspace. A relative `workspace` key resolves
+from the directory of the file that sets it. `-h`, `--help`, `help`, `-V`, and
 `--version` print without reading a broken config. `dx new` and
 `dx completion` run outside a workspace. Deleting `.dx` keeps committed
 behavior. Read-only commands never rewrite config.
@@ -547,11 +553,13 @@ Language rules:
 - `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
 - `@rules_dx//apple/ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx//apple/ios:defs.bzl`: iOS libraries.
+- `@rules_dx//apple/macos:app.bzl`: macOS apps.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx//csharp/rules:defs.bzl`: C#.
 - `@rules_dx//cuda/rules:defs.bzl`: CUDA.
 - `@rules_dx//cue/rules:defs.bzl`: CUE.
 - `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
+- `@rules_dx//make/rules:defs.bzl`: Makefiles.
 - `@rules_dx//d/rules:defs.bzl`: D.
 - `@rules_dx//elixir/rules:defs.bzl`: Elixir.
 - `@rules_dx//erlang/rules:defs.bzl`: Erlang.
@@ -563,9 +571,15 @@ Language rules:
 - `@rules_dx//java/rules:defs.bzl`: Java.
 - `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
 - `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
+- `@rules_dx//ansible/rules:defs.bzl`: Ansible.
 - `@rules_dx//jsonnet/rules:defs.bzl`: Jsonnet.
+- `@rules_dx//jupyter/rules:defs.bzl`: Jupyter notebooks.
+- `@rules_dx//julia/rules:defs.bzl`: Julia.
 - `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//latex/rules:defs.bzl`: LaTeX.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
+- `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.
+- `@rules_dx//nix/rules:defs.bzl`: Nix.
 - `@rules_dx//perl/rules:defs.bzl`: Perl.
 - `@rules_dx//pkl/rules:defs.bzl`: Pkl.
 - `@rules_dx//php/rules:defs.bzl`: PHP.
@@ -573,12 +587,14 @@ Language rules:
 - `@rules_dx//python/rules:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//rego/rules:defs.bzl`: Rego.
 - `@rules_dx//ruby/rules:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
 - `@rules_dx//scala/rules:defs.bzl`: Scala.
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript/rules:defs.bzl`: TypeScript.
+- `@rules_dx//typst/rules:defs.bzl`: Typst.
 - `@rules_dx//vue/rules:defs.bzl`: Vue.
 - `@rules_dx//xml/rules:defs.bzl`: XML.
 - `@rules_dx//yaml/rules:defs.bzl`: YAML.

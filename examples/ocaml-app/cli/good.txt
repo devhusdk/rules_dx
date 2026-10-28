@@ -1,0 +1,4 @@
+# stock
+lamp 4 1250
+cable 12 199
+fuse 0 35

@@ -1,4 +1,5 @@
 use super::common::*;
+use super::pinned_tool::QueryBazel;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_output::{
     command_finished, command_started, diagnostic_event, error_event, notice_event, report_event,
@@ -242,7 +243,9 @@ impl AuditTarget<'_> {
         match self {
             AuditTarget::Builtin(set) => {
                 !dx_audit::backend::is_empty_set(set.name())
-                    && dx_audit::advisory::advisory_source(set.name()).is_some()
+                    && dx_audit::advisory::advisory_family(set.name())
+                        .and_then(dx_audit::advisory::advisory_source)
+                        .is_some()
             }
             AuditTarget::Configured(set) => set.ecosystem.advisory_family().is_some(),
         }
@@ -303,7 +306,7 @@ fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, 
 }
 
 fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError> {
-    match dx_audit::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
+    match dx_path::workspace::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
         Err(error) => Err(AuditError::Read {
             rel: rel.to_owned(),
             error,
@@ -329,28 +332,29 @@ fn load_advisories(
             set: set_name.clone(),
         })?
         .to_owned();
-    if dx_audit::advisory::advisory_source(key).is_none() {
+    if dx_audit::advisory::advisory_source(&family).is_none() {
         return Err(AuditError::AdvisoryUnsupported {
             set: set_name.clone(),
         });
     }
-    let rel = dx_audit::advisory::snapshot_rel(key);
-    let bytes = match dx_audit::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return Err(AuditError::AdvisoryMissing {
-                set: set_name.clone(),
-                rel: rel.clone(),
-            });
-        }
-        Err(error) => {
-            return Err(AuditError::AdvisoryRead {
-                set: set_name.clone(),
-                rel: rel.clone(),
-                error,
-            });
-        }
-        Ok(bytes) => bytes,
-    };
+    let rel = dx_audit::advisory::snapshot_rel(&family);
+    let bytes =
+        match dx_path::workspace::resolve_in_workspace(workspace, &rel).and_then(std::fs::read) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(AuditError::AdvisoryMissing {
+                    set: set_name.clone(),
+                    rel: rel.clone(),
+                });
+            }
+            Err(error) => {
+                return Err(AuditError::AdvisoryRead {
+                    set: set_name.clone(),
+                    rel: rel.clone(),
+                    error,
+                });
+            }
+            Ok(bytes) => bytes,
+        };
     let text = match String::from_utf8(bytes.clone()) {
         Err(_) => {
             return Err(AuditError::AdvisoryUtf8 {
@@ -366,7 +370,7 @@ fn load_advisories(
             rel: rel.clone(),
         });
     }
-    let meta_rel = dx_audit::advisory::identity_rel(key);
+    let meta_rel = dx_audit::advisory::identity_rel(&family);
     let meta_text = match read_workspace_text(workspace, &meta_rel) {
         Err(AuditError::Read { rel, error }) if error.kind() == std::io::ErrorKind::NotFound => {
             return Err(AuditError::AdvisoryMissingMeta {
@@ -540,6 +544,16 @@ fn parse_locked_for_configured(
                 dx_audit::locks::parse_psgallery_lock(text)
             }
             dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
+            dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
+                Some(name) if name.ends_with(".json") => dx_audit::locks::parse_maven_install(text),
+                _ => Ok(Vec::new()),
+            },
+            dx_adopt::dependency_sets::Ecosystem::Nuget => match rel.rsplit('/').next() {
+                Some(dx_adopt::dependency_sets::PAKET_LOCK) => {
+                    dx_audit::locks::parse_paket_lock(text)
+                }
+                _ => Ok(Vec::new()),
+            },
             dx_adopt::dependency_sets::Ecosystem::Cargo => match rel.rsplit('/').next() {
                 Some(dx_adopt::dependency_sets::CARGO_LOCK) => {
                     dx_audit::locks::parse_cargo_lock(text)
@@ -596,7 +610,7 @@ fn lock_texts_for_configured(
 pub(super) fn bazel_inputs_for_configured(
     workspace: &Path,
     set: &dx_adopt::dependency_sets::ResolvedSet,
-) -> Result<(Vec<dx_audit::locks::BazelInput>, String), AuditError> {
+) -> Result<(dx_audit::locks::BazelInventory, String), AuditError> {
     let find = |files: &[String], suffix: &str, what: &str| -> Result<String, AuditError> {
         files
             .iter()
@@ -622,24 +636,25 @@ pub(super) fn bazel_inputs_for_configured(
         read_workspace_text(workspace, &rel)
             .map_err(|error| format!("cannot read included {label}: {error}"))
     };
-    let inputs = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
+    let inventory = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
         .map_err(|detail| AuditError::LockParse {
             rel: lock_rel.clone(),
             detail,
         })?;
-    Ok((inputs, lock_rel))
+    Ok((inventory, lock_rel))
 }
 
 fn bazel_coverage_diagnostic(
     set: &dx_adopt::dependency_sets::ResolvedSet,
-    inputs: &[dx_audit::locks::BazelInput],
+    inventory: &dx_audit::locks::BazelInventory,
     lock_rel: &str,
 ) -> DiagnosticEvent {
+    let inputs = &inventory.inputs;
     let count = |source: dx_audit::locks::BazelSource| {
         inputs.iter().filter(|input| input.source == source).count()
     };
     use dx_audit::locks::BazelSource;
-    let message = format!(
+    let mut message = format!(
         "{}: {} Bazel inputs not assessed ({} registry, {} archive override, {} http archive, {} git, {} local, {} repo rule, {} module extension); no advisory source maps Bazel module or archive identities",
         set.name,
         inputs.len(),
@@ -651,6 +666,13 @@ fn bazel_coverage_diagnostic(
         count(BazelSource::RepoRule),
         count(BazelSource::Extension),
     );
+    if !inventory.unrecorded_extensions.is_empty() {
+        message.push_str(&format!(
+            "; {} root module extensions have no entry in {lock_rel} (reproducible, or the lock is stale), so their repos are not listed: {}",
+            inventory.unrecorded_extensions.len(),
+            inventory.unrecorded_extensions.join(", ")
+        ));
+    }
     DiagnosticEvent {
         rule: Some(format!(
             "{}/no-advisory-coverage",
@@ -796,97 +818,31 @@ struct SecurityResult {
 struct LicenseResult {
     status: dx_audit::outcome::FamilyStatus,
     packages: Vec<dx_audit::spdx::SpdxPackage>,
+    notice: Vec<dx_audit::notice_manifest::NoticeEntry>,
     diagnostics: Vec<DiagnosticEvent>,
     detail: String,
     code: &'static str,
-}
-
-/// Runs the cquery and info calls tool resolution needs through dx's own Bazel launcher.
-struct QueryBazel<'a> {
-    query_runner: &'a dyn QueryRunner,
-    workspace: &'a Path,
-    startup: &'a [String],
-}
-
-impl dx_tool_resolve::Bazel for QueryBazel<'_> {
-    fn cquery_files(
-        &self,
-        label: &str,
-        args: &[String],
-    ) -> Result<String, dx_tool_resolve::ResolveError> {
-        let failed = |detail: String| dx_tool_resolve::ResolveError::CqueryFailed {
-            label: label.to_owned(),
-            detail,
-        };
-        let mut options = vec!["--output=files".to_owned()];
-        options.extend(args.iter().cloned());
-        let argv = dx_plan::plan::bazel_argv(
-            "cquery",
-            &options,
-            &[],
-            &[],
-            &[label.to_owned()],
-            self.startup,
-        )
-        .map_err(|error| failed(format!("could not build the cquery argv: {error}")))?;
-        let result = self
-            .query_runner
-            .run_query(&argv, self.workspace)
-            .map_err(|error| failed(format!("could not run bazel: {error}")))?;
-        if result.code != Some(0) {
-            return Err(failed(dx_tool_resolve::exit_detail(
-                result.code,
-                &result.stderr,
-            )));
-        }
-        Ok(String::from_utf8_lossy(&result.stdout).into_owned())
-    }
-
-    #[allow(clippy::disallowed_methods)] // info takes no build settings
-    fn output_base(&self) -> Result<String, dx_tool_resolve::ResolveError> {
-        let mut argv = dx_process::startup_argv(self.startup);
-        argv.push("info".to_owned());
-        argv.push("output_base".to_owned());
-        let failed = |detail: String| dx_tool_resolve::ResolveError::OutputBaseFailed { detail };
-        let result = self
-            .query_runner
-            .run_info(&argv, self.workspace)
-            .map_err(|error| failed(format!("could not run bazel: {error}")))?;
-        if result.code != Some(0) {
-            return Err(failed(dx_tool_resolve::exit_detail(
-                result.code,
-                &result.stderr,
-            )));
-        }
-        let base = String::from_utf8_lossy(&result.stdout).trim().to_owned();
-        if base.is_empty() {
-            return Err(failed("bazel info output_base printed nothing".to_owned()));
-        }
-        Ok(base)
-    }
 }
 
 /// Returns the pinned Gitleaks path from the environment, else from Bazel.
 fn gitleaks_path(
     runner: &dyn dx_process::Runner,
     bazel: &dyn dx_tool_resolve::Bazel,
+    offline: bool,
 ) -> Result<PathBuf, String> {
+    use super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError};
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
-    if let Some(path) = runner.pinned_tool(TOOL_ENV_VAR) {
-        return Ok(path);
-    }
-    if std::env::var_os(TOOL_ENV_VAR).is_some_and(|value| !value.is_empty()) {
-        return Err(format!(
+    let tool = PinnedTool {
+        var: TOOL_ENV_VAR,
+        label: TOOL_LABEL,
+    };
+    resolve_pinned(runner, bazel, &tool, offline).map_err(|error| match error {
+        PinnedToolError::Invalid => format!(
             "secrets auditor unavailable: {TOOL_ENV_VAR} must be an absolute path to the pinned {TOOL_LABEL} artifact; ambient PATH lookup is rejected; set it with: {RESOLVE_COMMAND}"
-        ));
-    }
-    dx_tool_resolve::resolve(bazel, TOOL_LABEL, &[]).map_err(|error| {
-        let text = error.to_string();
-        let prefix = format!("{}: ", dx_tool_resolve::RESOLVE_CODE);
-        let detail = text.strip_prefix(&prefix).unwrap_or(&text);
-        format!(
+        ),
+        PinnedToolError::Unresolved { detail } => format!(
             "secrets auditor unavailable: could not resolve {TOOL_LABEL} through Bazel ({detail}); ambient PATH lookup is rejected; set {TOOL_ENV_VAR} with: {RESOLVE_COMMAND}"
-        )
+        ),
     })
 }
 
@@ -965,7 +921,7 @@ fn run_secrets(
         }
         None => Vec::new(),
     };
-    let tool_path = match gitleaks_path(runner, bazel) {
+    let tool_path = match gitleaks_path(runner, bazel, offline) {
         Ok(path) => path.to_string_lossy().into_owned(),
         Err(error) => return (Vec::new(), Some(error), Vec::new()),
     };
@@ -1271,8 +1227,8 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
                             incomplete = Some(format!("failed to assess {}: {error}", set.name));
                         }
                     }
-                    Ok((inputs, lock_rel)) => {
-                        diagnostics.push(bazel_coverage_diagnostic(set, &inputs, &lock_rel));
+                    Ok((inventory, lock_rel)) => {
+                        diagnostics.push(bazel_coverage_diagnostic(set, &inventory, &lock_rel));
                     }
                 }
                 continue;
@@ -1508,6 +1464,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
     let mut sarif_tools: BTreeSet<String> = BTreeSet::new();
     let mut spdx_packages: Vec<dx_audit::spdx::SpdxPackage> = Vec::new();
+    let mut notice_entries: Vec<dx_audit::notice_manifest::NoticeEntry> = Vec::new();
     let mut family_messages: BTreeMap<String, String> = BTreeMap::new();
     let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
     let mut any_incomplete = false;
@@ -1545,6 +1502,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 sarif_tools.insert("license".to_owned());
                 diagnostics.extend(result.diagnostics.clone());
                 spdx_packages.extend(result.packages.clone());
+                notice_entries.extend(result.notice.clone());
                 if result.status == dx_audit::outcome::FamilyStatus::Incomplete {
                     any_incomplete = true;
                 }
@@ -1694,6 +1652,40 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                 if let Err(exit) = check_stdout_write(writeln!(
                     out,
                     "Wrote spdx report to {}.",
+                    planned.destination.display()
+                )) {
+                    return exit;
+                }
+            }
+        } else if name == "notice" {
+            let document = dx_audit::notice_manifest::render_notice_manifest(
+                "Generated by dx license; do not edit.",
+                &notice_entries,
+            );
+            let written = write_report_document(out, workspace, &planned.destination, &document);
+            if let Err(error) = written {
+                reports_ok = false;
+                if let Err(exit) = report_failed(
+                    out,
+                    err,
+                    invocation.output,
+                    &format!("failed to write notice report to {error}"),
+                ) {
+                    return exit;
+                }
+                continue;
+            }
+            if invocation.output == OutputMode::Json {
+                if let Err(exit) = emit_built(
+                    out,
+                    report_event("notice", planned.destination.display(), !any_incomplete),
+                ) {
+                    return exit;
+                }
+            } else if verbose && planned.destination != Destination::Stdout {
+                if let Err(exit) = check_stdout_write(writeln!(
+                    out,
+                    "Wrote notice report to {}.",
                     planned.destination.display()
                 )) {
                     return exit;

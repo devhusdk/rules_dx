@@ -1,34 +1,68 @@
 package scala
 
 import (
-	"github.com/devhusdk/rules_dx/gazelle/common"
-	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/scala"
 )
 
-var (
-	importRe   = regexp.MustCompile(`(?m)(?:^|;)[ \t]*import[ \t]+`)
-	wildcardRe = regexp.MustCompile(`^([A-Za-z_]\w*(?:\.\w+)*)\.(?:_|\*|given(?:\s.*)?)$`)
-	plainRe    = regexp.MustCompile(`^([A-Za-z_]\w*(?:\.\w+)*)(?:\s+as\s+[A-Za-z_]\w*)?$`)
-	dottedRe   = regexp.MustCompile(`^[A-Za-z_]\w*(?:\.\w+)*$`)
-	selectorRe = regexp.MustCompile(`^([A-Za-z_]\w*)(?:\s*(?:=>|\s+as\s+)\s*([A-Za-z_]\w*))?$`)
-	packageRe  = regexp.MustCompile(`(?m)^[ \t]*package[ \t]+([A-Za-z_]\w*(?:\.\w+)*)[ \t]*(?:;|\{|$)`)
-	mainRe     = regexp.MustCompile(`def\s+main\s*\(|@main\s+(?:@\w+\s+)*def\b|\bextends\s+(?:_root_\.)?(?:scala\.)?App\b`)
-)
+var grammar = sync.OnceValue(func() *ts.Language { return scala.Language() })
 
+// named returns the dot-joined text of the named, non-comment children of n, or
+// the text of n itself when it is a leaf. Dots are not nodes in this grammar.
+func named(tree *treesitter.Tree, n *treesitter.Node) string {
+	if n.ChildCount() == 0 {
+		return strings.Trim(tree.Text(n), "`")
+	}
+	var segs []string
+	for _, c := range n.Children() {
+		if !c.IsNamed() || strings.Contains(tree.Type(c), "comment") {
+			continue
+		}
+		segs = append(segs, named(tree, c))
+	}
+	return strings.Join(segs, ".")
+}
+
+// ParseImports returns the sorted, deduplicated import identities of content,
+// including imports local to blocks. Imports before a syntax error are kept.
 func ParseImports(content []byte) []string {
-	stripped := common.MaskScalaStyle(content)
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
 	set := make(map[string]struct{})
-	for _, loc := range importRe.FindAllIndex(stripped, -1) {
-		for _, importer := range splitTopLevel(importClause(stripped, loc[1])) {
-			for _, id := range importerIDs(importer) {
-				if id != "" {
-					set[id] = struct{}{}
-				}
-			}
+	add := func(id string) {
+		if id != "" {
+			set[id] = struct{}{}
 		}
 	}
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if tree.Type(n) != "import_declaration" {
+			return true
+		}
+		if n.HasErrorOrMissing() || truncated(n) {
+			// A truncated or malformed import names nothing reliable.
+			return false
+		}
+		var group []*treesitter.Node
+		flush := func() {
+			importerIDs(tree, group, add)
+			group = nil
+		}
+		for _, c := range n.Children() {
+			switch tree.Type(c) {
+			case ",":
+				flush()
+			case "identifier", "namespace_selectors", "namespace_wildcard", "as_renamed_identifier", "arrow_renamed_identifier", "type_identifier", "generic_type":
+				group = append(group, c)
+			}
+		}
+		flush()
+		return false
+	})
 	out := make([]string, 0, len(set))
 	for name := range set {
 		out = append(out, name)
@@ -37,25 +71,135 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
+// truncated reports whether an error node directly follows the import, as in
+// import e. cut off at the end of the file.
+func truncated(n *treesitter.Node) bool {
+	next := n.NextSibling()
+	return next != nil && next.IsError() && next.StartByte() <= n.EndByte()+1
+}
+
+// importerIDs maps one comma-separated importer (a path of identifiers plus an
+// optional selector, wildcard or rename) to import identities.
+func importerIDs(tree *treesitter.Tree, group []*treesitter.Node, add func(string)) {
+	var path []string
+	var tail *treesitter.Node
+	for _, c := range group {
+		if tree.Type(c) == "identifier" {
+			path = append(path, strings.Trim(tree.Text(c), "`"))
+		} else {
+			tail = c
+		}
+	}
+	pkg := strings.Join(path, ".")
+	if tail == nil {
+		add(normalizeImport(pkg, false))
+		return
+	}
+	switch tree.Type(tail) {
+	case "namespace_wildcard", "type_identifier", "generic_type":
+		// _, *, given and given T all import from the package on demand.
+		add(normalizeImport(pkg, true))
+	case "as_renamed_identifier", "arrow_renamed_identifier":
+		renamed(tree, pkg, tail, add)
+	case "namespace_selectors":
+		for _, sel := range tail.Children() {
+			switch tree.Type(sel) {
+			case "identifier":
+				add(normalizeImport(joinDot(pkg, strings.Trim(tree.Text(sel), "`")), false))
+			case "as_renamed_identifier", "arrow_renamed_identifier":
+				renamed(tree, pkg, sel, add)
+			case "namespace_wildcard", "type_identifier", "generic_type":
+				add(normalizeImport(pkg, true))
+			}
+		}
+	}
+}
+
+// renamed handles X => Y and X as Y. A rename to _ hides X and imports nothing.
+func renamed(tree *treesitter.Tree, pkg string, n *treesitter.Node, add func(string)) {
+	var first string
+	for _, c := range n.Children() {
+		switch tree.Type(c) {
+		case "identifier":
+			if first == "" {
+				first = strings.Trim(tree.Text(c), "`")
+			}
+		case "wildcard":
+			return
+		}
+	}
+	add(normalizeImport(joinDot(pkg, first), false))
+}
+
+func joinDot(a, b string) string {
+	if a == "" {
+		return b
+	}
+	return a + "." + b
+}
+
 // ParsePackage joins chained and nested package clauses (package a / package b,
-// package a { package b {) with dots. A clause that follows other code is a
-// separate package and is an error. Clauses sharing one line (package a; package b)
-// are not recognized.
+// package a { package b {, package a; package b) with dots. A clause that
+// follows other code is a separate package and is an error.
 func ParsePackage(content []byte) (string, error) {
-	stripped := common.MaskScalaStyle(content)
-	matches := packageRe.FindAllSubmatchIndex(stripped, -1)
-	if len(matches) == 0 {
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	if tree.Root == nil {
 		return "", nil
 	}
-	name := string(stripped[matches[0][2]:matches[0][3]])
-	for i := 1; i < len(matches); i++ {
-		gap := stripped[matches[i-1][1]:matches[i][0]]
-		if len(strings.Trim(string(gap), " \t\r\n;")) != 0 {
-			return "", errSeparatePackage(name, string(stripped[matches[i][2]:matches[i][3]]))
+	total := 0
+	var all []*treesitter.Node
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if tree.Type(n) == "package_clause" {
+			total++
+			all = append(all, n)
 		}
-		name += "." + string(stripped[matches[i][2]:matches[i][3]])
+		return true
+	})
+	if total == 0 {
+		return "", nil
+	}
+	var parts []string
+	consumed := map[*treesitter.Node]bool{}
+	scope := tree.Root.Children()
+	for len(scope) > 0 {
+		c := scope[0]
+		scope = scope[1:]
+		if k := tree.Type(c); strings.Contains(k, "comment") || !c.IsNamed() {
+			continue
+		}
+		if tree.Type(c) != "package_clause" {
+			break
+		}
+		consumed[c] = true
+		parts = append(parts, clauseName(tree, c))
+		if body := child(tree, c, "template_body"); body != nil {
+			scope = body.Children()
+		}
+	}
+	name := strings.Join(parts, ".")
+	for _, c := range all {
+		if !consumed[c] {
+			return "", errSeparatePackage(name, clauseName(tree, c))
+		}
 	}
 	return name, nil
+}
+
+func child(tree *treesitter.Tree, n *treesitter.Node, kind string) *treesitter.Node {
+	for _, c := range n.Children() {
+		if tree.Type(c) == kind {
+			return c
+		}
+	}
+	return nil
+}
+
+func clauseName(tree *treesitter.Tree, clause *treesitter.Node) string {
+	if id := child(tree, clause, "package_identifier"); id != nil {
+		return named(tree, id)
+	}
+	return ""
 }
 
 type separatePackageError struct{ first, second string }
@@ -68,8 +212,44 @@ func errSeparatePackage(first, second string) error {
 	return &separatePackageError{first: first, second: second}
 }
 
+// DefinesMain reports whether content declares a def main, an @main def, or an
+// object extending App.
 func DefinesMain(content []byte) bool {
-	return mainRe.Match(common.MaskScalaStyle(content))
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	found := false
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if found {
+			return false
+		}
+		switch tree.Type(n) {
+		case "function_definition", "function_declaration":
+			for _, c := range n.Children() {
+				switch tree.Type(c) {
+				case "identifier":
+					if tree.Text(c) == "main" {
+						found = true
+					}
+				case "annotation":
+					if t := child(tree, c, "type_identifier"); t != nil && tree.Text(t) == "main" {
+						found = true
+					}
+				}
+			}
+		case "extends_clause":
+			for _, c := range n.Children() {
+				if k := tree.Type(c); k == "type_identifier" || k == "stable_type_identifier" {
+					switch named(tree, c) {
+					case "App", "scala.App", "_root_.scala.App":
+						found = true
+					}
+					break
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 func normalizeImport(dotted string, onDemand bool) string {
@@ -80,74 +260,3 @@ func normalizeImport(dotted string, onDemand bool) string {
 	return dotted + ".*"
 }
 
-func importClause(src []byte, start int) string {
-	depth := 0
-	end := start
-	for ; end < len(src); end++ {
-		c := src[end]
-		if depth == 0 && (c == '\n' || c == ';' || c == '}') {
-			break
-		}
-		switch c {
-		case '{', '[', '(':
-			depth++
-		case '}', ']', ')':
-			depth--
-		}
-	}
-	return string(src[start:end])
-}
-
-func splitTopLevel(body string) []string {
-	var parts []string
-	depth := 0
-	last := 0
-	for i := 0; i < len(body); i++ {
-		switch body[i] {
-		case '{', '[', '(':
-			depth++
-		case '}', ']', ')':
-			depth--
-		case ',':
-			if depth == 0 {
-				parts = append(parts, strings.TrimSpace(body[last:i]))
-				last = i + 1
-			}
-		}
-	}
-	return append(parts, strings.TrimSpace(body[last:]))
-}
-
-func importerIDs(importer string) []string {
-	importer = strings.TrimSpace(importer)
-	if open := strings.IndexByte(importer, '{'); open >= 0 {
-		prefix := strings.TrimSpace(importer[:open])
-		if !strings.HasSuffix(prefix, ".") || !strings.HasSuffix(importer, "}") {
-			return nil
-		}
-		pkg := strings.TrimSpace(strings.TrimSuffix(prefix, "."))
-		if !dottedRe.MatchString(pkg) {
-			return nil
-		}
-		var ids []string
-		for _, sel := range splitTopLevel(importer[open+1 : len(importer)-1]) {
-			if sel == "_" || sel == "*" || sel == "given" || strings.HasPrefix(sel, "given ") {
-				ids = append(ids, normalizeImport(pkg, true))
-				continue
-			}
-			m := selectorRe.FindStringSubmatch(sel)
-			if m == nil || m[2] == "_" {
-				continue
-			}
-			ids = append(ids, normalizeImport(pkg+"."+m[1], false))
-		}
-		return ids
-	}
-	if m := wildcardRe.FindStringSubmatch(importer); m != nil {
-		return []string{normalizeImport(m[1], true)}
-	}
-	if m := plainRe.FindStringSubmatch(importer); m != nil {
-		return []string{normalizeImport(m[1], false)}
-	}
-	return nil
-}

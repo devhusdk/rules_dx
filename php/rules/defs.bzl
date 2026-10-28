@@ -1,10 +1,12 @@
 """Thin dx wrappers over the owned PHP rules."""
 
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_macro_upstream_visibility", "dx_strip_none", "dx_wrap", "dx_wrap_binary", "dx_wrap_test", "dx_wrapper_macro_attrs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":php.bzl", "PHP_SOURCE_EXTS", _PhpInfo = "PhpInfo", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
 
 PhpInfo = _PhpInfo
+
+PHP_COVERAGE_COLLECTOR = False
 
 PHP_SOURCE_SPECS = [("php", ["php"])]
 
@@ -77,19 +79,36 @@ def php_kwargs(kwargs):
         target_compatible_with = php_compatible_with(kwargs.get("target_compatible_with")),
     )
 
-def php_library(name, srcs = None, visibility = None, **kwargs):
-    """PHP sources other targets load through the Composer classmap; every source is linted with php -l."""
-    kwargs = php_kwargs(kwargs)
-    srcs = srcs or []
-    dx_wrap(name, _php_library, _php_library_forward, srcs, visibility = visibility, quality_srcs = php_quality_srcs(None, srcs, kwargs.get("autoload_files")), **kwargs)
+def _php_library_impl(name, srcs, visibility, **kwargs):
+    kwargs = php_kwargs(dx_strip_none(kwargs))
+    dx_wrap(name, _php_library, _php_library_forward, srcs, visibility = visibility, quality_srcs = php_quality_srcs(None, srcs, kwargs.get("autoload_files")), upstream_visibility = dx_macro_upstream_visibility(), **kwargs)
 
-def php_binary(name, main, srcs = None, visibility = None, **kwargs):
-    """Runs main on the pinned PHP with the classes of deps autoloaded."""
-    kwargs = php_kwargs(kwargs)
+def _php_binary_impl(name, main, srcs, visibility, **kwargs):
+    kwargs = php_kwargs(dx_strip_none(kwargs))
     upstream = dict(kwargs, main = main)
-    dx_wrap_binary(name, _php_binary, _php_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = php_quality_srcs(main, srcs), **kwargs)
+    dx_wrap_binary(name, _php_binary, _php_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = php_quality_srcs(main, srcs), upstream_visibility = dx_macro_upstream_visibility(), **kwargs)
 
-def php_test(name, srcs, visibility = None, **kwargs):
-    """Runs PHPUnit test files on the pinned PHP and PHPUnit."""
-    kwargs = php_kwargs(kwargs)
-    dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = php_quality_srcs(None, srcs), **kwargs)
+def _php_test_impl(name, srcs, visibility, **kwargs):
+    kwargs = php_kwargs(dx_strip_none(kwargs))
+    dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = php_quality_srcs(None, srcs), upstream_visibility = dx_macro_upstream_visibility(), coverage_collector = PHP_COVERAGE_COLLECTOR, **kwargs)
+
+php_library = macro(
+    implementation = _php_library_impl,
+    inherit_attrs = _php_library,
+    attrs = dx_wrapper_macro_attrs(["srcs", "autoload_files"], allow_files = PHP_SOURCE_EXTS),
+    doc = "PHP sources other targets load through the Composer classmap; every source is linted with php -l.",
+)
+
+php_binary = macro(
+    implementation = _php_binary_impl,
+    inherit_attrs = _php_binary,
+    attrs = dx_wrapper_macro_attrs(["srcs"], ["main"], allow_files = PHP_SOURCE_EXTS, mandatory = ["main"]),
+    doc = "Runs main on the pinned PHP with the classes of deps autoloaded.",
+)
+
+php_test = macro(
+    implementation = _php_test_impl,
+    inherit_attrs = _php_test,
+    attrs = dx_wrapper_macro_attrs(["srcs"], allow_files = PHP_SOURCE_EXTS, mandatory = ["srcs"]),
+    doc = "Runs PHPUnit test files on the pinned PHP and PHPUnit.",
+)

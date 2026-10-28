@@ -1,0 +1,108 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/main.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+rust_library(
+    name = "dx_docs_jvm_convert",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/jvm/jvm_convert",
+        normal = True,
+    ),
+    crate_name = "dx_docs_jvm_convert",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "tools/docs/jvm/jvm_convert",
+        normal = True,
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_binary(
+    name = "jvm_convert",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/jvm/jvm_convert",
+        normal = True,
+    ),
+    crate_name = "jvm_convert",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "tools/docs/jvm/jvm_convert",
+        normal = True,
+    ) + [":dx_docs_jvm_convert"],
+)
+
+rust_test(
+    name = "dx_docs_jvm_convert_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/docs/jvm/jvm_convert",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "dx_docs_jvm_convert",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "tools/docs/jvm/jvm_convert",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
+    ],
+)
+
+rustfmt_test(
+    name = "dx_docs_jvm_convert_fmt_test",
+    size = "small",
+    targets = [
+        ":dx_docs_jvm_convert",
+        ":dx_docs_jvm_convert_test",
+        ":jvm_convert",
+    ],
+)
+
+rust_clippy_test(
+    name = "dx_docs_jvm_convert_clippy_test",
+    size = "small",
+    targets = [
+        ":dx_docs_jvm_convert",
+        ":jvm_convert",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -1,0 +1,130 @@
+diff -ru a/build/_rules/ocaml_binary/impl_binary.bzl b/build/_rules/ocaml_binary/impl_binary.bzl
+--- a/build/_rules/ocaml_binary/impl_binary.bzl
++++ b/build/_rules/ocaml_binary/impl_binary.bzl
+@@ -842,6 +842,7 @@
+         if ctx.attr.diff_cmd:
+             path = path + ":" + ctx.file.diff_cmd.dirname
+     env = {"PATH": path}
++    env.update(getattr(tc, "cc_link_env_vars", None) or {})
+     ## sweet jeebus. this is the only way I could find to merge tw
+     ## dicts. sheesh.
+ 
+@@ -857,10 +858,7 @@
+         arguments = [args],
+         inputs = action_inputs_depset,
+         outputs = action_outputs,
+-        tools = [
+-            tc.compiler # tool,
+-            # cctc.static_runtime_lib()
+-        ], ## + tool_args,  # [tc.ocamlopt],
++        tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = mnemonic,
+         progress_message = "{mode} linking {rule}: {ws}//{pkg}:{tgt}".format(
+             mode = tc.host + ">" + tc.target,
+diff -ru a/build/_rules/ocaml_library/impl_archive.bzl b/build/_rules/ocaml_library/impl_archive.bzl
+--- a/build/_rules/ocaml_library/impl_archive.bzl
++++ b/build/_rules/ocaml_library/impl_archive.bzl
+@@ -329,12 +329,12 @@
+ 
+     ################
+     ctx.actions.run(
+-        # env = env,
++        env = getattr(tc, "cc_link_env_vars", None) or {},
+         executable = tc.compiler,
+         arguments = [args],
+         inputs = action_inputs_depset,
+         outputs = action_outputs,
+-        tools = [tc.compiler],
++        tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = mnemonic,
+         progress_message = "{mode} compiling {rule}: @{ws}//{pkg}:{tgt}".format(
+             mode = tc.host + ">" + tc.target,
+diff -ru a/build/_rules/ocaml_module/impl_module.bzl b/build/_rules/ocaml_module/impl_module.bzl
+--- a/build/_rules/ocaml_module/impl_module.bzl
++++ b/build/_rules/ocaml_module/impl_module.bzl
+@@ -1073,12 +1073,12 @@
+ 
+     ################
+     ctx.actions.run(
+-        # env = {"MACOSX_DEPLOYMENT_TARGET": "13.1"},
++        env = getattr(tc, "cc_link_env_vars", None) or {},
+         executable = tc.compiler,
+         arguments = [args],
+         inputs    = action_inputs_depset,
+         outputs   = action_outputs,
+-        tools = [tc.compiler], # + tool_args,
++        tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = mnemonic,
+         progress_message = "{mode} compiling {rule}: {ws}//{pkg}:{tgt}".format(
+             mode = tc.host + ">" + tc.target,
+diff -ru a/build/_rules/ocaml_ns/impl_ns_module.bzl b/build/_rules/ocaml_ns/impl_ns_module.bzl
+--- a/build/_rules/ocaml_ns/impl_ns_module.bzl
++++ b/build/_rules/ocaml_ns/impl_ns_module.bzl
+@@ -155,12 +155,12 @@
+     )
+ 
+     ctx.actions.run(
+-        # env = env,
++        env = getattr(tc, "cc_link_env_vars", None) or {},
+         executable = tc.compiler,
+         arguments = [args],
+         inputs = action_inputs_depset,
+         outputs = action_outputs,
+-        tools = [tc.compiler],
++        tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = "CompileOCamlNsResolver",
+         progress_message = "{mode} compiling ns resolver: {impl}".format(
+             # to {ws}//{pkg}:{tgt}".format(
+diff -ru a/build/_rules/ocaml_ns/impl_ns_resolver.bzl b/build/_rules/ocaml_ns/impl_ns_resolver.bzl
+--- a/build/_rules/ocaml_ns/impl_ns_resolver.bzl
++++ b/build/_rules/ocaml_ns/impl_ns_resolver.bzl
+@@ -410,12 +410,12 @@
+     )
+ 
+     ctx.actions.run(
+-        # env = env,
++        env = getattr(tc, "cc_link_env_vars", None) or {},
+         executable = tc.compiler,
+         arguments = [args],
+         inputs = action_inputs_depset,
+         outputs = action_outputs,
+-        tools = [tc.compiler],
++        tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = "CompileOCamlNsResolver",
+         progress_message = "{mode} compiling ns resolver: {impl}".format(
+             # to {ws}//{pkg}:{tgt}".format(
+diff -ru a/build/_rules/ocaml_ns/impl_topdown_ns_resolver.bzl b/build/_rules/ocaml_ns/impl_topdown_ns_resolver.bzl
+--- a/build/_rules/ocaml_ns/impl_topdown_ns_resolver.bzl
++++ b/build/_rules/ocaml_ns/impl_topdown_ns_resolver.bzl
+@@ -537,12 +537,12 @@
+     )
+ 
+     ctx.actions.run(
+-        # env = env,
++        env = getattr(tc, "cc_link_env_vars", None) or {},
+         executable = tc.compiler,
+         arguments = [args],
+         inputs = action_inputs_depset,
+         outputs = action_outputs,
+-        tools = [tc.compiler],
++        tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = "CompileOCamlNsResolver",
+         progress_message = "{mode} compiling ns resolver: {impl}".format(
+             # to {ws}//{pkg}:{tgt}".format(
+diff -ru a/build/_rules/ocaml_runtime.bzl b/build/_rules/ocaml_runtime.bzl
+--- a/build/_rules/ocaml_runtime.bzl
++++ b/build/_rules/ocaml_runtime.bzl
+@@ -127,11 +127,12 @@
+             ws_name = "@" + ctx.label.workspace_name if ctx.label.workspace_name else ""
+ 
+         ctx.actions.run(
++            env = getattr(tc, "cc_link_env_vars", None) or {},
+             executable = tc.compiler,
+             arguments = [args],
+             inputs    = action_inputs_depset,
+             outputs   = action_outputs,
+-            tools = [tc.compiler],
++            tools = depset([tc.compiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+             mnemonic = mnemonic,
+             progress_message = "{mode} generating runtime: {ws}//{pkg}:{tgt}".format(
+                 mode = tc.host + ">" + tc.target,

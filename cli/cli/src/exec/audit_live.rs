@@ -73,9 +73,12 @@ impl Runner for AuditRunner {
         self.run(argv, cwd, env)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
-        (var == dx_audit::secrets::TOOL_ENV_VAR)
-            .then(|| std::path::PathBuf::from(hermetic_gitleaks()))
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
+        if var == dx_audit::secrets::TOOL_ENV_VAR {
+            dx_process::PinnedVar::Path(std::path::PathBuf::from(hermetic_gitleaks()))
+        } else {
+            dx_process::PinnedVar::Unset
+        }
     }
 }
 
@@ -230,19 +233,21 @@ pub(super) fn write_npm_locks(harness: &Harness) {
 }
 
 pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
-    let url = dx_audit::advisory::advisory_source(set)
+    let url = dx_audit::advisory::advisory_family(set)
+        .and_then(dx_audit::advisory::advisory_source)
         .expect("supported set needs a source")
         .to_owned();
     let sha = dx_digest::sha256_hex(json.as_bytes());
-    harness.write_source(&format!(".dx/advisory/{set}.json"), json);
+    let rel = dx_audit::advisory::snapshot_rel(set);
+    harness.write_source(&rel, json);
     let meta = serde_json::json!({
         "set": set,
         "url": url,
         "sha256": sha,
         "retrieved_at": TEST_AUDIT_TODAY,
-        "path": format!(".dx/advisory/{set}.json"),
+        "path": rel,
     });
-    harness.write_source(&format!(".dx/advisory/{set}.meta.json"), &meta.to_string());
+    harness.write_source(&dx_audit::advisory::identity_rel(set), &meta.to_string());
 }
 
 pub(super) fn write_all_empty_advisories(harness: &Harness) {
@@ -285,7 +290,7 @@ fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32
     use dx_testing::cli::strings;
     let mut invocation = parse(&strings(argv)).expect("parse");
     invocation.targets = Vec::new();
-    invocation.test_targets = Some(Vec::new());
+    invocation.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
     let harness = Harness::new(name);
     harness.execute_with(&invocation, runner)
 }
@@ -358,7 +363,7 @@ pub(super) fn audit_live_secrets_findings_fail_with_redacted_summary() {
     assert!(runner.calls.borrow()[0].contains(&"--redact".to_owned()));
 }
 
-struct UnpinnedRunner(AuditRunner);
+struct UnpinnedRunner(AuditRunner, dx_process::PinnedVar);
 
 impl Runner for UnpinnedRunner {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
@@ -373,6 +378,10 @@ impl Runner for UnpinnedRunner {
     ) -> io::Result<ChildStatus> {
         self.0.run(argv, cwd, env)
     }
+
+    fn pinned_tool(&self, _var: &str) -> dx_process::PinnedVar {
+        self.1.clone()
+    }
 }
 
 fn run_unpinned(
@@ -384,6 +393,7 @@ fn run_unpinned(
     use dx_testing::cli::strings;
     assert!(runner
         .pinned_tool(dx_audit::secrets::TOOL_ENV_VAR)
+        .path()
         .is_none());
     let invocation = parse(&strings(&["security"])).expect("parse");
     let harness = Harness::new(name);
@@ -408,8 +418,20 @@ fn script_cquery(harness: &Harness, code: i32, stdout: &str, stderr: &str) {
 }
 
 #[test]
+fn audit_live_rejects_a_relative_gitleaks_var_before_any_query() {
+    let runner = UnpinnedRunner(AuditRunner::clean(), dx_process::PinnedVar::NotAbsolute);
+    let (code, _out, err, calls, info_calls) = run_unpinned("audit-relative", &runner, &|_| {});
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("must be an absolute path"), "{err}");
+    assert!(err.contains("ambient PATH lookup is rejected"), "{err}");
+    assert!(calls.is_empty(), "{calls:?}");
+    assert!(info_calls.is_empty(), "{info_calls:?}");
+    assert!(runner.0.calls.borrow().is_empty(), "no launch");
+}
+
+#[test]
 pub(super) fn audit_live_without_hermetic_tool_fails_closed() {
-    let runner = UnpinnedRunner(AuditRunner::clean());
+    let runner = UnpinnedRunner(AuditRunner::clean(), dx_process::PinnedVar::Unset);
     let (code, _out, err, calls, info_calls) = run_unpinned("audit-no-tool", &runner, &|harness| {
         script_cquery(harness, 1, "", "ERROR: no such repository '@dx_tools'\n");
     });
@@ -435,7 +457,7 @@ pub(super) fn audit_live_resolves_gitleaks_through_bazel_when_the_var_is_unset()
     std::fs::create_dir_all(tool.parent().expect("parent")).expect("dir");
     std::fs::write(&tool, b"").expect("tool");
     let base_text = base.path().to_string_lossy().into_owned();
-    let runner = UnpinnedRunner(AuditRunner::clean());
+    let runner = UnpinnedRunner(AuditRunner::clean(), dx_process::PinnedVar::Unset);
     let (code, out, err, calls, info_calls) =
         run_unpinned("audit-resolve-tool", &runner, &|harness| {
             script_cquery(harness, 0, "external/x/gitleaks\n", "");
@@ -455,7 +477,7 @@ pub(super) fn audit_live_resolves_gitleaks_through_bazel_when_the_var_is_unset()
 pub(super) fn audit_live_missing_resolved_artifact_fails_closed() {
     let base = temp_dir("audit-gitleaks-missing");
     let base_text = base.path().to_string_lossy().into_owned();
-    let runner = UnpinnedRunner(AuditRunner::clean());
+    let runner = UnpinnedRunner(AuditRunner::clean(), dx_process::PinnedVar::Unset);
     let (code, _out, err, _calls, _info_calls) =
         run_unpinned("audit-missing-tool", &runner, &|harness| {
             script_cquery(harness, 0, "external/x/gitleaks\n", "");
@@ -1186,8 +1208,12 @@ impl Runner for RealGitleaks {
         dx_process::BinaryRunner::new(false, |_| {}).run_hermetic(argv, cwd, env)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
-        (var == dx_audit::secrets::TOOL_ENV_VAR).then(|| self.tool.clone())
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
+        if var == dx_audit::secrets::TOOL_ENV_VAR {
+            dx_process::PinnedVar::Path(self.tool.clone())
+        } else {
+            dx_process::PinnedVar::Unset
+        }
     }
 }
 

@@ -57,7 +57,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
         normal = True,
-    ) + [":dx_tool_resolve"],
+    ) + [
+        ":dx_tool_resolve",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(
@@ -79,7 +82,10 @@ rust_test(
         package_name = "cli/dx_tool_resolve",
         normal = True,
         normal_dev = True,
-    ) + [":dx_tool_resolve"],
+    ) + [
+        ":dx_tool_resolve",
+        "//cli/process:dx_process",
+    ],
 )
 
 rustfmt_test(

@@ -1,4 +1,4 @@
-load("@rules_dx//java/rules:defs.bzl", "java_library")
+load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
 
 filegroup(
     name = "assets",
@@ -15,6 +15,14 @@ java_library(
     data = ["README.txt"],
     tags = ["manual"],
     visibility = ["//visibility:public"],
+)
+
+java_test(
+    name = "demo_test",
+    size = "small",
+    srcs = ["DemoTest.java"],
+    test_class = "demo.DemoTest",
+    deps = [":demo"],
 )
 
 # keep

@@ -22,7 +22,7 @@ fn shell_word(word: &str) -> String {
     let plain = !word.is_empty()
         && word
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || "_./:@+=-".contains(c));
+            .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
     if plain {
         word.to_owned()
     } else {
@@ -159,6 +159,14 @@ mod tests {
         ] {
             assert!(!plan.message.contains(removed), "{}", plan.message);
         }
+    }
+
+    #[test]
+    fn shell_word_matches_dx_shell_quote_allowlist() {
+        assert_eq!(super::shell_word("50%,core"), "50%,core");
+        assert_eq!(super::shell_word("tag:v1,x=y@z+w"), "tag:v1,x=y@z+w");
+        assert_eq!(super::shell_word("my repo"), "'my repo'");
+        assert_eq!(super::shell_word("a$b"), "'a$b'");
     }
 
     #[test]

@@ -1,0 +1,7 @@
+load("@rules_android//rules:rules.bzl", "android_library")
+
+android_library(
+    name = "res",
+    manifest = "AndroidManifest.xml",
+    resource_files = glob(["res/**"]),
+)

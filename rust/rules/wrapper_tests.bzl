@@ -270,13 +270,14 @@ _native_coverage_test = analysistest.make(
     },
 )
 
-def dx_native_coverage_tests(name, target, objects_list):
+def dx_native_coverage_tests(name, target, objects_list, **kwargs):
     """Asserts a Rust test exposes its native data binary to the dx coverage collector."""
     _native_coverage_test(
         name = name,
         size = "small",
         target_under_test = target,
         objects_list = objects_list,
+        **kwargs
     )
 
 def _default_crate_name_impl(ctx):

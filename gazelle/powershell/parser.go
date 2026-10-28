@@ -1,20 +1,24 @@
 package powershell
 
 import (
+	"bytes"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	ts "github.com/odvcencio/gotreesitter"
+	"github.com/odvcencio/gotreesitter/grammars/powershell"
 )
 
 var (
-	importModuleRE    = regexp.MustCompile(`(?i)(?:^|[^\w-])import-module\b`)
-	usingModuleRE     = regexp.MustCompile(`(?im)^[ \t]*using[ \t]+module\b`)
-	requiresModulesRE = regexp.MustCompile(`(?i)^#requires\b.*?\s-modules\b`)
-	requiredModulesRE = regexp.MustCompile(`(?i)(?:^|[^\w-])requiredmodules[ \t]*=`)
-	moduleNameKeyRE   = regexp.MustCompile(`(?i)\bmodulename\s*=\s*(?:'([^']*)'|"([^"]*)"|([\w.\-]+))`)
-	moduleFileRE      = regexp.MustCompile(`(?i)([A-Za-z0-9_][A-Za-z0-9_.\-]*)\.ps[dm]1\b`)
-	moduleIdentRE     = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.\-]*$`)
+	moduleFileRE  = regexp.MustCompile(`(?i)([A-Za-z0-9_][A-Za-z0-9_.\-]*)\.ps[dm]1\b`)
+	moduleIdentRE = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.\-]*$`)
+	requiresRE    = regexp.MustCompile(`(?i)^#requires\b`)
 )
+
+var grammar = sync.OnceValue(func() *ts.Language { return powershell.Language() })
 
 // importSwitches are Import-Module parameters that take no value.
 var importSwitches = map[string]bool{
@@ -32,39 +36,33 @@ var importSwitches = map[string]bool{
 	"-whatif":               true,
 }
 
+// token is one command argument, independent of the grammar: kind is 'b' bare
+// word, 's' single-quoted, 'd' double-quoted, 'p' (...), 'a' @(...) with
+// items, or ',' comma.
+type token struct {
+	kind  byte
+	text  string
+	items []token
+}
+
 // ParseImports returns the module names a PowerShell source imports through
 // Import-Module, using module and #Requires -Modules, plus RequiredModules when
 // manifest is set (a .psd1). Literal names and paths to .psm1/.psd1 files
 // count; variables and other expressions are skipped. Comments, strings and
 // here-strings never yield imports.
+//
+// The grammar cannot parse unquoted comma lists (Import-Module A,B) and then
+// loses the rest of the file; when the tree has a real error the legacy
+// scanner results are added too.
 func ParseImports(content []byte, manifest bool) []string {
-	clean, masked, requires := scrub(string(content))
 	set := make(map[string]bool)
 	add := func(names []string) {
 		for _, name := range names {
 			set[name] = true
 		}
 	}
-	for _, loc := range importModuleRE.FindAllStringIndex(masked, -1) {
-		add(importModuleNames(readArgs(clean, masked, loc[1], false)))
-	}
-	for _, loc := range usingModuleRE.FindAllStringIndex(masked, -1) {
-		if args := readArgs(clean, masked, loc[1], false); len(args) > 0 {
-			add(moduleNames(args[0]))
-		}
-	}
-	for _, line := range requires {
-		loc := requiresModulesRE.FindStringIndex(line)
-		if loc == nil {
-			continue
-		}
-		sub, subMasked, _ := scrub(line[loc[1]:])
-		add(valueList(readArgs(sub, subMasked, 0, false), 0))
-	}
-	if manifest {
-		for _, loc := range requiredModulesRE.FindAllStringIndex(masked, -1) {
-			add(valueList(readArgs(clean, masked, loc[1], false), 0))
-		}
+	if treeImports(content, manifest, add) {
+		add(legacyImports(content, manifest))
 	}
 	out := make([]string, 0, len(set))
 	for name := range set {
@@ -74,194 +72,274 @@ func ParseImports(content []byte, manifest bool) []string {
 	return out
 }
 
-// scrub blanks comments and here-strings in clean, additionally blanks string
-// contents in masked, and returns the #Requires comment lines it saw. Both
-// strings keep the input's length and newlines, so offsets line up.
-func scrub(s string) (string, string, []string) {
-	clean := []byte(s)
-	masked := []byte(s)
-	var requires []string
-	blank := func(buf []byte, from, to int) {
-		for k := from; k < to && k < len(buf); k++ {
-			if buf[k] != '\n' {
-				buf[k] = ' '
+// treeImports reports the imports found in the syntax tree through add, and
+// whether the tree held a real parse error.
+func treeImports(content []byte, manifest bool, add func([]string)) bool {
+	tree := treesitter.Parse(grammar(), content)
+	defer tree.Release()
+	if tree.Root == nil {
+		return true
+	}
+	bad := hasRealError(tree)
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		switch tree.Type(n) {
+		case "command":
+			collectCommand(tree, n, add)
+		case "comment":
+			if collectRequires(tree, content, n, add) {
+				bad = true
+			}
+		case "hash_entry":
+			if manifest && strings.EqualFold(entryKey(tree, n), "requiredmodules") {
+				add(valueList(entryValue(tree, n), 0))
 			}
 		}
-	}
-	lineStart := true
-	for i := 0; i < len(s); {
-		c := s[i]
-		switch {
-		case c == '\n':
-			lineStart = true
-			i++
-			continue
-		case c == ' ' || c == '\t' || c == '\r':
-			i++
-			continue
-		case c == '<' && i+1 < len(s) && s[i+1] == '#':
-			end := strings.Index(s[i+2:], "#>")
-			stop := len(s)
-			if end >= 0 {
-				stop = i + 2 + end + 2
-			}
-			blank(clean, i, stop)
-			blank(masked, i, stop)
-			i = stop
-		case c == '#':
-			stop := strings.IndexByte(s[i:], '\n')
-			if stop < 0 {
-				stop = len(s)
-			} else {
-				stop += i
-			}
-			if lineStart {
-				requires = append(requires, strings.TrimRight(s[i:stop], "\r"))
-			}
-			blank(clean, i, stop)
-			blank(masked, i, stop)
-			i = stop
-		case c == '@' && i+1 < len(s) && (s[i+1] == '"' || s[i+1] == '\'') && hereStringOpens(s, i+2):
-			term := "\n" + string(s[i+1]) + "@"
-			end := strings.Index(s[i+2:], term)
-			stop := len(s)
-			if end >= 0 {
-				stop = i + 2 + end + len(term)
-			}
-			blank(clean, i, stop)
-			blank(masked, i, stop)
-			i = stop
-		case c == '\'' || c == '"':
-			stop := stringEnd(s, i)
-			for k := i + 1; k < stop-1; k++ {
-				if masked[k] != '\n' {
-					masked[k] = '_'
-				}
-			}
-			i = stop
-		case c == '`':
-			i += 2
-		default:
-			i++
-		}
-		lineStart = false
-	}
-	return string(clean), string(masked), requires
+		return true
+	})
+	return bad
 }
 
-func hereStringOpens(s string, i int) bool {
-	for ; i < len(s); i++ {
-		switch s[i] {
-		case ' ', '\t', '\r':
-		case '\n':
-			return true
-		default:
+// hasRealError reports an ERROR or MISSING node. The grammar adds a
+// whitespace-only ERROR for empty and comment-only files, which does not count.
+func hasRealError(tree *treesitter.Tree) bool {
+	if !tree.HasError {
+		return false
+	}
+	bad := false
+	tree.Walk(tree.Root, func(n *treesitter.Node) bool {
+		if bad {
 			return false
 		}
-	}
-	return false
-}
-
-// stringEnd returns the offset just past the quoted string that opens at i.
-func stringEnd(s string, i int) int {
-	q := s[i]
-	for k := i + 1; k < len(s); k++ {
-		switch {
-		case q == '"' && s[k] == '`':
-			k++
-		case s[k] == q:
-			if k+1 < len(s) && s[k+1] == q {
-				k++
-				continue
-			}
-			return k + 1
+		if n.IsMissing() || (n.IsError() && strings.TrimSpace(tree.Text(n)) != "") {
+			bad = true
 		}
-	}
-	return len(s)
+		return !bad
+	})
+	return bad
 }
 
-type token struct {
-	kind byte // 'b' bare word, 's' single-quoted, 'd' double-quoted, 'p' (...), 'h' @{...}, 'a' @(...), 'x' {...}, ',' comma
-	text string
-}
-
-// readArgs tokenizes the command arguments that start at offset i of clean,
-// stopping at the end of the statement. masked locates statement terminators
-// outside strings. With multiline set, newlines separate tokens instead.
-func readArgs(clean, masked string, i int, multiline bool) []token {
-	var out []token
-	for i < len(clean) {
-		c := masked[i]
-		switch {
-		case c == ' ' || c == '\t' || c == '\r':
-			i++
-		case c == '`' && i+1 < len(clean) && (clean[i+1] == '\n' || clean[i+1] == '\r'):
-			i += 2
-			if i < len(clean) && clean[i-1] == '\r' && clean[i] == '\n' {
-				i++
-			}
-		case c == '\n':
-			if !multiline {
-				return out
-			}
-			i++
-		case c == ';' || c == '|' || c == '}' || c == ')' || c == '&':
-			return out
-		case c == ',':
-			out = append(out, token{kind: ','})
-			i++
-		case c == '\'' || c == '"':
-			stop := stringEnd(clean, i)
-			inner := clean[i+1 : max(i+1, stop-1)]
-			kind := byte('s')
-			if c == '"' {
-				kind = 'd'
-			}
-			out = append(out, token{kind: kind, text: inner})
-			i = stop
-		case c == '(' || c == '{' || (c == '@' && i+1 < len(clean) && (masked[i+1] == '(' || masked[i+1] == '{')):
-			open := i
-			kind := byte('p')
-			if c == '{' {
-				kind = 'x'
-			}
-			if c == '@' {
-				open = i + 1
-				kind = 'a'
-				if masked[open] == '{' {
-					kind = 'h'
-				}
-			}
-			stop := balancedEnd(masked, open)
-			out = append(out, token{kind: kind, text: clean[open+1 : max(open+1, stop-1)]})
-			i = stop
-		default:
-			start := i
-			for i < len(clean) && !strings.ContainsRune(" \t\r\n,;|&(){}", rune(masked[i])) {
-				i++
-			}
-			out = append(out, token{kind: 'b', text: clean[start:i]})
+func children(tree *treesitter.Tree, n *treesitter.Node, typ string) []*treesitter.Node {
+	var out []*treesitter.Node
+	for _, c := range n.Children() {
+		if tree.Type(c) == typ {
+			out = append(out, c)
 		}
 	}
 	return out
 }
 
-// balancedEnd returns the offset just past the bracket group opening at i;
-// masked has string contents blanked, so quoted brackets do not count.
-func balancedEnd(masked string, i int) int {
-	depth := 0
-	for k := i; k < len(masked); k++ {
-		switch masked[k] {
-		case '(', '{', '[':
-			depth++
-		case ')', '}', ']':
-			depth--
-			if depth == 0 {
-				return k + 1
-			}
+func entryKey(tree *treesitter.Tree, n *treesitter.Node) string {
+	for _, k := range children(tree, n, "key_expression") {
+		return strings.TrimSpace(tree.Text(k))
+	}
+	return ""
+}
+
+func entryValue(tree *treesitter.Tree, n *treesitter.Node) []token {
+	var out []token
+	for _, v := range children(tree, n, "pipeline") {
+		out = append(out, nodeTokens(tree, v)...)
+	}
+	return out
+}
+
+func collectCommand(tree *treesitter.Tree, n *treesitter.Node, add func([]string)) {
+	names := children(tree, n, "command_name")
+	elems := children(tree, n, "command_elements")
+	if len(names) == 0 || len(elems) == 0 {
+		return
+	}
+	args := commandTokens(tree, elems[0])
+	switch strings.ToLower(strings.TrimSpace(tree.Text(names[0]))) {
+	case "import-module":
+		add(importModuleNames(args))
+	case "using":
+		if len(args) >= 2 && args[0].kind == 'b' && strings.EqualFold(args[0].text, "module") {
+			add(moduleNames(args[1]))
 		}
 	}
-	return len(masked)
+}
+
+// collectRequires handles a #Requires comment, which counts only as the first
+// text on its line. It reports whether the comment's own parse had an error.
+func collectRequires(tree *treesitter.Tree, src []byte, n *treesitter.Node, add func([]string)) bool {
+	text := tree.Text(n)
+	trimmed := strings.TrimLeft(text, " \t\r\n")
+	if !requiresRE.MatchString(trimmed) {
+		return false
+	}
+	start := min(int(n.StartByte())+len(text)-len(trimmed), len(src))
+	lineStart := bytes.LastIndexByte(src[:start], '\n') + 1
+	if len(bytes.TrimSpace(src[lineStart:start])) != 0 {
+		return false
+	}
+	line, _, _ := strings.Cut(trimmed, "\n")
+	line = strings.TrimRight(line, "\r")
+	if !strings.Contains(strings.ToLower(line), "-modules") {
+		return false
+	}
+	sub := treesitter.Parse(grammar(), []byte(line[1:]))
+	defer sub.Release()
+	if sub.Root == nil {
+		return true
+	}
+	done := false
+	sub.Walk(sub.Root, func(c *treesitter.Node) bool {
+		if done || sub.Type(c) != "command" {
+			return !done
+		}
+		elems := children(sub, c, "command_elements")
+		if len(elems) == 0 {
+			return true
+		}
+		args := commandTokens(sub, elems[0])
+		for i, a := range args {
+			if isFlag(a) && strings.EqualFold(a.text, "-modules") {
+				add(valueList(args, i+1))
+				done = true
+				break
+			}
+		}
+		return !done
+	})
+	return hasRealError(sub)
+}
+
+// commandTokens turns the children of a command_elements node into tokens.
+// An inline parameter value (-Name:X) is folded into the flag token.
+func commandTokens(tree *treesitter.Tree, elems *treesitter.Node) []token {
+	var out []token
+	merge := false
+	last := func() *token { return &out[len(out)-1] }
+	for _, c := range elems.Children() {
+		if tree.Type(c) == "command_argument_sep" {
+			text := tree.Text(c)
+			switch {
+			case strings.Contains(text, ":") && len(out) > 0 && isFlag(*last()):
+				last().text = strings.TrimSuffix(last().text, ":") + ":"
+				merge = true
+			case text != "":
+				merge = false
+			}
+			continue
+		}
+		toks := nodeTokens(tree, c)
+		if merge && len(toks) > 0 && strings.IndexByte("bsd", toks[0].kind) >= 0 {
+			last().text += toks[0].text
+			toks = toks[1:]
+		}
+		out = append(out, toks...)
+		merge = len(out) > 0 && isFlag(*last()) && strings.HasSuffix(last().text, ":")
+	}
+	return out
+}
+
+// wrappers are expression layers that pass one operand through unchanged.
+var wrappers = map[string]bool{
+	"unary_expression": true, "pipeline": true, "pipeline_chain": true,
+	"logical_expression": true, "bitwise_expression": true,
+	"comparison_expression": true, "additive_expression": true,
+	"multiplicative_expression": true, "format_expression": true,
+	"range_expression": true,
+}
+
+// nodeTokens flattens one syntax node into argument tokens.
+func nodeTokens(tree *treesitter.Tree, n *treesitter.Node) []token {
+	typ := tree.Type(n)
+	raw := func() []token { return []token{{kind: 'b', text: strings.TrimSpace(tree.Text(n))}} }
+	switch {
+	case typ == ",":
+		return []token{{kind: ','}}
+	case typ == "comment" || typ == "command_argument_sep":
+		return nil
+	case typ == "generic_token":
+		return raw()
+	case typ == "command_parameter":
+		text := strings.TrimSpace(tree.Text(n))
+		for _, c := range n.Children() {
+			if tree.Type(c) == ":" && !strings.HasSuffix(text, ":") {
+				text += ":"
+			}
+		}
+		return []token{{kind: 'b', text: text}}
+	case typ == "string_literal":
+		for _, c := range n.Children() {
+			if strings.Contains(tree.Type(c), "here") {
+				return nil
+			}
+		}
+		text := tree.Text(n)
+		kind := byte('d')
+		if strings.HasPrefix(text, "'") {
+			kind = 's'
+		}
+		if len(text) >= 2 {
+			text = text[1 : len(text)-1]
+		}
+		return []token{{kind: kind, text: text}}
+	case typ == "array_literal_expression" || typ == "statement_list":
+		var out []token
+		for _, c := range n.Children() {
+			out = append(out, nodeTokens(tree, c)...)
+		}
+		return out
+	case typ == "expression_with_unary_operator":
+		kids := n.Children()
+		if len(kids) > 0 && tree.Type(kids[0]) == "," {
+			out := []token{{kind: ','}}
+			for _, c := range kids[1:] {
+				out = append(out, nodeTokens(tree, c)...)
+			}
+			return out
+		}
+		return raw()
+	case wrappers[typ]:
+		kids := n.Children()
+		if len(kids) == 1 {
+			return nodeTokens(tree, kids[0])
+		}
+		return raw()
+	case typ == "parenthesized_expression" || typ == "sub_expression":
+		return []token{{kind: 'p', text: uncommented(tree, n)}}
+	case typ == "array_expression":
+		var items []token
+		for _, c := range n.Children() {
+			items = append(items, nodeTokens(tree, c)...)
+		}
+		return []token{{kind: 'a', items: items}}
+	case typ == "hash_literal_expression":
+		name := ""
+		for _, body := range children(tree, n, "hash_literal_body") {
+			for _, e := range children(tree, body, "hash_entry") {
+				if !strings.EqualFold(entryKey(tree, e), "modulename") {
+					continue
+				}
+				if v := entryValue(tree, e); len(v) > 0 && strings.IndexByte("bsd", v[0].kind) >= 0 {
+					name = v[0].text
+				}
+			}
+		}
+		return []token{{kind: 'b', text: name}}
+	}
+	return raw()
+}
+
+// uncommented returns n's source text with comments blanked out.
+func uncommented(tree *treesitter.Tree, n *treesitter.Node) string {
+	buf := []byte(tree.Text(n))
+	base := int(n.StartByte())
+	tree.Walk(n, func(c *treesitter.Node) bool {
+		if tree.Type(c) != "comment" {
+			return true
+		}
+		for k := int(c.StartByte()) - base; k < int(c.EndByte())-base; k++ {
+			if k >= 0 && k < len(buf) {
+				buf[k] = ' '
+			}
+		}
+		return false
+	})
+	return string(buf)
 }
 
 func isFlag(t token) bool {
@@ -345,14 +423,9 @@ func moduleNames(t token) []string {
 		if m := moduleFileRE.FindAllStringSubmatch(t.text, -1); len(m) > 0 {
 			name = moduleFromPath(m[len(m)-1][1])
 		}
-	case 'h':
-		if m := moduleNameKeyRE.FindStringSubmatch(t.text); m != nil {
-			name = moduleFromPath(m[1] + m[2] + m[3])
-		}
 	case 'a':
 		var names []string
-		_, masked, _ := scrub(t.text)
-		for _, inner := range readArgs(t.text, masked, 0, true) {
+		for _, inner := range t.items {
 			if inner.kind != ',' {
 				names = append(names, moduleNames(inner)...)
 			}

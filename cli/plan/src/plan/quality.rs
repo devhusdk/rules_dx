@@ -3,18 +3,28 @@ use dx_process::{
 };
 
 use super::{
-    bazel_argv, bep_guards, bep_options, download_flag, download_guards,
+    bazel_argv, bep_guards, bep_options, download_flag, download_guards, exec_log_guards,
+    exec_log_options,
     registry::{spec, CommandSpec},
-    BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG,
+    rules_dx_label, BuildPlan, KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
+    SKIP_INCOMPATIBLE_FLAG,
 };
 use crate::args::Command;
 use crate::resolve::ResolvedScope;
 use std::collections::BTreeSet;
 
+fn joined_labels<'a>(aspects: impl IntoIterator<Item = &'a str>) -> String {
+    aspects
+        .into_iter()
+        .map(rules_dx_label)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 #[cfg(test)]
 fn required_options(entry: &CommandSpec, bazel_options: &[String], bep_path: &str) -> Vec<String> {
     shaped_options(
-        &entry.aspects.join(","),
+        &joined_labels(entry.aspects.iter().copied()),
         OUTPUT_GROUP,
         bazel_options,
         bep_path,
@@ -132,6 +142,7 @@ pub fn plan_build(
         bep_path,
         startup_options,
         None,
+        None,
     )
 }
 
@@ -143,15 +154,21 @@ pub fn plan_build_with(
     bep_path: &str,
     startup_options: &[String],
     shards: Option<&BTreeSet<String>>,
+    exec_log: Option<&str>,
 ) -> Result<BuildPlan, ForwardError> {
     let entry = spec(command);
-    let aspects = select_aspects(&entry, shards).join(",");
+    let aspects = joined_labels(select_aspects(&entry, shards));
+    let mut required = shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path);
+    if let Some(path) = exec_log {
+        required.extend(exec_log_options(path));
+    }
     shaped_plan(
         command,
         resolved,
         bazel_options,
         startup_options,
-        &shaped_options(&aspects, OUTPUT_GROUP, bazel_options, bep_path),
+        &required,
+        exec_log.is_some(),
     )
 }
 
@@ -171,7 +188,13 @@ pub fn plan_probe(
         resolved,
         bazel_options,
         startup_options,
-        &shaped_options(probe, SHARD_OUTPUT_GROUP, bazel_options, bep_path),
+        &shaped_options(
+            &rules_dx_label(probe),
+            SHARD_OUTPUT_GROUP,
+            bazel_options,
+            bep_path,
+        ),
+        false,
     )
     .map(Some)
 }
@@ -182,8 +205,12 @@ fn shaped_plan(
     bazel_options: &[String],
     startup_options: &[String],
     required: &[String],
+    logged: bool,
 ) -> Result<BuildPlan, ForwardError> {
-    let protected = protected_flags(required)?;
+    let mut protected = protected_flags(required)?;
+    if logged {
+        protected.extend(exec_log_guards());
+    }
     let (scope, labels) = workflow_scope_labels(resolved);
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
     options.extend(bazel_options.iter().cloned());
@@ -550,12 +577,15 @@ mod tests {
                 .zip(&probe.argv)
                 .filter(|(left, right)| left != right)
                 .collect();
-            let probe_label = spec(command).probe.expect("probe label");
+            let probe_label = rules_dx_label(spec(command).probe.expect("probe label"));
             assert_eq!(
                 differing,
                 vec![
                     (
-                        &format!("--aspects={}", spec(command).aspects.join(",")),
+                        &format!(
+                            "--aspects={}",
+                            joined_labels(spec(command).aspects.iter().copied())
+                        ),
                         &format!("--aspects={probe_label}")
                     ),
                     (
@@ -585,19 +615,19 @@ mod tests {
         assert_eq!(
             select_aspects(&lint, Some(&rust)),
             vec![
-                "@rules_dx//quality:real_aspects.bzl%real_lint_aspect",
-                "@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect",
+                "quality:real_aspects.bzl%real_lint_aspect",
+                "quality:real_aspects.bzl%real_rust_lint_aspect",
             ]
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
             select_aspects(&lint, Some(&unknown)),
-            vec!["@rules_dx//quality:real_aspects.bzl%real_lint_aspect"]
+            vec!["quality:real_aspects.bzl%real_lint_aspect"]
         );
         let format = spec(Command::Format);
         assert_eq!(
             select_aspects(&format, Some(&BTreeSet::new())),
-            vec!["@rules_dx//quality:real_aspects.bzl%real_format_aspect"]
+            vec!["quality:real_aspects.bzl%real_format_aspect"]
         );
     }
 
@@ -611,6 +641,7 @@ mod tests {
             "/tmp/bep.json",
             &[],
             Some(&rust),
+            None,
         )
         .expect("plan");
         assert!(plan.argv.contains(
@@ -669,7 +700,7 @@ mod tests {
                 "--jobs=4",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect",
+                "--aspects=@rules_dx//quality:real_aspects.bzl%real_cc_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_make_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_terraform_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_dotnet_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_js_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_python_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_protobuf_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_powershell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jvm_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ruby_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rust_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_scala_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_shell_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_text_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_html_template_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_yaml_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_nix_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_kubernetes_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_ansible_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_rego_lint_aspect,@rules_dx//quality:real_aspects.bzl%real_jsonnet_lint_aspect",
                 "--output_groups=dx_results",
                 "--remote_download_outputs=toplevel",
             ]

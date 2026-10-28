@@ -16,7 +16,7 @@ or for the matching `@rules_rust//rust/settings` flag, fails before Bazel starts
 dx spells them with the name your MODULE.bazel gives rules_dx, for example
 `--@my_dx//config:clippy_output_diagnostics=true` when `repo_name = "my_dx"`.
 
-Scopes: Bazel labels or patterns (`//...`, `//pkg:target`, `@repo//...`), or
+Scopes: Bazel labels or patterns (`//...`, `//pkg:target`), or
 workspace-relative files or dirs resolved through Bazel query. `--here` builds
 the current directory tree (`//path/...`, or `//...` at the root) and cannot be
 combined with explicit scopes (exit `2`).
@@ -41,16 +41,21 @@ it then prints `Serving docs at <url> (<dir>)`, and `Opening <url>` with
 then `operation` events (`summary`, plus `render` without `--check`). On
 failure one `error` follows: `launch_failed` when Bazel cannot be launched,
 `bazel_failed`, `disk_full`, `bazel_signalled`, or `serve_failed`. The stream
-ends with `command_finished`. A usage, option, or scope error fails before the
-command starts: one `error` with `invalid_arguments`, then `command_finished`,
-and no `command_started`. Under `--serve`, `command_finished` comes when the
+ends with `command_finished`. A usage or option error fails before the command
+starts: one `error` with `invalid_arguments`, then `command_finished`, and no
+`command_started`. A scope that does not resolve fails the same way with
+`invalid_scope` (missing path, external or relative label), `no_owner`,
+`query_failed` (the Bazel query exited nonzero), or `query_launch_failed` (the
+query could not start). Under `--serve`, `command_finished` comes when the
 preview server exits.
 
 Reports: none. `--report` is a usage error.
 
-Exit codes: `0` success, `2` usage or scope errors, including `--here` with
-an explicit scope, `--output diff`, and `--report`. `1` a launch, signal, or
-preview failure, including `launch_failed` (Bazel cannot be launched),
+Exit codes: `0` success, `2` usage errors, including `--here` with an
+explicit scope, `--output diff`, and `--report`, and scope errors
+(`invalid_scope`, `no_owner`, `query_failed`). `1` a launch, signal, or
+preview failure, including `query_launch_failed` (the scope query cannot be
+launched), `launch_failed` (Bazel cannot be launched),
 `serve_failed` (no single site tree, a missing `index.html`, or a preview that
 fails to launch) and a signalled preview. Bazel failures keep Bazel's code.
 `disk_full` keeps exit `36`: Bazel exited 36 and a disk it writes to has under
@@ -80,7 +85,18 @@ library. It builds the crate's rustdoc JSON with the pinned nightly rustdoc, not
 your compiler, and produces a docs IR shard with language `rust`. Only public
 items get pages. Symbol ids have the form `rust:<crate>:<path>`, where `<path>`
 joins the module path with `.`, for example `rust:mylib:shapes.Circle`. Pass the
-shard to `docs_site`. Source links use `source_url` plus the file's path in its
+shard to `docs_site`.
+
+Rust keeps types, values and macros in separate namespaces, so two public items
+can share a name. The item that comes first by namespace (types, then values,
+then macros, and for members fields and variants, then associated types, then
+methods and constants) and then by source position keeps the plain id. Each
+other item gets `@<tag>`, for example `rust:mylib:foo@fn` or
+`rust:mylib:Point.x@method`, and `@<tag>-2`, `@<tag>-3` when several share a
+tag. A glob re-export of a module outside the crate becomes one symbol with the
+id `rust:mylib:<module>@glob`. Glob names follow Rust's shadowing rules: an
+explicit name wins, and a name given by two globs is dropped. Ids of crates
+without collisions never change. Source links use `source_url` plus the file's path in its
 repository.
 
 ```starlark
@@ -135,11 +151,53 @@ bazel run @rules_dx//:dx -- docs //lib:api_docs
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
 failure. Bazel failures keep Bazel's code, so a TypeDoc error in the shard fails the build.
 
-The rule owns the options `plugin`, `options`, `tsconfig`, `entryPoints`, `json`,
-`out` and `basePath`, and fails at load time if `options` sets one of them. It also
-passes an empty `--options` file, so a stray `typedoc.json` is never read.
-`typedocOptions` in `tsconfig.json` or `package.json` is still loaded by TypeDoc,
-and it can load JavaScript plugins. Keep `plugin` out of those files.
+The rule runs TypeDoc through an isolated launcher. It never loads plugins, and it
+ignores `typedoc.json`, `package.json` and `typedocOptions` in `tsconfig.json`,
+including inherited ones. Only the compiler options of the given `tsconfig` are read.
+Put extra TypeDoc flags in `options`. The rule owns `plugin`, `options`, `tsconfig`,
+`entryPoints`, `json`, `out` and `basePath`, and fails at load time if `options` sets
+one of them. TypeDoc still reports an error if `typedocOptions` sets `options` or
+`tsconfig`.
+
+## Vue component API reference
+
+`vue_doc_shard` from `@rules_dx//tools/docs/components:defs.bzl` reads the props,
+events, slots and exposed members of Vue components with the pinned
+`vue-component-meta` and produces a docs IR shard with language `vue`. Pass the
+shard to `docs_site` beside any other shards.
+
+```starlark
+load("@rules_dx//tools/docs/components:defs.bzl", "vue_doc_shard")
+
+vue_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.vue"]),
+    entry_points = ["src/Button.vue"],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+```
+
+Supported shapes are `.vue` single file components with `<script setup lang="ts">` or
+`defineComponent`. Each entry point is one component, taken from its default export.
+Symbol ids are `vue:<package>:<Component>`, and the members are
+`<Component>.prop_<name>`, `.event_<name>`, `.slot_<name>` and `.exposed_<name>`.
+Component names are file names without the extension and must be unique in a shard.
+Events and exposed members carry no source link when `vue-component-meta` reports no
+declaration for them.
+
+`node_modules` is the consumer's npm link target. Only its `vue` package is read, for
+the type declarations. The metadata tools are pinned by dx, so their versions and the
+TypeScript version of the extractor are part of the shard's configuration identity.
+
+The rule runs through an isolated launcher. It rejects `vueCompilerOptions.plugins` in
+the tsconfig and in every file it extends, refuses to load modules outside its own
+`node_modules`, and never runs Vite or other consumer JavaScript. A type error in an
+entry point, a missing tsconfig, an entry without a default export and a malformed
+result all fail the build with a nonzero exit and never write a stub shard.
+
+Svelte, Astro and MDX components are not supported yet.
 
 ## Go API reference
 
@@ -233,6 +291,35 @@ bazel run @rules_dx//:dx -- docs //lib:api_docs
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview
 failure. Bazel failures keep Bazel's code.
+
+## Python API reference
+
+`python_doc_shard` documents one top-level Python package of a `python_library`
+without importing it. griffe reads the sources statically.
+
+```starlark
+load("@dx//tools/docs/python:defs.bzl", "python_doc_shard")
+
+python_doc_shard(
+    name = "mylib_docs",
+    library = ":mylib",
+    package = "mylib",   # defaults to the library name
+    docstyle = "google", # or "numpy", "sphinx"
+)
+```
+
+Pass the shard to `docs_site` like any other language. Symbol ids have the form
+`python:<package>:<module path>.<name>`.
+
+Supported shapes are flat and `src` layouts (through `imports`), regular
+packages, generated modules and a package split across libraries. All files of
+`<package>` are staged into one import root, so generated and source halves of
+one package load together. Namespace packages, compiled modules and `.pth`
+files are not supported.
+
+The public API is `__all__` when a module defines it, otherwise every name
+without a leading underscore. A package with no source, a syntax error or a
+missing package fails the build and produces no shard and no page.
 
 ## PowerShell API reference
 

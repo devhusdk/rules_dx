@@ -85,12 +85,20 @@ struct Selected {
     digest: String,
 }
 
+/// The inputs read from a Bazel module graph, plus what the lock does not cover.
+#[derive(Debug)]
+pub struct BazelInventory {
+    pub inputs: Vec<BazelInput>,
+    /// Root `use_extension` entries (`<label>%<name>`) with no entry in `moduleExtensions`.
+    pub unrecorded_extensions: Vec<String>,
+}
+
 /// Reads the selected modules, overrides, and downloads from `MODULE.bazel`, its includes, and the lock.
 pub fn parse_bazel_inputs(
     module_text: &str,
     lock_text: &str,
     read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<Vec<BazelInput>, String> {
+) -> Result<BazelInventory, String> {
     let modules = dx_module_bazel::load_with_includes(module_text, read_include)?;
     let calls: Vec<&Call> = modules.iter().flat_map(ModuleFile::calls).collect();
     let lock: serde_json::Value = serde_json::from_str(lock_text)
@@ -177,7 +185,73 @@ pub fn parse_bazel_inputs(
             ));
         }
     }
-    Ok(out)
+    let unrecorded_extensions = unrecorded_extensions(&modules, &lock);
+    Ok(BazelInventory {
+        inputs: out,
+        unrecorded_extensions,
+    })
+}
+
+/// Lists root `use_extension` entries that the lock's `moduleExtensions` has no key for.
+fn unrecorded_extensions(modules: &[ModuleFile], lock: &serde_json::Value) -> Vec<String> {
+    let keys: Vec<&str> = lock
+        .get("moduleExtensions")
+        .and_then(|value| value.as_object())
+        .map(|map| map.keys().map(String::as_str).collect())
+        .unwrap_or_default();
+    let mut out: Vec<String> = Vec::new();
+    for module in modules {
+        for (label, name) in module.extensions() {
+            let module_of = |repo: &str| -> String {
+                modules
+                    .iter()
+                    .find_map(|file| {
+                        file.calls_named("bazel_dep")
+                            .find(|call| {
+                                call.str("repo_name").or_else(|| call.str("name")) == Some(repo)
+                            })
+                            .and_then(|call| call.str("name"))
+                    })
+                    .unwrap_or(repo)
+                    .to_owned()
+            };
+            let Some((repo, path)) = label.split_once("//") else {
+                continue;
+            };
+            let repo = repo.trim_start_matches('@');
+            let want = if repo.is_empty() {
+                None
+            } else {
+                Some(module_of(repo))
+            };
+            let tail = format!("//{path}%{name}");
+            let recorded = keys.iter().any(|key| {
+                let key = key.strip_prefix("@@").unwrap_or(key);
+                let Some((key_repo, key_path)) = key.split_once("//") else {
+                    return false;
+                };
+                let key_tail = format!("//{key_path}");
+                if key_tail != tail && !key_tail.starts_with(&format!("{tail}%")) {
+                    return false;
+                }
+                match &want {
+                    None => key_repo.is_empty(),
+                    Some(module) => {
+                        key_repo == module
+                            || key_repo
+                                .strip_prefix(module.as_str())
+                                .is_some_and(|rest| rest.starts_with(['+', '~']))
+                    }
+                }
+            });
+            let shown = format!("{label}%{name}");
+            if !recorded && !out.contains(&shown) {
+                out.push(shown);
+            }
+        }
+    }
+    out.sort();
+    out
 }
 
 fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, String> {

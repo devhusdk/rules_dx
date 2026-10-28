@@ -129,7 +129,7 @@ func TestConfigureRejectsAMislabelledLongSpelling(t *testing.T) {
 	cfg := config.New()
 	l := newDotLang()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot other Widget"}}})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "malformed # gazelle:dx_ignore_import") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "malformed # gazelle:dx_ignore_import") {
 		t.Fatalf("errors = %v, want one malformed ignore", l.errors)
 	}
 	if got := len(cfg.Exts[dotLanguage].(*IgnoreConfig).Ignores); got != 0 {
@@ -151,10 +151,10 @@ func TestConfigurePicksTheNearestIgnore(t *testing.T) {
 func TestAfterResolvingDepsReportsToSink(t *testing.T) {
 	l := newDotLang()
 	l.Before(context.Background())
-	l.fail("dot: boom")
+	l.fail(InPackage("x"), "dot: boom")
 	l.AfterResolvingDeps(context.Background())
 	got := Errors.Take()
-	want := []GenerationError{{Language: dotLanguage, Message: "dot: boom"}}
+	want := []GenerationError{{Language: dotLanguage, Package: InPackage("x"), Message: "dot: boom"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("sink = %#v, want %#v", got, want)
 	}
@@ -163,8 +163,8 @@ func TestAfterResolvingDepsReportsToSink(t *testing.T) {
 func TestAfterResolvingDepsSortsErrors(t *testing.T) {
 	l := newDotLang()
 	l.Before(context.Background())
-	l.fail("dot: second")
-	l.fail("dot: first")
+	l.fail(InPackage("x"), "dot: second")
+	l.fail(InPackage("x"), "dot: first")
 	l.AfterResolvingDeps(context.Background())
 	got := Errors.Take()
 	if len(got) != 2 || got[0].Message != "dot: first" || got[1].Message != "dot: second" {
@@ -212,7 +212,7 @@ func TestAfterResolvingDepsSkipsIgnoresOutsideGeneratedPackages(t *testing.T) {
 func TestBeforeClearsErrorsAndIgnores(t *testing.T) {
 	l := newDotLang()
 	l.Before(context.Background())
-	l.fail("dot: boom")
+	l.fail(InPackage("x"), "dot: boom")
 	cfg := config.New()
 	l.Configure(cfg, "pkg", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Widget"}}})
 	if !l.Failed() {
@@ -502,7 +502,7 @@ func TestGenerateSingleFileRecordsAFailurePerPlan(t *testing.T) {
 		if len(result.Gen) != 0 {
 			t.Errorf("%s: generated %d rules, want none", tc.name, len(result.Gen))
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, tc.want) {
 			t.Errorf("%s: errors = %v, want %q", tc.name, l.errors, tc.want)
 		}
 	}
@@ -514,11 +514,11 @@ func TestFailRecordsErrors(t *testing.T) {
 	if l.Failed() {
 		t.Fatal("a fresh language reports failure")
 	}
-	l.Fail("dot: %d", 7)
+	l.Fail(InPackage("x"), "dot: %d", 7)
 	if !l.Failed() {
 		t.Fatal("Fail did not record an error")
 	}
-	if len(l.errors) != 1 || l.errors[0] != "dot: 7" {
+	if len(l.errors) != 1 || l.errors[0].Message != "dot: 7" {
 		t.Fatalf("errors = %v", l.errors)
 	}
 }
@@ -587,14 +587,14 @@ func TestResolveBranches(t *testing.T) {
 	}
 
 	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "unknown"), WrapImportSet([]string{"Unknown"}), label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "unresolved import") {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
-	if !strings.Contains(l.errors[0], "add a local dot_library or an exact # gazelle:resolve mapping") {
-		t.Errorf("unresolved error = %q, want the spec hint", l.errors[0])
+	if !strings.Contains(l.errors[0].Message, "add a local dot_library or an exact # gazelle:resolve mapping") {
+		t.Errorf("unresolved error = %q, want the spec hint", l.errors[0].Message)
 	}
-	if !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import dot Unknown" to app/BUILD.bazel`) {
-		t.Errorf("unresolved error = %q, want the ignore remedy", l.errors[0])
+	if !strings.Contains(l.errors[0].Message, `or add "# gazelle:dx_ignore_import dot Unknown" to app/BUILD.bazel`) {
+		t.Errorf("unresolved error = %q, want the ignore remedy", l.errors[0].Message)
 	}
 
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
@@ -623,7 +623,7 @@ func TestResolveOverrideAndIgnoreConflict(t *testing.T) {
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(dotKind, "app")
 	l.Resolve(cfg, resolverIndex(l), nil, r, WrapImportSet([]string{"Mapped"}), label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "both an exact resolve mapping and ignore") {
 		t.Errorf("conflict errors = %v", l.errors)
 	}
 	if r.Attr("deps") != nil {
@@ -684,7 +684,7 @@ func TestResolveJVMCandidates(t *testing.T) {
 	for _, imp := range []string{"com.acme.lib.Client", "org.y.sub.Thing"} {
 		l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{imp}), label.New("", "app", "app"))
 	}
-	if len(l.errors) != 2 || !strings.Contains(l.errors[0], `"com.acme.lib.Client"`) || !strings.Contains(l.errors[1], `"org.y.sub.Thing"`) {
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0].Message, `"com.acme.lib.Client"`) || !strings.Contains(l.errors[1].Message, `"org.y.sub.Thing"`) {
 		t.Errorf("parent package errors = %v", l.errors)
 	}
 }
@@ -698,7 +698,7 @@ func TestResolveNoBareNameMatch(t *testing.T) {
 	if r.Attr("deps") != nil {
 		t.Errorf("bare names bound deps = %v", r.AttrStrings("deps"))
 	}
-	if len(l.errors) != 2 || !strings.Contains(l.errors[0], `"com.x.Util"`) || !strings.Contains(l.errors[1], `"com.x.Mapped"`) {
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0].Message, `"com.x.Util"`) || !strings.Contains(l.errors[1].Message, `"com.x.Mapped"`) {
 		t.Errorf("errors = %v", l.errors)
 	}
 }
@@ -780,11 +780,11 @@ func TestResolveAmbiguousFails(t *testing.T) {
 	)
 	cfg := resolverConfig(t, nil)
 	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"Dup"}), label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "ambiguous import") {
 		t.Errorf("ambiguous errors = %v", l.errors)
 	}
-	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve dot Dup <label>" to app/BUILD.bazel`) {
-		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
+	if len(l.errors) == 1 && !strings.Contains(l.errors[0].Message, `; add "# gazelle:resolve dot Dup <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0].Message)
 	}
 }
 
@@ -852,7 +852,7 @@ func TestResolveLookupsOrder(t *testing.T) {
 	plain := newDotLang()
 	p := rule.NewRule(dotKind, "app")
 	plain.Resolve(resolverConfig(t, nil), resolverIndex(plain, struct{ pkg, name string }{"lib/local", "app_Util"}), nil, p, WrapImportSet([]string{"Util"}), label.New("", "app", "app"))
-	if p.Attr("deps") != nil || len(plain.errors) != 1 || !strings.Contains(plain.errors[0], "unresolved import") {
+	if p.Attr("deps") != nil || len(plain.errors) != 1 || !strings.Contains(plain.errors[0].Message, "unresolved import") {
 		t.Errorf("nil Lookups deps = %v, errors = %v", p.AttrStrings("deps"), plain.errors)
 	}
 }
@@ -1271,7 +1271,7 @@ func TestResolveAmbiguousAcrossFallback(t *testing.T) {
 		indexEntry{fakeJS.kind, "app", "store_js", "app/store"},
 	)
 	got := resolveRefs(t, l, resolverConfig(t, nil), ix, relRef("app/store", "", ""))
-	if len(got) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous import") {
+	if len(got) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "ambiguous import") {
 		t.Errorf("deps = %v, errors = %v", got, l.errors)
 	}
 }
@@ -1341,7 +1341,7 @@ func TestResolveRelativeNodeNameIsNotStdlib(t *testing.T) {
 	}
 	l = newWebDotLang()
 	resolveRefs(t, l, resolverConfig(t, nil), fallbackIndex(l), ImportRef{Spec: "./fs", Root: "fs", Relative: true})
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "unresolved import") {
 		t.Errorf("errors = %v, want unresolved", l.errors)
 	}
 }
@@ -1350,7 +1350,7 @@ func TestResolveBareRefNoFallback(t *testing.T) {
 	l := newWebDotLang()
 	ix := fallbackIndex(l, indexEntry{fakeTS.kind, "", "react", "react"})
 	got := resolveRefs(t, l, resolverConfig(t, nil), ix, ImportRef{Spec: "react", Root: "react"}, ImportRef{Spec: "fs", Root: "fs"})
-	if len(got) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0], `"react"`) {
+	if len(got) != 0 || len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `"react"`) {
 		t.Errorf("deps = %v, errors = %v", got, l.errors)
 	}
 }
@@ -1437,7 +1437,7 @@ func TestResolveSkipDep(t *testing.T) {
 
 func TestErrorsReturnsCopy(t *testing.T) {
 	l := newDotLang()
-	l.Fail("one")
+	l.Fail(InPackage("x"), "one")
 	got := l.Errors()
 	got[0] = "changed"
 	if l.Errors()[0] != "one" {
@@ -1459,5 +1459,166 @@ func TestResolveSpecForWantKind(t *testing.T) {
 		if got.WantKind != tc.want || got.Attr != "deps" {
 			t.Errorf("%s: spec = {WantKind:%q Attr:%q}, want WantKind %q", tc.kind, got.WantKind, got.Attr, tc.want)
 		}
+	}
+}
+
+// findLang is a dot language whose lookups go through a counting Find hook, so
+// Lookups and Candidates must never run.
+func findLang(t *testing.T, find func(ref ImportRef) JSLookup) (*SingleLang, *int) {
+	t.Helper()
+	calls := 0
+	spec := dotSpec()
+	spec.Lookups = func(pkg, name string) []string { calls++; return []string{name} }
+	spec.Candidates = func(name string) []string { calls++; return nil }
+	spec.Find = func(_ *config.Config, _ *resolve.RuleIndex, ref ImportRef) JSLookup { return find(ref) }
+	return NewSingleLang(spec), &calls
+}
+
+func match(pkg, name string) resolve.FindResult {
+	return resolve.FindResult{Label: label.New("", pkg, name)}
+}
+
+func TestResolveFindHook(t *testing.T) {
+	from := label.New("", "app", "app")
+	lookups := map[string]JSLookup{
+		"Over":  {Override: label.New("", "o", "o"), HasOverride: true},
+		"One":   {Matches: []resolve.FindResult{match("one", "one")}},
+		"Self":  {Matches: []resolve.FindResult{match("app", "app")}},
+		"Amb":   {Matches: []resolve.FindResult{match("a", "a"), match("b", "b")}},
+		"Zero":  {},
+		"Ig":    {},
+		"dot.x": {Matches: []resolve.FindResult{match("never", "never")}},
+	}
+	l, calls := findLang(t, func(ref ImportRef) JSLookup { return lookups[ref.Root] })
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Ig\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(dotKind, "app")
+	refs := []ImportRef{{Root: "Over"}, {Root: "One"}, {Root: "Self"}, {Root: "Ig"}, {Root: "dot.x"}}
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapRefImportSet(refs), from)
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//o,//one" {
+		t.Errorf("deps = %q, want //o,//one", got)
+	}
+	if len(l.errors) != 0 {
+		t.Errorf("errors = %v, want none", l.errors)
+	}
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "z"), WrapRefImportSet([]ImportRef{{Root: "Zero"}}), from)
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "a"), WrapRefImportSet([]ImportRef{{Root: "Amb"}}), from)
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0].Message, "unresolved import") || !strings.Contains(l.errors[1].Message, "ambiguous") {
+		t.Errorf("errors = %v, want unresolved then ambiguous", l.errors)
+	}
+	if *calls != 0 {
+		t.Errorf("Lookups/Candidates ran %d times with Find set", *calls)
+	}
+}
+
+func TestResolveFindOverrideAndIgnoreConflict(t *testing.T) {
+	l, _ := findLang(t, func(ImportRef) JSLookup {
+		return JSLookup{Override: label.New("", "o", "o"), HasOverride: true}
+	})
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot Over\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	r := rule.NewRule(dotKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapRefImportSet([]ImportRef{{Root: "Over"}}), label.New("", "app", "app"))
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "both an exact resolve mapping and ignore") || r.Attr("deps") != nil {
+		t.Errorf("errors = %v, deps = %v", l.errors, r.AttrStrings("deps"))
+	}
+}
+
+func TestResolveUnownedRelativeAssetSkipped(t *testing.T) {
+	l := newDotLang()
+	cfg := resolverConfig(t, nil)
+	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import dot app/a.json\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Configure(cfg, "app", file)
+	l.generated.Add("app")
+	r := rule.NewRule(dotKind, "app")
+	asset := []ImportRef{{Root: "app/a.json", Relative: true, Ext: ".json"}, {Root: "app/b.json", Relative: true, Ext: ".json"}}
+	l.Resolve(cfg, resolverIndex(l), nil, r, WrapRefImportSet(asset), label.New("", "app", "app"))
+	if len(l.errors) != 0 || r.Attr("deps") != nil {
+		t.Errorf("errors = %v, deps = %v, want a silent skip", l.errors, r.AttrStrings("deps"))
+	}
+	l.AfterResolvingDeps(context.Background())
+	if len(l.errors) != 0 {
+		t.Errorf("matching ignore read as stale: %v", l.errors)
+	}
+}
+
+func TestResolveAttrFollowsResolveAttrs(t *testing.T) {
+	cases := []struct {
+		name  string
+		attrs map[string]bool
+		want  string
+	}{
+		{"none", nil, "deps"},
+		{"data", map[string]bool{"data": true}, "data"},
+		{"two", map[string]bool{"data": true, "deps": true}, "deps"},
+	}
+	for _, tc := range cases {
+		spec := dotSpec()
+		info := LibraryKindInfo()
+		info.ResolveAttrs = tc.attrs
+		spec.Kinds = map[string]rule.KindInfo{dotKind: info}
+		l := NewSingleLang(spec)
+		if got := l.ResolveSpecFor(config.New(), rule.NewRule(dotKind, "x"), label.New("", "p", "x")).Attr; got != tc.want {
+			t.Errorf("%s: attr = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestJSImportRefs(t *testing.T) {
+	got := JSImportRefs([]ImportRef{
+		{Root: "zeta"},
+		{Root: "fs"},
+		{Root: "node:sqlite"},
+		{Root: "sqlite"},
+		{Root: "fs", Relative: true},
+		{Root: "pkg"},
+		{Root: "pkg", Relative: true, Ext: ".json"},
+		{Root: "pkg"},
+	})
+	want := []ImportRef{
+		{Root: "fs", Relative: true},
+		{Root: "pkg", Relative: true, Ext: ".json"},
+		{Root: "sqlite"},
+		{Root: "zeta"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("refs = %+v, want %+v", got, want)
+	}
+	if got := JSImportRefs(nil); len(got) != 0 {
+		t.Errorf("empty = %+v", got)
+	}
+}
+
+func TestSingleLangErrorPackages(t *testing.T) {
+	Errors.Reset()
+	t.Cleanup(Errors.Reset)
+	l := newDotLang()
+	bad := &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot"}}}
+	l.Configure(config.New(), "", bad)
+	l.Configure(config.New(), "a/b", bad)
+	l.Configure(config.New(), "p", &rule.File{Directives: []rule.Directive{{Key: "dx_ignore_import", Value: "dot Stale"}}})
+	l.generated.Add("p")
+	l.Fail(InPackage("g/h"), "dot: generate failure")
+	cfg := resolverConfig(t, nil)
+	l.Resolve(cfg, resolverIndex(l), nil, rule.NewRule(dotKind, "y"), WrapImportSet([]string{"Unknown"}), label.New("", "x", "y"))
+	l.AfterResolvingDeps(context.Background())
+	var got []PackageRef
+	for _, e := range Errors.Take() {
+		got = append(got, e.Package)
+	}
+	want := []PackageRef{InPackage(""), InPackage("a/b"), InPackage("g/h"), InPackage("p"), InPackage("x")}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("error packages = %+v, want %+v", got, want)
 	}
 }

@@ -4,7 +4,7 @@
 
 ```text
 dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>] [scope...]
+dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>|notice=<dest>] [scope...]
 ```
 
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
@@ -117,7 +117,8 @@ A value that is not ten digits and dashes is ignored.
 
 `dx security` scans secrets with the pinned `@rules_dx//quality/artifacts:gitleaks` artifact.
 When `DX_GITLEAKS_BIN` holds an absolute path, dx runs that file. When it is
-unset, dx resolves the label through Bazel in the workspace. A relative path is
+unset, dx resolves the label through Bazel in the workspace; under `--offline`
+that resolution adds `--repository_disable_download`. A relative path is
 rejected and `PATH` is never searched. If no artifact is found, the run exits
 `1` with `secrets auditor unavailable` and prints this command, which exports
 the path in the current shell:
@@ -197,6 +198,11 @@ license the `cargo` and `npm` sets read from `cargo-bazel-lock.json` and
 `package-lock.json`, and it is the only license source for every other set, so
 a package with no entry is `UNKNOWN`.
 
+An entry may also set `text = "<workspace-relative path>"` to a vendored license
+file. It implies `text_present`, must be a `/`-separated path with no leading
+`/`, `\`, or empty, `.`, or `..` components, and feeds the `notice` report. Older
+`dx` binaries reject a `licenses.toml` that uses `text`.
+
 Each `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason`,
 and `expires`, and covers a finding only when `package`, `set`, and `license`
 all match. An `expires` date on or before the audit date fails the run. An
@@ -220,8 +226,14 @@ with code `audit_security_clean` or `audit_license_clean`. A failed family emits
 missing, stale, or corrupt advisory snapshot, `offline_required` when
 `--offline` blocks a refresh, and `audit_failed` for findings or any other
 incomplete assessment. Reports: `dx security` writes
-`--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>` or
-`--report spdx=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+`--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>`,
+`--report spdx=<dest>`, or `--report notice=<dest>`. Repeat the flag for more files. Use `-` for stdout.
+The notice report is the six-field `package|set|version|license|text|sha256`
+manifest that `notice_bundle` reads. It has one row per package with a recorded
+`text` (read from the workspace, sha256 of the words), plus an empty-text row for
+every package whose notice check fails, so the bundle fails closed. An unreadable
+or empty text file makes the license family incomplete. Pass the same files to
+`notice_bundle` as `texts`.
 The SPDX report is an SPDX 2.3 JSON document with `creationInfo` naming
 `Tool: dx`. Each audited scope label is a package `SPDXRef-Root-<n>`, numbered
 over the sorted labels, and the document has one
@@ -343,6 +355,7 @@ top of the root `.bazelrc`, so later lines in `.bazelrc` override them:
 Every flag has a one-line comment above it. Verify the files with
 `bazel run //tools/bazelrc:preset_update -- --verify-only` and regenerate them
 with `bazel run //tools/bazelrc:preset_update`.
+Consumer workspaces get the same files under `.dx/bazelrc/` from `dx init --apply`.
 
 `resources.bazelrc` sets these defaults:
 
@@ -520,10 +533,12 @@ bazel run @rules_dx//:dx -- add --apply bazel-modules:rules_go 0.50.0
 
 A workspace outside `rules_dx` declares its own dependency sets in a
 committed `dx.toml` at the workspace root. When `dx.toml` declares at least
-one `[[dependency_set]]`, `update`, `security`, `license`, and `bump` resolve
-names and scopes from it instead of the built-in sets. No built-in set is
-selected. A `dx.toml` with only `[dx]` or `[quality]` tables keeps the built-in
-sets. A `dx.toml` with neither sets nor those tables fails with exit `2`.
+one `[[dependency_set]]`, `update`, `security`, and `license` resolve names and
+scopes from it instead of the built-in sets. No built-in set is selected for
+those commands. `bump` keeps the built-in selectors, such as `cargo:anyhow`,
+unless the selector head names a declared set. A `dx.toml` with only `[dx]` or
+`[quality]` tables keeps the built-in sets. A `dx.toml` with neither sets nor
+those tables fails with exit `2`.
 
 ```toml
 schema_version = 1
@@ -537,13 +552,13 @@ scopes = ["apps/frontend"]
 ```
 
 Each record names one set: a stable `name`, an `ecosystem` backend kind
-(`uv`, `npm`, `bazel`, `ruby`, `powershell`, or `cargo`), workspace-relative
-`manifests`, `locks`, and owning `scopes`. A `cargo` record also names its
+(`uv`, `npm`, `bazel`, `ruby`, `powershell`, `cargo`, `maven`, or `nuget`), workspace-relative
+`manifests`, `locks`, and owning `scopes`. A `cargo` or `maven` record also names its
 `repository`; any other ecosystem fails with exit `2` when it sets one. Manifests are named for the
 ecosystem: `pyproject.toml` for `uv`, `package.json` for `npm`,
 `MODULE.bazel` for `bazel`, `Gemfile` for `ruby`,
-`PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`; any other name
-fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
+`PSGallery.requirements.psd1` for `powershell`, `Cargo.toml` for `cargo`, `MODULE.bazel` for
+`maven`, `paket.dependencies` for `nuget`; any other name fails with exit `2`. Two sets may share one ecosystem. Paths stay inside the workspace: absolute
 paths, `..`, and `\` fail. A manifest or lock whose symlink resolves outside
 the workspace fails `security` and `license` for that set with exit `1`.
 Two writable sets cannot own the same manifest or lock; mark shared read-only ownership with `writable = false`.
@@ -578,7 +593,9 @@ Repos that module extensions record under `moduleExtensions` in
 `module_extension` inputs under their repo name. Each is named by `sha256`,
 integrity, or commit, and `unpinned` when none is set. Generated repos with
 no URL are skipped. Extensions marked reproducible are not in the lock, so
-their downloads are not listed.
+their downloads are not listed. The coverage diagnostic names each root
+`use_extension` with no `moduleExtensions` key in the lock, so reproducible
+or stale entries are visible.
 
 No advisory source maps Bazel modules. A run with only `bazel` sets exits
 `0` with `clean; no advisory coverage for <name>` and an info diagnostic with
@@ -645,6 +662,18 @@ global `.npmrc` files are ignored; a `.npmrc` in the set directory still
 applies. The set is unsupported before pnpm starts when `locks` does not list
 `<set directory>/pnpm-lock.yaml` or when a parent directory inside the
 workspace holds a `pnpm-workspace.yaml`.
+
+A set may list `<set directory>/yarn.lock` or `<set directory>/package-lock.json`
+instead; the first of `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json` in
+`locks` picks the backend. Neither tool is Bazel-pinned: set `DX_YARN_BIN` (a
+yarn 2+ executable) or `DX_NPM_BIN` to an absolute path, or the set fails with
+`backend_unavailable`; `PATH` is never searched. yarn runs
+`install --mode=update-lockfile` (`up <packages> --mode=update-lockfile` for a
+selector) and checks with `install --immutable --mode=update-lockfile`, inside
+the set directory. npm runs `--prefix <set directory> install --package-lock-only
+--ignore-scripts` (`update <packages> ...` for a selector) and checks with
+`ci --dry-run --ignore-scripts`. The same `--offline`, `--frozen`, and
+`npm_config_*` rules apply, except yarn ignores `--offline`.
 
 `dx security` matches every `pnpm-lock.yaml` package against
 `.dx/advisory/npm.json`; a missing snapshot fails the set with
@@ -727,13 +756,19 @@ crate_universe then fails the set with `updater exited <code>` when the lock
 no longer matches the manifest. Both variables are always set, so a `REPIN`
 exported in the shell does not turn a check into a write. `--check --offline`
 adds `--repository_disable_download`, `--apply --offline` fails with
-`offline_required`, and `--apply --frozen` fails with `frozen_locked`. A
-`set:package` selector is unsupported: select the set without a package.
+`offline_required`, and `--apply --frozen` fails with `frozen_locked`.
+`--apply <set>:<crate>` sets `CARGO_BAZEL_REPIN` and `REPIN` to the crate name,
+which crate_universe runs as `cargo update --package <crate>` before it
+regenerates the cargo-bazel lock. Select one crate per cargo set per run;
+crate names crate_universe reads as repin modes (`all`, `workspace`, `false`,
+`0`, `off`, and similar) are refused, and a name with several locked versions
+fails with `updater exited <code>`. `--check` with a package is unsupported:
+select the set without a package.
 `--bazel-startup-option` values reach the `bazel` call. Bazel evaluates
 every `crate.from_cargo` hub of the workspace together, so a stale hub fails
 the check and update of every `cargo` set; update the stale set first.
 
-Every check that runs Bazel (`npm` and `cargo`) keeps the bytes of the set's
+Every check that runs Bazel (`npm`, `cargo`, and `maven`) keeps the bytes of the set's
 manifests and locks. If the check changed any of them, dx restores them and
 fails the set with `check_wrote: <paths>`. A `crate.from_cargo` hub without
 `lockfile` always repins, so its check ends in `check_wrote`; declare
@@ -745,22 +780,110 @@ fails the set with `check_wrote: <paths>`. A `crate.from_cargo` hub without
 `dx license` reads crate licenses from a declared `*.json` lock, and a
 `licenses.toml` `[[inventory]]` entry with `set = "cargo"` overrides them.
 
+A `maven` set pins one rules_jvm_external hub with the workspace's own
+rules_jvm_external (7.1 or later); dx ships no coursier. `repository` is the
+`name` of a `maven.install` tag (default `maven`) in the root `MODULE.bazel`
+(included `*.MODULE.bazel` files are followed). The tag needs a literal
+`lock_file`, the matching `locks` entry, and a `use_repo` entry for the hub
+without a rename. The manifest list must be exactly `["MODULE.bazel"]`, a
+nested `MODULE.bazel` fails with exit `2`. Several maven sets, and a `bazel`
+set, may share that manifest; each set still owns its locks exclusively.
+Create the lock file (empty is enough) before the first `--apply`:
+
+```toml
+[[dependency_set]]
+name = "jvm"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/maven_install.json"]
+scopes = ["third_party"]
+repository = "maven"
+```
+
+`dx update --apply` runs `bazel run @<repository>//:pin` from the workspace
+root with `RULES_JVM_EXTERNAL_REPIN=1` and nothing else; `REPIN` is never set
+because crate_universe also reads it. `dx update --check` runs
+`bazel fetch --repo=@<repository>` with no repin variable, so a stale lock
+fails the set with `updater exited <code>`. That only works while
+`fail_if_repin_required` is true (the default), and a check is refused as
+unsupported when it is `False` or computed, when the lock is empty or lacks
+the `__INPUT_ARTIFACTS_HASH` and `__RESOLVED_ARTIFACTS_HASH` signatures
+(upstream only prints a note for those), or when the host sets `REPIN` or
+`RULES_JVM_EXTERNAL_REPIN` (any value, even `false`, stops the failure).
+Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`,
+`COURSIER_CONFIG_DIR`, and `SCALA_CLI_CONFIG` are refused for both modes
+because they redirect resolution. A `--repo_env=REPIN=...` in a bazelrc, and
+`~/.m2/settings.xml`, cannot be detected; the `check_wrote` guard is the
+backstop for the former. `--check --offline` adds
+`--repository_disable_download`, `--apply --offline` fails with
+`offline_required`, and `--apply --frozen` fails with `frozen_locked`.
+`maven` sets take no `set:package`: pins are exact in `MODULE.bazel`.
+`dx bump` refuses `maven` sets; `dx security` matches the lock's `artifacts`
+against `.dx/advisory/maven.json`, failing the set with `failed to assess
+<name>` when the snapshot is missing, and `dx license` reads
+`[[inventory]]` entries with `set = "maven"`.
+
+A `nuget` set regenerates the `paket2bazel` output of rules_dotnet. Its
+`manifests` is one `paket.dependencies`; `locks` lists the `paket.lock` beside it
+and the generated `paket.<group>.bzl` and `paket.<group>_extension.bzl` files, in
+complete pairs and in one folder. The root `MODULE.bazel` must have
+`bazel_dep(name = "rules_dotnet")` with no `repo_name`, and every `source` in
+`paket.dependencies` must be http(s). Violations are `unsupported`.
+
+```toml
+[[dependency_set]]
+name = "dotnet"
+ecosystem = "nuget"
+manifests = ["third_party/dotnet/paket.dependencies"]
+locks = [
+  "third_party/dotnet/paket.lock",
+  "third_party/dotnet/deps/paket.main.bzl",
+  "third_party/dotnet/deps/paket.main_extension.bzl",
+]
+scopes = ["third_party/dotnet"]
+```
+
+dx copies `paket.dependencies` and `paket.lock` into a scratch directory outside
+the workspace and runs
+`bazel run @rules_dotnet//tools/paket2bazel -- --dependencies-file <scratch>/paket.dependencies --output-folder <scratch>/out`
+with the Bazel startup options but no rules_dx settings, then removes the scratch
+directory. `paket2bazel` never resolves: it renders `paket.lock`, which dx never
+writes. `--check` compares the generated files byte for byte with the declared
+locks; a difference, an undeclared generated file, or a declared file that was not
+generated fails the set and lists the paths. `--apply` writes only the declared
+files that differ, and writes nothing when an undeclared or missing file turns up.
+`--apply --frozen` runs, because the lock cannot change. `--offline` fails with
+`offline_required` in both modes: Paket has no offline switch, so dx cannot prove
+it stays off the network. `nuget` sets take no `set:package`: pins are exact in
+`paket.lock`; edit `paket.dependencies`, run `paket update`, then `dx update
+<set>`. `dx bump` refuses `nuget` sets; `dx security` matches `paket.lock` against
+`.dx/advisory/nuget.json`, failing the set with `failed to assess <name>` when the
+snapshot is missing, and `dx license` reads `[[inventory]]` entries with
+`set = "nuget"`.
+
 Selectors are set names (`frontend`), `set:package` (`frontend:anyio`),
 or scopes (`apps/frontend`, `//apps/frontend/...`, `//...`). No selector
 selects every configured set. A scope selects every set whose scope covers
 it; overlapping scopes select every owner and the run names them all.
 Unknown names and unowned paths fail with exit `2`.
 
-`dx update` and `dx update --check` run the pinned uv `0.12.23`. Set
-`DX_UV_BIN` to the absolute path of the `@dx_tools//:uv` artifact and
-`DX_UV_PYTHON` to the absolute path of the `@rules_dx//cli/update:python_interpreter`
-interpreter. A relative path is rejected and `PATH` is never searched. A uv
-that does not report `0.12.23` is rejected. Without a usable `DX_UV_BIN` or
-`DX_UV_PYTHON` the set fails with `backend_unavailable` and the run exits `1`;
-JSON reports an `error` event with that code. It is never reported current. In CI, `bazel run @rules_dx//cli/tool_resolve --
---label @dx_tools//:uv --var DX_UV_BIN` exports the uv path and the same
-command with `--label @rules_dx//cli/update:python_interpreter --var
-DX_UV_PYTHON` exports the interpreter.
+`dx update` and `dx update --check` run the pinned uv `0.12.23` and the pinned
+interpreter. When `DX_UV_BIN` holds an absolute path, dx runs that file; when
+it is unset, dx resolves `@dx_tools//:uv` through Bazel in the workspace.
+`DX_UV_PYTHON` works the same way for
+`@rules_dx//cli/update:python_interpreter`. A relative path is rejected and
+never falls back to Bazel, and `PATH` is never searched. A uv that does not
+report `0.12.23` is rejected. When neither source gives a usable tool the set
+fails with `backend_unavailable` and the run exits `1`; JSON reports an
+`error` event with that code. It is never reported current. Under `--offline`
+the Bazel resolution adds `--repository_disable_download`, so cached
+repositories still resolve. Runs with no uv set and rejected applies launch no
+Bazel. These commands export the paths in the current shell:
+
+```text
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)"
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)"
+```
 
 `dx update --apply` runs `uv lock` in the set directory and writes that set's
 lock only. `dx update --check` runs `uv lock --check`, writes nothing, and

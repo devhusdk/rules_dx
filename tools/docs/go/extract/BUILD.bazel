@@ -1,16 +1,19 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "Cargo.toml",
-    "src/lib.rs",
-    "src/lib_tests.rs",
-    "src/main.rs",
-])
+exports_files(
+    [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/main.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 rust_library(
     name = "dx_docs_go_extract",
@@ -25,7 +28,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/docs/go/go_extract",
         normal = True,
-    ) + ["//tools/docs/ir/ir:documentation_ir"],
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_binary(
@@ -63,7 +69,10 @@ rust_test(
         package_name = "tools/docs/go/go_extract",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/docs/ir/ir:documentation_ir"],
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
+    ],
 )
 
 rustfmt_test(

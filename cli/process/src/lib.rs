@@ -19,13 +19,15 @@ pub mod lifecycle;
 pub mod procs;
 pub mod rc;
 mod runner;
+pub mod slot_pool;
 
 pub use rc::{
-    build_verb_options, clear_share, configure, configure_real, current, default_disk_cache,
-    repository_caches, set_share, share, user_cache_dir, LocalShare, RcPolicy,
+    build_verb_options, clear_share, clear_share_source, configure, configure_real, current,
+    default_disk_cache, repository_caches, set_share, set_share_source, share,
+    startup_output_paths, user_cache_dir, LocalShare, RcPolicy, ShareToken, StartupPaths, VerbMask,
     DISK_CACHE_GC_MAX_AGE, DISK_CACHE_GC_MAX_SIZE, PRESET_LOCAL_RESOURCES,
 };
-pub use runner::BinaryRunner;
+pub use runner::{BinaryRunner, Holding};
 
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
@@ -660,10 +662,29 @@ pub trait Runner {
         self.run(argv, cwd, env).map(Some)
     }
 
+    /// Runs a long-lived user app that may carry the invocation's `held` handles
+    /// (for example the worktree busy lock), so a lock outlives dx while the app
+    /// or a descendant keeps the descriptor. `None` means withdrawn. The default
+    /// ignores `held`. On Windows the app runs in a kill-on-close job instead.
+    fn run_app(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        withdraw: Option<&dyn Fn() -> bool>,
+        held: &[&std::fs::File],
+    ) -> io::Result<Option<ChildStatus>> {
+        let _ = held;
+        match withdraw {
+            Some(withdraw) => self.run_withdrawable(argv, cwd, env, withdraw),
+            None => self.run(argv, cwd, env).map(Some),
+        }
+    }
+
     /// Names the absolute path one pinned-tool variable points at.
-    fn pinned_tool(&self, var: &str) -> Option<PathBuf> {
+    fn pinned_tool(&self, var: &str) -> PinnedVar {
         let _ = var;
-        None
+        PinnedVar::Unset
     }
 
     /// Reads the first line `path --version` prints; `None` when it cannot run.
@@ -686,25 +707,6 @@ pub struct DiskSpace {
     pub total: u64,
 }
 
-/// The disk space from `available total` counts in units of `unit` bytes.
-pub fn space_from_counts(available: &str, total: &str, unit: u64) -> Option<DiskSpace> {
-    let available: u64 = available.trim().parse().ok()?;
-    let total: u64 = total.trim().parse().ok()?;
-    if total == 0 {
-        return None;
-    }
-    Some(DiskSpace {
-        free: available.checked_mul(unit)?,
-        total: total.checked_mul(unit)?,
-    })
-}
-
-/// The disk space from `df -Pk` output.
-pub fn space_from_df(text: &str) -> Option<DiskSpace> {
-    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
-    space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
-}
-
 /// Reads the free and total bytes on the disk holding `path` or its nearest existing ancestor.
 pub fn disk_space(path: &Path) -> Option<DiskSpace> {
     let dir = path.ancestors().find(|ancestor| ancestor.is_dir())?;
@@ -713,7 +715,26 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
 
 #[cfg(unix)]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
-    space_from_df(&probe("df", [OsStr::new("-Pk"), dir.as_os_str()])?)
+    use std::os::unix::ffi::OsStrExt;
+
+    fn widen<T: Into<u64>>(value: T) -> u64 {
+        value.into()
+    }
+
+    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
+    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    if unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } != 0 {
+        return None;
+    }
+    let stat = unsafe { stat.assume_init() };
+    let unit = widen(stat.f_frsize);
+    let total = widen(stat.f_blocks).checked_mul(unit)?;
+    if total == 0 {
+        return None;
+    }
+    // `f_bavail` is the space available to unprivileged users, the same figure `df` reports.
+    let free = widen(stat.f_bavail).checked_mul(unit)?;
+    Some(DiskSpace { free, total })
 }
 
 #[cfg(not(unix))]
@@ -742,11 +763,46 @@ fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
     Some(DiskSpace { free, total })
 }
 
-/// Reads one pinned-tool variable, refusing a relative path.
-pub fn pinned_env_path(var: &str) -> Option<PathBuf> {
-    std::env::var_os(var)
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute())
+/// What one pinned-tool variable holds, read once.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PinnedVar {
+    /// Unset or empty: the caller may fall back to its hermetic source.
+    Unset,
+    /// An absolute path.
+    Path(PathBuf),
+    /// Set to a non-empty value that is not absolute; never searched on `PATH`.
+    NotAbsolute,
+}
+
+impl PinnedVar {
+    /// Sorts a raw variable value into its state.
+    pub fn classify(value: Option<std::ffi::OsString>) -> Self {
+        match value {
+            None => Self::Unset,
+            Some(value) if value.is_empty() => Self::Unset,
+            Some(value) => {
+                let path = PathBuf::from(value);
+                if path.is_absolute() {
+                    Self::Path(path)
+                } else {
+                    Self::NotAbsolute
+                }
+            }
+        }
+    }
+
+    /// The absolute path, when there is one.
+    pub fn path(self) -> Option<PathBuf> {
+        match self {
+            Self::Path(path) => Some(path),
+            Self::Unset | Self::NotAbsolute => None,
+        }
+    }
+}
+
+/// Reads one pinned-tool variable exactly once.
+pub fn pinned_env(var: &str) -> PinnedVar {
+    PinnedVar::classify(std::env::var_os(var))
 }
 
 /// Bound for one `--version` probe; a tool that cannot answer in this time is treated as absent.

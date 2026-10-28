@@ -1,20 +1,15 @@
 package typescript
 
 import (
-	"context"
-	"flag"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
-	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
@@ -76,107 +71,61 @@ func binaryKindInfo() rule.KindInfo {
 }
 
 type typescriptLang struct {
-	language.BaseLang
-	errors    []string
-	ignores   []*common.IgnoreEntry
-	generated common.GeneratedRels
+	*common.SingleLang
 }
 
-type targetImports struct {
-	imports []string
-	local   map[string]bool
-	asset   map[string]bool
+func NewLanguage() language.Language { return newLang() }
+
+func newLang() *typescriptLang {
+	return &typescriptLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
+		LanguageName: languageName,
+		LibraryKind:  projectKind,
+		ExtraKinds:   []string{testKind, binaryKind},
+		Kinds:        typescriptKinds,
+		DefsPackage:  "typescript/rules:defs.bzl",
+		KindDefs:     map[string]string{binaryKind: "javascript/rules:defs.bzl"},
+		ImportAttr:   "srcs",
+		IsImportSource: func(src string) bool {
+			return isSupported(src) || (common.IsAssetSource(src) && !IsDeclaration(src))
+		},
+		IsTestSource: func(src string) bool { return isSupported(src) && IsTestFile(src) },
+		Identity: func(src string) string {
+			if isSupported(src) {
+				return ModuleName(src)
+			}
+			return src
+		},
+		PathIdentity:   true,
+		IsStdLib:       common.IsNodeBuiltin,
+		Find:           common.JSFind(languageName),
+		ConfigureExt:   common.ConfigureTSPathsExt,
+		UnresolvedHint: "add a local one-source library or declaration file, or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
+		External:       "npm",
+		Generate:       generateRules,
+	})}
 }
 
-func NewLanguage() language.Language { return &typescriptLang{} }
-
-func (l *typescriptLang) Before(context.Context) {
-	l.errors = nil
-	l.ignores = nil
-	l.generated = common.GeneratedRels{}
-	common.Errors.Reset()
-}
-
-func (l *typescriptLang) DoneGeneratingRules() {}
-
-func (l *typescriptLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
-
-func (l *typescriptLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
-
-func (*typescriptLang) KnownDirectives() []string { return []string{"dx_ignore_import"} }
-
-func (l *typescriptLang) Configure(c *config.Config, rel string, f *rule.File) {
-	declared, errs := common.DeclaredIgnores(languageName, rel, f)
-	for _, msg := range errs {
-		l.fail("%s", msg)
-	}
-	l.ignores = append(l.ignores, declared...)
-	c.Exts[languageName] = &common.IgnoreConfig{Ignores: common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)}
-	if err := common.ConfigureTSPaths(c, rel); err != nil {
-		l.fail("%v", err)
-	}
-}
-
-func (l *typescriptLang) fail(format string, args ...interface{}) {
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
-}
-
-func (l *typescriptLang) AfterResolvingDeps(context.Context) {
-	for _, msg := range common.StaleIgnores(languageName, l.ignores, l.generated) {
-		l.fail("%s", msg)
-	}
-	common.Errors.Add(languageName, "", l.errors...)
-}
-
-func (*typescriptLang) Name() string { return languageName }
-
-func (*typescriptLang) Kinds() map[string]rule.KindInfo { return typescriptKinds }
-
-func (*typescriptLang) Loads() []rule.LoadInfo {
-	return typescriptLoads("rules_dx")
-}
-
-func (l *typescriptLang) ApparentLoads(moduleToApparentName func(string) string) []rule.LoadInfo {
-	repoName := moduleToApparentName("rules_dx")
-	if repoName == "" {
-		repoName = "rules_dx"
-	}
-	return typescriptLoads(repoName)
-}
-
-func typescriptLoads(rulesRepo string) []rule.LoadInfo {
-	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//typescript/rules:defs.bzl", Symbols: []string{projectKind, testKind}},
-		{Name: "@" + rulesRepo + "//javascript/rules:defs.bzl", Symbols: []string{binaryKind}},
-	}
-}
-
-func (*typescriptLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+// Imports adds the modules of plain declaration_srcs to the project's index.
+func (l *typescriptLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
+	specs := l.SingleLang.Imports(c, r, f)
 	if r.Kind() != projectKind {
-		return nil
+		return specs
 	}
-	var specs []resolve.ImportSpec
-	indexed := make(map[string]bool)
-	for _, src := range r.AttrStrings("srcs") {
-		if isSupported(src) && !IsTestFile(src) {
-			indexed[ModuleName(src)] = true
-		}
-		if common.IsAssetSource(src) && !isSupported(src) && !IsDeclaration(src) {
-			specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), src)})
-			continue
-		}
-		if !isSupported(src) || IsTestFile(src) {
-			continue
-		}
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), ModuleName(src))})
+	seen := make(map[string]bool, len(specs))
+	for _, spec := range specs {
+		seen[spec.Imp] = true
+	}
+	pkg := ""
+	if f != nil {
+		pkg = f.Pkg
 	}
 	for _, src := range plainDeclarations(r) {
-		module := ModuleName(src)
-		if indexed[module] {
+		imp := common.ModuleIdentity(pkg, ModuleName(src))
+		if seen[imp] {
 			continue
 		}
-		indexed[module] = true
-		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: common.ModuleIdentity(filePkg(f), module)})
+		seen[imp] = true
+		specs = append(specs, resolve.ImportSpec{Lang: languageName, Imp: imp})
 	}
 	return specs
 }
@@ -240,20 +189,6 @@ func carryDeclarationSrcs(file *rule.File, gen *rule.Rule) {
 	}
 }
 
-func (*typescriptLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
-
-func (l *typescriptLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
-	l.generated.Add(args.Rel)
-	return l.generateRules(args)
-}
-
-func filePkg(f *rule.File) string {
-	if f == nil {
-		return ""
-	}
-	return f.Pkg
-}
-
 func isSupported(name string) bool {
 	if IsDeclaration(name) {
 		return false
@@ -266,7 +201,7 @@ func isSupported(name string) bool {
 	return false
 }
 
-func (l *typescriptLang) generateRules(args language.GenerateArgs) language.GenerateResult {
+func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	var sources []string
 	for _, name := range args.RegularFiles {
 		if isSupported(name) {
@@ -296,52 +231,28 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 		test    bool
 		entry   bool
 		decl    bool
-		imports []string
-		local   map[string]bool
-		asset   map[string]bool
+		refs    []common.ImportRef
 	}
 	var plans []plan
 	all := append(append([]string(nil), sources...), decls...)
 	for _, src := range all {
 		content, err := common.ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
-			l.fail("typescript: %s: read %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "typescript: %s: read %s: %v", args.Rel, src, err)
 			continue
 		}
 		name, err := TargetName(src)
 		if err != nil {
-			l.fail("typescript: %s: %v", args.Rel, err)
+			rep.Fail(common.InPackage(args.Rel), "typescript: %s: %v", args.Rel, err)
 			continue
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
 		p.decl = IsDeclaration(src)
 		p.entry = !p.test && !p.decl && IsEntryFile(src)
-		seen := make(map[string]bool)
-		p.local = make(map[string]bool)
-		p.asset = make(map[string]bool)
-		for _, ref := range common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))) {
-			if ref.Relative && ref.Ext != "" {
-				p.asset[ref.Root] = true
-			}
-			if seen[ref.Root] {
-				if ref.Relative {
-					p.local[ref.Root] = true
-				}
-				continue
-			}
-			if !ref.Relative && common.IsNodeBuiltin(ref.Root) {
-				continue
-			}
-			seen[ref.Root] = true
-			if ref.Relative {
-				p.local[ref.Root] = true
-			}
-			p.imports = append(p.imports, ref.Root)
-		}
-		sort.Strings(p.imports)
+		p.refs = common.JSImportRefs(common.ParseImportRefs(content, path.Join(args.Rel, path.Dir(src))))
 		plans = append(plans, p)
 	}
-	if len(l.errors) > 0 {
+	if rep.Failed() {
 		return language.GenerateResult{}
 	}
 
@@ -357,7 +268,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 		}
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, claimants, claimAliases); err != nil {
-		l.fail("typescript: %s: %v", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "typescript: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 
@@ -376,7 +287,7 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 				r.SetAttr("package_json", rootPackageJSON)
 			}
 			result.Gen = append(result.Gen, r)
-			result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
+			result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 			continue
 		}
 		r := rule.NewRule(projectKind, p.name)
@@ -387,13 +298,13 @@ func (l *typescriptLang) generateRules(args language.GenerateArgs) language.Gene
 			carryDeclarationSrcs(args.File, r)
 		}
 		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, targetImports{imports: append([]string(nil), p.imports...), local: p.local, asset: p.asset})
+		result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 		if p.entry {
 			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
 			bin.SetAttr("entry_point", EntryPointName(p.src))
 			bin.SetAttr("data", []string{":" + p.name})
 			result.Gen = append(result.Gen, bin)
-			result.Imports = append(result.Imports, targetImports{})
+			result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 		}
 	}
 	if isFixturePath(args.Rel) {
@@ -409,63 +320,6 @@ func isFixturePath(rel string) bool { return common.IsFixturePath(rel) }
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStale(file, result, typescriptKinds)
 }
-
-func (l *typescriptLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
-	imports, ok := raw.(targetImports)
-	if !ok {
-		return
-	}
-	if r.Kind() == binaryKind {
-		return
-	}
-	deps := make(map[string]bool)
-	for _, name := range imports.imports {
-		if !imports.local[name] && common.IsNodeBuiltin(name) {
-			continue
-		}
-		found := common.FindJSImport(c, ix, languageName, name, imports.local[name])
-		if found.HasOverride {
-			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.MarkUsed(from.Pkg)
-				l.fail("typescript: %s: import %q has both an exact resolve mapping and ignore", from, name)
-				continue
-			}
-			deps[found.Override.Rel(from.Repo, from.Pkg).String()] = true
-			continue
-		}
-		matches := found.Matches
-		switch len(matches) {
-		case 1:
-			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
-			}
-		case 0:
-			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
-				ignore.MarkUsed(from.Pkg)
-				continue
-			}
-			if imports.asset[name] {
-				continue
-			}
-			l.fail("%s", common.UnresolvedImport(c, "typescript", from, name, "add a local one-source library or declaration file, or an exact # gazelle:resolve mapping, or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)"))
-		default:
-			l.fail("%s", common.AmbiguousImport(c, "typescript", from, name, formatMatches(matches)))
-		}
-	}
-	if len(deps) == 0 {
-		return
-	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
-	}
-	sort.Strings(labels)
-	r.SetAttr("deps", unionStrings(r.AttrStrings("deps"), labels))
-}
-
-func unionStrings(a, b []string) []string { return common.UnionStrings(a, b) }
-
-func formatMatches(matches []resolve.FindResult) string { return common.FormatMatches(matches) }
 
 // rootPackageJSONExists reports whether the repo root has a package.json file.
 func rootPackageJSONExists(repoRoot string) bool {

@@ -1,7 +1,6 @@
 """TypeScript API reference shards built from the pinned TypeDoc JSON."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _TYPEDOC = Label("//quality/tools/javascript/bin:typedoc")
@@ -58,15 +57,9 @@ def _check_options(where, options):
 def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs):
     """Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
 
-    Args:
-      name: Name of the shard target.
-      srcs: The project's TypeScript sources.
-      tsconfig: The project's tsconfig.json, relative to this package.
-      entry_points: Entry point files, relative to this package.
-      package: Package segment of every symbol id.
-      deps: Extra files or npm packages the sources import.
-      options: Extra TypeDoc flags; the ones the rule owns are rejected.
-      **kwargs: Common attributes such as tags and visibility.
+    TypeDoc runs through an isolated launcher. Only the compiler options of the given
+    tsconfig are read; `typedocOptions` (also inherited ones), `typedoc.json` and
+    `package.json` are ignored, and plugins are never loaded. Extra flags go in `options`.
     """
     where = "typescript_doc_shard " + native.package_name() + ":" + name
     if len(entry_points) == 0:
@@ -74,16 +67,7 @@ def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [],
     if package == "":
         fail(where + ": package is required")
     _check_options(where, options)
-    empty_options = name + "_typedoc_options.json"
-    write_file(
-        name = name + "_typedoc_options",
-        out = empty_options,
-        content = ["{}", ""],
-        visibility = ["//visibility:private"],
-    )
     arguments = [
-        "--options",
-        empty_options,
         "--tsconfig",
         tsconfig,
         "--name",
@@ -104,7 +88,7 @@ def typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [],
     arguments.extend(options)
     js_run_binary(
         name = name + "_typedoc",
-        srcs = srcs + [tsconfig, empty_options] + deps,
+        srcs = srcs + [tsconfig] + deps,
         args = arguments,
         chdir = native.package_name(),
         mnemonic = "DxTypedoc",

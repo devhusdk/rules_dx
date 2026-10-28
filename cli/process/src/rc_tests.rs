@@ -303,8 +303,8 @@ fn local_policy() -> RcPolicy {
         read_user_rc: true,
         disk_cache: Some("/c/dx/disk-cache".to_owned()),
         bazel_disk_cache: Some(std::path::PathBuf::from("/c/dx/disk-cache")),
-        local_cpu: true,
-        local_memory: true,
+        local_cpu: VerbMask::ALL,
+        local_memory: VerbMask::ALL,
         disk_cache_gc: true,
         gc_idle_delay_secs: None,
     }
@@ -439,21 +439,27 @@ fn no_share_adds_no_local_resources() {
 }
 
 #[test]
-fn hermetic_adds_no_local_resources() {
+fn hermetic_caps_local_resources_only_with_a_share() {
     let hermetic = RcPolicy::hermetic();
+    assert!(hermetic.verb_options("build", None, &[]).is_empty());
     assert_eq!(
         hermetic.verb_options("build", Some(&SHARE_4), &[]),
-        Vec::<String>::new()
+        vec![
+            "--local_resources=cpu=4".to_owned(),
+            "--local_resources=memory=8192".to_owned()
+        ]
     );
-    assert!(!hermetic.local_cpu && !hermetic.local_memory);
     assert!(!hermetic.disk_cache_gc);
     assert_eq!(hermetic.gc_idle_delay_secs, None);
     let ci = Machine::local().env("CI", "true").policy();
-    assert!(!ci.local_cpu && !ci.local_memory);
+    assert!(ci.local_cpu == VerbMask::ALL && ci.local_memory == VerbMask::ALL);
 }
 
 fn resources(policy: &RcPolicy) -> (bool, bool) {
-    (policy.local_cpu, policy.local_memory)
+    (
+        policy.local_cpu.contains("build"),
+        policy.local_memory.contains("build"),
+    )
 }
 
 #[test]
@@ -575,8 +581,11 @@ fn a_share_round_trips_through_its_env_value() {
     }
 }
 
+static SHARE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn the_process_share_clears_only_its_own_value() {
+    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     set_share(Some(SHARE_4));
     assert_eq!(share(), Some(SHARE_4));
     clear_share(&LocalShare {
@@ -585,6 +594,39 @@ fn the_process_share_clears_only_its_own_value() {
     });
     assert_eq!(share(), Some(SHARE_4));
     clear_share(&SHARE_4);
+    assert_eq!(share(), None);
+}
+
+#[test]
+fn a_live_share_source_is_read_on_every_call() {
+    let _guard = SHARE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let cpus = Arc::new(AtomicU64::new(8));
+    let seen = Arc::clone(&cpus);
+    let token = set_share_source(move || LocalShare {
+        cpus: seen.load(Ordering::SeqCst),
+        memory_mb: 100,
+    });
+    assert_eq!(share().map(|s| s.cpus), Some(8));
+    let first = build_verb_options("build", &[]).join(" ");
+    cpus.store(3, Ordering::SeqCst);
+    assert_eq!(share().map(|s| s.cpus), Some(3));
+    let second = build_verb_options("build", &[]).join(" ");
+    if first.contains("cpu=8") {
+        assert!(second.contains("cpu=3"), "{second}");
+    }
+    // A stale token must not remove a newer source.
+    let newer = set_share_source(|| SHARE_4);
+    clear_share_source(token);
+    assert_eq!(share(), Some(SHARE_4));
+    // A fixed share replaces a live source.
+    set_share(Some(LocalShare {
+        cpus: 2,
+        memory_mb: 1,
+    }));
+    clear_share_source(newer);
+    assert_eq!(share().map(|s| s.cpus), Some(2));
+    set_share(None);
     assert_eq!(share(), None);
 }
 
@@ -883,4 +925,86 @@ fn no_user_name_means_no_default_user_roots() {
         repo_caches(&logname, &[]).first(),
         Some(&user_default("/xdg/bazel"))
     );
+}
+
+fn ws_policy(text: &str) -> RcPolicy {
+    Machine::local().file("/ws/.bazelrc", text).policy()
+}
+
+#[test]
+fn an_unused_config_group_suppresses_no_resource() {
+    let policy = ws_policy("build:big --local_resources=cpu=32\n");
+    assert_eq!(policy.local_cpu, VerbMask::ALL);
+    let policy = ws_policy("build:big --local_resources=cpu=32\nbuild --config=big\n");
+    assert_eq!(resources(&policy), (false, true));
+}
+
+#[test]
+fn build_beats_common_for_resources() {
+    let policy =
+        ws_policy("build --local_resources=cpu=4\ncommon --local_resources=cpu=HOST_CPUS*.75\n");
+    assert!(!policy.local_cpu.contains("build"));
+    let policy =
+        ws_policy("common --local_resources=cpu=4\nbuild --local_resources=cpu=HOST_CPUS*.75\n");
+    assert!(policy.local_cpu.contains("build"));
+}
+
+#[test]
+fn a_test_only_resource_line_leaves_build_and_run_free() {
+    let policy = ws_policy("test --local_resources=memory=2048\n");
+    for verb in ["build", "run"] {
+        assert!(policy.local_memory.contains(verb), "{verb}");
+    }
+    for verb in ["test", "coverage"] {
+        assert!(!policy.local_memory.contains(verb), "{verb}");
+    }
+    let share = LocalShare {
+        cpus: 2,
+        memory_mb: 1024,
+    };
+    let test = policy.verb_options("test", Some(&share), &[]);
+    assert!(!test.iter().any(|flag| flag.contains("memory")));
+    let build = policy.verb_options("build", Some(&share), &[]);
+    assert!(build.iter().any(|flag| flag.contains("memory")));
+}
+
+#[test]
+fn the_last_rc_file_wins_for_resources() {
+    let policy = Machine::local()
+        .file("/ws/.bazelrc", "build --local_resources=cpu=4\n")
+        .file(
+            "/home/u/.bazelrc",
+            "build --local_resources=cpu=HOST_CPUS*.75\n",
+        )
+        .policy();
+    assert!(policy.local_cpu.contains("build"));
+}
+
+#[test]
+fn a_platform_config_resource_suppresses_cpu() {
+    let text = format!(
+        "common --enable_platform_specific_config\nbuild:{} --local_resources=cpu=2\n",
+        std::env::consts::OS
+    );
+    assert!(!ws_policy(&text).local_cpu.contains("build"));
+}
+
+#[test]
+fn disk_cache_follows_config_expansion() {
+    let policy = ws_policy("build --config=cache\nbuild:cache --disk_cache=/x\n");
+    assert_eq!(policy.disk_cache, None);
+    assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/x")));
+    let text = format!(
+        "common --enable_platform_specific_config\nbuild:{} --disk_cache=/p\n",
+        std::env::consts::OS
+    );
+    assert_eq!(ws_policy(&text).bazel_disk_cache, Some(PathBuf::from("/p")));
+    let policy = ws_policy("build --disk_cache=/x\nbuild --nodisk_cache\n");
+    assert_eq!((policy.disk_cache, policy.bazel_disk_cache), (None, None));
+    let policy =
+        ws_policy("common --disk_cache=/c\nbuild --config=off\nbuild:off --nodisk_cache\n");
+    assert_eq!(policy.bazel_disk_cache, None);
+    let policy =
+        ws_policy("build --config=a\nbuild:a --config=b --disk_cache=/a\nbuild:b --config=a\n");
+    assert_eq!(policy.bazel_disk_cache, Some(PathBuf::from("/a")));
 }

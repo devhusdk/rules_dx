@@ -102,6 +102,29 @@ alias(
     tags = ["manual"],
 )
 
+_QT_FONTS = select({
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@dx_qt//:fonts"],
+})
+
+_QT_TEST_ENV = {
+    "DX_MOC": "$(rootpath @dx_qt//:moc)",
+    "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
+    "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
+    "DX_QMLTYPEREGISTRAR": "$(rootpath @dx_qt//:qmltyperegistrar)",
+    "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
+    "DX_QT_GUI": "$(rootpath :gui_check_native)",
+    "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
+    "DX_QT_NEEDS": "$(rootpath :needs_native)",
+    "DX_QT_PLATFORMS": "$(rootpaths @dx_qt//:platforms)",
+    "DX_QT_PROBE": "$(rootpath :probe_native)",
+    "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
+    "DX_QT_QMLDIR_PATH": "$(rootpath @dx_qt//:qtqml_qmldir)",
+    "DX_QT_SBOM": "$(rootpaths @dx_qt//:sbom)",
+    "DX_RCC": "$(rootpath @dx_qt//:rcc)",
+    "DX_UIC": "$(rootpath @dx_qt//:uic)",
+}
+
 rust_test(
     name = "qt_test",
     size = "small",
@@ -111,7 +134,6 @@ rust_test(
         ":gui_check_native",
         ":needs_native",
         ":probe_native",
-        "@dx_qt//:fonts",
         "@dx_qt//:licenses",
         "@dx_qt//:moc",
         "@dx_qt//:platforms",
@@ -124,25 +146,14 @@ rust_test(
         "@dx_qt//:runtime",
         "@dx_qt//:sbom",
         "@dx_qt//:uic",
-    ],
-    env = {
-        "DX_MOC": "$(rootpath @dx_qt//:moc)",
-        "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
-        "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
-        "DX_QMLTYPEREGISTRAR": "$(rootpath @dx_qt//:qmltyperegistrar)",
-        "DX_QT_FONTS": "$(rootpaths @dx_qt//:fonts)",
-        "DX_QT_FORM": "$(rootpath fixtures/dialog.ui)",
-        "DX_QT_GUI": "$(rootpath :gui_check_native)",
-        "DX_QT_LICENSES": "$(rootpaths @dx_qt//:licenses)",
-        "DX_QT_NEEDS": "$(rootpath :needs_native)",
-        "DX_QT_PLATFORMS": "$(rootpaths @dx_qt//:platforms)",
-        "DX_QT_PROBE": "$(rootpath :probe_native)",
-        "DX_QT_QMLDIR": "$(rlocationpath @dx_qt//:qtqml_qmldir)",
-        "DX_QT_QMLDIR_PATH": "$(rootpath @dx_qt//:qtqml_qmldir)",
-        "DX_QT_SBOM": "$(rootpaths @dx_qt//:sbom)",
-        "DX_RCC": "$(rootpath @dx_qt//:rcc)",
-        "DX_UIC": "$(rootpath @dx_qt//:uic)",
-    },
+    ] + _QT_FONTS,
+    env = select({
+        "@platforms//os:macos": _QT_TEST_ENV,
+        "//conditions:default": dict(
+            _QT_TEST_ENV,
+            DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
+        ),
+    }),
     tags = [
         "block-network",
         "no-remote-exec",
@@ -569,4 +580,12 @@ real_source_target(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+qt_cc_test(
+    name = "plugin_path_test",
+    size = "small",
+    srcs = ["fixtures/plugin_path.cc"],
+    plugins = ["imageformats"],
+    target_compatible_with = _HOSTS,
 )

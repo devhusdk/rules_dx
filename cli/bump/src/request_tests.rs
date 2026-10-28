@@ -76,6 +76,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
             selector: "demo".to_owned(),
             raw_version: "v2".to_owned(),
             manifest: None,
+            configured: None,
             dep_version: DepVersion::Tested,
         };
         assert!(matches!(
@@ -631,7 +632,7 @@ fn edits_rewrite_exactly_one_requirement() {
     ));
 
     let module = "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n\
-                  bazel_dep(name = \"gazelle\", version = \"0.52.2\")\n";
+                  bazel_dep(name = \"gazelle\", version = \"0.54.0\")\n";
     let bump = BumpRequest::parse("bazel:rules_rust", "0.75.0").expect("module");
     let widened = bump.plan_edit(module).expect("edit");
     assert!(
@@ -639,7 +640,7 @@ fn edits_rewrite_exactly_one_requirement() {
         "{widened}"
     );
     assert!(
-        widened.contains("name = \"gazelle\", version = \"0.52.2\""),
+        widened.contains("name = \"gazelle\", version = \"0.54.0\""),
         "{widened}"
     );
     assert!(matches!(

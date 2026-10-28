@@ -16,7 +16,7 @@ load("@rules_dx//haskell/rules:defs.bzl", "haskell_binary", "haskell_library", "
 haskell_library(
     name = "stock",
     srcs = ["src/Stock.hs"],
-    deps = ["@dx_haskell_toolchains//:base"],
+    deps = ["//haskell/toolchain:base"],
 )
 
 haskell_test(
@@ -24,7 +24,7 @@ haskell_test(
     srcs = ["test/StockTest.hs"],
     deps = [
         ":stock",
-        "@dx_haskell_toolchains//:base",
+        "//haskell/toolchain:base",
     ],
 )
 
@@ -33,7 +33,7 @@ haskell_binary(
     srcs = ["src/Main.hs"],
     deps = [
         ":stock",
-        "@dx_haskell_toolchains//:base",
+        "//haskell/toolchain:base",
     ],
 )
 ```
@@ -48,7 +48,7 @@ haskell_binary(
   Set `ghcopts` to replace the default.
 - Library `tags` reach the library; the generated upstream target is
   `manual`, so `//...` builds only the library.
-- `@dx_haskell_toolchains//:<package>` has the GHC boot packages: `array`,
+- `//haskell/toolchain:<package>` has the GHC boot packages: `array`,
   `base`, `binary`, `bytestring`, `containers`, `deepseq`, `directory`,
   `exceptions`, `filepath`, `ghc-prim`, `mtl`, `parsec`, `pretty`, `process`,
   `stm`, `template-haskell`, `text`, `time`, `transformers` and `unix`.
@@ -59,7 +59,8 @@ haskell_binary(
 ## Runtime libraries
 
 GHC and the programs it links load two shared libraries that are not in
-glibc. Both come from pinned Debian 10 packages and ship next to GHC with
+glibc. Both come from pinned Debian 10 `amd64` or `arm64` packages, one set
+per cell, and ship next to GHC with
 their license texts in `dx_closure/licenses`:
 
 | Library | Package | License |
@@ -69,7 +70,7 @@ their license texts in `dx_closure/licenses`:
 
 `haskell_binary` and `haskell_test` link GMP dynamically and carry
 `libgmp.so.10` in their runfiles. Ship it with a binary you distribute.
-`@dx_haskell_toolchains//:licenses` has the license texts.
+`//haskell/toolchain:licenses` has the license texts.
 
 The host needs glibc 2.28 or newer.
 
@@ -83,16 +84,21 @@ with `locale -a | grep -i c.utf`.
 
 ## Formatting
 
-No Haskell formatter or linter runs yet.
+`dx format` runs `ormolu` 0.9.0.0 on Haskell sources in a `haskell` quality family on Linux x86_64. See the Haskell section of `docs/cli/commands/quality.md`. No Haskell linter runs yet.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
-| `macos_x86_64` | Not qualified |
-| `macos_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
+| Cell | Status | Reason |
+| --- | --- | --- |
+| `linux_x86_64` | Qualified | |
+| `linux_arm64` | Qualified | |
+| `macos_arm64` | Not qualified | Darwin bindist cell is pinned (no runtime closure). Still needs `otool` and `install_name_tool` from `@llvm//tools` and a native macOS run. Tracked in #4311. |
+| `macos_x86_64` | Not qualified | No CI cell. |
+| `windows_x86_64` | Not qualified | rules_haskell has no hermetic Windows port. |
+| `windows_arm64` | Not qualified | rules_haskell has no hermetic Windows port. |
 
 On other platforms Haskell targets fail toolchain resolution.
+
+## Example
+
+See [examples/haskell-app](../examples/haskell-app/README.md) for a multi-package app with a pinned Hackage dependency, a generated module, a C foreign call and a string flag.

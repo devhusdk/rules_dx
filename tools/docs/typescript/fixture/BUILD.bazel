@@ -1,7 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 typescript_doc_shard(
     name = "geometry_docs",

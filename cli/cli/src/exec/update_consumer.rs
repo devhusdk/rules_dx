@@ -1,6 +1,7 @@
 use super::super::common::{
     check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, Env,
 };
+use super::super::pinned_tool::{resolve_pinned, PinnedTool, PinnedToolError, QueryBazel};
 use super::{
     record_backend_error, record_named, runner_status, unavailable_message, RunMode, SetDetail,
     SlotGate,
@@ -19,6 +20,7 @@ pub(super) fn execute_configured(
     let Env {
         workspace,
         runner,
+        query_runner,
         out,
         err,
         ..
@@ -50,12 +52,19 @@ pub(super) fn execute_configured(
         events: &mut *out,
         phase: dx_plan::slots::Phase::new(invocation.command),
     };
+    let bazel = QueryBazel {
+        query_runner,
+        workspace,
+        startup: &invocation.bazel_startup_options,
+    };
+    let mut tools = UvTools::new(runner, &bazel, invocation.offline);
     for target in &resolved {
         if let Err(signo) = run_configured_target(
             &mut attempted,
             &mut details,
             target,
             runner,
+            &mut tools,
             workspace,
             invocation,
             &mut gate,
@@ -87,11 +96,26 @@ pub(super) fn execute_configured(
     })
 }
 
+pub(super) fn uv_closure(
+    runner: &dyn dx_process::Runner,
+    query_runner: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &std::path::Path,
+    invocation: &Invocation,
+) -> dx_update::backend::UvClosure {
+    let bazel = QueryBazel {
+        query_runner,
+        workspace,
+        startup: &invocation.bazel_startup_options,
+    };
+    UvTools::new(runner, &bazel, invocation.offline).closure()
+}
+
 fn run_configured_target(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
     details: &mut BTreeMap<String, SetDetail>,
     target: &ResolvedTarget,
     runner: &dyn dx_process::Runner,
+    tools: &mut UvTools<'_>,
     workspace: &std::path::Path,
     invocation: &Invocation,
     gate: &mut SlotGate<'_>,
@@ -134,7 +158,9 @@ fn run_configured_target(
         let status = match error {
             dependency_sets::DependencySetsError::UnsupportedSettings { .. }
             | dependency_sets::DependencySetsError::UnsupportedNpmLayout { .. }
-            | dependency_sets::DependencySetsError::MissingPinnedLock { .. } => {
+            | dependency_sets::DependencySetsError::MissingPinnedLock { .. }
+            | dependency_sets::DependencySetsError::UnsupportedMavenHub { .. }
+            | dependency_sets::DependencySetsError::UnsupportedNugetLayout { .. } => {
                 dx_update::outcome::SetStatus::Unsupported
             }
             _ => dx_update::outcome::SetStatus::Failed,
@@ -148,23 +174,40 @@ fn run_configured_target(
         );
         return Ok(());
     }
+    if mode == RunMode::Check {
+        if let Err(error) = dependency_sets::check_lock_ready(workspace, set) {
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                dx_update::outcome::SetStatus::Unsupported,
+                format!("cannot {verb} {}: {error}", set.name),
+            );
+            return Ok(());
+        }
+    }
+    if let Some(error) = dx_update::backend::host_env_refusal(set, mode == RunMode::Check, &|key| {
+        std::env::var_os(key).is_some()
+    }) {
+        record_backend_error(attempted, details, &error, verb, &set.name);
+        return Ok(());
+    }
+    // An apply the plan rejects anyway never needs the tools, so skip Bazel.
+    let rejected = mode == RunMode::Update && (invocation.offline || invocation.frozen);
     let closure = match set.ecosystem {
-        Ecosystem::Uv => dx_update::backend::UvClosure {
-            uv: pinned(runner, dx_update::backend::UV_BIN_VAR).filter(|path| {
-                runner
-                    .tool_version(std::path::Path::new(path))
-                    .is_some_and(|line| {
-                        let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
-                        name_and_version.join(" ") == dx_update::backend::UV_VERSION_LINE
-                    })
-            }),
-            python: pinned(runner, dx_update::backend::UV_PYTHON_VAR),
+        Ecosystem::Uv if !rejected => tools.closure(),
+        Ecosystem::Npm => dx_update::backend::UvClosure {
+            yarn: std::env::var(dx_update::backend::YARN_BIN_VAR).ok(),
+            npm: std::env::var(dx_update::backend::NPM_BIN_VAR).ok(),
+            ..Default::default()
         },
-        Ecosystem::Npm
+        Ecosystem::Uv
         | Ecosystem::Bazel
         | Ecosystem::Ruby
         | Ecosystem::PowerShell
-        | Ecosystem::Cargo => dx_update::backend::UvClosure::default(),
+        | Ecosystem::Cargo
+        | Ecosystem::Maven
+        | Ecosystem::Nuget => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {
@@ -180,6 +223,9 @@ fn run_configured_target(
         .map(|plan| match plan {
             dx_update::backend::BackendPlan::Run { argv, env } => {
                 dx_update::backend::CheckPlan::Run { argv, env }
+            }
+            dx_update::backend::BackendPlan::Staged(run) => {
+                dx_update::backend::CheckPlan::Staged(run)
             }
             dx_update::backend::BackendPlan::Noop => dx_update::backend::CheckPlan::Pinned,
         }),
@@ -218,36 +264,17 @@ fn run_configured_target(
             );
             return Ok(());
         }
+        Ok(dx_update::backend::CheckPlan::Staged(run)) => {
+            return run_staged(
+                attempted, details, target, &run, runner, workspace, mode, gate,
+            );
+        }
         Ok(dx_update::backend::CheckPlan::Run { argv, env }) => (argv, env),
     };
-    let mut env_refs: Vec<(&str, &str)> = extra
-        .iter()
-        .map(|(key, value)| (key.as_str(), value.as_str()))
-        .collect();
     let bazel = dx_update::backend::runs_bazel(&argv);
-    let windows_env: Vec<(&str, String)> = if cfg!(windows) && !bazel {
-        ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
-            .into_iter()
-            .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
-            .collect()
-    } else {
-        Vec::new()
-    };
-    for (key, value) in &windows_env {
-        env_refs.push((key, value.as_str()));
-    }
     gate.before(&argv)?;
     let guarded = (mode == RunMode::Check && bazel).then(|| CheckGuard::take(workspace, set));
-    let launched = if bazel {
-        match gate.phase.slot() {
-            Some(slot) => {
-                dx_process::Runner::run(&slot.runner(runner), &argv, workspace, &env_refs)
-            }
-            None => runner.run(&argv, workspace, &env_refs),
-        }
-    } else {
-        runner.run_hermetic(&argv, workspace, &env_refs)
-    };
+    let launched = launch(gate, runner, workspace, &argv, &extra);
     let ok = match mode {
         RunMode::Update => (
             dx_update::outcome::SetStatus::Updated,
@@ -261,6 +288,10 @@ fn run_configured_target(
             Ecosystem::Cargo => {
                 "; declare `lockfile` in crate.from_cargo and list it in the set's locks"
             }
+            Ecosystem::Maven => {
+                "; the maven.install lock_file must be listed in the set's locks and MODULE.bazel must not change"
+            }
+            Ecosystem::Nuget => "; paket2bazel must only write into its scratch output folder",
             _ => "",
         };
         record_named(
@@ -283,10 +314,267 @@ fn run_configured_target(
     Ok(())
 }
 
+/// Runs `argv` in the workspace, in a Bazel slot when it is a Bazel command. The caller has
+/// already passed `gate.before`.
+fn launch(
+    gate: &mut SlotGate<'_>,
+    runner: &dyn dx_process::Runner,
+    workspace: &std::path::Path,
+    argv: &[String],
+    extra: &[(String, String)],
+) -> std::io::Result<dx_process::ChildStatus> {
+    let mut env_refs: Vec<(&str, &str)> = extra
+        .iter()
+        .map(|(key, value)| (key.as_str(), value.as_str()))
+        .collect();
+    let bazel = dx_update::backend::runs_bazel(argv);
+    let windows_env: Vec<(&str, String)> = if cfg!(windows) && !bazel {
+        ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
+            .into_iter()
+            .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    for (key, value) in &windows_env {
+        env_refs.push((key, value.as_str()));
+    }
+    if bazel {
+        match gate.phase.slot() {
+            Some(slot) => dx_process::Runner::run(&slot.runner(runner), argv, workspace, &env_refs),
+            None => runner.run(argv, workspace, &env_refs),
+        }
+    } else {
+        runner.run_hermetic(argv, workspace, &env_refs)
+    }
+}
+
+/// A scratch directory outside the workspace, removed on every path.
+struct Scratch(std::path::PathBuf);
+
+impl Scratch {
+    fn create(label: &str) -> std::io::Result<Scratch> {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let safe: String = label
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect();
+        let dir = std::env::temp_dir().join(format!("dx-staged-{}-{n}-{safe}", std::process::id()));
+        std::fs::create_dir(&dir)?;
+        let scratch = Scratch(dir);
+        std::fs::create_dir(scratch.0.join("out"))?;
+        Ok(scratch)
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn file_name(rel: &str) -> &str {
+    rel.rsplit('/').next().unwrap_or(rel)
+}
+
+/// Runs a generator on copies of the set's inputs and compares what it wrote with the
+/// declared locks. Check reports drift; apply writes only the declared files that differ.
+fn run_staged(
+    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
+    details: &mut BTreeMap<String, SetDetail>,
+    target: &ResolvedTarget,
+    run: &dx_update::backend::StagedRun,
+    runner: &dyn dx_process::Runner,
+    workspace: &std::path::Path,
+    mode: RunMode,
+    gate: &mut SlotGate<'_>,
+) -> Result<(), i32> {
+    use dx_update::outcome::SetStatus;
+    let set = &target.set;
+    let verb = mode.verb();
+    macro_rules! fail {
+        ($($arg:tt)*) => {
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                SetStatus::Failed,
+                format!("failed to {verb} {}: {}", set.name, format!($($arg)*)),
+            )
+        };
+    }
+
+    let scratch = match Scratch::create(&set.name) {
+        Ok(scratch) => scratch,
+        Err(error) => {
+            fail!("cannot create scratch directory: {error}");
+            return Ok(());
+        }
+    };
+    for rel in &run.inputs {
+        let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
+            .and_then(std::fs::read)
+            .and_then(|bytes| std::fs::write(scratch.0.join(file_name(rel)), bytes));
+        if let Err(error) = copied {
+            fail!("cannot stage {rel}: {error}");
+            return Ok(());
+        }
+    }
+    let argv = run.argv(&scratch.0);
+    gate.before(&argv)?;
+    let guarded = (mode == RunMode::Check).then(|| CheckGuard::take(workspace, set));
+    let launched = launch(gate, runner, workspace, &argv, &run.env);
+    let wrote = guarded.and_then(|guard| guard.restore(workspace));
+    let (status, message) = runner_status(
+        launched,
+        verb,
+        &set.name,
+        (SetStatus::Updated, String::new()),
+    );
+    if let Some(wrote) = wrote {
+        record_named(
+            attempted,
+            details,
+            &set.name,
+            SetStatus::Failed,
+            format!(
+                "failed to {verb} {}: check_wrote: {} (restored); paket2bazel must only write into its scratch output folder",
+                set.name,
+                wrote.join(", ")
+            ),
+        );
+        if let Some(detail) = details.get_mut(&set.name) {
+            detail.failure_code = Some("check_wrote");
+        }
+        return Ok(());
+    }
+    if status != SetStatus::Updated {
+        record_named(attempted, details, &set.name, status, message);
+        return Ok(());
+    }
+    let mut generated: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+    match std::fs::read_dir(scratch.0.join("out")) {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                match std::fs::read(entry.path()) {
+                    Ok(bytes) => {
+                        generated.insert(name, bytes);
+                    }
+                    Err(error) => {
+                        fail!("cannot read generated {name}: {error}");
+                        return Ok(());
+                    }
+                }
+            }
+        }
+        Err(error) => {
+            fail!("cannot read generated files: {error}");
+            return Ok(());
+        }
+    }
+    let declared: BTreeMap<&str, &String> = run
+        .outputs
+        .iter()
+        .map(|rel| (file_name(rel), rel))
+        .collect();
+    let undeclared: Vec<&str> = generated
+        .keys()
+        .map(String::as_str)
+        .filter(|name| !declared.contains_key(name))
+        .collect();
+    if !undeclared.is_empty() {
+        fail!(
+            "paket2bazel generated files not declared in locks: {}; list them in the set's locks",
+            undeclared.join(", ")
+        );
+        return Ok(());
+    }
+    let missing: Vec<&str> = declared
+        .iter()
+        .filter(|(name, _)| !generated.contains_key(**name))
+        .map(|(_, rel)| rel.as_str())
+        .collect();
+    if !missing.is_empty() {
+        fail!(
+            "paket2bazel did not generate declared locks: {}",
+            missing.join(", ")
+        );
+        return Ok(());
+    }
+    let mut differing: Vec<(&String, &Vec<u8>)> = Vec::new();
+    for (name, rel) in &declared {
+        let bytes = &generated[*name];
+        let current = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
+            .and_then(std::fs::read)
+            .ok();
+        if current.as_ref() != Some(bytes) {
+            differing.push((rel, bytes));
+        }
+    }
+    match mode {
+        RunMode::Check => {
+            if differing.is_empty() {
+                record_named(
+                    attempted,
+                    details,
+                    &set.name,
+                    SetStatus::Current,
+                    current_line(set),
+                );
+            } else {
+                let paths: Vec<&str> = differing.iter().map(|(rel, _)| rel.as_str()).collect();
+                fail!(
+                    "stale generated locks: {}; run `dx update {}`",
+                    paths.join(", "),
+                    set.name
+                );
+            }
+        }
+        RunMode::Update => {
+            for (rel, bytes) in differing {
+                let path = match dx_path::workspace::resolve_target_in_workspace(workspace, rel) {
+                    Ok(path) => path,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                        let (parent, name) = rel.rsplit_once('/').unwrap_or((".", rel));
+                        match dx_path::workspace::resolve_target_in_workspace(workspace, parent) {
+                            Ok(parent) => parent.join(name),
+                            Err(error) => {
+                                fail!("cannot write {rel}: {error}");
+                                return Ok(());
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        fail!("cannot write {rel}: {error}");
+                        return Ok(());
+                    }
+                };
+                if let Err(error) = dx_atomic_fs::write_atomic(&path, bytes) {
+                    fail!("cannot write {rel}: {error}");
+                    return Ok(());
+                }
+            }
+            record_named(
+                attempted,
+                details,
+                &set.name,
+                SetStatus::Updated,
+                success_line(set, &target.request),
+            );
+        }
+    }
+    Ok(())
+}
+
 /// The bytes of a set's manifests and locks before a Bazel-run check, so a check that writes
 /// is caught, undone and failed instead of reported current.
+/// `(rel, resolved path before the check, bytes before the check)`.
+type GuardedFile = (String, Option<std::path::PathBuf>, Option<Vec<u8>>);
+
 struct CheckGuard {
-    files: Vec<(String, Option<Vec<u8>>)>,
+    files: Vec<GuardedFile>,
 }
 
 impl CheckGuard {
@@ -297,22 +585,47 @@ impl CheckGuard {
         CheckGuard {
             files: paths
                 .into_iter()
-                .map(|rel| (rel.clone(), std::fs::read(workspace.join(rel)).ok()))
+                .map(|rel| {
+                    let resolved =
+                        dx_path::workspace::resolve_target_in_workspace(workspace, rel).ok();
+                    let before = resolved.as_ref().and_then(|path| std::fs::read(path).ok());
+                    (rel.clone(), resolved, before)
+                })
                 .collect(),
         }
     }
 
     /// Restores every changed file and names them; `None` when the check wrote nothing.
+    /// Never writes through a path that was not re-resolved inside the workspace.
     fn restore(self, workspace: &std::path::Path) -> Option<Vec<String>> {
         let mut wrote = Vec::new();
-        for (rel, before) in self.files {
-            let path = workspace.join(&rel);
-            if std::fs::read(&path).ok() == before {
+        for (rel, stored, before) in self.files {
+            let Some(stored) = stored else {
+                continue;
+            };
+            let now = dx_path::workspace::resolve_target_in_workspace(workspace, &rel);
+            if now.as_ref().ok() != Some(&stored) {
+                // The check swapped in a link that leaves the workspace or points elsewhere:
+                // drop the link itself, then put the original bytes back at the stored path.
+                let link = workspace.join(&rel);
+                if std::fs::symlink_metadata(&link)
+                    .map(|metadata| metadata.file_type().is_symlink())
+                    .unwrap_or(false)
+                {
+                    let _ = std::fs::remove_file(&link);
+                }
+                if let Some(bytes) = &before {
+                    let _ = dx_atomic_fs::write_atomic(&stored, bytes);
+                }
+                wrote.push(rel);
+                continue;
+            }
+            if std::fs::read(&stored).ok() == before {
                 continue;
             }
             let _ = match &before {
-                Some(bytes) => std::fs::write(&path, bytes),
-                None => std::fs::remove_file(&path),
+                Some(bytes) => dx_atomic_fs::write_atomic(&stored, bytes),
+                None => std::fs::remove_file(&stored),
             };
             wrote.push(rel);
         }
@@ -320,10 +633,82 @@ impl CheckGuard {
     }
 }
 
-fn pinned(runner: &dyn dx_process::Runner, var: &str) -> Option<String> {
-    runner
-        .pinned_tool(var)
-        .map(|path| path.to_string_lossy().into_owned())
+/// One resolved tool: its path and, when Bazel was tried and failed, why.
+type Resolved = (Option<String>, Option<String>);
+
+/// Resolves uv and its interpreter at most once per run, from the environment
+/// first and Bazel second. `PATH` is never searched.
+struct UvTools<'a> {
+    runner: &'a dyn dx_process::Runner,
+    bazel: &'a dyn dx_tool_resolve::Bazel,
+    offline: bool,
+    uv: Option<Resolved>,
+    python: Option<Resolved>,
+}
+
+impl<'a> UvTools<'a> {
+    fn new(
+        runner: &'a dyn dx_process::Runner,
+        bazel: &'a dyn dx_tool_resolve::Bazel,
+        offline: bool,
+    ) -> Self {
+        UvTools {
+            runner,
+            bazel,
+            offline,
+            uv: None,
+            python: None,
+        }
+    }
+
+    fn resolve(&self, var: &str, label: &str) -> Resolved {
+        let tool = PinnedTool { var, label };
+        match resolve_pinned(self.runner, self.bazel, &tool, self.offline) {
+            Ok(path) => (Some(path.to_string_lossy().into_owned()), None),
+            Err(PinnedToolError::Invalid) => (None, None),
+            Err(PinnedToolError::Unresolved { detail }) => (None, Some(detail)),
+        }
+    }
+
+    fn closure(&mut self) -> dx_update::backend::UvClosure {
+        use dx_update::backend as be;
+        let runner = self.runner;
+        let (uv, uv_detail) = match self.uv.take() {
+            Some(done) => done,
+            None => {
+                let (path, detail) = self.resolve(be::UV_BIN_VAR, be::UV_LABEL);
+                let path = path.filter(|path| {
+                    runner
+                        .tool_version(std::path::Path::new(path))
+                        .is_some_and(|line| {
+                            let name_and_version: Vec<&str> =
+                                line.split_whitespace().take(2).collect();
+                            name_and_version.join(" ") == be::UV_VERSION_LINE
+                        })
+                });
+                (path, detail)
+            }
+        };
+        self.uv = Some((uv.clone(), uv_detail.clone()));
+        // A missing uv already fails the set, so skip resolving the interpreter.
+        let (python, python_detail) = if uv.is_some() {
+            let done = match self.python.take() {
+                Some(done) => done,
+                None => self.resolve(be::UV_PYTHON_VAR, be::UV_PYTHON_LABEL),
+            };
+            self.python = Some(done.clone());
+            done
+        } else {
+            (None, None)
+        };
+        be::UvClosure {
+            uv,
+            python,
+            uv_detail,
+            python_detail,
+            ..Default::default()
+        }
+    }
 }
 
 fn display_summary(resolved: &[ResolvedTarget], mode: RunMode) -> String {
@@ -522,6 +907,114 @@ source = { registry = "https://pypi.org/simple" }
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(!out.contains("updated worker"), "{out}");
         assert!(runner.calls.borrow().is_empty());
+    }
+
+    /// Scripts one Bazel resolution of `rel` under a fresh output base.
+    fn script_resolution(harness: &Harness, base: &std::path::Path, rel: &str) {
+        let file = base.join(rel);
+        std::fs::create_dir_all(file.parent().expect("parent")).expect("dir");
+        std::fs::write(&file, b"").expect("tool");
+        harness
+            .query
+            .outputs
+            .borrow_mut()
+            .push(dx_plan::resolve::QueryResult {
+                code: Some(0),
+                stdout: format!("{rel}\n").into_bytes(),
+                stderr: Vec::new(),
+            });
+        harness.query.script_info(&base.to_string_lossy());
+    }
+
+    #[test]
+    fn consumer_unset_uv_resolves_through_bazel_once_for_every_set() {
+        let base = super::super::super::test_support::temp_dir("uv-fallback");
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let harness = consumer_harness("fallback", DX_TOML, true);
+        script_resolution(&harness, base.path(), "external/x/uv");
+        script_resolution(&harness, base.path(), "external/x/python3");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 2, "one cquery per tool: {calls:?}");
+        assert!(calls[0].contains(&"@dx_tools//:uv".to_owned()), "{calls:?}");
+        assert!(!calls[0]
+            .iter()
+            .any(|arg| arg.contains("repository_disable")));
+        let launched = runner.calls.borrow();
+        assert_eq!(launched.len(), 2, "{launched:?}");
+        let uv = base.path().join("external/x/uv");
+        assert_eq!(launched[0][0], uv.to_string_lossy());
+        assert_eq!(launched[1][0], uv.to_string_lossy());
+    }
+
+    #[test]
+    fn consumer_offline_check_disables_repository_downloads_for_resolution() {
+        let base = super::super::super::test_support::temp_dir("uv-offline");
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let harness = consumer_harness("offline", DX_TOML, true);
+        script_resolution(&harness, base.path(), "external/x/uv");
+        script_resolution(&harness, base.path(), "external/x/python3");
+        let (code, out, err) = run_with(&["update", "--check", "--offline"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        let calls = harness.query.calls.borrow();
+        assert!(!calls.is_empty());
+        for call in calls.iter() {
+            assert!(
+                call.contains(&"--repository_disable_download".to_owned()),
+                "{call:?}"
+            );
+            assert!(!call.contains(&"--nofetch".to_owned()), "{call:?}");
+        }
+    }
+
+    #[test]
+    fn consumer_failed_resolution_is_unavailable_with_the_detail_and_queried_once() {
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        let harness = consumer_harness("resolve-fails", DX_TOML, true);
+        harness
+            .query
+            .script_failure(1, "ERROR: no such repository '@dx_tools'\n");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("backend_unavailable"), "{err}");
+        assert!(err.contains("DX_UV_BIN"), "{err}");
+        assert!(err.contains("PATH is never searched"), "{err}");
+        assert!(err.contains("no such repository"), "{err}");
+        assert_eq!(harness.query.calls.borrow().len(), 1);
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_resolved_uv_with_the_wrong_version_is_rejected() {
+        let base = super::super::super::test_support::temp_dir("uv-wrong-version");
+        let mut runner = ScriptRunner::new(&[]);
+        runner.pinned = false;
+        runner.version = Some("uv 0.1.0".to_owned());
+        let harness = consumer_harness("wrong-version", DX_TOML, true);
+        script_resolution(&harness, base.path(), "external/x/uv");
+        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("backend_unavailable"), "{err}");
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn consumer_rejected_applies_never_query_bazel() {
+        for flag in ["--offline", "--frozen"] {
+            let mut runner = ScriptRunner::new(&[]);
+            runner.pinned = false;
+            let harness = consumer_harness("rejected", DX_TOML, true);
+            let (_, out, err) = run_with(&["update", "--apply", flag, "worker"], &runner, &harness);
+            assert!(
+                harness.query.calls.borrow().is_empty(),
+                "{flag}: {out}{err}"
+            );
+            assert!(harness.query.info_calls.borrow().is_empty());
+        }
     }
 
     #[test]
@@ -1472,6 +1965,60 @@ repository = "tool_crates"
     }
 
     #[test]
+    fn consumer_cargo_apply_package_repins_one_crate() {
+        let harness = cargo_harness("cargo-apply-package");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(&["update", "--apply", "crates:serde"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("updated crates:serde (consumer-rs/crates/Cargo.lock, consumer-rs/crates/cargo-bazel-lock.json)"),
+            "{out}"
+        );
+        assert_eq!(
+            *runner.launches.borrow(),
+            vec![Launch {
+                argv: cargo_call(&[], false, "crates"),
+                cwd: harness.workspace.clone(),
+                env: cargo_env("serde", "crates"),
+                hermetic: false,
+            }]
+        );
+    }
+
+    #[test]
+    fn consumer_cargo_package_and_full_sets_in_one_run() {
+        let harness = cargo_harness("cargo-package-and-full");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "crates:serde", "tools"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 2);
+        assert_eq!(launches[0].argv, cargo_call(&[], false, "crates"));
+        assert_eq!(launches[0].env, cargo_env("serde", "crates"));
+        assert_eq!(launches[1].argv, cargo_call(&[], false, "tool_crates"));
+        assert_eq!(launches[1].env, cargo_env("workspace", "tool_crates"));
+    }
+
+    #[test]
+    fn consumer_cargo_package_failure_stays_with_its_own_set() {
+        let harness = cargo_harness("cargo-package-fail");
+        let runner = ScriptRunner::new(&[("consumer-cargo:crates", Some(1))]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "crates:serde", "tools"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("updater exited 1"), "{err}");
+        assert!(out.contains("updated tools"), "{out}");
+        assert_eq!(runner.calls.borrow().len(), 2);
+    }
+
+    #[test]
     fn consumer_cargo_failure_stays_with_its_own_set() {
         let harness = cargo_harness("cargo-fail");
         let runner = ScriptRunner::new(&[("consumer-cargo:tool_crates", Some(1))]);
@@ -1506,11 +2053,41 @@ repository = "tool_crates"
         );
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
-        for mode in ["--apply", "--check"] {
-            let (code, out, err) = run_with(&["update", mode, "crates:serde"], &runner, &harness);
-            assert_eq!(code, 1, "{mode}: {out}{err}");
+        let (code, out, err) = run_with(&["update", "--check", "crates:serde"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(err.contains("select the set without a package"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--frozen", "crates:serde"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("frozen_locked"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "--offline", "crates:serde"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("offline_required"), "{err}");
+        let (code, _, err) = run_with(
+            &["update", "--apply", "crates:serde", "crates:tokio"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_set_unsupported"), "{err}");
+        assert!(err.contains("one crate per run"), "{err}");
+        for name in ["off", "all"] {
+            let (code, _, err) = run_with(
+                &["update", "--apply", &format!("crates:{name}")],
+                &runner,
+                &harness,
+            );
+            assert_eq!(code, 1, "{name}: {err}");
             assert!(err.contains("update_set_unsupported"), "{err}");
-            assert!(err.contains("select the set without a package"), "{err}");
+            assert!(err.contains("repin mode"), "{err}");
         }
         assert!(runner.calls.borrow().is_empty());
         assert_eq!(cargo_bytes(&harness), before);
@@ -1593,6 +2170,553 @@ repository = "tool_crates"
             read_bytes(&harness, "consumer-npm/web/pnpm-lock.yaml"),
             PNPM_LOCK.as_bytes()
         );
+    }
+
+    const MAVEN_TOML_SETS: &str = r#"
+[[dependency_set]]
+name = "jvm"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/maven_install.json"]
+scopes = ["third_party"]
+repository = "maven"
+
+[[dependency_set]]
+name = "jvm_tools"
+ecosystem = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["tools/jvm/tool_install.json"]
+scopes = ["tools/jvm"]
+repository = "tool_maven"
+"#;
+
+    const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"tool_maven\", lock_file = \"//tools/jvm:tool_install.json\")\nuse_repo(maven, \"maven\", \"tool_maven\")\n";
+
+    const MAVEN_LOCK: &str = "{\"__AUTOGENERATED_FILE_DO_NOT_MODIFY_THIS_FILE_MANUALLY\":\"x\",\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2,\"artifacts\":{}}\n";
+
+    const MAVEN_FILES: [&str; 3] = [
+        "MODULE.bazel",
+        "third_party/maven_install.json",
+        "tools/jvm/tool_install.json",
+    ];
+
+    fn maven_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, &format!("{DX_TOML}{MAVEN_TOML_SETS}"), true);
+        harness.write_source("MODULE.bazel", MAVEN_MODULE);
+        harness.write_source("third_party/maven_install.json", MAVEN_LOCK);
+        harness.write_source("tools/jvm/tool_install.json", MAVEN_LOCK);
+        harness
+    }
+
+    #[allow(clippy::disallowed_methods)] // test helper mirrors the backend argv
+    fn maven_pin_call(repository: &str) -> Vec<String> {
+        let mut argv = dx_process::startup_argv(&[]);
+        argv.push("run".to_owned());
+        argv.push("--config=dx_dev".to_owned());
+        argv.push(format!("@{repository}//:pin"));
+        argv
+    }
+
+    fn maven_bytes(harness: &Harness) -> Vec<Vec<u8>> {
+        MAVEN_FILES
+            .iter()
+            .map(|rel| read_bytes(harness, rel))
+            .collect()
+    }
+
+    #[test]
+    fn consumer_maven_check_fetches_each_hub_without_repin_env() {
+        let harness = maven_harness("maven-check");
+        let runner = ScriptRunner::new(&[]);
+        let (code, out, err) = run_with(
+            &["update", "--check", "jvm", "jvm_tools"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("jvm lockfile current (third_party/maven_install.json)"),
+            "{out}"
+        );
+        let launches = runner.launches.borrow();
+        assert_eq!(
+            *launches,
+            vec![
+                Launch {
+                    argv: cargo_call(&[], false, "maven"),
+                    cwd: harness.workspace.clone(),
+                    env: Vec::new(),
+                    hermetic: false,
+                },
+                Launch {
+                    argv: cargo_call(&[], false, "tool_maven"),
+                    cwd: harness.workspace.clone(),
+                    env: Vec::new(),
+                    hermetic: false,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn consumer_maven_apply_pins_one_set_and_leaves_the_other_lock() {
+        let harness = maven_harness("maven-apply");
+        let before = maven_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        runner.writes.borrow_mut().push((
+            harness.workspace.join("third_party/maven_install.json"),
+            b"{\"pinned\":true}\n".to_vec(),
+        ));
+        let (code, out, err) = run_with(&["update", "--apply", "jvm"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("updated jvm"), "{out}");
+        assert_eq!(
+            *runner.launches.borrow(),
+            vec![Launch {
+                argv: maven_pin_call("maven"),
+                cwd: harness.workspace.clone(),
+                env: vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())],
+                hermetic: false,
+            }]
+        );
+        let after = maven_bytes(&harness);
+        assert_eq!(after[0], before[0]);
+        assert_ne!(after[1], before[1]);
+        assert_eq!(after[2], before[2]);
+    }
+
+    #[test]
+    fn consumer_maven_refusals_never_launch_bazel() {
+        let harness = maven_harness("maven-refusals");
+        for argv in [
+            vec!["update", "--apply", "jvm:com.google.guava:guava"],
+            vec!["update", "--apply", "--offline", "jvm"],
+            vec!["update", "--check", "jvm:com.google.guava:guava"],
+        ] {
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{argv:?}: {out}{err}");
+            assert!(runner.launches.borrow().is_empty(), "{argv:?}");
+        }
+        let runner = ScriptRunner::new(&[]);
+        let (_, out, err) = run_with(
+            &["update", "--apply", "jvm:com.google.guava:guava"],
+            &runner,
+            &harness,
+        );
+        assert!(
+            format!("{out}{err}").contains("maven pins are exact in MODULE.bazel"),
+            "{out}{err}"
+        );
+    }
+
+    #[test]
+    fn consumer_maven_check_needs_the_hub_and_a_signed_lock() {
+        for (name, rewrite) in [
+            (
+                "hub",
+                ("MODULE.bazel", "bazel_dep(name = \"x\", version = \"1\")\n"),
+            ),
+            ("empty", ("third_party/maven_install.json", "")),
+            (
+                "v1",
+                ("third_party/maven_install.json", "{\"dependency_tree\":{}}"),
+            ),
+        ] {
+            let harness = maven_harness(&format!("maven-unready-{name}"));
+            harness.write_source(rewrite.0, rewrite.1);
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&["update", "--check", "jvm"], &runner, &harness);
+            assert_ne!(code, 0, "{name}: {out}{err}");
+            assert!(runner.launches.borrow().is_empty(), "{name}");
+            assert!(!out.contains("lockfile current"), "{name}: {out}");
+            assert!(
+                format!("{out}{err}").contains("cannot check jvm"),
+                "{name}: {out}{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn consumer_maven_check_that_writes_is_restored_and_failed() {
+        let harness = maven_harness("maven-guard");
+        let before = maven_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        runner.writes.borrow_mut().push((
+            harness.workspace.join("third_party/maven_install.json"),
+            b"rewritten\n".to_vec(),
+        ));
+        let (code, out, err) = run_with(&["update", "--check", "jvm"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("check_wrote: third_party/maven_install.json (restored)"),
+            "{err}"
+        );
+        assert_eq!(maven_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_maven_failing_pin_fails_only_its_own_set() {
+        let harness = maven_harness("maven-fail");
+        let key = ScriptRunner::key_for(&maven_pin_call("maven"));
+        let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
+        let (code, out, err) = run_with(
+            &["update", "--apply", "jvm", "jvm_tools"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            format!("{out}{err}").contains("failed to update jvm"),
+            "{out}{err}"
+        );
+        assert!(out.contains("updated jvm_tools"), "{out}{err}");
+        assert_eq!(runner.launches.borrow().len(), 2);
+    }
+
+    const NUGET_TOML_SETS: &str = r#"
+[[dependency_set]]
+name = "dotnet"
+ecosystem = "nuget"
+manifests = ["third_party/dotnet/paket.dependencies"]
+locks = [
+  "third_party/dotnet/paket.lock",
+  "third_party/dotnet/deps/paket.main.bzl",
+  "third_party/dotnet/deps/paket.main_extension.bzl",
+]
+scopes = ["third_party/dotnet"]
+
+[[dependency_set]]
+name = "dotnet_tools"
+ecosystem = "nuget"
+manifests = ["third_party/dotnet_tools/paket.dependencies"]
+locks = [
+  "third_party/dotnet_tools/paket.lock",
+  "third_party/dotnet_tools/deps/paket.tools.bzl",
+  "third_party/dotnet_tools/deps/paket.tools_extension.bzl",
+]
+scopes = ["third_party/dotnet_tools"]
+"#;
+
+    const NUGET_FILES: [&str; 8] = [
+        "MODULE.bazel",
+        "third_party/dotnet/paket.dependencies",
+        "third_party/dotnet/paket.lock",
+        "third_party/dotnet/deps/paket.main.bzl",
+        "third_party/dotnet/deps/paket.main_extension.bzl",
+        "third_party/dotnet_tools/paket.lock",
+        "third_party/dotnet_tools/deps/paket.tools.bzl",
+        "third_party/dotnet_tools/deps/paket.tools_extension.bzl",
+    ];
+
+    fn nuget_harness(name: &str) -> Harness {
+        let harness = consumer_harness(name, &format!("{DX_TOML}{NUGET_TOML_SETS}"), true);
+        harness.write_source(
+            "MODULE.bazel",
+            "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\n",
+        );
+        for dir in ["dotnet", "dotnet_tools"] {
+            harness.write_source(
+                &format!("third_party/{dir}/paket.dependencies"),
+                "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
+            );
+            harness.write_source(&format!("third_party/{dir}/paket.lock"), "NUGET\n");
+        }
+        harness.write_source("third_party/dotnet/deps/paket.main.bzl", "main\n");
+        harness.write_source("third_party/dotnet/deps/paket.main_extension.bzl", "ext\n");
+        harness.write_source("third_party/dotnet_tools/deps/paket.tools.bzl", "tools\n");
+        harness.write_source(
+            "third_party/dotnet_tools/deps/paket.tools_extension.bzl",
+            "tools_ext\n",
+        );
+        harness
+    }
+
+    fn nuget_bytes(harness: &Harness) -> Vec<Vec<u8>> {
+        NUGET_FILES
+            .iter()
+            .map(|rel| read_bytes(harness, rel))
+            .collect()
+    }
+
+    fn stage(runner: &ScriptRunner, files: &[(&str, &str)]) {
+        runner.staged_outputs.borrow_mut().extend(
+            files
+                .iter()
+                .map(|(name, text)| ((*name).to_owned(), text.as_bytes().to_vec())),
+        );
+    }
+
+    /// The `--output-folder` the single recorded launch ran with.
+    fn scratch_out(runner: &ScriptRunner) -> std::path::PathBuf {
+        let launches = runner.launches.borrow();
+        let argv = &launches[0].argv;
+        let at = argv
+            .iter()
+            .position(|arg| arg == "--output-folder")
+            .expect("folder");
+        std::path::PathBuf::from(&argv[at + 1])
+    }
+
+    #[test]
+    fn consumer_nuget_check_without_drift_is_current_and_cleans_scratch() {
+        let harness = nuget_harness("nuget-current");
+        let before = nuget_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        stage(
+            &runner,
+            &[
+                ("paket.main.bzl", "main\n"),
+                ("paket.main_extension.bzl", "ext\n"),
+            ],
+        );
+        let (code, out, err) = run_with(&["update", "--check", "dotnet"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("dotnet lockfile current"), "{out}");
+        let launches = runner.launches.borrow();
+        assert_eq!(launches.len(), 1);
+        let argv = &launches[0].argv;
+        let mut head = dx_process::startup_argv(&[]);
+        head.extend(strings_of(&[
+            "run",
+            "--config=dx_dev",
+            "@rules_dotnet//tools/paket2bazel",
+            "--",
+            "--dependencies-file",
+        ]));
+        assert_eq!(argv[..head.len()], head[..], "{argv:?}");
+        assert_eq!(argv.len(), head.len() + 3);
+        assert_eq!(argv[head.len() + 1], "--output-folder");
+        assert_eq!(launches[0].cwd, harness.workspace);
+        assert!(launches[0].env.is_empty());
+        assert!(!launches[0].hermetic);
+        let deps = std::path::Path::new(&argv[head.len()]);
+        assert!(!deps.starts_with(&harness.workspace), "{deps:?}");
+        assert!(!deps.exists(), "scratch must be removed: {deps:?}");
+        assert_eq!(nuget_bytes(&harness), before);
+    }
+
+    fn strings_of(words: &[&str]) -> Vec<String> {
+        words.iter().map(|word| (*word).to_owned()).collect()
+    }
+
+    #[test]
+    fn consumer_nuget_check_with_drift_fails_listing_files_and_writes_nothing() {
+        let harness = nuget_harness("nuget-drift");
+        let before = nuget_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        stage(
+            &runner,
+            &[
+                ("paket.main.bzl", "new\n"),
+                ("paket.main_extension.bzl", "ext\n"),
+            ],
+        );
+        let (code, out, err) = run_with(&["update", "--check", "dotnet"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("stale generated locks: third_party/dotnet/deps/paket.main.bzl;"),
+            "{err}"
+        );
+        assert!(!err.contains("paket.main_extension.bzl"), "{err}");
+        assert!(!out.contains("lockfile current"), "{out}");
+        assert_eq!(nuget_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_nuget_apply_writes_only_differing_declared_files() {
+        let harness = nuget_harness("nuget-apply");
+        let before = nuget_bytes(&harness);
+        let runner = ScriptRunner::new(&[]);
+        stage(
+            &runner,
+            &[
+                ("paket.main.bzl", "new\n"),
+                ("paket.main_extension.bzl", "ext\n"),
+            ],
+        );
+        let (code, out, err) = run_with(&["update", "--apply", "dotnet"], &runner, &harness);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("updated dotnet"), "{out}");
+        let after = nuget_bytes(&harness);
+        for (index, rel) in NUGET_FILES.iter().enumerate() {
+            if *rel == "third_party/dotnet/deps/paket.main.bzl" {
+                assert_eq!(after[index], b"new\n", "{rel}");
+            } else {
+                assert_eq!(after[index], before[index], "{rel}");
+            }
+        }
+        assert!(!scratch_out(&runner).exists());
+    }
+
+    #[test]
+    fn consumer_nuget_undeclared_or_missing_output_fails_and_writes_nothing() {
+        for (name, files, want) in [
+            (
+                "undeclared",
+                vec![
+                    ("paket.main.bzl", "new\n"),
+                    ("paket.main_extension.bzl", "ext2\n"),
+                    ("paket.extra.bzl", "x\n"),
+                ],
+                "not declared in locks: paket.extra.bzl",
+            ),
+            (
+                "missing",
+                vec![("paket.main.bzl", "new\n")],
+                "did not generate declared locks: third_party/dotnet/deps/paket.main_extension.bzl",
+            ),
+        ] {
+            let harness = nuget_harness(&format!("nuget-{name}"));
+            let before = nuget_bytes(&harness);
+            let runner = ScriptRunner::new(&[]);
+            stage(&runner, &files);
+            let (code, out, err) = run_with(&["update", "--apply", "dotnet"], &runner, &harness);
+            assert_eq!(code, 1, "{name}: {out}{err}");
+            assert!(err.contains(want), "{name}: {err}");
+            assert_eq!(nuget_bytes(&harness), before, "{name}");
+        }
+    }
+
+    #[test]
+    fn consumer_nuget_failing_run_writes_nothing() {
+        let harness = nuget_harness("nuget-fail");
+        let before = nuget_bytes(&harness);
+        let key = ScriptRunner::key_for(&strings_of(&["paket2bazel"]));
+        let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
+        stage(
+            &runner,
+            &[
+                ("paket.main.bzl", "new\n"),
+                ("paket.main_extension.bzl", "ext\n"),
+            ],
+        );
+        let (code, out, err) = run_with(&["update", "--apply", "dotnet"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            format!("{out}{err}").contains("failed to update dotnet"),
+            "{out}{err}"
+        );
+        assert_eq!(nuget_bytes(&harness), before);
+    }
+
+    #[test]
+    fn consumer_nuget_offline_is_required_and_frozen_apply_runs() {
+        let harness = nuget_harness("nuget-offline");
+        for argv in [
+            vec!["update", "--check", "--offline", "dotnet"],
+            vec!["update", "--apply", "--offline", "dotnet"],
+            vec!["update", "--apply", "dotnet:Newtonsoft.Json"],
+        ] {
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_ne!(code, 0, "{argv:?}: {out}{err}");
+            assert!(runner.launches.borrow().is_empty(), "{argv:?}");
+            assert!(
+                !format!("{out}{err}").contains("lockfile current"),
+                "{argv:?}"
+            );
+        }
+        let runner = ScriptRunner::new(&[]);
+        let (_, out, err) = run_with(
+            &["update", "--check", "--offline", "dotnet"],
+            &runner,
+            &harness,
+        );
+        assert!(
+            format!("{out}{err}").contains("offline_required"),
+            "{out}{err}"
+        );
+        let runner = ScriptRunner::new(&[]);
+        stage(
+            &runner,
+            &[
+                ("paket.main.bzl", "main\n"),
+                ("paket.main_extension.bzl", "ext\n"),
+            ],
+        );
+        let (code, out, err) = run_with(
+            &["update", "--apply", "--frozen", "dotnet"],
+            &runner,
+            &harness,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(runner.launches.borrow().len(), 1);
+    }
+
+    #[test]
+    fn consumer_nuget_layout_refusal_never_launches() {
+        let harness = nuget_harness("nuget-layout");
+        harness.write_source(
+            "MODULE.bazel",
+            "bazel_dep(name = \"other\", version = \"1\")\n",
+        );
+        for mode in ["--check", "--apply"] {
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&["update", mode, "dotnet"], &runner, &harness);
+            assert_ne!(code, 0, "{out}{err}");
+            assert!(runner.launches.borrow().is_empty());
+            assert!(format!("{out}{err}").contains("rules_dotnet"), "{out}{err}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn consumer_check_with_a_lock_linking_outside_fails_before_launch() {
+        for (argv, lock) in [
+            (
+                ["update", "--check", "crates"],
+                "consumer-rs/crates/Cargo.lock",
+            ),
+            (
+                ["update", "--check", "web"],
+                "consumer-npm/web/pnpm-lock.yaml",
+            ),
+        ] {
+            let harness = cargo_harness("link-out");
+            let outside = harness
+                .workspace
+                .parent()
+                .expect("parent")
+                .join("outside-lock.txt");
+            std::fs::write(&outside, b"outside\n").expect("outside");
+            let at = harness.workspace.join(lock);
+            std::fs::remove_file(&at).expect("remove lock");
+            std::os::unix::fs::symlink(&outside, &at).expect("link");
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) = run_with(&argv, &runner, &harness);
+            assert_eq!(code, 1, "{out}{err}");
+            assert!(err.contains("leaves the workspace"), "{err}");
+            assert!(runner.launches.borrow().is_empty());
+            assert_eq!(std::fs::read(&outside).expect("outside"), b"outside\n");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn consumer_check_that_writes_through_an_inside_link_is_restored() {
+        let harness = cargo_harness("link-in");
+        let at = harness.workspace.join("consumer-rs/crates/Cargo.lock");
+        let real = harness.workspace.join("consumer-rs/crates/real.lock");
+        std::fs::rename(&at, &real).expect("rename");
+        std::os::unix::fs::symlink(&real, &at).expect("link");
+        let before = std::fs::read(&real).expect("real");
+        let runner = ScriptRunner::new(&[]);
+        runner
+            .writes
+            .borrow_mut()
+            .push((at.clone(), b"rewritten\n".to_vec()));
+        let (code, out, err) = run_with(&["update", "--check", "crates"], &runner, &harness);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("check_wrote: consumer-rs/crates/Cargo.lock (restored)"),
+            "{err}"
+        );
+        assert!(std::fs::symlink_metadata(&at)
+            .expect("meta")
+            .file_type()
+            .is_symlink());
+        assert_eq!(std::fs::read(&real).expect("real"), before);
     }
 
     #[test]

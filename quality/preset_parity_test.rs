@@ -42,8 +42,6 @@ fn preset_parity() {
             "coverage --combined_report=lcov",
             "coverage --test_tag_filters=-no-coverage",
             "coverage --enable_runfiles",
-            "coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-            "coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
             "coverage --instrumentation_filter=^//",
             "build --host_compilation_mode=fastbuild",
             "build:dx_debug --compilation_mode=dbg",

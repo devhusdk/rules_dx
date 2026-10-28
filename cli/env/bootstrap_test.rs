@@ -88,8 +88,8 @@ fn help_exits_zero_on_stdout() {
 #[test]
 fn env_bootstrap() {
     let bin = env_bin();
-    let scratch = dx_testing::mkscratch("env-bootstrap-").expect("scratch");
-    let root = scratch.join("work space");
+    let scratch = dx_test_scratch::scratch("env-bootstrap-");
+    let root = scratch.path().join("work space");
     std::fs::create_dir_all(&root).expect("work space");
 
     let output = install(&bin, &root);
@@ -156,7 +156,7 @@ fn env_bootstrap() {
         "staged bin not found under {}",
         staged_bin.display()
     );
-    let alt = scratch.join("staged-alt");
+    let alt = scratch.path().join("staged-alt");
     std::fs::create_dir_all(&alt).expect("alt");
     copy_tree(&staged_bin, &alt.join("bin"));
     let mut doc = dx_testing::read_json(&staged).expect("read staged metadata");
@@ -216,7 +216,7 @@ fn env_bootstrap() {
         "restored entry missing"
     );
 
-    let foreign = scratch.join("foreign");
+    let foreign = scratch.path().join("foreign");
     std::fs::create_dir_all(foreign.join(".dx/bin")).expect("foreign");
     std::fs::write(foreign.join(".dx/bin").join("stale_tool"), b"stale").expect("stale tool");
     let refused = dx_testing::run(
@@ -235,5 +235,31 @@ fn env_bootstrap() {
         std::fs::read_to_string(foreign.join(".dx/bin").join("stale_tool")).expect("read stale"),
         "stale",
         "foreign tree was modified"
+    );
+}
+
+#[test]
+fn relative_workspace_resolves_against_build_working_directory() {
+    let bin = env_bin();
+    let scratch = dx_test_scratch::scratch("env-relative-");
+    let base = scratch.path().join("base");
+    std::fs::create_dir_all(base.join("ws")).expect("ws");
+    let base_dir = base.to_string_lossy().into_owned();
+
+    let run = dx_testing::run(
+        &bin,
+        &["--workspace", "ws"],
+        &[("BUILD_WORKING_DIRECTORY", base_dir.as_str())],
+    )
+    .expect("env relative install must execute");
+    assert!(
+        run.status.success(),
+        "relative install failed\n{}",
+        run.combined()
+    );
+    assert!(
+        is_symlink(&base.join("ws/.dx/bin").join(host("doctor"))),
+        "install did not land under BUILD_WORKING_DIRECTORY: {}",
+        run.combined()
     );
 }

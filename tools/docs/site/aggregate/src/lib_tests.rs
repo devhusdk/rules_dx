@@ -120,6 +120,12 @@ fn ids_map_to_pages_titles_and_relative_links() {
     );
     assert_eq!(title("rust:demo:shapes.Circle"), "demo::shapes::Circle");
     assert_eq!(title("python:demo:Service.create"), "demo.Service.create");
+    assert_eq!(title("rust:demo:foo@fn"), "demo::foo (fn)");
+    assert_eq!(
+        title("rust:demo:Point.x@method-2"),
+        "demo::Point::x (method 2)"
+    );
+    assert_eq!(api_path("rust:demo:foo@fn"), "api/rust/demo/foo@fn.md");
     assert_eq!(relative("api/rust/demo/a.md", "api/rust/demo/b.md"), "b.md");
     assert_eq!(
         relative("api/rust/demo/a.md", "api/rust/other/b.md"),
@@ -439,5 +445,129 @@ fn a_title_with_a_backtick_gets_a_longer_code_fence() {
             .contains("- [Geometry::Circle#\\`](api/ruby/geometry/Geometry.Circle.~60.md)"),
         "{}",
         rendered.summary
+    );
+}
+
+fn java_shard(doc: &str) -> DocIr {
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "java".to_string(),
+        package: "demo".to_string(),
+        symbols: vec![
+            symbol("java:demo:a.Circle", "public class Circle", doc, 3),
+            symbol("java:demo:a.Shape", "public interface Shape", "", 1),
+        ],
+    }
+}
+
+#[test]
+fn dx_links_resolve_to_relative_pages_and_unknown_ids_become_code() {
+    let doc = "See [Shape](dx:java:demo:a.Shape) and [Gone](dx:java:demo:a.Gone).\n\n\
+               `[x](dx:java:demo:a.Shape)`\n\n```\n[y](dx:java:demo:a.Shape)\n```";
+    let rendered = render(&[java_shard(doc)], "").expect("renders");
+    let page = &rendered.pages["java/demo/a.Circle.md"];
+    assert!(page.contains("[Shape](a.Shape.md)"), "{page}");
+    assert!(page.contains("`demo.a.Gone`"), "{page}");
+    assert!(page.contains("`[x](dx:java:demo:a.Shape)`"), "{page}");
+    assert!(page.contains("\n[y](dx:java:demo:a.Shape)\n"), "{page}");
+    assert!(page.contains("```java\npublic class Circle\n```"), "{page}");
+    assert!(
+        rendered.api.contains("## Java library `demo`"),
+        "{}",
+        rendered.api
+    );
+}
+
+#[test]
+fn pages_that_differ_only_in_case_fail() {
+    let mut shard = java_shard("");
+    shard.symbols[1].id = "java:demo:a.circle".to_string();
+    let error = render(&[shard], "").expect_err("collision");
+    assert!(error.contains("differ only in case"), "{error}");
+    assert!(
+        error.contains("a.Circle") && error.contains("a.circle"),
+        "{error}"
+    );
+}
+
+fn vue_shard() -> DocIr {
+    let member = |name: &str, kind: SymbolKind, signature: &str| {
+        let mut s = symbol(&format!("vue:ui:Button.{name}"), signature, "", 5);
+        s.kind = kind as i32;
+        s.display_name = format!("Button.vue {name}");
+        s.relations = Some(Relations {
+            member_of: vec!["vue:ui:Button".to_string()],
+            ..Relations::default()
+        });
+        s
+    };
+    let mut button = symbol("vue:ui:Button", "component Button", "A button.", 1);
+    button.kind = SymbolKind::Component as i32;
+    button.display_name = "Button.vue".to_string();
+    DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "vue".to_string(),
+        package: "ui".to_string(),
+        symbols: vec![
+            button,
+            member("event_click", SymbolKind::Event, "click: [number]"),
+            member("exposed_focus", SymbolKind::Method, "focus: () => void"),
+            member("prop_label", SymbolKind::Property, "label: string"),
+            member("prop_size", SymbolKind::Property, "size?: number = 1"),
+            member("slot_default", SymbolKind::Slot, "default: {}"),
+        ],
+    }
+}
+
+#[test]
+fn vue_components_group_their_members_by_kind() {
+    let rendered = render(&[vue_shard()], "").expect("render");
+    assert!(
+        rendered.api.contains("## Vue components `ui`"),
+        "{}",
+        rendered.api
+    );
+    let page = &rendered.pages["vue/ui/Button.md"];
+    assert_eq!(
+        page,
+        "# `Button.vue`\n\n```ts\ncomponent Button\n```\n\nA button.\n\nSource: `pkg/src/lib.rs:1`\n\nProps: [`Button.vue prop_label`](Button.prop_label.md), [`Button.vue prop_size`](Button.prop_size.md)\n\nEvents: [`Button.vue event_click`](Button.event_click.md)\n\nSlots: [`Button.vue slot_default`](Button.slot_default.md)\n\nExposed: [`Button.vue exposed_focus`](Button.exposed_focus.md)\n"
+    );
+    let prop = &rendered.pages["vue/ui/Button.prop_label.md"];
+    assert!(
+        prop.contains("```ts\nlabel: string\n```")
+            && prop.contains("Member of: [`Button.vue`](Button.md)"),
+        "{prop}"
+    );
+    assert_eq!(rendered.summary.matches("    - [").count(), 6);
+    let records: serde_json::Value = serde_json::from_str(&rendered.records).expect("records");
+    assert_eq!(records.as_array().expect("records").len(), 6);
+}
+
+#[test]
+fn python_symbols_render_with_a_python_fence_and_title() {
+    let shard = DocIr {
+        schema_major: SCHEMA_MAJOR,
+        schema_minor: SCHEMA_MINOR,
+        language: "python".to_string(),
+        package: "mylib".to_string(),
+        symbols: vec![symbol(
+            "python:mylib:greet",
+            "def greet(name: str) -> str",
+            "Greets.",
+            3,
+        )],
+    };
+    let rendered = render(&[shard], "https://example.com/blob/main/").expect("render");
+    let page = &rendered.pages["python/mylib/greet.md"];
+    assert!(
+        page.contains("```python\ndef greet(name: str) -> str\n```\n"),
+        "{page}"
+    );
+    assert!(
+        rendered.api.contains("## Python package `mylib`"),
+        "{}",
+        rendered.api
     );
 }

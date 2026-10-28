@@ -1,0 +1,86 @@
+name: floor
+
+# Resolves a `dx init` consumer and checks that every consumer dep sits at its floor
+# (the oldest version rules_dx supports, #3747). The same check already runs on every PR
+# inside the ci `network` job (//modules:floor_graph_test). This workflow adds a nightly
+# run, a "tested" leg that resolves every dep at its tested-latest version, and a manual
+# run for candidate floors. It is not part of the ci aggregate gate and never publishes.
+on:
+  schedule:
+    - cron: "41 4 * * *"
+  workflow_dispatch:
+    inputs:
+      overrides:
+        description: "Candidate versions as module=version,... (for example rules_shell=0.6.1), or the word tested. Empty runs the floors and tested legs."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: floor-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci' || '' }}
+  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  BAZELISK_VERSION: "1.29.0"
+
+jobs:
+  floor:
+    name: floor (${{ matrix.leg }})
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.overrides != '' && '[{"leg":"candidate"}]' || '[{"leg":"floors"},{"leg":"tested"}]') }}
+    steps:
+      - name: Choose the versions to resolve
+        id: versions
+        env:
+          LEG: ${{ matrix.leg }}
+          CANDIDATE: ${{ inputs.overrides }}
+        run: |
+          case "$LEG" in
+            floors) overrides="" ;;
+            tested) overrides="tested" ;;
+            candidate) overrides="$CANDIDATE" ;;
+            *) echo "unknown leg $LEG" >&2; exit 1 ;;
+          esac
+          if ! printf '%s' "$overrides" | grep -Eq '^[A-Za-z0-9._+=,-]*$'; then
+            echo "overrides must be module=version,... with letters, digits and . _ + - only" >&2
+            exit 1
+          fi
+          echo "overrides=$overrides" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: false
+      - name: Allow unprivileged user namespaces
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Resolve the consumer and check its versions
+        env:
+          OVERRIDES: ${{ steps.versions.outputs.overrides }}
+        run: |
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --test_timeout=1200 --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS "--test_env=DX_CONSUMER_OVERRIDES=${OVERRIDES}" //modules:floor_graph_test
+      - name: Write job summary
+        if: always()
+        env:
+          LEG: ${{ matrix.leg }}
+          OVERRIDES: ${{ steps.versions.outputs.overrides }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          echo "### floor (${LEG}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "DX_CONSUMER_OVERRIDES=\`${OVERRIDES}\`" >> "$GITHUB_STEP_SUMMARY"

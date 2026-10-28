@@ -92,12 +92,12 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		content, err := os.ReadFile(filepath.Join(args.Dir, name))
 		if err != nil {
-			rep.Fail("go: %s: read %s: %v", args.Rel, name, err)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: read %s: %v", args.Rel, name, err)
 			continue
 		}
 		excluded, err := BuildExcluded(content)
 		if err != nil {
-			rep.Fail("go: %s: parse build constraint %s: %v", args.Rel, name, err)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: parse build constraint %s: %v", args.Rel, name, err)
 			continue
 		}
 		if excluded {
@@ -119,13 +119,13 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		return mergeStale(args.File, language.GenerateResult{})
 	}
 	if len(sources) == 0 {
-		rep.Fail("go: %s: test sources %s without non-test sources; add the package sources to this directory or split the tests before adopting generation", args.Rel, strings.Join(testSources, ", "))
+		rep.Fail(common.InPackage(args.Rel), "go: %s: test sources %s without non-test sources; add the package sources to this directory or split the tests before adopting generation", args.Rel, strings.Join(testSources, ", "))
 		return language.GenerateResult{}
 	}
 
 	name, err := common.PackageTargetName(args, goRootHint(args))
 	if err != nil {
-		rep.Fail("go: %s: %v", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 	testName := name + "_test"
@@ -138,23 +138,23 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		content := contents[src]
 		pkg, err := ParsePackage(content)
 		if err != nil {
-			rep.Fail("go: %s: parse package %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: parse package %s: %v", args.Rel, src, err)
 			continue
 		}
 		if pkg == "main" {
-			rep.Fail("go: %s: %s declares package main; thin go_binary entries stay handwritten, so split package-main sources into their own directory before adopting generation", args.Rel, src)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: %s declares package main; thin go_binary entries stay handwritten, so split package-main sources into their own directory before adopting generation", args.Rel, src)
 			continue
 		}
 		packages[pkg] = true
 		libPkg = pkg
 		roots, err := ParseImports(content)
 		if err != nil {
-			rep.Fail("go: %s: parse imports %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: parse imports %s: %v", args.Rel, src, err)
 			continue
 		}
 		for _, root := range roots {
 			if IsCgoImport(root) {
-				rep.Fail("go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
+				rep.Fail(common.InPackage(args.Rel), "go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
 				continue
 			}
 			if IsStdLib(root) || seen[root] {
@@ -173,7 +173,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			names = append(names, pkg)
 		}
 		sort.Strings(names)
-		rep.Fail("go: %s: mixed packages %s in one directory; split the directory before adopting generation", args.Rel, strings.Join(names, ", "))
+		rep.Fail(common.InPackage(args.Rel), "go: %s: mixed packages %s in one directory; split the directory before adopting generation", args.Rel, strings.Join(names, ", "))
 		return language.GenerateResult{}
 	}
 	for pkg := range packages {
@@ -187,21 +187,21 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		content := contents[src]
 		pkg, err := ParsePackage(content)
 		if err != nil {
-			rep.Fail("go: %s: parse package %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: parse package %s: %v", args.Rel, src, err)
 			continue
 		}
 		if pkg != libPkg && pkg != libPkg+"_test" {
-			rep.Fail("go: %s: %s declares package %s, want %s or %s_test; split the directory before adopting generation", args.Rel, src, pkg, libPkg, libPkg)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: %s declares package %s, want %s or %s_test; split the directory before adopting generation", args.Rel, src, pkg, libPkg, libPkg)
 			continue
 		}
 		roots, err := ParseImports(content)
 		if err != nil {
-			rep.Fail("go: %s: parse imports %s: %v", args.Rel, src, err)
+			rep.Fail(common.InPackage(args.Rel), "go: %s: parse imports %s: %v", args.Rel, src, err)
 			continue
 		}
 		for _, root := range roots {
 			if IsCgoImport(root) {
-				rep.Fail("go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
+				rep.Fail(common.InPackage(args.Rel), "go: %s: %s imports cgo (\"C\"); cgo stays handwritten, so split cgo sources into their own handwritten directory before adopting generation", args.Rel, src)
 				continue
 			}
 			if IsStdLib(root) || seen[root] || testSeen[root] {
@@ -221,7 +221,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		claimants = append(claimants, Claimant{Name: testName, Source: args.Rel, Kind: TestKind})
 	}
 	if err := checkClaims(args.File, args.OtherGen, claimants); err != nil {
-		rep.Fail("go: %s: %v", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "go: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 
@@ -315,7 +315,7 @@ func (l *goLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remote
 	spec.FailUnresolved = func(from label.Label, name string, hint string) {
 		if leaf := path.Base(name); leaf != name {
 			if override, found := resolve.FindRuleWithOverride(c, resolve.ImportSpec{Lang: languageName, Imp: leaf}, languageName); found {
-				l.Fail("go: %s: unresolved import %q; # gazelle:resolve go %s %s names only the last path element, so key it by the full import path", from, name, leaf, override)
+				l.Fail(common.InPackage(from.Pkg), "go: %s: unresolved import %q; # gazelle:resolve go %s %s names only the last path element, so key it by the full import path", from, name, leaf, override)
 				return
 			}
 		}

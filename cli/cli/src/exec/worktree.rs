@@ -25,7 +25,7 @@ fn open_pool(dir: &Path) -> Result<Pool, WorktreeError> {
 }
 
 fn row_event(action: &str, row: &Row) -> serde_json::Value {
-    slot_event(&SlotEvent {
+    let mut event = slot_event(&SlotEvent {
         action: action.to_owned(),
         path: row.path.to_string_lossy().into_owned(),
         slot: row.slot,
@@ -37,7 +37,11 @@ fn row_event(action: &str, row: &Row) -> serde_json::Value {
         server: row.server,
         disk_bytes: row.disk_bytes,
     })
-    .unwrap_or(serde_json::Value::Null)
+    .unwrap_or(serde_json::Value::Null);
+    if let Some(map) = event.as_object_mut() {
+        map.insert("busy".to_owned(), serde_json::Value::Bool(row.busy));
+    }
+    event
 }
 
 fn simple_event(
@@ -354,10 +358,13 @@ fn list_lines(listing: &Listing) -> Vec<String> {
             .slot
             .map(|slot| slot.to_string())
             .unwrap_or_else(|| "-".to_owned());
-        let state = match row.reason {
+        let mut state = match row.reason {
             Some(reason) => format!("{} ({reason})", row.state.name()),
             None => row.state.name().to_owned(),
         };
+        if row.busy {
+            state.push_str(" busy");
+        }
         lines.push(format!(
             "{slot}\t{}\t{}\t{}\t{}\t{}\t{}",
             row.branch.as_deref().unwrap_or("(detached)"),
@@ -753,7 +760,7 @@ pub fn run_worktree_hook(
 ) -> i32 {
     let stdin = read_stdin();
     if kind == HookKind::Guard {
-        return guard_hook(&stdin, out, err);
+        return guard_hook(&stdin, &Who::from_env(&env_var), out, err);
     }
     dx_process::configure_real(workspace);
     let who = Who::from_env(&env_var);
@@ -791,7 +798,7 @@ fn run_hook(
     err: &mut dyn Write,
 ) -> i32 {
     match kind {
-        HookKind::Guard => guard_hook(stdin, out, err),
+        HookKind::Guard => guard_hook(stdin, who, out, err),
         HookKind::Create => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
@@ -805,7 +812,7 @@ fn run_hook(
     }
 }
 
-fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+fn guard_hook(stdin: &str, who: &Who, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let input = match hook::parse(stdin) {
         Ok(input) => input,
         Err(error) => {
@@ -813,7 +820,7 @@ fn guard_hook(stdin: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             return 0;
         }
     };
-    match hook::guard(&input) {
+    match hook::guard(&input, who, &dx_worktree::lease_for_dir) {
         hook::Guard::Block(line) => {
             let _ = writeln!(err, "{line}");
             dx_process::pre_exec_code()
@@ -949,6 +956,7 @@ mod tests {
                 state: State::Free,
                 reason: None,
                 server: false,
+                busy: false,
                 disk_bytes: disk,
             }],
             servers: 1,

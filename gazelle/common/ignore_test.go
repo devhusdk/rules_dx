@@ -106,7 +106,11 @@ func TestStaleIgnoresReportsUnusedEntriesOnly(t *testing.T) {
 		{Value: "Stale", Path: "pkg"},
 		{Value: "Elsewhere", Path: "other"},
 	}, generatedRels("pkg"))
-	want := []string{"lang: //pkg: stale # gazelle:dx_ignore_import lang Stale matches no literal reference"}
+	want := []GenerationError{{
+		Language: "lang",
+		Package:  InPackage("pkg"),
+		Message:  "lang: //pkg: stale # gazelle:dx_ignore_import lang Stale matches no literal reference",
+	}}
 	if len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("stale = %+v, want %+v", got, want)
 	}

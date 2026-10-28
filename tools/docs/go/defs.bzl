@@ -72,17 +72,7 @@ docs_go_shard = rule(
 )
 
 def go_doc_shard(name, library, package = "", goos = "linux", goarch = "amd64", build_tags = [], **kwargs):
-    """Declares the DocIr shard of one Go library.
-
-    Args:
-      name: Name of the shard target.
-      library: The documented go_library.
-      package: Package segment of every symbol id; defaults to the library's importpath.
-      goos: GOOS the build constraints are evaluated for.
-      goarch: GOARCH the build constraints are evaluated for.
-      build_tags: Go build tags the build constraints are evaluated with.
-      **kwargs: Common attributes such as tags and visibility.
-    """
+    """Declares the DocIr shard of one Go library."""
     docs_go_shard(
         name = name,
         library = library,

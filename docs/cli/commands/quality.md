@@ -35,6 +35,9 @@ PowerShell or Ruby tools. If the probe fails for any reason, dx applies every
 check, as it would without the probe.
 With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc`,
 `dx typecheck` reads library diagnostics from the metadata build and skips their codegen.
+Rust binary, test and clippy actions wait for each dependency's full rlib, not its `.rmeta`.
+Only library actions start early. To turn pipelining off, set
+`--@rules_rust//rust/settings:pipelined_compilation=false` in your `.bazelrc`.
 
 ```text
 dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
@@ -98,7 +101,7 @@ findings from several targets print once, with a `count` and every target in
 
 When several targets fix the same file, identical fixes apply once. Fixes that
 disagree leave the file unchanged and print a `Conflict:` line naming the
-targets on stderr. JSON reports a `change` with effect `refused` and reason
+targets on stderr, followed by one `next:` line. JSON reports a `change` with effect `refused` and reason
 `conflicting_candidates` or `conflicting_digests`.
 Other files still apply.
 
@@ -110,6 +113,10 @@ do not fit the target platform, even named or affected ones; see
 [Scope Defaults](scope-defaults.md). An incomplete run prints
 `dx: incomplete_results: <reason>` on stderr, or an `incomplete_results`
 error event in JSON, and never applies fixes.
+
+In check mode, JSON output adds an info `notice` with code `changes_proposed`
+when files need changes. Its `message` is the `--apply` command to run. The
+notice is absent with `--apply`.
 
 A failed Bazel build lists each failed action the way `dx build` does: a
 `build_failure` event in JSON, or a `dx: build failure:` line on stderr. A Rust
@@ -221,9 +228,11 @@ to.
 
 | Tool ID | Verbs | Families |
 | --- | --- | --- |
+| `ansible_lint` | lint | ansible |
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
+| `checkmake` | lint | make |
 | `checkstyle` | lint | java |
 | `clang_format` | format | cc, cuda, objc |
 | `clang_tidy` | lint | cc |
@@ -231,25 +240,39 @@ to.
 | `cppcheck` | lint | cc |
 | `csharpier` | format | csharp |
 | `cue` | format | cue |
+| `deadnix` | lint | nix |
+| `dfmt` | format | d |
+| `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
 | `eslint` | lint | astro, javascript, mdx, svelte, vue |
 | `fantomas` | format | fsharp |
 | `flake8` | lint | python |
+| `flatc` | lint | flatbuffers |
 | `fsharplint` | lint | fsharp |
 | `gofumpt` | format | go |
 | `google_java_format` | format | java |
 | `govet` | lint | go |
 | `graphql_eslint` | lint | graphql |
 | `hadolint` | lint | dockerfile |
+| `jsonnet_lint` | lint | jsonnet |
 | `jsonnetfmt` | format | jsonnet |
+| `julia_format` | format | julia |
 | `keep_sorted` | lint | text |
 | `ktfmt` | format | kotlin |
 | `ktlint` | lint | kotlin |
+| `kubeconform` | lint | kubernetes |
+| `latexindent` | format | latex |
 | `markdown_check` | lint | markdown |
+| `credo` | lint | elixir |
 | `mix_format` | format | elixir |
 | `modfmt` | format | go_module |
+| `nixfmt` | format | nix |
+| `notebook_outputs` | lint | jupyter |
+| `ormolu` | format | haskell |
+| `opa` | format, typecheck | rego |
+| `perltidy` | format | perl |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
 | `prettier` | format | astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
@@ -259,10 +282,11 @@ to.
 | `qmlformat` | format | qml |
 | `qmllint` | lint | qml |
 | `redocly` | lint | api_spec |
+| `regal` | lint | rego |
 | `remark` | format | mdx |
 | `roslyn` | lint | csharp |
 | `rubocop` | lint | ruby |
-| `ruff` | audit, format, lint | python |
+| `ruff` | audit, format, lint | python, jupyter (format and lint only) |
 | `rustc` | typecheck | rust |
 | `rustfmt` | format | rust |
 | `scalafix` | lint | scala |
@@ -272,10 +296,14 @@ to.
 | `spotbugs` | lint | java |
 | `standardrb` | format | ruby |
 | `staticcheck` | lint | go |
+| `statix` | lint | nix |
 | `stylelint` | lint | css |
+| `stylua` | format | lua |
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
+| `tflint` | lint | terraform |
 | `ty` | typecheck | python |
+| `typstyle` | format | typst |
 | `vale` | lint | markdown |
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
@@ -295,15 +323,21 @@ keeps the tool ID, so findings read the same.
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruff
 ```
 
-- `ruff`, `terraform`, `hadolint`, `gofumpt`, `qmlformat`, `qmllint`,
-  `zig_fmt`, `erlfmt` and `mix_format` have override flags.
-- The `ruff`, `terraform` and `hadolint` alternates must be a single
-  executable file.
+- `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `qmlformat`, `qmllint`,
+  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `perltidy`, `erlfmt`, `mix_format`,
+  `credo`, `ormolu`
+  and `nixfmt` have override flags.
+- The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
+  must be a single executable file.
   Anything else fails the analysis with the tool named.
-- The `gofumpt`, `qmlformat`, `qmllint`, `zig_fmt`, `erlfmt` and `mix_format`
-  alternates must be executable targets, such as `@dx_qt//:qmlformat`,
-  `@dx_qt//:qmllint`, `@rules_dx//zig/tools:zig`,
-  `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
+- The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
+  `dscanner`, `perltidy`, `erlfmt`, `mix_format` and `credo` alternates must be
+  executable targets, such as
+  `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
+  `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
+  `@rules_dx//perl/tools:perltidy`,
+  `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//elixir/tools:mix_format` and
+  `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
   tool named.
@@ -323,6 +357,26 @@ Without the flag, a policy that selects `qmlformat` fails the analysis and
 names the flag. To set formatting options, bind a `qmlformat_config` to the
 QML targets with `aspect_hints`. The file must be named `.qmlformat.ini`. dx
 passes it to `qmlformat` with `-s`.
+
+### Julia formatting
+
+`julia_format` runs JuliaFormatter 2.2.0 on the Julia version its Manifest was
+resolved for. Select `julia_format` in a `julia` family. No flag is needed, and
+the formatter packages are fetched only for Julia targets.
+
+```python
+quality_family(
+    name = "julia_family",
+    family_id = "julia",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["julia_format"],
+)
+```
+
+A Julia-class target that is not one of the wrappers fails the analysis and
+names the flag. The check never writes. `--apply` rewrites unformatted files. A
+file with a syntax error reports an error at its line and column and stays
+untouched. Use the wrappers from `@rules_dx//julia/rules:defs.bzl`.
 
 ### Zig formatting
 
@@ -354,6 +408,86 @@ and names the flag. The check runs `zig fmt --check` and never writes.
 `--apply` runs `zig fmt`. A file with a syntax error reports an error at its
 line and column and stays untouched. Use the wrappers from
 `@rules_dx//zig/rules:defs.bzl`.
+
+### D formatting
+
+`dfmt` uses the pinned dfmt that `d_library`, `d_binary` and `d_test` carry.
+Select `dfmt` in a `d` family. No flag is needed. It runs on Linux x86_64
+only.
+
+```python
+quality_family(
+    name = "d_family",
+    family_id = "d",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["dfmt"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format
+bazel run @rules_dx//:dx -- format --apply
+```
+
+To use your own dfmt, set `--@rules_dx//config:tool_dfmt=@rules_dx//d/tools:dfmt`.
+
+dfmt has no check mode, so the check formats each file to standard output,
+compares it with the file and never writes. `--apply` runs `dfmt --inplace`. A
+file with a syntax error reports an error at its line and column and stays
+untouched. dx runs dfmt with its default style and LF line endings and ignores
+`.editorconfig` files for now.
+
+### D linting
+
+`dscanner` uses the pinned D-Scanner that `d_library`, `d_binary` and `d_test`
+carry. Select `dscanner` in a `d` family. No flag is needed. It runs on Linux
+x86_64 only.
+
+```python
+quality_family(
+    name = "d_family",
+    family_id = "d",
+    disabled = ["audit", "format", "typecheck"],
+    lint = ["dscanner"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint
+```
+
+To use your own D-Scanner, set
+`--@rules_dx//config:tool_dscanner=@rules_dx//d/tools:dscanner`.
+
+dx runs `dscanner --styleCheck` with the upstream default checks, so findings
+include its documentation and style rules. It ignores `dscanner.ini` files for
+now. A file with a syntax error reports an error at its line and column. There
+is no `--apply` fix.
+
+### Perl formatting
+
+`perltidy` uses the pinned Perl::Tidy 20260826 that `perl_library`,
+`perl_binary` and `perl_test` carry. Select `perltidy` in a `perl` family. No
+flag is needed. Lint and typecheck stay deferred for Perl.
+
+```python
+quality_family(
+    name = "perl_family",
+    family_id = "perl",
+    disabled = ["audit", "lint", "typecheck"],
+    format = ["perltidy"],
+)
+```
+
+To use your own perltidy, set
+`--@rules_dx//config:tool_perltidy=@rules_dx//perl/tools:perltidy`.
+
+The check formats each file to standard output, compares it with the file and
+never writes. `--apply` runs `perltidy -b -bext=/`, so no backup or `.ERR` file
+is left. A file perltidy cannot parse reports a syntax error and stays
+untouched. dx runs perltidy with its default style and LF line endings and
+always passes `--noprofile`, so `.perltidyrc` and `$PERLTIDY` are ignored.
+
 
 ### Erlang formatting
 
@@ -406,6 +540,44 @@ formatter options and never writes. `--apply` runs `mix format`. A file with a
 syntax error reports an error at its line and column and stays untouched. The
 formatter reads no `.formatter.exs`, Mix project or Hex home. Elixir sources
 come from the rules in `@rules_dx//elixir/rules:defs.bzl`.
+
+### Elixir linting
+
+`credo` has no default executable. Select `credo` in the `lint` list of an
+`elixir` family and point the flag at the pinned Credo 1.7.19, which runs on the
+pinned Elixir 1.20.4 and OTP.
+
+```python
+quality_family(
+    name = "elixir_family",
+    family_id = "elixir",
+    disabled = ["audit", "format", "typecheck"],
+    lint = ["credo"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_credo=@rules_dx//elixir/tools:credo
+```
+
+- Without the flag, a policy that selects `credo` fails the analysis and names
+  the flag.
+- Credo reports every finding as a warning with the rule `credo/<Category.Check>`,
+  for example `credo/Warning.IoInspect`. It never writes, so `--apply` leaves
+  the sources as written.
+- A file Credo cannot parse is dropped from Credo's own report. dx reports it as
+  an error with the rule `credo/syntax` at the parser's line and column, so it
+  never counts as clean.
+- Without a bound config the run uses Credo's own non-strict default checks over
+  every file Bazel owns. A `credo_config` rule from
+  `@rules_dx//quality:native_config.bzl` binds a `.exs` config instead. The
+  runner always passes `--config-file`, so a `.credo.exs` in a parent directory
+  is never read.
+- `requires` and `plugins` in a config are not supported: only the pinned Credo
+  and its three dependencies are on the code path. HOME, Mix and Hex homes are
+  locked down and nothing is fetched at run time.
+- Consistency checks compare the files of one run. Findings can differ with how
+  Bazel batches the files into runs.
 
 ### QML linting
 
@@ -651,9 +823,10 @@ bazel run @rules_dx//:dx -- format --check //ios/... -- --@rules_dx//config:work
 bazel run @rules_dx//:dx -- format --apply //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
 ```
 
-Own the files with `objc_library` from `@rules_dx//cc/rules:defs.bzl`. The
-files in `srcs`, `non_arc_srcs` and `hdrs` are checked. A plain upstream
-`objc_library` is checked the same way. A check never writes. `--apply`
+The files in `srcs`, `non_arc_srcs` and `hdrs` of an `objc_library` are
+checked. `objc_library` from `@rules_dx//cc/rules:defs.bzl` is the upstream
+rule, so ownership comes from the upstream target, the same as for a plain
+upstream `objc_library`. A check never writes. `--apply`
 rewrites only the files the selected targets own. An unformatted file is
 reported at the start of the file.
 
@@ -713,6 +886,54 @@ every target that imports it, with that file, line and column named. An
 unformatted file is reported at the start of the file. To change the rules, bind a `buf_config` to the `proto_library` targets
 with `aspect_hints`. The file is your `buf.yaml`.
 
+### FlatBuffers
+
+`flatc` 25.12.19 lints `.fbs` schemas. It is built from the pinned source
+archive (`@dx_flatbuffers`), not downloaded as a binary, and runs on Linux
+x86_64. Select it in a `flatbuffers` family. The family is opt-in and part of
+no curated default.
+
+```python
+load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+
+quality_family(
+    name = "flatbuffers_family",
+    family_id = "flatbuffers",
+    lint = ["flatc"],
+)
+
+flatbuffers_library(
+    name = "order",
+    srcs = ["order.fbs"],
+    deps = ["//item"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //api/...
+```
+
+Own schemas with `flatbuffers_library`. List the package files in `srcs` and
+the libraries they include in `deps`. An include resolves only from the
+`deps` closure, from a directory under the workspace root, or next to the
+including file. A check parses each schema with `flatc -M --cpp`, which reads
+and writes nothing, and reports every include flatc opened. An include that is
+not a declared input fails with
+`include '<path>' is outside the declared inputs of <schema>`, and an include
+flatc cannot find is reported as `unable to load include file`. Each finding
+is reported at its line and column. Warnings fail the lint. A syntax error, an
+unknown type, an empty file or output the adapter cannot read fails the run
+and never counts as clean. FlatBuffers has no maintained formatter, so format
+is not applicable, and `--apply` has nothing to fix.
+
+To run another `flatc`, point the flag at it:
+`--@rules_dx//config:tool_flatc=//tools:flatc`. A target without an
+executable fails with `set --@rules_dx//config:tool_flatc to a flatc binary`.
+
+C++ code generation uses the pinned `flatc` through `flatbuffers_cc_library`
+and does not read this flag. See the codegen pairs in
+[generate](generate.md#codegen-pairs).
+
 ### CUE
 
 `cue fmt` runs from the managed pin for format. Select it in a `cue` family.
@@ -740,20 +961,100 @@ unformatted file is reported at the start of the file. A syntax error fails the
 run with the file, line and column. It never counts as clean. `cue` takes no
 config file.
 
+### Rego
+
+`opa fmt` and `opa check` run from the managed OPA pin, and `regal lint` runs
+from the managed Regal 0.43.0 pin. Select `opa` and `regal` in a `rego` family.
+They run on Linux x86_64.
+
+```python
+quality_family(
+    name = "rego_family",
+    family_id = "rego",
+    format = ["opa"],
+    lint = ["regal"],
+    typecheck = ["opa"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //policy/...
+bazel run @rules_dx//:dx -- format --apply //policy/...
+bazel run @rules_dx//:dx -- typecheck //policy/...
+bazel run @rules_dx//:dx -- lint //policy/...
+```
+
+Own Rego files with `rego_library` from `@rules_dx//rego/rules:defs.bzl`. List
+the `.rego` files of the package in `srcs`, the `.json`, `.yaml` and `.yml` data
+files in `data` and the libraries it imports in `deps`. Data files are not
+checked. Format runs `opa fmt` on one file at a time. A check never writes.
+`--apply` rewrites only the `.rego` files the selected targets own. An
+unformatted file is reported at its first differing line. A file that does not
+parse fails with the file and line. It never counts as clean.
+
+Typecheck runs `opa check` once over the owned files and the `.rego` files of
+their dependencies, so imports resolve. Only errors in owned files are
+reported, with the OPA error code as the rule, the file, the line and the
+column. A column counts characters from 1. Output that is not the expected JSON
+fails the run. It never counts as clean.
+
+Lint runs `regal lint` over the owned files only, so rules that look across
+packages do not see dependencies. Regal rules become findings with the rule
+`category/title`, such as `style/use-assignment-operator`. A Regal `error` is an
+error and a `warning` is a warning. Both are reported. A policy that does not
+parse fails the run and never counts as clean. Lint never writes: `--apply`
+does not run `regal fix`, because it can move files.
+
+Regal rules that look across the linted files, such as
+`idiomatic/no-defined-entrypoint`, report without a file when a target has more
+than one source. Those findings are anchored to the first owned file of the
+batch. Turn such a rule off in the `regal_config` if it does not fit a library.
+
+Regal never reads a `.regal` directory from the workspace, the home directory or
+a parent directory, and it does not check for a newer version. To change the
+rules, bind a `regal_config` to the target with `aspect_hints`. The config is a
+Regal YAML file. `.regal/rules` custom rules are not loaded.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "regal_config")
+
+regal_config(
+    name = "regal",
+    src = ".regal/config.yaml",
+)
+
+rego_library(
+    name = "policy",
+    aspect_hints = [":regal"],
+    srcs = ["policy.rego"],
+)
+```
+
+Only format fixes. Policies are Rego v1, the OPA 1.x default. A Rego v0 policy
+fails to parse until it is migrated. To use another OPA or Regal executable,
+point `tool_opa` or `tool_regal` at it.
+
+```sh
+bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_opa=//tools:opa
+```
+
 ### Jsonnet
 
-`jsonnetfmt` runs from the managed pin for format. Select it in a `jsonnet`
-family. It runs on Linux x86_64.
+`jsonnetfmt` runs from the managed pin for format and `jsonnet_lint` runs
+`jsonnet-lint` from the same go-jsonnet archive for lint. Select them in a
+`jsonnet` family. They run on Linux x86_64.
 
 ```python
 quality_family(
     name = "jsonnet_family",
     family_id = "jsonnet",
     format = ["jsonnetfmt"],
+    lint = ["jsonnet_lint"],
 )
 ```
 
 ```sh
+bazel run @rules_dx//:dx -- lint //config/...
 bazel run @rules_dx//:dx -- format //config/...
 bazel run @rules_dx//:dx -- format --apply //config/...
 ```
@@ -767,6 +1068,115 @@ reported at the start of the file. A syntax error fails the run with the file,
 line and column. It never counts as clean. `jsonnetfmt` stops at the first
 syntax error, so fix it and run again to see the next one. `jsonnetfmt` takes
 no config file.
+
+`jsonnet_lint` reports unknown and unused variables, wrong call arguments,
+missing object fields and unresolved imports with the file, line and column. It
+has no fix, so `--apply` leaves the files alone. A run that exits with an error
+or prints nothing it can place in a staged file fails and never counts as clean.
+
+### Haskell
+
+`ormolu` 0.9.0.0 runs from the managed pin for format. Select it in a `haskell`
+family. It runs on Linux x86_64. The Windows x86_64 pin exists but is not
+qualified. macOS and Linux arm64 have no pin, because upstream ships no
+standalone binary for them. A run that formats Haskell there fails with a hint
+to set `tool_ormolu`. Runs with no Haskell sources are not affected.
+
+```python
+quality_family(
+    name = "haskell_family",
+    family_id = "haskell",
+    format = ["ormolu"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //app/...
+bazel run @rules_dx//:dx -- format --apply //app/...
+```
+
+Own Haskell files with `haskell_library`, `haskell_binary` or `haskell_test`
+from `@rules_dx//haskell/rules:defs.bzl`. A check never writes. `--apply`
+rewrites only the files the selected targets own. An unformatted file is
+reported at the start of the file. A parse error fails the run with the file,
+line and column. It never counts as clean. Each file runs in its own `ormolu`
+process. `ormolu` runs with `--no-cabal --no-dot-ormolu`, so it reads no
+`.cabal` or `.ormolu` file, and language extensions must be enabled with
+`LANGUAGE` pragmas in the source. Extensions set only in `compiler_flags` cause
+a parse error.
+
+To use another ormolu executable, point `tool_ormolu` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_ormolu=//tools:ormolu
+```
+
+### Typst
+
+`typstyle` runs from the managed pin for format. Select it in a `typst` family.
+It runs on Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64.
+
+```python
+quality_family(
+    name = "typst_family",
+    family_id = "typst",
+    format = ["typstyle"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //docs/...
+bazel run @rules_dx//:dx -- format --apply //docs/...
+```
+
+Own Typst files with `typst_library` from `@rules_dx//typst/rules:defs.bzl`.
+List the `.typ` files of the package in `srcs` and the libraries it imports in
+`deps`. A check never writes. `--apply` rewrites only the files the selected
+targets own. An unformatted file is reported at the start of the file. A
+syntax error fails the run with the file named. `typstyle` exits 0 on a syntax
+error, so dx reads its warning and never counts that file as clean. `typstyle`
+has no config file, so it runs with its upstream defaults.
+
+### LaTeX
+
+`latexindent` 4.0.3 runs from the managed pin for format. Select it in a
+`latex` family. It runs on Linux x86_64, Linux arm64, macOS arm64 and Windows
+x86_64.
+
+```python
+quality_family(
+    name = "latex_family",
+    family_id = "latex",
+    format = ["latexindent"],
+    disabled = ["lint", "typecheck"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //docs/...
+bazel run @rules_dx//:dx -- format --apply //docs/...
+```
+
+Own LaTeX files with `latex_library` from `@rules_dx//latex/rules:defs.bzl`.
+List the `.tex`, `.sty` and `.cls` files of the package in `srcs`. A check
+never writes. `--apply` rewrites only the files the selected targets own.
+`latexindent` takes one document per process, so dx runs it once per file. Its
+log and backup files go to a scratch directory and never next to the sources.
+An unformatted file is reported at the start of the file. A fatal error fails
+the run with the file named.
+
+`latexindent` reads a config only when one is bound. Bind a YAML settings file
+with `latexindent_config` from `@rules_dx//quality:native_config.bzl`; dx
+passes it with `-l`. A `localSettings.yaml` next to the sources is ignored.
+`latexindent` itself skips a malformed or missing settings file without an
+error, so check a new config by formatting a file it should change.
+
+`chktex` lint is not available yet. No pinned build of `chktex` exists on any
+platform, so a policy that selects it fails with:
+
+```text
+policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64; disable 'lint'
+```
 
 ### Pkl
 
@@ -797,6 +1207,41 @@ To use another Pkl executable, point `tool_pkl` at it.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_pkl=//tools:pkl
+```
+
+### Lua
+
+`stylua` runs from the managed pin for format. Select it in a `lua` family.
+It runs on Linux x86_64.
+
+```python
+quality_family(
+    name = "lua_family",
+    family_id = "lua",
+    format = ["stylua"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //lua/...
+bazel run @rules_dx//:dx -- format --apply //lua/...
+```
+
+Own Lua files with the rules from `@rules_dx//lua/rules:defs.bzl`. A check never
+writes. `--apply` rewrites only the files the selected targets own. An
+unformatted file is reported at its first differing line. A syntax error fails
+the run with the file, line and column. It never counts as clean. StyLua ignores
+`stylua.toml`, `.stylua.toml` and `.editorconfig` files next to the sources.
+Bind a `stylua_config` from `@rules_dx//quality:native_config.bzl` to change
+indent width, quote style or line width.
+
+No Lua linter or type check runs yet, so the Lua rules keep the `no-lint` and
+`no-typecheck` tags.
+
+To use another StyLua executable, point `tool_stylua` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_stylua=//tools:stylua
 ```
 
 ### Terraform
@@ -832,6 +1277,53 @@ Linux x86_64 only.
 
 ```sh
 bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//:tofu
+```
+
+#### Terraform lint with tflint
+
+`tflint` lints Terraform and runs from the managed pin (v0.65.0) on Linux
+x86_64 and arm64, macOS arm64 and Windows x86_64. It is opt-in and check only:
+select it with `lint = ["tflint"]` in the `terraform` family. Nothing selects it
+by default, because the recommended preset reports a missing `required_version`
+and missing `required_providers` in existing modules.
+
+```python
+quality_family(
+    name = "terraform_family",
+    family_id = "terraform",
+    format = ["terraform"],
+    lint = ["tflint"],
+)
+```
+
+Only the bundled `terraform` ruleset runs, with the `recommended` preset. dx
+never runs `tflint --init`, never downloads a provider ruleset and points
+`TFLINT_PLUGIN_DIR` at an empty directory, so the aws, google and azurerm
+rulesets are not available. Module calls are off (`call_module_type = "none"`),
+so tflint reads only the module directory it is linting. It runs once per module
+directory over the files the selected targets own.
+
+dx always passes `--config`. Bind a `.tflint.hcl` with `tflint_config` from
+`@rules_dx//quality:native_config.bzl`; without one, dx stages a default with the
+bundled ruleset and the recommended preset. `./.tflint.hcl`, `~/.tflint.hcl` and
+`TFLINT_CONFIG_FILE` are never read. A config that declares a plugin block with
+`source` and `version` needs `--init`; that fails the run with tflint's message
+and never counts as clean. A syntax error is reported on its file. `.tftest.hcl`
+files are not linted.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "tflint_config")
+
+tflint_config(
+    name = "tflint",
+    src = "tflint.hcl",
+)
+
+terraform_module(
+    name = "infra",
+    aspect_hints = [":tflint"],
+    srcs = ["main.tf"],
+)
 ```
 
 ### Go
@@ -890,8 +1382,9 @@ Own stylesheets with `javascript_library`. It accepts `.css`, `.scss` and
 `.less` in `srcs`. Lint is check-only: `lint --apply` never rewrites a
 stylesheet. Each finding shows its line and column with the rule name. The
 default rules are the Stylelint correctness checks. They accept CSS Modules
-`:global`, `:local`, `:export`, `:import` and `composes`. SCSS and Less files
-parse with `postcss-scss` and `postcss-less`.
+`:global`, `:local`, `:external`, `:export`, `:import`, `composes` and
+`compose-with`. SCSS and Less files parse with `postcss-scss` and
+`postcss-less`.
 
 A syntax error, an invalid config or a tool that fails to run fails the run
 with the cause named. It never counts as clean. To change the rules, bind a
@@ -918,6 +1411,13 @@ quality_family(
 bazel run @rules_dx//:dx -- format //web/...
 bazel run @rules_dx//:dx -- format --apply //web/...
 ```
+
+A `prettier_config` may come from another module, including one bound with a
+`repo_name`; reference it as `@<name>//:target`. dx stages it under
+`_external/<canonical repo>/...`, and that path is what messages show. `overrides`
+patterns containing `/` match from that folder and do not reach your sources, so
+use file-name patterns such as `*.graphql` in shared configs. `data` imports must
+live in the same repo as the config.
 
 Own these files with `javascript_library`. It accepts `.html`, `.graphql`,
 `.gql`, `.json5` and `.jsonc` in `srcs`. A check never writes. `--apply`
@@ -1181,9 +1681,9 @@ files and never fetches a schema over the network.
 ### OpenAPI and AsyncAPI lint
 
 `redocly` lints OpenAPI 3.0, 3.1 and 3.2 and AsyncAPI 2.6 and 3.0 documents
-with Redocly CLI 2.71.1. It runs on Linux x86_64. Linux arm64, macOS arm64 and
-Windows x86_64 are not supported yet. It is opt-in: select it in the
-`api_spec` family.
+with Redocly CLI 2.71.1. It runs on Linux x86_64 and arm64, macOS arm64 and
+Windows x86_64. Windows arm64 is not supported yet. It is opt-in: select it in
+the `api_spec` family.
 
 ```python
 quality_family(
@@ -1279,8 +1779,9 @@ is reported at the start of the file. A syntax error fails the run and never
 counts as clean. dx places it at the line and column in the original file by
 matching the compiler's code frame against the file. When the frame matches no
 single place, the error is reported at line 1, column 1. `.prettierrc`,
-`.editorconfig` and other user config files are ignored. `svelte-check` and the
-Svelte compiler are not run.
+`.editorconfig` and other user config files are ignored. `dx check` does not run
+`svelte-check` or the Svelte compiler. See "Building and checking a Svelte app"
+below for the Bazel targets that do.
 
 `eslint` lint is opt-in. Select it in the `svelte` family and bind an
 `eslint_config` to the library with `aspect_hints`.
@@ -1327,6 +1828,65 @@ export default [
 Findings point at the line and column in the `.svelte` file, including findings
 in `<script lang="ts">` blocks. A `.svelte` file that no config entry matches
 fails the run. It never counts as clean.
+
+#### Building and checking a Svelte app
+
+`svelte_build` and `svelte_check` are Bazel targets. They run `vite`,
+`@sveltejs/vite-plugin-svelte`, `svelte-check` and `typescript` from your own `node_modules`.
+`dx check` does not run them.
+
+```python
+load("@rules_dx//javascript/rules:web.bzl", "javascript_web_server")
+load("@rules_dx//svelte/rules:defs.bzl", "svelte_build", "svelte_check")
+
+svelte_build(
+    name = "site",
+    srcs = glob(["src/**"]) + ["index.html"],
+    config = "vite.config.mjs",
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    public = glob(["public/**"]),
+    ssr_entry = "src/entry-server.ts",
+    deps = ["//:node_modules/clsx"],
+)
+
+svelte_check(
+    name = "check",
+    srcs = glob(["src/**"]),
+    node_modules = "//:node_modules",
+    package_json = "package.json",
+    tsconfig = "tsconfig.json",
+    deps = ["//:node_modules/clsx"],
+)
+
+javascript_web_server(
+    name = "serve",
+    app = ":site",
+)
+```
+
+```sh
+bazel build //web:site //web:site_ssr
+bazel test //web:check
+bazel run //web:serve
+```
+
+`svelte_build` runs a Vite client build into a `site/` tree. The build fails when
+the tree has no `index.html`. `javascript_web_server` serves it. With
+`ssr_entry`, a second Vite SSR build writes `site_ssr/`. The SSR bundle keeps
+`svelte` and other packages as imports, so code that loads it needs them at run
+time.
+
+`svelte_check` runs `svelte-check --tsconfig <tsconfig> --output machine` once into
+`check.svelte_check.txt`. The file starts with `exit_code: <n>` and holds the
+machine-format diagnostics without timestamps, for example
+`ERROR "src/App.svelte" 5:11 "Type 'string' is not assignable to type 'number'."`
+The test fails and prints the report when the exit code is not 0. svelte-check exits 1 on both diagnostics and a crash, so the
+report is written only when the output has a `COMPLETED` summary line. A crash or a
+missing package fails the build. It never counts as clean.
+
+Tested with `svelte` 5.57.0, `vite` 8.3.5, `@sveltejs/vite-plugin-svelte` 7.3.1, `svelte-check`
+4.7.7 and `typescript` 6.0.3.
 
 ### Astro
 
@@ -1632,8 +2192,11 @@ SQL files use the generic `sql` dialect. To pick a dialect, put it before the
 extension: `schema.postgresql.sql`. The dialects are `bigquery`, `clickhouse`,
 `db2`, `db2i`, `hive`, `mariadb`, `mysql`, `n1ql`, `plsql`, `postgresql`,
 `redshift`, `singlestoredb`, `snowflake`, `spark`, `sqlite`, `transactsql`,
-`trino` and `tsql`. The pinned options keep SQL keywords in the case you
-wrote them. XML namespaces, prefixes, attribute quotes, attribute order and
+`trino` and `tsql`. To format every file of a `sql_library` as one dialect,
+set `dialect = "postgresql"` (any name above). The attribute wins over a bound
+`prettier_config` `language`. A file whose suffix names a different dialect is an
+analysis error. Without the attribute, the suffix decides. The pinned options
+keep SQL keywords in the case you wrote them. XML namespaces, prefixes, attribute quotes, attribute order and
 text stay as written. Gherkin keeps its step text and tags. `.prettierrc`,
 `.editorconfig` and other user config files are ignored.
 
@@ -1706,13 +2269,14 @@ and its `gem_checksums` into your module, then point the tools at the bundle in
 `.bazelrc`.
 
 ```python
-bazel_dep(name = "rules_ruby", version = "0.28.0")
+bazel_dep(name = "rules_ruby", version = "0.29.0")
 
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
 ruby.toolchain(
     name = "ruby",
     portable_ruby = True,
-    version = "3.4.9",
+    portable_ruby_checksums = {...},
+    version = "3.4.12",
 )
 ruby.bundle_fetch(
     name = "dx_bundle",
@@ -1778,7 +2342,9 @@ ruby_library(
 ### YAML
 
 `yamlfmt` formats and `yamllint` lints. Both run from managed pins on Linux
-x86_64. Select them in a `yaml` family. Only `yamlfmt` has fixes.
+x86_64. Select them in a `yaml` family. Only `yamlfmt` has fixes. After one
+warm run, both pins come from the Bazel repository cache, so `format` and `lint`
+pass with tool downloads blocked.
 
 ```python
 quality_family(
@@ -1836,6 +2402,215 @@ yaml_library(
     srcs = ["app.yaml"],
 )
 ```
+
+### Ansible
+
+`ansible-lint` lints Ansible playbooks, roles and tasks. It is check-only and
+opt-in: add `ansible_lint` to an `ansible` family. It runs from a managed pin on
+Linux x86_64, Linux arm64 and macOS arm64. Upstream has no Windows build, so
+`ansible_lint` fails on Windows with `ansible_lint: no upstream Windows build
+(windows_x86_64 is unsupported); remove ansible_lint from this family on
+Windows`.
+
+```python
+quality_family(
+    name = "ansible_family",
+    family_id = "ansible",
+    lint = ["ansible_lint"],
+)
+```
+
+Own the files with `ansible_library` from `@rules_dx//ansible/rules:defs.bzl`.
+List the `.yml` and `.yaml` files of the package in `srcs`. Files whose path
+matches an Ansible layout (playbooks, `tasks/`, `handlers/`, `vars/`, `meta/`
+and so on) are linted by `ansible-lint`. Other YAML stays in the `yaml` family.
+Name playbooks that do not match a layout in `playbooks`; each must also be in
+`srcs`.
+
+```sh
+bazel run @rules_dx//:dx -- lint //ansible/...
+```
+
+`ansible-lint` runs offline: no collection installs, schema refresh or version
+check. A syntax error or load failure is an error and never counts as clean.
+Any exit code other than clean or violations fails the run with the last line
+of `ansible-lint` stderr. There is no `--apply` for Ansible yet, and
+collections are not yet supported, so use modules from `ansible.builtin`.
+
+To change rules, bind an `ansible_lint_config` (an `.ansible-lint` file) to the
+targets with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "ansible_lint_config")
+
+ansible_lint_config(
+    name = "relaxed",
+    src = ".ansible-lint",
+    visibility = ["//visibility:public"],
+)
+
+ansible_library(
+    name = "site",
+    aspect_hints = ["//:relaxed"],
+    srcs = ["playbooks/site.yml"],
+)
+```
+
+### Nix
+
+`statix` and `deadnix` lint Nix files and `nixfmt` formats them. `statix` and
+`deadnix` are built from source with the Rust toolchain. `nixfmt` 1.5.0 runs
+from the managed pin. All three are qualified on Linux x86_64. Select them in
+a `nix` family.
+
+```python
+quality_family(
+    name = "nix_family",
+    family_id = "nix",
+    format = ["nixfmt"],
+    lint = [
+        "deadnix",
+        "statix",
+    ],
+)
+```
+
+Own Nix files with `nix_library` from `@rules_dx//nix/rules:defs.bzl`. List
+the `.nix` files of the package in `srcs`.
+
+```python
+load("@rules_dx//nix/rules:defs.bzl", "nix_library")
+
+nix_library(
+    name = "pkgs",
+    srcs = ["default.nix"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //nix/...
+bazel run @rules_dx//:dx -- lint --apply //nix/...
+```
+
+```sh
+bazel run @rules_dx//:dx -- format //nix/...
+bazel run @rules_dx//:dx -- format --apply //nix/...
+```
+
+Upstream publishes `nixfmt` only as a static Linux x86_64 binary, so it is
+pinned for that platform alone. On any other platform a run that formats Nix
+fails with a hint to set `tool_nixfmt`. Runs with no Nix sources are not
+affected. To use another executable, point `tool_nixfmt` at it.
+
+```sh
+bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_nixfmt=//tools:nixfmt
+```
+
+`nixfmt` runs with its default RFC style at width 100 and has no config file.
+It formats the files the selected targets own and never follows symlinks. A
+format check never writes. A file that does not parse is an error with line and
+column, never a clean run, and `--apply` leaves it unchanged. `--apply` rewrites
+the unformatted files, then checks again.
+
+A lint check never writes. `--apply` runs `statix fix` and `deadnix --edit` on the
+files the selected targets own, then checks again. `statix` findings keep the
+lint code, such as `W02`, with line and column. `deadnix` findings name the
+unused binding, such as `unused_let_binding`. A file that does not parse is an
+error from both tools and never counts as clean.
+
+`statix` never reads a `statix.toml` from the workspace. To disable lints, bind
+a `statix_config` to the target with `aspect_hints`.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "statix_config")
+
+statix_config(
+    name = "statix",
+    src = "statix.toml",
+)
+
+nix_library(
+    name = "pkgs",
+    aspect_hints = [":statix"],
+    srcs = ["default.nix"],
+)
+```
+
+```toml
+disabled = ["empty_let_in"]
+```
+
+### Jupyter notebooks
+
+Ruff formats and lints Python Jupyter notebooks (`.ipynb`, nbformat 4). Select
+it in a `jupyter` family. The family is opt-in. It is not part of any default
+policy and the Python family does not touch notebooks.
+
+```python
+quality_family(
+    name = "jupyter_family",
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff"],
+    disabled = ["audit", "typecheck"],
+)
+```
+
+Own notebooks with `jupyter_library` from `@rules_dx//jupyter/rules:defs.bzl`.
+List the `.ipynb` files of the package in `srcs`.
+
+```sh
+bazel run @rules_dx//:dx -- format //notebooks/...
+bazel run @rules_dx//:dx -- format --apply //notebooks/...
+bazel run @rules_dx//:dx -- lint //notebooks/...
+```
+
+Findings name the cell and the line inside it, for example
+`cell 3, line 1: `os` imported but unused`, and point at the line in the
+notebook JSON file. Markdown cells count toward the cell number. A check never
+writes.
+
+`--apply` changes only the `source` of the code cells Ruff edited. Outputs,
+metadata, execution counts, indentation, key order, line endings and every other
+cell stay byte for byte as they were. Ruff's own rewrite of the file is never
+written back.
+
+Only Python notebooks are checked. A notebook with another kernel language, a
+format other than nbformat 4, or invalid JSON is an error and never counts as
+clean. Cells that start with a cell magic are skipped by Ruff. Type checking
+does not apply to notebooks, so disable `typecheck` and `audit` in the family.
+
+To change options, bind a `ruff_config` to the notebook targets with
+`aspect_hints`, as for Python.
+
+#### Notebook outputs
+
+The `notebook_outputs` check flags code cells that keep saved outputs or an
+execution count. It is off by default and is not part of any curated default.
+Enable it by listing it next to Ruff under `lint` in the `jupyter` family.
+
+```python
+quality_family(
+    name = "jupyter_family",
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff", "notebook_outputs"],
+    disabled = ["audit", "typecheck"],
+)
+```
+
+Two rules exist, and neither has options:
+
+- `cell-outputs`: a code cell whose `outputs` array is not empty.
+- `execution-count`: a code cell whose `execution_count` is not `null`.
+
+Each finding starts with `cell N:` and points at the `outputs` or
+`execution_count` line of the notebook file. `--apply` sets `outputs` to `[]`
+and `execution_count` to `null` and changes no other byte, so metadata,
+attachments, markdown cells, key order, indentation and line endings stay as
+they were. The check works with any kernel language, so an R or Julia notebook
+is accepted, while invalid JSON or a format other than nbformat 4 is an error.
+The tool is built from this repository and needs no install.
 
 ### HTML templates
 
@@ -1959,6 +2734,129 @@ dockerfile_library(
 ```
 
 Inline `# hadolint ignore=DL3008` comments are honoured.
+
+### Kubernetes
+
+`kubeconform` validates Kubernetes manifests against JSON schemas. It runs from
+a managed v0.8.0 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
+x86_64. Select it in a `kubernetes` family. There is no
+formatter, and plain YAML stays in the `yaml` family.
+
+```python
+quality_family(
+    name = "kubernetes_family",
+    family_id = "kubernetes",
+    lint = ["kubeconform"],
+)
+```
+
+Own manifests with `kubernetes_manifests` from
+`@rules_dx//kubernetes/rules:defs.bzl`. It accepts `.yaml`, `.yml` and `.json`
+files. A file is checked as a manifest because the rule owns it, not because of
+its name. Every non-empty document needs `apiVersion` and `kind`, or the run
+reports `dx/kubernetes-not-manifest` at that document's line. A file that does
+not parse is `dx/kubernetes-syntax`.
+
+Schemas are offline. Declare them with `kubernetes_schemas` and bind it with
+`aspect_hints`. A `kubernetes_manifests` target without that hint fails the
+analysis and names `kubernetes_schemas`.
+
+```python
+load("@rules_dx//kubernetes/rules:defs.bzl", "kubernetes_manifests", "kubernetes_schemas")
+
+kubernetes_schemas(
+    name = "schemas",
+    kubernetes_version = "1.32.0",
+    schemas = ["deployment-apps-v1.json", "service-v1.json"],
+    crd_schemas = {"widget_v1.json": "example.com"},
+    strict = True,
+    skip_kinds = ["Widget"],
+)
+
+kubernetes_manifests(
+    name = "manifests",
+    aspect_hints = [":schemas"],
+    srcs = ["deploy.yaml"],
+)
+```
+
+`kubernetes_version` is required and must look like `X.Y.Z`. `schemas` are
+core schema files named like the yannh/kubernetes-json-schema files, for
+example `deployment-apps-v1.json`. `crd_schemas` maps each `<kind>_<version>.json`
+file to its API group. Duplicate names fail the analysis. `strict` defaults to
+true and rejects duplicate keys in a manifest. It does not reject unknown
+fields: that needs the `-standalone-strict` variants of the schema files in
+`schemas`, because the schema decides which fields are allowed.
+`kubernetes_version` only labels the run; the declared schema files decide
+which Kubernetes version is checked. `skip_kinds` lists kinds that are not
+checked.
+
+`kubeconform` never reaches a network schema location, and a kind with no
+schema is an error, not a skip. Findings keep the line and column of the
+offending field. `kubeconform` is check-only: `lint --apply` never rewrites a
+manifest. Missing schemas, malformed output and a non-zero exit with no result
+are errors and never count as clean.
+
+### Make
+
+`checkmake` lints Makefiles. It runs from a managed pin on Linux x86_64, Linux
+arm64, macOS arm64 and Windows x86_64. It is opt-in: no default policy selects
+it, because its `minphony` rule fires on most real Makefiles. dx never runs
+`make`. There is no formatter.
+
+```python
+quality_family(
+    name = "make_family",
+    family_id = "make",
+    lint = ["checkmake"],
+)
+```
+
+Own Makefiles with `make_library` from `@rules_dx//make/rules:defs.bzl`. List
+the files of the package in `srcs`. Accepted names are `Makefile`, `makefile`,
+`GNUmakefile` and `*.mk`, matched case-sensitively. Any other name fails the
+analysis with the accepted names listed. `Makefile.am`, `Makefile.in` and
+`*.mak` are not accepted.
+
+```python
+load("@rules_dx//make/rules:defs.bzl", "make_library")
+
+make_library(
+    name = "build",
+    srcs = ["Makefile"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //...
+```
+
+`checkmake` is check-only: `lint --apply` never rewrites a Makefile. Findings
+keep the rule name and line. A finding without a line is reported at line 1.
+checkmake stops at the first Makefile it cannot parse, so that file is reported
+as a `parse-error` and the findings of the other Makefiles in the same batch
+are not shown until it is fixed.
+
+`checkmake` never reads `$HOME/checkmake.ini` or a `checkmake.ini` from the
+workspace. To change the rules, bind a `checkmake_config` to the target with
+`aspect_hints`. checkmake silently falls back to its defaults when it cannot
+read the config, so dx requires checkmake to confirm the exact config path it
+was given and reports anything else as an error.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "checkmake_config")
+
+checkmake_config(
+    name = "checkmake",
+    src = "checkmake.ini",
+)
+
+make_library(
+    name = "build",
+    aspect_hints = [":checkmake"],
+    srcs = ["Makefile"],
+)
+```
 
 ### Shell
 

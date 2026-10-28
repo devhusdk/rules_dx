@@ -414,15 +414,13 @@ fn run() -> i32 {
             return dx_cli::exec::cancelled(&mut err, signo);
         }
     };
-    let gate = if let Some(slot) = &slot {
-        std::env::set_var(dx_plan::slots::SLOT_ENV_VAR, "1");
-        if let Some(share) = &slot.share {
-            std::env::set_var(dx_plan::slots::SHARE_ENV_VAR, share.to_env());
-        }
-        None
-    } else {
-        gate
-    };
+    let gate = if slot.is_some() { None } else { gate };
+    let held = slot.as_ref().map(|slot| slot.runner(&runner));
+    let slot_runner = held
+        .as_ref()
+        .map_or(&runner as &dyn dx_process::Runner, |held| {
+            held as &dyn dx_process::Runner
+        });
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {
@@ -430,13 +428,14 @@ fn run() -> i32 {
     }
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
+    let bump_commit_json = std::env::var(dx_cli::exec::BUMP_COMMIT_JSON_ENV).ok();
     let actions = ActionTally::default();
     let code = dx_plan::slots::with_gate(gate, || {
         execute(
             &invocation,
             Env {
                 workspace: &workspace,
-                runner: &runner,
+                runner: slot_runner,
                 query_runner: &query_runner,
                 temp_dir: temp_dir.path(),
                 pid,
@@ -446,6 +445,8 @@ fn run() -> i32 {
                 ci: dx_process::is_ci(),
                 audit_today: audit_today.as_deref(),
                 actions: &actions,
+                proc_root: std::path::Path::new("/proc"),
+                bump_commit_json: bump_commit_json.as_deref(),
             },
         )
     });

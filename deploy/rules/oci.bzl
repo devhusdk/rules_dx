@@ -1,9 +1,8 @@
 """Local-first OCI publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "LOWER_ALNUM", "NAME_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "LOWER_ALNUM", "NAME_CHARS", "only_chars")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
@@ -22,8 +21,7 @@ def oci_tag_error(tag):
                 "': want a non-empty tag (for example 'latest')")
     if not only_chars(tag, _VALID_TAG_CHARS):
         return ("oci_deploy: invalid tag '" + tag +
-                "': want only [A-Za-z0-9._-] so the tag embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     if tag[0] in ".-":
         return ("oci_deploy: invalid tag '" + tag +
                 "': want a tag starting with [A-Za-z0-9_]")
@@ -40,18 +38,13 @@ def oci_registry_error(registry):
                 OCI_DEFAULT_REGISTRY + "')")
     if not only_chars(registry, _VALID_REGISTRY_CHARS):
         return ("oci_deploy: invalid registry '" + registry +
-                "': want only [A-Za-z0-9._-/:] so the registry embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-/:]")
     if registry.startswith("/") or registry.endswith("/"):
         return ("oci_deploy: invalid registry '" + registry +
                 "': want no leading or trailing slash")
     if "://" in registry:
         return ("oci_deploy: invalid registry '" + registry +
                 "': want a host plus optional path, never a URL scheme")
-    if has_any(registry, EMBED_UNSAFE):
-        return ("oci_deploy: invalid registry '" + registry +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the registry embeds safely in the deploy launcher")
     return ""
 
 def _oci_repository_segment_error(segment):
@@ -85,8 +78,7 @@ def _oci_repository_error(repository):
                 "': want lowercase (for example '" + repository.lower() + "')")
     if not only_chars(repository, _VALID_REPOSITORY_CHARS):
         return ("oci_deploy: invalid repository '" + repository +
-                "': want only [a-z0-9._-/] so the repository embeds " +
-                "safely in the deploy launcher")
+                "': want only [a-z0-9._-/]")
     if repository.startswith("/") or repository.endswith("/"):
         return ("oci_deploy: invalid repository '" + repository +
                 "': want no leading or trailing slash")
@@ -117,14 +109,10 @@ def oci_image_error(filename, is_directory = False):
     if not is_directory and not (filename.endswith(".tar") or filename.endswith(".tar.gz")):
         return ("oci_deploy: invalid image_tar '" + filename +
                 "': want a filename ending in .tar or .tar.gz")
-    if has_any(filename, EMBED_UNSAFE):
-        return ("oci_deploy: invalid image_tar '" + filename +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the filename embeds safely in the deploy launcher")
     return ""
 
-def _oci_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one OCI deployment."""
+def _oci_config_impl(ctx):
+    """Writes the deploy config for one OCI deployment."""
     tar_files = ctx.attr.image_tar[DefaultInfo].files.to_list()
     if len(tar_files) != 1:
         fail("oci_deploy " + str(ctx.label) + ": image_tar " +
@@ -134,26 +122,26 @@ def _oci_launcher_impl(ctx):
     tar_error = oci_image_error(tar_file.basename, tar_file.is_directory)
     if tar_error != "":
         fail(tar_error + " (in " + str(ctx.label) + ")")
-    tar_rloc = rlocation_path(ctx, tar_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const IMAGE_RLOC: &str = \"" + tar_rloc + "\";\n" +
-                  "const OCI_REGISTRY: &str = \"" + ctx.attr.registry + "\";\n" +
-                  "const OCI_REPOSITORY: &str = \"" + ctx.attr.repository + "\";\n" +
-                  "const OCI_TAG: &str = \"" + ctx.attr.tag + "\";\n" +
-                  "const OCI_PLATFORM: &str = \"" + ctx.attr.platform + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::oci_main(IMAGE_RLOC, OCI_REGISTRY, OCI_REPOSITORY, OCI_TAG, OCI_PLATFORM, &std::env::args().collect::<Vec<_>>())); }\n",
+    return deploy_config(
+        ctx,
+        "oci",
+        {
+            "image_rloc": rlocation_path(ctx, tar_file),
+            "platform": ctx.attr.platform,
+            "registry": ctx.attr.registry,
+            "repository": ctx.attr.repository,
+            "tag": ctx.attr.tag,
+        },
+        ctx.runfiles(files = [tar_file]),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_oci_launcher = rule(
-    implementation = _oci_launcher_impl,
-    doc = "Writes the launcher Rust source for one OCI deployment.",
+_oci_config = rule(
+    implementation = _oci_config_impl,
+    doc = "Writes the deploy config for one OCI deployment.",
     attrs = {
         "image_tar": attr.label(
-            doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed or gzip layers.",
+            doc = "docker save or OCI layout archive (.tar or .tar.gz), or OCI layout directory, holding one image with uncompressed, gzip, or zstd layers.",
             allow_single_file = True,
             mandatory = True,
         ),
@@ -192,10 +180,9 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
     if repo_error != "":
         fail(repo_error + " (in " + native.package_name() + ":" + name + ")")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _oci_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _oci_config(
+        name = config_target,
         image_tar = image_tar,
         registry = registry,
         repository = effective_repo,
@@ -203,15 +190,9 @@ def oci_deploy(name, image_tar, platform, tag = "latest", registry = OCI_DEFAULT
         platform = platform,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = [image_tar],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

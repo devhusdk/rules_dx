@@ -153,6 +153,7 @@ fn json_mode_emits_lifecycle_with_counts() {
             "command_started",
             "diagnostic",
             "change",
+            "notice",
             "command_finished"
         ]
     );
@@ -355,14 +356,16 @@ fn signalled_bazel_is_operational() {
 }
 
 #[test]
-fn malformed_bep_stream_is_operational() {
+fn garbled_bep_line_is_incomplete_results() {
     let harness = Harness {
         raw_bep: Some(vec!["{not json".to_owned()]),
+        unterminated_bep: true,
         ..Harness::new("bad-bep")
     };
     let (code, _, err) = harness.run(&["lint", "--output=text"]);
     assert_eq!(code, 1);
-    assert!(err.contains("dx: invalid_bep: invalid build events"));
+    assert!(err.contains("dx: incomplete_results:"), "{err}");
+    assert!(err.contains("build events cut off at line 1"), "{err}");
 }
 
 #[test]
@@ -818,11 +821,18 @@ fn a_bazel_host_failure_ends_the_phase_as_host() {
     let mut disk_full = Harness::new("phase-kind-disk-full");
     disk_full.bazel_code = 36;
     disk_full.free_disk_bytes = Some(1 << 20);
+    let mut crashed = Harness::new("phase-kind-server-crashed");
+    crashed.bazel_code = 37;
     let mut launch_failed = Harness::new("phase-kind-launch-failed");
     launch_failed.io_error = true;
     let mut signalled = Harness::new("phase-kind-signalled");
     signalled.signalled = true;
-    for (mut harness, code) in [(disk_full, 36), (launch_failed, 1), (signalled, 1)] {
+    for (mut harness, code) in [
+        (disk_full, 36),
+        (crashed, 37),
+        (launch_failed, 1),
+        (signalled, 1),
+    ] {
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(
             "//test:corpus".to_owned(),

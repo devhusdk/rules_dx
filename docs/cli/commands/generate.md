@@ -27,8 +27,9 @@ dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
 
 Exit codes: `0` success, `2` usage or scope errors, `1` stale files with
 `--check` or the default, a file `--apply` did not write, incomplete results, a
-missing or invalid generation result (`invalid_result`), or a patch that fails
-to render (`diff_failed`). Bazel failures keep Bazel's code.
+missing or invalid generation result (`invalid_result`), a generation error
+reported by a language extension, or a patch that fails to render
+(`diff_failed`). Bazel failures keep Bazel's code.
 
 ## Output
 
@@ -49,12 +50,34 @@ A refused change has a `reason`: `write_mismatch`, `missing_file`, or
 `ignored_import`, `level` `warning`, `path`, `language`, and `import`. A Bazel
 failure with `--apply`, or one that leaves results incomplete, emits a
 `bazel_failed` error. So does a Gazelle failure with `--check`, including a
-nonzero exit that does not come with a Gazelle diff. `command_finished` ends the stream with
+nonzero exit that does not come with a Gazelle diff. A generation error from a
+language extension emits one `generation_failed` error per entry instead, with
+`message`, `phase` `execute`, and `path` when the failing package is known. It
+is not followed by a `bazel_failed` event, and the results are incomplete.
+Text output is unchanged: Gazelle's stderr lists every error. `command_finished` ends the stream with
 `results_complete`, `exit_code`, and `changes` with `create` and `modify`
 counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
 run still emits its `change` events and `changes` with `applied` and `refused`.
 An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 `change` events and no `changes`.
+
+## Codegen pairs
+
+The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
+`("flatbuffers", "cpp")` and `("openapi", "typescript")`. The openapi/typescript pair is admitted in the plan
+registry only; its `dx_codegen_shard` producer and `dx generate --check`
+coverage are not yet implemented.
+
+The flatbuffers/cpp pair comes from `flatbuffers_cc_library` in
+`@rules_dx//flatbuffers/rules:codegen.bzl`, which runs the pinned `flatc`
+(`--cpp --keep-prefix`) once per `flatbuffers_library` schema over its declared
+include closure, and from `flatbuffers_codegen_shard`, which binds one plan entry
+with an `EXEC_PATH` suffix to each generated header. The headers are compiled
+against the C++ runtime of the same pinned archive, so the compiler and the
+runtime cannot drift. `gen_object_api = True` adds the object API; each variant writes under its own `_fbs` or `_fbs_obj` directory, so both can share one library. The shard
+lists the headers of the libraries in the `deps` of the `flatbuffers_cc_library`
+only; a library reached through those deps needs its own target and shard. Rust
+and Java generation and `--conform` are not implemented yet.
 
 ## Android inputs
 
@@ -76,6 +99,24 @@ yourself to keep your value. Gazelle never removes them when the include goes
 away, so delete a stale value by hand. After an upgrade, `--check` can report
 an existing NDK or JNI `cc_library` as stale.
 
+The `java` and `kotlin` languages generate an Android library kind for
+directories that import the Android SDK:
+
+- An `android.*` or `dalvik.*` import selects `java_android_library` or
+  `kotlin_android_library`, loaded from `@rules_dx//android/rules:defs.bzl`,
+  instead of `java_library` or `kotlin_library`. `android.support.*`,
+  `android.arch.*` and `androidx.*` are Maven artifacts and don't select it.
+- In those directories `android.*`, `dalvik.*`, `org.json.*` and
+  `org.xmlpull.v1.*` imports need no dependency. A `# gazelle:resolve`
+  mapping still wins.
+- Gazelle sets `custom_package` to the source package and
+  `tags = ["manual"]` only when the rule doesn't have them. The sources must
+  declare a package.
+- A rule of the other kind with the same name fails generation instead of
+  changing kind. Handwritten rules_android `android_library` rules are left
+  alone.
+- Resources, the `R` class and manifests are never derived.
+
 Generation never writes `app_id`, permissions, `api_level`, `abis`, signing or
 app topology. The packaging rules validate ABIs.
 
@@ -86,6 +127,22 @@ differs from `custom_package` (or `app_id` when `custom_package` is unset), or
 when its `minSdkVersion` differs from a non-zero `api_level`. Generated
 manifests, labels from other packages and `select` values are skipped.
 
+## Test targets
+
+For Java, each `*Test.java` source gets its own `java_test`. The target name
+is the file stem in snake case, so `GreetTest.java` becomes `greet_test`.
+`test_class` is the class qualified by its `package` line. When the directory
+also has a library, the test depends on it. The test's own imports resolve
+like library imports, except JUnit 4 (`org.junit`), which the test runner
+already supplies. JUnit 5 imports still need a resolve mapping.
+
+A handwritten test rule that already lists a test source in `srcs` owns it.
+Generation then emits nothing for that source and keeps the rule. A `java_test`
+whose `srcs` is a glob owns every test source in the directory; other test
+kinds, such as an `sh_test`, own only the sources they list. Generation
+replaces `deps` on a generated test, so mark any dependency that no import
+gives, such as a runtime-only library, with `# keep`.
+
 ## Directives
 
 `# gazelle:dx_ignore_import <language> <import>` skips one import in this
@@ -93,9 +150,9 @@ directory and below. `dx generate` fails when no literal reference matches it,
 when the language is unknown, or when the value is malformed. A scoped run
 checks only directives in packages inside the scope.
 
-Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `fsharp`, `go`, `java`,
-`javascript`, `kotlin`, `mdx`, `powershell`, `python`, `ruby`, `rust`, `scala`,
-`svelte`, `typescript`, `vue`, `zig`.
+Accepted languages: `astro`, `cc`, `csharp`, `elixir`, `fsharp`, `go`, `haskell`, `java`,
+`javascript`, `kotlin`, `mdx`, `perl`, `php`, `powershell`, `python`, `ruby`, `rust`,
+`scala`, `svelte`, `typescript`, `vue`, `zig`.
 
 `# gazelle:dx_cuda_archs <spec> <spec>...` sets the `archs` of a generated
 `cuda_library`. It applies to this directory and below, and a deeper directive
@@ -187,7 +244,14 @@ An import resolves in this order:
   enclosing classes, then its own package. A package that more than one
   artifact ships fails as ambiguous; add a `resolve` mapping for it.
 - `rust`: crates resolve through `Cargo.toml`.
-- `python`, `javascript`, `typescript`, `csharp`, `fsharp`, `ruby` and the
+- `python`: an import whose top-level module matches the normalized name of a
+  package in `uv.lock` resolves to `@pypi//<name>`. Name a lockfile with
+  `# gazelle:dx_external python <path> [<repo>]`. A package whose import name
+  differs from its distribution name needs a `resolve` mapping.
+- `javascript`, `typescript`: an import of a package that the root
+  `package.json` lists in any dependencies field resolves to
+  `//:node_modules/<package>`. Only the root `package.json` is read.
+- `csharp`, `fsharp`, `ruby`, `perl`, `php` and the
   other languages need one `# gazelle:resolve` line per third-party import.
 
 ```starlark

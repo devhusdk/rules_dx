@@ -18,6 +18,9 @@ go_library(
     visibility = ["//gazelle/dispatch:__pkg__"],
     deps = [
         "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/scala",
         "@gazelle//language",
     ],
 )

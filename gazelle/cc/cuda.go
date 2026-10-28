@@ -18,7 +18,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 	base, err := common.PackageTargetName(args)
 	if err != nil {
 		if hasCudaFiles(args.RegularFiles) {
-			rep.Fail("cc: %s: %v", args.Rel, err)
+			rep.Fail(common.InPackage(args.Rel), "cc: %s: %v", args.Rel, err)
 		}
 		return language.GenerateResult{}
 	}
@@ -70,7 +70,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 		archs, _ = args.Config.Exts[archsDirective].([]string)
 	}
 	if len(archs) == 0 {
-		rep.Fail("cc: %s: .cu/.cuh files need # gazelle:%s <arch>...", args.Rel, archsDirective)
+		rep.Fail(common.InPackage(args.Rel), "cc: %s: .cu/.cuh files need # gazelle:%s <arch>...", args.Rel, archsDirective)
 		return language.GenerateResult{}
 	}
 
@@ -79,11 +79,11 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 	for _, f := range append(append([]string{}, srcs...), hdrs...) {
 		content, err := common.ReadSource(filepath.Join(args.Dir, f))
 		if err != nil {
-			rep.Fail("cc: %s: read %s: %v", args.Rel, f, err)
+			rep.Fail(common.InPackage(args.Rel), "cc: %s: read %s: %v", args.Rel, f, err)
 			continue
 		}
 		if IsCudaSource(f) && DefinesMain(content) {
-			rep.Fail("cc: %s: %s defines main; thin cuda_binary entries stay handwritten, so split main-defining sources into their own directory before adopting generation", args.Rel, f)
+			rep.Fail(common.InPackage(args.Rel), "cc: %s: %s defines main; thin cuda_binary entries stay handwritten, so split main-defining sources into their own directory before adopting generation", args.Rel, f)
 			continue
 		}
 		for _, inc := range ParseQuotedIncludes(content) {
@@ -103,14 +103,14 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 			switch r.Kind() {
 			case "cuda_binary", "cuda_test", "cuda_gpu_test":
 				if r.Name() == base {
-					rep.Fail("cc: %s: %s(%s) already creates %s; rename it or the generated target", args.Rel, r.Kind(), r.Name(), name)
+					rep.Fail(common.InPackage(args.Rel), "cc: %s: %s(%s) already creates %s; rename it or the generated target", args.Rel, r.Kind(), r.Name(), name)
 					return language.GenerateResult{}
 				}
 			}
 		}
 	}
 	if err := common.CheckClaims(args.File, args.OtherGen, []common.Claimant{{Name: name, Source: args.Rel, Kind: CudaKind}}, nil); err != nil {
-		rep.Fail("cc: %s: %v", args.Rel, err)
+		rep.Fail(common.InPackage(args.Rel), "cc: %s: %v", args.Rel, err)
 		return language.GenerateResult{}
 	}
 

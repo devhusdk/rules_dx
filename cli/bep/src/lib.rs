@@ -99,7 +99,7 @@ pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
     }
 }
 
-/// Reads stream lines as JSON events, keeping a cut-off last line as the tail.
+/// Reads stream lines as JSON events, skipping garbled lines and keeping the first as the tail.
 pub(crate) struct EventLines<R: BufRead> {
     lines: std::iter::Enumerate<std::io::Lines<R>>,
     pub(crate) tail: Option<(u64, String)>,
@@ -118,30 +118,32 @@ impl<R: BufRead> Iterator for EventLines<R> {
     type Item = Result<(u64, serde_json::Value), BepError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (index, line) = self.lines.next()?;
-        let line_no = (index + 1) as u64;
-        let parsed = match line {
-            Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
-                .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
-            Err(e) => Err((false, format!("unreadable stream line: {e}"))),
-        };
-        match parsed {
-            Ok(event) => Some(Ok((line_no, event))),
-            Err((blank, reason)) => {
-                let ends = self
-                    .lines
-                    .by_ref()
-                    .all(|(_, rest)| rest.is_ok_and(|text| text.trim().is_empty()));
-                if !ends {
+        loop {
+            let (index, line) = self.lines.next()?;
+            let line_no = (index + 1) as u64;
+            let parsed = match line {
+                Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
+                    .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
+                // Invalid UTF-8 spans one line; any other read error would repeat forever.
+                Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
+                    Err((false, format!("unreadable stream line: {e}")))
+                }
+                Err(e) => {
                     return Some(Err(BepError::MalformedEvent {
                         line: line_no,
-                        reason,
+                        reason: format!("unreadable stream line: {e}"),
                     }));
                 }
-                if !blank {
-                    self.tail = Some((line_no, reason));
+            };
+            match parsed {
+                Ok(event) => return Some(Ok((line_no, event))),
+                // A garbled line is skipped, not fatal: the first one is kept as the tail so
+                // the caller reports the stream as damaged while keeping every other event.
+                Err((blank, reason)) => {
+                    if !blank && self.tail.is_none() {
+                        self.tail = Some((line_no, reason));
+                    }
                 }
-                None
             }
         }
     }
@@ -166,6 +168,32 @@ pub fn stream_started(path: &Path) -> std::io::Result<bool> {
         }
     }
     Ok(false)
+}
+
+/// The `buildToolVersion` of the real `started` event in the stream at `path`, if it names one.
+///
+/// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
+pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>> {
+    let reader = std::io::BufReader::new(std::fs::File::open(path)?);
+    for line in reader.lines() {
+        let Ok(line) = line else { continue };
+        let Ok(event) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+        if event
+            .pointer("/id/started")
+            .is_some_and(|id| id.is_object())
+        {
+            if let Some(version) = event
+                .pointer("/started/buildToolVersion")
+                .and_then(serde_json::Value::as_str)
+                .filter(|version| !version.is_empty())
+            {
+                return Ok(Some(version.to_owned()));
+            }
+        }
+    }
+    Ok(None)
 }
 
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
@@ -343,15 +371,31 @@ pub fn testlog_path(
         Some(mnemonic) => locations.config_testlogs_root(mnemonic),
         None => locations.testlogs_root(),
     };
-    testlog_path_under(root, label, name, identity)
+    testlog_path_under(root, label, name, identity, false)
+}
+
+/// Whether a BEP path prefix already ends in the testlogs directory of the label's repository.
+///
+/// Under `--experimental_sibling_repository_layout` an external repository's test logs live in
+/// their own per-repository directory, and the prefix names it, so `external/<repo>` must not be
+/// added again.
+pub(crate) fn prefix_names_repo(prefix: &[String], label: &str) -> bool {
+    match (testlogs_label_parts(label), prefix.last()) {
+        (Some((Some(repo), _, _)), Some(last)) => last == repo,
+        _ => false,
+    }
 }
 
 /// Resolves one named test output under `root` for its label and identity.
+///
+/// `root_names_repo` is set when `root` already ends in the label's repository directory, in
+/// which case the `external/<repo>` segments are skipped.
 pub(crate) fn testlog_path_under(
     root: PathBuf,
     label: &str,
     name: &str,
     identity: TestOutputIdentity,
+    root_names_repo: bool,
 ) -> Result<PathBuf, BepError> {
     let (repo, package, target) = testlogs_label_parts(label).ok_or_else(|| {
         missing_test_output(
@@ -362,7 +406,7 @@ pub(crate) fn testlog_path_under(
         )
     })?;
     let mut path = root;
-    if let Some(repo) = repo {
+    if let (Some(repo), false) = (repo, root_names_repo) {
         path.push("external");
         path.push(repo);
     }
@@ -452,6 +496,24 @@ mod tests {
         assert!(started_in("{\"id\":{\"started\":{}},\"started\":{\"uuid\":\"x\"}}\n").unwrap());
         assert!(!started_in("not json\n{\"id\":{\"started\":{}},\"star").unwrap());
         assert!(started_in("garbage\n{\"id\":{\"started\":{}},\"started\":{}}\n").unwrap());
+    }
+
+    #[test]
+    fn build_tool_version_comes_from_the_started_event() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("bep.json");
+        std::fs::write(
+            &path,
+            "garbage\n{\"id\":{\"started\":{}},\"started\":{\"buildToolVersion\":\"9.0.0\"}}\n",
+        )
+        .expect("write");
+        assert_eq!(
+            stream_build_tool_version(&path).unwrap().as_deref(),
+            Some("9.0.0")
+        );
+        std::fs::write(&path, "{\"id\":{\"started\":{}},\"started\":{}}\n").expect("write");
+        assert_eq!(stream_build_tool_version(&path).unwrap(), None);
+        assert!(stream_build_tool_version(Path::new("/nonexistent/dx/bep.json")).is_err());
     }
 
     /// A hand-written file URI naming one path under a root this host can resolve.

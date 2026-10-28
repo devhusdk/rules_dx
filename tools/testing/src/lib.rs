@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 pub mod cli;
 pub mod fatbin;
+pub mod http;
 pub mod latency;
 
 pub use dx_binfmt::machine as image_machine;
@@ -67,6 +68,7 @@ pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<
 
 static SCRATCH_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// Being removed by #2841; use `dx_test_scratch::scratch`.
 pub fn mkscratch(prefix: &str) -> std::io::Result<PathBuf> {
     let base = std::env::var("TEST_TMPDIR")
         .ok()
@@ -301,6 +303,36 @@ pub fn assert_alive_lock_released(lock: &Path) {
             lock.display()
         );
         std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// Waits up to 10s for the probe to create its alive lock at `lock`.
+pub fn wait_armed(lock: &Path) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !lock.exists() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "probe never armed: {}",
+            lock.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+/// Asserts the alive lock at `lock` stays held for 2s after the probe armed.
+pub fn assert_still_held(lock: &Path) {
+    wait_armed(lock);
+    let end = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        assert!(
+            alive_lock_held(lock),
+            "the detached server died with the run: {}",
+            lock.display()
+        );
+        if std::time::Instant::now() >= end {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
 }
 

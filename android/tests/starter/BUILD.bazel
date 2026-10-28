@@ -7,7 +7,7 @@ nested_bazel_test(
     size = "enormous",
     srcs = ["starter_test.rs"],
     data = [
-        "starter_test.rs",
+        "//:module_srcs",
         "//cli/cli:dx",
     ],
     env = {"DX_BIN": "$(rootpath //cli/cli:dx)"},

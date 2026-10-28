@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 const DECLARED: &[&str] = &[
     "apple/bundle/defs.bzl",
+    "apple/macos/app.bzl",
     "apple/provisioning/defs.bzl",
     "config/BUILD.bazel",
     "deploy/rules/archive.bzl",
@@ -17,6 +18,7 @@ const DECLARED: &[&str] = &[
 /// The `.bzl` files that nested consumers of each area load first.
 const ENTRY_POINTS: &[&str] = &[
     "//apple/bundle:defs.bzl",
+    "//apple/macos:app.bzl",
     "//apple/provisioning:defs.bzl",
     "//deploy/rules:archive.bzl",
     "//deploy/rules:defs.bzl",

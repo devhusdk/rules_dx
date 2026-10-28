@@ -90,8 +90,8 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 		"pkg/demo/notes.txt":     "not a source\n",
 		"pkg/demo/DemoTest.java": "package demo;\n\nimport org.junit.Test;\n\npublic class DemoTest {}\n",
 	}, regular)
-	if len(result.Gen) != 1 || len(result.Imports) != 1 {
-		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 2 || len(result.Imports) != 2 {
+		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	lib := result.Gen[0]
 	if lib.Kind() != LibraryKind || lib.Name() != "demo" {
@@ -104,22 +104,106 @@ func TestGeneratePackageLevelLibrary(t *testing.T) {
 	if strings.Join(got.Names, ",") != "com.example.Widget" {
 		t.Errorf("library imports = %+v, want [com.example.Widget]", got.Names)
 	}
+	test := result.Gen[1]
+	if test.Kind() != TestKind || test.Name() != "demo_test" {
+		t.Fatalf("test = %s(%s), want java_test(demo_test)", test.Kind(), test.Name())
+	}
+	if got := result.Imports[1].(common.ImportSet); len(got.Names) != 0 {
+		t.Errorf("test imports = %+v, want empty (JUnit 4 is implicit)", got.Names)
+	}
 }
 
-func TestGenerateTestSourcesExcluded(t *testing.T) {
+func TestGenerateTestTarget(t *testing.T) {
 	regular := []string{"Demo.java", "DemoTest.java"}
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/Demo.java":     "package demo;\n\npublic class Demo {}\n",
 		"pkg/demo/DemoTest.java": "package demo;\n\nimport com.example.OnlyByTest;\n\npublic class DemoTest {}\n",
 	}, regular)
-	if len(result.Gen) != 1 || len(result.Imports) != 1 {
-		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 2 || len(result.Imports) != 2 {
+		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "Demo.java" {
 		t.Errorf("library srcs = %q, want Demo.java", got)
 	}
 	if got := result.Imports[0].(common.ImportSet); len(got.Names) != 0 {
 		t.Errorf("library imports = %+v, want empty", got.Names)
+	}
+	test := result.Gen[1]
+	if got := strings.Join(test.AttrStrings("srcs"), ","); got != "DemoTest.java" {
+		t.Errorf("test srcs = %q, want DemoTest.java", got)
+	}
+	if got := test.AttrString("test_class"); got != "demo.DemoTest" {
+		t.Errorf("test_class = %q, want demo.DemoTest", got)
+	}
+	if got := strings.Join(test.AttrStrings("deps"), ","); got != ":demo" {
+		t.Errorf("test deps = %q, want :demo", got)
+	}
+	if got := result.Imports[1].(common.ImportSet); strings.Join(got.Names, ",") != "com.example.OnlyByTest" {
+		t.Errorf("test imports = %+v, want [com.example.OnlyByTest]", got.Names)
+	}
+}
+
+func TestGenerateTestOnlyDir(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/DemoTest.java": "public class DemoTest {}\n",
+	}, []string{"DemoTest.java"})
+	if len(result.Gen) != 1 || len(result.Imports) != 1 {
+		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
+	}
+	test := result.Gen[0]
+	if test.Kind() != TestKind || test.Name() != "demo_test" {
+		t.Fatalf("test = %s(%s), want java_test(demo_test)", test.Kind(), test.Name())
+	}
+	if test.Attr("deps") != nil {
+		t.Errorf("test deps = %v, want none without a library", test.AttrStrings("deps"))
+	}
+	if got := test.AttrString("test_class"); got != "DemoTest" {
+		t.Errorf("test_class = %q, want the bare DemoTest", got)
+	}
+}
+
+func TestGenerateTestImplicitJUnit(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/DemoTest.java": "package demo;\n\nimport static org.junit.Assert.assertEquals;\nimport org.junit.Test;\nimport org.junit.jupiter.api.Assertions;\n\npublic class DemoTest {}\n",
+	}, []string{"DemoTest.java"})
+	if len(result.Imports) != 1 {
+		t.Fatalf("import sets = %d, want 1", len(result.Imports))
+	}
+	if got := result.Imports[0].(common.ImportSet); strings.Join(got.Names, ",") != "org.junit.jupiter.api.Assertions" {
+		t.Errorf("test imports = %+v, want only the jupiter import", got.Names)
+	}
+}
+
+func TestGenerateTestKeepsHandwrittenOwner(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "pkg/demo/Demo.java", "package demo;\n\npublic class Demo {}\n")
+	writeFixture(t, root, "pkg/demo/DemoTest.java", "package demo;\n\npublic class DemoTest {}\n")
+	existing := &rule.File{}
+	suite := rule.NewRule(TestKind, "suite")
+	suite.SetAttr("srcs", []string{"DemoTest.java"})
+	existing.Rules = append(existing.Rules, suite)
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "pkg", "demo"),
+		Rel:          "pkg/demo",
+		RegularFiles: []string{"Demo.java", "DemoTest.java"},
+		File:         existing,
+	})
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != LibraryKind {
+		t.Fatalf("generated %d rules, want only the library", len(result.Gen))
+	}
+	if len(result.Empty) != 0 {
+		t.Errorf("swept %d rules, want the handwritten suite kept", len(result.Empty))
+	}
+}
+
+func TestGenerateTestMainAllowed(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/Demo.java":     "package demo;\n\npublic class Demo {}\n",
+		"pkg/demo/DemoTest.java": "package demo;\n\npublic class DemoTest {\n  public static void main(String[] args) {}\n}\n",
+	}, []string{"Demo.java", "DemoTest.java"})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
 	}
 }
 
@@ -432,6 +516,36 @@ func TestResolveMavenInstall(t *testing.T) {
 		}
 		if got := strings.Join(r.AttrStrings("deps"), ","); got != want {
 			t.Errorf("%s: deps = %q, want %q", tc.name, got, want)
+		}
+	}
+}
+func TestTestTargetName(t *testing.T) {
+	for in, want := range map[string]string{
+		"GreetTest.java":         "greet_test",
+		"InvoiceReaderTest.java": "invoice_reader_test",
+		"HTTPClientTest.java":    "http_client_test",
+	} {
+		if got, err := TestTargetName(in); err != nil || got != want {
+			t.Errorf("TestTargetName(%q) = %q, %v; want %q", in, got, err, want)
+		}
+	}
+}
+
+func TestIsTestImplicit(t *testing.T) {
+	for _, imp := range []string{"org.junit.Test", "org.junit.Assert", "org.junit.runner.RunWith"} {
+		if !IsTestImplicit(imp) {
+			t.Errorf("IsTestImplicit(%q) = false, want true", imp)
+		}
+	}
+	for _, imp := range []string{"org.junit.jupiter.api.Test", "org.junit.platform.suite.api.Suite", "org.junitx.Foo", "com.example.Test"} {
+		if IsTestImplicit(imp) {
+			t.Errorf("IsTestImplicit(%q) = true, want false", imp)
+		}
+	}
+	got := ParseImports([]byte("import static org.junit.Assert.assertEquals;\nimport org.junit.Test;\n"))
+	for _, imp := range got {
+		if !IsTestImplicit(imp) {
+			t.Errorf("parsed JUnit 4 import %q is not implicit", imp)
 		}
 	}
 }

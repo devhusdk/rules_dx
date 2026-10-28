@@ -30,16 +30,20 @@ single_version_override(
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "llvm", version = "0.8.23")
+bazel_dep(name = "llvm", version = "0.8.25")
 single_version_override(
     module_name = "llvm",
-    version = "0.8.23",
+    version = "0.8.25",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
 bazel_dep(name = "rules_cuda", version = "0.3.0")
 single_version_override(
     module_name = "rules_cuda",
+    patch_strip = 1,
+    patches = [
+        "//patches/rules_cuda:dlink_includes.patch",
+    ],
     version = "0.3.0",
 )
 
@@ -53,18 +57,18 @@ single_version_override(
     version = "1.9.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_go", version = "0.63.0")
+# floor: forced by rules_dart 0.8.0 MVS (#1783)
+bazel_dep(name = "rules_go", version = "0.64.2")
 single_version_override(
     module_name = "rules_go",
-    version = "0.63.0",
+    version = "0.64.2",
 )
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "gazelle", version = "0.52.2")
+# floor: forced by rules_dart 0.8.0 MVS (#1783)
+bazel_dep(name = "gazelle", version = "0.54.0")
 single_version_override(
     module_name = "gazelle",
-    version = "0.52.2",
+    version = "0.54.0",
 )
 
 # floor: equals tested; not yet searched (#3747)
@@ -90,7 +94,15 @@ single_version_override(
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_yuin_goldmark", "org_golang_x_mod", "org_golang_x_net")
+
+# gotreesitter embeds grammars/grammar_blobs/go.bin from a sibling package, which
+# Gazelle cannot express; the patch adds that file to the root library's embedsrcs.
+gazelle_go_deps.module_override(
+    patch_strip = 1,
+    patches = ["//third_party/go:gotreesitter_embed.patch"],
+    path = "github.com/odvcencio/gotreesitter",
+)
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_odvcencio_gotreesitter", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_x_mod", "org_golang_x_net")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
@@ -159,19 +171,18 @@ single_version_override(
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_java", version = "9.7.0")
+bazel_dep(name = "rules_java", version = "9.9.0")
 single_version_override(
     module_name = "rules_java",
-    version = "9.7.0",
+    version = "9.9.0",
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_android", version = "0.6.6")
+# 0.8.0 needs build-tools 35 and --tool_java_language_version=17 (#3739, #2283, #3736).
+# floor: equals tested; unpatched since 0.8.0
+bazel_dep(name = "rules_android", version = "0.8.0")
 single_version_override(
     module_name = "rules_android",
-    patch_strip = 1,
-    patches = ["//patches/rules_android:rules_android.patch"],
-    version = "0.6.6",
+    version = "0.8.0",
 )
 
 # Root-only: rules_android asks for bazel_worker_java 0.0.4. Before the tested
@@ -210,7 +221,7 @@ register_toolchains(
 )
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_dotnet", version = "0.22.1")
+bazel_dep(name = "rules_dotnet", version = "0.22.2")
 single_version_override(
     module_name = "rules_dotnet",
     patch_strip = 1,
@@ -218,18 +229,18 @@ single_version_override(
         "//patches/rules_dotnet:reproducible.patch",
         "//patches/rules_dotnet:fsharp_signature.patch",
     ],
-    version = "0.22.1",
+    version = "0.22.2",
 )
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "bazel_lib", version = "3.7.0")
+# floor: forced by rules_dart 0.8.0 MVS (#1783)
+bazel_dep(name = "bazel_lib", version = "3.7.2")
 single_version_override(
     module_name = "bazel_lib",
-    version = "3.7.0",
+    version = "3.7.2",
 )
 
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(dotnet_version = "10.0.201")
+dotnet.toolchain(dotnet_version = "10.0.400")
 use_repo(dotnet, "dotnet_toolchains")
 
 dotnet_nuget = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
@@ -237,6 +248,9 @@ use_repo(dotnet_nuget, "paket.main")
 
 dotnet_fsharplint = use_extension("//third_party/dotnet/deps:paket.fsharplint_extension.bzl", "fsharplint_extension")
 use_repo(dotnet_fsharplint, "paket.fsharplint")
+
+dotnet_docs_csharp = use_extension("//third_party/dotnet/deps:paket.docs_csharp_extension.bzl", "docs_csharp_extension")
+use_repo(dotnet_docs_csharp, "paket.docs_csharp")
 
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_jvm_external", version = "7.1")
@@ -302,16 +316,16 @@ scalafix.install(
 use_repo(scalafix, "dx_scalafix")
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_powershell", version = "0.2.0")
+bazel_dep(name = "rules_powershell", version = "0.3.1")
 single_version_override(
     module_name = "rules_powershell",
-    version = "0.2.0",
+    version = "0.3.1",
 )
 
 powershell = use_extension("@rules_powershell//powershell:extensions.bzl", "powershell")
 powershell.toolchain(
     name = "dx_powershell_toolchains",
-    version = "7.5.4",
+    version = "7.5.11",
 )
 use_repo(powershell, "dx_powershell_toolchains")
 
@@ -375,7 +389,7 @@ register_toolchains("//tools/platforms:protoc_windows_arm64")
 register_toolchains("@dx_powershell_toolchains//:all")
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_ruby", version = "0.28.0")
+bazel_dep(name = "rules_ruby", version = "0.29.0")
 single_version_override(
     module_name = "rules_ruby",
     patch_strip = 1,
@@ -383,7 +397,7 @@ single_version_override(
         "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
     ],
-    version = "0.28.0",
+    version = "0.29.0",
 )
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
@@ -394,7 +408,13 @@ ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby", dev_dependency 
 ruby.toolchain(
     name = "ruby",
     portable_ruby = True,
-    version = "3.4.9",
+    portable_ruby_checksums = {
+        "ruby-3.4.12.arm64_darwin.tar.gz": "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
+        "ruby-3.4.12.arm64_linux.tar.gz": "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
+        "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
+        "ruby-3.4.12.x86_64_linux.tar.gz": "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
+    },
+    version = "3.4.12",
 )
 ruby.bundle_fetch(
     name = "bundle",
@@ -444,10 +464,27 @@ single_version_override(
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.16.0")
 
-bazel_dep(name = "rules_julia", version = "0.8.0", dev_dependency = True)
+# floor: equals tested; not yet searched (#3747)
+bazel_dep(name = "rules_julia", version = "0.8.0")
+single_version_override(
+    module_name = "rules_julia",
+    version = "0.8.0",
+)
 
-julia = use_extension("@rules_julia//julia:extensions.bzl", "julia", dev_dependency = True)
+julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
 julia.toolchain(version = "1.12.5")
+
+julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
+julia_pkg.from_manifest(
+    name = "dx_julia_format",
+    lockfile = "//julia/tools:Manifest.bazel.json",
+)
+julia_pkg.pkg_annotation(
+    dep = "Preferences",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/patches:Preferences.patch"],
+)
+use_repo(julia_pkg, "dx_julia_format")
 
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_perl", version = "1.5.0")
@@ -462,6 +499,14 @@ cpan.install(
     lock = "//examples/perl-app/third_party:cpanfile.snapshot.lock.json",
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
+
+perl_tools_cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
+perl_tools_cpan.install(
+    name = "dx_perl_cpan",
+    bins = {"Perl-Tidy": ["bin/perltidy"]},
+    lock = "//perl/tools:cpanfile.snapshot.lock.json",
+)
+use_repo(perl_tools_cpan, "dx_perl_cpan")
 
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.component(
@@ -551,7 +596,7 @@ use_repo(erlang, "dx_erlang_toolchains", "dx_erlfmt", "rules_erlang")
 register_toolchains("@dx_erlang_toolchains//:all")
 
 elixir = use_extension("//elixir/toolchain:repos.bzl", "elixir")
-use_repo(elixir, "dx_elixir_toolchains", "rules_elixir")
+use_repo(elixir, "dx_credo", "dx_elixir_toolchains", "rules_elixir")
 
 register_toolchains("@dx_elixir_toolchains//:all")
 
@@ -579,13 +624,22 @@ use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
 
+composer = use_extension("//php/composer:extensions.bzl", "composer", dev_dependency = True)
+composer.lock(
+    name = "php_composer_fixture",
+    dev = True,
+    digests = "//php/tests/fixtures/composer:composer.digests.json",
+    lock = "//php/tests/fixtures/composer:composer.lock",
+)
+use_repo(composer, php_fixture_vendor = "php_composer_fixture")
+
 haskell = use_extension("//haskell/toolchain:repos.bzl", "haskell")
 use_repo(haskell, "dx_haskell_toolchains", "rules_haskell")
 
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d/toolchain:repos.bzl", "d")
-use_repo(d, "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_dfmt", "dx_d_dscanner", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 
@@ -668,7 +722,13 @@ npm_dev.npm_translate_lock(
     pnpm_lock = "//examples/node-app:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
-use_repo(npm_dev, "dx_npm", "npm_node_app")
+npm_dev.npm_translate_lock(
+    name = "npm_astro_app",
+    npmrc = "//:.npmrc",
+    pnpm_lock = "//examples/astro-app:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm_dev, "dx_npm", "npm_astro_app", "npm_node_app")
 
 # The root package links the dev hub @dx_npm. Consumers load that package
 # through @rules_dx//:dx, so it loads this shim, which only forwards to
@@ -689,8 +749,6 @@ use_repo(
     python_interpreters,
     "python_3_12_aarch64_apple_darwin",
     "python_3_12_aarch64_unknown_linux_gnu",
-    "python_3_12_x86_64_apple_darwin",
-    "python_3_12_x86_64_pc_windows_msvc",
     "python_3_12_x86_64_unknown_linux_gnu",
     "python_interpreters",
 )
@@ -746,10 +804,13 @@ use_repo(
 
 register_toolchains("@rust_toolchains//:all")
 
-dx_rustdoc = use_extension("//tools/docs/rust:extensions.bzl", "dx_rustdoc")
+dx_rustdoc = use_extension("//tools/docs/rust:extensions.bzl", "dx_rustdoc", dev_dependency = True)
 use_repo(dx_rustdoc, "dx_rustdoc_toolchains")
 
-register_toolchains("@dx_rustdoc_toolchains//:all")
+register_toolchains(
+    "@dx_rustdoc_toolchains//:all",
+    dev_dependency = True,
+)
 
 wasm_bindgen = use_extension("@rules_rust_wasm_bindgen//:extensions.bzl", "rust_ext")
 use_repo(
@@ -797,12 +858,14 @@ crate.annotation(
         "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping",
     },
     crate = "blake3",
+    repositories = ["dx_crates"],
 )
 crate.annotation_select(
     build_script_env = {
         "CARGO_FEATURE_PREFER_INTRINSICS": "1",
     },
     crate = "blake3",
+    repositories = ["dx_crates"],
     triples = ["x86_64-pc-windows-msvc"],
 )
 crate.annotation(
@@ -819,6 +882,7 @@ crate.annotation(
     crate = "cxx-qt",
     extra_aliased_targets = {"cxx_qt_runtime_files": "cxx_qt_runtime_files"},
     gen_build_script = "off",
+    repositories = ["dx_crates"],
 )
 crate.from_cargo(
     name = "dx_crates",
@@ -873,14 +937,19 @@ crate.from_cargo(
         "//quality/adapter:Cargo.toml",
         "//quality/tools/javascript/launcher:Cargo.toml",
         "//quality/markdown:Cargo.toml",
+        "//quality/notebook:Cargo.toml",
         "//quality/result:Cargo.toml",
         "//quality/runner:Cargo.toml",
         "//tools/docs/ir/ir:Cargo.toml",
         "//tools/docs/rust/extract:Cargo.toml",
         "//tools/docs/typescript/extract:Cargo.toml",
+        "//tools/docs/components/extract:Cargo.toml",
         "//tools/docs/go/extract:Cargo.toml",
         "//tools/docs/ruby/extract:Cargo.toml",
+        "//tools/docs/python/extract:Cargo.toml",
         "//tools/docs/powershell/extract:Cargo.toml",
+        "//tools/docs/jvm/convert:Cargo.toml",
+        "//tools/docs/dotnet/extract:Cargo.toml",
         "//tools/docs/site/browser:Cargo.toml",
         "//tools/docs/site/aggregate:Cargo.toml",
         "//tools/docs/site/build:Cargo.toml",
@@ -908,72 +977,115 @@ crate.from_cargo(
 )
 use_repo(crate, crates = "dx_crates")
 
+# Cargo-built quality tools, kept out of the root hub so its lock does not churn.
+crate.annotation(
+    crate = "deadnix",
+    gen_binaries = ["deadnix"],
+    repositories = ["dx_quality_crates"],
+)
+crate.from_cargo(
+    name = "dx_quality_crates",
+    cargo_lockfile = "//quality/tools/rust:Cargo.lock",
+    lockfile = "//quality/tools/rust:cargo-bazel-lock.json",
+    manifests = ["//quality/tools/rust:Cargo.toml"],
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+    ],
+)
+use_repo(crate, "dx_quality_crates")
+
 _consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
 
 _consumer_hub_repo(
     name = "consumer_hub",
+    dev_dependency = True,
 )
 
 _docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
 
-_docs_consumer_repo(name = "dx_docs_consumer")
+_docs_consumer_repo(
+    name = "dx_docs_consumer",
+    dev_dependency = True,
+)
 
 _consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
 
-_consumer_dx_repo(name = "dx_consumer_entry")
+_consumer_dx_repo(
+    name = "dx_consumer_entry",
+    dev_dependency = True,
+)
 
 _consumer_sets_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_sets_repo")
 
-_consumer_sets_repo(name = "dx_consumer_sets")
+_consumer_sets_repo(
+    name = "dx_consumer_sets",
+    dev_dependency = True,
+)
 
 _consumer_scaffold_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_scaffold_repo")
 
-_consumer_scaffold_repo(name = "dx_consumer_scaffold")
+_consumer_scaffold_repo(
+    name = "dx_consumer_scaffold",
+    dev_dependency = True,
+)
 
 _consumer_completion_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_completion_repo")
 
-_consumer_completion_repo(name = "dx_consumer_completion")
+_consumer_completion_repo(
+    name = "dx_consumer_completion",
+    dev_dependency = True,
+)
 
 _consumer_cc_repo = use_repo_rule("//cc/tests/fixtures/consumer_cc:repos.bzl", "consumer_cc_repo")
 
 _consumer_cc_repo(
     name = "consumer_cc",
+    dev_dependency = True,
 )
 
 _go_samepkg_repo = use_repo_rule("//go/tests/fixtures/samepkg:repos.bzl", "go_samepkg_repo")
 
 _go_samepkg_repo(
     name = "go_samepkg_helper",
+    dev_dependency = True,
 )
 
 _consumer_resources_repo = use_repo_rule("//deploy/tests/fixtures/consumer_resources:repos.bzl", "consumer_resources_repo")
 
 _consumer_resources_repo(
     name = "consumer_resources",
+    dev_dependency = True,
 )
 
 _consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:repos.bzl", "consumer_native_repo")
 
 _consumer_native_repo(
     name = "consumer_native",
+    dev_dependency = True,
 )
 
 _consumer_abi_repo = use_repo_rule("//rust/tests/fixtures/consumer_abi:repos.bzl", "consumer_abi_repo")
 
 _consumer_abi_repo(
     name = "consumer_abi",
+    dev_dependency = True,
 )
 
 _consumer_archive_repo = use_repo_rule("//deploy/tests/fixtures/consumer_archive:repos.bzl", "consumer_archive_repo")
 
 _consumer_archive_repo(
     name = "consumer_archive_repo",
+    dev_dependency = True,
 )
 
 _consumer_wasm_bindgen_repo = use_repo_rule("//rust/tests/fixtures/wasm_bindgen:repos.bzl", "consumer_wasm_bindgen_repo")
 
 _consumer_wasm_bindgen_repo(
     name = "consumer_wasm_bindgen",
+    dev_dependency = True,
 )
 
 _android_ndk_toolchain_repo = use_repo_rule("//android/toolchain:repos.bzl", "android_ndk_toolchain_repo")
@@ -997,6 +1109,7 @@ _web_consumer_repo = use_repo_rule("//javascript/tests/fixtures/web_app:repos.bz
 
 _web_consumer_repo(
     name = "web_consumer",
+    dev_dependency = True,
 )
 
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
@@ -1006,6 +1119,14 @@ use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm6
 
 nested_bazel = use_extension("//tools/testing:repos.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
+
+_http_archive(
+    name = "dx_statix_src",
+    build_file = "//quality/tools/rust:statix.BUILD.bazel",
+    sha256 = "97c97e9b2fc855cb36178234fc787990a65ff92b3ebaadc6356b3711f5b0a742",
+    strip_prefix = "statix-52530001bdbc8e94aae0d406a929c7ad7f09d9d1",
+    urls = ["https://github.com/molybdenumsoftware/statix/archive/52530001bdbc8e94aae0d406a929c7ad7f09d9d1.tar.gz"],
+)
 
 _http_archive(
     name = "shared_tasks_adler2",
@@ -1020,6 +1141,7 @@ _shared_consumer_repo = use_repo_rule("//examples/shared-rust:repos.bzl", "share
 
 _shared_consumer_repo(
     name = "shared_consumer",
+    dev_dependency = True,
 )
 
 _http_archive(
@@ -1036,6 +1158,14 @@ _http_archive(
     sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
     strip_prefix = "thoas-1.2.1",
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
+)
+
+_http_archive(
+    name = "haskell_app_split",
+    build_file = "//examples/haskell-app:split.BUILD.bazel",
+    sha256 = "18adb60f7f12d08601c382d47c2bacbbd4de4b9233f09683889d15b64b6420d6",
+    strip_prefix = "split-0.2.5.1",
+    urls = ["https://hackage.haskell.org/package/split-0.2.5.1/split-0.2.5.1.tar.gz"],
 )
 
 _hex_package = use_repo_rule("//elixir/rules:hex.bzl", "hex_package")
@@ -1056,12 +1186,36 @@ _http_archive(
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
 )
 
+# flatc is built from source; literals mirror //flatbuffers:pins.bzl.
+_http_archive(
+    name = "dx_flatbuffers",
+    sha256 = "f81c3162b1046fe8b84b9a0dbdd383e24fdbcf88583b9cb6028f90d04d90696a",
+    strip_prefix = "flatbuffers-25.12.19",
+    urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v25.12.19.tar.gz"],
+)
+
 _http_archive(
     name = "zig_app_xxhash",
     build_file = "//examples/zig-app:xxhash.BUILD.bazel",
     sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
     strip_prefix = "xxHash-0.8.3",
     urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
+)
+
+_http_archive(
+    name = "lua_app_inspect",
+    build_file = "//examples/lua-app:inspect.BUILD.bazel",
+    sha256 = "43386a613f9916186af4919f36392d8b8dad8c4428a5f8c85ebac80acba71eeb",
+    strip_prefix = "inspect.lua-3.1.3",
+    urls = ["https://github.com/kikito/inspect.lua/archive/refs/tags/v3.1.3.tar.gz"],
+)
+
+_http_archive(
+    name = "ocaml_app_astring",
+    build_file = "//examples/ocaml-app:astring.BUILD.bazel",
+    sha256 = "63e22783e06d17db027367e82fc08954c55f81a7db40fb7057a73713c16f3523",
+    strip_prefix = "astring-0.8.5",
+    urls = ["https://github.com/dbuenzli/astring/archive/refs/tags/v0.8.5.tar.gz"],
 )
 
 _psgallery_module = use_repo_rule("//powershell/rules:gallery.bzl", "psgallery_module")
@@ -1098,50 +1252,93 @@ use_repo(
     "dx_actionlint_linux_arm64",
     "dx_actionlint_linux_x86_64",
     "dx_actionlint_macos_arm64",
+    "dx_actionlint_windows_arm64",
     "dx_actionlint_windows_x86_64",
     "dx_biome_linux_arm64",
     "dx_biome_linux_x86_64",
     "dx_biome_macos_arm64",
+    "dx_biome_windows_arm64",
     "dx_biome_windows_x86_64",
     "dx_buf_linux_arm64",
     "dx_buf_linux_x86_64",
     "dx_buf_macos_arm64",
+    "dx_buf_windows_arm64",
     "dx_buf_windows_x86_64",
     "dx_buildifier_linux_arm64",
     "dx_buildifier_linux_x86_64",
     "dx_buildifier_macos_arm64",
+    "dx_buildifier_windows_arm64",
     "dx_buildifier_windows_x86_64",
+    "dx_checkmake_linux_arm64",
+    "dx_checkmake_linux_x86_64",
+    "dx_checkmake_macos_arm64",
+    "dx_checkmake_windows_arm64",
+    "dx_checkmake_windows_x86_64",
     "dx_cue_linux_arm64",
     "dx_cue_linux_x86_64",
     "dx_cue_macos_arm64",
+    "dx_cue_windows_arm64",
     "dx_cue_windows_x86_64",
     "dx_gitleaks_linux_arm64",
     "dx_gitleaks_linux_x86_64",
     "dx_gitleaks_macos_arm64",
+    "dx_gitleaks_windows_arm64",
     "dx_gitleaks_windows_x86_64",
     "dx_hadolint_linux_arm64",
     "dx_hadolint_linux_x86_64",
     "dx_hadolint_macos_arm64",
     "dx_hadolint_windows_x86_64",
+    "dx_helm_linux_arm64",
+    "dx_helm_linux_x86_64",
+    "dx_helm_macos_arm64",
+    "dx_helm_windows_arm64",
+    "dx_helm_windows_x86_64",
+    "dx_jsonnet_lint_linux_arm64",
+    "dx_jsonnet_lint_linux_x86_64",
+    "dx_jsonnet_lint_macos_arm64",
+    "dx_jsonnet_lint_windows_arm64",
+    "dx_jsonnet_lint_windows_x86_64",
     "dx_jsonnetfmt_linux_arm64",
     "dx_jsonnetfmt_linux_x86_64",
     "dx_jsonnetfmt_macos_arm64",
+    "dx_jsonnetfmt_windows_arm64",
     "dx_jsonnetfmt_windows_x86_64",
     "dx_keep_sorted_linux_arm64",
     "dx_keep_sorted_linux_x86_64",
     "dx_keep_sorted_macos_arm64",
     "dx_keep_sorted_windows_x86_64",
+    "dx_kubeconform_linux_arm64",
+    "dx_kubeconform_linux_x86_64",
+    "dx_kubeconform_macos_arm64",
+    "dx_kubeconform_windows_arm64",
+    "dx_kubeconform_windows_x86_64",
+    "dx_latexindent_linux_arm64",
+    "dx_latexindent_linux_x86_64",
+    "dx_latexindent_macos_arm64",
+    "dx_latexindent_windows_x86_64",
     "dx_mdbook_linux_arm64",
     "dx_mdbook_linux_x86_64",
     "dx_mdbook_macos_arm64",
     "dx_mdbook_windows_x86_64",
+    "dx_nixfmt_linux_x86_64",
+    "dx_opa_linux_arm64",
+    "dx_opa_linux_x86_64",
+    "dx_opa_macos_arm64",
+    "dx_opa_windows_x86_64",
+    "dx_ormolu_linux_x86_64",
+    "dx_ormolu_windows_x86_64",
     "dx_pkl_linux_arm64",
     "dx_pkl_linux_x86_64",
     "dx_pkl_macos_arm64",
     "dx_pkl_windows_x86_64",
+    "dx_regal_linux_arm64",
+    "dx_regal_linux_x86_64",
+    "dx_regal_macos_arm64",
+    "dx_regal_windows_x86_64",
     "dx_ruff_linux_arm64",
     "dx_ruff_linux_x86_64",
     "dx_ruff_macos_arm64",
+    "dx_ruff_windows_arm64",
     "dx_ruff_windows_x86_64",
     "dx_scalafmt_linux_arm64",
     "dx_scalafmt_linux_x86_64",
@@ -1155,35 +1352,55 @@ use_repo(
     "dx_shfmt_linux_x86_64",
     "dx_shfmt_macos_arm64",
     "dx_shfmt_windows_x86_64",
+    "dx_stylua_linux_arm64",
+    "dx_stylua_linux_x86_64",
+    "dx_stylua_macos_arm64",
+    "dx_stylua_windows_x86_64",
     "dx_taplo_linux_arm64",
     "dx_taplo_linux_x86_64",
     "dx_taplo_macos_arm64",
+    "dx_taplo_windows_arm64",
     "dx_taplo_windows_x86_64",
     "dx_terraform_linux_arm64",
     "dx_terraform_linux_x86_64",
     "dx_terraform_macos_arm64",
+    "dx_terraform_windows_arm64",
     "dx_terraform_windows_x86_64",
+    "dx_tflint_linux_arm64",
+    "dx_tflint_linux_x86_64",
+    "dx_tflint_macos_arm64",
+    "dx_tflint_windows_x86_64",
     "dx_tools",
     "dx_ty_linux_arm64",
     "dx_ty_linux_x86_64",
     "dx_ty_macos_arm64",
+    "dx_ty_windows_arm64",
     "dx_ty_windows_x86_64",
+    "dx_typstyle_linux_arm64",
+    "dx_typstyle_linux_x86_64",
+    "dx_typstyle_macos_arm64",
+    "dx_typstyle_windows_arm64",
+    "dx_typstyle_windows_x86_64",
     "dx_uv_linux_arm64",
     "dx_uv_linux_x86_64",
     "dx_uv_macos_arm64",
+    "dx_uv_windows_arm64",
     "dx_uv_windows_x86_64",
     "dx_vale_linux_arm64",
     "dx_vale_linux_x86_64",
     "dx_vale_macos_arm64",
+    "dx_vale_windows_arm64",
     "dx_vale_windows_x86_64",
     "dx_wasmtime_linux_arm64",
     "dx_wasmtime_linux_x86_64",
     "dx_wasmtime_macos_arm64",
     "dx_wasmtime_macos_x86_64",
+    "dx_wasmtime_windows_arm64",
     "dx_wasmtime_windows_x86_64",
     "dx_yamlfmt_linux_arm64",
     "dx_yamlfmt_linux_x86_64",
     "dx_yamlfmt_macos_arm64",
+    "dx_yamlfmt_windows_arm64",
     "dx_yamlfmt_windows_x86_64",
 )
 
@@ -1216,6 +1433,7 @@ _hub_fixture_repo = use_repo_rule("//quality/artifacts/hub_test:repos.bzl", "hub
 
 _hub_fixture_repo(
     name = "dx_hub_fixture_taplo_linux_x86_64",
+    dev_dependency = True,
     platform = "linux_x86_64",
     tool = "taplo",
 )

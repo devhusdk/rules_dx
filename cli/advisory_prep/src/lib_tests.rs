@@ -235,6 +235,19 @@ fn a_zip64_entry_count_larger_than_the_directory_is_refused() {
 }
 
 #[test]
+fn central_entries_that_do_not_end_at_the_directory_end_are_refused() {
+    let mut bytes = two_advisories();
+    let eocd = bytes.len() - EOCD_FIXED;
+    bytes[eocd + 10..eocd + 12].copy_from_slice(&1u16.to_le_bytes());
+    match archive::json_entries(&bytes) {
+        Err(ArchiveError::BadCentralDirectory { detail }) => {
+            assert!(detail.contains("entries end at"), "{detail}");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
 fn a_zip64_record_offset_past_the_end_of_memory_is_refused() {
     let bytes = zip64(two_advisories(), None, Some(u64::MAX - 1));
     match archive::json_entries(&bytes) {
@@ -580,6 +593,50 @@ fn configured_cargo_sets_plan_the_cargo_family_once() {
             ("rs/Cargo.lock", "version = 4\n"),
         ]),
         ["cargo"]
+    );
+}
+
+#[test]
+fn configured_maven_sets_plan_the_maven_family_once() {
+    let set = |name: &str, lock: &str, repository: &str| {
+        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"maven\"\nmanifests = [\"MODULE.bazel\"]\nlocks = [\"{lock}\"]\nscopes = [\"{lock}\"]\nrepository = \"{repository}\"\n")
+    };
+    let text = format!(
+        "schema_version = 1\n\n{}\n{}",
+        set("jvm", "jvm/maven_install.json", "maven"),
+        set("tools", "tools/tool_install.json", "tool_maven")
+    );
+    assert_eq!(
+        planned_families(&[
+            ("dx.toml", &text),
+            ("MODULE.bazel", "module(name = \"a\")\n"),
+            ("jvm/maven_install.json", "{}\n"),
+            ("tools/tool_install.json", "{}\n"),
+        ]),
+        ["cargo", "maven"]
+    );
+}
+
+#[test]
+fn configured_nuget_sets_plan_the_nuget_family_once() {
+    let set = |name: &str, dir: &str| {
+        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"nuget\"\nmanifests = [\"{dir}/paket.dependencies\"]\nlocks = [\"{dir}/paket.lock\", \"{dir}/paket.a.bzl\", \"{dir}/paket.a_extension.bzl\"]\nscopes = [\"{dir}\"]\n")
+    };
+    let text = format!(
+        "schema_version = 1\n\n{}\n{}",
+        set("one", "one"),
+        set("two", "two")
+    );
+    let families = planned_families(&[
+        ("dx.toml", &text),
+        ("one/paket.dependencies", "source https://x\n"),
+        ("one/paket.lock", "NUGET\n"),
+        ("two/paket.dependencies", "source https://x\n"),
+        ("two/paket.lock", "NUGET\n"),
+    ]);
+    assert_eq!(
+        families.iter().filter(|family| **family == "nuget").count(),
+        1
     );
 }
 

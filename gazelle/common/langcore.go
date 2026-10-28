@@ -18,7 +18,7 @@ import (
 )
 
 type Reporter interface {
-	Fail(format string, args ...interface{})
+	Fail(pkg PackageRef, format string, args ...interface{})
 	Failed() bool
 }
 
@@ -34,6 +34,25 @@ func LibraryKindInfo() rule.KindInfo {
 	}
 }
 
+// TestKindInfo is LibraryKindInfo for generated per-source test rules; each
+// extra attribute name is also refreshed on merge.
+func TestKindInfo(extraMergeable ...string) rule.KindInfo {
+	info := LibraryKindInfo()
+	for _, attr := range extraMergeable {
+		info.MergeableAttrs[attr] = true
+	}
+	return info
+}
+
+// fileBuildPath returns the workspace-relative path of the BUILD file f, keeping its base name.
+func fileBuildPath(f *rule.File) string {
+	name := "BUILD.bazel"
+	if f.Path != "" {
+		name = filepath.Base(f.Path)
+	}
+	return manifestPath(f.Pkg, name)
+}
+
 // CheckClaims rejects duplicate generated names and names whose existing rule kind, after kindAliases, differs from the claimant's kind.
 func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kindAliases map[string]string) error {
 	byName := make(map[string][]Claimant, len(claimants))
@@ -45,6 +64,7 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 		byName[c.Name] = append(byName[c.Name], c)
 	}
 	existing := make(map[string]string)
+	fromOther := make(map[string]bool)
 	if file != nil {
 		for _, r := range file.Rules {
 			existing[r.Name()] = r.Kind()
@@ -52,6 +72,7 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 	}
 	for _, r := range other {
 		existing[r.Name()] = r.Kind()
+		fromOther[r.Name()] = true
 	}
 	for _, name := range order {
 		claims := byName[name]
@@ -75,7 +96,11 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant, kind
 			effective = alias
 		}
 		if effective != c.Kind {
-			return fmt.Errorf("target name %q is claimed by generated %s(%s) and existing %s", name, c.Kind, c.Source, have)
+			buildFile := ""
+			if !fromOther[name] && file != nil {
+				buildFile = fileBuildPath(file)
+			}
+			return fmt.Errorf("%s", ClaimError(name, c.Kind, c.Source, have, buildFile))
 		}
 	}
 	return nil
@@ -140,6 +165,9 @@ type SingleFileSpec struct {
 	LanguageName string
 	LibraryKind  string
 	IsSource     func(name string) bool
+	// OwnsByName limits stale removal to rules named like the generated
+	// library or naming no existing source, so handwritten rules survive.
+	OwnsByName   bool
 	TargetName   func(name string) (string, error)
 	ParseImports func(content []byte, dir string) []ImportRef
 	IsStdLib     func(name string) bool
@@ -187,12 +215,12 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	for _, src := range sources {
 		content, err := ReadSource(filepath.Join(args.Dir, src))
 		if err != nil {
-			rep.Fail("%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
 			continue
 		}
 		name, err := spec.TargetName(src)
 		if err != nil {
-			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 			continue
 		}
 		p := plan{name: name, src: src}
@@ -216,7 +244,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: spec.LibraryKind})
 	}
 	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
-		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
 		return language.GenerateResult{}
 	}
 	var result language.GenerateResult
@@ -248,7 +276,38 @@ func ReadSource(path string) ([]byte, error) {
 	return StripBOM(content), nil
 }
 
+// KindAttr is one attribute a KindVariant sets on a newly generated rule.
+type KindAttr struct {
+	Name  string
+	Value any
+}
+
+// KindVariant swaps a directory's library kind when its sources import
+// platform packages the host kind cannot build against.
+type KindVariant struct {
+	// Kind is the rule kind generated instead of the library kind.
+	Kind string
+	// DefsPackage is the defs package that exports Kind.
+	DefsPackage string
+	// Selects reports whether an import root picks the variant.
+	Selects func(root string) bool
+	// IsPlatform reports whether an import root ships with the variant's
+	// platform, so it needs no dependency once the variant is chosen.
+	IsPlatform func(root string) bool
+	// Attrs returns the attributes set on the generated rule, in order. pkg is
+	// the source package, which is never empty.
+	Attrs func(pkg string) []KindAttr
+	// NeedsPackage is the failure message when the sources declare no package.
+	NeedsPackage string
+}
+
 type SingleDirSpec struct {
+	// Variant, when set, swaps LibraryKind for Variant.Kind in directories
+	// importing a package Variant.Selects.
+	Variant *KindVariant
+	// OwnsByName limits stale removal to rules named like the generated
+	// library or naming no existing source, so handwritten rules survive.
+	OwnsByName   bool
 	LanguageName string
 	LibraryKind  string
 	IsSource     func(name string) bool
@@ -268,13 +327,19 @@ type SingleDirSpec struct {
 	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
 	Extend       func(r *rule.Rule, files []string, contents map[string][]byte) error
 	Wrap         func(imports []string) any
+	// Tests, when set, also generates one test rule per test source. Nil
+	// keeps library-only generation.
+	Tests *TestSpec
 }
 
 func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInfo, spec SingleDirSpec, rep Reporter) language.GenerateResult {
 	var sources []string
 	var headers []string
+	var tests []string
 	for _, name := range args.RegularFiles {
 		switch {
+		case spec.Tests != nil && spec.Tests.IsSource(name):
+			tests = append(tests, name)
 		case spec.IsSource(name):
 			sources = append(sources, name)
 		case spec.IsHeader != nil && spec.IsHeader(name):
@@ -283,9 +348,126 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	}
 	sort.Strings(sources)
 	sort.Strings(headers)
-	if len(sources) == 0 && len(headers) == 0 {
-		return MergeStale(args.File, language.GenerateResult{}, kinds)
+	sort.Strings(tests)
+	testOwns := ownsGeneratedTest(spec.Tests)
+	if len(sources) == 0 && len(headers) == 0 && len(tests) == 0 {
+		return MergeStaleOwned(args.File, language.GenerateResult{}, kinds, testOwns)
 	}
+	hasLib := len(sources) > 0 || len(headers) > 0
+	var lib dirLibrary
+	if hasLib {
+		var ok bool
+		lib, ok = generateDirLibrary(args, spec, sources, headers, rep)
+		if !ok {
+			return language.GenerateResult{}
+		}
+	}
+	type testPlan struct {
+		name    string
+		src     string
+		rule    *rule.Rule
+		imports []string
+	}
+	var plans []testPlan
+	if spec.Tests != nil {
+		owned := testOwners(args.File, args.OtherGen, spec.Tests, tests)
+		for _, src := range tests {
+			if owned[src] {
+				continue
+			}
+			testName, err := spec.Tests.Name(src)
+			if err != nil {
+				rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+				continue
+			}
+			content, err := ReadSource(filepath.Join(args.Dir, src))
+			if err != nil {
+				rep.Fail(InPackage(args.Rel), "%s: %s: read %s: %v", spec.LanguageName, args.Rel, src, err)
+				continue
+			}
+			r, err := spec.Tests.makeRule(testName, src, content)
+			if err != nil {
+				rep.Fail(InPackage(args.Rel), "%s: %s: %s: %v", spec.LanguageName, args.Rel, src, err)
+				continue
+			}
+			p := testPlan{name: testName, src: src, rule: r}
+			seen := make(map[string]bool)
+			for _, root := range spec.ParseImports(content) {
+				if seen[root] || skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) ||
+					(spec.Tests.IsImplicit != nil && spec.Tests.IsImplicit(root)) {
+					continue
+				}
+				seen[root] = true
+				p.imports = append(p.imports, root)
+			}
+			sort.Strings(p.imports)
+			plans = append(plans, p)
+		}
+		if rep.Failed() {
+			return language.GenerateResult{}
+		}
+	}
+	var claimants []Claimant
+	if hasLib {
+		claimants = append(claimants, Claimant{Name: lib.name, Source: args.Rel, Kind: lib.kind})
+	}
+	for _, p := range plans {
+		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: spec.Tests.Kind})
+	}
+	if err := CheckClaims(args.File, args.OtherGen, claimants, nil); err != nil {
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+		return language.GenerateResult{}
+	}
+	result := language.GenerateResult{}
+	if hasLib {
+		if IsFixturePath(args.Rel) {
+			lib.rule.SetAttr("testonly", true)
+		}
+		result.Gen = append(result.Gen, lib.rule)
+		result.Imports = append(result.Imports, spec.Wrap(lib.imports))
+	}
+	for _, p := range plans {
+		if hasLib {
+			p.rule.SetAttr("deps", []string{":" + lib.name})
+		}
+		result.Gen = append(result.Gen, p.rule)
+		result.Imports = append(result.Imports, spec.Wrap(p.imports))
+	}
+	var owns func(*rule.Rule) bool
+	if spec.OwnsByName {
+		owns = func(r *rule.Rule) bool {
+			if hasLib && r.Name() == lib.name {
+				return true
+			}
+			for _, attr := range []string{"srcs", "hdrs"} {
+				for _, src := range r.AttrStrings(attr) {
+					if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
+						return false
+					}
+				}
+			}
+			return true
+		}
+	}
+	if testOwns != nil {
+		byName := owns
+		owns = func(r *rule.Rule) bool {
+			return testOwns(r) && (byName == nil || byName(r))
+		}
+	}
+	return MergeStaleOwned(args.File, result, kinds, owns)
+}
+
+// dirLibrary is the directory library rule generateDirLibrary builds.
+type dirLibrary struct {
+	name    string
+	kind    string
+	rule    *rule.Rule
+	imports []string
+}
+
+// generateDirLibrary builds the directory library rule and its imports.
+func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources, headers []string, rep Reporter) (dirLibrary, bool) {
 	var hints []string
 	if args.Rel == "" && spec.RootHint != nil {
 		hints = append(hints, spec.RootHint(args))
@@ -295,8 +477,8 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		name, err = spec.DirName(args.Rel)
 	}
 	if err != nil {
-		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
-		return language.GenerateResult{}
+		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+		return dirLibrary{}, false
 	}
 	isMain := spec.IsMainFile
 	if isMain == nil {
@@ -305,36 +487,36 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	packages := make(map[string]bool)
 	seen := make(map[string]bool)
 	contents := make(map[string][]byte, len(sources))
-	var imports []string
+	var raw []string
 	for _, file := range append(append([]string{}, sources...), headers...) {
 		content, err := ReadSource(filepath.Join(args.Dir, file))
 		if err != nil {
-			rep.Fail("%s: %s: read %s: %v", spec.LanguageName, args.Rel, file, err)
+			rep.Fail(InPackage(args.Rel), "%s: %s: read %s: %v", spec.LanguageName, args.Rel, file, err)
 			continue
 		}
 		contents[file] = content
 		if isMain(file) && spec.DefinesMain(content) {
-			rep.Fail("%s: %s: %s defines main; thin %s entries stay handwritten, so split %s into their own directory before adopting generation", spec.LanguageName, args.Rel, file, spec.MainRule, spec.MainPhrase)
+			rep.Fail(InPackage(args.Rel), "%s: %s: %s defines main; thin %s entries stay handwritten, so split %s into their own directory before adopting generation", spec.LanguageName, args.Rel, file, spec.MainRule, spec.MainPhrase)
 			continue
 		}
 		if spec.CheckPackage {
 			pkg, err := spec.ParsePackage(content)
 			if err != nil {
-				rep.Fail("%s: %s: parse package %s: %v", spec.LanguageName, args.Rel, file, err)
+				rep.Fail(InPackage(args.Rel), "%s: %s: parse package %s: %v", spec.LanguageName, args.Rel, file, err)
 				continue
 			}
 			packages[pkg] = true
 		}
 		for _, root := range spec.ParseImports(content) {
-			if skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) || seen[root] {
+			if seen[root] {
 				continue
 			}
 			seen[root] = true
-			imports = append(imports, root)
+			raw = append(raw, root)
 		}
 	}
 	if rep.Failed() {
-		return language.GenerateResult{}
+		return dirLibrary{}, false
 	}
 	if len(packages) > 1 {
 		names := make([]string, 0, len(packages))
@@ -342,59 +524,88 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 			names = append(names, pkg)
 		}
 		sort.Strings(names)
-		rep.Fail("%s: %s: mixed packages %s in one directory; split the directory before adopting generation", spec.LanguageName, args.Rel, strings.Join(names, ", "))
-		return language.GenerateResult{}
+		rep.Fail(InPackage(args.Rel), "%s: %s: mixed packages %s in one directory; split the directory before adopting generation", spec.LanguageName, args.Rel, strings.Join(names, ", "))
+		return dirLibrary{}, false
+	}
+	libraryKind := spec.LibraryKind
+	variant := spec.Variant
+	chosen := false
+	if variant != nil {
+		for _, root := range raw {
+			if variant.Selects(root) && !mappedByOverride(args.Config, spec.LanguageName, spec.Candidates, root) {
+				chosen = true
+				break
+			}
+		}
+	}
+	var pkg string
+	if chosen {
+		libraryKind = variant.Kind
+		for p := range packages {
+			pkg = p
+		}
+		if pkg == "" {
+			rep.Fail(InPackage(args.Rel), "%s: %s: %s", spec.LanguageName, args.Rel, variant.NeedsPackage)
+			return dirLibrary{}, false
+		}
+	}
+	var imports []string
+	for _, root := range raw {
+		if chosen && variant.IsPlatform(root) && !mappedByOverride(args.Config, spec.LanguageName, spec.Candidates, root) {
+			continue
+		}
+		if skipStdLib(args, spec.LanguageName, spec.IsStdLib, spec.Candidates, root) {
+			continue
+		}
+		imports = append(imports, root)
 	}
 	sort.Strings(imports)
 	ordered := sources
 	if spec.OrderSrcs != nil {
 		ordered, err = spec.OrderSrcs(name, sources, contents)
 		if err != nil {
-			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
-			return language.GenerateResult{}
+			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+			return dirLibrary{}, false
 		}
 	}
-	if err := CheckClaims(args.File, args.OtherGen, []Claimant{{Name: name, Source: args.Rel, Kind: spec.LibraryKind}}, nil); err != nil {
-		rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
-		return language.GenerateResult{}
-	}
-	result := language.GenerateResult{}
 	makeRule := spec.MakeRule
 	if makeRule == nil {
 		makeRule = func(ruleName string, srcs []string, _ []string) *rule.Rule {
-			r := rule.NewRule(spec.LibraryKind, ruleName)
+			r := rule.NewRule(libraryKind, ruleName)
 			r.SetAttr("srcs", srcs)
 			return r
 		}
 	}
 	lib := makeRule(name, ordered, headers)
+	lib.SetKind(libraryKind)
 	if spec.Extend != nil {
 		if err := spec.Extend(lib, args.RegularFiles, contents); err != nil {
-			rep.Fail("%s: %s: %v", spec.LanguageName, args.Rel, err)
-			return language.GenerateResult{}
+			rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)
+			return dirLibrary{}, false
 		}
 	}
-	result.Gen = append(result.Gen, lib)
-	result.Imports = append(result.Imports, spec.Wrap(imports))
-	if IsFixturePath(args.Rel) {
-		for _, r := range result.Gen {
-			r.SetAttr("testonly", true)
+	if chosen {
+		for _, a := range variant.Attrs(pkg) {
+			lib.SetAttr(a.Name, a.Value)
 		}
 	}
-	return MergeStale(args.File, result, kinds)
+	return dirLibrary{name: name, kind: libraryKind, rule: lib, imports: imports}, true
 }
 
 type ResolveSpec struct {
-	LanguageName   string
-	WantKind       string
-	Attr           string
-	Unwrap         func(raw any) ([]string, bool)
+	LanguageName string
+	WantKind     string
+	Attr         string
+	Unwrap       func(raw any) ([]string, bool)
 	// UnwrapRefs, when set and matching, takes precedence over Unwrap and
 	// gives import refs whose relative entries may use Fallback.
 	UnwrapRefs func(raw any) ([]ImportRef, bool)
 	// Fallback lists the languages whose rule index and overrides a relative
 	// import searches, in order, when the own language has no match.
-	Fallback   []string
+	Fallback []string
+	// Find, when set, replaces the own-name override, Lookups, Candidates and
+	// the own-index JS-extension skip with one lookup of the whole ref.
+	Find       func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
 	IsStdLib   func(name string) bool
 	Candidates func(name string) []string
 	Lookups    func(pkg, name string) []string
@@ -404,7 +615,7 @@ type ResolveSpec struct {
 	SkipDep func(dep label.Label) bool
 	// External looks a non-relative import up in the third-party sources
 	// after the index and ignores. It returns the labels found, or a hint.
-	External func(name string) ([]label.Label, string)
+	External       func(name string) ([]label.Label, string)
 	FailConflict   func(from label.Label, name string)
 	FailUnresolved func(from label.Label, name string, hint string)
 	FailAmbiguous  func(from label.Label, name string, matches string)
@@ -427,65 +638,25 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 	for _, ref := range refs {
 		name := ref.Root
-		imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
-		override, found := resolve.FindRuleWithOverride(c, imp, spec.LanguageName)
-		if !found && !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
-			continue
-		}
-		if found {
-			if spec.MarkUsed(name) {
-				spec.FailConflict(from, name)
+		var matches []resolve.FindResult
+		if spec.Find != nil {
+			lk := spec.Find(c, ix, ref)
+			if lk.HasOverride {
+				if spec.MarkUsed(name) {
+					spec.FailConflict(from, name)
+					continue
+				}
+				add(lk.Override)
 				continue
 			}
-			add(override)
-			continue
-		}
-		// A relative import naming a JavaScript or TypeScript extension can
-		// never be a source of this language, so it skips the own index.
-		ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
-		keys := []string{name}
-		if spec.Lookups != nil {
-			keys = spec.Lookups(from.Pkg, name)
-		}
-		var matches []resolve.FindResult
-		mappedKey := false
-		for _, key := range keys {
-			if !ownIndex {
-				break
+			if !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
+				continue
 			}
-			kimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: key}
-			if key != name {
-				if override, found := resolve.FindRuleWithOverride(c, kimp, spec.LanguageName); found {
-					add(override)
-					mappedKey = true
-					break
-				}
-			}
-			if matches = ix.FindRulesByImportWithConfig(c, kimp, spec.LanguageName); len(matches) > 0 {
-				break
-			}
-		}
-		if mappedKey {
-			continue
-		}
-		if len(matches) == 0 && ownIndex {
-			var cands []string
-			if spec.Candidates != nil {
-				cands = spec.Candidates(name)
-			}
-			mapped := false
-			for _, cand := range cands {
-				cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
-				if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
-					add(override)
-					mapped = true
-					break
-				}
-				if matches = ix.FindRulesByImportWithConfig(c, cimp, spec.LanguageName); len(matches) > 0 {
-					break
-				}
-			}
-			if mapped {
+			matches = lk.Matches
+		} else {
+			var done bool
+			matches, done = lookupOwn(c, ix, spec, ref, from, add)
+			if done {
 				continue
 			}
 		}
@@ -500,7 +671,7 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 				continue
 			}
 		}
-		if len(matches) == 0 && ref.Relative && ref.Ext != "" && len(spec.Fallback) > 0 {
+		if len(matches) == 0 && ref.Relative && ref.Ext != "" {
 			// An asset no target owns is left to the bundler. A matching
 			// ignore is still marked used so it never reads as stale.
 			spec.MarkUsed(name)
@@ -545,6 +716,75 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 	sort.Strings(labels)
 	r.SetAttr(spec.Attr, UnionStrings(r.AttrStrings(spec.Attr), labels))
+}
+
+// lookupOwn resolves ref against overrides, the own rule index, Lookups and
+// Candidates. done reports that the ref is fully handled (override added,
+// conflict, or stdlib).
+func lookupOwn(c *config.Config, ix *resolve.RuleIndex, spec ResolveSpec, ref ImportRef, from label.Label, add func(label.Label)) (matches []resolve.FindResult, done bool) {
+	name := ref.Root
+	imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
+	override, found := resolve.FindRuleWithOverride(c, imp, spec.LanguageName)
+	if !found && !ref.Relative && spec.IsStdLib != nil && spec.IsStdLib(name) {
+		return nil, true
+	}
+	if found {
+		if spec.MarkUsed(name) {
+			spec.FailConflict(from, name)
+			return nil, true
+		}
+		add(override)
+		return nil, true
+	}
+	// A relative import naming a JavaScript or TypeScript extension can
+	// never be a source of this language, so it skips the own index.
+	ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
+	keys := []string{name}
+	if spec.Lookups != nil {
+		keys = spec.Lookups(from.Pkg, name)
+	}
+	mappedKey := false
+	for _, key := range keys {
+		if !ownIndex {
+			break
+		}
+		kimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: key}
+		if key != name {
+			if override, found := resolve.FindRuleWithOverride(c, kimp, spec.LanguageName); found {
+				add(override)
+				mappedKey = true
+				break
+			}
+		}
+		if matches = ix.FindRulesByImportWithConfig(c, kimp, spec.LanguageName); len(matches) > 0 {
+			break
+		}
+	}
+	if mappedKey {
+		return nil, true
+	}
+	if len(matches) == 0 && ownIndex {
+		var cands []string
+		if spec.Candidates != nil {
+			cands = spec.Candidates(name)
+		}
+		mapped := false
+		for _, cand := range cands {
+			cimp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: cand}
+			if override, found := resolve.FindRuleWithOverride(c, cimp, spec.LanguageName); found {
+				add(override)
+				mapped = true
+				break
+			}
+			if matches = ix.FindRulesByImportWithConfig(c, cimp, spec.LanguageName); len(matches) > 0 {
+				break
+			}
+		}
+		if mapped {
+			return nil, true
+		}
+	}
+	return matches, false
 }
 
 func unwrapRefs(raw any, spec ResolveSpec) ([]ImportRef, bool) {

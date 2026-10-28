@@ -1,8 +1,10 @@
 """Analysis proofs for the declared ruff tool override."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//quality:real_aspects.bzl", "real_format_aspect", "real_lint_aspect")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
@@ -21,12 +23,27 @@ _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
 _ZIG_POLICY = _CANONICAL + "//quality/testdata:zig_policy"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
+_D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
+_DFMT_SETTING = _CANONICAL + "//config:tool_dfmt"
+_DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
+_DSCANNER_SETTING = _CANONICAL + "//config:tool_dscanner"
+_DSCANNER_TOOL = _CANONICAL + "//d/tools:dscanner"
+_D_LINT_POLICY = _CANONICAL + "//quality/testdata:d_lint_policy"
+_JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
+_JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
+_JULIA_FORMAT_TOOL = _CANONICAL + "//julia/tools:julia_format"
+_PERL_POLICY = _CANONICAL + "//quality/testdata:perl_policy"
+_PERLTIDY_SETTING = _CANONICAL + "//config:tool_perltidy"
+_PERLTIDY_TOOL = _CANONICAL + "//perl/tools:perltidy"
 _ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/tools:erlfmt"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/tools:mix_format"
+_ELIXIR_LINT_POLICY = _CANONICAL + "//quality/testdata:elixir_lint_policy"
+_CREDO_SETTING = _CANONICAL + "//config:tool_credo"
+_CREDO_TOOL = _CANONICAL + "//elixir/tools:credo"
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -90,6 +107,52 @@ qml_lint_subject = rule(
     },
 )
 
+def _d_subject_impl(ctx):
+    """Exposes the resolved dfmt binary and the format results beside the real aspect."""
+    tool = ctx.attr._dfmt[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["dfmt"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "dfmt": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+d_subject = rule(
+    implementation = _d_subject_impl,
+    attrs = {
+        "_dfmt": attr.label(default = "//config:tool_dfmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _perl_subject_impl(ctx):
+    """Exposes the resolved perltidy binary and the format results beside the real aspect."""
+    tool = ctx.attr._perltidy[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["perltidy"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "perltidy": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+perl_subject = rule(
+    implementation = _perl_subject_impl,
+    attrs = {
+        "_perltidy": attr.label(default = "//config:tool_perltidy"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
 def _zig_subject_impl(ctx):
     """Exposes the resolved zig_fmt binary and the format results beside the real aspect."""
     tool = ctx.attr._zig_fmt[DefaultInfo].files_to_run.executable
@@ -106,6 +169,29 @@ zig_subject = rule(
     implementation = _zig_subject_impl,
     attrs = {
         "_zig_fmt": attr.label(default = "//config:tool_zig_fmt"),
+        "target": attr.label(
+            aspects = [real_format_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _julia_subject_impl(ctx):
+    """Exposes the resolved julia_format binary and the format results beside the real aspect."""
+    tool = ctx.attr._julia_format[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["julia_format"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+        "julia_format": tool.short_path if tool else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+julia_subject = rule(
+    implementation = _julia_subject_impl,
+    attrs = {
+        "_julia_format": attr.label(default = "//config:tool_julia_format"),
         "target": attr.label(
             aspects = [real_format_aspect],
             mandatory = True,
@@ -223,6 +309,164 @@ _qmllint_unset_test = analysistest.make(
     config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
 
+def _dfmt_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's dfmt."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["dfmt"])
+    asserts.true(env, fields["wrapper"].endswith("/dfmt") or fields["wrapper"].endswith("/dfmt.exe"), "want dfmt, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the D target")
+    return analysistest.end(env)
+
+_dfmt_default_test = analysistest.make(
+    _dfmt_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _D_POLICY},
+)
+
+def _dfmt_wired_impl(ctx):
+    """Asserts the flag wires dfmt and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["dfmt"].endswith("/dfmt") or fields["dfmt"].endswith("/dfmt.exe"), "want dfmt, got " + fields["dfmt"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the D target")
+    return analysistest.end(env)
+
+_dfmt_set_test = analysistest.make(
+    _dfmt_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _D_POLICY,
+        _DFMT_SETTING: _DFMT_TOOL,
+    },
+)
+
+def dfmt_flag_tests(name, subject):
+    """Instantiates the dfmt flag proofs; D targets build on linux x86_64 only."""
+    _dfmt_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _dfmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+
+def _d_lint_subject_impl(ctx):
+    """Exposes the resolved dscanner binary and the lint results beside the real aspect."""
+    tool = ctx.attr._dscanner[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["dscanner"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "dscanner": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+d_lint_subject = rule(
+    implementation = _d_lint_subject_impl,
+    attrs = {
+        "_dscanner": attr.label(default = "//config:tool_dscanner"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _dscanner_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's dscanner."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["dscanner"])
+    asserts.true(env, fields["wrapper"].endswith("/dscanner") or fields["wrapper"].endswith("/dscanner.exe"), "want dscanner, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
+    return analysistest.end(env)
+
+_dscanner_default_test = analysistest.make(
+    _dscanner_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _D_LINT_POLICY},
+)
+
+def _dscanner_wired_impl(ctx):
+    """Asserts the flag wires dscanner and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["dscanner"].endswith("/dscanner") or fields["dscanner"].endswith("/dscanner.exe"), "want dscanner, got " + fields["dscanner"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
+    return analysistest.end(env)
+
+_dscanner_set_test = analysistest.make(
+    _dscanner_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _D_LINT_POLICY,
+        _DSCANNER_SETTING: _DSCANNER_TOOL,
+    },
+)
+
+def dscanner_flag_tests(name, subject):
+    """Instantiates the dscanner flag proofs; D targets build on linux x86_64 only."""
+    _dscanner_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _dscanner_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+
+def _perltidy_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's perltidy."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["perltidy"])
+    asserts.true(env, fields["wrapper"].endswith("/Perl-Tidy_bin_perltidy") or fields["wrapper"].endswith("/Perl-Tidy_bin_perltidy.exe"), "want perltidy, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
+    return analysistest.end(env)
+
+_perltidy_default_test = analysistest.make(
+    _perltidy_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _PERL_POLICY},
+)
+
+def _perltidy_wired_impl(ctx):
+    """Asserts the flag wires perltidy and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["perltidy"].endswith("/perltidy") or fields["perltidy"].endswith("/perltidy.exe") or fields["perltidy"].endswith("/Perl-Tidy_bin_perltidy"), "want perltidy, got " + fields["perltidy"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
+    return analysistest.end(env)
+
+_perltidy_set_test = analysistest.make(
+    _perltidy_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _PERL_POLICY,
+        _PERLTIDY_SETTING: _PERLTIDY_TOOL,
+    },
+)
+
+def perltidy_flag_tests(name, subject):
+    """Instantiates the perltidy flag proofs; Perl targets build only on rules_perl platforms."""
+    _perltidy_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = PERL_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _perltidy_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = PERL_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+
 def _zig_default_impl(ctx):
     """Asserts an unset flag falls back to the wrapper's compiler."""
     env = analysistest.begin(ctx)
@@ -266,6 +510,49 @@ def zig_fmt_flag_tests(name, subject):
         target_under_test = subject,
     )
 
+def _julia_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's formatter."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["julia_format"])
+    asserts.true(env, fields["wrapper"].split("/")[-1].startswith("julia_format"), "want the julia formatter, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the julia target")
+    return analysistest.end(env)
+
+_julia_format_default_test = analysistest.make(
+    _julia_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _JULIA_POLICY},
+)
+
+def _julia_wired_impl(ctx):
+    """Asserts the flag wires the Julia formatter and a format stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["julia_format"].split("/")[-1].startswith("julia_format"), "want the julia formatter, got " + fields["julia_format"])
+    asserts.true(env, fields["results"] != "", "want a format stage result for the julia target")
+    return analysistest.end(env)
+
+_julia_format_set_test = analysistest.make(
+    _julia_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _JULIA_POLICY,
+        _JULIA_FORMAT_SETTING: _JULIA_FORMAT_TOOL,
+    },
+)
+
+def julia_format_flag_tests(name, subject):
+    """Instantiates the julia_format flag proofs."""
+    _julia_format_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_under_test = subject,
+    )
+    _julia_format_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
 _erlfmt_unset_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
@@ -298,6 +585,64 @@ def erlfmt_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_erlfmt",
     )
     _erlfmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+def _elixir_lint_subject_impl(ctx):
+    """Exposes the resolved credo launcher and the lint results beside the real aspect."""
+    tool = ctx.attr._credo[DefaultInfo].files_to_run.executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "credo": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+elixir_lint_subject = rule(
+    implementation = _elixir_lint_subject_impl,
+    attrs = {
+        "_credo": attr.label(default = "//config:tool_credo"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+_credo_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _ELIXIR_LINT_POLICY},
+)
+
+def _credo_wired_impl(ctx):
+    """Asserts the flag wires the credo launcher and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["credo"].endswith("/credo"), "want the credo launcher, got " + fields["credo"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the elixir target")
+    return analysistest.end(env)
+
+_credo_set_test = analysistest.make(
+    _credo_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _ELIXIR_LINT_POLICY,
+        _CREDO_SETTING: _CREDO_TOOL,
+    },
+)
+
+def credo_flag_tests(name, subject):
+    """Instantiates the credo flag proofs."""
+    _credo_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_credo",
+    )
+    _credo_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

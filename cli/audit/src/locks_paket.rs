@@ -1,6 +1,4 @@
-use regex::Regex;
-use std::sync::LazyLock;
-
+use crate::locks::locks_spec::split_paren_spec;
 use crate::vuln::LockedPackage;
 
 pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
@@ -57,21 +55,10 @@ pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
     Ok(out)
 }
 
-fn paket_line_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"^(?P<name>.+)\((?P<version>[^()]+)\)").ok());
-    RE.as_ref()
-}
-
 pub(crate) fn split_paket_line(trimmed: &str) -> Option<(String, String)> {
-    let caps = paket_line_re()?.captures(trimmed)?;
-    let name = caps["name"].trim().to_owned();
-    let version = caps["version"].trim().to_owned();
-    if name.is_empty() || version.is_empty() {
-        return None;
-    }
+    let (name, version) = split_paren_spec(trimmed)?;
     if name.contains("remote") {
         return None;
     }
-    Some((name, version))
+    Some((name.to_owned(), version.to_owned()))
 }

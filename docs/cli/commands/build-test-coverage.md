@@ -36,8 +36,11 @@ Outside a terminal, if dx is killed with `SIGKILL`, Linux stops the process dx
 started. Anything else in that process group keeps running until the next dx
 run in that worktree stops it, prints `dx: stopped leftover process group <id>
 from dx run <pid>, which is gone`, and with `--output=json` emits a `notice`
-event with code `orphan_process_group_stopped`, after `command_started`. On
-macOS the next run stops the whole tree. In a terminal, a `SIGKILL` to dx alone
+event with code `orphan_process_group_stopped`, after `command_started`. dx
+stops a leftover group only when it can confirm it is the group it recorded;
+otherwise it leaves the group running. Each stop is logged to
+`.dx/leases/process-groups/reaped.log`. On macOS the next run stops the whole
+tree the same way. In a terminal, a `SIGKILL` to dx alone
 leaves its children running. Outside a terminal, when the process dx started
 exits, dx stops anything still running in its process group. A dx that exits
 on its own never leaves anything for the next run to stop.
@@ -80,8 +83,8 @@ dx writes its build event file with
 value. A rejected flag fails before Bazel starts with exit `2`.
 
 dx forces these flags and treats them as protected: `--skip_incompatible_explicit_targets`
-(build, test and coverage), the three `--@rules_dx//config:` settings for validation and
-rustc and clippy diagnostics, `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
+(build, test and coverage), the `--@rules_dx//config:clippy_output_diagnostics=true` and
+`--@rules_dx//config:rustc_output_diagnostics=true` settings, `--remote_download_outputs=toplevel` (test and coverage, or `all` if you pass it),
 `--combined_report=lcov` (coverage), and `--build_event_json_file`. Another value
 for one of them, and Bazel startup options after `--`, exit `2`.
 
@@ -351,7 +354,7 @@ the `--apply` command that publishes.
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected] [--explain] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov=<path>] [--report sources=<path>] [--report failures=<path>] [--report results=<path>] [scope...] [-- bazel-options...]
 ```
 
 Collects LCOV coverage over the scope. `--min-coverage` takes a whole number
@@ -414,9 +417,10 @@ stderr, or emits an `error` event with code `no_coverage_collector` with
 requested LCOV report is still written.
 
 Output: `--output text|json`. Reports: `--report lcov=<path>` writes
-combined LCOV. `--report sources=<path>` writes a JSON record (`record_version`, `cell`,
-`owned` with each source's disposition, `absent` production sources the report
-never saw, `errors`); it fails when the evidence is incomplete. Repeat the
+combined LCOV. `--report sources=<path>` writes a JSON record (`record_version`
+`2`, `cell`, `candidate` with the `sha` and `dirty` state of the checkout,
+`collector`, `owned` with each source's disposition, `absent` production
+sources the report never saw, `orphans` tracked sources no rule uses, `errors`); it fails when the evidence is incomplete. Repeat the
 flag for more files. Use `-` for stdout. A relative
 path anchors at the workspace root; an absolute one writes as given. Colliding
 destinations fail before anything runs, parents must exist, and a failed write
@@ -470,11 +474,27 @@ event with the same code. A repository that runs `--min-coverage` with an
 untested library therefore fails until that library has tests or a whole-file
 exclusion.
 
+On a whole-repository run (no scope, or `//...`) dx also checks the tracked
+files. It lists them with `git ls-files`, keeps the covered-language files
+(not `.d.ts` declarations), and drops the `.dx` state directory, anything
+under `.bazelignore`, and files outside any Bazel package. A remaining file
+that no rule of the workspace uses as an input prints
+`dx: coverage_sources_incomplete: tracked source not owned by any Bazel target: <path>`
+and counts as a gap like the others. The rule graph is the unconfigured
+`kind('rule', //...)` query, so a file used only on another platform's
+`select()` branch, as `data`, or by a `manual` rule is owned. Add the file to a
+rule, or delete it. Scoped runs skip this check. Outside a Git work tree dx
+prints `dx: tracked sources unavailable: not a Git work tree` and never
+enforces it; a Git or query failure inside a work tree is a gap.
+
 With `--output=json`, dx also emits one `coverage` event per run with `cell`,
 `covered_lines`, `eligible_lines`, `raw_lines`, `excluded_lines`,
 `eligible_files`, `support_files`, `excluded_files`, `unsupported_files`,
 `passed`, `errors` (the number of coverage source gaps), `dx_version`, and
-`minimum` when `--min-coverage` is set. `passed` is true when the cell has no
+`minimum` when `--min-coverage` is set. `sha` (the `HEAD` commit), `dirty`
+(true when tracked files differ from it) and `collector` (`bazel <version>`
+from the build events) name the checkout and the tool that measured it; they
+are left out when unknown. `passed` is true when the cell has no
 gaps, has eligible lines, and meets the minimum when one is set. The event is
 left out when coverage is incomplete.
 `--build_tests_only` is refused, because it hides library targets from the
@@ -514,16 +534,3 @@ The comment syntax depends on the language: `//` for Rust, Go, JS/TS, the JVM
 languages (including Kotlin scripts, `.kts`), .NET and C/C++; `#` for Python
 and Ruby; `%` for Erlang (`.erl` and `.hrl`). Markers in other sources
 (`.bzl`, `.pyi`, `.cu`/`.cuh`, `.d.ts`) are not read.
-
-## Line And Branch Metrics
-
-This section describes `//tools/coverage:coverage_bin`, not `dx coverage`.
-
-The coverage gate enforces exact executable-line coverage. Branch outcomes
-are measured separately and never change the gate. Each file with branch
-records reports raw, ignored, eligible and taken counts with its language.
-Branches on lines covered by `LCOV_EXCL_LINE` or a START/STOP range are
-counted as ignored and are left out of eligible, taken, missed and the rate.
-The declared branch summary is still checked against all records. Files without
-branch records report unavailable instead of a rate. A declared branch
-summary that does not match its records fails the report as incomplete.

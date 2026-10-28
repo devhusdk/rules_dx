@@ -2,7 +2,7 @@
 
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS", "perl_quality_srcs")
+load(":defs.bzl", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS", "perl_quality_srcs")
 
 def perl_wrapper_contract_tests(name):
     """Instantiates Perl wrapper contract tests."""
@@ -10,6 +10,11 @@ def perl_wrapper_contract_tests(name):
         name,
         file_classes = ["perl"],
         extra_checks = [
+            expect_equal(
+                "wrappers carry perltidy",
+                sorted(PERL_QUALITY_TOOLS.keys()),
+                ["perltidy"],
+            ),
             expect_equal(
                 "one perl class owns scripts, modules and tests",
                 PERL_SOURCE_SPECS,

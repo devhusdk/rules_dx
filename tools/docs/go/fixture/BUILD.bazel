@@ -2,14 +2,18 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_go//go:def.bzl", "go_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
-exports_files([
-    "money.go",
-    "money_changed.go",
-    "windows.go",
-])
+exports_files(
+    [
+        "money.go",
+        "money_changed.go",
+        "windows.go",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 go_library(
     name = "money",

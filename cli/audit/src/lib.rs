@@ -17,6 +17,7 @@ pub mod license_expr;
 pub mod license_notice;
 pub mod license_policy;
 pub mod locks;
+pub mod notice_manifest;
 pub mod outcome;
 pub mod secrets;
 pub mod spdx;
@@ -67,73 +68,9 @@ impl AuditRequest {
     }
 }
 
-/// Resolves a workspace-relative path and fails if it leaves the workspace.
-pub fn resolve_in_workspace(
-    workspace: &std::path::Path,
-    rel: &str,
-) -> std::io::Result<std::path::PathBuf> {
-    let root = std::fs::canonicalize(workspace)?;
-    let target = std::fs::canonicalize(workspace.join(rel))?;
-    if target.starts_with(&root) {
-        Ok(target)
-    } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "path leaves the workspace",
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn resolve_in_workspace_reads_a_file_inside() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(dir.path().join("apps")).unwrap();
-        std::fs::write(dir.path().join("apps/uv.lock"), "x").unwrap();
-        let resolved = resolve_in_workspace(dir.path(), "apps/uv.lock").unwrap();
-        assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
-    }
-
-    #[test]
-    fn resolve_in_workspace_passes_not_found_through() {
-        let dir = tempfile::tempdir().unwrap();
-        let error = resolve_in_workspace(dir.path(), "missing.lock").unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn resolve_in_workspace_rejects_a_symlink_leaving_the_workspace() {
-        let outer = tempfile::tempdir().unwrap();
-        let workspace = outer.path().join("ws");
-        std::fs::create_dir_all(&workspace).unwrap();
-        let outside = outer.path().join("uv.lock");
-        std::fs::write(&outside, "x").unwrap();
-        std::os::unix::fs::symlink(&outside, workspace.join("uv.lock")).unwrap();
-        let error = resolve_in_workspace(&workspace, "uv.lock").unwrap_err();
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
-        assert!(
-            error.to_string().contains("leaves the workspace"),
-            "{error}"
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn resolve_in_workspace_follows_a_symlink_inside_the_workspace() {
-        let outer = tempfile::tempdir().unwrap();
-        let real = outer.path().join("real");
-        std::fs::create_dir_all(real.join("locks")).unwrap();
-        std::fs::write(real.join("locks/uv.lock"), "x").unwrap();
-        std::os::unix::fs::symlink(real.join("locks/uv.lock"), real.join("uv.lock")).unwrap();
-        let linked = outer.path().join("linked");
-        std::os::unix::fs::symlink(&real, &linked).unwrap();
-        let resolved = resolve_in_workspace(&linked, "uv.lock").unwrap();
-        assert_eq!(std::fs::read_to_string(resolved).unwrap(), "x");
-    }
 
     #[test]
     fn family_spellings_are_frozen() {

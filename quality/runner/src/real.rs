@@ -11,35 +11,51 @@ use quality_adapter::parsers::ParseError;
 use crate::RunnerError;
 
 pub const REAL_TOOLS: &[&str] = &[
+    "ansible_lint",
     "biome",
     "buf",
     "buildifier",
+    "checkmake",
     "checkstyle",
     "clang_format",
     "clang_tidy",
     "clippy",
     "cppcheck",
+    "credo",
     "csharpier",
     "cue",
+    "deadnix",
+    "dfmt",
+    "dscanner",
     "djlint",
     "erlfmt",
     "errcheck",
     "eslint",
     "fantomas",
     "flake8",
+    "flatc",
     "fsharplint",
     "gofumpt",
     "google_java_format",
     "govet",
     "graphql_eslint",
     "hadolint",
+    "jsonnet_lint",
     "jsonnetfmt",
+    "julia_format",
     "keep_sorted",
+    "latexindent",
+    "kubeconform",
     "ktfmt",
     "ktlint",
     "markdown_check",
     "mix_format",
     "modfmt",
+    "nixfmt",
+    "notebook_outputs",
+    "ormolu",
+    "opa",
+    "perltidy",
     "pkl",
     "pmd",
     "prettier",
@@ -49,6 +65,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "qmlformat",
     "qmllint",
     "redocly",
+    "regal",
     "remark",
     "roslyn",
     "rubocop",
@@ -62,10 +79,14 @@ pub const REAL_TOOLS: &[&str] = &[
     "spotbugs",
     "standardrb",
     "staticcheck",
+    "statix",
     "stylelint",
+    "stylua",
     "taplo",
     "terraform",
+    "tflint",
     "ty",
+    "typstyle",
     "vale",
     "yamlfmt",
     "yamllint",
@@ -84,9 +105,46 @@ ktlint_standard_function-signature = disabled
 ktlint_standard_trailing-comma-on-call-site = disabled
 ktlint_standard_trailing-comma-on-declaration-site = disabled
 ";
+const TFLINT_DEFAULTS_REL: &str = "dx-tflint-default/.tflint.hcl";
+/// Only the bundled terraform ruleset, recommended preset; module calls stay off.
+const TFLINT_DEFAULTS_BYTES: &[u8] = b"config {
+  call_module_type = \"none\"
+}
+
+plugin \"terraform\" {
+  enabled = true
+  preset  = \"recommended\"
+}
+";
+/// Empty plugin home: tflint never downloads or finds a provider ruleset.
+const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
+const CREDO_DEFAULTS_REL: &str = "dx-credo-default/.credo.exs";
+/// Credo's own default checks over every staged file: Bazel decides which files are owned, so
+/// no excluded path pattern may drop one.
+const CREDO_DEFAULTS_BYTES: &[u8] = b"%{
+  configs: [
+    %{name: \"default\", files: %{included: [\"**/*.{ex,exs}\"], excluded: []}}
+  ]
+}
+";
+const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
+/// An empty ini loads and keeps every rule at its default.
+const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
+const REGAL_DEFAULTS_REL: &str = ".regal/config.yaml";
+const REGAL_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";
+/// dfmt is always pointed at this directory (see `commands::DFMT_CONFIG_DIR`): `root = true`
+/// stops its upward search for `.editorconfig`, so a home-directory file never reaches it.
+const DFMT_DEFAULTS_FILE: &str = ".editorconfig";
+const DFMT_DEFAULTS_BYTES: &[u8] = b"root = true\n\n[*.d]\nend_of_line = lf\n";
+/// dscanner is always pointed at this file (see `commands::DSCANNER_CONFIG_REL`): the header alone
+/// keeps every upstream default check on.
+const DSCANNER_DEFAULTS_BYTES: &[u8] = b"[analysis.config.StaticAnalysisConfig]\n";
+const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
+/// An empty `statix.toml` keeps every lint on and stops statix searching upward for one.
+const STATIX_DEFAULTS_BYTES: &[u8] = b"";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
 const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
@@ -180,6 +238,7 @@ pub struct RealTool {
     pub extra_env: Vec<(String, String)>,
     pub config_rel: Option<String>,
     pub edition: Option<String>,
+    pub dialect: Option<String>,
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
@@ -258,7 +317,7 @@ const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "flake8", "pylint"];
 
 /// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
 fn resolves_launcher(tool_id: &str) -> bool {
-    tool_id == "psscriptanalyzer"
+    matches!(tool_id, "psscriptanalyzer" | "julia_format")
 }
 
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.
@@ -400,6 +459,35 @@ impl RealBackend {
                 env.push(pair);
             }
         }
+        if tool_id == "tflint" {
+            let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);
+            std::fs::create_dir_all(&plugins)
+                .map_err(|err| execution(tool_id, format!("plugin dir: {err}")))?;
+            env.retain(|(key, _)| key != "TFLINT_CONFIG_FILE");
+            env.push((
+                OsString::from("TFLINT_PLUGIN_DIR"),
+                plugins.into_os_string(),
+            ));
+            env.push((OsString::from("TFLINT_LOG"), OsString::new()));
+            if cfg!(unix) {
+                // The bundled ruleset talks over a unix socket made in TMPDIR, and
+                // a long scratch path overflows the socket path limit.
+                let short = short_socket_dir()
+                    .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
+                for (key, value) in &mut env {
+                    if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
+                        *value = short.path().as_os_str().to_owned();
+                    }
+                }
+                let result = (self.spawn)(&spawn_argv(tool_id, invocation), &cwd, &env)
+                    .map_err(|err| execution(tool_id, format!("spawn: {err}")));
+                drop(short);
+                return result;
+            }
+        }
+        if tool_id == "typstyle" {
+            env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+        }
         if tool_id == "redocly" {
             env.push((OsString::from("REDOCLY_TELEMETRY"), OsString::from("off")));
             env.push((
@@ -423,6 +511,39 @@ impl RealBackend {
     }
 }
 
+/// A short-named temp directory, removed on drop, for tools that bind unix sockets there.
+struct SocketDir(PathBuf);
+
+impl SocketDir {
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for SocketDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn short_socket_dir() -> io::Result<SocketDir> {
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let base = if Path::new("/tmp").is_dir() {
+        PathBuf::from("/tmp")
+    } else {
+        std::env::temp_dir()
+    };
+    loop {
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = base.join(format!("dxtfl-{}-{n}", std::process::id()));
+        match std::fs::create_dir(&dir) {
+            Ok(()) => return Ok(SocketDir(dir)),
+            Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {}
+            Err(err) => return Err(err),
+        }
+    }
+}
+
 /// The argv a tool is spawned with: an absolute binary, resolved for launchers that need it.
 fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
     let mut argv = absolute_argv(&invocation.argv);
@@ -438,6 +559,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
 
 mod check;
 mod delegated;
+mod kubeconform;
 mod pipeline;
 mod redocly;
 mod rustfmt;
@@ -703,7 +825,7 @@ mod tests {
         let rules = &config["rules"];
         let pseudo = &rules["selector-pseudo-class-no-unknown"];
         assert_eq!(pseudo[0], true);
-        for name in ["global", "local", "export", "import"] {
+        for name in ["global", "local", "export", "import", "external"] {
             assert!(
                 pseudo[1]["ignorePseudoClasses"]
                     .as_array()
@@ -714,9 +836,23 @@ mod tests {
         }
         let property = &rules["property-no-unknown"];
         assert_eq!(property[0], true);
-        assert!(property[1]["ignoreProperties"]
-            .as_array()
-            .expect("ignoreProperties")
-            .contains(&serde_json::Value::from("composes")));
+        for name in ["composes", "compose-with"] {
+            assert!(
+                property[1]["ignoreProperties"]
+                    .as_array()
+                    .expect("ignoreProperties")
+                    .contains(&serde_json::Value::from(name)),
+                "{name}"
+            );
+        }
+        for name in [":export", "/^:import/"] {
+            assert!(
+                property[1]["ignoreSelectors"]
+                    .as_array()
+                    .expect("ignoreSelectors")
+                    .contains(&serde_json::Value::from(name)),
+                "{name}"
+            );
+        }
     }
 }

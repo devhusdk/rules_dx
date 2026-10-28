@@ -6,7 +6,7 @@ use dx_plan::args::{GenerateRequest, Invocation};
 use dx_plan::finalize::{finalize, FinalizeError, FinalizeInput, GazelleStatus};
 use dx_plan::generate::{project, refused_lines, render_diff, text_lines, ProjectedManifest};
 use dx_plan::plan::{
-    generate_scope_json, intended_path, patch_path, plan_generate, GENERATE_ENV_INTENDED,
+    generate_scope_json, intended_path, patch_path, plan_generate_logged, GENERATE_ENV_INTENDED,
     GENERATE_ENV_MODE, GENERATE_ENV_SCOPE,
 };
 use dx_plan::reports::plan_reports;
@@ -104,12 +104,13 @@ fn run_generate_request(
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
     let _ = std::fs::remove_file(&patch);
-    let plan = match plan_generate(
+    let plan = match plan_generate_logged(
         &resolved,
         &request.bazel_options,
         !apply,
         &request.bazel_startup_options,
         patch_arg.as_deref(),
+        request.exec_log.as_deref(),
     ) {
         Ok(plan) => plan,
         Err(error) => {
@@ -225,7 +226,25 @@ fn run_generate_request(
                 return kept_child(env.err, bazel_code, exit);
             }
         }
-        if let GazelleStatus::Failed(failed) = gazelle {
+        for generation_error in &projected.errors {
+            let package = generation_error
+                .package
+                .as_deref()
+                .filter(|p| !p.is_empty());
+            if let Err(exit) = emit_built(
+                env.out,
+                dx_output::error_event(
+                    CODE_GENERATION_FAILED,
+                    &generation_error.message,
+                    package,
+                    None,
+                    Some("execute"),
+                ),
+            ) {
+                return kept_child(env.err, bazel_code, exit);
+            }
+        }
+        if let (GazelleStatus::Failed(failed), true) = (gazelle, projected.errors.is_empty()) {
             if let Err(exit) = emit_bazel_exit(
                 env.out,
                 CODE_BAZEL_FAILED,
@@ -337,6 +356,61 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("\"exit_code\":0"), "{out}");
+    }
+
+    #[test]
+    fn generate_json_emits_one_error_per_generation_error() {
+        for (name, args) in [
+            (
+                "generate-errors-apply",
+                vec!["generate", "--apply", "--output=json"],
+            ),
+            ("generate-errors-check", vec!["generate", "--output=json"]),
+        ] {
+            let mut harness = Harness::new(name);
+            let mode = if args.contains(&"--apply") {
+                "default"
+            } else {
+                "check"
+            };
+            harness.bazel_code = 1;
+            harness.intended = Some(intended_witness_failed(
+                mode,
+                r#"{"language":"cc","message":"boom"},{"language":"go","package":"pkg","message":"bad"}"#,
+            ));
+            let (code, out, err) = harness.run(&args);
+            assert_eq!(code, 1, "{out}{err}");
+            let events: Vec<serde_json::Value> = out
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            let failed: Vec<_> = events
+                .iter()
+                .filter(|e| e["code"] == "generation_failed")
+                .collect();
+            assert_eq!(failed.len(), 2, "{out}");
+            assert_eq!(failed[0]["message"], "boom");
+            assert!(failed[0].get("path").is_none(), "{out}");
+            assert_eq!(failed[1]["path"], "pkg");
+            assert_eq!(failed[1]["phase"], "execute");
+            assert!(!out.contains("bazel_failed"), "{out}");
+            assert!(!out.contains("results are incomplete"), "{out}");
+            assert!(out.contains("\"results_complete\":false"), "{out}");
+            assert!(out.contains("\"exit_code\":1"), "{out}");
+        }
+    }
+
+    #[test]
+    fn generate_text_with_generation_errors_exits_1() {
+        let mut harness = Harness::new("generate-errors-text");
+        harness.bazel_code = 1;
+        harness.intended = Some(intended_witness_failed(
+            "default",
+            r#"{"language":"cc","message":"boom"}"#,
+        ));
+        let (code, out, err) = harness.run(&["generate", "--apply", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!out.contains("boom"), "{out}");
     }
 
     #[test]

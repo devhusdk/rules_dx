@@ -97,6 +97,50 @@ fn consumer() -> Case {
     root
 }
 
+const LINT_BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+quality_family(
+    name = "terraform_family",
+    disabled = ["typecheck"],
+    family_id = "terraform",
+    format = ["terraform"],
+    lint = ["tflint"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":terraform_family"],
+)
+"#;
+
+const PLUGIN_CONFIG: &str = "plugin \"aws\" {\n  enabled = true\n  version = \"0.1.0\"\n  source  = \"github.com/terraform-linters/tflint-ruleset-aws\"\n}\n";
+
+const APP_BUILD_WITH_CONFIG: &str = r#"load("@rules_dx//quality:native_config.bzl", "tflint_config")
+load("@rules_dx//terraform/rules:defs.bzl", "terraform_module")
+
+tflint_config(
+    name = "tflint",
+    src = "tflint.hcl",
+)
+
+terraform_module(
+    name = "app",
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tfvars",
+    ],
+    aspect_hints = [":tflint"],
+    deps = ["//app/modules/child"],
+)
+"#;
+
+fn lint_consumer() -> Case {
+    let root = consumer();
+    write(&root.join("BUILD.bazel"), LINT_BUILD);
+    root
+}
+
 fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
@@ -300,5 +344,42 @@ fn an_opentofu_override_formats_the_same_files_and_is_the_tool_that_runs() {
         !plan.stdout.contains("dx_terraform_linux_x86_64/terraform"),
         "{}",
         plan.stdout
+    );
+}
+
+#[test]
+fn lint_reports_a_finding_with_the_bytes_unchanged_and_apply_stays_check_only() {
+    let root = lint_consumer();
+    let main = root.join("app/main.tf");
+    let checked = dx(&root, "lint", &[]);
+    assert_eq!(checked.status.code(), Some(1), "{}", checked.combined());
+    assert!(
+        checked.combined().contains("app/main.tf:"),
+        "{}",
+        checked.combined()
+    );
+    assert!(
+        checked.combined().contains("terraform_required_version"),
+        "{}",
+        checked.combined()
+    );
+    assert_eq!(read(&main), MAIN);
+    let applied = dx(&root, "lint", &["--apply"]);
+    assert_eq!(applied.status.code(), Some(1), "{}", applied.combined());
+    assert_eq!(read(&main), MAIN);
+    assert_eq!(read(&root.join("app/outputs.tf")), OUTPUTS);
+}
+
+#[test]
+fn a_config_that_needs_a_plugin_download_is_an_error_not_a_clean_run() {
+    let root = lint_consumer();
+    write(&root.join("app/BUILD.bazel"), APP_BUILD_WITH_CONFIG);
+    write(&root.join("app/tflint.hcl"), PLUGIN_CONFIG);
+    let out = dx(&root, "lint", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(
+        out.combined().contains("tflint --init"),
+        "{}",
+        out.combined()
     );
 }

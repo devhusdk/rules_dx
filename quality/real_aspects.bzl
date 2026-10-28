@@ -17,14 +17,18 @@ load(
     "REAL_CLASS_TO_FAMILY",
 )
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "native_config_scratch_rel", "missing_required_config_error")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
+load("//quality:support.bzl", "support_unpinned_tools")
+load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//sql/rules:providers.bzl", "SqlDialectInfo")
 
 _REAL_TOOL_TABLE = {
     "biome": {
@@ -86,6 +90,14 @@ _REAL_TOOL_TABLE = {
         "shard": "rust",
         "toolchain_file": "clippy_driver",
     },
+    "credo": {
+        "attr": attr.label(default = "//config:tool_credo", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "fallback": "=@rules_dx//elixir/tools:credo",
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+    },
     "csharpier": {
         "attr": attr.label(default = "//quality/tools/dotnet:csharpier", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -100,6 +112,21 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "cue",
     },
+    "opa": {
+        "attr": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format", "typecheck"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "rego",
+    },
+    "regal": {
+        "attr": attr.label(default = "//config:tool_regal", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "env": [["REGAL_DISABLE_VERSION_CHECK", "1"]],
+        "kind": "file",
+        "resources": "light",
+        "shard": "rego",
+    },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -107,6 +134,29 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "medium",
         "shard": "core",
+    },
+    "deadnix": {
+        "attr": attr.label(default = "//quality/tools/rust:deadnix", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "nix",
+    },
+    "dfmt": {
+        "attr": attr.label(default = "//config:tool_dfmt", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "setting",
+        "resources": "light",
+        "shard": "core",
+        "target_tool": True,
+    },
+    "dscanner": {
+        "attr": attr.label(default = "//config:tool_dscanner", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+        "target_tool": True,
     },
     "djlint": {
         "attr": attr.label(default = "//quality/tools/python:djlint", cfg = "exec", executable = True),
@@ -139,6 +189,14 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "runfiles_env": True,
         "shard": "py",
+    },
+    "flatc": {
+        "attr": attr.label(default = "//config:tool_flatc", allow_files = True, cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "fallback": " to a flatc binary",
+        "kind": "setting",
+        "resources": "light",
+        "shard": "flatbuffers",
     },
     "fsharplint": {
         "attr": attr.label(default = "//quality/tools/dotnet/fsharplint", cfg = "exec", executable = True),
@@ -178,9 +236,38 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "dockerfile",
     },
+    "ansible_lint": {
+        "attr": attr.label(default = "//quality/tools/python:ansible_lint", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "heavy",
+        "runfiles_env": True,
+        "shard": "ansible",
+    },
+    "kubeconform": {
+        "attr": attr.label(default = "//config:tool_kubeconform", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "kubernetes",
+    },
+    "checkmake": {
+        "attr": attr.label(default = "@dx_tools//:checkmake", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "make",
+    },
     "jsonnetfmt": {
         "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "jsonnet",
+    },
+    "jsonnet_lint": {
+        "attr": attr.label(default = "@dx_tools//:jsonnet_lint", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "jsonnet",
@@ -220,6 +307,37 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "medium",
         "shard": "core",
+    },
+    "nixfmt": {
+        "attr": attr.label(default = "//config:tool_nixfmt", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "fallback": "=<label of a nixfmt executable>",
+        "kind": "file",
+        "resources": "light",
+        "shard": "nix",
+    },
+    "notebook_outputs": {
+        "attr": attr.label(default = "//quality/notebook:quality_notebook", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "core",
+    },
+    "ormolu": {
+        "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "fallback": "=<label of an ormolu executable>",
+        "kind": "file",
+        "resources": "medium",
+        "shard": "haskell",
+    },
+    "perltidy": {
+        "attr": attr.label(default = "//config:tool_perltidy", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "setting",
+        "resources": "light",
+        "shard": "core",
+        "target_tool": True,
     },
     "pkl": {
         "attr": attr.label(default = "//config:tool_pkl", allow_single_file = True, cfg = "exec"),
@@ -371,6 +489,13 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "jvm",
     },
+    "statix": {
+        "attr": attr.label(default = "//quality/tools/rust:statix", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "nix",
+    },
     "stylelint": {
         "attr": attr.label(default = "//quality/tools/javascript/bin:stylelint", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -387,6 +512,13 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "shard": "ruby",
     },
+    "stylua": {
+        "attr": attr.label(default = "//config:tool_stylua", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "lua",
+    },
     "taplo": {
         "attr": attr.label(default = "@dx_tools//:taplo", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format", "lint"],
@@ -402,12 +534,34 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "terraform",
     },
+    "tflint": {
+        "attr": attr.label(default = "@dx_tools//:tflint", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "env": [["CHECKPOINT_DISABLE", "1"]],
+        "kind": "file",
+        "resources": "light",
+        "shard": "terraform",
+    },
     "ty": {
         "attr": attr.label(default = "@dx_tools//:ty", allow_single_file = True, cfg = "exec"),
         "capabilities": ["typecheck"],
         "kind": "file",
         "resources": "medium",
         "shard": "core",
+    },
+    "typstyle": {
+        "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "typst",
+    },
+    "latexindent": {
+        "attr": attr.label(default = "@dx_tools//:latexindent", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "latex",
     },
     "vale": {
         "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
@@ -430,6 +584,14 @@ _REAL_TOOL_TABLE = {
         "resources": "medium",
         "runfiles_env": True,
         "shard": "yaml",
+    },
+    "julia_format": {
+        "attr": attr.label(default = "//config:tool_julia_format", allow_files = True, cfg = "exec"),
+        "capabilities": ["format"],
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+        "target_tool": True,
     },
     "zig_fmt": {
         "attr": attr.label(default = "//config:tool_zig_fmt", allow_files = True, cfg = "exec"),
@@ -466,19 +628,11 @@ def rustc_diagnostics_group(groups):
     return None
 
 def inherits_test_crate_sources(capability):
-    """Whether a Rust test crate's inherited sources feed this capability's diagnostics.
-
-    Allow-list: only the delegated rustc typecheck reads the harness compile.
-    """
+    """Whether a Rust test crate's inherited sources feed this capability's diagnostics."""
     return capability == "typecheck"
 
 def merge_inherited_sources(direct_sources, inherited, class_id):
-    """Adds inherited in-workspace .rs sources to a copy of direct_sources.
-
-    A rust_test(crate = ...) has no srcs of its own, but its harness compile
-    builds the crate's cfg(test) code. Own files stay first and win on a
-    duplicate path; the result is diagnostics-only and never changes ownership.
-    """
+    """Adds inherited in-workspace .rs sources to a copy of direct_sources."""
     merged = {k: v.to_list() for k, v in direct_sources.items()}
     seen = {}
     for files in merged.values():
@@ -498,6 +652,7 @@ def merge_inherited_sources(direct_sources, inherited, class_id):
 
 def real_policy_error(policy, capability, what):
     """Validates the selected workspace policy for one real capability."""
+    unpinned = support_unpinned_tools(capability)
     for family_id in sorted(policy.families.keys()):
         section = policy.families[family_id]
         error = family_section_error(
@@ -506,6 +661,7 @@ def real_policy_error(policy, capability, what):
             getattr(section, capability),
             section.disabled,
             _WIRED_TOOLS[capability],
+            unpinned,
         )
         if error != "":
             return what + ": " + error
@@ -600,12 +756,7 @@ def _jacoco_runtime_jars(ctx):
     return ctx.attr._jacoco_runtime[JavaInfo].transitive_runtime_jars.to_list()
 
 def _jvm_aux_jars(java_info, owned):
-    """Returns the runtime classpath jars plus compile-only jars not in owned.
-
-    This is the only place JVM tools may read JavaInfo classpaths, so neverlink
-    (compile-only) jars are never dropped (#3167). It is enforced by
-    //quality:jvm_classpath_policy_test.
-    """
+    """Returns the runtime classpath jars plus compile-only jars not in owned."""
     runtime = [java_info.transitive_runtime_jars]
     compile = [java_info.transitive_compile_time_jars]
     if java_info.compilation_info != None:
@@ -675,6 +826,15 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
+# Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
+_TARGET_TOOL_OWNERS = {
+    "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
+    "dscanner": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dscanner"),
+    "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
+    "perltidy": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perltidy"),
+    "julia_format": ("julia_library, julia_binary or julia_test", "@rules_dx//julia/rules:defs.bzl", "@rules_dx//julia/tools:julia_format"),
+}
+
 def _tool_files_to_run(target, flag, tool, what):
     """Returns the flag's tool, else the one the target carries."""
     ftr = flag[DefaultInfo].files_to_run
@@ -682,7 +842,8 @@ def _tool_files_to_run(target, flag, tool, what):
         return ftr
     if QualityToolsInfo in target and tool in target[QualityToolsInfo].tools:
         return target[QualityToolsInfo].tools[tool]
-    fail(what + ": " + tool + " has no executable; use zig_library, zig_binary or zig_test from @rules_dx//zig/rules:defs.bzl, or set --@rules_dx//config:tool_" + tool + "=@rules_dx//zig/tools:zig")
+    wrappers, defs, tool_label = _TARGET_TOOL_OWNERS[tool]
+    fail(what + ": " + tool + " has no executable; use " + wrappers + " from " + defs + ", or set --@rules_dx//config:tool_" + tool + "=" + tool_label)
 
 _GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
@@ -725,7 +886,13 @@ def _real_tool_launch(target, ctx, stage_tools, delegated, has_rust_toolchain, w
             if has_rust_toolchain:
                 binaries[tool] = _rust_toolchain_file(ctx, spec["toolchain_file"])
             continue
-        if kind == "file":
+        if kind == "file" and "fallback" in spec:
+            # An optional pin: the hub resolves an empty file set on platforms without an artifact.
+            files = getattr(ctx.files, "_" + tool)
+            if len(files) != 1:
+                fail(what + ": " + tool + " has no pinned artifact for this execution platform; set --@rules_dx//config:tool_" + tool + spec["fallback"])
+            binaries[tool] = files[0]
+        elif kind == "file":
             binaries[tool] = getattr(ctx.file, "_" + tool)
         elif kind == "executable":
             tool_target = getattr(ctx.attr, "_" + tool)
@@ -773,6 +940,10 @@ def _real_resolved_stages(target, ctx, capability, what):
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources
     else:
+        # The dx wrapper's native "<name>_upstream" target shares its sources with the
+        # forwarder, which is the sole origin; skip it to avoid duplicate findings.
+        if target.label.name.endswith("_upstream"):
+            return ([], None, None)
         (recognized, derived, ownership_error) = upstream_direct_sources(target, ctx)
         if ownership_error != "":
             fail(what + ": " + ownership_error)
@@ -855,6 +1026,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if RoslynInfo not in target:
             fail(what + ": roslyn needs a csharp_* target compiled with the SDK analyzers")
         roslyn = target[RoslynInfo]
+
+    sql_dialect = None
+    if "prettier" in [stage["tool"] for stage in resolved] and SqlDialectInfo in target:
+        sql_dialect = target[SqlDialectInfo].dialect
 
     rustfmt_edition = None
     if "rustfmt" in [stage["tool"] for stage in resolved]:
@@ -990,7 +1165,15 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
-    if "jsonnetfmt" in stage_tools:
+    if "opa" in stage_tools and RegoInfo in target:
+        for f in target[RegoInfo].transitive_srcs.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension != "rego":
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
+    if "jsonnetfmt" in stage_tools or "jsonnet_lint" in stage_tools:
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
             if ".." in ws_path.split("/") or f.extension not in ["jsonnet", "libsonnet", "json"]:
@@ -1002,6 +1185,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
             if ".." in ws_path.split("/") or f.extension not in ["yaml", "yml", "json"]:
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
+    if "flatc" in stage_tools and FlatBuffersInfo in target:
+        for f in target[FlatBuffersInfo].transitive_srcs.to_list():
+            ws_path = f.short_path
+            if ws_path.startswith("../"):
+                ws_path = "_external/" + ws_path[3:]
+            if ".." in ws_path.split("/"):
                 continue
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
@@ -1089,9 +1282,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         config_rel = None
         if tool in configs_by_tool:
             hint = configs_by_tool[tool]
-            config_rel = hint.config.short_path
+            config_rel = native_config_scratch_rel(hint.config.short_path)
+            if config_rel == None:
+                fail("native_config (%s): config %s for %s escapes the scratch" % (tool, hint.config.short_path, what))
             for f in sorted(hint.closure.to_list(), key = lambda f: f.short_path):
-                tool_files.append(real_request_tool_file(f.short_path, f.path))
+                closure_rel = native_config_scratch_rel(f.short_path)
+                if closure_rel == None:
+                    fail("native_config (%s): file %s for %s escapes the scratch" % (tool, f.short_path, what))
+                tool_files.append(real_request_tool_file(closure_rel, f.path))
                 inputs.append(f)
         upstream = []
         if tool == "clippy" and clippy_delegated:
@@ -1112,6 +1310,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             binary_path = binary_path,
             config_rel = config_rel,
             edition = edition,
+            dialect = sql_dialect if tool == "prettier" else None,
             files = tool_files,
             env = tool_env_entries.get(tool, []),
             upstream = upstream,
@@ -1182,8 +1381,12 @@ def real_tool_table_shape_error(table):
             return prefix + "must not set an attr for kind '" + kind + "'"
         if kind == "setting" and ("fallback" in spec) == ("target_tool" in spec):
             return prefix + "needs exactly one of fallback or target_tool"
-        if kind != "setting" and ("fallback" in spec or "target_tool" in spec):
-            return prefix + "sets fallback or target_tool outside the setting kind"
+        if kind not in ["setting", "file"] and "fallback" in spec:
+            return prefix + "sets fallback outside the setting and file kinds"
+        if kind != "setting" and "target_tool" in spec:
+            return prefix + "sets target_tool outside the setting kind"
+        if spec.get("target_tool", False) and tool not in _TARGET_TOOL_OWNERS:
+            return prefix + "has no wrapper owner in _TARGET_TOOL_OWNERS"
         if kind != "executable" and ("extra" in spec or "run_tool" in spec or "runfiles_env" in spec):
             return prefix + "sets extra, run_tool or runfiles_env outside the executable kind"
         if spec.get("extra", "files") not in ["files", "runfiles"]:
@@ -1351,6 +1554,12 @@ _REAL_SHARD_SPECS = {
         "shard": "powershell",
         "suffix": "-powershell",
     },
+    "real_flatbuffers_lint": {
+        "capability": "lint",
+        "doc": "Additive FlatBuffers lint family aspect (flatc).",
+        "shard": "flatbuffers",
+        "suffix": "-flatbuffers",
+    },
     "real_protobuf_format": {
         "capability": "format",
         "doc": "Additive Protocol Buffers format family aspect (buf format).",
@@ -1421,17 +1630,95 @@ _REAL_SHARD_SPECS = {
         "shard": "dockerfile",
         "suffix": "-dockerfile",
     },
+    "real_nix_format": {
+        "capability": "format",
+        "doc": "Additive Nix format family aspect (nixfmt).",
+        "shard": "nix",
+        "suffix": "-nix",
+    },
+    "real_nix_lint": {
+        "capability": "lint",
+        "doc": "Additive Nix lint family aspect (statix, deadnix).",
+        "shard": "nix",
+        "suffix": "-nix",
+    },
+    "real_ansible_lint": {
+        "capability": "lint",
+        "doc": "Additive Ansible lint family aspect (ansible-lint).",
+        "shard": "ansible",
+        "suffix": "-ansible",
+    },
+    "real_kubernetes_lint": {
+        "capability": "lint",
+        "doc": "Additive Kubernetes lint family aspect (kubeconform).",
+        "shard": "kubernetes",
+        "suffix": "-kubernetes",
+    },
+    "real_make_lint": {
+        "capability": "lint",
+        "doc": "Additive Makefile lint family aspect (checkmake).",
+        "shard": "make",
+        "suffix": "-make",
+    },
     "real_cue_format": {
         "capability": "format",
         "doc": "Additive CUE format family aspect (cue fmt).",
         "shard": "cue",
         "suffix": "-cue",
     },
+    "real_rego_format": {
+        "capability": "format",
+        "doc": "Additive Rego format family aspect (opa fmt).",
+        "shard": "rego",
+        "suffix": "-rego",
+    },
+    "real_rego_lint": {
+        "capability": "lint",
+        "doc": "Additive Rego lint family aspect (regal lint).",
+        "shard": "rego",
+        "suffix": "-rego",
+    },
+    "real_rego_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Rego typecheck family aspect (opa check).",
+        "shard": "rego",
+        "suffix": "-rego",
+    },
     "real_jsonnet_format": {
         "capability": "format",
         "doc": "Additive Jsonnet format family aspect (jsonnetfmt).",
         "shard": "jsonnet",
         "suffix": "-jsonnet",
+    },
+    "real_jsonnet_lint": {
+        "capability": "lint",
+        "doc": "Additive Jsonnet lint family aspect (jsonnet-lint).",
+        "shard": "jsonnet",
+        "suffix": "-jsonnet",
+    },
+    "real_typst_format": {
+        "capability": "format",
+        "doc": "Additive Typst format family aspect (typstyle).",
+        "shard": "typst",
+        "suffix": "-typst",
+    },
+    "real_latex_format": {
+        "capability": "format",
+        "doc": "Additive LaTeX format family aspect (latexindent).",
+        "shard": "latex",
+        "suffix": "-latex",
+    },
+    "real_lua_format": {
+        "capability": "format",
+        "doc": "Additive Lua format family aspect (stylua).",
+        "shard": "lua",
+        "suffix": "-lua",
+    },
+    "real_haskell_format": {
+        "capability": "format",
+        "doc": "Additive Haskell format family aspect (ormolu).",
+        "shard": "haskell",
+        "suffix": "-haskell",
     },
     "real_pkl_format": {
         "capability": "format",
@@ -1442,6 +1729,12 @@ _REAL_SHARD_SPECS = {
     "real_terraform_format": {
         "capability": "format",
         "doc": "Additive Terraform format family aspect (terraform fmt).",
+        "shard": "terraform",
+        "suffix": "-terraform",
+    },
+    "real_terraform_lint": {
+        "capability": "lint",
+        "doc": "Additive Terraform lint family aspect (tflint).",
         "shard": "terraform",
         "suffix": "-terraform",
     },
@@ -1600,6 +1893,15 @@ real_shell_lint_aspect = _make_real_aspect("real_shell_lint")
 real_shell_format_aspect = _make_real_aspect("real_shell_format")
 
 real_dockerfile_lint_aspect = _make_real_aspect("real_dockerfile_lint")
+real_make_lint_aspect = _make_real_aspect("real_make_lint")
+
+real_nix_format_aspect = _make_real_aspect("real_nix_format")
+
+real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
+
+real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
+
+real_ansible_lint_aspect = _make_real_aspect("real_ansible_lint")
 
 real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 
@@ -1607,15 +1909,32 @@ real_powershell_lint_aspect = _make_real_aspect("real_powershell_lint")
 
 real_protobuf_format_aspect = _make_real_aspect("real_protobuf_format")
 
+real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
+real_terraform_lint_aspect = _make_real_aspect("real_terraform_lint")
 
 real_go_format_aspect = _make_real_aspect("real_go_format")
 
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
+
+real_jsonnet_lint_aspect = _make_real_aspect("real_jsonnet_lint")
+
+real_typst_format_aspect = _make_real_aspect("real_typst_format")
+
+real_latex_format_aspect = _make_real_aspect("real_latex_format")
+
+real_lua_format_aspect = _make_real_aspect("real_lua_format")
+real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
+
+real_rego_format_aspect = _make_real_aspect("real_rego_format")
+
+real_rego_typecheck_aspect = _make_real_aspect("real_rego_typecheck")
+
+real_rego_lint_aspect = _make_real_aspect("real_rego_lint")
 
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
 

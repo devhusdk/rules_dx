@@ -152,6 +152,7 @@ fn differing_original_digests_conflict_in_check_mode() {
         err.contains("Conflict: src/a.py (conflicting_digests"),
         "{err}"
     );
+    assert!(err.contains("next: resolve the Conflict files"), "{err}");
 }
 
 #[test]
@@ -166,4 +167,30 @@ fn text_mode_reports_one_not_applied_file_for_a_conflict() {
     assert_eq!(code, 1);
     assert_eq!(source(&harness), original);
     assert!(err.contains("conflicting_candidates"), "{err}");
+}
+
+#[test]
+fn json_check_mode_proposes_apply_in_a_notice_but_apply_does_not() {
+    let (mut harness, original) = setup("shared-proposed");
+    let d = digest(&original).to_vec();
+    let one = result_for(&harness, &original, &d, b"y = 1\n", edit(b"y"));
+    harness.results.insert("//test:one".to_owned(), one);
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    assert_eq!(code, 1, "{out}");
+    let events = json_events(&out);
+    let notice = event(&events, "notice");
+    assert_eq!(notice["code"], serde_json::json!("changes_proposed"));
+    assert_eq!(notice["related_command"], serde_json::json!("lint"));
+    assert!(
+        notice["message"]
+            .as_str()
+            .is_some_and(|m| m.contains("--apply")),
+        "{notice}"
+    );
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0, "{out}");
+    assert!(
+        events_of_kind(&json_events(&out), "notice").is_empty(),
+        "{out}"
+    );
 }

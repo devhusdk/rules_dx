@@ -18,7 +18,7 @@ pub enum ArgsError {
     Usage { text: String },
     /// No command was named.
     #[error(
-        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|list-tests|rollback|worktree|explain"
+        "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|new|upgrade|status|version|watch|completion|docs|rollback|worktree|explain|install"
     )]
     MissingCommand,
     /// The command does not take this flag.
@@ -112,8 +112,9 @@ pub use completion::{
 };
 pub use grammar::{cli_command, man_page};
 pub use invocation::{
-    apply_here, here_scope, CommonOptions, GenerateRequest, HintScope, Invocation, OperationMode,
-    QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest, AGENT_QUIET_FLAGS,
+    apply_here, here_scope, AffectedHandoff, CommonOptions, GenerateRequest, HintScope, Invocation,
+    OperationMode, QualityRequest, ReportRequest, UmbrellaOrigin, UmbrellaRequest,
+    AGENT_QUIET_FLAGS,
 };
 pub use parser::{
     ci_ignores_env, early_output_flag, early_workspace_flag, freeze_workspace, is_discovery_exempt,

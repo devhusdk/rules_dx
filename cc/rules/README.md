@@ -6,7 +6,7 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test", "objc_library")
 ```
 
-`objc_library` passes `srcs`, `non_arc_srcs`, `hdrs` and `select()` values to the upstream rule unchanged.
+`objc_library` is the upstream rule under your name, with no forwarder. rules_apple resources and frameworks, and rules_swift `module_name`, behave exactly as upstream. Quality ownership of `srcs`, `non_arc_srcs` and `hdrs` comes from the target's paths.
 
 ## Options
 

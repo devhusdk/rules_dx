@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::verdict::{alias_errors, line_comment_syntax, normalize_path, LineComment};
+use crate::lang::{line_comment_syntax, LineComment};
 use crate::{
     find_ignores, is_covered_language, is_ignored, merge_lcov_reports, FileHits, Ignores, LcovError,
 };
@@ -52,6 +52,8 @@ pub struct CellAccount {
     pub files: BTreeMap<String, Disposition>,
     /// Production sources owned by an instrumented target that the report never saw.
     pub absent: Vec<String>,
+    /// Tracked covered-language files that no Bazel rule uses.
+    pub orphans: Vec<String>,
     pub errors: Vec<String>,
 }
 
@@ -70,6 +72,17 @@ impl CellAccount {
             self.excluded_files,
             self.unsupported_files,
         )
+    }
+
+    /// Records tracked sources no Bazel rule uses: sorted, deduplicated, one error each.
+    pub fn record_orphans(&mut self, paths: impl IntoIterator<Item = String>) {
+        let found: BTreeSet<String> = paths.into_iter().collect();
+        for path in found {
+            self.errors.push(format!(
+                "tracked source not owned by any Bazel target: {path}"
+            ));
+            self.orphans.push(path);
+        }
     }
 
     /// True when the cell has no accounting errors, at least one eligible line, and meets `minimum` percent.
@@ -107,6 +120,29 @@ pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
         }
     }
     count
+}
+
+/// The tracked files that could be orphans: covered-language files outside dx state and the ignored prefixes.
+///
+/// `ignored_prefixes` are `.bazelignore` entries without a trailing slash.
+pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = tracked
+        .iter()
+        .filter(|path| is_covered_language(path))
+        .filter(|path| *path != ".dx" && !path.starts_with(".dx/"))
+        .filter(|path| {
+            !ignored_prefixes.iter().any(|prefix| {
+                *path == prefix
+                    || path
+                        .strip_prefix(prefix.as_str())
+                        .is_some_and(|rest| rest.starts_with('/'))
+            })
+        })
+        .cloned()
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// The path key a manifest row and an LCOV SF record share.
@@ -319,3 +355,28 @@ pub fn account(
 #[cfg(test)]
 #[path = "accounting_tests.rs"]
 mod accounting_tests;
+
+fn normalize_path(path: &str) -> String {
+    let slashed = path.replace('\\', "/");
+    let mut rest = slashed.as_str();
+    while let Some(stripped) = rest.strip_prefix("./") {
+        rest = stripped;
+    }
+    rest.to_string()
+}
+
+fn alias_errors(label: &str, paths: &[&str], errors: &mut Vec<String>) {
+    let mut seen: BTreeMap<String, &str> = BTreeMap::new();
+    for path in paths {
+        let key = normalize_path(path);
+        match seen.get(&key) {
+            Some(first) if first != path => errors.push(format!(
+                "path alias in {label}: {first} and {path} name the same file"
+            )),
+            Some(_) => errors.push(format!("duplicate path in {label}: {path}")),
+            None => {
+                seen.insert(key, path);
+            }
+        }
+    }
+}

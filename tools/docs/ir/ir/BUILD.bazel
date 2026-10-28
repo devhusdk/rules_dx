@@ -1,11 +1,12 @@
 load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 # gazelle:resolve rust proto //tools/docs/ir:doc_ir_proto_rs
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir:doc_ir_proto_rs
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
 rust_library(
     name = "documentation_ir",
@@ -73,10 +74,13 @@ rust_clippy_test(
     targets = [":documentation_ir"],
 )
 
-exports_files([
-    "Cargo.toml",
-    "src/lib.rs",
-])
+exports_files(
+    [
+        "Cargo.toml",
+        "src/lib.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 real_source_target(
     name = "corpus_starlark",

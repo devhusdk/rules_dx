@@ -17,6 +17,19 @@ case "$op" in
         fi
         exec "$ADB" -s "$serial" install -r "$apk"
         ;;
+    install-multiple)
+        dir="${DX_ADB_APKS:-}"
+        if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+            echo "dx-android-adb: DX_ADB_APKS names the APK set directory" >&2
+            exit 2
+        fi
+        set -- "$dir"/*.apk
+        if [ ! -f "$1" ]; then
+            echo "dx-android-adb: $dir holds no APK" >&2
+            exit 2
+        fi
+        exec "$ADB" -s "$serial" install-multiple -r "$@"
+        ;;
     start)
         app="${DX_ADB_APP:-}"
         activity="${DX_ADB_ACTIVITY:-}"

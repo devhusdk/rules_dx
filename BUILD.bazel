@@ -48,8 +48,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve rust spawn_proto //cli/execlog:spawn_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
-# gazelle:resolve python pytest @pypi//pytest
+# gazelle:resolve rust serde @crates//:serde
+# gazelle:resolve rust serde_json @crates//:serde_json
+# gazelle:dx_external python tools/ci/tooling/uv.lock
 # gazelle:resolve rust quality_adapter //quality/adapter:quality_adapter
+# gazelle:resolve rust quality_notebook //quality/notebook:quality_notebook_lib
 # gazelle:resolve rust quality_result //quality/result:quality_result
 # gazelle:dx_corpus true
 # gazelle:dx_external maven third_party/jvm/maven_install.json maven
@@ -59,6 +62,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/testing/hermetic
+# gazelle:exclude deploy/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
 # gazelle:exclude quality/tools/javascript/bin/eslint.mjs
 # gazelle:exclude quality/tools/javascript/bin/graphql_eslint.mjs
@@ -95,6 +99,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude fortran/tests/runtime
 # gazelle:exclude ocaml/tests/runtime
+# gazelle:exclude ocaml/tests/native
+# gazelle:exclude perl/tests/runtime
+# gazelle:exclude php/tests/fixtures
+# gazelle:exclude php/rules/tool.php
+# gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude fsharp/tests/fixtures/order
 # gazelle:exclude fsharp/tests/fixtures/layouts
@@ -103,6 +112,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude astro/tests/fixtures/hello
 # gazelle:exclude astro/tests/app
 # gazelle:exclude astro/tests/app_type_error
+# gazelle:exclude svelte/tests/app
+# gazelle:exclude svelte/tests/app_errors
 # gazelle:exclude vue/tests/app
 # gazelle:exclude vue/tests/app_type_error
 # gazelle:exclude mdx/tests/app
@@ -114,12 +125,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/cpp-app
 # gazelle:exclude examples/elixir-app
 # gazelle:exclude examples/erlang-app
+# gazelle:exclude examples/haskell-app
 # gazelle:exclude examples/qt-app
 # gazelle:exclude examples/java-app/cli/Main.java
 # gazelle:exclude examples/java-app/diagnostics
 # gazelle:exclude examples/kotlin-app/cli/Main.kt
 # gazelle:exclude examples/kotlin-app/diagnostics
+# gazelle:exclude examples/lua-app
+# gazelle:exclude examples/astro-app
 # gazelle:exclude examples/node-app
+# gazelle:exclude examples/ocaml-app
 # gazelle:exclude examples/perl-app
 # gazelle:exclude examples/qt-rust
 # gazelle:exclude examples/qt-tasks
@@ -130,6 +145,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
 # gazelle:exclude java/tests/fixtures/hello
+# gazelle:exclude java/tests/fixtures/junit
 # gazelle:exclude kotlin/tests/fixtures/hello
 # gazelle:exclude scala/tests/fixtures/hello
 # gazelle:exclude python/tests/fixtures/hello
@@ -207,6 +223,7 @@ exports_files([
     ".clang-format",
     ".editorconfig",
     ".gitignore",
+    ".npmrc",
     ".shellcheckrc",
     "MODULE.bazel",
     "MODULE.bazel.lock",
@@ -223,8 +240,8 @@ exports_files([
     "perl/README.md",
     "php/README.md",
     "powershell/README.md",
-    "haskell/README.md",
     "ruby/README.md",
+    "julia/README.md",
     "zig/README.md",
     "cargo-bazel-lock.json",
     "package.json",
@@ -323,10 +340,11 @@ real_source_target(
         "ocaml/README.md",
         "perl/README.md",
         "php/README.md",
-        "haskell/README.md",
+        "//haskell:README.md",
         "patches/README.md",
         "powershell/README.md",
         "ruby/README.md",
+        "julia/README.md",
         "zig/README.md",
         "cuda/README.md",
         "CLAUDE.md",

@@ -71,7 +71,7 @@ Attributes:
 - `libs`: extra DLLs placed next to the executable, such as plugins. A `libs` entry without a `.dll` fails analysis. A `libs` DLL with the same name as a different runfiles or `libs` DLL fails analysis.
 - `data`: files placed under `share/`. Files keep their path relative to their
   data target's package. Files a data target collects from another package or
-  repo keep only their file name.
+  repo keep only their file name. The same file listed twice is packaged once.
 - `alias`: command-line execution alias such as `app.exe`. Makes the app a
   console app. Empty adds none.
 - `application_id`: defaults to `App`.

@@ -66,16 +66,19 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     }
 }
 
-const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 12] = [
+const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
     ("--with", &["--with=vscode"], &["init"]),
     ("--full", &["--full"], &["init"]),
+    (
+        "--rust-target-triple",
+        &["--rust-target-triple=wasm32-unknown-unknown"],
+        &["init"],
+    ),
     (
         "--include-edits",
         &["--include-edits", "--output=json"],
         &["lint", "typecheck", "format", "check", "fix"],
     ),
-    ("--configured", &["--configured"], &["list-tests"]),
-    ("--cases", &["--cases"], &["list-tests"]),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
     (
         "--min-changed-line-coverage",
@@ -97,6 +100,7 @@ fn required_words(name: &str) -> &'static [&'static str] {
         "new" => &["rust"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
+        "install" => &["--tag", "v1.2.3", "--archive", "a.tar.gz"],
         _ => &[],
     }
 }
@@ -880,19 +884,14 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 }
 
 #[test]
-fn version_rollback_check_and_configured_parse() {
+fn version_rollback_and_check_parse() {
     let got = parse(&strings(&["version", "--check"])).expect("parse");
     assert!(got.check);
-    let got = parse(&strings(&["list-tests", "--configured", "//a:one"])).expect("parse");
-    assert_eq!(got.command, Command::ListTests);
-    assert!(got.configured);
     for words in [
         vec!["status", "--serve"],
         vec!["status", "--check"],
-        vec!["list-tests", "//a:one", "--from=0.1.0"],
-        vec!["build", "//a:one", "--configured"],
+        vec!["test", "//a:one", "--from=0.1.0"],
         vec!["lint", "--serve"],
-        vec!["check", "//...", "--configured"],
         vec!["status", "--from=0.1.0"],
     ] {
         assert!(
@@ -1080,8 +1079,6 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         vec!["env", "--fail-on=error"],
         vec!["codegen", "--report=sarif=out.sarif"],
         vec!["env", "--from=0.1.0"],
-        vec!["codegen", "--configured"],
-        vec!["env", "--configured"],
     ] {
         assert!(
             matches!(
@@ -1513,13 +1510,22 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
     let got = parse(&strings(&["test", "--explain", "--affected"])).expect("test");
     assert!(got.explain && got.affected);
     assert!(!parse(&strings(&["build"])).expect("plain").explain);
+    assert!(
+        parse(&strings(&["check", "--explain"]))
+            .expect("check")
+            .explain
+    );
+    assert!(!parse(&strings(&["check"])).expect("plain check").explain);
+    assert!(
+        parse(&strings(&["coverage", "--explain"]))
+            .expect("coverage")
+            .explain
+    );
     for words in [
         vec!["explain", "//x"],
         vec!["explain", "--", "--jobs=1"],
         vec!["explain", "--old="],
         vec!["lint", "--explain"],
-        vec!["coverage", "--explain"],
-        vec!["check", "--explain"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
@@ -1554,5 +1560,72 @@ fn floor_and_reason_parse_only_on_bump() {
             ),
             "{words:?}"
         );
+    }
+}
+
+#[test]
+fn install_takes_a_tag_an_archive_and_optional_dir_and_apply() {
+    let check = parse(&strings(&[
+        "install",
+        "--tag",
+        "v1.2.3",
+        "--archive",
+        "a.tar.gz",
+    ]))
+    .expect("parses");
+    assert_eq!(check.command, Command::Install);
+    assert!(!check.applies());
+    assert_eq!(check.install_tag.as_deref(), Some("v1.2.3"));
+    assert_eq!(
+        check.install_archive.as_deref(),
+        Some(std::path::Path::new("a.tar.gz"))
+    );
+    assert!(check.install_dir.is_none());
+    let apply = parse(&strings(&[
+        "install",
+        "--tag",
+        "v1.2.3",
+        "--archive",
+        "a.tar.gz",
+        "--dir",
+        "d",
+        "--apply",
+    ]))
+    .expect("parses");
+    assert!(apply.applies());
+    assert_eq!(
+        apply.install_dir.as_deref(),
+        Some(std::path::Path::new("d"))
+    );
+    assert!(crate::args::is_discovery_exempt(Command::Install));
+}
+
+#[test]
+fn install_refuses_missing_inputs_positionals_and_foreign_flags() {
+    for words in [
+        vec!["install", "--archive", "a.tar.gz"],
+        vec!["install", "--tag", "v1.2.3"],
+        vec!["install"],
+    ] {
+        assert!(
+            matches!(parse(&strings(&words)), Err(ArgsError::MissingValue { .. })),
+            "{words:?}"
+        );
+    }
+    for words in [
+        vec!["install", "x", "--tag", "v1.2.3", "--archive", "a"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--check"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--here"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--", "--x"],
+        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--version"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
+    }
+    for words in [
+        vec!["lint", "--tag", "v1.2.3"],
+        vec!["build", "--archive", "a"],
+        vec!["status", "--dir", "d"],
+    ] {
+        assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
 }

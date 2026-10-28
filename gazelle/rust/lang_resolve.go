@@ -38,13 +38,29 @@ func resolveImportOverride(c *config.Config, name string) (bool, error) {
 	return false, nil
 }
 
+// builtinRunfilesImport is the crate name of `use runfiles::`; builtinRunfilesLabel is the default it resolves to.
+const (
+	builtinRunfilesImport = "runfiles"
+	builtinRunfilesLabel  = "@rules_rust//rust/runfiles"
+)
+
+// builtinImport reports whether name takes the built-in default: the runfiles crate, unless the manifest declares a crate of that name.
+func builtinImport(manifest *cargoManifest, name string) bool {
+	if name != builtinRunfilesImport {
+		return false
+	}
+	_, normal := manifest.normalDeps[name]
+	_, dev := manifest.devDeps[name]
+	return !normal && !dev
+}
+
 func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string, imports targetImports) error {
 	for _, name := range imports.production {
 		mapped, err := resolveImportOverride(c, name)
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -65,7 +81,7 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -83,7 +99,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -104,7 +120,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped {
+		if mapped || builtinImport(manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -138,6 +154,24 @@ func validateBuildImports(c *config.Config, manifest *cargoManifest, imports tar
 	return check(imports.test, "test")
 }
 
+func noteGate(result *targetImports, name string, dep cargoDependency) {
+	constraint := dep.platformConstraint()
+	gated := constraint != ""
+	if prev, seen := result.gated[name]; seen && !prev {
+		return
+	}
+	if result.gated == nil {
+		result.gated = make(map[string]bool)
+	}
+	result.gated[name] = gated
+	if gated {
+		if result.gateTarget == nil {
+			result.gateTarget = make(map[string]string)
+		}
+		result.gateTarget[name] = constraint
+	}
+}
+
 func noteRename(result *targetImports, name string, dep cargoDependency) {
 	if dep.crate != "" && dep.crate != name {
 		if result.renames == nil {
@@ -150,13 +184,19 @@ func noteRename(result *targetImports, name string, dep cargoDependency) {
 func localCargoImports(c *config.Config, manifest *cargoManifest, imports targetImports, includeDev bool) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
+		if builtinImport(manifest, name) {
+			result.production = append(result.production, name)
+			continue
+		}
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if includeDev {
 			if dep, ok := manifest.devDeps[name]; ok && !dep.external {
 				result.production = append(result.production, name)
 				noteRename(&result, name, dep)
+				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.production = append(result.production, name)
 			}
@@ -166,12 +206,18 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 	}
 	if includeDev {
 		for _, name := range imports.test {
+			if builtinImport(manifest, name) {
+				result.test = append(result.test, name)
+				continue
+			}
 			if dep, normal := manifest.normalDeps[name]; normal && !dep.external {
 				result.test = append(result.test, name)
 				noteRename(&result, name, dep)
+				noteGate(&result, name, dep)
 			} else if dep, dev := manifest.devDeps[name]; dev && !dep.external {
 				result.test = append(result.test, name)
 				noteRename(&result, name, dep)
+				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.test = append(result.test, name)
 			}
@@ -195,6 +241,7 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 				seen[name] = true
 				result.mirrorPaths = append(result.mirrorPaths, name)
 				noteRename(result, name, dep)
+				noteGate(result, name, dep)
 			}
 		}
 	}
@@ -204,12 +251,18 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports targetImports) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
+		if builtinImport(manifest, name) {
+			result.production = append(result.production, name)
+			continue
+		}
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if dep, ok := manifest.devDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
 		}
@@ -224,6 +277,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 		if dep, ok := manifest.buildDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
 		}
@@ -232,6 +286,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 		if dep, ok := manifest.buildDeps[name]; ok && !dep.external {
 			result.test = append(result.test, name)
 			noteRename(&result, name, dep)
+			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.test = append(result.test, name)
 		}
@@ -286,6 +341,23 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		all = append(all, imports.test...)
 	}
 	deps := make(map[string]bool)
+	androidDeps := make(map[string]bool)
+	platformDeps := make(map[string]map[string]bool)
+	addDep := func(name, dep string) {
+		if imports.gated[name] {
+			constraint := imports.gateTarget[name]
+			if constraint == "" || constraint == androidPlatformConstraint {
+				androidDeps[dep] = true
+				return
+			}
+			if platformDeps[constraint] == nil {
+				platformDeps[constraint] = make(map[string]bool)
+			}
+			platformDeps[constraint][dep] = true
+			return
+		}
+		deps[dep] = true
+	}
 	aliases := make(map[string]string)
 	// lookup finds providers by the renamed crate name when no override exists.
 	lookup := func(name string) []resolve.FindResult {
@@ -301,7 +373,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		}
 		rel := match.Label.Rel(from.Repo, from.Pkg).String()
 		if prev, dup := aliases[rel]; dup && prev != name {
-			l.fail("rust: %s: %s is imported under conflicting aliases %q and %q", from, rel, prev, name)
+			l.fail(common.InPackage(from.Pkg), "rust: %s: %s is imported under conflicting aliases %q and %q", from, rel, prev, name)
 			return
 		}
 		aliases[rel] = name
@@ -311,17 +383,17 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
 			if ignore := common.MatchingIgnore(c, languageName, name); ignore != nil {
 				ignore.MarkUsed(from.Pkg)
-				l.fail("rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
+				l.fail(common.InPackage(from.Pkg), "rust: %s: import %q has both an exact resolve mapping and ignore", from, name)
 				continue
 			}
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			addDep(name, override.Rel(from.Repo, from.Pkg).String())
 			continue
 		}
 		matches := lookup(name)
 		switch len(matches) {
 		case 1:
 			if matches[0].Label != from {
-				deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
+				addDep(name, matches[0].Label.Rel(from.Repo, from.Pkg).String())
 				noteAlias(name, matches[0])
 			}
 		case 0:
@@ -329,13 +401,17 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				ignore.MarkUsed(from.Pkg)
 				continue
 			}
-			if crate, renamed := imports.renames[name]; renamed {
-				l.fail("%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
+			if name == builtinRunfilesImport {
+				deps[builtinRunfilesLabel] = true
 				continue
 			}
-			l.fail("%s", common.UnresolvedImport(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
+			if crate, renamed := imports.renames[name]; renamed {
+				l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
+				continue
+			}
+			l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
 		default:
-			l.fail("%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
+			l.fail(common.InPackage(from.Pkg), "%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
 		}
 	}
 	for _, name := range imports.mirrorPaths {
@@ -345,11 +421,11 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		}
 		spec := resolve.ImportSpec{Lang: languageName, Imp: name}
 		if override, found := resolve.FindRuleWithOverride(c, spec, languageName); found {
-			deps[override.Rel(from.Repo, from.Pkg).String()] = true
+			addDep(name, override.Rel(from.Repo, from.Pkg).String())
 			continue
 		}
 		if matches := lookup(name); len(matches) == 1 && matches[0].Label != from {
-			deps[matches[0].Label.Rel(from.Repo, from.Pkg).String()] = true
+			addDep(name, matches[0].Label.Rel(from.Repo, from.Pkg).String())
 			noteAlias(name, matches[0])
 		}
 	}
@@ -369,12 +445,36 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	if len(aliases) > 0 {
 		r.SetAttr("aliases", aliasesUnionExpr{base: r.Attr("aliases"), extra: aliases})
 	}
-	labels := make([]string, 0, len(deps))
-	for dep := range deps {
-		labels = append(labels, dep)
+	for dep := range androidDeps {
+		if deps[dep] {
+			delete(androidDeps, dep)
+		}
 	}
-	sort.Strings(labels)
-	if len(labels) == 0 {
+	platform := make(map[string][]string)
+	for constraint, set := range platformDeps {
+		for dep := range set {
+			if deps[dep] {
+				delete(set, dep)
+			}
+		}
+		if len(set) > 0 {
+			platform[constraint] = sortedKeys(set)
+		}
+	}
+	labels := sortedKeys(deps)
+	android := sortedKeys(androidDeps)
+	if len(labels) == 0 && len(android) == 0 && len(platform) == 0 {
+		return
+	}
+	if len(android) > 0 || len(platform) > 0 {
+		switch existing := r.Attr("deps"); existing.(type) {
+		case nil:
+			r.SetAttr("deps", depsConcatExpr{extra: labels, android: android, platform: platform})
+		case *bzl.ListExpr:
+			r.SetAttr("deps", depsConcatExpr{extra: unionStrings(r.AttrStrings("deps"), labels), android: android, platform: platform})
+		default:
+			r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels, android: android, platform: platform})
+		}
 		return
 	}
 	switch existing := r.Attr("deps"); existing.(type) {
@@ -385,6 +485,15 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 	default:
 		r.SetAttr("deps", depsConcatExpr{base: existing, extra: labels})
 	}
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func addLocalDep(deps map[string]bool, from label.Label, name string) {

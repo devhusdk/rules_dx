@@ -53,6 +53,7 @@ js_binary(
 )
 
 redocly_bin.redocly_binary(name = "redocly_generated")
+
 js_binary(
     name = "remark_generated",
     data = [
@@ -69,9 +70,33 @@ js_binary(
 
 stylelint_bin.stylelint_binary(name = "stylelint_generated")
 
-typedoc_bin.typedoc_binary(
+# Isolated launcher: never loads plugins or consumer typedocOptions.
+js_binary(
     name = "typedoc",
+    data = [
+        "//quality/tools/javascript:node_modules/typedoc",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "typedoc.mjs",
     visibility = ["//visibility:public"],
+)
+
+# Isolated launcher: never loads vueCompilerOptions.plugins or any module outside its node_modules.
+js_binary(
+    name = "vue_component_meta",
+    data = [
+        "//quality/tools/javascript:node_modules/typescript",
+        "//quality/tools/javascript:node_modules/vue-component-meta",
+    ],
+    entry_point = "vue_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+# The stock CLI, only for the isolation test's control build.
+typedoc_bin.typedoc_binary(
+    name = "typedoc_stock",
+    testonly = True,
+    visibility = ["//tools/docs/typescript:__subpackages__"],
 )
 
 wrangler_bin.wrangler_binary(

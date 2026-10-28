@@ -199,7 +199,10 @@ fn supported_surface() -> Vec<String> {
 /// Returns each `.bzl` label user docs and examples load, with the files that load it.
 fn documented_loads() -> BTreeMap<String, Vec<String>> {
     let scanned: Vec<String> = files_under(&runfiles_root(), &|name| {
-        name.ends_with(".md") || name.ends_with(".bzl") || name == "BUILD.bazel"
+        name.ends_with(".md")
+            || name.ends_with(".bzl")
+            || name == "BUILD.bazel"
+            || name.ends_with(".BUILD.bazel")
     })
     .into_iter()
     .filter(|rel| rel.ends_with(".md") || rel.starts_with("examples/"))
@@ -350,6 +353,21 @@ fn readme_docs_site_link_targets_the_devhusdk_host() {
         ["https://devhusdk.github.io/rules_dx/"],
         "README.md must link the docs site on the devhusdk Pages host exactly once"
     );
+}
+
+#[test]
+fn docs_and_examples_indexes_link_the_starlark_rule_reference() {
+    const RULES: &str = "https://devhusdk.github.io/rules_dx/rules/";
+    for index in ["docs/README.md", "examples/README.md"] {
+        let hits = markdown_links(&read_runfiles(index))
+            .into_iter()
+            .filter(|link| link == RULES)
+            .count();
+        assert_eq!(
+            hits, 1,
+            "{index} must link the Starlark rule reference once"
+        );
+    }
 }
 
 #[test]

@@ -1,5 +1,6 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
@@ -203,8 +204,26 @@ DxDataCoverageInfo = provider(
     },
 )
 
+def dx_native_coverage_toolchains():
+    """Returns the toolchains native coverage needs to find llvm tools in the cc toolchain."""
+    return use_cc_toolchain(mandatory = False)
+
+def _dx_toolchain_tool(cc_toolchain, basename):
+    """Returns the cc toolchain file named basename (with optional .exe), or None."""
+    if cc_toolchain == None:
+        return None
+    for f in cc_toolchain.all_files.to_list():
+        if f.basename == basename or f.basename == basename + ".exe":
+            return f
+    return None
+
 def dx_native_coverage_attrs():
-    """Returns the attributes native (C/C++/LLVM) coverage collection needs."""
+    """Returns the attributes native (C/C++/LLVM) coverage collection needs.
+
+    llvm-cov and llvm-profdata come from the resolved cc toolchain when it ships
+    them, so the raw profile version matches its clang. The @llvm tools are the
+    fallback for toolchains that do not.
+    """
     return dx_collect_cc_coverage_attr(Label("//tools/coverage/collect:collect_native")) | {
         "_llvm_cov": attr.label(
             default = Label("@llvm//tools:llvm-cov"),
@@ -218,13 +237,15 @@ def dx_native_coverage_attrs():
             allow_files = True,
             cfg = config.exec(exec_group = "test"),
         ),
+        "_cc_toolchain": attr.label(default = Label("@rules_cc//cc:current_cc_toolchain")),
     }
 
 def dx_native_test_coverage(ctx, upstream):
     """Returns coverage providers that collect native LLVM coverage."""
     collector = ctx.executable._collect_cc_coverage
-    llvm_cov = ctx.executable._llvm_cov
-    llvm_profdata = ctx.executable._llvm_profdata
+    cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
+    llvm_cov = _dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
+    llvm_profdata = _dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
     metadata = [collector, llvm_cov, llvm_profdata]
     transitive = []
     if DxDataCoverageInfo in upstream:
@@ -456,6 +477,39 @@ def dx_wrap_forward_kwargs(kwargs):
             out[key] = kwargs[key]
     return out
 
+def dx_strip_none(kwargs):
+    """Returns kwargs without the keys `macro(inherit_attrs = ...)` left at None."""
+    return {key: value for key, value in kwargs.items() if value != None}
+
+def dx_wrapper_macro_attrs(nonconfigurable_lists = [], nonconfigurable_labels = [], allow_files = True, mandatory = []):
+    """Returns macro() attr overrides that make inspected attributes non-configurable.
+
+    The wrapper hooks call list(), `in` and string operations on these
+    attributes, which a select() would break; a non-configurable attribute
+    fails at load time with a clear error instead.
+
+    Args:
+        nonconfigurable_lists: Names of label_list attributes.
+        nonconfigurable_labels: Names of single label attributes.
+        allow_files: The allow_files value the upstream rule uses.
+        mandatory: Names, among the two lists above, that are mandatory.
+    """
+    out = {}
+    for key in nonconfigurable_lists:
+        out[key] = attr.label_list(allow_files = allow_files, configurable = False, mandatory = key in mandatory)
+    for key in nonconfigurable_labels:
+        out[key] = attr.label(allow_single_file = allow_files, configurable = False, mandatory = key in mandatory)
+    return out
+
+def dx_macro_upstream_visibility():
+    """Returns the visibility of a `<name>_upstream` target declared in a macro.
+
+    Private visibility inside a macro means the package of the .bzl file that
+    defines the macro, not the caller; the caller's package is needed so
+    `:<name>_upstream` stays referenceable there.
+    """
+    return [native.package_relative_label(":__pkg__")]
+
 def dx_binary_run_kwargs(kwargs):
     """Returns args, plus data only when args is set, for a binary forwarder."""
     out = {}
@@ -466,16 +520,9 @@ def dx_binary_run_kwargs(kwargs):
     return out
 
 def dx_binary_forward_kwargs(kwargs):
-    """Returns the forwarder kwargs for one binary shape."""
-    out = dx_binary_run_kwargs(kwargs)
-    if kwargs.get("testonly", None) != None:
-        out["testonly"] = kwargs["testonly"]
-    if kwargs.get("tags", None) != None:
-        out["tags"] = kwargs["tags"]
-    if kwargs.get("aspect_hints", None) != None:
-        out["aspect_hints"] = kwargs["aspect_hints"]
-    if kwargs.get("target_compatible_with", None) != None:
-        out["target_compatible_with"] = kwargs["target_compatible_with"]
+    """Returns the forwarder kwargs for one binary shape: the library keys plus run kwargs."""
+    out = dx_wrap_forward_kwargs(kwargs)
+    out.update(dx_binary_run_kwargs(kwargs))
     return out
 
 def dx_upstream_tags(tags):
@@ -486,7 +533,11 @@ def dx_upstream_tags(tags):
     return out
 
 def dx_src_path(package, src):
-    """Returns the repo-relative path of a string src, or None."""
+    """Returns the repo-relative path of a string or same-repo Label src, or None."""
+    if type(src) == "Label":
+        if src.repo_name:
+            return None
+        return src.package + "/" + src.name if src.package else src.name
     if type(src) != "string" or src.startswith("@"):
         return None
     if src.startswith("//"):
@@ -498,37 +549,33 @@ def dx_src_path(package, src):
         src = src[1:]
     return package + "/" + src if package else src
 
-def dx_test_upstream_kwargs(kwargs, srcs = None):
+def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
     out["tags"] = dx_upstream_tags(out.get("tags", None))
-    out["visibility"] = ["//visibility:private"]
+    out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     if srcs != None:
         out["srcs"] = srcs
     return out
 
-def dx_binary_upstream_kwargs(kwargs, srcs):
+def dx_binary_upstream_kwargs(kwargs, srcs, upstream_visibility = None):
     """Returns the private upstream kwargs for one binary shape."""
     out = dict(kwargs)
     if srcs:
         out["srcs"] = srcs
     elif "srcs" in out:
         out.pop("srcs")
-    out["tags"] = upstream_tags(kwargs.get("tags", None))
-    out["visibility"] = ["//visibility:private"]
+    out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
+    out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     return out
 
-def dx_wrap_upstream_kwargs(kwargs, srcs = None):
-    """Returns the private upstream kwargs for one library shape.
-
-    `srcs = None` leaves srcs out so the upstream default applies; any list,
-    including `[]`, passes through unchanged.
-    """
+def dx_wrap_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
+    """Returns the private upstream kwargs for one library shape."""
     out = {key: value for key, value in kwargs.items() if key not in ("tags", "srcs")}
     if srcs != None:
         out["srcs"] = srcs
     out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
-    out["visibility"] = ["//visibility:private"]
+    out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     return out
 
 def dx_test_forward_kwargs(kwargs):
@@ -543,9 +590,9 @@ def dx_test_forward_kwargs(kwargs):
         out["target_compatible_with"] = kwargs["target_compatible_with"]
     return out
 
-def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, **kwargs):
+def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
     """Instantiates one private upstream binary plus its public forwarder."""
-    effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
+    effective = dx_binary_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)
     upstream_rule(
         name = name + "_upstream",
         **effective
@@ -574,15 +621,10 @@ def dx_with_tag(tags, tag):
         out.append(tag)
     return out
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, **kwargs):
-    """Instantiates one private upstream test plus its public forwarder.
-
-    Pass coverage_collector = False for languages whose tests write empty
-    LCOV under `bazel coverage`; the public forwarder then carries
-    DX_NO_COVERAGE_COLLECTOR_TAG.
-    """
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, **kwargs):
+    """Instantiates one private upstream test plus its public forwarder."""
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
-    effective = dx_test_upstream_kwargs(base, srcs = srcs)
+    effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
     forward_kwargs = dx_test_forward_kwargs(kwargs)
     if extra_forward_kwargs:
@@ -602,15 +644,15 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
         **forward_kwargs
     )
 
-def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, executable = False, **kwargs):
-    """Instantiates one private upstream target plus its public forwarder."""
+def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, upstream_visibility = None, **kwargs):
+    """Instantiates one private upstream library target plus its public forwarder."""
+    if "executable" in kwargs:
+        fail("dx_wrap: executable is gone; use dx_wrap_binary for " + name)
     upstream_rule(
         name = name + "_upstream",
-        **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs)
+        **dx_wrap_upstream_kwargs(upstream_kwargs if upstream_kwargs != None else kwargs, srcs, upstream_visibility)
     )
     forward_kwargs = dx_wrap_forward_kwargs(kwargs)
-    if executable:
-        forward_kwargs.update(dx_binary_run_kwargs(kwargs))
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
     forward_rule(
@@ -622,16 +664,7 @@ def dx_wrap(name, upstream_rule, forward_rule, srcs = None, visibility = None, u
     )
 
 def dx_forwarded_run_environment(upstream, environment = {}, inherited = []):
-    """Returns RunEnvironmentInfo merging the upstream's environment with extras.
-
-    Args:
-        upstream: The upstream target; its RunEnvironmentInfo, if any, is merged first.
-        environment: Extra variables; they override upstream values.
-        inherited: Extra inherited variable names, unioned with the upstream's.
-
-    Returns:
-        A RunEnvironmentInfo.
-    """
+    """Returns RunEnvironmentInfo merging the upstream's environment with extras."""
     env = {}
     names = []
     if RunEnvironmentInfo in upstream:
@@ -671,20 +704,7 @@ def dx_args_label_references(args):
     return labels
 
 def dx_args_label_error(name, args, visible_labels, upstream_only):
-    """Returns an error when args expand a label the forwarder cannot see.
-
-    The forwarder only sees `data` and `srcs`; labels that appear only in other
-    upstream attributes (for example deps or tools) do not resolve there.
-
-    Args:
-        name: The target name, for the message.
-        args: The test args.
-        visible_labels: Labels in the forwarder's data and srcs.
-        upstream_only: Dict from attribute name (deps, tools) to its labels.
-
-    Returns:
-        The error string, or None when every referenced label is visible.
-    """
+    """Returns an error when args expand a label the forwarder cannot see."""
     visible = [str(native.package_relative_label(l)) for l in visible_labels]
     for label in dx_args_label_references(args):
         key = str(native.package_relative_label(label))

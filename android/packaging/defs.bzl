@@ -3,10 +3,11 @@
 load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
+load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
-load("//android/sdk:repos.bzl", "SDK_PLATFORM")
+load("//android/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
@@ -18,6 +19,8 @@ _APKSIGNER_JAR = Label("@dx_android_sdk//:apksigner_jar")
 _JAVA_RUNTIME = Label("@rules_java//toolchains:current_java_runtime")
 
 _BUNDLETOOL = Label("//android/packaging:bundletool")
+
+_DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
 
 def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
     """Returns one error string per rejected application package selection."""
@@ -33,6 +36,33 @@ def rust_android_apk_errors(apk_name, app_id, abis, api_level, version_code):
     if version_code <= 0:
         errors.append("rust_android_apk: version_code " + str(version_code) + " must be positive")
     return errors
+
+def bundle_signing_errors(kwargs):
+    """Returns one error per android_binary attribute the App Bundle cannot honour yet.
+
+    rules_android 0.8.0 android_application reads ctx.file._bundle_keystore_properties in
+    rules/common.bzl when the base module has a signing lineage, but declares no such
+    attribute. Delete this guard once upstream ships the fix (#3739).
+    """
+    if kwargs.get("debug_signing_lineage_file") == None:
+        return []
+    return [
+        "rust_android_apk: App Bundles do not support debug_signing_lineage_file (key rotation) " +
+        "yet: rules_android android_application has no _bundle_keystore_properties template " +
+        "(rules/common.bzl); the APK targets still build. " +
+        "See https://github.com/devhusdk/rules_dx/issues/3739",
+    ]
+
+def _analysis_failure_impl(ctx):
+    fail(ctx.attr.message)
+
+_analysis_failure = rule(
+    implementation = _analysis_failure_impl,
+    doc = "Fails analysis with a fixed message; stands in for a target that cannot be built.",
+    attrs = {
+        "message": attr.string(doc = "Analysis error.", mandatory = True),
+    },
+)
 
 def apk_manifest_errors(app_id, api_level, version_code, activity):
     """Returns one error string per rejected generated-manifest selection."""
@@ -221,25 +251,40 @@ def rust_android_apk(
         tags = ["manual"],
         visibility = visibility,
     )
-    android_application(
-        name = name + "_bundle",
-        base_module = inner,
-        custom_package = package,
-        manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
-    _aab_file(
-        name = name + "_aab_file",
-        abis = abis,
-        src = ":" + name + "_bundle",
-        validation = ":" + name + "_validation",
-        tags = ["manual"],
-        visibility = visibility,
-    )
-    testonly = kwargs.get("testonly", False)
     plain = not _has_select([abis, app_id, api_level, version_code])
     invalid = plain and len(rust_android_apk_errors(name, app_id, abis, api_level, version_code)) > 0
+    bundle_errors = bundle_signing_errors(kwargs)
+    if len(bundle_errors) > 0:
+        _analysis_failure(
+            name = name + "_bundle",
+            message = "; ".join(bundle_errors),
+            tags = ["manual"],
+            visibility = ["//visibility:private"],
+        )
+        _analysis_failure(
+            name = name + "_aab_file",
+            message = "; ".join(bundle_errors),
+            tags = ["manual"],
+            visibility = visibility,
+        )
+    else:
+        android_application(
+            name = name + "_bundle",
+            base_module = inner,
+            custom_package = package,
+            manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
+            tags = ["manual"],
+            visibility = ["//visibility:private"],
+        )
+        _aab_file(
+            name = name + "_aab_file",
+            abis = abis,
+            src = None if invalid else ":" + name + "_bundle",
+            validation = ":" + name + "_validation",
+            tags = ["manual"],
+            visibility = visibility,
+        )
+    testonly = kwargs.get("testonly", False)
     android_binary(
         name = name + "_bin",
         assets = assets,
@@ -268,19 +313,32 @@ def _has_select(values):
             return True
     return False
 
-def _abi_transition_impl(settings, attr):
-    current = settings["//command_line_option:android_platforms"]
-    if len(attr.abis) == 0:
-        return {"//command_line_option:android_platforms": current}
-    errors = abi_errors(attr.abis)
+# rules_android 0.8.0 reads its Starlark flag before the native option (rules/utils.bzl
+# _get_android_platforms) and aliases `--android_platforms` to it, so the transition writes
+# both. Drop the native option once Bazel 10 removes it.
+_NATIVE_PLATFORMS = "//command_line_option:android_platforms"
+_STARLARK_PLATFORMS = "@rules_android//flags:android_platforms"
+
+def abi_transition_settings(abis, settings):
+    """Returns the platform settings the ABI transition writes (pure, for tests)."""
+    if len(abis) == 0:
+        return {
+            _NATIVE_PLATFORMS: settings[_NATIVE_PLATFORMS],
+            _STARLARK_PLATFORMS: settings[_STARLARK_PLATFORMS],
+        }
+    errors = abi_errors(abis)
     if len(errors) > 0:
         fail("; ".join(errors))
-    return {"//command_line_option:android_platforms": abi_platforms(attr.abis)}
+    platforms = abi_platforms(abis)
+    return {_NATIVE_PLATFORMS: platforms, _STARLARK_PLATFORMS: platforms}
+
+def _abi_transition_impl(settings, attr):
+    return abi_transition_settings(attr.abis, settings)
 
 _abi_transition = transition(
     implementation = _abi_transition_impl,
-    inputs = ["//command_line_option:android_platforms"],
-    outputs = ["//command_line_option:android_platforms"],
+    inputs = [_STARLARK_PLATFORMS, _NATIVE_PLATFORMS],
+    outputs = [_STARLARK_PLATFORMS, _NATIVE_PLATFORMS],
 )
 
 def _rust_android_apk_impl(ctx):
@@ -308,6 +366,29 @@ _rust_android_apk = rule(
         "abis": attr.string_list(default = [], doc = "ABIs the APK packages."),
         "binary": attr.label(cfg = _abi_transition, doc = "Inner android_binary."),
         "validation": attr.label(doc = "Selection target that fails analysis on a rejected package."),
+    },
+)
+
+DxApkSetInfo = provider(
+    doc = "A built APK set: the extracted split APK directory, the .apks archive, and the device spec.",
+    fields = {
+        "apks": "The .apks archive File.",
+        "apks_dir": "Tree artifact of extracted split APKs.",
+        "device_spec": "The device spec JSON File.",
+    },
+)
+
+def _apk_set_dir_impl(ctx):
+    src = ctx.attr.src
+    if DxApkSetInfo not in src:
+        fail("android_adb_install: '" + str(src.label) + "' is not an android_apk_set")
+    return [DefaultInfo(files = depset([src[DxApkSetInfo].apks_dir]))]
+
+_apk_set_dir = rule(
+    implementation = _apk_set_dir_impl,
+    doc = "Exposes the extracted split APK directory of an android_apk_set.",
+    attrs = {
+        "src": attr.label(doc = "An android_apk_set target.", allow_files = True, mandatory = True),
     },
 )
 
@@ -340,6 +421,8 @@ _apk_file = rule(
 )
 
 def _aab_file_impl(ctx):
+    if ctx.attr.src == None or (type(ctx.attr.src) == "list" and len(ctx.attr.src) == 0):
+        fail("android_aab_file: no app bundle; the package declaration was rejected")
     src = ctx.attr.src[0] if type(ctx.attr.src) == "list" else ctx.attr.src
     if AndroidBundleInfo not in src:
         fail("android_aab_file: '" + str(src.label) + "' provides no app bundle")
@@ -350,7 +433,7 @@ _aab_file = rule(
     doc = "Exposes the unsigned App Bundle of one android_application for the selected ABIs.",
     attrs = {
         "abis": attr.string_list(default = [], doc = "ABIs the bundle packages."),
-        "src": attr.label(mandatory = True, cfg = _abi_transition, doc = "android_application that builds the bundle."),
+        "src": attr.label(cfg = _abi_transition, doc = "android_application that builds the bundle; unset when validation rejects the package."),
         "validation": attr.label(doc = "Selection target that fails analysis on a rejected package."),
     },
 )
@@ -359,6 +442,8 @@ def _adb_selection_impl(ctx):
     failures = []
     if ctx.attr.serial == "":
         failures.append("dx_android_adb: serial names the target device or emulator")
+    if ctx.attr.require_install and ctx.attr.apk_count + ctx.attr.apk_set_count != 1:
+        failures.append("dx_android_adb: install takes exactly one of apk or apk_set")
     if ctx.attr.app_id != "":
         failures.extend(app_id_errors(ctx.attr.app_id))
     if ctx.attr.require_activity and ctx.attr.activity == "":
@@ -375,12 +460,24 @@ _adb_selection = rule(
             doc = "Activity launched on the device, required when require_activity is set.",
             default = "",
         ),
+        "apk_count": attr.int(
+            doc = "Number of apk attributes supplied to the install launcher.",
+            default = 0,
+        ),
+        "apk_set_count": attr.int(
+            doc = "Number of apk_set attributes supplied to the install launcher.",
+            default = 0,
+        ),
         "app_id": attr.string(
             doc = "Application id to launch, validated when non-empty.",
             default = "",
         ),
         "require_activity": attr.bool(
             doc = "Whether an empty activity fails analysis.",
+            default = False,
+        ),
+        "require_install": attr.bool(
+            doc = "Whether exactly one of apk or apk_set must be supplied.",
             default = False,
         ),
         "serial": attr.string(
@@ -390,29 +487,44 @@ _adb_selection = rule(
     },
 )
 
-def android_adb_install(name, apk, serial = "", visibility = None):
-    """Declares an explicit APK install launcher; nothing runs at build time."""
+def android_adb_install(name, apk = None, serial = "", apk_set = None, visibility = None):
+    """Declares an explicit APK or APK set install launcher; nothing runs at build time."""
     _adb_selection(
         name = name + "_selection",
+        apk_count = 0 if apk == None else 1,
+        apk_set_count = 0 if apk_set == None else 1,
+        require_install = True,
         serial = serial,
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    _apk_file(
-        name = name + "_apk",
-        src = apk,
-        tags = ["manual"],
-        visibility = ["//visibility:private"],
-    )
+    data = [":" + name + "_selection"]
+    env = {"DX_ADB_SERIAL": serial}
+    if apk_set != None:
+        _apk_set_dir(
+            name = name + "_apk_set",
+            src = apk_set,
+            tags = ["manual"],
+            visibility = ["//visibility:private"],
+        )
+        data.insert(0, ":" + name + "_apk_set")
+        env["DX_ADB_APKS"] = "$(rootpath :" + name + "_apk_set)"
+        env["DX_ADB_OP"] = "install-multiple"
+    if apk != None:
+        _apk_file(
+            name = name + "_apk",
+            src = apk,
+            tags = ["manual"],
+            visibility = ["//visibility:private"],
+        )
+        data.insert(0, ":" + name + "_apk")
+        env["DX_ADB_APK"] = "$(location :" + name + "_apk)"
+        env["DX_ADB_OP"] = "install"
     sh_binary(
         name = name,
         srcs = [Label("//android/packaging:adb_ops.sh")],
-        data = [":" + name + "_apk", ":" + name + "_selection"],
-        env = {
-            "DX_ADB_APK": "$(location :" + name + "_apk)",
-            "DX_ADB_OP": "install",
-            "DX_ADB_SERIAL": serial,
-        },
+        data = data,
+        env = env,
         tags = ["manual"],
         visibility = visibility,
     )
@@ -509,6 +621,60 @@ _sign_selection = rule(
     },
 )
 
+def _rel(path):
+    if path.startswith("/") or path.startswith("../"):
+        return path
+    if path.startswith("external/"):
+        return "../" + path.removeprefix("external/")
+    return "../" + path
+
+def _sign_launcher_impl(ctx):
+    env = {}
+    runfiles = [ctx.runfiles(files = [ctx.file.input, ctx.file.script])]
+    if ctx.attr.kind == "apk":
+        java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+        env["DX_SIGN_APK"] = ctx.file.input.short_path
+        env["DX_SIGN_JAVA"] = _rel(java.java_executable_runfiles_path)
+        env["DX_SIGN_ZIPALIGN"] = ctx.file.zipalign.short_path
+        env["DX_SIGN_BUILD_TOOLS"] = BUILD_TOOLS
+        env["DX_SIGN_APKSIGNER_JAR"] = ctx.file.apksigner_jar.short_path
+        env["DX_SIGN_MIN_SDK"] = str(ctx.attr.min_sdk) if ctx.attr.min_sdk != 0 else ""
+        env["DX_SIGN_SCHEMES"] = ",".join(ctx.attr.schemes)
+        runfiles.append(ctx.runfiles(files = [ctx.file.zipalign, ctx.file.apksigner_jar]))
+    else:
+        java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+        env["DX_SIGN_AAB"] = ctx.file.input.short_path
+        env["DX_SIGN_BUNDLETOOL"] = ctx.executable.bundletool.short_path
+        env["DX_SIGN_JAVABASE"] = _rel(java.java_home_runfiles_path)
+        runfiles.append(ctx.attr.bundletool[DefaultInfo].default_runfiles)
+        runfiles.append(ctx.runfiles(files = [ctx.executable.bundletool]))
+    runfiles.append(ctx.runfiles(transitive_files = ctx.attr._java_runtime[DefaultInfo].files))
+    out = ctx.actions.declare_file(ctx.label.name)
+    lines = ["#!/bin/sh"]
+    for key, value in sorted(env.items()):
+        lines.append("export {0}=\"${{{0}-{1}}}\"".format(key, value))
+    lines.append("exec \"$PWD/{}\" \"$@\"".format(ctx.file.script.short_path))
+    ctx.actions.write(out, "\n".join(lines) + "\n", is_executable = True)
+    return [DefaultInfo(executable = out, runfiles = ctx.runfiles().merge_all(runfiles))]
+
+_sign_launcher = rule(
+    implementation = _sign_launcher_impl,
+    doc = "Signing launcher whose tools (zipalign, apksigner, bundletool, JDK) are built for the execution platform.",
+    executable = True,
+    attrs = {
+        "apksigner_jar": attr.label(cfg = "exec", allow_single_file = True),
+        "bundletool": attr.label(cfg = "exec", executable = True),
+        "input": attr.label(allow_single_file = True, mandatory = True),
+        "kind": attr.string(mandatory = True, values = ["apk", "aab"]),
+        "min_sdk": attr.int(default = 0),
+        "schemes": attr.string_list(),
+        "script": attr.label(allow_single_file = True, mandatory = True),
+        "selection": attr.label(),
+        "zipalign": attr.label(cfg = "exec", allow_single_file = True),
+        "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
+    },
+)
+
 def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 0, visibility = None):
     """Declares an explicit release signing launcher; builds never sign or read keys."""
     _sign_selection(
@@ -519,20 +685,17 @@ def android_apk_release_sign(name, apk, schemes = ["v1", "v2", "v3"], min_sdk = 
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    sh_binary(
+    _sign_launcher(
         name = name,
-        srcs = [Label("//android/packaging:sign_apk.sh")],
-        data = [apk, ":" + name + "_selection", _ZIPALIGN, _APKSIGNER_JAR, _JAVA_RUNTIME],
-        env = {
-            "DX_SIGN_APK": "$(rootpath " + apk + ")",
-            "DX_SIGN_APKSIGNER_JAR": "$(rootpaths " + str(_APKSIGNER_JAR) + ")",
-            "DX_SIGN_JAVA": "$(JAVA_ROOTPATH)",
-            "DX_SIGN_MIN_SDK": str(min_sdk) if min_sdk != 0 else "",
-            "DX_SIGN_SCHEMES": ",".join(schemes),
-            "DX_SIGN_ZIPALIGN": "$(rootpaths " + str(_ZIPALIGN) + ")",
-        },
+        kind = "apk",
+        input = apk,
+        script = Label("//android/packaging:sign_apk.sh"),
+        selection = ":" + name + "_selection",
+        min_sdk = min_sdk,
+        schemes = schemes,
+        zipalign = _ZIPALIGN,
+        apksigner_jar = _APKSIGNER_JAR,
         tags = ["manual"],
-        toolchains = [_JAVA_RUNTIME],
         visibility = visibility,
     )
 
@@ -565,17 +728,14 @@ def android_aab_release_sign(name, aab, visibility = None):
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    sh_binary(
+    _sign_launcher(
         name = name,
-        srcs = [Label("//android/packaging:sign_aab.sh")],
-        data = [aab, ":" + name + "_selection", _BUNDLETOOL, _JAVA_RUNTIME],
-        env = {
-            "DX_SIGN_AAB": "$(rootpath " + aab + ")",
-            "DX_SIGN_BUNDLETOOL": "$(rootpath " + str(_BUNDLETOOL) + ")",
-            "DX_SIGN_JAVABASE": "$(JAVABASE_ROOTPATH)",
-        },
+        kind = "aab",
+        input = aab,
+        script = Label("//android/packaging:sign_aab.sh"),
+        selection = ":" + name + "_selection",
+        bundletool = _BUNDLETOOL,
         tags = ["manual"],
-        toolchains = [_JAVA_RUNTIME],
         visibility = visibility,
     )
 
@@ -638,3 +798,62 @@ def android_aab_check(name, aab, abis = [], resources = [], size = "small", tags
         tags = tags,
         visibility = visibility,
     )
+
+def apk_set_errors(label, aab_count, spec_count):
+    """Returns one error string per rejected APK set selection."""
+    errors = []
+    if aab_count != 1:
+        errors.append("android_apk_set: '" + label + "' aab built " + str(aab_count) + " aab files, want exactly one")
+    if spec_count != 1:
+        errors.append("android_apk_set: '" + label + "' device_spec names " + str(spec_count) + " json files, want exactly one")
+    return errors
+
+def _apk_set_impl(ctx):
+    aabs = [file for file in ctx.files.aab if file.extension == "aab"]
+    specs = [file for file in ctx.files.device_spec if file.extension == "json"]
+    failures = apk_set_errors(str(ctx.label), len(aabs), len(specs))
+    if len(failures) > 0:
+        fail("; ".join(failures))
+    out_dir = ctx.actions.declare_directory(ctx.label.name + "_apks")
+    apks = ctx.actions.declare_file(ctx.label.name + ".apks")
+    bundletool = ctx.attr._bundletool[DefaultInfo].files_to_run
+    ctx.actions.run(
+        executable = ctx.executable._build_apk_set,
+        arguments = [
+            bundletool.executable.path,
+            aabs[0].path,
+            specs[0].path,
+            ctx.file._keystore.path,
+            apks.path,
+            out_dir.path,
+        ],
+        inputs = [aabs[0], specs[0], ctx.file._keystore],
+        outputs = [apks, out_dir],
+        tools = [bundletool],
+        mnemonic = "DxApkSet",
+        progress_message = "Building APK set %{label}",
+        use_default_shell_env = True,
+    )
+    return [
+        DefaultInfo(files = depset([out_dir])),
+        DxApkSetInfo(apks_dir = out_dir, apks = apks, device_spec = specs[0]),
+        OutputGroupInfo(apks = depset([apks])),
+    ]
+
+android_apk_set = rule(
+    implementation = _apk_set_impl,
+    doc = "Builds the debug-signed split APKs that one App Bundle installs on one device spec.",
+    attrs = {
+        "aab": attr.label(allow_files = True, mandatory = True, doc = "Target that builds the App Bundle."),
+        "device_spec": attr.label(allow_files = True, mandatory = True, doc = "bundletool device spec JSON."),
+        "_build_apk_set": attr.label(
+            default = Label("//android/packaging:build_apk_set.sh"),
+            doc = "Script that runs bundletool build-apks and extract-apks.",
+            allow_single_file = True,
+            executable = True,
+            cfg = "exec",
+        ),
+        "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec", doc = "Pinned bundletool."),
+        "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True, doc = "Public rules_android debug keystore; debug installs only."),
+    },
+)

@@ -26,7 +26,7 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
 bazel_dep(name = "rules_rust", version = "0.74.0")
-bazel_dep(name = "rules_ruby", version = "0.28.0")
+bazel_dep(name = "rules_ruby", version = "0.29.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 
 MAVEN_BLOCK
@@ -35,7 +35,13 @@ ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
 ruby.toolchain(
     name = "ruby",
     portable_ruby = True,
-    version = "3.4.9",
+    portable_ruby_checksums = {
+        "ruby-3.4.12.arm64_darwin.tar.gz": "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
+        "ruby-3.4.12.arm64_linux.tar.gz": "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
+        "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",
+        "ruby-3.4.12.x86_64_linux.tar.gz": "885185fabbc01bf695550d7375e610ae85084f5340474c837e5d00ec6c6cc234",
+    },
+    version = "3.4.12",
 )
 ruby.bundle_fetch(
     name = "dx_bundle",

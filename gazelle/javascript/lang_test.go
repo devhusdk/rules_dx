@@ -2,7 +2,6 @@ package javascript
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,16 +80,16 @@ func TestGenerateSourceOnlyPackage(t *testing.T) {
 	if got := test.Attr("package_json"); got != nil {
 		t.Errorf("test package_json = %v, want unset without a root package.json", got)
 	}
-	testImports := result.Imports[2].(targetImports)
-	if strings.Join(testImports.imports, ",") != "pkg/demo/helper" {
+	testImports := common.RefRoots(importRefs(result.Imports[2]))
+	if strings.Join(testImports, ",") != "pkg/demo/helper" {
 		t.Errorf("test imports = %+v, want [pkg/demo/helper]", testImports)
 	}
-	libImports := result.Imports[0].(targetImports)
-	if strings.Join(libImports.imports, ",") != "pkg/demo/helper" {
+	libImports := common.RefRoots(importRefs(result.Imports[0]))
+	if strings.Join(libImports, ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v", libImports)
 	}
-	helperImports := result.Imports[1].(targetImports)
-	if len(helperImports.imports) != 0 {
+	helperImports := importRefs(result.Imports[1])
+	if len(helperImports) != 0 {
 		t.Errorf("helper imports = %+v, want empty", helperImports)
 	}
 }
@@ -103,14 +102,15 @@ func TestGenerateRelativeStdlibCollision(t *testing.T) {
 	if len(result.Gen) != 2 || len(result.Imports) != 2 {
 		t.Fatalf("generated %d rules and %d import sets, want 2 each", len(result.Gen), len(result.Imports))
 	}
-	appImports := result.Imports[0].(targetImports)
-	if strings.Join(appImports.imports, ",") != "pkg/demo/util" {
-		t.Fatalf("app imports = %+v, want [util]", appImports)
+	appImports := result.Imports[0]
+	appRefs := importRefs(appImports)
+	if strings.Join(common.RefRoots(appRefs), ",") != "pkg/demo/util" {
+		t.Fatalf("app imports = %+v, want [util]", appRefs)
 	}
-	if !appImports.local["pkg/demo/util"] {
-		t.Fatalf("app imports = %+v, want util marked relative", appImports)
+	if !appRefs[0].Relative {
+		t.Fatalf("app imports = %+v, want util marked relative", appRefs)
 	}
-	l := &javascriptLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		struct {
 			pkg, name string
@@ -123,37 +123,8 @@ func TestGenerateRelativeStdlibCollision(t *testing.T) {
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":util" {
 		t.Errorf("resolved deps = %q, want %q", got, ":util")
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("resolve errors = %v, want none", l.errors)
-	}
-}
-
-func TestGenerateEmptySweepsStale(t *testing.T) {
-	result := generateFixture(t, nil, []string{"notes.txt"})
-	if len(result.Gen) != 0 || len(result.Empty) != 0 {
-		t.Fatalf("empty generation = %+v", result)
-	}
-	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
-	f.Rules = append(f.Rules,
-		rule.NewRule(libraryKind, "old"),
-		rule.NewRule("filegroup", "keep"),
-		rule.NewRule(libraryKind, "demo"),
-	)
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/demo.js", "export const x = 1;\n")
-	dir := filepath.Join(root, "pkg", "demo")
-	result = NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"demo.js"},
-		File:         f,
-	})
-	if len(result.Gen) != 1 {
-		t.Fatalf("generated %d rules, want 1", len(result.Gen))
-	}
-	if len(result.Empty) != 1 || result.Empty[0].Name() != "old" {
-		t.Fatalf("empty rules = %v, want [old]", result.Empty)
+	if len(l.Errors()) != 0 {
+		t.Errorf("resolve errors = %v, want none", l.Errors())
 	}
 }
 
@@ -176,7 +147,7 @@ func TestGenerateFailures(t *testing.T) {
 		for name, content := range tc.files {
 			writeFixture(t, root, name, content)
 		}
-		l := &javascriptLang{}
+		l := newLang()
 		result := l.GenerateRules(language.GenerateArgs{
 			Config:       &config.Config{RepoRoot: root},
 			Dir:          filepath.Join(root, "pkg", "demo"),
@@ -186,30 +157,9 @@ func TestGenerateFailures(t *testing.T) {
 		if len(result.Gen) != 0 {
 			t.Errorf("%s: generated %d rules, want none", tc.name, len(result.Gen))
 		}
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) {
-			t.Errorf("%s: errors = %v, want %q", tc.name, l.errors, tc.want)
+		if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], tc.want) {
+			t.Errorf("%s: errors = %v, want %q", tc.name, l.Errors(), tc.want)
 		}
-	}
-}
-
-func TestAccumulateImportsDedupesRepeats(t *testing.T) {
-	imports, local, _ := accumulateImports([]common.ImportRef{
-		{Spec: "./helper", Root: "helper", Relative: true},
-		{Spec: "./helper", Root: "helper", Relative: true},
-		{Root: "pkg", Relative: false},
-		{Root: "pkg", Relative: false},
-		{Root: "fs", Relative: false},
-		{Root: "sqlite", Relative: false},
-		{Root: "node:sqlite", Relative: false},
-	})
-	if strings.Join(imports, ",") != "helper,pkg,sqlite" {
-		t.Errorf("imports = %q, want helper,pkg,sqlite", strings.Join(imports, ","))
-	}
-	if !local["helper"] || len(local) != 1 {
-		t.Errorf("local = %v, want map[helper:true]", local)
-	}
-	if imports, local, _ := accumulateImports(nil); len(imports) != 0 || len(local) != 0 {
-		t.Errorf("empty imports = %q, %v, want empty", imports, local)
 	}
 }
 
@@ -235,7 +185,7 @@ func TestGenerateFixturePathMarksTestonly(t *testing.T) {
 func TestGenerateSkipsTestClaimedByOtherPlainRunner(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/plain_test.js", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
-	l := &javascriptLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -243,8 +193,8 @@ func TestGenerateSkipsTestClaimedByOtherPlainRunner(t *testing.T) {
 		RegularFiles: []string{"plain_test.js"},
 		OtherGen:     []*rule.Rule{rule.NewRule(plainTestKind, "plain_test")},
 	})
-	if len(l.errors) != 0 {
-		t.Fatalf("errors = %v, want none", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v, want none", l.Errors())
 	}
 	for _, r := range result.Gen {
 		if r.Kind() == testKind && r.Name() == "plain_test" {
@@ -298,7 +248,7 @@ func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
 	writeFixture(t, root, "pkg/demo/plain_test.js", "import { test } from \"node:test\";\ntest(\"ok\", () => {});\n")
 	file := rule.EmptyFile("BUILD.bazel", "pkg/demo")
 	file.Rules = append(file.Rules, rule.NewRule(plainTestKind, "plain_test"))
-	l := &javascriptLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -306,8 +256,8 @@ func TestGeneratePlainTestKeepsHandwrittenRunner(t *testing.T) {
 		RegularFiles: []string{"plain_test.js"},
 		File:         file,
 	})
-	if len(l.errors) != 0 {
-		t.Fatalf("errors = %v, want none", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v, want none", l.Errors())
 	}
 	for _, r := range result.Gen {
 		if r.Kind() == testKind && r.Name() == "plain_test" {
@@ -352,10 +302,10 @@ func TestImportsIndexesLibraries(t *testing.T) {
 }
 
 func TestErrorsAbortBeforeEmission(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
-	l.fail("second")
-	l.fail("first")
+	l.Fail(common.InPackage("x"), "second")
+	l.Fail(common.InPackage("x"), "first")
 	l.AfterResolvingDeps(context.Background())
 	if message := strings.Join(common.Messages(common.Errors.Take()), "\n"); message != "first\nsecond" {
 		t.Errorf("errors were not deterministic: %s", message)
@@ -363,43 +313,11 @@ func TestErrorsAbortBeforeEmission(t *testing.T) {
 }
 
 func TestAfterResolvingDepsClean(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	l.AfterResolvingDeps(context.Background())
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v", l.errors)
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	l := &javascriptLang{}
-	if l.Name() != "javascript" || len(l.Kinds()) != 3 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatal("invalid language metadata")
-	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	l.Configure(config.New(), "pkg", nil)
-	l.DoneGeneratingRules()
-	if got := l.KnownDirectives(); len(got) != 1 || got[0] != "dx_ignore_import" {
-		t.Fatalf("directives = %v, want [dx_ignore_import]", got)
-	}
-	if l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
-	}
-	loads := l.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 1 || loads[0].Name != "@renamed_dx//javascript/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "javascript_library,javascript_test,javascript_binary" {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if defaults := l.Loads(); len(defaults) != 1 || defaults[0].Name != "@rules_dx//javascript/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
-	defaultApparent := l.ApparentLoads(func(string) string { return "" })
-	if defaultApparent[0].Name != "@rules_dx//javascript/rules:defs.bzl" {
-		t.Errorf("default apparent loads = %+v", defaultApparent)
+	if len(l.Errors()) != 0 {
+		t.Errorf("errors = %v", l.Errors())
 	}
 }
 
@@ -415,7 +333,7 @@ func resolverConfig(t *testing.T, directives []rule.Directive) *config.Config {
 	return cfg
 }
 
-func resolverIndex(lang *javascriptLang, entries ...struct {
+func resolverIndex(lang *common.SingleLang, entries ...struct {
 	pkg  string
 	name string
 	ext  string
@@ -440,7 +358,7 @@ func resolverIndex(lang *javascriptLang, entries ...struct {
 }
 
 func TestResolveBranches(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		struct {
 			pkg, name string
@@ -453,39 +371,39 @@ func TestResolveBranches(t *testing.T) {
 	)
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"lib/b/b", "lib/a/a"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, index, nil, r, refs("lib/b/b", "lib/a/a"), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//lib/a,//lib/b" {
 		t.Errorf("resolved deps = %q", got)
 	}
 
 	self := rule.NewRule(libraryKind, "a")
-	l.Resolve(cfg, index, nil, self, targetImports{imports: []string{"lib/a/a"}}, label.New("", "lib/a", "a"))
+	l.Resolve(cfg, index, nil, self, refs("lib/a/a"), label.New("", "lib/a", "a"))
 	if self.Attr("deps") != nil {
 		t.Errorf("self dependency was emitted: %v", self.AttrStrings("deps"))
 	}
 
 	std := rule.NewRule(libraryKind, "uses_std")
-	l.Resolve(cfg, index, nil, std, targetImports{imports: []string{"fs"}}, label.New("", "app", "uses_std"))
-	if std.Attr("deps") != nil || len(l.errors) != 0 {
-		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.errors)
+	l.Resolve(cfg, index, nil, std, refs("fs"), label.New("", "app", "uses_std"))
+	if std.Attr("deps") != nil || len(l.Errors()) != 0 {
+		t.Errorf("stdlib resolution = %v, errors = %v", std.AttrStrings("deps"), l.Errors())
 	}
 
 	hand := rule.NewRule(libraryKind, "hand")
 	hand.SetAttr("deps", []string{":kept"})
-	l.Resolve(cfg, index, nil, hand, targetImports{imports: []string{"lib/a/a"}}, label.New("", "app", "hand"))
+	l.Resolve(cfg, index, nil, hand, refs("lib/a/a"), label.New("", "app", "hand"))
 	if got := strings.Join(hand.AttrStrings("deps"), ","); got != "//lib/a,:kept" {
 		t.Errorf("merged deps = %q", got)
 	}
 
-	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "unknown"), targetImports{imports: []string{"unknown"}}, label.New("", "app", "unknown"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") || !strings.Contains(l.errors[0], `or add "# gazelle:dx_ignore_import javascript unknown" to app/BUILD.bazel`) {
-		t.Errorf("unresolved errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "unknown"), refs("unknown"), label.New("", "app", "unknown"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "unresolved import") || !strings.Contains(l.Errors()[0], `or add "# gazelle:dx_ignore_import javascript unknown" to app/BUILD.bazel`) {
+		t.Errorf("unresolved errors = %v", l.Errors())
 	}
 	l.Resolve(cfg, index, nil, r, nil, label.New("", "app", "app"))
 }
 
 func TestResolveTestData(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	index := resolverIndex(l, struct {
 		pkg, name string
 		ext       string
@@ -494,7 +412,7 @@ func TestResolveTestData(t *testing.T) {
 	r := rule.NewRule(testKind, "app_test")
 	r.SetAttr("srcs", []string{"app_test.js"})
 	r.SetAttr("node_modules", rootNodeModules)
-	l.Resolve(cfg, index, nil, r, targetImports{imports: []string{"lib/a/a"}}, label.New("", "app", "app_test"))
+	l.Resolve(cfg, index, nil, r, refs("lib/a/a"), label.New("", "app", "app_test"))
 	if got := strings.Join(r.AttrStrings("data"), ","); got != "//lib/a:a" && got != "//lib/a" {
 		t.Errorf("test data = %q, want //lib/a", got)
 	}
@@ -504,17 +422,17 @@ func TestResolveTestData(t *testing.T) {
 }
 
 func TestResolveOverride(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "javascript javascript mapped //mapped:dep"}})
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"mapped"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, refs("mapped"), label.New("", "app", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//mapped:dep" {
 		t.Errorf("override deps = %q", got)
 	}
 }
 
 func TestResolveAmbiguous(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
 	for _, entry := range [][2]string{{"x", "same.js"}, {"y", "same.jsx"}} {
@@ -523,21 +441,12 @@ func TestResolveAmbiguous(t *testing.T) {
 		index.AddRule(config.New(), r, rule.EmptyFile(filepath.Join("one", "BUILD.bazel"), "one"))
 	}
 	index.Finish()
-	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), targetImports{imports: []string{"one/same"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "ambiguous") {
-		t.Errorf("ambiguity = %v", l.errors)
+	l.Resolve(cfg, index, nil, rule.NewRule(libraryKind, "app"), refs("one/same"), label.New("", "app", "app"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "ambiguous") {
+		t.Errorf("ambiguity = %v", l.Errors())
 	}
-	if len(l.errors) == 1 && !strings.Contains(l.errors[0], `; add "# gazelle:resolve javascript one/same <label>" to app/BUILD.bazel`) {
-		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0])
-	}
-}
-
-func TestUnionStrings(t *testing.T) {
-	if got := unionStrings([]string{"b", "a", "a"}, []string{"c", "a"}); strings.Join(got, ",") != "a,b,c" {
-		t.Errorf("union = %q", got)
-	}
-	if got := unionStrings(nil, nil); len(got) != 0 {
-		t.Errorf("empty union = %q", got)
+	if len(l.Errors()) == 1 && !strings.Contains(l.Errors()[0], `; add "# gazelle:resolve javascript one/same <label>" to app/BUILD.bazel`) {
+		t.Errorf("ambiguous error = %q, want the resolve remedy", l.Errors()[0])
 	}
 }
 
@@ -576,10 +485,10 @@ func TestGenerateEntryThinBinary(t *testing.T) {
 	if bin.Attr("srcs") != nil {
 		t.Errorf("thin binary must own no srcs, got %v", bin.AttrStrings("srcs"))
 	}
-	if raw := result.Imports[libIdx].(targetImports); strings.Join(raw.imports, ",") != "pkg/demo/helper" {
+	if raw := importRefs(result.Imports[libIdx]); strings.Join(common.RefRoots(raw), ",") != "pkg/demo/helper" {
 		t.Errorf("library imports = %+v, want [pkg/demo/helper]", raw)
 	}
-	if raw := result.Imports[binIdx].(targetImports); len(raw.imports) != 0 {
+	if raw := importRefs(result.Imports[binIdx]); len(raw) != 0 {
 		t.Errorf("binary imports = %+v, want empty", raw)
 	}
 }
@@ -592,7 +501,7 @@ func TestGenerateEntryCollision(t *testing.T) {
 	} {
 		writeFixture(t, root, name, content)
 	}
-	l := &javascriptLang{}
+	l := newLang()
 	result := l.GenerateRules(language.GenerateArgs{
 		Config:       &config.Config{RepoRoot: root},
 		Dir:          filepath.Join(root, "pkg", "demo"),
@@ -602,8 +511,8 @@ func TestGenerateEntryCollision(t *testing.T) {
 	if len(result.Gen) != 0 {
 		t.Fatalf("generated %d rules, want none", len(result.Gen))
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "main_bin") {
-		t.Errorf("errors = %v, want main_bin collision", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "main_bin") {
+		t.Errorf("errors = %v, want main_bin collision", l.Errors())
 	}
 }
 
@@ -629,17 +538,17 @@ func TestBinaryKindInfo(t *testing.T) {
 }
 
 func TestResolvePreservesBinaryData(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	bin := rule.NewRule(binaryKind, "main_bin")
 	bin.SetAttr("entry_point", "main.js")
 	bin.SetAttr("data", []string{":main"})
-	l.Resolve(cfg, resolverIndex(l), nil, bin, targetImports{}, label.New("", "app", "main_bin"))
+	l.Resolve(cfg, resolverIndex(l), nil, bin, refs(), label.New("", "app", "main_bin"))
 	if got := strings.Join(bin.AttrStrings("data"), ","); got != ":main" {
 		t.Errorf("binary data = %q, want preserved :main", got)
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("binary resolve errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("binary resolve errors = %v", l.Errors())
 	}
 }
 
@@ -655,7 +564,7 @@ func TestMergeStaleCleansBinary(t *testing.T) {
 }
 
 func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	root := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "", []byte("# gazelle:dx_ignore_import javascript missing_dep\n"))
@@ -674,7 +583,7 @@ func TestIgnoreDirectiveInheritanceAndStaleCheck(t *testing.T) {
 }
 
 func TestStaleIgnoreFails(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import javascript stale\n"))
@@ -682,7 +591,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	l.Configure(cfg, "pkg", file)
-	l.generated.Add("pkg")
+	l.GenerateRules(language.GenerateArgs{Rel: "pkg"})
 	l.AfterResolvingDeps(context.Background())
 	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); !strings.Contains(got, "stale") {
 		t.Errorf("stale ignore result = %q", got)
@@ -690,7 +599,7 @@ func TestStaleIgnoreFails(t *testing.T) {
 }
 
 func TestResolveIgnore(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, nil)
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import javascript external\n"))
@@ -699,18 +608,18 @@ func TestResolveIgnore(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"external"}}, label.New("", "app", "app"))
+	l.Resolve(cfg, resolverIndex(l), nil, r, refs("external"), label.New("", "app", "app"))
 	if r.Attr("deps") != nil {
 		t.Errorf("ignored import produced deps = %v", r.AttrStrings("deps"))
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("ignored import errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("ignored import errors = %v", l.Errors())
 	}
 	l.AfterResolvingDeps(context.Background())
 }
 
 func TestResolveMappingIgnoreConflict(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "javascript javascript mapped //mapped:dep"}})
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import javascript mapped\n"))
@@ -719,14 +628,14 @@ func TestResolveMappingIgnoreConflict(t *testing.T) {
 	}
 	l.Configure(cfg, "app", file)
 	r := rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, resolverIndex(l), nil, r, targetImports{imports: []string{"mapped"}}, label.New("", "app", "app"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "both an exact resolve mapping and ignore") {
-		t.Errorf("conflict errors = %v", l.errors)
+	l.Resolve(cfg, resolverIndex(l), nil, r, refs("mapped"), label.New("", "app", "app"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "both an exact resolve mapping and ignore") {
+		t.Errorf("conflict errors = %v", l.Errors())
 	}
 }
 
 func TestConfigureSkipsOtherDirectives(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:resolve javascript javascript foo //foo:bar\n# gazelle:dx_ignore_import python foo\n"))
@@ -737,13 +646,13 @@ func TestConfigureSkipsOtherDirectives(t *testing.T) {
 	if got := common.MatchingIgnore(cfg, languageName, "foo"); got != nil {
 		t.Errorf("other-directive ignore = %+v, want nil", got)
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("other-directive errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("other-directive errors = %v", l.Errors())
 	}
 }
 
 func TestConfigureThreeFieldAndMalformed(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import javascript javascript mydep\n"))
@@ -757,7 +666,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 	}
 	ignore.MarkUsed("pkg")
 
-	malformed := &javascriptLang{}
+	malformed := newLang()
 	malformed.Before(context.Background())
 	badCfg := config.New()
 	badFile, err := rule.LoadData("BUILD.bazel", "pkg", []byte("# gazelle:dx_ignore_import javascript\n"))
@@ -765,14 +674,14 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 		t.Fatal(err)
 	}
 	malformed.Configure(badCfg, "pkg", badFile)
-	if len(malformed.errors) != 1 || !strings.Contains(malformed.errors[0], "malformed") {
-		t.Errorf("malformed errors = %v", malformed.errors)
+	if len(malformed.Errors()) != 1 || !strings.Contains(malformed.Errors()[0], "malformed") {
+		t.Errorf("malformed errors = %v", malformed.Errors())
 	}
 	l.AfterResolvingDeps(context.Background())
 }
 
 func TestMatchingIgnoreMiss(t *testing.T) {
-	l := &javascriptLang{}
+	l := newLang()
 	l.Before(context.Background())
 	cfg := config.New()
 	file, err := rule.LoadData("BUILD.bazel", "app", []byte("# gazelle:dx_ignore_import javascript other\n"))
@@ -792,11 +701,11 @@ func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/main.js": "import { a } from \"../a/util\";\nimport { b } from \"../b/util.js\";\n",
 	}, []string{"main.js"})
-	imports := result.Imports[0].(targetImports)
-	if got := strings.Join(imports.imports, ","); got != "pkg/a/util,pkg/b/util" {
+	imports := result.Imports[0]
+	if got := strings.Join(common.RefRoots(importRefs(imports)), ","); got != "pkg/a/util,pkg/b/util" {
 		t.Fatalf("imports = %q, want pkg/a/util,pkg/b/util", got)
 	}
-	l := &javascriptLang{}
+	l := newLang()
 	index := resolverIndex(l,
 		struct {
 			pkg, name string
@@ -812,8 +721,8 @@ func TestRepeatedBasenamesKeepSourceIdentity(t *testing.T) {
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg/a:util,//pkg/b:util" {
 		t.Errorf("deps = %q, want //pkg/a:util,//pkg/b:util", got)
 	}
-	if len(l.errors) != 0 {
-		t.Errorf("errors = %v, want none", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Errorf("errors = %v, want none", l.Errors())
 	}
 
 	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "javascript javascript pkg/a/util //mapped:a"}})
@@ -832,11 +741,8 @@ func TestResolveIndexDottedAndAssets(t *testing.T) {
 	if len(result.Imports) == 0 {
 		t.Fatal("no imports generated")
 	}
-	imports, ok := result.Imports[0].(targetImports)
-	if !ok {
-		t.Fatalf("imports = %T", result.Imports[0])
-	}
-	l := &javascriptLang{}
+	imports := result.Imports[0]
+	l := newLang()
 	index := resolverIndex(l,
 		struct{ pkg, name, ext string }{"pkg/demo/components", "index", ""},
 		struct{ pkg, name, ext string }{"pkg/demo", "config.prod", ""},
@@ -847,8 +753,8 @@ func TestResolveIndexDottedAndAssets(t *testing.T) {
 	cfg := resolverConfig(t, nil)
 	r := rule.NewRule(libraryKind, "app")
 	l.Resolve(cfg, index, nil, r, imports, label.New("", "pkg/demo", "app"))
-	if len(l.errors) != 0 {
-		t.Fatalf("errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("errors = %v", l.Errors())
 	}
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//pkg/demo/components:index,:config.prod,:x" {
 		t.Errorf("deps = %q", got)
@@ -864,15 +770,15 @@ func TestResolveIndexDottedAndAssets(t *testing.T) {
 	handIndex.AddRule(config.New(), owned, rule.EmptyFile("pkg/demo/BUILD.bazel", "pkg/demo"))
 	handIndex.Finish()
 	r = rule.NewRule(libraryKind, "app")
-	l.Resolve(cfg, handIndex, nil, r, targetImports{imports: []string{"pkg/demo/data.json"}, local: map[string]bool{"pkg/demo/data.json": true}, asset: map[string]bool{"pkg/demo/data.json": true}}, label.New("", "pkg/demo", "app"))
+	l.Resolve(cfg, handIndex, nil, r, common.WrapRefImportSet([]common.ImportRef{{Root: "pkg/demo/data.json", Relative: true, Ext: ".json"}}), label.New("", "pkg/demo", "app"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":data" {
 		t.Errorf("owned asset deps = %q", got)
 	}
 
 	missing := rule.NewRule(libraryKind, "missing")
-	l.Resolve(cfg, index, nil, missing, targetImports{imports: []string{"pkg/demo/nope"}, local: map[string]bool{"pkg/demo/nope": true}}, label.New("", "pkg/demo", "missing"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "unresolved import") {
-		t.Errorf("missing errors = %v", l.errors)
+	l.Resolve(cfg, index, nil, missing, common.WrapRefImportSet([]common.ImportRef{{Root: "pkg/demo/nope", Relative: true}}), label.New("", "pkg/demo", "missing"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "unresolved import") {
+		t.Errorf("missing errors = %v", l.Errors())
 	}
 }
 
@@ -932,14 +838,14 @@ func TestResolveTSConfigPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	l := &javascriptLang{}
+	l := newLang()
 	cfg := resolverConfig(t, nil)
 	cfg.RepoRoot = root
 	l.Configure(cfg, "", nil)
 	app := cfg.Clone()
 	l.Configure(app, "app", nil)
-	if len(l.errors) != 0 {
-		t.Fatalf("configure errors = %v", l.errors)
+	if len(l.Errors()) != 0 {
+		t.Fatalf("configure errors = %v", l.Errors())
 	}
 	type entry = struct {
 		pkg, name string
@@ -955,22 +861,63 @@ func TestResolveTSConfigPaths(t *testing.T) {
 		{"fs", ""},
 	} {
 		r := rule.NewRule(libraryKind, "main")
-		l.Resolve(app, index, nil, r, targetImports{imports: []string{tc.name}}, label.New("", "app", "main"))
+		l.Resolve(app, index, nil, r, refs(tc.name), label.New("", "app", "main"))
 		if got := strings.Join(r.AttrStrings("deps"), ","); got != tc.want {
 			t.Errorf("%q deps = %q, want %q", tc.name, got, tc.want)
 		}
 	}
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], `unresolved import "@/components"`) {
-		t.Errorf("errors = %v", l.errors)
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], `unresolved import "@/components"`) {
+		t.Errorf("errors = %v", l.Errors())
 	}
-	l.errors = nil
-	l.Resolve(app, index, nil, rule.NewRule(libraryKind, "main"), targetImports{imports: []string{"react"}}, label.New("", "app", "main"))
-	if len(l.errors) != 1 || !strings.Contains(l.errors[0], "tsconfig/jsconfig paths alias") {
-		t.Errorf("react errors = %v", l.errors)
+	l.Before(context.Background())
+	l.Resolve(app, index, nil, rule.NewRule(libraryKind, "main"), refs("react"), label.New("", "app", "main"))
+	if len(l.Errors()) != 1 || !strings.Contains(l.Errors()[0], "tsconfig/jsconfig paths alias") {
+		t.Errorf("react errors = %v", l.Errors())
 	}
-	l.errors = nil
+	l.Before(context.Background())
 	l.Configure(app.Clone(), "bad", nil)
-	if len(l.errors) != 1 || !strings.HasPrefix(l.errors[0], "tsconfig: //bad/jsconfig.json: ") {
-		t.Errorf("malformed errors = %v", l.errors)
+	if len(l.Errors()) != 1 || !strings.HasPrefix(l.Errors()[0], "tsconfig: //bad/jsconfig.json: ") {
+		t.Errorf("malformed errors = %v", l.Errors())
+	}
+}
+
+// refs builds a RefImportSet whose roots are bare imports, or relative when
+// they start with "./".
+func refs(roots ...string) any {
+	out := make([]common.ImportRef, 0, len(roots))
+	for _, root := range roots {
+		out = append(out, common.ImportRef{Root: root})
+	}
+	return common.WrapRefImportSet(out)
+}
+
+func importRefs(raw any) []common.ImportRef {
+	out, _ := common.UnwrapRefImportSet(raw)
+	return out
+}
+
+func TestResolveUnownedAssetSkippedSilently(t *testing.T) {
+	l := newLang()
+	cfg := resolverConfig(t, nil)
+	r := rule.NewRule(libraryKind, "app")
+	l.Resolve(cfg, resolverIndex(l), nil, r, common.WrapRefImportSet([]common.ImportRef{{Root: "pkg/app/data.json", Relative: true, Ext: ".json"}}), label.New("", "pkg/app", "app"))
+	if len(l.Errors()) != 0 || r.Attr("deps") != nil {
+		t.Errorf("unowned asset: errors = %v, deps = %v, want none", l.Errors(), r.AttrStrings("deps"))
+	}
+}
+
+func TestResolveAmbiguousIncludingSelfIsSkipped(t *testing.T) {
+	l := newLang()
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return l })
+	for _, entry := range [][2]string{{"x", "same.js"}, {"y", "same.jsx"}} {
+		r := rule.NewRule(libraryKind, entry[0])
+		r.SetAttr("srcs", []string{entry[1]})
+		index.AddRule(config.New(), r, rule.EmptyFile("one/BUILD.bazel", "one"))
+	}
+	index.Finish()
+	r := rule.NewRule(libraryKind, "x")
+	l.Resolve(resolverConfig(t, nil), index, nil, r, refs("one/same"), label.New("", "one", "x"))
+	if len(l.Errors()) != 0 || r.Attr("deps") != nil {
+		t.Errorf("self-including ambiguity: errors = %v, deps = %v, want silent skip", l.Errors(), r.AttrStrings("deps"))
 	}
 }

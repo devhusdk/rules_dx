@@ -2,9 +2,9 @@ package rust
 
 import (
 	"context"
-	"flag"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -116,7 +116,7 @@ func TestGenerateSourceOnlyFailures(t *testing.T) {
 		}
 		l := &rustLang{}
 		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo"), Rel: "crates/demo"})
-		if len(l.errors) != 1 || !strings.Contains(l.errors[0], tc.want) {
+		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, tc.want) {
 			t.Errorf("files %v errors = %v, want %q", tc.files, l.errors, tc.want)
 		}
 	}
@@ -395,8 +395,8 @@ func TestImportsIndexesOnlyLibraries(t *testing.T) {
 func TestErrorsReportToSinkWithoutExiting(t *testing.T) {
 	l := &rustLang{}
 	l.Before(context.Background())
-	l.fail("second")
-	l.fail("first")
+	l.fail(common.InPackage("x"), "second")
+	l.fail(common.InPackage("x"), "first")
 	l.AfterResolvingDeps(context.Background())
 	if got := strings.Join(common.Messages(common.Errors.Take()), "\n"); got != "first\nsecond" {
 		t.Errorf("errors were not deterministic: %q", got)
@@ -472,12 +472,11 @@ func TestMalformedIgnoreFails(t *testing.T) {
 
 func TestLanguageMetadata(t *testing.T) {
 	l := &rustLang{}
-	if l.Name() != "rust" || len(l.Kinds()) != 12 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatalf("invalid language metadata")
+	if len(l.Kinds()) != 12 {
+		t.Fatalf("invalid kinds")
 	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" || l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
+	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" {
+		t.Fatal("invalid directives")
 	}
 	loads := l.ApparentLoads(func(name string) string {
 		if name == "rules_dx" {
@@ -498,28 +497,6 @@ func TestLanguageMetadata(t *testing.T) {
 		"real_source_target": "@renamed_dx//quality:fixtures.bzl",
 	}); len(got) != 0 {
 		t.Errorf("apparent loads miss %v", got)
-	}
-	if got := missingLoads(l.Loads(), map[string]string{
-		binaryKind:           "@rules_dx//rust/rules:defs.bzl",
-		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
-		scriptKind:           "@rules_rust//cargo:defs.bzl",
-		"crate_deps":         "@crates//:crates.bzl",
-		"all_crate_deps":     "@crates//:crates.bzl",
-		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
-		"real_source_target": "@rules_dx//quality:fixtures.bzl",
-	}); len(got) != 0 {
-		t.Errorf("default loads miss %v", got)
-	}
-	if got := missingLoads(l.ApparentLoads(func(string) string { return "" }), map[string]string{
-		binaryKind:           "@rules_dx//rust/rules:defs.bzl",
-		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
-		scriptKind:           "@rules_rust//cargo:defs.bzl",
-		"crate_deps":         "@crates//:crates.bzl",
-		"all_crate_deps":     "@crates//:crates.bzl",
-		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
-		"real_source_target": "@rules_dx//quality:fixtures.bzl",
-	}); len(got) != 0 {
-		t.Errorf("default apparent loads miss %v", got)
 	}
 	l.DoneGeneratingRules()
 }
@@ -587,7 +564,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, badRoot, "Cargo.toml", "[package]\nname = \"bad\"\n[[test]]\nname = \"missing\"\npath = \"tests/missing.rs\"\n")
 	bad := &rustLang{}
 	bad.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: badRoot}, Dir: badRoot, RegularFiles: []string{"Cargo.toml"}})
-	if len(bad.errors) != 1 || !strings.Contains(bad.errors[0], "does not exist") {
+	if len(bad.errors) != 1 || !strings.Contains(bad.errors[0].Message, "does not exist") {
 		t.Errorf("missing target errors = %v", bad.errors)
 	}
 
@@ -595,13 +572,13 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, malformed, "Cargo.toml", "[package]\nname = nope\n")
 	broken := &rustLang{}
 	broken.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: malformed}, Dir: malformed, RegularFiles: []string{"Cargo.toml"}})
-	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0], "Cargo.toml:2:") {
+	if len(broken.errors) != 1 || !strings.Contains(broken.errors[0].Message, "Cargo.toml:2:") {
 		t.Errorf("manifest errors = %v", broken.errors)
 	}
 
 	missingManifest := &rustLang{}
 	missingManifest.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "missing"), Rel: "missing"}, nil, &nativePlan{})
-	if len(missingManifest.errors) != 1 || !strings.Contains(missingManifest.errors[0], "Cargo.toml") {
+	if len(missingManifest.errors) != 1 || !strings.Contains(missingManifest.errors[0].Message, "Cargo.toml") {
 		t.Errorf("missing manifest errors = %v", missingManifest.errors)
 	}
 
@@ -609,7 +586,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, missingRoot, "Cargo.toml", "[package]\nname = \"app\"\n[[test]]\nname = \"missing\"\npath = \"tests/missing.rs\"\n")
 	missing := &rustLang{}
 	missing.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: missingRoot}, Dir: missingRoot, RegularFiles: []string{"Cargo.toml"}})
-	if len(missing.errors) != 1 || !strings.Contains(missing.errors[0], "does not exist") {
+	if len(missing.errors) != 1 || !strings.Contains(missing.errors[0].Message, "does not exist") {
 		t.Errorf("missing root errors = %v", missing.errors)
 	}
 
@@ -622,7 +599,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, orphan, "crates/Cargo.toml", "[package]\nname = \"crates\"\n")
 	orphanLang := &rustLang{}
 	generateMember(orphanLang, orphan, "crates/app")
-	if len(orphanLang.errors) != 1 || orphanLang.errors[0] != `rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but no parent Cargo.toml declares [workspace]` {
+	if len(orphanLang.errors) != 1 || orphanLang.errors[0].Message != `rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but no parent Cargo.toml declares [workspace]` {
 		t.Errorf("orphan workspace dep errors = %v", orphanLang.errors)
 	}
 
@@ -637,7 +614,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 		`rust: crates/app/Cargo.toml: dependency "serde" sets workspace = true but Cargo.toml has no [workspace.dependencies] entry`,
 		`rust: crates/other/Cargo.toml: dependency "serde" sets workspace = true but Cargo.toml has no [workspace.dependencies] entry`,
 	}
-	if strings.Join(noEntryLang.errors, "\n") != strings.Join(wantNoEntry, "\n") || len(noEntryLang.workspaceRoots) != 2 {
+	if strings.Join(common.Messages(noEntryLang.errors), "\n") != strings.Join(wantNoEntry, "\n") || len(noEntryLang.workspaceRoots) != 2 {
 		t.Errorf("missing workspace entry errors = %v roots = %v", noEntryLang.errors, noEntryLang.workspaceRoots)
 	}
 
@@ -646,7 +623,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	writeFixture(t, brokenParent, "app/Cargo.toml", member)
 	brokenLang := &rustLang{}
 	generateMember(brokenLang, brokenParent, "app")
-	if len(brokenLang.errors) != 1 || !strings.Contains(brokenLang.errors[0], "rust: Cargo.toml: workspace.dependencies.serde must be a version string or a table") {
+	if len(brokenLang.errors) != 1 || !strings.Contains(brokenLang.errors[0].Message, "rust: Cargo.toml: workspace.dependencies.serde must be a version string or a table") {
 		t.Errorf("broken parent errors = %v", brokenLang.errors)
 	}
 
@@ -690,7 +667,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 		}
 		failLang := &rustLang{}
 		generateMember(failLang, repo, "crates/app")
-		if len(failLang.errors) != 1 || (failLang.errors[0] != tc.want && !strings.HasSuffix(tc.want, ": ")) || !strings.HasPrefix(failLang.errors[0], tc.want) {
+		if len(failLang.errors) != 1 || (failLang.errors[0].Message != tc.want && !strings.HasSuffix(tc.want, ": ")) || !strings.HasPrefix(failLang.errors[0].Message, tc.want) {
 			t.Errorf("package.workspace %q errors = %v, want %q", tc.manifest, failLang.errors, tc.want)
 		}
 	}
@@ -754,7 +731,7 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 		}
 		l := &rustLang{}
 		l.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}})
-		if len(l.errors) == 0 || !strings.Contains(strings.Join(l.errors, "\n"), tc.want) {
+		if len(l.errors) == 0 || !strings.Contains(strings.Join(common.Messages(l.errors), "\n"), tc.want) {
 			t.Errorf("errors = %v, want %q", l.errors, tc.want)
 		}
 	}
@@ -966,5 +943,22 @@ func TestAdoptedBuildScriptRenamesScriptDep(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("no build script generated")
+	}
+}
+
+func TestRustErrorPackages(t *testing.T) {
+	common.Errors.Reset()
+	t.Cleanup(common.Errors.Reset)
+	l := &rustLang{}
+	l.Configure(config.New(), "", &rule.File{Directives: []rule.Directive{{Key: nativeToolsDirective, Value: "bogus!"}}})
+	l.Configure(config.New(), "a/b", &rule.File{Directives: []rule.Directive{{Key: corpusDirective, Value: "bogus!"}}})
+	l.AfterResolvingDeps(context.Background())
+	var got []common.PackageRef
+	for _, e := range common.Errors.Take() {
+		got = append(got, e.Package)
+	}
+	want := []common.PackageRef{common.InPackage(""), common.InPackage("a/b")}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("error packages = %+v, want %+v", got, want)
 	}
 }

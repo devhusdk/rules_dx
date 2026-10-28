@@ -1,6 +1,3 @@
-// Foreign Java test: handwritten owner of the test-owned source. The
-// generator never emits java_test; `*Test.java` files stay out of the
-// generated library and this rule survives regeneration unchanged.
 package greet;
 
 import static org.junit.Assert.assertEquals;

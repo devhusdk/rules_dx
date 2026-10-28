@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_clippy_test = "rust_clippy_test", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test", _rustfmt_test = "rustfmt_test")
 load("@rules_rust_wasm_bindgen//:defs.bzl", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test", _rust_wasm_bindgen_toolchain = "rust_wasm_bindgen_toolchain")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_test_coverage", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -132,6 +132,7 @@ _rust_forward_test = dx_executable_forward_rule(
     upstream_cfg = _cpp_runtime_transition,
     upstream_aspects = [dx_data_coverage_aspect],
     coverage_providers = dx_native_test_coverage,
+    toolchains = dx_native_coverage_toolchains(),
 )
 
 def rust_library(
@@ -161,13 +162,12 @@ def rust_binary(
         visibility = None,
         **kwargs):
     """Minimal wrapper over rust_binary."""
-    dx_wrap(
+    dx_wrap_binary(
         name,
         _rust_binary,
         _rust_forward_binary,
         srcs,
         visibility = visibility,
-        executable = True,
         upstream_kwargs = _libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True),
         extra_forward_kwargs = _libstdcxx_forward(),
         **kwargs
@@ -362,18 +362,7 @@ _rust_wasm_bindgen_browser_test = rule(
 _FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "flaky", "args")
 
 def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
-    """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser.
-
-    The test runs only on qualified platform cells (today linux x86_64, with
-    the Firefox and geckodriver that Bazel fetches; the host needs GTK 3).
-    On those cells the wrapper sets
-    `@rules_rust_wasm_bindgen//settings:test_browser` for the test, which
-    overrides any value given on the command line. Every other cell reports
-    the test as incompatible and skips it. The test runs locally only
-    (`no-remote-exec`), since the browser needs a display-capable host.
-    The whole test subgraph builds without coverage instrumentation, so
-    `bazel coverage` runs the test but reports no Wasm coverage.
-    """
+    """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser."""
     forward = dx_forwarded_test_kwargs(kwargs)
     upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}
     user_tags = forward.pop("tags", [])

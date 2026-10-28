@@ -4,7 +4,10 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//visibility:private"])
 
 exports_files(
-    ["testdata/intended_manifest.json"],
+    [
+        "testdata/intended_manifest.json",
+        "testdata/intended_manifest_failed.json",
+    ],
     visibility = ["//cli/plan:__pkg__"],
 )
 
@@ -20,6 +23,7 @@ go_library(
     name = "common",
     srcs = [
         "android.go",
+        "buildsnapshot.go",
         "classlang.go",
         "doc.go",
         "dotnetplatform.go",
@@ -28,6 +32,8 @@ go_library(
         "external.go",
         "external_go.go",
         "external_maven.go",
+        "external_npm.go",
+        "external_python.go",
         "htmlscripts.go",
         "ignore.go",
         "jsresolve.go",
@@ -40,6 +46,7 @@ go_library(
         "nodestdlib.go",
         "remedy.go",
         "singlelang.go",
+        "testgen.go",
         "tsconfig.go",
         "webcomponent.go",
     ],
@@ -56,10 +63,13 @@ go_library(
         "//gazelle/elixir:__pkg__",
         "//gazelle/fsharp:__pkg__",
         "//gazelle/go:__pkg__",
+        "//gazelle/haskell:__pkg__",
         "//gazelle/java:__pkg__",
         "//gazelle/javascript:__pkg__",
         "//gazelle/kotlin:__pkg__",
         "//gazelle/mdx:__pkg__",
+        "//gazelle/perl:__pkg__",
+        "//gazelle/php:__pkg__",
         "//gazelle/powershell:__pkg__",
         "//gazelle/python:__pkg__",
         "//gazelle/ruby:__pkg__",
@@ -72,6 +82,7 @@ go_library(
     ],
     deps = [
         "@com_github_pmezard_go_difflib//difflib",
+        "@com_github_tailscale_hujson//:hujson",
         "@gazelle//config",
         "@gazelle//language",
         "@gazelle//merger",
@@ -89,6 +100,7 @@ go_test(
     name = "common_test",
     srcs = [
         "android_test.go",
+        "buildsnapshot_test.go",
         "classlang_test.go",
         "common_test.go",
         "errors_test.go",
@@ -98,10 +110,14 @@ go_test(
         "naming_test.go",
         "remedy_test.go",
         "singlelang_test.go",
+        "testgen_test.go",
         "tsconfig_test.go",
         "webcomponent_test.go",
     ],
-    data = ["testdata/intended_manifest.json"],
+    data = [
+        "testdata/intended_manifest.json",
+        "testdata/intended_manifest_failed.json",
+    ],
     embed = [":common"],
     pure = "on",
 )

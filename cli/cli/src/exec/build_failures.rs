@@ -267,6 +267,8 @@ fn unavailable(
 pub(crate) struct ReportedFailures {
     pub(crate) count: usize,
     pub(crate) compile_only: bool,
+    /// A non-analysis failure (compile, link, ...) was recorded and no analysis failure was.
+    pub(crate) build_stage: bool,
 }
 
 /// Reports the failures Bazel recorded in the event file and summarizes them.
@@ -312,6 +314,12 @@ pub(crate) fn report_build_failures(
     let compiling = |event: &BuildFailureEvent| event.stage == FailureStage::Compilation.name();
     Ok(ReportedFailures {
         count: events.len(),
+        build_stage: events
+            .iter()
+            .any(|event| event.stage != FailureStage::Analysis.name() && event.category != NOT_BUILT)
+            && !events
+                .iter()
+                .any(|event| event.stage == FailureStage::Analysis.name()),
         compile_only: collected.problem.is_none()
             && events.iter().any(compiling)
             && events
@@ -879,6 +887,7 @@ mod tests {
         let summary = summary_of(&harness, &[rustc.clone(), link.clone()]);
         assert_eq!(summary.count, 2);
         assert!(!summary.compile_only);
+        assert!(summary.build_stage);
         assert!(!summary_of(&harness, &[link]).compile_only);
         let analysis = json!({
             "id": {"targetCompleted": {"label": "//c:t"}},
@@ -888,6 +897,7 @@ mod tests {
         let summary = summary_of(&harness, &[rustc, analysis]);
         assert_eq!(summary.count, 2);
         assert!(!summary.compile_only);
+        assert!(!summary.build_stage);
     }
 
     #[test]

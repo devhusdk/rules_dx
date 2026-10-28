@@ -70,7 +70,7 @@ starlark_test(
     name = "tags_test",
     expected_observations = """subject //javascript/tests/fixtures/skip_tags:tags_subject
 field tagged_bin=no-typecheck
-field tagged_bin_upstream=dx:no-typecheck
+field tagged_bin_upstream=dx:no-typecheck,manual
 field tagged_ts_test_ts=dx:no-typecheck
 field tagged_ts_test_upstream=dx:no-typecheck,manual
 aspect_field aspect_seen=True

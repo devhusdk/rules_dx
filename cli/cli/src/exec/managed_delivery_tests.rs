@@ -146,8 +146,7 @@ fn a_child_failure_keeps_its_status_when_delivery_succeeds() {
 #[test]
 #[cfg(any(unix, windows))]
 fn closed_pipe_starts_nothing() {
-    let (reader, mut writer) = io::pipe().expect("pipe");
-    drop(reader);
+    let mut writer = closed_pipe();
     let h = Harness::new("m-closed-pipe");
     let inv = invocation(&["env", "--apply", "--output=json"]);
     let runner = h.runner();

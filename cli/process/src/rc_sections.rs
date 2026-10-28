@@ -3,13 +3,22 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::{import_path, unquote, MAX_IMPORT_DEPTH};
+use super::{flag_value, import_path, sets_flag, tokenize, unquote, MAX_IMPORT_DEPTH};
 
 const MAX_CONFIG_DEPTH: usize = 32;
 
-const LEVELS: [&[&str]; 2] = [&["common", "always"], &["build"]];
+/// The command names whose lines apply to `command`, least specific first.
+fn levels(command: &str) -> &'static [&'static [&'static str]] {
+    match command {
+        "test" => &[&["common", "always"], &["build"], &["test"]],
+        "coverage" => &[&["common", "always"], &["build"], &["test"], &["coverage"]],
+        "run" => &[&["common", "always"], &["build"], &["run"]],
+        _ => &[&["common", "always"], &["build"]],
+    }
+}
 
-struct Line {
+/// One rc line: its command, optional `:config`, and flag tokens.
+pub(super) struct Line {
     command: String,
     config: Option<String>,
     tokens: Vec<String>,
@@ -21,39 +30,176 @@ pub fn remote_execution(
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
     read_user_rc: bool,
+    startup: &[String],
     flags: &[String],
 ) -> bool {
-    let options = build_options(env_get, workspace, read_file, read_user_rc, flags);
+    let lines = load_rc(env_get, workspace, read_file, read_user_rc, startup);
+    let options = effective_options(&lines, "build", flags);
     last_value(&options, "--remote_executor").is_some_and(|value| !value.is_empty())
 }
 
-/// The `build` options Bazel would apply, rc files first and `flags` last.
-fn build_options(
+/// The Bazel startup output paths in effect, as written (relative paths joined to the workspace).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct StartupPaths {
+    pub output_user_root: Option<PathBuf>,
+    pub output_base: Option<PathBuf>,
+}
+
+/// The `--output_user_root` and `--output_base` startup options Bazel would use: rc files in
+/// read order, then `startup` (the command line), last one wins and an empty value clears it.
+///
+/// Applies `startup` and `startup:<host os>` lines; named `startup:<config>` lines are ignored,
+/// as Bazel does. `startup:<os>` needs Bazel 9.0.2 or later; on older Bazel the guess is wrong
+/// and the only effect is that keep-warm finds no server.
+pub fn startup_output_paths(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
     read_file: &dyn Fn(&Path) -> Option<String>,
     read_user_rc: bool,
+    startup: &[String],
+) -> StartupPaths {
+    startup_output_paths_for_os(
+        env_get,
+        workspace,
+        read_file,
+        read_user_rc,
+        startup,
+        std::env::consts::OS,
+    )
+}
+
+fn startup_output_paths_for_os(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup: &[String],
+    host_os: &str,
+) -> StartupPaths {
+    let lines = load_rc(env_get, workspace, read_file, read_user_rc, startup);
+    let mut tokens: Vec<&str> = Vec::new();
+    for line in &lines {
+        if line.command == "startup"
+            && line
+                .config
+                .as_deref()
+                .is_none_or(|config| config == host_os)
+        {
+            tokens.extend(line.tokens.iter().map(String::as_str));
+        }
+    }
+    tokens.extend(startup.iter().map(String::as_str));
+    let last = |name: &str| {
+        let mut found: Option<&str> = None;
+        for (index, token) in tokens.iter().enumerate() {
+            if let Some(value) = flag_value(token, tokens.get(index + 1).copied(), name) {
+                found = Some(value);
+            }
+        }
+        found
+            .filter(|value| !value.is_empty())
+            .map(|value| workspace.join(value))
+    };
+    StartupPaths {
+        output_user_root: last("--output_user_root"),
+        output_base: last("--output_base"),
+    }
+}
+
+const NESTED_BAZEL_TAG: &str = "resources:nested_bazel";
+
+/// Whether the effective `test` options leave `resources:nested_bazel` tests selected by `--test_tag_filters`.
+pub fn nested_bazel_selected(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup: &[String],
     flags: &[String],
-) -> Vec<String> {
+) -> bool {
+    let lines = load_rc(env_get, workspace, read_file, read_user_rc, startup);
+    let options = effective_options(&lines, "test", flags);
+    let Some(filters) = last_value(&options, "--test_tag_filters") else {
+        return true;
+    };
+    let nested = |tag: &str| tag == NESTED_BAZEL_TAG || tag.starts_with("resources:nested_bazel:");
+    let tags = filters
+        .split(',')
+        .map(str::trim)
+        .filter(|tag| !tag.is_empty());
+    let (mut included, mut any_included) = (false, false);
+    for tag in tags {
+        if let Some(excluded) = tag.strip_prefix('-') {
+            if nested(excluded) {
+                return false;
+            }
+        } else {
+            any_included = true;
+            included |= nested(tag);
+        }
+    }
+    included || !any_included
+}
+
+/// Every rc line Bazel would read, imports inlined, in read order.
+pub(super) fn load_rc(
+    env_get: &dyn Fn(&str) -> Option<String>,
+    workspace: &Path,
+    read_file: &dyn Fn(&Path) -> Option<String>,
+    read_user_rc: bool,
+    startup: &[String],
+) -> Vec<Line> {
     let mut lines = Vec::new();
     let mut seen = HashSet::new();
-    for path in rc_files(env_get, workspace, read_user_rc) {
+    for path in rc_files(env_get, workspace, read_user_rc, startup) {
         load(&path, workspace, read_file, &mut seen, 0, &mut lines);
     }
+    lines
+}
+
+/// The options Bazel would apply to `command`, rc files first and `flags` last.
+pub(super) fn effective_options(lines: &[Line], command: &str, flags: &[String]) -> Vec<String> {
+    let levels = levels(command);
     let mut out = Vec::new();
     let mut stack = Vec::new();
-    expand(&lines, None, &mut stack, &mut out);
+    expand(lines, levels, None, &mut stack, &mut out);
     if platform_config_enabled(&out) {
-        expand_config(&lines, std::env::consts::OS, &mut stack, &mut out);
+        expand_config(lines, levels, std::env::consts::OS, &mut stack, &mut out);
     }
-    expand_tokens(&lines, flags, &mut stack, &mut out);
+    expand_tokens(lines, levels, flags, &mut stack, &mut out);
     out
 }
 
+/// Whether any rc line, in any section or config, names one of `names`.
+pub(super) fn any_line_sets(lines: &[Line], names: &[&str]) -> bool {
+    lines.iter().any(|line| {
+        line.tokens
+            .iter()
+            .any(|token| names.iter().any(|name| sets_flag(token, name)))
+    })
+}
+
+/// The last disk cache setting in `options`: `Some(None)` for `--nodisk_cache` or an empty value.
+pub(super) fn last_disk_cache(options: &[String]) -> Option<Option<&str>> {
+    let mut winner = None;
+    for (index, option) in options.iter().enumerate() {
+        let next = options.get(index + 1).map(String::as_str);
+        if sets_flag(option, "--nodisk_cache") {
+            winner = Some(None);
+        } else if sets_flag(option, "--disk_cache") {
+            let value = flag_value(option, next, "--disk_cache").filter(|value| !value.is_empty());
+            winner = Some(value);
+        }
+    }
+    winner
+}
+
+/// The rc files in Bazel's read order: system, workspace, home, `BAZELRC`, then `--bazelrc`.
 fn rc_files(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
     read_user_rc: bool,
+    startup: &[String],
 ) -> Vec<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     let mut files = Vec::new();
@@ -71,8 +217,40 @@ fn rc_files(
         if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
             files.push(PathBuf::from(home).join(".bazelrc"));
         }
+        files.extend(explicit_rc_files(env_get, startup));
     }
     files
+}
+
+/// The files named by `BAZELRC` (comma-separated) and then each `--bazelrc`. `/dev/null` ends a list.
+fn explicit_rc_files(env_get: &dyn Fn(&str) -> Option<String>, startup: &[String]) -> Vec<PathBuf> {
+    let env_paths = env_get("BAZELRC")
+        .unwrap_or_default()
+        .split(',')
+        .filter(|path| !path.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let mut flag_paths = Vec::new();
+    let mut index = 0;
+    while index < startup.len() {
+        let option = startup[index].as_str();
+        if let Some(path) = option.strip_prefix("--bazelrc=") {
+            flag_paths.push(path.to_owned());
+        } else if option == "--bazelrc" {
+            if let Some(path) = startup.get(index + 1) {
+                flag_paths.push(path.clone());
+                index += 1;
+            }
+        }
+        index += 1;
+    }
+    env_paths
+        .iter()
+        .chain(flag_paths.iter())
+        .map(String::as_str)
+        .take_while(|path| *path != "/dev/null")
+        .map(PathBuf::from)
+        .collect()
 }
 
 fn load(
@@ -94,8 +272,8 @@ fn load(
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let mut words = line.split_whitespace().map(unquote);
-        let Some(first) = words.next() else {
+        let words = tokenize(line);
+        let Some(first) = words.first().map(String::as_str) else {
             continue;
         };
         if matches!(first, "import" | "try-import") {
@@ -111,32 +289,45 @@ fn load(
         lines.push(Line {
             command: command.to_owned(),
             config,
-            tokens: words.map(str::to_owned).collect(),
+            tokens: words[1..].to_vec(),
         });
     }
 }
 
-fn expand(lines: &[Line], config: Option<&str>, stack: &mut Vec<String>, out: &mut Vec<String>) {
-    for level in LEVELS {
+fn expand(
+    lines: &[Line],
+    levels: &[&[&str]],
+    config: Option<&str>,
+    stack: &mut Vec<String>,
+    out: &mut Vec<String>,
+) {
+    for level in levels {
         for line in lines {
             if level.contains(&line.command.as_str()) && line.config.as_deref() == config {
-                expand_tokens(lines, &line.tokens, stack, out);
+                expand_tokens(lines, levels, &line.tokens, stack, out);
             }
         }
     }
 }
 
-fn expand_config(lines: &[Line], name: &str, stack: &mut Vec<String>, out: &mut Vec<String>) {
+fn expand_config(
+    lines: &[Line],
+    levels: &[&[&str]],
+    name: &str,
+    stack: &mut Vec<String>,
+    out: &mut Vec<String>,
+) {
     if stack.len() >= MAX_CONFIG_DEPTH || stack.iter().any(|open| open == name) {
         return;
     }
     stack.push(name.to_owned());
-    expand(lines, Some(name), stack, out);
+    expand(lines, levels, Some(name), stack, out);
     stack.pop();
 }
 
 fn expand_tokens(
     lines: &[Line],
+    levels: &[&[&str]],
     tokens: &[String],
     stack: &mut Vec<String>,
     out: &mut Vec<String>,
@@ -145,10 +336,10 @@ fn expand_tokens(
     while index < tokens.len() {
         let token = tokens[index].as_str();
         if let Some(name) = token.strip_prefix("--config=") {
-            expand_config(lines, name, stack, out);
+            expand_config(lines, levels, name, stack, out);
         } else if token == "--config" {
             if let Some(name) = tokens.get(index + 1) {
-                expand_config(lines, name, stack, out);
+                expand_config(lines, levels, name, stack, out);
                 index += 1;
             }
         } else {
@@ -176,7 +367,7 @@ fn platform_config_enabled(options: &[String]) -> bool {
     enabled
 }
 
-fn last_value<'a>(options: &'a [String], flag: &str) -> Option<&'a str> {
+pub(super) fn last_value<'a>(options: &'a [String], flag: &str) -> Option<&'a str> {
     let mut value = None;
     for (index, option) in options.iter().enumerate() {
         let Some(rest) = option.strip_prefix(flag) else {

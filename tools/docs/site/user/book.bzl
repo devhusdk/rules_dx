@@ -66,6 +66,7 @@ USER_BOOK = [
         "//docs:cli/commands/new-upgrade.md",
     ),
     mdbook_page("Explain", "docs/cli/commands/explain.md", "//docs:cli/commands/explain.md"),
+    mdbook_page("Install", "docs/cli/commands/install.md", "//docs:cli/commands/install.md"),
     mdbook_page(
         "Offline Bundle",
         "docs/cli/commands/offline-bundle.md",
@@ -82,11 +83,6 @@ USER_BOOK = [
         "Completion",
         "docs/cli/commands/completion.md",
         "//docs:cli/commands/completion.md",
-    ),
-    mdbook_page(
-        "Tests",
-        "docs/cli/commands/list-tests.md",
-        "//docs:cli/commands/list-tests.md",
     ),
     mdbook_page(
         "Scope Defaults",
@@ -157,10 +153,13 @@ USER_BOOK = [
     mdbook_page("CUDA App", "examples/cuda-app/README.md", "//examples/cuda-app:README.md"),
     mdbook_page("Elixir App", "examples/elixir-app/README.md", "//examples/elixir-app:README.md"),
     mdbook_page("Erlang App", "examples/erlang-app/README.md", "//examples/erlang-app:README.md"),
+    mdbook_page("Haskell App", "examples/haskell-app/README.md", "//examples/haskell-app:README.md"),
     mdbook_page("Java App", "examples/java-app/README.md", "//examples/java-app:README.md"),
     mdbook_page("Kotlin App", "examples/kotlin-app/README.md", "//examples/kotlin-app:README.md"),
+    mdbook_page("Lua App", "examples/lua-app/README.md", "//examples/lua-app:README.md"),
     mdbook_page("MSIX App", "examples/msix-app/README.md", "//examples/msix-app:README.md"),
     mdbook_page("Node App", "examples/node-app/README.md", "//examples/node-app:README.md"),
+    mdbook_page("OCaml App", "examples/ocaml-app/README.md", "//examples/ocaml-app:README.md"),
     mdbook_page("Perl App", "examples/perl-app/README.md", "//examples/perl-app:README.md"),
     mdbook_page(
         "Python Service",

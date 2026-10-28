@@ -50,20 +50,21 @@
     "https://bcr.bazel.build/modules/bazel_features/1.41.0/MODULE.bazel": "6e0f87fafed801273c371d41e22a15a6f8abf83fdd7f87d5e44ad317b94433d0",
     "https://bcr.bazel.build/modules/bazel_features/1.42.0/MODULE.bazel": "e8ca15cb2639c5f12183db6dcb678735555d0cdd739b32a0418b6532b5e565f8",
     "https://bcr.bazel.build/modules/bazel_features/1.42.1/MODULE.bazel": "275a59b5406ff18c01739860aa70ad7ccb3cfb474579411decca11c93b951080",
+    "https://bcr.bazel.build/modules/bazel_features/1.48.1/MODULE.bazel": "8f43b2b90bd70402825ab07a85bf26079935271e2662a1df37fe0de969aa3ecf",
     "https://bcr.bazel.build/modules/bazel_features/1.50.0/MODULE.bazel": "2083ef9c7a469f520890483ccf8e0189d6e71e2117e7752e15e6554433d5ae3e",
     "https://bcr.bazel.build/modules/bazel_features/1.51.0/MODULE.bazel": "8e1310d09db6ee2e4f19f9994e360aca941ddc32083edc8d9bdc19c83c94cee4",
     "https://bcr.bazel.build/modules/bazel_features/1.51.0/source.json": "d5af1f1748d2b4ace5f04087030c0a1cfd93f5be6bdf0b5c1beb24ed0fd24955",
     "https://bcr.bazel.build/modules/bazel_features/1.9.0/MODULE.bazel": "885151d58d90d8d9c811eb75e3288c11f850e1d6b481a8c9f766adee4712358b",
     "https://bcr.bazel.build/modules/bazel_features/1.9.1/MODULE.bazel": "8f679097876a9b609ad1f60249c49d68bfab783dd9be012faf9d82547b14815a",
-    "https://bcr.bazel.build/modules/bazel_lib/3.7.0/MODULE.bazel": "d7c10ed67f0f7f1fda179db8f86c22642581bd614882e1a50545fbe069525173",
-    "https://bcr.bazel.build/modules/bazel_lib/3.7.0/source.json": "cdacdbe1a504593475889158a96acf3ec3fb6be5cac2fb7b201ba5c6beacd9d4",
+    "https://bcr.bazel.build/modules/bazel_lib/3.7.2/MODULE.bazel": "cbc920fff00a55b2fd663d40850560a6fb17fd5ef3a9f3d6cbf0d32908dd8a40",
+    "https://bcr.bazel.build/modules/bazel_lib/3.7.2/source.json": "7a9c2b06a113c4962d329bb68befdb90d0447788a19aabaa32b476a0458e7d28",
     "https://bcr.bazel.build/modules/bazel_linux_packages/0.4.1/MODULE.bazel": "9bcd612b78aa98db07f01ca7edc3129148aced24d3726884bba1f321031e724d",
     "https://bcr.bazel.build/modules/bazel_linux_packages/0.4.1/source.json": "f3bbbf0f046fbc692b5e00f317088c6163b1874213027f1047bf505a1b9c647b",
     "https://bcr.bazel.build/modules/bazel_skylib/1.9.2/MODULE.bazel": "8c51259b0f4481475586dbfede7591e57b75702e637f840f6138eec80c34b270",
     "https://bcr.bazel.build/modules/bazel_skylib/1.9.2/source.json": "41cbde7546542dee2f26e3f10bf1c4ac57909943194b7ac48cc5238a01893aa8",
     "https://bcr.bazel.build/modules/bazel_worker_api/0.0.10/MODULE.bazel": "a426df551b40c3997c351d05f00f0d1f86b618ddb646012f1e9c72efce8ed939",
-    "https://bcr.bazel.build/modules/bazel_worker_api/0.0.10/source.json": "7f220d3edfeba5d1f61535fd8400338df74f8bdeb241ebe660534c6926a5a645",
-    "https://bcr.bazel.build/modules/bazel_worker_api/0.0.4/MODULE.bazel": "460aa12d01231a80cce03c548287b433b321d205b0028ae596728c35e5ee442e",
+    "https://bcr.bazel.build/modules/bazel_worker_api/0.0.11/MODULE.bazel": "fe09a8d3fb25c95414249f72cb0936201bf7e3c3f0e302175b2fc81e68bc6069",
+    "https://bcr.bazel.build/modules/bazel_worker_api/0.0.11/source.json": "7867c70965fccd202c57796de69fcbdf0555da34e3b09a14b06d74afb0f2f26d",
     "https://bcr.bazel.build/modules/bazel_worker_api/0.0.8/MODULE.bazel": "396c1ef53835aafe3d42ce6619080531ee770648303731f16cfaa33fa056bf0c",
     "https://bcr.bazel.build/modules/bazel_worker_java/0.0.8/MODULE.bazel": "e76479eae70bd4e8f5f4c2dfc5d03ab971cfb18750246c7b3f3454c5c2ee6629",
     "https://bcr.bazel.build/modules/bazel_worker_java/0.0.8/source.json": "9395c4679444bc47bf7e51a710366a4480aa371c6f6bed01868e2fabcf11acec",
@@ -78,8 +79,8 @@
     "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.3/MODULE.bazel": "f1b7bb2dd53e8f2ef984b39485ec8a44e9076dda5c4b8efd2fb4c6a6e856a31d",
     "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.7/MODULE.bazel": "1e5e03c383fa64ebbe0942a225c32168fd6ef6b270351bbec481d47d19d1b96d",
     "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.7/source.json": "34a83d58ae2f1ef6731d1fc8a1b6f07825741aff3f5993b67b67ec21d2c2946e",
-    "https://bcr.bazel.build/modules/gazelle/0.52.2/MODULE.bazel": "9eefee4f094bb97f16287880f6390f8207748cbe40013c9722a0126aaa189b3d",
-    "https://bcr.bazel.build/modules/gazelle/0.52.2/source.json": "ab0117753010067b2d7aeb43873706a9780eca3262cbde6ca6f3021c23a0171a",
+    "https://bcr.bazel.build/modules/gazelle/0.54.0/MODULE.bazel": "10620287bdf57c55c2321ed5a387ade11c7187aba444fdec583c9f21c3263f45",
+    "https://bcr.bazel.build/modules/gazelle/0.54.0/source.json": "6c9639ac87508c7edea37bd9d5380581c96defde056ca26518d201a8816805e4",
     "https://bcr.bazel.build/modules/google_benchmark/1.8.2/MODULE.bazel": "a70cf1bba851000ba93b58ae2f6d76490a9feb74192e57ab8e8ff13c34ec50cb",
     "https://bcr.bazel.build/modules/googletest/1.14.0.bcr.1/MODULE.bazel": "22c31a561553727960057361aa33bf20fb2e98584bc4fec007906e27053f80c6",
     "https://bcr.bazel.build/modules/googletest/1.14.0/MODULE.bazel": "cfbcbf3e6eac06ef9d85900f64424708cc08687d1b527f0ef65aa7517af8118f",
@@ -99,12 +100,14 @@
     "https://bcr.bazel.build/modules/libpfm/4.11.0/MODULE.bazel": "45061ff025b301940f1e30d2c16bea596c25b176c8b6b3087e92615adbd52902",
     "https://bcr.bazel.build/modules/libxml2/2.15.3/MODULE.bazel": "a6bffafd8aa8b0c13eaa4bf25d55be188ec8548549395f03e98c39bab264adaa",
     "https://bcr.bazel.build/modules/libxml2/2.15.3/source.json": "fd7c420cb14981416c9fadd0db555bd1e249355e0e5b63b2ce15b92996b5fbfb",
-    "https://bcr.bazel.build/modules/llvm/0.8.23/MODULE.bazel": "315c8a46a968844d9bd70b06056110dcad9832882e5c9358eff66cebd4fb78d1",
-    "https://bcr.bazel.build/modules/llvm/0.8.23/source.json": "0dca662d1d8a9fe12f44c68bbf27210f62898361226a2e2c95084815729af488",
+    "https://bcr.bazel.build/modules/llvm/0.8.25/MODULE.bazel": "5378f7958a8e2bc640b96b5b17eb47364d705f945f927a192c6da6ff2739a3aa",
+    "https://bcr.bazel.build/modules/llvm/0.8.25/source.json": "b463559c1e2a3f8890ab48efa6522a65329c76b6069b8dd8d3c8cdee8c0df801",
     "https://bcr.bazel.build/modules/lua/5.4.6.bcr.1/MODULE.bazel": "8e3b950c34f8963eb57cca78fa4d37d81bc703aca155a9ca659f2643d38b8e94",
     "https://bcr.bazel.build/modules/lua/5.4.6.bcr.1/source.json": "5b09c069b5837ba333df2aaa9f82ab987365f07b0845d4d1029216e23f3721cf",
     "https://bcr.bazel.build/modules/mboworks_bzl/0.8.0/MODULE.bazel": "4d4bf94f5765d0380228fcde92513ca042ec1a1d369f59fc5dd0c68279cf78ff",
     "https://bcr.bazel.build/modules/mboworks_bzl/0.8.0/source.json": "82da3ae5eccccbfc12e6d3d3c0b5ad7efeee13941b3051defed4808d5bcaa318",
+    "https://bcr.bazel.build/modules/mimalloc/3.5.3/MODULE.bazel": "d4555726ceff5240bef25b0ec38b1c80c68337eec2b4b5df20cf611df1383e6a",
+    "https://bcr.bazel.build/modules/mimalloc/3.5.3/source.json": "e94e4baf53f881236b86b16c436c6ab4a338b37135e370154802a7111c0dda28",
     "https://bcr.bazel.build/modules/nlohmann_json/3.12.0.bcr.1/MODULE.bazel": "a1c8bb07b5b91d971727c635f449d05623ac9608f6fe4f5f04254ea12f08e349",
     "https://bcr.bazel.build/modules/nlohmann_json/3.12.0.bcr.1/source.json": "93f82a5ae985eb935c539bfee95e04767187818189241ac956f3ccadbdb8fb02",
     "https://bcr.bazel.build/modules/nlohmann_json/3.6.1/MODULE.bazel": "6f7b417dcc794d9add9e556673ad25cb3ba835224290f4f848f8e2db1e1fca74",
@@ -128,24 +131,23 @@
     "https://bcr.bazel.build/modules/re2/2025-08-12.bcr.1/MODULE.bazel": "e09b434b122bfb786a69179f9b325e35cb1856c3f56a7a81dd61609260ed46e1",
     "https://bcr.bazel.build/modules/re2/2025-11-05.bcr.1/MODULE.bazel": "3d9d4995833fc0334fc5c88b56a05288dd25d651544cd7b2233bbd6357bbeba0",
     "https://bcr.bazel.build/modules/re2/2025-11-05.bcr.1/source.json": "7df1394aabda1c9bc188a302f5d54b1c657924edd04ebc57d2be29dbd7efd141",
-    "https://bcr.bazel.build/modules/rules_android/0.6.6/MODULE.bazel": "b0fb569752aab65ab1a9db0a8f6cfaf5aa1754965e17e95dcf0e4d88e192a68d",
-    "https://bcr.bazel.build/modules/rules_android/0.6.6/source.json": "a9d8dc2d5a102dc03269a94acc886a4cab82cdcb9ccbc77b0f665d6d17a6ae09",
+    "https://bcr.bazel.build/modules/rules_android/0.8.0/MODULE.bazel": "92961a7a1218694a31fa748eba164db2721f5c42f2d7ed3325c52b19d00ae2f5",
+    "https://bcr.bazel.build/modules/rules_android/0.8.0/source.json": "efec84c34a78d0b6a23b7a07d51e810942428a5b980857284806d0a59762591f",
     "https://bcr.bazel.build/modules/rules_apple/5.2.0/MODULE.bazel": "9b46da6889ba44e1b61dda2b4456f69606064cf38a95c1aacab5ae408f2aa735",
     "https://bcr.bazel.build/modules/rules_apple/5.2.0/source.json": "78c5c54eeabdae3e1dfd4f67f079c0672db5df715016fdce2b09bf9b4c88bedf",
-    "https://bcr.bazel.build/modules/rules_batch/0.0.1/MODULE.bazel": "fd2b1ebe02a96f2ef3dea0b375b6f442db548e532fbd31e6c388e67239d83b76",
     "https://bcr.bazel.build/modules/rules_batch/0.1.1/MODULE.bazel": "d86a3773a3aed23878baaf7263917ea7dd71d2100934e989d2f303246389fdcb",
     "https://bcr.bazel.build/modules/rules_batch/0.1.1/source.json": "7280584357144d887d386f436ea0e8f9629a68d6396458f65f5fb4e49d8a185d",
     "https://bcr.bazel.build/modules/rules_cc/0.2.27/MODULE.bazel": "99483699eeba3ec1159e938d724134762e748e8dc16dd0d8cbcc3d01a3d19440",
     "https://bcr.bazel.build/modules/rules_cc/0.2.27/source.json": "a1e5e45c8a56ec19fadf109ef34abb06979982badf55a504d3f82a1258d83e3f",
     "https://bcr.bazel.build/modules/rules_cuda/0.3.0/MODULE.bazel": "46123ed5d0133b178bba7dc3a338f4fc5f5aee501171ac72e36c5c8ec1f47b8a",
     "https://bcr.bazel.build/modules/rules_cuda/0.3.0/source.json": "15f7869652f5bcae8ab115f0eaab40b086a6435555997cc96e2cea47852741b6",
-    "https://bcr.bazel.build/modules/rules_dotnet/0.22.1/MODULE.bazel": "0faeb8532d178e34ad0e461d7ec1a9d08f3e5c6c81b8791d5fff5aee356adcb2",
-    "https://bcr.bazel.build/modules/rules_dotnet/0.22.1/source.json": "a1d2ad8cd886f716d7707925f3628178830c7df644a47fce711732d9e03fde0c",
+    "https://bcr.bazel.build/modules/rules_dotnet/0.22.2/MODULE.bazel": "ba1ef25468b67f7bace84064ac50a8380d9140e979a09b0548e7b29918b953be",
+    "https://bcr.bazel.build/modules/rules_dotnet/0.22.2/source.json": "2d493ac6964cbfdd58e2b9ae9512459cecfb85d52c344e96319e1aa04143d794",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6",
-    "https://bcr.bazel.build/modules/rules_go/0.63.0/MODULE.bazel": "a2079e783a5d2715a90e6e2970ec8ffd717a487ff2aecb5f553e3975c5294a21",
-    "https://bcr.bazel.build/modules/rules_go/0.63.0/source.json": "5bf37b45c440ac03abad0cbfa8b8b8dd89cc4e82bc8305f468b8436fa58bae78",
-    "https://bcr.bazel.build/modules/rules_java/9.7.0/MODULE.bazel": "3ce6bd55fdd4fcb3323197736b7d976e0eedcc0eea78ca6186d20d314ba12e12",
-    "https://bcr.bazel.build/modules/rules_java/9.7.0/source.json": "23b356565156e0fbc71e5dad7cf8e1b951466b7ae3fd731cb1d2c95ca82b1d70",
+    "https://bcr.bazel.build/modules/rules_go/0.64.2/MODULE.bazel": "178287400ec88bc4e20c048b5cf9b8e619d9879eb6118592f8572e49d5342c74",
+    "https://bcr.bazel.build/modules/rules_go/0.64.2/source.json": "322caa7c76104d7c03d5b3cc097836b47ab20c5f14b92b6c6bdcffe6a2e732d2",
+    "https://bcr.bazel.build/modules/rules_java/9.9.0/MODULE.bazel": "6b2092957b4849ffcbb84d5c7fe0d5a4582f5e3062bc84d607122ac4ef832e55",
+    "https://bcr.bazel.build/modules/rules_java/9.9.0/source.json": "9c4e694db18812d19b5c1e279ba9dffc1adc3fcac163896829f374a7c426fe12",
     "https://bcr.bazel.build/modules/rules_julia/0.8.0/MODULE.bazel": "8d0283ad5e93092dcf7f1c6320c844b30cae1e1b52c7a15c221da090a98f02d4",
     "https://bcr.bazel.build/modules/rules_julia/0.8.0/source.json": "8911ab3baabdf30d74a36423ab2890d9d6b32b0174afd1807b7ba7bfaee06a8b",
     "https://bcr.bazel.build/modules/rules_jvm_external/7.1/MODULE.bazel": "e151b1beaa45bfc9e5de4df637d980e27039eb2b1092a95972bf2adbf99ac1a0",
@@ -165,16 +167,16 @@
     "https://bcr.bazel.build/modules/rules_pkg/1.0.1/MODULE.bazel": "5b1df97dbc29623bccdf2b0dcd0f5cb08e2f2c9050aab1092fd39a41e82686ff",
     "https://bcr.bazel.build/modules/rules_pkg/1.1.0/MODULE.bazel": "9db8031e71b6ef32d1846106e10dd0ee2deac042bd9a2de22b4761b0c3036453",
     "https://bcr.bazel.build/modules/rules_pkg/1.1.0/source.json": "fef768df13a92ce6067e1cd0cdc47560dace01354f1d921cfb1d632511f7d608",
-    "https://bcr.bazel.build/modules/rules_powershell/0.2.0/MODULE.bazel": "560a9c24b9a02a1ac48ac957e7967cd894a88052f8a4751e31c08654481c557a",
-    "https://bcr.bazel.build/modules/rules_powershell/0.2.0/source.json": "99ba7204c1beebdf48196372d9cb31ad53ef68dae252f703c9a86cd6a3d9cf8a",
+    "https://bcr.bazel.build/modules/rules_powershell/0.3.1/MODULE.bazel": "7b5d1e9af3dfb763d4acfa8640743285e28eee32701ac94154158a3c2a31ea25",
+    "https://bcr.bazel.build/modules/rules_powershell/0.3.1/source.json": "3e9e4e97862b758d1b1c1eaa6fb7e6f4abea423dba0b3db2dfe8ccb2a9008f52",
     "https://bcr.bazel.build/modules/rules_proto/7.1.0/MODULE.bazel": "002d62d9108f75bb807cd56245d45648f38275cb3a99dcd45dfb864c5d74cb96",
     "https://bcr.bazel.build/modules/rules_proto/7.1.0/source.json": "39f89066c12c24097854e8f57ab8558929f9c8d474d34b2c00ac04630ad8940e",
     "https://bcr.bazel.build/modules/rules_python/1.9.0/MODULE.bazel": "afc3a05f29f09f2d3ee95ad99a145250dab41a2b2d8d6f82cc91936b3213282c",
     "https://bcr.bazel.build/modules/rules_python/1.9.0/source.json": "3921ea0b65298d51aead5b9e4a82203d7be9b5918619b58b53f1c259f4e63169",
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/MODULE.bazel": "d44fec647d0aeb67b9f3b980cf68ba634976f3ae7ccd6c07d790b59b87a4f251",
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/source.json": "37c10335f2361c337c5c1f34ed36d2da70534c23088062b33a8bdaab68aa9dea",
-    "https://bcr.bazel.build/modules/rules_ruby/0.28.0/MODULE.bazel": "0a5fe26ae37e2f19b9f50e690f3759cca576f3e6ffbe1d144c0621ddecd11ef4",
-    "https://bcr.bazel.build/modules/rules_ruby/0.28.0/source.json": "669eca6ff4ba27682d2c74852c87934f0c11a029b779123d1de61a3ee255a433",
+    "https://bcr.bazel.build/modules/rules_ruby/0.29.0/MODULE.bazel": "4cdfe6c4891b8f2b096b12df16d990fc7c0631dceac744e22c6df4fd3444a621",
+    "https://bcr.bazel.build/modules/rules_ruby/0.29.0/source.json": "c4c5d42b6886c103f8cc98a7adafebf0b69f15337cdeea85da4710a472bc77b8",
     "https://bcr.bazel.build/modules/rules_rust/0.74.0/MODULE.bazel": "6e6fa04d7c8202f9cd63205ec9f96da39382a4ac971ee1d7a900fe8e1f68be17",
     "https://bcr.bazel.build/modules/rules_rust/0.74.0/source.json": "04eac31b4536eb23dd8e8e8ca7e079d3c1c4ac99934d38aa54bbae36917c7507",
     "https://bcr.bazel.build/modules/rules_rust_prost/0.74.0/MODULE.bazel": "a108aad6339553a73d7b5dca055dd6ac71fa21aad034789dfa3bdcbc7d7686fc",
@@ -230,7 +232,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "O4EbAWpimA2C4tGXsfOYRpOS4MCr+Nitzp0dE5xIN9M=",
+        "bzlTransitiveDigest": "whCPHfzyEk1uTnojJiadReTHQBgfbZR6ZGIRc/o0beE=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -262,11 +264,11 @@
             "repoRuleId": "@@//android/sdk:repos.bzl%_android_build_tools_repo",
             "attributes": {
               "anchor": "source.properties",
-              "archive": "build-tools_r34-linux.zip",
-              "canonical_id": "dx-android-build-tools-archive:https://dl.google.com/android/repository/build-tools_r34-linux.zip",
-              "directory": "android-14",
-              "sha256": "e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f",
-              "url": "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
+              "archive": "build-tools_r35_linux.zip",
+              "canonical_id": "dx-android-build-tools-archive:https://dl.google.com/android/repository/build-tools_r35_linux.zip",
+              "directory": "android-15",
+              "sha256": "bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88",
+              "url": "https://dl.google.com/android/repository/build-tools_r35_linux.zip"
             }
           },
           "dx_android_platform": {
@@ -296,7 +298,7 @@
     },
     "//qt/sdk:repos.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "PRwi3HS5EZgprqGmDOalLK6OWE2LMkufAIUVDfxAHb8=",
+        "bzlTransitiveDigest": "RheLRjJLJiiO8uY6zrx2bulqW2oVq2FVdYCYFpTPMwA=",
         "usagesDigest": "ZyxKO5wKskF3fwGkgqmzih9a2YiEctJak9LIrVyJAa8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -368,7 +370,7 @@
     },
     "//quality/artifacts:extension.bzl%dx_tools": {
       "general": {
-        "bzlTransitiveDigest": "kRBreJ08Oxwws8lO+WhhAmdBOBcLdLY9pW1ZJNDil+E=",
+        "bzlTransitiveDigest": "yrvBAFFzDyr1BCHf3qqFMR6blYsv7CVHoFnBkHAS3B4=",
         "usagesDigest": "gFQzqitdJKL+sOU8Lib2o7Lz3uaDcnGnSUnqrb+uZys=",
         "recordedInputs": [
           "REPO_MAPPING:,platforms platforms"
@@ -418,6 +420,17 @@
               "executable_sha256": "54ca21be3de4c7cfa26914aa8b61bd76bf573ef3caac5f80d110558cdf241718"
             }
           },
+          "dx_actionlint_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_arm64.zip",
+              "sha256": "cadcf7ea4efe3a68728893813643cebe1185e5b1d4be5b96245f65c9a4d5ea41",
+              "asset": "actionlint_1.7.12_windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "actionlint.exe",
+              "executable_sha256": "dc172c9dd32275b4a563143a318a48c91dff44fabafb23b7d1a05ed9c106a488"
+            }
+          },
           "dx_biome_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -460,6 +473,17 @@
               "archive_format": "none",
               "executable": "biome-win32-x64.exe",
               "executable_sha256": "59f88d04ab25f8634639c337ef70a79927504b6379a1ec3ff4e87f7c15dd5dce"
+            }
+          },
+          "dx_biome_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-win32-arm64.exe",
+              "sha256": "e0148babfa207b79bc9ed50c22479722e314ae07e989c9bdae9611cd3c6511bf",
+              "asset": "biome-win32-arm64.exe",
+              "archive_format": "none",
+              "executable": "biome-win32-arm64.exe",
+              "executable_sha256": "e0148babfa207b79bc9ed50c22479722e314ae07e989c9bdae9611cd3c6511bf"
             }
           },
           "dx_buf_linux_x86_64": {
@@ -506,6 +530,17 @@
               "executable_sha256": "6e8f6d043e520bc81cae7b85d4cd6d93e57716a8a9842d5d18200191ee259cb5"
             }
           },
+          "dx_buf_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bufbuild/buf/releases/download/v1.72.0/buf-Windows-arm64.exe",
+              "sha256": "cc06910c1b69715b598fc8d1958538c86b656c05f6dd0a516dfa90c325dcbead",
+              "asset": "buf-Windows-arm64.exe",
+              "archive_format": "none",
+              "executable": "buf-Windows-arm64.exe",
+              "executable_sha256": "cc06910c1b69715b598fc8d1958538c86b656c05f6dd0a516dfa90c325dcbead"
+            }
+          },
           "dx_buildifier_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -548,6 +583,17 @@
               "archive_format": "none",
               "executable": "buildifier-windows-amd64.exe",
               "executable_sha256": "f4ecb9c73de2bc38b845d4ee27668f6248c4813a6647db4b4931a7556052e4e1"
+            }
+          },
+          "dx_buildifier_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bazel-contrib/buildtools/releases/download/v8.5.1/buildifier-windows-arm64.exe",
+              "sha256": "55a276ad8b1ff46be48bf64e432264034ea69a45aa3914e89c1d1936f5c2d85c",
+              "asset": "buildifier-windows-arm64.exe",
+              "archive_format": "none",
+              "executable": "buildifier-windows-arm64.exe",
+              "executable_sha256": "55a276ad8b1ff46be48bf64e432264034ea69a45aa3914e89c1d1936f5c2d85c"
             }
           },
           "dx_cue_linux_x86_64": {
@@ -594,6 +640,17 @@
               "executable_sha256": "a2452301a1abeaec8b46d4ce13b5ad5875851d447bcaeda43c556418b9b57e08"
             }
           },
+          "dx_cue_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cue-lang/cue/releases/download/v0.17.1/cue_v0.17.1_windows_arm64.zip",
+              "sha256": "db88b2c302be1829e653e20ea87e3f1adc10ae2052d58fe87d21d0ed97102e51",
+              "asset": "cue_v0.17.1_windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "cue.exe",
+              "executable_sha256": "3c8f78a928c6b6039194ea5c11b44bd587b804c8489526ee3c7150b330d09959"
+            }
+          },
           "dx_gitleaks_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -636,6 +693,116 @@
               "archive_format": "zip",
               "executable": "gitleaks.exe",
               "executable_sha256": "17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c"
+            }
+          },
+          "dx_gitleaks_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_arm64.zip",
+              "sha256": "b95f5e4f5c425cedca7ee203d9afd29597e692c4924a12ed42f970537c72cc0f",
+              "asset": "gitleaks_8.30.1_windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "gitleaks.exe",
+              "executable_sha256": "200df852fdecbedb19a33960657333cba5e231740bc8968972b507b50f93b194"
+            }
+          },
+          "dx_checkmake_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.linux.amd64",
+              "sha256": "e2effb876913f3ee2caef0ba35f6202c5e8a3cd55a077d8d2b9ce2034257b6af",
+              "asset": "checkmake-v0.3.2.linux.amd64",
+              "archive_format": "none",
+              "executable": "checkmake-v0.3.2.linux.amd64",
+              "executable_sha256": "e2effb876913f3ee2caef0ba35f6202c5e8a3cd55a077d8d2b9ce2034257b6af"
+            }
+          },
+          "dx_checkmake_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.linux.arm64",
+              "sha256": "409167c4abb99407bd232c3bbd351b8a39df57997feafde5a08bddffb0f2dcb4",
+              "asset": "checkmake-v0.3.2.linux.arm64",
+              "archive_format": "none",
+              "executable": "checkmake-v0.3.2.linux.arm64",
+              "executable_sha256": "409167c4abb99407bd232c3bbd351b8a39df57997feafde5a08bddffb0f2dcb4"
+            }
+          },
+          "dx_checkmake_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.darwin.arm64",
+              "sha256": "d5dab7169d1cb246b380ed5e7fc1e6aded301d453db258f858e774422d25961f",
+              "asset": "checkmake-v0.3.2.darwin.arm64",
+              "archive_format": "none",
+              "executable": "checkmake-v0.3.2.darwin.arm64",
+              "executable_sha256": "d5dab7169d1cb246b380ed5e7fc1e6aded301d453db258f858e774422d25961f"
+            }
+          },
+          "dx_checkmake_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.amd64.exe",
+              "sha256": "6adf4bde2dbfe8001ecf2918abfe02f7a57191568f1d185537eccd9c59625dca",
+              "asset": "checkmake-v0.3.2.windows.amd64.exe",
+              "archive_format": "none",
+              "executable": "checkmake-v0.3.2.windows.amd64.exe",
+              "executable_sha256": "6adf4bde2dbfe8001ecf2918abfe02f7a57191568f1d185537eccd9c59625dca"
+            }
+          },
+          "dx_checkmake_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/checkmake/checkmake/releases/download/v0.3.2/checkmake-v0.3.2.windows.arm64.exe",
+              "sha256": "571b6440776236a3626c5fc9aeaef7da78eee625683f181af89439028996c611",
+              "asset": "checkmake-v0.3.2.windows.arm64.exe",
+              "archive_format": "none",
+              "executable": "checkmake-v0.3.2.windows.arm64.exe",
+              "executable_sha256": "571b6440776236a3626c5fc9aeaef7da78eee625683f181af89439028996c611"
+            }
+          },
+          "dx_tflint_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_amd64.zip",
+              "sha256": "d4c545ed2e29d6338604b586f34f544f380f70f243aa72f7b484713835eaec61",
+              "asset": "tflint_linux_amd64.zip",
+              "archive_format": "zip",
+              "executable": "tflint",
+              "executable_sha256": "2b481cac4ffb8de9a2eb076c508060df0be1ac516864dbc939d5406b663edd7d"
+            }
+          },
+          "dx_tflint_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_linux_arm64.zip",
+              "sha256": "843017c47a98be1de4d88fa038daa293770fe25cd01656c4f08b2e30d1d3b3a0",
+              "asset": "tflint_linux_arm64.zip",
+              "archive_format": "zip",
+              "executable": "tflint",
+              "executable_sha256": "d6cf983371d8a04e791ffb3a3c34e24c9b1c030dd35370b4c13370468af966c0"
+            }
+          },
+          "dx_tflint_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_darwin_arm64.zip",
+              "sha256": "5a71c63481ba56760864298011fdb7317a9ae80a0bbaeceefa35883c7f62ac71",
+              "asset": "tflint_darwin_arm64.zip",
+              "archive_format": "zip",
+              "executable": "tflint",
+              "executable_sha256": "64e13360557c3235ba27bd816196d2b108f25cab76917dd3917d8613ff8e16db"
+            }
+          },
+          "dx_tflint_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/terraform-linters/tflint/releases/download/v0.65.0/tflint_windows_amd64.zip",
+              "sha256": "292e760adf0e9c7e0f10ddeb0f6add67fd6d2c68b5449fdf766ff6ffddce465c",
+              "asset": "tflint_windows_amd64.zip",
+              "archive_format": "zip",
+              "executable": "tflint.exe",
+              "executable_sha256": "e3fac0d1c3c1690fbdfb42224c949fa8aeb9aa861e3508ed3eca1045e97791bb"
             }
           },
           "dx_hadolint_linux_x86_64": {
@@ -726,6 +893,127 @@
               "executable_sha256": "16f5862cdf64ef3cd04a6e9332305d0c1480878173dbf402409108e5189d1db7"
             }
           },
+          "dx_jsonnetfmt_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+              "sha256": "663d4b9258e201ce9471a02e329167027e68bf4063192a937d83d8b6bac8b044",
+              "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnetfmt.exe",
+              "executable_sha256": "2aa9ee71de55e24271972fde97051e4327d0c861b80ebb91788d9c93e37f95e8"
+            }
+          },
+          "dx_jsonnet_lint_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_amd64.tar.gz",
+              "sha256": "e87a93ea44e34da92c15636205c7f2240bf3ac92d00ccb855dbb4e7e03ea6941",
+              "asset": "go-jsonnet_0.22.0_linux_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnet-lint",
+              "executable_sha256": "cff41a41c7c51fe4f80356aa0b0a6023f3d6ec6aa074e28f7f266d6c2ff24c85"
+            }
+          },
+          "dx_jsonnet_lint_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_linux_arm64.tar.gz",
+              "sha256": "3016b049254cb92548ba99304b6f44ec3795e6173f908e3ce3c5add57243fe20",
+              "asset": "go-jsonnet_0.22.0_linux_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnet-lint",
+              "executable_sha256": "e49bfced776c2f0bf73ca224e717fc33a5e519e0c8b5d57b9d735f34d1701fa8"
+            }
+          },
+          "dx_jsonnet_lint_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+              "sha256": "112534191b6e27f2ae01bb80c6ab82950fb7bf5772e2e81c5472f59a069700f5",
+              "asset": "go-jsonnet_0.22.0_darwin_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnet-lint",
+              "executable_sha256": "03b3276a0aa2a52209527aa9f42f03b739fbe33561c7179ad3cad2e4aef938d4"
+            }
+          },
+          "dx_jsonnet_lint_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_amd64.tar.gz",
+              "sha256": "277b83ddbe836a627dcde0655720aa42b02277fdf3a9cdaebeef2a53e98599b1",
+              "asset": "go-jsonnet_0.22.0_windows_amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnet-lint.exe",
+              "executable_sha256": "823fb2438205ffce1c35ea4bffb65fcd6cc4b667261afa13e8f378c665fdf423"
+            }
+          },
+          "dx_jsonnet_lint_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/go-jsonnet/releases/download/v0.22.0/go-jsonnet_0.22.0_windows_arm64.tar.gz",
+              "sha256": "663d4b9258e201ce9471a02e329167027e68bf4063192a937d83d8b6bac8b044",
+              "asset": "go-jsonnet_0.22.0_windows_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "jsonnet-lint.exe",
+              "executable_sha256": "998d055410221fc70ad915fb68f79c3578136456d3dc50c012c76ceddbfbc437"
+            }
+          },
+          "dx_helm_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz",
+              "sha256": "0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b",
+              "asset": "helm-v4.3.1-linux-amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "linux-amd64/helm",
+              "executable_sha256": "b66cb19f2b31f9d427632ea6c4b4a1ff89b74ecaeaee323cd166da41a7af53bd"
+            }
+          },
+          "dx_helm_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz",
+              "sha256": "8cf8f66ecbc252ac8f7f06cca68aba88508ddfde3a6a34feb1678ad1694b4f88",
+              "asset": "helm-v4.3.1-linux-arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "linux-arm64/helm",
+              "executable_sha256": "d459cbff1331af4326a6f97ea83c547742b4056dac7404f20fc436c084178c43"
+            }
+          },
+          "dx_helm_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://get.helm.sh/helm-v4.3.1-darwin-arm64.tar.gz",
+              "sha256": "6b4e61c8cd27d99e5a801e63ff25dd5c70b36875c2cd659d3e9ce6b76fc23198",
+              "asset": "helm-v4.3.1-darwin-arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "darwin-arm64/helm",
+              "executable_sha256": "c62da98a8e5728f5acc08b66bbe5c3ad1cb6b71d3d31b7bf939d9f4b6628c96d"
+            }
+          },
+          "dx_helm_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://get.helm.sh/helm-v4.3.1-windows-amd64.zip",
+              "sha256": "fcfd7b796dcf0f225abc40b5636a3b01f55f3de2fb1dfb18475df94e62c14112",
+              "asset": "helm-v4.3.1-windows-amd64.zip",
+              "archive_format": "zip",
+              "executable": "windows-amd64/helm.exe",
+              "executable_sha256": "912d7210c880c48b2ac91102b1297d6ac637edd9aaaf05beb12da0b496b53ba9"
+            }
+          },
+          "dx_helm_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://get.helm.sh/helm-v4.3.1-windows-arm64.zip",
+              "sha256": "373edaae86db70342ef39b014e2e7764ea8f9cff08714843daa5e55b5ee492f2",
+              "asset": "helm-v4.3.1-windows-arm64.zip",
+              "archive_format": "zip",
+              "executable": "windows-arm64/helm.exe",
+              "executable_sha256": "82e20e023033d086f12b56fe8edaeb6f6ddba72e54152e28d103d259c795c0f1"
+            }
+          },
           "dx_keep_sorted_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -770,6 +1058,61 @@
               "executable_sha256": "adbbea4b3eac632fc5da1053b31377f74516a43fb3b00c325dbe37f3fc311e45"
             }
           },
+          "dx_kubeconform_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz",
+              "sha256": "9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883",
+              "asset": "kubeconform-linux-amd64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "kubeconform",
+              "executable_sha256": "457722b36e98d7bdbc91525e594951ef5d7ea3a29da2d13b9b28a2fb8a5097b7"
+            }
+          },
+          "dx_kubeconform_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-arm64.tar.gz",
+              "sha256": "1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87",
+              "asset": "kubeconform-linux-arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "kubeconform",
+              "executable_sha256": "7e77b104b3ae696389f91971c60fd58c72f1f3dc218f139df67a1b070959c012"
+            }
+          },
+          "dx_kubeconform_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-darwin-arm64.tar.gz",
+              "sha256": "f84f4dfbebf4a6b0b230385fa065a39ea35e02608c2b50d025dcf64775a69d67",
+              "asset": "kubeconform-darwin-arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "kubeconform",
+              "executable_sha256": "858ceb584915c256262090195eda2579299149050c5c6a9788d0985076832313"
+            }
+          },
+          "dx_kubeconform_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-amd64.zip",
+              "sha256": "e3f56102bcf4f50b034a567e2482a1c5330799983ddd655952310211aef73d93",
+              "asset": "kubeconform-windows-amd64.zip",
+              "archive_format": "zip",
+              "executable": "kubeconform.exe",
+              "executable_sha256": "642bf8ea0d614a8c75d2bd012eb6042a90589ff846c69f04863afa446b30f2c1"
+            }
+          },
+          "dx_kubeconform_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-windows-arm64.zip",
+              "sha256": "4f3c9889f5f3a1e4aba84f9212f599ad3164d1fb32175fba3a53b505b0fffd0f",
+              "asset": "kubeconform-windows-arm64.zip",
+              "archive_format": "zip",
+              "executable": "kubeconform.exe",
+              "executable_sha256": "604f33351f2f476f4311ed9a4ac274ab9fa4d0087ee1158c1440337e489b8b4e"
+            }
+          },
           "dx_mdbook_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -812,6 +1155,127 @@
               "archive_format": "zip",
               "executable": "mdbook.exe",
               "executable_sha256": "8400c017423686ad8025532baaf4b1683b8caf7147fbe6fc4cddf7a85902cbde"
+            }
+          },
+          "dx_nixfmt_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/NixOS/nixfmt/releases/download/v1.5.0/nixfmt",
+              "sha256": "aa029247ab89c897e2f3948463967553f902f86e86e3402fa28cb29c4a44f745",
+              "asset": "nixfmt",
+              "archive_format": "none",
+              "executable": "nixfmt",
+              "executable_sha256": "aa029247ab89c897e2f3948463967553f902f86e86e3402fa28cb29c4a44f745"
+            }
+          },
+          "dx_ormolu_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-linux.zip",
+              "sha256": "367eb4969986504cf171f71f91e24ea5d7d9d97c41701e8e6eef9b642fd0d201",
+              "asset": "ormolu-x86_64-linux.zip",
+              "archive_format": "zip",
+              "executable": "ormolu",
+              "executable_sha256": "40eed9dcc3413c136725d8c2e349b9c86ee7ce97d2d2347309af47c92e7bf6c3"
+            }
+          },
+          "dx_ormolu_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/tweag/ormolu/releases/download/0.9.0.0/ormolu-x86_64-windows.zip",
+              "sha256": "afcde0c0a9bace9c8ae9bd98d027620b2901947670dfc54f63fa44c221d5b19d",
+              "asset": "ormolu-x86_64-windows.zip",
+              "archive_format": "zip",
+              "executable": "ormolu.exe",
+              "executable_sha256": "2cfcb3bc8a24684bb094d8f346681d818468f9e633ca51f988cd7f847ed903b4"
+            }
+          },
+          "dx_opa_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_amd64_static",
+              "sha256": "2ab571f367f293bb19523b76f92f1945bbf245003392c7f392903f95c2b9b630",
+              "asset": "opa_linux_amd64_static",
+              "archive_format": "none",
+              "executable": "opa_linux_amd64_static",
+              "executable_sha256": "2ab571f367f293bb19523b76f92f1945bbf245003392c7f392903f95c2b9b630"
+            }
+          },
+          "dx_opa_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_linux_arm64_static",
+              "sha256": "810aa96e44f1f852d044888cf830324e44eafd0f510345339011347ab4deaab1",
+              "asset": "opa_linux_arm64_static",
+              "archive_format": "none",
+              "executable": "opa_linux_arm64_static",
+              "executable_sha256": "810aa96e44f1f852d044888cf830324e44eafd0f510345339011347ab4deaab1"
+            }
+          },
+          "dx_opa_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_darwin_arm64_static",
+              "sha256": "4c105208a9282f590385bccbe600875c011f0894ccf9431782dfe855e1f99aa6",
+              "asset": "opa_darwin_arm64_static",
+              "archive_format": "none",
+              "executable": "opa_darwin_arm64_static",
+              "executable_sha256": "4c105208a9282f590385bccbe600875c011f0894ccf9431782dfe855e1f99aa6"
+            }
+          },
+          "dx_opa_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/open-policy-agent/opa/releases/download/v1.21.4/opa_windows_amd64.exe",
+              "sha256": "efad1c0ee4e3150d213f7babdaff3440b18b93c7368b465fca42cda392947f7c",
+              "asset": "opa_windows_amd64.exe",
+              "archive_format": "none",
+              "executable": "opa_windows_amd64.exe",
+              "executable_sha256": "efad1c0ee4e3150d213f7babdaff3440b18b93c7368b465fca42cda392947f7c"
+            }
+          },
+          "dx_regal_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Linux_x86_64",
+              "sha256": "5e7d030064e307d54e6ffa3d85b8d9052d3d40b7afa10262c86c886f8a76559d",
+              "asset": "regal_Linux_x86_64",
+              "archive_format": "none",
+              "executable": "regal_Linux_x86_64",
+              "executable_sha256": "5e7d030064e307d54e6ffa3d85b8d9052d3d40b7afa10262c86c886f8a76559d"
+            }
+          },
+          "dx_regal_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Linux_arm64",
+              "sha256": "d4fd44a191d5b12a5ab980f56d7eddfed0718129c43d1ede5e8dbc9d217fdcb8",
+              "asset": "regal_Linux_arm64",
+              "archive_format": "none",
+              "executable": "regal_Linux_arm64",
+              "executable_sha256": "d4fd44a191d5b12a5ab980f56d7eddfed0718129c43d1ede5e8dbc9d217fdcb8"
+            }
+          },
+          "dx_regal_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Darwin_arm64",
+              "sha256": "23a6e4ef62f288c53e65d770e9325e6d8a9c35ca3f33f6ffb5943c1f381ef540",
+              "asset": "regal_Darwin_arm64",
+              "archive_format": "none",
+              "executable": "regal_Darwin_arm64",
+              "executable_sha256": "23a6e4ef62f288c53e65d770e9325e6d8a9c35ca3f33f6ffb5943c1f381ef540"
+            }
+          },
+          "dx_regal_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/StyraInc/regal/releases/download/v0.43.0/regal_Windows_x86_64.exe",
+              "sha256": "7239b548b0298fd4538b2555cce9b09a359e4d77e12d31e4210b94f154c75215",
+              "asset": "regal_Windows_x86_64.exe",
+              "archive_format": "none",
+              "executable": "regal_Windows_x86_64.exe",
+              "executable_sha256": "7239b548b0298fd4538b2555cce9b09a359e4d77e12d31e4210b94f154c75215"
             }
           },
           "dx_pkl_linux_x86_64": {
@@ -900,6 +1364,17 @@
               "archive_format": "zip",
               "executable": "ruff.exe",
               "executable_sha256": "bf56979a91062b3d1862874d65cfc17157f0c55d89a9a6615ebbfac615a4a270"
+            }
+          },
+          "dx_ruff_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/astral-sh/ruff/releases/download/0.16.7/ruff-aarch64-pc-windows-msvc.zip",
+              "sha256": "34befde8f261aae96a1edf8e84eeafa09e2ffc0df7e3ccaae52bcf39d29bd233",
+              "asset": "ruff-aarch64-pc-windows-msvc.zip",
+              "archive_format": "zip",
+              "executable": "ruff.exe",
+              "executable_sha256": "4a1e8414d297ee4760b5649fb594dcb0381392db5265b32e50bd7c2a8c048b67"
             }
           },
           "dx_scalafmt_linux_x86_64": {
@@ -1034,6 +1509,50 @@
               "executable_sha256": "c8bda517ba1c640ce4a715c0fa665439ddbe4357ba5e9b77b0e51e70e2b9c94b"
             }
           },
+          "dx_stylua_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64-musl.zip",
+              "sha256": "48ee7db28346f96f4bd545e190ab080a88a7b5a664e97649cf5d5c60426f402d",
+              "asset": "stylua-linux-x86_64-musl.zip",
+              "archive_format": "zip",
+              "executable": "stylua",
+              "executable_sha256": "443b2e59a055f8c8d31f215e912f7099c14746e3f6ca1b6c329ac7ad29485587"
+            }
+          },
+          "dx_stylua_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-aarch64-musl.zip",
+              "sha256": "278495597e3827417f3af7b9ad38011ad4a5ec725503553160ab69b7301059bb",
+              "asset": "stylua-linux-aarch64-musl.zip",
+              "archive_format": "zip",
+              "executable": "stylua",
+              "executable_sha256": "46294bc22bb303e82314fa7247530acc909bb8068b661edfa88b578423872f8d"
+            }
+          },
+          "dx_stylua_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-macos-aarch64.zip",
+              "sha256": "dab9b66d340ca5ffc8225211f1dcf89b84783e09b8cbec8c518497eba81f3c42",
+              "asset": "stylua-macos-aarch64.zip",
+              "archive_format": "zip",
+              "executable": "stylua",
+              "executable_sha256": "c36d9bd2299c990d4fe9420a372a76b761f4b8db054dda248f778f59ddef4149"
+            }
+          },
+          "dx_stylua_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-windows-x86_64.zip",
+              "sha256": "fd13b4014e3b779c244bbc03f2c282e357f15bc526de6a6fa5ecbc447538313c",
+              "asset": "stylua-windows-x86_64.zip",
+              "archive_format": "zip",
+              "executable": "stylua.exe",
+              "executable_sha256": "8be0383e979b3c699bf6bfbfc0770038534d071b0479fee188636c4b54cd338b"
+            }
+          },
           "dx_taplo_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -1076,6 +1595,17 @@
               "archive_format": "zip",
               "executable": "taplo.exe",
               "executable_sha256": "12660d24becf05a78b39133112e91d1bd319b22b8e49660448c222a6858a6827"
+            }
+          },
+          "dx_taplo_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-windows-aarch64.zip",
+              "sha256": "65a50c5d3b78f6014e6bc6d64eb6dc1d4992bc236589c9bb29e5609fc3454674",
+              "asset": "taplo-windows-aarch64.zip",
+              "archive_format": "zip",
+              "executable": "taplo.exe",
+              "executable_sha256": "467616481c9c9b96b5a80385c6ec5bfee03b214ab62538d9ed1175cb286702de"
             }
           },
           "dx_terraform_linux_x86_64": {
@@ -1122,6 +1652,17 @@
               "executable_sha256": "31825d5276c00019b22f24796862b1d1989e22ec918bb048d2438e6aba47818a"
             }
           },
+          "dx_terraform_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://releases.hashicorp.com/terraform/1.16.1/terraform_1.16.1_windows_arm64.zip",
+              "sha256": "a1777d9e6bce7764843c23a88afaaaa68c43745dcad76be7bef0cd184c4475d9",
+              "asset": "terraform_1.16.1_windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "terraform.exe",
+              "executable_sha256": "cf8e1383f9020901db233218193be427b2b1eb5b206f3ff10a3340712028df72"
+            }
+          },
           "dx_ty_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -1164,6 +1705,116 @@
               "archive_format": "zip",
               "executable": "ty.exe",
               "executable_sha256": "f2937abf5627a0f258d155c2425563ab1fdbb2a2df6104637977e92b2eaa0cef"
+            }
+          },
+          "dx_ty_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/astral-sh/ty/releases/download/0.0.80/ty-aarch64-pc-windows-msvc.zip",
+              "sha256": "d9b4ae287d5763ca0f7f4cbf7e7f504e68ed88490c8aff57934497fb19fcd6d9",
+              "asset": "ty-aarch64-pc-windows-msvc.zip",
+              "archive_format": "zip",
+              "executable": "ty.exe",
+              "executable_sha256": "96b3d6c006dbd38a8a49f96bc66859fcd8903daf55bd65e7c73af34d01487165"
+            }
+          },
+          "dx_latexindent_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-linux",
+              "sha256": "6a9a16edcf1242430015316b78498852eba4b700b728f646fc58d654cdd1edbe",
+              "asset": "latexindent-linux",
+              "archive_format": "none",
+              "executable": "latexindent-linux",
+              "executable_sha256": "6a9a16edcf1242430015316b78498852eba4b700b728f646fc58d654cdd1edbe"
+            }
+          },
+          "dx_latexindent_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-linux-arm64",
+              "sha256": "d95dab15896d7088ec59c76b8f9595c4e8f8d53190a7587402b114748a2ca110",
+              "asset": "latexindent-linux-arm64",
+              "archive_format": "none",
+              "executable": "latexindent-linux-arm64",
+              "executable_sha256": "d95dab15896d7088ec59c76b8f9595c4e8f8d53190a7587402b114748a2ca110"
+            }
+          },
+          "dx_latexindent_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent-macos",
+              "sha256": "8b4c2b3b1fe7986fd294f6caf6e3c95f8090d2ad10d4f31a3af4f7c27e3521a9",
+              "asset": "latexindent-macos",
+              "archive_format": "none",
+              "executable": "latexindent-macos",
+              "executable_sha256": "8b4c2b3b1fe7986fd294f6caf6e3c95f8090d2ad10d4f31a3af4f7c27e3521a9"
+            }
+          },
+          "dx_latexindent_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/cmhughes/latexindent.pl/releases/download/V4.0.3/latexindent.exe",
+              "sha256": "6e6d60bb8df66b57fff0db954fcafdb911a88485c79ec19086f80622496dee9b",
+              "asset": "latexindent.exe",
+              "archive_format": "none",
+              "executable": "latexindent.exe",
+              "executable_sha256": "6e6d60bb8df66b57fff0db954fcafdb911a88485c79ec19086f80622496dee9b"
+            }
+          },
+          "dx_typstyle_linux_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-unknown-linux-gnu",
+              "sha256": "ea790059cd05016a6f4282386ab7b4fc92f83faa0f5126d8216df2562d7596fd",
+              "asset": "typstyle-x86_64-unknown-linux-gnu",
+              "archive_format": "none",
+              "executable": "typstyle-x86_64-unknown-linux-gnu",
+              "executable_sha256": "ea790059cd05016a6f4282386ab7b4fc92f83faa0f5126d8216df2562d7596fd"
+            }
+          },
+          "dx_typstyle_linux_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-unknown-linux-gnu",
+              "sha256": "4021f09180d04b804abfd6f5def3b09a0c63ecbb4d40e0d9b4ddd98e7b388f12",
+              "asset": "typstyle-aarch64-unknown-linux-gnu",
+              "archive_format": "none",
+              "executable": "typstyle-aarch64-unknown-linux-gnu",
+              "executable_sha256": "4021f09180d04b804abfd6f5def3b09a0c63ecbb4d40e0d9b4ddd98e7b388f12"
+            }
+          },
+          "dx_typstyle_macos_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-apple-darwin",
+              "sha256": "b3f7d55bf06f2b190a05ade3357ed62206aef5dabf12d205d158bc2bb203c975",
+              "asset": "typstyle-aarch64-apple-darwin",
+              "archive_format": "none",
+              "executable": "typstyle-aarch64-apple-darwin",
+              "executable_sha256": "b3f7d55bf06f2b190a05ade3357ed62206aef5dabf12d205d158bc2bb203c975"
+            }
+          },
+          "dx_typstyle_windows_x86_64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-x86_64-pc-windows-msvc.exe",
+              "sha256": "ec620da653e620968020768443bbe51acc96c65aa3fc15cd9f3a7610f2fbf782",
+              "asset": "typstyle-x86_64-pc-windows-msvc.exe",
+              "archive_format": "none",
+              "executable": "typstyle-x86_64-pc-windows-msvc.exe",
+              "executable_sha256": "ec620da653e620968020768443bbe51acc96c65aa3fc15cd9f3a7610f2fbf782"
+            }
+          },
+          "dx_typstyle_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/typstyle-rs/typstyle/releases/download/v0.15.2/typstyle-aarch64-pc-windows-msvc.exe",
+              "sha256": "5eb62b46d1651cbcb8d504703995d07a02e7f9d57ade089de3988ae9246f5d24",
+              "asset": "typstyle-aarch64-pc-windows-msvc.exe",
+              "archive_format": "none",
+              "executable": "typstyle-aarch64-pc-windows-msvc.exe",
+              "executable_sha256": "5eb62b46d1651cbcb8d504703995d07a02e7f9d57ade089de3988ae9246f5d24"
             }
           },
           "dx_uv_linux_x86_64": {
@@ -1210,6 +1861,17 @@
               "executable_sha256": "70742ae9bd9f64f984fd69126662cfda5c03558bcb40075b2263833e4075f744"
             }
           },
+          "dx_uv_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-pc-windows-msvc.zip",
+              "sha256": "13294e232ececbe709c06b74e6ced06f2a225ea5591476685362f22be56a50d5",
+              "asset": "uv-aarch64-pc-windows-msvc.zip",
+              "archive_format": "zip",
+              "executable": "uv.exe",
+              "executable_sha256": "d9c5f88091f0f53f9c26ddd64af5154c853ce69c87410e219180ad2fb0abcf73"
+            }
+          },
           "dx_vale_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -1254,6 +1916,17 @@
               "executable_sha256": "24ca0647d8b929d786cc371848fe1153e605361cd7dffa4badac9cdf33f99487"
             }
           },
+          "dx_vale_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/vale-cli/vale/releases/download/v3.20.0/vale_3.20.0_Windows_arm64.zip",
+              "sha256": "397cf247252f205145c991b339031a39d02d947d97ac48e6516bb62118ed411f",
+              "asset": "vale_3.20.0_Windows_arm64.zip",
+              "archive_format": "zip",
+              "executable": "vale.exe",
+              "executable_sha256": "097e5bfb09e4dfaf3a957b280a297ec3f6991b0560f4d66d14ad2a5b9c94d822"
+            }
+          },
           "dx_wasmtime_linux_x86_64": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
             "attributes": {
@@ -1296,6 +1969,17 @@
               "archive_format": "zip",
               "executable": "wasmtime-v49.0.2-x86_64-windows/wasmtime.exe",
               "executable_sha256": "51165ae46e2e4ca71b52efff33432d9e58db41bf236cb7c768adb03f653a7152"
+            }
+          },
+          "dx_wasmtime_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.2/wasmtime-v49.0.2-aarch64-windows.zip",
+              "sha256": "e3a5cf6a18b9af5e922f5e3434711278311b58da010765d9bb5b7885a1bf2095",
+              "asset": "wasmtime-v49.0.2-aarch64-windows.zip",
+              "archive_format": "zip",
+              "executable": "wasmtime-v49.0.2-aarch64-windows/wasmtime.exe",
+              "executable_sha256": "71c5d746f02bbe4994e6f85c8db1e8a695418d36816ed7d028a03f778ea8a3a0"
             }
           },
           "dx_wasmtime_macos_x86_64": {
@@ -1353,10 +2037,21 @@
               "executable_sha256": "24e901b6b37084da07f5ca09458d1b9d40e40cd950985dcb42aeeb72f9e9e549"
             }
           },
+          "dx_yamlfmt_windows_arm64": {
+            "repoRuleId": "@@//quality/artifacts:extension.bzl%_standalone_tool_repo",
+            "attributes": {
+              "url": "https://github.com/google/yamlfmt/releases/download/v0.21.0/yamlfmt_0.21.0_Windows_arm64.tar.gz",
+              "sha256": "c1e64d1c72ca8986bc5b8c8edd4ec89f0627804e7e08f8de9f4b484cb5cad897",
+              "asset": "yamlfmt_0.21.0_Windows_arm64.tar.gz",
+              "archive_format": "tar.gz",
+              "executable": "yamlfmt.exe",
+              "executable_sha256": "b9872f82cb12794a61bfbd9fc01035e3fa28eea4bd783e1581ad2199870e31ca"
+            }
+          },
           "dx_tools": {
             "repoRuleId": "@@//quality/artifacts:extension.bzl%_hub_repo",
             "attributes": {
-              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"hadolint\":{\"linux_arm64\":\"dx_hadolint_linux_arm64\",\"linux_x86_64\":\"dx_hadolint_linux_x86_64\",\"macos_arm64\":\"dx_hadolint_macos_arm64\",\"windows_x86_64\":\"dx_hadolint_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"mdbook\":{\"linux_arm64\":\"dx_mdbook_linux_arm64\",\"linux_x86_64\":\"dx_mdbook_linux_x86_64\",\"macos_arm64\":\"dx_mdbook_macos_arm64\",\"windows_x86_64\":\"dx_mdbook_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"wasmtime\":{\"linux_arm64\":\"dx_wasmtime_linux_arm64\",\"linux_x86_64\":\"dx_wasmtime_linux_x86_64\",\"macos_arm64\":\"dx_wasmtime_macos_arm64\",\"macos_x86_64\":\"dx_wasmtime_macos_x86_64\",\"windows_x86_64\":\"dx_wasmtime_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
+              "artifacts": "{\"actionlint\":{\"linux_arm64\":\"dx_actionlint_linux_arm64\",\"linux_x86_64\":\"dx_actionlint_linux_x86_64\",\"macos_arm64\":\"dx_actionlint_macos_arm64\",\"windows_arm64\":\"dx_actionlint_windows_arm64\",\"windows_x86_64\":\"dx_actionlint_windows_x86_64\"},\"biome\":{\"linux_arm64\":\"dx_biome_linux_arm64\",\"linux_x86_64\":\"dx_biome_linux_x86_64\",\"macos_arm64\":\"dx_biome_macos_arm64\",\"windows_arm64\":\"dx_biome_windows_arm64\",\"windows_x86_64\":\"dx_biome_windows_x86_64\"},\"buf\":{\"linux_arm64\":\"dx_buf_linux_arm64\",\"linux_x86_64\":\"dx_buf_linux_x86_64\",\"macos_arm64\":\"dx_buf_macos_arm64\",\"windows_arm64\":\"dx_buf_windows_arm64\",\"windows_x86_64\":\"dx_buf_windows_x86_64\"},\"buildifier\":{\"linux_arm64\":\"dx_buildifier_linux_arm64\",\"linux_x86_64\":\"dx_buildifier_linux_x86_64\",\"macos_arm64\":\"dx_buildifier_macos_arm64\",\"windows_arm64\":\"dx_buildifier_windows_arm64\",\"windows_x86_64\":\"dx_buildifier_windows_x86_64\"},\"checkmake\":{\"linux_arm64\":\"dx_checkmake_linux_arm64\",\"linux_x86_64\":\"dx_checkmake_linux_x86_64\",\"macos_arm64\":\"dx_checkmake_macos_arm64\",\"windows_arm64\":\"dx_checkmake_windows_arm64\",\"windows_x86_64\":\"dx_checkmake_windows_x86_64\"},\"cue\":{\"linux_arm64\":\"dx_cue_linux_arm64\",\"linux_x86_64\":\"dx_cue_linux_x86_64\",\"macos_arm64\":\"dx_cue_macos_arm64\",\"windows_arm64\":\"dx_cue_windows_arm64\",\"windows_x86_64\":\"dx_cue_windows_x86_64\"},\"gitleaks\":{\"linux_arm64\":\"dx_gitleaks_linux_arm64\",\"linux_x86_64\":\"dx_gitleaks_linux_x86_64\",\"macos_arm64\":\"dx_gitleaks_macos_arm64\",\"windows_arm64\":\"dx_gitleaks_windows_arm64\",\"windows_x86_64\":\"dx_gitleaks_windows_x86_64\"},\"hadolint\":{\"linux_arm64\":\"dx_hadolint_linux_arm64\",\"linux_x86_64\":\"dx_hadolint_linux_x86_64\",\"macos_arm64\":\"dx_hadolint_macos_arm64\",\"windows_x86_64\":\"dx_hadolint_windows_x86_64\"},\"helm\":{\"linux_arm64\":\"dx_helm_linux_arm64\",\"linux_x86_64\":\"dx_helm_linux_x86_64\",\"macos_arm64\":\"dx_helm_macos_arm64\",\"windows_arm64\":\"dx_helm_windows_arm64\",\"windows_x86_64\":\"dx_helm_windows_x86_64\"},\"jsonnet_lint\":{\"linux_arm64\":\"dx_jsonnet_lint_linux_arm64\",\"linux_x86_64\":\"dx_jsonnet_lint_linux_x86_64\",\"macos_arm64\":\"dx_jsonnet_lint_macos_arm64\",\"windows_arm64\":\"dx_jsonnet_lint_windows_arm64\",\"windows_x86_64\":\"dx_jsonnet_lint_windows_x86_64\"},\"jsonnetfmt\":{\"linux_arm64\":\"dx_jsonnetfmt_linux_arm64\",\"linux_x86_64\":\"dx_jsonnetfmt_linux_x86_64\",\"macos_arm64\":\"dx_jsonnetfmt_macos_arm64\",\"windows_arm64\":\"dx_jsonnetfmt_windows_arm64\",\"windows_x86_64\":\"dx_jsonnetfmt_windows_x86_64\"},\"keep_sorted\":{\"linux_arm64\":\"dx_keep_sorted_linux_arm64\",\"linux_x86_64\":\"dx_keep_sorted_linux_x86_64\",\"macos_arm64\":\"dx_keep_sorted_macos_arm64\",\"windows_x86_64\":\"dx_keep_sorted_windows_x86_64\"},\"kubeconform\":{\"linux_arm64\":\"dx_kubeconform_linux_arm64\",\"linux_x86_64\":\"dx_kubeconform_linux_x86_64\",\"macos_arm64\":\"dx_kubeconform_macos_arm64\",\"windows_arm64\":\"dx_kubeconform_windows_arm64\",\"windows_x86_64\":\"dx_kubeconform_windows_x86_64\"},\"latexindent\":{\"linux_arm64\":\"dx_latexindent_linux_arm64\",\"linux_x86_64\":\"dx_latexindent_linux_x86_64\",\"macos_arm64\":\"dx_latexindent_macos_arm64\",\"windows_x86_64\":\"dx_latexindent_windows_x86_64\"},\"mdbook\":{\"linux_arm64\":\"dx_mdbook_linux_arm64\",\"linux_x86_64\":\"dx_mdbook_linux_x86_64\",\"macos_arm64\":\"dx_mdbook_macos_arm64\",\"windows_x86_64\":\"dx_mdbook_windows_x86_64\"},\"nixfmt\":{\"linux_x86_64\":\"dx_nixfmt_linux_x86_64\"},\"opa\":{\"linux_arm64\":\"dx_opa_linux_arm64\",\"linux_x86_64\":\"dx_opa_linux_x86_64\",\"macos_arm64\":\"dx_opa_macos_arm64\",\"windows_x86_64\":\"dx_opa_windows_x86_64\"},\"ormolu\":{\"linux_x86_64\":\"dx_ormolu_linux_x86_64\",\"windows_x86_64\":\"dx_ormolu_windows_x86_64\"},\"pkl\":{\"linux_arm64\":\"dx_pkl_linux_arm64\",\"linux_x86_64\":\"dx_pkl_linux_x86_64\",\"macos_arm64\":\"dx_pkl_macos_arm64\",\"windows_x86_64\":\"dx_pkl_windows_x86_64\"},\"regal\":{\"linux_arm64\":\"dx_regal_linux_arm64\",\"linux_x86_64\":\"dx_regal_linux_x86_64\",\"macos_arm64\":\"dx_regal_macos_arm64\",\"windows_x86_64\":\"dx_regal_windows_x86_64\"},\"ruff\":{\"linux_arm64\":\"dx_ruff_linux_arm64\",\"linux_x86_64\":\"dx_ruff_linux_x86_64\",\"macos_arm64\":\"dx_ruff_macos_arm64\",\"windows_arm64\":\"dx_ruff_windows_arm64\",\"windows_x86_64\":\"dx_ruff_windows_x86_64\"},\"scalafmt\":{\"linux_arm64\":\"dx_scalafmt_linux_arm64\",\"linux_x86_64\":\"dx_scalafmt_linux_x86_64\",\"macos_arm64\":\"dx_scalafmt_macos_arm64\",\"windows_x86_64\":\"dx_scalafmt_windows_x86_64\"},\"shellcheck\":{\"linux_arm64\":\"dx_shellcheck_linux_arm64\",\"linux_x86_64\":\"dx_shellcheck_linux_x86_64\",\"macos_arm64\":\"dx_shellcheck_macos_arm64\",\"windows_x86_64\":\"dx_shellcheck_windows_x86_64\"},\"shfmt\":{\"linux_arm64\":\"dx_shfmt_linux_arm64\",\"linux_x86_64\":\"dx_shfmt_linux_x86_64\",\"macos_arm64\":\"dx_shfmt_macos_arm64\",\"windows_x86_64\":\"dx_shfmt_windows_x86_64\"},\"stylua\":{\"linux_arm64\":\"dx_stylua_linux_arm64\",\"linux_x86_64\":\"dx_stylua_linux_x86_64\",\"macos_arm64\":\"dx_stylua_macos_arm64\",\"windows_x86_64\":\"dx_stylua_windows_x86_64\"},\"taplo\":{\"linux_arm64\":\"dx_taplo_linux_arm64\",\"linux_x86_64\":\"dx_taplo_linux_x86_64\",\"macos_arm64\":\"dx_taplo_macos_arm64\",\"windows_arm64\":\"dx_taplo_windows_arm64\",\"windows_x86_64\":\"dx_taplo_windows_x86_64\"},\"terraform\":{\"linux_arm64\":\"dx_terraform_linux_arm64\",\"linux_x86_64\":\"dx_terraform_linux_x86_64\",\"macos_arm64\":\"dx_terraform_macos_arm64\",\"windows_arm64\":\"dx_terraform_windows_arm64\",\"windows_x86_64\":\"dx_terraform_windows_x86_64\"},\"tflint\":{\"linux_arm64\":\"dx_tflint_linux_arm64\",\"linux_x86_64\":\"dx_tflint_linux_x86_64\",\"macos_arm64\":\"dx_tflint_macos_arm64\",\"windows_x86_64\":\"dx_tflint_windows_x86_64\"},\"ty\":{\"linux_arm64\":\"dx_ty_linux_arm64\",\"linux_x86_64\":\"dx_ty_linux_x86_64\",\"macos_arm64\":\"dx_ty_macos_arm64\",\"windows_arm64\":\"dx_ty_windows_arm64\",\"windows_x86_64\":\"dx_ty_windows_x86_64\"},\"typstyle\":{\"linux_arm64\":\"dx_typstyle_linux_arm64\",\"linux_x86_64\":\"dx_typstyle_linux_x86_64\",\"macos_arm64\":\"dx_typstyle_macos_arm64\",\"windows_arm64\":\"dx_typstyle_windows_arm64\",\"windows_x86_64\":\"dx_typstyle_windows_x86_64\"},\"uv\":{\"linux_arm64\":\"dx_uv_linux_arm64\",\"linux_x86_64\":\"dx_uv_linux_x86_64\",\"macos_arm64\":\"dx_uv_macos_arm64\",\"windows_arm64\":\"dx_uv_windows_arm64\",\"windows_x86_64\":\"dx_uv_windows_x86_64\"},\"vale\":{\"linux_arm64\":\"dx_vale_linux_arm64\",\"linux_x86_64\":\"dx_vale_linux_x86_64\",\"macos_arm64\":\"dx_vale_macos_arm64\",\"windows_arm64\":\"dx_vale_windows_arm64\",\"windows_x86_64\":\"dx_vale_windows_x86_64\"},\"wasmtime\":{\"linux_arm64\":\"dx_wasmtime_linux_arm64\",\"linux_x86_64\":\"dx_wasmtime_linux_x86_64\",\"macos_arm64\":\"dx_wasmtime_macos_arm64\",\"macos_x86_64\":\"dx_wasmtime_macos_x86_64\",\"windows_arm64\":\"dx_wasmtime_windows_arm64\",\"windows_x86_64\":\"dx_wasmtime_windows_x86_64\"},\"yamlfmt\":{\"linux_arm64\":\"dx_yamlfmt_linux_arm64\",\"linux_x86_64\":\"dx_yamlfmt_linux_x86_64\",\"macos_arm64\":\"dx_yamlfmt_macos_arm64\",\"windows_arm64\":\"dx_yamlfmt_windows_arm64\",\"windows_x86_64\":\"dx_yamlfmt_windows_x86_64\"}}",
               "os_linux": "'@@platforms//os:linux'",
               "os_macos": "'@@platforms//os:macos'",
               "os_windows": "'@@platforms//os:windows'",
@@ -1555,55 +2250,6 @@
         }
       }
     },
-    "@@rules_android+//bzlmod_extensions:apksig.bzl%apksig_extension": {
-      "general": {
-        "bzlTransitiveDigest": "qEcqhUuyYlPmvAtyYRqS+4Y7cRHA2Vho3JIBJZJJX+s=",
-        "usagesDigest": "xq6OVkELeJvOgYo3oY/sUBsGFbcqdV+9BYiNgSPV/po=",
-        "recordedInputs": [
-          "REPO_MAPPING:rules_android+,bazel_tools bazel_tools"
-        ],
-        "generatedRepoSpecs": {
-          "apksig": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
-            "attributes": {
-              "url": "https://android.googlesource.com/platform/tools/apksig/+archive/24e3075e68ebe17c0b529bb24bfda819db5e2f3b.tar.gz",
-              "build_file": "@@rules_android+//bzlmod_extensions:apksig.BUILD"
-            }
-          }
-        }
-      }
-    },
-    "@@rules_android+//bzlmod_extensions:com_android_dex.bzl%com_android_dex_extension": {
-      "general": {
-        "bzlTransitiveDigest": "gTuOqknGgqPw9YQSCY+qXxgxVwiLRGdBCsCe4i4q/xw=",
-        "usagesDigest": "toF8IFMu98H/VU2p1sfVC5fVXVYJunpbbmtM6tOsQXY=",
-        "recordedInputs": [
-          "REPO_MAPPING:rules_android+,bazel_tools bazel_tools"
-        ],
-        "generatedRepoSpecs": {
-          "com_android_dex": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
-            "attributes": {
-              "url": "https://android.googlesource.com/platform/dalvik/+archive/5a81c499a569731e2395f7c8d13c0e0d4e17a2b6.tar.gz",
-              "build_file": "@@rules_android+//bzlmod_extensions:com_android_dex.BUILD"
-            }
-          }
-        }
-      }
-    },
-    "@@rules_android+//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension": {
-      "general": {
-        "bzlTransitiveDigest": "NAy+0M15JNVEBb8Tny6t7j3lKqTnsAMjoBB6LJ+C370=",
-        "usagesDigest": "235l77825cAWa43ncWocp87593tbUC4zQ+oRc+l3lX8=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "androidsdk": {
-            "repoRuleId": "@@rules_android+//rules/android_sdk_repository:rule.bzl%_android_sdk_repository",
-            "attributes": {}
-          }
-        }
-      }
-    },
     "@@rules_cuda+//cuda:extensions.bzl%toolchain": {
       "general": {
         "bzlTransitiveDigest": "Vv990ZJAgjxlqfYBdx7RClmoNCQjuIFLIV+LhWA03lg=",
@@ -1750,50 +2396,50 @@
     },
     "@@rules_dotnet+//dotnet:extensions.bzl%dotnet": {
       "general": {
-        "bzlTransitiveDigest": "jvUZDizZfslvLf4I6JOpXbsNQnCgEz44PYFhHoZQnSw=",
-        "usagesDigest": "+MMRBiaYEaSKiDSsMzhNC2HcueVTbRLAxFXhtI3oTPQ=",
+        "bzlTransitiveDigest": "Ox1inDEr+2YK6fIqr7Xcpa4LTbWpVErPX+l9fjrAW2Y=",
+        "usagesDigest": "oikR1cI2OIfeK1J218xMVWG9ClspIJMdcBw8C8OO+o4=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "dotnet_x86_64-apple-darwin": {
             "repoRuleId": "@@rules_dotnet+//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-apple-darwin",
-              "dotnet_version": "10.0.201"
+              "dotnet_version": "10.0.400"
             }
           },
           "dotnet_aarch64-apple-darwin": {
             "repoRuleId": "@@rules_dotnet+//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "aarch64-apple-darwin",
-              "dotnet_version": "10.0.201"
+              "dotnet_version": "10.0.400"
             }
           },
           "dotnet_x86_64-unknown-linux-gnu": {
             "repoRuleId": "@@rules_dotnet+//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-unknown-linux-gnu",
-              "dotnet_version": "10.0.201"
+              "dotnet_version": "10.0.400"
             }
           },
           "dotnet_arm64-unknown-linux-gnu": {
             "repoRuleId": "@@rules_dotnet+//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-unknown-linux-gnu",
-              "dotnet_version": "10.0.201"
+              "dotnet_version": "10.0.400"
             }
           },
           "dotnet_x86_64-pc-windows-msvc": {
             "repoRuleId": "@@rules_dotnet+//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-pc-windows-msvc",
-              "dotnet_version": "10.0.201"
+              "dotnet_version": "10.0.400"
             }
           },
           "dotnet_arm64-pc-windows-msvc": {
             "repoRuleId": "@@rules_dotnet+//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-pc-windows-msvc",
-              "dotnet_version": "10.0.201"
+              "dotnet_version": "10.0.400"
             }
           },
           "dotnet_toolchains": {
@@ -1885,7 +2531,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "JfYPoQC7sUKhui4Fp1MGQ5LfSrgAVBWe30uaBfuZZuk=",
+        "bzlTransitiveDigest": "87V5DFLLicJsKIm+ZIbRMrb6CxzJjJFjxHmj7ngeZ98=",
         "usagesDigest": "McimNXAztVHDzspa1Kng94T+YeyY/44zx9FkNqIMn2s=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
@@ -2217,7 +2863,7 @@
     "@@windows_support+//windows:extensions.bzl%msvc_runtime": {
       "general": {
         "bzlTransitiveDigest": "yv3gSwY6QneXA6YvHLn9tSmuOkNp2EPN5NFXHC48mdE=",
-        "usagesDigest": "m67sI6g3ruyNAyu/1PGe93zIaYYu657llz9tL/yw7DM=",
+        "usagesDigest": "F67RFOB16o65ZcTOb6O+921Noq5pKt2u8+7I+y0KV6c=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
         ],
@@ -2248,7 +2894,7 @@
     "@@windows_support+//windows:extensions.bzl%windows_sdk": {
       "general": {
         "bzlTransitiveDigest": "yv3gSwY6QneXA6YvHLn9tSmuOkNp2EPN5NFXHC48mdE=",
-        "usagesDigest": "GjUMkGyQ3YMFaT/hnZciiR6YOXM+c2OgsWHa4rUWZXs=",
+        "usagesDigest": "VXji9vWlit/EOKjyygayKHrGPoxNlBTnw8CbFcsc1qA=",
         "recordedInputs": [
           "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
         ],
@@ -3758,166 +4404,162 @@
           "dbdfa868b1a3f8c62950373e4975d83f90dd8b869a3907319af8384919bcaffe"
         ]
       },
-      "1.25.0": {
+      "1.26.7": {
         "aix_ppc64": [
-          "go1.25.0.aix-ppc64.tar.gz",
-          "e5234a7dac67bc86c528fe9752fc9d63557918627707a733ab4cac1a6faed2d4"
+          "go1.26.7.aix-ppc64.tar.gz",
+          "e5aed98bc83f569a374dbfd79d632b058e5130192fbd4c4ee0d4f6e3d9c101bb"
         ],
         "darwin_amd64": [
-          "go1.25.0.darwin-amd64.tar.gz",
-          "5bd60e823037062c2307c71e8111809865116714d6f6b410597cf5075dfd80ef"
+          "go1.26.7.darwin-amd64.tar.gz",
+          "92e8b34bff3c89ab16404c595669ac8cb004cc2f676dcbd1f5b87a6b8def3b47"
         ],
         "darwin_arm64": [
-          "go1.25.0.darwin-arm64.tar.gz",
-          "544932844156d8172f7a28f77f2ac9c15a23046698b6243f633b0a0b00c0749c"
+          "go1.26.7.darwin-arm64.tar.gz",
+          "020a1e8224811be75163e920bc77e0926a1390a6aeea19bdcf23f74b9d749f6d"
         ],
         "dragonfly_amd64": [
-          "go1.25.0.dragonfly-amd64.tar.gz",
-          "5ed3cf9a810a1483822538674f1336c06b51aa1b94d6d545a1a0319a48177120"
+          "go1.26.7.dragonfly-amd64.tar.gz",
+          "d980dc9ecc48de09b2fa1765886abb8c7b0ad738bf8cc483b76019facc2df4d1"
         ],
         "freebsd_386": [
-          "go1.25.0.freebsd-386.tar.gz",
-          "abea5d5c6697e6b5c224731f2158fe87c602996a2a233ac0c4730cd57bf8374e"
+          "go1.26.7.freebsd-386.tar.gz",
+          "7eecfa4d6c126bcdedb8e16583ec672857e607659c672c60a9d645f8957da117"
         ],
         "freebsd_amd64": [
-          "go1.25.0.freebsd-amd64.tar.gz",
-          "86e6fe0a29698d7601c4442052dac48bd58d532c51cccb8f1917df648138730b"
+          "go1.26.7.freebsd-amd64.tar.gz",
+          "2ad37146fa8449907716b494dd268aeae6f79592b875915525c28c8c337ad32a"
         ],
         "freebsd_arm": [
-          "go1.25.0.freebsd-arm.tar.gz",
-          "d90b78e41921f72f30e8bbc81d9dec2cff7ff384a33d8d8debb24053e4336bfe"
+          "go1.26.7.freebsd-arm.tar.gz",
+          "bc56379ed419cd93cf7002dcb95f554b3e3a2bd58d804182f8873e313a870b70"
         ],
         "freebsd_arm64": [
-          "go1.25.0.freebsd-arm64.tar.gz",
-          "451d0da1affd886bfb291b7c63a6018527b269505db21ce6e14724f22ab0662e"
-        ],
-        "freebsd_riscv64": [
-          "go1.25.0.freebsd-riscv64.tar.gz",
-          "7b565f76bd8bda46549eeaaefe0e53b251e644c230577290c0f66b1ecdb3cdbe"
+          "go1.26.7.freebsd-arm64.tar.gz",
+          "23d425a3a51876df8bf050f080b1ae50340048def689fbcc44c939fa23485ce0"
         ],
         "illumos_amd64": [
-          "go1.25.0.illumos-amd64.tar.gz",
-          "b1e1fdaab1ad25aa1c08d7a36c97d45d74b98b89c3f78c6d2145f77face54a2c"
+          "go1.26.7.illumos-amd64.tar.gz",
+          "be51df2411786e1fa6325461e509224a94c5e8d001da8e4548d9e028a53a3c22"
         ],
         "linux_386": [
-          "go1.25.0.linux-386.tar.gz",
-          "8c602dd9d99bc9453b3995d20ce4baf382cc50855900a0ece5de9929df4a993a"
+          "go1.26.7.linux-386.tar.gz",
+          "5b6fad4a7fe8fa230c935625b67450305be95e2f4f976b731623f76b88fc4821"
         ],
         "linux_amd64": [
-          "go1.25.0.linux-amd64.tar.gz",
-          "2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613"
+          "go1.26.7.linux-amd64.tar.gz",
+          "ffb5f8de10c62550dfddab66b36b57030721e0a44a3218e9e1181d7b59f121ca"
         ],
         "linux_arm64": [
-          "go1.25.0.linux-arm64.tar.gz",
-          "05de75d6994a2783699815ee553bd5a9327d8b79991de36e38b66862782f54ae"
+          "go1.26.7.linux-arm64.tar.gz",
+          "5a4ec883379d51ee9ce1040d5e87f8d35e20387574dd8c947feb01eabc3c1b37"
         ],
         "linux_armv6l": [
-          "go1.25.0.linux-armv6l.tar.gz",
-          "a5a8f8198fcf00e1e485b8ecef9ee020778bf32a408a4e8873371bfce458cd09"
+          "go1.26.7.linux-armv6l.tar.gz",
+          "6a41557335d1d9fa9bfc7439cedcfd0e4df2fc83d916175b5f3eae4685f5fe3f"
         ],
         "linux_loong64": [
-          "go1.25.0.linux-loong64.tar.gz",
-          "cab86b1cf761b1cb3bac86a8877cfc92e7b036fc0d3084123d77013d61432afc"
+          "go1.26.7.linux-loong64.tar.gz",
+          "89b5e92446e719719e23db447a41860d7d573252bab0704c9acb09ad97e9eca1"
         ],
         "linux_mips": [
-          "go1.25.0.linux-mips.tar.gz",
-          "d66b6fb74c3d91b9829dc95ec10ca1f047ef5e89332152f92e136cf0e2da5be1"
+          "go1.26.7.linux-mips.tar.gz",
+          "fbdbf78b04494843fde47b15150e12adb7e2c0e2289eacbc18e6629a99604620"
         ],
         "linux_mips64": [
-          "go1.25.0.linux-mips64.tar.gz",
-          "4082e4381a8661bc2a839ff94ba3daf4f6cde20f8fb771b5b3d4762dc84198a2"
+          "go1.26.7.linux-mips64.tar.gz",
+          "93b1360a29f4a71dbb6995f149b9312f67f5ce52197fea0042e9c9423809a496"
         ],
         "linux_mips64le": [
-          "go1.25.0.linux-mips64le.tar.gz",
-          "70002c299ec7f7175ac2ef673b1b347eecfa54ae11f34416a6053c17f855afcc"
+          "go1.26.7.linux-mips64le.tar.gz",
+          "402dd2bd57fb4c982ef0eccbb4f7209ae98a753856e99baf962f1ac54493d65d"
         ],
         "linux_mipsle": [
-          "go1.25.0.linux-mipsle.tar.gz",
-          "b00a3a39eff099f6df9f1c7355bf28e4589d0586f42d7d4a394efb763d145a73"
+          "go1.26.7.linux-mipsle.tar.gz",
+          "967da58e88c45c401593a8552be9beedaa989a3484a3105850d2beb6ca9ed698"
         ],
         "linux_ppc64": [
-          "go1.25.0.linux-ppc64.tar.gz",
-          "df166f33bd98160662560a72ff0b4ba731f969a80f088922bddcf566a88c1ec1"
+          "go1.26.7.linux-ppc64.tar.gz",
+          "8feee58b3fa8d270343519d10d66736150e627d39aee937e6e889ba5445c8be9"
         ],
         "linux_ppc64le": [
-          "go1.25.0.linux-ppc64le.tar.gz",
-          "0f18a89e7576cf2c5fa0b487a1635d9bcbf843df5f110e9982c64df52a983ad0"
+          "go1.26.7.linux-ppc64le.tar.gz",
+          "22d3b362d557175fd16b79651cab0cad64f8aaaedca745f66d16f44d56bc5de1"
         ],
         "linux_riscv64": [
-          "go1.25.0.linux-riscv64.tar.gz",
-          "c018ff74a2c48d55c8ca9b07c8e24163558ffec8bea08b326d6336905d956b67"
+          "go1.26.7.linux-riscv64.tar.gz",
+          "21e1dc0e2f7dd9f80e0e94613fc324f1f99403b99997f9d8c5f80f8132fc642b"
         ],
         "linux_s390x": [
-          "go1.25.0.linux-s390x.tar.gz",
-          "34e5a2e19f2292fbaf8783e3a241e6e49689276aef6510a8060ea5ef54eee408"
+          "go1.26.7.linux-s390x.tar.gz",
+          "bc3308e05e9397958ad4aac453e3dc4565ba6d548e9ace0a9b4b165feb6382f2"
         ],
         "netbsd_386": [
-          "go1.25.0.netbsd-386.tar.gz",
-          "f8586cdb7aa855657609a5c5f6dbf523efa00c2bbd7c76d3936bec80aa6c0aba"
+          "go1.26.7.netbsd-386.tar.gz",
+          "c0a28bd30d8c07966cf7bc43fc6936866fb1a0e84ab4e983d4e8ca15edc1a4d1"
         ],
         "netbsd_amd64": [
-          "go1.25.0.netbsd-amd64.tar.gz",
-          "ae8dc1469385b86a157a423bb56304ba45730de8a897615874f57dd096db2c2a"
+          "go1.26.7.netbsd-amd64.tar.gz",
+          "dff0b16d129f5e70f3bb38ed98d467404b5b130c7c8b3fe6b074601855f2bcd5"
         ],
         "netbsd_arm": [
-          "go1.25.0.netbsd-arm.tar.gz",
-          "1ff7e4cc764425fc9dd6825eaee79d02b3c7cafffbb3691687c8d672ade76cb7"
+          "go1.26.7.netbsd-arm.tar.gz",
+          "36d15f8c5c5a5a048251b39ce67ed5a7ae2d072f1aa5c301cbde110670e824b2"
         ],
         "netbsd_arm64": [
-          "go1.25.0.netbsd-arm64.tar.gz",
-          "e1b310739f26724216aa6d7d7208c4031f9ff54c9b5b9a796ddc8bebcb4a5f16"
+          "go1.26.7.netbsd-arm64.tar.gz",
+          "b75802b366e5b60aa6cfded871f0a72abadf297c5a68c523c5857822a5b92d34"
         ],
         "openbsd_386": [
-          "go1.25.0.openbsd-386.tar.gz",
-          "4802a9b20e533da91adb84aab42e94aa56cfe3e5475d0550bed3385b182e69d8"
+          "go1.26.7.openbsd-386.tar.gz",
+          "c26201688339b2a10bf980be2d64adfd3a383b31a164377b0123ad78bde6979c"
         ],
         "openbsd_amd64": [
-          "go1.25.0.openbsd-amd64.tar.gz",
-          "c016cd984bebe317b19a4f297c4f50def120dc9788490540c89f28e42f1dabe1"
+          "go1.26.7.openbsd-amd64.tar.gz",
+          "562de088b844764029f59ff52e82218711a4b585ab7ae175b88eff53e051a8df"
         ],
         "openbsd_arm": [
-          "go1.25.0.openbsd-arm.tar.gz",
-          "a1e31d0bf22172ddde42edf5ec811ef81be43433df0948ece52fecb247ccfd8d"
+          "go1.26.7.openbsd-arm.tar.gz",
+          "646e19cd3449aec767bf75622d368b02c73d529a5478a25f2a7e21148b1a4cb6"
         ],
         "openbsd_arm64": [
-          "go1.25.0.openbsd-arm64.tar.gz",
-          "343ea8edd8c218196e15a859c6072d0dd3246fbbb168481ab665eb4c4140458d"
+          "go1.26.7.openbsd-arm64.tar.gz",
+          "2045303632e112290e939dfd4678401109f612f7913f459e2d7d079e750723f5"
         ],
         "openbsd_ppc64": [
-          "go1.25.0.openbsd-ppc64.tar.gz",
-          "694c14da1bcaeb5e3332d49bdc2b6d155067648f8fe1540c5de8f3cf8e157154"
+          "go1.26.7.openbsd-ppc64.tar.gz",
+          "23e89de68225dc41dd981601602e67fab0c4ca87af8f70a25131c06a301f9000"
         ],
         "openbsd_riscv64": [
-          "go1.25.0.openbsd-riscv64.tar.gz",
-          "aa510ad25cf54c06cd9c70b6d80ded69cb20188ac6e1735655eef29ff7e7885f"
+          "go1.26.7.openbsd-riscv64.tar.gz",
+          "c0de2c6c353a582ca7682ed5a550056a8b5d59649260da4d1e327cf96684c822"
         ],
         "plan9_386": [
-          "go1.25.0.plan9-386.tar.gz",
-          "46f8cef02086cf04bf186c5912776b56535178d4cb319cd19c9fdbdd29231986"
+          "go1.26.7.plan9-386.tar.gz",
+          "14ae7414a2ea05d26e1fc499d9b372c7f8f17726c49a5222fa9063b0f752a22c"
         ],
         "plan9_amd64": [
-          "go1.25.0.plan9-amd64.tar.gz",
-          "29b34391d84095e44608a228f63f2f88113a37b74a79781353ec043dfbcb427b"
+          "go1.26.7.plan9-amd64.tar.gz",
+          "f9459b8137bdb81621d4e0cdba4c849a617c89c11a3088083ad3a8c97467c6a5"
         ],
         "plan9_arm": [
-          "go1.25.0.plan9-arm.tar.gz",
-          "0a047107d13ebe7943aaa6d54b1d7bbd2e45e68ce449b52915a818da715799c2"
+          "go1.26.7.plan9-arm.tar.gz",
+          "4f444bd2e0f8a08ba8799131dd3531bea8723bf96b8ffa0e0948936a3c4aa8f0"
         ],
         "solaris_amd64": [
-          "go1.25.0.solaris-amd64.tar.gz",
-          "9977f9e4351984364a3b2b78f8b88bfd1d339812356d5237678514594b7d3611"
+          "go1.26.7.solaris-amd64.tar.gz",
+          "04b5b280e0e0de1b91d7da5e34801dbf75e5621615f80cfd9935091d673f1238"
         ],
         "windows_386": [
-          "go1.25.0.windows-386.zip",
-          "df9f39db82a803af0db639e3613a36681ab7a42866b1384b3f3a1045663961a7"
+          "go1.26.7.windows-386.zip",
+          "59cf0b9814c41c960d70df3cd5360fda0793e5d2230737d58e009392181fb636"
         ],
         "windows_amd64": [
-          "go1.25.0.windows-amd64.zip",
-          "89efb4f9b30812eee083cc1770fdd2913c14d301064f6454851428f9707d190b"
+          "go1.26.7.windows-amd64.zip",
+          "f4f534a486e4bc3387fa18f08208f2f854b7aaea8a08f2a2d829a914a05abb11"
         ],
         "windows_arm64": [
-          "go1.25.0.windows-arm64.zip",
-          "27bab004c72b3d7bd05a69b6ec0fc54a309b4b78cc569dd963d8b3ec28bfdb8c"
+          "go1.26.7.windows-arm64.zip",
+          "6f1b08de9e2dd94f69c52e524ab6834737275253291e8fd7f1c12ed4eceeda89"
         ]
       }
     },

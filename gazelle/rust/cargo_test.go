@@ -945,3 +945,55 @@ bar = { package = 'b\a#r', version = "2" }
 		}
 	}
 }
+
+func TestCargoDepAndroidCfgRecorded(t *testing.T) {
+	pkg := "[package]\nname = \"x\"\nversion = \"0.1.0\"\n"
+	cases := []struct {
+		name, manifest string
+		android        bool
+		cfgs           int
+	}{
+		{"android only", pkg + "[target.'cfg(target_os = \"android\")'.dependencies]\nx = { path = \"../x\" }\n", true, 1},
+		{"unconditional wins", pkg + "[dependencies]\nx = { path = \"../x\" }\n[target.'cfg(target_os = \"android\")'.dependencies]\nx = { path = \"../x\" }\n", false, 0},
+		{"unknown cfg", pkg + "[target.'cfg(unix)'.dependencies]\nx = { path = \"../x\" }\n", false, 1},
+		{"android and unknown", pkg + "[target.'cfg(unix)'.dependencies]\nx = { path = \"../x\" }\n[target.'cfg(target_os = \"android\")'.dependencies]\nx = { path = \"../x\" }\n", false, 2},
+		{"external android", pkg + "[target.'cfg(target_os=\"android\")'.dependencies]\nx = \"1\"\n", false, 0},
+	}
+	for _, tc := range cases {
+		manifest, err := parseCargoManifest("Cargo.toml", []byte(tc.manifest))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		dep := manifest.normalDeps["x"]
+		if dep.androidOnly() != tc.android || cfgCount(dep.cfgs) != tc.cfgs {
+			t.Errorf("%s: androidOnly=%v cfgs=%q", tc.name, dep.androidOnly(), dep.cfgs)
+		}
+	}
+}
+
+func cfgCount(cfgs string) int {
+	if cfgs == "" {
+		return 0
+	}
+	return strings.Count(cfgs, "\n") + 1
+}
+
+func TestCargoCfgPlatformCompound(t *testing.T) {
+	cases := []struct{ cfg, want string }{
+		{`cfg(unix)`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{`cfg(any(windows, target_os = "linux"))`, "@platforms//os:linux,@platforms//os:windows"},
+		{`cfg(target_os = "wasi")`, ""},
+		{`cfg(all(unix, windows))`, ""},
+		{`cfg(any(unix, feature = "x"))`, ""},
+	}
+	for _, tc := range cases {
+		got, ok := cargoCfgPlatform(tc.cfg)
+		if got != tc.want || ok != (tc.want != "") {
+			t.Errorf("%s = %q,%v want %q", tc.cfg, got, ok, tc.want)
+		}
+	}
+	dep := cargoDependency{cfgs: "cfg(windows)\ncfg(target_os=\"linux\")"}
+	if got := dep.platformConstraint(); got != "@platforms//os:linux,@platforms//os:windows" {
+		t.Errorf("mixed = %q", got)
+	}
+}

@@ -1,4 +1,4 @@
-use super::super::test_support::Harness;
+use super::super::test_support::{hang_up, Harness};
 use quality_result::proto::FileSnapshot;
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -216,9 +216,11 @@ impl Consumer {
 
     fn run_hung_up_after_findings(&self, args: &[&str], env: &[(&str, &str)]) -> Outcome {
         let started = self.base.join("bazel.log.started");
-        let mut child = self
+        let (reader, writer) = std::io::pipe().expect("pipe");
+        let probe = writer.try_clone().expect("probe writer");
+        let child = self
             .command(args, env, true)
-            .stdout(Stdio::piped())
+            .stdout(Stdio::from(writer))
             .stderr(Stdio::piped())
             .process_group(0)
             .spawn()
@@ -232,7 +234,7 @@ impl Consumer {
                 unsafe { libc::kill(-pgid, libc::SIGKILL) };
             }
         });
-        let mut reader = BufReader::new(child.stdout.take().expect("stdout"));
+        let mut reader = BufReader::new(reader);
         let mut seen = String::new();
         loop {
             let mut line = String::new();
@@ -248,7 +250,7 @@ impl Consumer {
             assert!(Instant::now() < deadline, "bazel never reached the gate");
             std::thread::sleep(Duration::from_millis(20));
         }
-        drop(reader);
+        hang_up(reader.into_inner(), &probe);
         fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
         let output = child.wait_with_output().expect("dx stops");
         done.store(true, Ordering::SeqCst);

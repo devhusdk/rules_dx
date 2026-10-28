@@ -25,10 +25,10 @@ def nuget_unit_tests(name):
                 "id (for example 'nuget_demo')",
             ),
             expect_equal(
-                "nuget_id_error rejects launcher-unsafe id characters",
+                "nuget_id_error rejects id characters",
                 nuget_id_error("dx;curl evil"),
                 "nuget_deploy: invalid package id 'dx;curl evil': want " +
-                "only [A-Za-z0-9._-] so the id embeds safely in the deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "nuget_version_error accepts the demo version",
@@ -47,10 +47,10 @@ def nuget_unit_tests(name):
                 "version (for example '0.0.0')",
             ),
             expect_equal(
-                "nuget_version_error rejects launcher-unsafe version characters",
+                "nuget_version_error rejects version characters",
                 nuget_version_error("1.0;curl evil"),
                 "nuget_deploy: invalid version '1.0;curl evil': want " +
-                "only [A-Za-z0-9._-+] so the version embeds safely in the deploy launcher",
+                "only [A-Za-z0-9._-+]",
             ),
             expect_equal(
                 "nuget_nupkg_error accepts a pinned nupkg filename",

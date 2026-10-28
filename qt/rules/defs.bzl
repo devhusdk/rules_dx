@@ -18,7 +18,6 @@ load(
 load("//qt/sdk:needs.bzl", "QtNeedsInfo")
 load("//qt/sdk:pins.bzl", "CELLS", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
-load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 QtInfo = provider(
@@ -465,8 +464,20 @@ def _directory(files, prefix):
             return f.short_path.rpartition("/")[0]
     fail("no " + prefix + " in " + str([f.short_path for f in files]))
 
+def _plugin_path(files):
+    roots = {}
+    for f in files:
+        head, sep, tail = f.short_path.rpartition("/plugins/")
+        if sep and "/" in tail:
+            roots[head + "/plugins"] = True
+    if len(roots) != 1:
+        fail("qt plugins must share one plugins directory, got " + str(sorted(roots.keys())))
+    return roots.keys()[0]
+
 def _run_environment(ctx, gui):
     environment = {}
+    if len(ctx.files.plugins) > 0:
+        environment["QT_PLUGIN_PATH"] = _plugin_path(ctx.files.plugins)
     inherited = []
     if gui:
         if len([f for f in ctx.files.fonts if f.basename == "fonts.conf"]) > 0:
@@ -488,7 +499,7 @@ def _run_environment(ctx, gui):
 def _qt_executable_forward_impl(ctx):
     upstream = ctx.attr.upstream
     gui = _links_gui(upstream)
-    extra = ctx.files.qml_imports + (ctx.files.fonts + ctx.files.platforms if gui else [])
+    extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platforms if gui else [])
     out = [
         dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
         _run_environment(ctx, gui),
@@ -505,6 +516,7 @@ def _qt_executable_forward_impl(ctx):
 _EXECUTABLE_ATTRS = dict(_SOURCE_ATTRS, **{
     "fonts": attr.label(allow_files = True, doc = "Pinned fontconfig configuration and fonts for Qt Gui."),
     "platforms": attr.label(allow_files = True, doc = "Qt platform plugins for Qt Gui."),
+    "plugins": attr.label_list(allow_files = True, doc = "Qt runtime plugin files put on QT_PLUGIN_PATH."),
     "qml_imports": attr.label(allow_files = True, doc = "Qt QML import tree put on QML_IMPORT_PATH."),
     "upstream": attr.label(mandatory = True, providers = [CcInfo], doc = "Private rules_cc executable."),
 })
@@ -707,7 +719,10 @@ def qt_qml_module(
 def _uses_qml(modules):
     return len([module for module in modules if module in _QML_MODULES]) > 0
 
-def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs):
+def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs):
+    for plugin in plugins:
+        if plugin not in RUNTIME_PLUGINS:
+            fail("qt_cc_" + rule_kind + ": plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
     effective_deps = _qt_deps(qt, deps, modules, forms)
     test = rule_kind == "test"
     upstream_kwargs = dx_test_upstream_kwargs(kwargs) if test else dict(kwargs)
@@ -731,7 +746,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         srcs = srcs + hdrs + moc_hdrs + [":" + name + "_qt_srcs", ":" + name + "_qt_hdrs"],
         copts = copts + _include_copts(name),
         deps = effective_deps + [":" + name + "_qt_frameworks"],
-        tags = upstream_tags(tags),
+        tags = dx_upstream_tags(tags),
         visibility = ["//visibility:private"],
         **upstream_kwargs
     )
@@ -747,6 +762,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         deps = deps,
         fonts = qt + "//:fonts",
         platforms = qt + "//:platforms",
+        plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
         qml_imports = qt + "//:qml_imports" if (qml_imports if qml_imports != None else _uses_qml(modules)) else None,
         upstream = ":" + name + "_upstream",
         visibility = visibility,
@@ -766,11 +782,12 @@ def qt_cc_binary(
         modules = ["core"],
         qt = QT_REPOSITORY,
         qml_imports = None,
+        plugins = [],
         copts = [],
         visibility = None,
         **kwargs):
     """Declares a Qt executable over cc_binary."""
-    _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs)
+    _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs)
 
 def qt_cc_test(
         name,
@@ -785,11 +802,12 @@ def qt_cc_test(
         modules = ["core", "test"],
         qt = QT_REPOSITORY,
         qml_imports = None,
+        plugins = [],
         copts = [],
         visibility = None,
         **kwargs):
     """Declares a QtTest executable over cc_test."""
-    _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, copts, visibility, kwargs)
+    _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs)
 
 _BRIDGE_TOOL = Label("//qt/rust:qt_rust_bridge")
 

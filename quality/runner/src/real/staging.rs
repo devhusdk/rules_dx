@@ -45,16 +45,58 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(KTLINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "tflint" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(TFLINT_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(TFLINT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "credo" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(CREDO_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(CREDO_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "checkmake" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(CHECKMAKE_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(CHECKMAKE_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "hadolint" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(HADOLINT_DEFAULTS_REL),
                 contents: MirrorContents::Bytes(HADOLINT_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "regal" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(REGAL_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(REGAL_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "redocly" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(REDOCLY_DEFAULTS_REL),
                 contents: MirrorContents::Bytes(REDOCLY_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "dfmt" {
+            mirrors.push(MirrorFile {
+                mirror_rel: Path::new(commands::DFMT_CONFIG_DIR).join(DFMT_DEFAULTS_FILE),
+                contents: MirrorContents::Bytes(DFMT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "dscanner" {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(commands::DSCANNER_CONFIG_REL),
+                contents: MirrorContents::Bytes(DSCANNER_DEFAULTS_BYTES.to_vec()),
+            });
+        }
+        if tool_id == "statix" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(STATIX_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(STATIX_DEFAULTS_BYTES.to_vec()),
             });
         }
         if tool_id == "stylelint" && tool.config_rel.is_none() {
@@ -147,6 +189,27 @@ impl RealBackend {
                 .map(Some)
                 .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
         }
+        if tool_id == "tflint" {
+            let rel = tool.config_rel.as_deref().unwrap_or(TFLINT_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "credo" {
+            let rel = tool.config_rel.as_deref().unwrap_or(CREDO_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "checkmake" {
+            let rel = tool.config_rel.as_deref().unwrap_or(CHECKMAKE_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
         if tool_id == "hadolint" {
             let rel = tool.config_rel.as_deref().unwrap_or(HADOLINT_DEFAULTS_REL);
             return scratch
@@ -154,8 +217,34 @@ impl RealBackend {
                 .map(Some)
                 .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
         }
+        if tool_id == "regal" {
+            let rel = tool.config_rel.as_deref().unwrap_or(REGAL_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
         if tool_id == "redocly" {
             let rel = tool.config_rel.as_deref().unwrap_or(REDOCLY_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "statix" {
+            let rel = tool.config_rel.as_deref().unwrap_or(STATIX_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "kubeconform" && tool.upstream_diagnostics.is_empty() {
+            let Some(rel) = tool.config_rel.as_deref() else {
+                return Err(execution(
+                    tool_id,
+                    "kubeconform needs a kubernetes_schemas config".to_owned(),
+                ));
+            };
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)
@@ -280,6 +369,18 @@ impl RealBackend {
                 "missing tool edition: the quality aspect must pass the Go language version via --tool-edition".to_owned(),
             )
         })
+    }
+
+    /// The scratch directory latexindent writes its log and backups to, so a run never leaves
+    /// `indent.log` or `.bak` files next to the sources.
+    pub(super) fn latexindent_cruft(
+        tool_id: &str,
+        scratch: &Scratch,
+    ) -> Result<PathBuf, RunnerError> {
+        let dir = scratch.root().join(".dx-latexindent");
+        std::fs::create_dir_all(&dir)
+            .map_err(|err| execution(tool_id, format!("cruft dir: {err}")))?;
+        Ok(dir)
     }
 
     pub(super) fn biome_config_dir(

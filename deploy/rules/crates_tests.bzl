@@ -1,7 +1,7 @@
 """Unit and analysis tests for the crates.io publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":crates.bzl", "crates_file_error", "crates_name_error", "crates_version_error")
+load(":crates.bzl", "crates_name_error", "crates_version_error")
 
 def crates_unit_tests(name):
     starlark_test(
@@ -28,13 +28,13 @@ def crates_unit_tests(name):
                 "crates_name_error rejects dots in crate names",
                 crates_name_error("dx.plugin"),
                 "crates_deploy: invalid crate name 'dx.plugin': want " +
-                "only [A-Za-z0-9_-] so the name embeds safely in the deploy launcher",
+                "only [A-Za-z0-9_-]",
             ),
             expect_equal(
-                "crates_name_error rejects launcher-unsafe name characters",
+                "crates_name_error rejects name characters",
                 crates_name_error("dx;curl evil"),
                 "crates_deploy: invalid crate name 'dx;curl evil': want " +
-                "only [A-Za-z0-9_-] so the name embeds safely in the deploy launcher",
+                "only [A-Za-z0-9_-]",
             ),
             expect_equal(
                 "crates_version_error accepts the demo version",
@@ -53,22 +53,10 @@ def crates_unit_tests(name):
                 "version (for example '0.0.0')",
             ),
             expect_equal(
-                "crates_version_error rejects launcher-unsafe version characters",
+                "crates_version_error rejects version characters",
                 crates_version_error("1.0;curl evil"),
                 "crates_deploy: invalid version '1.0;curl evil': want " +
-                "only [A-Za-z0-9._-+] so the version embeds safely in the deploy launcher",
-            ),
-            expect_equal(
-                "crates_file_error accepts a manifest filename",
-                crates_file_error("Cargo.toml"),
-                "",
-            ),
-            expect_equal(
-                "crates_file_error rejects launcher-unsafe filenames",
-                crates_file_error("Cargo evil.toml"),
-                "crates_deploy: invalid crate file 'Cargo evil.toml': want " +
-                "no quotes, backslashes, spaces, or newlines so the filename " +
-                "embeds safely in the deploy launcher",
+                "only [A-Za-z0-9._-+]",
             ),
         ],
     )

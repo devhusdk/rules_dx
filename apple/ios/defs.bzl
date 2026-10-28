@@ -7,6 +7,7 @@ load("//apple/bundle:defs.bzl", "archives", "check_cell", "display", "resolved_x
 load(
     "//apple/provisioning:defs.bzl",
     _XCODE_LINEAGE = "XCODE_LINEAGE",
+    _ceiling_for = "ceiling_for",
     _deployment_floor = "deployment_floor",
     _version_below = "version_below",
 )
@@ -34,11 +35,6 @@ _ENVIRONMENTS = {
             "x86_64": "x86_64-apple-ios",
         },
     ),
-}
-
-_SDK_CEILINGS = {
-    "iphoneos": "18.0",
-    "iphonesimulator": "18.0",
 }
 
 _DIGITS = "0123456789"
@@ -82,10 +78,6 @@ def triple_for(environment, arch):
         return ""
     triples = _ENVIRONMENTS[environment].triples
     return triples[arch] if arch in triples else ""
-
-def ceiling_for(sdk):
-    """Returns the Xcode 16 deployment ceiling for one SDK, or empty."""
-    return _SDK_CEILINGS[sdk] if sdk in _SDK_CEILINGS else ""
 
 def environment_errors(environment):
     """Returns one error string when the library environment leaves the set."""
@@ -187,7 +179,7 @@ def deployment_errors(environment, deployment):
     errors = []
     if floor != "" and _below(deployment, floor):
         errors.append("apple_ios: deployment_target '" + deployment + "' is below " + floor)
-    ceiling = ceiling_for(sdk)
+    ceiling = _ceiling_for(sdk)
     if ceiling != "" and _above(deployment, ceiling):
         errors.append("apple_ios: deployment_target '" + deployment + "' is above the Xcode 16 '" + sdk + "' ceiling " + ceiling)
     return errors

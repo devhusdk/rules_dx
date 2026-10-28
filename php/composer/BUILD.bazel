@@ -1,0 +1,27 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":lock_tests.bzl", "php_composer_lock_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "extensions.bzl",
+    "lock.bzl",
+    "lock_tests.bzl",
+    "repos.bzl",
+])
+
+php_composer_lock_tests(name = "lock_tests")
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "extensions.bzl",
+        "lock.bzl",
+        "lock_tests.bzl",
+        "repos.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)

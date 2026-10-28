@@ -86,7 +86,11 @@ signature. The activity logs under the `DxSharedTasks` tag:
 or `board=invalid`, the summary or `summary none`, the asset report, and `input=touch|key <reply>` after a
 tap or key press.
 
-Tools: NDK 27.2.12479018, build-tools 34.0.0, platform-tools 37.0.0,
+`lifecycle_check_test` and `lifecycle_check_missing_destroy_test` run
+`check_lifecycle.sh` on logcat fixtures. The `android` workflow runs it on
+the emulator log of `:install` and `:start`.
+
+Tools: NDK 27.2.12479018, build-tools 35.0.0, platform-tools 37.0.0,
 emulator 37.2.12.0, system image `android-34;default;x86_64`.
 
 ## Apple
@@ -102,6 +106,10 @@ builds:
 - A native macOS arm64 release CLI. The test relocates it, checks the
   replies, exit codes 0, 1, and 2, and the `notes.txt` digest. Evidence:
   `native-evidence.txt`.
+- A macOS release `.app` from `apple_macos_app`. The test relocates the
+  bundle, checks `Info.plist`, resources, and arm64 platform, then runs
+  its executable and checks the state it prints. Evidence:
+  `pocket-mac-app-evidence.txt`.
 - An iOS simulator release app. The test relocates the bundle, runs
   XCTest, installs it, and checks the state it writes on launch.
   Evidence: `pocket-evidence.txt`.
@@ -188,7 +196,8 @@ without its bindgen interface to fail with
 
 ## Pending
 
-- Emulator run: needs KVM. Without it the emulator boot loops.
+- Emulator run in CI: the `android` workflow runs it on a KVM runner; no
+  run has been recorded yet.
 - Physical arm64 device run.
 - Multi-ABI install on a device.
 - iOS device run: needs a physical device.

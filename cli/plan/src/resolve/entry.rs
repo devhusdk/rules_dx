@@ -107,6 +107,7 @@ mod tests {
             ])),
             FakeQuery::ok("//pkg:unit\n"),
         ]);
+        write(&workspace, "other/BUILD.bazel", "");
         let got = resolve_for_test_with_selection(
             &strings(&["pkg/a.py", "//other/..."]),
             &workspace,
@@ -279,6 +280,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-test-scope-labels-");
         let workspace = scratch.path().to_path_buf();
         let query = NeverQuery;
+        write(&workspace, "b/BUILD.bazel", "");
         let got = resolve_for_test_with_selection(
             &strings(&["//a:one", "//b/..."]),
             &workspace,

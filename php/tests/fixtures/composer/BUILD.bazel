@@ -1,0 +1,103 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+load("//php/rules:php.bzl", "php_autoload_tree")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files([
+    "composer.digests.json",
+    "composer.lock",
+])
+
+php_library(
+    name = "factory",
+    srcs = ["src/Fixture/RequestFactory.php"],
+    deps = ["@php_fixture_vendor//psr/http-factory"],
+)
+
+php_library(
+    name = "factory_deprecations",
+    srcs = [],
+    deps = [
+        ":factory",
+        "@php_fixture_vendor//symfony/deprecation-contracts",
+    ],
+)
+
+php_binary(
+    name = "main",
+    main = "bin/main.php",
+    deps = [":factory_deprecations"],
+)
+
+php_test(
+    name = "request_factory_test",
+    size = "small",
+    srcs = ["test/RequestFactoryTest.php"],
+    deps = [":factory_deprecations"],
+)
+
+# A class of a package that is not in deps is not found at run time.
+php_binary(
+    name = "missing",
+    main = "bin/missing.php",
+)
+
+sh_test(
+    name = "main_test",
+    size = "small",
+    srcs = ["main_test.sh"],
+    args = ["$(rootpath :main)"],
+    data = [":main"],
+)
+
+sh_test(
+    name = "missing_test",
+    size = "small",
+    srcs = ["missing_test.sh"],
+    args = ["$(rootpath :missing)"],
+    data = [":missing"],
+)
+
+[
+    php_autoload_tree(
+        name = "autoload_" + copy,
+        suffix = "Dx_reproducible",
+        target_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:x86_64",
+        ],
+        deps = [":factory_deprecations"],
+    )
+    for copy in ("a", "b")
+]
+
+sh_test(
+    name = "autoload_reproducible_test",
+    size = "small",
+    srcs = ["same_tree_test.sh"],
+    args = [
+        "$(rootpath :autoload_a)",
+        "$(rootpath :autoload_b)",
+    ],
+    data = [
+        ":autoload_a",
+        ":autoload_b",
+    ],
+)
+
+build_test(
+    name = "groups_test",
+    targets = [
+        "@php_fixture_vendor//:all_packages",
+        "@php_fixture_vendor//:dev_packages",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

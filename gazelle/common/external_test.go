@@ -269,7 +269,51 @@ func TestResolveSingleExternal(t *testing.T) {
 		t.Errorf("ignore was not marked used: %+v", entry)
 	}
 	l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{"com.split.shared.X", "org.nothing.Y"}), from)
-	if len(l.errors) != 2 || !strings.Contains(l.errors[0], "ambiguous import") || !strings.Contains(l.errors[0], "@maven//:com_split_one, @maven//:com_split_two_x") || !strings.Contains(l.errors[1], `unresolved import "org.nothing.Y"`) {
+	if len(l.errors) != 2 || !strings.Contains(l.errors[0].Message, "ambiguous import") || !strings.Contains(l.errors[0].Message, "@maven//:com_split_one, @maven//:com_split_two_x") || !strings.Contains(l.errors[1].Message, `unresolved import "org.nothing.Y"`) {
 		t.Errorf("errors = %v", l.errors)
+	}
+}
+
+func TestExternalPythonUVLock(t *testing.T) {
+	cfg, root := externalConfig(t)
+	dotFile(t, root, "uv.lock", `version = 1
+
+[[package]]
+name = "My_Pkg"
+version = "1.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "app"
+version = "0.1.0"
+source = { virtual = "." }
+`)
+	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	for imp, want := range map[string]string{"my_pkg": "@pypi//my-pkg", "my_pkg.sub": "@pypi//my-pkg", "app": "", "other": ""} {
+		got, _ := ExternalLabels(cfg, "python", imp)
+		if labelStrings(got) != want {
+			t.Errorf("%s: got %v, want %q", imp, got, want)
+		}
+	}
+}
+
+func TestExternalNpmRootOnly(t *testing.T) {
+	cfg, root := externalConfig(t)
+	dotFile(t, root, "package.json", `{"dependencies":{"react":"1"},"devDependencies":{"@scope/pkg":"1"}}`)
+	dotFile(t, root, "sub/package.json", `{"dependencies":{"vue":"1"}}`)
+	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	sub := cfg.Clone()
+	if errs := ConfigureExternal(sub, "sub", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	for imp, want := range map[string]string{"react": "//:node_modules/react", "react/jsx-runtime": "//:node_modules/react", "@scope/pkg/x": "//:node_modules/@scope/pkg", "vue": ""} {
+		got, _ := ExternalLabels(sub, "npm", imp)
+		if labelStrings(got) != want {
+			t.Errorf("%s: got %v, want %q", imp, got, want)
+		}
 	}
 }

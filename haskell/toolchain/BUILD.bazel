@@ -1,5 +1,7 @@
+load("//libs/starlark:cells.bzl", "cell_settings")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "haskell_metadata_tests")
+load(":pins.bzl", "CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,7 +11,47 @@ exports_files([
     "repos.bzl",
 ])
 
+cell_settings(
+    name = "cell",
+    cells = CELLS,
+)
+
 haskell_metadata_tests(name = "metadata")
+
+# Consumers cannot see @dx_haskell_toolchains, so they depend on this alias.
+alias(
+    name = "base",
+    actual = "@dx_haskell_toolchains//:base",
+)
+
+[
+    alias(
+        name = name,
+        actual = "@dx_haskell_toolchains//:" + name,
+    )
+    for name in [
+        "array",
+        "binary",
+        "bytestring",
+        "containers",
+        "deepseq",
+        "directory",
+        "exceptions",
+        "filepath",
+        "ghc-prim",
+        "licenses",
+        "mtl",
+        "parsec",
+        "pretty",
+        "process",
+        "stm",
+        "template-haskell",
+        "text",
+        "time",
+        "transformers",
+        "unix",
+    ]
+]
 
 real_source_target(
     name = "corpus_starlark",
@@ -21,4 +63,10 @@ real_source_target(
         "repos.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

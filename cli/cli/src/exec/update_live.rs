@@ -16,6 +16,8 @@ pub(super) struct ScriptRunner {
     pub(super) launches: RefCell<Vec<Launch>>,
     /// Files the next launch writes, as a backend that changes the tree would.
     pub(super) writes: RefCell<Vec<(std::path::PathBuf, Vec<u8>)>>,
+    /// Files the next launch writes into its `--output-folder`, as a staged generator would.
+    pub(super) staged_outputs: RefCell<Vec<(String, Vec<u8>)>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -50,6 +52,7 @@ impl ScriptRunner {
             version: Some(dx_update::backend::UV_VERSION_LINE.to_owned()),
             launches: RefCell::new(Vec::new()),
             writes: RefCell::new(Vec::new()),
+            staged_outputs: RefCell::new(Vec::new()),
         }
     }
 
@@ -76,6 +79,15 @@ impl ScriptRunner {
         for (path, bytes) in self.writes.borrow_mut().drain(..) {
             std::fs::write(&path, bytes)?;
         }
+        if let Some(folder) = argv
+            .iter()
+            .skip_while(|arg| *arg != "--output-folder")
+            .nth(1)
+        {
+            for (name, bytes) in self.staged_outputs.borrow_mut().drain(..) {
+                std::fs::write(Path::new(folder).join(name), bytes)?;
+            }
+        }
         let key = Self::key_for(argv);
         let code = self.codes.borrow().get(&key).copied().unwrap_or(Some(0));
         Ok(ChildStatus { code, signal: None })
@@ -94,7 +106,7 @@ impl ScriptRunner {
             .contains(&"@pnpm//:pnpm".to_owned())
             .then(|| argv.iter().skip_while(|arg| *arg != "--dir").nth(1))
             .flatten()
-            .filter(|dir| dir.replace('\\', "/").contains("/consumer-npm/"))
+            .filter(|dir| dx_path::posix_str(dir).contains("/consumer-npm/"))
         {
             let name = Path::new(dir)
                 .file_name()
@@ -119,6 +131,11 @@ impl ScriptRunner {
             "npm".to_owned()
         } else if argv.contains(&"@maven//:pin".to_owned()) {
             "maven".to_owned()
+        } else if let Some(repository) = argv
+            .iter()
+            .find_map(|arg| arg.strip_prefix('@')?.strip_suffix("//:pin"))
+        {
+            format!("consumer-maven:{repository}")
         } else if argv.iter().any(|arg| arg.contains("paket2bazel")) {
             "nuget".to_owned()
         } else if argv.contains(&"uv".to_owned())
@@ -173,13 +190,17 @@ impl Runner for ScriptRunner {
         self.launch(argv, cwd, env, true)
     }
 
-    fn pinned_tool(&self, var: &str) -> Option<std::path::PathBuf> {
+    fn pinned_tool(&self, var: &str) -> dx_process::PinnedVar {
         let name = match var {
             "DX_UV_BIN" => "uv",
             "DX_UV_PYTHON" => "python3",
-            _ => return None,
+            _ => return dx_process::PinnedVar::Unset,
         };
-        self.pinned.then(|| fake_pinned(name).into())
+        if self.pinned {
+            dx_process::PinnedVar::Path(fake_pinned(name).into())
+        } else {
+            dx_process::PinnedVar::Unset
+        }
     }
 
     fn tool_version(&self, _path: &Path) -> Option<String> {

@@ -87,6 +87,18 @@ pub enum Error {
     IgnoredOrder { index: usize },
     #[error("duplicate ignored import at index {index}")]
     DuplicateIgnoredImport { index: usize },
+    #[error("empty language at error[{index}]: want a non-empty language")]
+    EmptyErrorLanguage { index: usize },
+    #[error("empty message at error[{index}]: want a non-empty message")]
+    EmptyErrorMessage { index: usize },
+    #[error("unordered error at index {index}")]
+    ErrorOrder { index: usize },
+    #[error("duplicate error at index {index}")]
+    DuplicateError { index: usize },
+    #[error("files with errors: failed runs carry no files")]
+    ErrorsWithFiles,
+    #[error("complete scope at scope[{index}] with errors: failed runs have incomplete scopes")]
+    CompleteScopeWithErrors { index: usize },
 }
 
 pub fn digest(bytes: &[u8]) -> [u8; DIGEST_LEN] {
@@ -347,6 +359,48 @@ fn validate_ignored(ignored: &[IgnoredImport], scope_count: usize) -> Result<(),
     Ok(())
 }
 
+fn validate_errors(manifest: &GenerationManifest) -> Result<(), Error> {
+    if manifest.errors.is_empty() {
+        return Ok(());
+    }
+    if !manifest.files.is_empty() {
+        return Err(Error::ErrorsWithFiles);
+    }
+    for (index, scope) in manifest.scopes.iter().enumerate() {
+        if scope.results_complete == Some(true) {
+            return Err(Error::CompleteScopeWithErrors { index });
+        }
+    }
+    let mut previous: Option<(&str, Option<&str>, &str)> = None;
+    for (index, item) in manifest.errors.iter().enumerate() {
+        if item.language.is_empty() {
+            return Err(Error::EmptyErrorLanguage { index });
+        }
+        if item.message.is_empty() {
+            return Err(Error::EmptyErrorMessage { index });
+        }
+        if let Some(package) = item.package.as_deref().filter(|p| !p.is_empty()) {
+            check_path(&format!("errors[{index}]"), package)?;
+        }
+        let key = (
+            item.language.as_str(),
+            item.package.as_deref(),
+            item.message.as_str(),
+        );
+        match dx_proto_validate::check_sorted_next(previous.as_ref(), &key) {
+            Ok(()) => {}
+            Err(dx_proto_validate::OrderViolation::Duplicate) => {
+                return Err(Error::DuplicateError { index });
+            }
+            Err(dx_proto_validate::OrderViolation::Unsorted) => {
+                return Err(Error::ErrorOrder { index });
+            }
+        }
+        previous = Some(key);
+    }
+    Ok(())
+}
+
 pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
     dx_schema::check_major(manifest.schema_major)
         .map_err(|found| Error::UnsupportedMajor { found })?;
@@ -359,7 +413,8 @@ pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
         });
     }
     validate_scopes(&manifest.scopes)?;
-    if mode == Mode::Check {
+    validate_errors(manifest)?;
+    if mode == Mode::Check && manifest.errors.is_empty() {
         for (index, scope) in manifest.scopes.iter().enumerate() {
             if scope.results_complete != Some(true) {
                 return Err(Error::ScopeCompletion { index });
@@ -389,7 +444,7 @@ pub fn decode_validated(bytes: &[u8]) -> Result<GenerationManifest, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proto::{Edit, WriteOutcome};
+    use proto::{Edit, GenerationError, WriteOutcome};
 
     fn modification(content: &[u8]) -> Modification {
         Modification {
@@ -429,7 +484,28 @@ mod tests {
                 import: "optional".into(),
                 scope_index: 0,
             }],
+            errors: Vec::new(),
         }
+    }
+
+    fn failed(mode: Mode) -> GenerationManifest {
+        let mut manifest = sample(mode);
+        manifest.files.clear();
+        manifest.ignored_imports.clear();
+        manifest.scopes[0].results_complete = Some(false);
+        manifest.errors = vec![
+            GenerationError {
+                language: "cc".into(),
+                package: None,
+                message: "boom".into(),
+            },
+            GenerationError {
+                language: "go".into(),
+                package: Some("pkg".into()),
+                message: "bad".into(),
+            },
+        ];
+        manifest
     }
 
     fn sample_with(mode: Mode, modification: Modification) -> GenerationManifest {
@@ -445,6 +521,72 @@ mod tests {
     ) {
         mutate(&mut manifest);
         assert_eq!(validate(&manifest), Err(expected));
+    }
+
+    #[test]
+    fn failed_manifest_validates_in_both_modes() {
+        assert_eq!(validate(&failed(Mode::Default)), Ok(()));
+        assert_eq!(validate(&failed(Mode::Check)), Ok(()));
+    }
+
+    #[test]
+    fn errors_require_incomplete_scopes() {
+        assert_error(
+            failed(Mode::Default),
+            |m| m.scopes[0].results_complete = Some(true),
+            Error::CompleteScopeWithErrors { index: 0 },
+        );
+    }
+
+    #[test]
+    fn errors_forbid_files() {
+        let files = sample(Mode::Default).files;
+        assert_error(
+            failed(Mode::Default),
+            |m| m.files = files,
+            Error::ErrorsWithFiles,
+        );
+    }
+
+    #[test]
+    fn errors_sorted_unique() {
+        assert_error(
+            failed(Mode::Default),
+            |m| m.errors.reverse(),
+            Error::ErrorOrder { index: 1 },
+        );
+        assert_error(
+            failed(Mode::Default),
+            |m| m.errors[1] = m.errors[0].clone(),
+            Error::DuplicateError { index: 1 },
+        );
+    }
+
+    #[test]
+    fn empty_error_fields_rejected() {
+        assert_error(
+            failed(Mode::Default),
+            |m| m.errors[0].language.clear(),
+            Error::EmptyErrorLanguage { index: 0 },
+        );
+        assert_error(
+            failed(Mode::Default),
+            |m| m.errors[0].message.clear(),
+            Error::EmptyErrorMessage { index: 0 },
+        );
+    }
+
+    #[test]
+    fn error_package_path_checked() {
+        let result = validate(&{
+            let mut m = failed(Mode::Default);
+            m.errors[1].package = Some("/abs".into());
+            m
+        });
+        assert!(matches!(result, Err(Error::BadPath { .. })), "{result:?}");
+        let mut m = failed(Mode::Default);
+        m.errors[1].package = Some(String::new());
+        assert_eq!(validate(&m), Ok(()));
     }
 
     #[test]

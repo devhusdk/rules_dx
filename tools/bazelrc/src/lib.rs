@@ -42,7 +42,7 @@ const UPSTREAM_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const COVERAGE_FLAGS: [Flag; 8] = [
+const COVERAGE_FLAGS: [Flag; 6] = [
     (
         "common --enable_platform_specific_config",
         "Apply the linux, macos and windows config lines on matching hosts.",
@@ -62,14 +62,6 @@ const COVERAGE_FLAGS: [Flag; 8] = [
     (
         "coverage --enable_runfiles",
         "Coverage collectors read their inputs from a runfiles tree.",
-    ),
-    (
-        "coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-        "Use the system gcov for gcc coverage on Linux.",
-    ),
-    (
-        "coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-        "Use the system gcov for gcc coverage on macOS.",
     ),
     (
         "coverage --instrumentation_filter=^//",
@@ -265,6 +257,50 @@ pub fn render_all() -> String {
 /// The root `.bazelrc` line that imports `layer` from `dir`.
 pub fn import_line(dir: &str, layer: Layer) -> String {
     format!("import %workspace%/{dir}/{}", layer.file_name())
+}
+
+/// The comment `prepend_imports` writes above the import block.
+pub const IMPORT_COMMENT: &str = "# dx Bazel preset; comment out an import to drop that layer.";
+
+fn normalized(text: &str) -> String {
+    text.strip_prefix('\u{feff}')
+        .unwrap_or(text)
+        .replace('\r', "")
+}
+
+/// Whether `text` is a dx-generated layer file (starts with the header, ignoring a BOM).
+pub fn is_generated(text: &str) -> bool {
+    text.strip_prefix('\u{feff}')
+        .unwrap_or(text)
+        .starts_with(HEADER_MARKER)
+}
+
+/// Whether `text` is what dx renders for `layer`, ignoring a BOM and CRLF line endings.
+pub fn layer_is_current(text: &str, layer: Layer) -> bool {
+    normalized(text) == render_layer(layer)
+}
+
+/// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.
+///
+/// Uses the line ending of `text`; the rest of `text` stays byte-identical.
+pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
+    let (bom, rest) = match text.strip_prefix('\u{feff}') {
+        Some(rest) => ("\u{feff}", rest),
+        None => ("", text),
+    };
+    let eol = if rest.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut out = String::from(bom);
+    out.push_str(IMPORT_COMMENT);
+    out.push_str(eol);
+    for layer in layers {
+        out.push_str(&import_line(dir, *layer));
+        out.push_str(eol);
+    }
+    if !rest.is_empty() {
+        out.push_str(eol);
+        out.push_str(rest);
+    }
+    out
 }
 
 /// How a root `.bazelrc` refers to one layer.
@@ -543,6 +579,35 @@ mod tests {
     }
 
     #[test]
+    fn prepend_imports_keeps_bom_eol_and_rest() {
+        let all = Layer::ALL;
+        let crlf = prepend_imports("\u{feff}build --x\r\n", CONSUMER_DIR, &all);
+        assert!(crlf.starts_with("\u{feff}# dx Bazel preset"));
+        assert!(crlf.ends_with("\r\n\r\nbuild --x\r\n"));
+        assert!(!crlf.replace("\r\n", "").contains('\n'));
+        let lf = prepend_imports("build --x\n", CONSUMER_DIR, &all);
+        assert!(lf.ends_with("\n\nbuild --x\n"));
+        let empty = prepend_imports("", CONSUMER_DIR, &all);
+        assert_eq!(empty.lines().count(), 1 + all.len());
+        for (_, state) in layer_import_state(&lf, CONSUMER_DIR) {
+            assert_eq!(state, ImportState::Active);
+        }
+    }
+
+    #[test]
+    fn generated_and_current_ignore_bom_and_crlf() {
+        for layer in Layer::ALL {
+            let text = render_layer(layer);
+            assert!(is_generated(&text));
+            assert!(layer_is_current(&text, layer));
+            assert!(layer_is_current(&text.replace('\n', "\r\n"), layer));
+            assert!(layer_is_current(&format!("\u{feff}{text}"), layer));
+            assert!(!layer_is_current(&format!("{text}x\n"), layer));
+        }
+        assert!(!is_generated("build --x\n"));
+    }
+
+    #[test]
     fn pins_track_canonical_versions() {
         assert_eq!(PRESET_BAZEL_VERSION, "9.2.0");
         assert_eq!(PRESET_DX_VERSION, "0.0.0");
@@ -561,8 +626,6 @@ mod tests {
                 "coverage --combined_report=lcov",
                 "coverage --test_tag_filters=-no-coverage",
                 "coverage --enable_runfiles",
-                "coverage:linux --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
-                "coverage:macos --test_env=COVERAGE_GCOV_PATH=/usr/bin/gcov",
                 "coverage --instrumentation_filter=^//",
                 "common --nolegacy_external_runfiles",
                 "build:windows --nobuild_runfile_links",
@@ -663,8 +726,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 33);
-        assert_eq!(rendered_flag_lines(&render_all()).len(), 33);
+        assert_eq!(total, 31);
+        assert_eq!(rendered_flag_lines(&render_all()).len(), 31);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -754,7 +817,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 33);
+        assert_eq!(flags.len(), 31);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

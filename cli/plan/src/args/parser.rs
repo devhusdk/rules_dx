@@ -93,7 +93,7 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
             if consumed_next {
                 index += 1;
             }
-        } else if !word.contains('=') && super::grammar::VALUE_OPTIONS.contains(&word) {
+        } else if !word.contains('=') && super::grammar::value_options().contains(word) {
             index += 1;
         }
         index += 1;
@@ -133,6 +133,35 @@ fn default_output_applies(command: Command, name: &str, worktree_verb: Option<&s
     match name {
         "path" => command == Command::Worktree && worktree_verb == Some("add"),
         _ => output_supported(command, name),
+    }
+}
+
+/// The one output resolution shared by startup guessing and full parsing.
+///
+/// Precedence is flag, then `DX_OUTPUT`, then the file default, then the
+/// agent default. A non-flag value that does not apply to the command (or
+/// the worktree verb) falls back to the agent default. `command` is `None`
+/// while it is still unknown, in which case every value applies.
+fn resolve_output_name(
+    command: Option<Command>,
+    flag: Option<&str>,
+    env: Option<String>,
+    file: Option<&str>,
+    agent: bool,
+    worktree_verb: Option<&str>,
+) -> String {
+    if let Some(flag) = flag {
+        return flag.to_owned();
+    }
+    if let Some(value) = env.as_deref().or(file) {
+        if command.is_none_or(|command| default_output_applies(command, value, worktree_verb)) {
+            return value.to_owned();
+        }
+    }
+    if agent && command.is_none_or(Command::supports_json) {
+        "json".to_owned()
+    } else {
+        "text".to_owned()
     }
 }
 
@@ -177,13 +206,16 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
     } else {
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
-    if let Some(value) = env.as_deref().or(file.output.as_deref()) {
-        let verb = verb_after_command(args);
-        if command.is_none_or(|command| default_output_applies(command, value, verb.as_deref())) {
-            return value == "json";
-        }
-    }
-    !is_ci && dx_adopt::defaults::is_agent(env_get) && command.is_none_or(Command::supports_json)
+    let agent = !is_ci && dx_adopt::defaults::is_agent(env_get);
+    let verb = verb_after_command(args);
+    resolve_output_name(
+        command,
+        None,
+        env,
+        file.output.as_deref(),
+        agent,
+        verb.as_deref(),
+    ) == "json"
 }
 
 /// Whether the raw command line asks for help or the delivered version.
@@ -221,7 +253,24 @@ pub fn is_help_request<S: AsRef<OsStr>>(args: &[S]) -> bool {
 pub fn is_discovery_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Init | Command::New | Command::Completion | Command::Worktree
+        Command::Init | Command::New | Command::Completion | Command::Worktree | Command::Install
+    )
+}
+
+/// The config-directed workspace. A relative key resolves from the directory of
+/// the file that set it, so the redirect does not depend on where dx started.
+fn file_directed_workspace(
+    defaults: &super::FileDefaults,
+    source: Option<&std::path::Path>,
+    start: &std::path::Path,
+) -> Option<String> {
+    let raw = defaults.workspace.as_deref()?;
+    let base = source.and_then(std::path::Path::parent).unwrap_or(start);
+    let resolved = dx_process::resolve_override_display(std::path::Path::new(raw), base);
+    Some(
+        resolved
+            .to_str()
+            .map_or_else(|| raw.to_owned(), str::to_owned),
     )
 }
 
@@ -242,11 +291,11 @@ pub fn select_startup_defaults_with_ci(
         Some(raw) => dx_process::resolve_override_display(std::path::Path::new(raw), base),
         None => start.to_path_buf(),
     };
-    match dx_adopt::defaults::load_defaults_with_mode(&dir, is_ci) {
-        Ok((defaults, _)) => {
+    match dx_adopt::defaults::load_defaults_with_source(&dir, is_ci) {
+        Ok((defaults, _, workspace_source)) => {
             let file_workspace = match preliminary {
                 Some(_) => None,
-                None => defaults.workspace.clone(),
+                None => file_directed_workspace(&defaults, workspace_source.as_deref(), &dir),
             };
             Ok(StartupDefaults {
                 defaults,
@@ -329,6 +378,7 @@ pub fn load_startup_defaults(
 /// The workspace a run selects: the flag, the environment, then the defaults.
 pub fn startup_workspace(
     start: &std::path::Path,
+    base: &std::path::Path,
     flag_workspace: Option<String>,
     env_workspace: Option<String>,
     is_ci: bool,
@@ -338,7 +388,7 @@ pub fn startup_workspace(
         .filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
     let file_workspace = load_startup_defaults(
         start,
-        start,
+        base,
         flag_workspace.clone(),
         env_workspace.clone(),
         is_ci,
@@ -505,7 +555,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         debug,
         release,
         prune_unobserved,
-        configured,
         from,
         to,
         here,
@@ -525,9 +574,13 @@ fn parse_inner<S: AsRef<OsStr>>(
         bases,
         with,
         full,
+        rust_target_triple,
         explain,
         old_log,
         new_log,
+        install_tag,
+        install_archive: install_archive_os,
+        install_dir: install_dir_os,
         bazel_startup_options: startup_tokens,
         bazel_options: option_tokens,
     } = tokenized.flags;
@@ -572,11 +625,13 @@ fn parse_inner<S: AsRef<OsStr>>(
     } else {
         "text"
     };
-    let output_name = invocation_defaults::resolve_string(
-        output,
+    let mut output_name = resolve_output_name(
+        Some(command),
+        output.as_deref(),
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
-        file.output.clone(),
-        default_output,
+        file.output.as_deref(),
+        agent,
+        targets.first().map(String::as_str),
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
@@ -698,6 +753,18 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(extra_positional(command, scope));
         }
     }
+    if command == Command::Install {
+        if let Some(scope) = targets.first() {
+            return Err(extra_positional(command, scope));
+        }
+        if install_tag.is_none() || install_archive_os.is_none() {
+            return Err(ArgsError::MissingValue {
+                option: "--tag <tag> --archive <path>".to_owned(),
+            });
+        }
+    }
+    let install_archive = install_archive_os.map(std::path::PathBuf::from);
+    let install_dir = install_dir_os.map(std::path::PathBuf::from);
     if command == Command::Upgrade {
         if let Some(scope) = targets.first() {
             return Err(unsupported(command, scope.clone()));
@@ -714,13 +781,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(unsupported(command, "--open"));
         }
     }
-    let mut output_name = if output_from_flag
-        || default_output_applies(command, &output_name, targets.first().map(String::as_str))
-    {
-        output_name
-    } else {
-        default_output.to_owned()
-    };
+
     let mut path_only = false;
     if command == Command::Worktree {
         validate_worktree(&targets)?;
@@ -803,12 +864,11 @@ fn parse_inner<S: AsRef<OsStr>>(
         bazel_options,
         app_args,
         prune_unobserved,
-        configured,
         from,
         to,
         here,
         affected,
-        test_targets: None,
+        affected_handoff: None,
         serve,
         port,
         host,
@@ -827,9 +887,15 @@ fn parse_inner<S: AsRef<OsStr>>(
         } else {
             dx_adopt::InitParts::parse_list(&with).map_err(bad_default)?
         },
+        init_rust_target_triples: dx_adopt::validate_rust_target_triples(&rust_target_triple)
+            .map_err(|detail| ArgsError::BadDefault { detail })?,
         explain,
+        exec_log: None,
         old_log,
         new_log,
+        install_tag,
+        install_archive,
+        install_dir,
         path_only,
         agent,
         bazel_startup_options,
@@ -1204,6 +1270,51 @@ mod startup_tests {
     }
 
     #[test]
+    fn json_intent_matches_parsed_output_across_layers() {
+        let agent_env = dx_adopt::defaults::AGENT_ENVS[0];
+        let mut cases = 0;
+        for words in [
+            &["lint"][..],
+            &["lint", "--output=text"][..],
+            &["lint", "--output=json"][..],
+            &["worktree", "add", "branch"][..],
+            &["worktree", "list"][..],
+            &["status"][..],
+        ] {
+            for env_output in [None, Some("json"), Some("text"), Some("path")] {
+                for file_output in [None, Some("json"), Some("path")] {
+                    for agent in [false, true] {
+                        let env = |name: &str| {
+                            if name == dx_adopt::defaults::DX_OUTPUT_ENV {
+                                env_output.map(str::to_owned)
+                            } else if name == agent_env && agent {
+                                Some("1".to_owned())
+                            } else {
+                                None
+                            }
+                        };
+                        let file = crate::args::FileDefaults {
+                            output: file_output.map(str::to_owned),
+                            ..Default::default()
+                        };
+                        let args = strings(words);
+                        let Ok(parsed) = parse_with(&args, &env, &file) else {
+                            continue;
+                        };
+                        cases += 1;
+                        assert_eq!(
+                            json_output_intent(&args, &env, &file, false),
+                            parsed.output == OutputMode::Json,
+                            "{words:?} env={env_output:?} file={file_output:?} agent={agent}"
+                        );
+                    }
+                }
+            }
+        }
+        assert!(cases > 50, "{cases}");
+    }
+
+    #[test]
     fn json_intent_under_agents_follows_supports_json() {
         use clap::ValueEnum;
         let file = crate::args::FileDefaults::default();
@@ -1318,7 +1429,12 @@ mod startup_tests {
 
     #[test]
     fn discovery_runs_without_a_module_only_for_init_new_and_completion() {
-        for command in [Command::Init, Command::New, Command::Completion] {
+        for command in [
+            Command::Init,
+            Command::New,
+            Command::Completion,
+            Command::Install,
+        ] {
             assert!(is_discovery_exempt(command), "{command:?} is exempt");
         }
         for command in [
@@ -1382,6 +1498,28 @@ mod startup_tests {
         let selected = select_startup_defaults_with_ci(&missing, &missing, None, None, false)
             .expect("walks up");
         assert_eq!(selected.defaults.output, Some("json".to_owned()));
+    }
+
+    #[test]
+    fn startup_resolves_a_relative_file_key_from_the_config_directory() {
+        let root = scratch_with_config(
+            "startup-relative-key-",
+            Some("[dx]\noutput = \"json\"\nworkspace = \"sub\"\n"),
+        );
+        let sub = root.path().join("sub");
+        std::fs::create_dir_all(sub.join(".dx")).expect("sub dx");
+        std::fs::write(sub.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("sub config");
+        let child = root.path().join("child");
+        std::fs::create_dir_all(&child).expect("child dir");
+        let selected = select_startup_defaults_with_ci(&child, &child, None, None, false)
+            .expect("walks up to the root config");
+        let target = selected
+            .file_workspace
+            .expect("the root config directs a workspace");
+        assert_eq!(target, sub.to_string_lossy());
+        let defaults = load_startup_defaults(&child, &child, None, None, false)
+            .expect("follows the redirect once");
+        assert_eq!(defaults.output, Some("text".to_owned()));
     }
 
     #[test]
@@ -1490,20 +1628,21 @@ mod startup_tests {
         let a = scratch_with_config("startup-ws-a-", Some(&config));
         let target = b.path().to_string_lossy().into_owned();
         assert_eq!(
-            startup_workspace(a.path(), None, None, false),
+            startup_workspace(a.path(), a.path(), None, None, false),
             Some(target.clone())
         );
         assert_eq!(
-            startup_workspace(a.path(), None, Some("/env".to_owned()), false),
+            startup_workspace(a.path(), a.path(), None, Some("/env".to_owned()), false),
             Some("/env".to_owned())
         );
         assert_eq!(
-            startup_workspace(a.path(), None, Some("/env".to_owned()), true),
+            startup_workspace(a.path(), a.path(), None, Some("/env".to_owned()), true),
             Some(target.clone()),
             "CI ignores the environment workspace"
         );
         assert_eq!(
             startup_workspace(
+                a.path(),
                 a.path(),
                 Some("/flag".to_owned()),
                 Some("/env".to_owned()),
@@ -1512,13 +1651,22 @@ mod startup_tests {
             Some("/flag".to_owned())
         );
         assert_eq!(
-            startup_workspace(a.path(), None, Some(String::new()), false),
+            startup_workspace(a.path(), a.path(), None, Some(String::new()), false),
             Some(target)
         );
         let broken = scratch_with_config("startup-ws-broken-", Some("not toml = ["));
-        assert_eq!(startup_workspace(broken.path(), None, None, false), None);
         assert_eq!(
-            startup_workspace(broken.path(), None, Some("/env".to_owned()), false),
+            startup_workspace(broken.path(), broken.path(), None, None, false),
+            None
+        );
+        assert_eq!(
+            startup_workspace(
+                broken.path(),
+                broken.path(),
+                None,
+                Some("/env".to_owned()),
+                false
+            ),
             Some("/env".to_owned())
         );
     }

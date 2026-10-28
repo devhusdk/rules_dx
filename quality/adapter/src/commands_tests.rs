@@ -437,13 +437,13 @@ fn eslint_without_a_program_fails_before_any_spawn() {
 fn prettier_check_and_fix_are_hermetic() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
-    let check = prettier_check(&launch, &[file], None).expect("resolves");
+    let check = prettier_check(&launch, &[file], None, None).expect("resolves");
     assert_eq!(
         argv_strings(&check),
         vec![BIN, "--no-editorconfig", "--check", "/scratch/src/a.js"]
     );
     assert_eq!(check.cwd_rel, "");
-    let fix = prettier_fix(&launch, &[file], None).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], None, None).expect("resolves");
     assert_eq!(
         argv_strings(&fix),
         vec![BIN, "--no-editorconfig", "--write", "/scratch/src/a.js"]
@@ -452,12 +452,32 @@ fn prettier_check_and_fix_are_hermetic() {
 }
 
 #[test]
+fn prettier_sql_dialect_is_one_dx_private_flag() {
+    let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
+    let file = Path::new("/scratch/src/a.sql");
+    let check = prettier_check(&launch, &[file], None, Some("postgresql")).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], None, Some("postgresql")).expect("resolves");
+    for (invocation, mode) in [(&check, "--check"), (&fix, "--write")] {
+        assert_eq!(
+            argv_strings(invocation),
+            vec![
+                BIN,
+                "--dx-sql-dialect=postgresql",
+                "--no-editorconfig",
+                mode,
+                "/scratch/src/a.sql"
+            ]
+        );
+    }
+}
+
+#[test]
 fn prettier_bound_config_is_one_dx_private_flag() {
     let launch = ResolvedTool::javascript("prettier", Path::new(BIN));
     let file = Path::new("/scratch/src/a.js");
     let cfg = Path::new("/scratch/cfg/.prettierrc.json");
-    let check = prettier_check(&launch, &[file], Some(cfg)).expect("resolves");
-    let fix = prettier_fix(&launch, &[file], Some(cfg)).expect("resolves");
+    let check = prettier_check(&launch, &[file], Some(cfg), None).expect("resolves");
+    let fix = prettier_fix(&launch, &[file], Some(cfg), None).expect("resolves");
     for (invocation, mode) in [(&check, "--check"), (&fix, "--write")] {
         let argv = argv_strings(invocation);
         assert_eq!(
@@ -1102,7 +1122,49 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Sample.rb"
         ]
     );
+    let lua = Path::new("/scratch/sample.lua");
+    let stylua_config = Path::new("/scratch/stylua.toml");
+    assert_eq!(
+        argv_strings(&stylua_check(Path::new(BIN), &[lua], None)),
+        vec![
+            BIN,
+            "--no-editorconfig",
+            "--check",
+            "--output-format=json",
+            "/scratch/sample.lua"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&stylua_check(Path::new(BIN), &[lua], Some(stylua_config))),
+        vec![
+            BIN,
+            "--no-editorconfig",
+            "--check",
+            "--output-format=json",
+            "--config-path",
+            "/scratch/stylua.toml",
+            "/scratch/sample.lua"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&stylua_fix(Path::new(BIN), &[lua], None)),
+        vec![BIN, "--no-editorconfig", "/scratch/sample.lua"]
+    );
+    assert_eq!(
+        argv_strings(&stylua_fix(Path::new(BIN), &[lua], Some(stylua_config))),
+        vec![
+            BIN,
+            "--no-editorconfig",
+            "--config-path",
+            "/scratch/stylua.toml",
+            "/scratch/sample.lua"
+        ]
+    );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
+    assert_eq!(
+        argv_strings(&jsonnet_lint_check(Path::new(BIN), &[jsonnet])),
+        vec![BIN, "/scratch/Sample.jsonnet"]
+    );
     assert_eq!(
         argv_strings(&jsonnetfmt_check(Path::new(BIN), &[jsonnet])),
         vec![BIN, "--test", "/scratch/Sample.jsonnet"]
@@ -1110,6 +1172,43 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     assert_eq!(
         argv_strings(&jsonnetfmt_fix(Path::new(BIN), &[jsonnet])),
         vec![BIN, "-i", "/scratch/Sample.jsonnet"]
+    );
+    let typst = Path::new("/scratch/sample.typ");
+    assert_eq!(
+        argv_strings(&typstyle_check(Path::new(BIN), &[typst])),
+        vec![BIN, "--check", "/scratch/sample.typ"]
+    );
+    assert_eq!(
+        argv_strings(&typstyle_fix(Path::new(BIN), &[typst])),
+        vec![BIN, "-i", "/scratch/sample.typ"]
+    );
+    let tex = Path::new("/scratch/doc/sample.tex");
+    let cruft = Path::new("/scratch/.latexindent");
+    assert_eq!(
+        argv_strings(&latexindent_check(Path::new(BIN), tex, cruft, None)),
+        vec![
+            BIN,
+            "-k",
+            "-g=/scratch/.latexindent/indent.log",
+            "-c=/scratch/.latexindent/",
+            "/scratch/doc/sample.tex"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&latexindent_fix(
+            Path::new(BIN),
+            tex,
+            cruft,
+            Some(Path::new("/scratch/cfg.yaml"))
+        )),
+        vec![
+            BIN,
+            "-w",
+            "-g=/scratch/.latexindent/indent.log",
+            "-c=/scratch/.latexindent/",
+            "-l=/scratch/cfg.yaml",
+            "/scratch/doc/sample.tex"
+        ]
     );
     let zig = Path::new("/scratch/sample.zig");
     assert_eq!(
@@ -1126,6 +1225,66 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     assert_eq!(
         argv_strings(&zig_fmt_fix(Path::new(BIN), &[zig])),
         vec![BIN, "fmt", "--color", "off", "/scratch/sample.zig"]
+    );
+    let d = Path::new("/scratch/sample.d");
+    assert_eq!(
+        argv_strings(&dfmt_check(Path::new(BIN), d)),
+        vec![BIN, "--config", "dx-dfmt-default", "/scratch/sample.d"]
+    );
+    assert_eq!(
+        argv_strings(&dfmt_fix(Path::new(BIN), &[d])),
+        vec![
+            BIN,
+            "--config",
+            "dx-dfmt-default",
+            "--inplace",
+            "/scratch/sample.d"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&dscanner_check(Path::new(BIN), &[d])),
+        vec![
+            BIN,
+            "--styleCheck",
+            "--config",
+            "dx-dscanner-default/dscanner.ini",
+            "--errorFormat",
+            DSCANNER_FORMAT,
+            "/scratch/sample.d"
+        ]
+    );
+    let julia = Path::new("/scratch/sample.jl");
+    assert_eq!(
+        argv_strings(&julia_format_check(Path::new(BIN), &[julia])),
+        vec![BIN, "--check", "/scratch/sample.jl"]
+    );
+    assert_eq!(
+        argv_strings(&julia_format_fix(Path::new(BIN), &[julia])),
+        vec![BIN, "--apply", "/scratch/sample.jl"]
+    );
+    let pm = Path::new("/scratch/sample.pm");
+    assert_eq!(
+        argv_strings(&perltidy_check(Path::new(BIN), pm)),
+        vec![
+            BIN,
+            "--noprofile",
+            "--standard-output",
+            "--standard-error-output",
+            "--output-line-ending=unix",
+            "/scratch/sample.pm"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&perltidy_fix(Path::new(BIN), &[pm])),
+        vec![
+            BIN,
+            "--noprofile",
+            "-b",
+            "-bext=/",
+            "--standard-error-output",
+            "--output-line-ending=unix",
+            "/scratch/sample.pm"
+        ]
     );
     let erl = Path::new("/scratch/sample.erl");
     assert_eq!(
@@ -1145,6 +1304,43 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&mix_format_fix(Path::new(BIN), &[ex])),
         vec![BIN, "/scratch/sample.ex"]
     );
+    let nix = Path::new("/scratch/sample.nix");
+    let other = Path::new("/scratch/other.nix");
+    assert_eq!(
+        argv_strings(&nixfmt_check(Path::new(BIN), &[nix, other])),
+        vec![BIN, "--check", "/scratch/sample.nix", "/scratch/other.nix"]
+    );
+    assert_eq!(
+        argv_strings(&nixfmt_fix(Path::new(BIN), &[nix, other])),
+        vec![BIN, "/scratch/sample.nix", "/scratch/other.nix"]
+    );
+    let hs = Path::new("/scratch/Sample.hs");
+    assert_eq!(
+        argv_strings(&ormolu_check(Path::new(BIN), &[hs])),
+        vec![
+            BIN,
+            "--mode",
+            "check",
+            "--no-cabal",
+            "--no-dot-ormolu",
+            "--color",
+            "never",
+            "/scratch/Sample.hs"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&ormolu_fix(Path::new(BIN), &[hs])),
+        vec![
+            BIN,
+            "--mode",
+            "inplace",
+            "--no-cabal",
+            "--no-dot-ormolu",
+            "--color",
+            "never",
+            "/scratch/Sample.hs"
+        ]
+    );
     let pkl = Path::new("/scratch/Sample.pkl");
     assert_eq!(
         argv_strings(&pkl_check(Path::new(BIN), &[pkl])),
@@ -1153,6 +1349,46 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     assert_eq!(
         argv_strings(&pkl_fix(Path::new(BIN), &[pkl])),
         vec![BIN, "format", "-w", "/scratch/Sample.pkl"]
+    );
+    let rego = Path::new("/scratch/policy/a.rego");
+    assert_eq!(
+        argv_strings(&opa_fmt_check(Path::new(BIN), rego)),
+        vec![BIN, "fmt", "/scratch/policy/a.rego"]
+    );
+    assert_eq!(
+        argv_strings(&opa_fmt_fix(Path::new(BIN), rego)),
+        vec![BIN, "fmt", "-w", "/scratch/policy/a.rego"]
+    );
+    assert_eq!(
+        argv_strings(&regal_lint(
+            Path::new(BIN),
+            &[Path::new("policy/a.rego")],
+            Path::new("/scratch/.regal/config.yaml")
+        )),
+        vec![
+            BIN,
+            "lint",
+            "--format",
+            "json",
+            "--no-color",
+            "--fail-level",
+            "warning",
+            "--config-file",
+            "/scratch/.regal/config.yaml",
+            "--",
+            "policy/a.rego"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&opa_check(Path::new(BIN), &[rego])),
+        vec![
+            BIN,
+            "check",
+            "--format",
+            "json",
+            "--max-errors=-1",
+            "/scratch/policy/a.rego"
+        ]
     );
     let html = Path::new("/scratch/templates/a.html");
     let djlint_conf = Path::new("/scratch/djlint.toml");
@@ -1241,6 +1477,34 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "default",
             "/scratch/Sample.yaml"
         ]
+    );
+}
+
+#[test]
+fn ansible_lint_check_offline_sarif_with_project_dir_and_optional_config() {
+    let file = Path::new("/scratch/site.yml");
+    let root = Path::new("/scratch");
+    let base = [
+        BIN,
+        "--offline",
+        "--nocolor",
+        "-f",
+        "sarif",
+        "--project-dir",
+        "/scratch",
+    ];
+    let mut with = base.to_vec();
+    with.extend(["-c", "/scratch/.ansible-lint", "/scratch/site.yml"]);
+    let conf = Some(Path::new("/scratch/.ansible-lint"));
+    assert_eq!(
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], conf, root)),
+        with
+    );
+    let mut without = base.to_vec();
+    without.push("/scratch/site.yml");
+    assert_eq!(
+        argv_strings(&ansible_lint_check(Path::new(BIN), &[file], None, root)),
+        without
     );
 }
 
@@ -1433,6 +1697,56 @@ fn file_family_lint_checks_are_check_only() {
             "/scratch/Dockerfile"
         ]
     );
+    let makefile = Path::new("/scratch/Makefile");
+    assert_eq!(
+        argv_strings(&checkmake_check(
+            Path::new(BIN),
+            &[makefile],
+            Path::new("/scratch/checkmake.ini")
+        )),
+        vec![
+            BIN,
+            "--debug",
+            "--output",
+            "json",
+            "--config",
+            "/scratch/checkmake.ini",
+            "--",
+            "/scratch/Makefile"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&tflint_check(
+            Path::new(BIN),
+            "infra/a",
+            &[Path::new("main.tf"), Path::new("vars.tf")],
+            Path::new("/scratch/.tflint.hcl")
+        )),
+        vec![
+            BIN,
+            "--config",
+            "/scratch/.tflint.hcl",
+            "--chdir=infra/a",
+            "--format=json",
+            "--no-color",
+            "--call-module-type=none",
+            "--filter=main.tf",
+            "--filter=vars.tf"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&credo_check(
+            Path::new(BIN),
+            &[Path::new("/scratch/lib/a.ex")],
+            Path::new("/scratch/.credo.exs")
+        )),
+        vec![
+            BIN,
+            "--config-file",
+            "/scratch/.credo.exs",
+            "/scratch/lib/a.ex"
+        ]
+    );
     let txt = Path::new("/scratch/notes.txt");
     assert_eq!(
         argv_strings(&keep_sorted_check(Path::new(BIN), &[txt])),
@@ -1442,6 +1756,45 @@ fn file_family_lint_checks_are_check_only() {
         argv_strings(&keep_sorted_fix(Path::new(BIN), &[txt])),
         vec![BIN, "--mode", "fix", "/scratch/notes.txt"]
     );
+}
+
+#[test]
+fn nix_tools_pin_their_flags() {
+    let nix = Path::new("/scratch/-a.nix");
+    let config = Path::new("/scratch/statix.toml");
+    assert_eq!(
+        argv_strings(&statix_check(Path::new(BIN), nix, config)),
+        vec![
+            BIN,
+            "check",
+            "-o",
+            "json",
+            "--config",
+            "/scratch/statix.toml",
+            "--",
+            "/scratch/-a.nix"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&statix_fix(Path::new(BIN), nix, config)),
+        vec![
+            BIN,
+            "fix",
+            "--config",
+            "/scratch/statix.toml",
+            "--",
+            "/scratch/-a.nix"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&deadnix_check(Path::new(BIN), &[nix])),
+        vec![BIN, "--fail", "-o", "json", "--", "/scratch/-a.nix"]
+    );
+    assert_eq!(
+        argv_strings(&deadnix_fix(Path::new(BIN), &[nix])),
+        vec![BIN, "--edit", "--", "/scratch/-a.nix"]
+    );
+    assert_eq!(statix_check(Path::new(BIN), nix, config).cwd_rel, "");
 }
 
 #[test]
@@ -1486,6 +1839,14 @@ fn fixed_args_match_recorded_invocations() {
         (
             KEEP_SORTED_FIX_ARGS,
             keep_sorted_fix(Path::new(BIN), &[file]),
+        ),
+        (
+            NOTEBOOK_OUTPUTS_CHECK_ARGS,
+            notebook_outputs_check(Path::new(BIN), &[file]),
+        ),
+        (
+            NOTEBOOK_OUTPUTS_FIX_ARGS,
+            notebook_outputs_fix(Path::new(BIN), &[file]),
         ),
     ];
     for (args, invocation) in cases {
@@ -1632,7 +1993,15 @@ fn plan_batches_honours_launcher_budget() {
 
 #[test]
 fn file_independent_tools_batch() {
-    for tool in ["keep_sorted", "ruff", "flake8", "pydoclint", "buildifier"] {
+    for tool in [
+        "keep_sorted",
+        "notebook_outputs",
+        "ruff",
+        "flake8",
+        "pydoclint",
+        "buildifier",
+        "deadnix",
+    ] {
         assert_eq!(transport_for(tool), ArgTransport::Batched, "{tool}");
     }
     for tool in [
@@ -1646,6 +2015,7 @@ fn file_independent_tools_batch() {
         "staticcheck",
         "biome",
         "eslint",
+        "statix",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Single, "{tool}");
     }
@@ -1811,4 +2181,192 @@ fn invocation_batches_respect_launcher_budget() {
         assert!(bytes <= LAUNCHER_BATCH_BUDGET, "bytes {bytes} fit");
         assert!(units <= LAUNCHER_BATCH_BUDGET, "units {units} fit");
     }
+}
+
+const KUBECONFORM_CONFIG: &str = r#"{"schema_version":1,"kubernetes_version":"1.31.0","strict":true,"skip_kinds":["CustomThing","Other"],"core_dir":"k.kubeconform/core","crd_dir":"k.kubeconform/crd"}"#;
+
+#[test]
+fn kubeconform_pins_local_schema_locations() {
+    let config_path = Path::new("/scratch/cfg/k.kubeconform.json");
+    let config =
+        kubeconform_config(config_path, KUBECONFORM_CONFIG.as_bytes()).expect("config parses");
+    assert_eq!(
+        config.core_dir,
+        Path::new("/scratch/cfg").join("k.kubeconform").join("core")
+    );
+    let doc = Path::new("/scratch/dx-kubeconform/docs/0.yaml");
+    let invocation = kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv");
+    let core = format!(
+        "{}/{{{{.ResourceKind}}}}{{{{.KindSuffix}}}}.json",
+        config.core_dir.display()
+    );
+    let crd = format!(
+        "{}/{{{{.Group}}}}/{{{{.ResourceKind}}}}_{{{{.ResourceAPIVersion}}}}.json",
+        config.crd_dir.display()
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN.to_owned(),
+            "-output".to_owned(),
+            "json".to_owned(),
+            "-summary=false".to_owned(),
+            "-kubernetes-version".to_owned(),
+            "1.31.0".to_owned(),
+            "-strict".to_owned(),
+            "-skip".to_owned(),
+            "CustomThing,Other".to_owned(),
+            "-schema-location".to_owned(),
+            core,
+            "-schema-location".to_owned(),
+            crd,
+            "/scratch/dx-kubeconform/docs/0.yaml".to_owned(),
+        ]
+    );
+    assert!(!argv_strings(&invocation)
+        .iter()
+        .any(|arg| arg.contains("ignore-missing-schemas")));
+    let loose =
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    let config = kubeconform_config(config_path, loose.as_bytes()).expect("defaults");
+    let argv = argv_strings(&kubeconform_check(Path::new(BIN), &config, &[doc]).expect("argv"));
+    assert!(!argv.contains(&"-strict".to_owned()));
+    assert!(!argv.contains(&"-skip".to_owned()));
+    assert_eq!(
+        argv.iter().filter(|arg| *arg == "-schema-location").count(),
+        2
+    );
+}
+
+#[test]
+fn kubeconform_config_refuses_remote_or_escaping_locations() {
+    let config_path = Path::new("/scratch/cfg/k.kubeconform.json");
+    for (core, wanted) in [
+        ("default", "local directory"),
+        ("https://example.com/schemas", "local directory"),
+        ("../up", "relative forward-slash"),
+        ("/abs", "relative forward-slash"),
+        ("a\\\\b", "relative forward-slash"),
+        ("", "relative forward-slash"),
+    ] {
+        let text = format!(
+            r#"{{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"{core}","crd_dir":"d"}}"#
+        );
+        let err = kubeconform_config(config_path, text.as_bytes()).expect_err(core);
+        assert!(err.contains(wanted), "{core}: {err}");
+    }
+    let bad = [
+        r#"{"schema_version":2,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#,
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d","extra":1}"#,
+        r#"{"schema_version":1,"kubernetes_version":"","core_dir":"c","crd_dir":"d"}"#,
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","skip_kinds":["a,b"],"core_dir":"c","crd_dir":"d"}"#,
+        r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c"}"#,
+    ];
+    for text in bad {
+        assert!(
+            kubeconform_config(config_path, text.as_bytes()).is_err(),
+            "{text}"
+        );
+    }
+    let ok = r#"{"schema_version":1,"kubernetes_version":"1.31.0","core_dir":"c","crd_dir":"d"}"#;
+    assert!(kubeconform_config(Path::new("/scratch/cfg/k.json"), ok.as_bytes()).is_err());
+    let remote = KubeconformConfig {
+        kubernetes_version: "1.31.0".to_owned(),
+        strict: false,
+        skip_kinds: Vec::new(),
+        core_dir: PathBuf::from("https://example.com"),
+        crd_dir: PathBuf::from("/d"),
+    };
+    assert!(kubeconform_check(Path::new(BIN), &remote, &[]).is_err());
+}
+
+#[test]
+fn flatc_check_parses_one_schema_and_writes_nothing() {
+    let invocation = flatc_check(
+        Path::new(BIN),
+        Path::new("/scratch/a/x.fbs"),
+        Path::new("/scratch"),
+        Path::new("/scratch/out"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "-M",
+            "--cpp",
+            "-o",
+            "/scratch/out",
+            "-I",
+            "/scratch",
+            "/scratch/a/x.fbs"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}
+
+#[test]
+fn helm_argv_keeps_value_order_and_never_fetches() {
+    let values = [Path::new("/c/a.yaml"), Path::new("/c/b.yaml")];
+    let lint = argv_strings(&helm_lint(
+        Path::new(BIN),
+        Path::new("/c"),
+        &values,
+        "1.31.0",
+    ));
+    assert_eq!(
+        lint,
+        [
+            BIN,
+            "lint",
+            "/c",
+            "--quiet",
+            "--kube-version",
+            "1.31.0",
+            "-f",
+            "/c/a.yaml",
+            "-f",
+            "/c/b.yaml"
+        ]
+    );
+    let template = argv_strings(&helm_template(
+        Path::new(BIN),
+        "dx",
+        "default",
+        Path::new("/c"),
+        &values,
+        "1.31.0",
+    ));
+    assert_eq!(
+        template,
+        [
+            BIN,
+            "template",
+            "dx",
+            "/c",
+            "--namespace",
+            "default",
+            "--kube-version",
+            "1.31.0",
+            "-f",
+            "/c/a.yaml",
+            "-f",
+            "/c/b.yaml"
+        ]
+    );
+    for argv in [&lint, &template] {
+        for forbidden in [
+            "dependency",
+            "repo",
+            "pull",
+            "--repo",
+            "--dependency-update",
+        ] {
+            assert!(!argv.iter().any(|arg| arg == forbidden), "{forbidden}");
+        }
+    }
+}
+
+#[test]
+fn helm_is_a_single_transport_tool() {
+    assert_eq!(transport_for("helm"), ArgTransport::Single);
 }

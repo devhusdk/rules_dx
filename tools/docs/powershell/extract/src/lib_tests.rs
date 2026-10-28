@@ -499,3 +499,9 @@ fn parse_accepts_flags_and_rejects_bad_usage() {
     );
     assert!(usage().contains("--api FILE"));
 }
+
+#[test]
+fn display_name_is_empty_so_the_renderer_derives_it_from_the_id() {
+    let symbol = only(&api(vec![file("m.psm1", vec![function("Get-Thing", 3)])]));
+    assert_eq!(symbol.display_name, "");
+}

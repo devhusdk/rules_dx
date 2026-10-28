@@ -4,6 +4,7 @@ pub mod codegen_expand;
 pub mod entry;
 #[cfg(test)]
 pub(crate) mod fake_query;
+pub mod graph_memo;
 pub(crate) mod lock_inputs;
 pub(crate) mod module_inputs;
 pub mod packages;
@@ -24,6 +25,7 @@ pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_test_with_selection};
 #[cfg(test)]
 pub(crate) use fake_query::FakeQuery;
+pub use graph_memo::MemoizedGraphQuery;
 pub(crate) use packages::PackageCache;
 pub use query::quote_set;
 pub(crate) use query::run_label_query;

@@ -1,0 +1,29 @@
+load("@rules_perl//perl/cpan:cpan_compiler.bzl", "cpan_compiler")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "cpanfile",
+    "cpanfile.snapshot",
+    "cpanfile.snapshot.lock.json",
+])
+
+alias(
+    name = "perltidy",
+    actual = "@dx_perl_cpan//:Perl-Tidy_bin_perltidy",
+)
+
+cpan_compiler(
+    name = "compiler",
+    cpanfile = "cpanfile",
+    lockfile = "cpanfile.snapshot.lock.json",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

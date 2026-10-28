@@ -1,7 +1,7 @@
 """Windows MSIX packaging for target binaries."""
 
 load("@rules_powershell//powershell:defs.bzl", "pwsh_binary")
-load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
+load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "only_chars", "platform_arch")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
 
 MsixInfo = provider(
@@ -21,19 +21,13 @@ TOOLCHAIN_TYPE = str(Label("//msix:toolchain_type"))
 _LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 _DIGITS = "0123456789"
 
-def _only(text, allowed):
-    for char in text.elems():
-        if char not in allowed:
-            return False
-    return True
-
 def named_version_errors(attr, version):
     """Returns why the value of a version attribute is not four numbers up to 65535."""
     parts = version.split(".")
     if len(parts) != 4:
         return [attr + " '" + version + "' must have four parts, as in 1.2.3.0"]
     for part in parts:
-        if part == "" or not _only(part, _DIGITS) or len(part) > 5 or int(part) > 65535:
+        if part == "" or not only_chars(part, _DIGITS) or len(part) > 5 or int(part) > 65535:
             return [attr + " '" + version + "' parts must be numbers from 0 to 65535"]
     return []
 
@@ -47,7 +41,7 @@ def compatible_with(constraints):
 
 def identity_errors(name):
     """Returns why a package identity name is invalid."""
-    if len(name) < 3 or len(name) > 50 or not _only(name, _LETTERS + _DIGITS + ".-"):
+    if len(name) < 3 or len(name) > 50 or not only_chars(name, _LETTERS + _DIGITS + ".-"):
         return ["identity_name '" + name + "' must be 3 to 50 letters, digits, dots or dashes"]
     return []
 
@@ -55,7 +49,7 @@ def application_errors(application_id):
     """Returns why an application id is invalid."""
     parts = application_id.split(".")
     for part in parts:
-        if part == "" or part[0] not in _LETTERS.elems() or not _only(part, _LETTERS + _DIGITS):
+        if part == "" or part[0] not in _LETTERS.elems() or not only_chars(part, _LETTERS + _DIGITS):
             return ["application_id '" + application_id + "' must be dot-separated words that start with a letter"]
     if len(application_id) > 64:
         return ["application_id '" + application_id + "' must be at most 64 characters"]
@@ -90,15 +84,19 @@ def alias_errors(alias):
     """Returns why an execution alias is invalid."""
     if alias == "":
         return []
-    if not alias.endswith(".exe") or len(alias) < 5 or not _only(alias, _LETTERS + _DIGITS + ".-_"):
+    if not alias.endswith(".exe") or len(alias) < 5 or not only_chars(alias, _LETTERS + _DIGITS + ".-_"):
         return ["alias '" + alias + "' must be a file name that ends with .exe"]
     return []
 
 def _add(ctx, entries, seen, kind, dest, file):
-    prior = claim_dest(seen, dest, file.short_path, fold_case = True)
+    """Adds a packaged file once. Returns False for a repeat of the same file."""
+    prior = claim_dest(seen, dest, file, fold_case = True)
+    if prior != None and hasattr(prior, "path") and prior.path == file.path:
+        return False
     if prior != None:
-        fail("dx_msix " + str(ctx.label) + ": " + prior + " and " + file.short_path + " both map to " + dest)
+        fail("dx_msix " + str(ctx.label) + ": " + getattr(prior, "short_path", prior) + " and " + file.short_path + " both map to " + dest)
     entries.append({"dest": dest, "kind": kind, "src": file.path})
+    return True
 
 def _msix_impl(ctx):
     cv = platform_common.ConstraintValueInfo
@@ -151,16 +149,16 @@ def _msix_impl(ctx):
             dlls[name] = file
             owner[name] = "libs " + str(target.label)
     for name in sorted(dlls):
-        _add(ctx, entries, seen, "lib", dlls[name].basename, dlls[name])
-        inputs.append(dlls[name])
+        if _add(ctx, entries, seen, "lib", dlls[name].basename, dlls[name]):
+            inputs.append(dlls[name])
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
-            _add(ctx, entries, seen, "data", "share/" + data_path(file, target.label), file)
-            inputs.append(file)
+            if _add(ctx, entries, seen, "data", "share/" + data_path(file, target.label), file):
+                inputs.append(file)
     for target in ctx.attr.notice:
         for file in target[DefaultInfo].files.to_list():
-            _add(ctx, entries, seen, "notice", "licenses/" + file.basename, file)
-            inputs.append(file)
+            if _add(ctx, entries, seen, "notice", "licenses/" + file.basename, file):
+                inputs.append(file)
 
     package = ctx.actions.declare_file(ctx.label.name + ".msix")
     identity = ctx.actions.declare_file(ctx.label.name + ".msix.identity.json")
@@ -241,7 +239,7 @@ _dx_msix = rule(
     toolchains = [config_common.toolchain_type(TOOLCHAIN_TYPE, mandatory = False)],
 )
 
-def _windows_only(target_compatible_with):
+def _windowsonly_chars(target_compatible_with):
     """Adds the Windows constraint to a target_compatible_with value."""
     if type(target_compatible_with) == "list":
         return compatible_with(target_compatible_with)
@@ -251,7 +249,7 @@ def dx_msix(name, target_compatible_with = [], **kwargs):
     """Packages one Windows target binary and its files as an unsigned MSIX."""
     _dx_msix(
         name = name,
-        target_compatible_with = _windows_only(target_compatible_with),
+        target_compatible_with = _windowsonly_chars(target_compatible_with),
         **kwargs
     )
 
@@ -267,6 +265,6 @@ def dx_msix_sign(name, package, target_compatible_with = [], **kwargs):
             "DX_MSIX_SIGNTOOL": "$(rlocationpaths " + signtool + ")",
         },
         deps = [Label("@rules_powershell//powershell/runfiles")],
-        target_compatible_with = _windows_only(target_compatible_with),
+        target_compatible_with = _windowsonly_chars(target_compatible_with),
         **kwargs
     )

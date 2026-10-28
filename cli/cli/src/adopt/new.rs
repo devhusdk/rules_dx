@@ -99,15 +99,14 @@ pub(crate) fn execute_new(
     }
 }
 
-const FIRST_TEST_NOTE: &str =
-    "the first dx test fetches toolchains and dependencies and can take several minutes";
+const FIRST_TEST_NOTE: &str = "the first dx test fetches toolchains and dependencies and can take several minutes; times and download sizes: https://github.com/devhusdk/rules_dx/blob/main/docs/first-build.md";
 
 /// `word` quoted for a POSIX shell when it holds anything beyond plain path characters.
 fn shell_word(word: &str) -> String {
     let plain = !word.is_empty()
         && word
             .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '_' | '-' | '+'));
+            .all(|c| c.is_ascii_alphanumeric() || "_@%+=:,./-".contains(c));
     if plain {
         word.to_owned()
     } else {
@@ -191,6 +190,8 @@ mod tests {
         assert_eq!(super::shell_word("teams/demo"), "teams/demo");
         assert_eq!(super::shell_word("teams/My App"), "'teams/My App'");
         assert_eq!(super::shell_word("it's"), "'it'\\''s'");
+        assert_eq!(super::shell_word("50%,core"), "50%,core");
+        assert_eq!(super::shell_word("tag:v1,x=y@z+w"), "tag:v1,x=y@z+w");
     }
 
     #[test]
@@ -347,10 +348,15 @@ mod tests {
             "BUILD.bazel",
             ".bazelrc",
             "third_party/rules_dx/rules_dx.MODULE.bazel",
-            "third_party/rules_dx/rules_android.rules_android.patch",
         ] {
             assert!(root.join("demo-app").join(file).is_file(), "{file}\n{err}");
         }
+        assert!(
+            !root
+                .join("demo-app/third_party/rules_dx/rules_android.rules_android.patch")
+                .exists(),
+            "rules_android needs no patch\n{err}"
+        );
         let build = std::fs::read_to_string(root.join("demo-app/BUILD.bazel")).expect("build");
         assert!(
             build.contains("app_id = \"com.example.demo_app\""),
@@ -435,7 +441,7 @@ mod tests {
         (
             "mdx",
             "demo-app",
-            &["Hello.mdx", "helper.js", "hello.test.js", "pnpm-lock.yaml"],
+            &["Hello.mdx", "helper.js", "pnpm-lock.yaml"],
         ),
         (
             "zig",
@@ -458,6 +464,16 @@ mod tests {
             &["src/hello.erl", "src/hello_cli.erl", "test/hello_tests.erl"],
         ),
         (
+            "ocaml",
+            "demo-app",
+            &["hello.ml", "main.ml", "hello_test.ml"],
+        ),
+        (
+            "haskell",
+            "demo-app",
+            &["src/Hello.hs", "src/Main.hs", "test/HelloTest.hs"],
+        ),
+        (
             "cuda",
             "demo-app",
             &[
@@ -466,6 +482,21 @@ mod tests {
                 "scale.h",
                 "main.cc",
                 "scale_test.cc",
+            ],
+        ),
+        (
+            "lua",
+            "demo-app",
+            &["hello.lua", "main.lua", "hello_test.lua"],
+        ),
+        (
+            "julia",
+            "demo-app",
+            &[
+                "Project.toml",
+                "src/DemoApp.jl",
+                "main.jl",
+                "test/runtests.jl",
             ],
         ),
     ];
@@ -497,14 +528,33 @@ mod tests {
             }
             let build =
                 std::fs::read_to_string(root.join(name).join("BUILD.bazel")).expect("build");
-            for target in ["\"demo-app\"", "\"demo-app_test\""] {
+            let (lib_target, check_target) = match *language {
+                "mdx" => ("\"demo-app\"", "\"demo-app_check\""),
+                "julia" => ("\"DemoApp\"", "\"DemoApp_test\""),
+                _ => ("\"demo-app\"", "\"demo-app_test\""),
+            };
+            for target in [lib_target, check_target] {
                 assert!(build.contains(target), "{language}: {build}");
             }
+            let bin_target = if *language == "julia" {
+                "\"DemoApp_bin\""
+            } else {
+                "\"demo-app_bin\""
+            };
             assert_eq!(
-                build.contains("\"demo-app_bin\""),
+                build.contains(bin_target),
                 matches!(
                     *language,
-                    "ruby" | "powershell" | "zig" | "elixir" | "erlang" | "cuda"
+                    "ruby"
+                        | "powershell"
+                        | "zig"
+                        | "elixir"
+                        | "erlang"
+                        | "ocaml"
+                        | "haskell"
+                        | "cuda"
+                        | "lua"
+                        | "julia"
                 ),
                 "{language}: {build}"
             );
@@ -594,6 +644,8 @@ mod tests {
             vec!["new", "--apply", "zig", "demo", "--force"],
             vec!["new", "--apply", "elixir", "demo", "--force"],
             vec!["new", "--apply", "erlang", "demo", "--force"],
+            vec!["new", "--apply", "lua", "demo", "--force"],
+            vec!["new", "--apply", "julia", "demo", "--force"],
         ] {
             let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&words));
             assert!(parsed.is_err(), "{words:?}");

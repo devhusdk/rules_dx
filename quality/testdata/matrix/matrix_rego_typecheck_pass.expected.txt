@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_rego_typecheck_pass
+capability TYPECHECK
+stages 1
+stage opa classes=rego sources=matrix/rego_module/lib/lib.rego,matrix/rego_module/app/app.rego
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

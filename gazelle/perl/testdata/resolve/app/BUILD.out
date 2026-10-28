@@ -1,0 +1,19 @@
+load("@rules_dx//perl/rules:defs.bzl", "perl_library", "perl_test")
+
+# gazelle:resolve perl Text::CSV @cpan//:Text-CSV
+
+perl_library(
+    name = "app",
+    srcs = ["lib/App/Main.pm"],
+    deps = [
+        "//widgets",
+        "//widgets/lib/Acme/Plugin",
+        "@cpan//:Text-CSV",
+    ],
+)
+
+perl_test(
+    name = "main_test",
+    srcs = ["t/main.t"],
+    deps = [":app"],
+)

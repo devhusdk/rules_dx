@@ -61,6 +61,7 @@ VIS_ENV_SHARD = VIS_CLI + [
 ]
 
 VIS_CLI_GENERATION = VIS_CLI + [
+    "//flatbuffers/rules:__pkg__",
     "//generation:__pkg__",
 ]
 
@@ -74,3 +75,13 @@ VIS_QUALITY_ENV = [
 ] + VIS_QUALITY
 
 VIS_QUALITY_CLI = VIS_CLI + VIS_QUALITY
+
+VIS_TOOLS = ["//tools/visibility:tools_repo"]
+
+VIS_TOOLS_PUBLIC = ["//tools/visibility:tools_public"]
+
+VIS_TOOLS_CLI_TEST = ["//tools/visibility:tools_cli_test"]
+
+VIS_DX_ROOTS = ["//tools/visibility:dx_roots"]
+
+VIS_DX_COMMANDS = ["//tools/visibility:dx_commands"]

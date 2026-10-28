@@ -42,7 +42,11 @@ pub(crate) fn execute_init(
     if !invocation.applies() {
         return check_init(invocation, workspace, module, &record, parts, out, err);
     }
-    let planned = match dx_adopt::plan_init_files(module, parts) {
+    let planned = match dx_adopt::plan_init_files_triples(
+        module,
+        parts,
+        &invocation.init_rust_target_triples,
+    ) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
@@ -54,7 +58,15 @@ pub(crate) fn execute_init(
     let mut applied = dx_adopt::Applied::default();
     let mut notes = Vec::new();
     let written = dx_adopt::merge_init_record(workspace, invocation.init_parts, &mut applied)
-        .and_then(|()| dx_adopt::apply_init(workspace, module, parts, &mut applied));
+        .and_then(|()| {
+            dx_adopt::apply_init_triples(
+                workspace,
+                module,
+                parts,
+                &invocation.init_rust_target_triples,
+                &mut applied,
+            )
+        });
     let result = match written {
         Ok(()) => {
             if applied.refused.iter().any(|path| path == ".bazelignore")
@@ -92,7 +104,11 @@ fn check_init(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let files = match dx_adopt::plan_init_files(module, parts) {
+    let files = match dx_adopt::plan_init_files_triples(
+        module,
+        parts,
+        &invocation.init_rust_target_triples,
+    ) {
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
@@ -116,7 +132,30 @@ fn check_init(
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
         .filter(|pin| !dx_adopt::pin_is_valid(pin));
-    if missing.is_empty() && stale.is_empty() && other.is_empty() && invalid_pin.is_none() {
+    let plan = files
+        .iter()
+        .find(|file| file.path == "MODULE.bazel.snippet")
+        .map(|snippet| dx_adopt::preflight(workspace, &snippet.content))
+        .filter(|plan| plan.applicable);
+    if let Some(plan) = &plan {
+        if !summaries_suppressed(invocation) {
+            if let Err(exit) =
+                check_stdout_write(write!(out, "{}", dx_adopt::render_plan_text(module, plan)))
+            {
+                return exit;
+            }
+        }
+    }
+    let conflicts: Vec<String> = plan
+        .iter()
+        .flat_map(|plan| plan.hard().map(|f| f.subject.clone()))
+        .collect();
+    if missing.is_empty()
+        && stale.is_empty()
+        && other.is_empty()
+        && invalid_pin.is_none()
+        && conflicts.is_empty()
+    {
         if !summaries_suppressed(invocation) {
             if let Err(exit) = check_stdout_write(writeln!(out, "init current: {module}")) {
                 return exit;
@@ -135,9 +174,17 @@ fn check_init(
     if let Some(pin) = &invalid_pin {
         clauses.push(format!("invalid .dx/version ({pin:?})"));
     }
+    if !conflicts.is_empty() {
+        clauses.push(format!(
+            "init plan: {} hard conflicts ({})",
+            conflicts.len(),
+            conflicts.join(", ")
+        ));
+    }
     let fix = match (has_entries, invalid_pin.is_some()) {
         (true, true) => format!("run `dx init {module} --apply`, then {rewrite}"),
         (false, true) => rewrite,
+        (false, false) => "resolve the conflicts in the init plan above".to_owned(),
         _ => format!("run `dx init {module} --apply`"),
     };
     operational(
@@ -398,6 +445,35 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(root.join("AGENTS.md")).expect("agents"),
             agents
+        );
+    }
+
+    #[test]
+    fn init_check_prints_the_plan_and_fails_on_a_hard_conflict() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
+        assert_eq!(code, 0);
+        let module = format!(
+            "bazel_dep(name = \"rules_dx\", version = \"{}\")\nbazel_dep(name = \"rules_rust\", version = \"0.60.0\")\n",
+            dx_adopt::DX_VERSION
+        );
+        std::fs::write(root.join("MODULE.bazel"), &module).expect("module");
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("rules_rust 0.60.0 -> 0.74.0"), "{out}");
+        assert!(out.contains("MODULE.bazel:2"), "{out}");
+        let conflict = format!(
+            "{module}single_version_override(module_name = \"rules_rust\", version = \"0.74.0\")\n"
+        );
+        std::fs::write(root.join("MODULE.bazel"), conflict).expect("module");
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(out.contains("override conflicts:"), "{out}");
+        assert!(out.contains("MODULE.bazel:3"), "{out}");
+        assert!(
+            err.contains("init plan: 1 hard conflicts (rules_rust)"),
+            "{err}"
         );
     }
 

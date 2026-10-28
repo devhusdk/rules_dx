@@ -1,13 +1,17 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = VIS_TOOLS)
 
-exports_files([
-    "doc_ir.proto",
-    "shard.bzl",
-])
+exports_files(
+    [
+        "doc_ir.proto",
+        "shard.bzl",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 proto_library(
     name = "doc_ir_proto",

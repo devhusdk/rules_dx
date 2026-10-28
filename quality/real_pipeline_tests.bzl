@@ -232,7 +232,7 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("vale", "lint"),
                     real_supported_classes("vale", "format"),
                 ],
-                [["markdown", "rst"], []],
+                [["asciidoc", "markdown", "rst"], []],
             ),
             expect_equal(
                 "real_supported_classes returns gotype typecheck support only",

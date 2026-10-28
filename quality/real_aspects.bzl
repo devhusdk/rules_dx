@@ -1076,6 +1076,7 @@ _TARGET_TOOL_OWNERS = {
 # The owner rule carries the converter in QualityToolsInfo, so Markdown-only targets
 # never load Python or Node.
 _VALE_CONVERTERS = {
+    "asciidoc": ("asciidoctor", "asciidoc_library", "@rules_dx//asciidoc/rules:defs.bzl"),
     "rst": ("rst2html", "rst_library", "@rules_dx//rst/rules:defs.bzl"),
 }
 
@@ -1620,7 +1621,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     vale_converters = []
     for stage in resolved:
         if stage["tool"] == "vale":
-            vale_converters = _vale_converters(target, stage["classes"], what)
+            for converter in _vale_converters(target, stage["classes"], what):
+                if converter[0] not in [c[0] for c in vale_converters]:
+                    vale_converters.append(converter)
     for _name, converter in vale_converters:
         run_tools = run_tools + [converter]
 

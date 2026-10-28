@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_vale_asciidoc_lint_multi
+capability LINT
+stages 1
+stage vale classes=asciidoc sources=matrix/asciidoc_a.adoc,matrix/asciidoc_b.adoc
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR vale Dx.Markers matrix/asciidoc_b.adoc 40 45 fixable=false "Remove 'FIXME' markers before merging."
+terminal 1
+terminal ERROR vale Dx.Markers matrix/asciidoc_b.adoc 40 45 fixable=false "Remove 'FIXME' markers before merging."
+replacements 0

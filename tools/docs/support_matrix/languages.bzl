@@ -228,6 +228,7 @@ ROWS = [
     {"name": "latex", "section": "formats", "title": "LaTeX"},
     {"name": "pkl", "section": "formats", "title": "Pkl"},
     {"name": "rst", "section": "formats", "title": "reStructuredText"},
+    {"name": "asciidoc", "section": "formats", "title": "AsciiDoc"},
     {"name": "sql", "section": "formats", "title": "SQL"},
     {"name": "terraform", "section": "formats", "title": "Terraform"},
     {"name": "typst", "section": "formats", "title": "Typst"},

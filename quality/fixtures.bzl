@@ -88,6 +88,8 @@ def _real_source_target_impl(ctx):
         direct_sources["latex"] = depset(ctx.files.latex_srcs)
     if len(ctx.files.rst_srcs) > 0:
         direct_sources["rst"] = depset(ctx.files.rst_srcs)
+    if len(ctx.files.asciidoc_srcs) > 0:
+        direct_sources["asciidoc"] = depset(ctx.files.asciidoc_srcs)
     if len(ctx.files.html_template_srcs) > 0:
         direct_sources["html_template"] = depset(ctx.files.html_template_srcs)
     if len(ctx.files.terraform_srcs) > 0:
@@ -120,14 +122,19 @@ def _real_source_target_impl(ctx):
     )
     if sibling_error != "":
         fail(sibling_error)
-    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.lua_srcs) + list(ctx.files.haskell_srcs) + list(ctx.files.typst_srcs) + list(ctx.files.latex_srcs) + list(ctx.files.rst_srcs) + list(ctx.files.nix_srcs) + list(ctx.files.kubernetes_srcs) + list(ctx.files.cloudformation_srcs) + list(ctx.files.ansible_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.jupyter_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs) + list(ctx.files.make_srcs) + list(ctx.files.cmake_srcs) + list(ctx.files.rego_srcs)
+    all_files = list(ctx.files.c_srcs) + list(ctx.files.cpp_srcs) + list(ctx.files.objc_srcs) + list(ctx.files.objcpp_srcs) + list(ctx.files.javascript_srcs) + list(ctx.files.jsx_srcs) + list(ctx.files.typescript_srcs) + list(ctx.files.tsx_srcs) + list(ctx.files.json_srcs) + list(ctx.files.json5_srcs) + list(ctx.files.jsonc_srcs) + list(ctx.files.graphql_srcs) + list(ctx.files.html_srcs) + list(ctx.files.python_srcs) + list(ctx.files.python_stub_srcs) + list(ctx.files.rust_srcs) + list(ctx.files.shell_srcs) + list(ctx.files.dockerfile_srcs) + list(ctx.files.starlark_srcs) + list(ctx.files.cue_srcs) + list(ctx.files.jsonnet_srcs) + list(ctx.files.lua_srcs) + list(ctx.files.haskell_srcs) + list(ctx.files.typst_srcs) + list(ctx.files.latex_srcs) + list(ctx.files.rst_srcs) + list(ctx.files.asciidoc_srcs) + list(ctx.files.nix_srcs) + list(ctx.files.kubernetes_srcs) + list(ctx.files.cloudformation_srcs) + list(ctx.files.ansible_srcs) + list(ctx.files.pkl_srcs) + list(ctx.files.yaml_srcs) + list(ctx.files.jupyter_srcs) + list(ctx.files.html_template_srcs) + list(ctx.files.terraform_srcs) + list(ctx.files.text_srcs) + list(ctx.files.toml_srcs) + list(ctx.files.markdown_srcs) + list(ctx.files.java_srcs) + list(ctx.files.kotlin_srcs) + list(ctx.files.scala_srcs) + list(ctx.files.make_srcs) + list(ctx.files.cmake_srcs) + list(ctx.files.rego_srcs)
     providers = [
         DefaultInfo(files = depset(all_files)),
         QualitySourcesInfo(direct_sources = direct_sources),
     ]
+    converters = {}
     if len(ctx.files.rst_srcs) > 0 and ctx.attr.rst_converter:
         # Mirrors rst_library: the owner carries the Vale converter.
-        providers.append(QualityToolsInfo(tools = {"rst2html": ctx.attr._rst2html[DefaultInfo].files_to_run}))
+        converters["rst2html"] = ctx.attr._rst2html[DefaultInfo].files_to_run
+    if len(ctx.files.asciidoc_srcs) > 0 and ctx.attr.asciidoc_converter:
+        converters["asciidoctor"] = ctx.attr._asciidoctor[DefaultInfo].files_to_run
+    if len(converters) > 0:
+        providers.append(QualityToolsInfo(tools = converters))
     return providers
 
 real_source_target = rule(
@@ -309,6 +316,19 @@ real_source_target = rule(
             default = Label("//quality/tools/python:rst2html"),
             cfg = "exec",
             executable = True,
+        ),
+        "asciidoc_converter": attr.bool(
+            doc = "Whether asciidoc_srcs carry the asciidoctor converter, as asciidoc_library does.",
+            default = True,
+        ),
+        "_asciidoctor": attr.label(
+            default = Label("//quality/tools/javascript/bin:asciidoctor"),
+            cfg = "exec",
+            executable = True,
+        ),
+        "asciidoc_srcs": attr.label_list(
+            allow_files = [".adoc", ".asciidoc", ".asc"],
+            default = [],
         ),
         "rst_srcs": attr.label_list(
             allow_files = [".rst", ".rest"],

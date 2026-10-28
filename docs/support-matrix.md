@@ -55,7 +55,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | CMake | none |
 | Dockerfile | none |
 | Make | none |
-| MSIX | `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| MSIX | none |
 | Qt | `windows_x86_64`, `windows_arm64`: not tested yet |
 | WASI | none |
 

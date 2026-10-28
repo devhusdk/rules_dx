@@ -28,6 +28,7 @@ func NewLanguage() language.Language {
 		ParseImports:   ParseImports,
 		IsStdLib:       IsStdLib,
 		Candidates:     common.JVMCandidates,
+		Variant:        common.AndroidVariant("java_android_library"),
 		External:       "maven",
 	})
 }

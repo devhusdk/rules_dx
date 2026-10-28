@@ -7,9 +7,11 @@ import (
 
 // ClassLangSpec describes a one-library-per-directory language named by class.
 type ClassLangSpec struct {
-	LanguageName   string
-	LibraryKind    string
-	MainRule       string
+	LanguageName string
+	LibraryKind  string
+	MainRule     string
+	// Variant swaps LibraryKind for a platform kind; see KindVariant.
+	Variant        *KindVariant
 	DefsPackage    string
 	UnresolvedHint string
 	Exts           []string
@@ -62,9 +64,16 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 				Candidates:   s.Candidates,
 				OrderSrcs:    s.OrderSrcs,
 				MakeRule:     s.MakeRule,
+				Variant:      s.Variant,
 				Wrap:         WrapImportSet,
 			}, rep)
 		},
+	}
+	if v := s.Variant; v != nil {
+		spec.Kinds[v.Kind] = LibraryKindInfo()
+		spec.ExtraKinds = []string{v.Kind}
+		spec.IndexKinds = []string{v.Kind}
+		spec.KindDefs = map[string]string{v.Kind: v.DefsPackage}
 	}
 	if s.ClassIDs {
 		spec.Identity = identity

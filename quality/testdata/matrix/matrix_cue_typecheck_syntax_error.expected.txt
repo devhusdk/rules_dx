@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cue_typecheck_syntax_error
+capability TYPECHECK
+stages 1
+stage cue classes=cue sources=matrix/cue_tc_broken.cue
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR cue - matrix/cue_tc_broken.cue 24 24 fixable=false "expected '}', found 'EOF'"
+terminal 1
+terminal ERROR cue - matrix/cue_tc_broken.cue 24 24 fixable=false "expected '}', found 'EOF'"
+replacements 0

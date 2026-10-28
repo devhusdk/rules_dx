@@ -100,7 +100,7 @@ pub use clang_tidy::parse_clang_tidy;
 pub use cppcheck::parse_cppcheck;
 pub use credo::parse_credo;
 pub use csharpier::parse_csharpier;
-pub use cue::parse_cue;
+pub use cue::{parse_cue, parse_cue_vet};
 pub use dart_analyze::{parse_dart_analyze, DartAnalyzeView};
 pub use dart_format::parse_dart_format;
 pub use deadnix::parse_deadnix;
@@ -1876,6 +1876,14 @@ mod tests {
         super::ormolu::parse_ormolu(input, input, code, files)
     }
 
+    fn fuzz_cue_vet(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::cue::parse_cue_vet(input, input, code, files, files, std::path::Path::new("/"))
+    }
+
     fn fuzz_opa_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -2428,6 +2436,7 @@ mod tests {
         ("csharpier", fuzz_csharpier),
         ("credo", fuzz_credo),
         ("cue", fuzz_cue),
+        ("cue_vet", fuzz_cue_vet),
         ("deadnix", fuzz_deadnix),
         ("dfmt", fuzz_dfmt),
         ("dscanner", fuzz_dscanner),

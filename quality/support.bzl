@@ -581,6 +581,20 @@ CUE_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+CUE_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["cue"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "cue",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "cue",
+    "transport": "batched",
+}
+
 JSONNET_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -893,6 +907,7 @@ SUPPORT_RECORDS = [
     XML_PRETTIER_FORMAT_SUPPORT,
     GHERKIN_PRETTIER_FORMAT_SUPPORT,
     CUE_FORMAT_SUPPORT,
+    CUE_TYPECHECK_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     JSONNET_LINT_SUPPORT,
     FORTRAN_FORTITUDE_LINT_SUPPORT,

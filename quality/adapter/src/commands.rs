@@ -124,6 +124,7 @@ const QMLFORMAT_FIX_ARGS: &[&str] = &["-i"];
 const QMLLINT_ARGS: &[&str] = &["-W", "0", "--json", "-"];
 const QMLLINT_IGNORE_SETTINGS: &str = "--ignore-settings";
 const CUE_CHECK_ARGS: &[&str] = &["fmt", "--check", "--diff"];
+const CUE_VET_ARGS: &[&str] = &["vet", "-c=false", "-E"];
 const CUE_FIX_ARGS: &[&str] = &["fmt"];
 const JSONNETFMT_CHECK_ARGS: &[&str] = &["--test"];
 const JSONNETFMT_FIX_ARGS: &[&str] = &["-i"];
@@ -1108,6 +1109,12 @@ pub fn qmllint_check(
 
 pub fn cue_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, CUE_CHECK_ARGS, files, "")
+}
+
+/// One vet of the files of a single package. Imports resolve from the module at `cwd_rel`.
+/// `-c=false` keeps schema-only (non-concrete) packages from failing as incomplete.
+pub fn cue_vet(binary: &Path, files: &[&Path], cwd_rel: &str) -> Invocation {
+    fixed(binary, CUE_VET_ARGS, files, cwd_rel)
 }
 
 pub fn cue_fix(binary: &Path, files: &[&Path]) -> Invocation {

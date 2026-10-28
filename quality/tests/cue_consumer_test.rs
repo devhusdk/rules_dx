@@ -248,3 +248,38 @@ fn the_declared_module_is_real_and_its_imports_reach_the_format_action() {
         );
     }
 }
+
+fn typechecked_consumer() -> Case {
+    let root = consumer();
+    let enabled = BUILD.replace(
+        "    disabled = [\n        \"lint\",\n        \"typecheck\",\n    ],\n    family_id = \"cue\",\n    format = [\"cue\"],\n",
+        "    disabled = [\"lint\"],\n    family_id = \"cue\",\n    format = [\"cue\"],\n    typecheck = [\"cue\"],\n",
+    );
+    assert_ne!(enabled, BUILD, "the family must enable typecheck");
+    write(&root.join("BUILD.bazel"), &enabled);
+    root
+}
+
+#[test]
+fn typecheck_passes_a_clean_module_and_skips_a_target_with_only_cue_mod() {
+    let root = typechecked_consumer();
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn typecheck_reports_a_cross_package_type_error_at_the_owned_file() {
+    let root = typechecked_consumer();
+    let main = root.join("app/main.cue");
+    write(&main, &MAIN.replace("name: \"world\"", "name: 1"));
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("app/main.cue:"),
+        "{}",
+        out.combined()
+    );
+    write(&main, MAIN);
+    let again = dx(&root, "typecheck", &[]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}

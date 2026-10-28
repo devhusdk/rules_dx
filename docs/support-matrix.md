@@ -104,7 +104,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Qt | `qmllint` | `qmlformat` | no |
 | Ansible | `ansible_lint` on `linux_x86_64`, `linux_arm64`, `macos_arm64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | API specs | `redocly` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
-| CUE | no | `cue` on `linux_x86_64` | no |
+| CUE | no | `cue` on `linux_x86_64` | `cue` on `linux_x86_64` |
 | FlatBuffers | `flatc` on `linux_x86_64` | n/a | no |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Helm | `helm` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |

@@ -241,7 +241,7 @@ to.
 | `cppcheck` | lint | cc |
 | `csc` | typecheck | csharp |
 | `csharpier` | format | csharp |
-| `cue` | format | cue |
+| `cue` | format, typecheck | cue |
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang, elixir |
@@ -1049,7 +1049,8 @@ and does not read this flag. See the codegen pairs in
 
 ### CUE
 
-`cue fmt` runs from the managed pin for format. Select it in a `cue` family.
+`cue fmt` (format) and `cue vet -c=false` (typecheck) run from the managed pin.
+Select them in a `cue` family.
 It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is not supported yet.
 
 ```python
@@ -1057,6 +1058,7 @@ quality_family(
     name = "cue_family",
     family_id = "cue",
     format = ["cue"],
+    typecheck = ["cue"],
 )
 ```
 
@@ -1073,6 +1075,13 @@ writes. `--apply` rewrites only the `.cue` files the selected targets own. An
 unformatted file is reported at the start of the file. A syntax error fails the
 run with the file, line and column. It never counts as clean. `cue` takes no
 config file.
+
+`dx typecheck` vets each package (one directory and package clause) from the
+module root with `cue vet -c=false -E`, so schema-only packages pass and only
+real conflicts, unresolved imports and syntax errors are reported. Each error
+is reported at its first position in a file the target owns. Registry
+dependencies are not supported (`CUE_REGISTRY=none`); imports must resolve
+inside the module, so `cue.mod/module.cue` must be in `srcs` or `deps`.
 
 ### Rego
 

@@ -842,6 +842,7 @@ impl RealBackend {
                     )
                 }
             }
+            "cue" if capability == "typecheck" => self.check_cue_vet(tool_id, tool, staged),
             "cue" => {
                 let invocation = commands::cue_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -1543,6 +1544,121 @@ impl RealBackend {
     /// several so the error points at the spawn that broke.
     /// Reads every staged notebook and refuses any that Ruff would skip, so a
     /// non-Python or malformed notebook never reports clean.
+    /// `cue vet -c=false` once per package, by import path from the enclosing CUE module root, so
+    /// imports and ancestor-directory files of the same package resolve as in the real instance.
+    fn check_cue_vet(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        staged: &StagedScratch,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let scratch = &staged.scratch;
+        let modules: Vec<String> = staged
+            .pairs
+            .iter()
+            .chain(staged.resolve_pairs.iter())
+            .filter_map(|(ws, _)| {
+                if ws == "cue.mod/module.cue" {
+                    Some(String::new())
+                } else {
+                    ws.strip_suffix("/cue.mod/module.cue").map(str::to_owned)
+                }
+            })
+            .collect();
+        let mut groups: std::collections::BTreeSet<(String, String, String)> =
+            std::collections::BTreeSet::new();
+        for (ws, absolute) in &staged.pairs {
+            if ws.starts_with("cue.mod/") || ws.contains("/cue.mod/") {
+                continue;
+            }
+            let dir = ws.rsplit_once('/').map_or("", |(dir, _)| dir).to_owned();
+            let root = modules
+                .iter()
+                .filter(|root| {
+                    root.is_empty() || dir == **root || dir.starts_with(&format!("{root}/"))
+                })
+                .max_by_key(|root| root.len())
+                .cloned()
+                .unwrap_or_else(|| dir.clone());
+            let text = std::fs::read_to_string(absolute)
+                .map_err(|err| execution(tool_id, format!("read {ws}: {err}")))?;
+            let package = cue_package_clause(&text);
+            groups.insert((root, dir, package));
+        }
+        let owned: Vec<String> = staged
+            .pairs
+            .iter()
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        let owned: Vec<&str> = owned.iter().map(String::as_str).collect();
+        let mut known_paths: Vec<String> = owned.iter().map(|path| (*path).to_owned()).collect();
+        for (_, absolute) in &staged.resolve_pairs {
+            let text = absolute.to_string_lossy().into_owned();
+            if !known_paths.contains(&text) {
+                known_paths.push(text);
+            }
+        }
+        let known: Vec<&str> = known_paths.iter().map(String::as_str).collect();
+        let mut findings = Vec::new();
+        let mut reported = Vec::new();
+        for (root, dir, package) in &groups {
+            // Vet by import path so cue builds the real instance, which also unifies the staged
+            // same-package files of ancestor directories up to the module root.
+            let rel = if root.is_empty() {
+                dir.as_str()
+            } else {
+                dir.strip_prefix(root.as_str())
+                    .map_or("", |rest| rest.trim_start_matches('/'))
+            };
+            let mut target = if rel.is_empty() {
+                ".".to_owned()
+            } else {
+                format!("./{rel}")
+            };
+            if !package.is_empty() {
+                target.push(':');
+                target.push_str(package);
+            }
+            let target = PathBuf::from(target);
+            let invocation = commands::cue_vet(&tool.binary, &[target.as_path()], root);
+            let out = self.run(tool_id, tool, &invocation, scratch)?;
+            let cwd = scratch.root().join(root);
+            let found = parsed(
+                tool_id,
+                parsers::parse_cue_vet(&out.stdout, &out.stderr, out.code, &owned, &known, &cwd),
+            )?;
+            for item in found {
+                if owned.contains(&item.file.as_str()) {
+                    findings.push(item);
+                } else {
+                    reported.push(item.file);
+                }
+            }
+        }
+        if findings.is_empty() && !reported.is_empty() {
+            let mut names: Vec<String> = staged
+                .resolve_pairs
+                .iter()
+                .filter(|(_, absolute)| {
+                    reported
+                        .iter()
+                        .any(|r| r.as_str() == absolute.to_string_lossy())
+                })
+                .map(|(ws, _)| ws.clone())
+                .collect();
+            names.sort();
+            names.dedup();
+            return Err(execution(
+                tool_id,
+                format!(
+                    "cue vet failed in dependencies before the owned files were checked: {}",
+                    names.join(", ")
+                ),
+            ));
+        }
+        Ok(findings)
+    }
+
     fn read_notebooks(
         tool_id: &str,
         pairs: &[(String, PathBuf)],
@@ -1866,4 +1982,34 @@ pub(super) fn group_by_parent(root: &Path, pairs: &[(String, PathBuf)]) -> DirGr
         members.sort();
     }
     groups
+}
+
+/// The package name of a CUE file: skips blank lines, `//` comments and file-level `@attr(...)`
+/// lines before the clause, and drops a trailing `//` comment. Empty when there is no clause.
+fn cue_package_clause(text: &str) -> String {
+    text.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with("//") && !line.starts_with('@'))
+        .and_then(|line| line.strip_prefix("package "))
+        .map(|rest| {
+            let rest = rest.split("//").next().unwrap_or(rest);
+            rest.trim().to_owned()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod cue_package_clause_tests {
+    use super::cue_package_clause;
+
+    #[test]
+    fn clause_ignores_comments_and_attributes() {
+        assert_eq!(cue_package_clause("package app\n"), "app");
+        assert_eq!(cue_package_clause("package app // main\n"), "app");
+        assert_eq!(
+            cue_package_clause("// hi\n@if(prod)\n@extern(embed)\n\npackage app\n"),
+            "app"
+        );
+        assert_eq!(cue_package_clause("x: 1\n"), "");
+    }
 }

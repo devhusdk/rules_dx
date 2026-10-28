@@ -59,6 +59,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_dotnet_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rego_typecheck_aspect",
                 "quality:real_aspects.bzl%real_flatbuffers_typecheck_aspect",
+                "quality:real_aspects.bzl%real_cue_typecheck_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_typecheck_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -318,6 +319,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_dotnet_typecheck_aspect",
                 "quality:real_aspects.bzl%real_rego_typecheck_aspect",
                 "quality:real_aspects.bzl%real_flatbuffers_typecheck_aspect",
+                "quality:real_aspects.bzl%real_cue_typecheck_aspect",
             ]
         );
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);

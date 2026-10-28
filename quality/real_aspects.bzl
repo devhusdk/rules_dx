@@ -111,7 +111,8 @@ _REAL_TOOL_TABLE = {
     },
     "cue": {
         "attr": attr.label(default = "@dx_tools//:cue", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
+        "capabilities": ["format", "typecheck"],
+        "env": [["CUE_REGISTRY", "none"]],
         "kind": "file",
         "resources": "light",
         "shard": "cue",
@@ -1911,6 +1912,12 @@ _REAL_SHARD_SPECS = {
         "shard": "cue",
         "suffix": "-cue",
     },
+    "real_cue_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive CUE typecheck family aspect (cue vet -c=false).",
+        "shard": "cue",
+        "suffix": "-cue",
+    },
     "real_rego_format": {
         "capability": "format",
         "doc": "Additive Rego format family aspect (opa fmt).",
@@ -2192,6 +2199,8 @@ real_latex_format_aspect = _make_real_aspect("real_latex_format")
 real_lua_format_aspect = _make_real_aspect("real_lua_format")
 real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
+
+real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")
 
 real_rego_format_aspect = _make_real_aspect("real_rego_format")
 

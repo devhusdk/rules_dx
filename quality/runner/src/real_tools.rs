@@ -4265,3 +4265,81 @@ fn ansible_lint_duplicate_collection_under_two_roots_is_an_error() {
         .expect_err("duplicate roots must not be clean");
     assert!(err.to_string().contains("dxtest.tiny"), "{err}");
 }
+
+/// Stands in for `cue vet`: asserts the argv, the module-root cwd and the sealed environment.
+fn cue_vet_fake(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let flags: Vec<String> = argv[1..4]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(flags, ["vet", "-c=false", "-E"]);
+    assert!(cwd.ends_with("app"), "{cwd:?}");
+    let get = |key: &str| {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| PathBuf::from(value))
+    };
+    let scratch = cwd.parent().expect("scratch root");
+    assert!(get("CUE_CACHE_DIR").expect("cache").starts_with(scratch));
+    assert!(get("CUE_CONFIG_DIR").expect("config").starts_with(scratch));
+    for key in ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches cue"
+        );
+    }
+    let targets: Vec<String> = argv[4..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(targets.len(), 1, "one package per spawn: {targets:?}");
+    assert!(
+        targets[0] == ".:app" || targets[0] == "./lib:lib",
+        "vetted by import path with package: {targets:?}"
+    );
+    let dir = targets[0].split(':').next().expect("dir");
+    assert!(dir == "." || dir.starts_with("./"), "{targets:?}");
+    let main = cwd.join(dir).join("main.cue");
+    let text = std::fs::read_to_string(&main).unwrap_or_default();
+    if text.contains("BAD") {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: b"name: conflicting values 1 and string:\n    ./main.cue:1:1\n".to_vec(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn cue_module(main: &str) -> BTreeMap<String, String> {
+    let mut files = single("app/main.cue", main);
+    files.insert(
+        "app/cue.mod/module.cue".to_owned(),
+        "module: \"x.com/app\"\n".to_owned(),
+    );
+    files.insert("app/lib/g.cue".to_owned(), "package lib\n".to_owned());
+    files
+}
+
+#[test]
+fn cue_typecheck_vets_per_package_from_the_module_root() {
+    let backend = backend_for("cue", plain_tool(), cue_vet_fake);
+    let clean = backend
+        .diagnose("cue", "typecheck", &cue_module("package app\n"))
+        .expect("diagnosed");
+    assert!(clean.is_empty(), "{clean:?}");
+    let found = backend
+        .diagnose("cue", "typecheck", &cue_module("package app\nBAD\n"))
+        .expect("diagnosed");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].path, "app/main.cue");
+}

@@ -166,6 +166,7 @@ const STATIX_DEFAULTS_REL: &str = "dx-statix-default/statix.toml";
 const STATIX_DEFAULTS_BYTES: &[u8] = b"";
 const BIOME_DEFAULTS_REL: &str = "dx-biome-default/biome.json";
 const BIOME_DEFAULTS_BYTES: &[u8] = b"{}";
+const CUE_STATE_REL: &str = ".dx-cue-state";
 const REDOCLY_DEFAULTS_REL: &str = "dx-redocly-default/redocly.yaml";
 /// The curated Redocly policy: spec structure plus the correctness rules, all as errors.
 const REDOCLY_DEFAULTS_BYTES: &[u8] = b"extends:
@@ -594,6 +595,18 @@ impl RealBackend {
         }
         if tool_id == "typstyle" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
+        }
+        if tool_id == "cue" {
+            // HOME is unset; module loads need a cache and config dir, kept in the scratch.
+            let state = scratch.root().join(CUE_STATE_REL);
+            env.push((
+                OsString::from("CUE_CACHE_DIR"),
+                state.join("cache").into_os_string(),
+            ));
+            env.push((
+                OsString::from("CUE_CONFIG_DIR"),
+                state.join("config").into_os_string(),
+            ));
         }
         if tool_id == "dart" {
             // The host HOME stays unset (dart format needs none); analytics stay off.

@@ -2,6 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "hermetic_ocaml.patch",
+    "native_cc_env.patch",
 ])
 
 real_source_target(

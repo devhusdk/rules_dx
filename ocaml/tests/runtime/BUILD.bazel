@@ -50,6 +50,7 @@ ocaml_test(
     env = {"DX_OCAML_PROBE": "env"},
     main = ":greet_test_main",
     opts = select({"//conditions:default": []}),
+    visibility = ["//ocaml/tests/native:__pkg__"],
 )
 
 exports_files(

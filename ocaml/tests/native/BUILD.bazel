@@ -1,0 +1,41 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test")
+load(":defs.bzl", "sys_cell_test")
+
+cc_library(
+    name = "stub",
+    srcs = ["stub.c"],
+    hdrs = ["stub.h"],
+)
+
+ocaml_module(
+    name = "stub_binding",
+    struct = "stub_binding.ml",
+    cc_deps = {":stub": "static"},
+)
+
+ocaml_module(
+    name = "native_test_main",
+    testonly = True,
+    struct = "native_test.ml",
+    deps = [":stub_binding"],
+)
+
+ocaml_test(
+    name = "native_test_bin",
+    data = ["data.txt"],
+    main = ":native_test_main",
+    tags = ["manual"],
+)
+
+sys_cell_test(
+    name = "native_test",
+    size = "small",
+    target = ":native_test_bin",
+)
+
+sys_cell_test(
+    name = "greet_test",
+    size = "small",
+    target = "//ocaml/tests/runtime:greet_test",
+)

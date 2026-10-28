@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use dx_nested::{self as nested, Case};
 use dx_testing::resolve_runfiles;
 
-const BUILD: &str = r#"load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_test")
+const BUILD: &str = r#"load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_module", "ocaml_test")
 
 ocaml_module(
     name = "clean",
@@ -37,7 +38,57 @@ ocaml_test(
     size = "small",
     main = ":failing_test_main",
 )
+
+cc_library(
+    name = "good_stub",
+    srcs = ["good_stub.c"],
+)
+
+cc_library(
+    name = "bad_stub",
+    srcs = ["bad_stub.c"],
+)
+
+ocaml_module(
+    name = "good_binding",
+    struct = "binding.ml",
+    cc_deps = {":good_stub": "static"},
+)
+
+ocaml_module(
+    name = "bad_binding",
+    struct = "binding.ml",
+    cc_deps = {":bad_stub": "static"},
+)
+
+ocaml_module(
+    name = "bare_binding",
+    struct = "binding.ml",
+)
+
+ocaml_binary(
+    name = "good_app",
+    main = ":good_binding",
+)
+
+ocaml_binary(
+    name = "bad_app",
+    main = ":bad_binding",
+)
+
+ocaml_binary(
+    name = "bare_app",
+    main = ":bare_binding",
+)
 "#;
+
+const BINDING: &str = "external add : (int[@untagged]) -> (int[@untagged]) -> (int[@untagged]) = \"dx_add_bytecode\" \"dx_add\" [@@noalloc]\n\nlet () = if add 1 2 <> 3 then exit 1\n";
+
+const GOOD_STUB: &str = "long dx_add(long a, long b) { return a + b; }\n";
+
+const BAD_STUB: &str = "long dx_add(long a, long b) { return a +; }\n";
+
+const NATIVE: &str = "--@rules_dx//ocaml/toolchain:emitter=sys";
 
 const CLEAN: &str = "let add a b = a + b\n";
 
@@ -92,6 +143,9 @@ fn consumer() -> Case {
     write(&root.join("ocaml/missing_dep.ml"), NEEDS_DEP);
     write(&root.join("ocaml/tested.ml"), TESTED);
     write(&root.join("ocaml/failing_test.ml"), FAILING_TEST);
+    write(&root.join("ocaml/binding.ml"), BINDING);
+    write(&root.join("ocaml/good_stub.c"), GOOD_STUB);
+    write(&root.join("ocaml/bad_stub.c"), BAD_STUB);
     case
 }
 
@@ -163,5 +217,62 @@ fn a_failing_test_fails_with_its_message() {
         tested.text.contains("the answer is wrong: 41"),
         "{}",
         tested.text
+    );
+}
+
+#[test]
+fn a_native_binary_with_its_stub_builds() {
+    let case = consumer();
+    let built = bazel(&case, "build", "//ocaml:good_app", &[NATIVE]);
+    assert_eq!(built.code, Some(0), "{}", built.text);
+}
+
+#[test]
+fn a_native_binary_without_cc_deps_fails_to_link() {
+    let case = consumer();
+    let built = bazel(&case, "build", "//ocaml:bare_app", &[NATIVE]);
+    assert_eq!(built.code, Some(1), "{}", built.text);
+    assert!(built.text.contains("dx_add"), "{}", built.text);
+}
+
+#[test]
+fn malformed_c_fails_the_native_build() {
+    let case = consumer();
+    let built = bazel(&case, "build", "//ocaml:bad_app", &[NATIVE]);
+    assert_eq!(built.code, Some(1), "{}", built.text);
+    assert!(built.text.contains("bad_stub.c"), "{}", built.text);
+}
+
+#[test]
+fn native_actions_name_the_hermetic_c_tools_and_no_host_path() {
+    let case = consumer();
+    let queried = bazel(
+        &case,
+        "aquery",
+        "mnemonic(\"CompileOCamlModule|LinkOCaml.*\", deps(//ocaml:good_app_upstream))",
+        &[NATIVE, "--output=text"],
+    );
+    assert_eq!(queried.code, Some(0), "{}", queried.text);
+    for name in [
+        "CONDA_OCAML_AR",
+        "CONDA_OCAML_AS",
+        "CONDA_OCAML_CC",
+        "CONDA_OCAML_MKEXE",
+    ] {
+        assert!(
+            queried.text.contains(&format!("{name}=external/")),
+            "{name}\n{}",
+            queried.text
+        );
+        assert!(
+            !queried.text.contains(&format!("{name}=/")),
+            "{name}\n{}",
+            queried.text
+        );
+    }
+    assert!(
+        queried.text.contains("PATH=external/") && !queried.text.contains("PATH=/usr"),
+        "{}",
+        queried.text
     );
 }

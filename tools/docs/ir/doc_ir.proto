@@ -69,7 +69,8 @@ message Extension {
 
 message Symbol {
   // Stable identity: language:package:qualified_name plus the normalized
-  // overload suffix where applicable.
+  // disambiguating suffix where applicable. `@` introduces it, for example
+  // `@fn` or `@method-2` for Rust items that share a name.
   string id = 1;
   SymbolKind kind = 2;
   string signature_text = 3;

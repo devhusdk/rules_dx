@@ -71,6 +71,13 @@ pub enum Error {
         id: String,
         alias: String,
     },
+    /// An alias equals another symbol's id or another symbol's alias, so two
+    /// pages would claim one path.
+    AliasCollision {
+        id: String,
+        alias: String,
+        other: String,
+    },
     UnsafeDisplayName {
         id: String,
     },
@@ -112,7 +119,37 @@ pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
         }
         previous_id = Some(&symbol.id);
     }
+    validate_alias_collisions(shard)?;
     validate_component_members(shard)
+}
+
+fn validate_alias_collisions(shard: &DocIr) -> Result<(), Error> {
+    let ids: std::collections::BTreeSet<&str> = shard
+        .symbols
+        .iter()
+        .map(|symbol| symbol.id.as_str())
+        .collect();
+    let mut claimed: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
+    for symbol in &shard.symbols {
+        let Some(relations) = symbol.relations.as_ref() else {
+            continue;
+        };
+        for alias in &relations.reexported_as {
+            let other = if ids.contains(alias.as_str()) {
+                Some(alias.as_str())
+            } else {
+                claimed.insert(alias.as_str(), symbol.id.as_str())
+            };
+            if let Some(other) = other {
+                return Err(Error::AliasCollision {
+                    id: symbol.id.clone(),
+                    alias: alias.clone(),
+                    other: other.to_owned(),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_component_members(shard: &DocIr) -> Result<(), Error> {
@@ -486,6 +523,7 @@ mod tests {
     fn symbols_must_be_strictly_increasing() {
         let mut second = example_shard().symbols[0].clone();
         second.id = "python:mylib:AccountService.delete".to_owned();
+        second.relations = None;
         second.source = Some(SourceRef {
             file: "src/account.py".to_owned(),
             line: 84,
@@ -625,6 +663,41 @@ mod tests {
 
         let relations = shard.symbols[0].relations.as_mut().unwrap();
         relations.reexported_as = vec!["python:mylib:a".to_owned(), "python:mylib:b".to_owned()];
+        let bytes = encode_shard(&shard).unwrap();
+        assert_eq!(decode_shard(&bytes).unwrap(), shard);
+    }
+
+    #[test]
+    fn an_alias_may_not_equal_another_symbols_id_or_alias() {
+        let mut shard = example_shard();
+        let mut other = shard.symbols[0].clone();
+        other.id = "python:mylib:create".to_owned();
+        other.relations = None;
+        shard.symbols.push(other);
+        assert_eq!(
+            encode_shard(&shard),
+            Err(Error::AliasCollision {
+                id: "python:mylib:AccountService.create".to_owned(),
+                alias: "python:mylib:create".to_owned(),
+                other: "python:mylib:create".to_owned(),
+            })
+        );
+
+        let mut shard = example_shard();
+        let mut other = shard.symbols[0].clone();
+        other.id = "python:mylib:other".to_owned();
+        shard.symbols.push(other);
+        assert_eq!(
+            encode_shard(&shard),
+            Err(Error::AliasCollision {
+                id: "python:mylib:other".to_owned(),
+                alias: "python:mylib:create".to_owned(),
+                other: "python:mylib:AccountService.create".to_owned(),
+            })
+        );
+
+        shard.symbols[1].relations.as_mut().unwrap().reexported_as =
+            vec!["python:mylib:other_alias".to_owned()];
         let bytes = encode_shard(&shard).unwrap();
         assert_eq!(decode_shard(&bytes).unwrap(), shard);
     }

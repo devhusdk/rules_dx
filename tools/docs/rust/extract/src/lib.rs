@@ -200,23 +200,15 @@ pub fn extract(
         prefix: format!("rust:{package}:"),
         sources,
         canonical: BTreeMap::new(),
-        symbols: BTreeMap::new(),
+        entries: Vec::new(),
         uses: VecDeque::new(),
-        aliases: BTreeMap::new(),
+        globs: VecDeque::new(),
+        seen: BTreeSet::new(),
+        aliases: Vec::new(),
     };
     walker.module(parsed.root, &[])?;
     walker.resolve_uses()?;
-    let Walker {
-        mut symbols,
-        aliases,
-        ..
-    } = walker;
-    for (id, alias) in aliases {
-        if let Some(symbol) = symbols.get_mut(&id) {
-            let relations = symbol.relations.get_or_insert_with(Relations::default);
-            relations.reexported_as = alias.into_iter().collect();
-        }
-    }
+    let symbols = walker.finish()?;
     if symbols.is_empty() {
         return Err(format!("crate '{krate}' has no public API"));
     }
@@ -225,23 +217,78 @@ pub fn extract(
         schema_minor: SCHEMA_MINOR,
         language: "rust".to_string(),
         package: package.to_string(),
-        symbols: symbols.into_values().collect(),
+        symbols,
     })
+}
+
+type Pos = (String, u64, u64);
+
+/// A rustdoc item reference whose final symbol id is known only after every
+/// id has been assigned.
+struct Ref {
+    id: Id,
+    fallback: String,
+}
+
+/// One symbol before ids are assigned.
+struct Entry {
+    base: String,
+    rank: u8,
+    tag: &'static str,
+    /// Always carries its `@tag` suffix (glob re-exports of foreign modules).
+    forced: bool,
+    pos: Pos,
+    symbol: Symbol,
+    owner: Option<Id>,
+    implements: Vec<Ref>,
+    relations: bool,
+}
+
+/// One re-export name of an item that already has an entry.
+struct AliasCand {
+    base: String,
+    rank: u8,
+    tag: &'static str,
+    pos: Pos,
+    target: Id,
+    glob: bool,
+}
+
+#[derive(Clone, Copy)]
+enum Cand {
+    Entry(usize),
+    Alias(usize),
 }
 
 struct Walker<'a> {
     krate: &'a Crate,
     prefix: String,
     sources: &'a [Source],
-    canonical: BTreeMap<Id, String>,
-    symbols: BTreeMap<String, Symbol>,
-    uses: VecDeque<(Id, Vec<String>)>,
-    aliases: BTreeMap<String, BTreeSet<String>>,
+    canonical: BTreeMap<Id, usize>,
+    entries: Vec<Entry>,
+    uses: VecDeque<(Id, Vec<String>, bool)>,
+    globs: VecDeque<(Id, Vec<String>, bool)>,
+    seen: BTreeSet<(Id, Vec<String>)>,
+    aliases: Vec<AliasCand>,
 }
 
 impl<'a> Walker<'a> {
     fn item(&self, id: Id) -> Option<&'a Item> {
         self.krate.index.get(&id)
+    }
+
+    fn queue_use(&mut self, id: Id, path: Vec<String>, via_glob: bool) {
+        let Some(ItemEnum::Use(import)) = self.item(id).map(|item| &item.inner) else {
+            return;
+        };
+        if !self.seen.insert((id, path.clone())) {
+            return;
+        }
+        if import.is_glob {
+            self.globs.push_back((id, path, via_glob));
+        } else {
+            self.uses.push_back((id, path, via_glob));
+        }
     }
 
     fn module(&mut self, id: Id, path: &[String]) -> Result<(), String> {
@@ -256,7 +303,7 @@ impl<'a> Walker<'a> {
                 continue;
             }
             if matches!(item.inner, ItemEnum::Use(_)) {
-                self.uses.push_back((*child, path.to_vec()));
+                self.queue_use(*child, path.to_vec(), false);
             } else if let Some(name) = item.name.clone() {
                 self.define(item, path, &name)?;
             }
@@ -280,35 +327,36 @@ impl<'a> Walker<'a> {
         };
         let mut qualified = path.to_vec();
         qualified.push(segment);
-        let id = self.id(&qualified);
-        self.canonical.insert(item.id, id.clone());
+        let (rank, tag) = item_namespace(&item.inner);
+        let base = self.id(&qualified);
         let signature = signature(item, name);
-        self.push(item, &id, kind, signature, Vec::new())?;
+        let idx = self.push(item, base, (rank, tag), kind, signature, None)?;
+        self.canonical.insert(item.id, idx);
         match &item.inner {
             ItemEnum::Module(_) => self.module(item.id, &qualified)?,
             ItemEnum::Struct(data) => {
                 if let StructKind::Plain { fields, .. } = &data.kind {
-                    self.fields(fields, &qualified, &id)?;
+                    self.fields(fields, &qualified, item.id)?;
                 }
-                self.impls(&data.impls, &qualified, &id)?;
+                self.impls(&data.impls, &qualified, item.id)?;
             }
             ItemEnum::Union(data) => {
-                self.fields(&data.fields, &qualified, &id)?;
-                self.impls(&data.impls, &qualified, &id)?;
+                self.fields(&data.fields, &qualified, item.id)?;
+                self.impls(&data.impls, &qualified, item.id)?;
             }
             ItemEnum::Enum(data) => {
                 for variant in &data.variants {
                     if let Some(variant) = self.item(*variant) {
-                        self.member(variant, &qualified, &id, SymbolKind::EnumVariant)?;
+                        self.member(variant, &qualified, Some(item.id), SymbolKind::EnumVariant)?;
                     }
                 }
-                self.impls(&data.impls, &qualified, &id)?;
+                self.impls(&data.impls, &qualified, item.id)?;
             }
             ItemEnum::Trait(data) => {
                 for child in &data.items {
                     if let Some(child) = self.item(*child) {
                         if let Some(kind) = member_kind(&child.inner) {
-                            self.member(child, &qualified, &id, kind)?;
+                            self.member(child, &qualified, Some(item.id), kind)?;
                         }
                     }
                 }
@@ -318,17 +366,17 @@ impl<'a> Walker<'a> {
         Ok(())
     }
 
-    fn fields(&mut self, fields: &[Id], path: &[String], owner: &str) -> Result<(), String> {
+    fn fields(&mut self, fields: &[Id], path: &[String], owner: Id) -> Result<(), String> {
         for field in fields {
             if let Some(field) = self.item(*field).filter(|field| is_public(field)) {
-                self.member(field, path, owner, SymbolKind::Field)?;
+                self.member(field, path, Some(owner), SymbolKind::Field)?;
             }
         }
         Ok(())
     }
 
-    fn impls(&mut self, impls: &[Id], path: &[String], owner: &str) -> Result<(), String> {
-        let mut implements = BTreeSet::new();
+    fn impls(&mut self, impls: &[Id], path: &[String], owner: Id) -> Result<(), String> {
+        let mut implements = Vec::new();
         for id in impls {
             let Some(ItemEnum::Impl(block)) = self.item(*id).map(|item| &item.inner) else {
                 continue;
@@ -337,7 +385,7 @@ impl<'a> Walker<'a> {
                 continue;
             }
             if let Some(trait_) = &block.trait_ {
-                implements.insert(self.path_id(trait_));
+                implements.push(self.path_ref(trait_));
                 continue;
             }
             for child in &block.items {
@@ -345,13 +393,13 @@ impl<'a> Walker<'a> {
                     continue;
                 };
                 if let Some(kind) = member_kind(&child.inner) {
-                    self.member(child, path, owner, kind)?;
+                    self.member(child, path, Some(owner), kind)?;
                 }
             }
         }
-        if let Some(symbol) = self.symbols.get_mut(owner) {
-            let relations = symbol.relations.get_or_insert_with(Relations::default);
-            relations.implements = implements.into_iter().collect();
+        if let Some(&idx) = self.canonical.get(&owner) {
+            self.entries[idx].implements = implements;
+            self.entries[idx].relations = true;
         }
         Ok(())
     }
@@ -360,51 +408,66 @@ impl<'a> Walker<'a> {
         &mut self,
         item: &'a Item,
         path: &[String],
-        owner: &str,
+        owner: Option<Id>,
         kind: SymbolKind,
     ) -> Result<(), String> {
         let Some(name) = item.name.as_deref() else {
             return Ok(());
         };
+        if self.canonical.contains_key(&item.id) {
+            return Ok(());
+        }
         let mut qualified = path.to_vec();
         qualified.push(name.to_string());
-        let id = self.id(&qualified);
-        self.canonical.insert(item.id, id.clone());
-        self.push(
-            item,
-            &id,
-            kind,
-            signature(item, name),
-            vec![owner.to_string()],
-        )
+        let base = self.id(&qualified);
+        let namespace = member_namespace(kind);
+        let idx = self.push(item, base, namespace, kind, signature(item, name), owner)?;
+        self.canonical.insert(item.id, idx);
+        Ok(())
     }
 
     fn push(
         &mut self,
         item: &Item,
-        id: &str,
+        base: String,
+        (rank, tag): (u8, &'static str),
         kind: SymbolKind,
         signature_text: String,
-        member_of: Vec<String>,
-    ) -> Result<(), String> {
+        owner: Option<Id>,
+    ) -> Result<usize, String> {
         let source = self.source(item)?;
         let symbol = Symbol {
-            id: id.to_string(),
             kind: kind as i32,
             signature_text,
             doc_markdown: item.docs.clone().unwrap_or_default(),
             source,
             visibility: Visibility::Public as i32,
-            relations: (!member_of.is_empty()).then(|| Relations {
-                member_of,
-                ..Relations::default()
-            }),
             ..Symbol::default()
         };
-        if self.symbols.insert(id.to_string(), symbol).is_some() {
-            return Err(format!("two public items share the symbol id '{id}'"));
+        self.entries.push(Entry {
+            base,
+            rank,
+            tag,
+            forced: false,
+            pos: self.pos(item),
+            symbol,
+            owner,
+            implements: Vec::new(),
+            relations: false,
+        });
+        Ok(self.entries.len() - 1)
+    }
+
+    fn pos(&self, item: &Item) -> Pos {
+        match item.span.as_ref() {
+            Some(span) => {
+                let file = span.filename.to_string_lossy();
+                let file = map_source(self.sources, &file)
+                    .map_or_else(|| file.to_string(), |(mapped, _)| mapped);
+                (file, span.begin.0 as u64, span.begin.1 as u64)
+            }
+            None => (String::new(), 0, 0),
         }
-        Ok(())
     }
 
     fn source(&self, item: &Item) -> Result<Option<SourceRef>, String> {
@@ -429,7 +492,10 @@ impl<'a> Walker<'a> {
     }
 
     fn resolve_uses(&mut self) -> Result<(), String> {
-        while let Some((use_id, path)) = self.uses.pop_front() {
+        // Explicit `pub use` items resolve before any glob, as in rustc.
+        while let Some((use_id, path, via_glob)) =
+            self.uses.pop_front().or_else(|| self.globs.pop_front())
+        {
             let Some(item) = self.item(use_id) else {
                 continue;
             };
@@ -438,48 +504,85 @@ impl<'a> Walker<'a> {
             };
             let target = import.id.and_then(|id| self.item(id));
             if import.is_glob {
-                let Some(ItemEnum::Module(module)) = target.map(|t| &t.inner) else {
-                    return Err(format!(
-                        "glob re-export 'pub use {}::*' names no local module",
-                        import.source
-                    ));
-                };
-                for child in &module.items {
-                    let Some(child) = self.item(*child).filter(|child| is_public(child)) else {
-                        continue;
-                    };
-                    if matches!(child.inner, ItemEnum::Use(_)) {
-                        self.uses.push_back((child.id, path.clone()));
-                    } else if let Some(name) = child.name.clone() {
-                        self.alias_or_define(child, &path, &name)?;
+                let local = target.filter(|target| target.crate_id == 0);
+                match local.map(|target| &target.inner) {
+                    Some(ItemEnum::Module(module)) => {
+                        for child in &module.items {
+                            let Some(child) = self.item(*child).filter(|child| is_public(child))
+                            else {
+                                continue;
+                            };
+                            if matches!(child.inner, ItemEnum::Use(_)) {
+                                self.queue_use(child.id, path.clone(), true);
+                            } else if let Some(name) = child.name.clone() {
+                                self.alias_or_define(child, &path, &name, item, true)?;
+                            }
+                        }
                     }
+                    Some(ItemEnum::Enum(data)) => {
+                        for variant in &data.variants {
+                            let Some(variant) = self.item(*variant) else {
+                                continue;
+                            };
+                            if let Some(name) = variant.name.clone() {
+                                self.alias_or_define(variant, &path, &name, item, true)?;
+                            }
+                        }
+                    }
+                    _ => self.glob_symbol(item, import, &path)?,
                 }
                 continue;
             }
             match target {
                 Some(target) if target.crate_id == 0 => {
-                    self.alias_or_define(target, &path, &import.name)?;
+                    self.alias_or_define(target, &path, &import.name, item, via_glob)?;
                 }
                 _ => {
                     let mut qualified = path.clone();
                     qualified.push(import.name.clone());
-                    let id = self.id(&qualified);
+                    let base = self.id(&qualified);
                     let last = import.source.rsplit("::").next().unwrap_or("");
                     let signature = if last == import.name {
                         format!("pub use {};", import.source)
                     } else {
                         format!("pub use {} as {};", import.source, import.name)
                     };
-                    let kind = import
-                        .id
-                        .and_then(|id| self.krate.paths.get(&id))
-                        .map_or(SymbolKind::Unspecified, |summary| {
-                            summary_kind(&summary.kind)
-                        });
-                    self.push(item, &id, kind, signature, Vec::new())?;
+                    let summary = import.id.and_then(|id| self.krate.paths.get(&id));
+                    let kind = summary.map_or(SymbolKind::Unspecified, |summary| {
+                        summary_kind(&summary.kind)
+                    });
+                    let namespace =
+                        summary.map_or((3, "item"), |summary| summary_namespace(&summary.kind));
+                    self.push(item, base, namespace, kind, signature, None)?;
                 }
             }
         }
+        Ok(())
+    }
+
+    /// A glob of a foreign or unknown module cannot be expanded, so it
+    /// becomes one symbol that always carries `@glob`.
+    fn glob_symbol(
+        &mut self,
+        item: &'a Item,
+        import: &rustdoc_types::Use,
+        path: &[String],
+    ) -> Result<(), String> {
+        let source = import.source.trim_end_matches("::*");
+        let last = source.rsplit("::").next().unwrap_or("");
+        let last = if last.is_empty() { "glob" } else { last };
+        let mut qualified = path.to_vec();
+        qualified.push(last.to_string());
+        let base = self.id(&qualified);
+        let idx = self.push(
+            item,
+            base,
+            (3, "glob"),
+            SymbolKind::Unspecified,
+            format!("pub use {source}::*;"),
+            None,
+        )?;
+        self.entries[idx].forced = true;
         Ok(())
     }
 
@@ -488,16 +591,34 @@ impl<'a> Walker<'a> {
         target: &'a Item,
         path: &[String],
         name: &str,
+        use_item: &Item,
+        glob: bool,
     ) -> Result<(), String> {
-        if let Some(canonical) = self.canonical.get(&target.id).cloned() {
-            let bang = if canonical.ends_with('!') { "!" } else { "" };
+        if let Some(&idx) = self.canonical.get(&target.id) {
+            let canonical = &self.entries[idx];
+            let bang = if canonical.base.ends_with('!') {
+                "!"
+            } else {
+                ""
+            };
             let mut qualified = path.to_vec();
             qualified.push(format!("{name}{bang}"));
-            let alias = self.id(&qualified);
-            if alias != canonical {
-                self.aliases.entry(canonical).or_default().insert(alias);
+            let base = self.id(&qualified);
+            if base != canonical.base {
+                let alias = AliasCand {
+                    base,
+                    rank: canonical.rank,
+                    tag: canonical.tag,
+                    pos: self.pos(use_item),
+                    target: target.id,
+                    glob,
+                };
+                self.aliases.push(alias);
             }
             return Ok(());
+        }
+        if matches!(target.inner, ItemEnum::Variant(_)) {
+            return self.member(target, path, None, SymbolKind::EnumVariant);
         }
         self.define(target, path, name)
     }
@@ -506,11 +627,8 @@ impl<'a> Walker<'a> {
         format!("{}{}", self.prefix, qualified.join("."))
     }
 
-    fn path_id(&self, path: &Path) -> String {
-        if let Some(id) = self.canonical.get(&path.id) {
-            return id.clone();
-        }
-        match self.krate.paths.get(&path.id) {
+    fn path_ref(&self, path: &Path) -> Ref {
+        let fallback = match self.krate.paths.get(&path.id) {
             Some(summary) if summary.crate_id == 0 && summary.path.len() > 1 => {
                 format!("{}{}", self.prefix, summary.path[1..].join("."))
             }
@@ -518,7 +636,160 @@ impl<'a> Walker<'a> {
                 format!("rust:{}:{}", summary.path[0], summary.path[1..].join("."))
             }
             _ => format!("rust::{}", path.path.replace("::", ".")),
+        };
+        Ref {
+            id: path.id,
+            fallback,
         }
+    }
+
+    /// Assigns the final ids once the whole crate is collected. Only items
+    /// that share a base id get an `@tag` suffix, so ids never depend on the
+    /// order rustdoc listed the items in.
+    fn finish(self) -> Result<Vec<Symbol>, String> {
+        let Walker {
+            entries,
+            aliases,
+            canonical,
+            ..
+        } = self;
+        // One alias per (name, target); an explicit `pub use` beats a glob.
+        let mut kept: BTreeMap<(&str, Id), usize> = BTreeMap::new();
+        for (index, alias) in aliases.iter().enumerate() {
+            match kept.entry((alias.base.as_str(), alias.target)) {
+                std::collections::btree_map::Entry::Vacant(slot) => {
+                    slot.insert(index);
+                }
+                std::collections::btree_map::Entry::Occupied(mut slot) => {
+                    if aliases[*slot.get()].glob && !alias.glob {
+                        slot.insert(index);
+                    }
+                }
+            }
+        }
+        let mut groups: BTreeMap<&str, Vec<Cand>> = BTreeMap::new();
+        for (index, entry) in entries.iter().enumerate() {
+            groups
+                .entry(entry.base.as_str())
+                .or_default()
+                .push(Cand::Entry(index));
+        }
+        for index in kept.into_values() {
+            groups
+                .entry(aliases[index].base.as_str())
+                .or_default()
+                .push(Cand::Alias(index));
+        }
+        let rank_of = |cand: &Cand| match cand {
+            Cand::Entry(i) => entries[*i].rank,
+            Cand::Alias(i) => aliases[*i].rank,
+        };
+        let key_of = |cand: &Cand| match cand {
+            Cand::Entry(i) => (entries[*i].rank, entries[*i].pos.clone(), entries[*i].tag),
+            Cand::Alias(i) => (aliases[*i].rank, aliases[*i].pos.clone(), aliases[*i].tag),
+        };
+        let mut final_entry = vec![String::new(); entries.len()];
+        let mut final_alias: Vec<Option<String>> = vec![None; aliases.len()];
+        for (base, cands) in groups {
+            let mut forced = Vec::new();
+            let mut live = Vec::new();
+            for cand in &cands {
+                match cand {
+                    Cand::Entry(i) if entries[*i].forced => forced.push(*cand),
+                    _ => live.push(*cand),
+                }
+            }
+            // A glob name is dropped when another item has the same name in
+            // the same namespace; an explicit name is an error instead.
+            let mut survivors = Vec::new();
+            for cand in &live {
+                if let Cand::Alias(i) = cand {
+                    let rivals: Vec<&Cand> = live
+                        .iter()
+                        .filter(|other| {
+                            !matches!((cand, other), (Cand::Alias(a), Cand::Alias(b)) if a == b)
+                                && rank_of(other) == rank_of(cand)
+                        })
+                        .collect();
+                    if aliases[*i].glob {
+                        if !rivals.is_empty() {
+                            continue;
+                        }
+                    } else if let Some(rival) = rivals
+                        .iter()
+                        .find(|r| !matches!(r, Cand::Alias(j) if aliases[*j].glob))
+                    {
+                        let other = match rival {
+                            Cand::Entry(j) => entries[*j].symbol.signature_text.clone(),
+                            Cand::Alias(j) => format!("a re-export of {}", aliases[*j].base),
+                        };
+                        return Err(format!(
+                            "re-export name '{base}' collides with '{other}' in the same namespace"
+                        ));
+                    }
+                }
+                survivors.push(*cand);
+            }
+            survivors.sort_by_key(key_of);
+            forced.sort_by_key(key_of);
+            for (group, plain_first) in [(&survivors, true), (&forced, false)] {
+                let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+                for (n, cand) in group.iter().enumerate() {
+                    let tag = key_of(cand).2;
+                    let id = if plain_first && n == 0 {
+                        base.to_string()
+                    } else {
+                        let count = counts.entry(tag).or_insert(0);
+                        *count += 1;
+                        if *count == 1 {
+                            format!("{base}@{tag}")
+                        } else {
+                            format!("{base}@{tag}-{count}")
+                        }
+                    };
+                    match cand {
+                        Cand::Entry(i) => final_entry[*i] = id,
+                        Cand::Alias(i) => final_alias[*i] = Some(id),
+                    }
+                }
+            }
+        }
+        let resolve = |id: &Id| canonical.get(id).map(|index| final_entry[*index].clone());
+        let mut reexported: BTreeMap<usize, BTreeSet<String>> = BTreeMap::new();
+        for (index, alias) in aliases.iter().enumerate() {
+            if let (Some(id), Some(&target)) = (&final_alias[index], canonical.get(&alias.target)) {
+                reexported.entry(target).or_default().insert(id.clone());
+            }
+        }
+        let mut symbols = Vec::with_capacity(entries.len());
+        for (index, entry) in entries.into_iter().enumerate() {
+            let mut symbol = entry.symbol;
+            symbol.id = final_entry[index].clone();
+            let member_of: Vec<String> = entry.owner.iter().filter_map(&resolve).collect();
+            let implements: BTreeSet<String> = entry
+                .implements
+                .iter()
+                .map(|r| resolve(&r.id).unwrap_or_else(|| r.fallback.clone()))
+                .collect();
+            let reexported_as: Vec<String> = reexported
+                .remove(&index)
+                .map(|set| set.into_iter().collect())
+                .unwrap_or_default();
+            if entry.relations
+                || !member_of.is_empty()
+                || !implements.is_empty()
+                || !reexported_as.is_empty()
+            {
+                symbol.relations = Some(Relations {
+                    member_of,
+                    implements: implements.into_iter().collect(),
+                    reexported_as,
+                });
+            }
+            symbols.push(symbol);
+        }
+        symbols.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(symbols)
     }
 }
 
@@ -554,6 +825,58 @@ fn member_kind(inner: &ItemEnum) -> Option<SymbolKind> {
         ItemEnum::AssocType { .. } => SymbolKind::TypeAlias,
         _ => return None,
     })
+}
+
+/// Rust keeps types, values and macros in separate namespaces; the rank orders
+/// colliding ids and the tag names the loser.
+fn item_namespace(inner: &ItemEnum) -> (u8, &'static str) {
+    match inner {
+        ItemEnum::Module(_) => (0, "mod"),
+        ItemEnum::Struct(_) => (0, "struct"),
+        ItemEnum::Union(_) => (0, "union"),
+        ItemEnum::Enum(_) => (0, "enum"),
+        ItemEnum::Trait(_) | ItemEnum::TraitAlias(_) => (0, "trait"),
+        ItemEnum::TypeAlias(_) | ItemEnum::ExternType => (0, "type"),
+        ItemEnum::Function(_) => (1, "fn"),
+        ItemEnum::Constant { .. } => (1, "const"),
+        ItemEnum::Static(_) => (1, "static"),
+        ItemEnum::Macro(_) => (2, "macro"),
+        ItemEnum::ProcMacro(proc_macro) => match proc_macro.kind {
+            MacroKind::Bang => (2, "macro"),
+            MacroKind::Attr => (2, "attr"),
+            MacroKind::Derive => (2, "derive"),
+        },
+        _ => (3, "item"),
+    }
+}
+
+fn member_namespace(kind: SymbolKind) -> (u8, &'static str) {
+    match kind {
+        SymbolKind::EnumVariant => (0, "variant"),
+        SymbolKind::Field => (0, "field"),
+        SymbolKind::TypeAlias => (1, "type"),
+        SymbolKind::Constant => (2, "const"),
+        _ => (2, "method"),
+    }
+}
+
+fn summary_namespace(kind: &rustdoc_types::ItemKind) -> (u8, &'static str) {
+    use rustdoc_types::ItemKind as K;
+    match kind {
+        K::Module => (0, "mod"),
+        K::Struct => (0, "struct"),
+        K::Union => (0, "union"),
+        K::Enum => (0, "enum"),
+        K::Trait | K::TraitAlias => (0, "trait"),
+        K::TypeAlias | K::ExternType => (0, "type"),
+        K::Function => (1, "fn"),
+        K::Constant => (1, "const"),
+        K::Static => (1, "static"),
+        K::Macro => (2, "macro"),
+        K::ProcAttribute => (2, "attr"),
+        K::ProcDerive => (2, "derive"),
+        _ => (3, "item"),
+    }
 }
 
 fn summary_kind(kind: &rustdoc_types::ItemKind) -> SymbolKind {

@@ -120,6 +120,12 @@ fn ids_map_to_pages_titles_and_relative_links() {
     );
     assert_eq!(title("rust:demo:shapes.Circle"), "demo::shapes::Circle");
     assert_eq!(title("python:demo:Service.create"), "demo.Service.create");
+    assert_eq!(title("rust:demo:foo@fn"), "demo::foo (fn)");
+    assert_eq!(
+        title("rust:demo:Point.x@method-2"),
+        "demo::Point::x (method 2)"
+    );
+    assert_eq!(api_path("rust:demo:foo@fn"), "api/rust/demo/foo@fn.md");
     assert_eq!(relative("api/rust/demo/a.md", "api/rust/demo/b.md"), "b.md");
     assert_eq!(
         relative("api/rust/demo/a.md", "api/rust/other/b.md"),

@@ -5,12 +5,15 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-exports_files([
-    "Cargo.toml",
-    "src/lib.rs",
-    "src/lib_tests.rs",
-    "src/main.rs",
-], visibility = VIS_TOOLS)
+exports_files(
+    [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/lib_tests.rs",
+        "src/main.rs",
+    ],
+    visibility = VIS_TOOLS,
+)
 
 rust_library(
     name = "dx_docs_rust_extract",
@@ -63,7 +66,10 @@ rust_test(
         package_name = "tools/docs/rust/rust_extract",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/docs/ir/ir:documentation_ir"],
+    ) + [
+        "//tools/docs/ir/ir:documentation_ir",
+        "@crates//:serde_json",
+    ],
 )
 
 rustfmt_test(

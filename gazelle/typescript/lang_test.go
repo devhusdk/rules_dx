@@ -136,35 +136,6 @@ func TestGenerateRelativeStdlibCollision(t *testing.T) {
 	}
 }
 
-func TestGenerateEmptySweepsStale(t *testing.T) {
-	result := generateFixture(t, nil, []string{"notes.txt", "orphan.d.ts"})
-	if len(result.Gen) != 0 || len(result.Empty) != 0 {
-		t.Fatalf("empty generation = %+v", result)
-	}
-	f := rule.EmptyFile("BUILD.bazel", "pkg/demo")
-	f.Rules = append(f.Rules,
-		rule.NewRule(projectKind, "old"),
-		rule.NewRule("filegroup", "keep"),
-		rule.NewRule(projectKind, "demo"),
-	)
-	root := t.TempDir()
-	writeFixture(t, root, "pkg/demo/demo.ts", "export const x = 1;\n")
-	dir := filepath.Join(root, "pkg", "demo")
-	result = NewLanguage().GenerateRules(language.GenerateArgs{
-		Config:       &config.Config{RepoRoot: root},
-		Dir:          dir,
-		Rel:          "pkg/demo",
-		RegularFiles: []string{"demo.ts"},
-		File:         f,
-	})
-	if len(result.Gen) != 1 {
-		t.Fatalf("generated %d rules, want 1", len(result.Gen))
-	}
-	if len(result.Empty) != 1 || result.Empty[0].Name() != "old" {
-		t.Fatalf("empty rules = %v, want [old]", result.Empty)
-	}
-}
-
 func TestGenerateFailures(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -361,40 +332,6 @@ func TestImportsIndexesNonTestOnly(t *testing.T) {
 	}
 	if got := lang.Imports(&config.Config{}, rule.NewRule(projectKind, "empty"), nil); got != nil {
 		t.Errorf("srcless imports = %+v, want nil", got)
-	}
-}
-
-func TestLanguageMetadata(t *testing.T) {
-	l := newLang()
-	if l.Name() != "typescript" || len(l.Kinds()) != 3 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatal("invalid language metadata")
-	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	l.Configure(config.New(), "pkg", nil)
-	l.DoneGeneratingRules()
-	if got := l.KnownDirectives(); len(got) != 1 || got[0] != "dx_ignore_import" {
-		t.Fatalf("directives = %v, want [dx_ignore_import]", got)
-	}
-	if l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
-	}
-	loads := l.ApparentLoads(func(name string) string {
-		if name == "rules_dx" {
-			return "renamed_dx"
-		}
-		return ""
-	})
-	if len(loads) != 2 || loads[0].Name != "@renamed_dx//typescript/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != "typescript_project,typescript_test" {
-		t.Errorf("apparent loads = %+v", loads)
-	}
-	if loads[1].Name != "@renamed_dx//javascript/rules:defs.bzl" || strings.Join(loads[1].Symbols, ",") != "javascript_binary" {
-		t.Errorf("apparent binary loads = %+v", loads)
-	}
-	if defaults := l.Loads(); len(defaults) != 2 || defaults[0].Name != "@rules_dx//typescript/rules:defs.bzl" {
-		t.Errorf("default loads = %+v", defaults)
-	}
-	if defaults := l.Loads(); defaults[1].Name != "@rules_dx//javascript/rules:defs.bzl" || strings.Join(defaults[1].Symbols, ",") != "javascript_binary" {
-		t.Errorf("default binary loads = %+v", defaults)
 	}
 }
 

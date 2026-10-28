@@ -66,6 +66,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"go": {
 		files: map[string]string{"demo.go": "package demo\n"},
+		inert: []string{"notes.txt"},
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
 		symbols: []string{"go_library", "go_test"},
 	},

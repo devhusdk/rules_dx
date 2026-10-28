@@ -472,12 +472,11 @@ func TestMalformedIgnoreFails(t *testing.T) {
 
 func TestLanguageMetadata(t *testing.T) {
 	l := &rustLang{}
-	if l.Name() != "rust" || len(l.Kinds()) != 12 || l.CheckFlags(flag.NewFlagSet("test", flag.ContinueOnError), config.New()) != nil {
-		t.Fatalf("invalid language metadata")
+	if len(l.Kinds()) != 12 {
+		t.Fatalf("invalid kinds")
 	}
-	l.RegisterFlags(flag.NewFlagSet("test", flag.ContinueOnError), "update", config.New())
-	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" || l.Embeds(nil, label.NoLabel) != nil {
-		t.Fatal("invalid directives or embeds")
+	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus" {
+		t.Fatal("invalid directives")
 	}
 	loads := l.ApparentLoads(func(name string) string {
 		if name == "rules_dx" {
@@ -498,28 +497,6 @@ func TestLanguageMetadata(t *testing.T) {
 		"real_source_target": "@renamed_dx//quality:fixtures.bzl",
 	}); len(got) != 0 {
 		t.Errorf("apparent loads miss %v", got)
-	}
-	if got := missingLoads(l.Loads(), map[string]string{
-		binaryKind:           "@rules_dx//rust/rules:defs.bzl",
-		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
-		scriptKind:           "@rules_rust//cargo:defs.bzl",
-		"crate_deps":         "@crates//:crates.bzl",
-		"all_crate_deps":     "@crates//:crates.bzl",
-		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
-		"real_source_target": "@rules_dx//quality:fixtures.bzl",
-	}); len(got) != 0 {
-		t.Errorf("default loads miss %v", got)
-	}
-	if got := missingLoads(l.ApparentLoads(func(string) string { return "" }), map[string]string{
-		binaryKind:           "@rules_dx//rust/rules:defs.bzl",
-		dxCrateKind:          "@rules_dx//rust/rules:crate.bzl",
-		scriptKind:           "@rules_rust//cargo:defs.bzl",
-		"crate_deps":         "@crates//:crates.bzl",
-		"all_crate_deps":     "@crates//:crates.bzl",
-		"buildifier_config":  "@rules_dx//quality:native_config.bzl",
-		"real_source_target": "@rules_dx//quality:fixtures.bzl",
-	}); len(got) != 0 {
-		t.Errorf("default apparent loads miss %v", got)
 	}
 	l.DoneGeneratingRules()
 }

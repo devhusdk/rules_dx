@@ -186,10 +186,13 @@ rust_test(
     size = "small",
     srcs = ["host_cell_test.rs"],
     data = [
+        "consumer/consumer.BUILD.bazel",
+        ":consumer_template",
         ":dx_host_cell",
         ":release_matrix",
     ],
     env = {
+        "DX_CONSUMER_TEMPLATE": "$(rootpath consumer/consumer.BUILD.bazel)",
         "DX_HOST_CELL": "$(rootpath :dx_host_cell)",
         "DX_RELEASE_MATRIX": "$(rootpath :release_matrix)",
     },
@@ -380,6 +383,11 @@ inventory_file_tests(
 )
 
 release_cells(name = "dx_host_cell")
+
+filegroup(
+    name = "consumer_template",
+    srcs = glob(["consumer/**"]),
+)
 
 release_matrix_file(name = "release_matrix")
 

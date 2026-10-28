@@ -11,6 +11,16 @@ pub const INSTALL_DIR: &str = "dx install \u{e9} \u{fc}";
 /// The dir name `qualify` moves the install to before running `version` again.
 pub const MOVED_DIR: &str = "moved \u{fc}";
 
+/// The ASCII dir `qualify` stages the consumer workspace in, under the work dir.
+pub const CONSUMER_DIR: &str = "consumer";
+/// The module name `dx init --apply` is given for the consumer workspace.
+pub const CONSUMER_MODULE: &str = "dx_release_consumer";
+/// Template file and the name it takes in the staged consumer workspace.
+pub const CONSUMER_FILES: [(&str, &str); 2] = [
+    ("consumer.BUILD.bazel", "BUILD.bazel"),
+    ("lib.rs", "lib.rs"),
+];
+
 /// Every check `qualify` records, in run order.
 pub const CHECKS: [&str; 12] = [
     "format",
@@ -256,6 +266,13 @@ pub trait Runner {
     fn run(&self, program: &Path, args: &[&str], cwd: &Path) -> RunOutput;
 }
 
+/// The consumer template and the rules_dx checkout the staged workspace depends on.
+#[derive(Debug, Clone)]
+pub struct Consumer {
+    pub template: PathBuf,
+    pub checkout: PathBuf,
+}
+
 /// Everything `qualify` needs to measure one cell on its native runner.
 #[derive(Debug, Clone)]
 pub struct QualifyInputs {
@@ -271,7 +288,7 @@ pub struct QualifyInputs {
     pub job: String,
     pub runner_os: String,
     pub runner_arch: String,
-    pub consumer: Option<PathBuf>,
+    pub consumer: Option<Consumer>,
 }
 
 struct Verdicts(Vec<Check>);
@@ -355,6 +372,91 @@ fn ran(runner: &dyn Runner, program: &Path, args: &[&str], cwd: &Path) -> Result
         args.join(" "),
         out.stderr.trim()
     ))
+}
+
+fn starlark_string(text: &str) -> String {
+    format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// The one place that says where the consumer gets rules_dx from.
+fn rules_dx_override(checkout: &Path) -> String {
+    format!(
+        "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
+        starlark_string(&checkout.to_string_lossy()),
+    )
+}
+
+/// Builds the consumer MODULE.bazel from the `dx init` snippet and the rules_dx checkout.
+pub fn consumer_module(snippet: &str, checkout: &Path) -> Result<String, String> {
+    if snippet.matches("bazel_dep(name = \"rules_dx\", ").count() != 1 {
+        return Err(format!(
+            "dx init snippet must declare rules_dx exactly once: {snippet}"
+        ));
+    }
+    if snippet.contains("local_path_override(") {
+        return Err("dx init snippet already carries a local_path_override".to_owned());
+    }
+    Ok(format!(
+        "module(name = {})\n\n{}\n{}",
+        starlark_string(CONSUMER_MODULE),
+        snippet.trim_end(),
+        rules_dx_override(checkout),
+    ))
+}
+
+/// Builds the consumer workspace the way a user adopts dx and returns its dir.
+///
+/// The template supplies sources only; `exe init` writes the toolchain wiring.
+pub fn stage_consumer(
+    consumer: &Consumer,
+    exe: &Path,
+    work: &Path,
+    runner: &dyn Runner,
+) -> Result<PathBuf, String> {
+    let dir = work.join(CONSUMER_DIR);
+    if dir.starts_with(&consumer.checkout) {
+        return Err(format!(
+            "stage: {} is inside the checkout {}",
+            dir.display(),
+            consumer.checkout.display()
+        ));
+    }
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir)
+            .map_err(|error| format!("stage: cannot clear {}: {error}", dir.display()))?;
+    }
+    std::fs::create_dir_all(&dir)
+        .map_err(|error| format!("stage: cannot create {}: {error}", dir.display()))?;
+    let copy = |from: PathBuf, to: &str| {
+        std::fs::copy(&from, dir.join(to))
+            .map(drop)
+            .map_err(|error| format!("stage: cannot copy {}: {error}", from.display()))
+    };
+    for (source, dest) in CONSUMER_FILES {
+        copy(consumer.template.join(source), dest)?;
+    }
+    copy(consumer.checkout.join(".bazelversion"), ".bazelversion")?;
+    let workspace = dir.to_string_lossy().into_owned();
+    ran(
+        runner,
+        exe,
+        &[
+            "init",
+            "--apply",
+            CONSUMER_MODULE,
+            "--workspace",
+            &workspace,
+        ],
+        &dir,
+    )
+    .map_err(|error| format!("stage: {error}"))?;
+    let snippet = std::fs::read_to_string(dir.join("MODULE.bazel.snippet"))
+        .map_err(|error| format!("stage: dx init wrote no MODULE.bazel.snippet: {error}"))?;
+    let module =
+        consumer_module(&snippet, &consumer.checkout).map_err(|error| format!("stage: {error}"))?;
+    std::fs::write(dir.join("MODULE.bazel"), module)
+        .map_err(|error| format!("stage: cannot write MODULE.bazel: {error}"))?;
+    Ok(dir)
 }
 
 fn version_check(runner: &dyn Runner, exe: &Path, cwd: &Path, version: &str) -> Result<(), String> {
@@ -521,11 +623,13 @@ fn installed_checks(
     };
     verdicts.note(
         "consumer",
-        ["build", "test", "check"]
-            .into_iter()
-            .try_for_each(|command| {
-                ran(runner, &moved_exe, &[command, "//..."], consumer).map(drop)
-            }),
+        stage_consumer(consumer, &moved_exe, &inputs.work, runner).and_then(|dir| {
+            ["build", "test", "check"]
+                .into_iter()
+                .try_for_each(|command| {
+                    ran(runner, &moved_exe, &[command, "//..."], &dir).map(drop)
+                })
+        }),
     );
 }
 
@@ -874,7 +978,7 @@ fn read_matrix(path: &str) -> Result<Vec<Cell>, String> {
     parse_matrix(&text)
 }
 
-pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <dir>]";
+pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <template dir> --checkout <rules_dx dir>]";
 
 pub const VERIFY_USAGE: &str = "verify --matrix <release_matrix.json> --records <dir> --archives <dir> --sha <commit> --version <version> --workflow-ref <ref>";
 
@@ -900,8 +1004,17 @@ pub fn parse_qualify_args(
             "job",
             "out",
         ],
-        &["consumer"],
+        &["consumer", "checkout"],
     )?;
+    let consumer = match (flags.get("consumer"), flags.get("checkout")) {
+        (Some(template), Some(checkout)) => Some(Consumer {
+            template: PathBuf::from(*template),
+            checkout: PathBuf::from(*checkout),
+        }),
+        (Some(_), None) => return Err("--consumer needs --checkout".to_owned()),
+        (None, Some(_)) => return Err("--checkout needs --consumer".to_owned()),
+        (None, None) => None,
+    };
     let name = flag(&flags, "cell");
     let cell = read_matrix(&flag(&flags, "matrix"))?
         .into_iter()
@@ -920,7 +1033,7 @@ pub fn parse_qualify_args(
         job: flag(&flags, "job"),
         runner_os: runner_os.to_owned(),
         runner_arch: runner_arch.to_owned(),
-        consumer: flags.get("consumer").map(|value| PathBuf::from(*value)),
+        consumer,
     };
     Ok((inputs, PathBuf::from(flag(&flags, "out"))))
 }

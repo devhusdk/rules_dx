@@ -150,9 +150,12 @@ fn patch_machine_flips_every_container() {
     }
 }
 
+const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\ninclude(\"//third_party/rules_dx:toolchains.MODULE.bazel\")\n";
+
 struct FakeRunner {
     version: String,
     fail: Vec<&'static str>,
+    snippet: Option<&'static str>,
     calls: RefCell<Vec<String>>,
 }
 
@@ -161,6 +164,7 @@ impl FakeRunner {
         FakeRunner {
             version: "dx 1.2.3\n".to_owned(),
             fail: Vec::new(),
+            snippet: Some(SNIPPET),
             calls: RefCell::new(Vec::new()),
         }
     }
@@ -180,6 +184,11 @@ impl Runner for FakeRunner {
                 stdout: String::new(),
                 stderr: format!("{} broke\n", args[0]),
             };
+        }
+        if args[0] == "init" {
+            if let Some(snippet) = self.snippet {
+                std::fs::write(cwd.join("MODULE.bazel.snippet"), snippet).expect("snippet");
+            }
         }
         let stdout = if args[0] == "version" {
             self.version.clone()
@@ -268,9 +277,14 @@ struct Fixture {
 
 fn stage(cell: Cell, members: Members) -> Fixture {
     let dir = tempfile::TempDir::new().expect("tempdir");
-    for sub in ["out", "rebuild", "consumer"] {
+    for sub in ["out", "rebuild", "template", "checkout"] {
         std::fs::create_dir(dir.path().join(sub)).expect("mkdir");
     }
+    for (source, _) in CONSUMER_FILES {
+        std::fs::write(dir.path().join("template").join(source), source).expect("template");
+    }
+    std::fs::write(dir.path().join("checkout").join(".bazelversion"), "9.0.0\n")
+        .expect("bazelversion");
     let archive = dir.path().join("out").join(cell.archive_name());
     let refs: Vec<(&str, &[u8], u32)> = members
         .iter()
@@ -298,7 +312,10 @@ fn stage(cell: Cell, members: Members) -> Fixture {
         workflow_sha: "b".repeat(40),
         run_id: "77".to_owned(),
         job: "cell (dx-linux-x86_64)".to_owned(),
-        consumer: Some(dir.path().join("consumer")),
+        consumer: Some(Consumer {
+            template: dir.path().join("template"),
+            checkout: dir.path().join("checkout"),
+        }),
     };
     Fixture { _dir: dir, inputs }
 }
@@ -364,6 +381,10 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
                 format!("{exe_name} help in {INSTALL_DIR}"),
                 format!("{exe_name} version in {INSTALL_DIR}"),
                 format!("{exe_name} version in {MOVED_DIR}"),
+                format!(
+                    "{exe_name} init --apply {CONSUMER_MODULE} --workspace {} in consumer",
+                    fixture.inputs.work.join(CONSUMER_DIR).display()
+                ),
                 format!("{exe_name} build //... in consumer"),
                 format!("{exe_name} test //... in consumer"),
                 format!("{exe_name} check //... in consumer"),
@@ -588,6 +609,17 @@ fn qualify_rejects_failed_runs_relocation_and_consumers() {
     let record = qualify(&fixture.inputs, &runner);
     assert_failed(&record, "consumer", "test //... failed: test broke");
     assert_eq!(verdict_of(&record, "run").0, Verdict::Ok);
+    let fixture = synthetic("tar.gz", |_| {});
+    let mut runner = FakeRunner::new();
+    runner.fail = vec!["init"];
+    let record = qualify(&fixture.inputs, &runner);
+    assert_failed(&record, "consumer", "stage: ");
+    assert_failed(&record, "consumer", "init broke");
+    assert!(!runner
+        .calls
+        .borrow()
+        .iter()
+        .any(|call| call.contains("build")));
     let fixture = synthetic("tar.gz", |_| {});
     let blocker = fixture.inputs.work.join(MOVED_DIR).join("keep");
     std::fs::create_dir_all(&blocker).expect("blocker");
@@ -932,7 +964,9 @@ fn qualify_main_and_verify_main_run_from_flags() {
         "--out",
         &path(&out),
         "--consumer",
-        &path(fixture.inputs.consumer.as_deref().expect("consumer")),
+        &path(&fixture.inputs.consumer.as_ref().expect("consumer").template),
+        "--checkout",
+        &path(&fixture.inputs.consumer.as_ref().expect("consumer").checkout),
     ]));
     let record = qualify_main(&args, &FakeRunner::new()).expect("qualify");
     assert_eq!(record.runner.os, std::env::consts::OS);
@@ -950,7 +984,7 @@ fn qualify_main_and_verify_main_run_from_flags() {
         Err("unknown cell \"dx-nope\"".to_owned())
     );
     let mut bad = args.clone();
-    let at = bad.len() - 3;
+    let at = bad.len() - 5;
     bad[at] = path(&release.dir.path().join("no/such/record.json"));
     assert!(qualify_main(&bad, &FakeRunner::new())
         .expect_err("unwritable")
@@ -1114,4 +1148,134 @@ fn version_main_asks_the_executable() {
         version_main(&[], &FakeRunner::new()),
         Err("missing --exe".to_owned())
     );
+}
+
+fn consumer_of(fixture: &Fixture) -> Consumer {
+    fixture.inputs.consumer.clone().expect("consumer")
+}
+
+#[test]
+fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
+    let module = consumer_module(SNIPPET, Path::new("C:\\src\\\"rules\"")).expect("module");
+    assert!(module.starts_with("module(name = \"dx_release_consumer\")\n\n"));
+    assert!(module.contains("include(\"//third_party/rules_dx:toolchains.MODULE.bazel\")"));
+    assert!(module.ends_with(
+        "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"C:\\\\src\\\\\\\"rules\\\"\",\n)\n"
+    ));
+}
+
+#[test]
+fn consumer_module_rejects_bad_snippets() {
+    for snippet in [
+        "",
+        &SNIPPET.repeat(2),
+        "bazel_dep(name = \"rules_dx\", version = \"1\")\nlocal_path_override(\n)\n",
+    ] {
+        assert!(
+            consumer_module(snippet, Path::new("/src")).is_err(),
+            "{snippet}"
+        );
+    }
+}
+
+#[test]
+fn stage_consumer_renames_files_runs_init_and_restages_over_a_stale_dir() {
+    let fixture = synthetic("tar.gz", |_| {});
+    let consumer = consumer_of(&fixture);
+    let work = &fixture.inputs.work;
+    std::fs::create_dir_all(work.join(CONSUMER_DIR)).expect("stale");
+    std::fs::write(work.join(CONSUMER_DIR).join("stale"), "x").expect("stale file");
+    let runner = FakeRunner::new();
+    let dir = stage_consumer(&consumer, Path::new("dx"), work, &runner).expect("stage");
+    assert_eq!(dir, work.join(CONSUMER_DIR));
+    assert!(!dir.join("stale").exists());
+    assert_eq!(
+        std::fs::read_to_string(dir.join("BUILD.bazel")).expect("build"),
+        "consumer.BUILD.bazel"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("lib.rs")).expect("lib"),
+        "lib.rs"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join(".bazelversion")).expect("version"),
+        "9.0.0\n"
+    );
+    let module = std::fs::read_to_string(dir.join("MODULE.bazel")).expect("module");
+    assert_eq!(
+        module,
+        consumer_module(SNIPPET, &consumer.checkout).expect("module")
+    );
+    assert_eq!(runner.calls.borrow().len(), 1);
+}
+
+#[test]
+fn stage_consumer_reports_each_stage_that_fails() {
+    let fixture = synthetic("tar.gz", |_| {});
+    let work = &fixture.inputs.work;
+    let run = |consumer: &Consumer, runner: &FakeRunner| {
+        stage_consumer(consumer, Path::new("dx"), work, runner).expect_err("stage fails")
+    };
+    let good = consumer_of(&fixture);
+    let missing = Consumer {
+        template: work.join("nowhere"),
+        ..good.clone()
+    };
+    assert!(run(&missing, &FakeRunner::new()).starts_with("stage: cannot copy"));
+    let no_version = Consumer {
+        checkout: work.join("nowhere"),
+        ..good.clone()
+    };
+    assert!(run(&no_version, &FakeRunner::new()).contains(".bazelversion"));
+    let mut runner = FakeRunner::new();
+    runner.fail = vec!["init"];
+    assert!(run(&good, &runner).contains("init broke"));
+    let mut runner = FakeRunner::new();
+    runner.snippet = None;
+    assert!(run(&good, &runner).contains("wrote no MODULE.bazel.snippet"));
+    let mut runner = FakeRunner::new();
+    runner.snippet = Some("");
+    assert!(run(&good, &runner).contains("exactly once"));
+    let inside = Consumer {
+        checkout: work.clone(),
+        ..good
+    };
+    assert!(run(&inside, &FakeRunner::new()).contains("inside the checkout"));
+}
+
+#[test]
+fn parse_qualify_args_needs_consumer_and_checkout_together() {
+    let fixture = synthetic("tar.gz", |_| {});
+    let consumer = consumer_of(&fixture);
+    let base: Vec<String> = [
+        "matrix",
+        "cell",
+        "archive",
+        "rebuild",
+        "work",
+        "sha",
+        "version",
+        "workflow-ref",
+        "workflow-sha",
+        "run-id",
+        "job",
+        "out",
+    ]
+    .iter()
+    .flat_map(|name| [format!("--{name}"), "x".to_owned()])
+    .collect();
+    for (flag, want) in [
+        ("consumer", "--consumer needs --checkout"),
+        ("checkout", "--checkout needs --consumer"),
+    ] {
+        let mut args = base.clone();
+        args.extend([
+            format!("--{flag}"),
+            consumer.template.to_string_lossy().into_owned(),
+        ]);
+        assert_eq!(
+            parse_qualify_args(&args, "linux", "x86_64").unwrap_err(),
+            want
+        );
+    }
 }

@@ -1185,6 +1185,31 @@ fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
     (child, stdout, stderr)
 }
 
+const DEPENDENCY_SETS: &str = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "crates"
+ecosystem = "cargo"
+manifests = ["app/Cargo.toml"]
+locks = ["app/Cargo.lock", "app/cargo-bazel-lock.json"]
+scopes = ["app"]
+repository = "crates"
+"#;
+
+fn write_dependency_sets(base: &Path) {
+    let workspace = base.join("ws");
+    fs::create_dir_all(workspace.join("app")).expect("app dir");
+    fs::write(workspace.join("dx.toml"), DEPENDENCY_SETS).expect("dx.toml");
+    fs::write(
+        workspace.join("app/Cargo.toml"),
+        "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("manifest");
+    fs::write(workspace.join("app/Cargo.lock"), "version = 4\n").expect("lock");
+    fs::write(workspace.join("app/cargo-bazel-lock.json"), "{}\n").expect("bazel lock");
+}
+
 #[test]
 fn a_build_waiting_for_a_slot_starts_with_command_started() {
     let scratch = dx_test_scratch::scratch("dx-stream-slot-");
@@ -1213,10 +1238,24 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
     let run_json: &[&str] = &["run", "//demo:app", "--output=json"];
     let update_text: &[&str] = &["update", "--apply", "cargo"];
     let update_json: &[&str] = &["update", "--apply", "cargo", "--output=json"];
+    let sets_text: &[&str] = &["update", "--apply", "crates"];
+    let sets_json: &[&str] = &["update", "--apply", "crates", "--output=json"];
     for signo in [libc::SIGINT, libc::SIGTERM] {
-        for words in [text, json, run_text, run_json, update_text, update_json] {
+        for (words, configured) in [
+            (text, false),
+            (json, false),
+            (run_text, false),
+            (run_json, false),
+            (update_text, false),
+            (update_json, false),
+            (sets_text, true),
+            (sets_json, true),
+        ] {
             let scratch = dx_test_scratch::scratch("dx-stream-slot-stop-");
             let base = scratch.path();
+            if configured {
+                write_dependency_sets(base);
+            }
             let held = hold_all_slots(base);
             let (mut child, stdout, stderr) = spawn_waiting(base, words);
             let pid = i32::try_from(child.id()).expect("pid");

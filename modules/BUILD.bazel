@@ -84,7 +84,7 @@ rust_test(
     size = "enormous",
     srcs = ["consumer_names_test.rs"],
     data = [
-        "consumer_names_test.rs",
+        "//:module_srcs",
         "//third_party/ruby:Gemfile",
         "//third_party/ruby:Gemfile.lock",
     ] + NESTED_BAZEL_DATA,
@@ -122,9 +122,9 @@ rust_test(
     size = "enormous",
     srcs = ["floor_graph_test.rs"],
     data = [
-        "floor_graph_test.rs",
         ":consumer_deps_json",
         "//:MODULE.bazel",
+        "//:module_srcs",
         "//cli/cli:dx",
     ] + NESTED_BAZEL_DATA,
     env = {

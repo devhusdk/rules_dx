@@ -347,7 +347,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "pmd" | "spotbugs" | "qmllint" | "clang_tidy" | "cppcheck" | "staticcheck" | "govet"
         | "errcheck" | "stylelint" | "rubocop" | "yamllint" | "shellcheck" | "hadolint"
         | "redocly" | "kubeconform" | "checkmake" | "flatc" | "tflint" | "ansible_lint"
-        | "credo" | "regal" => Ok(Route::Keep),
+        | "credo" | "elvis" | "regal" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

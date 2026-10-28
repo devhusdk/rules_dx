@@ -63,7 +63,14 @@ dx format -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt
 dx format --apply -- --@rules_dx//config:tool_erlfmt=@rules_dx//erlang/tools:erlfmt
 ```
 
-No Erlang linter runs yet.
+`dx lint` checks Erlang sources with Elvis 6.0.0. Select `elvis` in an
+`erlang` family and pass the tool flag:
+
+```sh
+dx lint -- --@rules_dx//config:tool_elvis=@rules_dx//erlang/tools:elvis
+```
+
+No Erlang type checker runs yet.
 
 ## Runtime
 

@@ -6,9 +6,12 @@ load(
     "DROPPED_APPLICATIONS",
     "DROPPED_APPLICATION_DIRS",
     "DROPPED_PATHS",
+    "ELVIS_CORE_VERSION",
+    "ELVIS_VERSION",
     "ERLFMT_VERSION",
     "ERTS_VERSION",
     "GETOPT_VERSION",
+    "KATANA_CODE_VERSION",
     "OTP_RELEASE",
     "OTP_VERSION",
     "RULES_ERLANG_COMMIT",
@@ -124,9 +127,64 @@ escript_archive(
 )
 """
 
+_KATANA_CODE_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "katana_code",
+    app_version = "{version}",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+"""
+
+_ELVIS_CORE_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "elvis_core",
+    app_version = "{version}",
+    extra_apps = ["syntax_tools"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = ["@dx_katana_code//:erlang_app"],
+)
+"""
+
+_ELVIS_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "escript_archive")
+load("@rules_erlang//:erlang_app.bzl", "erlang_app")
+
+package(default_visibility = ["//visibility:public"])
+
+erlang_app(
+    app_name = "elvis",
+    app_version = "{version}",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [
+        "@dx_elvis_core//:erlang_app",
+        "@dx_erlang_getopt//:erlang_app",
+    ],
+)
+
+escript_archive(
+    name = "elvis",
+    app = ":erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    headers = [
+        "shebang",
+        "{{emu_args, \\"+sbtu +A0 -noinput -noshell -mode minimal -escript main elvis\\"}}",
+    ],
+)
+"""
+
 TOOL_BUILDS = {
+    "dx_elvis": _ELVIS_BUILD.format(version = ELVIS_VERSION),
+    "dx_elvis_core": _ELVIS_CORE_BUILD.format(version = ELVIS_CORE_VERSION),
     "dx_erlang_getopt": _GETOPT_BUILD.format(version = GETOPT_VERSION),
     "dx_erlfmt": _ERLFMT_BUILD.format(version = ERLFMT_VERSION),
+    "dx_katana_code": _KATANA_CODE_BUILD.format(version = KATANA_CODE_VERSION),
 }
 
 def cell_repository_name(cell):
@@ -270,6 +328,14 @@ _otp_repo = repository_rule(
     },
 )
 
+def replace_once(content, edits, what):
+    """Applies each (old, new) edit to content, failing unless old occurs exactly once."""
+    for old, new in edits:
+        if content.count(old) != 1:
+            fail("%s: expected one %r, found %d" % (what, old, content.count(old)))
+        content = content.replace(old, new)
+    return content
+
 def _tool_source_impl(rctx):
     source = TOOL_SOURCES[rctx.attr.tool]
     rctx.download_and_extract(
@@ -279,6 +345,8 @@ def _tool_source_impl(rctx):
     )
     for path in source.dropped:
         rctx.delete(path)
+    for path, edits in getattr(source, "replaced", {}).items():
+        rctx.file(path, replace_once(rctx.read(path), edits, rctx.attr.tool + "/" + path))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", TOOL_BUILDS[rctx.attr.tool])
     return rctx.repo_metadata(reproducible = True)
@@ -325,5 +393,5 @@ def _erlang_impl(mctx):
 
 erlang = module_extension(
     implementation = _erlang_impl,
-    doc = "Creates rules_erlang, the pinned OTP trees, the toolchain hub and the erlfmt sources.",
+    doc = "Creates rules_erlang, the pinned OTP trees, the toolchain hub and the erlfmt and elvis sources.",
 )

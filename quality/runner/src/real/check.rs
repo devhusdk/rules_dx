@@ -946,6 +946,40 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "elvis" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "elvis needs a config path".to_owned()));
+                };
+                let root = scratch.root();
+                let relative = pairs
+                    .iter()
+                    .map(|(_, absolute)| {
+                        absolute.strip_prefix(root).map_err(|_| {
+                            execution(
+                                tool_id,
+                                format!("{} is outside the scratch", absolute.display()),
+                            )
+                        })
+                    })
+                    .collect::<Result<Vec<&Path>, RunnerError>>()?;
+                let relative_names: Vec<String> = relative
+                    .iter()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .collect();
+                let relative_strs: Vec<&str> = relative_names.iter().map(String::as_str).collect();
+                let invocation = commands::elvis_check(&tool.binary, &relative, config);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_elvis(&out.stdout, &out.stderr, out.code, &relative_strs),
+                )?;
+                for found in &mut findings {
+                    if let Some(at) = relative_names.iter().position(|name| *name == found.file) {
+                        found.file.clone_from(&names[at]);
+                    }
+                }
+                Ok(findings)
+            }
             "erlfmt" => {
                 let invocation = commands::erlfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

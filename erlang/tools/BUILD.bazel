@@ -3,6 +3,11 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//visibility:public"])
 
 alias(
+    name = "elvis",
+    actual = "@dx_elvis//:elvis",
+)
+
+alias(
     name = "erlfmt",
     actual = "@dx_erlfmt//:erlfmt",
 )

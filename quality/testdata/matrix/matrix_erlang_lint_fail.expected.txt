@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_erlang_lint_fail
+capability LINT
+stages 1
+stage elvis classes=erlang sources=matrix/sub/elvis_dirty.erl
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING elvis no_debug_call matrix/sub/elvis_dirty.erl 53 53 fixable=false "an unexpected debug call to 'io:format/2' was found."
+terminal 1
+terminal WARNING elvis no_debug_call matrix/sub/elvis_dirty.erl 53 53 fixable=false "an unexpected debug call to 'io:format/2' was found."
+replacements 0

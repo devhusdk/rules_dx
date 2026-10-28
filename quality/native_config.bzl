@@ -37,6 +37,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "cppcheck": [".txt"],
     "csharpier": [".yaml"],
     "djlint": ["djlint.toml", ".djlintrc"],
+    "elvis": ["elvis.config", ".config"],
     "eslint": [".js", ".mjs", ".cjs"],
     "credo": [".exs"],
     "fsharplint": [".json"],
@@ -254,6 +255,8 @@ regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
+
+elvis_config = _make_native_config_rule("elvis")
 
 rubocop_config = _make_native_config_rule("rubocop")
 

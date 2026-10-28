@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_erlang_lint_pass
+capability LINT
+stages 1
+stage elvis classes=erlang sources=matrix/sub/elvis_clean.erl
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

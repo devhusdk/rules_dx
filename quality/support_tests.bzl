@@ -2,6 +2,8 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
+load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms")
 load(":real_aspects.bzl", "real_wired_capabilities")
 load(":support.bzl", "API_SPEC_REDOCLY_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
@@ -17,6 +19,158 @@ def _artifact_platforms():
     for artifact in TOOL_ARTIFACTS:
         by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return by_tool
+
+# Claims (tool:capability:family:platform) that a support record makes today without a runner-matrix
+# case that runs on that platform. The list can only shrink: an unproven claim missing from it fails,
+# and an entry that becomes proven fails too. Close an entry by flagging a matrix case for the platform
+# (see matrix_case_platforms), never by editing a record. Tracked by #4441 and #1383.
+SUPPORT_EVIDENCE_PENDING = [
+    "checkmake:lint:make:linux_arm64",
+    "checkmake:lint:make:macos_arm64",
+    "checkmake:lint:make:windows_x86_64",
+    "fsharplint:lint:fsharp:linux_x86_64",
+    "hadolint:lint:dockerfile:linux_arm64",
+    "hadolint:lint:dockerfile:macos_arm64",
+    "hadolint:lint:dockerfile:windows_x86_64",
+    "keep_sorted:lint:text:linux_arm64",
+    "keep_sorted:lint:text:linux_x86_64",
+    "keep_sorted:lint:text:macos_arm64",
+    "keep_sorted:lint:text:windows_x86_64",
+    "kubeconform:lint:kubernetes:linux_arm64",
+    "kubeconform:lint:kubernetes:linux_x86_64",
+    "kubeconform:lint:kubernetes:macos_arm64",
+    "kubeconform:lint:kubernetes:windows_x86_64",
+    "latexindent:format:latex:linux_arm64",
+    "latexindent:format:latex:macos_arm64",
+    "latexindent:format:latex:windows_x86_64",
+    "pkl:format:pkl:linux_arm64",
+    "pkl:format:pkl:macos_arm64",
+    "pkl:format:pkl:windows_x86_64",
+    "prettier:format:gherkin:linux_arm64",
+    "prettier:format:gherkin:macos_arm64",
+    "prettier:format:gherkin:windows_x86_64",
+    "prettier:format:xml:linux_arm64",
+    "prettier:format:xml:macos_arm64",
+    "prettier:format:xml:windows_x86_64",
+    "redocly:lint:api_spec:linux_arm64",
+    "redocly:lint:api_spec:macos_arm64",
+    "redocly:lint:api_spec:windows_x86_64",
+    "roslyn:lint:csharp:linux_x86_64",
+    "rubocop:lint:ruby:linux_x86_64",
+    "ruff:lint:jupyter:linux_arm64",
+    "ruff:lint:jupyter:macos_arm64",
+    "ruff:lint:jupyter:windows_x86_64",
+    "scalafmt:format:scala:linux_arm64",
+    "scalafmt:format:scala:macos_arm64",
+    "scalafmt:format:scala:windows_x86_64",
+    "shellcheck:lint:shell:linux_arm64",
+    "shellcheck:lint:shell:macos_arm64",
+    "shellcheck:lint:shell:windows_x86_64",
+    "shfmt:format:shell:linux_arm64",
+    "shfmt:format:shell:macos_arm64",
+    "shfmt:format:shell:windows_x86_64",
+    "typstyle:format:typst:linux_arm64",
+    "typstyle:format:typst:macos_arm64",
+    "typstyle:format:typst:windows_x86_64",
+]
+
+def _case_proves(case, record, platform):
+    """Reports whether one matrix case is evidence for one (record, platform) claim."""
+    if case.get("capability") != record["capability"] or record["tool"] not in case.get("tool_names", []):
+        return False
+    if platform not in matrix_case_platforms(case):
+        return False
+    for stage in case["stages"]:
+        fields = stage.split(";")
+        if len(fields) > 1 and fields[1] in record["classes"]:
+            return True
+    return False
+
+def unproven_claims(records, cases):
+    """Returns the sorted claim keys of records no matrix case proves on the claimed platform."""
+    unproven = []
+    for record in records:
+        for platform in record["platforms"]:
+            proven = False
+            for case in cases:
+                if _case_proves(case, record, platform):
+                    proven = True
+                    break
+            if not proven:
+                unproven.append(":".join([record["tool"], record["capability"], record["family"], platform]))
+    return sorted(unproven)
+
+def _evidence_checks():
+    """Checks the evidence gate with synthetic cases and the real data."""
+    record = {"capability": "format", "classes": ["yaml"], "family": "yaml", "platforms": ["linux_x86_64", "macos_arm64"], "tool": "yamlfmt"}
+    case = {"capability": "format", "stages": ["yamlfmt;yaml;matrix/a.yaml"], "tool_names": ["yamlfmt"]}
+    return [
+        expect_equal(
+            "matrix_case_platforms without flags is linux_x86_64",
+            matrix_case_platforms({}),
+            ["linux_x86_64"],
+        ),
+        expect_equal(
+            "matrix_case_platforms linux_arm64 only",
+            matrix_case_platforms({"linux_arm64": True}),
+            ["linux_x86_64", "linux_arm64"],
+        ),
+        expect_equal(
+            "matrix_case_platforms mac and windows x64",
+            matrix_case_platforms({"macos_arm64": True, "windows_x86_64": True}),
+            ["linux_x86_64", "macos_arm64", "windows_x86_64"],
+        ),
+        expect_equal(
+            "matrix_case_platforms windows x64 and arm64",
+            matrix_case_platforms({"windows_x86_64": True, "windows_arm64": True}),
+            ["linux_x86_64", "windows_x86_64", "windows_arm64"],
+        ),
+        expect_equal(
+            "a flagged matching case proves the claim and the linux baseline",
+            unproven_claims([record], [dict(case, macos_arm64 = True)]),
+            [],
+        ),
+        expect_equal(
+            "an unflagged case proves only linux_x86_64",
+            unproven_claims([record], [case]),
+            ["yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "a case with another capability is not evidence",
+            unproven_claims([record], [dict(case, capability = "lint", macos_arm64 = True)]),
+            ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "a case with another class is not evidence",
+            unproven_claims([record], [dict(case, stages = ["yamlfmt;json;matrix/a.json"], macos_arm64 = True)]),
+            ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "a case for another tool is not evidence",
+            unproven_claims([record], [dict(case, tool_names = ["yamllint"], macos_arm64 = True)]),
+            ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "pending evidence list is sorted",
+            SUPPORT_EVIDENCE_PENDING,
+            sorted(SUPPORT_EVIDENCE_PENDING),
+        ),
+        expect_equal(
+            "unproven claims equal the pending list exactly",
+            unproven_claims(SUPPORT_RECORDS, RUNNER_MATRIX_CASES),
+            SUPPORT_EVIDENCE_PENDING,
+        ),
+        expect_equal(
+            "windows_arm64 is a valid unsupported platform",
+            support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "single", "unsupported": ["windows_arm64"]}),
+            "",
+        ),
+        expect_equal(
+            "unknown platform in platforms is rejected",
+            support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_amd64"], "state": "known", "tool": "keep_sorted", "transport": "single"}),
+            "support: unknown platform 'linux_amd64' for tool 'keep_sorted'",
+        ),
+    ]
 
 def _record_checks(wired, artifact_platforms):
     """Builds the per-record checks over every support record."""
@@ -118,7 +272,7 @@ def support_unit_tests(name):
 
             expect_equal(
                 "an unbuilt known record may have no platforms",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),
                 "",
             ),
             expect_equal(
@@ -128,18 +282,18 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "empty platforms are rejected for a supported record",
-                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "supported", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}),
+                support_record_error({"artifact": "pinned", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "supported", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),
                 "support: tool 'chktex' needs a non-empty platform list",
             ),
             expect_equal(
                 "empty platforms are rejected for a qualified record",
-                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}),
+                support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "qualified", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),
                 "support: tool 'chktex' needs a non-empty platform list",
             ),
             expect_equal(
                 "only tools with no build anywhere are unpinned",
                 [support_unpinned_tools("lint"), support_unpinned_tools("format")],
-                [{"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]}, {}],
+                [{"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}, {}],
             ),
             expect_equal(
                 "valid unsupported platform is accepted",
@@ -211,5 +365,5 @@ def support_unit_tests(name):
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "parcel"}),
                 "support: tool 'keep_sorted' needs transport 'batched' or 'single', got 'parcel'",
             ),
-        ] + _record_checks(real_wired_capabilities(), _artifact_platforms()),
+        ] + _evidence_checks() + _record_checks(real_wired_capabilities(), _artifact_platforms()),
     )

@@ -1172,7 +1172,7 @@ error, so check a new config by formatting a file it should change.
 platform, so a policy that selects it fails with:
 
 ```text
-policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_x86_64; disable 'lint'
+policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64; disable 'lint'
 ```
 
 ### Pkl

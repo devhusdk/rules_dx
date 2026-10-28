@@ -72,7 +72,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Erlang | no | `erlfmt` | no |
 | Fortran | no | no | no |
 | F# | `fsharplint` on `linux_x86_64` | `fantomas` on `linux_x86_64` | no |
-| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64` | no |
+| Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Haskell | no | `ormolu` on `linux_x86_64` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | no |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
@@ -113,4 +113,4 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | XML | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| YAML | `yamllint` on `linux_x86_64` | `yamlfmt` on `linux_x86_64` | no |
+| YAML | `yamllint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `yamlfmt` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |

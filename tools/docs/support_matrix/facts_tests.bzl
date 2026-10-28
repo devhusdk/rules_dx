@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load(":facts.bzl", "support_matrix_facts_dict")
+load("//quality:support.bzl", "SUPPORT_PLATFORMS")
 load(":languages.bzl", "PLATFORMS")
 
 def _families_resolve(facts):
@@ -23,6 +24,11 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "platform order is fixed",
                 [platform["id"] for platform in facts["platforms"]],
+                [platform["id"] for platform in PLATFORMS],
+            ),
+            expect_equal(
+                "support platform vocabulary matches the matrix platforms",
+                SUPPORT_PLATFORMS,
                 [platform["id"] for platform in PLATFORMS],
             ),
             expect_equal("every family resolves", _families_resolve(facts), []),

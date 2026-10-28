@@ -790,9 +790,9 @@ def real_pipeline_unit_tests(name):
                     ["chktex"],
                     [],
                     _WIRED_FORMAT_TOOLS,
-                    {"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]},
+                    {"chktex": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]},
                 ),
-                "policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_x86_64; disable 'lint'",
+                "policy: family 'latex' selects lint tool 'chktex', which has no pinned build on linux_arm64, linux_x86_64, macos_arm64, windows_arm64, windows_x86_64; disable 'lint'",
             ),
             expect_equal(
                 "family_section_error ignores the unpinned map for other tools",

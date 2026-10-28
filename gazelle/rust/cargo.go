@@ -230,24 +230,7 @@ func cfgAtomSet(atom string) map[string]bool {
 			return nil
 		}
 	case strings.HasPrefix(atom, "any(") && strings.HasSuffix(atom, ")"):
-		inner := atom[len("any(") : len(atom)-1]
-		depth, start := 0, 0
-		var parts []string
-		for i, r := range inner {
-			switch r {
-			case '(':
-				depth++
-			case ')':
-				depth--
-			case ',':
-				if depth == 0 {
-					parts = append(parts, inner[start:i])
-					start = i + 1
-				}
-			}
-		}
-		parts = append(parts, inner[start:])
-		for _, part := range parts {
+		for _, part := range splitCfgArgs(atom[len("any(") : len(atom)-1]) {
 			sub := cfgAtomSet(part)
 			if len(sub) == 0 {
 				return nil
@@ -256,10 +239,61 @@ func cfgAtomSet(atom string) map[string]bool {
 				out[k] = true
 			}
 		}
+	case strings.HasPrefix(atom, "all(") && strings.HasSuffix(atom, ")"):
+		for i, part := range splitCfgArgs(atom[len("all(") : len(atom)-1]) {
+			sub := cfgAtomSet(part)
+			if len(sub) == 0 {
+				return nil
+			}
+			if i == 0 {
+				out = sub
+				continue
+			}
+			for k := range out {
+				if !sub[k] {
+					delete(out, k)
+				}
+			}
+		}
+		if len(out) == 0 {
+			return nil
+		}
+	case strings.HasPrefix(atom, "not(") && strings.HasSuffix(atom, ")"):
+		sub := cfgAtomSet(atom[len("not(") : len(atom)-1])
+		if len(sub) == 0 {
+			return nil
+		}
+		for _, os := range append([]string{"windows"}, unixOSes...) {
+			if k := "@platforms//os:" + os; !sub[k] {
+				out[k] = true
+			}
+		}
+		if len(out) == 0 {
+			return nil
+		}
 	default:
 		return nil
 	}
 	return out
+}
+
+func splitCfgArgs(inner string) []string {
+	depth, start := 0, 0
+	var parts []string
+	for i, r := range inner {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, inner[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(parts, inner[start:])
 }
 
 // platformConstraint returns the comma-joined set of platform constraints

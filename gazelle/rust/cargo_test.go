@@ -985,6 +985,10 @@ func TestCargoCfgPlatformCompound(t *testing.T) {
 		{`cfg(target_os = "wasi")`, ""},
 		{`cfg(all(unix, windows))`, ""},
 		{`cfg(any(unix, feature = "x"))`, ""},
+		{`cfg(not(windows))`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:linux,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{`cfg(all(unix, not(target_os = "linux")))`, "@platforms//os:android,@platforms//os:freebsd,@platforms//os:ios,@platforms//os:macos,@platforms//os:netbsd,@platforms//os:openbsd"},
+		{`cfg(all(unix, windows))`, ""},
+		{`cfg(not(target_arch = "x86"))`, ""},
 	}
 	for _, tc := range cases {
 		got, ok := cargoCfgPlatform(tc.cfg)

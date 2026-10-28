@@ -1682,8 +1682,8 @@ the run with the file, line and column. It never counts as clean. StyLua ignores
 Bind a `stylua_config` from `@rules_dx//quality:native_config.bzl` to change
 indent width, quote style or line width.
 
-No Lua linter or type check runs yet, so the Lua rules keep the `no-lint` and
-`no-typecheck` tags.
+No Lua linter runs yet, so the Lua rules keep the `no-lint` tag. Lua targets
+are type checked; see Lua type checking below.
 
 To use another StyLua executable, point `tool_stylua` at it.
 

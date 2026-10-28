@@ -1,0 +1,35 @@
+load("//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+java_library(
+    name = "javac_check_lib",
+    srcs = ["src/dx/quality/javac/JavacCheck.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+)
+
+java_binary(
+    name = "javac_check",
+    srcs = ["src/dx/quality/javac/Main.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "dx.quality.javac.Main",
+    deps = [":javac_check_lib"],
+)
+
+java_test(
+    name = "javac_check_test",
+    srcs = ["test/dx/quality/javac/JavacCheckTest.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "dx.quality.javac.JavacCheckTest",
+    use_testrunner = False,
+    deps = [":javac_check_lib"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

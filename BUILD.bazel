@@ -67,6 +67,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude tools/docs/jvm/fixture
 # gazelle:exclude tools/docs/jvm/javadoc
 # gazelle:exclude tools/docs/jvm/record
+# gazelle:exclude quality/tools/jvm/javac_check
 # gazelle:exclude quality/tools/javascript/bin/eslint.mjs
 # gazelle:exclude quality/tools/javascript/bin/graphql_eslint.mjs
 # gazelle:exclude tools/docs/powershell/fixture

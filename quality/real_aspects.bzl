@@ -82,9 +82,8 @@ _REAL_TOOL_TABLE = {
         "shard": "cc",
     },
     "clang_tidy": {
-        "attr": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
-        "kind": "file",
+        "kind": "upstream",
         "resources": "heavy",
         "shard": "cc",
     },
@@ -1250,9 +1249,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         roslyn = target[RoslynInfo]
 
     clang_syntax = None
-    if "clang_syntax" in [stage["tool"] for stage in resolved]:
+    if "clang_syntax" in [stage["tool"] for stage in resolved] or "clang_tidy" in [stage["tool"] for stage in resolved]:
         if ClangSyntaxInfo not in target:
-            fail(what + ": clang_syntax needs a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
+            fail(what + ": clang_syntax and clang_tidy need a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
         clang_syntax = target[ClangSyntaxInfo]
 
     sql_dialect = None
@@ -1615,6 +1614,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 inputs.append(roslyn.sarifs[i])
                 tool_files.append(real_request_tool_file("dx-roslyn/" + roslyn.tfms[i] + "/exit", roslyn.statuses[i].path))
                 inputs.append(roslyn.statuses[i])
+        if tool == "clang_tidy":
+            for diagnostics in clang_syntax.tidy_diagnostics:
+                upstream.append(diagnostics.path)
+                inputs.append(diagnostics)
         if tool == "clang_syntax":
             for i in range(len(clang_syntax.diagnostics)):
                 upstream.append(clang_syntax.diagnostics[i].path)
@@ -1753,6 +1756,7 @@ _REAL_SHARD_SPECS = {
     "real_cc_lint": {
         "capability": "lint",
         "doc": "Additive C/C++ lint family aspect (clang-tidy, cppcheck opt-in).",
+        "requires": [clang_syntax_aspect],
         "shard": "cc",
         "suffix": "-cc",
     },

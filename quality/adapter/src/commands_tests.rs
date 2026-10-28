@@ -2613,6 +2613,31 @@ fn dialyzer_check_orders_plts_before_options_and_beams_after_the_separator() {
 }
 
 #[test]
+fn phpcs_check_always_names_the_standard_and_puts_paths_after_the_separator() {
+    let expected = |standard: &str| -> Vec<String> {
+        [
+            BIN,
+            "--report=json",
+            "-q",
+            "--no-colors",
+            "--no-cache",
+            standard,
+            "--",
+            "/s/a.php",
+            "/s/b.php",
+        ]
+        .iter()
+        .map(|arg| (*arg).to_owned())
+        .collect()
+    };
+    let paths = [Path::new("/s/a.php"), Path::new("/s/b.php")];
+    let consumer = phpcs_check(Path::new(BIN), OsStr::new("/s/phpcs.xml"), &paths);
+    assert_eq!(argv_strings(&consumer), expected("--standard=/s/phpcs.xml"));
+    let bare = phpcs_check(Path::new(BIN), OsStr::new("PSR12"), &paths);
+    assert_eq!(argv_strings(&bare), expected("--standard=PSR12"));
+}
+
+#[test]
 fn phpstan_check_passes_the_config_and_puts_paths_after_the_separator() {
     let invocation = phpstan_check(
         Path::new(BIN),

@@ -203,6 +203,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "perlcritic",
             "perltidy",
             "pkl",
+            "phpcs",
             "phpstan",
             "pmd",
             "prettier",

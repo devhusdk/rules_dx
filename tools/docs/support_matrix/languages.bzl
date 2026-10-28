@@ -280,7 +280,6 @@ GAP_ISSUES = {
     "lint:julia": 4623,
     "lint:lua": 4612,
     "lint:ocaml": 4621,
-    "lint:php": 4615,
     "lint:pkl": 4623,
     "lint:sql": 4617,
     "lint:typst": 4623,

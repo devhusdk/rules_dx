@@ -16,7 +16,7 @@ PHP_COMPATIBLE_WITH = [
     Label("@platforms//cpu:x86_64"),
 ]
 
-PHP_DEFERRED_SKIP_TAGS = ["no-format", "no-lint"]
+PHP_DEFERRED_SKIP_TAGS = ["no-format"]
 
 _php_library_forward = dx_library_forward_rule(
     provides = [_PhpInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],

@@ -57,6 +57,7 @@ pub mod opa;
 pub mod ormolu;
 pub mod perlcritic;
 pub mod perltidy;
+pub mod phpcs;
 pub mod phpstan;
 pub mod pkl;
 pub mod pmd;
@@ -154,6 +155,7 @@ pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use perlcritic::parse_perlcritic;
 pub use perltidy::parse_perltidy;
+pub use phpcs::parse_phpcs;
 pub use phpstan::parse_phpstan;
 pub use pkl::parse_pkl;
 pub use pmd::parse_pmd;
@@ -1958,6 +1960,14 @@ mod tests {
         super::pkl::parse_pkl(input, input, code, files)
     }
 
+    fn fuzz_phpcs(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::phpcs::parse_phpcs(input, code, files)
+    }
+
     fn fuzz_phpstan(
         input: &[u8],
         code: Option<i32>,
@@ -2567,6 +2577,7 @@ mod tests {
         ("perlcritic", fuzz_perlcritic),
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
+        ("phpcs", fuzz_phpcs),
         ("phpstan", fuzz_phpstan),
         ("pmd", fuzz_pmd),
         ("parse_prettier_check", fuzz_prettier_check),
@@ -2671,6 +2682,7 @@ mod tests {
         ("opa", include_str!("opa.rs")),
         ("perlcritic", include_str!("perlcritic.rs")),
         ("perltidy", include_str!("perltidy.rs")),
+        ("phpcs", include_str!("phpcs.rs")),
         ("phpstan", include_str!("phpstan.rs")),
         ("pkl", include_str!("pkl.rs")),
         ("pmd", include_str!("pmd.rs")),

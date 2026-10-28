@@ -4374,6 +4374,69 @@ fn dialyzer_is_check_only() {
     );
 }
 
+fn phpcs_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert!(text.contains(&"--standard=PSR12".to_owned()), "{text:?}");
+    let sep = text.iter().position(|a| a == "--").expect("separator");
+    let paths = &text[sep + 1..];
+    assert_eq!(paths.len(), 1, "{paths:?}");
+    let clean = paths[0].ends_with("clean.php");
+    let body = if clean {
+        r#"{"totals":{"errors":0,"warnings":0,"fixable":0},"files":{}}"#.to_owned()
+    } else {
+        format!(
+            r#"{{"totals":{{"errors":1,"warnings":0,"fixable":1}},"files":{{"{0}":{{"errors":1,"warnings":0,"messages":[{{"message":"Header blocks must be separated by a single blank line","source":"PSR12.Files.FileHeader.SpacingAfterTagBlock","severity":5,"fixable":true,"type":"ERROR","line":2,"column":1}}]}}}}}}"#,
+            paths[0]
+        )
+    };
+    Ok(ChildOutput {
+        code: Some(i32::from(!clean)),
+        stdout: body.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn phpcs_passes_the_default_standard_and_maps_paths_back() {
+    let backend = backend_for("phpcs", plain_tool(), phpcs_report);
+    let findings = backend
+        .diagnose("phpcs", "lint", &single("lib/bad.php", "<?php\n$x = 1;\n"))
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(
+        seen,
+        vec![(
+            "lib/bad.php",
+            "phpcs/PSR12.Files.FileHeader.SpacingAfterTagBlock"
+        )]
+    );
+    assert!(backend
+        .diagnose("phpcs", "lint", &single("lib/clean.php", "<?php\n"))
+        .expect("clean")
+        .is_empty());
+}
+
+#[test]
+fn phpcs_is_check_only() {
+    let backend = backend_for("phpcs", plain_tool(), phpcs_report);
+    assert_eq!(
+        backend
+            .apply_fix("phpcs", "lib/a.php", "<?php\n", "lint")
+            .expect("check-only"),
+        "<?php\n"
+    );
+}
+
 fn phpstan_report(
     argv: &[OsString],
     _cwd: &Path,

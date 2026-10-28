@@ -1,10 +1,19 @@
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":phpcs.bzl", "phpcs_tool")
 load(":phpstan.bzl", "phpstan_tool")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["phpstan.bzl"])
+exports_files([
+    "phpcs.bzl",
+    "phpstan.bzl",
+])
+
+phpcs_tool(
+    name = "phpcs",
+    target_compatible_with = PHP_COMPATIBLE_WITH,
+)
 
 phpstan_tool(
     name = "phpstan",
@@ -16,6 +25,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "phpcs.bzl",
         "phpstan.bzl",
     ],
     tags = ["corpus"],

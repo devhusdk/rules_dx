@@ -1,8 +1,9 @@
 """Wrapper conformance tests for D."""
 
+load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "D_COMPATIBLE_WITH", "D_QUALITY_TOOLS", "d_quality_srcs")
+load(":defs.bzl", "D_CELLS", "D_QUALITY_TOOLS", "d_quality_srcs")
 
 def d_wrapper_contract_tests(name):
     """Instantiates D wrapper contract tests."""
@@ -31,9 +32,9 @@ def d_wrapper_contract_tests(name):
                 [],
             ),
             expect_equal(
-                "D targets build on linux x86_64 only",
-                [str(constraint) for constraint in D_COMPATIBLE_WITH],
-                [str(Label("@platforms//os:linux")), str(Label("@platforms//cpu:x86_64"))],
+                "D targets build on every pinned LDC cell",
+                D_CELLS,
+                sorted(LDC_CELLS.keys()),
             ),
         ],
     )

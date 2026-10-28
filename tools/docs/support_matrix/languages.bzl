@@ -1,7 +1,8 @@
 """The language list behind docs/support-matrix.md."""
 
 load("//cuda/rules:defs.bzl", "CUDA_TARGET")
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//d/rules:defs.bzl", "D_CELLS")
+load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
 load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
 load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
@@ -42,7 +43,7 @@ def _cells(pinned, cells):
 
 COMPUTED_CONSTRAINTS = {
     "//cuda/rules:defs.bzl%CUDA_TARGET": _all_of(CUDA_TARGET),
-    "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _all_of(D_COMPATIBLE_WITH),
+    "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(RULES_DART_PLATFORMS),
     "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
@@ -266,7 +267,7 @@ TOOL_NOT_APPLICABLE = {}
 GAP_ISSUES = {
     "build:apple:*": 4540,
     "build:cuda:*": 4541,
-    "build:d:*": 4542,
+    "build:d:windows_*": 4542,
     "build:dart:*": 4543,
     "build:elixir:*": 4544,
     "build:erlang:*": 4545,

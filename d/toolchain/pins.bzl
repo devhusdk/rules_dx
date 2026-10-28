@@ -13,9 +13,27 @@ LDC_RELEASES = "https://github.com/ldc-developers/ldc/releases/download/v" + LDC
 LDC_CELLS = {
     "linux_amd64": struct(
         archive = "ldc2-" + LDC_VERSION + "-linux-x86_64.tar.xz",
+        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+        linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
         runtime = ["gcc-12-base", "libgcc-s1", "zlib1g"],
         sha256 = "35805db60f47fd1a162b2035da84d96beec37e6d1e7b1edf60498a90acfaedce",
         strip_prefix = "ldc2-" + LDC_VERSION + "-linux-x86_64",
+    ),
+    "linux_arm64": struct(
+        archive = "ldc2-" + LDC_VERSION + "-linux-aarch64.tar.xz",
+        exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+        linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
+        runtime = ["gcc-12-base", "libgcc-s1", "zlib1g"],
+        sha256 = "f2b24edc254d4b9944234f641de3c4b3a36d5752639ec30cb2bbe122931b2283",
+        strip_prefix = "ldc2-" + LDC_VERSION + "-linux-aarch64",
+    ),
+    "macos_arm64": struct(
+        archive = "ldc2-" + LDC_VERSION + "-osx-arm64.tar.xz",
+        exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
+        linkopts = ["-ldl", "-lm", "-lpthread"],
+        runtime = [],
+        sha256 = "5e332349c784d4e0b1c4622284803880f89d97ef1ef97c6b25aa4d6b094c5fed",
+        strip_prefix = "ldc2-" + LDC_VERSION + "-osx-arm64",
     ),
 }
 

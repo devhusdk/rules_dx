@@ -38,7 +38,8 @@ d_test(
 - `imports`, `string_srcs`, `string_imports`, `versions`, `dopts` and
   `linkopts` pass through to `rules_d`. Files in `string_srcs` are read with
   `import("file")` and are not D sources.
-- `D_COMPATIBLE_WITH` skips D targets on hosts without a D toolchain.
+- `D_COMPATIBLE_WITH` skips D targets on hosts without a pinned LDC: linux x86_64,
+  linux arm64 and macOS arm64. Windows is tracked in the support matrix gap ledger.
 
 ## Formatting
 

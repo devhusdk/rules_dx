@@ -1831,3 +1831,8 @@ rust_clippy_test(
     name = "powershell_docs_consumer_clippy_test",
     targets = [":powershell_docs_consumer_test"],
 )
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

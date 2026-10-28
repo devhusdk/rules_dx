@@ -54,6 +54,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Android | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
 | AppImage | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
 | Apple | `linux_x86_64`, `macos_arm64` | `linux_x86_64`, `macos_arm64` | no |
+| CMake | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | `linux_x86_64` | no |
 | Dockerfile | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
 | Make | `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64` | no | no |
 | MSIX | `linux_x86_64`, `linux_arm64` | `linux_x86_64` | no |
@@ -97,6 +98,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Vue | `eslint` | `prettier` | no |
 | Zig | no | `zig_fmt` | no |
 | Apple | no | `clang_format` | no |
+| CMake | no | `gersemi` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | n/a |
 | Dockerfile | `hadolint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | Make | `checkmake` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | n/a |
 | Qt | `qmllint` | `qmlformat` | no |
@@ -129,6 +131,7 @@ Not applicable for `typecheck`:
 
 - `ansible`: dynamically typed YAML playbooks; no type system beyond ansible-lint
 - `api_spec`: declarative API description; no type system beyond schema validation
+- `cmake`: no static type system; build language with untyped strings
 - `dockerfile`: no static type system; hadolint covers lint
 - `gherkin`: natural-language scenarios; no type system
 - `html_template`: markup templates; no static type system

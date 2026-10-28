@@ -598,6 +598,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
         "php_test",
         Constraint::Appended("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH"),
     ),
+    ("owns_cmake_class_test", Constraint::AsWritten),
     ("owns_dockerfile_class_test", Constraint::AsWritten),
     ("owns_make_class_test", Constraint::AsWritten),
     ("pwsh_test", Constraint::AsWritten),
@@ -1006,6 +1007,7 @@ mod tests {
         for kind in [
             "android_apk_check",
             "failure_test",
+            "owns_cmake_class_test",
             "owns_dockerfile_class_test",
             "owns_make_class_test",
         ] {

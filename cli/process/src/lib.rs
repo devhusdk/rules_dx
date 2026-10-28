@@ -707,25 +707,6 @@ pub struct DiskSpace {
     pub total: u64,
 }
 
-/// The disk space from `available total` counts in units of `unit` bytes.
-pub fn space_from_counts(available: &str, total: &str, unit: u64) -> Option<DiskSpace> {
-    let available: u64 = available.trim().parse().ok()?;
-    let total: u64 = total.trim().parse().ok()?;
-    if total == 0 {
-        return None;
-    }
-    Some(DiskSpace {
-        free: available.checked_mul(unit)?,
-        total: total.checked_mul(unit)?,
-    })
-}
-
-/// The disk space from `df -Pk` output.
-pub fn space_from_df(text: &str) -> Option<DiskSpace> {
-    let fields: Vec<&str> = text.lines().nth(1)?.split_whitespace().collect();
-    space_from_counts(fields.get(3)?, fields.get(1)?, 1024)
-}
-
 /// Reads the free and total bytes on the disk holding `path` or its nearest existing ancestor.
 pub fn disk_space(path: &Path) -> Option<DiskSpace> {
     let dir = path.ancestors().find(|ancestor| ancestor.is_dir())?;
@@ -734,7 +715,26 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
 
 #[cfg(unix)]
 fn dir_disk_space(dir: &Path) -> Option<DiskSpace> {
-    space_from_df(&probe("df", [OsStr::new("-Pk"), dir.as_os_str()])?)
+    use std::os::unix::ffi::OsStrExt;
+
+    fn widen<T: Into<u64>>(value: T) -> u64 {
+        value.into()
+    }
+
+    let path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
+    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    if unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) } != 0 {
+        return None;
+    }
+    let stat = unsafe { stat.assume_init() };
+    let unit = widen(stat.f_frsize);
+    let total = widen(stat.f_blocks).checked_mul(unit)?;
+    if total == 0 {
+        return None;
+    }
+    // `f_bavail` is the space available to unprivileged users, the same figure `df` reports.
+    let free = widen(stat.f_bavail).checked_mul(unit)?;
+    Some(DiskSpace { free, total })
 }
 
 #[cfg(not(unix))]

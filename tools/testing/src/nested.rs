@@ -792,8 +792,8 @@ impl Processes {
     /// Takes one `ps` listing of every process, whatever the host offers.
     #[cfg(unix)]
     fn from_ps() -> Processes {
-        let text = dx_process::probe("ps", ["-A", "-ww", "-o", "pid=,stat=,command="])
-            .unwrap_or_default();
+        let text =
+            dx_process::probe("ps", ["-A", "-ww", "-o", "pid=,stat=,command="]).unwrap_or_default();
         Processes {
             ps: Some(parse_ps_lines(&text)),
         }

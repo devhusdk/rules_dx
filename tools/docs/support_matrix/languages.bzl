@@ -46,6 +46,8 @@ COMPUTED_CONSTRAINTS = {
     "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": _all_of(FORTRAN_COMPATIBLE_WITH),
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
+    # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
+    "//tools/testing/hermetic:defs.bzl%HERMETIC_COMPATIBLE_WITH": [["@platforms//os:linux"]],
     "//julia/rules:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _all_of(OCAML_COMPATIBLE_WITH),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
@@ -56,6 +58,9 @@ COMPUTED_CONSTRAINTS = {
 def _hello(lang):
     return ["//" + lang + "/tests/fixtures/hello:hello_test"]
 
+# consumer_tests rule: the test must build and test a target of the row's rules in a
+# module other than rules_dx. Hermetic qualifications qualify; they are manual, and CI
+# selects them by the hermetic-consumer tag, which the reader resolves per job.
 ROWS = [
     {"ci_tests": _hello("astro"), "name": "astro", "section": "languages", "starters": ["astro"], "title": "Astro"},
     {
@@ -100,10 +105,10 @@ ROWS = [
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "starters": ["javascript"], "title": "JavaScript"},
     {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": ["//julia/tests/starter:starter_test"], "name": "julia", "section": "languages", "starters": ["julia"], "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "starters": ["kotlin"], "title": "Kotlin"},
-    {"ci_tests": ["//lua/tests/runtime:probe_test"], "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
+    {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"], "name": "lua", "section": "languages", "starters": ["lua"], "title": "Lua"},
     {"ci_tests": ["//mdx/tests/app:site_static_test"], "name": "mdx", "section": "languages", "starters": ["mdx"], "title": "MDX"},
-    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
-    {"ci_tests": ["//perl/tests/runtime:probe_test"], "name": "perl", "section": "languages", "title": "Perl"},
+    {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"], "name": "ocaml", "section": "languages", "starters": ["ocaml"], "title": "OCaml"},
+    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"], "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "name": "php", "section": "languages", "title": "PHP"},
     {"ci_tests": _hello("powershell"), "name": "powershell", "section": "languages", "starters": ["powershell"], "title": "PowerShell"},
     {
@@ -117,16 +122,17 @@ ROWS = [
     {"ci_tests": _hello("ruby"), "name": "ruby", "section": "languages", "starters": ["ruby"], "title": "Ruby"},
     {
         "ci_tests": ["//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
+        "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"],
         "name": "rust",
         "section": "languages",
         "starters": ["rust", "rust-android", "rust-web"],
         "title": "Rust",
     },
-    {"ci_tests": _hello("scala"), "name": "scala", "section": "languages", "starters": ["scala"], "title": "Scala"},
+    {"ci_tests": _hello("scala"), "consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "starters": ["scala"], "title": "Scala"},
     {"ci_tests": _hello("svelte"), "name": "svelte", "section": "languages", "starters": ["svelte"], "title": "Svelte"},
     {"ci_tests": _hello("typescript"), "name": "typescript", "section": "languages", "starters": ["typescript"], "title": "TypeScript"},
     {"ci_tests": _hello("vue"), "name": "vue", "section": "languages", "starters": ["vue"], "title": "Vue"},
-    {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "name": "zig", "section": "languages", "starters": ["zig"], "title": "Zig"},
+    {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"], "name": "zig", "section": "languages", "starters": ["zig"], "title": "Zig"},
     {
         "consumer_tests": ["//android/tests/starter:starter_test"],
         "families": [],
@@ -137,6 +143,7 @@ ROWS = [
     {
         "ci_tests": ["//appimage/tests:appimage_test"],
         "families": [],
+        "consumer_tests": ["//tools/testing/hermetic:appimage"],
         "name": "appimage",
         "section": "targets",
         "title": "AppImage",
@@ -162,7 +169,7 @@ ROWS = [
     },
     {"families": ["dockerfile"], "name": "dockerfile", "section": "targets", "title": "Dockerfile"},
     {"families": ["make"], "name": "make", "section": "targets", "title": "Make"},
-    {"families": [], "name": "msix", "section": "targets", "title": "MSIX"},
+    {"families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
     {
         "ci_tests": ["//qt/tests:qt_tasks_test"],
         "consumer_tests": ["//qt/tests:qt_app_consumer_test"],
@@ -171,7 +178,7 @@ ROWS = [
         "section": "targets",
         "title": "Qt",
     },
-    {"ci_tests": ["//wasi/testing:wasi_run_unit_test"], "families": [], "name": "wasi", "section": "targets", "title": "WASI"},
+    {"ci_tests": ["//wasi/testing:wasi_run_unit_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
     {"name": "flatbuffers", "section": "formats", "title": "FlatBuffers"},
@@ -234,4 +241,5 @@ def support_matrix_inputs():
         for workflow in row.get("workflows", []):
             files["//.github:workflows/" + workflow] = True
     files["//tools/testing:nested_bazel.bzl"] = True
+    files["//tools/testing/hermetic:defs.bzl"] = True
     return sorted(files.keys())

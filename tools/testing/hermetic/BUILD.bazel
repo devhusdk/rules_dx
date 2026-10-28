@@ -9,7 +9,9 @@ package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 exports_files(
     [
+        "BUILD.bazel",
         "consumers/cuda/module_fragment.bazel",
+        "defs.bzl",
         "qualification_test.rs",
     ],
     visibility = VIS_TOOLS_CLI_TEST,

@@ -71,6 +71,9 @@ hermetic_manifest = rule(
     },
 )
 
+# Read by the support matrix (tools/docs/support_matrix) for the hermetic_qualification kind.
+HERMETIC_COMPATIBLE_WITH = ["@platforms//os:linux"]
+
 QUALIFICATION_TAGS = [
     "exclusive",
     "hermetic-qualification",
@@ -119,7 +122,7 @@ def hermetic_qualification(
         rust_target_triples = rust_target_triples,
         srcs = srcs,
         starter = starter,
-        target_compatible_with = ["@platforms//os:linux"],
+        target_compatible_with = HERMETIC_COMPATIBLE_WITH,
         workspace_dir = workspace_dir,
     )
     rust_test(
@@ -129,7 +132,7 @@ def hermetic_qualification(
         data = [":" + name + "_manifest"],
         env = {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},
         tags = QUALIFICATION_TAGS + ["hermetic-consumer"],
-        target_compatible_with = ["@platforms//os:linux"],
+        target_compatible_with = HERMETIC_COMPATIBLE_WITH,
         deps = [
             "//tools/testing:dx_testing",
             "//tools/testing/hermetic",

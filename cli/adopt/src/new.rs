@@ -159,6 +159,10 @@ pub const NEW_LANGUAGES: &[NewLanguage] = &[
         name: "lua",
         identity: IdentityRule::BazelModule,
     },
+    NewLanguage {
+        name: "julia",
+        identity: IdentityRule::BazelModule,
+    },
 ];
 
 const NEW_LANGUAGE_COUNT: usize = NEW_LANGUAGES.len();
@@ -1051,6 +1055,127 @@ bazel test //...
     ]
 }
 
+/// Julia module names that would shadow what the starter itself loads.
+const JULIA_RESERVED_MODULES: [&str; 4] = ["Base", "Core", "Main", "Test"];
+
+/// Returns the UpperCamelCase Julia module for `identity` (`demo-app` -> `DemoApp`).
+///
+/// rules_julia only finds the package entry, and so only precompiles, when the
+/// library label equals `src/<label>.jl`, so the library is named after this.
+fn julia_module_name(identity: &str) -> Result<String, AdoptError> {
+    let refused = |reason: &str| AdoptError::NewInvalidIdentity {
+        language: "julia".to_owned(),
+        name: identity.to_owned(),
+        reason: reason.to_owned(),
+    };
+    let mut module = String::new();
+    for part in identity.split(['-', '_', '.']).filter(|p| !p.is_empty()) {
+        if !part.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return Err(refused(
+                "julia names use ASCII letters, digits, '-', '_' and '.' so they form a module name",
+            ));
+        }
+        let mut chars = part.chars();
+        if let Some(first) = chars.next() {
+            module.push(first.to_ascii_uppercase());
+            module.push_str(chars.as_str());
+        }
+    }
+    if !module.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        return Err(refused(
+            "julia names start with a letter so they form a module name",
+        ));
+    }
+    if JULIA_RESERVED_MODULES.contains(&module.as_str()) {
+        return Err(refused(
+            "julia names must not become Base, Core, Main or Test, which the starter itself uses",
+        ));
+    }
+    Ok(module)
+}
+
+/// Returns a stable UUID for the starter's `Project.toml`, derived from the identity.
+///
+/// The digest input must never change: it would alter every later starter's uuid.
+fn julia_project_uuid(identity: &str) -> String {
+    let hex = dx_digest::sha256_hex(format!("rules_dx julia starter:{identity}").as_bytes());
+    let variant = match u8::from_str_radix(&hex[16..17], 16).unwrap_or(0) & 0x3 {
+        0 => '8',
+        1 => '9',
+        2 => 'a',
+        _ => 'b',
+    };
+    format!(
+        "{}-{}-8{}-{}{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[13..16],
+        variant,
+        &hex[17..20],
+        &hex[20..32]
+    )
+}
+
+fn julia_files(identity: &str) -> Result<Vec<(String, String)>, AdoptError> {
+    let module = julia_module_name(identity)?;
+    let build =
+        r#"load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
+
+julia_library(
+    name = "MODULE",
+    srcs = ["src/MODULE.jl"],
+    data = ["Project.toml"],
+)
+
+julia_binary(
+    name = "MODULE_bin",
+    srcs = ["main.jl"],
+    deps = [":MODULE"],
+)
+
+julia_test(
+    name = "MODULE_test",
+    srcs = ["test/runtests.jl"],
+    deps = [":MODULE"],
+)
+"#
+        .replace("MODULE", &module);
+    let project = format!(
+        "name = \"{module}\"\nuuid = \"{}\"\nversion = \"0.1.0\"\n",
+        julia_project_uuid(identity)
+    );
+    let library =
+        format!("module {module}\n\nexport greet\n\ngreet(name) = \"hello \" * name\n\nend\n");
+    let main = format!("using {module}\n\nprintln(greet(\"world\"))\n");
+    let tests = format!(
+        "using {module}\nusing Test\n\n@testset \"{module}\" begin\n    @test greet(\"world\") == \"hello world\"\nend\n"
+    );
+    let readme = r#"# IDENTITY
+
+```sh
+bazel build //...
+bazel run :MODULE_bin
+bazel test //...
+```
+"#
+    .replace("IDENTITY", identity)
+    .replace("MODULE", &module);
+    Ok(vec![
+        (
+            "MODULE.bazel".to_owned(),
+            consumer_module_bazel(identity, false),
+        ),
+        (".bazelversion".to_owned(), consumer_bazelversion()),
+        (".bazelrc".to_owned(), consumer_bazelrc()),
+        ("BUILD.bazel".to_owned(), build),
+        ("Project.toml".to_owned(), project),
+        (format!("src/{module}.jl"), library),
+        ("main.jl".to_owned(), main),
+        ("test/runtests.jl".to_owned(), tests),
+        ("README.md".to_owned(), readme),
+    ])
+}
+
 fn cc_starter(identity: &str, ext: &str, sources: [String; 4]) -> Vec<(String, String)> {
     let build = r#"load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
@@ -1896,6 +2021,7 @@ fn new_language_files(
         "haskell" => haskell_files(identity),
         "cuda" => cuda_files(identity),
         "lua" => lua_files(identity),
+        "julia" => julia_files(identity)?,
         "c" => c_files(identity),
         "cpp" => cpp_files(identity),
         _ => {
@@ -2027,6 +2153,7 @@ mod tests {
         assert_eq!(normalize_new_language("haskell"), Some("haskell"));
         assert_eq!(normalize_new_language("cuda"), Some("cuda"));
         assert_eq!(normalize_new_language("lua"), Some("lua"));
+        assert_eq!(normalize_new_language("julia"), Some("julia"));
     }
 
     #[test]
@@ -2042,6 +2169,43 @@ mod tests {
         assert!(all.contains("require(\"hello\")"));
         assert!(!all.to_lowercase().contains("luarocks"));
         assert!(!all.contains("package.path"));
+    }
+
+    #[test]
+    fn julia_starter_names_targets_and_stays_hermetic() {
+        assert_eq!(julia_module_name("demo-app").as_deref(), Ok("DemoApp"));
+        for reserved in ["base", "core", "main", "test"] {
+            assert!(julia_module_name(reserved).is_err(), "{reserved}");
+        }
+        assert!(julia_module_name("1abc").is_err());
+        let uuid = julia_project_uuid("demo-app");
+        assert_eq!(uuid, julia_project_uuid("demo-app"));
+        assert_ne!(uuid, julia_project_uuid("other"));
+        let parts = uuid.split('-').map(str::len).collect::<Vec<_>>();
+        assert_eq!(parts, [8, 4, 4, 4, 12], "{uuid}");
+        assert!(uuid.split('-').nth(2).is_some_and(|p| p.starts_with('8')));
+        assert!(uuid
+            .split('-')
+            .nth(3)
+            .is_some_and(|p| p.starts_with(['8', '9', 'a', 'b'])));
+        assert!(uuid.chars().all(|c| c == '-' || c.is_ascii_hexdigit()));
+        let files = julia_files("demo-app").expect("plans");
+        let all = files
+            .iter()
+            .map(|(path, text)| format!("{path}\n{text}"))
+            .collect::<String>();
+        for target in ["\"DemoApp\"", "\"DemoApp_bin\"", "\"DemoApp_test\""] {
+            assert!(all.contains(target), "{target}");
+        }
+        assert!(all.contains("src/DemoApp.jl"));
+        assert!(all.contains(&format!("uuid = \"{uuid}\"")));
+        let module = files
+            .iter()
+            .find(|(path, _)| path == "MODULE.bazel")
+            .map(|(_, text)| text.as_str())
+            .expect("module");
+        assert!(!module.contains("pkg."));
+        assert!(!module.contains("http"));
     }
 
     #[test]

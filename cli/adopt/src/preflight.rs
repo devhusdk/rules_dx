@@ -37,6 +37,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_powershell", "0.3.1"),
     ("rules_ruby", "0.29.0"),
     ("rules_zig", "0.14.0"),
+    ("rules_julia", "0.8.0"),
     ("rules_perl", "1.5.0"),
     ("lua", "5.4.6.bcr.1"),
     ("aspect_rules_py", "2.0.0-alpha.6"),

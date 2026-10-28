@@ -3,6 +3,13 @@
 Build, run and test Julia with the pinned `rules_julia` 0.8.0 and Julia 1.12.5.
 Nothing needs to be installed.
 
+## Start
+
+`dx new --apply julia demo-app` scaffolds a package with `DemoApp`,
+`DemoApp_bin` and `DemoApp_test` targets. The library is named after the
+module because rules_julia only precompiles when the label matches
+`src/<label>.jl`.
+
 ```python
 load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
 

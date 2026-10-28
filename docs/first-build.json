@@ -385,6 +385,20 @@
       "dx_source": null,
       "ceiling_s": null,
       "skipped": null
+    },
+    {
+      "name": "julia",
+      "new_s": null,
+      "test_s": null,
+      "total_s": null,
+      "download_mb": null,
+      "repos": null,
+      "silent_max_s": null,
+      "date": null,
+      "dx_version": null,
+      "dx_source": null,
+      "ceiling_s": null,
+      "skipped": null
     }
 
   ]

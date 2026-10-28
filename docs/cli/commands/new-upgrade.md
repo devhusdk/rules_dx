@@ -14,7 +14,7 @@ dx new [--apply] <language> [name]
 
 Starts a new project. Use `dx init` to adopt an existing tree. Checks by default; `--apply` scaffolds. Scaffolds a minimal project for one language: `rust`, `python`,
 `javascript`, `typescript`, `go`, `java`, `kotlin`, `scala`, `csharp`,
-`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, `cuda`, or `lua`. Never overwrites existing files.
+`fsharp`, `c`, `cpp`, `rust-web`, `rust-android`, `ruby`, `powershell`, `astro`, `svelte`, `vue`, `mdx`, `zig`, `elixir`, `erlang`, `ocaml`, `haskell`, `cuda`, `lua`, or `julia`. Never overwrites existing files.
 There is no `--force`. Runs outside a workspace.
 
 `c` scaffolds a standalone C consumer and `cpp` a standalone C++ consumer.
@@ -125,6 +125,9 @@ language rule:
 - `haskell` takes Bazel module names.
 - `cuda` takes Bazel module names.
 - `lua` takes Bazel module names.
+- `julia` takes Bazel module names. The library, binary and test targets use
+  the UpperCamelCase module name (`demo-app` becomes `DemoApp`), so a name that
+  becomes `Base`, `Core`, `Main` or `Test` is refused.
 
 A `rust-android` name must also start with a letter and must not be a Java
 keyword, so that `com.example.<name>` is a valid application ID.
@@ -518,3 +521,20 @@ Scaffolds a standalone Lua consumer: `MODULE.bazel`, `.bazelversion`,
 `@rules_dx//lua/rules:defs.bzl`, and `main.lua` loads `hello` with `require`.
 rules_dx registers the Lua toolchain, so nothing is installed on the host. The
 targets need Linux x86_64.
+
+## `dx new julia`
+
+```text
+dx new [--apply] julia [name]
+```
+
+Scaffolds a standalone Julia consumer: `MODULE.bazel`, `.bazelversion`,
+`.bazelrc`, `BUILD.bazel`, `Project.toml`, `src/<Module>.jl`, `main.jl`,
+`test/runtests.jl` and `README.md`. `<Module>` is the name in UpperCamelCase.
+`BUILD.bazel` loads `julia_library`, `julia_binary` and `julia_test` from
+`@rules_dx//julia/rules:defs.bzl` and names the targets `<Module>`,
+`<Module>_bin` and `<Module>_test`. `Project.toml` carries a uuid derived from
+the name, so a check after `--apply` reports nothing to do. rules_dx registers
+the Julia toolchain, so nothing is installed on the host. The targets need
+Linux x86_64, Linux arm64, macOS arm64 or Windows x86_64; there is no Julia
+build for Windows arm64.

@@ -62,12 +62,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["{version_file}"])
 
-_RUNTIME_LINKOPTS = [
-    "-ldl",
-    "-lm",
-    "-lpthread",
-    "-lrt",
-]
+_RUNTIME_LINKOPTS = {linkopts}
 
 filegroup(
     name = "compiler_files",
@@ -75,8 +70,7 @@ filegroup(
         "bin/ldc2",
         "bin/ldmd2",
     ] + glob([
-        "{closure}/lib/**",
-        "etc/ldc2.conf/**",
+{closure_glob}        "etc/ldc2.conf/**",
         "import/**",
     ]),
 )
@@ -256,6 +250,8 @@ def ldc_repository_name(cell):
 def ldc_runtime(cell):
     """Returns the pinned runtime closure packages one LDC cell needs."""
     wanted = LDC_CELLS[cell].runtime
+    if not wanted:
+        return []
     packages = [package for package in CELLS[cell].runtime if package.package in wanted]
     if len(packages) != len(wanted):
         fail("LDC cell " + cell + " names runtime packages the cell does not pin: " + repr(wanted))
@@ -302,6 +298,8 @@ def _ldc_impl(rctx):
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", LDC_BUILD.format(
         closure = CLOSURE_DIR,
+        closure_glob = '        "' + CLOSURE_DIR + '/lib/**",\n' if cell.runtime else "",
+        linkopts = repr(cell.linkopts),
         version_file = VERSION_FILE,
         wrapper = COMPILER_WRAPPER,
     ))
@@ -320,7 +318,7 @@ def _hub_impl(rctx):
     for cell in sorted(LDC_CELLS.keys()):
         content.append(_TOOLCHAIN.format(
             cell = cell,
-            constraints = repr(CELLS[cell].exec_compatible_with),
+            constraints = repr(LDC_CELLS[cell].exec_compatible_with),
             repo = ldc_repository_name(cell),
         ))
     rctx.file("REPO.bazel", "")

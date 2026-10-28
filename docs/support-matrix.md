@@ -18,7 +18,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C and C++ | none |
 | C# | none |
 | CUDA | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
-| D | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
+| D | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Dart | `windows_arm64`: not tested yet |
 | Elixir | `linux_arm64`, `macos_arm64`, `windows_x86_64`, `windows_arm64`: not tested yet |
 | Erlang | `windows_x86_64`, `windows_arm64`: not tested yet |

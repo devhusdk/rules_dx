@@ -15,6 +15,12 @@ CURATED_DEFAULTS = {
         "lint": [],
         "typecheck": [],
     },
+    "cloudformation": {
+        "audit": [],
+        "format": [],
+        "lint": ["cfn_lint"],
+        "typecheck": [],
+    },
     "dockerfile": {
         "audit": [],
         "format": [],
@@ -152,6 +158,7 @@ CURATED_DEFAULTS = {
 FORMAT_FROZEN = {
     "astro": ["prettier"],
     "cc": ["clang_format"],
+    "cloudformation": [],
     "dockerfile": [],
     "go": ["gofumpt"],
     "graphql": ["prettier"],

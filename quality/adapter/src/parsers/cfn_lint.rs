@@ -1,4 +1,4 @@
-use super::{as_text, code_name, known, point, FileFinding, ParseError};
+use super::{as_text, code_name, known_spelled, point, FileFinding, ParseError};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "cfn_lint";
@@ -73,7 +73,7 @@ pub fn parse_cfn_lint(
                     ),
                 )
             })?;
-        let checked = known(TOOL, files, filename)?;
+        let checked = known_spelled(TOOL, files, filename)?;
         let (severity, bit) = match text(entry, "Level")? {
             "Error" => (ToolSeverity::Error, EXIT_ERROR),
             "Warning" => (ToolSeverity::Warning, EXIT_WARNING),

@@ -233,6 +233,7 @@ to.
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
+| `cfn_lint` | lint | cloudformation |
 | `checkmake` | lint | make |
 | `checkstyle` | lint | java |
 | `clang_format` | format | cc, cuda, objc |
@@ -1584,6 +1585,78 @@ terraform_module(
     aspect_hints = [":tflint"],
     srcs = ["main.tf"],
 )
+```
+
+### CloudFormation
+
+`cfn-lint` validates AWS CloudFormation templates against the bundled resource
+schemas. It runs from a managed v1.58 pin on Linux x86_64, Linux arm64, macOS
+arm64 and Windows x86_64, on the Python 3.12 that the Python tools share. It is
+check-only: `lint --apply` never rewrites a template. The `cloudformation`
+family lints with `cfn_lint` by default, so a `cloudformation_template` target
+starts being linted once it is in the workspace. Format and typecheck stay
+disabled.
+
+Own templates with `cloudformation_template` from
+`@rules_dx//cloudformation/rules:defs.bzl`. It accepts `.yaml`, `.yml`, `.json`
+and `.template` files. A file is checked as a template because the rule owns
+it, not because of its name. Plain YAML stays in the `yaml` family.
+
+```python
+load("@rules_dx//cloudformation/rules:defs.bzl", "cloudformation_template")
+
+cloudformation_template(
+    name = "stack",
+    srcs = ["stack.yaml"],
+)
+```
+
+Before cfn-lint runs, dx checks each owned file and reports these rules
+without launching the tool for that file:
+
+| Rule | Meaning |
+| --- | --- |
+| `dx/cloudformation-syntax` | The file is not valid YAML or JSON, is not UTF-8, or is larger than 2 MiB. |
+| `dx/cloudformation-root` | The file has neither a root `AWSTemplateFormatVersion` nor a `Resources` entry with an `AWS::` type. |
+| `dx/cloudformation-config` | The template's own `Metadata` sets a cfn-lint option that dx does not allow. |
+
+cfn-lint findings keep their rule ID (for example `E3002`), and the line and
+column of the offending value. Errors, warnings and informational findings map
+to the dx error, warning and info severities. A nonzero exit with no finding,
+an exit code that does not match the reported levels, and unreadable output are
+errors and never count as clean.
+
+To change rules, bind a `cfn_lint_config` (a cfn-lint config file) with
+`aspect_hints`. dx always passes `--config-file`, so a `.cfnlintrc` in the
+repository, the working directory or the home directory is never read. A
+config, or a template's `Metadata`, may set only `regions`, `ignore_checks`,
+`include_checks`, `mandatory_checks`, `configure_rules` and
+`include_experimental`. Any other key is refused, because it could load code or
+read other files.
+
+```python
+load("@rules_dx//quality:native_config.bzl", "cfn_lint_config")
+
+cfn_lint_config(
+    name = "relaxed",
+    src = ".cfnlintrc",
+    visibility = ["//visibility:public"],
+)
+
+cloudformation_template(
+    name = "stack",
+    aspect_hints = [":relaxed"],
+    srcs = ["stack.yaml"],
+)
+```
+
+dx never fetches resource specs, never passes `--update-specs` or
+`--regions`, uses no AWS credentials, never deploys, and has no `--apply` for
+CloudFormation. `AWS_REGION` and `AWS_DEFAULT_REGION` are not passed to the
+tool; set `regions` in the config to change the default `us-east-1`.
+
+```sh
+bazel run @rules_dx//:dx -- lint //infra/...
 ```
 
 ### Go

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_cloudformation_lint_fail
+capability LINT
+stages 1
+stage cfn_lint classes=cloudformation sources=matrix/cfn_dirty/a.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR cfn_lint E3002 matrix/cfn_dirty/a.yaml 108 113 fixable=false "Additional properties are not allowed ('Bogus' was unexpected)"
+terminal 1
+terminal ERROR cfn_lint E3002 matrix/cfn_dirty/a.yaml 108 113 fixable=false "Additional properties are not allowed ('Bogus' was unexpected)"
+replacements 0

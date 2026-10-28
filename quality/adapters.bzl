@@ -32,6 +32,7 @@ REAL_ADAPTERS = {
     },
     "buildifier": {"format": ["starlark"], "lint": ["starlark"]},
     "checkstyle": {"lint": ["java"]},
+    "cfn_lint": {"lint": ["cloudformation"]},
     "clang_format": {"format": ["c", "cpp", "cuda", "objc", "objcpp"]},
     "clang_syntax": {"typecheck": ["c", "cpp", "objc", "objcpp"]},
     "clang_tidy": {"lint": ["c", "cpp"]},
@@ -210,6 +211,7 @@ NOT_APPLICABLE = {
     "typecheck": {
         "ansible": "dynamically typed YAML playbooks; no type system beyond ansible-lint",
         "api_spec": "declarative API description; no type system beyond schema validation",
+        "cloudformation": "declarative templates; cfn-lint schema validation is lint, not type checking",
         "dockerfile": "no static type system; hadolint covers lint",
         "gherkin": "natural-language scenarios; no type system",
         "helm": "chart lint plus schema validation of rendered manifests",

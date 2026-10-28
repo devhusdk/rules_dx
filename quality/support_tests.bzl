@@ -6,7 +6,7 @@ load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
+load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -294,6 +294,11 @@ def support_unit_tests(name):
                 "ansible and kubernetes prettier records cover four platforms",
                 [ANSIBLE_PRETTIER_FORMAT_SUPPORT["platforms"], KUBERNETES_PRETTIER_FORMAT_SUPPORT["platforms"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]] * 2,
+            ),
+            expect_equal(
+                "cloudformation cfn_lint lint record is owned, batched, check-only and covers four platforms",
+                [CLOUDFORMATION_CFN_LINT_SUPPORT["platforms"], CLOUDFORMATION_CFN_LINT_SUPPORT["fix"], CLOUDFORMATION_CFN_LINT_SUPPORT["transport"], CLOUDFORMATION_CFN_LINT_SUPPORT["context"]],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "dockerfile and php prettier records cover four platforms",

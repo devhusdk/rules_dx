@@ -558,6 +558,32 @@ real_source_target(
 )
 
 quality_family(
+    name = "cloudformation_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cloudformation",
+    lint = ["cfn_lint"],
+)
+
+workspace_policy(
+    name = "cloudformation_policy",
+    families = [":cloudformation_family"],
+)
+
+filegroup(
+    name = "cloudformation_module",
+    srcs = ["cloudformation_module/clean.yaml"],
+    visibility = ["//quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_cloudformation",
+    cloudformation_srcs = [":cloudformation_module"],
+)
+
+quality_family(
     name = "html_template_family",
     disabled = ["typecheck"],
     family_id = "html_template",

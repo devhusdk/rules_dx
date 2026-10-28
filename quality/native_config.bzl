@@ -38,6 +38,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "biome": [".json"],
     "buf": [".yaml"],
     "buildifier": [".json"],
+    "cfn_lint": [".cfnlintrc", ".yaml", ".yml"],
     "checkstyle": [".xml"],
     "clang_format": [".clang-format"],
     "clang_tidy": [".clang-tidy"],
@@ -266,6 +267,8 @@ shellcheck_config = _make_native_config_rule("shellcheck")
 yamllint_config = _make_native_config_rule("yamllint")
 
 ansible_lint_config = _make_native_config_rule("ansible_lint")
+
+cfn_lint_config = _make_native_config_rule("cfn_lint")
 
 hadolint_config = _make_native_config_rule("hadolint")
 regal_config = _make_native_config_rule("regal")

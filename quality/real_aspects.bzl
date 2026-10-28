@@ -290,6 +290,14 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "ansible",
     },
+    "cfn_lint": {
+        "attr": attr.label(default = "//quality/tools/python:cfn_lint", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "medium",
+        "runfiles_env": True,
+        "shard": "cloudformation",
+    },
     "helm": {
         "attr": attr.label(default = "//config:tool_helm", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -1956,6 +1964,12 @@ _REAL_SHARD_SPECS = {
         "shard": "ansible",
         "suffix": "-ansible",
     },
+    "real_cloudformation_lint": {
+        "capability": "lint",
+        "doc": "Additive CloudFormation lint family aspect (cfn-lint).",
+        "shard": "cloudformation",
+        "suffix": "-cloudformation",
+    },
     "real_kubernetes_lint": {
         "capability": "lint",
         "doc": "Additive Kubernetes lint family aspect (kubeconform, helm).",
@@ -2232,6 +2246,8 @@ real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
 
 real_ansible_lint_aspect = _make_real_aspect("real_ansible_lint")
+
+real_cloudformation_lint_aspect = _make_real_aspect("real_cloudformation_lint")
 
 real_powershell_format_aspect = _make_real_aspect("real_powershell_format")
 

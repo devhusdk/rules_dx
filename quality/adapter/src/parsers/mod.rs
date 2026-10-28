@@ -50,6 +50,7 @@ pub mod pylint;
 pub mod qmlformat;
 pub mod qmllint;
 pub mod redocly;
+pub mod regal;
 pub mod remark;
 pub mod roslyn;
 pub mod rubocop;
@@ -129,6 +130,7 @@ pub use pylint::parse_pylint;
 pub use qmlformat::parse_qmlformat;
 pub use qmllint::{parse_qmllint, parse_qmllint_report};
 pub use redocly::parse_redocly;
+pub use regal::parse_regal;
 pub use remark::parse_remark;
 pub use roslyn::parse_roslyn;
 pub use rubocop::parse_rubocop;
@@ -2183,6 +2185,14 @@ mod tests {
         super::staticcheck::parse_staticcheck(input, code, files)
     }
 
+    fn fuzz_regal(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::regal::parse_regal(input, input, code, files)
+    }
+
     fn fuzz_remark(
         input: &[u8],
         code: Option<i32>,
@@ -2339,6 +2349,7 @@ mod tests {
         ("qmlformat", fuzz_qmlformat),
         ("qmllint", fuzz_qmllint),
         ("redocly", fuzz_redocly),
+        ("regal", fuzz_regal),
         ("remark", fuzz_remark),
         ("roslyn", fuzz_roslyn),
         ("rubocop", fuzz_rubocop),
@@ -2424,6 +2435,7 @@ mod tests {
         ("qmlformat", include_str!("qmlformat.rs")),
         ("qmllint", include_str!("qmllint.rs")),
         ("redocly", include_str!("redocly.rs")),
+        ("regal", include_str!("regal.rs")),
         ("remark", include_str!("remark.rs")),
         ("roslyn", include_str!("roslyn.rs")),
         ("rubocop", include_str!("rubocop.rs")),

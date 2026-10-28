@@ -75,6 +75,10 @@ load("//quality/artifacts:opa.linux_arm64.bzl", _opa_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:opa.linux_x86_64.bzl", _opa_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:opa.macos_arm64.bzl", _opa_macos_arm64 = "ARTIFACT")
 load("//quality/artifacts:opa.windows_x86_64.bzl", _opa_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:regal.linux_arm64.bzl", _regal_linux_arm64 = "ARTIFACT")
+load("//quality/artifacts:regal.linux_x86_64.bzl", _regal_linux_x86_64 = "ARTIFACT")
+load("//quality/artifacts:regal.macos_arm64.bzl", _regal_macos_arm64 = "ARTIFACT")
+load("//quality/artifacts:regal.windows_x86_64.bzl", _regal_windows_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
 load("//quality/artifacts:pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
 load("//quality/artifacts:pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
@@ -221,6 +225,10 @@ _ARTIFACTS = [
     _opa_linux_arm64,
     _opa_macos_arm64,
     _opa_windows_x86_64,
+    _regal_linux_x86_64,
+    _regal_linux_arm64,
+    _regal_macos_arm64,
+    _regal_windows_x86_64,
     _pkl_linux_x86_64,
     _pkl_linux_arm64,
     _pkl_macos_arm64,

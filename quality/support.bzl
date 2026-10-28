@@ -708,6 +708,20 @@ REGO_OPA_TYPECHECK_SUPPORT = {
     "transport": "batched",
 }
 
+REGO_REGAL_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["rego"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "rego",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "qualified",
+    "tool": "regal",
+    "transport": "batched",
+}
+
 SUPPORT_RECORDS = [
     FLATBUFFERS_FLATC_LINT_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
@@ -754,6 +768,7 @@ SUPPORT_RECORDS = [
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,
     REGO_OPA_TYPECHECK_SUPPORT,
+    REGO_REGAL_LINT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
     JUPYTER_RUFF_FORMAT_SUPPORT,

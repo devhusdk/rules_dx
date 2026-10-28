@@ -52,6 +52,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "qmlformat": [".qmlformat.ini"],
     "qmllint": [".qmllint.ini"],
     "redocly": [".yaml", ".yml"],
+    "regal": [".yaml", ".yml"],
     "remark": [".json"],
     "rubocop": [".yml", ".yaml"],
     "ruff": [".toml"],
@@ -249,6 +250,7 @@ yamllint_config = _make_native_config_rule("yamllint")
 ansible_lint_config = _make_native_config_rule("ansible_lint")
 
 hadolint_config = _make_native_config_rule("hadolint")
+regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")

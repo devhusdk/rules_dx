@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_rego_lint_multi_file
+capability LINT
+stages 1
+stage regal classes=rego sources=matrix/regal_multi/a.rego,matrix/regal_multi/b.rego
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR regal idiomatic/no-defined-entrypoint matrix/regal_multi/a.rego 0 0 fixable=false "Missing entrypoint annotation"
+terminal 1
+terminal ERROR regal idiomatic/no-defined-entrypoint matrix/regal_multi/a.rego 0 0 fixable=false "Missing entrypoint annotation"
+replacements 0

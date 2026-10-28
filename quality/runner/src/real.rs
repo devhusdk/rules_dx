@@ -64,6 +64,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "qmlformat",
     "qmllint",
     "redocly",
+    "regal",
     "remark",
     "roslyn",
     "rubocop",
@@ -128,6 +129,8 @@ const CREDO_DEFAULTS_BYTES: &[u8] = b"%{
 const CHECKMAKE_DEFAULTS_REL: &str = "dx-checkmake-default/checkmake.ini";
 /// An empty ini loads and keeps every rule at its default.
 const CHECKMAKE_DEFAULTS_BYTES: &[u8] = b"";
+const REGAL_DEFAULTS_REL: &str = ".regal/config.yaml";
+const REGAL_DEFAULTS_BYTES: &[u8] = b"";
 const HADOLINT_DEFAULTS_REL: &str = "dx-hadolint-default/.hadolint.yaml";
 /// hadolint rejects an empty config, so the default spells its empty ignore list.
 const HADOLINT_DEFAULTS_BYTES: &[u8] = b"ignored: []\n";

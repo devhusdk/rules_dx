@@ -202,6 +202,14 @@ const SHELLCHECK_ARGS: &[&str] = &["--format=gcc"];
 const SHELLCHECK_NORC: &[&str] = &["--norc"];
 const CHECKMAKE_PREFIX: &[&str] = &["--debug", "--output", "json"];
 const CHECKMAKE_TAIL: &[&str] = &["--"];
+const REGAL_LINT_PREFIX: &[&str] = &[
+    "lint",
+    "--format",
+    "json",
+    "--no-color",
+    "--fail-level",
+    "warning",
+];
 const HADOLINT_TAIL: &[&str] = &["--no-color", "-f", "json", "--"];
 const STATIX_CHECK_PREFIX: &[&str] = &["check", "-o", "json"];
 const STATIX_FIX_PREFIX: &[&str] = &["fix"];
@@ -1514,6 +1522,19 @@ pub fn shellcheck_check(binary: &Path, files: &[&Path], config: Option<&Path>) -
         "--rcfile=",
         config,
         suffix,
+        files,
+        "",
+    )
+}
+
+/// Always `--config-file <config>`: without it regal searches upward for `.regal/`, which is not hermetic.
+pub fn regal_lint(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    required_flag(
+        binary,
+        REGAL_LINT_PREFIX,
+        "--config-file",
+        config,
+        END_OF_FLAGS,
         files,
         "",
     )

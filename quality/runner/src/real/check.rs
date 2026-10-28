@@ -782,6 +782,33 @@ impl RealBackend {
                     parsers::parse_cue(&out.stdout, &out.stderr, out.code, &strs, &cwd),
                 )
             }
+            "regal" => {
+                let Some(config) = config.as_deref() else {
+                    return Err(execution(tool_id, "regal needs a config path".to_owned()));
+                };
+                std::fs::create_dir_all(scratch.root().join(".regal"))
+                    .map_err(|err| execution(tool_id, format!("stage .regal: {err}")))?;
+                let relative: Vec<&Path> = pairs
+                    .iter()
+                    .map(|(workspace, _)| Path::new(workspace.as_str()))
+                    .collect();
+                let workspaces: Vec<&str> = pairs
+                    .iter()
+                    .map(|(workspace, _)| workspace.as_str())
+                    .collect();
+                let invocation = commands::regal_lint(&tool.binary, &relative, config);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let mut findings = parsed(
+                    tool_id,
+                    parsers::parse_regal(&out.stdout, &out.stderr, out.code, &workspaces),
+                )?;
+                for item in &mut findings {
+                    item.file = reanchor(tool_id, pairs, &item.file)?
+                        .to_string_lossy()
+                        .into_owned();
+                }
+                Ok(findings)
+            }
             "opa" => {
                 if capability == "format" {
                     let mut findings = Vec::new();

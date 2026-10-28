@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_rego_lint_package_mismatch
+capability LINT
+stages 1
+stage regal classes=rego sources=matrix/regal_pkg/policy.rego
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR regal idiomatic/directory-package-mismatch matrix/regal_pkg/policy.rego 8 8 fixable=false "Directory structure should mirror package"
+terminal 1
+terminal ERROR regal idiomatic/directory-package-mismatch matrix/regal_pkg/policy.rego 8 8 fixable=false "Directory structure should mirror package"
+replacements 0

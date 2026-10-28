@@ -61,7 +61,8 @@ fn qmlformat_output_parses_through_the_adapter() {
         parse_qmlformat(out.stdout.as_bytes(), out.status.code(), &input, name).expect("parsed");
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].file, name);
-    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir = dir_guard.path();
     let formatted = dir.join("Formatted.qml");
     std::fs::write(&formatted, &out.stdout).expect("write formatted source");
     let again = run(&qmlformat_check(
@@ -83,11 +84,11 @@ const CLEAN: &str = "import QtQuick\n\nItem {\n    property string greet: \"hell
 const DIRTY: &str = "import QtQuick\nItem {   property string greet:\"hello\"\n}\n";
 const MALFORMED: &str = "import QtQuick\nItem { property string greet: \n";
 
-fn scratch_file(name: &str, content: &str) -> PathBuf {
-    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
-    let file = dir.join(name);
+fn scratch_file(name: &str, content: &str) -> (dx_test_scratch::TempDir, PathBuf) {
+    let guard = dx_test_scratch::scratch("qt-adapter");
+    let file = guard.path().join(name);
     std::fs::write(&file, content).expect("write source");
-    file
+    (guard, file)
 }
 
 fn findings(file: &Path) -> Result<usize, quality_adapter::parsers::ParseError> {
@@ -104,14 +105,14 @@ fn findings(file: &Path) -> Result<usize, quality_adapter::parsers::ParseError> 
 
 #[test]
 fn qmlformat_check_leaves_the_source_untouched() {
-    let file = scratch_file("Dirty.qml", DIRTY);
+    let (_file_dir, file) = scratch_file("Dirty.qml", DIRTY);
     assert_eq!(findings(&file).expect("parsed"), 1);
     assert_eq!(std::fs::read_to_string(&file).expect("source"), DIRTY);
 }
 
 #[test]
 fn qmlformat_fix_then_check_round_trips_to_clean() {
-    let file = scratch_file("RoundTrip.qml", DIRTY);
+    let (_file_dir, file) = scratch_file("RoundTrip.qml", DIRTY);
     let fixed = run(&qmlformat_fix(
         &path("DX_QMLFORMAT"),
         &[file.as_path()],
@@ -124,13 +125,13 @@ fn qmlformat_fix_then_check_round_trips_to_clean() {
 
 #[test]
 fn qmlformat_clean_source_has_no_findings() {
-    let file = scratch_file("Clean.qml", CLEAN);
+    let (_file_dir, file) = scratch_file("Clean.qml", CLEAN);
     assert_eq!(findings(&file).expect("parsed"), 0);
 }
 
 #[test]
 fn qmlformat_malformed_source_is_an_error_not_clean() {
-    let file = scratch_file("Malformed.qml", MALFORMED);
+    let (_file_dir, file) = scratch_file("Malformed.qml", MALFORMED);
     let out = run(&qmlformat_check(
         &path("DX_QMLFORMAT"),
         &[file.as_path()],
@@ -144,7 +145,7 @@ fn qmlformat_malformed_source_is_an_error_not_clean() {
 
 #[test]
 fn qmlformat_ini_next_to_the_source_changes_the_formatting() {
-    let file = scratch_file("Configured.qml", CLEAN);
+    let (_file_dir, file) = scratch_file("Configured.qml", CLEAN);
     std::fs::write(
         file.with_file_name(".qmlformat.ini"),
         "[General]\nIndentWidth=2\n",
@@ -187,7 +188,7 @@ fn lint(
 
 #[test]
 fn qmllint_clean_source_exits_zero_with_no_findings() {
-    let file = scratch_file("Clean.qml", CLEAN);
+    let (_file_dir, file) = scratch_file("Clean.qml", CLEAN);
     let (out, parsed) = lint(&[file.as_path()], &[], false);
     assert_eq!(out.status.code(), Some(0), "{}", out.combined());
     assert!(parsed.expect("parsed").is_empty());
@@ -195,7 +196,7 @@ fn qmllint_clean_source_exits_zero_with_no_findings() {
 
 #[test]
 fn qmllint_syntax_error_is_a_located_finding() {
-    let file = scratch_file(
+    let (_file_dir, file) = scratch_file(
         "Syntax.qml",
         "import QtQuick\nItem {\n    property int x: 1 +\n}\n",
     );
@@ -209,8 +210,8 @@ fn qmllint_syntax_error_is_a_located_finding() {
 
 #[test]
 fn qmllint_reports_every_file_of_a_batch() {
-    let clean = scratch_file("A.qml", CLEAN);
-    let dirty = scratch_file("B.qml", "import QtQuick\nItem { property string s: foo }\n");
+    let (_clean_dir, clean) = scratch_file("A.qml", CLEAN);
+    let (_dirty_dir, dirty) = scratch_file("B.qml", "import QtQuick\nItem { property string s: foo }\n");
     let (out, parsed) = lint(&[clean.as_path(), dirty.as_path()], &[], false);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let found = parsed.expect("parsed");
@@ -220,7 +221,7 @@ fn qmllint_reports_every_file_of_a_batch() {
 
 #[test]
 fn qmllint_unknown_import_is_reported_not_ignored() {
-    let file = scratch_file("Import.qml", "import Nope.Missing\nItem {}\n");
+    let (_file_dir, file) = scratch_file("Import.qml", "import Nope.Missing\nItem {}\n");
     let (out, parsed) = lint(&[file.as_path()], &[], false);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let found = parsed.expect("parsed");
@@ -233,7 +234,8 @@ fn qmllint_unknown_import_is_reported_not_ignored() {
 
 #[test]
 fn qmllint_missing_file_is_an_infrastructure_failure() {
-    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir = dir_guard.path();
     let (out, parsed) = lint(&[dir.join("Gone.qml").as_path()], &[], false);
     assert_eq!(out.status.code(), Some(255), "{}", out.combined());
     let err = parsed.expect_err("no location");
@@ -242,7 +244,8 @@ fn qmllint_missing_file_is_an_infrastructure_failure() {
 
 #[test]
 fn qmllint_declared_import_dir_resolves_a_module() {
-    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir = dir_guard.path();
     let module = dir.join("mods/Foo");
     std::fs::create_dir_all(&module).expect("module dir");
     std::fs::write(module.join("qmldir"), "module Foo\nBar 1.0 Bar.qml\n").expect("qmldir");
@@ -273,7 +276,8 @@ fn qmllint_declared_import_dir_resolves_a_module() {
 
 #[test]
 fn qmllint_ignores_the_host_import_path_variable() {
-    let dir = dx_testing::mkscratch("qt-adapter").expect("scratch directory");
+    let dir_guard = dx_test_scratch::scratch("qt-adapter");
+    let dir = dir_guard.path();
     let module = dir.join("mods/Foo");
     std::fs::create_dir_all(&module).expect("module dir");
     std::fs::write(module.join("qmldir"), "module Foo\nBar 1.0 Bar.qml\n").expect("qmldir");
@@ -303,7 +307,7 @@ const UNQUALIFIED: &str = "import QtQuick\nItem {\n    property string s: foo\n}
 
 #[test]
 fn qmllint_settings_file_changes_results_only_when_declared() {
-    let file = scratch_file("Settings.qml", UNQUALIFIED);
+    let (_file_dir, file) = scratch_file("Settings.qml", UNQUALIFIED);
     std::fs::write(
         file.with_file_name(".qmllint.ini"),
         "[Warnings]\nUnqualifiedAccess=disable\n",
@@ -321,7 +325,7 @@ fn qmllint_settings_file_changes_results_only_when_declared() {
 #[test]
 fn qmllint_columns_count_utf16_units() {
     let line = "Item { property string s: \"\u{1F600}\"; property int q: foo }";
-    let file = scratch_file("Emoji.qml", &format!("import QtQuick\n{line}\n"));
+    let (_file_dir, file) = scratch_file("Emoji.qml", &format!("import QtQuick\n{line}\n"));
     let (_, parsed) = lint(&[file.as_path()], &[], false);
     let found = parsed.expect("parsed");
     assert_eq!(found.len(), 1);
@@ -335,7 +339,7 @@ fn qmllint_columns_count_utf16_units() {
 
 #[test]
 fn qmllint_severity_flags_decide_the_exit_code() {
-    let file = scratch_file("Severity.qml", UNQUALIFIED);
+    let (_file_dir, file) = scratch_file("Severity.qml", UNQUALIFIED);
     let invocation = qmllint_check(&path("DX_QMLLINT"), &[file.as_path()], &[], false);
     let mut argv: Vec<String> = invocation
         .argv

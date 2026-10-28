@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, sha256_file, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, sha256_file, write, Run};
 
 const MODULE: &str = r#"module(name = "consumer")
 
@@ -71,8 +72,8 @@ fn consumer() -> Case {
 fn docs(root: &Case) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("powershell-docs-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("powershell-docs-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     root.run(
         &resolve_runfiles(&rel),
         &["docs", "--workspace", workspace.as_str(), "//:site"],

@@ -90,7 +90,8 @@ fn preset_parity() {
     )
     .expect("preset src lost its Bazel/dx version pins");
 
-    let scratch = dx_testing::mkscratch("preset-parity-").expect("scratch");
+    let scratch_dir = dx_test_scratch::scratch("preset-parity-");
+    let scratch = scratch_dir.path();
     std::fs::create_dir_all(scratch.join("tools/bazelrc")).expect("create preset dir");
     std::fs::write(scratch.join("MODULE.bazel"), b"").expect("write module");
     std::fs::write(

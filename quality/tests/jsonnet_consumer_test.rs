@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const SETTINGS: &str = "{\n  retries: 3,\n  timeout: '30s',\n}\n";
 
@@ -84,8 +85,8 @@ fn consumer() -> Case {
 fn dx_with(root: &Case, command: &str, args: &[&str], flags: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("jsonnet-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("jsonnet-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
     argv.extend_from_slice(&["--workspace", workspace.as_str(), "//...", "--"]);
@@ -159,7 +160,8 @@ fn the_declared_jsonnetfmt_is_acquired_from_the_cache_with_the_network_denied() 
     let warm = dx(&root, "format", &[]);
     assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
 
-    let scratch = mkscratch("jsonnet-denied").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let scratch_dir = scratch("jsonnet-denied");
+    let scratch = scratch_dir.path();
     let denied = scratch.join("downloader.cfg");
     write(&denied, "allow bcr.bazel.build\nblock *\n");
     let denied_flag = format!("--downloader_config={}", denied.display());
@@ -257,7 +259,8 @@ fn the_entry_evaluates_with_its_library_to_the_checked_configuration() {
     let warm = dx(&root, "format", &[]);
     assert_eq!(warm.status.code(), Some(0), "{}", warm.combined());
 
-    let scratch = mkscratch("jsonnet-eval").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let scratch_dir = scratch("jsonnet-eval");
+    let scratch = scratch_dir.path();
     let out = scratch.join("app.json");
     let evaluated = evaluate(
         &root,

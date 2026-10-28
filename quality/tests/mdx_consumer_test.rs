@@ -1,5 +1,6 @@
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, write, Run};
 
 const HELLO_MDX: &str = "import { Chart } from \"./chart.js\";\n\nexport const meta = { title: \"Report\" };\n\n# Quarterly report\n\nRevenue grew in _this_ quarter, see **below**.\n\n* First item\n* Second item\n\n<Chart data={[1, 2, 3]} label=\"Revenue\">\n  The chart shows the trend.\n</Chart>\n\n```js\nconst total = 1 + 2;\n```\n";
 
@@ -97,8 +98,8 @@ fn consumer(files: &[(&str, &str)]) -> Case {
 fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("mdx-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("mdx-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
     argv.extend_from_slice(&[

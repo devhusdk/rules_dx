@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
-use dx_testing::{mkscratch, read, resolve_runfiles, rules_dx_source, serde_json, write, Run};
+use dx_test_scratch::scratch;
+use dx_testing::{read, resolve_runfiles, rules_dx_source, serde_json, write, Run};
 
 const CLEAN: &str = "def add(a: int, b: int) -> int:\n    return a + b\n";
 
@@ -96,8 +97,8 @@ fn dx(root: &Case, command: &str, args: &[&str]) -> Run {
 fn dx_in(root: &Case, command: &str, args: &[&str], shim: Option<&Path>) -> Run {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let workspace = root.to_string_lossy().into_owned();
-    let home = mkscratch("ruff-home").unwrap_or_else(|error| panic!("scratch: {error}"));
-    let home = home.to_string_lossy().into_owned();
+    let home_dir = scratch("ruff-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command];
     argv.extend_from_slice(args);
     argv.extend_from_slice(&[
@@ -284,11 +285,12 @@ fn format_apply_refuses_a_source_edited_during_the_run() {
     let root = consumer();
     let file = root.join("app/app.py");
     write(&file, DIRTY_FORMAT);
-    let dir = mkscratch("ruff-shim").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let dir_guard = scratch("ruff-shim");
+    let dir = dir_guard.path();
     let sentinel = dir.join("fired");
     let log = dir.join("calls.log");
-    stale_shim(&dir, &root.wrapper(), &file, &sentinel, &log);
-    let run = dx_in(&root, "format", &["--apply", "--output=json"], Some(&dir));
+    stale_shim(dir, &root.wrapper(), &file, &sentinel, &log);
+    let run = dx_in(&root, "format", &["--apply", "--output=json"], Some(dir));
     assert_eq!(run.status.code(), Some(1), "{}", run.combined());
     assert!(sentinel.exists(), "{}", run.combined());
     let calls = std::fs::read_to_string(&log).unwrap_or_default();

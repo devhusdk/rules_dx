@@ -45,6 +45,7 @@ rust_test(
     target_compatible_with = _LINUX,
     deps = [
         "//quality/adapter:quality_adapter",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -80,6 +81,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//quality/adapter:quality_adapter",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -117,6 +119,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -154,6 +157,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -226,6 +230,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -262,6 +267,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -299,6 +305,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -335,6 +342,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -372,6 +380,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -409,6 +418,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -446,6 +456,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -481,6 +492,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -516,6 +528,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -551,6 +564,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -583,6 +597,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -618,6 +633,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -653,6 +669,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -688,6 +705,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -723,6 +741,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -758,6 +777,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -793,6 +813,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -828,6 +849,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -853,6 +875,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -898,6 +921,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -933,6 +957,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -968,6 +993,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1003,6 +1029,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1038,6 +1065,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1062,6 +1090,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1107,6 +1136,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1145,7 +1175,8 @@ rust_clippy_test(
         target_compatible_with = _LINUX_X86_64,
         deps = [
             "//tools/testing:dx_nested",
-            "//tools/testing:dx_testing",
+            "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
         ],
     )
     for case in _CHECK_CONTINUATION_CASES
@@ -1185,6 +1216,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1220,6 +1252,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1255,6 +1288,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1290,6 +1324,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1325,6 +1360,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1360,6 +1396,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1395,6 +1432,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1431,6 +1469,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1466,6 +1505,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1501,6 +1541,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1536,6 +1577,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1603,6 +1645,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )
@@ -1628,6 +1671,7 @@ rust_test(
     target_compatible_with = _LINUX_X86_64,
     deps = [
         "//tools/testing:dx_nested",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
 )

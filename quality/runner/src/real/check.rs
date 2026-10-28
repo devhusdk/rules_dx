@@ -856,6 +856,19 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "dscanner" => {
+                // dscanner silently skips a file it cannot read, so read each one first.
+                for (workspace, absolute) in pairs {
+                    std::fs::read(absolute)
+                        .map_err(|err| execution(tool_id, format!("read {workspace}: {err}")))?;
+                }
+                let invocation = commands::dscanner_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_dscanner(&out.stdout, out.code, &strs),
+                )
+            }
             "typstyle" => {
                 let invocation = commands::typstyle_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

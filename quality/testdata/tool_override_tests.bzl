@@ -25,6 +25,9 @@ _ZIG_FMT_TOOL = _CANONICAL + "//zig/tools:zig"
 _D_POLICY = _CANONICAL + "//quality/testdata:d_policy"
 _DFMT_SETTING = _CANONICAL + "//config:tool_dfmt"
 _DFMT_TOOL = _CANONICAL + "//d/tools:dfmt"
+_DSCANNER_SETTING = _CANONICAL + "//config:tool_dscanner"
+_DSCANNER_TOOL = _CANONICAL + "//d/tools:dscanner"
+_D_LINT_POLICY = _CANONICAL + "//quality/testdata:d_lint_policy"
 _JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
 _JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
 _JULIA_FORMAT_TOOL = _CANONICAL + "//julia/tools:julia_format"
@@ -315,6 +318,74 @@ def dfmt_flag_tests(name, subject):
         target_under_test = subject,
     )
     _dfmt_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+
+def _d_lint_subject_impl(ctx):
+    """Exposes the resolved dscanner binary and the lint results beside the real aspect."""
+    tool = ctx.attr._dscanner[DefaultInfo].files_to_run.executable
+    wrapper = ctx.attr.target[QualityToolsInfo].tools["dscanner"].executable
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    fields = {
+        "dscanner": tool.short_path if tool else "",
+        "results": ",".join([f.short_path for f in results]),
+        "wrapper": wrapper.short_path if wrapper else "",
+    }
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = fields)]
+
+d_lint_subject = rule(
+    implementation = _d_lint_subject_impl,
+    attrs = {
+        "_dscanner": attr.label(default = "//config:tool_dscanner"),
+        "target": attr.label(
+            aspects = [real_lint_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _dscanner_default_impl(ctx):
+    """Asserts an unset flag falls back to the wrapper's dscanner."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.equals(env, "", fields["dscanner"])
+    asserts.true(env, fields["wrapper"].endswith("/dscanner") or fields["wrapper"].endswith("/dscanner.exe"), "want dscanner, got " + fields["wrapper"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
+    return analysistest.end(env)
+
+_dscanner_default_test = analysistest.make(
+    _dscanner_default_impl,
+    config_settings = {_WORKSPACE_SETTING: _D_LINT_POLICY},
+)
+
+def _dscanner_wired_impl(ctx):
+    """Asserts the flag wires dscanner and a lint stage result."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["dscanner"].endswith("/dscanner") or fields["dscanner"].endswith("/dscanner.exe"), "want dscanner, got " + fields["dscanner"])
+    asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
+    return analysistest.end(env)
+
+_dscanner_set_test = analysistest.make(
+    _dscanner_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _D_LINT_POLICY,
+        _DSCANNER_SETTING: _DSCANNER_TOOL,
+    },
+)
+
+def dscanner_flag_tests(name, subject):
+    """Instantiates the dscanner flag proofs; D targets build on linux x86_64 only."""
+    _dscanner_default_test(
+        name = name + "_default_test",
+        size = "small",
+        target_compatible_with = D_COMPATIBLE_WITH,
+        target_under_test = subject,
+    )
+    _dscanner_set_test(
         name = name + "_set_test",
         size = "small",
         target_compatible_with = D_COMPATIBLE_WITH,

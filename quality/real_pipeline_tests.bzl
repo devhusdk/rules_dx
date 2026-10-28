@@ -645,6 +645,11 @@ def real_pipeline_unit_tests(name):
                 "real aspects: table tool 'qmlformat' has no wrapper owner in _TARGET_TOOL_OWNERS",
             ),
             expect_equal(
+                "dscanner is an owned target_tool",
+                real_tool_table_shape_error({"dscanner": _SETTING_TOOL | {"capabilities": ["lint"], "target_tool": True}}),
+                "",
+            ),
+            expect_equal(
                 "dfmt is an owned target_tool",
                 real_tool_table_shape_error({"dfmt": _SETTING_TOOL | {"target_tool": True}}),
                 "",

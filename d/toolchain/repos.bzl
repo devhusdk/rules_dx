@@ -2,7 +2,7 @@
 
 load("//erlang/toolchain:pins.bzl", "CELLS")
 load("//erlang/toolchain:repos.bzl", "CLOSURE_DIR", "runtime_closure")
-load(":pins.bzl", "DFMT_VERSION", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
+load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
 
 HUB_NAME = "dx_d_toolchains"
 
@@ -146,8 +146,97 @@ d_binary(
 )
 """
 
+_CONTAINERS_BUILD = """load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "containers",
+    srcs = glob(["src/**/*.d"]),
+    imports = ["src"],
+)
+"""
+
+_INIFILED_BUILD = """load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "inifiled",
+    srcs = glob(["source/**/*.d"]),
+    imports = ["source"],
+)
+"""
+
+_DDOC_BUILD = """load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "ddoc",
+    srcs = glob([
+        "src/**/*.d",
+        "common/source/**/*.d",
+    ]),
+    imports = [
+        "common/source",
+        "src",
+    ],
+    deps = ["@dx_d_libdparse//:dparse"],
+)
+"""
+
+_DSYMBOL_BUILD = """load("@rules_d//d:defs.bzl", "d_library")
+
+package(default_visibility = ["//visibility:public"])
+
+d_library(
+    name = "dsymbol",
+    srcs = glob(
+        ["dsymbol/src/**/*.d"],
+        exclude = ["dsymbol/src/dsymbol/tests.d"],
+    ),
+    imports = ["dsymbol/src"],
+    deps = [
+        "@dx_d_containers//:containers",
+        "@dx_d_libdparse//:dparse",
+    ],
+)
+"""
+
+_DSCANNER_BUILD = """load("@rules_d//d:defs.bzl", "d_binary")
+load("@rules_dx//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "githash",
+    srcs = ["githash.txt"],
+)
+
+d_binary(
+    name = "dscanner",
+    srcs = glob(["src/**/*.d"]),
+    imports = ["src"],
+    string_srcs = [":githash"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+    deps = [
+        "@dx_d_containers//:containers",
+        "@dx_d_dcd//:dsymbol",
+        "@dx_d_inifiled//:inifiled",
+        "@dx_d_libddoc//:ddoc",
+        "@dx_d_libdparse//:dparse",
+    ],
+)
+"""
+
 TOOL_BUILDS = {
+    "dx_d_containers": _CONTAINERS_BUILD,
+    "dx_d_dcd": _DSYMBOL_BUILD,
     "dx_d_dfmt": _DFMT_BUILD,
+    "dx_d_dscanner": _DSCANNER_BUILD,
+    "dx_d_inifiled": _INIFILED_BUILD,
+    "dx_d_libddoc": _DDOC_BUILD,
     "dx_d_libdparse": _LIBDPARSE_BUILD,
 }
 
@@ -252,8 +341,8 @@ def _tool_source_impl(rctx):
     )
     for path in source.dropped:
         rctx.delete(path)
-    if rctx.attr.tool == "dx_d_dfmt":
-        rctx.file("githash.txt", "v" + DFMT_VERSION + "\n")
+    for path, content in source.files.items():
+        rctx.file(path, content)
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", TOOL_BUILDS[rctx.attr.tool])
     return rctx.repo_metadata(reproducible = True)

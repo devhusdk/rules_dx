@@ -113,6 +113,13 @@ label_flag(
 filegroup(name = "no_dfmt")
 
 label_flag(
+    name = "tool_dscanner",
+    build_setting_default = ":no_dscanner",
+)
+
+filegroup(name = "no_dscanner")
+
+label_flag(
     name = "tool_julia_format",
     build_setting_default = ":no_julia_format",
 )

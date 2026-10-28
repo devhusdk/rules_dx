@@ -133,6 +133,14 @@ _REAL_TOOL_TABLE = {
         "shard": "core",
         "target_tool": True,
     },
+    "dscanner": {
+        "attr": attr.label(default = "//config:tool_dscanner", allow_files = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "setting",
+        "resources": "medium",
+        "shard": "core",
+        "target_tool": True,
+    },
     "djlint": {
         "attr": attr.label(default = "//quality/tools/python:djlint", cfg = "exec", executable = True),
         "capabilities": ["format", "lint"],
@@ -773,6 +781,7 @@ def _fsharplint_context(target, ctx, what):
 # Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
 _TARGET_TOOL_OWNERS = {
     "dfmt": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dfmt"),
+    "dscanner": ("d_library, d_binary or d_test", "@rules_dx//d/rules:defs.bzl", "@rules_dx//d/tools:dscanner"),
     "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig/rules:defs.bzl", "@rules_dx//zig/tools:zig"),
     "julia_format": ("julia_library, julia_binary or julia_test", "@rules_dx//julia/rules:defs.bzl", "@rules_dx//julia/tools:julia_format"),
 }

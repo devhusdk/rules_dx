@@ -239,6 +239,7 @@ to.
 | `cue` | format | cue |
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
+| `dscanner` | lint | d |
 | `djlint` | format, lint | html_template |
 | `erlfmt` | format | erlang |
 | `errcheck` | lint | go |
@@ -314,15 +315,15 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 ```
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `gofumpt`, `qmlformat`, `qmllint`,
-  `julia_format`, `zig_fmt`, `dfmt`, `erlfmt`, `mix_format`, `ormolu` and
-  `nixfmt` have override flags.
+  `julia_format`, `zig_fmt`, `dfmt`, `dscanner`, `erlfmt`, `mix_format`, `ormolu`
+  and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `qmlformat`, `qmllint`, `julia_format`, `zig_fmt`, `dfmt`,
-  `erlfmt` and `mix_format` alternates must be executable targets, such as
+  `dscanner`, `erlfmt` and `mix_format` alternates must be executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
-  `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`,
+  `@rules_dx//zig/tools:zig`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//erlang/tools:erlfmt` and `@rules_dx//elixir/tools:mix_format`.
   A target without an executable fails the analysis.
 - An override that prints another diagnostic shape fails the run with the
@@ -422,6 +423,33 @@ compares it with the file and never writes. `--apply` runs `dfmt --inplace`. A
 file with a syntax error reports an error at its line and column and stays
 untouched. dx runs dfmt with its default style and LF line endings and ignores
 `.editorconfig` files for now.
+
+### D linting
+
+`dscanner` uses the pinned D-Scanner that `d_library`, `d_binary` and `d_test`
+carry. Select `dscanner` in a `d` family. No flag is needed. It runs on Linux
+x86_64 only.
+
+```python
+quality_family(
+    name = "d_family",
+    family_id = "d",
+    disabled = ["audit", "format", "typecheck"],
+    lint = ["dscanner"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint
+```
+
+To use your own D-Scanner, set
+`--@rules_dx//config:tool_dscanner=@rules_dx//d/tools:dscanner`.
+
+dx runs `dscanner --styleCheck` with the upstream default checks, so findings
+include its documentation and style rules. It ignores `dscanner.ini` files for
+now. A file with a syntax error reports an error at its line and column. There
+is no `--apply` fix.
 
 ### Erlang formatting
 

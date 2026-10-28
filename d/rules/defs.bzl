@@ -10,7 +10,10 @@ DInfo = _DInfo
 
 D_COMPATIBLE_WITH = [Label(constraint) for constraint in CELLS["linux_amd64"].exec_compatible_with]
 
-D_QUALITY_TOOLS = {"dfmt": Label("//d/tools:dfmt")}
+D_QUALITY_TOOLS = {
+    "dfmt": Label("//d/tools:dfmt"),
+    "dscanner": Label("//d/tools:dscanner"),
+}
 
 _D_EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 

@@ -11,9 +11,9 @@ def d_wrapper_contract_tests(name):
         file_classes = ["d"],
         extra_checks = [
             expect_equal(
-                "wrappers carry dfmt",
+                "wrappers carry dfmt and dscanner",
                 sorted(D_QUALITY_TOOLS.keys()),
-                ["dfmt"],
+                ["dfmt", "dscanner"],
             ),
             expect_equal(
                 "modules and interface files are owned in order",

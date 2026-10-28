@@ -245,7 +245,12 @@ func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 		if err := l.snapshot.Restore(); err != nil {
 			all = append(all, common.GenerationError{Language: languageName, Message: err.Error()})
 		}
-		reportFailure(all)
+		if l.manifest != nil {
+			if err := l.manifest.EmitFailed(all); err != nil {
+				all = append(all, common.GenerationError{Language: languageName, Message: err.Error()})
+			}
+		}
+		reportFailure(common.SortErrors(all))
 	}
 }
 

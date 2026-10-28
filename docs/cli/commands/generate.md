@@ -27,8 +27,9 @@ dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
 
 Exit codes: `0` success, `2` usage or scope errors, `1` stale files with
 `--check` or the default, a file `--apply` did not write, incomplete results, a
-missing or invalid generation result (`invalid_result`), or a patch that fails
-to render (`diff_failed`). Bazel failures keep Bazel's code.
+missing or invalid generation result (`invalid_result`), a generation error
+reported by a language extension, or a patch that fails to render
+(`diff_failed`). Bazel failures keep Bazel's code.
 
 ## Output
 
@@ -49,7 +50,11 @@ A refused change has a `reason`: `write_mismatch`, `missing_file`, or
 `ignored_import`, `level` `warning`, `path`, `language`, and `import`. A Bazel
 failure with `--apply`, or one that leaves results incomplete, emits a
 `bazel_failed` error. So does a Gazelle failure with `--check`, including a
-nonzero exit that does not come with a Gazelle diff. `command_finished` ends the stream with
+nonzero exit that does not come with a Gazelle diff. A generation error from a
+language extension emits one `generation_failed` error per entry instead, with
+`message`, `phase` `execute`, and `path` when the failing package is known. It
+is not followed by a `bazel_failed` event, and the results are incomplete.
+Text output is unchanged: Gazelle's stderr lists every error. `command_finished` ends the stream with
 `results_complete`, `exit_code`, and `changes` with `create` and `modify`
 counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
 run still emits its `change` events and `changes` with `applied` and `refused`.

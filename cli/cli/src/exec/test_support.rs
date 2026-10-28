@@ -867,6 +867,22 @@ pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored:
     intended_witness_with_result(mode, result, complete, files, ignored)
 }
 
+/// A failed-run witness: no files, an incomplete scope, and the given error
+/// objects (comma-separated JSON).
+pub(crate) fn intended_witness_failed(mode: &str, errors: &str) -> Vec<u8> {
+    let errors_value: Vec<serde_json::Value> =
+        serde_json::from_str(&format!("[{errors}]")).expect("errors JSON");
+    serde_json::to_vec(&serde_json::json!({
+        "schema_major": 1,
+        "schema_minor": 2,
+        "mode": mode,
+        "result": "failed",
+        "scopes": [{"value": "//...", "results_complete": false}],
+        "errors": errors_value,
+    }))
+    .expect("witness JSON")
+}
+
 pub(crate) fn intended_witness_with_result(
     mode: &str,
     result: &str,

@@ -764,3 +764,114 @@ func TestEmitFailsClosed(t *testing.T) {
 		})
 	}
 }
+
+func failedRecorder(t *testing.T, out string) *ManifestRecorder {
+	t.Helper()
+	rec := manifestRecorder(t, "rust")
+	rec.OutPath = out
+	rec.Mode = "check"
+	rec.Scopes = []ScopeElement{
+		{Element: "//a/...", Dirs: []string{"a"}},
+		{Element: "//...", Dirs: []string{""}},
+	}
+	return rec
+}
+
+func failedErrors() []GenerationError {
+	return []GenerationError{
+		{Language: "go", Package: "a/pkg", Message: "go broke"},
+		{Language: "cc", Message: "cc exploded"},
+		{Language: "go", Package: "a/pkg", Message: "go broke"},
+	}
+}
+
+func TestEmitFailedWritesErrorsAndIncompleteScopes(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := failedRecorder(t, out)
+	rec.Record(
+		language.GenerateArgs{Rel: "fresh", Dir: "/repo/fresh", Config: manifestConfig()},
+		language.GenerateResult{Gen: []*rule.Rule{rule.NewRule(dotKind, "fresh")}},
+	)
+	if err := rec.EmitFailed(failedErrors()); err != nil {
+		t.Fatalf("EmitFailed: %v", err)
+	}
+	manifest := readIntended(t, out)
+	if manifest.Result != IntendedResultFailed {
+		t.Errorf("result = %q, want %q", manifest.Result, IntendedResultFailed)
+	}
+	if len(manifest.Files) != 0 || len(manifest.IgnoredImports) != 0 {
+		t.Errorf("files = %+v, ignored = %+v, want none", manifest.Files, manifest.IgnoredImports)
+	}
+	for _, scope := range manifest.Scopes {
+		if scope.ResultsComplete {
+			t.Errorf("scope %+v is complete, want incomplete", scope)
+		}
+	}
+	pkg := "a/pkg"
+	want := []IntendedError{
+		{Language: "cc", Message: "cc exploded"},
+		{Language: "go", Package: &pkg, Message: "go broke"},
+	}
+	if !reflect.DeepEqual(manifest.Errors, want) {
+		t.Errorf("errors = %+v, want %+v", manifest.Errors, want)
+	}
+}
+
+func TestEmitFailedMapsRootPackageToUnknown(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	if err := failedRecorder(t, out).EmitFailed([]GenerationError{{Language: "go", Message: "m"}}); err != nil {
+		t.Fatalf("EmitFailed: %v", err)
+	}
+	if got := readIntended(t, out).Errors[0].Package; got != nil {
+		t.Errorf("package = %q, want nil", *got)
+	}
+}
+
+func TestEmitFailedMatchesGolden(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	if err := failedRecorder(t, out).EmitFailed(failedErrors()); err != nil {
+		t.Fatalf("EmitFailed: %v", err)
+	}
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	golden, err := os.ReadFile("testdata/intended_manifest_failed.json")
+	if err != nil {
+		t.Fatalf("ReadFile golden: %v", err)
+	}
+	var got, want bytes.Buffer
+	if err := json.Compact(&got, raw); err != nil {
+		t.Fatalf("Compact output: %v", err)
+	}
+	if err := json.Compact(&want, golden); err != nil {
+		t.Fatalf("Compact golden: %v", err)
+	}
+	if bytes.Equal(got.Bytes(), want.Bytes()) {
+		return
+	}
+	dir := os.Getenv("TEST_UNDECLARED_OUTPUTS_DIR")
+	if dir == "" {
+		t.Fatalf("EmitFailed output differs from testdata/intended_manifest_failed.json:\n%s", raw)
+	}
+	regenerated := filepath.Join(dir, "intended_manifest_failed.json")
+	if err := os.WriteFile(regenerated, raw, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	t.Fatalf("EmitFailed output differs from testdata/intended_manifest_failed.json; new output in %s", regenerated)
+}
+
+func TestEmitOmitsErrorsOnSuccess(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	rec := failedRecorder(t, out)
+	if err := rec.Emit(nil); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if strings.Contains(string(raw), `"errors"`) {
+		t.Errorf("success manifest %s carries errors", raw)
+	}
+}

@@ -49,6 +49,12 @@ func (s *ErrorSink) Take() []GenerationError {
 	entries := s.entries
 	s.entries = nil
 	s.mu.Unlock()
+	return SortErrors(entries)
+}
+
+// SortErrors orders entries by (Language, Package, Message), drops
+// duplicates, and returns nil when none remain. It reuses entries' storage.
+func SortErrors(entries []GenerationError) []GenerationError {
 	sort.Slice(entries, func(i, j int) bool {
 		a, b := entries[i], entries[j]
 		if a.Language != b.Language {

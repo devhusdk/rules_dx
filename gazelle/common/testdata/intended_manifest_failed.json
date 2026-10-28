@@ -1,0 +1,1 @@
+{"schema_major":1,"schema_minor":2,"mode":"check","result":"failed","scopes":[{"value":"//a/...","results_complete":false},{"value":"//...","results_complete":false}],"files":[],"ignored_imports":[],"errors":[{"language":"cc","message":"cc exploded"},{"language":"go","package":"a/pkg","message":"go broke"}]}

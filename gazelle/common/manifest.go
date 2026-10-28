@@ -19,7 +19,7 @@ import (
 
 const (
 	IntendedManifestSchemaMajor = 1
-	IntendedManifestSchemaMinor = 1
+	IntendedManifestSchemaMinor = 2
 
 	EnvIntendedManifest = "DX_GENERATE_INTENDED"
 	EnvGenerateScope    = "DX_GENERATE_SCOPE"
@@ -69,6 +69,7 @@ type IntendedResult string
 const (
 	IntendedResultClean     IntendedResult = "clean"
 	IntendedResultDiffFound IntendedResult = "diff_found"
+	IntendedResultFailed    IntendedResult = "failed"
 )
 
 type IntendedManifest struct {
@@ -79,6 +80,15 @@ type IntendedManifest struct {
 	Scopes         []IntendedScope         `json:"scopes"`
 	Files          []IntendedFile          `json:"files"`
 	IgnoredImports []IntendedIgnoredImport `json:"ignored_imports"`
+	Errors         []IntendedError         `json:"errors,omitempty"`
+}
+
+// IntendedError is one generation failure. Package is nil when the failing
+// package is unknown; a pointer to "" is the root package.
+type IntendedError struct {
+	Language string  `json:"language"`
+	Package  *string `json:"package,omitempty"`
+	Message  string  `json:"message"`
 }
 
 type PackageRecord struct {
@@ -268,6 +278,41 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 		}
 		return a.Import < b.Import
 	})
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		return r.Errorf("cannot encode intended manifest: %v", err) // LCOV_EXCL_LINE - reason: unreachable encode, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+	}
+	if err := os.WriteFile(r.OutPath, data, 0o600); err != nil {
+		return r.Errorf("cannot write intended manifest: %v", err)
+	}
+	return nil
+}
+
+// EmitFailed writes a failure manifest: result "failed", every scope
+// incomplete, no files, and errs as the reason. Gazelle may already have
+// written BUILD files, so the manifest claims no changes.
+func (r *ManifestRecorder) EmitFailed(errs []GenerationError) error {
+	manifest := IntendedManifest{
+		SchemaMajor:    IntendedManifestSchemaMajor,
+		SchemaMinor:    IntendedManifestSchemaMinor,
+		Mode:           r.Mode,
+		Result:         IntendedResultFailed,
+		Scopes:         []IntendedScope{},
+		Files:          []IntendedFile{},
+		IgnoredImports: []IntendedIgnoredImport{},
+	}
+	for _, scope := range r.Scopes {
+		manifest.Scopes = append(manifest.Scopes, IntendedScope{Value: scope.Element})
+	}
+	sorted := SortErrors(append([]GenerationError(nil), errs...))
+	for _, e := range sorted {
+		item := IntendedError{Language: e.Language, Message: e.Message}
+		if e.Package != "" {
+			pkg := e.Package
+			item.Package = &pkg
+		}
+		manifest.Errors = append(manifest.Errors, item)
+	}
 	data, err := json.Marshal(manifest)
 	if err != nil {
 		return r.Errorf("cannot encode intended manifest: %v", err) // LCOV_EXCL_LINE - reason: unreachable encode, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

@@ -4,7 +4,10 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//visibility:private"])
 
 exports_files(
-    ["testdata/intended_manifest.json"],
+    [
+        "testdata/intended_manifest.json",
+        "testdata/intended_manifest_failed.json",
+    ],
     visibility = ["//cli/plan:__pkg__"],
 )
 
@@ -109,7 +112,10 @@ go_test(
         "tsconfig_test.go",
         "webcomponent_test.go",
     ],
-    data = ["testdata/intended_manifest.json"],
+    data = [
+        "testdata/intended_manifest.json",
+        "testdata/intended_manifest_failed.json",
+    ],
     embed = [":common"],
     pure = "on",
 )

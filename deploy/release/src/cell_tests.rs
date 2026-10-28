@@ -982,12 +982,22 @@ fn qualify_main_and_verify_main_run_from_flags() {
             &release.expected.workflow_ref,
         ])
     };
-    let summary = verify_main(&verify_args(&"a".repeat(40))).expect("verify");
+    let (ok, summary) = verify_main(&verify_args(&"a".repeat(40))).expect("verify");
+    assert!(ok);
     assert_eq!(summary.lines().count(), 2);
-    assert!(summary.starts_with("dx-linux-x86_64-tar-gz dx-linux-x86_64-tar-gz.tar.gz sha256 "));
+    assert!(summary
+        .starts_with("dx-linux-x86_64-tar-gz qualified dx-linux-x86_64-tar-gz.tar.gz sha256 "));
     assert!(summary.contains(" version 1.2.3 job cell (dx-linux-x86_64) run 77\n"));
-    let error = verify_main(&verify_args("stale")).expect_err("stale");
-    assert_eq!(error.lines().count(), 2, "{error}");
+    let (ok, stale) = verify_main(&verify_args("stale")).expect("stale");
+    assert!(!ok);
+    assert!(
+        stale.contains("dx-linux-x86_64-tar-gz rejected\n  "),
+        "{stale}"
+    );
+    assert!(
+        stale.contains("dx-linux-x86_64-zip rejected\n  "),
+        "{stale}"
+    );
     assert_eq!(
         verify_main(&strings(&["--records", "r"])),
         Err("missing --matrix".to_owned())
@@ -1034,4 +1044,74 @@ fn verify_each_accepts_a_clean_release() {
     );
     assert!(verification.ok());
     assert!(verification.cells.iter().all(CellOutcome::qualified));
+}
+
+#[test]
+fn render_verification_lists_every_cell_in_matrix_order() {
+    let broken = release();
+    broken.edit(TAR, |value| value["version"] = "9.9.9".into());
+    std::fs::remove_file(broken.records().join("dx-linux-x86_64-zip.json")).expect("remove");
+    std::fs::write(broken.records().join("junk.json"), "{").expect("junk");
+    let verification = verify_each(
+        &broken.matrix,
+        &broken.records(),
+        &broken.archives(),
+        &broken.expected,
+    );
+    let text = render_verification(&verification);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines[0], "dx-linux-x86_64-tar-gz rejected");
+    assert!(lines[1].starts_with("  version is \"9.9.9\""), "{text}");
+    assert_eq!(lines[2], "dx-linux-x86_64-zip rejected");
+    assert_eq!(lines[3], "  no record");
+    assert!(lines[4].starts_with("stray: "), "{text}");
+    assert_eq!(lines.len(), 5);
+    assert_eq!(text, render_verification(&verification));
+    let clean = release();
+    let text = render_verification(&verify_each(
+        &clean.matrix,
+        &clean.records(),
+        &clean.archives(),
+        &clean.expected,
+    ));
+    assert_eq!(text.lines().count(), 2);
+    assert!(
+        text.lines().all(|line| line.contains(" qualified ")),
+        "{text}"
+    );
+}
+
+#[test]
+fn printed_version_takes_the_first_dx_line() {
+    assert_eq!(printed_version("dx 1.2.3\nother\n"), Ok("1.2.3".to_owned()));
+    assert_eq!(
+        printed_version("banner\ndx 0.4.0-rc.1 (abc)\ndx 9\n"),
+        Ok("0.4.0-rc.1 (abc)".to_owned())
+    );
+    assert!(printed_version("")
+        .expect_err("empty")
+        .starts_with("no `dx <version>` line"));
+    assert!(printed_version("dx \nfoo\n").is_err());
+    assert!(printed_version("dxx 1\n").is_err());
+}
+
+#[test]
+fn version_main_asks_the_executable() {
+    let exe = ["--exe", "/bin/dx"].map(str::to_owned);
+    assert_eq!(
+        version_main(&exe, &FakeRunner::new()),
+        Ok("1.2.3".to_owned())
+    );
+    let mut runner = FakeRunner::new();
+    runner.fail = vec!["version"];
+    assert!(version_main(&exe, &runner)
+        .expect_err("failed")
+        .contains("version broke"));
+    runner = FakeRunner::new();
+    runner.version = "nothing\n".to_owned();
+    assert!(version_main(&exe, &runner).is_err());
+    assert_eq!(
+        version_main(&[], &FakeRunner::new()),
+        Err("missing --exe".to_owned())
+    );
 }

@@ -969,21 +969,13 @@ pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, 
     Ok(record)
 }
 
-/// Runs `verify` from flags and returns one summary line per cell.
-pub fn verify_main(args: &[String]) -> Result<String, String> {
-    let parsed = parse_verify_args(args)?;
-    let records = verify(
-        &parsed.matrix,
-        &parsed.records,
-        &parsed.archives,
-        &parsed.expected,
-    )
-    .map_err(|errors| errors.join("\n"))?;
-    Ok(records
-        .iter()
-        .map(|record| {
-            format!(
-                "{} {} sha256 {} sha {} version {} job {} run {}\n",
+/// Renders one block per cell in matrix order, then the problems no cell owns.
+pub fn render_verification(verification: &Verification) -> String {
+    let mut text = String::new();
+    for outcome in &verification.cells {
+        match (&outcome.record, outcome.qualified()) {
+            (Some(record), true) => text.push_str(&format!(
+                "{} qualified {} sha256 {} sha {} version {} job {} run {}\n",
                 record.cell,
                 record.archive.name,
                 record.archive.sha256,
@@ -991,9 +983,56 @@ pub fn verify_main(args: &[String]) -> Result<String, String> {
                 record.version,
                 record.job,
                 record.run_id
-            )
-        })
-        .collect())
+            )),
+            _ => {
+                text.push_str(&format!("{} rejected\n", outcome.cell));
+                for reason in &outcome.reasons {
+                    text.push_str(&format!("  {reason}\n"));
+                }
+            }
+        }
+    }
+    for problem in &verification.stray {
+        text.push_str(&format!("stray: {problem}\n"));
+    }
+    text
+}
+
+/// Runs `verify` from flags and returns whether every cell qualified, with the per-cell text.
+/// `Err` is only for bad flags or a bad matrix.
+pub fn verify_main(args: &[String]) -> Result<(bool, String), String> {
+    let parsed = parse_verify_args(args)?;
+    let verification = verify_each(
+        &parsed.matrix,
+        &parsed.records,
+        &parsed.archives,
+        &parsed.expected,
+    );
+    Ok((verification.ok(), render_verification(&verification)))
+}
+
+pub const VERSION_USAGE: &str = "version --exe <path>";
+
+/// Takes the version from the first `dx <version>` line of `dx version` output.
+pub fn printed_version(stdout: &str) -> Result<String, String> {
+    stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("dx "))
+        .map(|rest| rest.trim().to_owned())
+        .filter(|version| !version.is_empty())
+        .ok_or_else(|| format!("no `dx <version>` line in {:?}", stdout.trim()))
+}
+
+/// Runs `version` from flags: asks the executable for its version and returns it.
+pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, String> {
+    let flags = parse_flags(args, &["exe"], &[])?;
+    let stdout = ran(
+        runner,
+        Path::new(&flag(&flags, "exe")),
+        &["version"],
+        Path::new("."),
+    )?;
+    printed_version(&stdout)
 }
 
 #[cfg(test)]

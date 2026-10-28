@@ -933,3 +933,21 @@ fn extensions_lists_literal_use_extension_calls() {
         vec![("@a//:e.bzl", "ext"), ("//:l.bzl", "l")]
     );
 }
+
+#[test]
+fn labeled_loader_pairs_files_with_include_labels() {
+    let read = |label: &str| -> Result<String, String> {
+        match label {
+            "//:a.MODULE.bazel" => Ok("include(\"//:b.MODULE.bazel\")\n".to_owned()),
+            "//:b.MODULE.bazel" => Ok("bazel_dep(name = \"x\", version = \"1\")\n".to_owned()),
+            other => Err(other.to_owned()),
+        }
+    };
+    let files =
+        load_with_includes_labeled("include(\"//:a.MODULE.bazel\")\n", &read).expect("loads");
+    let labels: Vec<Option<&str>> = files.iter().map(|(l, _)| l.as_deref()).collect();
+    assert_eq!(
+        labels,
+        [None, Some("//:a.MODULE.bazel"), Some("//:b.MODULE.bazel")]
+    );
+}

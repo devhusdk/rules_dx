@@ -1024,6 +1024,18 @@ pub fn load_with_includes(
     root_text: &str,
     read_include: &dyn Fn(&str) -> Result<String, String>,
 ) -> Result<Vec<ModuleFile>, String> {
+    Ok(load_with_includes_labeled(root_text, read_include)?
+        .into_iter()
+        .map(|(_, file)| file)
+        .collect())
+}
+
+/// Like [`load_with_includes`], pairing each file with the include label it came from
+/// (`None` for the root), so a finding can name its file.
+pub fn load_with_includes_labeled(
+    root_text: &str,
+    read_include: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<Vec<(Option<String>, ModuleFile)>, String> {
     let mut files = Vec::new();
     let mut seen = BTreeSet::new();
     collect_module(root_text, None, read_include, &mut seen, &mut files)?;
@@ -1098,7 +1110,7 @@ fn collect_module(
     label: Option<&str>,
     read_include: &dyn Fn(&str) -> Result<String, String>,
     seen: &mut BTreeSet<String>,
-    files: &mut Vec<ModuleFile>,
+    files: &mut Vec<(Option<String>, ModuleFile)>,
 ) -> Result<(), String> {
     let module = ModuleFile::parse(text).map_err(|error| match label {
         Some(label) => format!("{label}: {error}"),
@@ -1120,7 +1132,7 @@ fn collect_module(
             }
         }
     }
-    files.push(module);
+    files.push((label.map(str::to_owned), module));
     for label in labels {
         if !seen.insert(label.clone()) {
             return Err(format!("MODULE.bazel includes {label} more than once"));

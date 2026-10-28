@@ -1,5 +1,6 @@
 node_modules
 quality/tools/javascript/node_modules
+examples/astro-app/node_modules
 examples/node-app/node_modules
 examples/node-app/registry/node_modules
 .opencode/

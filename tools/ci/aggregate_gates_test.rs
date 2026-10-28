@@ -267,6 +267,17 @@ fn ci_can_be_dispatched_but_takes_no_inputs() {
 }
 
 #[test]
+fn ci_runs_on_a_schedule_so_main_has_a_known_result() {
+    let on = triggers(CI_WORKFLOW);
+    let cron = on["schedule"][0]["cron"]
+        .as_str()
+        .expect("ci.yml needs a schedule cron");
+    let minute = cron.split_whitespace().next().unwrap();
+    assert_ne!(minute, "0", "schedule must avoid the top of the hour: {cron}");
+    assert!(minute.chars().all(|c| c.is_ascii_digit()), "{cron}");
+}
+
+#[test]
 fn every_matrix_cell_records_its_runner_image() {
     for (workflow, job) in [
         (CI_WORKFLOW, "preflight"),

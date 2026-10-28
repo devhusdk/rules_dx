@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "PLATFORM_CONSTRAINTS", "PLATFORM_FALLBACKS", "PARTIAL_TOOL_PLATFORMS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms", "resolved_entries")
+load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "EMULATED_TOOLS", "PARTIAL_TOOL_PLATFORMS", "PLATFORM_CONSTRAINTS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "decode_artifacts", "encode_artifacts", "hub_build", "no_match_error", "ordered_platforms", "resolved_entries")
 
 _CONSTRAINT_LABELS = {
     "cpu_arm64": "@platforms//cpu:arm64",
@@ -37,10 +37,17 @@ _NATIVE = {_FIXTURE_TOOL: dict(_FIXTURE_REPOS, windows_arm64 = _FIXTURE_REPOS["l
 
 # Tools allowed to ship artifacts on selectable platforms outside the qualified
 # TOOL_PLATFORMS set, and the only such platforms each may use.
-_UNQUALIFIED_ALLOWLIST = {
-    "wasmtime": ["macos_x86_64"],
-    "uv": ["windows_arm64"],
-}
+# The windows_arm64 part is derived: every tool with a native pin there.
+_NATIVE_WINDOWS_ARM64 = sorted([
+    a["tool"]
+    for a in TOOL_ARTIFACTS
+    if a["os"] == "windows" and a["cpu"] == "arm64"
+])
+
+_UNQUALIFIED_ALLOWLIST = dict(
+    {tool: ["windows_arm64"] for tool in _NATIVE_WINDOWS_ARM64},
+    wasmtime = ["macos_x86_64", "windows_arm64"],
+)
 
 def _artifact_repo(artifact):
     """Returns the tool repository name one artifact is fetched into."""
@@ -123,6 +130,15 @@ def _unit_checks():
         checks.append(expect_equal(tool + " partial platforms equal its released qualified platforms", [p for p in ordered_platforms(released[tool]) if p in TOOL_PLATFORMS], PARTIAL_TOOL_PLATFORMS[tool]))
     for platform in ARTIFACT_PLATFORMS:
         checks.append(expect_contains("the rendered hub declares the " + platform + " config_setting", rendered, '    name = "%s",' % platform))
+    emulated = EMULATED_TOOLS["windows_arm64"]
+    checks.append(expect_equal("the emulated windows_arm64 inventory is sorted", emulated, sorted(emulated)))
+    for tool in sorted(released.keys()):
+        if "windows_x86_64" in released[tool]:
+            native = "windows_arm64" in released[tool]
+            checks.append(expect_true(tool + " is natively pinned or listed as emulated on windows_arm64, not both", native != (tool in emulated)))
+    for tool in emulated:
+        checks.append(expect_true(tool + " is emulated on windows_arm64 so it has a windows_x86_64 pin", tool in released and "windows_x86_64" in released[tool]))
+        checks.append(expect_false(tool + " is emulated on windows_arm64 so it has no native pin", tool in released and "windows_arm64" in released[tool]))
     for tool in sorted(released.keys()):
         platforms = ordered_platforms(released[tool])
         checks.append(expect_equal(tool + " keeps one branch per supported platform", [platform for platform in platforms if platform in TOOL_PLATFORMS], PARTIAL_TOOL_PLATFORMS.get(tool, TOOL_PLATFORMS)))

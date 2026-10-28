@@ -215,7 +215,7 @@ fn signatures_docs_types_and_sources_come_from_yard() {
     for symbol in &shard.symbols {
         assert_eq!(
             extension(symbol, "ruby.config"),
-            Some("ruby=3.4.9;yard=0.9.45;format=1"),
+            Some("ruby=3.4.12;yard=0.9.45;format=1"),
             "{}",
             symbol.id
         );

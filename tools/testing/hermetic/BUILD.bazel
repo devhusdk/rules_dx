@@ -2,15 +2,18 @@ load("@crates//:crates.bzl", "aliases", "crate_deps")
 load("//powershell/rules:defs.bzl", "pwsh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
-load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
+load(":defs.bzl", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
-exports_files([
-    "consumers/cuda/module_fragment.bazel",
-    "qualification_test.rs",
-], visibility = VIS_TOOLS_CLI_TEST)
+exports_files(
+    [
+        "consumers/cuda/module_fragment.bazel",
+        "qualification_test.rs",
+    ],
+    visibility = VIS_TOOLS_CLI_TEST,
+)
 
 LINUX = ["@platforms//os:linux"]
 
@@ -456,6 +459,56 @@ hermetic_qualification(
     languages = ["msix"],
     module_fragment = "consumers/msix/module_fragment.bazel",
     patterns = ["//..."],
+)
+
+rust_test(
+    name = "cuda_gpu_facts_test",
+    size = "small",
+    srcs = ["cuda_gpu_test.rs"],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# Needs a CUDA GPU; run it by hand: bazel test //tools/testing/hermetic:cuda_gpu_nested_test
+nested_bazel_test(
+    name = "cuda_gpu_nested_test",
+    size = "enormous",
+    srcs = ["cuda_gpu_test.rs"],
+    args = ["--ignored"],
+    data = [
+        "consumers/cuda/module_fragment.bazel",
+        "//:module_srcs",
+        "//examples/cuda-app/gpu:BUILD.bazel",
+        "//examples/cuda-app/gpu:gpu_test.cu",
+        "//examples/cuda-app/kernels:common.cuh",
+        "//examples/cuda-app/kernels:kernels.h",
+        "//examples/cuda-app/kernels:reduce.cu",
+        "//examples/cuda-app/kernels:stencil.cu",
+        "//examples/cuda-app/kernels:vector_add.cu",
+    ],
+    env = {
+        "DX_CUDA_FILES": " ".join([
+            "$(rlocationpath //examples/cuda-app/gpu:BUILD.bazel)=examples/cuda-app/gpu/BUILD.bazel",
+            "$(rlocationpath //examples/cuda-app/gpu:gpu_test.cu)=examples/cuda-app/gpu/gpu_test.cu",
+            "$(rlocationpath //examples/cuda-app/kernels:common.cuh)=examples/cuda-app/kernels/common.cuh",
+            "$(rlocationpath //examples/cuda-app/kernels:kernels.h)=examples/cuda-app/kernels/kernels.h",
+            "$(rlocationpath //examples/cuda-app/kernels:reduce.cu)=examples/cuda-app/kernels/reduce.cu",
+            "$(rlocationpath //examples/cuda-app/kernels:stencil.cu)=examples/cuda-app/kernels/stencil.cu",
+            "$(rlocationpath //examples/cuda-app/kernels:vector_add.cu)=examples/cuda-app/kernels/vector_add.cu",
+        ]),
+        "DX_CUDA_FRAGMENT": "$(rlocationpath consumers/cuda/module_fragment.bazel)",
+    },
+    network = True,
+    tags = [
+        "manual",
+        "requires-gpu",
+    ],
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 pwsh_test(

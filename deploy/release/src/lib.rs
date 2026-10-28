@@ -13,6 +13,7 @@ use std::path::Path;
 
 pub mod candidate;
 pub mod cell;
+mod deploy;
 pub mod inventory;
 mod provenance;
 mod publish;
@@ -32,6 +33,10 @@ pub use publish::{
     publish_dry_run_check, sha256sum_line, PublishDryRunInputs, PublishDryRunOutcome, REPORT_SCHEMA,
 };
 
+pub use deploy::{
+    bcr_deploy, release_deploy_tool_main, signing_deploy, BcrDeployConfig, ReleaseDeployConfig,
+    SigningDeployConfig,
+};
 pub use tool::release_tool_run;
 
 use spdx::SpdxDocument;

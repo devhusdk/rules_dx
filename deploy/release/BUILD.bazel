@@ -39,6 +39,7 @@ exports_files([
     "signing_tests.bzl",
     "src/bin_publish_dry_run_check.rs",
     "src/bin_release_cell.rs",
+    "src/bin_release_deploy_tool.rs",
     "src/bin_release_driver.rs",
     "src/bin_release_tool.rs",
     "src/bin_source_archive.rs",
@@ -49,6 +50,7 @@ rust_library(
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
+        "src/deploy.rs",
         "src/inventory.rs",
         "src/lib.rs",
         "src/provenance.rs",
@@ -93,6 +95,23 @@ rust_binary(
     ) + [":dx_release_tools"],
 )
 
+rust_binary(
+    name = "release_deploy_tool",
+    srcs = ["src/bin_release_deploy_tool.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_deploy_tool",
+    crate_root = "src/bin_release_deploy_tool.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
 rust_test(
     name = "dx_release_tools_test",
     size = "small",
@@ -100,6 +119,7 @@ rust_test(
         "src/candidate.rs",
         "src/cell.rs",
         "src/cell_tests.rs",
+        "src/deploy.rs",
         "src/inventory.rs",
         "src/lib.rs",
         "src/provenance.rs",
@@ -208,7 +228,10 @@ _TESTED_RELEASE_BINS = [
     "source_archive",
 ]
 
-_RELEASE_BINS = ["release_tool"] + _TESTED_RELEASE_BINS
+_RELEASE_BINS = [
+    "release_tool",
+    "release_deploy_tool",
+] + _TESTED_RELEASE_BINS
 
 rustfmt_test(
     name = "dx_release_tools_fmt_test",
@@ -545,6 +568,7 @@ real_source_target(
         "signing_tests.bzl",
         "cosign_pins.bzl",
         "repos.bzl",
+        "tool.bzl",
     ],
     tags = ["corpus"],
 )

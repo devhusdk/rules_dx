@@ -262,6 +262,10 @@ PLATFORM_NOT_APPLICABLE = {
         "windows_x86_64": "AppImage is a Linux format",
         "windows_arm64": "AppImage is a Linux format",
     },
+    "cuda": {
+        "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",
+        "windows_arm64": "NVIDIA ships no CUDA toolkit for Windows arm64",
+    },
     "dart": {
         "windows_arm64": "rules_dart 0.8.0 ships no Windows arm64 SDK",
     },
@@ -281,7 +285,8 @@ TOOL_NOT_APPLICABLE = {}
 
 GAP_ISSUES = {
     "build:apple:*": 4540,
-    "build:cuda:*": 4541,
+    "build:cuda:linux_arm64": 4541,
+    "build:cuda:windows_x86_64": 4541,
     "build:d:windows_*": 4542,
     "build:elixir:*": 4544,
     "build:erlang:*": 4545,

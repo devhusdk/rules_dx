@@ -1037,8 +1037,33 @@ fn prettier_fix_failure_keeps_original_text() {
 
 fn prettier_config_argv(
     argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    prettier_config_argv_ending(argv, cwd, env, "cfg/.prettierrc.json")
+}
+
+fn prettier_external_config_argv(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    prettier_config_argv_ending(argv, cwd, env, "_external/shared_prettier+/cfg/.prettierrc.json")
+}
+
+fn never_spawned(
+    _argv: &[OsString],
     _cwd: &Path,
     _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    panic!("a config that escapes the scratch must fail before the tool starts");
+}
+
+fn prettier_config_argv_ending(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+    suffix: &str,
 ) -> io::Result<ChildOutput> {
     let args: Vec<String> = argv
         .iter()
@@ -1059,7 +1084,7 @@ fn prettier_config_argv(
     }
     let cfg = Path::new(bound[0]);
     assert!(cfg.is_absolute());
-    assert!(cfg.ends_with("cfg/.prettierrc.json"));
+    assert!(cfg.ends_with(suffix));
     assert!(cfg.exists());
     Ok(ChildOutput {
         code: Some(0),
@@ -1080,6 +1105,41 @@ fn prettier_hinted_config_reaches_the_tool() {
         .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
         .expect("diagnosed");
     assert!(findings.is_empty());
+}
+
+#[test]
+fn prettier_external_config_reaches_the_tool() {
+    let rel = "_external/shared_prettier+/cfg/.prettierrc.json";
+    let tool = RealTool {
+        config_rel: Some(rel.to_owned()),
+        tool_files: vec![(rel.to_owned(), b"{}".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("prettier", tool, prettier_external_config_argv);
+    let findings = backend
+        .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn prettier_raw_parent_dir_config_never_reaches_the_tool() {
+    let rel = "../shared_prettier+/cfg/.prettierrc.json";
+    let make = || RealTool {
+        config_rel: Some(rel.to_owned()),
+        tool_files: vec![(rel.to_owned(), b"{}".to_vec())],
+        ..plain_tool()
+    };
+    let backend = backend_for("prettier", make(), never_spawned);
+    let err = backend
+        .diagnose("prettier", "format", &single("src/a.js", "const x = 1;\n"))
+        .expect_err("escaping config must fail");
+    assert!(format!("{err:?}").contains("escapes scratch"), "{err:?}");
+    let backend = backend_for("prettier", make(), never_spawned);
+    let err = backend
+        .apply_fix("prettier", "src/a.js", "const x = 1;\n", "format")
+        .expect_err("escaping config must fail in fix too");
+    assert!(format!("{err:?}").contains("escapes scratch"), "{err:?}");
 }
 
 #[test]

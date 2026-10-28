@@ -9,6 +9,7 @@ load(
     "native_config_error",
     "native_config_extension",
     "native_config_extensions",
+    "native_config_scratch_rel",
 )
 
 _HINTS = [
@@ -38,6 +39,24 @@ def native_config_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "native_config_scratch_rel keeps in-repo paths and remaps external ones",
+                [
+                    native_config_scratch_rel("pkg/.prettierrc.json"),
+                    native_config_scratch_rel("../shared_prettier+/cfg/.prettierrc.json"),
+                    native_config_scratch_rel("../+ext+x/a.json"),
+                ],
+                [
+                    "pkg/.prettierrc.json",
+                    "_external/shared_prettier+/cfg/.prettierrc.json",
+                    "_external/+ext+x/a.json",
+                ],
+            ),
+            expect_equal(
+                "native_config_scratch_rel rejects remaining parent segments",
+                [native_config_scratch_rel("../a/../../b"), native_config_scratch_rel("pkg/../../x")],
+                [None, None],
+            ),
             expect_equal(
                 "native_config_extension pins the buildifier/biome JSON transport",
                 [

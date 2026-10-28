@@ -88,6 +88,15 @@ def _native_config_suffix_error(tool_id, config_path, wants):
     return ("native_config (" + tool_id + "): src must end in one of " +
             ", ".join(quoted) + ", got " + config_path)
 
+def native_config_scratch_rel(short_path):
+    """Maps a short_path to a scratch-relative path ('../repo/p' -> '_external/repo/p'), or None if it still escapes."""
+    rel = short_path
+    if rel.startswith("../"):
+        rel = "_external/" + rel[3:]
+    if ".." in rel.split("/"):
+        return None
+    return rel
+
 def native_config_error(tool_id, config_path, config_is_source, data, allow_generated = False):
     """Returns the validation error for a native config, or "" when valid."""
     if tool_id not in _NATIVE_CONFIG_SUFFIXES:

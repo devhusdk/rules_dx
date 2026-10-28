@@ -600,10 +600,10 @@ fn hold_build(started: &Path, stop: &Path) -> String {
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_nanos());
+    let started = started.to_string_lossy().replace('\\', "/");
+    let stop = stop.to_string_lossy().replace('\\', "/");
     format!(
-        "genrule(\n    name = \"hold\",\n    outs = [\"hold.txt\"],\n    cmd = \"touch {started}; i=0; while [ ! -e {stop} ] && [ $$i -lt 600 ]; do sleep 0.1; i=$$((i+1)); done; echo {nonce} > $@\",\n    tags = [\"no-cache\", \"no-remote\", \"no-sandbox\", \"local\"],\n)\n",
-        started = started.display(),
-        stop = stop.display(),
+        "genrule(\n    name = \"hold\",\n    outs = [\"hold.txt\"],\n    cmd = \"touch {started}; i=0; while [ ! -e {stop} ] && [ $$i -lt 600 ]; do sleep 0.1; i=$$((i+1)); done; echo {nonce} > $@\",\n    cmd_ps = \"New-Item -ItemType File -Force -Path '{started}' | Out-Null; $$i = 0; while (-not (Test-Path '{stop}') -and $$i -lt 600) {{ Start-Sleep -Milliseconds 100; $$i++ }}; Set-Content -Path $@ -Value {nonce}\",\n    tags = [\"no-cache\", \"no-remote\", \"no-sandbox\", \"local\"],\n)\n",
     )
 }
 
@@ -652,24 +652,6 @@ fn completion_falls_back_quietly_when_the_server_is_busy() {
     assert!(failures.is_empty(), "over ceiling: {failures:?}");
 }
 
-struct Resume(u32);
-
-impl Resume {
-    fn signal(&self, name: &str) {
-        let _ = std::process::Command::new("kill")
-            .arg(name)
-            .arg(self.0.to_string())
-            .stderr(std::process::Stdio::null())
-            .status();
-    }
-}
-
-impl Drop for Resume {
-    fn drop(&mut self) {
-        self.signal("-CONT");
-    }
-}
-
 #[test]
 fn completion_falls_back_quietly_when_the_server_hangs() {
     let case = nested::case("hung");
@@ -680,14 +662,13 @@ fn completion_falls_back_quietly_when_the_server_hangs() {
     let pids = case.servers();
     assert_eq!(pids.len(), 1, "one server expected: {pids:?}");
     let pid = pids[0];
-    let resume = Resume(pid);
-    resume.signal("-STOP");
+    let mut frozen = nested::suspend(pid).unwrap_or_else(|error| panic!("{error}"));
 
     let mut failures = Vec::new();
     let times = fell_back(&case, &expected, &COMPLETE_HUNG, &mut rec);
     settle(&COMPLETE_HUNG, times, &mut failures);
 
-    resume.signal("-CONT");
+    assert!(frozen.resume(), "resume {pid}");
     let answer = case.bazel(&["query", "//pkg:all"]);
     assert_eq!(answer.status.code(), Some(0), "{}", answer.combined());
     assert!(failures.is_empty(), "over ceiling: {failures:?}");

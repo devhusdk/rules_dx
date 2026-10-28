@@ -12,6 +12,7 @@ load(":fixtures_tests.bzl", "fixtures_unit_tests")
 load(":js_responsibilities_tests.bzl", "js_responsibilities_unit_tests")
 load(":native_config.bzl", "checkstyle_config", "vale_config")
 load(":native_config_tests.bzl", "native_config_unit_tests")
+load(":nvcc_syntax_tests.bzl", "nvcc_syntax_unit_tests")
 load(":parity_tests.bzl", "parity_unit_tests")
 load(":pipeline_tests.bzl", "pipeline_unit_tests")
 load(":policy.bzl", "quality_family", "workspace_policy")
@@ -619,6 +620,8 @@ support_unit_tests(name = "support_unit")
 
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
+nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
+
 test_suite(
     name = "all",
     tests = [
@@ -696,6 +699,8 @@ real_source_target(
         "js_responsibilities_tests.bzl",
         "native_config.bzl",
         "native_config_tests.bzl",
+        "nvcc_syntax.bzl",
+        "nvcc_syntax_tests.bzl",
         "parity_tests.bzl",
         "pipeline.bzl",
         "pipeline_tests.bzl",

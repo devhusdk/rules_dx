@@ -56,6 +56,7 @@ pub mod mix_format;
 pub mod modfmt;
 pub mod nixfmt;
 pub mod notebook_outputs;
+pub mod nvcc_syntax;
 pub mod opa;
 pub mod ormolu;
 pub mod perlcritic;
@@ -159,6 +160,7 @@ pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
 pub use nixfmt::parse_nixfmt;
 pub use notebook_outputs::parse_notebook_outputs;
+pub use nvcc_syntax::parse_nvcc_syntax;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use perlcritic::parse_perlcritic;
@@ -1902,6 +1904,14 @@ mod tests {
         super::nixfmt::parse_nixfmt(input, input, code, files)
     }
 
+    fn fuzz_nvcc_syntax(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::nvcc_syntax::parse_nvcc_syntax(input, code, files)
+    }
+
     fn fuzz_ormolu(
         input: &[u8],
         code: Option<i32>,
@@ -2635,6 +2645,7 @@ mod tests {
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
         ("nixfmt", fuzz_nixfmt),
+        ("nvcc_syntax", fuzz_nvcc_syntax),
         ("ormolu", fuzz_ormolu),
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
@@ -2747,6 +2758,7 @@ mod tests {
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
         ("nixfmt", include_str!("nixfmt.rs")),
+        ("nvcc_syntax", include_str!("nvcc_syntax.rs")),
         ("ormolu", include_str!("ormolu.rs")),
         ("opa", include_str!("opa.rs")),
         ("perlcritic", include_str!("perlcritic.rs")),

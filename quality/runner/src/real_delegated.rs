@@ -1389,6 +1389,20 @@ fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
     tool
 }
 
+fn nvcc_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
+    let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let mut tool = delegated_tool(log.to_path_buf());
+    tool.tool_files = exit
+        .map(|text| {
+            vec![(
+                format!("dx-nvcc-syntax/{stem}/exit"),
+                text.as_bytes().to_vec(),
+            )]
+        })
+        .unwrap_or_default();
+    tool
+}
+
 const TSC_SOURCE: &str = "export const n: number = 'x';\n";
 const TSC_OWNED: &str =
     "src/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n";
@@ -1443,6 +1457,52 @@ fn delegated_clang_syntax_fails_closed() {
     }
     let error = backend_for("clang_syntax", plain_tool(), must_not_spawn)
         .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+        .expect_err("no upstream");
+    assert!(error.to_string().contains("requires upstream diagnostics"));
+}
+
+#[test]
+fn delegated_nvcc_syntax_reads_clean_and_dirty_logs() {
+    let clean = upstream_file("nvcc_syntax", "");
+    let backend = backend_for(
+        "nvcc_syntax",
+        nvcc_syntax_tool(clean.path(), Some("0\n")),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+        .expect("clean");
+    assert!(found.is_empty());
+
+    let dirty = upstream_file(
+        "nvcc_syntax",
+        "src/a.cu(1): error: identifier \"x\" is undefined\n",
+    );
+    let backend = backend_for(
+        "nvcc_syntax",
+        nvcc_syntax_tool(dirty.path(), Some("1\n")),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+        .expect("dirty");
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn delegated_nvcc_syntax_fails_closed() {
+    let log = upstream_file("nvcc_syntax", "");
+    for (tool, needle) in [
+        (nvcc_syntax_tool(log.path(), None), "exit status"),
+        (nvcc_syntax_tool(log.path(), Some("1")), "exit 1"),
+    ] {
+        let error = backend_for("nvcc_syntax", tool, must_not_spawn)
+            .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+            .expect_err("fail closed");
+        assert!(error.to_string().contains(needle), "{error}");
+    }
+    let error = backend_for("nvcc_syntax", plain_tool(), must_not_spawn)
+        .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
         .expect_err("no upstream");
     assert!(error.to_string().contains("requires upstream diagnostics"));
 }

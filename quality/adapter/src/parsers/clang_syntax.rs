@@ -11,7 +11,7 @@ const SEVERITIES: [(&str, Option<ToolSeverity>); 5] = [
 ];
 
 /// One located diagnostic line: file, line, column, severity (None for notes), message.
-fn diagnostic(line: &str) -> Option<(&str, u64, u64, Option<ToolSeverity>, &str)> {
+pub(super) fn diagnostic(line: &str) -> Option<(&str, u64, u64, Option<ToolSeverity>, &str)> {
     let (at, word, severity) = SEVERITIES
         .iter()
         .filter_map(|(word, severity)| {
@@ -27,7 +27,7 @@ fn diagnostic(line: &str) -> Option<(&str, u64, u64, Option<ToolSeverity>, &str)
 }
 
 /// One `In file included from path:line:` (clang) or `from path:line,` (GCC) entry.
-fn include_entry(line: &str) -> Option<(&str, u64)> {
+pub(super) fn include_entry(line: &str) -> Option<(&str, u64)> {
     let rest = line
         .strip_prefix("In file included from ")
         .or_else(|| line.trim_start().strip_prefix("from "))?;

@@ -1,0 +1,108 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+load(":report.bzl", "nvcc_syntax_report")
+
+cuda_library(
+    name = "dep",
+    srcs = [],
+    hdrs = [
+        "dep.cuh",
+        "host_only.cuh",
+    ],
+    archs = ["sm_89"],
+    includes = ["."],
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_library(
+    name = "clean",
+    srcs = ["clean.cu"],
+    archs = ["sm_89"],
+    copts = ["-DCLEAN_OFFSET=1"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":dep"],
+)
+
+# Two architectures: nvcc prints a device warning once per -gencode, the parser
+# must report it once.
+cuda_library(
+    name = "two_archs",
+    srcs = ["two_archs.cu"],
+    archs = [
+        "sm_80",
+        "sm_89",
+    ],
+    copts = ["-DCLEAN_OFFSET=1"],
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":dep"],
+)
+
+cuda_library(
+    name = "dirty",
+    srcs = ["dirty.cu"],
+    archs = ["sm_89"],
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+    deps = [":dep"],
+)
+
+nvcc_syntax_report(
+    name = "clean_report",
+    target = ":clean",
+    target_compatible_with = CUDA_TARGET,
+)
+
+nvcc_syntax_report(
+    name = "dirty_report",
+    target = ":dirty",
+    target_compatible_with = CUDA_TARGET,
+)
+
+nvcc_syntax_report(
+    name = "two_archs_report",
+    target = ":two_archs",
+    target_compatible_with = CUDA_TARGET,
+)
+
+# The include path and the -D come from the target's own compile action, so the
+# clean source passes only when the replay carries the real context.
+sh_test(
+    name = "clean_test",
+    srcs = ["check.sh"],
+    args = [
+        "0",
+        "-",
+        "$(rootpaths :clean_report)",
+    ],
+    data = [":clean_report"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+# The __host__ call from __global__ code is the regression guard against adding
+# -fdevice-syntax-only, which exits 0 on it.
+sh_test(
+    name = "dirty_test",
+    srcs = ["check.sh"],
+    args = [
+        "1",
+        "dirty.cu(6)",
+        "$(rootpaths :dirty_report)",
+    ],
+    data = [":dirty_report"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+# Replays every -gencode: the warning is in the log (once per arch; the parser
+# collapses the duplicates, see parsers/nvcc_syntax.rs) and the exit is clean.
+sh_test(
+    name = "two_archs_test",
+    srcs = ["check.sh"],
+    args = [
+        "0",
+        "177-D",
+        "$(rootpaths :two_archs_report)",
+    ],
+    data = [":two_archs_report"],
+    target_compatible_with = CUDA_TARGET,
+)

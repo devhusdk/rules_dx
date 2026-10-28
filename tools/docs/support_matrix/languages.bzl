@@ -283,7 +283,6 @@ GAP_ISSUES = {
     "support:*": 4441,
     "starter:dart": 1783,
     "typecheck:astro": 1767,
-    "typecheck:cuda": 4594,
     "typecheck:d": 4530,
     "typecheck:fortran": 4530,
     "typecheck:fsharp": 4529,

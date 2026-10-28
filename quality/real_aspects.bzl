@@ -24,6 +24,7 @@ load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
+load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
@@ -424,6 +425,12 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "medium",
         "shard": "haskell",
+    },
+    "nvcc_syntax": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "cc",
     },
     "ormolu": {
         "attr": attr.label(default = "//config:tool_ormolu", allow_files = True, cfg = "exec"),
@@ -1329,6 +1336,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             fail(what + ": clang_syntax and clang_tidy need a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
         clang_syntax = target[ClangSyntaxInfo]
 
+    nvcc_syntax = None
+    if "nvcc_syntax" in [stage["tool"] for stage in resolved]:
+        if NvccSyntaxInfo not in target:
+            fail(what + ": nvcc_syntax needs a cuda_library or cuda_objects target with a CudaCompile action (a header-only library has none)")
+        nvcc_syntax = target[NvccSyntaxInfo]
+
     sql_dialect = None
     if "prettier" in [stage["tool"] for stage in resolved] and SqlDialectInfo in target:
         sql_dialect = target[SqlDialectInfo].dialect
@@ -1703,6 +1716,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 stem = clang_syntax.diagnostics[i].basename.rpartition(".")[0]
                 tool_files.append(real_request_tool_file("dx-clang-syntax/" + stem + "/exit", clang_syntax.statuses[i].path))
                 inputs.append(clang_syntax.statuses[i])
+        if tool == "nvcc_syntax":
+            for i in range(len(nvcc_syntax.diagnostics)):
+                upstream.append(nvcc_syntax.diagnostics[i].path)
+                inputs.append(nvcc_syntax.diagnostics[i])
+                stem = nvcc_syntax.diagnostics[i].basename.rpartition(".")[0]
+                tool_files.append(real_request_tool_file("dx-nvcc-syntax/" + stem + "/exit", nvcc_syntax.statuses[i].path))
+                inputs.append(nvcc_syntax.statuses[i])
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -1840,8 +1860,8 @@ _REAL_SHARD_SPECS = {
     },
     "real_cc_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive C/C++/Objective-C typecheck family aspect (compiler -fsyntax-only replay).",
-        "requires": [clang_syntax_aspect],
+        "doc": "Additive C/C++/Objective-C/CUDA typecheck family aspect (compiler -fsyntax-only replay, nvcc -cuda replay).",
+        "requires": [clang_syntax_aspect, nvcc_syntax_aspect],
         "shard": "cc",
         "suffix": "-cc",
     },

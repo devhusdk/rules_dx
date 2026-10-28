@@ -1,0 +1,25 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load(":luals.bzl", "luals_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["luals.bzl"])
+
+luals_tool(
+    name = "luals",
+    binary = select({
+        "@platforms//os:windows": "@dx_luals//:bin/lua-language-server.exe",
+        "//conditions:default": "@dx_luals//:bin/lua-language-server",
+    }),
+    tree = "@dx_luals//:tree",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "luals.bzl",
+    ],
+    tags = ["corpus"],
+)

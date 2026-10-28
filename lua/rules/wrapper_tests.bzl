@@ -73,7 +73,7 @@ def lua_wrapper_contract_tests(name):
             expect_equal(
                 "deferred tags are added once",
                 lua_deferred_tags(["no-lint", "manual"]),
-                ["no-lint", "manual", "no-typecheck"],
+                ["no-lint", "manual"],
             ),
         ],
     )

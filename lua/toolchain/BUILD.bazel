@@ -1,13 +1,19 @@
 load("//modules:versions.bzl", "TESTED_LUA")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":metadata_tests.bzl", "lua_metadata_tests")
 load(":toolchain.bzl", "lua_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "BUILD.bazel",
+    "metadata_tests.bzl",
+    "pins.bzl",
+    "repos.bzl",
     "toolchain.bzl",
 ])
+
+lua_metadata_tests(name = "metadata")
 
 toolchain_type(name = "toolchain_type")
 
@@ -29,6 +35,9 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "metadata_tests.bzl",
+        "pins.bzl",
+        "repos.bzl",
         "toolchain.bzl",
     ],
     tags = ["corpus"],

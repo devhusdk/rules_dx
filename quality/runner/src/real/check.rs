@@ -769,6 +769,85 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "luals" => {
+                // LuaLS reports file URIs of the real paths, so analyse and match canonical ones.
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
+                for (workspace, absolute) in pairs {
+                    let real = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    owned.push((real, absolute));
+                }
+                let work = root.join(".dx-luals");
+                std::fs::create_dir_all(&work)
+                    .map_err(|err| execution(tool_id, format!("stage luals work dir: {err}")))?;
+                let library = tool
+                    .tool_files
+                    .iter()
+                    .any(|(rel, _)| rel.starts_with("dx-luals/mod/"))
+                    .then(|| root.join("dx-luals/mod"));
+                // A consumer config is a flat .luarc.json object; .jsonc is not read.
+                let consumer: Option<serde_json::Value> = match config.as_deref() {
+                    Some(path) => {
+                        let text = std::fs::read_to_string(path).map_err(|err| {
+                            execution(tool_id, format!("read luals config: {err}"))
+                        })?;
+                        Some(serde_json::from_str(&text).map_err(|err| {
+                            execution(
+                                tool_id,
+                                format!(
+                                    "luals config is not plain JSON (.jsonc is unsupported): {err}"
+                                ),
+                            )
+                        })?)
+                    }
+                    None => None,
+                };
+                let luarc = work.join("luarc.json");
+                std::fs::write(
+                    &luarc,
+                    commands::luals_luarc(
+                        consumer.as_ref(),
+                        library.as_deref(),
+                        &["dx-luals", ".dx-luals"],
+                    ),
+                )
+                .map_err(|err| execution(tool_id, format!("write luals config: {err}")))?;
+                let report = work.join("check.json");
+                let invocation = commands::luals_check(&tool.binary, &root, &work, &report, &luarc);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                // LuaLS exits 0 with findings, so only the report tells a run from a crash.
+                let body = std::fs::read(&report).map_err(|err| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "no report (exit {:?}): {err}: {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr)
+                                .lines()
+                                .next()
+                                .unwrap_or("")
+                        ),
+                    )
+                })?;
+                let real_names: Vec<String> = owned
+                    .iter()
+                    .map(|(real, _)| real.to_string_lossy().into_owned())
+                    .collect();
+                let real_strs: Vec<&str> = real_names.iter().map(String::as_str).collect();
+                let mut findings = parsed(tool_id, parsers::parse_luals(&body, &real_strs))?;
+                for found in &mut findings {
+                    if let Some((_, absolute)) = owned
+                        .iter()
+                        .find(|(real, _)| real.to_string_lossy() == found.file.as_str())
+                    {
+                        found.file = absolute.to_string_lossy().into_owned();
+                    }
+                }
+                Ok(findings)
+            }
             "phpstan" => {
                 // PHPStan reports realpaths, so analyse and match the canonical ones.
                 let root = std::fs::canonicalize(scratch.root()).map_err(|err| {

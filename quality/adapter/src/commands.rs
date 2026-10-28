@@ -112,6 +112,7 @@ const DIALYZER_ARGS: &[&str] = &[
 ];
 
 const PHPCS_ARGS: &[&str] = &["--report=json", "-q", "--no-colors", "--no-cache"];
+const LUALS_ARGS: &[&str] = &["--checklevel=Warning", "--check_format=json"];
 const PHPSTAN_ARGS: &[&str] = &[
     "analyse",
     "--no-progress",
@@ -1029,6 +1030,61 @@ pub fn phpcs_check(binary: &Path, standard: &OsStr, paths: &[&Path]) -> Invocati
         argv,
         cwd_rel: String::new(),
     }
+}
+
+/// `lua-language-server --check` over a workspace root; the JSON report goes to `report`.
+/// The log and the generated meta files go below `work`, never into the install tree.
+pub fn luals_check(
+    binary: &Path,
+    root: &Path,
+    work: &Path,
+    report: &Path,
+    luarc: &Path,
+) -> Invocation {
+    let flag = |name: &str, path: &Path| {
+        let mut arg = OsString::from(name);
+        arg.push(path.as_os_str());
+        arg
+    };
+    let mut argv = vec![binary.as_os_str().to_owned(), flag("--check=", root)];
+    argv.extend(LUALS_ARGS.iter().map(OsString::from));
+    argv.push(flag("--check_out_path=", report));
+    argv.push(flag("--logpath=", &work.join("log")));
+    argv.push(flag("--metapath=", &work.join("meta")));
+    argv.push(flag("--configpath=", luarc));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+/// The generated LuaLS config. The consumer's settings (a flat `.luarc.json` object) come
+/// first; the keys below always win: the Lua version, the library directory, no diagnostics
+/// in libraries and the ignored staging directories. Without a consumer config the
+/// diagnostics are LuaLS's defaults.
+pub fn luals_luarc(
+    consumer: Option<&serde_json::Value>,
+    library: Option<&Path>,
+    ignore_dirs: &[&str],
+) -> String {
+    let mut object = match consumer {
+        Some(serde_json::Value::Object(map)) => map.clone(),
+        _ => serde_json::Map::new(),
+    };
+    object.remove("$schema");
+    object.insert("runtime.version".to_owned(), "Lua 5.4".into());
+    let libraries: Vec<serde_json::Value> = library
+        .map(|dir| vec![dir.to_string_lossy().into_owned().into()])
+        .unwrap_or_default();
+    object.insert("workspace.library".to_owned(), libraries.into());
+    object.insert("workspace.checkThirdParty".to_owned(), false.into());
+    object.insert("diagnostics.libraryFiles".to_owned(), "Disable".into());
+    object.insert("workspace.ignoreDir".to_owned(), ignore_dirs.into());
+    object.insert(
+        "runtime.path".to_owned(),
+        vec!["?.lua", "?/init.lua"].into(),
+    );
+    serde_json::Value::Object(object).to_string()
 }
 
 /// `phpstan analyse` over the owned sources with a generated config, JSON on stdout.

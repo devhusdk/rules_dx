@@ -21,6 +21,13 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_luals",
+    build_setting_default = ":no_luals",
+)
+
+filegroup(name = "no_luals")
+
+label_flag(
     name = "tool_nixfmt",
     build_setting_default = "@dx_tools//:nixfmt",
 )

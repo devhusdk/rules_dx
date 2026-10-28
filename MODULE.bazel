@@ -685,6 +685,9 @@ single_version_override(
 
 register_toolchains("//lua/toolchain:all")
 
+lua_tools = use_extension("//lua/toolchain:repos.bzl", "lua")
+use_repo(lua_tools, "dx_luals")
+
 php = use_extension("//php/toolchain:repos.bzl", "php")
 use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpcs", "dx_phpstan", "dx_phpunit")
 

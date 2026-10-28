@@ -54,6 +54,9 @@ _ELIXIR_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:elixir_typecheck_pol
 _DIALYZER_SETTING = _CANONICAL + "//config:tool_dialyzer"
 _DIALYZER_TOOL = _CANONICAL + "//erlang/tools:dialyzer"
 _PHP_LINT_POLICY = _CANONICAL + "//quality/testdata:php_lint_policy"
+_LUA_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:lua_typecheck_policy"
+_LUALS_SETTING = _CANONICAL + "//config:tool_luals"
+_LUALS_TOOL = _CANONICAL + "//lua/tools:luals"
 _PHP_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:php_typecheck_policy"
 _PHPCS_SETTING = _CANONICAL + "//config:tool_phpcs"
 _PHPCS_TOOL = _CANONICAL + "//php/tools:phpcs"
@@ -296,6 +299,22 @@ erlang_typecheck_subject = rule(
     implementation = _erlang_typecheck_subject_impl,
     attrs = {
         "_dialyzer": attr.label(default = "//config:tool_dialyzer"),
+        "target": attr.label(
+            aspects = [real_typecheck_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _lua_typecheck_subject_impl(ctx):
+    """Exposes the luals request files beside the real aspect."""
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = {"results": ",".join([f.short_path for f in results])})]
+
+lua_typecheck_subject = rule(
+    implementation = _lua_typecheck_subject_impl,
+    attrs = {
+        "_luals": attr.label(default = "//config:tool_luals"),
         "target": attr.label(
             aspects = [real_typecheck_aspect],
             mandatory = True,
@@ -1193,6 +1212,42 @@ def phpstan_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_phpstan",
     )
     _phpstan_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_luals_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _LUA_TYPECHECK_POLICY},
+)
+
+def _luals_wired_impl(ctx):
+    """Asserts the flag wires a typecheck stage result for the lua target."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["results"] != "", "want a typecheck stage result for the lua target")
+    return analysistest.end(env)
+
+_luals_set_test = analysistest.make(
+    _luals_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _LUA_TYPECHECK_POLICY,
+        _LUALS_SETTING: _LUALS_TOOL,
+    },
+)
+
+def luals_flag_tests(name, subject):
+    """Instantiates the luals flag proofs."""
+    _luals_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_luals",
+    )
+    _luals_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

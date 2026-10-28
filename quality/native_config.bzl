@@ -62,6 +62,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "hadolint": [".yaml", ".yml"],
     "kubeconform": [".kubeconform.json"],
     "latexindent": [".yaml", ".yml"],
+    "luals": [".json"],
     "checkmake": [".ini"],
     "phpcs": [".xml", ".xml.dist"],
     "phpstan": [".neon", ".neon.dist"],
@@ -292,6 +293,8 @@ tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")
 
 elvis_config = _make_native_config_rule("elvis")
+
+luals_config = _make_native_config_rule("luals")
 
 phpcs_config = _make_native_config_rule("phpcs")
 

@@ -4897,6 +4897,92 @@ fn phpcs_is_check_only() {
     );
 }
 
+fn luals_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let flag = |name: &str| {
+        text.iter()
+            .find_map(|a| a.strip_prefix(name))
+            .expect("flag")
+            .to_owned()
+    };
+    let root = flag("--check=");
+    let luarc = std::fs::read_to_string(flag("--configpath=")).expect("generated luarc");
+    assert!(luarc.contains("dx-luals/mod"), "{luarc}");
+    assert!(luarc.contains("\"Lua 5.4\""), "{luarc}");
+    assert!(flag("--logpath=").contains(".dx-luals"));
+    assert!(flag("--metapath=").contains(".dx-luals"));
+    let body = format!(
+        r#"{{"file://{root}/lib/bad.lua":[{{"code":"param-type-mismatch","message":"Cannot assign","range":{{"start":{{"line":2,"character":4}}}},"severity":2}}],"file://{root}/dx-luals/mod/dep.lua":[{{"code":"x","message":"dep","range":{{"start":{{"line":0,"character":0}}}},"severity":2}}]}}"#
+    );
+    std::fs::write(flag("--check_out_path="), body)?;
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn luals_tool() -> RealTool {
+    RealTool {
+        tool_files: vec![("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec())],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn luals_writes_its_config_keeps_owned_findings_and_maps_paths_back() {
+    let backend = backend_for("luals", luals_tool(), luals_report);
+    let findings = backend
+        .diagnose(
+            "luals",
+            "typecheck",
+            &single("lib/bad.lua", "local x = 1\nlocal y = 2\nf('a')\n"),
+        )
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(seen, vec![("lib/bad.lua", "luals/param-type-mismatch")]);
+}
+
+#[test]
+fn luals_without_a_report_fails_the_run() {
+    fn crash(
+        _argv: &[OsString],
+        _cwd: &Path,
+        _env: &[(OsString, OsString)],
+    ) -> io::Result<ChildOutput> {
+        Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: b"boom".to_vec(),
+        })
+    }
+    let backend = backend_for("luals", luals_tool(), crash);
+    assert!(backend
+        .diagnose("luals", "typecheck", &single("lib/a.lua", "return 1\n"))
+        .is_err());
+}
+
+#[test]
+fn luals_is_check_only() {
+    let backend = backend_for("luals", luals_tool(), luals_report);
+    assert_eq!(
+        backend
+            .apply_fix("luals", "lib/a.lua", "return 1\n", "typecheck")
+            .expect("check-only"),
+        "return 1\n"
+    );
+}
+
 fn phpstan_report(
     argv: &[OsString],
     _cwd: &Path,

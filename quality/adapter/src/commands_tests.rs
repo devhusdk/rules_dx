@@ -2832,3 +2832,56 @@ fn check_jsonschema_argv_is_offline_and_verbose() {
     );
     assert_eq!(transport_for("check_jsonschema"), ArgTransport::Batched);
 }
+
+#[test]
+fn luals_check_keeps_every_write_below_the_work_directory() {
+    let invocation = luals_check(
+        Path::new(BIN),
+        Path::new("/s"),
+        Path::new("/s/.dx-luals"),
+        Path::new("/s/.dx-luals/check.json"),
+        Path::new("/s/.dx-luals/luarc.json"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--check=/s",
+            "--checklevel=Warning",
+            "--check_format=json",
+            "--check_out_path=/s/.dx-luals/check.json",
+            "--logpath=/s/.dx-luals/log",
+            "--metapath=/s/.dx-luals/meta",
+            "--configpath=/s/.dx-luals/luarc.json",
+        ]
+    );
+}
+
+#[test]
+fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
+    let consumer: serde_json::Value = serde_json::from_str(
+        r#"{"$schema":"x","runtime.version":"LuaJIT","workspace.library":["/elsewhere"],"diagnostics.globals":["vim"]}"#,
+    )
+    .unwrap();
+    let text = luals_luarc(
+        Some(&consumer),
+        Some(Path::new("/s/dx-luals/mod")),
+        &["dx-luals"],
+    );
+    let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(parsed["runtime.version"], "Lua 5.4");
+    assert_eq!(
+        parsed["workspace.library"],
+        serde_json::json!(["/s/dx-luals/mod"])
+    );
+    assert_eq!(parsed["diagnostics.globals"], serde_json::json!(["vim"]));
+    assert_eq!(parsed["diagnostics.libraryFiles"], "Disable");
+    assert_eq!(parsed["workspace.checkThirdParty"], false);
+    assert_eq!(
+        parsed["workspace.ignoreDir"],
+        serde_json::json!(["dx-luals"])
+    );
+    assert!(parsed.get("$schema").is_none());
+    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(None, None, &[])).unwrap();
+    assert_eq!(bare["workspace.library"], serde_json::json!([]));
+}

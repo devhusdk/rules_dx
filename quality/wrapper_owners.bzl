@@ -11,6 +11,7 @@ WRAPPER_OWNERS = {
     "astro": "//astro/rules:defs.bzl",
     "cc": "//cc/rules:defs.bzl",
     "csharp": "//csharp/rules:defs.bzl",
+    "cloudformation": "//cloudformation/rules:defs.bzl",
     "css": "//javascript/rules:defs.bzl",
     "cuda": "//cuda/rules:defs.bzl",
     "cue": "//cue/rules:defs.bzl",

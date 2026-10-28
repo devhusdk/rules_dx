@@ -124,12 +124,31 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "consumer_surface",
+    size = "small",
+    srcs = ["surface_test.rs"],
+    data = [
+        "consumer_surface.txt",
+        "//docs:command_docs",
+        "@dx_consumer_surface//:closure.txt",
+    ],
+    env = {
+        "DX_SURFACE_CLOSURE": "$(rootpath @dx_consumer_surface//:closure.txt)",
+        "DX_SURFACE_LIST": "$(rootpath consumer_surface.txt)",
+        "DX_SURFACE_README": "docs/cli/commands/README.md",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
         "repos.bzl",
+        "surface.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
@@ -141,6 +160,7 @@ real_source_target(
     rust_srcs = [
         "completion_test.rs",
         "entrypoint_test.rs",
+        "surface_test.rs",
     ],
     tags = ["corpus"],
 )
@@ -151,5 +171,6 @@ rustfmt_test(
     targets = [
         ":consumer_dx_completion",
         ":consumer_dx_entry",
+        ":consumer_surface",
     ],
 )

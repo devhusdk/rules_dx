@@ -1026,6 +1026,11 @@ pub fn cue_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, CUE_FIX_ARGS, files, "")
 }
 
+/// One batched lint. It prints nothing when every file is clean.
+pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, &[], files, "")
+}
+
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_CHECK_ARGS, files, "")
 }

@@ -56,6 +56,7 @@ REAL_ADAPTERS = {
     "checkmake": {"lint": ["make"]},
     "google_java_format": {"format": ["java"]},
     "govet": {"lint": ["go"]},
+    "jsonnet_lint": {"lint": ["jsonnet"]},
     "jsonnetfmt": {"format": ["jsonnet"]},
     "julia_format": {"format": ["julia"]},
     "keep_sorted": {"lint": ["text"]},

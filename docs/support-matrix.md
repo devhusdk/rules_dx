@@ -81,7 +81,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | Lua | no | `stylua` on `linux_x86_64` | no |
 | MDX | `eslint` | `remark` on `linux_x86_64` | no |
 | OCaml | no | no | no |
-| Perl | no | no | no |
+| Perl | no | `perltidy` | no |
 | PHP | no | no | no |
 | PowerShell | `psscriptanalyzer` on `linux_x86_64` | `psscriptanalyzer` on `linux_x86_64` | no |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
@@ -102,13 +102,13 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. "on" l
 | FlatBuffers | `flatc` on `linux_x86_64` | no | no |
 | Gherkin | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | HTML templates | `djlint` on `linux_x86_64` | `djlint` on `linux_x86_64` | no |
-| Jsonnet | no | `jsonnetfmt` on `linux_x86_64` | no |
+| Jsonnet | `jsonnet_lint` on `linux_x86_64` | `jsonnetfmt` on `linux_x86_64` | no |
 | Jupyter | `notebook_outputs` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64`, `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `ruff` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Kubernetes | `kubeconform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no | no |
 | LaTeX | `chktex` unsupported | `latexindent` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Nix | `deadnix` on `linux_x86_64`, `statix` on `linux_x86_64` | `nixfmt` on `linux_x86_64` | no |
 | Pkl | no | `pkl` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
-| Rego | no | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
+| Rego | `regal` on `linux_x86_64` | `opa` on `linux_x86_64` | `opa` on `linux_x86_64` |
 | SQL | no | `prettier` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Terraform | `tflint` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | `terraform` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |
 | Typst | no | `typstyle` on `linux_x86_64`, `linux_arm64`, `macos_arm64`, `windows_x86_64` | no |

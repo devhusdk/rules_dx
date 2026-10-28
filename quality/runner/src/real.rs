@@ -40,6 +40,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "govet",
     "graphql_eslint",
     "hadolint",
+    "jsonnet_lint",
     "jsonnetfmt",
     "julia_format",
     "keep_sorted",

@@ -874,6 +874,14 @@ impl RealBackend {
                     Ok(findings)
                 }
             }
+            "jsonnet_lint" => {
+                let invocation = commands::jsonnet_lint_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_jsonnet_lint(&out.stdout, &out.stderr, out.code, &strs),
+                )
+            }
             "jsonnetfmt" => {
                 let invocation = commands::jsonnetfmt_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

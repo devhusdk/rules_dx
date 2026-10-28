@@ -45,6 +45,7 @@ pub fn spec(command: Command) -> CommandSpec {
                 "quality:real_aspects.bzl%real_kubernetes_lint_aspect",
                 "quality:real_aspects.bzl%real_ansible_lint_aspect",
                 "quality:real_aspects.bzl%real_rego_lint_aspect",
+                "quality:real_aspects.bzl%real_jsonnet_lint_aspect",
             ],
             probe: Some("quality:real_aspects.bzl%real_lint_probe_aspect"),
             reports: &[StandardFormat::Sarif],
@@ -305,6 +306,7 @@ mod tests {
                 "quality:real_aspects.bzl%real_kubernetes_lint_aspect",
                 "quality:real_aspects.bzl%real_ansible_lint_aspect",
                 "quality:real_aspects.bzl%real_rego_lint_aspect",
+                "quality:real_aspects.bzl%real_jsonnet_lint_aspect",
             ]
         );
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);

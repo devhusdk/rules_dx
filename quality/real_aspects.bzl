@@ -265,6 +265,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "jsonnet",
     },
+    "jsonnet_lint": {
+        "attr": attr.label(default = "@dx_tools//:jsonnet_lint", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["lint"],
+        "kind": "file",
+        "resources": "light",
+        "shard": "jsonnet",
+    },
     "keep_sorted": {
         "attr": attr.label(default = "@dx_tools//:keep_sorted", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -1166,7 +1173,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
-    if "jsonnetfmt" in stage_tools:
+    if "jsonnetfmt" in stage_tools or "jsonnet_lint" in stage_tools:
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
             if ".." in ws_path.split("/") or f.extension not in ["jsonnet", "libsonnet", "json"]:
@@ -1683,6 +1690,12 @@ _REAL_SHARD_SPECS = {
         "shard": "jsonnet",
         "suffix": "-jsonnet",
     },
+    "real_jsonnet_lint": {
+        "capability": "lint",
+        "doc": "Additive Jsonnet lint family aspect (jsonnet-lint).",
+        "shard": "jsonnet",
+        "suffix": "-jsonnet",
+    },
     "real_typst_format": {
         "capability": "format",
         "doc": "Additive Typst format family aspect (typstyle).",
@@ -1907,6 +1920,8 @@ real_go_format_aspect = _make_real_aspect("real_go_format")
 real_cue_format_aspect = _make_real_aspect("real_cue_format")
 
 real_jsonnet_format_aspect = _make_real_aspect("real_jsonnet_format")
+
+real_jsonnet_lint_aspect = _make_real_aspect("real_jsonnet_lint")
 
 real_typst_format_aspect = _make_real_aspect("real_typst_format")
 

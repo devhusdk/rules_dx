@@ -1,0 +1,69 @@
+load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//examples/julia-app:__subpackages__"])
+
+_FORMATTED = [
+    "clean.jl",
+    "//examples/julia-app/archive:archive_test.jl",
+    "//examples/julia-app/archive:src/Archive.jl",
+    "//examples/julia-app/cli:cli_test.jl",
+    "//examples/julia-app/cli:main.jl",
+    "//examples/julia-app/cli:report_test.jl",
+    "//examples/julia-app/cli:src/Report.jl",
+    "//examples/julia-app/stats:src/Stats.jl",
+    "//examples/julia-app/stats:stats_test.jl",
+]
+
+rust_test(
+    name = "diagnostics_test",
+    size = "medium",
+    srcs = ["diagnostics_test.rs"],
+    data = [
+        "clean.jl",
+        "missing_dep.jl",
+        "runtime_error.jl",
+        "syntax_error.jl",
+        "unformatted.jl",
+        "//julia/tools:julia_format",
+        "@rules_julia//julia:current_julia_toolchain",
+    ] + _FORMATTED[1:],
+    env = {
+        "DX_CLEAN": "$(rootpath clean.jl)",
+        "DX_FORMAT": "$(rootpath //julia/tools:julia_format)",
+        "DX_FORMAT_SRCS": " ".join(["$(rootpath %s)" % src for src in _FORMATTED]),
+        "DX_JULIA": "$(JULIA_RLOCATIONPATH)",
+        "DX_MISSING_DEP": "$(rootpath missing_dep.jl)",
+        "DX_RUNTIME": "$(rootpath runtime_error.jl)",
+        "DX_SYNTAX": "$(rootpath syntax_error.jl)",
+        "DX_UNFORMATTED": "$(rootpath unformatted.jl)",
+    },
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    toolchains = ["@rules_julia//julia:current_julia_toolchain"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "diagnostics_fmt_test",
+    size = "small",
+    targets = [":diagnostics_test"],
+)
+
+rust_clippy_test(
+    name = "diagnostics_clippy_test",
+    size = "small",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    targets = [":diagnostics_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//examples:__pkg__",
+        "//tools/ci:__pkg__",
+    ],
+)

@@ -6,9 +6,11 @@ Nothing needs to be installed.
 ## Start
 
 `dx new --apply julia demo-app` scaffolds a package with `DemoApp`,
-`DemoApp_bin` and `DemoApp_test` targets. The library is named after the
-module because rules_julia only precompiles when the label matches
-`src/<label>.jl`.
+`DemoApp_bin` and `DemoApp_test` targets. Name each library after its module
+and keep the source in `src/<label>.jl`: that is the layout rules_julia needs
+to precompile. The wrappers name the upstream target `<name>_upstream`, so
+until #4606 is fixed libraries still compile on first load and a syntax error
+fails at run time, not at build time.
 
 ```python
 load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
@@ -32,6 +34,9 @@ julia_test(
 ```
 
 The wrappers forward to `rules_julia` and add the `julia` quality class.
+[`examples/julia-app`](../examples/julia-app/README.md) is a multi-package app
+with a lockfile hub, a `Bzip2_jll` binary dependency, runfiles data and a
+diagnostics package.
 
 ## Generate
 

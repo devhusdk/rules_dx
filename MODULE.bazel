@@ -515,6 +515,17 @@ julia_pkg.pkg_annotation(
 )
 use_repo(julia_pkg, "dx_julia_format")
 
+julia_pkg_dev = use_extension(
+    "@rules_julia//julia/pkg:extensions.bzl",
+    "pkg",
+    dev_dependency = True,
+)
+julia_pkg_dev.from_manifest(
+    name = "julia_app_pkgs",
+    lockfile = "//examples/julia-app/third_party:Manifest.bazel.json",
+)
+use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
+
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_perl", version = "1.5.0")
 single_version_override(

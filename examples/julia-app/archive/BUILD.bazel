@@ -1,0 +1,30 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_library", "julia_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob([
+    "*.jl",
+    "src/*.jl",
+]))
+
+julia_library(
+    name = "Archive",
+    srcs = ["src/Archive.jl"],
+    data = ["Project.toml"],
+    deps = ["@julia_app_deps//:Bzip2_jll"],
+)
+
+julia_test(
+    name = "archive_test",
+    srcs = ["archive_test.jl"],
+    deps = [":Archive"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

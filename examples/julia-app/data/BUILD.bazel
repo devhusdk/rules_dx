@@ -1,0 +1,20 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["readings.tsv"])
+
+genrule(
+    name = "readings_csv",
+    srcs = ["readings.tsv"],
+    outs = ["readings.csv"],
+    cmd = "tr '\\t' ',' < $< > $@",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//examples:__pkg__"],
+)

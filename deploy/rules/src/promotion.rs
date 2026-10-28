@@ -279,7 +279,7 @@ pub(crate) const PROMOTION_GATE: OwnerGate = OwnerGate {
     live: "PROMOTION_LIVE",
 };
 
-/// Runs the promotion deploy launcher.
+/// Runs the promotion deploy tool.
 pub fn promotion_main(
     artifact_rloc: &str,
     deploy_name: &str,

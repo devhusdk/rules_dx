@@ -1,9 +1,8 @@
 """Staging-to-production promotion publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
 _VALID_ENVIRONMENT_CHARS = NAME_CHARS
 
@@ -18,8 +17,7 @@ def promotion_environment_error(environment):
                 "': want a non-empty environment (for example 'staging')")
     if not only_chars(environment, _VALID_ENVIRONMENT_CHARS):
         return ("promotion_deploy: invalid environment '" + environment +
-                "': want only [A-Za-z0-9._-] so the environment embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def promotion_version_error(version):
@@ -29,8 +27,7 @@ def promotion_version_error(version):
                 "': want a non-empty version (for example '1.2.3')")
     if not only_chars(version, _VALID_VERSION_CHARS):
         return ("promotion_deploy: invalid version '" + version +
-                "': want only [A-Za-z0-9._-+] so the version embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-+]")
     return ""
 
 def promotion_artifact_error(filename):
@@ -45,10 +42,6 @@ def promotion_artifact_error(filename):
     if not matched:
         return ("promotion_deploy: invalid artifact '" + filename +
                 "': want one of .tar.gz, .tar, .tgz, .whl, .jar, .nupkg, .zip")
-    if has_any(filename, EMBED_UNSAFE):
-        return ("promotion_deploy: invalid artifact '" + filename +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the filename embeds safely in the deploy launcher")
     return ""
 
 def promotion_edge_error(from_environment, to_environment):
@@ -58,8 +51,8 @@ def promotion_edge_error(from_environment, to_environment):
                 to_environment + "': source and target environments must differ")
     return ""
 
-def _promotion_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one promotion deployment."""
+def _promotion_config_impl(ctx):
+    """Writes the deploy config for one promotion deployment."""
     artifact_files = ctx.attr.artifact[DefaultInfo].files.to_list()
     if len(artifact_files) != 1:
         fail("promotion_deploy " + str(ctx.label) + ": artifact " +
@@ -69,26 +62,26 @@ def _promotion_launcher_impl(ctx):
     artifact_error = promotion_artifact_error(artifact_file.basename)
     if artifact_error != "":
         fail(artifact_error + " (in " + str(ctx.label) + ")")
-    artifact_rloc = rlocation_path(ctx, artifact_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const ARTIFACT_RLOC: &str = \"" + artifact_rloc + "\";\n" +
-                  "const DEPLOY_NAME: &str = \"" + ctx.attr.deploy_name + "\";\n" +
-                  "const FROM_ENV: &str = \"" + ctx.attr.from_environment + "\";\n" +
-                  "const TO_ENV: &str = \"" + ctx.attr.to_environment + "\";\n" +
-                  "const VERSION: &str = \"" + ctx.attr.version + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::promotion_main(ARTIFACT_RLOC, DEPLOY_NAME, FROM_ENV, TO_ENV, VERSION, &std::env::args().collect::<Vec<_>>())); }\n",
+    return deploy_config(
+        ctx,
+        "promotion",
+        {
+            "artifact_rloc": rlocation_path(ctx, artifact_file),
+            "deploy_name": ctx.attr.deploy_name,
+            "from_environment": ctx.attr.from_environment,
+            "to_environment": ctx.attr.to_environment,
+            "version": ctx.attr.version,
+        },
+        ctx.runfiles(files = [artifact_file]),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_promotion_launcher = rule(
-    implementation = _promotion_launcher_impl,
-    doc = "Writes the launcher Rust source for one promotion deployment.",
+_promotion_config = rule(
+    implementation = _promotion_config_impl,
+    doc = "Writes the deploy config for one promotion deployment.",
     attrs = {
         "artifact": attr.label(
-            doc = "Single deploy artifact promoted by the launcher.",
+            doc = "Single deploy artifact promoted by the deploy tool.",
             allow_single_file = True,
             mandatory = True,
         ),
@@ -126,10 +119,9 @@ def promotion_deploy(name, artifact, from_environment = "staging", to_environmen
     if version_error != "":
         fail(version_error + " (in " + native.package_name() + ":" + name + ")")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _promotion_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _promotion_config(
+        name = config_target,
         artifact = artifact,
         deploy_name = name,
         from_environment = from_environment,
@@ -137,15 +129,9 @@ def promotion_deploy(name, artifact, from_environment = "staging", to_environmen
         version = version,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = [artifact],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

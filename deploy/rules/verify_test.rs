@@ -317,9 +317,9 @@ fn resources_case() {
     );
 }
 
-fn oci_stage(prog: &Path, name: &str) -> PathBuf {
+fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
     let outdir = dx_testing::mkscratch(name).expect("scratch");
-    let run = dx_testing::run(prog, &[outdir.to_string_lossy().as_ref()], &[])
+    let run = run_deploy(prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
         .expect("oci deploy must execute");
     let out = run.combined();
     assert!(run.status.success(), "oci deploy failed\n{out}");
@@ -330,7 +330,7 @@ fn oci_stage(prog: &Path, name: &str) -> PathBuf {
 }
 
 fn oci_case() {
-    let layout = oci_stage(&data("DX_OCI_PROG"), "oci-demo");
+    let layout = oci_stage(&data("DX_OCI_PROG"), "DX_OCI_CONFIG", "oci-demo");
     let blobs = layout.join("blobs").join("sha256");
     for entry in std::fs::read_dir(&blobs).expect("read blobs") {
         let path = entry.expect("blob entry").path();
@@ -353,7 +353,11 @@ fn oci_case() {
     );
     let manifest = blob(&index["manifests"][0]["digest"]);
     if std::env::var_os("DX_OCI_BASE_PROG").is_some() {
-        let base = oci_stage(&data("DX_OCI_BASE_PROG"), "oci-demo-base");
+        let base = oci_stage(
+            &data("DX_OCI_BASE_PROG"),
+            "DX_OCI_BASE_CONFIG",
+            "oci-demo-base",
+        );
         let base_index = dx_testing::read_json(&base.join("index.json")).expect("base index");
         let base_blobs = base.join("blobs").join("sha256");
         let digest = base_index["manifests"][0]["digest"]
@@ -411,10 +415,10 @@ fn serve(root: PathBuf) -> (String, RequestLog) {
     .expect("start loopback server")
 }
 
-fn stage(var: &str, house_name: &str, target_name: &str) -> PathBuf {
+fn stage(var: &str, config_var: &str, house_name: &str, target_name: &str) -> PathBuf {
     let prog = data(var);
     let outdir = dx_testing::mkscratch("pypi-out").expect("scratch outdir");
-    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
+    let run = run_deploy(&prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
         .expect("pypi_deploy program must execute");
     assert!(run.status.success(), "{}", run.combined());
     let house = outdir.join(house_name);
@@ -491,7 +495,12 @@ fn install(url: &str, spelling: &str) {
 
 fn pypi_case() {
     let wheel = "dx_pypi_probe-1.0-py3-none-any.whl";
-    let house = stage("DX_PYPI_PROG", "dx_pypi_probe-wheelhouse", "dx_pypi_probe");
+    let house = stage(
+        "DX_PYPI_PROG",
+        "DX_PYPI_CONFIG",
+        "dx_pypi_probe-wheelhouse",
+        "dx_pypi_probe",
+    );
     let (url, log) = serve(house.clone());
     for spelling in [
         "Dx_Pypi.Probe",
@@ -525,6 +534,7 @@ fn pypi_case() {
     let legacy = "Dx_Pypi.Probe-1.0-py3-none-any.whl";
     let house = stage(
         "DX_PYPI_RENAMED_PROG",
+        "DX_PYPI_RENAMED_CONFIG",
         "pypi_probe_release-wheelhouse",
         "pypi_probe_release",
     );
@@ -540,8 +550,13 @@ fn pypi_case() {
 
     let prog = data("DX_PYPI_MISMATCH_PROG");
     let outdir = dx_testing::mkscratch("pypi-mismatch").expect("scratch outdir");
-    let run = dx_testing::run(&prog, &[outdir.to_string_lossy().as_ref()], &[])
-        .expect("pypi_deploy program must execute");
+    let run = run_deploy(
+        &prog,
+        "DX_PYPI_MISMATCH_CONFIG",
+        &[outdir.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("pypi_deploy program must execute");
     assert!(!run.status.success(), "{}", run.combined());
     assert!(
         run.stderr.contains(

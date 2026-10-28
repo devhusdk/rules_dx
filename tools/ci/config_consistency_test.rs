@@ -474,7 +474,7 @@ fn truncated_docstrings(name: &str, text: &str) -> Vec<String> {
 #[test]
 fn starlark_docstrings_do_not_end_mid_sentence() {
     for rel in [
-        "deploy/rules/launcher.bzl",
+        "deploy/rules/config.bzl",
         "quality/native_config.bzl",
         "quality/native_config_tests.bzl",
     ] {
@@ -550,14 +550,6 @@ fn root_and_container_config_comments_are_one_bare_line() {
             );
         }
     }
-}
-
-#[test]
-fn the_emitted_runfiles_block_names_no_issue_or_another_page() {
-    assert_comments_bare(
-        "deploy/rules/launcher.bzl",
-        &read_runfiles("deploy/rules/launcher.bzl"),
-    );
 }
 
 /// Returns the name of the dx state directory, read from its constant in dx_env.

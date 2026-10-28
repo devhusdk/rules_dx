@@ -1,9 +1,8 @@
 """Octopus Deploy publisher for dx deploy."""
 
-load("//rust/rules:defs.bzl", "rust_binary")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
-load(":launcher.bzl", "rlocation_path")
-load(":validate.bzl", "EMBED_UNSAFE", "NAME_CHARS", "VERSION_CHARS", "has_any", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
 _VALID_PROJECT_CHARS = NAME_CHARS
 
@@ -22,8 +21,7 @@ def octopus_project_error(project):
                 "': want a non-empty project (for example 'octopus_demo')")
     if not only_chars(project, _VALID_PROJECT_CHARS):
         return ("octopus_deploy: invalid project '" + project +
-                "': want only [A-Za-z0-9._-] so the project embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def octopus_channel_error(channel):
@@ -33,8 +31,7 @@ def octopus_channel_error(channel):
                 "': want a non-empty channel (for example 'Default')")
     if not only_chars(channel, _VALID_CHANNEL_CHARS):
         return ("octopus_deploy: invalid channel '" + channel +
-                "': want only [A-Za-z0-9._-] so the channel embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def octopus_version_error(version):
@@ -44,8 +41,7 @@ def octopus_version_error(version):
                 "': want a non-empty version (for example '0.0.0')")
     if not only_chars(version, _VALID_VERSION_CHARS):
         return ("octopus_deploy: invalid version '" + version +
-                "': want only [A-Za-z0-9._-+] so the version embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-+]")
     return ""
 
 def octopus_environment_error(environment):
@@ -55,8 +51,7 @@ def octopus_environment_error(environment):
                 "': want a non-empty environment (for example 'Production')")
     if not only_chars(environment, _VALID_ENVIRONMENT_CHARS):
         return ("octopus_deploy: invalid environment '" + environment +
-                "': want only [A-Za-z0-9._-] so the environment embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def octopus_space_error(space):
@@ -68,8 +63,7 @@ def octopus_space_error(space):
                 "': want a space name (for example 'Default') or empty for the default space")
     if not only_chars(space, _VALID_ENVIRONMENT_CHARS):
         return ("octopus_deploy: invalid space '" + space +
-                "': want only [A-Za-z0-9._-] so the space embeds " +
-                "safely in the deploy launcher")
+                "': want only [A-Za-z0-9._-]")
     return ""
 
 def octopus_url_error(octopus_url):
@@ -81,10 +75,6 @@ def octopus_url_error(octopus_url):
     if not octopus_url.startswith("https://"):
         return ("octopus_deploy: invalid octopus_url '" + octopus_url +
                 "': want an https URL so pushes never go over plaintext")
-    if has_any(octopus_url, EMBED_UNSAFE):
-        return ("octopus_deploy: invalid octopus_url '" + octopus_url +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the URL embeds safely in the deploy launcher")
     return ""
 
 def octopus_package_error(filename):
@@ -95,14 +85,10 @@ def octopus_package_error(filename):
     if not filename.endswith(".tar.gz"):
         return ("octopus_deploy: invalid package '" + filename +
                 "': want a filename ending in .tar.gz (archive_deploy output)")
-    if has_any(filename, EMBED_UNSAFE):
-        return ("octopus_deploy: invalid package '" + filename +
-                "': want no quotes, backslashes, spaces, or newlines " +
-                "so the filename embeds safely in the deploy launcher")
     return ""
 
-def _octopus_launcher_impl(ctx):
-    """Expands the rust_binary launcher for one Octopus deployment."""
+def _octopus_config_impl(ctx):
+    """Writes the deploy config for one Octopus deployment."""
     package_files = ctx.attr.package[DefaultInfo].files.to_list()
     if len(package_files) != 1:
         fail("octopus_deploy " + str(ctx.label) + ": package " +
@@ -113,26 +99,26 @@ def _octopus_launcher_impl(ctx):
     package_error = octopus_package_error(package_file.basename)
     if package_error != "":
         fail(package_error + " (in " + str(ctx.label) + ")")
-    package_rloc = rlocation_path(ctx, package_file)
 
-    launcher = ctx.actions.declare_file(ctx.label.name + ".rs")
-    ctx.actions.write(
-        output = launcher,
-        content = "const PACKAGE_RLOC: &str = \"" + package_rloc + "\";\n" +
-                  "const DEPLOY_NAME: &str = \"" + ctx.attr.drop_name + "\";\n" +
-                  "const PROJECT: &str = \"" + ctx.attr.project + "\";\n" +
-                  "const CHANNEL: &str = \"" + ctx.attr.channel + "\";\n" +
-                  "const VERSION: &str = \"" + ctx.attr.version + "\";\n" +
-                  "const DEPLOY_TO: &str = \"" + ",".join(ctx.attr.deploy_to) + "\";\n" +
-                  "const SPACE: &str = \"" + ctx.attr.space + "\";\n" +
-                  "const OCTOPUS_URL: &str = \"" + ctx.attr.octopus_url + "\";\n" +
-                  "fn main() { std::process::exit(dx_deploy_tools::octopus_main(&dx_deploy_tools::OctopusLaunch { package_rloc: PACKAGE_RLOC, deploy_name: DEPLOY_NAME, project: PROJECT, channel: CHANNEL, version: VERSION, deploy_to_raw: DEPLOY_TO, space_default: SPACE, url_default: OCTOPUS_URL }, &std::env::args().collect::<Vec<_>>())); }\n",
+    return deploy_config(
+        ctx,
+        "octopus",
+        {
+            "channel": ctx.attr.channel,
+            "deploy_name": ctx.attr.drop_name,
+            "deploy_to": ctx.attr.deploy_to,
+            "octopus_url": ctx.attr.octopus_url,
+            "package_rloc": rlocation_path(ctx, package_file),
+            "project": ctx.attr.project,
+            "space": ctx.attr.space,
+            "version": ctx.attr.version,
+        },
+        ctx.runfiles(files = [package_file]),
     )
-    return [DefaultInfo(files = depset([launcher]))]
 
-_octopus_launcher = rule(
-    implementation = _octopus_launcher_impl,
-    doc = "Writes the launcher Rust source for one Octopus deployment.",
+_octopus_config = rule(
+    implementation = _octopus_config_impl,
+    doc = "Writes the deploy config for one Octopus deployment.",
     attrs = {
         "channel": attr.string(
             doc = "Octopus channel the deployment publishes to.",
@@ -140,11 +126,11 @@ _octopus_launcher = rule(
         ),
         "deploy_to": attr.string_list(doc = "Octopus environments the release deploys to."),
         "drop_name": attr.string(
-            doc = "Deployment name passed to the Octopus launcher.",
+            doc = "Deployment name recorded in the Octopus config.",
             mandatory = True,
         ),
         "octopus_url": attr.string(
-            doc = "Default Octopus Server URL the launcher uses.",
+            doc = "Default Octopus Server URL the deploy tool uses.",
             mandatory = True,
         ),
         "package": attr.label(
@@ -157,7 +143,7 @@ _octopus_launcher = rule(
             mandatory = True,
         ),
         "space": attr.string(
-            doc = "Default Octopus space the launcher targets.",
+            doc = "Default Octopus space the deploy tool targets.",
             mandatory = True,
         ),
         "version": attr.string(
@@ -189,10 +175,9 @@ def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0
     if url_error != "":
         fail(url_error + " (in " + native.package_name() + ":" + name + ")")
 
-    program_target = name + "_program"
-    launcher_target = program_target + "_launcher"
-    _octopus_launcher(
-        name = launcher_target,
+    config_target = name + "_config"
+    _octopus_config(
+        name = config_target,
         channel = channel,
         deploy_to = deploy_to,
         drop_name = name,
@@ -203,15 +188,9 @@ def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0
         version = version,
     )
 
-    rust_binary(
-        name = program_target,
-        srcs = [":" + launcher_target],
-        data = [package],
-        deps = [Label("//deploy/rules:dx_deploy_tools")],
-    )
-
     dx_deployment(
         name = name,
-        deploy = ":" + program_target,
+        config = ":" + config_target,
+        deploy = DEPLOY_TOOL,
         profile = profile,
     )

@@ -103,8 +103,7 @@ def npm_unit_tests(name):
                 "npm_package_error rejects shell-unsafe package characters",
                 npm_package_error("bad;pkg"),
                 "npm_deploy: invalid package 'bad;pkg': want only " +
-                "[A-Za-z0-9@/_.-] so the package name embeds safely " +
-                "in the deploy program",
+                "[A-Za-z0-9@/_.-]",
             ),
             expect_equal(
                 "npm_tag_error accepts the latest placeholder tag",
@@ -126,7 +125,7 @@ def npm_unit_tests(name):
                 "npm_tag_error rejects shell-unsafe tag characters",
                 npm_tag_error("v1.0;evil"),
                 "npm_deploy: invalid tag 'v1.0;evil': want only " +
-                "[A-Za-z0-9._-] so the tag embeds safely in the deploy program",
+                "[A-Za-z0-9._-]",
             ),
             expect_equal(
                 "npm_registry_error accepts the default registry",

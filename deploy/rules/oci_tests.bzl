@@ -25,10 +25,10 @@ def oci_unit_tests(name):
                 "(for example 'latest')",
             ),
             expect_equal(
-                "oci_tag_error rejects launcher-unsafe tag characters",
+                "oci_tag_error rejects tag characters",
                 oci_tag_error("v1.0;curl evil"),
                 "oci_deploy: invalid tag 'v1.0;curl evil': want " +
-                "only [A-Za-z0-9._-] so the tag embeds safely in the deploy launcher",
+                "only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "oci_registry_error accepts the default registry",
@@ -178,13 +178,6 @@ def oci_unit_tests(name):
                 "oci_image_error accepts a layout directory",
                 oci_image_error("oci_demo_layout", is_directory = True),
                 "",
-            ),
-            expect_equal(
-                "oci_image_error rejects a layout directory with a space",
-                oci_image_error("oci demo", is_directory = True),
-                "oci_deploy: invalid image_tar 'oci demo': want no quotes, " +
-                "backslashes, spaces, or newlines so the filename embeds " +
-                "safely in the deploy launcher",
             ),
             expect_equal(
                 "oci_image_error rejects a suffix-less file",

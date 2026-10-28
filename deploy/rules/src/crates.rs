@@ -99,8 +99,13 @@ pub(crate) const CRATES_GATE: OwnerGate = OwnerGate {
 /// Extra env names cargo keeps beyond the publish base list.
 const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 
-/// Runs the crates deploy launcher.
-pub fn crates_main(crate_rlocs: &str, crate_name: &str, version: &str, argv: &[String]) -> i32 {
+/// Runs the crates deploy tool.
+pub fn crates_main(
+    crate_rlocs: &[String],
+    crate_name: &str,
+    version: &str,
+    argv: &[String],
+) -> i32 {
     let Some(run) = DeployRun::start(
         "crates_deploy",
         "the vendor tree is exactly the files pinned at analysis time",
@@ -110,7 +115,7 @@ pub fn crates_main(crate_rlocs: &str, crate_name: &str, version: &str, argv: &[S
     };
     let outdir = run.outdir();
     let mut files = Vec::new();
-    for rloc in crate_rlocs.split(';').filter(|s| !s.is_empty()) {
+    for rloc in crate_rlocs.iter().filter(|s| !s.is_empty()) {
         let Some(path) = run.resolve(rloc) else {
             return 1;
         };

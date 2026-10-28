@@ -76,7 +76,7 @@ pub struct OctopusLaunch<'a> {
     pub project: &'a str,
     pub channel: &'a str,
     pub version: &'a str,
-    pub deploy_to_raw: &'a str,
+    pub deploy_to: &'a [String],
     pub space_default: &'a str,
     pub url_default: &'a str,
 }
@@ -198,7 +198,7 @@ pub fn octopus_live_publish(
     0
 }
 
-/// Runs the Octopus deploy launcher.
+/// Runs the Octopus deploy tool.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "octopus_deploy",
@@ -214,10 +214,10 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     let space = std::env::var("OCTOPUS_SPACE").unwrap_or_else(|_| spec.space_default.to_owned());
     let server = std::env::var("OCTOPUS_URL").unwrap_or_else(|_| spec.url_default.to_owned());
     let deploy_to: Vec<String> = spec
-        .deploy_to_raw
-        .split(',')
+        .deploy_to
+        .iter()
         .filter(|s| !s.is_empty())
-        .map(|s| s.to_owned())
+        .cloned()
         .collect();
     let drop_spec = OctopusDrop {
         deploy_name: spec.deploy_name,

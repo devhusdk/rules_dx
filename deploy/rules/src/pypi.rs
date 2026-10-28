@@ -122,7 +122,7 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
 /// Extra env names twine keeps beyond the publish base list.
 const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
 
-/// Runs the PyPI deploy launcher.
+/// Runs the PyPI deploy tool.
 pub fn pypi_main(
     wheel_rloc: &str,
     sdist_rloc: &str,

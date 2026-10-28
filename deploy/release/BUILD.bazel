@@ -73,6 +73,7 @@ rust_library(
         "//cli/fingerprint:dx_fingerprint",
         "//cli/sbom:dx_sbom",
         "//deploy/rules:dx_deploy_tools",
+        "@crates//:serde",
     ],
 )
 
@@ -126,6 +127,7 @@ rust_test(
         "//cli/sbom:dx_sbom",
         "//cli/sbom/schema:dx_sbom_schema",
         "//deploy/rules:dx_deploy_tools",
+        "@crates//:serde",
     ],
 )
 

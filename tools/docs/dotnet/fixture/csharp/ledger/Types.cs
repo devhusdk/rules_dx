@@ -34,4 +34,15 @@ namespace Dx.Fixture.Ledger
         {
         }
     }
+
+    /// <summary>A class with an implicit constructor.</summary>
+    public class Plain
+    {
+        /// <summary>A public field.</summary>
+        public int X;
+    }
+
+    /// <summary>A positional record.</summary>
+    /// <param name="A">The first component.</param>
+    public record Point(int A);
 }

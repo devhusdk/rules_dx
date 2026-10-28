@@ -63,6 +63,8 @@ fn the_fixture_shard_maps_every_shape() {
         assert_eq!(symbol(&shard, name).kind(), kind, "{name}");
     }
     assert_eq!(symbols(&shard, "Account.Deposit").len(), 2);
+    symbol(&shard, "Plain.X");
+    symbol(&shard, "Point");
     let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
     assert!(
         !ids.iter().any(|id| id.contains("Hidden")),

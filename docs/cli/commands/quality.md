@@ -279,7 +279,7 @@ to.
 | `perltidy` | format | perl |
 | `pkl` | format | pkl |
 | `pmd` | lint | java |
-| `prettier` | format | api_spec, astro, css, gherkin, graphql, html, javascript, json, sql, svelte, typescript, vue, xml |
+| `prettier` | format | ansible, api_spec, astro, css, gherkin, graphql, html, javascript, json, kubernetes, sql, svelte, typescript, vue, xml |
 | `psscriptanalyzer` | format, lint | powershell |
 | `pydoclint` | lint | python |
 | `pylint` | lint | python |
@@ -978,7 +978,8 @@ with `aspect_hints`. The file is your `buf.yaml`.
 `flatc` 25.12.19 lints `.fbs` schemas. It is built from the pinned source
 archive (`@dx_flatbuffers`), not downloaded as a binary, and runs on Linux
 x86_64. Select it in a `flatbuffers` family. The family is opt-in and part of
-no curated default.
+no curated default. Format is not applicable: no maintained `.fbs`
+formatter exists, and `flatc` only validates.
 
 ```python
 load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
@@ -2540,6 +2541,10 @@ quality_family(
 )
 ```
 
+Format is opt-in with `format = ["prettier"]` on the `ansible` family. Prettier
+formats the YAML files and leaves Jinja expressions untouched. Files owned by
+`ansible_library` should not also sit in a `yaml_library`.
+
 Own the files with `ansible_library` from `@rules_dx//ansible/rules:defs.bzl`.
 List the `.yml` and `.yaml` files of the package in `srcs`. Files whose path
 matches an Ansible layout (playbooks, `tasks/`, `handlers/`, `vars/`, `meta/`
@@ -2900,8 +2905,11 @@ Inline `# hadolint ignore=DL3008` comments are honoured.
 
 `kubeconform` validates Kubernetes manifests against JSON schemas. It runs from
 a managed v0.8.0 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
-x86_64. Select it in a `kubernetes` family. There is no
-formatter, and plain YAML stays in the `yaml` family.
+x86_64. Select it in a `kubernetes` family. Plain YAML stays in the `yaml`
+family. Format is opt-in with `format = ["prettier"]` on the `kubernetes`
+family; Prettier picks its parser from the extension, so `.json` manifests stay
+JSON. Files owned by a `kubernetes_manifests` target should not also sit in a
+`yaml_library`.
 
 ```python
 quality_family(

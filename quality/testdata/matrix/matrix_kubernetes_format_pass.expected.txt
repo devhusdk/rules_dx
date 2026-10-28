@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_kubernetes_format_pass
+capability FORMAT
+stages 1
+stage prettier classes=kubernetes sources=matrix/prettier_k8s_clean.yaml,matrix/prettier_k8s_clean.json
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

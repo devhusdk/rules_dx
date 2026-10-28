@@ -183,6 +183,8 @@ fn not_applicable_section(facts: &Facts) -> String {
         }
         if out.is_empty() {
             out.push_str("\n### Not applicable\n\n");
+        } else {
+            out.push('\n');
         }
         out.push_str(&format!("Not applicable for `{capability}`:\n\n"));
         for (family, reason) in families {
@@ -220,6 +222,21 @@ mod tests {
       "gap_enforcement": false,
       "computed_constraints": {}
     }"#;
+
+    #[test]
+    fn separates_not_applicable_capability_blocks() {
+        let mut facts = parse_facts(FACTS).expect("facts");
+        facts
+            .not_applicable
+            .entry("format".to_owned())
+            .or_default()
+            .insert("yaml".to_owned(), "data".to_owned());
+        let out = not_applicable_section(&facts);
+        assert!(
+            out.contains("- `yaml`: data\n\nNot applicable for `typecheck`:"),
+            "{out}"
+        );
+    }
 
     #[test]
     fn renders_stable_ascii_tables() {

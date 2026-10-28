@@ -229,4 +229,15 @@ mod tests {
         let facts = facts_with(r#"{"typecheck":{"c":"why"}}"#, quality);
         assert!(!not_applicable(&facts, &fam(&["c"]), "typecheck"));
     }
+
+    #[test]
+    fn format_declaration_suppresses_format_gap_only() {
+        let facts = facts_with(
+            r#"{"format":{"a":"why"}}"#,
+            r#"{"a":{"format":[],"lint":["t"]}}"#,
+        );
+        let fam = vec!["a".to_owned()];
+        assert!(not_applicable(&facts, &fam, "format"));
+        assert!(!not_applicable(&facts, &fam, "lint"));
+    }
 }

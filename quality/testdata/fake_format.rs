@@ -51,7 +51,7 @@ fn mode_for(ext: &str) -> Mode {
         "fs" => Mode::Json,
         "rb" => Mode::Offenses,
         "go" => Mode::Diff0,
-        "css" | "less" | "scss" | "feature" | "sql" | "xml" => Mode::Warn,
+        "css" | "less" | "scss" | "feature" | "sql" | "xml" | "yml" | "yaml" => Mode::Warn,
         "mod" => Mode::Listed,
         _ => Mode::Diff,
     }

@@ -77,7 +77,7 @@ REAL_ADAPTERS = {
     "pkl": {"format": ["pkl"]},
     "regal": {"lint": ["rego"]},
     "pmd": {"lint": ["java"]},
-    "prettier": {"format": ["api_spec", "api_spec_ref", "astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "less", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"]},
+    "prettier": {"format": ["ansible", "api_spec", "api_spec_ref", "astro", "css", "gherkin", "graphql", "html", "javascript", "json", "json5", "jsonc", "jsx", "kubernetes", "less", "scss", "sql", "svelte", "tsx", "typescript", "vue", "xml"]},
     "psscriptanalyzer": {"format": ["powershell"], "lint": ["powershell"]},
     "redocly": {"lint": ["api_spec"]},
     "rubocop": {"lint": ["ruby"]},
@@ -195,6 +195,9 @@ REAL_CLASS_TO_FAMILY = {
 # Keyed by capability, then family. "n/a" means never; "not yet" belongs in
 # the gap ledger. A family with a real adapter must not be listed here.
 NOT_APPLICABLE = {
+    "format": {
+        "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
+    },
     "typecheck": {
         "ansible": "dynamically typed YAML playbooks; no type system beyond ansible-lint",
         "api_spec": "declarative API description; no type system beyond schema validation",

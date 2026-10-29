@@ -6493,6 +6493,8 @@ fn terraform_fake(
         "validate" => {
             let diags = if text.contains("RANGELESS") {
                 r#"{"severity":"error","summary":"No module","detail":"d"}"#.to_owned()
+            } else if text.contains("DEPWARN") {
+                located("warning", "lib/dep.tf")
             } else if text.contains("DEPBAD") {
                 located("error", "lib/dep.tf")
             } else if text.contains("BAD") {
@@ -6500,7 +6502,7 @@ fn terraform_fake(
             } else {
                 String::new()
             };
-            let count = u64::from(!diags.is_empty());
+            let count = u64::from(!diags.is_empty() && !text.contains("DEPWARN"));
             let out = format!(
                 r#"{{"format_version":"1.0","valid":{},"error_count":{count},"warning_count":0,"diagnostics":[{diags}]}}"#,
                 count == 0
@@ -6646,6 +6648,17 @@ fn terraform_typecheck_error_in_an_unowned_file_is_an_execution_error() {
     backend
         .diagnose("terraform", "typecheck", &files)
         .expect_err("an unlocatable dependency must not be clean");
+}
+
+#[test]
+fn terraform_typecheck_warning_in_an_unowned_file_is_clean() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    let files = single("app/main.tf", "DEPWARN\n");
+    let resolve = single("app/lib/dep.tf", "# dep\n");
+    let found = backend
+        .diagnose_with_resolve("terraform", "typecheck", &files, &BTreeMap::new(), &resolve)
+        .expect("a dependency warning is not a failure");
+    assert!(found.is_empty(), "{found:?}");
 }
 
 #[test]

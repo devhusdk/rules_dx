@@ -2457,7 +2457,8 @@ impl RealBackend {
                     if !findings.contains(&item) {
                         findings.push(item);
                     }
-                } else {
+                } else if item.finding.severity == quality_adapter::ToolSeverity::Error {
+                    // Warnings in dependencies are not a verdict on the owned files.
                     reported.push(item.file);
                 }
             }

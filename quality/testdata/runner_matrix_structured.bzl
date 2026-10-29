@@ -283,6 +283,28 @@ STRUCTURED_CASES = [
         "macos_arm64": True,
     },
     {
+        "name": "matrix_d_format_pass",
+        "generated": {
+            "matrix/dfmt_clean.d": "module dfmt_clean;\n\nint add(int a, int b)\n{\n    return a + b;\n}\n",
+        },
+        "capability": "format",
+        "stages": ["dfmt;d;matrix/dfmt_clean.d"],
+        "tool_names": ["dfmt"],
+        "tool_binaries": ["//d/tools:dfmt"],
+        "expected_file": ":matrix/matrix_d_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_d_lint_pass",
+        "generated": {
+            "matrix/dscanner_clean.d": "/** Clean module. */\nmodule dscanner_clean;\n\n/// Adds two numbers.\nint add(int a, int b)\n{\n    return a + b;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["dscanner;d;matrix/dscanner_clean.d"],
+        "tool_names": ["dscanner"],
+        "tool_binaries": ["//d/tools:dscanner"],
+        "expected_file": ":matrix/matrix_d_lint_pass.expected.txt",
+    },
+    {
         "name": "matrix_erlang_format_pass",
         "generated": {
             "matrix/erlfmt_clean.erl": "-module(erlfmt_clean).\n-export([add/2]).\n\nadd(A, B) -> A + B.\n",

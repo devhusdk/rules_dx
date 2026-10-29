@@ -161,6 +161,13 @@ const TYPSTYLE_CHECK_ARGS: &[&str] = &["--check"];
 const TYPSTYLE_FIX_ARGS: &[&str] = &["-i"];
 const LATEXINDENT_CHECK_ARGS: &[&str] = &["-k"];
 const LATEXINDENT_FIX_ARGS: &[&str] = &["-w"];
+const SELENE_CHECK_ARGS: &[&str] = &[
+    "--display-style=json2",
+    "--no-summary",
+    "--no-exclude",
+    "--color=Never",
+    "--num-threads=1",
+];
 const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
@@ -1640,6 +1647,20 @@ pub fn opa_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, OPA_CHECK_ARGS, files, "")
 }
 
+/// Check-only: selene has no autofix. `--no-exclude` because the runner stages only files it
+/// means to lint; `--config` is optional so selene otherwise looks in the scratch root.
+pub fn selene_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        SELENE_CHECK_ARGS,
+        "--config",
+        config,
+        SCALAFMT_EMPTY,
+        files,
+        "",
+    )
+}
+
 pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
     optional_flag(
         binary,
@@ -2526,7 +2547,7 @@ pub enum ArgTransport {
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
-        | "deadnix" | "check_jsonschema" | "xmllint" => ArgTransport::Batched,
+        | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

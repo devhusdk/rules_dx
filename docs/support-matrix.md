@@ -81,7 +81,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` |
 | Julia | no | `julia_format` | no |
 | Kotlin | `ktlint` | `ktfmt` | `kotlinc` |
-| Lua | no | `stylua` | `luals` |
+| Lua | `selene` | `stylua` | `luals` |
 | MDX | `eslint` | `remark` | no |
 | OCaml | no | `topiary` | no |
 | Perl | `perlcritic` | `perltidy` | n/a |

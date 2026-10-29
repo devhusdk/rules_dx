@@ -83,6 +83,27 @@ fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
     out
 }
 
+/// Whether the user's staged config closure already provides `lua54.{yml,yaml,toml}` in the
+/// config's directory or the scratch root. Ours at the root would shadow theirs (cwd is searched
+/// first) or collide with it.
+fn user_ships_selene_std<'a>(
+    tool: &RealTool,
+    staged: impl Iterator<Item = &'a MirrorFile>,
+) -> bool {
+    let config_dir = tool
+        .config_rel
+        .as_deref()
+        .and_then(|rel| Path::new(rel).parent())
+        .map(Path::to_path_buf)
+        .unwrap_or_default();
+    let rels: Vec<&Path> = staged.map(|mirror| mirror.mirror_rel.as_path()).collect();
+    ["lua54.yml", "lua54.yaml", "lua54.toml"]
+        .iter()
+        .any(|name| {
+            rels.contains(&Path::new(name)) || rels.contains(&config_dir.join(name).as_path())
+        })
+}
+
 impl RealBackend {
     pub(super) fn mirror_tool_files(
         tool_id: &str,
@@ -223,6 +244,28 @@ impl RealBackend {
                 mirror_rel: PathBuf::from(STYLELINT_DEFAULTS_REL),
                 contents: MirrorContents::Bytes(STYLELINT_DEFAULTS_BYTES.to_vec()),
             });
+        }
+        if tool_id == "selene" {
+            if tool.config_rel.is_none() {
+                let dir = Path::new(SELENE_DEFAULTS_REL)
+                    .parent()
+                    .unwrap_or_else(|| Path::new(""));
+                mirrors.push(MirrorFile {
+                    mirror_rel: PathBuf::from(SELENE_DEFAULTS_REL),
+                    contents: MirrorContents::Bytes(SELENE_DEFAULTS_BYTES.to_vec()),
+                });
+                mirrors.push(MirrorFile {
+                    mirror_rel: dir.join(SELENE_STD_FILE),
+                    contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),
+                });
+            } else if !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter())) {
+                // selene checks the cwd (the scratch root) before the config directory, so a
+                // user config can say `std = "lua53+lua54"` without shipping the file.
+                mirrors.push(MirrorFile {
+                    mirror_rel: PathBuf::from(SELENE_STD_FILE),
+                    contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),
+                });
+            }
         }
         mirrors.retain(|mirror| {
             !staged
@@ -399,6 +442,13 @@ impl RealBackend {
         }
         if tool_id == "gplint" {
             let rel = tool.config_rel.as_deref().unwrap_or(GPLINT_DEFAULTS_REL);
+            return scratch
+                .resolve(Path::new(rel))
+                .map(Some)
+                .map_err(|err| execution(tool_id, format!("scratch config: {err}")));
+        }
+        if tool_id == "selene" {
+            let rel = tool.config_rel.as_deref().unwrap_or(SELENE_DEFAULTS_REL);
             return scratch
                 .resolve(Path::new(rel))
                 .map(Some)

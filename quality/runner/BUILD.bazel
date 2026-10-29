@@ -29,6 +29,10 @@ rust_library(
         package_name = "quality/quality_runner",
         normal = True,
     ),
+    compile_data = [
+        "//quality/tools/lua:lua54.yml",
+        "//quality/tools/lua:selene.toml",
+    ],
     crate_name = "quality_runner",
     crate_root = "src/lib.rs",
     edition = "2021",
@@ -155,6 +159,10 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    compile_data = [
+        "//quality/tools/lua:lua54.yml",
+        "//quality/tools/lua:selene.toml",
+    ],
     crate_name = "quality_runner",
     crate_root = "src/lib.rs",
     edition = "2021",

@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_lua_lint_fail
+capability LINT
+stages 1
+stage selene classes=lua sources=matrix/selene_dirty.lua
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR selene undefined_variable matrix/selene_dirty.lua 25 32 fixable=false "`missing` is not defined"
+terminal 1
+terminal ERROR selene undefined_variable matrix/selene_dirty.lua 25 32 fixable=false "`missing` is not defined"
+replacements 0

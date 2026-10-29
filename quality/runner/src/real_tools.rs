@@ -2,6 +2,7 @@ use super::real_core::*;
 use super::real_fixtures::*;
 use super::*;
 use crate::{full_selection, run_convergence, synthetic::per_path};
+use quality_adapter::exec::{MirrorContents, MirrorFile};
 use quality_adapter::parsers;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
@@ -860,6 +861,79 @@ fn gplint_consumer_config_replaces_the_defaults() {
         )
         .expect("diagnosed")
         .is_empty());
+}
+
+fn selene_mirrors(tool: &RealTool, staged: &[MirrorFile]) -> Vec<String> {
+    RealBackend::mirror_tool_files("selene", tool, staged, Path::new("/s"))
+        .iter()
+        .map(|mirror| mirror.mirror_rel.to_string_lossy().into_owned())
+        .collect()
+}
+
+fn staged_file(rel: &str) -> MirrorFile {
+    MirrorFile {
+        mirror_rel: PathBuf::from(rel),
+        contents: MirrorContents::Bytes(Vec::new()),
+    }
+}
+
+#[test]
+fn selene_default_config_and_std_stage_together() {
+    assert_eq!(
+        selene_mirrors(&plain_tool(), &[]),
+        vec![
+            "dx-selene-default/selene.toml",
+            "dx-selene-default/lua54.yml"
+        ]
+    );
+}
+
+#[test]
+fn selene_user_config_gets_the_std_at_the_root() {
+    let tool = RealTool {
+        config_rel: Some("cfg/selene.toml".to_owned()),
+        tool_files: vec![(
+            "cfg/selene.toml".to_owned(),
+            b"std = \"lua53+lua54\"".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    assert!(selene_mirrors(&tool, &[]).contains(&"lua54.yml".to_owned()));
+}
+
+#[test]
+fn selene_user_shipped_std_is_not_shadowed() {
+    for shipped in ["lua54.yaml", "cfg/lua54.yml", "lua54.toml"] {
+        let tool = RealTool {
+            config_rel: Some("cfg/selene.toml".to_owned()),
+            tool_files: vec![
+                ("cfg/selene.toml".to_owned(), Vec::new()),
+                (shipped.to_owned(), Vec::new()),
+            ],
+            ..plain_tool()
+        };
+        assert!(
+            !selene_mirrors(&tool, &[]).contains(&"lua54.yml".to_owned()),
+            "{shipped}"
+        );
+        let bare = RealTool {
+            config_rel: Some("cfg/selene.toml".to_owned()),
+            ..plain_tool()
+        };
+        assert!(
+            !selene_mirrors(&bare, &[staged_file(shipped)]).contains(&"lua54.yml".to_owned()),
+            "{shipped}"
+        );
+    }
+}
+
+#[test]
+fn selene_embedded_defaults_use_the_merged_files() {
+    let config = std::str::from_utf8(SELENE_DEFAULTS_BYTES).expect("utf8");
+    assert!(config.contains("std = \"lua53+lua54\""));
+    let std = std::str::from_utf8(SELENE_STD_BYTES).expect("utf8");
+    assert!(!std.lines().any(|line| line.starts_with("base:")));
+    assert!(std.contains("lua54"));
 }
 
 #[test]

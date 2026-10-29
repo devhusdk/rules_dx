@@ -1524,6 +1524,20 @@ PKL_TYPECHECK_SUPPORT = {
     "transport": "single",
 }
 
+LUA_SELENE_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["lua"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "lua",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "selene",
+    "transport": "batched",
+}
+
 LUA_STYLUA_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2042,6 +2056,7 @@ SUPPORT_RECORDS = [
     ASCIIDOC_VALE_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
     PKL_TYPECHECK_SUPPORT,
+    LUA_SELENE_LINT_SUPPORT,
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,
     REGO_OPA_TYPECHECK_SUPPORT,

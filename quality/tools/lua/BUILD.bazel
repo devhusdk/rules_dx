@@ -25,14 +25,14 @@ sh_test(
     args = [
         "$(rootpath //quality/tools/rust:selene)",
         "$(rootpath selene.toml)",
-        "$(rootpath testdata/lua54_valid.lua)",
-        "$(rootpath testdata/undefined_variable.lua)",
+        "$(rootpath //quality/tools/lua/testdata:lua54_valid.lua)",
+        "$(rootpath //quality/tools/lua/testdata:undefined_variable.lua)",
     ],
     data = [
         "lua54.yml",
         "selene.toml",
-        "testdata/lua54_valid.lua",
-        "testdata/undefined_variable.lua",
+        "//quality/tools/lua/testdata:lua54_valid.lua",
+        "//quality/tools/lua/testdata:undefined_variable.lua",
         "//quality/tools/rust:selene",
     ],
 )

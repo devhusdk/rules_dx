@@ -1226,6 +1226,31 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         ]
     );
     let lua = Path::new("/scratch/sample.lua");
+    let selene_flags = [
+        "--display-style=json2",
+        "--no-summary",
+        "--no-exclude",
+        "--color=Never",
+        "--num-threads=1",
+    ];
+    let mut selene_plain = vec![BIN];
+    selene_plain.extend(selene_flags);
+    selene_plain.push("/scratch/sample.lua");
+    assert_eq!(
+        argv_strings(&selene_check(Path::new(BIN), &[lua], None)),
+        selene_plain
+    );
+    let mut selene_configured = vec![BIN];
+    selene_configured.extend(selene_flags);
+    selene_configured.extend(["--config", "/scratch/selene.toml", "/scratch/sample.lua"]);
+    assert_eq!(
+        argv_strings(&selene_check(
+            Path::new(BIN),
+            &[lua],
+            Some(Path::new("/scratch/selene.toml"))
+        )),
+        selene_configured
+    );
     let stylua_config = Path::new("/scratch/stylua.toml");
     assert_eq!(
         argv_strings(&stylua_check(Path::new(BIN), &[lua], None)),
@@ -2468,6 +2493,7 @@ fn file_independent_tools_batch() {
         "buildifier",
         "deadnix",
         "xmllint",
+        "selene",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Batched, "{tool}");
     }

@@ -117,6 +117,7 @@ REAL_ADAPTERS = {
     "scalac": {"typecheck": ["scala"]},
     "scalafix": {"lint": ["scala"]},
     "scalafmt": {"format": ["scala"]},
+    "selene": {"lint": ["lua"]},
     "shellcheck": {"lint": ["shell"]},
     "shfmt": {"format": ["shell"]},
     "spotbugs": {"lint": ["java"]},

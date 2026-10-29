@@ -86,6 +86,7 @@ pub mod rustfmt;
 pub mod sarif;
 pub mod scalafix;
 pub mod scalafmt;
+pub mod selene;
 pub mod shellcheck;
 pub mod shfmt;
 pub mod sorbet;
@@ -196,6 +197,7 @@ pub use rust::{parse_clippy, parse_rustc};
 pub use rustfmt::parse_rustfmt;
 pub use scalafix::parse_scalafix;
 pub use scalafmt::parse_scalafmt;
+pub use selene::parse_selene;
 pub use shellcheck::parse_shellcheck;
 pub use shfmt::parse_shfmt;
 pub use sorbet::parse_sorbet;
@@ -2505,6 +2507,14 @@ mod tests {
         super::shellcheck::parse_shellcheck(input, code, files)
     }
 
+    fn fuzz_selene(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::selene::parse_selene(input, code, files)
+    }
+
     fn fuzz_sorbet(
         input: &[u8],
         code: Option<i32>,
@@ -2777,6 +2787,7 @@ mod tests {
         ("sarif", fuzz_sarif),
         ("scalafix", fuzz_scalafix),
         ("scalafmt", fuzz_scalafmt),
+        ("selene", fuzz_selene),
         ("shellcheck", fuzz_shellcheck),
         ("shfmt", fuzz_shfmt),
         ("sorbet", fuzz_sorbet),
@@ -2892,6 +2903,7 @@ mod tests {
         ("sarif", include_str!("sarif.rs")),
         ("scalafix", include_str!("scalafix.rs")),
         ("scalafmt", include_str!("scalafmt.rs")),
+        ("selene", include_str!("selene.rs")),
         ("shellcheck", include_str!("shellcheck.rs")),
         ("shfmt", include_str!("shfmt.rs")),
         ("sorbet", include_str!("sorbet.rs")),

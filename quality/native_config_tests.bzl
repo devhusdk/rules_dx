@@ -224,7 +224,7 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
-                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, djlint, elvis, eslint, ffmt, fsharplint, gersemi, gplint, graphql_eslint, hadolint, kubeconform, latexindent, luals, mbake, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, sqlfluff, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
+                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, djlint, elvis, eslint, ffmt, fsharplint, gersemi, gplint, graphql_eslint, hadolint, kubeconform, latexindent, luals, mbake, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, selene, shellcheck, sqlfluff, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
             ),
             expect_equal(
                 "native_config_error requires a config",

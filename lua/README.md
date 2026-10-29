@@ -148,8 +148,15 @@ quality_family(
 
 StyLua never reads a `stylua.toml` or `.editorconfig` next to the sources. Bind
 a `stylua_config` from `@rules_dx//quality:native_config.bzl` to set indent
-width or quote style. No Lua linter runs yet, so the Lua rules add the `no-lint`
-tag to every target.
+width or quote style.
+
+### Lint with selene
+
+`dx check` lints Lua with `selene` 0.32.0, built from source with the Lua 5.2
+to 5.4 parsers. Add `lint = ["selene"]` to the `lua` family. The default config
+uses `std = "lua53+lua54"`; bind a `selene_config` from
+`@rules_dx//quality:native_config.bzl` to change lints or the standard library.
+selene has no autofix.
 
 ### Type check with LuaLS
 

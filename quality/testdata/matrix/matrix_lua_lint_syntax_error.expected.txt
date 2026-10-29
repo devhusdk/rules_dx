@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_lua_lint_syntax_error
+capability LINT
+stages 1
+stage selene classes=lua sources=matrix/selene_broken.lua
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR selene parse_error matrix/selene_broken.lua 6 7 fixable=false "unexpected token `=`"
+terminal 1
+terminal ERROR selene parse_error matrix/selene_broken.lua 6 7 fixable=false "unexpected token `=`"
+replacements 0

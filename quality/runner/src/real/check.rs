@@ -1670,6 +1670,11 @@ impl RealBackend {
                     parsers::parse_mbake(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "selene" => {
+                let invocation = commands::selene_check(&tool.binary, &refs, config.as_deref());
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(tool_id, parsers::parse_selene(&out.stdout, out.code, &strs))
+            }
             "stylua" => {
                 let invocation = commands::stylua_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

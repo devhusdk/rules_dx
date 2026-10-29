@@ -102,6 +102,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "scalac",
     "scalafix",
     "scalafmt",
+    "selene",
     "shellcheck",
     "shfmt",
     "sorbet",
@@ -229,6 +230,14 @@ telemetry: off
 /// The curated gplint rules cover meaning only. Layout belongs to prettier, and rules that
 /// compare files (`no-dupe-feature-names`, `no-dupe-scenario-names` in `anywhere` mode) would
 /// make a result depend on which files share a batch, so none of those are listed.
+/// selene's default config and the Lua 5.4 standard library it extends, embedded from the files
+/// `//quality/tools/lua:selene_smoke_test` exercises so the two cannot drift.
+const SELENE_DEFAULTS_REL: &str = "dx-selene-default/selene.toml";
+const SELENE_DEFAULTS_BYTES: &[u8] = include_bytes!("../../tools/lua/selene.toml");
+/// The std file name selene resolves `std = "lua53+lua54"` against.
+const SELENE_STD_FILE: &str = "lua54.yml";
+const SELENE_STD_BYTES: &[u8] = include_bytes!("../../tools/lua/lua54.yml");
+
 const GPLINT_DEFAULTS_REL: &str = "dx-gplint-default/gplint.json";
 const GPLINT_DEFAULTS_BYTES: &[u8] = br#"{
   "no-background-only-scenario": "error",

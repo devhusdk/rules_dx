@@ -320,6 +320,7 @@ to.
 | `scalac` | typecheck | scala |
 | `scalafix` | lint | scala |
 | `scalafmt` | format | scala |
+| `selene` | lint | lua |
 | `shellcheck` | lint | shell |
 | `shfmt` | format | shell |
 | `spotbugs` | lint | java |
@@ -1981,8 +1982,38 @@ the run with the file, line and column. It never counts as clean. StyLua ignores
 Bind a `stylua_config` from `@rules_dx//quality:native_config.bzl` to change
 indent width, quote style or line width.
 
-No Lua linter runs yet, so the Lua rules keep the `no-lint` tag. Lua targets
-are type checked; see Lua type checking below.
+Lua targets are linted with `selene` (see Lua lint below) and type checked; see
+Lua type checking below.
+
+#### Lua lint
+
+`selene` 0.32.0 lints Lua. It is built from source with the Lua 5.2 to 5.4
+parsers enabled, because the upstream release binaries parse only Lua 5.1 and
+report valid 5.4 syntax as a parse error. Select it in the `lua` family.
+
+```python
+quality_family(
+    name = "lua_family",
+    family_id = "lua",
+    format = ["stylua"],
+    lint = ["selene"],
+)
+```
+
+With no `selene_config`, selene runs with `std = "lua53+lua54"`. The `lua54`
+standard library (`quality/tools/lua/lua54.yml`) adds `warn`, `coroutine.close`
+and the 5.4 parser versions to the Lua 5.3 globals. selene looks for a standard
+library in the working directory (the scratch root) first and then next to the
+config, so a `selene_config` can use `std = "lua53+lua54"` without shipping the
+file. To use another standard library, ship it with
+`selene_config(data = [...])`; a `lua54.yml`, `lua54.yaml` or `lua54.toml` next
+to the config, or at the root, replaces ours.
+
+selene runs with `--no-exclude`, so an `exclude` in a user config does not hide
+files the target owns. A finding is a warning or an error as selene reports it;
+a syntax error is a `parse_error` finding. A selene failure (bad config,
+missing standard library, crash) fails the run and never counts as clean.
+selene has no autofix, so `--apply` leaves Lua lint findings alone.
 
 To use another StyLua executable, point `tool_stylua` at it.
 

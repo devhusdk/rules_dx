@@ -316,7 +316,6 @@ GAP_ISSUES = {
     "format:helm": 4439,
     "format:rst": 4439,
     "lint:julia": 4623,
-    "lint:lua": 4612,
     "lint:ocaml": 4621,
     "lint:pkl": 4623,
     "lint:typst": 4623,

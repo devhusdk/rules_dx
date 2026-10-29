@@ -3105,10 +3105,26 @@ sql_library(
 
 A config is required. A target with the `sqlfluff` stage and no bound
 `sqlfluff_config` fails and names the missing config; tag it `no-lint` to skip
-it. The config is the only source of the dialect and must set `dialect` under
-`[sqlfluff]`. dx passes the file with `--config` and `--ignore-local-config`,
-so no `.sqlfluff`, `setup.cfg`, `tox.ini`, `pyproject.toml` or home directory
-config is read, and `.sqlfluffignore` files are disregarded.
+it. The config is the base layer and must set `dialect` under `[sqlfluff]`.
+`.sqlfluffignore` files are disregarded.
+
+Nested configs go in `data` and override the base for the files at or below
+their directory, the templater included:
+
+```starlark
+sqlfluff_config(
+    name = "sqlfluff_config",
+    src = ".sqlfluff",
+    data = ["queries/params/.sqlfluff"],
+)
+```
+
+Only `.sqlfluff` files are allowed in `data`, and each must sit at or below the
+directory of `src`. A nested config needs no `dialect`, but one it sets must be
+known, and `sql_file_exts` is refused. dx runs sqlfluff once per nearest nested
+config directory, so a target with no nested config is still one run. Nothing
+else is read: home, app-dir, `setup.cfg`, `tox.ini`, `pyproject.toml` and any
+`.sqlfluff` outside `data` are never loaded.
 
 The dialect names are sqlfluff's, not the `sql_library` ones. Use `postgres`
 for `postgresql`, `sparksql` for `spark`, `tsql` for `transactsql` and `oracle`

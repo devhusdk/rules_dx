@@ -1,0 +1,5 @@
+[sqlfluff]
+templater = raw
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower

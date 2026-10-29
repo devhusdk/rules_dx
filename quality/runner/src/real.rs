@@ -156,6 +156,12 @@ const BICEP_DEFAULTS_BYTES: &[u8] = b"{}\n";
 /// Home of the Bicep child: its module cache is `$HOME/.bicep`, so it starts empty and no `br:`
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
+/// Home of the sqlfluff child. Its app-dir config (`$HOME/.config/sqlfluff/.sqlfluff`) is the
+/// bound config, the lowest config layer on every OS; sqlfluff checks `~/.config/sqlfluff` before
+/// any platform directory. Pinning `HOME` here also bounds sqlfluff's parent-directory walk to
+/// the scratch, so no ambient config above it is read.
+const SQLFLUFF_HOME_REL: &str = "dx-sqlfluff/home";
+const SQLFLUFF_APPDIR_CONFIG_REL: &str = "dx-sqlfluff/home/.config/sqlfluff/.sqlfluff";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
 /// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
@@ -697,6 +703,18 @@ impl RealBackend {
             ] {
                 env.push((OsString::from(key), OsString::from(value)));
             }
+        }
+        if tool_id == "sqlfluff" {
+            let home = scratch.root().join(SQLFLUFF_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("sqlfluff home: {err}")))?;
+            env.retain(|(key, _)| {
+                !["HOME", "USERPROFILE"]
+                    .iter()
+                    .any(|name| key.to_string_lossy().eq_ignore_ascii_case(name))
+            });
+            env.push((OsString::from("HOME"), home.clone().into_os_string()));
+            env.push((OsString::from("USERPROFILE"), home.into_os_string()));
         }
         if tool_id == "typstyle" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));

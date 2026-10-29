@@ -1877,14 +1877,12 @@ fn cfn_lint_check_always_passes_the_config_and_no_spec_or_region_flags() {
 }
 
 #[test]
-fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
+fn sqlfluff_check_reads_no_flag_that_binds_or_ignores_configs() {
     let a = Path::new("/scratch/a.sql");
     let b = Path::new("/scratch/b.sql");
-    let argv = argv_strings(&sqlfluff_check(
-        Path::new(BIN),
-        &[a, b],
-        Path::new("/scratch/.sqlfluff"),
-    ));
+    let invocation = sqlfluff_check(Path::new(BIN), &[a, b], "sql/sub");
+    assert_eq!(invocation.cwd_rel, "sql/sub");
+    let argv = argv_strings(&invocation);
     assert_eq!(
         argv,
         [
@@ -1892,9 +1890,6 @@ fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
             "lint",
             "--format",
             "json",
-            "--config",
-            "/scratch/.sqlfluff",
-            "--ignore-local-config",
             "--disregard-sqlfluffignores",
             "--nocolor",
             "--disable-progress-bar",
@@ -1905,19 +1900,22 @@ fn sqlfluff_check_always_passes_the_config_and_ignores_ambient_config() {
             "/scratch/b.sql"
         ]
     );
-    for banned in ["--dialect", "fix", "format", "--templater"] {
+    for banned in [
+        "--config",
+        "--ignore-local-config",
+        "--dialect",
+        "fix",
+        "format",
+        "--templater",
+    ] {
         assert!(!argv.iter().any(|arg| arg == banned), "{banned}");
     }
 }
 
 #[test]
-fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
+fn sqlfluff_format_invocations_share_the_flags_and_the_cwd() {
     let a = Path::new("/scratch/a.sql");
-    let config = Path::new("/scratch/.sqlfluff");
     let tail = [
-        "--config",
-        "/scratch/.sqlfluff",
-        "--ignore-local-config",
         "--disregard-sqlfluffignores",
         "--nocolor",
         "--disable-progress-bar",
@@ -1926,7 +1924,9 @@ fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
         "--",
         "/scratch/a.sql",
     ];
-    let check = argv_strings(&sqlfluff_format_check(Path::new(BIN), &[a], config));
+    let check_invocation = sqlfluff_format_check(Path::new(BIN), &[a], "sub");
+    assert_eq!(check_invocation.cwd_rel, "sub");
+    let check = argv_strings(&check_invocation);
     let mut want = vec![
         BIN,
         "lint",
@@ -1937,10 +1937,13 @@ fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
     ];
     want.extend(tail);
     assert_eq!(check, want);
-    let fix = argv_strings(&sqlfluff_format_fix(Path::new(BIN), &[a], config));
+    let fix_invocation = sqlfluff_format_fix(Path::new(BIN), &[a], "sub");
+    assert_eq!(fix_invocation.cwd_rel, "sub");
+    let fix = argv_strings(&fix_invocation);
     let mut want = vec![BIN, "format"];
     want.extend(tail);
     assert_eq!(fix, want);
+    assert_eq!(sqlfluff_check(Path::new(BIN), &[a], "").cwd_rel, "");
 }
 
 #[test]

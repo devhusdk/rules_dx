@@ -404,6 +404,21 @@ def native_config_unit_tests(name):
                 [".prettierrc", "", "", "", True],
             ),
             expect_equal(
+                "sqlfluff data holds only nested .sqlfluff files at or below the src",
+                [
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, []),
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, [struct(path = "pkg/sub/.sqlfluff", is_source = True)]),
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, [struct(path = "pkg/.sqlfluff", is_source = True)]),
+                    native_config_error("sqlfluff", ".sqlfluff", True, [struct(path = "a/b/.sqlfluff", is_source = True)]),
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, [struct(path = "other/.sqlfluff", is_source = True)]) != "",
+                    native_config_error("sqlfluff", "pkg/sub/.sqlfluff", True, [struct(path = "pkg/.sqlfluff", is_source = True)]) != "",
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, [struct(path = "pkg/setup.cfg", is_source = True)]) != "",
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, [struct(path = "pkg/sub/pyproject.toml", is_source = True)]) != "",
+                    native_config_error("sqlfluff", "pkg/.sqlfluff", True, [struct(path = "pkg2/.sqlfluff", is_source = True)]) != "",
+                ],
+                ["", "", "", "", True, True, True, True, True],
+            ),
+            expect_equal(
                 "missing_required_config_error names an unbound graphql_eslint lint stage",
                 missing_required_config_error("graphql_eslint", "lint", {}, "//q:t"),
                 "//q:t: graphql-eslint needs a config. Declare graphql_eslint_config(name = \"graphql_eslint_config\", src = \"graphql_lint.json\") from @rules_dx//quality:native_config.bzl and add aspect_hints = [\":graphql_eslint_config\"], or tag the target no-lint.",

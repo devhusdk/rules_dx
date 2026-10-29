@@ -110,6 +110,22 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(pin_bicep_cache(bound, root)),
             });
         }
+        if tool_id == "sqlfluff" {
+            // The bound config is the lowest layer: sqlfluff reads it from the app dir of the
+            // pinned home, and the staged nested `.sqlfluff` files override it.
+            let bound = tool.config_rel.as_deref().and_then(|rel| {
+                tool.tool_files
+                    .iter()
+                    .find(|(file, _)| file == rel)
+                    .map(|(_, bytes)| bytes.clone())
+            });
+            if let Some(bytes) = bound {
+                mirrors.push(MirrorFile {
+                    mirror_rel: PathBuf::from(SQLFLUFF_APPDIR_CONFIG_REL),
+                    contents: MirrorContents::Bytes(bytes),
+                });
+            }
+        }
         if tool_id == "rustfmt" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(RUSTFMT_DEFAULTS_REL),

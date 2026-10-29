@@ -2065,20 +2065,20 @@ pub fn cfn_lint_check(binary: &Path, files: &[&Path], config: &Path) -> Invocati
 /// The rules `sqlfluff format` applies; the format check lints with exactly these.
 pub const SQLFLUFF_FORMAT_RULES: &str = "capitalisation,layout,ambiguous.union,convention.not_equal,convention.coalesce,convention.select_trailing_comma,convention.is_null,jinja.padding,structure.distinct";
 
-/// `<verb-args> --config <config> --ignore-local-config ... --` before the files.
+/// `<verb-args> --disregard-sqlfluffignores ... --` before the files, run from `cwd_rel`.
 ///
-/// The config is mandatory and the only source of the dialect, so no ambient `.sqlfluff`, home or
-/// app-dir config is read. Ignore files are disregarded because dx already owns the file set, and
-/// one process keeps the batched run deterministic. Lint, format check and format fix share this
-/// so they cannot drift apart.
-fn sqlfluff_invocation(binary: &Path, verb: &[&str], files: &[&Path], config: &Path) -> Invocation {
+/// No `--config` and no `--ignore-local-config`: sqlfluff layers its configs itself, and the
+/// runner pins `HOME` to a scratch home whose app-dir config is the bound config (the lowest
+/// layer), so the staged nested `.sqlfluff` files override it for the files at or below them and
+/// nothing outside the scratch is read. `cwd_rel` is the directory of the nearest nested config,
+/// because sqlfluff takes the templater from the config at its cwd. Ignore files are disregarded
+/// because dx already owns the file set, and one process keeps the batched run deterministic.
+/// Lint, format check and format fix share this so they cannot drift apart.
+fn sqlfluff_invocation(binary: &Path, verb: &[&str], files: &[&Path], cwd_rel: &str) -> Invocation {
     let mut argv = vec![binary.as_os_str().to_owned()];
     argv.extend(verb.iter().map(OsString::from));
-    argv.push(OsString::from("--config"));
-    argv.push(config.as_os_str().to_owned());
     argv.extend(
         [
-            "--ignore-local-config",
             "--disregard-sqlfluffignores",
             "--nocolor",
             "--disable-progress-bar",
@@ -2092,28 +2092,28 @@ fn sqlfluff_invocation(binary: &Path, verb: &[&str], files: &[&Path], config: &P
     argv.extend(files.iter().map(|file| file.as_os_str().to_owned()));
     Invocation {
         argv,
-        cwd_rel: String::new(),
+        cwd_rel: cwd_rel.to_owned(),
     }
 }
 
 /// `sqlfluff lint --format json` with every rule.
-pub fn sqlfluff_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
-    sqlfluff_invocation(binary, &["lint", "--format", "json"], files, config)
+pub fn sqlfluff_check(binary: &Path, files: &[&Path], cwd_rel: &str) -> Invocation {
+    sqlfluff_invocation(binary, &["lint", "--format", "json"], files, cwd_rel)
 }
 
 /// `sqlfluff lint --format json` limited to the rules `sqlfluff format` applies.
-pub fn sqlfluff_format_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+pub fn sqlfluff_format_check(binary: &Path, files: &[&Path], cwd_rel: &str) -> Invocation {
     sqlfluff_invocation(
         binary,
         &["lint", "--format", "json", "--rules", SQLFLUFF_FORMAT_RULES],
         files,
-        config,
+        cwd_rel,
     )
 }
 
 /// `sqlfluff format` in place.
-pub fn sqlfluff_format_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
-    sqlfluff_invocation(binary, &["format"], files, config)
+pub fn sqlfluff_format_fix(binary: &Path, files: &[&Path], cwd_rel: &str) -> Invocation {
+    sqlfluff_invocation(binary, &["format"], files, cwd_rel)
 }
 
 /// `check-jsonschema` for one (schema, filetype) group, offline.

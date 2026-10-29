@@ -50,6 +50,17 @@ const BANNED_SECTIONS: &[&str] = &["sqlfluff:templater:dbt", "sqlfluff:templater
 
 /// Refuses a sqlfluff config without a known dialect, or with a templater dx does not allow.
 pub fn check_config(text: &str) -> Result<(), String> {
+    scan_config(text, true, "sqlfluff config")
+}
+
+/// Refuses a nested `.sqlfluff` that sets an unknown dialect or a templater dx does not allow.
+/// The dialect is optional because the bound config below it supplies one, and `sql_file_exts` is
+/// refused because it would filter the files of the group out of the run.
+pub fn check_nested_config(text: &str) -> Result<(), String> {
+    scan_config(text, false, "nested sqlfluff config")
+}
+
+fn scan_config(text: &str, require_dialect: bool, what: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut section = String::new();
     let mut dialect: Option<String> = None;
@@ -71,31 +82,32 @@ pub fn check_config(text: &str) -> Result<(), String> {
         indent_level = indent;
         if let Some(rest) = line.strip_prefix('[') {
             let Some(name) = rest.strip_suffix(']') else {
-                return Err(format!(
-                    "sqlfluff config line {number}: unterminated section"
-                ));
+                return Err(format!("{what} line {number}: unterminated section"));
             };
             section = name.trim().to_ascii_lowercase();
             in_key = false;
             if BANNED_SECTIONS.contains(&section.as_str()) {
                 return Err(format!(
-                    "sqlfluff config line {number}: [{section}] is not allowed: dx runs only the {} templaters",
+                    "{what} line {number}: [{section}] is not allowed: dx runs only the {} templaters",
                     TEMPLATERS.join(", ")
                 ));
             }
             continue;
         }
         let Some(split) = line.find(['=', ':']) else {
-            return Err(format!(
-                "sqlfluff config line {number}: expected `key = value`"
-            ));
+            return Err(format!("{what} line {number}: expected `key = value`"));
         };
         in_key = true;
         let key = line[..split].trim().to_ascii_lowercase();
         let value = line[split + 1..].trim();
         if BANNED_KEYS.contains(&key.as_str()) {
             return Err(format!(
-                "sqlfluff config line {number}: `{key}` is not allowed: dx does not load macros or libraries from the file system"
+                "{what} line {number}: `{key}` is not allowed: dx does not load macros or libraries from the file system"
+            ));
+        }
+        if !require_dialect && key == "sql_file_exts" {
+            return Err(format!(
+                "{what} line {number}: `sql_file_exts` is not allowed in a nested config"
             ));
         }
         if section == "sqlfluff" {
@@ -107,15 +119,16 @@ pub fn check_config(text: &str) -> Result<(), String> {
         }
     }
     match dialect.as_deref() {
+        None | Some("") if !require_dialect => {}
         None | Some("") => {
             return Err(format!(
-                "sqlfluff config must set `dialect` under [sqlfluff]; one of {}",
+                "{what} must set `dialect` under [sqlfluff]; one of {}",
                 DIALECTS.join(", ")
             ))
         }
         Some(name) if !DIALECTS.contains(&name) => {
             return Err(format!(
-                "sqlfluff config dialect `{name}` is unknown to sqlfluff 4.4.0; use one of {}",
+                "{what} dialect `{name}` is unknown to sqlfluff 4.4.0; use one of {}",
                 DIALECTS.join(", ")
             ))
         }
@@ -124,7 +137,7 @@ pub fn check_config(text: &str) -> Result<(), String> {
     if let Some(name) = templater.as_deref() {
         if !TEMPLATERS.contains(&name) {
             return Err(format!(
-                "sqlfluff config templater `{name}` is not allowed: dx accepts only {}",
+                "{what} templater `{name}` is not allowed: dx accepts only {}",
                 TEMPLATERS.join(", ")
             ));
         }
@@ -161,6 +174,21 @@ pub fn check_inline_config(sql: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_nested_config_needs_no_dialect_but_must_be_safe() {
+        assert!(check_nested_config("[sqlfluff]\ntemplater = placeholder\n").is_ok());
+        assert!(check_nested_config("").is_ok());
+        assert!(check_nested_config("[sqlfluff]\ndialect = tsql\n").is_ok());
+        let err = check_nested_config("[sqlfluff]\ndialect = postgresql\n").expect_err("unknown");
+        assert!(err.contains("nested sqlfluff config dialect"), "{err}");
+        assert!(check_nested_config("[sqlfluff]\ntemplater = dbt\n").is_err());
+        assert!(check_nested_config("[sqlfluff:templater:python]\nx = 1\n").is_err());
+        assert!(check_nested_config("[sqlfluff:templater:jinja]\nlibrary_path = l\n").is_err());
+        let err = check_nested_config("[sqlfluff]\nsql_file_exts = .txt\n").expect_err("exts");
+        assert!(err.contains("sql_file_exts"), "{err}");
+        assert!(check_config("[sqlfluff]\nsql_file_exts = .sql,.txt\ndialect = ansi\n").is_ok());
+    }
 
     #[test]
     fn a_known_dialect_passes() {

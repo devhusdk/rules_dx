@@ -2264,6 +2264,28 @@ FILE_FAMILY_CASES = [
         "windows_x86_64": True,
     },
     {
+        # The nested config switches the templater and the keyword case for its own subtree; run
+        # from the root, `sub/b.sql` would fail to template and its lowercase keywords would fail.
+        "name": "matrix_sql_sqlfluff_nested_config",
+        "generated": {
+            "quality/testdata/sqlfluff_nested/a.sql": "SELECT {{ 1 }} AS a\nFROM t\n",
+            "quality/testdata/sqlfluff_nested/sub/b.sql": "select \"{{\" as a\nfrom t\n",
+        },
+        "capability": "lint",
+        "stages": ["sqlfluff;sql;quality/testdata/sqlfluff_nested/a.sql,quality/testdata/sqlfluff_nested/sub/b.sql"],
+        "tool_names": ["sqlfluff"],
+        "tool_binaries": ["//quality/tools/python:sqlfluff"],
+        "tool_env": ["sqlfluff=RUNFILES_DIR=$TEST_SRCDIR"],
+        "toolfile_tools": ["sqlfluff", "sqlfluff"],
+        "toolfile_srcs": [":sqlfluff_nested/.sqlfluff", ":sqlfluff_nested/sub/.sqlfluff"],
+        "config_tools": ["sqlfluff"],
+        "config_files": [":sqlfluff_nested/.sqlfluff"],
+        "expected_file": ":matrix/matrix_sql_sqlfluff_nested_config.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "matrix_sql_lint_pass",
         "generated": {
             "matrix/sql_clean/a.sql": "select\n    a,\n    b\nfrom t\n",

@@ -568,6 +568,16 @@ impl<'a> FixSession<'a> {
         let Some(session) = self.scratches.get_mut(&index) else {
             return Err(execution(tool_id, "fix scratch missing".to_owned()));
         };
+        // One sqlfluff process serves one config directory, so group the targets by it first.
+        let grouped: Vec<String>;
+        let targets = if tool_id == "sqlfluff" {
+            let mut sorted = targets.to_vec();
+            sorted.sort_by_cached_key(|path| RealBackend::sqlfluff_config_dir(tool, path));
+            grouped = sorted;
+            grouped.as_slice()
+        } else {
+            targets
+        };
         let mut absolute = Vec::with_capacity(targets.len());
         for path in targets {
             absolute.push(
@@ -594,6 +604,25 @@ impl<'a> FixSession<'a> {
         // statix, opa, bicep and latexindent fix exactly one target per run.
         let batches = if matches!(tool_id, "statix" | "opa" | "latexindent" | "bicep") {
             refs.iter().map(|file| vec![*file]).collect()
+        } else if tool_id == "sqlfluff" {
+            let root = session.scratch.root();
+            let mut batches = Vec::new();
+            let mut start = 0;
+            while start < refs.len() {
+                let dir = RealBackend::sqlfluff_config_dir_abs(tool, root, refs[start]);
+                let mut end = start + 1;
+                while end < refs.len()
+                    && RealBackend::sqlfluff_config_dir_abs(tool, root, refs[end]) == dir
+                {
+                    end += 1;
+                }
+                batches.extend(commands::plan_invocation_batches(
+                    &refs[start..end],
+                    |batch| backend.fix_invocation(route, tool_id, tool, batch, &session.scratch),
+                )?);
+                start = end;
+            }
+            batches
         } else {
             commands::plan_invocation_batches(&refs, |batch| {
                 backend.fix_invocation(route, tool_id, tool, batch, &session.scratch)
@@ -971,19 +1000,18 @@ impl super::RealBackend {
                     }
                     "sqlfluff" => {
                         // The fix path skips `check_sqlfluff`, so it repeats the same preflight.
-                        let text = std::fs::read_to_string(cfg)
-                            .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
-                        quality_adapter::sqlfluff_preflight::check_config(&text)
-                            .map_err(|err| execution(tool_id, err))?;
-                        for file in refs {
-                            if let Ok(text) = std::fs::read_to_string(file) {
-                                quality_adapter::sqlfluff_preflight::check_inline_config(&text)
-                                    .map_err(|err| {
-                                        execution(tool_id, format!("{err} (in {})", file.display()))
-                                    })?;
-                            }
+                        RealBackend::sqlfluff_preflight_closure(tool_id, tool, refs)?;
+                        let mut dirs = refs.iter().map(|file| {
+                            RealBackend::sqlfluff_config_dir_abs(tool, scratch.root(), file)
+                        });
+                        let dir = dirs.next().flatten().unwrap_or_default();
+                        if dirs.any(|other| other.as_deref() != Some(dir.as_str())) {
+                            return Err(execution(
+                                tool_id,
+                                "a sqlfluff batch mixes config directories".to_owned(),
+                            ));
                         }
-                        Ok(commands::sqlfluff_format_fix(&tool.binary, refs, cfg))
+                        Ok(commands::sqlfluff_format_fix(&tool.binary, refs, &dir))
                     }
                     _ => Err(execution(
                         tool_id,

@@ -142,6 +142,17 @@ def native_config_error(tool_id, config_path, config_is_source, data, allow_gene
         if not entry.is_source and not allow_generated:
             return ("native_config (" + tool_id + "): data must be " +
                     "checked-in source files, got generated " + entry.path)
+    if tool_id == "sqlfluff":
+        # Every staged file sqlfluff reads as config joins its layers, so data may hold only
+        # nested `.sqlfluff` files, at or below the src's directory.
+        src_dir = config_path.rpartition("/")[0]
+        for entry in data:
+            entry_dir, _, entry_name = entry.path.rpartition("/")
+            below = src_dir == "" or entry_dir == src_dir or entry_dir.startswith(src_dir + "/")
+            if entry_name != ".sqlfluff" or not below:
+                return ("native_config (sqlfluff): data may hold only nested `.sqlfluff` " +
+                        "files at or below the directory of src " + config_path +
+                        ", got " + entry.path)
     return ""
 
 def collect_native_configs(hints, stage_tools, what):

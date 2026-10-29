@@ -4219,13 +4219,41 @@ fn sqlfluff_tool(config: &str) -> RealTool {
 
 const SQLFLUFF_CONFIG: &str = "[sqlfluff]\ndialect = ansi\n";
 
+/// Each run as (cwd, files, app-dir config bytes) so tests can assert the grouping and the home.
+static SQLFLUFF_RUNS: std::sync::Mutex<Vec<(PathBuf, Vec<String>, Vec<u8>)>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// What the sqlfluff child must see: no `--config`, `--ignore-local-config` or ambient home, and
+/// `HOME` and `USERPROFILE` inside the scratch with the bound config in the app dir.
+fn sqlfluff_check_launch(args: &[String], env: &[(OsString, OsString)]) -> PathBuf {
+    for banned in ["--config", "--ignore-local-config"] {
+        assert!(!args.iter().any(|arg| arg == banned), "{banned}");
+    }
+    let home_of = |name: &str| {
+        let values: Vec<&OsString> = env
+            .iter()
+            .filter(|(key, _)| key == name)
+            .map(|(_, value)| value)
+            .collect();
+        assert_eq!(values.len(), 1, "{name} is pinned once");
+        PathBuf::from(values[0])
+    };
+    let home = home_of("HOME");
+    assert_eq!(home, home_of("USERPROFILE"));
+    assert!(home.ends_with("dx-sqlfluff/home"), "{}", home.display());
+    assert!(
+        home.join(".config/sqlfluff/.sqlfluff").is_file(),
+        "bound config sits in the app dir"
+    );
+    home
+}
+
 fn sqlfluff_fake(
     argv: &[OsString],
-    _cwd: &Path,
+    cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    assert!(env.iter().all(|(key, _)| key != "HOME"), "HOME leaked");
     SQLFLUFF_SPAWNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let args: Vec<String> = argv
         .iter()
@@ -4233,16 +4261,13 @@ fn sqlfluff_fake(
         .map(|arg| arg.to_string_lossy().into_owned())
         .collect();
     assert_eq!(args[..3], ["lint", "--format", "json"]);
-    let config_at = args
-        .iter()
-        .position(|arg| arg == "--config")
-        .expect("--config");
-    assert!(
-        Path::new(&args[config_at + 1]).is_file(),
-        "config file exists"
-    );
-    assert_eq!(args[config_at + 2], "--ignore-local-config");
+    let home = sqlfluff_check_launch(&args, env);
     let separator = args.iter().position(|arg| arg == "--").expect("separator");
+    SQLFLUFF_RUNS.lock().expect("lock").push((
+        cwd.to_path_buf(),
+        args[separator + 1..].to_vec(),
+        std::fs::read(home.join(".config/sqlfluff/.sqlfluff"))?,
+    ));
     let mut entries = Vec::new();
     let mut dirty = false;
     for name in &args[separator + 1..] {
@@ -4324,6 +4349,165 @@ fn sqlfluff_lints_every_file_in_one_run_and_stays_check_only() {
     );
 }
 
+const SQLFLUFF_NESTED: &str = "[sqlfluff]\ntemplater = placeholder\n";
+
+fn sqlfluff_nested_tool(bound: &str, extra: &[(&str, &str)]) -> RealTool {
+    let mut tool = sqlfluff_tool(SQLFLUFF_CONFIG);
+    tool.config_rel = Some(bound.to_owned());
+    tool.tool_files = vec![(bound.to_owned(), SQLFLUFF_CONFIG.as_bytes().to_vec())];
+    for (rel, text) in extra {
+        tool.tool_files
+            .push(((*rel).to_owned(), text.as_bytes().to_vec()));
+    }
+    tool
+}
+
+#[test]
+fn sqlfluff_runs_once_per_nearest_config_directory() {
+    let tool = sqlfluff_nested_tool("grp/.sqlfluff", &[("grp/sub/.sqlfluff", SQLFLUFF_NESTED)]);
+    let backend = backend_for("sqlfluff", tool, sqlfluff_fake);
+    let mut files = single("grp/a.sql", SQL_CLEAN);
+    files.insert("grp/sub/b.sql".to_owned(), SQL_DIRTY.to_owned());
+    files.insert("grp/sub/deep/c.sql".to_owned(), SQL_CLEAN.to_owned());
+    let findings = backend
+        .diagnose("sqlfluff", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "grp/sub/b.sql");
+    let runs = SQLFLUFF_RUNS.lock().expect("lock").clone();
+    let ours: Vec<_> = runs
+        .iter()
+        .filter(|(_, names, _)| names.iter().any(|name| name.contains("/grp/")))
+        .collect();
+    assert_eq!(ours.len(), 2, "{ours:?}");
+    let root_run = ours
+        .iter()
+        .find(|(_, names, _)| names.iter().all(|name| name.ends_with("/grp/a.sql")))
+        .expect("root group");
+    assert_eq!(root_run.1, [root_run.0.join("grp/a.sql").to_string_lossy()]);
+    let sub_run = ours
+        .iter()
+        .find(|(cwd, _, _)| cwd.ends_with("grp/sub"))
+        .expect("sub group");
+    assert_eq!(sub_run.1.len(), 2);
+    assert!(sub_run.1.iter().all(|name| name.contains("/grp/sub/")));
+    for run in &ours {
+        assert_eq!(
+            run.2,
+            SQLFLUFF_CONFIG.as_bytes(),
+            "bound config is the home layer"
+        );
+    }
+}
+
+#[test]
+fn sqlfluff_root_bound_config_is_reached_through_the_home_from_a_nested_cwd() {
+    let tool = sqlfluff_nested_tool(".sqlfluff", &[("rootpkg/.sqlfluff", SQLFLUFF_NESTED)]);
+    let backend = backend_for("sqlfluff", tool, sqlfluff_fake);
+    backend
+        .diagnose("sqlfluff", "lint", &single("rootpkg/a.sql", SQL_CLEAN))
+        .expect("diagnosed");
+    let runs = SQLFLUFF_RUNS.lock().expect("lock").clone();
+    let run = runs
+        .iter()
+        .find(|(_, names, _)| names.iter().any(|name| name.ends_with("/rootpkg/a.sql")))
+        .expect("ran");
+    assert!(run.0.ends_with("rootpkg"));
+    assert_eq!(run.2, SQLFLUFF_CONFIG.as_bytes());
+}
+
+#[test]
+fn sqlfluff_refuses_ambient_looking_or_misplaced_configs() {
+    let cases: [(&str, Vec<(&str, &str)>, &str); 5] = [
+        (
+            "grp/sub/.sqlfluff",
+            vec![("grp/.sqlfluff", SQLFLUFF_NESTED)],
+            "must sit at or below",
+        ),
+        (
+            "grp/.sqlfluff",
+            vec![(
+                "grp/pyproject.toml",
+                "[tool.sqlfluff.core]\ndialect = \"ansi\"\n",
+            )],
+            "would be read as a sqlfluff config",
+        ),
+        (
+            "grp/.sqlfluff",
+            vec![("grp/sub/setup.cfg", "[sqlfluff]\ndialect = ansi\n")],
+            "would be read as a sqlfluff config",
+        ),
+        (
+            "grp/.sqlfluff",
+            vec![("grp/sub/.sqlfluff", "[sqlfluff]\ntemplater = dbt\n")],
+            "nested sqlfluff config",
+        ),
+        (
+            "grp/.sqlfluff",
+            vec![("grp/sub/.sqlfluff", "[sqlfluff]\ndialect = postgresql\n")],
+            "unknown",
+        ),
+    ];
+    for (bound, extra, want) in cases {
+        let backend = backend_for(
+            "sqlfluff",
+            sqlfluff_nested_tool(bound, &extra),
+            sqlfluff_format_fake,
+        );
+        let check = backend
+            .diagnose("sqlfluff", "lint", &single("grp/sub/a.sql", SQL_CLEAN))
+            .expect_err(want);
+        assert!(check.to_string().contains(want), "{check}");
+        let fix = backend
+            .apply_fix("sqlfluff", "grp/sub/a.sql", SQL_DIRTY, "format")
+            .expect_err(want);
+        assert!(fix.to_string().contains(want), "{fix}");
+    }
+}
+
+#[test]
+fn sqlfluff_format_fix_never_mixes_config_directories_in_one_run() {
+    let tool = sqlfluff_nested_tool("grq/.sqlfluff", &[("grq/sub/.sqlfluff", SQLFLUFF_NESTED)]);
+    let backend = backend_for("sqlfluff", tool, sqlfluff_format_fake);
+    let spec = stage(
+        "sqlfluff",
+        &["sql"],
+        &["grq/a.sql", "grq/sub/b.sql", "grq/c.sql"],
+    );
+    let current: BTreeMap<String, String> = spec
+        .source_paths
+        .iter()
+        .map(|path| (path.clone(), SQL_DIRTY.to_owned()))
+        .collect();
+    let known = BTreeSet::new();
+    let mut session = super::real_fix::FixSession::new(&backend, "format", &known);
+    let fixed = session
+        .fix(0, &spec, &current, &spec.source_paths)
+        .expect("fixed");
+    session.close().expect("closes");
+    for path in &spec.source_paths {
+        assert_eq!(fixed[path], "select a, b from t\n", "{path}");
+    }
+    let runs = SQLFLUFF_FIX_RUNS.lock().expect("lock").clone();
+    let ours: Vec<_> = runs
+        .iter()
+        .filter(|(_, names)| names.iter().any(|name| name.contains("/grq/")))
+        .collect();
+    assert_eq!(ours.len(), 2, "{ours:?}");
+    let sub = ours
+        .iter()
+        .find(|(cwd, _)| cwd.ends_with("grq/sub"))
+        .expect("sub run");
+    assert_eq!(sub.1.len(), 1);
+    assert!(sub.1[0].ends_with("/grq/sub/b.sql"));
+    let root = ours
+        .iter()
+        .find(|(cwd, _)| !cwd.ends_with("grq/sub"))
+        .expect("root run");
+    assert_eq!(root.1.len(), 2);
+    assert!(root.1.iter().all(|name| !name.contains("/sub/")));
+}
+
 #[test]
 fn sqlfluff_without_a_config_is_refused() {
     let backend = backend_for("sqlfluff", plain_tool(), sqlfluff_fake);
@@ -4396,6 +4580,9 @@ fn sqlfluff_has_no_delegated_mode() {
     assert!(err.to_string().contains("no delegated mode"), "{err}");
 }
 
+static SQLFLUFF_FIX_RUNS: std::sync::Mutex<Vec<(PathBuf, Vec<String>)>> =
+    std::sync::Mutex::new(Vec::new());
+
 static SQLFLUFF_FORMAT_ARGV: std::sync::Mutex<Vec<Vec<String>>> = std::sync::Mutex::new(Vec::new());
 
 /// Records each argv, then behaves as `sqlfluff format` (rewrites `a,b`) or as the lint fake.
@@ -4416,9 +4603,12 @@ fn sqlfluff_format_fake(
     if args[0] != "format" {
         return sqlfluff_fake(argv, cwd, env);
     }
-    assert_eq!(args[1], "--config");
-    assert_eq!(args[3], "--ignore-local-config");
+    sqlfluff_check_launch(&args, env);
     let separator = args.iter().position(|arg| arg == "--").expect("separator");
+    SQLFLUFF_FIX_RUNS
+        .lock()
+        .expect("lock")
+        .push((cwd.to_path_buf(), args[separator + 1..].to_vec()));
     for name in &args[separator + 1..] {
         let text = std::fs::read_to_string(name)?;
         std::fs::write(name, text.replace("a,b", "a, b"))?;

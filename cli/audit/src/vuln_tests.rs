@@ -1492,6 +1492,12 @@ fn pypi_exact_versions_and_wildcard_scopes() {
     assert_eq!(pypi_assess("=1.0", "1.0.0"), VersionScope::Affected);
     assert_eq!(pypi_assess("=1.0", "1.1"), VersionScope::Unaffected);
     assert_eq!(pypi_assess("*", "9.9"), VersionScope::Affected);
+    // A legacy tag that is not PEP 440 never equals a locked version.
+    assert_eq!(pypi_assess("=v0.1.1d", "4.2.0"), VersionScope::Unaffected);
+    assert_eq!(
+        pypi_assess(">=1,<=v0.1.1d", "4.2.0"),
+        VersionScope::Incomplete
+    );
     assert_eq!(pypi_assess("", "1.0"), VersionScope::Unaffected);
     assert!(pypi_in_scope(">=1.0, <2.0", "1.5"));
     assert!(!pypi_in_scope(">=1.0, <2.0", "2.0"));

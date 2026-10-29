@@ -1,5 +1,3 @@
-"""paket.fsharplint_extension helpers."""
-
 "Generated"
 
 load(":paket.fsharplint.bzl", _fsharplint = "fsharplint")

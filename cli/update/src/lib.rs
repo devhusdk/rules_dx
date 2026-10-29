@@ -12,6 +12,8 @@ pub mod backend;
 pub mod outcome;
 pub mod recovery;
 pub mod report;
+#[cfg(test)]
+mod root_dx_toml_tests;
 pub mod selector;
 pub mod sets;
 

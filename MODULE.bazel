@@ -556,12 +556,29 @@ julia_pkg.from_manifest(
     name = "dx_julia_format",
     lockfile = "//julia/tools:Manifest.bazel.json",
 )
+julia_pkg.from_manifest(
+    name = "dx_julia_jet",
+    lockfile = "//julia/tools/jet:Manifest.bazel.json",
+)
 julia_pkg.pkg_annotation(
     dep = "Preferences",
     patch_args = ["-p1"],
     patches = ["//julia/tools/patches:Preferences.patch"],
 )
-use_repo(julia_pkg, "dx_julia_format")
+julia_pkg.pkg_annotation(
+    dep = "JET",
+    patch_args = ["-p1"],
+    patches = [
+        "//julia/tools/jet/patches:JET.patch",
+        "//julia/tools/jet/patches:JET_docs.patch",
+    ],
+)
+julia_pkg.pkg_annotation(
+    dep = "MacroTools",
+    patch_args = ["-p1"],
+    patches = ["//julia/tools/jet/patches:MacroTools.patch"],
+)
+use_repo(julia_pkg, "dx_julia_format", "dx_julia_jet")
 
 julia_pkg_dev = use_extension(
     "@rules_julia//julia/pkg:extensions.bzl",

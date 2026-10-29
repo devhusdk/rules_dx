@@ -40,6 +40,9 @@ _DART_TOOL = _CANONICAL + "//dart/tools:dart"
 _JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
 _JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
 _JULIA_FORMAT_TOOL = _CANONICAL + "//julia/tools:julia_format"
+_JULIA_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:julia_typecheck_policy"
+_JET_SETTING = _CANONICAL + "//config:tool_jet"
+_JET_TOOL = _CANONICAL + "//julia/tools/jet:jet"
 _PERL_POLICY = _CANONICAL + "//quality/testdata:perl_policy"
 _PERLTIDY_SETTING = _CANONICAL + "//config:tool_perltidy"
 _PERLTIDY_TOOL = _CANONICAL + "//perl/tools:perltidy"
@@ -302,6 +305,22 @@ erlang_typecheck_subject = rule(
     implementation = _erlang_typecheck_subject_impl,
     attrs = {
         "_dialyzer": attr.label(default = "//config:tool_dialyzer"),
+        "target": attr.label(
+            aspects = [real_typecheck_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _julia_typecheck_subject_impl(ctx):
+    """Exposes the jet request files beside the real aspect."""
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = {"results": ",".join([f.short_path for f in results])})]
+
+julia_typecheck_subject = rule(
+    implementation = _julia_typecheck_subject_impl,
+    attrs = {
+        "_jet": attr.label(default = "//config:tool_jet"),
         "target": attr.label(
             aspects = [real_typecheck_aspect],
             mandatory = True,
@@ -1267,6 +1286,42 @@ def luals_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_luals",
     )
     _luals_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_jet_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _JULIA_TYPECHECK_POLICY},
+)
+
+def _jet_wired_impl(ctx):
+    """Asserts the flag wires a typecheck stage result for the julia target."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["results"] != "", "want a typecheck stage result for the julia target")
+    return analysistest.end(env)
+
+_jet_set_test = analysistest.make(
+    _jet_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _JULIA_TYPECHECK_POLICY,
+        _JET_SETTING: _JET_TOOL,
+    },
+)
+
+def jet_flag_tests(name, subject):
+    """Instantiates the jet flag proofs."""
+    _jet_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_jet",
+    )
+    _jet_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

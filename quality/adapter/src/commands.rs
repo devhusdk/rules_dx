@@ -248,6 +248,7 @@ const DART_FORMAT_CHECK_ARGS: &[&str] = &[
     "--set-exit-if-changed",
 ];
 const DART_FORMAT_FIX_ARGS: &[&str] = &["--suppress-analytics", "format", "--output=write"];
+const JET_ARGS: &[&str] = &["--config"];
 const JULIA_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const JULIA_FORMAT_FIX_ARGS: &[&str] = &["--apply"];
 /// Always first: it stops perltidy reading `~/.perltidyrc`, `./.perltidyrc` and `$PERLTIDY`.
@@ -1523,6 +1524,21 @@ pub fn dart_analyze(
 
 pub fn dart_format_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, DART_FORMAT_FIX_ARGS, files, "")
+}
+
+/// `jet.jl --config CONFIG --scratch DIR --report OUT`; the report is the only write.
+pub fn jet_check(binary: &Path, config: &Path, scratch: &Path, report: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(JET_ARGS.iter().map(OsString::from));
+    argv.push(config.as_os_str().to_owned());
+    argv.push(OsString::from("--scratch"));
+    argv.push(scratch.as_os_str().to_owned());
+    argv.push(OsString::from("--report"));
+    argv.push(report.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn julia_format_check(binary: &Path, files: &[&Path]) -> Invocation {

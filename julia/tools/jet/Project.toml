@@ -1,0 +1,9 @@
+name = "jet"
+version = "0.0.1"
+
+[deps]
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+
+[compat]
+Preferences = "=1.5.0"

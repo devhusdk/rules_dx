@@ -5909,6 +5909,96 @@ fn luals_is_check_only() {
     );
 }
 
+fn jet_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let after = |name: &str| {
+        let at = text.iter().position(|a| a == name).expect("flag");
+        text[at + 1].clone()
+    };
+    let root = after("--scratch");
+    let config = std::fs::read_to_string(after("--config")).expect("staged config");
+    assert!(config.contains("roots"), "{config}");
+    assert!(after("--report").contains(".dx-jet"));
+    let body = format!(
+        concat!(
+            r#"{{"v":1,"kind":"UndefVarError","message":"x is not defined","frames":[{{"file":"{0}/lib/bad.jl","line":3}}]}}"#,
+            "\n",
+            r#"{{"v":1,"kind":"MethodError","message":"dep","frames":[{{"file":"{0}/dx-jet/rf/_main/dep.jl","line":1}}]}}"#,
+            "\n"
+        ),
+        root
+    );
+    std::fs::write(after("--report"), body)?;
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn jet_tool() -> RealTool {
+    RealTool {
+        tool_files: vec![
+            (
+                "dx-jet/config.toml".to_owned(),
+                b"includes = []\nroots = [\"lib/bad.jl\"]\n".to_vec(),
+            ),
+            ("dx-jet/rf/_main/dep.jl".to_owned(), b"x = 1\n".to_vec()),
+        ],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn jet_keeps_owned_findings_and_maps_paths_back() {
+    let backend = backend_for("jet", jet_tool(), jet_report);
+    let findings = backend
+        .diagnose("jet", "typecheck", &single("lib/bad.jl", "f() = x\n\n\n"))
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(seen, vec![("lib/bad.jl", "jet/UndefVarError")]);
+}
+
+#[test]
+fn jet_without_a_report_fails_the_run() {
+    fn crash(
+        _argv: &[OsString],
+        _cwd: &Path,
+        _env: &[(OsString, OsString)],
+    ) -> io::Result<ChildOutput> {
+        Ok(ChildOutput {
+            code: Some(2),
+            stdout: Vec::new(),
+            stderr: b"boom".to_vec(),
+        })
+    }
+    let backend = backend_for("jet", jet_tool(), crash);
+    assert!(backend
+        .diagnose("jet", "typecheck", &single("lib/a.jl", "x = 1\n"))
+        .is_err());
+}
+
+#[test]
+fn jet_is_check_only() {
+    let backend = backend_for("jet", jet_tool(), jet_report);
+    assert_eq!(
+        backend
+            .apply_fix("jet", "lib/a.jl", "x = 1\n", "typecheck")
+            .expect("check-only"),
+        "x = 1\n"
+    );
+}
+
 fn sorbet_report(
     argv: &[OsString],
     _cwd: &Path,

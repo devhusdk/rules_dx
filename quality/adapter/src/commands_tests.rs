@@ -3142,3 +3142,25 @@ fn sorbet_check_ignores_the_source_tree_config_and_takes_every_path_after_a_sepa
         .iter()
         .any(|arg| arg.contains("cache-dir")));
 }
+
+#[test]
+fn jet_check_writes_only_the_report() {
+    let invocation = jet_check(
+        Path::new(BIN),
+        Path::new("/s/dx-jet/config.toml"),
+        Path::new("/s"),
+        Path::new("/s/.dx-jet/report.json"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--config",
+            "/s/dx-jet/config.toml",
+            "--scratch",
+            "/s",
+            "--report",
+            "/s/.dx-jet/report.json",
+        ]
+    );
+}

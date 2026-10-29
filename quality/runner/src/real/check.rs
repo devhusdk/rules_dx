@@ -775,6 +775,56 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "jet" => {
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
+                for (workspace, absolute) in pairs {
+                    let real = std::fs::canonicalize(absolute)
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    owned.push((real, absolute));
+                }
+                let work = root.join(".dx-jet");
+                std::fs::create_dir_all(&work)
+                    .map_err(|err| execution(tool_id, format!("stage jet work dir: {err}")))?;
+                let report = work.join("report.json");
+                let invocation = commands::jet_check(
+                    &tool.binary,
+                    &root.join("dx-jet/config.toml"),
+                    &root,
+                    &report,
+                );
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let body = std::fs::read(&report).map_err(|err| {
+                    execution(
+                        tool_id,
+                        format!(
+                            "no report (exit {:?}): {err}: {}",
+                            out.code,
+                            String::from_utf8_lossy(&out.stderr)
+                                .lines()
+                                .next()
+                                .unwrap_or("")
+                        ),
+                    )
+                })?;
+                let real_names: Vec<String> = owned
+                    .iter()
+                    .map(|(real, _)| real.to_string_lossy().into_owned())
+                    .collect();
+                let real_strs: Vec<&str> = real_names.iter().map(String::as_str).collect();
+                let mut findings = parsed(tool_id, parsers::parse_jet(&body, &real_strs))?;
+                for found in &mut findings {
+                    if let Some((_, absolute)) = owned
+                        .iter()
+                        .find(|(real, _)| real.to_string_lossy() == found.file.as_str())
+                    {
+                        found.file = absolute.to_string_lossy().into_owned();
+                    }
+                }
+                Ok(findings)
+            }
             "luals" => {
                 // LuaLS reports file URIs of the real paths, so analyse and match canonical ones.
                 let root = std::fs::canonicalize(scratch.root()).map_err(|err| {

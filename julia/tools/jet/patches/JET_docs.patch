@@ -1,0 +1,16 @@
+--- a/src/toplevel/virtualprocess.jl
++++ b/src/toplevel/virtualprocess.jl
+@@ -395,13 +395,6 @@
+ 
+   This can occur when macro expansion accesses a global variable, as in:
+   > test/fixtures/concretization_patterns.jl
+-  $(let path = normpath(
+-        @__DIR__, "..", "..", "test", "fixtures", "concretization_patterns.jl")
+-      text = read(path, String)
+-      lines = split(text, '\n')
+-      pushfirst!(lines, "```julia"); push!(lines, "```")
+-      join(lines, "\n  ")
+-  end)
+ 
+   To work around this limitation, list surface-syntax expression patterns in
+   `concretization_patterns`. Before macro expansion and lowering, JET matches

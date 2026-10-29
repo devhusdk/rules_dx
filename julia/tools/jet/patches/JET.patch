@@ -1,0 +1,33 @@
+--- a/src/JETBase.jl
++++ b/src/JETBase.jl
+@@ -1,19 +1,3 @@
+-let README = normpath(dirname(@__DIR__), "README.md")
+-    s = read(README, String)
+-    s = replace(s,
+-        # replace the GitHub README admonition syntax with that of the Julia documentation
+-        "> [!NOTE]" => "!!! note",
+-        "> [!WARNING]" => "!!! warning",
+-        "> [!IMPORTANT]" => "!!! note",
+-        r"^\> (.+)$"m => s"    \1",
+-        r"^\>$"m => s"",
+-        # drop HTML comments: Julia's Markdown parser has no notion of HTML blocks,
+-        # so they would otherwise show up verbatim in `?JET` and in the manual
+-        r"^<!-- @doc (.*?) -->$"ms => s"```@docs\n\1\n```\n",
+-        r"^<!--.*?-->$"ms => "")
+-    @doc s JET
+-    include_dependency(README)
+-end
+ 
+ Base.Experimental.@optlevel 1
+ 
+@@ -1536,10 +1520,6 @@
+         show(IOContext(devnull, :color=>true), result)
+         result = @report_opt rand(String)
+         show(IOContext(devnull, :color=>true), result)
+-        report_file(normpath(pkgdir(JET), "demo.jl");
+-            virtualize=false,
+-            context=__demo__,
+-            toplevel_logger=nothing)
+     end
+     # Since JuliaLang/julia#62724 (v1.14), inference taints `:effect_free` of every method
+     # while generating an image instrumented for code coverage. Drop the analysis tokens

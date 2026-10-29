@@ -453,6 +453,7 @@ RUBY_RUBOCOP_SUPPORT = {
     "state": "supported",
     "tool": "rubocop",
     "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 RUBY_STANDARDRB_SUPPORT = {
@@ -468,6 +469,7 @@ RUBY_STANDARDRB_SUPPORT = {
     "state": "supported",
     "tool": "standardrb",
     "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 YAML_YAMLFMT_SUPPORT = {
@@ -1515,10 +1517,12 @@ POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "powershell",
     "fix": "supported",
+    # No pinned PSScriptAnalyzer artifact exists for Windows, so it is unsupported on windows_x86_64 and windows_arm64.
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "psscriptanalyzer",
     "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
@@ -1529,10 +1533,12 @@ POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
     "execution": "direct",
     "family": "powershell",
     "fix": "check_only",
+    # No pinned PSScriptAnalyzer artifact exists for Windows, so it is unsupported on windows_x86_64 and windows_arm64.
     "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "psscriptanalyzer",
     "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT = {

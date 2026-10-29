@@ -1921,6 +1921,9 @@ passes it with `-l`. A `localSettings.yaml` next to the sources is ignored.
 `latexindent` itself skips a malformed or missing settings file without an
 error, so check a new config by formatting a file it should change.
 
+The [prose-docs example](../../../examples/prose-docs/README.md) uses all four
+document families in one workspace.
+
 `chktex` lint is not available yet. No pinned build of `chktex` exists on any
 platform, so a policy that selects it fails with:
 

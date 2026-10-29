@@ -1,0 +1,49 @@
+load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rst/rules:defs.bzl", "rst_library")
+load("@rules_dx//typst/rules:defs.bzl", "typst_library")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    glob(["*"]),
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+filegroup(
+    name = "files",
+    srcs = glob(["*"]),
+    visibility = [
+        "//examples/prose-docs:__pkg__",
+        "//quality/tests:__pkg__",
+    ],
+)
+
+rst_library(
+    name = "todo_rst",
+    srcs = ["todo.rst"],
+    aspect_hints = ["//examples/prose-docs:docs_vale"],
+    tags = ["manual"],
+)
+
+asciidoc_library(
+    name = "todo_adoc",
+    srcs = ["todo.adoc"],
+    aspect_hints = ["//examples/prose-docs:docs_vale"],
+    tags = ["manual"],
+)
+
+typst_library(
+    name = "messy",
+    srcs = ["messy.typ"],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

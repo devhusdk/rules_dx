@@ -1,0 +1,4 @@
+build --aspects=@my_dx//quality:real_aspects.bzl%real_lint_aspect,@my_dx//quality:real_aspects.bzl%real_format_aspect,@my_dx//quality:real_aspects.bzl%real_typst_format_aspect,@my_dx//quality:real_aspects.bzl%real_latex_format_aspect
+build --output_groups=+dx_results
+build --keep_going
+build --@my_dx//config:workspace=//examples/prose-docs:policy

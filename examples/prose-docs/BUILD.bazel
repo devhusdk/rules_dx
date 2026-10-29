@@ -1,0 +1,116 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//quality:native_config.bzl", "latexindent_config", "vale_config")
+load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    glob(["*"]) + ["styles/House/Todo.yml"],
+    visibility = [
+        "//examples:__pkg__",
+        "//tools/testing/hermetic:__pkg__",
+    ],
+)
+
+quality_family(
+    name = "rst_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "rst",
+    lint = ["vale"],
+)
+
+quality_family(
+    name = "asciidoc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "asciidoc",
+    lint = ["vale"],
+)
+
+quality_family(
+    name = "typst_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "typst",
+    format = ["typstyle"],
+)
+
+quality_family(
+    name = "latex_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "latex",
+    format = ["latexindent"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [
+        ":asciidoc_family",
+        ":latex_family",
+        ":rst_family",
+        ":typst_family",
+    ],
+)
+
+vale_config(
+    name = "docs_vale",
+    src = "docs.vale.ini",
+    data = ["styles/House/Todo.yml"],
+)
+
+latexindent_config(
+    name = "docs_latexindent",
+    src = "latexindent.yaml",
+)
+
+sh_test(
+    name = "bundle_test",
+    srcs = ["bundle_test.sh"],
+    data = [
+        "//examples/prose-docs/guide:pages",
+        "//examples/prose-docs/handbook:pages",
+        "//examples/prose-docs/paper:latex",
+        "//examples/prose-docs/paper:typst",
+    ],
+)
+
+filegroup(
+    name = "files",
+    testonly = True,
+    srcs = glob(["*"]) + [
+        "styles/House/Todo.yml",
+        "//examples/prose-docs/drafts:files",
+        "//examples/prose-docs/guide:files",
+        "//examples/prose-docs/handbook:files",
+        "//examples/prose-docs/paper:files",
+        "//examples/prose-docs/shared:files",
+    ],
+    visibility = ["//quality/tests:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

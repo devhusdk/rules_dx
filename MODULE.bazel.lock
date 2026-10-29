@@ -2371,6 +2371,19 @@
         }
       }
     },
+    "//ruby/toolchain:repos.bzl%ruby_tools": {
+      "general": {
+        "bzlTransitiveDigest": "q8s8Tlzp35aTi2LY/Cw/gTV8p0TRFKkjrag5KJClBVk=",
+        "usagesDigest": "DdB3pMuhWdguk339a36Ql7TUeG+ptFZJOmSObKbSzP0=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_sorbet": {
+            "repoRuleId": "@@//ruby/toolchain:repos.bzl%_sorbet",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "//tools/docs/site/browser:repos.bzl%firefox": {
       "general": {
         "bzlTransitiveDigest": "oD0RRpbCewCYEFkuLK+wAzHst3S+Sg29zIxTCnsHyZM=",

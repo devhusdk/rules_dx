@@ -5225,6 +5225,94 @@ fn luals_is_check_only() {
     );
 }
 
+fn sorbet_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert!(text.contains(&"--no-config".to_owned()), "{text:?}");
+    assert!(
+        !text.iter().any(|arg| arg.contains("cache-dir")),
+        "{text:?}"
+    );
+    let separator = text.iter().position(|arg| arg == "--").expect("separator");
+    let paths = &text[separator + 1..];
+    let owned = paths
+        .iter()
+        .find(|path| path.ends_with("lib/bad.rb"))
+        .expect("owned source");
+    let dep = paths
+        .iter()
+        .find(|path| path.contains("dx-sorbet/dep/") && path.ends_with("dep.rb"))
+        .expect("staged dependency");
+    let body = format!(
+        "{owned}:3: Method `g` does not exist on `A` https://srb.help/7003\n     3 |A.new.g\n\n{dep}:1: dep https://srb.help/5002\n     1 |x\n\nErrors: 2\n"
+    );
+    Ok(ChildOutput {
+        code: Some(100),
+        stdout: Vec::new(),
+        stderr: body.into_bytes(),
+    })
+}
+
+fn sorbet_tool() -> RealTool {
+    RealTool {
+        tool_files: vec![("dx-sorbet/dep/lib/dep.rb".to_owned(), b"X = 1\n".to_vec())],
+        ..plain_tool()
+    }
+}
+
+#[test]
+fn sorbet_checks_dependencies_too_but_keeps_only_owned_findings() {
+    let backend = backend_for("sorbet", sorbet_tool(), sorbet_report);
+    let findings = backend
+        .diagnose(
+            "sorbet",
+            "typecheck",
+            &single("lib/bad.rb", "# typed: true\nA.new\nA.new.g\n"),
+        )
+        .expect("diagnosed");
+    let seen: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (f.path.as_str(), f.rule_id.as_str()))
+        .collect();
+    assert_eq!(seen, vec![("lib/bad.rb", "sorbet/7003")]);
+}
+
+#[test]
+fn sorbet_with_unparsable_output_fails_the_run() {
+    fn crash(
+        _argv: &[OsString],
+        _cwd: &Path,
+        _env: &[(OsString, OsString)],
+    ) -> io::Result<ChildOutput> {
+        Ok(ChildOutput {
+            code: Some(100),
+            stdout: Vec::new(),
+            stderr: b"boom".to_vec(),
+        })
+    }
+    let backend = backend_for("sorbet", sorbet_tool(), crash);
+    assert!(backend
+        .diagnose("sorbet", "typecheck", &single("lib/a.rb", "puts 1\n"))
+        .is_err());
+}
+
+#[test]
+fn sorbet_is_check_only() {
+    let backend = backend_for("sorbet", sorbet_tool(), sorbet_report);
+    assert_eq!(
+        backend
+            .apply_fix("sorbet", "lib/a.rb", "puts 1\n", "typecheck")
+            .expect("check-only"),
+        "puts 1\n"
+    );
+}
+
 fn phpstan_report(
     argv: &[OsString],
     _cwd: &Path,

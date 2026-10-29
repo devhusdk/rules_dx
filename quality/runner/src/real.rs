@@ -100,6 +100,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "scalafmt",
     "shellcheck",
     "shfmt",
+    "sorbet",
     "spotbugs",
     "sqlfluff",
     "standardrb",

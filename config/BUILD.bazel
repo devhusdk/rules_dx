@@ -43,6 +43,13 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_sorbet",
+    build_setting_default = ":no_sorbet",
+)
+
+filegroup(name = "no_sorbet")
+
+label_flag(
     name = "tool_stylua",
     build_setting_default = "@dx_tools//:stylua",
 )

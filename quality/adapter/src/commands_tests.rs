@@ -2954,3 +2954,27 @@ fn capnp_check_compiles_to_stdout_inside_one_import_root() {
     );
     assert_eq!(invocation.cwd_rel, "");
 }
+
+#[test]
+fn sorbet_check_ignores_the_source_tree_config_and_takes_every_path_after_a_separator() {
+    let invocation = sorbet_check(
+        Path::new(BIN),
+        &[Path::new("/s/a.rb"), Path::new("/s/dx-sorbet/dep/b.rb")],
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--no-config",
+            "--color=never",
+            "--no-error-sections",
+            "--silence-dev-message",
+            "--",
+            "/s/a.rb",
+            "/s/dx-sorbet/dep/b.rb",
+        ]
+    );
+    assert!(!argv_strings(&invocation)
+        .iter()
+        .any(|arg| arg.contains("cache-dir")));
+}

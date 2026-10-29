@@ -439,6 +439,9 @@ single_version_override(
 ruby_coverage = use_extension("//ruby/coverage:repos.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_coverage_gems")
 
+ruby_tools = use_extension("//ruby/toolchain:repos.bzl", "ruby_tools")
+use_repo(ruby_tools, "dx_sorbet")
+
 ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby", dev_dependency = True)
 ruby.toolchain(
     name = "ruby",

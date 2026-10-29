@@ -86,6 +86,7 @@ pub mod scalafix;
 pub mod scalafmt;
 pub mod shellcheck;
 pub mod shfmt;
+pub mod sorbet;
 pub mod spotbugs;
 pub mod sqlfluff;
 pub mod standardrb;
@@ -191,6 +192,7 @@ pub use scalafix::parse_scalafix;
 pub use scalafmt::parse_scalafmt;
 pub use shellcheck::parse_shellcheck;
 pub use shfmt::parse_shfmt;
+pub use sorbet::parse_sorbet;
 pub use spotbugs::parse_spotbugs;
 pub use sqlfluff::parse_sqlfluff;
 pub use standardrb::parse_standardrb;
@@ -2449,6 +2451,14 @@ mod tests {
         super::shellcheck::parse_shellcheck(input, code, files)
     }
 
+    fn fuzz_sorbet(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::sorbet::parse_sorbet(input, code, files)
+    }
+
     fn fuzz_shfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2702,6 +2712,7 @@ mod tests {
         ("scalafmt", fuzz_scalafmt),
         ("shellcheck", fuzz_shellcheck),
         ("shfmt", fuzz_shfmt),
+        ("sorbet", fuzz_sorbet),
         ("spotbugs", fuzz_spotbugs),
         ("sqlfluff", fuzz_sqlfluff),
         ("standardrb", fuzz_standardrb),
@@ -2812,6 +2823,7 @@ mod tests {
         ("scalafmt", include_str!("scalafmt.rs")),
         ("shellcheck", include_str!("shellcheck.rs")),
         ("shfmt", include_str!("shfmt.rs")),
+        ("sorbet", include_str!("sorbet.rs")),
         ("spotbugs", include_str!("spotbugs.rs")),
         ("sqlfluff", include_str!("sqlfluff.rs")),
         ("standardrb", include_str!("standardrb.rs")),

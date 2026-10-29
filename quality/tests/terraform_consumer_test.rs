@@ -385,3 +385,98 @@ fn a_config_that_needs_a_plugin_download_is_an_error_not_a_clean_run() {
         out.combined()
     );
 }
+
+const NULL_LINUX_AMD64_SHA256: &str =
+    "9d32ac3619cfc93eb3c4f423492a8e0f79db05fec58e449dee9b2d5873d5f69f";
+
+const TYPECHECK_MODULE_TAIL: &str = r#"
+dx_terraform = use_extension("@rules_dx//terraform:extensions.bzl", "dx_terraform")
+dx_terraform.provider(
+    name = "null",
+    sha256 = {"linux_amd64": "NULL_SHA256"},
+    source = "registry.terraform.io/hashicorp/null",
+    version = "3.2.4",
+)
+use_repo(dx_terraform, "dx_terraform_providers")
+"#;
+
+const TYPECHECK_BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
+
+quality_family(
+    name = "terraform_family",
+    disabled = [
+        "format",
+        "lint",
+    ],
+    family_id = "terraform",
+    typecheck = ["terraform"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":terraform_family"],
+)
+"#;
+
+const NULL_RESOURCE: &str = "resource \"null_resource\" \"marker\" {}\n";
+
+const NULL_RESOURCE_BOGUS: &str = "resource \"null_resource\" \"marker\" {\n  bogus = 1\n}\n";
+
+/// A consumer whose `app` module declares the hub's `null` provider.
+fn typecheck_consumer(with_providers: bool) -> Case {
+    let root = consumer();
+    let module = read(&root.join("MODULE.bazel"));
+    write(
+        &root.join("MODULE.bazel"),
+        &format!(
+            "{module}{}",
+            TYPECHECK_MODULE_TAIL.replace("NULL_SHA256", NULL_LINUX_AMD64_SHA256)
+        ),
+    );
+    write(&root.join("BUILD.bazel"), TYPECHECK_BUILD);
+    let build = if with_providers {
+        APP_BUILD.replace(
+            "    deps =",
+            "    providers = [\"@dx_terraform_providers//:null\"],\n    deps =",
+        )
+    } else {
+        APP_BUILD.to_owned()
+    };
+    write(&root.join("app/null.tf"), NULL_RESOURCE);
+    write(
+        &root.join("app/BUILD.bazel"),
+        &build.replace("\"main.tf\",", "\"main.tf\",\n        \"null.tf\","),
+    );
+    root
+}
+
+#[test]
+fn typecheck_validates_offline_against_the_declared_provider_mirror() {
+    let root = typecheck_consumer(true);
+    let clean = dx(&root, "typecheck", &[]);
+    assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
+
+    let null = root.join("app/null.tf");
+    write(&null, NULL_RESOURCE_BOGUS);
+    let bad = dx(&root, "typecheck", &[]);
+    assert_eq!(bad.status.code(), Some(1), "{}", bad.combined());
+    assert!(
+        bad.combined().contains("app/null.tf:"),
+        "{}",
+        bad.combined()
+    );
+    assert!(
+        bad.combined().contains("Unsupported argument"),
+        "{}",
+        bad.combined()
+    );
+    assert_eq!(read(&null), NULL_RESOURCE_BOGUS);
+}
+
+#[test]
+fn typecheck_without_the_provider_is_an_error_not_a_clean_run() {
+    let root = typecheck_consumer(false);
+    let out = dx(&root, "typecheck", &[]);
+    assert_ne!(out.status.code(), Some(0), "{}", out.combined());
+    assert!(out.combined().contains("provider"), "{}", out.combined());
+}

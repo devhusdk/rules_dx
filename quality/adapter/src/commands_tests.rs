@@ -3190,3 +3190,43 @@ fn thrift_check_is_strict_verbose_and_writes_only_to_out() {
     );
     assert_eq!(invocation.cwd_rel, "");
 }
+
+#[test]
+fn terraform_init_chdirs_first_and_repeats_plugin_dir_in_order() {
+    let argv = argv_strings(&terraform_init(
+        Path::new(BIN),
+        Path::new("/scratch/infra"),
+        &[Path::new("/m/b"), Path::new("/m/a")],
+    ));
+    assert_eq!(
+        argv,
+        vec![
+            BIN,
+            "-chdir=/scratch/infra",
+            "init",
+            "-backend=false",
+            "-input=false",
+            "-no-color",
+            "-json",
+            "-plugin-dir=/m/b",
+            "-plugin-dir=/m/a",
+        ]
+    );
+}
+
+#[test]
+fn terraform_validate_chdirs_before_the_subcommand() {
+    assert_eq!(
+        argv_strings(&terraform_validate(
+            Path::new(BIN),
+            Path::new("/scratch/infra")
+        )),
+        vec![
+            BIN,
+            "-chdir=/scratch/infra",
+            "validate",
+            "-json",
+            "-no-color"
+        ]
+    );
+}

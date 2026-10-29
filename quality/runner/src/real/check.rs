@@ -1320,6 +1320,9 @@ impl RealBackend {
             }
             "cue" if capability == "typecheck" => self.check_cue_vet(tool_id, tool, staged),
             "pkl" if capability == "typecheck" => self.check_pkl_eval(tool_id, tool, staged),
+            "terraform" if capability == "typecheck" => {
+                self.check_terraform_validate(tool_id, tool, staged)
+            }
             "cue" => {
                 let invocation = commands::cue_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -2369,6 +2372,113 @@ impl RealBackend {
                 tool_id,
                 format!(
                     "pkl eval failed in dependencies before the owned files were checked: {}",
+                    names.join(", ")
+                ),
+            ));
+        }
+        Ok(findings)
+    }
+
+    /// `terraform init` then `terraform validate` once per directory that owns `.tf` files.
+    ///
+    /// Init is offline: every provider comes from the `-plugin-dir` mirrors the request names
+    /// in `DX_TERRAFORM_PLUGIN_DIRS` (an empty directory when there are none, so init never
+    /// reaches a registry). Init findings (syntax and configuration errors) skip validate for
+    /// that directory. A failure that names no file is an execution error, never clean. The
+    /// root run and a child module's own run both see the child's errors, so findings are
+    /// de-duplicated. An error only in a non-owned file is an execution error, as for pkl.
+    fn check_terraform_validate(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        staged: &StagedScratch,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let scratch = &staged.scratch;
+        let cwd = std::env::current_dir()
+            .map_err(|err| execution(tool_id, format!("current dir: {err}")))?;
+        let mut mirrors: Vec<PathBuf> = tool
+            .extra_env
+            .iter()
+            .filter(|(key, _)| key == TERRAFORM_PLUGIN_DIRS_ENV)
+            .flat_map(|(_, value)| value.split('|'))
+            .filter(|entry| !entry.is_empty())
+            .map(|entry| cwd.join(entry))
+            .collect();
+        if mirrors.is_empty() {
+            let empty = scratch.root().join(TERRAFORM_EMPTY_MIRROR_REL);
+            std::fs::create_dir_all(&empty)
+                .map_err(|err| execution(tool_id, format!("empty mirror: {err}")))?;
+            mirrors.push(empty);
+        }
+        let mirror_refs: Vec<&Path> = mirrors.iter().map(PathBuf::as_path).collect();
+        let owned: Vec<String> = staged
+            .pairs
+            .iter()
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        let mut known_paths = owned.clone();
+        for (_, absolute) in &staged.resolve_pairs {
+            let text = absolute.to_string_lossy().into_owned();
+            if !known_paths.contains(&text) {
+                known_paths.push(text);
+            }
+        }
+        let known: Vec<&str> = known_paths.iter().map(String::as_str).collect();
+        let sources: Vec<(String, PathBuf)> = staged
+            .pairs
+            .iter()
+            .filter(|(ws, _)| ws.ends_with(".tf") || ws.ends_with(".tf.json"))
+            .cloned()
+            .collect();
+        let mut findings: Vec<FileFinding> = Vec::new();
+        let mut reported = Vec::new();
+        for (dir, _) in group_by_parent(scratch.root(), &sources) {
+            let abs_dir = if dir == "." {
+                scratch.root().to_path_buf()
+            } else {
+                scratch.root().join(&dir)
+            };
+            let init = commands::terraform_init(&tool.binary, &abs_dir, &mirror_refs);
+            let out = self.run(tool_id, tool, &init, scratch)?;
+            let mut found = parsed(
+                tool_id,
+                parsers::parse_terraform_init(&out.stdout, &out.stderr, out.code, &abs_dir, &known),
+            )?;
+            if found.is_empty() {
+                let validate = commands::terraform_validate(&tool.binary, &abs_dir);
+                let out = self.run(tool_id, tool, &validate, scratch)?;
+                found = parsed(
+                    tool_id,
+                    parsers::parse_terraform_validate(&out.stdout, out.code, &abs_dir, &known),
+                )?;
+            }
+            for item in found {
+                if owned.contains(&item.file) {
+                    if !findings.contains(&item) {
+                        findings.push(item);
+                    }
+                } else {
+                    reported.push(item.file);
+                }
+            }
+        }
+        if findings.is_empty() && !reported.is_empty() {
+            let mut names: Vec<String> = staged
+                .resolve_pairs
+                .iter()
+                .filter(|(_, absolute)| {
+                    reported
+                        .iter()
+                        .any(|r| r.as_str() == absolute.to_string_lossy())
+                })
+                .map(|(ws, _)| ws.clone())
+                .collect();
+            names.sort();
+            names.dedup();
+            return Err(execution(
+                tool_id,
+                format!(
+                    "terraform reported errors in dependencies before the owned files were checked: {}",
                     names.join(", ")
                 ),
             ));

@@ -6412,6 +6412,263 @@ fn pkl_typecheck_dependency_failure_is_an_execution_error() {
     assert!(err.to_string().contains("pkl"), "{err}");
 }
 
+thread_local! {
+    static TERRAFORM_CALLS: std::cell::RefCell<Vec<Vec<String>>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn terraform_calls() -> Vec<Vec<String>> {
+    TERRAFORM_CALLS.with(|calls| std::mem::take(&mut *calls.borrow_mut()))
+}
+
+/// Stands in for `terraform`: `init -json` and `validate -json`, decided by the module text.
+fn terraform_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let args: Vec<String> = argv[1..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    TERRAFORM_CALLS.with(|calls| calls.borrow_mut().push(args.clone()));
+    assert_hermetic(env);
+    let value = |key: &str| {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| PathBuf::from(value))
+    };
+    for key in [
+        "TF_DATA_DIR",
+        "TF_PLUGIN_CACHE_DIR",
+        "TF_CLI_ARGS",
+        "DX_TERRAFORM_PLUGIN_DIRS",
+    ] {
+        assert!(value(key).is_none(), "{key} never reaches terraform");
+    }
+    let config = value("TF_CLI_CONFIG_FILE").expect("cli config is pinned");
+    assert_eq!(std::fs::read(&config).expect("cli config exists").len(), 0);
+    if cfg!(unix) {
+        let tmp = value("TMPDIR").expect("TMPDIR is pinned");
+        assert!(
+            tmp.as_os_str().len() < 48,
+            "socket-safe TMPDIR, got {tmp:?}"
+        );
+    }
+    let dir = PathBuf::from(args[0].strip_prefix("-chdir=").expect("chdir comes first"));
+    let text = std::fs::read_to_string(dir.join("main.tf")).unwrap_or_default();
+    let located = |severity: &str, file: &str| {
+        format!(
+            r#"{{"severity":"{severity}","summary":"Boom","detail":"d","range":{{"filename":"{file}","start":{{"line":2,"column":3,"byte":1}},"end":{{"line":2,"column":6,"byte":4}}}}}}"#
+        )
+    };
+    match args[1].as_str() {
+        "init" => {
+            assert!(args.iter().any(|arg| arg == "-json"));
+            if text.contains("NOPROVIDER") {
+                let line = r#"{"type":"diagnostic","diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"d"}}"#;
+                return Ok(ChildOutput {
+                    code: Some(1),
+                    stdout: format!("{line}\n").into_bytes(),
+                    stderr: Vec::new(),
+                });
+            }
+            if text.contains("SYNTAX") {
+                let line = format!(
+                    r#"{{"type":"diagnostic","diagnostic":{}}}"#,
+                    located("error", "main.tf")
+                );
+                return Ok(ChildOutput {
+                    code: Some(1),
+                    stdout: format!("{line}\n").into_bytes(),
+                    stderr: Vec::new(),
+                });
+            }
+            Ok(ChildOutput {
+                code: Some(0),
+                stdout: br#"{"type":"init_output","@message":"ok"}"#.to_vec(),
+                stderr: Vec::new(),
+            })
+        }
+        "validate" => {
+            let diags = if text.contains("RANGELESS") {
+                r#"{"severity":"error","summary":"No module","detail":"d"}"#.to_owned()
+            } else if text.contains("DEPBAD") {
+                located("error", "lib/dep.tf")
+            } else if text.contains("BAD") {
+                located("error", "main.tf")
+            } else {
+                String::new()
+            };
+            let count = u64::from(!diags.is_empty());
+            let out = format!(
+                r#"{{"format_version":"1.0","valid":{},"error_count":{count},"warning_count":0,"diagnostics":[{diags}]}}"#,
+                count == 0
+            );
+            Ok(ChildOutput {
+                code: Some(count as i32),
+                stdout: out.into_bytes(),
+                stderr: Vec::new(),
+            })
+        }
+        other => panic!("unexpected subcommand {other}"),
+    }
+}
+
+fn terraform_files(main: &str) -> BTreeMap<String, String> {
+    let mut files = single("app/main.tf", main);
+    files.insert("app/lib/dep.tf".to_owned(), "# dep\n".to_owned());
+    files
+}
+
+#[test]
+fn terraform_typecheck_clean_runs_init_then_validate_with_an_empty_mirror() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    terraform_calls();
+    let clean = backend
+        .diagnose("terraform", "typecheck", &single("app/main.tf", "# ok\n"))
+        .expect("diagnosed");
+    assert!(clean.is_empty(), "{clean:?}");
+    let calls = terraform_calls();
+    assert_eq!(calls.len(), 2, "{calls:?}");
+    assert_eq!(calls[0][1], "init");
+    assert_eq!(calls[1][1], "validate");
+    let mirrors: Vec<&String> = calls[0]
+        .iter()
+        .filter(|a| a.starts_with("-plugin-dir="))
+        .collect();
+    assert_eq!(
+        mirrors.len(),
+        1,
+        "an empty mirror still pins init offline: {calls:?}"
+    );
+    assert!(
+        mirrors[0].ends_with("dx-terraform/empty-mirror"),
+        "{mirrors:?}"
+    );
+}
+
+#[test]
+fn terraform_typecheck_maps_a_finding_to_the_owned_file() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    let found = backend
+        .diagnose(
+            "terraform",
+            "typecheck",
+            &terraform_files("BAD\nxxxxxxx\ny\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].path, "app/main.tf");
+    assert_eq!(found[0].tool_id, "terraform");
+    assert_eq!(found[0].rule_id, "validate");
+}
+
+#[test]
+fn terraform_typecheck_passes_each_mirror_root_absolute_and_in_order() {
+    let mut tool = plain_tool();
+    tool.extra_env = vec![(
+        "DX_TERRAFORM_PLUGIN_DIRS".to_owned(),
+        "mirrors/b|mirrors/a".to_owned(),
+    )];
+    let backend = backend_for("terraform", tool, terraform_fake);
+    terraform_calls();
+    backend
+        .diagnose("terraform", "typecheck", &single("app/main.tf", "# ok\n"))
+        .expect("diagnosed");
+    let calls = terraform_calls();
+    let cwd = std::env::current_dir().expect("cwd");
+    let mirrors: Vec<String> = calls[0]
+        .iter()
+        .filter_map(|a| a.strip_prefix("-plugin-dir=").map(str::to_owned))
+        .collect();
+    assert_eq!(
+        mirrors,
+        vec![
+            cwd.join("mirrors/b").to_string_lossy().into_owned(),
+            cwd.join("mirrors/a").to_string_lossy().into_owned()
+        ]
+    );
+}
+
+#[test]
+fn terraform_typecheck_init_missing_provider_is_an_execution_error() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    let err = backend
+        .diagnose(
+            "terraform",
+            "typecheck",
+            &single("app/main.tf", "NOPROVIDER\n"),
+        )
+        .expect_err("never clean");
+    assert!(
+        err.to_string()
+            .contains("Failed to query available provider"),
+        "{err}"
+    );
+}
+
+#[test]
+fn terraform_typecheck_init_syntax_error_is_a_finding_and_skips_validate() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    terraform_calls();
+    let found = backend
+        .diagnose(
+            "terraform",
+            "typecheck",
+            &single("app/main.tf", "SYNTAX\nxxxxxxx\ny\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].rule_id, "init");
+    let calls = terraform_calls();
+    assert!(calls.iter().all(|call| call[1] == "init"), "{calls:?}");
+}
+
+#[test]
+fn terraform_typecheck_rangeless_validate_error_is_an_execution_error() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    let err = backend
+        .diagnose(
+            "terraform",
+            "typecheck",
+            &single("app/main.tf", "RANGELESS\n"),
+        )
+        .expect_err("never clean");
+    assert!(err.to_string().contains("No module"), "{err}");
+}
+
+#[test]
+fn terraform_typecheck_error_in_an_unowned_file_is_an_execution_error() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    let mut files = terraform_files("DEPBAD\n");
+    files.remove("app/lib/dep.tf");
+    backend
+        .diagnose("terraform", "typecheck", &files)
+        .expect_err("an unlocatable dependency must not be clean");
+}
+
+#[test]
+fn terraform_typecheck_runs_every_directory_and_deduplicates_findings() {
+    let backend = backend_for("terraform", plain_tool(), terraform_fake);
+    terraform_calls();
+    let mut files = BTreeMap::new();
+    files.insert("a/main.tf".to_owned(), "BAD\nxxxxxxx\ny\n".to_owned());
+    files.insert("b/main.tf".to_owned(), "BAD\nxxxxxxx\ny\n".to_owned());
+    files.insert("b/vars.tf".to_owned(), "# v\n".to_owned());
+    let found = backend
+        .diagnose("terraform", "typecheck", &files)
+        .expect("diagnosed");
+    let mut paths: Vec<&str> = found.iter().map(|f| f.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(paths, ["a/main.tf", "b/main.tf"]);
+    assert_eq!(
+        terraform_calls().len(),
+        4,
+        "init and validate for each directory"
+    );
+}
+
 fn cue_module(main: &str) -> BTreeMap<String, String> {
     let mut files = single("app/main.cue", main);
     files.insert(

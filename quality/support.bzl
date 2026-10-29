@@ -600,6 +600,20 @@ TERRAFORM_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+TERRAFORM_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["terraform"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "terraform",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "terraform",
+    "transport": "single",
+}
+
 TERRAFORM_TFLINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2125,6 +2139,7 @@ SUPPORT_RECORDS = [
     CMAKE_CMAKELINT_SUPPORT,
     TERRAFORM_FORMAT_SUPPORT,
     TERRAFORM_TFLINT_SUPPORT,
+    TERRAFORM_TYPECHECK_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
     GO_GOTYPE_TYPECHECK_SUPPORT,
     GO_ERRCHECK_LINT_SUPPORT,

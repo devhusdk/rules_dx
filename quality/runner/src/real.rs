@@ -164,6 +164,10 @@ const BICEP_DEFAULTS_BYTES: &[u8] = b"{}\n";
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
+/// The request env key naming the provider mirror roots, joined with `|`.
+const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
+const TERRAFORM_EMPTY_MIRROR_REL: &str = "dx-terraform/empty-mirror";
+const TERRAFORM_CLI_CONFIG_REL: &str = "dx-terraform/cli.tfrc";
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
 /// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
 const PATH_TOOLS_DIR_REL: &str = "dx-path-tools";
@@ -663,6 +667,46 @@ impl RealBackend {
             }
             env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
             env.push((OsString::from("PATH"), dir.into_os_string()));
+        }
+        if tool_id == "terraform" {
+            // Terraform reads no user CLI config, plugin cache or extra args: the environment
+            // is built from scratch, and the mirror list is the runner's input, not terraform's.
+            env.retain(|(key, _)| {
+                let key = key.to_string_lossy();
+                key != TERRAFORM_PLUGIN_DIRS_ENV
+                    && key != "TF_DATA_DIR"
+                    && key != "TF_PLUGIN_CACHE_DIR"
+                    && !key.starts_with("TF_CLI_ARGS")
+                    && key != "TF_CLI_CONFIG_FILE"
+            });
+            let config = scratch.root().join(TERRAFORM_CLI_CONFIG_REL);
+            if let Some(parent) = config.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|err| execution(tool_id, format!("terraform state dir: {err}")))?;
+            }
+            std::fs::write(&config, b"")
+                .map_err(|err| execution(tool_id, format!("terraform cli config: {err}")))?;
+            env.push((
+                OsString::from("TF_CLI_CONFIG_FILE"),
+                config.into_os_string(),
+            ));
+            env.push((OsString::from("TF_IN_AUTOMATION"), OsString::from("1")));
+            env.push((OsString::from("CHECKPOINT_DISABLE"), OsString::from("1")));
+            if cfg!(unix) {
+                // Provider plugins talk over a unix socket made in TMPDIR, and a long
+                // scratch path overflows the socket path limit.
+                let short = short_socket_dir()
+                    .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
+                for (key, value) in &mut env {
+                    if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
+                        *value = short.path().as_os_str().to_owned();
+                    }
+                }
+                let result = (self.spawn)(&spawn_argv(tool_id, invocation), &cwd, &env)
+                    .map_err(|err| execution(tool_id, format!("spawn: {err}")));
+                drop(short);
+                return result;
+            }
         }
         if tool_id == "tflint" {
             let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);

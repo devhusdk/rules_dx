@@ -13,6 +13,7 @@ load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_co
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//helm/rules:providers.bzl", "HelmChartInfo")
+load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
 load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load(
     "//quality:adapters.bzl",
@@ -812,7 +813,7 @@ _REAL_TOOL_TABLE = {
     },
     "terraform": {
         "attr": attr.label(default = "//config:tool_terraform", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
+        "capabilities": ["format", "typecheck"],
         "env": [["CHECKPOINT_DISABLE", "1"], ["TF_IN_AUTOMATION", "1"], ["TF_INPUT", "0"]],
         "kind": "file",
         "resources": "light",
@@ -1814,6 +1815,21 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    terraform_mirror_roots = {}
+    if "terraform" in stage_tools and capability == "typecheck":
+        # Local module sources of deps are staged next to the owned files; the providers
+        # are offline mirrors whose roots reach the runner as -plugin-dir values.
+        for f in target[DefaultInfo].files.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension not in ["tf", "json", "hcl"]:
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
+        if TerraformModuleInfo in target:
+            for provider in target[TerraformModuleInfo].transitive_providers.to_list():
+                terraform_mirror_roots[provider.mirror_root] = True
+                inputs.extend(provider.files.to_list())
     if "opa" in stage_tools and RegoInfo in target:
         for f in target[RegoInfo].transitive_srcs.to_list():
             ws_path = f.short_path
@@ -1914,6 +1930,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     if len(zanuda_stdlib) > 0:
         # Relative to the execution root, like the binary; the runner makes it absolute.
         tool_env_entries.setdefault("zanuda", []).append(real_request_tool_env("OCAMLLIB", zanuda_stdlib[0].dirname))
+    if "terraform" in tool_env_entries and capability == "typecheck":
+        # Relative to the execution root; the runner makes each root absolute. May be empty.
+        tool_env_entries["terraform"].append(real_request_tool_env("DX_TERRAFORM_PLUGIN_DIRS", "|".join(sorted(terraform_mirror_roots.keys()))))
     if "psscriptanalyzer" in tool_env_entries:
         tool_env_entries["psscriptanalyzer"].append(real_request_tool_env("DX_PWSH_MODULE_ROOTS", "|".join(sorted(pwsh_module_roots.keys()))))
 
@@ -2734,6 +2753,12 @@ _REAL_SHARD_SPECS = {
         "shard": "terraform",
         "suffix": "-terraform",
     },
+    "real_terraform_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Terraform typecheck family aspect (terraform init and validate, offline).",
+        "shard": "terraform",
+        "suffix": "-terraform",
+    },
     "real_text_lint": {
         "capability": "lint",
         "doc": "Additive text lint family aspect (keep-sorted).",
@@ -2948,6 +2973,7 @@ real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 real_terraform_lint_aspect = _make_real_aspect("real_terraform_lint")
+real_terraform_typecheck_aspect = _make_real_aspect("real_terraform_typecheck")
 
 real_go_format_aspect = _make_real_aspect("real_go_format")
 

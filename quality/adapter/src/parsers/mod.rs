@@ -101,6 +101,7 @@ pub mod stylelint;
 pub mod stylua;
 pub mod taplo;
 pub mod terraform;
+pub mod terraform_validate;
 pub mod tflint;
 pub mod thrift;
 pub mod topiary;
@@ -217,6 +218,7 @@ pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
+pub use terraform_validate::{parse_terraform_init, parse_terraform_validate};
 pub use tflint::parse_tflint;
 pub use thrift::{parse_thrift, ThriftReport};
 pub use topiary::parse_topiary;
@@ -2670,6 +2672,33 @@ mod tests {
         super::terraform::parse_terraform(input, input, code, files, std::path::Path::new("/"))
     }
 
+    fn fuzz_terraform_init(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::terraform_validate::parse_terraform_init(
+            input,
+            input,
+            code,
+            std::path::Path::new("/"),
+            files,
+        )
+    }
+
+    fn fuzz_terraform_validate(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::terraform_validate::parse_terraform_validate(
+            input,
+            code,
+            std::path::Path::new("/"),
+            files,
+        )
+    }
+
     fn fuzz_tsc(
         input: &[u8],
         code: Option<i32>,
@@ -2855,6 +2884,8 @@ mod tests {
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),
+        ("terraform_init", fuzz_terraform_init),
+        ("terraform_validate", fuzz_terraform_validate),
         ("tsc", fuzz_tsc),
         ("ty", fuzz_ty),
         ("typstyle", fuzz_typstyle),
@@ -2976,6 +3007,7 @@ mod tests {
         ("check_jsonschema", include_str!("check_jsonschema.rs")),
         ("taplo", include_str!("taplo.rs")),
         ("terraform", include_str!("terraform.rs")),
+        ("terraform_validate", include_str!("terraform_validate.rs")),
         ("tsc", include_str!("tsc.rs")),
         ("ty", include_str!("ty.rs")),
         ("typstyle", include_str!("typstyle.rs")),

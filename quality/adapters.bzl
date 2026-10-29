@@ -130,7 +130,7 @@ REAL_ADAPTERS = {
     "stylelint": {"lint": ["css", "less", "scss"]},
     "stylua": {"format": ["lua"]},
     "taplo": {"format": ["toml"], "lint": ["toml"]},
-    "terraform": {"format": ["terraform"]},
+    "terraform": {"format": ["terraform"], "typecheck": ["terraform"]},
     "tflint": {"lint": ["terraform"]},
     "thrift": {"lint": ["thrift"], "typecheck": ["thrift"]},
     "topiary": {"format": ["ocaml"]},

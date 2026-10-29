@@ -1,7 +1,8 @@
 """Unit tests for the Fortran, D and Zig compile replay rewrites."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":compile_check.bzl", "flang_check_argv", "ldc_check_argv", "zig_check_argv", "zig_replayable")
+load(":adapters.bzl", "real_supported_classes")
+load(":compile_check.bzl", "COMPILE_CHECK_TOOLS", "flang_check_argv", "ldc_check_argv", "zig_check_argv", "zig_replayable")
 
 _FLANG = "external/flang/bin/flang"
 _LDC = "external/ldc/bin/ldmd2"
@@ -13,6 +14,16 @@ def compile_check_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "every replayed compile tool is a registry tool with typecheck support",
+                [(tool, len(real_supported_classes(tool, "typecheck")) > 0) for tool in COMPILE_CHECK_TOOLS],
+                [(tool, True) for tool in COMPILE_CHECK_TOOLS],
+            ),
+            expect_equal(
+                "the replayed compile tools include flang, ldc and zig",
+                COMPILE_CHECK_TOOLS,
+                ["flang", "ldc", "zig"],
+            ),
             expect_equal(
                 "flang -c becomes -fsyntax-only, -o is dropped and modules go to scratch",
                 flang_check_argv([_FLANG, "-ffree-form", "-Jout/mods", "-Iin/mods", "-c", "a.f90", "-o", "a.o"], "tmp").argv,

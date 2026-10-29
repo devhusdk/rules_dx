@@ -11,6 +11,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_javascript_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -32,6 +33,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_javascript_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -53,6 +55,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_javascript_prettier_format_disagree.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -82,6 +85,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_javascript_eslint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -150,6 +154,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_astro_eslint_plugin_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -166,6 +171,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_svelte_eslint_plugin_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -182,6 +188,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_vue_eslint_plugin_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {
@@ -208,8 +215,8 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_mdx_remark_format_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        "windows_x86_64": True,
         "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_mdx_remark_format_fail",
@@ -221,8 +228,8 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_mdx_remark_format_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        "windows_x86_64": True,
         "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_mdx_remark_frontmatter_gfm_fail",
@@ -234,8 +241,8 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_mdx_remark_frontmatter_gfm_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        "windows_x86_64": True,
         "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_mdx_remark_parse_fail",
@@ -247,8 +254,8 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_mdx_remark_parse_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        "windows_x86_64": True,
         "windows_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_mdx_eslint_plugin_fail",
@@ -264,6 +271,7 @@ JS_CASES = [
         "expected_file": ":matrix/matrix_mdx_eslint_plugin_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {

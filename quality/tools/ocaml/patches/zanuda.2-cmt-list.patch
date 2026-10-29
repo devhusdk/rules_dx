@@ -1,0 +1,131 @@
+diff --git a/zanuda/src/Config.ml b/zanuda/src/Config.ml
+index 141f13b..d35195f 100644
+--- a/zanuda/src/Config.ml
++++ b/zanuda/src/Config.ml
+@@ -12,6 +12,7 @@ type mode =
+   | Dump_text
+   | File of string
+   | Dir of string
++  | CmtList of string
+   | Fix of string
+   | UnusedDecls of string
+ 
+@@ -64,6 +65,7 @@ let set_dump_file s = set_mode (Dump_json s)
+ let set_dump_text () = set_mode Dump_text
+ let set_in_file s = set_mode (File s)
+ let set_in_dir s = set_mode (Dir s)
++let set_in_cmt_list s = set_mode (CmtList s)
+ let set_in_unused_decls s = set_mode (UnusedDecls s)
+ 
+ (** Other switches *)
+@@ -129,6 +131,10 @@ let parse_args () =
+       , Arg.String set_dump_file
+       , "[FILE] Dump information about available lints to JSON" )
+     ; "-dir", Arg.String set_in_dir, "[FILE] Set root directory of dune project"
++    ; ( "-cmt-list"
++      , Arg.String set_in_cmt_list
++      , "[FILE] Analyze the modules listed in FILE, one 'impl|intf<TAB>SOURCE<TAB>CMT' \
++         per line, without loading a dune project" )
+     ; ( "-unused-decls"
+       , Arg.String set_in_unused_decls
+       , "[FILE] Look for unused definitions" )
+diff --git a/zanuda/src/Load_dune.ml b/zanuda/src/Load_dune.ml
+index 0dc18b5..d5613c3 100644
+--- a/zanuda/src/Load_dune.ml
++++ b/zanuda/src/Load_dune.ml
+@@ -224,3 +224,56 @@ let analyze_dir ~untyped:analyze_untyped ~cmt:analyze_cmt ~cmti:analyze_cmti pat
+     Printf.eprintf "%s\n%!" s;
+     exit 1
+ ;;
++
++let analyze_cmt_list ~untyped:analyze_untyped ~cmt:analyze_cmt ~cmti:analyze_cmti path =
++  let failures = ref 0 in
++  let fail fmt =
++    incr failures;
++    Format.kasprintf (fun s -> Format.eprintf "%s\n%!" s) fmt
++  in
++  let on_entry line =
++    match String.split_on_char '\t' line with
++    | [ kind; source; cmt_file ] ->
++      let typed =
++        try
++          match snd (Cmt_format.read cmt_file) with
++          | Some _ as r -> r
++          | None ->
++            fail "'%s' holds no typedtree" cmt_file;
++            None
++        with
++        | e ->
++          fail "cannot read cmt[i] file '%s': %s" cmt_file (Printexc.to_string e);
++          None
++      in
++      let untyped_ok =
++        try
++          if not (Sys.file_exists source)
++          then (
++            fail "source file '%s' doesn't exist" source;
++            false)
++          else (
++            analyze_untyped source;
++            true)
++        with
++        | Syntaxerr.Error _ ->
++          fail "Syntaxerr.Error in analysis of '%s'" source;
++          false
++      in
++      ignore (untyped_ok : bool);
++      (match kind, typed with
++       | _, None -> ()
++       | "impl", Some { Cmt_format.cmt_annots = Cmt_format.Implementation stru; _ } ->
++         analyze_cmt Non_wrapped source stru
++       | "intf", Some { Cmt_format.cmt_annots = Cmt_format.Interface sign; _ } ->
++         analyze_cmti Non_wrapped source sign
++       | _ -> fail "'%s' does not hold the %s of '%s'" cmt_file kind source);
++      Collected_lints.clear_tdecls ()
++    | _ -> fail "malformed line in '%s': %S" path line
++  in
++  In_channel.with_open_text path In_channel.input_all
++  |> String.split_on_char '\n'
++  |> List.filter (fun s -> String.trim s <> "")
++  |> List.iter on_entry;
++  !failures
++;;
+diff --git a/zanuda/src/Load_dune.mli b/zanuda/src/Load_dune.mli
+index 67b7dfc..c2d99f6 100644
+--- a/zanuda/src/Load_dune.mli
++++ b/zanuda/src/Load_dune.mli
+@@ -18,3 +18,12 @@ val analyze_dir
+   -> cmti:(w -> string -> Typedtree.signature -> unit)
+   -> string
+   -> unit
++
++(** Analyzes the modules named by a list file (see [-cmt-list]). Returns the
++    number of entries that could not be analyzed. *)
++val analyze_cmt_list
++  :  untyped:(string -> unit)
++  -> cmt:(w -> string -> Typedtree.structure -> unit)
++  -> cmti:(w -> string -> Typedtree.signature -> unit)
++  -> string
++  -> int
+diff --git a/zanuda/src/main.ml b/zanuda/src/main.ml
+index 2123dc3..dd86d6e 100644
+--- a/zanuda/src/main.ml
++++ b/zanuda/src/main.ml
+@@ -280,6 +280,17 @@ let () =
+       process_untyped file;
+       Collected_lints.report ();
+       if Config.gen_replacements () then Replacement.Refill.apply_all ()
++    | CmtList path ->
++      let failures =
++        Load_dune.analyze_cmt_list
++          ~untyped:process_untyped
++          ~cmt:process_cmt_typedtree
++          ~cmti:process_cmti_typedtree
++          path
++      in
++      Collected_lints.report ();
++      if Config.gen_replacements () then Replacement.Refill.apply_all ();
++      if failures > 0 then exit 1
+     | Dir path ->
+       Load_dune.analyze_dir
+         ~untyped:process_untyped

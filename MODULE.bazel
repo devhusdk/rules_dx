@@ -673,6 +673,9 @@ use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")
 
 register_toolchains("@dx_ocaml_toolchains//:all")
 
+ocaml_duniverse = use_extension("//quality/tools/ocaml:extension.bzl", "duniverse")
+use_repo(ocaml_duniverse, "dx_ocaml_duniverse")
+
 fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
 use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
 

@@ -1,0 +1,34 @@
+diff --git a/mtime/dune-project b/mtime/dune-project
+new file mode 100644
+index 0000000..f7b3bb5
+--- /dev/null
++++ b/mtime/dune-project
+@@ -0,0 +1,4 @@
++(lang dune 3.11)
++(name mtime)
++(package
++ (name mtime))
+diff --git a/mtime/src/clock/dune b/mtime/src/clock/dune
+new file mode 100644
+index 0000000..20e84cc
+--- /dev/null
++++ b/mtime/src/clock/dune
+@@ -0,0 +1,8 @@
++(library
++ (name mtime_clock)
++ (public_name mtime.clock)
++ (modules mtime_clock)
++ (libraries mtime)
++ (foreign_stubs
++  (language c)
++  (names mtime_clock_stubs)))
+diff --git a/mtime/src/dune b/mtime/src/dune
+new file mode 100644
+index 0000000..0c9765c
+--- /dev/null
++++ b/mtime/src/dune
+@@ -0,0 +1,4 @@
++(library
++ (name mtime)
++ (public_name mtime)
++ (modules mtime))

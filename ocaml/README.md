@@ -129,6 +129,32 @@ No OCaml formatter or linter runs. The rules tag every target `no-format`,
 `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck`
 skip it. The compiler is the type check.
 
+### Internal tool: zanuda
+
+`//quality/tools/ocaml:zanuda` is the zanuda 2.1.0 linter, built from source
+for the future `lint:ocaml` support (#4621). Nothing runs it yet; the lint
+aspect, adapter and runner dispatch come next.
+
+- **Build.** `dx_dune_build` (`quality/tools/ocaml/dune_build.bzl`) bootstraps
+  dune and builds zanuda in two Bazel actions with the pinned native OCaml,
+  the resolved C toolchain, no network and no dune cache. The 22 source
+  archives are pinned in `quality/tools/ocaml/pins.bzl` and unpacked side by
+  side by `@dx_ocaml_duniverse`. The rule is generic over sources and target.
+- **Patches.** `quality/tools/ocaml/patches/` removes zanuda's dynamic plugin
+  loading, adds `-cmt-list FILE` (analyze listed sources and `.cmt` files
+  without loading a dune project, and exit non-zero for a skipped or
+  unreadable file), makes ppx_expect_nobase's version check static, and adds
+  dune files to mtime. The first two are meant for upstream.
+- **Run time.** zanuda type checks against the compiler's standard library, so
+  set `OCAMLLIB` to the toolchain's `lib/ocaml`. It always exits 0 on findings
+  and writes them to `-ordjsonl FILE`; `-version` prints `2.0.0` because the
+  upstream dune-project still says so.
+- **License.** zanuda is LGPL-3.0-only and runs as a separate process; the
+  licenses of the whole closure are in `//quality/tools/ocaml:zanuda_licenses`.
+- **Updating.** Change the pins in `pins.bzl` and keep the OCaml version inside
+  `ZANUDA_OCAML_RANGES`; `pins_test` fails if the toolchain leaves the range,
+  because `.cmt` files only load with the compiler that wrote them.
+
 ## Platforms
 
 | Cell | Emitter | Status |

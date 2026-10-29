@@ -73,7 +73,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Dart | `dart` | `dart` | `dart` |
 | Elixir | `credo` | `mix_format` | `dialyzer` |
 | Erlang | `elvis` | `erlfmt` | `dialyzer` |
-| Fortran | `fortitude` | no | `flang` |
+| Fortran | `fortitude` | `ffmt` | `flang` |
 | F# | `fsharplint` | `fantomas` | `fsc` |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` |
 | Haskell | `hlint` | `ormolu` | no |

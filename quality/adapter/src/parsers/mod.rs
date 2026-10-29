@@ -26,6 +26,7 @@ pub mod elvis;
 pub mod erlfmt;
 pub mod eslint;
 pub mod fantomas;
+pub mod ffmt;
 pub mod flake8;
 pub mod flang;
 pub mod flatc;
@@ -134,6 +135,7 @@ pub use elvis::parse_elvis;
 pub use erlfmt::parse_erlfmt;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
+pub use ffmt::parse_ffmt;
 pub use flake8::parse_flake8;
 pub use flang::parse_flang;
 pub use flatc::{parse_flatc, FlatcReport};
@@ -1772,6 +1774,14 @@ mod tests {
         Ok(both.findings)
     }
 
+    fn fuzz_ffmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ffmt::parse_ffmt(input, code, files)
+    }
+
     fn fuzz_fortitude(
         input: &[u8],
         code: Option<i32>,
@@ -2645,6 +2655,7 @@ mod tests {
         ("fantomas", fuzz_fantomas),
         ("flake8", fuzz_flake8),
         ("flatc", fuzz_flatc),
+        ("ffmt", fuzz_ffmt),
         ("fortitude", fuzz_fortitude),
         ("fsc", fuzz_fsc),
         ("fsharplint", fuzz_fsharplint),
@@ -2764,6 +2775,7 @@ mod tests {
         ("fantomas", include_str!("fantomas.rs")),
         ("flake8", include_str!("flake8.rs")),
         ("flatc", include_str!("flatc.rs")),
+        ("ffmt", include_str!("ffmt.rs")),
         ("fortitude", include_str!("fortitude.rs")),
         ("fsc", include_str!("fsc.rs")),
         ("fsharplint", include_str!("fsharplint.rs")),

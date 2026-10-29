@@ -3,6 +3,7 @@
 
 import gzip
 import hashlib
+import json
 import os
 import pathlib
 import re
@@ -1355,6 +1356,54 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "ffmt": {
+        "upstream_version": "0.4.5",
+        "release_page": "https://pypi.org/project/ffmt/0.4.5/",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://github.com/sbryngelson/ffmt/blob/v0.4.5/LICENSE",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "ffmt-0.4.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "url": "https://files.pythonhosted.org/packages/c6/cc/a0cec0548b3f6b791b1c6be146ddf0ccdb072b58cab624f7e2380dfa28a7/ffmt-0.4.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                "kind": "zip",
+                "executable": "ffmt-0.4.5.data/scripts/ffmt",
+                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"},
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "ffmt-0.4.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "url": "https://files.pythonhosted.org/packages/10/51/9a1dd26978fa168e54b2f51379f869a2eeb7d3e0b6927abc260243924c27/ffmt-0.4.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                "kind": "zip",
+                "executable": "ffmt-0.4.5.data/scripts/ffmt",
+                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"},
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "ffmt-0.4.5-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
+                "url": "https://files.pythonhosted.org/packages/fd/cc/831467148dca74833b69b9f3d66dc23a09320435aeb43ecfa72404861189/ffmt-0.4.5-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
+                "kind": "zip",
+                "executable": "ffmt-0.4.5.data/scripts/ffmt",
+                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl"},
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "ffmt-0.4.5-py3-none-win_amd64.whl",
+                "url": "https://files.pythonhosted.org/packages/f7/d3/71455cfd57d2fa4b031f5be6a0b9517bf0b785fd8fd53605ab637abba7ef/ffmt-0.4.5-py3-none-win_amd64.whl",
+                "kind": "zip",
+                "executable": "ffmt-0.4.5.data/scripts/ffmt.exe",
+                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-win_amd64.whl"},
+            },
+        },
+    },
     "yamlfmt": {
         "upstream_version": "0.21.0",
         "release_page": "https://github.com/google/yamlfmt/releases/tag/v0.21.0",
@@ -2207,6 +2256,32 @@ def _source_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+PYPI_JSON_URL = "https://pypi.org/pypi/%s/%s/json"
+
+
+def _pypi_digest_error(metadata, spec, digest):
+    """Checks a pinned wheel against the PyPI JSON entry for its exact version."""
+    wanted = spec["pypi"]["filename"]
+    for entry in metadata.get("urls", []):
+        if entry.get("filename") != wanted:
+            continue
+        if entry.get("url") != spec["url"]:
+            return "update: %s url %r does not match PyPI %r" % (
+                wanted,
+                spec["url"],
+                entry.get("url"),
+            )
+        published = entry.get("digests", {}).get("sha256")
+        if published != digest:
+            return "update: %s digest %s does not match PyPI %s" % (
+                wanted,
+                digest,
+                published,
+            )
+        return None
+    return "update: %s is not published for this version on PyPI" % wanted
+
+
 def _collect(tool, platform_key, spec, workdir):
     asset_path = os.path.join(workdir, spec["asset"])
     _download(spec["url"], asset_path)
@@ -2234,6 +2309,17 @@ def _collect(tool, platform_key, spec, workdir):
                 % (spec["asset"], digest, expected)
             )
         checksum_source = "upstream published checksums file"
+    if "pypi" in spec:
+        json_path = os.path.join(workdir, "pypi.json")
+        _download(
+            PYPI_JSON_URL % (spec["pypi"]["project"], TOOLS[tool]["upstream_version"]),
+            json_path,
+        )
+        with open(json_path, encoding="utf-8") as handle:
+            error = _pypi_digest_error(json.load(handle), spec, digest)
+        if error:
+            sys.exit(error)
+        checksum_source = "PyPI JSON API sha256 digest"
 
     kind = spec["kind"]
     if kind == "raw":
@@ -2359,17 +2445,37 @@ def _emit(artifact, tool, platform_key):
     return path, content
 
 
+def _parse_args(argv):
+    """Returns (tool or None, verify_only) for `[--verify-only] [--tool NAME]`."""
+    usage = "usage: update [--verify-only] [--tool NAME]"
+    tool = None
+    verify_only = False
+    args = list(argv)
+    while args:
+        arg = args.pop(0)
+        if arg == "--verify-only":
+            verify_only = True
+        elif arg == "--tool" and args:
+            tool = args.pop(0)
+        else:
+            sys.exit(usage)
+    if tool is not None and tool not in TOOLS:
+        sys.exit("update: unknown tool %r" % tool)
+    return tool, verify_only
+
+
 def main(argv):
-    verify_only = argv == ["--verify-only"]
-    if argv and not verify_only:
-        sys.exit("usage: update [--verify-only]")
+    only_tool, verify_only = _parse_args(argv)
     _require_tool("file")
     if not os.path.isdir(_source_dir()):
         sys.exit("update: source directory %r not found" % _source_dir())
-    with tempfile.TemporaryDirectory(prefix="dx-artifacts-") as workdir:
-        _check_hadolint_shellcheck(workdir)
+    if only_tool in (None, "hadolint", "shellcheck"):
+        with tempfile.TemporaryDirectory(prefix="dx-artifacts-") as workdir:
+            _check_hadolint_shellcheck(workdir)
     failed = False
     for tool, config in TOOLS.items():
+        if only_tool and tool != only_tool:
+            continue
         for platform_key, spec in config["platforms"].items():
             with tempfile.TemporaryDirectory(prefix="dx-artifacts-") as workdir:
                 artifact = _collect(tool, platform_key, spec, workdir)

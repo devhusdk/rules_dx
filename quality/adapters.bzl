@@ -57,6 +57,7 @@ REAL_ADAPTERS = {
     "flake8": {"lint": ["python", "python_stub"]},
     "flang": {"typecheck": ["fortran"]},
     "flatc": {"lint": ["flatbuffers"], "typecheck": ["flatbuffers"]},
+    "ffmt": {"format": ["fortran"]},
     "fortitude": {"lint": ["fortran"]},
     "fsharplint": {"lint": ["fsharp"]},
     "gofumpt": {"format": ["go"]},

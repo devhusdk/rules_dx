@@ -1220,6 +1220,32 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.lua"
         ]
     );
+    let ffmt_files = [Path::new("/scratch/a.f90")];
+    let ffmt_check_argv = ffmt_check(Path::new(BIN), &ffmt_files, "dx-ffmt-default");
+    assert_eq!(ffmt_check_argv.cwd_rel, "dx-ffmt-default");
+    assert_eq!(
+        argv_strings(&ffmt_check_argv),
+        vec![
+            BIN,
+            "--check",
+            "--no-cache",
+            "--no-ignore",
+            "--color",
+            "never",
+            "/scratch/a.f90"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&ffmt_fix(Path::new(BIN), &ffmt_files, "pkg")),
+        vec![
+            BIN,
+            "--no-cache",
+            "--no-ignore",
+            "--color",
+            "never",
+            "/scratch/a.f90"
+        ]
+    );
     assert_eq!(
         argv_strings(&fortitude_check(
             Path::new(BIN),

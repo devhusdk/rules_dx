@@ -307,7 +307,6 @@ GAP_ISSUES = {
     "consumer:*": 4436,
     "format:asciidoc": 4439,
     "format:cloudformation": 4439,
-    "format:fortran": 4685,
     "format:helm": 4439,
     "format:ocaml": 4686,
     "format:rst": 4439,

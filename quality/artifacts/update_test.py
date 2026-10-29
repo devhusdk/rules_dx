@@ -121,3 +121,58 @@ class PeMachineTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PypiDigestTest(unittest.TestCase):
+    SPEC = {"url": "https://files.example/a.whl", "pypi": {"filename": "a.whl"}}
+
+    def _meta(self, url="https://files.example/a.whl", sha="abc"):
+        return {
+            "urls": [{"filename": "a.whl", "url": url, "digests": {"sha256": sha}}]
+        }
+
+    def test_match(self):
+        self.assertIsNone(update._pypi_digest_error(self._meta(), self.SPEC, "abc"))
+
+    def test_digest_mismatch(self):
+        error = update._pypi_digest_error(self._meta(), self.SPEC, "def")
+        self.assertIn("does not match PyPI", error)
+
+    def test_url_mismatch(self):
+        error = update._pypi_digest_error(
+            self._meta(url="https://evil.example/a.whl"), self.SPEC, "abc"
+        )
+        self.assertIn("url", error)
+
+    def test_missing_file(self):
+        error = update._pypi_digest_error({"urls": []}, self.SPEC, "abc")
+        self.assertIn("not published", error)
+
+
+class FfmtPinTest(unittest.TestCase):
+    def test_every_platform_uses_pypi_and_windows_arm64_is_absent(self):
+        spec = update.TOOLS["ffmt"]
+        self.assertEqual(
+            sorted(spec["platforms"]),
+            ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+        )
+        for platform in spec["platforms"].values():
+            self.assertEqual(platform["pypi"]["project"], "ffmt")
+            self.assertEqual(platform["pypi"]["filename"], platform["asset"])
+            self.assertTrue(platform["url"].endswith(platform["asset"]))
+            self.assertEqual(platform["kind"], "zip")
+
+
+class ArgsTest(unittest.TestCase):
+    def test_parse(self):
+        self.assertEqual(update._parse_args([]), (None, False))
+        self.assertEqual(update._parse_args(["--tool", "ffmt"]), ("ffmt", False))
+        self.assertEqual(
+            update._parse_args(["--verify-only", "--tool", "ffmt"]), ("ffmt", True)
+        )
+
+    def test_bad(self):
+        with self.assertRaises(SystemExit):
+            update._parse_args(["--tool"])
+        with self.assertRaises(SystemExit):
+            update._parse_args(["--tool", "nope"])

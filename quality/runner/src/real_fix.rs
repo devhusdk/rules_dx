@@ -256,6 +256,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "ffmt",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "mbake",
         config: FixConfig::Optional,
         keep_exit_one: false,
@@ -521,6 +527,21 @@ impl<'a> FixSession<'a> {
                 .cloned()
                 .ok_or(RunnerError::MissingFile { path: path.clone() })
         };
+        if tool_id == "ffmt" && targets.iter().any(|path| !ffmt_accepts(Path::new(path))) {
+            // The same filter as the check path: these sources are returned untouched.
+            let accepted: Vec<String> = targets
+                .iter()
+                .filter(|path| ffmt_accepts(Path::new(path)))
+                .cloned()
+                .collect();
+            let mut fixed = self.fix(index, stage, current, &accepted)?;
+            for path in targets {
+                if !fixed.contains_key(path) {
+                    fixed.insert(path.clone(), text_of(path)?);
+                }
+            }
+            return Ok(fixed);
+        }
         if matches!(route, Route::Keep) || targets.is_empty() {
             return targets
                 .iter()
@@ -987,6 +1008,11 @@ impl super::RealBackend {
                         Some(config) => Ok(commands::gersemi_fix(&tool.binary, refs, config)),
                         None => Err(execution(tool_id, "gersemi needs a config path".to_owned())),
                     },
+                    "ffmt" => Ok(commands::ffmt_fix(
+                        &tool.binary,
+                        refs,
+                        &Self::ffmt_config_dir(tool)?,
+                    )),
                     "mbake" => match config.as_deref() {
                         Some(config) => Ok(commands::mbake_fix(&tool.binary, refs, config)),
                         None => Err(execution(tool_id, "mbake needs a config path".to_owned())),

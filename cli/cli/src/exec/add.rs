@@ -43,10 +43,15 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
     }
     let (selector, version) = (&invocation.targets[0], &invocation.targets[1]);
-    let parsed = match dep_edit::configured_bazel_set(&ADD_VERB, invocation, out, err, workspace) {
-        Ok(Some((set_name, manifest))) => {
-            dx_bump::AddRequest::parse_configured(&set_name, &manifest, selector, version)
-        }
+    let parsed = match dep_edit::configured_set(&ADD_VERB, invocation, out, err, workspace, true) {
+        Ok(Some(configured)) => dx_bump::AddRequest::parse_configured_set(
+            configured.kind,
+            &configured.name,
+            &configured.manifests,
+            configured.repository.as_deref(),
+            selector,
+            version,
+        ),
         Ok(None) => dx_bump::AddRequest::parse(selector, version),
         Err(exit) => return exit,
     };
@@ -98,7 +103,7 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
         );
         return operational(invocation, out, err, CODE_ADD_FAILED, &message);
     }
-    let refresh = if request.target.is_configured_bazel() {
+    let refresh = if request.target.configured.is_some() {
         request.target.refresh_command()
     } else {
         format!("dx update --apply {}", request.refresh_selector())

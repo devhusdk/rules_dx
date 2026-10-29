@@ -35,20 +35,6 @@ pub(crate) struct DepEdit<'a> {
     pub(crate) hint: Option<&'static str>,
 }
 
-/// The single manifest of a configured dx.toml bazel set the selector names, if any.
-pub(crate) fn configured_bazel_set(
-    verb: &EditVerb,
-    invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    workspace: &std::path::Path,
-) -> Result<Option<(String, String)>, i32> {
-    Ok(
-        configured_set(verb, invocation, out, err, workspace, false)?
-            .map(|mut target| (target.name, target.manifests.remove(0))),
-    )
-}
-
 /// A configured dx.toml set a dependency verb edits.
 pub(crate) struct ConfiguredTarget {
     pub(crate) name: String,
@@ -100,6 +86,8 @@ pub(crate) fn configured_set(
         dx_adopt::dependency_sets::Ecosystem::Go if foreign => Some(dx_bump::ConfiguredKind::Go),
         _ => None,
     };
+    // `dx add` has no uv insert plan; uv falls through to the not-supported refusal.
+    let kind = kind.filter(|kind| !(verb.command == "add" && *kind == dx_bump::ConfiguredKind::Uv));
     match (set.ecosystem, kind) {
         (_, Some(kind)) => {
             if !set.writable {
@@ -114,7 +102,7 @@ pub(crate) fn configured_set(
                     ),
                 ));
             }
-            let arity_ok = if kind == dx_bump::ConfiguredKind::Cargo {
+            let arity_ok = if kind == dx_bump::ConfiguredKind::Cargo && verb.command != "add" {
                 !set.manifests.is_empty()
             } else {
                 set.manifests.len() == 1
@@ -132,6 +120,8 @@ pub(crate) fn configured_set(
                             dx_bump::ConfiguredKind::Bazel => "exactly one MODULE.bazel",
                             dx_bump::ConfiguredKind::Npm => "exactly one package.json",
                             dx_bump::ConfiguredKind::Uv => "exactly one pyproject.toml",
+                            dx_bump::ConfiguredKind::Cargo if verb.command == "add" =>
+                                "exactly one Cargo.toml",
                             dx_bump::ConfiguredKind::Cargo => "at least one Cargo.toml",
                             dx_bump::ConfiguredKind::Maven => "exactly one MODULE.bazel",
                             dx_bump::ConfiguredKind::Nuget => "exactly one paket.dependencies",

@@ -516,9 +516,15 @@ Each set writes the same manifest `dx bump` widens and keeps every other byte:
 - `npm`: a `dependencies` entry in `package.json`.
 - `nuget`: a `nuget` line in the main group of `paket.dependencies`.
 
-A configured `bazel` set from `dx.toml` is selected as `<set>:<module>` and
-adds to the set's own `MODULE.bazel`. A read-only set fails without writing.
-Configured `uv` and `npm` sets fail with `add is not supported`.
+A configured `bazel`, `cargo`, `go`, `maven`, `npm`, or `nuget` set from
+`dx.toml` is selected as `<set>:<package>` and adds to the set's own manifest,
+in the same shape as the built-in set. A configured `cargo` set needs exactly
+one `Cargo.toml` (`add needs exactly one Cargo.toml in set <set>`). A
+configured `maven` set adds to the `maven.install` that feeds the set's
+`repository`. A read-only set fails without writing. Configured `uv`,
+`ruby`, and `powershell` sets fail with `add is not supported`. A configured
+`nuget` set never refreshes: the add reports `run paket update` instead of a
+refresh.
 `github-actions` and `bazel:.bazelversion` are usage errors: add the `uses:`
 step by hand, or change the pin with `dx bump`.
 
@@ -549,7 +555,7 @@ A workspace outside `rules_dx` declares its own dependency sets in a
 committed `dx.toml` at the workspace root. When `dx.toml` declares at least
 one `[[dependency_set]]`, `update`, `security`, and `license` resolve names and
 scopes from it instead of the built-in sets. No built-in set is selected for
-those commands. `bump` keeps the built-in selectors, such as `cargo:anyhow`,
+those commands. `bump` and `add` keep the built-in selectors, such as `cargo:anyhow`,
 unless the selector head names a declared set. A `dx.toml` with only `[dx]` or
 `[quality]` tables keeps the built-in sets. A `dx.toml` with neither sets nor
 those tables fails with exit `2`.

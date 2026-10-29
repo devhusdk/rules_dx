@@ -1,8 +1,8 @@
 //! `dx add`: declare one new requirement in the manifest `dx bump` widens.
 
 use super::request::{
-    parse_configured_selector, parse_selector, BumpError, BumpRequest, ConfiguredKind,
-    ConfiguredSet, DepTarget,
+    parse_configured_selector, parse_foreign_selector, parse_selector, BumpError, BumpRequest,
+    ConfiguredKind, ConfiguredSet, DepTarget,
 };
 use super::sets::BumpSet;
 use super::version::{self, WidenVersion};
@@ -55,6 +55,8 @@ impl From<BumpError> for AddError {
 
 const GITHUB_ACTIONS_HINT: &str =
     "add the `uses:` step to the workflow, then pin it with `dx bump github-actions:<owner/repo> <tag-or-sha>`";
+const UV_HINT: &str =
+    "configured uv sets have no insert plan; add the requirement to pyproject.toml, then run `dx update --apply`";
 const BAZELVERSION_HINT: &str =
     ".bazelversion always pins one Bazel version; change it with `dx bump bazel:.bazelversion <version>`";
 
@@ -110,6 +112,48 @@ impl AddRequest {
         })
     }
 
+    /// Parses a request against a configured dx.toml set of `kind` with all its manifests.
+    pub fn parse_configured_set(
+        kind: ConfiguredKind,
+        set_name: &str,
+        manifests: &[String],
+        repository: Option<&str>,
+        selector: &str,
+        version: &str,
+    ) -> Result<AddRequest, AddError> {
+        if selector.is_empty() || version.is_empty() {
+            return Err(AddError::Empty);
+        }
+        if kind == ConfiguredKind::Uv {
+            return Err(AddError::UnsupportedSet {
+                selector: selector.to_owned(),
+                hint: UV_HINT,
+            });
+        }
+        let package = match kind {
+            ConfiguredKind::Bazel => parse_configured_selector(set_name, selector)?,
+            _ => parse_foreign_selector(set_name, kind, selector)?,
+        };
+        let set = kind.grammar();
+        let parsed = version::parse(set, version).map_err(BumpError::from)?;
+        Ok(AddRequest {
+            target: DepTarget {
+                set,
+                package,
+                manifest: manifests.first().cloned(),
+                configured: Some(ConfiguredSet {
+                    name: set_name.to_owned(),
+                    kind,
+                    manifests: manifests.to_vec(),
+                    repository: repository.map(str::to_owned),
+                }),
+            },
+            version: parsed,
+            selector: selector.to_owned(),
+            raw_version: version.to_owned(),
+        })
+    }
+
     /// Parses a request against a configured dx.toml bazel set that owns `manifest`.
     pub fn parse_configured(
         set_name: &str,
@@ -117,27 +161,14 @@ impl AddRequest {
         selector: &str,
         version: &str,
     ) -> Result<AddRequest, AddError> {
-        if selector.is_empty() || version.is_empty() {
-            return Err(AddError::Empty);
-        }
-        let package = parse_configured_selector(set_name, selector)?;
-        let parsed = version::parse(BumpSet::Bazel, version).map_err(BumpError::from)?;
-        Ok(AddRequest {
-            target: DepTarget {
-                set: BumpSet::Bazel,
-                package,
-                manifest: Some(manifest.to_owned()),
-                configured: Some(ConfiguredSet {
-                    name: set_name.to_owned(),
-                    kind: ConfiguredKind::Bazel,
-                    manifests: vec![manifest.to_owned()],
-                    repository: None,
-                }),
-            },
-            version: parsed,
-            selector: selector.to_owned(),
-            raw_version: version.to_owned(),
-        })
+        Self::parse_configured_set(
+            ConfiguredKind::Bazel,
+            set_name,
+            &[manifest.to_owned()],
+            None,
+            selector,
+            version,
+        )
     }
 
     pub fn set(&self) -> BumpSet {
@@ -161,7 +192,9 @@ impl AddRequest {
     }
 
     pub fn summary(&self) -> String {
-        let through = if self.needs_update_refresh() {
+        let through = if let Some(follow_up) = self.target.follow_up() {
+            follow_up
+        } else if self.needs_update_refresh() {
             format!(
                 "then refresh via `{}` automatically",
                 self.target.refresh_command()
@@ -219,7 +252,20 @@ impl AddRequest {
                 .and_then(|module| module.insert_bazel_dep(package, &version))
                 .map_err(|error| unsupported(error.to_string())),
             BumpSet::Maven => dx_module_bazel::ModuleFile::parse(content)
-                .and_then(|module| module.insert_maven_artifact(&format!("{package}:{version}")))
+                .and_then(|module| {
+                    let coordinate = format!("{package}:{version}");
+                    match self
+                        .target
+                        .configured
+                        .as_ref()
+                        .and_then(|c| c.repository.as_deref())
+                    {
+                        Some(repository) => {
+                            module.insert_maven_artifact_in(repository, &coordinate)
+                        }
+                        None => module.insert_maven_artifact(&coordinate),
+                    }
+                })
                 .map_err(|error| unsupported(error.to_string())),
             BumpSet::Go => dx_gomod::insert_require(content, package, &format!("v{version}"))
                 .map_err(|error| match error {

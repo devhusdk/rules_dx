@@ -595,7 +595,7 @@ pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<Strin
 }
 
 /// Parses a configured npm or uv `set:package` selector into its package identity.
-fn parse_foreign_selector(
+pub(crate) fn parse_foreign_selector(
     set_name: &str,
     kind: ConfiguredKind,
     selector: &str,

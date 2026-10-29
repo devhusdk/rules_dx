@@ -743,6 +743,16 @@ impl ModuleFile {
     /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
     /// one rules_jvm_external `maven.install` tag that feeds the default `@maven` repository.
     pub fn insert_maven_artifact(&self, coordinate: &str) -> Result<String, ModuleError> {
+        self.insert_maven_artifact_in("maven", coordinate)
+    }
+
+    /// Like [`ModuleFile::insert_maven_artifact`], for the `maven.install(name = <repository>)`
+    /// tag that feeds `use_repo(maven, "<repository>")`.
+    pub fn insert_maven_artifact_in(
+        &self,
+        repository: &str,
+        coordinate: &str,
+    ) -> Result<String, ModuleError> {
         check_safe(coordinate)?;
         let proxies = self.maven_proxies();
         let mut installs: Vec<&Call> = Vec::new();
@@ -760,8 +770,9 @@ impl ModuleFile {
                         reason: format!("maven.install at line {} has a computed name", call.line),
                     })
                 }
-                None => installs.push(call),
-                Some(Value::Str(literal)) if literal.value == "maven" => installs.push(call),
+                None if repository == "maven" => installs.push(call),
+                None => {}
+                Some(Value::Str(literal)) if literal.value == repository => installs.push(call),
                 Some(Value::Str(_)) => {}
                 Some(_) => {
                     return Err(ModuleError::NoInsertPoint {
@@ -774,13 +785,13 @@ impl ModuleFile {
             [call] => *call,
             [] => {
                 return Err(ModuleError::NoInsertPoint {
-                    reason: "no maven.install tag for the default @maven repository".to_owned(),
+                    reason: format!("no maven.install tag for the @{repository} repository"),
                 })
             }
             many => {
                 return Err(ModuleError::NoInsertPoint {
                     reason: format!(
-                        "{} maven.install tags feed the default @maven repository",
+                        "{} maven.install tags feed the @{repository} repository",
                         many.len()
                     ),
                 })

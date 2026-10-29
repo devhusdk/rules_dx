@@ -1,5 +1,6 @@
 """Pinned Qt SDK, runtime closure and extractor identities."""
 
+load("//libs/starlark:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":linux_arm64.bzl", LINUX_ARM64 = "CELL")
@@ -63,24 +64,9 @@ CELLS = {
 }
 
 EXTRACTORS = {
-    "linux_arm64": struct(
-        archive = "7z2603-linux-arm64.tar.xz",
-        binary = "7zzs",
-        sha256 = "2389ba20e4d8295e8709c20b6263b69bd1ec4972fe38a04ad7a1badbf595b996",
-        url = "https://github.com/ip7z/7zip/releases/download/26.03/7z2603-linux-arm64.tar.xz",
-    ),
-    "linux_x86_64": struct(
-        archive = "7z2603-linux-x64.tar.xz",
-        binary = "7zzs",
-        sha256 = "dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695",
-        url = "https://github.com/ip7z/7zip/releases/download/26.03/7z2603-linux-x64.tar.xz",
-    ),
-    "macos_arm64": struct(
-        archive = "7z2603-mac.tar.xz",
-        binary = "7zz",
-        sha256 = "5ca87677072c59f5602e5c49baa27d4694bacd2259b4e507f0094249d4281480",
-        url = "https://github.com/ip7z/7zip/releases/download/26.03/7z2603-mac.tar.xz",
-    ),
+    host: extractor
+    for host, extractor in SEVEN_ZIP_EXTRACTORS.items()
+    if not host.startswith("windows_")
 }
 
 LICENSE_TEXTS = {

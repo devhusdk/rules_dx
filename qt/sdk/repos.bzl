@@ -1,5 +1,6 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
+load("//libs/starlark:seven_zip.bzl", "seven_zip_host")
 load(
     ":pins.bzl",
     "CELLS",
@@ -85,10 +86,6 @@ _PACKAGE_FIELDS = {
 _PACKAGE_OPTIONAL = {"display_libraries": "strings"}
 
 _TEXT_FIELDS = {"sha256": "string", "url": "string"}
-
-_HOST_OSES = {"linux": "linux", "mac os x": "macos"}
-
-_HOST_ARCHES = {"aarch64": "arm64", "amd64": "x86_64", "arm64": "arm64", "x86_64": "x86_64"}
 
 _QML = [":qml", ":network", ":core"]
 
@@ -190,9 +187,7 @@ def _archive_errors(cell, key, archive, release):
 
 def host_key(os, arch):
     """Returns the EXTRACTORS key of one host from Bazel's os name and arch."""
-    name = os.lower()
-    name = "windows" if name.startswith("windows") else _HOST_OSES.get(name, name)
-    return name + "_" + _HOST_ARCHES.get(arch, arch)
+    return seven_zip_host(os, arch)
 
 def cell_errors(cell, entry):
     """Returns one error string per pin of one cell entry that is not ready to acquire."""

@@ -10,30 +10,110 @@ LDC_VERSION = "1.43.0"
 
 LDC_RELEASES = "https://github.com/ldc-developers/ldc/releases/download/v" + LDC_VERSION + "/"
 
+# LDC ships no native Windows arm64 compiler: that cell runs the x64 compiler under emulation and
+# takes its arm64 runtime libraries from the addon package. LDC's prebuilt libraries are MSVC-ABI, so
+# both cells constrain on the msvc ABI of the hermetic cc toolchain.
+_MSVC_ABI = "@llvm//constraints/windows/abi:msvc"
+
+_WINDOWS_ARCHIVE = "ldc2-" + LDC_VERSION + "-windows-x64.7z"
+
+_WINDOWS_SHA256 = "60ae3d5e34287aa25433c7550520060a52f9f212e3d5ff6472a9067d8d17e47e"
+
+_WINDOWS_ADDON = struct(
+    archive = "ldc2-" + LDC_VERSION + "-addon-windows.tar.xz",
+    keep = ["etc/ldc2.conf/55-target-windows-arm64.conf", "lib-windows-arm64"],
+    sha256 = "88c6679eccfcbbf82b90dc15b731d07eca74aea088fe0a20e1a2780e4c2bc45d",
+)
+
+# Cells whose toolchain is pinned and fetchable but has not yet linked and tested anything on its
+# host. They stay out of D_COMPATIBLE_WITH until an evidence.yml run passes on each (#4542).
+LDC_UNPROVEN_CELLS = ["windows_arm64", "windows_x86_64"]
+
 LDC_CELLS = {
     "linux_amd64": struct(
+        addon = None,
         archive = "ldc2-" + LDC_VERSION + "-linux-x86_64.tar.xz",
+        compiler = "bin/ldmd2",
+        compiler_flags = [],
+        data_globs = [],
+        druntime = "lib/libdruntime-ldc.a",
+        dub = "bin/dub",
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+        ldc = "bin/ldc2",
         linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
+        phobos = "lib/libphobos2-ldc.a",
         runtime = ["gcc-12-base", "libgcc-s1", "zlib1g"],
         sha256 = "35805db60f47fd1a162b2035da84d96beec37e6d1e7b1edf60498a90acfaedce",
         strip_prefix = "ldc2-" + LDC_VERSION + "-linux-x86_64",
+        wrapper = True,
     ),
     "linux_arm64": struct(
+        addon = None,
         archive = "ldc2-" + LDC_VERSION + "-linux-aarch64.tar.xz",
+        compiler = "bin/ldmd2",
+        compiler_flags = [],
+        data_globs = [],
+        druntime = "lib/libdruntime-ldc.a",
+        dub = "bin/dub",
         exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+        ldc = "bin/ldc2",
         linkopts = ["-ldl", "-lm", "-lpthread", "-lrt"],
+        phobos = "lib/libphobos2-ldc.a",
         runtime = ["gcc-12-base", "libgcc-s1", "zlib1g"],
         sha256 = "f2b24edc254d4b9944234f641de3c4b3a36d5752639ec30cb2bbe122931b2283",
         strip_prefix = "ldc2-" + LDC_VERSION + "-linux-aarch64",
+        wrapper = True,
     ),
     "macos_arm64": struct(
+        addon = None,
         archive = "ldc2-" + LDC_VERSION + "-osx-arm64.tar.xz",
+        compiler = "bin/ldmd2",
+        compiler_flags = [],
+        data_globs = [],
+        druntime = "lib/libdruntime-ldc.a",
+        dub = "bin/dub",
         exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
+        ldc = "bin/ldc2",
         linkopts = ["-ldl", "-lm", "-lpthread"],
+        phobos = "lib/libphobos2-ldc.a",
         runtime = [],
         sha256 = "5e332349c784d4e0b1c4622284803880f89d97ef1ef97c6b25aa4d6b094c5fed",
         strip_prefix = "ldc2-" + LDC_VERSION + "-osx-arm64",
+        wrapper = True,
+    ),
+    "windows_arm64": struct(
+        addon = _WINDOWS_ADDON,
+        archive = _WINDOWS_ARCHIVE,
+        compiler = "bin/ldmd2.exe",
+        compiler_flags = ["-mscrtlib=libcmt", "-mtriple=aarch64-windows-msvc"],
+        data_globs = ["bin/*.dll", "lib-windows-arm64/*.dll"],
+        druntime = "lib-windows-arm64/druntime-ldc.lib",
+        dub = "bin/dub.exe",
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", _MSVC_ABI],
+        ldc = "bin/ldc2.exe",
+        linkopts = [],
+        phobos = "lib-windows-arm64/phobos2-ldc.lib",
+        runtime = [],
+        sha256 = _WINDOWS_SHA256,
+        strip_prefix = "ldc2-" + LDC_VERSION + "-windows-x64",
+        wrapper = False,
+    ),
+    "windows_x86_64": struct(
+        addon = None,
+        archive = _WINDOWS_ARCHIVE,
+        compiler = "bin/ldmd2.exe",
+        compiler_flags = ["-mscrtlib=libcmt"],
+        data_globs = ["bin/*.dll"],
+        druntime = "lib/druntime-ldc.lib",
+        dub = "bin/dub.exe",
+        exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", _MSVC_ABI],
+        ldc = "bin/ldc2.exe",
+        linkopts = [],
+        phobos = "lib/phobos2-ldc.lib",
+        runtime = [],
+        sha256 = _WINDOWS_SHA256,
+        strip_prefix = "ldc2-" + LDC_VERSION + "-windows-x64",
+        wrapper = False,
     ),
 }
 

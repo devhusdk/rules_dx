@@ -89,6 +89,29 @@ nested_bazel_test(
 )
 
 nested_bazel_test(
+    name = "csharp",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:csharp",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "csharp",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:csharp)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
     name = "d",
     size = "enormous",
     srcs = ["starter_consumer_test.rs"],
@@ -225,6 +248,52 @@ nested_bazel_test(
     network = True,
     tags = STARTER_CONSUMER_TAGS,
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "java",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:java",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "java",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:java)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "javascript",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:javascript",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "javascript",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:javascript)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
     deps = [
         "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
@@ -480,6 +549,29 @@ nested_bazel_test(
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "DX_FIXTURE": "svelte",
         "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:svelte)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "typescript",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:typescript",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "typescript",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:typescript)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,

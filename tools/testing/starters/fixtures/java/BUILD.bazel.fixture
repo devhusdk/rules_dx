@@ -1,0 +1,20 @@
+load("@rules_dx//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+
+java_library(
+    name = "demo-app",
+    srcs = ["Hello.java"],
+)
+
+java_binary(
+    name = "demo-app_bin",
+    srcs = ["Main.java"],
+    main_class = "hello.Main",
+    deps = [":demo-app"],
+)
+
+java_test(
+    name = "demo-app_test",
+    srcs = ["HelloTest.java"],
+    test_class = "hello.HelloTest",
+    deps = [":demo-app"],
+)

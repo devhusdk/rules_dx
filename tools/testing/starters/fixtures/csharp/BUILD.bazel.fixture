@@ -1,0 +1,18 @@
+load("@rules_dx//csharp/rules:defs.bzl", "csharp_binary", "csharp_library", "csharp_test")
+
+csharp_library(
+    name = "demo-app",
+    srcs = ["Hello.cs"],
+)
+
+csharp_binary(
+    name = "demo-app_bin",
+    srcs = ["Program.cs"],
+    deps = [":demo-app"],
+)
+
+csharp_test(
+    name = "demo-app_test",
+    srcs = ["HelloTest.cs"],
+    deps = [":demo-app"],
+)

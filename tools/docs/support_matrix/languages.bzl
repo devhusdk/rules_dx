@@ -79,7 +79,7 @@ ROWS = [
         "section": "languages",
         "title": "C and C++",
     },
-    {"ci_tests": _hello("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
+    {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {
         "ci_tests": ["//cuda/tests:saxpy_device_code_test", "//cuda/tests:saxpy_gpu_test"],
         "consumer_tests": ["//cuda/tests/starter:starter_test"],
@@ -107,8 +107,8 @@ ROWS = [
     {"ci_tests": _hello("fsharp"), "name": "fsharp", "section": "languages", "title": "F#"},
     {"ci_tests": _hello("go"), "consumer_tests": _starter_consumers("go"), "name": "go", "section": "languages", "title": "Go"},
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"] + _starter_consumers("haskell"), "name": "haskell", "section": "languages", "title": "Haskell"},
-    {"ci_tests": _hello("java"), "name": "java", "section": "languages", "title": "Java"},
-    {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
+    {"ci_tests": _hello("java"), "consumer_tests": _starter_consumers("java"), "name": "java", "section": "languages", "title": "Java"},
+    {"ci_tests": _hello("javascript"), "consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
     {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": ["//julia/tests/starter:starter_test"] + _starter_consumers("julia"), "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "title": "Kotlin"},
     {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": "Lua"},
@@ -137,7 +137,7 @@ ROWS = [
     },
     {"ci_tests": _hello("scala"), "consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "title": "Scala"},
     {"ci_tests": _hello("svelte"), "consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "title": "Svelte"},
-    {"ci_tests": _hello("typescript"), "name": "typescript", "section": "languages", "title": "TypeScript"},
+    {"ci_tests": _hello("typescript"), "consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": "TypeScript"},
     {"ci_tests": _hello("vue"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": "Vue"},
     {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
     {

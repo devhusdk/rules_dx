@@ -9,13 +9,13 @@ generated from [first-build.json](first-build.json) by
 | --- | --- | --- | --- | --- | --- | --- |
 | `rust` | pending | pending | pending | pending | pending | pending |
 | `python` | pending | pending | pending | pending | pending | pending |
-| `javascript` | skipped | skipped | skipped | skipped | skipped | skipped |
-| `typescript` | skipped | skipped | skipped | skipped | skipped | skipped |
+| `javascript` | pending | pending | pending | pending | pending | pending |
+| `typescript` | pending | pending | pending | pending | pending | pending |
 | `go` | pending | pending | pending | pending | pending | pending |
-| `java` | skipped | skipped | skipped | skipped | skipped | skipped |
+| `java` | pending | pending | pending | pending | pending | pending |
 | `kotlin` | skipped | skipped | skipped | skipped | skipped | skipped |
 | `scala` | skipped | skipped | skipped | skipped | skipped | skipped |
-| `csharp` | skipped | skipped | skipped | skipped | skipped | skipped |
+| `csharp` | pending | pending | pending | pending | pending | pending |
 | `fsharp` | skipped | skipped | skipped | skipped | skipped | skipped |
 | `c` | pending | pending | pending | pending | pending | pending |
 | `cpp` | pending | pending | pending | pending | pending | pending |
@@ -42,12 +42,8 @@ generated from [first-build.json](first-build.json) by
 
 Skipped:
 
-- `javascript`: no hello-world fixture yet (#4701)
-- `typescript`: no hello-world fixture yet (#4701)
-- `java`: no hello-world fixture yet (#4701)
 - `kotlin`: no hello-world fixture yet (#4701)
 - `scala`: no hello-world fixture yet (#4701)
-- `csharp`: no hello-world fixture yet (#4701)
 - `fsharp`: no hello-world fixture yet (#4701)
 - `rust-web`: no hello-world fixture yet (#4701)
 

@@ -88,7 +88,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | PHP | `phpcs` | `prettier` | `phpstan` |
 | PowerShell | `psscriptanalyzer` | `psscriptanalyzer` | n/a |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
-| Ruby | `rubocop` | `standardrb` | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) |
+| Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `standardrb` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) |
 | Rust | `clippy` | `rustfmt` | `rustc` |
 | Scala | `scalafix` | `scalafmt` | `scalac` |
 | Svelte | `eslint` | `prettier` | no |

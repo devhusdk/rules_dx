@@ -341,10 +341,10 @@ def test_matrix_prints_json(capsys):
     assert first_build.main(["matrix", "--languages", "c,zig"]) == 0
     assert json.loads(capsys.readouterr().out) == {"language": ["c", "zig"]}
     assert first_build.main(["matrix", "--languages", "nope"]) == 1
-    assert first_build.main(["matrix", "--languages", "rust"]) == 1
+    assert first_build.main(["matrix", "--languages", "kotlin"]) == 1
     assert first_build.main(["matrix"]) == 0
     languages = json.loads(capsys.readouterr().out)["language"]
-    assert "rust" not in languages and "c" in languages
+    assert "kotlin" not in languages and "c" in languages
 
 
 if __name__ == "__main__":

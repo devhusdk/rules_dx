@@ -281,7 +281,15 @@ func touch(path string) error {
 	return os.WriteFile(path, nil, 0o644)
 }
 
-func runChild(analyzers []*analysis.Analyzer, configure func([]string) error) {
+type Tree = map[string]map[string]json.RawMessage
+
+type Options struct {
+	Configure func(extra []string) error
+	Select    func(extra []string) []*analysis.Analyzer
+	Filter    func(cfg *Config, tree Tree) Tree
+}
+
+func runChild(analyzers []*analysis.Analyzer, opts Options) {
 	var payload childPayload
 	if err := json.Unmarshal([]byte(os.Getenv(ChildEnv)), &payload); err != nil {
 		fmt.Fprintln(os.Stderr, "bad child payload:", err)
@@ -289,16 +297,19 @@ func runChild(analyzers []*analysis.Analyzer, configure func([]string) error) {
 	}
 	build.Default.GOOS = payload.GOOS
 	build.Default.GOARCH = payload.GOARCH
-	if configure != nil {
-		if err := configure(payload.Extra); err != nil {
+	if opts.Configure != nil {
+		if err := opts.Configure(payload.Extra); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
 	}
+	if opts.Select != nil {
+		analyzers = opts.Select(payload.Extra)
+	}
 	unitchecker.Main(analyzers...)
 }
 
-func run(tool string, analyzers []*analysis.Analyzer, configure func([]string) error, args []string, stdout, stderr io.Writer) (int, error) {
+func run(tool string, analyzers []*analysis.Analyzer, opts Options, args []string, stdout, stderr io.Writer) (int, error) {
 	flags := flag.NewFlagSet(tool, flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	out := flags.String("out", "", "write the JSON report to this file")
@@ -320,8 +331,8 @@ func run(tool string, analyzers []*analysis.Analyzer, configure func([]string) e
 	if cfg.ImportPath == "" {
 		return 1, errors.New("config has no ImportPath")
 	}
-	if configure != nil {
-		if err := configure(extra); err != nil {
+	if opts.Configure != nil {
+		if err := opts.Configure(extra); err != nil {
 			return 1, err
 		}
 	}
@@ -397,7 +408,11 @@ func run(tool string, analyzers []*analysis.Analyzer, configure func([]string) e
 	for _, byAnalyzer := range tree {
 		renamed[cfg.ImportPath] = mergeTools(renamed[cfg.ImportPath], byAnalyzer)
 	}
-	return 0, emit(*out, stdout, &cfg, filterOwned(renamed, cfg.OwnedFiles))
+	owned := filterOwned(renamed, cfg.OwnedFiles)
+	if opts.Filter != nil {
+		owned = opts.Filter(&cfg, owned)
+	}
+	return 0, emit(*out, stdout, &cfg, owned)
 }
 
 func mergeTools(dst, src map[string]json.RawMessage) map[string]json.RawMessage {
@@ -416,11 +431,15 @@ func mergeTools(dst, src map[string]json.RawMessage) map[string]json.RawMessage 
 }
 
 func Main(tool string, analyzers []*analysis.Analyzer, configure func([]string) error, args []string, stdout, stderr io.Writer) int {
+	return Run(tool, analyzers, Options{Configure: configure}, args, stdout, stderr)
+}
+
+func Run(tool string, analyzers []*analysis.Analyzer, opts Options, args []string, stdout, stderr io.Writer) int {
 	if os.Getenv(ChildEnv) != "" {
-		runChild(analyzers, configure)
+		runChild(analyzers, opts)
 		return 0
 	}
-	code, err := run(tool, analyzers, configure, args, stdout, stderr)
+	code, err := run(tool, analyzers, opts, args, stdout, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, tool+":", err)
 		if code == 0 {

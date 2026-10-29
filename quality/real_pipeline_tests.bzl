@@ -253,14 +253,16 @@ def real_pipeline_unit_tests(name):
                 [["java"], [], []],
             ),
             expect_equal(
-                "real_supported_classes returns flang and ldc typecheck support only",
+                "real_supported_classes returns flang, ldc and zig typecheck support only",
                 [
                     real_supported_classes("flang", "typecheck"),
                     real_supported_classes("flang", "lint"),
                     real_supported_classes("ldc", "typecheck"),
                     real_supported_classes("ldc", "format"),
+                    real_supported_classes("zig", "typecheck"),
+                    real_supported_classes("zig", "lint"),
                 ],
-                [["fortran"], [], ["d"], []],
+                [["fortran"], [], ["d"], [], ["zig"], []],
             ),
             expect_equal(
                 "real_supported_classes returns tsc typecheck support only",

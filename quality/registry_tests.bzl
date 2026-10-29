@@ -81,9 +81,9 @@ def registry_unit_tests(name):
                 True,
             ),
             expect_equal(
-                "flang and ldc are registry tools",
-                [is_registry_tool("flang"), is_registry_tool("ldc")],
-                [True, True],
+                "flang, ldc and zig are registry tools",
+                [is_registry_tool("flang"), is_registry_tool("ldc"), is_registry_tool("zig")],
+                [True, True, True],
             ),
             expect_equal(
                 "tsc is a registry tool",

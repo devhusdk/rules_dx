@@ -1488,7 +1488,7 @@ fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool
 
 const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
 
-const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 2] = [
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 3] = [
     (
         "flang",
         "src/a.f90",
@@ -1500,6 +1500,12 @@ const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 2] = [
         "src/a.d",
         "src/a.d:4:9: Error: undefined identifier `y`\n",
         "src/gen.d:4:9: Error: undefined identifier `y`\n",
+    ),
+    (
+        "zig",
+        "src/a.zig",
+        "src/a.zig:4:9: error: use of undeclared identifier 'y'\n",
+        "src/gen.zig:4:9: error: use of undeclared identifier 'y'\n",
     ),
 ];
 

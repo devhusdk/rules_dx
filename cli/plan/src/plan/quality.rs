@@ -827,7 +827,8 @@ mod tests {
                 && arg.contains("@rules_dx//quality:real_aspects.bzl%real_jvm_typecheck_aspect")
                 && arg.contains("@rules_dx//quality:real_aspects.bzl%real_d_typecheck_aspect")
                 && arg
-                    .contains("@rules_dx//quality:real_aspects.bzl%real_fortran_typecheck_aspect")),
+                    .contains("@rules_dx//quality:real_aspects.bzl%real_fortran_typecheck_aspect")
+                && arg.contains("@rules_dx//quality:real_aspects.bzl%real_zig_typecheck_aspect")),
             "typecheck selects the real typecheck aspects: {plan:?}"
         );
         assert_eq!(plan.summary, "Running typecheck analysis for //...");

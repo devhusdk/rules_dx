@@ -1,4 +1,4 @@
-"""Replays the compile actions of a Fortran or D target in a check-only form.
+"""Replays the compile actions of a Fortran, D or Zig target in a check-only form.
 
 The aspect reads the real upstream compile action (flags, include paths, module
 directories, compiler), rewrites its command line so nothing is produced, and runs it in
@@ -14,7 +14,7 @@ CompileCheckInfo = provider(
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
         "sources": "list of string: the first source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
-        "tool": "string: the quality tool id the logs belong to (flang or ldc).",
+        "tool": "string: the quality tool id the logs belong to (flang, ldc or zig).",
     },
 )
 
@@ -103,10 +103,56 @@ def ldc_check_argv(argv, scratch):
         return _fail("the compile command line names no D source")
     return struct(argv = out + ["-o-", "-verror-style=gnu", "-vcolumns"], error = "", source = source)
 
+def zig_check_argv(argv, scratch):
+    """Rewrites a zig build-exe/build-lib/test command line so it type-checks and emits nothing.
+
+    Every `-femit-*` flag is dropped and `-fno-emit-bin` is appended. Zig analyzes lazily, so only
+    declarations reachable from the root module are checked.
+
+    Args:
+      argv: list of string: the compile action command line, compiler first.
+      scratch: string: unused; kept so every family rewrite has one signature.
+
+    Returns:
+      A struct with `argv`, `error` and `source` (the root module source: the first module listed).
+    """
+    _ = scratch
+    if len(argv) < 2:
+        return _fail("the compile action has no zig subcommand")
+    out = []
+    source = ""
+    has_no_emit = False
+    for arg in argv:
+        if arg.startswith("@"):
+            return _fail("params files are not supported (found " + arg + ")")
+        if arg == "-fno-emit-bin":
+            has_no_emit = True
+        elif arg.startswith("-femit-"):
+            continue
+        elif arg.startswith("-M") and "=" in arg and arg.endswith(".zig"):
+            if source == "":
+                source = arg.partition("=")[2]
+        elif not arg.startswith("-") and arg.endswith(".zig") and source == "":
+            source = arg
+        out.append(arg)
+    if source == "":
+        return _fail("the compile command line names no Zig source")
+    if not has_no_emit:
+        out.append("-fno-emit-bin")
+    return struct(argv = out, error = "", source = source)
+
 _SPECS = {
     "Dcompile": struct(tool = "ldc", rewrite = ldc_check_argv, scratch = False),
     "FortranCompile": struct(tool = "flang", rewrite = flang_check_argv, scratch = True),
+    "ZigBuildExe": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
+    "ZigBuildLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
+    "ZigBuildSharedLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
+    "ZigBuildStaticLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
+    "ZigBuildTest": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
 }
+
+# The quality tool ids whose logs the replay produces, derived from _SPECS.
+COMPILE_CHECK_TOOLS = sorted({spec.tool: True for spec in _SPECS.values()}.keys())
 
 def _first(value):
     return value[0] if type(value) == "list" else value
@@ -161,6 +207,7 @@ def _compile_check_impl(target, ctx):
             inputs = action.inputs,
             outputs = outputs + [log, status],
             env = action.env,
+            execution_requirements = getattr(action, "execution_info", None),
             resource_set = dx_quality_heavy_resources,
         )
         diagnostics.append(log)
@@ -170,6 +217,6 @@ def _compile_check_impl(target, ctx):
 
 compile_check_aspect = aspect(
     implementation = _compile_check_impl,
-    doc = "Replays the Fortran and D compile actions of a target without producing outputs.",
+    doc = "Replays the Fortran, D and Zig compile actions of a target without producing outputs.",
     attr_aspects = ["upstream", "deps"],
 )

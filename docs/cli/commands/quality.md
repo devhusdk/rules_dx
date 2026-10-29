@@ -298,6 +298,7 @@ to.
 | `nixfmt` | format | nix |
 | `notebook_outputs` | lint | jupyter |
 | `nvcc_syntax` | typecheck | cuda |
+| `ocaml` | typecheck | ocaml |
 | `ormolu` | format | haskell |
 | `opa` | format, typecheck | rego |
 | `perlcritic` | lint | perl |
@@ -353,7 +354,7 @@ CUDA (`nvcc_syntax`) typecheck is opt-in (`typecheck = ["nvcc_syntax"]` on the `
 
 Fortran (`fortran`) formats with `ffmt` and lints with `fortitude`, both described under Fortran below. Typecheck is opt-in, see Fortran and D typechecking.
 
-OCaml (`ocaml`) has no formatter and no linter. OCaml targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
+OCaml (`ocaml`) formats with `topiary`, lints with `zanuda` and typechecks with `ocaml`, which is opt-in, see OCaml typechecking.
 
 ## Tool overrides
 
@@ -954,6 +955,23 @@ x86_64 only and never fix, so `--apply` changes nothing. Fortran modules that a
 source takes from another source of the same target come from the real build:
 a type error in the providing source fails `bazel build` instead of showing as
 a finding.
+
+### OCaml typechecking
+
+`ocaml` is opt-in: select it with `typecheck = ["ocaml"]` on an `ocaml` family.
+It replays the `ocamlc` or `ocamlopt` compile action that `ocaml_module` and
+`ocaml_signature` configured, so the flags, include paths, `-open` flags and
+precompiled interfaces match the real build. The replay adds
+`-stop-after typing` and writes its interfaces into a scratch directory, so it
+produces no `.cmo`, `.cmx`, `.cmt` or object files in the build outputs. A
+module with a hand-written `.mli` is checked as an interface step followed by an
+implementation step. An error or warning is reported at its line and column in
+the target's own sources. An error in another file, or a failed run with no error
+in the target's sources, fails the run instead of passing it. `ocaml` never
+fixes, so `--apply` changes nothing. `ocaml_library` and `ocaml_binary` have no
+compile action of their own, so they are only checked through their modules.
+A module that is preprocessed by a ppx rewriter compiles generated code, so it
+is not checked.
 
 ### Zig typechecking
 

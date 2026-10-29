@@ -1669,7 +1669,7 @@ fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool
 
 const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
 
-const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 3] = [
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 4] = [
     (
         "flang",
         "src/a.f90",
@@ -1681,6 +1681,12 @@ const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 3] = [
         "src/a.d",
         "src/a.d:4:9: Error: undefined identifier `y`\n",
         "src/gen.d:4:9: Error: undefined identifier `y`\n",
+    ),
+    (
+        "ocaml",
+        "src/a.ml",
+        "File \"src/a.ml\", line 4, characters 8-9:\nError: Unbound value y\n",
+        "File \"src/gen.ml\", line 4, characters 8-9:\nError: Unbound value y\n",
     ),
     (
         "zig",

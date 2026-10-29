@@ -128,8 +128,10 @@ See [examples/ocaml-app](../examples/ocaml-app/README.md) for a multi-package ap
 `dx format` runs `topiary` on `.ml` and `.mli` sources when the `ocaml` family
 selects it with `format = ["topiary"]`. Its output differs from ocamlformat and
 a `.ocamlformat` file is ignored. `.mll` and `.mly` files are not formatted. No
-OCaml linter runs. The rules tag every target `no-lint` and `no-typecheck`, so
-`dx lint` and `dx typecheck` skip it. The compiler is the type check.
+OCaml linter runs besides zanuda (below). `dx typecheck` replays each
+`ocaml_module` and `ocaml_signature` compile with `-stop-after typing` when the
+`ocaml` family selects `typecheck = ["ocaml"]`. The replay writes only to a
+scratch directory. Modules that use a ppx rewriter are not checked.
 
 ### Internal tool: zanuda
 

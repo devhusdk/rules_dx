@@ -493,6 +493,7 @@ impl RealBackend {
         let parse: CompileLogParser = match tool_id {
             "flang" => parsers::parse_flang,
             "ldc" => parsers::parse_ldc,
+            "ocaml" => parsers::parse_ocaml_compile,
             "zig" => parsers::parse_zig_compile,
             other => {
                 return Err(execution(

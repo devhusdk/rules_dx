@@ -214,6 +214,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "nixfmt",
             "notebook_outputs",
             "nvcc_syntax",
+            "ocaml",
             "ormolu",
             "opa",
             "perlcritic",

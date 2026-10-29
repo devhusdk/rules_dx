@@ -78,6 +78,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "nixfmt",
     "notebook_outputs",
     "nvcc_syntax",
+    "ocaml",
     "ormolu",
     "opa",
     "perlcritic",

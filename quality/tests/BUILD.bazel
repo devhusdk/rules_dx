@@ -715,6 +715,42 @@ rust_clippy_test(
 
 # keep
 rust_test(
+    name = "ocaml_consumer_test",
+    size = "enormous",
+    srcs = ["ocaml_consumer_test.rs"],
+    data = [
+        "//cli/cli:dx",
+        "//ocaml/tests/fixtures/type_error:bad.ml",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    # Fetches the OCaml toolchain.
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "ocaml_consumer_fmt_test",
+    targets = [":ocaml_consumer_test"],
+)
+
+rust_clippy_test(
+    name = "ocaml_consumer_clippy_test",
+    targets = [":ocaml_consumer_test"],
+)
+
+# keep
+rust_test(
     name = "zig_consumer_test",
     size = "enormous",
     srcs = ["zig_consumer_test.rs"],

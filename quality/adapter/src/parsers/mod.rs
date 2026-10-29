@@ -62,6 +62,7 @@ pub mod modfmt;
 pub mod nixfmt;
 pub mod notebook_outputs;
 pub mod nvcc_syntax;
+pub mod ocaml_compile;
 pub mod opa;
 pub mod ormolu;
 pub mod perlcritic;
@@ -178,6 +179,7 @@ pub use modfmt::parse_modfmt;
 pub use nixfmt::parse_nixfmt;
 pub use notebook_outputs::parse_notebook_outputs;
 pub use nvcc_syntax::parse_nvcc_syntax;
+pub use ocaml_compile::parse_ocaml_compile;
 pub use opa::{parse_opa_check, parse_opa_fmt};
 pub use ormolu::parse_ormolu;
 pub use perlcritic::parse_perlcritic;
@@ -2007,6 +2009,14 @@ mod tests {
         )
     }
 
+    fn fuzz_ocaml_compile(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ocaml_compile::parse_ocaml_compile(input, code, files)
+    }
+
     fn fuzz_opa_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -2798,6 +2808,7 @@ mod tests {
         ("ormolu", fuzz_ormolu),
         ("bicep_lint", fuzz_bicep_lint),
         ("bicep_format", fuzz_bicep_format),
+        ("ocaml_compile", fuzz_ocaml_compile),
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
         ("perlcritic", fuzz_perlcritic),
@@ -2924,6 +2935,7 @@ mod tests {
         ("nvcc_syntax", include_str!("nvcc_syntax.rs")),
         ("ormolu", include_str!("ormolu.rs")),
         ("bicep", include_str!("bicep.rs")),
+        ("ocaml_compile", include_str!("ocaml_compile.rs")),
         ("opa", include_str!("opa.rs")),
         ("perlcritic", include_str!("perlcritic.rs")),
         ("perltidy", include_str!("perltidy.rs")),

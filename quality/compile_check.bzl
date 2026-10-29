@@ -1,4 +1,4 @@
-"""Replays the compile actions of a Fortran, D or Zig target in a check-only form.
+"""Replays the compile actions of a Fortran, D, OCaml or Zig target in a check-only form.
 
 The aspect reads the real upstream compile action (flags, include paths, module
 directories, compiler), rewrites its command line so nothing is produced, and runs it in
@@ -14,7 +14,7 @@ CompileCheckInfo = provider(
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
         "sources": "list of string: the first source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
-        "tool": "string: the quality tool id the logs belong to (flang, ldc or zig).",
+        "tool": "string: the quality tool id the logs belong to (flang, ldc, ocaml or zig).",
     },
 )
 
@@ -24,7 +24,7 @@ _LDC_DROP_PREFIXES = ["-of", "-od", "-op", "-H", "-X", "-D", "-deps", "-makedeps
 _LDC_DROP = ["-c", "-lib", "-shared", "-oq", "-cov"]
 
 def _fail(message):
-    return struct(argv = [], error = message, source = "")
+    return struct(argv = [], steps = [], error = message, source = "", staged = [])
 
 def flang_check_argv(argv, scratch):
     """Rewrites a flang compile command line into its -fsyntax-only form.
@@ -141,6 +141,112 @@ def zig_check_argv(argv, scratch):
         out.append("-fno-emit-bin")
     return struct(argv = out, error = "", source = source)
 
+_OCAML_DROP = ["-bin-annot", "-annot", "-c"]
+
+_OCAML_FLAGS = ["-stop-after", "typing", "-error-style", "short", "-color", "never"]
+
+def _basename(path):
+    return path.rpartition("/")[2]
+
+def _stem(path):
+    return _basename(path).rpartition(".")[0]
+
+def ocaml_check_argv(argv, scratch):
+    """Rewrites an ocamlc or ocamlopt compile command line into check-only steps.
+
+    The compile stops after typing, writes only into `scratch` and prints short-style
+    errors. A hand-written signature compiled together with its implementation
+    (`-c m.mli m.ml`, no `-o`) becomes an `-intf` step followed by an `-impl` step.
+
+    Args:
+      argv: list of string: the compile action command line, compiler first.
+      scratch: string: a directory the replay may write compiled interfaces to.
+
+    Returns:
+      A struct with `argv` (the first step), `steps`, `error` (non-empty when the command
+      cannot be replayed faithfully), `source` (the first source) and `staged` (the
+      sources in the order they were given).
+    """
+    if len(argv) == 0:
+        return _fail("the compile action has an empty command line")
+    common = []
+    positional = []
+    impl = ""
+    intf = ""
+    output = ""
+    compiles = 0
+    take = ""
+    for arg in argv[1:]:
+        if take != "":
+            if take == "-o":
+                output = arg
+            elif take == "-impl":
+                impl = arg
+            elif take == "-intf":
+                intf = arg
+            take = ""
+            continue
+        if arg.startswith("@"):
+            return _fail("params files are not supported (found " + arg + ")")
+        if arg in ["-o", "-impl", "-intf"]:
+            take = arg
+        elif arg == "-c":
+            compiles += 1
+        elif arg in _OCAML_DROP:
+            continue
+        elif arg.endswith(".ml") or arg.endswith(".mli"):
+            positional.append(arg)
+        else:
+            common.append(arg)
+    if take != "":
+        return _fail("the compile action ends with " + take)
+    if compiles != 1:
+        return _fail("expected exactly one -c in the compile action")
+    if scratch == "":
+        return _fail("the OCaml replay needs a scratch directory")
+    head = [argv[0]] + _OCAML_FLAGS
+    ext = ".cmx" if "ocamlopt" in _basename(argv[0]) else ".cmo"
+    if impl != "" and intf == "" and len(positional) == 0 and output != "":
+        steps = [head + common + ["-c", "-impl", impl, "-o", scratch + "/" + _basename(output)]]
+        staged = [impl]
+    elif intf != "" and impl == "" and len(positional) == 0 and output != "":
+        steps = [head + common + ["-c", "-intf", intf, "-o", scratch + "/" + _stem(output) + ".cmi"]]
+        staged = [intf]
+    elif impl == "" and intf == "" and output == "" and len(positional) == 2 and positional[0].endswith(".mli") and positional[1].endswith(".ml"):
+        mli = positional[0]
+        ml = positional[1]
+        module = _stem(ml)
+        if _stem(mli) != module:
+            return _fail("the signature " + mli + " and the implementation " + ml + " name different modules")
+        steps = [
+            head + common + ["-c", "-intf", mli, "-o", scratch + "/" + module + ".cmi"],
+            head + ["-I", scratch] + common + ["-c", "-impl", ml, "-o", scratch + "/" + module + ext],
+        ]
+        staged = [mli, ml]
+    else:
+        return _fail("the compile action has an unsupported shape (sources: %s, -impl: %s, -intf: %s, -o: %s)" % (positional, impl, intf, output))
+    return struct(argv = steps[0], steps = steps, error = "", source = staged[-1], staged = staged)
+
+def ocaml_aliases(staged, owned):
+    """Maps staged source paths in compiler messages back to the files a target owns.
+
+    Args:
+      staged: list of string: the sources of the replayed compile, as the compiler prints them.
+      owned: list of string: the target's own hand-written source paths.
+
+    Returns:
+      A list of (staged path, owned path) pairs for the staged sources that are not owned.
+    """
+    out = []
+    for path in staged:
+        if path in owned:
+            continue
+        for candidate in owned:
+            if candidate.endswith(".mli") == path.endswith(".mli"):
+                out.append((path, candidate))
+                break
+    return out
+
 def zig_replayable(argv):
     """Whether a Zig action compiles a root module; relink actions (e.g. bc to .a) do not."""
     for arg in argv or []:
@@ -151,6 +257,9 @@ def zig_replayable(argv):
     return False
 
 _SPECS = {
+    "CompileOCamlExecModule": struct(tool = "ocaml", rewrite = ocaml_check_argv, scratch = True),
+    "CompileOCamlModule": struct(tool = "ocaml", rewrite = ocaml_check_argv, scratch = True),
+    "CompileOcamlSignature": struct(tool = "ocaml", rewrite = ocaml_check_argv, scratch = True),
     "Dcompile": struct(tool = "ldc", rewrite = ldc_check_argv, scratch = False),
     "FortranCompile": struct(tool = "flang", rewrite = flang_check_argv, scratch = True),
     "ZigBuildExe": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
@@ -172,8 +281,11 @@ def _forwarded(info):
 def _compile_check_impl(target, ctx):
     if target.label.workspace_name != "":
         return []
-    actions = [a for a in getattr(target, "actions", []) if a.mnemonic in _SPECS and (_SPECS[a.mnemonic].tool != "zig" or zig_replayable(a.argv))]
     attrs = ctx.rule.attr
+
+    # A ppx module compiles generated code, so a position in it is not a position in the source.
+    ppx = getattr(attrs, "ppx", None) != None
+    actions = [a for a in getattr(target, "actions", []) if a.mnemonic in _SPECS and (_SPECS[a.mnemonic].tool != "zig" or zig_replayable(a.argv)) and not (ppx and _SPECS[a.mnemonic].tool == "ocaml")]
     if len(actions) == 0:
         upstream = None
         if hasattr(attrs, "upstream"):
@@ -208,11 +320,23 @@ def _compile_check_impl(target, ctx):
             fail("compile_check: " + str(target.label) + ": " + rewritten.error)
         log = ctx.actions.declare_file("dx_compile_check/%s.log" % stem)
         status = ctx.actions.declare_file("dx_compile_check/%s.exit" % stem)
-        ctx.actions.run_shell(
+        steps = getattr(rewritten, "steps", None) or [rewritten.argv]
+        command = [log.path, status.path]
+        if spec.tool == "ocaml":
+            files = ctx.rule.files
+            owned = [f.path for f in getattr(files, "struct", []) + getattr(files, "sig", []) + getattr(files, "src", []) if f.path.endswith(".ml") or f.path.endswith(".mli")]
+            for pair in ocaml_aliases(rewritten.staged, owned):
+                command += ["--alias", pair[0], pair[1]]
+        command.append("--")
+        for n in range(len(steps)):
+            if n > 0:
+                command.append("--dx-next--")
+            command += steps[n]
+        ctx.actions.run(
             mnemonic = "CompileCheck",
             progress_message = "Check %{label}: " + rewritten.source,
-            command = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"',
-            arguments = [log.path, status.path] + rewritten.argv,
+            executable = ctx.executable._compile_check_exec,
+            arguments = command,
             inputs = action.inputs,
             outputs = outputs + [log, status],
             env = action.env,
@@ -226,6 +350,14 @@ def _compile_check_impl(target, ctx):
 
 compile_check_aspect = aspect(
     implementation = _compile_check_impl,
-    doc = "Replays the Fortran, D and Zig compile actions of a target without producing outputs.",
+    doc = "Replays the Fortran, D, OCaml and Zig compile actions of a target without producing outputs.",
     attr_aspects = ["upstream", "deps"],
+    attrs = {
+        "_compile_check_exec": attr.label(
+            default = "//quality:compile_check_exec.sh",
+            allow_single_file = True,
+            cfg = "exec",
+            executable = True,
+        ),
+    },
 )

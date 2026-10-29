@@ -49,8 +49,6 @@ OCAML_LINK_OPTS = ["-without-runtime"]
 
 LOCAL_TAGS = ["no-remote-exec"]
 
-SKIP_TAGS = ["no-typecheck"]
-
 _OCAML = [("ocaml", ["ml", "mli"])]
 
 _SOURCE_EXTS = [".ml", ".mli"]
@@ -219,12 +217,10 @@ def upstream_tags(tags):
     return out + [tag for tag in LOCAL_TAGS if tag not in out]
 
 def with_defaults(kwargs):
-    """Returns kwargs with the qualified OCaml cell and the quality skip tags as defaults."""
+    """Returns kwargs with the qualified OCaml cell as the default."""
     out = dict(kwargs)
     if out.get("target_compatible_with") == None:
         out["target_compatible_with"] = OCAML_COMPATIBLE_WITH
-    tags = list(out.get("tags") or [])
-    out["tags"] = tags + [tag for tag in SKIP_TAGS if tag not in tags]
     return out
 
 def link_kwargs(kwargs):

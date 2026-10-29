@@ -191,6 +191,11 @@ def scalac_toolchain_jars(toolchain):
 def _scala_plugin_jars(targets):
     return [depset(transitive = [t[JavaInfo].transitive_runtime_jars]) if JavaInfo in t else t.files for t in targets]
 
+def _as_list(value):
+    if value == None:
+        return []
+    return value if type(value) == "list" else [value]
+
 def _scalac_check(target, ctx, attrs):
     toolchain = ctx.toolchains[_SCALA_TOOLCHAIN_TYPE]
     jars = scalac_toolchain_jars(toolchain)
@@ -206,7 +211,15 @@ def _scalac_check(target, ctx, attrs):
     if [o for o in options if "$(" in o]:
         return []
     deps = [d for d in getattr(attrs, "deps", []) if JavaInfo in d]
-    classpath = depset(transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps] + [jars.library])
+
+    # rules_scala adds implicit compile deps per rule kind (scala_test: _scalatest;
+    # scala_junit_test: _junit_classpath, suite_label, _bazel_test_runner).
+    implicit = []
+    for name in ["_scalatest", "_junit_classpath", "suite_label", "_bazel_test_runner"]:
+        for t in _as_list(getattr(attrs, name, None)):
+            if type(t) == "Target" and JavaInfo in t:
+                implicit.append(t)
+    classpath = depset(transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps + implicit] + [jars.library])
     plugin_targets = list(toolchain.plugins) + list(getattr(attrs, "plugins", []))
     plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
 

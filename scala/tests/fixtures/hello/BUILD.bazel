@@ -55,6 +55,14 @@ scala_test(
     ],
 )
 
+# Relies on the implicit scalatest classpath that rules_scala adds to scala_test.
+scala_test(
+    name = "implicit_deps_test",
+    srcs = ["ImplicitTest.scala"],
+    aspect_hints = ["//:scalafmt_config"],
+    deps = [":hello_lib"],
+)
+
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",

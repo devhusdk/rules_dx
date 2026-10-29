@@ -212,7 +212,7 @@ ROWS = [
     {"ci_tests": ["//wasi/testing:wasi_run_unit_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
-    {"name": "capnp", "section": "formats", "title": "Cap'n Proto"},
+    {"families": ["capnp"], "name": "capnproto", "section": "formats", "title": "Cap'n Proto"},
     {"name": "bicep", "section": "formats", "title": "Bicep"},
     {"name": "cloudformation", "section": "formats", "title": "CloudFormation"},
     {"name": "flatbuffers", "section": "formats", "title": "FlatBuffers"},

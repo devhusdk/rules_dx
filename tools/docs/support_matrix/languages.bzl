@@ -280,6 +280,9 @@ PLATFORM_NOT_APPLICABLE = {
     "haskell": {
         "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
     },
+    "ocaml": {
+        "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
+    },
     "perl": {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
     },
@@ -305,7 +308,7 @@ GAP_ISSUES = {
     "build:fortran:windows_x86_64": 4546,
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
-    "build:ocaml:windows_*": 4550,
+    "build:ocaml:windows_x86_64": 4550,
     "build:php:windows_x86_64": 4552,
     "build:qt:windows_*": 4554,
     "consumer:*": 4436,

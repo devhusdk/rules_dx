@@ -226,6 +226,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "bicep",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "opa",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -389,7 +395,8 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 "graphql_eslint requires a config".to_owned(),
             )),
         },
-        "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark" | "opa" => {
+        "bicep" | "buf" | "djlint" | "psscriptanalyzer" | "biome" | "prettier" | "remark"
+        | "opa" => {
             if capability == "format" {
                 spec(true)
             } else {
@@ -578,8 +585,8 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        // statix, opa and latexindent fix exactly one target per run.
-        let batches = if matches!(tool_id, "statix" | "opa" | "latexindent") {
+        // statix, opa, bicep and latexindent fix exactly one target per run.
+        let batches = if matches!(tool_id, "statix" | "opa" | "latexindent" | "bicep") {
             refs.iter().map(|file| vec![*file]).collect()
         } else {
             commands::plan_invocation_batches(&refs, |batch| {
@@ -668,7 +675,12 @@ impl<'a> FixSession<'a> {
             })
             .chain(mirrors.iter().cloned())
             .collect();
-        mirrors.extend(RealBackend::mirror_tool_files(tool_id, tool, &reserved));
+        mirrors.extend(RealBackend::mirror_tool_files(
+            tool_id,
+            tool,
+            &reserved,
+            scratch.root(),
+        ));
         write_all(&scratch, tool_id, &mirrors)?;
         Ok(SessionScratch {
             tool_id: tool_id.to_owned(),
@@ -1084,6 +1096,13 @@ impl super::RealBackend {
                 "google_java_format" => Ok(commands::google_java_format_fix(&tool.binary, refs)),
                 "ktfmt" => Ok(commands::ktfmt_fix(&tool.binary, refs)),
                 "fantomas" => Ok(commands::fantomas_fix(&tool.binary, refs)),
+                "bicep" => match refs {
+                    [file] => Ok(commands::bicep_format_fix(&tool.binary, file)),
+                    _ => Err(execution(
+                        tool_id,
+                        "bicep fixes one file at a time".to_owned(),
+                    )),
+                },
                 "buf" => Ok(commands::buf_format_fix(&tool.binary, refs, scratch.root())),
                 "gofumpt" => Ok(commands::gofumpt_fix(
                     &tool.binary,

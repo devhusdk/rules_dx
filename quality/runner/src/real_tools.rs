@@ -3720,6 +3720,281 @@ fn cfn_lint_has_no_delegated_mode() {
     assert!(err.to_string().contains("no delegated mode"), "{err}");
 }
 
+const BICEP_CLEAN: &str = "param name string\noutput value string = name\n";
+const BICEP_DIRTY: &str = "param  name  string\noutput value string = name\n";
+const BICEP_UNUSED: &str = "param unused string\n";
+const BICEP_REGISTRY: &str = "module m 'br:mcr.microsoft.com/bicep/avm/res/foo:1.0' = {}\n";
+
+fn bicep_tool(config: &str) -> RealTool {
+    RealTool {
+        config_rel: Some("cfg/bicepconfig.json".to_owned()),
+        tool_files: vec![(
+            "cfg/bicepconfig.json".to_owned(),
+            config.as_bytes().to_vec(),
+        )],
+        ..plain_tool()
+    }
+}
+
+fn bicep_sarif(file: &str, rule: &str, level: &str, line: u64, column: u64) -> String {
+    let text = if rule == "BCP190" {
+        "The module is not valid: has not been restored".to_owned()
+    } else {
+        format!("message {rule}")
+    };
+    let level = if level.is_empty() {
+        String::new()
+    } else {
+        format!(r#""level":"{level}","#)
+    };
+    format!(
+        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"bicep"}}}},"results":[{{"ruleId":"{rule}",{level}"message":{{"text":"{text}"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"file://{file}"}},"region":{{"startLine":{line},"charOffset":{column}}}}}}}]}}],"columnKind":"utf16CodeUnits"}}]}}"#
+    )
+}
+
+/// The scratch root and the environment every bicep launch must see.
+fn bicep_scratch(env: &[(OsString, OsString)]) -> PathBuf {
+    assert_hermetic(env);
+    let value = |key: &str| {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| PathBuf::from(value))
+    };
+    let home = value("HOME").expect("HOME is pinned");
+    assert!(home.is_dir(), "HOME exists");
+    assert_eq!(value("USERPROFILE"), Some(home.clone()));
+    assert_eq!(
+        std::fs::read_dir(&home).expect("home").count(),
+        0,
+        "the module cache starts empty"
+    );
+    let root = home.parent().and_then(Path::parent).expect("scratch root");
+    assert_eq!(
+        Some(root.to_path_buf()),
+        value("TMPDIR"),
+        "HOME lives in scratch"
+    );
+    let extract = value("DOTNET_BUNDLE_EXTRACT_BASE_DIR").expect("extract dir is pinned");
+    assert!(extract.starts_with(root));
+    for (key, want) in [
+        ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
+        ("DOTNET_NOLOGO", "1"),
+        ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"),
+    ] {
+        assert_eq!(value(key), Some(PathBuf::from(want)), "{key}");
+    }
+    root.to_path_buf()
+}
+
+fn bicep_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let root = bicep_scratch(env);
+    let config = std::fs::read_to_string(root.join("bicepconfig.json"))?;
+    assert!(config.contains("cacheRootDirectory"), "{config}");
+    assert!(config.contains("dx-bicep"), "{config}");
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let file = args.last().expect("one file").clone();
+    assert!(Path::new(&file).starts_with(&root), "file in scratch");
+    let text = std::fs::read_to_string(&file)?;
+    let ok = |stdout: String| {
+        Ok(ChildOutput {
+            code: Some(0),
+            stdout: stdout.into_bytes(),
+            stderr: Vec::new(),
+        })
+    };
+    match args[0].as_str() {
+        "format" => {
+            let formatted = text.replace("  ", " ");
+            if args.iter().any(|arg| arg == "--stdout") {
+                ok(formatted)
+            } else {
+                std::fs::write(&file, formatted)?;
+                ok(String::new())
+            }
+        }
+        "lint" => {
+            assert_eq!(
+                args[..4],
+                ["lint", "--no-restore", "--diagnostics-format", "sarif"]
+            );
+            if text.contains("br:") {
+                Ok(ChildOutput {
+                    code: Some(1),
+                    stdout: bicep_sarif(&file, "BCP190", "error", 1, 10).into_bytes(),
+                    stderr: Vec::new(),
+                })
+            } else if text.contains("unused") {
+                ok(bicep_sarif(&file, "no-unused-params", "", 1, 7))
+            } else {
+                ok(r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"bicep"}},"results":[]}]}"#.to_owned())
+            }
+        }
+        other => panic!("unexpected bicep command {other}"),
+    }
+}
+
+fn bicep_clean_sarif_exit_one(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout:
+            br#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"bicep"}},"results":[]}]}"#
+                .to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn bicep_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: None,
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn bicep_malformed(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"Unhandled exception".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn bicep_missing_binary(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
+}
+
+#[test]
+fn bicep_lint_reports_located_findings_in_a_scratch_home() {
+    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let mut files = single("infra/a.bicep", BICEP_UNUSED);
+    files.insert("infra/b.bicep".to_owned(), BICEP_CLEAN.to_owned());
+    let findings = backend
+        .diagnose("bicep", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "infra/a.bicep");
+    assert_eq!(findings[0].rule_id, "no-unused-params");
+    assert_eq!(findings[0].tool_id, "bicep");
+    assert_eq!(
+        backend
+            .apply_fix("bicep", "infra/a.bicep", BICEP_UNUSED, "lint")
+            .expect("check-only"),
+        BICEP_UNUSED
+    );
+}
+
+#[test]
+fn bicep_registry_reference_is_an_error_finding_with_a_hint() {
+    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    let findings = backend
+        .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_REGISTRY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "BCP190");
+    assert!(
+        findings[0]
+            .message
+            .contains("registry modules are not supported yet"),
+        "{}",
+        findings[0].message
+    );
+}
+
+#[test]
+fn bicep_bound_config_is_written_at_the_scratch_root() {
+    fn bound(
+        argv: &[OsString],
+        cwd: &Path,
+        env: &[(OsString, OsString)],
+    ) -> io::Result<ChildOutput> {
+        let root = bicep_scratch(env);
+        let config = std::fs::read_to_string(root.join("bicepconfig.json"))?;
+        assert!(config.contains("bound-marker"), "{config}");
+        bicep_fake(argv, cwd, env)
+    }
+    let backend = backend_for("bicep", bicep_tool("{\"bound-marker\":1}"), bound);
+    let findings = backend
+        .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
+        .expect("diagnosed");
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn bicep_format_compares_stdout_and_fix_rewrites_the_file() {
+    let backend = backend_for("bicep", plain_tool(), bicep_fake);
+    assert!(backend
+        .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_CLEAN))
+        .expect("clean")
+        .is_empty());
+    let findings = backend
+        .diagnose("bicep", "format", &single("infra/a.bicep", BICEP_DIRTY))
+        .expect("dirty");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "infra/a.bicep");
+    assert_eq!(
+        backend
+            .apply_fix("bicep", "infra/a.bicep", BICEP_DIRTY, "format")
+            .expect("fixed"),
+        BICEP_CLEAN
+    );
+}
+
+#[test]
+fn bicep_failures_are_never_clean() {
+    let one = single("infra/a.bicep", BICEP_CLEAN);
+    for (spawn, skip_format) in [
+        (bicep_clean_sarif_exit_one as Spawn, false),
+        (bicep_crash, false),
+        (bicep_malformed, true),
+        (bicep_missing_binary, false),
+    ] {
+        for capability in ["lint", "format"] {
+            if capability == "format" && skip_format {
+                continue; // format output is source text; garbage there is a diff, not a parse error
+            }
+            backend_for("bicep", plain_tool(), spawn)
+                .diagnose("bicep", capability, &one)
+                .expect_err("a failed run is an error");
+        }
+    }
+}
+
+#[test]
+fn bicep_has_no_delegated_mode() {
+    let tool = RealTool {
+        upstream_diagnostics: vec![PathBuf::from("/fake/up.json")],
+        ..plain_tool()
+    };
+    let err = backend_for("bicep", tool, bicep_fake)
+        .diagnose("bicep", "lint", &single("infra/a.bicep", BICEP_CLEAN))
+        .expect_err("delegated");
+    assert!(err.to_string().contains("no delegated mode"), "{err}");
+}
+
 const CMAKELINT_DIRTY: &str = "cmake_minimum_required(VERSION 3.20)\nSET(A b)\n";
 const CMAKELINT_CLEAN: &str = "cmake_minimum_required(VERSION 3.20)\n";
 

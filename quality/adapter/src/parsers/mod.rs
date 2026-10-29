@@ -1,4 +1,5 @@
 pub mod ansible_lint;
+pub mod bicep;
 pub mod biome;
 pub mod buf;
 pub mod buildifier;
@@ -108,6 +109,7 @@ pub mod zig_ast_check;
 pub mod zig_fmt;
 
 pub use ansible_lint::parse_ansible_lint;
+pub use bicep::{parse_bicep_format, parse_bicep_lint};
 pub use biome::{parse_biome_format, parse_biome_lint};
 pub use buf::{parse_buf_format, parse_buf_lint};
 pub use buildifier::parse_buildifier;
@@ -1944,6 +1946,22 @@ mod tests {
         super::cue::parse_cue_vet(input, input, code, files, files, std::path::Path::new("/"))
     }
 
+    fn fuzz_bicep_lint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::bicep::parse_bicep_lint(input, code, files)
+    }
+
+    fn fuzz_bicep_format(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::bicep::parse_bicep_format(input, code, input, files.first().copied().unwrap_or(""))
+    }
+
     fn fuzz_opa_fmt(
         input: &[u8],
         code: Option<i32>,
@@ -2690,6 +2708,8 @@ mod tests {
         ("nixfmt", fuzz_nixfmt),
         ("nvcc_syntax", fuzz_nvcc_syntax),
         ("ormolu", fuzz_ormolu),
+        ("bicep_lint", fuzz_bicep_lint),
+        ("bicep_format", fuzz_bicep_format),
         ("opa_fmt", fuzz_opa_fmt),
         ("opa_check", fuzz_opa_check),
         ("perlcritic", fuzz_perlcritic),
@@ -2807,6 +2827,7 @@ mod tests {
         ("nixfmt", include_str!("nixfmt.rs")),
         ("nvcc_syntax", include_str!("nvcc_syntax.rs")),
         ("ormolu", include_str!("ormolu.rs")),
+        ("bicep", include_str!("bicep.rs")),
         ("opa", include_str!("opa.rs")),
         ("perlcritic", include_str!("perlcritic.rs")),
         ("perltidy", include_str!("perltidy.rs")),

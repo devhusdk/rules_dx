@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_bicep_lint_unrestored_registry
+capability LINT
+stages 1
+stage bicep classes=bicep sources=matrix/bicep_registry/a.bicep
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR bicep BCP190 matrix/bicep_registry/a.bicep 14 14 fixable=false "The artifact with reference \"br:mcr.microsoft.com/bicep/avm/res/foo:1.0\" has not been restored. [https://aka.ms/bicep/core-diagnostics#BCP190] (dx lints without restoring modules, so registry modules are not supported yet)"
+terminal 1
+terminal ERROR bicep BCP190 matrix/bicep_registry/a.bicep 14 14 fixable=false "The artifact with reference \"br:mcr.microsoft.com/bicep/avm/res/foo:1.0\" has not been restored. [https://aka.ms/bicep/core-diagnostics#BCP190] (dx lints without restoring modules, so registry modules are not supported yet)"
+replacements 0

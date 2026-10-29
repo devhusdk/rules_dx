@@ -213,6 +213,7 @@ ROWS = [
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
     {"name": "capnp", "section": "formats", "title": "Cap'n Proto"},
+    {"name": "bicep", "section": "formats", "title": "Bicep"},
     {"name": "cloudformation", "section": "formats", "title": "CloudFormation"},
     {"name": "flatbuffers", "section": "formats", "title": "FlatBuffers"},
     {"name": "jupyter", "section": "formats", "title": "Jupyter"},

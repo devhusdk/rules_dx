@@ -158,8 +158,16 @@ pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
         "NODE_OPTIONS",
         "NODE_PATH",
     ] {
+        // A launch may pin HOME inside its own scratch tree, never to the host.
+        let scratch_home = matches!(denied, "HOME" | "USERPROFILE")
+            && env
+                .iter()
+                .filter(|(key, _)| folded(key) == denied)
+                .all(|(_, value)| {
+                    std::path::Path::new(value).starts_with(std::path::Path::new(&tmpdir))
+                });
         assert!(
-            env.iter().all(|(key, _)| folded(key) != denied),
+            scratch_home || env.iter().all(|(key, _)| folded(key) != denied),
             "{denied} never leaks"
         );
     }

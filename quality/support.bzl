@@ -62,6 +62,34 @@ ANSIBLE_ANSIBLE_LINT_SUPPORT = {
     "unsupported": ["windows_x86_64"],
 }
 
+BICEP_BICEP_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["bicep"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "bicep",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "bicep",
+    "transport": "single",
+}
+
+BICEP_BICEP_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["bicep"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "bicep",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "bicep",
+    "transport": "single",
+}
+
 CLOUDFORMATION_CFN_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1457,6 +1485,8 @@ SUPPORT_RECORDS = [
     KUBERNETES_KUBECONFORM_SUPPORT,
     HELM_HELM_SUPPORT,
     ANSIBLE_ANSIBLE_LINT_SUPPORT,
+    BICEP_BICEP_FORMAT_SUPPORT,
+    BICEP_BICEP_LINT_SUPPORT,
     CLOUDFORMATION_CFN_LINT_SUPPORT,
     MAKE_CHECKMAKE_SUPPORT,
     MAKE_MBAKE_SUPPORT,

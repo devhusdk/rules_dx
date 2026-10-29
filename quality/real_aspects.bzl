@@ -42,6 +42,7 @@ load("//php/rules:php.bzl", "staged_path")
 load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//quality:support.bzl", "support_unpinned_tools")
+load("//bicep/rules:providers.bzl", "BicepInfo")
 load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
@@ -54,6 +55,13 @@ _REAL_TOOL_TABLE = {
         "kind": "file",
         "resources": "light",
         "shard": "core",
+    },
+    "bicep": {
+        "attr": attr.label(default = "@dx_tools//:bicep", allow_single_file = True, cfg = "exec"),
+        "capabilities": ["format", "lint"],
+        "kind": "file",
+        "resources": "medium",
+        "shard": "bicep",
     },
     "buf": {
         "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),
@@ -1652,6 +1660,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "bicep" in stage_tools and BicepInfo in target:
+        for f in depset(transitive = [target[BicepInfo].transitive_srcs, target[BicepInfo].transitive_data]).to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/"):
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "jsonnetfmt" in stage_tools or "jsonnet_lint" in stage_tools:
         for f in target[DefaultInfo].files.to_list():
             ws_path = f.short_path
@@ -2365,6 +2381,18 @@ _REAL_SHARD_SPECS = {
         "shard": "cue",
         "suffix": "-cue",
     },
+    "real_bicep_format": {
+        "capability": "format",
+        "doc": "Additive Bicep format family aspect (bicep format).",
+        "shard": "bicep",
+        "suffix": "-bicep",
+    },
+    "real_bicep_lint": {
+        "capability": "lint",
+        "doc": "Additive Bicep lint family aspect (bicep lint).",
+        "shard": "bicep",
+        "suffix": "-bicep",
+    },
     "real_rego_format": {
         "capability": "format",
         "doc": "Additive Rego format family aspect (opa fmt).",
@@ -2699,6 +2727,10 @@ real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
 
 real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")
+
+real_bicep_format_aspect = _make_real_aspect("real_bicep_format")
+
+real_bicep_lint_aspect = _make_real_aspect("real_bicep_lint")
 
 real_rego_format_aspect = _make_real_aspect("real_rego_format")
 

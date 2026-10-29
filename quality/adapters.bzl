@@ -22,6 +22,7 @@ def adapter_supported_classes(tool_id, capability):
 
 REAL_ADAPTERS = {
     "ansible_lint": {"lint": ["ansible"]},
+    "bicep": {"format": ["bicep"], "lint": ["bicep"]},
     "biome": {
         "format": ["javascript", "json", "jsx", "typescript", "tsx"],
         "lint": ["javascript", "json", "jsx", "typescript", "tsx"],
@@ -237,6 +238,7 @@ NOT_APPLICABLE = {
     "typecheck": {
         "ansible": "dynamically typed YAML playbooks; no type system beyond ansible-lint",
         "api_spec": "declarative API description; no type system beyond schema validation",
+        "bicep": "declarative templates; bicep lint already reports compile errors and analyzer rules, so there is no separate type check",
         "cloudformation": "declarative templates; cfn-lint schema validation is lint, not type checking",
         "dockerfile": "no static type system; hadolint covers lint",
         "gherkin": "natural-language scenarios; no type system",

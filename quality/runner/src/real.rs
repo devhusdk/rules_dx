@@ -12,6 +12,7 @@ use crate::RunnerError;
 
 pub const REAL_TOOLS: &[&str] = &[
     "ansible_lint",
+    "bicep",
     "biome",
     "buf",
     "buildifier",
@@ -145,6 +146,13 @@ plugin \"terraform\" {
   preset  = \"recommended\"
 }
 ";
+/// Bicep reads the nearest `bicepconfig.json` upward from each file; one at the scratch root
+/// (the bound config, else this default) stops the search before it reaches the host.
+const BICEP_CONFIG_REL: &str = "bicepconfig.json";
+const BICEP_DEFAULTS_BYTES: &[u8] = b"{}\n";
+/// Home of the Bicep child: its module cache is `$HOME/.bicep`, so it starts empty and no `br:`
+/// reference resolves from the host.
+const BICEP_HOME_REL: &str = "dx-bicep/home";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
 /// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
@@ -664,6 +672,29 @@ impl RealBackend {
                 return result;
             }
         }
+        if tool_id == "bicep" {
+            let home = scratch.root().join(BICEP_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("bicep home: {err}")))?;
+            env.retain(|(key, _)| {
+                !["HOME", "USERPROFILE", "DOTNET_BUNDLE_EXTRACT_BASE_DIR"]
+                    .iter()
+                    .any(|name| key.to_string_lossy().eq_ignore_ascii_case(name))
+            });
+            env.push((OsString::from("HOME"), home.clone().into_os_string()));
+            env.push((OsString::from("USERPROFILE"), home.clone().into_os_string()));
+            env.push((
+                OsString::from("DOTNET_BUNDLE_EXTRACT_BASE_DIR"),
+                home.join("extract").into_os_string(),
+            ));
+            for (key, value) in [
+                ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
+                ("DOTNET_NOLOGO", "1"),
+                ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"),
+            ] {
+                env.push((OsString::from(key), OsString::from(value)));
+            }
+        }
         if tool_id == "typstyle" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
         }
@@ -762,6 +793,7 @@ fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
     argv
 }
 
+mod bicep;
 mod cfn_lint;
 mod check;
 mod cmakelint;

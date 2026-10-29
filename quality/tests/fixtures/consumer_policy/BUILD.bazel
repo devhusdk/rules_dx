@@ -588,6 +588,24 @@ real_source_target(
 )
 
 quality_family(
+    name = "bicep_family",
+    disabled = ["typecheck"],
+    family_id = "bicep",
+    format = ["bicep"],
+    lint = ["bicep"],
+)
+
+workspace_policy(
+    name = "bicep_policy",
+    families = [":bicep_family"],
+)
+
+real_source_target(
+    name = "clean_bicep",
+    bicep_srcs = ["bicep_module/main.bicep"],
+)
+
+quality_family(
     name = "cloudformation_family",
     disabled = [
         "format",

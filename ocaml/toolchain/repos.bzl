@@ -88,6 +88,16 @@ _ALIAS = """alias(
 )
 """
 
+# Aliases that also resolve on exec platforms without an OCaml cell, to an empty filegroup, so an
+# aspect that lists them as implicit dependencies still analyzes there.
+EMPTY_DEFAULT_ALIASES = ["stdlib_cmis"]
+
+_NONE = """filegroup(
+    name = "none",
+    visibility = ["//visibility:public"],
+)
+"""
+
 # Aliases of the hub that select the target cell's own label: name -> label in the dist repository.
 CELL_ALIASES = {
     "stdlib": "//:stdlib",
@@ -195,8 +205,12 @@ def _hub_impl(rctx):
     for cell in sorted(OCAML_CELLS.keys()):
         content.append(_CELL.format(cell = cell, constraints = repr(OCAML_CELLS[cell].exec_compatible_with)))
     content.append(_OCAMLRUN.format(cases = repr({":" + cell: "@" + DIST_PREFIX + cell + "//:ocamlrun" for cell in sorted(OCAML_CELLS.keys())})))
+    content.append(_NONE)
     for alias in sorted(CELL_ALIASES.keys()):
-        content.append(_ALIAS.format(name = alias, cases = repr({":" + cell: "@" + DIST_PREFIX + cell + CELL_ALIASES[alias] for cell in sorted(OCAML_CELLS.keys())})))
+        cases = {":" + cell: "@" + DIST_PREFIX + cell + CELL_ALIASES[alias] for cell in sorted(OCAML_CELLS.keys())}
+        if alias in EMPTY_DEFAULT_ALIASES:
+            cases["//conditions:default"] = ":none"
+        content.append(_ALIAS.format(name = alias, cases = repr(cases)))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", "\n".join(content))
     return rctx.repo_metadata(reproducible = True)

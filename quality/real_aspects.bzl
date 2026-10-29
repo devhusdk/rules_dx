@@ -860,7 +860,7 @@ _REAL_TOOL_TABLE = {
         "shard": "yaml",
     },
     "zanuda": {
-        "attr": attr.label(default = "//quality/tools/ocaml:zanuda", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//quality/tools/ocaml:zanuda_tool", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "light",

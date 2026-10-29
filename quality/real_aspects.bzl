@@ -685,6 +685,12 @@ _REAL_TOOL_TABLE = {
         "shard": "rust",
         "toolchain_file": "rustfmt",
     },
+    "scalac": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "jvm",
+    },
     "scalafix": {
         "attr": attr.label(default = "//quality/tools/jvm:scalafix", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -871,7 +877,7 @@ _REAL_TOOL_TABLE = {
     },
 }
 
-_JVM_CHECK_TOOLS = ["javac", "kotlinc"]
+_JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
 
 _GO_ANALYSIS_TOOLS = ["errcheck", "gotype", "govet"]
 
@@ -2213,7 +2219,7 @@ _REAL_SHARD_SPECS = {
     },
     "real_jvm_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets).",
+        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets, scalac over Scala 2.13 rules_scala targets).",
         "requires": [jvm_check_aspect],
         "shard": "jvm",
         "suffix": "-jvm",

@@ -115,7 +115,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["scalafmt"],
         "lint": [],
-        "typecheck": [],
+        "typecheck": ["scalac"],
     },
     "shell": {
         "audit": [],

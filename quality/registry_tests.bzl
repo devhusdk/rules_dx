@@ -85,6 +85,11 @@ def registry_unit_tests(name):
                 [True, True],
             ),
             expect_equal(
+                "scalac is a registry tool",
+                is_registry_tool("scalac"),
+                True,
+            ),
+            expect_equal(
                 "kotlinc is a registry tool",
                 is_registry_tool("kotlinc"),
                 True,

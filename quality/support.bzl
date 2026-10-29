@@ -216,6 +216,20 @@ SCALA_SCALAFMT_SUPPORT = {
     "transport": "batched",
 }
 
+SCALA_SCALAC_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["scala"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "scala",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "scalac",
+    "transport": "batched",
+}
+
 SCALA_SCALAFIX_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1938,6 +1952,7 @@ SUPPORT_RECORDS = [
     FLATBUFFERS_FLATC_LINT_SUPPORT,
     FLATBUFFERS_FLATC_TYPECHECK_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
+    SCALA_SCALAC_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
     JAVA_CHECKSTYLE_SUPPORT,
     JAVA_GOOGLE_JAVA_FORMAT_SUPPORT,

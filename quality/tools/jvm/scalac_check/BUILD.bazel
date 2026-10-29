@@ -1,0 +1,44 @@
+load("//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+load(":jars.bzl", "scalac_toolchain_jars_rule")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+# The compiler jars the driver loads at run time; the aspect passes the consumer toolchain's own.
+scalac_toolchain_jars_rule(name = "compiler_jars")
+
+java_library(
+    name = "scalac_check_lib",
+    srcs = ["src/dx/quality/scalac/ScalacCheck.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+)
+
+java_binary(
+    name = "scalac_check",
+    srcs = ["src/dx/quality/scalac/Main.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "dx.quality.scalac.Main",
+    deps = [":scalac_check_lib"],
+)
+
+java_test(
+    name = "scalac_check_test",
+    srcs = ["test/dx/quality/scalac/ScalacCheckTest.java"],
+    args = ["$(rlocationpaths :compiler_jars)"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    data = [":compiler_jars"],
+    main_class = "dx.quality.scalac.ScalacCheckTest",
+    use_testrunner = False,
+    deps = [":scalac_check_lib"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "jars.bzl",
+    ],
+    tags = ["corpus"],
+)

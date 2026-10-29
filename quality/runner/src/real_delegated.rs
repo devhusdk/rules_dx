@@ -1883,6 +1883,65 @@ fn delegated_kotlinc_fails_closed_without_its_log() {
     assert!(error.to_string().contains("check log"), "{error}");
 }
 
+const SCALAC_SOURCE: &str = "object A { val n: Int = \"s\" }\n";
+
+fn scalac_log(exit: i32, file: &str) -> String {
+    let diagnostics = if exit == 0 {
+        String::new()
+    } else {
+        format!(
+            r#"{{"file":"{file}","line":1,"column":24,"severity":"error","code":"scalac","message":"type mismatch"}}"#
+        )
+    };
+    format!(r#"{{"version":1,"tool":"scalac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+}
+
+#[test]
+fn delegated_scalac_is_clean_and_reports_owned_errors() {
+    let clean = upstream_file("scalac", &scalac_log(0, ""));
+    let findings = backend_for(
+        "scalac",
+        delegated_tool(clean.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE))
+    .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("scalac", &scalac_log(1, "s/A.scala"));
+    let findings = backend_for(
+        "scalac",
+        delegated_tool(dirty.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE))
+    .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "s/A.scala");
+    assert_eq!(findings[0].rule_id, "scalac");
+}
+
+#[test]
+fn delegated_scalac_never_reports_a_failing_target_clean() {
+    let generated = upstream_file("scalac", &scalac_log(1, "bazel-out/k8/bin/s/Gen.scala"));
+    let result = backend_for(
+        "scalac",
+        delegated_tool(generated.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE));
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn delegated_scalac_fails_closed_without_its_log() {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("scalac", tool, must_not_spawn)
+        .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE))
+        .expect_err("missing log");
+    assert!(error.to_string().contains("check log"), "{error}");
+}
+
 #[test]
 fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
     let report = upstream_file(

@@ -213,7 +213,7 @@ workspace_policy(
 | `mdx` | `remark` | disabled | disabled |
 | `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
 | `rust` | `rustfmt` | `clippy` | `rustc` |
-| `scala` | `scalafmt` | disabled | disabled |
+| `scala` | `scalafmt` | disabled | `scalac` |
 | `shell` | `shfmt` | `shellcheck` | disabled |
 | `starlark` | `buildifier` | `buildifier` | disabled |
 | `svelte` | `prettier` | disabled | disabled |
@@ -317,6 +317,7 @@ to.
 | `ruff` | audit, format, lint | python, jupyter (format and lint only) |
 | `rustc` | typecheck | rust |
 | `rustfmt` | format | rust |
+| `scalac` | typecheck | scala |
 | `scalafix` | lint | scala |
 | `scalafmt` | format | scala |
 | `shellcheck` | lint | shell |
@@ -869,7 +870,7 @@ honoured. `javac` never fixes, so `--apply` changes nothing. It adds a second
 javac pass on top of the real compile, only under `dx typecheck` and
 `dx check`; `bazel build` is unchanged. The classpath is the transitive compile
 classpath, so strict-deps violations are not reported. Java sources inside
-`kt_jvm_library` targets and Scala are not typechecked yet.
+`kt_jvm_library` and Scala targets are not typechecked as Java.
 
 ### Kotlin typechecking
 
@@ -889,6 +890,25 @@ false errors. `kotlinc` never fixes, so `--apply` changes nothing. It is a
 second full kotlinc pass on top of the real compile, only under `dx typecheck`
 and `dx check`; `bazel build` is unchanged. Without a Kotlin toolchain the
 check is skipped.
+
+### Scala typechecking
+
+`scalac` typechecks every `scala_library`, `scala_binary` and `scala_test` (and
+the `scala_*` wrappers) on Scala 2.13 with the compiler of the consumer's own
+rules_scala toolchain. A Bazel action runs scalac without keeping classes over
+the target's `.scala` sources and `.srcjar` files, with the toolchain's and the
+target's `scalacopts` (`-Werror` and `-Xfatal-warnings` are honoured) and
+compiler plugins. Java sources in the target are only used to resolve symbols,
+so Java errors inside Scala targets are not reported. The driver loads the
+toolchain's compiler jars at run time, so it follows whichever 2.13 release you
+use. Scala 2 gives no diagnostic ids, so every diagnostic is `scalac/scalac`
+and a rule cannot be suppressed on its own. The classpath is the transitive
+compile classpath, so code that only works through a transitive dependency
+passes here and fails the real build. Targets on another Scala version, targets
+with a `$(...)` expression in `scalacopts` and targets without Scala sources are
+skipped; Scala 3 and 2.12 are not supported yet. `scalac` never fixes, so
+`--apply` changes nothing. It is a second full scalac pass on top of the real
+compile, only under `dx typecheck` and `dx check`; `bazel build` is unchanged.
 
 ### Fortran and D typechecking
 

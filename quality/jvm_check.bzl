@@ -1,13 +1,18 @@
-"""Type-checks a JVM target with its compiler (javac, kotlinc) and records the diagnostics."""
+"""Type-checks a JVM target with its compiler (javac, kotlinc, scalac) and records the diagnostics."""
 
 load("@rules_java//java:java_utils.bzl", "utils")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common:java_plugin_info.bzl", "JavaPluginInfo")
 load("@rules_kotlin//kotlin/internal:defs.bzl", "KspPluginInfo", "KtCompilerPluginInfo", "KtJvmInfo", "KtPluginConfiguration")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions", "kotlinc_options_to_flags")
+load("@rules_scala//scala:providers.bzl", "DepsInfo", "ScalaInfo")
 load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
+_SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
+
+# The only Scala line the scalac driver supports; targets on other versions get no result.
+_SCALAC_VERSION_PREFIX = "2.13."
 
 # The jars of the Kotlin compiler distribution the kotlinc driver loads, in the toolchain's kotlin_home.
 _KOTLINC_JARS = [
@@ -21,7 +26,7 @@ _KOTLINC_JARS = [
 ]
 
 JvmCheckInfo = provider(
-    doc = "Output of one non-failing JVM compiler check (javac and kotlinc today; scalac shares it).",
+    doc = "Output of one non-failing JVM compiler check (javac, kotlinc and scalac).",
     fields = {
         "log": "File: versioned JSON log with the tool, its exit status and its diagnostics.",
         "tool": "string: the registry tool id that produced the log.",
@@ -152,6 +157,81 @@ def _kotlinc_check(target, ctx, attrs):
     )
     return [JvmCheckInfo(log = log, tool = "kotlinc")]
 
+def _deps_info(toolchain, deps_id):
+    for provider in getattr(toolchain, "dep_providers", []):
+        if DepsInfo in provider and provider[DepsInfo].deps_id == deps_id:
+            return provider[DepsInfo]
+    return None
+
+def scalac_toolchain_jars(toolchain):
+    """The jars the scalac driver needs from a rules_scala toolchain.
+
+    Args:
+        toolchain: the resolved `@rules_scala//scala:toolchain_type` ToolchainInfo, or None.
+
+    Returns:
+        None when the toolchain is absent, not Scala 2.13 or lacks a classpath; otherwise a struct
+        with `compiler` (runtime jars of the compiler, never ijars) and `library` (compile jars).
+    """
+    if toolchain == None or not toolchain.scala_version.startswith(_SCALAC_VERSION_PREFIX):
+        return None
+    compile_deps = _deps_info(toolchain, "scala_compile_classpath")
+    library_deps = _deps_info(toolchain, "scala_library_classpath")
+    if compile_deps == None or library_deps == None:
+        return None
+    compile_infos = [d[JavaInfo] for d in compile_deps.deps if JavaInfo in d]
+    library_infos = [d[JavaInfo] for d in library_deps.deps if JavaInfo in d]
+    if not compile_infos or not library_infos:
+        return None
+    return struct(
+        compiler = depset(transitive = [i.transitive_runtime_jars for i in compile_infos]),
+        library = depset(transitive = [i.transitive_compile_time_jars for i in library_infos]),
+    )
+
+def _scala_plugin_jars(targets):
+    return [depset(transitive = [t[JavaInfo].transitive_runtime_jars]) if JavaInfo in t else t.files for t in targets]
+
+def _scalac_check(target, ctx, attrs):
+    toolchain = ctx.toolchains[_SCALA_TOOLCHAIN_TYPE]
+    jars = scalac_toolchain_jars(toolchain)
+    if jars == None or not hasattr(ctx.rule.files, "srcs"):
+        return []
+    sources = [f for f in ctx.rule.files.srcs if f.extension in ["scala", "java"]]
+    srcjars = [f for f in ctx.rule.files.srcs if f.extension == "srcjar"]
+    if not [f for f in sources if f.extension == "scala"] and not srcjars:
+        return []
+    options = list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
+
+    # Make variables and $(location) in scalacopts are not expanded here, so the options would be wrong.
+    if [o for o in options if "$(" in o]:
+        return []
+    deps = [d for d in getattr(attrs, "deps", []) if JavaInfo in d]
+    classpath = depset(transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps] + [jars.library])
+    plugin_targets = list(toolchain.plugins) + list(getattr(attrs, "plugins", []))
+    plugin_jars = depset(transitive = _scala_plugin_jars(plugin_targets))
+
+    log = ctx.actions.declare_file("dx_scalac/%s.json" % target.label.name)
+    args = ctx.actions.args()
+    args.set_param_file_format("multiline")
+    args.use_param_file("@%s", use_always = True)
+    args.add(log, format = "output=%s")
+    args.add_all(sources, format_each = "source=%s")
+    args.add_all(srcjars, format_each = "srcjar=%s")
+    args.add_all(classpath, format_each = "classpath=%s")
+    args.add_all(jars.compiler, format_each = "compiler=%s")
+    args.add_all(plugin_jars, format_each = "plugin=%s")
+    args.add_all(options, format_each = "scalacopt=%s")
+    ctx.actions.run(
+        mnemonic = "ScalacCheck",
+        progress_message = "scalac check %{label}",
+        executable = ctx.attr._scalac_check.files_to_run,
+        arguments = [args],
+        inputs = depset(sources + srcjars, transitive = [classpath, jars.compiler, plugin_jars]),
+        outputs = [log],
+        resource_set = dx_quality_heavy_resources,
+    )
+    return [JvmCheckInfo(log = log, tool = "scalac")]
+
 def _jvm_check_impl(target, ctx):
     attrs = ctx.rule.attr
     if hasattr(attrs, "upstream"):
@@ -161,6 +241,8 @@ def _jvm_check_impl(target, ctx):
         return [upstream[JvmCheckInfo]]
     if KtJvmInfo in target:
         return _kotlinc_check(target, ctx, attrs)
+    if ScalaInfo in target:
+        return _scalac_check(target, ctx, attrs)
     if JavaInfo not in target or target[JavaInfo].compilation_info == None or not hasattr(ctx.rule.files, "srcs"):
         return []
     sources = [f for f in ctx.rule.files.srcs if f.extension == "java"]
@@ -201,12 +283,20 @@ def _jvm_check_impl(target, ctx):
 
 jvm_check_aspect = aspect(
     implementation = _jvm_check_impl,
-    doc = "Runs javac (rules_java) or kotlinc (rules_kotlin) without emitting classes over a target's sources and records the diagnostics without failing the build.",
+    doc = "Runs javac (rules_java), kotlinc (rules_kotlin) or scalac (rules_scala, 2.13 only) without emitting classes over a target's sources and records the diagnostics without failing the build.",
     attr_aspects = ["upstream"],
-    toolchains = [config_common.toolchain_type(_KT_TOOLCHAIN_TYPE, mandatory = False)],
+    toolchains = [
+        config_common.toolchain_type(_KT_TOOLCHAIN_TYPE, mandatory = False),
+        config_common.toolchain_type(_SCALA_TOOLCHAIN_TYPE, mandatory = False),
+    ],
     attrs = {
         "_kotlinc_check": attr.label(
             default = "//quality/tools/jvm/kotlinc_check:kotlinc_check",
+            executable = True,
+            cfg = "exec",
+        ),
+        "_scalac_check": attr.label(
+            default = "//quality/tools/jvm/scalac_check:scalac_check",
             executable = True,
             cfg = "exec",
         ),

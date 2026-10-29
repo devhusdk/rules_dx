@@ -114,6 +114,7 @@ REAL_ADAPTERS = {
     "rustc": {"typecheck": ["rust"]},
     "rustfmt": {"format": ["rust"]},
     "sorbet": {"typecheck": ["ruby"]},
+    "scalac": {"typecheck": ["scala"]},
     "scalafix": {"lint": ["scala"]},
     "scalafmt": {"format": ["scala"]},
     "shellcheck": {"lint": ["shell"]},

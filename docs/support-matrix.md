@@ -32,7 +32,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Kotlin | none |
 | Lua | none |
 | MDX | none |
-| OCaml | `windows_x86_64`, `windows_arm64`: not tested yet |
+| OCaml | `windows_x86_64`: not tested yet; `windows_arm64`: conda-forge ships no win-arm64 OCaml package |
 | Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build |
 | PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build |
 | PowerShell | none |
@@ -90,7 +90,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
 | Ruby | `rubocop` | `standardrb` | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) |
 | Rust | `clippy` | `rustfmt` | `rustc` |
-| Scala | `scalafix` | `scalafmt` | no |
+| Scala | `scalafix` | `scalafmt` | `scalac` |
 | Svelte | `eslint` | `prettier` | no |
 | TypeScript | `biome` | `biome`, `prettier` | `tsc` |
 | Vue | `eslint` | `prettier` | no |

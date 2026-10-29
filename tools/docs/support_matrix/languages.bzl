@@ -299,7 +299,7 @@ GAP_ISSUES = {
     "build:d:windows_*": 4542,
     "build:elixir:windows_*": 4544,
     "build:erlang:*": 4545,
-    "build:fortran:*": 4546,
+    "build:fortran:windows_x86_64": 4546,
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
     "build:ocaml:windows_*": 4550,

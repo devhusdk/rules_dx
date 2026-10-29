@@ -1,0 +1,83 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//terraform/rules:defs.bzl", "terraform_module")
+load("//terraform/rules:providers.bzl", "terraform_provider")
+load(":provider_tests.bzl", "collects_providers_test", "provider_unit_tests")
+
+provider_unit_tests(name = "provider_unit")
+
+terraform_provider(
+    name = "null_324",
+    srcs = ["fixtures/mirror/registry.terraform.io/hashicorp/null/3.2.4/linux_amd64/terraform-provider-null_v3.2.4"],
+    source = "registry.terraform.io/hashicorp/null",
+    target = "linux_amd64",
+    version = "3.2.4",
+)
+
+terraform_provider(
+    name = "null_323",
+    srcs = ["fixtures/mirror/registry.terraform.io/hashicorp/null/3.2.3/linux_amd64/terraform-provider-null_v3.2.3"],
+    source = "registry.terraform.io/hashicorp/null",
+    target = "linux_amd64",
+    version = "3.2.3",
+)
+
+terraform_module(name = "bare")
+
+terraform_module(
+    name = "leaf",
+    providers = [":null_324"],
+)
+
+terraform_module(
+    name = "root",
+    deps = [":leaf"],
+)
+
+terraform_module(
+    name = "conflict",
+    providers = [":null_323"],
+    tags = ["manual"],
+    deps = [":leaf"],
+)
+
+collects_providers_test(
+    name = "bare_collects_test",
+    expected = [],
+    target_under_test = ":bare",
+)
+
+collects_providers_test(
+    name = "transitive_collects_test",
+    expected = ["3.2.4"],
+    target_under_test = ":root",
+)
+
+failure_test(
+    name = "version_conflict_fails",
+    expected_failure_substring = "is required at versions",
+    target = ":conflict",
+)
+
+# The hub resolves for the exec platform of the host.
+terraform_module(
+    name = "hub_null",
+    providers = ["@dx_terraform_providers//:null"],
+)
+
+collects_providers_test(
+    name = "hub_resolves_test",
+    expected = ["3.2.4"],
+    target_under_test = ":hub_null",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "provider_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

@@ -1,7 +1,7 @@
 """Unit tests for the Fortran, D and Zig compile replay rewrites."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":compile_check.bzl", "flang_check_argv", "ldc_check_argv", "zig_check_argv")
+load(":compile_check.bzl", "flang_check_argv", "ldc_check_argv", "zig_check_argv", "zig_replayable")
 
 _FLANG = "external/flang/bin/flang"
 _LDC = "external/ldc/bin/ldmd2"
@@ -81,6 +81,21 @@ def compile_check_unit_tests(name):
             expect_equal(
                 "zig without a source is rejected",
                 zig_check_argv([_ZIG, "build-exe", "-femit-bin=a"], "").error != "",
+                True,
+            ),
+            expect_equal(
+                "zig cc_common relink argv (no .zig root module) is rejected by the rewrite",
+                zig_check_argv([_ZIG, "build-lib", "-fPIC", "-fcompiler-rt", "-femit-bin=out/a.a", "out/a.bc"], "").error != "",
+                True,
+            ),
+            expect_equal(
+                "zig relink argv is not replayable",
+                zig_replayable([_ZIG, "build-lib", "-fPIC", "-fcompiler-rt", "-femit-bin=out/a.a", "out/a.bc"]),
+                False,
+            ),
+            expect_equal(
+                "zig root module argv is replayable",
+                zig_replayable([_ZIG, "test", "-Mroot=src/a.zig"]),
                 True,
             ),
             expect_equal(

@@ -141,6 +141,15 @@ def zig_check_argv(argv, scratch):
         out.append("-fno-emit-bin")
     return struct(argv = out, error = "", source = source)
 
+def zig_replayable(argv):
+    """Whether a Zig action compiles a root module; relink actions (e.g. bc to .a) do not."""
+    for arg in argv or []:
+        if arg.startswith("-M") and "=" in arg and arg.endswith(".zig"):
+            return True
+        if not arg.startswith("-") and arg.endswith(".zig"):
+            return True
+    return False
+
 _SPECS = {
     "Dcompile": struct(tool = "ldc", rewrite = ldc_check_argv, scratch = False),
     "FortranCompile": struct(tool = "flang", rewrite = flang_check_argv, scratch = True),
@@ -163,7 +172,7 @@ def _forwarded(info):
 def _compile_check_impl(target, ctx):
     if target.label.workspace_name != "":
         return []
-    actions = [a for a in getattr(target, "actions", []) if a.mnemonic in _SPECS]
+    actions = [a for a in getattr(target, "actions", []) if a.mnemonic in _SPECS and (_SPECS[a.mnemonic].tool != "zig" or zig_replayable(a.argv))]
     attrs = ctx.rule.attr
     if len(actions) == 0:
         upstream = None

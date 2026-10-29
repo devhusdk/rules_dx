@@ -388,6 +388,76 @@ jobs:
           if [ -f "$RUNNER_TEMP/starter-targets" ]; then
             sed 's/^/- /' "$RUNNER_TEMP/starter-targets" >> "$GITHUB_STEP_SUMMARY"
           fi
+  python-docs-consumer:
+    name: python-docs-consumer (${{ matrix.platform }})
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux_x86_64
+          - linux_arm64
+          - macos_arm64
+          - windows_x86_64
+          - windows_arm64
+        include:
+          - platform: linux_x86_64
+            runner: ubuntu-latest
+          - platform: linux_arm64
+            runner: ubuntu-24.04-arm
+          - platform: macos_arm64
+            runner: macos-15
+          - platform: windows_x86_64
+            runner: windows-latest
+          - platform: windows_arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Locate the Bazel repository cache
+        id: repo-cache
+        run: |
+          path="$(bazel --nohome_rc --nosystem_rc info repository_cache)"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - name: Restore the Bazel repository cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.repo-cache.outputs.path }}/content_addressable
+          key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Allow unprivileged user namespaces
+        if: runner.os == 'Linux'
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Run the Python docs consumer test
+        env:
+          REPO_CACHE_PATH: ${{ steps.repo-cache.outputs.path }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" //python/tests/consumer:docs_consumer_test
+      - name: Write job summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          echo "### python-docs-consumer (${PLATFORM}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran //python/tests/consumer:docs_consumer_test: a renamed-repo consumer builds a Python API site with dx docs on this platform." >> "$GITHUB_STEP_SUMMARY"
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30
@@ -566,6 +636,7 @@ jobs:
         hermetic-arm64,
         network,
         preflight,
+        python-docs-consumer,
         starter-consumer,
         workflow-check,
       ]
@@ -583,7 +654,7 @@ jobs:
           import os
           import sys
 
-          required = ["dogfood", "docs", "devcontainer-check", "hermetic", "hermetic-arm64", "network", "preflight", "starter-consumer", "workflow-check"]
+          required = ["dogfood", "docs", "devcontainer-check", "hermetic", "hermetic-arm64", "network", "preflight", "python-docs-consumer", "starter-consumer", "workflow-check"]
           needs = json.loads(os.environ.get("NEEDS") or "{}")
           failing = sorted(
               name

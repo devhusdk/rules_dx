@@ -65,6 +65,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "hermetic-arm64",
         "network",
         "preflight",
+        "python-docs-consumer",
         "starter-consumer",
         "workflow-check"
     ]);

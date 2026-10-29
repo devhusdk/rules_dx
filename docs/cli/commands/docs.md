@@ -341,6 +341,13 @@ The public API is `__all__` when a module defines it, otherwise every name
 without a leading underscore. A package with no source, a syntax error or a
 missing package fails the build and produces no shard and no page.
 
+Incomplete means the symbol is still documented but a fact is missing. Its
+`python.incomplete` extension lists each gap, separated by `;`: `doc` for no
+docstring, `params=<names>` for parameters without docstring text,
+`param_types=<names>` for untyped parameters and `return_type` for no return
+annotation. A symbol with no gaps has no `python.incomplete` value. An
+incomplete symbol still gets its page; only a package that cannot be read fails.
+
 ## Java API reference
 
 `java_doc_shard` from `@rules_dx//tools/docs/jvm:defs.bzl` reads one Java library's

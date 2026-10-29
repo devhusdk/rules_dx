@@ -11,8 +11,9 @@ def _checks():
     fields = toolchain_fields("flang", "ar", depset(), "rt")
     return [
         expect_equal("flang version", FLANG_VERSION, "21.1.8"),
-        expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
+        expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("linux constraints", linux.constraints, ["@platforms//os:linux", "@platforms//cpu:x86_64"]),
+        expect_equal("windows flang is an exe", FORTRAN_CELLS["windows_x86_64"].exe, ".exe"),
         expect_contains("flang url names the version", linux.url, "/v21.1.8/flang+llvm-21.1.8-x86_64-unknown-linux-gnu.tar.gz"),
         expect_true("flang digests are sha256", all([len(c.sha256) == 64 for c in FORTRAN_CELLS.values()])),
         expect_contains("flang-rt url names the version", FLANG_RT_URL, "llvmorg-21.1.8/llvm-project-21.1.8.src.tar.xz"),

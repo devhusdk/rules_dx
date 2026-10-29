@@ -35,4 +35,11 @@ FORTRAN_CELLS = {
         sha256 = "89cbbe09bb35fac6ec1781b74637e40a58eddc89475d6a6a1e49c0b15a6c5eb5",
         strip_prefix = "flang+llvm-" + FLANG_VERSION,
     ),
+    "windows_x86_64": struct(
+        constraints = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        url = FLANG_RELEASES + "flang+llvm-" + FLANG_VERSION + "-x86_64-pc-windows-msvc.zip",
+        sha256 = "b25e8c506e1b1851d2b80518205a7a750e0363408919566e90b4ff7b8b367e6c",
+        strip_prefix = "flang+llvm-" + FLANG_VERSION,
+        exe = ".exe",
+    ),
 }

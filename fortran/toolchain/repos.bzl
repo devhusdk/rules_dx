@@ -40,21 +40,21 @@ FLANG_RT_TREES = [
 
 _FLANG_BUILD = """package(default_visibility = ["//visibility:public"])
 
-exports_files(["bin/flang", "bin/llvm-ar"])
+exports_files(["bin/flang{exe}", "bin/llvm-ar{exe}"])
 
 filegroup(
     name = "flang",
-    srcs = ["bin/flang"],
+    srcs = ["bin/flang{exe}"],
 )
 
 filegroup(
     name = "llvm_ar",
-    srcs = ["bin/llvm-ar"],
+    srcs = ["bin/llvm-ar{exe}"],
 )
 
 filegroup(
     name = "compiler_files",
-    srcs = ["bin/flang", "bin/flang-{major}"] + glob(["include/flang/**"]),
+    srcs = ["bin/flang{exe}", "bin/flang-{major}{exe}"] + glob(["include/flang/**"]),
 )
 """
 
@@ -122,7 +122,7 @@ def _flang_impl(rctx):
     cell = FORTRAN_CELLS[rctx.attr.cell]
     rctx.download_and_extract(url = cell.url, sha256 = cell.sha256, stripPrefix = cell.strip_prefix)
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", _FLANG_BUILD.format(major = flang_major(FLANG_VERSION)))
+    rctx.file("BUILD.bazel", _FLANG_BUILD.format(major = flang_major(FLANG_VERSION), exe = getattr(cell, "exe", "")))
     return rctx.repo_metadata(reproducible = True)
 
 _flang = repository_rule(

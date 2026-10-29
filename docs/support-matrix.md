@@ -22,7 +22,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Dart | `windows_arm64`: rules_dart 0.8.0 ships no Windows arm64 SDK |
 | Elixir | `windows_x86_64`, `windows_arm64`: not tested yet |
 | Erlang | `windows_x86_64`, `windows_arm64`: not tested yet |
-| Fortran | `windows_x86_64`: not tested yet; `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
+| Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build |
 | F# | none |
 | Go | none |
 | Haskell | `windows_x86_64`: not tested yet; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist |

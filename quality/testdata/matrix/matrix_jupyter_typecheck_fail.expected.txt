@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_jupyter_typecheck_fail
+capability TYPECHECK
+stages 1
+stage ty classes=jupyter sources=quality/testdata/jupyter/typecheck_dirty.ipynb
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR ty invalid-assignment quality/testdata/jupyter/typecheck_dirty.ipynb 158 158 fixable=false "cell 1, line 1: Object of type `Literal[\"two\"]` is not assignable to `int`"
+terminal 1
+terminal ERROR ty invalid-assignment quality/testdata/jupyter/typecheck_dirty.ipynb 158 158 fixable=false "cell 1, line 1: Object of type `Literal[\"two\"]` is not assignable to `int`"
+replacements 0

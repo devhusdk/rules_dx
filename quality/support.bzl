@@ -1765,6 +1765,20 @@ PYTHON_TY_TYPECHECK_SUPPORT = {
     "transport": "batched",
 }
 
+JUPYTER_TY_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["jupyter"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "jupyter",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ty",
+    "transport": "batched",
+}
+
 JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -2180,6 +2194,7 @@ SUPPORT_RECORDS = [
     JUPYTER_RUFF_FORMAT_SUPPORT,
     JUPYTER_RUFF_LINT_SUPPORT,
     JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT,
+    JUPYTER_TY_TYPECHECK_SUPPORT,
     JAVASCRIPT_BIOME_FORMAT_SUPPORT,
     JAVASCRIPT_BIOME_LINT_SUPPORT,
     JAVASCRIPT_ESLINT_LINT_SUPPORT,

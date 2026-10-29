@@ -426,3 +426,248 @@ fn apply_keeps_a_manifest_link_that_stays_inside_the_workspace() {
         "[dependencies]\nanyhow = \"1\"\nserde = \"1.0.200\"\n"
     );
 }
+
+const CARGO_SET_DX_TOML: &str = "schema_version = 1\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nmanifests = [\"rs/a/Cargo.toml\"]\nlocks = [\"rs/a/Cargo.lock\"]\nscopes = [\"rs/a\"]\nrepository = \"crates\"\n[[dependency_set]]\nname = \"tools\"\necosystem = \"cargo\"\nmanifests = [\"rs/b/Cargo.toml\"]\nlocks = [\"rs/b/Cargo.lock\"]\nscopes = [\"rs/b\"]\nrepository = \"tools\"\n";
+const CARGO_A: &str =
+    "[package]\nname = \"a\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n";
+const CARGO_B: &str =
+    "[package]\nname = \"b\"\nversion = \"0.1.0\"\n\n[dependencies]\nanyhow = \"1\"\n";
+const CARGO_SET_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//rs/a:Cargo.lock\", manifests = [\"//rs/a:Cargo.toml\", \"//rs/c:Cargo.toml\"])\ncrate.from_cargo(name = \"tools\", cargo_lockfile = \"//rs/b:Cargo.lock\", manifests = [\"//rs/b:Cargo.toml\"])\nuse_repo(crate, \"crates\", \"tools\")\n";
+
+fn seed_cargo_set(harness: &Harness) {
+    harness.write_source("MODULE.bazel", CARGO_SET_MODULE);
+    harness.write_source("dx.toml", CARGO_SET_DX_TOML);
+    harness.write_source("rs/a/Cargo.toml", CARGO_A);
+    harness.write_source("rs/b/Cargo.toml", CARGO_B);
+    harness.write_source("rs/a/Cargo.lock", "version = 4\n");
+    harness.write_source("rs/b/Cargo.lock", "version = 4\n");
+}
+
+fn assert_unchanged(harness: &Harness, files: &[(&str, &str)]) {
+    for (rel, text) in files {
+        assert_eq!(read(harness, rel), *text, "{rel}");
+    }
+}
+
+#[test]
+fn configured_cargo_set_adds_to_its_own_manifest_and_repins() {
+    let harness = Harness::new("add-consumer-cargo");
+    seed_cargo_set(&harness);
+    let (code, out, err) = harness.run(&["add", "crates:anyhow", "1.0.0"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(
+        err.contains("add pending: crates:anyhow 1.0.0 is not declared in rs/a/Cargo.toml"),
+        "{err}"
+    );
+    assert_unchanged(
+        &harness,
+        &[("rs/a/Cargo.toml", CARGO_A), ("rs/b/Cargo.toml", CARGO_B)],
+    );
+    assert!(harness.build_argv.borrow().is_empty());
+    let (code, out, err) = harness.run(&["add", "crates:anyhow", "1.0.0", "--apply"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        out.contains("added crates:anyhow at 1.0.0 to rs/a/Cargo.toml"),
+        "{out}"
+    );
+    assert!(
+        out.contains("refreshed crates via `dx update crates`"),
+        "{out}"
+    );
+    assert!(read(&harness, "rs/a/Cargo.toml").contains("anyhow = \"1.0.0\""));
+    assert_unchanged(
+        &harness,
+        &[
+            ("rs/b/Cargo.toml", CARGO_B),
+            ("rs/a/Cargo.lock", "version = 4\n"),
+            ("rs/b/Cargo.lock", "version = 4\n"),
+        ],
+    );
+    assert_eq!(harness.build_argv.borrow().len(), 1);
+    let (code, _, err) = harness.run(&["add", "crates:serde", "1.0.0", "--apply"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("already declared"), "{err}");
+}
+
+#[test]
+fn configured_cargo_set_add_refusals_write_nothing_and_launch_nothing() {
+    let harness = Harness::new("add-consumer-cargo-refuse");
+    seed_cargo_set(&harness);
+    let files = [("rs/a/Cargo.toml", CARGO_A), ("rs/b/Cargo.toml", CARGO_B)];
+    for flag in ["--offline", "--frozen"] {
+        let (code, _, err) = harness.run(&["add", "crates:anyhow", "1.0.0", flag, "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert_unchanged(&harness, &files);
+    }
+    harness.write_source(
+        "dx.toml",
+        &CARGO_SET_DX_TOML.replace(
+            "manifests = [\"rs/a/Cargo.toml\"]",
+            "manifests = [\"rs/a/Cargo.toml\", \"rs/c/Cargo.toml\"]",
+        ),
+    );
+    let (code, _, err) = harness.run(&["add", "crates:anyhow", "1.0.0", "--apply"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("add needs exactly one Cargo.toml in set crates"),
+        "{err}"
+    );
+    harness.write_source(
+        "dx.toml",
+        &CARGO_SET_DX_TOML.replace(
+            "scopes = [\"rs/a\"]",
+            "scopes = [\"rs/a\"]\nwritable = false",
+        ),
+    );
+    let (code, _, err) = harness.run(&["add", "crates:anyhow", "1.0.0", "--apply"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("read-only set crates"), "{err}");
+    assert_unchanged(&harness, &files);
+    assert!(harness.build_argv.borrow().is_empty());
+}
+
+const MAVEN_SET_DX_TOML: &str = "schema_version = 1\n[[dependency_set]]\nname = \"jvm\"\necosystem = \"maven\"\nmanifests = [\"MODULE.bazel\"]\nlocks = [\"third_party/maven_install.json\"]\nscopes = [\"third_party\"]\nrepository = \"maven_tools\"\n";
+const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    name = \"maven\",\n    artifacts = [\"junit:junit:4.13.2\"],\n)\nmaven.install(\n    name = \"maven_tools\",\n    artifacts = [\"junit:junit:4.12\"],\n    lock_file = \"//third_party:maven_install.json\",\n)\nuse_repo(maven, \"maven\", \"maven_tools\")\n";
+
+#[test]
+fn configured_maven_set_adds_to_its_repository_install_only() {
+    let harness = Harness::new("add-consumer-maven");
+    harness.write_source("dx.toml", MAVEN_SET_DX_TOML);
+    harness.write_source("MODULE.bazel", MAVEN_MODULE);
+    harness.write_source("third_party/maven_install.json", "{}\n");
+    let (code, out, err) = harness.run(&["add", "jvm:com.example:demo", "1.2.3", "--apply"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(
+        read(&harness, "MODULE.bazel"),
+        MAVEN_MODULE.replace(
+            "artifacts = [\"junit:junit:4.12\"]",
+            "artifacts = [\"junit:junit:4.12\", \"com.example:demo:1.2.3\"]"
+        )
+    );
+    assert_unchanged(&harness, &[("third_party/maven_install.json", "{}\n")]);
+    let runs = harness.build_argv.borrow();
+    assert_eq!(runs.len(), 1, "{runs:?}");
+    assert_eq!(
+        runs[0].last().map(String::as_str),
+        Some("@maven_tools//:pin")
+    );
+}
+
+const NUGET_SET_DX_TOML: &str = "schema_version = 1\n[[dependency_set]]\nname = \"dotnet\"\necosystem = \"nuget\"\nmanifests = [\"dotnet/paket.dependencies\"]\nlocks = [\"dotnet/paket.lock\", \"dotnet/paket.main.bzl\"]\nscopes = [\"dotnet\"]\n";
+const PAKET_DEPS: &str =
+    "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json 12.0.1\n";
+
+#[test]
+fn configured_nuget_set_adds_without_claiming_a_refresh() {
+    let harness = Harness::new("add-consumer-nuget");
+    harness.write_source("dx.toml", NUGET_SET_DX_TOML);
+    harness.write_source("dotnet/paket.dependencies", PAKET_DEPS);
+    harness.write_source("dotnet/paket.lock", "NUGET\n");
+    harness.write_source("dotnet/paket.main.bzl", "main\n");
+    let (code, out, err) = harness.run(&["add", "dotnet:Serilog", "3.0.0", "--offline", "--apply"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(
+        out.contains("run `paket update` in dotnet, then `dx update dotnet`"),
+        "{out}"
+    );
+    assert!(!out.contains("refreshed"), "{out}");
+    assert!(read(&harness, "dotnet/paket.dependencies").contains("Serilog"));
+    assert_unchanged(
+        &harness,
+        &[
+            ("dotnet/paket.lock", "NUGET\n"),
+            ("dotnet/paket.main.bzl", "main\n"),
+        ],
+    );
+    assert!(harness.build_argv.borrow().is_empty());
+}
+
+const NPM_SET_DX_TOML: &str = "schema_version = 1\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"web/package.json\"]\nlocks = [\"web/pnpm-lock.yaml\"]\nscopes = [\"web\"]\n[[dependency_set]]\nname = \"jobs\"\necosystem = \"npm\"\nmanifests = [\"jobs/package.json\"]\nlocks = [\"jobs/pnpm-lock.yaml\"]\nscopes = [\"jobs\"]\n";
+const PACKAGE_JSON: &str = "{\n  \"name\": \"app\",\n  \"version\": \"1.0.0\"\n}\n";
+
+#[test]
+fn configured_npm_set_adds_to_its_own_package_json() {
+    let harness = Harness::new("add-consumer-npm");
+    harness.write_source("dx.toml", NPM_SET_DX_TOML);
+    for dir in ["web", "jobs"] {
+        harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
+        harness.write_source(&format!("{dir}/pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    }
+    let (code, out, err) = harness.run(&["add", "web:left-pad", "1.3.0"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(err.contains("add pending"), "{err}");
+    assert!(err.contains("web/package.json"), "{err}");
+    assert_unchanged(&harness, &[("web/package.json", PACKAGE_JSON)]);
+    let (code, out, err) = harness.run(&["add", "web:left-pad", "1.3.0", "--apply"]);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(read(&harness, "web/package.json").contains("\"left-pad\": \"1.3.0\""));
+    assert_unchanged(
+        &harness,
+        &[
+            ("jobs/package.json", PACKAGE_JSON),
+            ("jobs/pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+            ("web/pnpm-lock.yaml", "lockfileVersion: '9.0'\n"),
+        ],
+    );
+    let runs = harness.build_argv.borrow();
+    assert_eq!(runs.len(), 1, "{runs:?}");
+    assert!(
+        runs[0].iter().any(|arg| arg.ends_with("web")),
+        "{:?}",
+        runs[0]
+    );
+    assert!(
+        runs[0]
+            .iter()
+            .any(|arg| arg == "left-pad" || arg.contains("left-pad")),
+        "{:?}",
+        runs[0]
+    );
+}
+
+#[test]
+fn configured_go_set_add_check_names_its_go_mod() {
+    let harness = Harness::new("add-consumer-go");
+    harness.write_source(
+        "dx.toml",
+        "schema_version = 1\n[[dependency_set]]\nname = \"gomods\"\necosystem = \"go\"\nmanifests = [\"third_party/go/go.mod\"]\nlocks = [\"third_party/go/go.sum\"]\nscopes = [\"third_party/go\"]\n",
+    );
+    let go_mod = "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.6.0\n";
+    harness.write_source("third_party/go/go.mod", go_mod);
+    harness.write_source(
+        "MODULE.bazel",
+        "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n",
+    );
+    let (code, _, err) = harness.run(&["add", "gomods:github.com/pkg/errors", "0.9.1"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("add pending"), "{err}");
+    assert!(err.contains("third_party/go/go.mod"), "{err}");
+    assert_unchanged(&harness, &[("third_party/go/go.mod", go_mod)]);
+    let (code, _, err) =
+        harness.run(&["add", "gomods:github.com/google/go-cmp", "0.7.0", "--apply"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("already declared"), "{err}");
+}
+
+#[test]
+fn configured_ruby_and_powershell_sets_report_unsupported_add() {
+    for (ecosystem, manifest, lock) in [
+        ("ruby", "Gemfile", "Gemfile.lock"),
+        (
+            "powershell",
+            "PSGallery.requirements.psd1",
+            "PSGallery.lock.json",
+        ),
+    ] {
+        let harness = Harness::new("add-consumer-unsupported");
+        harness.write_source(
+            "dx.toml",
+            &format!("schema_version = 1\n[[dependency_set]]\nname = \"other\"\necosystem = \"{ecosystem}\"\nmanifests = [\"{manifest}\"]\nlocks = [\"{lock}\"]\nscopes = [\".\"]\n"),
+        );
+        harness.write_source(manifest, "x\n");
+        let (code, _, err) = harness.run(&["add", "other:thing", "1.0.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("add is not supported for ecosystem"), "{err}");
+        assert_unchanged(&harness, &[(manifest, "x\n")]);
+    }
+}

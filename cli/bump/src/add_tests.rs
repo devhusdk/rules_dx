@@ -333,3 +333,95 @@ fn nuget_inserts_after_the_last_main_group_line() {
         Err(AddError::UnsupportedManifest { .. })
     ));
 }
+
+fn configured(
+    kind: ConfiguredKind,
+    repository: Option<&str>,
+    selector: &str,
+) -> Result<AddRequest, AddError> {
+    AddRequest::parse_configured_set(
+        kind,
+        "tools",
+        &["apps/tools/manifest".to_owned()],
+        repository,
+        selector,
+        "1.2.3",
+    )
+}
+
+#[test]
+fn configured_foreign_sets_insert_like_their_builtin_grammar() {
+    for (kind, builtin, content) in [
+        (
+            ConfiguredKind::Cargo,
+            "cargo:demo",
+            "[package]\nname = \"hello\"\n\n[dependencies]\nanyhow = \"1\"\n",
+        ),
+        (
+            ConfiguredKind::Go,
+            "go:example.com/demo",
+            "module x\n\nrequire example.com/a v1.0.0\n",
+        ),
+        (
+            ConfiguredKind::Npm,
+            "npm:demo",
+            "{\n  \"dependencies\": {\n    \"a\": \"1.0.0\"\n  }\n}\n",
+        ),
+        (
+            ConfiguredKind::Nuget,
+            "nuget:Demo.Lib",
+            "source https://api.nuget.org/v3/index.json\nnuget Other.Lib >= 1.0.0\n",
+        ),
+    ] {
+        let package = builtin.split_once(':').expect("head").1;
+        let request = configured(kind, None, &format!("tools:{package}")).expect("request");
+        assert_eq!(request.target_manifest(), "apps/tools/manifest");
+        assert!(request.target.configured.is_some());
+        assert_eq!(
+            request.plan_insert(content),
+            add(builtin, "1.2.3", content),
+            "{builtin}"
+        );
+        assert!(matches!(
+            request.plan_insert(&request.plan_insert(content).expect("insert")),
+            Err(AddError::Declared { .. })
+        ));
+    }
+}
+
+#[test]
+fn configured_maven_adds_to_the_named_repository_install() {
+    let content = format!(
+        "{MAVEN_HEAD}maven.install(artifacts = [\"junit:junit:4.13.2\"])\nmaven.install(name = \"tools\", artifacts = [\"x:y:1\"])\n"
+    );
+    let named = configured(
+        ConfiguredKind::Maven,
+        Some("tools"),
+        "tools:com.example:demo",
+    )
+    .expect("request")
+    .plan_insert(&content)
+    .expect("insert");
+    assert_eq!(
+        named,
+        format!(
+            "{MAVEN_HEAD}maven.install(artifacts = [\"junit:junit:4.13.2\"])\nmaven.install(name = \"tools\", artifacts = [\"x:y:1\", \"com.example:demo:1.2.3\"])\n"
+        )
+    );
+    let missing = configured(
+        ConfiguredKind::Maven,
+        Some("other"),
+        "tools:com.example:demo",
+    )
+    .expect("request")
+    .plan_insert(&content);
+    assert!(matches!(missing, Err(AddError::UnsupportedManifest { .. })));
+}
+
+#[test]
+fn configured_uv_sets_are_refused() {
+    assert!(matches!(
+        configured(ConfiguredKind::Uv, None, "tools:demo"),
+        Err(AddError::UnsupportedSet { .. })
+    ));
+}

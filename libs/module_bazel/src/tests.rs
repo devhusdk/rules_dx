@@ -561,6 +561,43 @@ fn insert_maven_artifact_appends_to_the_default_install() {
     }
 }
 
+fn insert_in(repository: &str, body: &str) -> Result<String, ModuleError> {
+    ModuleFile::parse(&format!("{MAVEN_HEAD}{body}"))?
+        .insert_maven_artifact_in(repository, "g:a:1.0.0")
+}
+
+#[test]
+fn insert_maven_artifact_in_targets_the_named_install() {
+    let body = "maven.install(artifacts = [\"junit:junit:4.13.2\"])\nmaven.install(name = \"tools\", artifacts = [\"x:y:1\"])\n";
+    assert_eq!(
+        insert_in("tools", body),
+        Ok(format!(
+            "{MAVEN_HEAD}maven.install(artifacts = [\"junit:junit:4.13.2\"])\nmaven.install(name = \"tools\", artifacts = [\"x:y:1\", \"g:a:1.0.0\"])\n"
+        ))
+    );
+    assert_eq!(
+        insert_in("maven", body),
+        Ok(format!(
+            "{MAVEN_HEAD}maven.install(artifacts = [\"junit:junit:4.13.2\", \"g:a:1.0.0\"])\nmaven.install(name = \"tools\", artifacts = [\"x:y:1\"])\n"
+        ))
+    );
+}
+
+#[test]
+fn insert_maven_artifact_in_fails_closed() {
+    for (repository, body) in [
+        ("tools", "maven.install(artifacts = [\"a:b:1\"])\n"),
+        (
+            "tools",
+            "maven.install(name = \"tools\", artifacts = [\"a:b:1\"])\nmaven.install(name = \"tools\", artifacts = [\"c:d:1\"])\n",
+        ),
+        ("tools", "maven.install(name = \"tools\", artifacts = ARTIFACTS)\n"),
+        ("tools", "maven.install(name = \"tools\", artifacts = [])\n"),
+    ] {
+        assert!(insert_in(repository, body).is_err(), "{body:?}");
+    }
+}
+
 #[test]
 fn insert_maven_artifact_fails_closed_on_unclear_lists() {
     for body in [

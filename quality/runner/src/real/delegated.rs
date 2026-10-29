@@ -211,6 +211,7 @@ impl RealBackend {
             .collect();
         let name: &'static str = match tool_id {
             "javac" => "javac",
+            "kotlinc" => "kotlinc",
             other => {
                 return Err(execution(
                     other,

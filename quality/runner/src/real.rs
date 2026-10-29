@@ -65,6 +65,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "keep_sorted",
     "latexindent",
     "ldc",
+    "kotlinc",
     "kubeconform",
     "ktfmt",
     "ktlint",

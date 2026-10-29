@@ -73,7 +73,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["ktfmt"],
         "lint": ["ktlint"],
-        "typecheck": [],
+        "typecheck": ["kotlinc"],
     },
     "helm": {
         "audit": [],

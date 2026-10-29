@@ -201,6 +201,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "keep_sorted",
             "latexindent",
             "ldc",
+            "kotlinc",
             "kubeconform",
             "ktfmt",
             "ktlint",

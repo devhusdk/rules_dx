@@ -31,7 +31,7 @@ load("//quality:compile_check.bzl", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
-load("//quality:javac_check.bzl", "JvmCheckInfo", "javac_check_aspect")
+load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
@@ -652,6 +652,12 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "jvm",
     },
+    "kotlinc": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "jvm",
+    },
     "tsc": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
@@ -850,6 +856,8 @@ _REAL_TOOL_TABLE = {
         "target_tool": True,
     },
 }
+
+_JVM_CHECK_TOOLS = ["javac", "kotlinc"]
 
 _GO_ANALYSIS_TOOLS = ["errcheck", "gotype", "govet"]
 
@@ -1435,13 +1443,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         (dart_package_config, dart_options, dart_stubs) = _dart_context(target, ctx, what, capability)
 
     jvm_check = None
-    if "javac" in [stage["tool"] for stage in resolved]:
-        if JvmCheckInfo not in target:
-            resolved = drop_pipeline_tool(resolved, "javac")
-            if len(resolved) == 0:
-                return []
-        else:
-            jvm_check = target[JvmCheckInfo]
+    for jvm_tool in _JVM_CHECK_TOOLS:
+        if jvm_tool in [stage["tool"] for stage in resolved]:
+            if JvmCheckInfo not in target or target[JvmCheckInfo].tool != jvm_tool:
+                resolved = drop_pipeline_tool(resolved, jvm_tool)
+                if len(resolved) == 0:
+                    return []
+            else:
+                jvm_check = target[JvmCheckInfo]
 
     go_reports = {}
     for go_tool in _GO_ANALYSIS_TOOLS:
@@ -1875,7 +1884,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if tool in go_reports:
             upstream.append(go_reports[tool].path)
             inputs.append(go_reports[tool])
-        if tool == "javac":
+        if tool in _JVM_CHECK_TOOLS:
             upstream.append(jvm_check.log.path)
             inputs.append(jvm_check.log)
         if tool == "flang" or tool == "ldc":
@@ -2176,8 +2185,8 @@ _REAL_SHARD_SPECS = {
     },
     "real_jvm_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets).",
-        "requires": [javac_check_aspect],
+        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets).",
+        "requires": [jvm_check_aspect],
         "shard": "jvm",
         "suffix": "-jvm",
     },

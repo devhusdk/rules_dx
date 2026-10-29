@@ -1,0 +1,48 @@
+load("//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+# The compiler jars the driver loads at run time; the aspect passes the consumer toolchain's own.
+_COMPILER_JARS = [
+    "@com_github_jetbrains_kotlin//:annotations",
+    "@com_github_jetbrains_kotlin//:kotlin-compiler",
+    "@com_github_jetbrains_kotlin//:kotlin-daemon",
+    "@com_github_jetbrains_kotlin//:kotlin-reflect",
+    "@com_github_jetbrains_kotlin//:kotlin-script-runtime",
+    "@com_github_jetbrains_kotlin//:kotlin-stdlib",
+    "@com_github_jetbrains_kotlin//:kotlinx-coroutines-core-jvm",
+]
+
+java_library(
+    name = "kotlinc_check_lib",
+    srcs = ["src/dx/quality/kotlinc/KotlincCheck.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+)
+
+java_binary(
+    name = "kotlinc_check",
+    srcs = ["src/dx/quality/kotlinc/Main.java"],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    main_class = "dx.quality.kotlinc.Main",
+    deps = [":kotlinc_check_lib"],
+)
+
+java_test(
+    name = "kotlinc_check_test",
+    srcs = ["test/dx/quality/kotlinc/KotlincCheckTest.java"],
+    args = ["$(rlocationpaths %s)" % jar for jar in _COMPILER_JARS],
+    aspect_hints = ["//quality:corpus_checkstyle_config"],
+    data = _COMPILER_JARS,
+    main_class = "dx.quality.kotlinc.KotlincCheckTest",
+    use_testrunner = False,
+    deps = [":kotlinc_check_lib"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

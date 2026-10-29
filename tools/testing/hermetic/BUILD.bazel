@@ -297,6 +297,46 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "prose",
+    files = {
+        "//examples/prose-docs/drafts:BUILD.bazel": "examples/prose-docs/drafts/BUILD.bazel",
+        "//examples/prose-docs/drafts:messy.typ": "examples/prose-docs/drafts/messy.typ",
+        "//examples/prose-docs/drafts:todo.adoc": "examples/prose-docs/drafts/todo.adoc",
+        "//examples/prose-docs/drafts:todo.rst": "examples/prose-docs/drafts/todo.rst",
+        "//examples/prose-docs/guide:BUILD.bazel": "examples/prose-docs/guide/BUILD.bazel",
+        "//examples/prose-docs/guide:index.rst": "examples/prose-docs/guide/index.rst",
+        "//examples/prose-docs/guide:install.rst": "examples/prose-docs/guide/install.rst",
+        "//examples/prose-docs/handbook:BUILD.bazel": "examples/prose-docs/handbook/BUILD.bazel",
+        "//examples/prose-docs/handbook:intro.adoc": "examples/prose-docs/handbook/intro.adoc",
+        "//examples/prose-docs/handbook:ops.adoc": "examples/prose-docs/handbook/ops.adoc",
+        "//examples/prose-docs/paper:BUILD.bazel": "examples/prose-docs/paper/BUILD.bazel",
+        "//examples/prose-docs/paper:body.tex": "examples/prose-docs/paper/body.tex",
+        "//examples/prose-docs/paper:common.typ": "examples/prose-docs/paper/common.typ",
+        "//examples/prose-docs/paper:main.tex": "examples/prose-docs/paper/main.tex",
+        "//examples/prose-docs/paper:main.typ": "examples/prose-docs/paper/main.typ",
+        "//examples/prose-docs/shared:BUILD.bazel": "examples/prose-docs/shared/BUILD.bazel",
+        "//examples/prose-docs/shared:glossary.rst": "examples/prose-docs/shared/glossary.rst",
+        "//examples/prose-docs/shared:terms.adoc": "examples/prose-docs/shared/terms.adoc",
+        "//examples/prose-docs:styles/House/Todo.yml": "examples/prose-docs/styles/House/Todo.yml",
+        "//examples/prose-docs:BUILD.bazel": "examples/prose-docs/BUILD.bazel",
+        "//examples/prose-docs:README.md": "examples/prose-docs/README.md",
+        "//examples/prose-docs:bundle_test.sh": "examples/prose-docs/bundle_test.sh",
+        "//examples/prose-docs:docs.vale.ini": "examples/prose-docs/docs.vale.ini",
+        "//examples/prose-docs:latexindent.yaml": "examples/prose-docs/latexindent.yaml",
+        "consumers/prose/consumer.bazelrc": ".bazelrc",
+        "consumers/prose/root.BUILD.bazel": "BUILD.bazel",
+    },
+    languages = [
+        "asciidoc",
+        "latex",
+        "rst",
+        "typst",
+    ],
+    module_fragment = "consumers/prose/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "julia_fixture",
     files = {
         "//tools/testing/starters/fixtures:julia/BUILD.bazel.fixture": "BUILD.bazel",
@@ -847,6 +887,7 @@ rustfmt_test(
         ":msix",
         ":lua",
         ":perl",
+        ":prose",
         ":python",
         ":qt_rust",
         ":qt_tasks",
@@ -875,6 +916,7 @@ rust_clippy_test(
         ":msix",
         ":lua",
         ":perl",
+        ":prose",
         ":python",
         ":qt_rust",
         ":qt_tasks",

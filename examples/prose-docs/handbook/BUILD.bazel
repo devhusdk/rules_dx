@@ -1,0 +1,37 @@
+load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    glob(["*"]),
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
+filegroup(
+    name = "files",
+    srcs = glob(["*"]),
+    visibility = [
+        "//examples/prose-docs:__pkg__",
+        "//quality/tests:__pkg__",
+    ],
+)
+
+asciidoc_library(
+    name = "pages",
+    srcs = [
+        "intro.adoc",
+        "ops.adoc",
+    ],
+    aspect_hints = ["//examples/prose-docs:docs_vale"],
+    deps = ["//examples/prose-docs/shared:terms"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

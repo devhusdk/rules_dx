@@ -58,6 +58,7 @@ For the rule and aspect attributes these examples use, see the
 - [node-app](node-app/) multi-package TypeScript and JavaScript registry CLI with a pinned `semver` dependency, a generated module and a packaged resource.
 - [ocaml-app](ocaml-app/) multi-package OCaml stock CLI with a pinned `Astring` dependency, an ocamllex lexer, a C stub in the native cell and a `select()` on the emitter flag.
 - [perl-app](perl-app/) multi-package Perl stock CLI with a typed ledger, a runfiles CSV table, a pinned `Text::CSV` CPAN dependency and a `select()` flag.
+- [prose-docs](prose-docs/) reStructuredText, AsciiDoc, Typst and LaTeX documents across several packages, checked with `dx lint` and `dx format`.
 - [python-service](python-service/) multi-package Python CLI and local service with a pinned `click` dependency, a generated module and packaged data.
 - [qt-app](qt-app/) headless Qt app with a QML module, a C++ QML type, a Qt resource and a QtTest suite.
 - [qt-rust](qt-rust/) headless Qt/QML ledger backed by a Rust model through CXX-Qt bindings, with a pinned `adler2` dependency, a QtTest suite and a relocatable archive.

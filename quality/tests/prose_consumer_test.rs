@@ -472,3 +472,170 @@ fn one_workspace_with_all_four_document_families_passes_lint_and_format() {
         dirty.combined()
     );
 }
+
+const EXAMPLE_MODULE: &str = r#"
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_rust", version = "0.75.0")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    rustfmt_version = "1.98.1",
+    versions = ["1.98.1"],
+)
+"#;
+
+/// The version pins and patches the root module applies, which a dependent module never inherits.
+fn root_overrides(module: &str) -> String {
+    let mut out = String::new();
+    let mut open = false;
+    for line in module.lines() {
+        if line.starts_with("single_version_override(") {
+            open = true;
+        }
+        if open {
+            out.push_str(line);
+            out.push('\n');
+            if line == ")" {
+                open = false;
+                out.push('\n');
+            }
+        }
+    }
+    out
+}
+
+const EXAMPLE_POLICY: &str = "--@rules_dx//config:workspace=//examples/prose-docs:policy";
+
+/// The example BUILD text as a consumer sees it, without the repo-only fixture targets.
+fn consumer_build(text: &str) -> String {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    for line in text.lines() {
+        let drop = depth > 0
+            || line.starts_with("exports_files(")
+            || line.starts_with("real_source_target(")
+            || (line.starts_with("load(") && line.contains("//quality:fixtures.bzl"));
+        if drop {
+            depth += line.matches('(').count() as i32 - line.matches(')').count() as i32;
+            continue;
+        }
+        out.push(line);
+    }
+    out.join("\n") + "\n"
+}
+
+fn copy_tree(from: &std::path::Path, to: &Case, rel: &str) {
+    let Ok(entries) = std::fs::read_dir(from) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let target = format!("{rel}/{}", entry.file_name().to_string_lossy());
+        if path.is_dir() {
+            copy_tree(&path, to, &target);
+        } else {
+            write(&to.join(&target), &read(&path));
+        }
+    }
+}
+
+fn copy_example(from: &std::path::Path, to: &Case, rel: &str) {
+    let Ok(entries) = std::fs::read_dir(from) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let path = entry.path();
+        let target = format!("{rel}/{name}");
+        if path.is_dir() {
+            copy_example(&path, to, &target);
+        } else if name == "BUILD.bazel" {
+            write(&to.join(&target), &consumer_build(&read(&path)));
+        } else {
+            write(&to.join(&target), &read(&path));
+        }
+    }
+}
+
+fn example() -> Case {
+    let rules = rules_dx_source();
+    let root = nested::case("prose-example");
+    write(
+        &root.join(".bazelversion"),
+        &read(&rules.join(".bazelversion")),
+    );
+    let overrides = root_overrides(&read(&rules.join("MODULE.bazel")));
+    let module =
+        MODULE.replace("RULES_DX", &rules.display().to_string()) + EXAMPLE_MODULE + &overrides;
+    write(&root.join("MODULE.bazel"), &module);
+    copy_tree(&rules.join("patches"), &root, "patches");
+    write(&root.join(".bazelrc"), "common --enable_bzlmod\n");
+    write(&root.join("BUILD.bazel"), "");
+    copy_example(
+        &rules.join("examples/prose-docs"),
+        &root,
+        "examples/prose-docs",
+    );
+    root
+}
+
+fn dx_example(root: &Case, command: &str, target: &str, flags: &[&str]) -> Run {
+    let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
+    let workspace = root.to_string_lossy().into_owned();
+    let home_dir = scratch("prose-home");
+    let home = home_dir.path().to_string_lossy().into_owned();
+    let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
+    argv.extend_from_slice(flags);
+    argv.extend_from_slice(&[target, "--", EXAMPLE_POLICY]);
+    root.run(
+        &resolve_runfiles(&rel),
+        &argv,
+        &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
+    )
+}
+
+fn sources(root: &Case) -> Vec<(String, String)> {
+    let mut files = tree(root);
+    files.retain(|(path, _)| path != "MODULE.bazel.lock");
+    files
+}
+
+#[test]
+fn the_prose_docs_example_passes_and_its_drafts_are_reported() {
+    let root = example();
+    let before = sources(&root);
+    let lint = dx_example(&root, "lint", "//examples/prose-docs/...", &[]);
+    assert_eq!(lint.status.code(), Some(0), "{}", lint.combined());
+    let format = dx_example(&root, "format", "//examples/prose-docs/...", &[]);
+    assert_eq!(format.status.code(), Some(0), "{}", format.combined());
+    assert_eq!(sources(&root), before, "check must not change the tree");
+
+    let drafts = dx_example(&root, "lint", "//examples/prose-docs/drafts:todo_rst", &[]);
+    assert_eq!(drafts.status.code(), Some(1), "{}", drafts.combined());
+    assert!(
+        drafts.combined().contains("drafts/todo.rst"),
+        "{}",
+        drafts.combined()
+    );
+
+    let messy = "//examples/prose-docs/drafts:messy";
+    let check = dx_example(&root, "format", messy, &[]);
+    assert_eq!(check.status.code(), Some(1), "{}", check.combined());
+    assert!(
+        check.combined().contains("drafts/messy.typ"),
+        "{}",
+        check.combined()
+    );
+    let apply = dx_example(&root, "format", messy, &["--apply"]);
+    assert_eq!(apply.status.code(), Some(0), "{}", apply.combined());
+    let after = sources(&root);
+    let changed: Vec<&str> = after
+        .iter()
+        .filter(|entry| !before.contains(entry))
+        .map(|(path, _)| path.as_str())
+        .collect();
+    assert_eq!(changed, ["examples/prose-docs/drafts/messy.typ"]);
+    let recheck = dx_example(&root, "format", messy, &[]);
+    assert_eq!(recheck.status.code(), Some(0), "{}", recheck.combined());
+}

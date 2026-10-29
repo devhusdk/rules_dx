@@ -1415,6 +1415,7 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//cli/cli:dx",
+        "//examples/prose-docs:files",
     ] + NESTED_BAZEL_DATA,
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",

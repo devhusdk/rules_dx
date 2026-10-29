@@ -434,6 +434,118 @@ pub(super) fn fortitude_reports_findings_skips_fixed_form_and_never_trusts_a_fai
     assert!(lint("a.f90", "crash\n").is_err());
 }
 
+fn zanuda_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let lib = env
+        .iter()
+        .find(|(key, _)| key == "OCAMLLIB")
+        .map(|(_, value)| PathBuf::from(value))
+        .expect("OCAMLLIB is set");
+    assert!(lib.is_absolute(), "OCAMLLIB must be absolute: {lib:?}");
+    assert!(lib.ends_with("external/ocaml/lib/ocaml"), "{lib:?}");
+    assert_eq!(argv[1], OsString::from("-cmt-list"));
+    assert_eq!(argv[3], OsString::from("-no-top_file_license"));
+    assert_eq!(argv[4], OsString::from("-no-check-filesystem"));
+    assert_eq!(argv[5], OsString::from("-ordjsonl"));
+    let list = std::fs::read_to_string(&argv[2]).expect("read the list");
+    let mut report = String::new();
+    let mut crash = false;
+    for line in list.lines() {
+        let fields: Vec<&str> = line.split('\t').collect();
+        assert_eq!(fields.len(), 3, "{line}");
+        assert!(Path::new(fields[1]).is_absolute(), "{line}");
+        let cmt = Path::new(fields[2]);
+        assert!(cmt.is_absolute() && cmt.exists(), "{line}");
+        assert_eq!(
+            fields[0],
+            if fields[1].ends_with(".mli") {
+                "intf"
+            } else {
+                "impl"
+            }
+        );
+        let text = std::fs::read_to_string(fields[1]).expect("read staged source");
+        crash |= text.contains("crash");
+        if text.contains("smells") {
+            report.push_str(&format!(
+                r#"{{"message":"smells bad\n","location":{{"path":"{}","range":{{"start":{{"line":2,"column":1}}}}}},"severity":"INFO","code":{{"value":"if_bool","url":"u"}}}}"#,
+                fields[1]
+            ));
+            report.push('\n');
+        }
+    }
+    std::fs::write(&argv[6], report)?;
+    Ok(ChildOutput {
+        code: Some(i32::from(crash)),
+        stdout: Vec::new(),
+        stderr: if crash {
+            b"cannot read cmt\n".to_vec()
+        } else {
+            Vec::new()
+        },
+    })
+}
+
+fn zanuda_tool(entries: &[&str]) -> RealTool {
+    let mut tool = plain_tool();
+    tool.extra_env = vec![("OCAMLLIB".to_owned(), "external/ocaml/lib/ocaml".to_owned())];
+    tool.tool_files = entries
+        .iter()
+        .map(|rel| ((*rel).to_owned(), b"cmt".to_vec()))
+        .collect();
+    tool
+}
+
+#[test]
+pub(super) fn zanuda_reads_the_staged_typed_trees_and_never_trusts_a_failed_run() {
+    let entries = [
+        "dx-zanuda/impl/pkg/a.ml.cmt",
+        "dx-zanuda/intf/pkg/a.mli.cmti",
+        "dx-zanuda/impl/pkg/other.ml.cmt",
+    ];
+    let backend = backend_for("zanuda", zanuda_tool(&entries), zanuda_behavior);
+    let lint = |files: &[(&str, &str)]| {
+        let mut map = std::collections::BTreeMap::new();
+        for (name, text) in files {
+            map.insert((*name).to_owned(), (*text).to_owned());
+        }
+        backend.diagnose("zanuda", "lint", &map)
+    };
+    // A clean run, and a finding mapped back onto the owned file.
+    assert!(lint(&[("pkg/a.ml", "let x = 1\n")])
+        .expect("check")
+        .is_empty());
+    let warned = lint(&[
+        ("pkg/a.ml", "let x = 1\nsmells\n"),
+        ("pkg/a.mli", "val x : int\n"),
+    ])
+    .expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "if_bool");
+    assert!(warned[0].path.ends_with("pkg/a.ml"), "{}", warned[0].path);
+    // A crash is an error and carries stderr.
+    let err = lint(&[("pkg/a.ml", "crash\n")]).expect_err("crash fails closed");
+    assert!(err.to_string().contains("cannot read cmt"), "{err}");
+    // An owned source with no typed tree is an error, not a clean result.
+    let err = lint(&[("pkg/missing.ml", "let y = 2\n")]).expect_err("missing cmt");
+    assert!(err.to_string().contains("-no-bin-annot"), "{err}");
+}
+
+#[test]
+pub(super) fn zanuda_skips_entries_outside_the_batch() {
+    let entries = ["dx-zanuda/impl/pkg/a.ml.cmt", "dx-zanuda/impl/pkg/b.ml.cmt"];
+    let backend = backend_for("zanuda", zanuda_tool(&entries), zanuda_behavior);
+    // b.ml is staged for the target but not in this batch, so its text is never read.
+    let found = backend
+        .diagnose("zanuda", "lint", &single("pkg/a.ml", "smells\n"))
+        .expect("check");
+    assert_eq!(found.len(), 1);
+}
+
 fn hlint_behavior(
     argv: &[OsString],
     _cwd: &Path,

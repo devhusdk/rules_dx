@@ -108,6 +108,7 @@ pub mod vale;
 pub mod xmllint;
 pub mod yamlfmt;
 pub mod yamllint;
+pub mod zanuda;
 pub mod zig_ast_check;
 pub mod zig_compile;
 pub mod zig_fmt;
@@ -220,6 +221,7 @@ pub use vale::parse_vale;
 pub use xmllint::parse_xmllint;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
+pub use zanuda::parse_zanuda;
 pub use zig_ast_check::parse_zig_ast_check;
 pub use zig_compile::parse_zig_compile;
 pub use zig_fmt::parse_zig_fmt;
@@ -2225,6 +2227,14 @@ mod tests {
         super::julia_format::parse_julia_format(input, input, code, files)
     }
 
+    fn fuzz_zanuda(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::zanuda::parse_zanuda(input, code, files)
+    }
+
     fn fuzz_zig_compile(
         input: &[u8],
         code: Option<i32>,
@@ -2818,6 +2828,7 @@ mod tests {
         ("xmllint", fuzz_xmllint),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
+        ("zanuda", fuzz_zanuda),
         ("zig_ast_check", fuzz_zig_ast_check),
         ("zig_compile", fuzz_zig_compile),
         ("zig_fmt", fuzz_zig_fmt),
@@ -2935,6 +2946,7 @@ mod tests {
         ("xmllint", include_str!("xmllint.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
+        ("zanuda", include_str!("zanuda.rs")),
         ("zig_ast_check", include_str!("zig_ast_check.rs")),
         ("zig_compile", include_str!("zig_compile.rs")),
         ("zig_fmt", include_str!("zig_fmt.rs")),

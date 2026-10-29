@@ -124,6 +124,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "yamlfmt",
     "xmllint",
     "yamllint",
+    "zanuda",
     "zig",
     "zig_ast_check",
     "zig_fmt",
@@ -707,6 +708,16 @@ impl RealBackend {
                 ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"),
             ] {
                 env.push((OsString::from(key), OsString::from(value)));
+            }
+        }
+        if tool_id == "zanuda" {
+            // zanuda type checks against the compiler's standard library. The request names it
+            // relative to the execution root, like the binary, so resolve it against the cwd.
+            let cwd = std::env::current_dir().unwrap_or_default();
+            for (key, value) in &mut env {
+                if key == "OCAMLLIB" && Path::new(value.as_os_str()).is_relative() {
+                    *value = cwd.join(&*value).into_os_string();
+                }
             }
         }
         if tool_id == "typstyle" {

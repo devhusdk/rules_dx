@@ -168,6 +168,8 @@ const SELENE_CHECK_ARGS: &[&str] = &[
     "--color=Never",
     "--num-threads=1",
 ];
+/// `top_file_license` wants an SPDX header on every file, which says nothing about the code.
+const ZANUDA_CHECK_ARGS: &[&str] = &["-no-top_file_license", "-no-check-filesystem"];
 const STYLUA_CHECK_ARGS: &[&str] = &["--no-editorconfig", "--check", "--output-format=json"];
 const STYLUA_FIX_ARGS: &[&str] = &["--no-editorconfig"];
 const STYLUA_CONFIG_FLAG: &str = "--config-path";
@@ -1659,6 +1661,21 @@ pub fn selene_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> In
         files,
         "",
     )
+}
+
+/// Check-only: zanuda reads the typed trees (`.cmt`/`.cmti`) named by `list`, one
+/// `impl|intf<TAB>source<TAB>cmt` line each, and writes its findings to `out` as rdjsonl.
+pub fn zanuda_check(binary: &Path, list: &Path, out: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.push(OsString::from("-cmt-list"));
+    argv.push(list.as_os_str().to_owned());
+    argv.extend(ZANUDA_CHECK_ARGS.iter().map(OsString::from));
+    argv.push(OsString::from("-ordjsonl"));
+    argv.push(out.as_os_str().to_owned());
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 pub fn stylua_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {

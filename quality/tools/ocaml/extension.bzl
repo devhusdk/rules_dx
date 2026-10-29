@@ -7,6 +7,7 @@ _PATCHES = [
     "ppx_expect_nobase.static-version-check.patch",
     "zanuda.1-no-plugins.patch",
     "zanuda.2-cmt-list.patch",
+    "zanuda.3-source-alias.patch",
 ]
 
 def _duniverse_impl(mctx):

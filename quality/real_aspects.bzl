@@ -38,6 +38,7 @@ load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//capnproto/rules:defs.bzl", "CapnpInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//lua/private:providers.bzl", "LuaInfo")
+load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
 load("//php/rules:php.bzl", "staged_path")
 load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
@@ -858,6 +859,13 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "yaml",
     },
+    "zanuda": {
+        "attr": attr.label(default = "//quality/tools/ocaml:zanuda", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "ocaml",
+    },
     "julia_format": {
         "attr": attr.label(default = "//config:tool_julia_format", allow_files = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -1408,6 +1416,30 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             owned_paths = {f.path: True for f in dialyzer_owned}
             dialyzer_aux = [f for f in sorted(target[BeamInfo].deps.to_list(), key = lambda f: f.short_path) if f.path not in owned_paths]
 
+    zanuda_trees = []
+    zanuda_stdlib = []
+    if "zanuda" in [stage["tool"] for stage in resolved]:
+        # zanuda reads the typed trees the compile wrote. A target that owns OCaml sources but
+        # carries no OCamlCmtInfo, or one that owns a source with no tree, would otherwise lint
+        # nothing and look clean, so both fail the analysis.
+        if OCamlCmtInfo not in target:
+            fail(what + ": zanuda needs OCamlCmtInfo, which only the dx ocaml_module and ocaml_signature rules provide")
+        listed = {}
+        for entry in target[OCamlCmtInfo].owned:
+            if entry.cmt and entry.source:
+                listed[entry.source.short_path] = ("impl", entry.cmt)
+            if entry.cmti and entry.signature:
+                listed[entry.signature.short_path] = ("intf", entry.cmti)
+        for stage in resolved:
+            if stage["tool"] != "zanuda":
+                continue
+            for ws_path in stage["sources"]:
+                if ws_path not in listed:
+                    fail(what + ": zanuda has no .cmt or .cmti for " + ws_path + "; was the target compiled with -no-bin-annot?")
+                (kind, tree) = listed[ws_path]
+                zanuda_trees.append(("dx-zanuda/%s/%s.%s" % (kind, ws_path, tree.extension), tree))
+        zanuda_stdlib = ctx.files._ocaml_stdlib
+
     luals_modules = []
     if "luals" in [stage["tool"] for stage in resolved]:
         # Dependency modules become the library, one file per module name; the owned sources
@@ -1799,6 +1831,9 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
 
     tool_env_entries = launch.env
     run_tools = launch.run_tools
+    if len(zanuda_stdlib) > 0:
+        # Relative to the execution root, like the binary; the runner makes it absolute.
+        tool_env_entries.setdefault("zanuda", []).append(real_request_tool_env("OCAMLLIB", zanuda_stdlib[0].dirname))
     if "psscriptanalyzer" in tool_env_entries:
         tool_env_entries["psscriptanalyzer"].append(real_request_tool_env("DX_PWSH_MODULE_ROOTS", "|".join(sorted(pwsh_module_roots.keys()))))
 
@@ -1844,6 +1879,11 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 seen_aux[beam.path] = True
                 tool_files.append(real_request_tool_file("dx-dialyzer/aux/%d/%s" % (index, beam.basename), beam.path))
                 inputs.append(beam)
+        if tool == "zanuda":
+            for (rel, tree) in zanuda_trees:
+                tool_files.append(real_request_tool_file(rel, tree.path))
+                inputs.append(tree)
+            inputs.extend(zanuda_stdlib)
         if tool == "luals":
             for (rel, module_file) in luals_modules:
                 tool_files.append(real_request_tool_file(rel, module_file.path))
@@ -2558,6 +2598,19 @@ _REAL_SHARD_SPECS = {
         "shard": "pkl",
         "suffix": "-pkl",
     },
+    "real_ocaml_lint": {
+        "capability": "lint",
+        "doc": "Additive OCaml lint family aspect (zanuda; target-coupled via OCamlCmtInfo).",
+        "extra_attrs": {
+            "_ocaml_stdlib": attr.label(
+                default = "@dx_ocaml_toolchains//:stdlib_cmis",
+                cfg = "exec",
+                doc = "The compiler's standard library interfaces, which zanuda type checks against.",
+            ),
+        },
+        "shard": "ocaml",
+        "suffix": "-ocaml",
+    },
     "real_ocaml_format": {
         "capability": "format",
         "doc": "Additive OCaml format family aspect (topiary).",
@@ -2759,6 +2812,8 @@ real_nix_format_aspect = _make_real_aspect("real_nix_format")
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 
 real_ocaml_format_aspect = _make_real_aspect("real_ocaml_format")
+
+real_ocaml_lint_aspect = _make_real_aspect("real_ocaml_lint")
 
 real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
 

@@ -1,0 +1,39 @@
+diff --git a/zanuda/src/Config.ml b/zanuda/src/Config.ml
+--- a/zanuda/src/Config.ml
++++ b/zanuda/src/Config.ml
+@@ -96,8 +96,21 @@
+ let set_plugin_name_suffix s = opts.plugin_name_suffix <- Some s
+ let plugin_name_suffix () = opts.plugin_name_suffix
+ 
++(** Paths the typed tree names (the compile-time source path) that [-cmt-list] reports
++    under the path the list gives instead. *)
++let source_aliases : (string, string) Hashtbl.t = Hashtbl.create 16
++
++let add_source_alias ~compiled ~listed =
++  if compiled <> listed then Hashtbl.replace source_aliases compiled listed
++;;
++
+ let recover_filepath filepath =
+   let filepath =
++    match Hashtbl.find_opt source_aliases filepath with
++    | Some listed -> listed
++    | None -> filepath
++  in
++  let filepath =
+     match prefix_to_cut () with
+     | Some prefix when String.starts_with filepath ~prefix ->
+       Base.String.drop_prefix filepath (String.length prefix)
+diff --git a/zanuda/src/Load_dune.ml b/zanuda/src/Load_dune.ml
+--- a/zanuda/src/Load_dune.ml
++++ b/zanuda/src/Load_dune.ml
+@@ -261,6 +261,10 @@
+           false
+       in
+       ignore (untyped_ok : bool);
++      (match typed with
++       | Some { Cmt_format.cmt_sourcefile = Some compiled; _ } ->
++         Config.add_source_alias ~compiled ~listed:source
++       | _ -> ());
+       (match kind, typed with
+        | _, None -> ()
+        | "impl", Some { Cmt_format.cmt_annots = Cmt_format.Implementation stru; _ } ->

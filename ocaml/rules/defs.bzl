@@ -49,7 +49,7 @@ OCAML_LINK_OPTS = ["-without-runtime"]
 
 LOCAL_TAGS = ["no-remote-exec"]
 
-SKIP_TAGS = ["no-lint", "no-typecheck"]
+SKIP_TAGS = ["no-typecheck"]
 
 _OCAML = [("ocaml", ["ml", "mli"])]
 

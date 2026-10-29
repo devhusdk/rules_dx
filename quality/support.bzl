@@ -541,6 +541,21 @@ OCAML_TOPIARY_FORMAT_SUPPORT = {
     "transport": "single",
 }
 
+OCAML_ZANUDA_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["ocaml"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "ocaml",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "zanuda",
+    "transport": "single",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
 NIX_DEADNIX_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1990,6 +2005,7 @@ SUPPORT_RECORDS = [
     NIX_DEADNIX_SUPPORT,
     NIX_NIXFMT_SUPPORT,
     OCAML_TOPIARY_FORMAT_SUPPORT,
+    OCAML_ZANUDA_LINT_SUPPORT,
     HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,

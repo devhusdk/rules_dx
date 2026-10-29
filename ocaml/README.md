@@ -134,8 +134,11 @@ OCaml linter runs. The rules tag every target `no-lint` and `no-typecheck`, so
 ### Internal tool: zanuda
 
 `//quality/tools/ocaml:zanuda` is the zanuda 2.1.0 linter, built from source
-for the future `lint:ocaml` support (#4621). Nothing runs it yet; the lint
-aspect, adapter and runner dispatch come next.
+and wired into `dx lint` (#4621) as the `zanuda` lint tool of the `ocaml` family.
+The lint aspect reads the typed trees (`.cmt`/`.cmti`) that `ocaml_module` and
+`ocaml_signature` expose through `OCamlCmtInfo`, so a target compiled with
+`-no-bin-annot` fails closed. A source-alias patch makes typed and untyped
+findings report the same workspace path.
 
 - **Build.** `dx_dune_build` (`quality/tools/ocaml/dune_build.bzl`) bootstraps
   dune and builds zanuda in two Bazel actions with the pinned native OCaml,

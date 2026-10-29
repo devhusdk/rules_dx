@@ -1251,6 +1251,24 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         )),
         selene_configured
     );
+    let zanuda = zanuda_check(
+        Path::new(BIN),
+        Path::new("/scratch/dx-zanuda/list.tsv"),
+        Path::new("/scratch/dx-zanuda/out.jsonl"),
+    );
+    assert_eq!(
+        argv_strings(&zanuda),
+        vec![
+            BIN,
+            "-cmt-list",
+            "/scratch/dx-zanuda/list.tsv",
+            "-no-top_file_license",
+            "-no-check-filesystem",
+            "-ordjsonl",
+            "/scratch/dx-zanuda/out.jsonl"
+        ]
+    );
+    assert_eq!(zanuda.cwd_rel, "");
     let stylua_config = Path::new("/scratch/stylua.toml");
     assert_eq!(
         argv_strings(&stylua_check(Path::new(BIN), &[lua], None)),

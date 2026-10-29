@@ -116,11 +116,7 @@ class PeMachineTest(unittest.TestCase):
             with open(path, "wb") as handle:
                 handle.write(b"\x7fELF" + bytes(100))
             with self.assertRaises(SystemExit):
-                update._pe_machine(path)
 
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class PypiDigestTest(unittest.TestCase):
@@ -176,3 +172,7 @@ class ArgsTest(unittest.TestCase):
             update._parse_args(["--tool"])
         with self.assertRaises(SystemExit):
             update._parse_args(["--tool", "nope"])
+
+
+if __name__ == "__main__":
+    unittest.main()

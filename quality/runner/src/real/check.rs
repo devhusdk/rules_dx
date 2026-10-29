@@ -917,6 +917,25 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "sorbet" => {
+                // The owned sources and the staged dependency sources go on the command line, so
+                // Sorbet resolves constants across them; only findings in the owned sources are
+                // kept. It reads no config and writes no cache, so nothing outside the scratch
+                // directory is touched.
+                let mut deps: Vec<PathBuf> = tool
+                    .tool_files
+                    .iter()
+                    .filter(|(rel, _)| rel.starts_with("dx-sorbet/dep/"))
+                    .map(|(rel, _)| scratch.root().join(rel))
+                    .collect();
+                deps.sort();
+                let mut inputs: Vec<&Path> = refs.clone();
+                inputs.extend(deps.iter().map(PathBuf::as_path));
+                let invocation = commands::sorbet_check(&tool.binary, &inputs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                // Sorbet prints its errors on stderr.
+                parsed(tool_id, parsers::parse_sorbet(&out.stderr, out.code, &strs))
+            }
             "ktlint" => {
                 let invocation = commands::ktlint_check(&tool.binary, &refs, config.as_deref());
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

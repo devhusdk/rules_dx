@@ -236,6 +236,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "scalafmt",
             "shellcheck",
             "shfmt",
+            "sorbet",
             "spotbugs",
             "sqlfluff",
             "standardrb",

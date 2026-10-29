@@ -8,6 +8,7 @@ load("@rules_go//go:def.bzl", "GoArchive")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
+load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
@@ -185,6 +186,14 @@ _REAL_TOOL_TABLE = {
         "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
         "capabilities": ["typecheck"],
         "fallback": "=@rules_dx//php/tools:phpstan",
+        "kind": "setting",
+        "resources": "heavy",
+        "shard": "core",
+    },
+    "sorbet": {
+        "attr": attr.label(default = "//config:tool_sorbet", allow_files = True, cfg = "exec"),
+        "capabilities": ["typecheck"],
+        "fallback": "=@rules_dx//ruby/tools:sorbet",
         "kind": "setting",
         "resources": "heavy",
         "shard": "core",
@@ -1378,6 +1387,19 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                     seen_scan[pkg_file.path] = True
                     phpstan_scan.append(("dx-phpstan/pkg/" + staged_path(pkg_file), pkg_file))
 
+    sorbet_deps = []
+    if "sorbet" in [stage["tool"] for stage in resolved]:
+        # Dependency sources are only read for the constants they define; the owned sources
+        # are the CLI paths, so they stay out of the dependency set. A target without
+        # RubyFilesInfo has no dependencies to stage.
+        owned_paths = {f.path: True for f in path_to_file.values()}
+        if RubyFilesInfo in target:
+            seen_deps = {}
+            for dep_file in sorted(target[RubyFilesInfo].transitive_srcs.to_list(), key = lambda f: f.path):
+                if dep_file.path.endswith((".rb", ".rbi")) and dep_file.path not in owned_paths and dep_file.path not in seen_deps:
+                    seen_deps[dep_file.path] = True
+                    sorbet_deps.append(("dx-sorbet/dep/" + staged_path(dep_file), dep_file))
+
     scalafix_owned = []
     scalafix_aux = []
     if "scalafix" in [stage["tool"] for stage in resolved]:
@@ -1757,6 +1779,10 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for (rel, scan_file) in phpstan_scan:
                 tool_files.append(real_request_tool_file(rel, scan_file.path))
                 inputs.append(scan_file)
+        if tool == "sorbet":
+            for (rel, dep_file) in sorbet_deps:
+                tool_files.append(real_request_tool_file(rel, dep_file.path))
+                inputs.append(dep_file)
         if tool == "scalafix":
             for index, jar in enumerate(scalafix_owned):
                 tool_files.append(real_request_tool_file("dx-scalafix/owned/%d-%s" % (index, jar.basename), jar.path))

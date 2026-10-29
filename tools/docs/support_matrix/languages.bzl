@@ -284,7 +284,12 @@ PLATFORM_NOT_APPLICABLE = {
 }
 
 # A platform a quality tool cannot run on, keyed by tool name, with the reason.
-TOOL_NOT_APPLICABLE = {}
+TOOL_NOT_APPLICABLE = {
+    "sorbet": {
+        "windows_arm64": "Sorbet ships no Windows build",
+        "windows_x86_64": "Sorbet ships no Windows build",
+    },
+}
 
 GAP_ISSUES = {
     "build:apple:*": 4540,
@@ -321,7 +326,6 @@ GAP_ISSUES = {
     "typecheck:mdx": 1768,
     "typecheck:ocaml": 4530,
     "typecheck:pkl": 4533,
-    "typecheck:ruby": 4532,
     "typecheck:scala": 4528,
     "typecheck:svelte": 1766,
     "typecheck:terraform": 4533,

@@ -113,6 +113,14 @@ const DIALYZER_ARGS: &[&str] = &[
 
 const PHPCS_ARGS: &[&str] = &["--report=json", "-q", "--no-colors", "--no-cache"];
 const LUALS_ARGS: &[&str] = &["--checklevel=Warning", "--check_format=json"];
+/// `--no-config` keeps `sorbet/config` of the source tree out; no `--cache-dir` is given, so
+/// nothing is written outside the work directory.
+const SORBET_ARGS: &[&str] = &[
+    "--no-config",
+    "--color=never",
+    "--no-error-sections",
+    "--silence-dev-message",
+];
 const PHPSTAN_ARGS: &[&str] = &[
     "analyse",
     "--no-progress",
@@ -1081,6 +1089,18 @@ pub fn luals_luarc(
         vec!["?.lua", "?/init.lua"].into(),
     );
     serde_json::Value::Object(object).to_string()
+}
+
+/// `sorbet` over the owned sources and the staged dependency sources; the errors go to stderr.
+pub fn sorbet_check(binary: &Path, paths: &[&Path]) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned()];
+    argv.extend(SORBET_ARGS.iter().map(OsString::from));
+    argv.push(OsString::from("--"));
+    argv.extend(paths.iter().map(|p| p.as_os_str().to_owned()));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
 }
 
 /// `phpstan analyse` over the owned sources with a generated config, JSON on stdout.

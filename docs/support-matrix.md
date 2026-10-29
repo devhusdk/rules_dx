@@ -78,7 +78,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` |
 | Haskell | `hlint` | `ormolu` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
-| JavaScript | `biome`, `eslint` | `biome`, `prettier` | no |
+| JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` |
 | Julia | no | `julia_format` | no |
 | Kotlin | `ktlint` | `ktfmt` | no |
 | Lua | no | `stylua` | `luals` |
@@ -88,7 +88,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | PHP | `phpcs` | `prettier` | `phpstan` |
 | PowerShell | `psscriptanalyzer` | `psscriptanalyzer` | n/a |
 | Python | `flake8`, `pydoclint`, `pylint`, `ruff` | `ruff` | `ty` |
-| Ruby | `rubocop` | `standardrb` | no |
+| Ruby | `rubocop` | `standardrb` | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) |
 | Rust | `clippy` | `rustfmt` | `rustc` |
 | Scala | `scalafix` | `scalafmt` | no |
 | Svelte | `eslint` | `prettier` | no |

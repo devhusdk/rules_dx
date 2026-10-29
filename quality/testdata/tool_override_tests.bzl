@@ -57,6 +57,9 @@ _PHP_LINT_POLICY = _CANONICAL + "//quality/testdata:php_lint_policy"
 _LUA_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:lua_typecheck_policy"
 _LUALS_SETTING = _CANONICAL + "//config:tool_luals"
 _LUALS_TOOL = _CANONICAL + "//lua/tools:luals"
+_RUBY_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:ruby_typecheck_policy"
+_SORBET_SETTING = _CANONICAL + "//config:tool_sorbet"
+_SORBET_TOOL = _CANONICAL + "//ruby/tools:sorbet"
 _PHP_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:php_typecheck_policy"
 _PHPCS_SETTING = _CANONICAL + "//config:tool_phpcs"
 _PHPCS_TOOL = _CANONICAL + "//php/tools:phpcs"
@@ -315,6 +318,22 @@ lua_typecheck_subject = rule(
     implementation = _lua_typecheck_subject_impl,
     attrs = {
         "_luals": attr.label(default = "//config:tool_luals"),
+        "target": attr.label(
+            aspects = [real_typecheck_aspect],
+            mandatory = True,
+        ),
+    },
+)
+
+def _ruby_typecheck_subject_impl(ctx):
+    """Exposes the sorbet request files beside the real aspect."""
+    results = getattr(ctx.attr.target[OutputGroupInfo], "dx_results", depset()).to_list()
+    return [DefaultInfo(files = depset([])), DxSubjectInfo(fields = {"results": ",".join([f.short_path for f in results])})]
+
+ruby_typecheck_subject = rule(
+    implementation = _ruby_typecheck_subject_impl,
+    attrs = {
+        "_sorbet": attr.label(default = "//config:tool_sorbet"),
         "target": attr.label(
             aspects = [real_typecheck_aspect],
             mandatory = True,
@@ -1248,6 +1267,42 @@ def luals_flag_tests(name, subject):
         expected_failure_substring = "--@rules_dx//config:tool_luals",
     )
     _luals_set_test(
+        name = name + "_set_test",
+        size = "small",
+        target_under_test = subject,
+    )
+
+_sorbet_unset_test = analysistest.make(
+    _rejected_impl,
+    expect_failure = True,
+    attrs = {"expected_failure_substring": attr.string(mandatory = True)},
+    config_settings = {_WORKSPACE_SETTING: _RUBY_TYPECHECK_POLICY},
+)
+
+def _sorbet_wired_impl(ctx):
+    """Asserts the flag wires a typecheck stage result for the ruby target."""
+    env = analysistest.begin(ctx)
+    fields = _subject_under_test(env)[DxSubjectInfo].fields
+    asserts.true(env, fields["results"] != "", "want a typecheck stage result for the ruby target")
+    return analysistest.end(env)
+
+_sorbet_set_test = analysistest.make(
+    _sorbet_wired_impl,
+    config_settings = {
+        _WORKSPACE_SETTING: _RUBY_TYPECHECK_POLICY,
+        _SORBET_SETTING: _SORBET_TOOL,
+    },
+)
+
+def sorbet_flag_tests(name, subject):
+    """Instantiates the sorbet flag proofs."""
+    _sorbet_unset_test(
+        name = name + "_unset_test",
+        size = "small",
+        target_under_test = subject,
+        expected_failure_substring = "--@rules_dx//config:tool_sorbet",
+    )
+    _sorbet_set_test(
         name = name + "_set_test",
         size = "small",
         target_under_test = subject,

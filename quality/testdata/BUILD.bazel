@@ -54,6 +54,8 @@ load(
     "qml_subject",
     "qmlformat_flag_tests",
     "qmllint_flag_tests",
+    "ruby_typecheck_subject",
+    "sorbet_flag_tests",
     "tool_override_subject",
     "tool_override_tests",
     "zig_ast_check_flag_tests",
@@ -344,9 +346,9 @@ real_source_target(
 
 real_source_target(
     name = "fixture_real_asciidoc_no_converter",
-    aspect_hints = [":vale_cfg"],
     asciidoc_converter = False,
     asciidoc_srcs = ["real_clean.adoc"],
+    aspect_hints = [":vale_cfg"],
     tags = ["manual"],
 )
 
@@ -1435,6 +1437,33 @@ lua_typecheck_subject(
 luals_flag_tests(
     name = "luals_flag",
     subject = ":lua_typecheck_subject",
+)
+
+quality_family(
+    name = "ruby_typecheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "ruby",
+    typecheck = ["sorbet"],
+)
+
+workspace_policy(
+    name = "ruby_typecheck_policy",
+    families = [":ruby_typecheck_family"],
+)
+
+ruby_typecheck_subject(
+    name = "ruby_typecheck_subject",
+    testonly = True,
+    target = "//ruby/tests/fixtures/hello:hello_lib",
+)
+
+sorbet_flag_tests(
+    name = "sorbet_flag",
+    subject = ":ruby_typecheck_subject",
 )
 
 quality_family(

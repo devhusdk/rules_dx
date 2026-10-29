@@ -75,8 +75,17 @@ def _kotlin_plugins(attrs):
     for dep in getattr(attrs, "deps", []):
         if KtJvmInfo in dep:
             targets += dep[KtJvmInfo].exported_compiler_plugins.to_list()
+    for dep in getattr(attrs, "deps", []):
+        # rules_kotlin also runs kapt/KSP for deps that export Java processors or carry KspPluginInfo.
+        if KspPluginInfo in dep:
+            return None
+        if JavaPluginInfo in dep and dep[JavaPluginInfo].plugins.processor_jars.to_list():
+            return None
+        if JavaInfo in dep and dep[JavaInfo].plugins.processor_jars.to_list():
+            return None
     plugins = {}
     configs = {}
+    data = []
     for t in targets:
         # kapt and KSP generate sources the check cannot see, so it would report false errors.
         if JavaPluginInfo in t or KspPluginInfo in t:
@@ -95,10 +104,11 @@ def _kotlin_plugins(attrs):
         if plugin.id in configs:
             cfg = plugin.merge_cfgs(plugin, configs[plugin.id])
             classpath.append(cfg.classpath)
+            data.append(cfg.data)
             opts += cfg.options
         jars.append(depset(transitive = classpath))
         options += ["plugin:%s:%s=%s" % (plugin.id, o.key, o.value) for o in opts]
-    return (depset(transitive = jars), options)
+    return (depset(transitive = jars), options, depset(transitive = data))
 
 def _kotlinc_check(target, ctx, attrs):
     toolchain = ctx.toolchains[_KT_TOOLCHAIN_TYPE]
@@ -111,16 +121,19 @@ def _kotlinc_check(target, ctx, attrs):
     plugin_data = _kotlin_plugins(attrs)
     if plugin_data == None:
         return []
-    (plugin_jars, plugin_options) = plugin_data
+    (plugin_jars, plugin_options, plugin_data_files) = plugin_data
     kotlin_home = [f for f in toolchain.kotlin_home.files.to_list() if f.basename in _KOTLINC_JARS and f.dirname.endswith("/lib")]
     if not [f for f in kotlin_home if f.basename == "kotlin-compiler.jar"]:
         return []
     deps = [d for d in getattr(attrs, "deps", []) + getattr(attrs, "associates", []) if JavaInfo in d]
+    friends = target[KtJvmInfo].module_jars
+
+    # Friend (class) jars come first: the associates' ABI jars may have internals stripped.
     classpath = depset(
-        transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps] +
+        order = "preorder",
+        transitive = [friends] + [d[JavaInfo].transitive_compile_time_jars for d in deps] +
                      [toolchain.jvm_stdlibs.transitive_compile_time_jars],
     )
-    friends = target[KtJvmInfo].module_jars
     opts = attrs.kotlinc_opts[KotlincOptions] if getattr(attrs, "kotlinc_opts", None) else toolchain.kotlinc_options
     flags = _kotlinc_flags(toolchain, opts)
 
@@ -145,7 +158,7 @@ def _kotlinc_check(target, ctx, attrs):
         arguments = [args],
         inputs = depset(
             sources + srcjars + kotlin_home,
-            transitive = [classpath, plugin_jars, friends],
+            transitive = [classpath, plugin_jars, plugin_data_files, friends],
         ),
         outputs = [log],
         resource_set = dx_quality_heavy_resources,

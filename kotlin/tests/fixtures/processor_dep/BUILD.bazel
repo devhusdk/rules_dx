@@ -1,0 +1,27 @@
+load("@rules_java//java:defs.bzl", "java_library", "java_plugin")
+load("//kotlin/rules:defs.bzl", "kotlin_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+java_plugin(
+    name = "processor",
+    srcs = ["Processor.java"],
+    processor_class = "gen.Processor",
+)
+
+java_library(
+    name = "dagger_like",
+    exported_plugins = [":processor"],
+)
+
+# Refers to a class only an annotation processor would generate. rules_kotlin runs kapt for the
+# dependency's exported processor; the kotlinc check must skip the target, not report the reference.
+kotlin_library(
+    name = "user",
+    srcs = ["User.kt"],
+    tags = ["manual"],
+    deps = [":dagger_like"],
+)

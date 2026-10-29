@@ -283,6 +283,7 @@ PLATFORM_NOT_APPLICABLE = {
     },
     "ocaml": {
         "windows_arm64": "conda-forge ships no win-arm64 OCaml package",
+        "windows_x86_64": "conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2",
     },
     "perl": {
         "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build",
@@ -308,7 +309,6 @@ GAP_ISSUES = {
     "build:erlang:*": 4545,
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
-    "build:ocaml:windows_x86_64": 4550,
     "build:qt:windows_*": 4554,
     "consumer:*": 4436,
     "format:asciidoc": 4439,

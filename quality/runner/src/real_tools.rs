@@ -3828,7 +3828,7 @@ fn bicep_sarif(file: &str, rule: &str, level: &str, line: u64, column: u64) -> S
 
 /// The scratch root and the environment every bicep launch must see.
 fn bicep_scratch(env: &[(OsString, OsString)]) -> PathBuf {
-    assert_hermetic(env);
+    assert_hermetic_scratch_home(env);
     let value = |key: &str| {
         env.iter()
             .find(|(known, _)| known == key)

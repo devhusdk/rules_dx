@@ -123,7 +123,18 @@ pub(super) fn file(path: &str, body: &str) -> FileInput {
     }
 }
 
+/// Hermetic launch check: HOME and USERPROFILE must never be set.
 pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
+    assert_hermetic_with(env, false);
+}
+
+/// Like `assert_hermetic`, but HOME/USERPROFILE may point inside the scratch
+/// tree. Only tools that need a scratch home (bicep) opt in.
+pub(super) fn assert_hermetic_scratch_home(env: &[(OsString, OsString)]) {
+    assert_hermetic_with(env, true);
+}
+
+fn assert_hermetic_with(env: &[(OsString, OsString)], allow_scratch_home: bool) {
     let folded = |key: &OsString| key.to_string_lossy().to_ascii_uppercase();
     let pinned = |key: &str| {
         let hits: Vec<&OsString> = env
@@ -159,7 +170,8 @@ pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
         "NODE_PATH",
     ] {
         // A launch may pin HOME inside its own scratch tree, never to the host.
-        let scratch_home = matches!(denied, "HOME" | "USERPROFILE")
+        let scratch_home = allow_scratch_home
+            && matches!(denied, "HOME" | "USERPROFILE")
             && env
                 .iter()
                 .filter(|(key, _)| folded(key) == denied)
@@ -1642,4 +1654,45 @@ pub(super) fn notebook_outputs_missing_behavior(
     _env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
+}
+
+fn hermetic_env(home: Option<&str>) -> Vec<(OsString, OsString)> {
+    let mut env: Vec<(OsString, OsString)> = [
+        ("TMPDIR", "/scratch/t"),
+        ("TEMP", "/scratch/t"),
+        ("TMP", "/scratch/t"),
+        ("LANG", "C.UTF-8"),
+        ("TZ", "UTC"),
+    ]
+    .iter()
+    .map(|(key, value)| (OsString::from(key), OsString::from(value)))
+    .collect();
+    if let Some(home) = home {
+        env.push((OsString::from("HOME"), OsString::from(home)));
+        env.push((OsString::from("USERPROFILE"), OsString::from(home)));
+    }
+    env
+}
+
+#[test]
+fn hermetic_without_home_passes_both_checkers() {
+    assert_hermetic(&hermetic_env(None));
+    assert_hermetic_scratch_home(&hermetic_env(None));
+}
+
+#[test]
+#[should_panic(expected = "never leaks")]
+fn assert_hermetic_rejects_home_inside_tmpdir() {
+    assert_hermetic(&hermetic_env(Some("/scratch/t/home")));
+}
+
+#[test]
+#[should_panic(expected = "never leaks")]
+fn scratch_home_checker_rejects_home_outside_tmpdir() {
+    assert_hermetic_scratch_home(&hermetic_env(Some("/home/real")));
+}
+
+#[test]
+fn scratch_home_checker_accepts_home_under_tmpdir() {
+    assert_hermetic_scratch_home(&hermetic_env(Some("/scratch/t/home")));
 }

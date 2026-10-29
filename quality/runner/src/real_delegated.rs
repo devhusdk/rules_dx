@@ -137,12 +137,26 @@ fn empty_report(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
+    empty_report_unchecked(argv, _cwd)
+}
+
+fn empty_report_unchecked(argv: &[OsString], _cwd: &Path) -> io::Result<ChildOutput> {
     let _ = last_file(argv);
     Ok(ChildOutput {
         code: Some(0),
         stdout: Vec::new(),
         stderr: Vec::new(),
     })
+}
+
+/// `empty_report` for bicep, the only tool launched with a scratch HOME.
+fn empty_report_scratch_home(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic_scratch_home(env);
+    empty_report_unchecked(argv, cwd)
 }
 
 fn must_not_spawn(
@@ -157,7 +171,12 @@ fn must_not_spawn(
 #[test]
 pub(super) fn every_real_tool_reaches_a_check_arm() {
     for &tool_id in REAL_TOOLS {
-        let backend = backend_for(tool_id, plain_tool(), empty_report);
+        let spawn = if tool_id == "bicep" {
+            empty_report_scratch_home
+        } else {
+            empty_report
+        };
+        let backend = backend_for(tool_id, plain_tool(), spawn);
         for capability in ["lint", "format"] {
             match backend.diagnose(tool_id, capability, &single("a.txt", "x\n")) {
                 Ok(_) => {}

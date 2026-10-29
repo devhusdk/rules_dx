@@ -766,6 +766,62 @@ RUST_CLIPPY_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+CC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["c", "cpp"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "cc",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "clang_syntax",
+    "transport": "batched",
+}
+
+CUDA_NVCC_SYNTAX_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["cuda"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "cuda",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "nvcc_syntax",
+    "transport": "batched",
+}
+
+GO_GOTYPE_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["go"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "go",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "gotype",
+    "transport": "batched",
+}
+
+OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["objc", "objcpp"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "objc",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "clang_syntax",
+    "transport": "batched",
+}
+
 RUST_RUSTC_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -2057,6 +2113,7 @@ SUPPORT_RECORDS = [
     TERRAFORM_FORMAT_SUPPORT,
     TERRAFORM_TFLINT_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
+    GO_GOTYPE_TYPECHECK_SUPPORT,
     GO_ERRCHECK_LINT_SUPPORT,
     GO_GOVET_LINT_SUPPORT,
     GO_STATICCHECK_LINT_SUPPORT,
@@ -2065,6 +2122,9 @@ SUPPORT_RECORDS = [
     OBJC_CLANG_FORMAT_SUPPORT,
     CC_CPPCHECK_LINT_SUPPORT,
     CC_CLANG_TIDY_LINT_SUPPORT,
+    CC_CLANG_SYNTAX_TYPECHECK_SUPPORT,
+    CUDA_NVCC_SYNTAX_TYPECHECK_SUPPORT,
+    OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT,
     RUST_RUSTFMT_FORMAT_SUPPORT,
     RUST_CLIPPY_LINT_SUPPORT,
     RUST_RUSTC_TYPECHECK_SUPPORT,

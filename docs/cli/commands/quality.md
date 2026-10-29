@@ -2221,6 +2221,10 @@ the host: it is the bound `bicep_config`, or an empty `{}`. Diagnostics in a
 dependency are not reported on the target that references it. A module from a
 registry (`br:`) is not supported yet: it is reported as an error with a hint.
 
+`bicep format` exits 0 and echoes a file that does not parse, so `format` cannot
+report a syntax error; `lint` does. Typecheck (`bicep build`) stays disabled
+because `bicep lint` already reports compile errors (BCP diagnostics).
+
 ```python
 load("@rules_dx//bicep/rules:defs.bzl", "bicep_module")
 load("@rules_dx//quality:native_config.bzl", "bicep_config")

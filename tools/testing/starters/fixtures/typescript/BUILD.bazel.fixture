@@ -1,0 +1,30 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_js_test", "typescript_project")
+
+exports_files(["package.json"])
+
+typescript_project(
+    name = "demo-app",
+    srcs = [
+        "hello.ts",
+        "main.ts",
+    ],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+)
+
+javascript_binary(
+    name = "demo-app_bin",
+    data = [":demo-app"],
+    entry_point = "main.js",
+)
+
+typescript_js_test(
+    name = "demo-app_test",
+    srcs = ["hello_test.ts"],
+    declaration = True,
+    entry_point = "hello_test.js",
+    package_json = "package.json",
+    tsconfig = "tsconfig.json",
+    deps = [":demo-app"],
+)

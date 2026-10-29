@@ -1,0 +1,22 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary", "javascript_js_test", "javascript_library")
+
+exports_files(["package.json"])
+
+javascript_library(
+    name = "demo-app",
+    srcs = ["hello.js"],
+)
+
+javascript_binary(
+    name = "demo-app_bin",
+    data = [":demo-app"],
+    entry_point = "main.js",
+)
+
+javascript_js_test(
+    name = "demo-app_test",
+    srcs = ["hello.test.js"],
+    data = [":demo-app"],
+    entry_point = "hello.test.js",
+    package_json = "package.json",
+)

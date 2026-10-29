@@ -2,6 +2,7 @@ load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
 load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
+load("//java/rules:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:native_config.bzl", "biome_config", "buildifier_config", "checkstyle_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
@@ -1870,6 +1871,19 @@ real_typecheck_fixture_tests(
         ":fixture_real_rust_typecheck_no_typecheck_subject",
         ":fixture_real_starlark_typecheck_subject",
     ],
+)
+
+# Compiled bytecode analysed by the SpotBugs runner-matrix cases.
+java_library(
+    name = "spotbugs_clean",
+    srcs = ["spotbugs_matrix/SpotbugsClean.java"],
+    tags = ["manual"],
+)
+
+java_library(
+    name = "spotbugs_dirty",
+    srcs = ["spotbugs_matrix/SpotbugsDirty.java"],
+    tags = ["manual"],
 )
 
 runner_matrix_cases(name = "runner_matrix")

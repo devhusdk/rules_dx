@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_java_spotbugs_fail
+capability LINT
+stages 1
+stage spotbugs classes=java sources=matrix/SpotbugsDirty.java
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR spotbugs NP_ALWAYS_NULL matrix/SpotbugsDirty.java 138 138 fixable=false "Null pointer dereference"
+terminal 1
+terminal ERROR spotbugs NP_ALWAYS_NULL matrix/SpotbugsDirty.java 138 138 fixable=false "Null pointer dereference"
+replacements 0

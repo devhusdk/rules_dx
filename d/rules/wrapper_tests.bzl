@@ -1,6 +1,6 @@
 """Wrapper conformance tests for D."""
 
-load("//d/toolchain:pins.bzl", "LDC_CELLS")
+load("//d/toolchain:pins.bzl", "LDC_CELLS", "LDC_UNPROVEN_CELLS")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load(":defs.bzl", "D_CELLS", "D_QUALITY_TOOLS", "d_quality_srcs")
@@ -32,9 +32,9 @@ def d_wrapper_contract_tests(name):
                 [],
             ),
             expect_equal(
-                "D targets build on every pinned LDC cell",
+                "D targets build on every proven LDC cell",
                 D_CELLS,
-                sorted(LDC_CELLS.keys()),
+                sorted([cell for cell in LDC_CELLS.keys() if cell not in LDC_UNPROVEN_CELLS]),
             ),
         ],
     )

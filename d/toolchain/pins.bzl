@@ -25,6 +25,10 @@ _WINDOWS_ADDON = struct(
     sha256 = "88c6679eccfcbbf82b90dc15b731d07eca74aea088fe0a20e1a2780e4c2bc45d",
 )
 
+# Cells whose toolchain is pinned and fetchable but has not yet linked and tested anything on its
+# host. They stay out of D_COMPATIBLE_WITH until an evidence.yml run passes on each (#4542).
+LDC_UNPROVEN_CELLS = ["windows_arm64", "windows_x86_64"]
+
 LDC_CELLS = {
     "linux_amd64": struct(
         addon = None,

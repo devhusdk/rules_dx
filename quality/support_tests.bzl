@@ -1,6 +1,6 @@
 """Unit tests for explicit tool support records."""
 
-load("//d/toolchain:pins.bzl", "LDC_CELLS")
+load("//d/toolchain:pins.bzl", "LDC_CELLS", "LDC_UNPROVEN_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
 load("//elixir/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/toolchain:pins.bzl", ERLANG_CELLS = "CELLS")
@@ -310,9 +310,9 @@ def _canonical(cells):
 def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),
-        "dfmt": _canonical(LDC_CELLS.keys()),
+        "dfmt": _canonical([c for c in LDC_CELLS.keys() if c not in LDC_UNPROVEN_CELLS]),
         "dart": sorted(RULES_DART_PLATFORMS.keys()),
-        "dscanner": _canonical(LDC_CELLS.keys()),
+        "dscanner": _canonical([c for c in LDC_CELLS.keys() if c not in LDC_UNPROVEN_CELLS]),
         "elvis": _canonical(ERLANG_CELLS.keys()),
         "erlfmt": _canonical(ERLANG_CELLS.keys()),
         "julia_format": sorted(JULIA_PLATFORMS.keys()),
@@ -322,7 +322,7 @@ def _toolchain_platforms():
     }
 
 # Records that must name every platform as either supported or unsupported with a reason comment.
-_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "rubocop", "rustfmt", "standardrb", "zig_fmt"]
+_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "dfmt", "dscanner", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "rubocop", "rustfmt", "standardrb", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""

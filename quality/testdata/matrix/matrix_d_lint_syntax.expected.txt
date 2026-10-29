@@ -1,0 +1,17 @@
+producer //quality/testdata:matrix_d_lint_syntax
+capability LINT
+stages 1
+stage dscanner classes=d sources=matrix/dscanner_broken.d
+completed_rounds 1
+convergence STABLE
+initial 4
+initial WARNING dscanner unused_parameter_check matrix/dscanner_broken.d 69 69 fixable=false "Parameter a is never used."
+initial WARNING dscanner unused_parameter_check matrix/dscanner_broken.d 76 76 fixable=false "Parameter b is never used."
+initial ERROR dscanner syntax matrix/dscanner_broken.d 96 96 fixable=false "Expected `}` instead of EOF"
+initial ERROR dscanner syntax matrix/dscanner_broken.d 96 96 fixable=false "Primary expression expected"
+terminal 4
+terminal WARNING dscanner unused_parameter_check matrix/dscanner_broken.d 69 69 fixable=false "Parameter a is never used."
+terminal WARNING dscanner unused_parameter_check matrix/dscanner_broken.d 76 76 fixable=false "Parameter b is never used."
+terminal ERROR dscanner syntax matrix/dscanner_broken.d 96 96 fixable=false "Expected `}` instead of EOF"
+terminal ERROR dscanner syntax matrix/dscanner_broken.d 96 96 fixable=false "Primary expression expected"
+replacements 0

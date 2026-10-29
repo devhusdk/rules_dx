@@ -2428,6 +2428,61 @@
         }
       }
     },
+    "//terraform:extensions.bzl%dx_terraform": {
+      "general": {
+        "bzlTransitiveDigest": "Oisj/oXK23jZB/pJnMdOhGlSa2FrAzlaHHI0MjQB4Jg=",
+        "usagesDigest": "iURhdMEe58I9hRcgI9ncnEed0HDMCyw03zc8Tbvi/s8=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "dx_terraform_null_darwin_arm64": {
+            "repoRuleId": "@@//terraform:extensions.bzl%_provider_repo",
+            "attributes": {
+              "sha256": "c43723e8cc65bcdf5e0c92581dcbbdcbdcf18b8d2037406a5f2033b1e22de442",
+              "source": "registry.terraform.io/hashicorp/null",
+              "target": "darwin_arm64",
+              "url": "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_darwin_arm64.zip",
+              "version": "3.2.4"
+            }
+          },
+          "dx_terraform_null_linux_amd64": {
+            "repoRuleId": "@@//terraform:extensions.bzl%_provider_repo",
+            "attributes": {
+              "sha256": "9d32ac3619cfc93eb3c4f423492a8e0f79db05fec58e449dee9b2d5873d5f69f",
+              "source": "registry.terraform.io/hashicorp/null",
+              "target": "linux_amd64",
+              "url": "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_linux_amd64.zip",
+              "version": "3.2.4"
+            }
+          },
+          "dx_terraform_null_linux_arm64": {
+            "repoRuleId": "@@//terraform:extensions.bzl%_provider_repo",
+            "attributes": {
+              "sha256": "85e33ab43e0e1726e5f97a874b8e24820b6565ff8076523cc2922ba671492991",
+              "source": "registry.terraform.io/hashicorp/null",
+              "target": "linux_arm64",
+              "url": "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_linux_arm64.zip",
+              "version": "3.2.4"
+            }
+          },
+          "dx_terraform_null_windows_amd64": {
+            "repoRuleId": "@@//terraform:extensions.bzl%_provider_repo",
+            "attributes": {
+              "sha256": "ed0fe2acdb61330b01841fa790be00ec6beaac91d41f311fb8254f74eb6a711f",
+              "source": "registry.terraform.io/hashicorp/null",
+              "target": "windows_amd64",
+              "url": "https://releases.hashicorp.com/terraform-provider-null/3.2.4/terraform-provider-null_3.2.4_windows_amd64.zip",
+              "version": "3.2.4"
+            }
+          },
+          "dx_terraform_providers": {
+            "repoRuleId": "@@//terraform:extensions.bzl%_hub_repo",
+            "attributes": {
+              "providers": "{\"null\":{\"repos\":{\"darwin_arm64\":\"dx_terraform_null_darwin_arm64\",\"linux_amd64\":\"dx_terraform_null_linux_amd64\",\"linux_arm64\":\"dx_terraform_null_linux_arm64\",\"windows_amd64\":\"dx_terraform_null_windows_amd64\"},\"source\":\"registry.terraform.io/hashicorp/null\"}}"
+            }
+          }
+        }
+      }
+    },
     "//tools/docs/site/browser:repos.bzl%firefox": {
       "general": {
         "bzlTransitiveDigest": "oD0RRpbCewCYEFkuLK+wAzHst3S+Sg29zIxTCnsHyZM=",

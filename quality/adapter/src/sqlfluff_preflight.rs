@@ -50,6 +50,15 @@ const BANNED_SECTIONS: &[&str] = &["sqlfluff:templater:dbt", "sqlfluff:templater
 
 /// Refuses a sqlfluff config without a known dialect, or with a templater dx does not allow.
 pub fn check_config(text: &str) -> Result<(), String> {
+    check(text, true)
+}
+
+/// Like `check_config` for a nested config, which inherits the dialect and may omit it.
+pub fn check_nested_config(text: &str) -> Result<(), String> {
+    check(text, false)
+}
+
+fn check(text: &str, require_dialect: bool) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut section = String::new();
     let mut dialect: Option<String> = None;
@@ -107,6 +116,7 @@ pub fn check_config(text: &str) -> Result<(), String> {
         }
     }
     match dialect.as_deref() {
+        None | Some("") if !require_dialect => {}
         None | Some("") => {
             return Err(format!(
                 "sqlfluff config must set `dialect` under [sqlfluff]; one of {}",
@@ -248,5 +258,18 @@ mod tests {
     fn malformed_lines_are_refused() {
         assert!(check_config("[sqlfluff\ndialect = ansi\n").is_err());
         assert!(check_config("[sqlfluff]\ndialect ansi\n").is_err());
+    }
+
+    #[test]
+    fn nested_config_may_omit_the_dialect() {
+        assert!(check_nested_config("[sqlfluff]\ntemplater = placeholder\n").is_ok());
+        assert!(check_config("[sqlfluff]\ntemplater = placeholder\n").is_err());
+    }
+
+    #[test]
+    fn nested_config_keeps_the_bans() {
+        assert!(check_nested_config("[sqlfluff]\ntemplater = python\n").is_err());
+        assert!(check_nested_config("[sqlfluff:templater:jinja]\nlibrary_path = x\n").is_err());
+        assert!(check_nested_config("[sqlfluff]\ndialect = nope\n").is_err());
     }
 }

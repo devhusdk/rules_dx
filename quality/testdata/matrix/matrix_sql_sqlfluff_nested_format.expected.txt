@@ -1,0 +1,12 @@
+producer //quality/testdata:matrix_sql_sqlfluff_nested_format
+capability FORMAT
+stages 1
+stage sqlfluff classes=sql sources=quality/testdata/sqlfluff_cfg/fmt/a.sql,quality/testdata/sqlfluff_cfg/fmt/upper/b.sql
+completed_rounds 2
+convergence STABLE
+initial 2
+initial ERROR sqlfluff CP01 quality/testdata/sqlfluff_cfg/fmt/upper/b.sql 0 6 fixable=true "Keywords must be upper case."
+initial ERROR sqlfluff CP01 quality/testdata/sqlfluff_cfg/fmt/upper/b.sql 9 13 fixable=true "Keywords must be upper case."
+terminal 0
+replacements 1
+replacement quality/testdata/sqlfluff_cfg/fmt/upper/b.sql 0 13 "SELECT a\nFROM"

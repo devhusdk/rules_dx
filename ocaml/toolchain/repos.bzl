@@ -81,6 +81,20 @@ _OCAMLRUN = """alias(
 )
 """
 
+_ALIAS = """alias(
+    name = "{name}",
+    actual = select({cases}),
+    visibility = ["//visibility:public"],
+)
+"""
+
+# Aliases of the hub that select the target cell's own label: name -> label in the dist repository.
+CELL_ALIASES = {
+    "stdlib": "//:stdlib",
+    "stdlib_cmi": "//:lib/ocaml/stdlib.cmi",
+    "tree": "//:tree",
+}
+
 def relative_prefix(path):
     """Returns the path from one file's directory back to the repository root."""
     depth = len(path.split("/")) - 1
@@ -180,13 +194,15 @@ def _hub_impl(rctx):
     for cell in sorted(OCAML_CELLS.keys()):
         content.append(_CELL.format(cell = cell, constraints = repr(OCAML_CELLS[cell].exec_compatible_with)))
     content.append(_OCAMLRUN.format(cases = repr({":" + cell: "@" + DIST_PREFIX + cell + "//:ocamlrun" for cell in sorted(OCAML_CELLS.keys())})))
+    for alias in sorted(CELL_ALIASES.keys()):
+        content.append(_ALIAS.format(name = alias, cases = repr({":" + cell: "@" + DIST_PREFIX + cell + CELL_ALIASES[alias] for cell in sorted(OCAML_CELLS.keys())})))
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", "\n".join(content))
     return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,
-    doc = "Declares the OCaml toolchains per cell and emitter and the ocamlrun of the target cell.",
+    doc = "Declares the OCaml toolchains per cell and emitter, and the ocamlrun and the install tree of the target cell.",
 )
 
 def _ocaml_impl(mctx):

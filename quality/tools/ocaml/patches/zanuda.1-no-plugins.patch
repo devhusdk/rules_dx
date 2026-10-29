@@ -1,0 +1,50 @@
+diff --git a/zanuda/src/Config.ml b/zanuda/src/Config.ml
+index 03eeb93..141f13b 100644
+--- a/zanuda/src/Config.ml
++++ b/zanuda/src/Config.ml
+@@ -145,9 +145,6 @@ let parse_args () =
+     ; ( "-skip-level-allow"
+       , Arg.Bool set_skip_level_allow
+       , "[bool] Skip lints with level = Allow" )
+-    ; ( "-with-plugins"
+-      , Arg.String set_plugin_name_suffix
+-      , "PREFIX Try to load plugins whos name ends with PREFIX" )
+     ; "-v", Arg.Unit set_verbose, "More verbose output"
+     ; ( "-version"
+       , Arg.Unit
+diff --git a/zanuda/src/dune b/zanuda/src/dune
+index 119d9ce..38362d1 100644
+--- a/zanuda/src/dune
++++ b/zanuda/src/dune
+@@ -45,7 +45,6 @@
+   base
+   dune-build-info
+   compiler-libs.common
+-  findlib.dynload
+   ppxlib
+   yojson
+   Tast_pattern
+diff --git a/zanuda/src/main.ml b/zanuda/src/main.ml
+index c5f7cd4..2123dc3 100644
+--- a/zanuda/src/main.ml
++++ b/zanuda/src/main.ml
+@@ -250,19 +250,6 @@ let () =
+     Config.opts.build_info <- s
+   in
+   Config.parse_args ();
+-  let () =
+-    match Config.plugin_name_suffix () with
+-    | None -> ()
+-    | Some suffix ->
+-      Findlib.init ();
+-      let all_pkgs = Fl_package_base.list_packages () in
+-      let plugins = List.filter (String.ends_with ~suffix) all_pkgs in
+-      Format.printf
+-        "Loading plugins: [ %a ]\n%!"
+-        (Format.pp_print_list Format.pp_print_string)
+-        plugins;
+-      Fl_dynload.load_packages plugins
+-  in
+   let () =
+     match Config.mode () with
+     | Config.Unspecified -> ()

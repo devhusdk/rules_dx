@@ -118,6 +118,7 @@ def dx_ocaml_dist(name, emitters, licenses, version_file):
         srcs = [TOOLS["vmruntime"]],
         data = [":runtime_libs", ":stublibs", STDLIB + "/ld.conf"],
     )
+    native.filegroup(name = "tree", srcs = native.glob(["bin/**", "lib/**", "include/**", "share/**"], exclude = ["**/*.conda"]))
     native.filegroup(name = "native_tools", srcs = native.glob(["bin/conda-ocaml-*"]))
     native.filegroup(name = "licenses", srcs = licenses)
     native.filegroup(name = "version_file", srcs = [version_file])

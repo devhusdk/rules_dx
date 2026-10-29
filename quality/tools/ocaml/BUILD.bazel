@@ -1,0 +1,77 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":cmt_list.bzl", "ocaml_cmt_list")
+load(":dune_build.bzl", "dx_dune_build")
+load(":tools_tests.bzl", "ocaml_tools_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["patches/*.patch"]) + [
+    "cmt_list.bzl",
+    "dune_build.bzl",
+    "extension.bzl",
+    "pins.bzl",
+    "repos.bzl",
+    "tools_tests.bzl",
+])
+
+# zanuda 2.1.0, built from source with dune. Licensed LGPL-3.0-only; the
+# licenses of the whole source closure are in :zanuda_licenses.
+dx_dune_build(
+    name = "zanuda",
+    srcs = ["@dx_ocaml_duniverse//:srcs"],
+    target = "zanuda/src/main.exe",
+    workspace = "@dx_ocaml_duniverse//:dune-project",
+)
+
+filegroup(
+    name = "zanuda_licenses",
+    srcs = ["@dx_ocaml_duniverse//:licenses"],
+)
+
+ocaml_tools_tests(name = "pins_test")
+
+ocaml_cmt_list(
+    name = "dirty_cmts",
+    testonly = True,
+    target = "//quality/tools/ocaml/testdata:dirty",
+)
+
+ocaml_cmt_list(
+    name = "clean_cmts",
+    testonly = True,
+    target = "//quality/tools/ocaml/testdata:clean",
+)
+
+sh_test(
+    name = "zanuda_test",
+    size = "small",
+    srcs = ["zanuda_test.sh"],
+    args = [
+        "$(rootpath :zanuda)",
+        "$(rootpath :dirty_cmts)",
+        "$(rootpath :clean_cmts)",
+        "$(rootpath @dx_ocaml_toolchains//:stdlib_cmi)",
+    ],
+    data = [
+        ":clean_cmts",
+        ":dirty_cmts",
+        ":zanuda",
+        "@dx_ocaml_toolchains//:stdlib_cmi",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cmt_list.bzl",
+        "dune_build.bzl",
+        "extension.bzl",
+        "pins.bzl",
+        "repos.bzl",
+        "tools_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

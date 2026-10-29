@@ -1,0 +1,28 @@
+diff --git a/ppx_expect_nobase/src/dune b/ppx_expect_nobase/src/dune
+index 85c92cc..c692797 100644
+--- a/ppx_expect_nobase/src/dune
++++ b/ppx_expect_nobase/src/dune
+@@ -27,7 +27,7 @@
+  (package ppx_expect_nobase)
+  (modules)
+  (enabled_if
+-  (and %{read:config/lt38.txt}))
++  (and false))
+  (libraries))
+ 
+ (library
+@@ -35,13 +35,5 @@
+  (package ppx_expect_nobase)
+  (modules)
+  (enabled_if
+-  (and %{read:config/ge38.txt}))
++  (and true))
+  (libraries))
+-
+-(subdir
+- config
+- (rule
+-  (targets lt38.txt ge38.txt)
+-  (deps ../../bin/version_check.exe)
+-  (action
+-   (run ../../bin/version_check.exe))))

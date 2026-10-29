@@ -1,0 +1,11 @@
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_app")
+
+APPS = ["//visibility:public"]
+
+erlang_app(
+    name = "erlang_app",
+    srcs = ["src/kv.erl"],
+    app_env = "[{max_keys, 3}]",
+    app_name = "kv",
+    visibility = APPS,
+)

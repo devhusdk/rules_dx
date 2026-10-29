@@ -268,7 +268,12 @@ def _app(upstream_macro, name, testonly, visibility, kwargs):
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:
-        kwargs["extra_priv"] = list(kwargs.get("extra_priv", [])) + nifs
+        if kwargs.get("srcs") != None:
+            # rules_erlang rejects extra_priv next to srcs, so list priv in full.
+            extra = kwargs.pop("extra_priv", [])
+            kwargs["priv"] = native.glob(["priv/**/*"], exclude = [e for e in extra if not _is_label(e)], allow_empty = True) + extra + nifs
+        else:
+            kwargs["extra_priv"] = list(kwargs.get("extra_priv", [])) + nifs
     owned = app_sources(kwargs)
     upstream_macro(name = name + "_upstream", testonly = testonly, tags = dx_upstream_tags(tags), **kwargs)
     forward_kwargs = {"testonly": True} if testonly else {}

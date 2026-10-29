@@ -1,0 +1,16 @@
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_app")
+
+erlang_app(
+    name = "erlang_app",
+    srcs = [
+        "src/demo.hrl",
+        "src/demo_app.erl",
+        "src/demo_sup.erl",
+    ],
+    hdrs = ["include/public.hrl"],
+    app_description = "Demo app.",
+    app_module = "demo_app",
+    app_name = "demo",
+    app_version = "1.0.0",
+    extra_apps = ["crypto"],
+)

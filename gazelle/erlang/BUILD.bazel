@@ -1,0 +1,67 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "erlang",
+    srcs = [
+        "appsrc.go",
+        "doc.go",
+        "lang.go",
+        "naming.go",
+        "parser.go",
+        "stdlib.go",
+    ],
+    embedsrcs = ["otp_modules.txt"],
+    importpath = "github.com/devhusdk/rules_dx/gazelle/erlang",
+    visibility = ["//gazelle/dispatch:__pkg__"],
+    deps = [
+        "//gazelle/common",
+        "//gazelle/common/treesitter",
+        "@com_github_odvcencio_gotreesitter//:gotreesitter",
+        "@com_github_odvcencio_gotreesitter//grammars/erlang",
+        "@gazelle//config",
+        "@gazelle//language",
+        "@gazelle//resolve",
+        "@gazelle//v2/rule",
+    ],
+)
+
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "//gazelle/dispatch:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
+go_test(
+    name = "erlang_go_test",
+    srcs = [
+        "lang_test.go",
+        "parser_test.go",
+    ],
+    embed = [":erlang"],
+    pure = "on",
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["//quality:corpus_vale_config"],
+    markdown_srcs = glob(["testdata/*/README.md"]),
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

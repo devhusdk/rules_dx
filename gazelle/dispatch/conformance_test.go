@@ -68,6 +68,15 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"elixir_app", "ex_unit_test"},
 		oldSrcs: []string{"lib/old.ex"},
 	},
+	"erlang": {
+		files: map[string]string{
+			"src/demo.app.src": "{application, demo, [{vsn, \"1.0.0\"}]}.\n",
+			"src/demo.erl":     "-module(demo).\n-export([f/0]).\nf() -> true.\n",
+		},
+		kind: "erlang_app", target: "erlang_app", defs: "erlang/rules:defs.bzl",
+		symbols: []string{"erlang_app", "erlang_nif"},
+		oldSrcs: []string{"src/old.erl"},
+	},
 	"fsharp": {
 		files: map[string]string{"Demo.fs": "namespace Demo\n\ntype Demo = class end\n"},
 		kind:  "fsharp_library", target: "demo", defs: "fsharp/rules:defs.bzl",

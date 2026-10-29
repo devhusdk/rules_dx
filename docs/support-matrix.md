@@ -32,7 +32,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Kotlin | none |
 | Lua | none |
 | MDX | none |
-| OCaml | `windows_x86_64`: not tested yet; `windows_arm64`: conda-forge ships no win-arm64 OCaml package |
+| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package |
 | Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build |
 | PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build |
 | PowerShell | none |

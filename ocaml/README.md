@@ -171,7 +171,7 @@ findings report the same workspace path.
 | `linux_arm64` | any | Not qualified |
 | `macos_x86_64` | any | Not qualified |
 | `macos_arm64` | any | Not qualified |
-| `windows_x86_64` | any | Not qualified |
+| `windows_x86_64` | any | Not applicable (conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2) |
 | `windows_arm64` | n/a | conda-forge ships no win-arm64 OCaml package |
 
 On other platforms OCaml targets fail toolchain resolution.

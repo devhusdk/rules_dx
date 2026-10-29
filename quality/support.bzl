@@ -1156,6 +1156,20 @@ PKL_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+PKL_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["pkl"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "pkl",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "pkl",
+    "transport": "single",
+}
+
 LUA_STYLUA_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1530,6 +1544,7 @@ SUPPORT_RECORDS = [
     LATEX_CHKTEX_LINT_SUPPORT,
     ASCIIDOC_VALE_LINT_SUPPORT,
     PKL_FORMAT_SUPPORT,
+    PKL_TYPECHECK_SUPPORT,
     LUA_STYLUA_SUPPORT,
     REGO_OPA_FORMAT_SUPPORT,
     REGO_OPA_TYPECHECK_SUPPORT,

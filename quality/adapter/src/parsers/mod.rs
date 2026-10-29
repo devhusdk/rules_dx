@@ -176,7 +176,7 @@ pub use perlcritic::parse_perlcritic;
 pub use perltidy::parse_perltidy;
 pub use phpcs::parse_phpcs;
 pub use phpstan::parse_phpstan;
-pub use pkl::parse_pkl;
+pub use pkl::{parse_pkl, parse_pkl_eval};
 pub use pmd::parse_pmd;
 pub use prettier::{parse_prettier_check, parse_prettier_check_with_sources};
 pub use psscriptanalyzer::{parse_psscriptanalyzer, parse_psscriptanalyzer_format};
@@ -2006,6 +2006,14 @@ mod tests {
         )
     }
 
+    fn fuzz_pkl_eval(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::pkl::parse_pkl_eval(input, input, code, files)
+    }
+
     fn fuzz_pkl(
         input: &[u8],
         code: Option<i32>,
@@ -2715,6 +2723,7 @@ mod tests {
         ("perlcritic", fuzz_perlcritic),
         ("perltidy", fuzz_perltidy),
         ("pkl", fuzz_pkl),
+        ("pkl_eval", fuzz_pkl_eval),
         ("phpcs", fuzz_phpcs),
         ("phpstan", fuzz_phpstan),
         ("pmd", fuzz_pmd),

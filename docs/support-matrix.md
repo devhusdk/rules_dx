@@ -116,7 +116,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Kubernetes | `kubeconform` | `prettier` | n/a |
 | LaTeX | `chktex` unsupported | `latexindent` | n/a |
 | Nix | `deadnix`, `statix` | `nixfmt` | n/a |
-| Pkl | no | `pkl` | no |
+| Pkl | no | `pkl` | `pkl` |
 | Rego | `regal` | `opa` | `opa` |
 | reStructuredText | `vale` | no | n/a |
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a |

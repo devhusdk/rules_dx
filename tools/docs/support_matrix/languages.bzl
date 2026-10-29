@@ -324,10 +324,9 @@ GAP_ISSUES = {
     "typecheck:julia": 4532,
     "typecheck:mdx": 1768,
     "typecheck:ocaml": 4530,
-    "typecheck:pkl": 4533,
     "typecheck:scala": 4528,
     "typecheck:svelte": 1766,
-    "typecheck:terraform": 4533,
+    "typecheck:terraform": 4751,
     "typecheck:vue": 4525,
     "typecheck:zig": 4530,
 }

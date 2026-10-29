@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_pkl_typecheck_pass
+capability TYPECHECK
+stages 1
+stage pkl classes=pkl sources=quality/tests/fixtures/consumer_policy/pkl_module/lib/settings.pkl,quality/tests/fixtures/consumer_policy/pkl_module/main.pkl
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

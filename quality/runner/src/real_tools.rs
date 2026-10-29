@@ -5944,6 +5944,109 @@ fn cue_vet_fake(
     })
 }
 
+/// Stands in for `pkl eval`: asserts the sealed argv and environment, one module per spawn.
+fn pkl_eval_fake(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let args: Vec<String> = argv[1..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(args[0], "eval");
+    for flag in ["--no-cache", "--no-project", "--root-dir"] {
+        assert!(args.iter().any(|arg| arg == flag), "{flag} in {args:?}");
+    }
+    let modules = &args[args.iter().position(|a| a == "--root-dir").unwrap() + 2..];
+    let load_only = args.iter().any(|arg| arg == "-x");
+    let module = PathBuf::from(args.last().expect("module"));
+    assert!(module.is_absolute() && module.extension().is_some_and(|e| e == "pkl"));
+    assert!(modules.len() == if load_only { 3 } else { 1 }, "{args:?}");
+    for key in ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"] {
+        assert!(
+            env.iter()
+                .all(|(known, _)| !known.to_string_lossy().eq_ignore_ascii_case(key)),
+            "{key} never reaches pkl"
+        );
+    }
+    let text = std::fs::read_to_string(&module).unwrap_or_default();
+    if text.contains("abstract module") {
+        assert!(load_only, "abstract modules are only loaded");
+    }
+    let located = |file: &Path| {
+        format!(
+            "\u{2013}\u{2013} Pkl Error \u{2013}\u{2013}\nBoom.\n\n1 | x\n    ^\nat m#x (file://{}, line 1)\n",
+            file.display()
+        )
+        .into_bytes()
+    };
+    if text.contains("DEPBAD") {
+        let dep = module.parent().expect("dir").join("lib/dep.pkl");
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: located(&dep),
+        });
+    }
+    if text.contains("BAD") {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: located(&module),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: b"x = 1\n".to_vec(),
+        stderr: Vec::new(),
+    })
+}
+
+fn pkl_modules(main: &str) -> BTreeMap<String, String> {
+    let mut files = single("app/main.pkl", main);
+    files.insert("app/lib/dep.pkl".to_owned(), "y = 1\n".to_owned());
+    files
+}
+
+#[test]
+fn pkl_typecheck_evals_each_module_sealed_and_offline() {
+    let backend = backend_for("pkl", plain_tool(), pkl_eval_fake);
+    let clean = backend
+        .diagnose("pkl", "typecheck", &pkl_modules("x = 1\n"))
+        .expect("diagnosed");
+    assert!(clean.is_empty(), "{clean:?}");
+    let found = backend
+        .diagnose("pkl", "typecheck", &pkl_modules("BAD\n"))
+        .expect("diagnosed");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].path, "app/main.pkl");
+}
+
+#[test]
+fn pkl_typecheck_only_loads_abstract_modules() {
+    let backend = backend_for("pkl", plain_tool(), pkl_eval_fake);
+    let clean = backend
+        .diagnose(
+            "pkl",
+            "typecheck",
+            &pkl_modules("abstract module m\nname: String\n"),
+        )
+        .expect("diagnosed");
+    assert!(clean.is_empty(), "{clean:?}");
+}
+
+#[test]
+fn pkl_typecheck_dependency_failure_is_an_execution_error() {
+    let backend = backend_for("pkl", plain_tool(), pkl_eval_fake);
+    let mut files = pkl_modules("DEPBAD\n");
+    files.remove("app/lib/dep.pkl");
+    let err = backend
+        .diagnose("pkl", "typecheck", &files)
+        .expect_err("an unlocatable dependency must not be clean");
+    assert!(err.to_string().contains("pkl"), "{err}");
+}
+
 fn cue_module(main: &str) -> BTreeMap<String, String> {
     let mut files = single("app/main.cue", main);
     files.insert(

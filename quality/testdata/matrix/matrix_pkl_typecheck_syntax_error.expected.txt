@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_pkl_typecheck_syntax_error
+capability TYPECHECK
+stages 1
+stage pkl classes=pkl sources=matrix/pkl_tc_broken.pkl
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR pkl - matrix/pkl_tc_broken.pkl 8 8 fixable=false "Unexpected token `=`."
+terminal 1
+terminal ERROR pkl - matrix/pkl_tc_broken.pkl 8 8 fixable=false "Unexpected token `=`."
+replacements 0

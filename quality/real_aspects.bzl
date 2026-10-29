@@ -524,7 +524,7 @@ _REAL_TOOL_TABLE = {
     },
     "pkl": {
         "attr": attr.label(default = "//config:tool_pkl", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
+        "capabilities": ["format", "typecheck"],
         "kind": "file",
         "resources": "medium",
         "shard": "pkl",
@@ -1661,6 +1661,14 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
                 continue
             resolve_pairs[ws_path] = f
+    if "pkl" in stage_tools and capability != "format":
+        for f in target[DefaultInfo].files.to_list():
+            ws_path = f.short_path
+            if ".." in ws_path.split("/") or f.extension != "pkl":
+                continue
+            if ws_path in path_to_file or ws_path in sibling_pairs or ws_path in resolve_pairs:
+                continue
+            resolve_pairs[ws_path] = f
     if "opa" in stage_tools and RegoInfo in target:
         for f in target[RegoInfo].transitive_srcs.to_list():
             ws_path = f.short_path
@@ -2499,6 +2507,12 @@ _REAL_SHARD_SPECS = {
         "shard": "pkl",
         "suffix": "-pkl",
     },
+    "real_pkl_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Pkl typecheck family aspect (pkl eval, offline, one module per run).",
+        "shard": "pkl",
+        "suffix": "-pkl",
+    },
     "real_terraform_format": {
         "capability": "format",
         "doc": "Additive Terraform format family aspect (terraform fmt).",
@@ -2748,6 +2762,7 @@ real_rego_typecheck_aspect = _make_real_aspect("real_rego_typecheck")
 real_rego_lint_aspect = _make_real_aspect("real_rego_lint")
 
 real_pkl_format_aspect = _make_real_aspect("real_pkl_format")
+real_pkl_typecheck_aspect = _make_real_aspect("real_pkl_typecheck")
 
 real_text_lint_aspect = _make_real_aspect("real_text_lint")
 

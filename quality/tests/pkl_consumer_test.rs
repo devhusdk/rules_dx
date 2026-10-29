@@ -28,12 +28,10 @@ const BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "
 
 quality_family(
     name = "pkl_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["lint"],
     family_id = "pkl",
     format = ["pkl"],
+    typecheck = ["pkl"],
 )
 
 workspace_policy(
@@ -138,6 +136,30 @@ fn format_check_keeps_bytes_apply_rewrites_and_recheck_passes() {
     assert_eq!(read(&root.join("app/main.pkl")), MAIN);
 
     let again = dx(&root, "format", &[]);
+    assert_eq!(again.status.code(), Some(0), "{}", again.combined());
+}
+
+#[test]
+fn typecheck_passes_a_module_that_imports_a_library_across_packages() {
+    let root = consumer();
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(0), "{}", out.combined());
+}
+
+#[test]
+fn typecheck_reports_a_type_error_at_the_owned_file_and_recovers() {
+    let root = consumer();
+    let values = root.join("app/values.pkl");
+    write(&values, "limits {\n  retries = 3\n}\nname: Int = \"app\"\n");
+    let out = dx(&root, "typecheck", &[]);
+    assert_eq!(out.status.code(), Some(1), "{}", out.combined());
+    assert!(
+        out.combined().contains("app/values.pkl:"),
+        "{}",
+        out.combined()
+    );
+    write(&values, VALUES);
+    let again = dx(&root, "typecheck", &[]);
     assert_eq!(again.status.code(), Some(0), "{}", again.combined());
 }
 

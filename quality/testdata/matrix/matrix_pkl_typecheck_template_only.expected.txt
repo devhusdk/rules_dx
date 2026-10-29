@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_pkl_typecheck_template_only
+capability TYPECHECK
+stages 1
+stage pkl classes=pkl sources=matrix/pkl_tc_template.pkl
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

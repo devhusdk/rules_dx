@@ -16,6 +16,7 @@ load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
+load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
 load(":toolchain_tests.bzl", "toolchain_unit_tests")
@@ -67,6 +68,8 @@ arithmetic_unit_tests(name = "arithmetic_unit")
 arithmetic_load_tests(name = "arithmetic_load")
 
 cells_tests(name = "cells")
+
+seven_zip_tests(name = "seven_zip")
 
 action_unit_tests(name = "action_unit")
 
@@ -198,6 +201,7 @@ real_source_target(
         "matrix_tests.bzl",
         "output_group_tests.bzl",
         "packaging_tests.bzl",
+        "seven_zip_tests.bzl",
         "subject.bzl",
         "thin_compare.bzl",
         "toolchain_tests.bzl",

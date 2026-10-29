@@ -39,7 +39,8 @@ d_test(
   `linkopts` pass through to `rules_d`. Files in `string_srcs` are read with
   `import("file")` and are not D sources.
 - `D_COMPATIBLE_WITH` skips D targets on hosts without a pinned LDC: linux x86_64,
-  linux arm64 and macOS arm64. Windows is tracked in the support matrix gap ledger.
+  linux arm64, macOS arm64, Windows x86_64 and Windows arm64. The Windows cells constrain on
+  the `@llvm//constraints/windows/abi:msvc` ABI, because LDC's prebuilt runtime is MSVC-ABI.
 
 ## Formatting
 
@@ -60,5 +61,10 @@ carry the pinned D-Scanner, so no flag is needed. See "D linting" in
 | Linux x86_64 | yes | yes |
 | Linux arm64 | yes | no |
 | macOS arm64 | yes | no |
-| Windows x86_64 | yes | no |
-| Windows arm64 | no | no |
+| Windows x86_64 | yes | pending CI |
+| Windows arm64 | via emulation | pending CI |
+
+The Windows archives are `.7z` files that use BCJ2, which Bazel cannot unpack, so they are
+extracted with the pinned 7-Zip in `//libs/starlark:seven_zip.bzl`. LDC has no native Windows
+arm64 compiler: that cell runs the x64 LDC under emulation with the arm64 runtime libraries of the
+LDC addon package, and compiles with `-mtriple=aarch64-windows-msvc`.

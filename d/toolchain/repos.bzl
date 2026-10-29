@@ -2,6 +2,7 @@
 
 load("//erlang/toolchain:pins.bzl", "CELLS")
 load("//erlang/toolchain:repos.bzl", "CLOSURE_DIR", "runtime_closure")
+load("//libs/starlark:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
 
 HUB_NAME = "dx_d_toolchains"
@@ -12,13 +13,15 @@ VERSION_FILE = "DX_LDC_VERSION"
 
 COMPILER_WRAPPER = "bin/dx_ldmd2"
 
-REQUIRED_PATHS = [
-    "bin/ldc2",
-    "bin/ldmd2",
-    "etc/ldc2.conf",
-    "lib/libdruntime-ldc.a",
-    "lib/libphobos2-ldc.a",
-]
+SEVEN_ZIP_DIR = "_dx_7zip"
+
+SCRATCH_DIR = "_dx_extract"
+
+ADDON_DIR = "_dx_addon"
+
+def ldc_required_paths(cell):
+    """Returns the paths one LDC cell's archive must provide."""
+    return [cell.ldc, cell.compiler, "etc/ldc2.conf", cell.druntime, cell.phobos]
 
 DROPPED_PATHS = [
     ".bazelignore",
@@ -67,10 +70,10 @@ _RUNTIME_LINKOPTS = {linkopts}
 filegroup(
     name = "compiler_files",
     srcs = [
-        "bin/ldc2",
-        "bin/ldmd2",
+        "{ldc}",
+        "{compiler}",
     ] + glob([
-{closure_glob}        "etc/ldc2.conf/**",
+{closure_glob}{data_globs}        "etc/ldc2.conf/**",
         "import/**",
     ]),
 )
@@ -78,13 +81,13 @@ filegroup(
 cc_import(
     name = "druntime",
     linkopts = _RUNTIME_LINKOPTS,
-    static_library = "lib/libdruntime-ldc.a",
+    static_library = "{druntime}",
 )
 
 cc_import(
     name = "libphobos",
     linkopts = _RUNTIME_LINKOPTS,
-    static_library = "lib/libphobos2-ldc.a",
+    static_library = "{phobos}",
 )
 
 filegroup(
@@ -95,12 +98,12 @@ filegroup(
 
 filegroup(
     name = "dub",
-    srcs = ["bin/dub"],
+    srcs = ["{dub}"],
 )
 
 d_toolchain(
     name = "d_toolchain",
-    compiler_flags = [],
+    compiler_flags = {compiler_flags},
     d_compiler = ":dmd",
     druntime = ":druntime",
     dub_tool = ":dub",
@@ -282,28 +285,65 @@ _rules_d = repository_rule(
     },
 )
 
+def _extract_7z(rctx, cell):
+    """Unpacks a .7z LDC archive with the pinned 7-Zip, leaving no extractor or scratch archive behind."""
+    seven_zip = seven_zip_fetch(rctx, SEVEN_ZIP_DIR)
+    archive = SCRATCH_DIR + "/" + cell.archive
+    rctx.download(url = LDC_RELEASES + cell.archive, output = archive, sha256 = cell.sha256)
+    seven_zip_extract(rctx, seven_zip, archive, SCRATCH_DIR + "/out")
+    rctx.delete(archive)
+    for child in rctx.path(SCRATCH_DIR + "/out/" + cell.strip_prefix).readdir():
+        rctx.rename(child, rctx.path(child.basename))
+    rctx.delete(SCRATCH_DIR)
+    rctx.delete(SEVEN_ZIP_DIR)
+
+def _overlay_addon(rctx, addon):
+    """Overlays the kept paths of an LDC addon package onto the repository root."""
+    rctx.download_and_extract(url = LDC_RELEASES + addon.archive, sha256 = addon.sha256, output = ADDON_DIR)
+    for path in addon.keep:
+        rctx.rename(ADDON_DIR + "/" + path, path)
+    rctx.delete(ADDON_DIR)
+
 def _ldc_impl(rctx):
     cell = LDC_CELLS[rctx.attr.cell]
-    rctx.download_and_extract(
-        url = LDC_RELEASES + cell.archive,
-        sha256 = cell.sha256,
-        stripPrefix = cell.strip_prefix,
-    )
-    for path in REQUIRED_PATHS:
+    if cell.archive.endswith(".7z"):
+        _extract_7z(rctx, cell)
+    else:
+        rctx.download_and_extract(
+            url = LDC_RELEASES + cell.archive,
+            sha256 = cell.sha256,
+            stripPrefix = cell.strip_prefix,
+        )
+    if cell.addon:
+        _overlay_addon(rctx, cell.addon)
+    for path in ldc_required_paths(cell):
         if not rctx.path(path).exists:
             fail("LDC archive " + cell.archive + " has no " + path)
     runtime_closure(rctx, ldc_runtime(rctx.attr.cell))
-    rctx.file(COMPILER_WRAPPER, WRAPPER.format(closure = CLOSURE_DIR), executable = True)
+    compiler = cell.compiler
+    if cell.wrapper:
+        compiler = COMPILER_WRAPPER
+        rctx.file(COMPILER_WRAPPER, WRAPPER.format(closure = CLOSURE_DIR), executable = True)
     rctx.file(VERSION_FILE, LDC_VERSION + "\n")
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", LDC_BUILD.format(
-        closure = CLOSURE_DIR,
-        closure_glob = '        "' + CLOSURE_DIR + '/lib/**",\n' if cell.runtime else "",
-        linkopts = repr(cell.linkopts),
-        version_file = VERSION_FILE,
-        wrapper = COMPILER_WRAPPER,
-    ))
+    rctx.file("BUILD.bazel", ldc_build(cell, compiler))
     return rctx.repo_metadata(reproducible = True)
+
+def ldc_build(cell, wrapper):
+    """Renders the BUILD file of one LDC cell; wrapper is the d_compiler launcher or the compiler itself."""
+    return LDC_BUILD.format(
+        closure_glob = '        "' + CLOSURE_DIR + '/lib/**",\n' if cell.runtime else "",
+        compiler = cell.compiler,
+        compiler_flags = repr(cell.compiler_flags),
+        data_globs = "".join(['        "' + glob + '",\n' for glob in cell.data_globs]),
+        druntime = cell.druntime,
+        dub = cell.dub,
+        ldc = cell.ldc,
+        linkopts = repr(cell.linkopts),
+        phobos = cell.phobos,
+        version_file = VERSION_FILE,
+        wrapper = wrapper,
+    )
 
 _ldc = repository_rule(
     implementation = _ldc_impl,

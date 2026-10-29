@@ -89,6 +89,7 @@ REAL_ADAPTERS = {
     "nixfmt": {"format": ["nix"]},
     "notebook_outputs": {"lint": ["jupyter"]},
     "nvcc_syntax": {"typecheck": ["cuda"]},
+    "ocaml": {"typecheck": ["ocaml"]},
     "ormolu": {"format": ["haskell"]},
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
     "perlcritic": {"lint": ["perl"]},

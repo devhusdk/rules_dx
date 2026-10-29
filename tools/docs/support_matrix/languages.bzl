@@ -322,7 +322,6 @@ GAP_ISSUES = {
     "typecheck:astro": 1767,
     "typecheck:haskell": 4530,
     "typecheck:mdx": 1768,
-    "typecheck:ocaml": 4530,
     "typecheck:svelte": 1766,
     "typecheck:terraform": 4751,
     "typecheck:vue": 4525,

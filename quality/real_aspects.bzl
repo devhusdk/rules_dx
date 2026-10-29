@@ -883,6 +883,12 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "yaml",
     },
+    "ocaml": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "ocaml",
+    },
     "zanuda": {
         "attr": attr.label(default = "//quality/tools/ocaml:zanuda_tool", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -2709,6 +2715,13 @@ _REAL_SHARD_SPECS = {
         "shard": "ocaml",
         "suffix": "-ocaml",
     },
+    "real_ocaml_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive OCaml typecheck family aspect (ocamlc -stop-after typing replay of the compile action).",
+        "requires": [compile_check_aspect],
+        "shard": "ocaml",
+        "suffix": "-ocaml",
+    },
     "real_terraform_format": {
         "capability": "format",
         "doc": "Additive Terraform format family aspect (terraform fmt).",
@@ -2904,6 +2917,8 @@ real_nix_format_aspect = _make_real_aspect("real_nix_format")
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
 
 real_ocaml_format_aspect = _make_real_aspect("real_ocaml_format")
+
+real_ocaml_typecheck_aspect = _make_real_aspect("real_ocaml_typecheck")
 
 real_ocaml_lint_aspect = _make_real_aspect("real_ocaml_lint")
 

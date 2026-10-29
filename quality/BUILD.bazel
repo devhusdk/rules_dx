@@ -33,6 +33,7 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "clang_tidy_run.sh",
+    "compile_check_exec.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
     "execution_requirements.bzl",
@@ -655,7 +656,15 @@ sh_test(
 )
 
 nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
+
 compile_check_unit_tests(name = "compile_check_unit")
+
+sh_test(
+    name = "compile_check_exec_test",
+    srcs = ["compile_check_exec_test.sh"],
+    args = ["$(location :compile_check_exec.sh)"],
+    data = [":compile_check_exec.sh"],
+)
 
 test_suite(
     name = "all",
@@ -663,6 +672,7 @@ test_suite(
         ":consumer_policy_ansible_linted_test",
         ":consumer_policy_api_spec_linted_test",
         ":clang_tidy_run_test",
+        ":compile_check_exec_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
         ":consumer_policy_bicep_checked_test",

@@ -1,0 +1,33 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//ocaml/rules:defs.bzl", "ocaml_module")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["bad.ml"])
+
+ocaml_module(
+    name = "bad",
+    struct = "bad.ml",
+    tags = ["manual"],
+)
+
+ocaml_module(
+    name = "good",
+    struct = "good.ml",
+    tags = ["manual"],
+)
+
+ocaml_module(
+    name = "signed",
+    sig = "signed.mli",
+    struct = "signed.ml",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

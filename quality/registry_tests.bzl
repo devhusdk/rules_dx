@@ -80,9 +80,9 @@ def registry_unit_tests(name):
                 True,
             ),
             expect_equal(
-                "flang, ldc and zig are registry tools",
-                [is_registry_tool("flang"), is_registry_tool("ldc"), is_registry_tool("zig")],
-                [True, True, True],
+                "flang, ldc, ocaml and zig are registry tools",
+                [is_registry_tool("flang"), is_registry_tool("ldc"), is_registry_tool("ocaml"), is_registry_tool("zig")],
+                [True, True, True, True],
             ),
             expect_equal(
                 "scalac is a registry tool",

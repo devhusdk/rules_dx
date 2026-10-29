@@ -7,6 +7,7 @@ DEV_ONLY_REPOS = [
     "dx_rustdoc",
     "firefox",
     "googletest",
+    "rules_nodejs",
     "toolchains_llvm",
 ]
 

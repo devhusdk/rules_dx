@@ -16,14 +16,55 @@ pub(super) struct FsharplintInputs {
 
 /// Points Bicep's module cache at the scratch home whatever the bound config says, because
 /// .NET on Windows ignores `USERPROFILE` and a config may name a host `cacheRootDirectory`.
-/// A config that is not plain JSON object text is kept as is.
+/// Bicep accepts comments in `bicepconfig.json`, so they are stripped before parsing. A config
+/// that is still not a JSON object is kept as is; Bicep then rejects it itself.
+fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    let mut in_string = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_string {
+            out.push(b);
+            if b == b'\\' && i + 1 < bytes.len() {
+                out.push(bytes[i + 1]);
+                i += 1;
+            } else if b == b'"' {
+                in_string = false;
+            }
+        } else if b == b'"' {
+            in_string = true;
+            out.push(b);
+        } else if b == b'/' && bytes.get(i + 1) == Some(&b'/') {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        } else if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i += 2;
+            out.push(b' ');
+            continue;
+        } else {
+            out.push(b);
+        }
+        i += 1;
+    }
+    out
+}
+
 fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
     let mut config = match bound {
         None => serde_json::Value::Object(serde_json::Map::new()),
-        Some(bytes) => match serde_json::from_slice::<serde_json::Value>(&bytes) {
-            Ok(value) if value.is_object() => value,
-            _ => return bytes,
-        },
+        Some(bytes) => {
+            match serde_json::from_slice::<serde_json::Value>(&strip_json_comments(&bytes)) {
+                Ok(value) if value.is_object() => value,
+                _ => return bytes,
+            }
+        }
     };
     if let Some(object) = config.as_object_mut() {
         object.insert(
@@ -679,5 +720,20 @@ mod ansible_roots_tests {
         ])
         .expect_err("duplicate");
         assert!(err.contains("x.y"), "{err}");
+    }
+}
+
+#[cfg(test)]
+mod bicep_config_tests {
+    use super::pin_bicep_cache;
+    use std::path::Path;
+
+    #[test]
+    fn commented_config_is_still_pinned_to_scratch() {
+        let bound = b"{\n // host cache\n \"cacheRootDirectory\": \"/host/x//y\", /* c */\n \"analyzers\": {}\n}".to_vec();
+        let out = String::from_utf8(pin_bicep_cache(Some(bound), Path::new("/scratch"))).unwrap();
+        assert!(!out.contains("/host"), "{out}");
+        assert!(out.contains("/scratch"), "{out}");
+        assert!(out.contains("analyzers"), "{out}");
     }
 }

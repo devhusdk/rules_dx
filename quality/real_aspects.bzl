@@ -27,7 +27,7 @@ load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps"
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
-load("//quality:compile_check.bzl", "CompileCheckInfo", "compile_check_aspect")
+load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
@@ -866,6 +866,12 @@ _REAL_TOOL_TABLE = {
         "shard": "core",
         "target_tool": True,
     },
+    "zig": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "zig",
+    },
     "zig_ast_check": {
         "attr": attr.label(default = "//config:tool_zig_ast_check", allow_files = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -1493,7 +1499,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 go_reports[go_tool] = target[GoAnalysisInfo].reports[go_tool]
 
     compile_check = None
-    for compile_tool in ["flang", "ldc"]:
+    for compile_tool in COMPILE_CHECK_TOOLS:
         if compile_tool in [stage["tool"] for stage in resolved]:
             if CompileCheckInfo not in target or target[CompileCheckInfo].tool != compile_tool:
                 resolved = drop_pipeline_tool(resolved, compile_tool)
@@ -1922,7 +1928,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         if tool in _JVM_CHECK_TOOLS:
             upstream.append(jvm_check.log.path)
             inputs.append(jvm_check.log)
-        if tool == "flang" or tool == "ldc":
+        if tool in COMPILE_CHECK_TOOLS:
             for i in range(len(compile_check.diagnostics)):
                 upstream.append(compile_check.diagnostics[i].path)
                 inputs.append(compile_check.diagnostics[i])
@@ -2576,6 +2582,13 @@ _REAL_SHARD_SPECS = {
         "shard": "text",
         "suffix": "-text",
     },
+    "real_zig_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Zig typecheck family aspect (zig -fno-emit-bin replay of the compile action).",
+        "requires": [compile_check_aspect],
+        "shard": "zig",
+        "suffix": "-zig",
+    },
     "real_typecheck": {
         "capability": "typecheck",
         "doc": "Registers the exact-input real typecheck pipeline action in dx_results.",
@@ -2679,6 +2692,8 @@ real_lint_aspect = _make_real_aspect("real_lint")
 real_format_aspect = _make_real_aspect("real_format")
 
 real_typecheck_aspect = _make_real_aspect("real_typecheck")
+
+real_zig_typecheck_aspect = _make_real_aspect("real_zig_typecheck")
 
 real_cc_format_aspect = _make_real_aspect("real_cc_format")
 

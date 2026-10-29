@@ -388,7 +388,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "redocly" | "kubeconform" | "helm" | "capnp" | "checkmake" | "flatc" | "tflint"
         | "cfn_lint" | "cmakelint" | "credo" | "dialyzer" | "elvis" | "gotype" | "luals"
         | "phpcs" | "phpstan" | "regal" | "sorbet" | "tsc" | "javac" | "kotlinc" | "scalac"
-        | "flang" | "ldc" | "zig_ast_check" | "xmllint" | "selene" => Ok(Route::Keep),
+        | "flang" | "ldc" | "zig" | "zig_ast_check" | "xmllint" | "selene" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(execution(

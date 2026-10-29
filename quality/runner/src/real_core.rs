@@ -260,6 +260,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "yamlfmt",
             "xmllint",
             "yamllint",
+            "zig",
             "zig_ast_check",
             "zig_fmt",
         ]

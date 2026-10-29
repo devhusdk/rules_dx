@@ -80,6 +80,7 @@ load(
     "real_text_lint_aspect",
     "real_typecheck_probe_aspect",
     "real_typst_format_aspect",
+    "real_xml_lint_aspect",
     "real_yaml_format_aspect",
     "real_yaml_lint_aspect",
 )
@@ -182,6 +183,7 @@ _REAL_ASPECTS = [
     real_text_lint_aspect,
     real_html_template_format_aspect,
     real_html_template_lint_aspect,
+    real_xml_lint_aspect,
     real_yaml_format_aspect,
     real_yaml_lint_aspect,
 ]

@@ -1307,6 +1307,20 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/b.F90"
         ]
     );
+    assert_eq!(
+        argv_strings(&xmllint_check(
+            Path::new(BIN),
+            &[Path::new("/scratch/a.xml"), Path::new("/scratch/b.xml")]
+        )),
+        vec![
+            BIN,
+            "--noout",
+            "--nonet",
+            "--nocatalogs",
+            "/scratch/a.xml",
+            "/scratch/b.xml"
+        ]
+    );
     let jsonnet = Path::new("/scratch/Sample.jsonnet");
     assert_eq!(
         argv_strings(&jsonnet_lint_check(Path::new(BIN), &[jsonnet])),
@@ -2444,6 +2458,7 @@ fn file_independent_tools_batch() {
         "pydoclint",
         "buildifier",
         "deadnix",
+        "xmllint",
     ] {
         assert_eq!(transport_for(tool), ArgTransport::Batched, "{tool}");
     }

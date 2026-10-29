@@ -816,6 +816,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "core",
     },
+    "xmllint": {
+        "attr": attr.label(default = "//quality/tools/xml:xmllint", cfg = "exec", executable = True),
+        "capabilities": ["lint"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "xml",
+    },
     "yamlfmt": {
         "attr": attr.label(default = "@dx_tools//:yamlfmt", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
@@ -2153,6 +2160,12 @@ _REAL_SHARD_SPECS = {
         "shard": "html_template",
         "suffix": "-html-template",
     },
+    "real_xml_lint": {
+        "capability": "lint",
+        "doc": "Additive XML lint family aspect (xmllint, built from the BCR libxml2 module).",
+        "shard": "xml",
+        "suffix": "-xml",
+    },
     "real_yaml_format": {
         "capability": "format",
         "doc": "Additive YAML format family aspect (yamlfmt).",
@@ -2656,6 +2669,8 @@ real_ruby_lint_aspect = _make_real_aspect("real_ruby_lint")
 real_html_template_format_aspect = _make_real_aspect("real_html_template_format")
 
 real_html_template_lint_aspect = _make_real_aspect("real_html_template_lint")
+
+real_xml_lint_aspect = _make_real_aspect("real_xml_lint")
 
 real_yaml_format_aspect = _make_real_aspect("real_yaml_format")
 

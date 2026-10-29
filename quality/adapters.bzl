@@ -135,6 +135,7 @@ REAL_ADAPTERS = {
     "ldc": {"typecheck": ["d"]},
     "chktex": {"lint": ["latex"]},
     "vale": {"lint": ["asciidoc", "markdown", "rst"]},
+    "xmllint": {"lint": ["xml"]},
     "yamlfmt": {"format": ["yaml"]},
     "yamllint": {"lint": ["yaml"]},
     "zig_ast_check": {"lint": ["zig"]},

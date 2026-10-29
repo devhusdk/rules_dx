@@ -1368,6 +1368,14 @@ impl RealBackend {
                     parsers::parse_hlint(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "xmllint" => {
+                let invocation = commands::xmllint_check(&tool.binary, &refs);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                parsed(
+                    tool_id,
+                    parsers::parse_xmllint(&out.stderr, out.code, &strs),
+                )
+            }
             "jsonnet_lint" => {
                 let invocation = commands::jsonnet_lint_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;

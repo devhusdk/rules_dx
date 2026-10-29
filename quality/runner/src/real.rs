@@ -119,6 +119,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "typstyle",
     "vale",
     "yamlfmt",
+    "xmllint",
     "yamllint",
     "zig_ast_check",
     "zig_fmt",

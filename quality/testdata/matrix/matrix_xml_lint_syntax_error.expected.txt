@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_xml_lint_syntax_error
+capability LINT
+stages 1
+stage xmllint classes=xml sources=matrix/xml_broken.xml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR xmllint parser matrix/xml_broken.xml 0 0 fixable=false "Entity 'undefined' not defined"
+terminal 1
+terminal ERROR xmllint parser matrix/xml_broken.xml 0 0 fixable=false "Entity 'undefined' not defined"
+replacements 0

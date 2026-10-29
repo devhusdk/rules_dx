@@ -317,7 +317,6 @@ GAP_ISSUES = {
     "lint:ocaml": 4621,
     "lint:pkl": 4623,
     "lint:typst": 4623,
-    "lint:xml": 4618,
     "support:*": 4441,
     "typecheck:astro": 1767,
     "typecheck:haskell": 4530,

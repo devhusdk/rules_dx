@@ -335,6 +335,7 @@ to.
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
+| `xmllint` | lint | xml |
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
 | `zig_ast_check` | lint | zig |
@@ -3248,6 +3249,34 @@ ruby_library(
     srcs = ["greeter.rb"],
 )
 ```
+
+### XML lint
+
+`xmllint` from libxml2 checks that XML is well formed, for lint. Select it in
+the `xml` family next to `prettier`. It is built from source through the
+`libxml2` Bazel module, so it runs wherever the C toolchain builds: Linux x86_64
+and arm64, macOS arm64 and Windows x86_64. Windows arm64 is not qualified yet.
+
+```python
+quality_family(
+    name = "xml_family",
+    family_id = "xml",
+    format = ["prettier"],
+    lint = ["xmllint"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //config/...
+```
+
+It runs with `--noout --nonet --nocatalogs`, so nothing is fetched and no
+catalog or DTD is read. It checks well-formedness only. It does not validate
+against a DTD, XSD or RelaxNG schema. Each problem is a finding with the file
+and line. A missing file, an exit code it does not recognise, output it cannot
+place in a passed file, or a finding in a file that was not passed fails the
+run and never counts as clean. It has no fix, so `--apply` leaves the files
+alone.
 
 ### YAML
 

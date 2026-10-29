@@ -103,6 +103,7 @@ pub mod tsc;
 pub mod ty;
 pub mod typstyle;
 pub mod vale;
+pub mod xmllint;
 pub mod yamlfmt;
 pub mod yamllint;
 pub mod zig_ast_check;
@@ -211,6 +212,7 @@ pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
 pub use typstyle::parse_typstyle;
 pub use vale::parse_vale;
+pub use xmllint::parse_xmllint;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
 pub use zig_ast_check::parse_zig_ast_check;
@@ -2631,6 +2633,14 @@ mod tests {
         super::vale::parse_vale(input, code, files)
     }
 
+    fn fuzz_xmllint(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::xmllint::parse_xmllint(input, code, files)
+    }
+
     fn fuzz_yamlfmt(
         input: &[u8],
         code: Option<i32>,
@@ -2767,6 +2777,7 @@ mod tests {
         ("ty", fuzz_ty),
         ("typstyle", fuzz_typstyle),
         ("vale", fuzz_vale),
+        ("xmllint", fuzz_xmllint),
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
         ("zig_ast_check", fuzz_zig_ast_check),
@@ -2880,6 +2891,7 @@ mod tests {
         ("ty", include_str!("ty.rs")),
         ("typstyle", include_str!("typstyle.rs")),
         ("vale", include_str!("vale.rs")),
+        ("xmllint", include_str!("xmllint.rs")),
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
         ("zig_ast_check", include_str!("zig_ast_check.rs")),

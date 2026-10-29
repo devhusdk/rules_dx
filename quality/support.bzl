@@ -415,6 +415,20 @@ NIX_DEADNIX_SUPPORT = {
     "transport": "batched",
 }
 
+XML_XMLLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["xml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "xml",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "xmllint",
+    "transport": "batched",
+}
+
 TERRAFORM_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1537,6 +1551,7 @@ SUPPORT_RECORDS = [
     JSONNET_LINT_SUPPORT,
     FORTRAN_FFMT_FORMAT_SUPPORT,
     FORTRAN_FORTITUDE_LINT_SUPPORT,
+    XML_XMLLINT_LINT_SUPPORT,
     HASKELL_HLINT_LINT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,
     TYPST_TYPSTYLE_FORMAT_SUPPORT,

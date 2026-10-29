@@ -29,6 +29,9 @@ single_version_override(
     version = "0.2.27",
 )
 
+# xmllint comes from the BCR source build; the overlay carries its own cc_binary (#4618)
+bazel_dep(name = "libxml2", version = "2.15.3")
+
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "llvm", version = "0.8.25")
 single_version_override(

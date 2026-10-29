@@ -84,15 +84,16 @@ func isCudaLibraryHeader(name string) bool { return IsHeader(name) || IsCudaHead
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	// An Erlang app lists its c_src sources in its own erlang_nif rule.
-	if args.Config != nil && common.IsErlangNifDir(args.Config.RepoRoot, args.Rel) {
-		return language.GenerateResult{}
-	}
 	// Gazelle owns only <dir>_cuda, so MergeStale must never see cuda_library.
 	owned := make(map[string]rule.KindInfo, len(kinds))
 	for k, v := range kinds {
 		if k != CudaKind {
 			owned[k] = v
 		}
+	}
+	if args.Config != nil && common.IsErlangNifDir(args.Config.RepoRoot, args.Rel) {
+		// Drop rules an earlier run left here so c_src stops being a package.
+		return common.MergeStale(args.File, language.GenerateResult{}, owned)
 	}
 	res := generateCc(args, owned, rep)
 	cuda := generateCuda(args, rep)

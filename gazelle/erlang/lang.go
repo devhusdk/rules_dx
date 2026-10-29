@@ -3,6 +3,7 @@ package erlang
 import (
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -84,6 +85,12 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 				if _, err := os.Stat(filepath.Join(p, RebarConfig)); err == nil {
 					return filepath.SkipDir
 				}
+				// A subdirectory with its own BUILD file is a separate package
+				// that this one cannot list. c_src is exempt: the cc generator
+				// removes the stale file it left there.
+				if dir != NifDir && hasBuildFile(p) {
+					return filepath.SkipDir
+				}
 			}
 			return nil
 		}
@@ -99,6 +106,15 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	})
 	sort.Strings(out)
 	return out, err
+}
+
+func hasBuildFile(dir string) bool {
+	for _, n := range []string{"BUILD", "BUILD.bazel"} {
+		if _, err := os.Stat(filepath.Join(dir, n)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // buildOutputDirs are the directories rebar3 fills next to a rebar.config.
@@ -169,6 +185,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if err != nil {
 		return fail("%v", err)
 	}
+	// rebar3 compiles src/*.xrl and src/*.yrl into modules, so their names are
+	// defined even though this generator does not list the files yet.
+	generated, err := listSources(args.Dir, SrcDir, func(s string) bool {
+		return isLocal(s) && (strings.HasSuffix(s, ".xrl") || strings.HasSuffix(s, ".yrl"))
+	})
+	if err != nil {
+		return fail("%v", err)
+	}
 	if !slices.ContainsFunc(erls, IsErlSource) {
 		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, Owns)
 	}
@@ -212,6 +236,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		if IsErlSource(src) {
 			defined[ModuleName(src)] = true
 		}
+	}
+	for _, src := range generated {
+		defined[strings.TrimSuffix(path.Base(src), filepath.Ext(src))] = true
 	}
 	var imports, extraApps []string
 	apps := map[string]bool{}

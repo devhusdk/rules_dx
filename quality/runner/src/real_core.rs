@@ -255,6 +255,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "typstyle",
             "vale",
             "yamlfmt",
+            "xmllint",
             "yamllint",
             "zig_ast_check",
             "zig_fmt",
@@ -1326,6 +1327,27 @@ pub(super) fn cppcheck_without_a_declared_binary_fails_closed() {
         "{error}"
     );
     assert!(error.to_string().contains("cppcheck"), "{error}");
+}
+
+#[test]
+pub(super) fn xmllint_without_a_declared_binary_fails_closed() {
+    let scratch = tempfile::Builder::new()
+        .prefix("dx-xmllint-missing-")
+        .tempdir_in(std::env::temp_dir())
+        .expect("scratch");
+    let tool = RealTool {
+        binary: scratch.path().join("xmllint"),
+        ..plain_tool()
+    };
+    let backend = backend_for("xmllint", tool, real_spawn);
+    let error = backend
+        .diagnose("xmllint", "lint", &single("a.xml", "<a/>\n"))
+        .expect_err("xmllint without a binary is rejected");
+    assert!(
+        matches!(error, RunnerError::ToolExecution { .. }),
+        "{error}"
+    );
+    assert!(error.to_string().contains("xmllint"), "{error}");
 }
 
 #[test]

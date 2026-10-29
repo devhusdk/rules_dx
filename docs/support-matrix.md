@@ -122,7 +122,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a |
 | Terraform | `tflint` | `terraform` | no |
 | Typst | no | `typstyle` | n/a |
-| XML | no | `prettier` | n/a |
+| XML | `xmllint` | `prettier` | n/a |
 | YAML | `yamllint` | `yamlfmt` | n/a |
 
 ### Not applicable

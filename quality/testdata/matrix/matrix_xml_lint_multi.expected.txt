@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_xml_lint_multi
+capability LINT
+stages 1
+stage xmllint classes=xml sources=matrix/xml_multi/clean.xml,matrix/xml_multi/dirty.xml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR xmllint parser matrix/xml_multi/dirty.xml 0 0 fixable=false "Extra content at the end of the document"
+terminal 1
+terminal ERROR xmllint parser matrix/xml_multi/dirty.xml 0 0 fixable=false "Extra content at the end of the document"
+replacements 0

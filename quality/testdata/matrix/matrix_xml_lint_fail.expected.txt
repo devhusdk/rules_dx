@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_xml_lint_fail
+capability LINT
+stages 1
+stage xmllint classes=xml sources=matrix/xml_dirty.xml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR xmllint parser matrix/xml_dirty.xml 16 16 fixable=false "Opening and ending tag mismatch: item line 2 and root"
+terminal 1
+terminal ERROR xmllint parser matrix/xml_dirty.xml 16 16 fixable=false "Opening and ending tag mismatch: item line 2 and root"
+replacements 0

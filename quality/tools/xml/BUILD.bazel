@@ -1,0 +1,17 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+# xmllint is built from source through the BCR libxml2 module (#4618). Every reference goes
+# through this alias so a vendored build can replace it in one place.
+alias(
+    name = "xmllint",
+    actual = "@libxml2//:xmllint",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

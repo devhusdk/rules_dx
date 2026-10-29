@@ -55,6 +55,10 @@ const FORTITUDE_CHECK_ARGS: &[&str] = &[
 // an explicitly named file, and `--color never` keeps ANSI codes out of the path list.
 const FFMT_CHECK_ARGS: &[&str] = &["--check", "--no-cache", "--no-ignore", "--color", "never"];
 const FFMT_FIX_ARGS: &[&str] = &["--no-cache", "--no-ignore", "--color", "never"];
+/// A well-formedness check only: no output tree, no network and no catalogs, so a document type
+/// or an entity can never reach outside the staged files. `--noent`, `--loaddtd` and `--valid`
+/// stay off, which keeps external entities and DTDs unread.
+const XMLLINT_CHECK_ARGS: &[&str] = &["--noout", "--nonet", "--nocatalogs"];
 const TY_BASE: &[&str] = &[
     "check",
     "--output-format",
@@ -1362,6 +1366,11 @@ pub fn ffmt_fix(binary: &Path, files: &[&Path], config_dir_rel: &str) -> Invocat
     fixed(binary, FFMT_FIX_ARGS, files, config_dir_rel)
 }
 
+/// One batched well-formedness check. It prints nothing when every file is clean.
+pub fn xmllint_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, XMLLINT_CHECK_ARGS, files, "")
+}
+
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, JSONNETFMT_CHECK_ARGS, files, "")
 }
@@ -2505,7 +2514,7 @@ pub enum ArgTransport {
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
         "keep_sorted" | "notebook_outputs" | "ruff" | "flake8" | "pydoclint" | "buildifier"
-        | "deadnix" | "check_jsonschema" => ArgTransport::Batched,
+        | "deadnix" | "check_jsonschema" | "xmllint" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

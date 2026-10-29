@@ -688,6 +688,48 @@ pub(super) fn dart_analyze_splits_lint_from_typecheck_and_never_trusts_a_bad_run
     assert_eq!(kept, "both\n");
 }
 
+fn xmllint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for flag in ["--noout", "--nonet", "--nocatalogs"] {
+        assert!(argv.iter().any(|arg| arg == flag), "{flag} is passed");
+    }
+    for flag in ["--noent", "--loaddtd", "--valid"] {
+        assert!(!argv.iter().any(|arg| arg == flag), "{flag} stays off");
+    }
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (2, "boom\n".to_owned())
+    } else if text.contains("broken") {
+        (
+            4,
+            format!("{file}:1: parser error : Extra content at the end of the document\n<a/><b/>\n    ^\n"),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn xmllint_reports_parse_errors_and_never_trusts_a_failed_run() {
+    let backend = backend_for("xmllint", plain_tool(), xmllint_behavior);
+    let lint = |text: &str| backend.diagnose("xmllint", "lint", &single("a.xml", text));
+    assert!(lint("<a/>\n").expect("check").is_empty());
+    let broken = lint("broken\n").expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "parser");
+    assert!(lint("crash\n").is_err());
+}
+
 fn dscanner_behavior(
     argv: &[OsString],
     cwd: &Path,

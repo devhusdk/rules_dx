@@ -309,7 +309,6 @@ GAP_ISSUES = {
     "build:haskell:*": 4547,
     "build:julia:*": 4548,
     "build:ocaml:windows_x86_64": 4550,
-    "build:php:windows_x86_64": 4552,
     "build:qt:windows_*": 4554,
     "consumer:*": 4436,
     "format:asciidoc": 4439,

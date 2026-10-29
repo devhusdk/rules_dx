@@ -1,5 +1,4 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("//php/rules:php.bzl", "php_autoload_tree")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -33,18 +32,22 @@ php_test(
     deps = [":greeter"],
 )
 
-sh_test(
-    name = "hello_test",
+php_test(
+    name = "cli_test",
     size = "small",
-    srcs = ["hello_test.sh"],
-    args = [
-        "$(rootpath :hello)",
-        "$(rlocationpath data/name.txt)",
-    ],
+    srcs = ["test/CliTest.php"],
     data = [
         "data/name.txt",
+        ":autoload_a",
+        ":autoload_b",
         ":hello",
     ],
+    env = {
+        "HELLO_BIN": "$(rootpath :hello)",
+        "NAME_RLOCATION": "$(rlocationpath data/name.txt)",
+        "TREE_A": "$(rootpath :autoload_a)",
+        "TREE_B": "$(rootpath :autoload_b)",
+    },
 )
 
 [
@@ -56,20 +59,6 @@ sh_test(
     )
     for copy in ("a", "b")
 ]
-
-sh_test(
-    name = "autoload_reproducible_test",
-    size = "small",
-    srcs = ["same_tree_test.sh"],
-    args = [
-        "$(rootpath :autoload_a)",
-        "$(rootpath :autoload_b)",
-    ],
-    data = [
-        ":autoload_a",
-        ":autoload_b",
-    ],
-)
 
 php_autoload_tree(
     name = "autoload_root_shape",

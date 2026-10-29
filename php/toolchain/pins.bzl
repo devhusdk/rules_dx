@@ -2,23 +2,24 @@
 
 PHP_VERSION = "8.5.12"
 
-# dl.static-php.dev rebuilds files in place, so a pin can go stale; an immutable
-# mirror listed first is tracked as a follow-up to #4552.
-STATIC_PHP = "https://dl.static-php.dev/v3/php-bin/common/"
+# dl.static-php.dev rebuilds files in place, so a pin can go stale.
+STATIC_PHP = "https://dl.static-php.dev/v3/php-bin/"
 
-def _cell(arch, os_name, cpu, sha256):
-    archive = "php-" + PHP_VERSION + "-cli-" + arch + ".tar.gz"
+def _cell(arch, os_name, cpu, sha256, flavor = "common", ext = "tar.gz", interpreter = "php"):
+    archive = "php-" + PHP_VERSION + "-cli-" + arch + "." + ext
     return struct(
         archive = archive,
         exec_compatible_with = ["@platforms//os:" + os_name, "@platforms//cpu:" + cpu],
+        interpreter = interpreter,
         sha256 = sha256,
-        urls = [STATIC_PHP + archive],
+        urls = [STATIC_PHP + flavor + "/" + archive],
     )
 
 PHP_CELLS = {
     "linux_amd64": _cell("linux-x86_64", "linux", "x86_64", "a626899b3177acd97e4e16ce60200935f31c51c9fcbd118d7719f9cbb3781ab6"),
     "linux_arm64": _cell("linux-aarch64", "linux", "aarch64", "b66621bfbd39146d9532707163fcc6f5bd537f36284508faa62e8d03d812496e"),
     "macos_arm64": _cell("macos-aarch64", "macos", "aarch64", "9aa0431f040199a69f99e37378ee0134e81589cb901ca8a942127115463120f8"),
+    "windows_x86_64": _cell("win", "windows", "x86_64", "2f33a4fcdf13c462e106696dbf8ee35ed660d85464068ccfabfc8bb557410d76", flavor = "spc-max", ext = "zip", interpreter = "php.exe"),
 }
 
 COMPOSER = struct(

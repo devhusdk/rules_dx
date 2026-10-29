@@ -30,7 +30,10 @@ dx_rust_crate(
     ],
     dev_deps = ["tempfile"],
     extra_deps = ["@rules_rust//rust/runfiles"],
-    visibility = VIS_CLI_PLATFORM + ["//rego:__subpackages__"],
+    visibility = VIS_CLI_PLATFORM + [
+        "//libs/launcher:__pkg__",
+        "//rego:__subpackages__",
+    ],
     deps = [
         "thiserror",
         "url",

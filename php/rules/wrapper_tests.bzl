@@ -3,10 +3,14 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS", "php_compatible_with", "php_deferred_tags", "php_kwargs", "php_quality_srcs")
-load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "ini_flags", "launcher_script", "runfiles_path", "shell_quote", "staged_path")
+load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
 
 def _file(short_path):
     return struct(short_path = short_path)
+
+_BINARY = [lit("-d"), rf_prefixed("auto_prepend_file=", "_main/t.php/vendor/autoload.php"), rf("_main/t.php/app/main.php")]
+
+_TEST = [rf("phpunit/phpunit.phar"), lit("--bootstrap"), rf("_main/t.php/vendor/autoload.php"), lit("--no-configuration"), lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
 
 _SELECT = select({"//conditions:default": []})
 
@@ -37,7 +41,12 @@ def php_wrapper_contract_tests(name):
             expect_equal("quotes survive the shell", shell_quote("it's"), "'it'\\''s'"),
             expect_equal("workspace runfiles", runfiles_path("_main", _file("app/x.php")), "_main/app/x.php"),
             expect_equal("external runfiles", runfiles_path("_main", _file("../dep+/x.php")), "dep+/x.php"),
-            expect_contains("the launcher runs php without php.ini", launcher_script("php+/php", {"memory_limit": "64M"}, "\"$@\""), 'exec "$runfiles/php+/php" -n \'-d\' \'memory_limit=64M\' "$@"\n'),
-            expect_true("the launcher exports the runfiles root", "export RUNFILES_DIR=\"$runfiles\"" in launcher_script("p", {}, "")),
+            expect_contains("the launcher runs php without php.ini", launcher_script("php+/php", {"memory_limit": "64M"}, []), 'exec "$runfiles/php+/php" -n \'-d\' \'memory_limit=64M\' "$@"\n'),
+            expect_true("the launcher exports the runfiles root", "export RUNFILES_DIR=\"$runfiles\"" in launcher_script("p", {}, [])),
+            expect_contains("a binary launcher keeps its bash tail", launcher_script("p", {}, _BINARY), '-n -d "auto_prepend_file=$runfiles/_main/t.php/vendor/autoload.php" "$runfiles/_main/t.php/app/main.php" "$@"\n'),
+            expect_contains("a test launcher keeps its bash tail", launcher_script("p", {}, _TEST), '-n "$runfiles/phpunit/phpunit.phar" --bootstrap "$runfiles/_main/t.php/vendor/autoload.php" --no-configuration --fail-on-empty-test-suite --do-not-cache-test-index ${XML_OUTPUT_FILE:+--log-junit "$XML_OUTPUT_FILE"} "$@"\n'),
+            expect_equal("odd literals are quoted for bash", launcher_script("p", {}, [lit("a b")]).endswith("-n 'a b' \"$@\"\n"), True),
+            expect_equal("the descriptor names the program, ini flags and tokens", launcher_descriptor("php+/php", {"z": "1", "a": "b c"}, _BINARY), "version=1\nprogram=php+/php\narg=-n\narg=-d\narg=a=b c\narg=-d\narg=z=1\narg=-d\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\npath=_main/t.php/app/main.php\n"),
+            expect_contains("the descriptor keeps the junit variable", launcher_descriptor("p", {}, _TEST), "env_flag=--log-junit\tXML_OUTPUT_FILE\n"),
         ],
     )

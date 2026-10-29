@@ -1,0 +1,52 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "exec_launcher",
+    srcs = [
+        "src/launch.rs",
+        "src/main.rs",
+    ],
+    crate_name = "launcher",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = ["//cli/path:dx_path"],
+)
+
+rust_test(
+    name = "exec_launcher_test",
+    size = "small",
+    srcs = [
+        "src/launch.rs",
+        "src/launch_tests.rs",
+        "src/main.rs",
+    ],
+    crate_name = "launcher",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = ["//cli/path:dx_path"],
+)
+
+rustfmt_test(
+    name = "exec_launcher_fmt_test",
+    size = "small",
+    targets = [
+        ":exec_launcher",
+        ":exec_launcher_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "exec_launcher_clippy_test",
+    size = "small",
+    targets = [":exec_launcher"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

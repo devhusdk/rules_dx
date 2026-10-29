@@ -16,11 +16,11 @@ _RUNTIME_BUILD = """load("{php_bzl}", "php_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["php", "{version_file}"])
+exports_files(["{interpreter}", "{version_file}"])
 
 php_toolchain(
     name = "php_toolchain",
-    interpreter = "php",
+    interpreter = "{interpreter}",
     version = "{version}",
 )
 """
@@ -40,9 +40,10 @@ toolchain(
 )
 """
 
-def runtime_build(version):
+def runtime_build(version, interpreter = "php"):
     """Returns the BUILD file of one runtime repository."""
     return _RUNTIME_BUILD.format(
+        interpreter = interpreter,
         php_bzl = str(Label("//php/toolchain:php.bzl")),
         version = version,
         version_file = VERSION_FILE,
@@ -63,11 +64,11 @@ def hub_build(cells):
 
 def _runtime_impl(rctx):
     rctx.download_and_extract(url = rctx.attr.urls, sha256 = rctx.attr.sha256)
-    if not rctx.path("php").exists:
-        fail("PHP archive " + rctx.attr.archive + " has no php binary")
+    if not rctx.path(rctx.attr.interpreter).exists:
+        fail("PHP archive " + rctx.attr.archive + " has no " + rctx.attr.interpreter + " binary")
     rctx.file(VERSION_FILE, rctx.attr.version + "\n")
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", runtime_build(rctx.attr.version))
+    rctx.file("BUILD.bazel", runtime_build(rctx.attr.version, rctx.attr.interpreter))
     return rctx.repo_metadata(reproducible = True)
 
 _runtime = repository_rule(
@@ -75,6 +76,7 @@ _runtime = repository_rule(
     doc = "Acquires one pinned static PHP CLI build.",
     attrs = {
         "archive": attr.string(mandatory = True, doc = "Release archive name."),
+        "interpreter": attr.string(default = "php", doc = "File name of the PHP binary in the archive."),
         "sha256": attr.string(mandatory = True, doc = "Archive digest."),
         "urls": attr.string_list(mandatory = True, doc = "Archive URLs, tried in order."),
         "version": attr.string(mandatory = True, doc = "PHP version the archive holds."),
@@ -112,6 +114,7 @@ def _php_impl(mctx):
         _runtime(
             name = RUNTIME_PREFIX + cell,
             archive = PHP_CELLS[cell].archive,
+            interpreter = PHP_CELLS[cell].interpreter,
             sha256 = PHP_CELLS[cell].sha256,
             urls = PHP_CELLS[cell].urls,
             version = PHP_VERSION,

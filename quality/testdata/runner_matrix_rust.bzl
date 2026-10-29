@@ -116,6 +116,10 @@ RUST_CASES = [
         "upstream_tools": ["clippy"],
         "upstream_srcs": [":matrix/matrix_rust_lint_pass.upstream.clippy.txt"],
         "expected_file": ":matrix/matrix_rust_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rust_lint_fail",
@@ -127,6 +131,10 @@ RUST_CASES = [
         "upstream_tools": ["clippy"],
         "upstream_srcs": [":matrix/matrix_rust_lint_fail.upstream.clippy.txt"],
         "expected_file": ":matrix/matrix_rust_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rust_typecheck_pass",
@@ -138,6 +146,10 @@ RUST_CASES = [
         "upstream_tools": ["rustc"],
         "upstream_srcs": [":matrix/matrix_rust_typecheck_pass.upstream.rustc.txt"],
         "expected_file": ":matrix/matrix_rust_typecheck_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rust_typecheck_fail",
@@ -149,5 +161,9 @@ RUST_CASES = [
         "upstream_tools": ["rustc"],
         "upstream_srcs": [":matrix/matrix_rust_typecheck_fail.upstream.rustc.txt"],
         "expected_file": ":matrix/matrix_rust_typecheck_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
 ]

@@ -4,7 +4,8 @@ use dx_nested::{self as nested, Case};
 use dx_testing::{resolve_runfiles, Run};
 
 const CLEAN: &str = "package lib\n\nclass Count {\n  fun count(): Int {\n    return 1\n  }\n}\n";
-const DIRTY: &str = "package lib\n\nclass Count {\n  fun count(): Int {\n    return \"not an int\"\n  }\n}\n";
+const DIRTY: &str =
+    "package lib\n\nclass Count {\n  fun count(): Int {\n    return \"not an int\"\n  }\n}\n";
 
 const BUILD: &str = r#"load("@rules_dx//quality:policy.bzl", "quality_family", "workspace_policy")
 

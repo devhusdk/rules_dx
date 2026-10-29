@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_terraform_typecheck_syntax_error
+capability TYPECHECK
+stages 1
+stage terraform classes=terraform sources=matrix/terraform_tc_syntax_error.tf
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR terraform init matrix/terraform_tc_syntax_error.tf 15 16 fixable=false "Invalid expression: Expected the start of an expression, but found an invalid expression token."
+terminal 1
+terminal ERROR terraform init matrix/terraform_tc_syntax_error.tf 15 16 fixable=false "Invalid expression: Expected the start of an expression, but found an invalid expression token."
+replacements 0

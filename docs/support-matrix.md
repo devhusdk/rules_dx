@@ -120,7 +120,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Rego | `regal` | `opa` | `opa` |
 | reStructuredText | `vale` | no | n/a |
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a |
-| Terraform | `tflint` | `terraform` | no |
+| Terraform | `tflint` | `terraform` | `terraform` |
 | Thrift | `thrift` | n/a | `thrift` |
 | Typst | no | `typstyle` | n/a |
 | XML | `xmllint` | `prettier` | n/a |

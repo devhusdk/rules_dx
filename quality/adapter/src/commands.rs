@@ -286,6 +286,14 @@ const MODFMT_CHECK_ARGS: &[&str] = &["-c", "-l"];
 const MODFMT_FIX_ARGS: &[&str] = &["-w"];
 const TERRAFORM_CHECK_ARGS: &[&str] = &["fmt", "-check", "-no-color"];
 const TERRAFORM_FIX_ARGS: &[&str] = &["fmt", "-no-color"];
+const TERRAFORM_INIT_ARGS: &[&str] = &[
+    "init",
+    "-backend=false",
+    "-input=false",
+    "-no-color",
+    "-json",
+];
+const TERRAFORM_VALIDATE_ARGS: &[&str] = &["validate", "-json", "-no-color"];
 const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
@@ -1802,6 +1810,39 @@ pub fn modfmt_fix(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn terraform_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_CHECK_ARGS, files, "")
+}
+
+/// `terraform init` for one module directory, offline: every provider comes from a
+/// `-plugin-dir` mirror, so the registry is never queried. `-chdir` precedes the subcommand.
+/// The caller passes at least one directory (an empty one when the module has no providers).
+pub fn terraform_init(binary: &Path, dir: &Path, plugin_dirs: &[&Path]) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned(), chdir_flag(dir)];
+    argv.extend(TERRAFORM_INIT_ARGS.iter().map(OsString::from));
+    for plugin_dir in plugin_dirs {
+        let mut flag = OsString::from("-plugin-dir=");
+        flag.push(plugin_dir.as_os_str());
+        argv.push(flag);
+    }
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+/// `terraform validate -json` for one initialised module directory.
+pub fn terraform_validate(binary: &Path, dir: &Path) -> Invocation {
+    let mut argv = vec![binary.as_os_str().to_owned(), chdir_flag(dir)];
+    argv.extend(TERRAFORM_VALIDATE_ARGS.iter().map(OsString::from));
+    Invocation {
+        argv,
+        cwd_rel: String::new(),
+    }
+}
+
+fn chdir_flag(dir: &Path) -> OsString {
+    let mut flag = OsString::from("-chdir=");
+    flag.push(dir.as_os_str());
+    flag
 }
 
 /// One tflint spawn for one module directory, run from the mirror root.

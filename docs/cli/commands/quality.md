@@ -333,7 +333,7 @@ to.
 | `stylelint` | lint | css |
 | `stylua` | format | lua |
 | `taplo` | format, lint | toml |
-| `terraform` | format | terraform |
+| `terraform` | format, typecheck | terraform |
 | `tflint` | lint | terraform |
 | `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
@@ -2218,6 +2218,55 @@ terraform_module(
     srcs = ["main.tf"],
 )
 ```
+
+#### Terraform typecheck
+
+`typecheck = ["terraform"]` runs `terraform init -backend=false` and then
+`terraform validate` once per module directory, from the managed pin. It is
+opt-in and check only. Nothing selects it by default.
+
+```python
+quality_family(
+    name = "terraform_family",
+    family_id = "terraform",
+    format = ["terraform"],
+    typecheck = ["terraform"],
+)
+```
+
+Init is offline. Every provider comes from a filesystem mirror passed as
+`-plugin-dir`; when a module declares no providers, dx passes an empty
+directory, so init never queries a registry. Declare providers with the
+`dx_terraform` extension and list them in the `providers` attribute of
+`terraform_module`:
+
+```python
+dx_terraform = use_extension("@rules_dx//terraform:extensions.bzl", "dx_terraform")
+dx_terraform.provider(
+    name = "null",
+    sha256 = {"linux_amd64": "..."},
+    source = "registry.terraform.io/hashicorp/null",
+    version = "3.2.4",
+)
+use_repo(dx_terraform, "dx_terraform_providers")
+
+terraform_module(
+    name = "infra",
+    srcs = ["main.tf"],
+    providers = ["@dx_terraform_providers//:null"],
+)
+```
+
+Syntax errors and configuration errors (from init) and validation errors (from
+`validate`) are reported on the file and line. A provider missing from the
+mirror, or any failure that names no file, fails the run and never counts as
+clean. A remote module source still reaches the network, and a download failure
+is reported at the `module` block. Local modules in `deps` are staged beside
+the owned files. No user CLI config, plugin cache, `TF_CLI_ARGS` or `TF_DATA_DIR`
+is read. `.tfvars` files are not checked, and a committed `.terraform.lock.hcl`
+is not honoured. A target that owns only some of the `.tf` files of a directory
+reports false errors about the missing ones, so own a whole directory in one
+target.
 
 ### Bicep
 

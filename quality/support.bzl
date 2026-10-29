@@ -1587,7 +1587,8 @@ HASKELL_HLINT_LINT_SUPPORT = {
 }
 
 # linux_arm64: ormolu publishes no linux_arm64 build.
-# macos_arm64: the aarch64-darwin build is not pinned yet (tracked by #4664).
+# macos_arm64: the aarch64-darwin zip needs sibling @executable_path dylibs the standalone
+# artifact model does not expose (tracked by #4664).
 HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1841,8 +1842,6 @@ REGO_REGAL_LINT_SUPPORT = {
     "transport": "batched",
 }
 
-# linux_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
-# macos_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
 # windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 # windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 ELIXIR_CREDO_LINT_SUPPORT = {
@@ -1853,15 +1852,13 @@ ELIXIR_CREDO_LINT_SUPPORT = {
     "execution": "direct",
     "family": "elixir",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "credo",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
-# linux_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
-# macos_arm64: ELIXIR_CELLS includes it (#4544); no runner-matrix case proves this tool here yet (#4441)
 # windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 # windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl (#4544)
 ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
@@ -1872,11 +1869,11 @@ ELIXIR_MIX_FORMAT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "elixir",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "mix_format",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 # windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
@@ -1929,10 +1926,8 @@ JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
     "unsupported": ["windows_arm64"],
 }
 
-# linux_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
-# macos_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
-# windows_arm64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
-# windows_x86_64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
+# windows_arm64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
+# windows_x86_64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
 D_DFMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1941,17 +1936,15 @@ D_DFMT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "d",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "dfmt",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
-# linux_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
-# macos_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
-# windows_arm64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
-# windows_x86_64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
+# windows_arm64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
+# windows_x86_64: LDC windows cell is pinned but unproven (LDC_UNPROVEN_CELLS, #4542)
 D_DSCANNER_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1960,11 +1953,11 @@ D_DSCANNER_LINT_SUPPORT = {
     "execution": "direct",
     "family": "d",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "dscanner",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 ZIG_ZIG_FMT_FORMAT_SUPPORT = {

@@ -401,6 +401,34 @@ STRUCTURED_CASES = [
         "tool_names": ["dfmt"],
         "tool_binaries": ["//d/tools:dfmt"],
         "expected_file": ":matrix/matrix_d_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
+        "name": "matrix_d_format_fail",
+        "generated": {
+            "matrix/dfmt_dirty.d": "module dfmt_dirty;\n\nint add(int a,int b){return a+b;}\n",
+        },
+        "capability": "format",
+        "stages": ["dfmt;d;matrix/dfmt_dirty.d"],
+        "tool_names": ["dfmt"],
+        "tool_binaries": ["//d/tools:dfmt"],
+        "expected_file": ":matrix/matrix_d_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
+        "name": "matrix_d_format_syntax",
+        "generated": {
+            "matrix/dfmt_broken.d": "module dfmt_broken;\n\nint add(int a, int b)\n{\n    return a + ;\n\n",
+        },
+        "capability": "format",
+        "stages": ["dfmt;d;matrix/dfmt_broken.d"],
+        "tool_names": ["dfmt"],
+        "tool_binaries": ["//d/tools:dfmt"],
+        "expected_file": ":matrix/matrix_d_format_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_d_lint_pass",
@@ -412,6 +440,34 @@ STRUCTURED_CASES = [
         "tool_names": ["dscanner"],
         "tool_binaries": ["//d/tools:dscanner"],
         "expected_file": ":matrix/matrix_d_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
+        "name": "matrix_d_lint_fail",
+        "generated": {
+            "matrix/dscanner_dirty.d": "module dscanner_dirty;\n\nint add(int a, int b)\n{\n    return a + b;\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["dscanner;d;matrix/dscanner_dirty.d"],
+        "tool_names": ["dscanner"],
+        "tool_binaries": ["//d/tools:dscanner"],
+        "expected_file": ":matrix/matrix_d_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
+        "name": "matrix_d_lint_syntax",
+        "generated": {
+            "matrix/dscanner_broken.d": "/** Broken module. */\nmodule dscanner_broken;\n\n/// Adds.\nint add(int a, int b)\n{\n    return a + ;\n\n",
+        },
+        "capability": "lint",
+        "stages": ["dscanner;d;matrix/dscanner_broken.d"],
+        "tool_names": ["dscanner"],
+        "tool_binaries": ["//d/tools:dscanner"],
+        "expected_file": ":matrix/matrix_d_lint_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_erlang_format_pass",
@@ -501,6 +557,8 @@ STRUCTURED_CASES = [
         "tool_names": ["mix_format"],
         "tool_binaries": ["//elixir/tools:mix_format"],
         "expected_file": ":matrix/matrix_elixir_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_elixir_format_fail",
@@ -512,6 +570,8 @@ STRUCTURED_CASES = [
         "tool_names": ["mix_format"],
         "tool_binaries": ["//elixir/tools:mix_format"],
         "expected_file": ":matrix/matrix_elixir_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_elixir_format_syntax",
@@ -523,6 +583,8 @@ STRUCTURED_CASES = [
         "tool_names": ["mix_format"],
         "tool_binaries": ["//elixir/tools:mix_format"],
         "expected_file": ":matrix/matrix_elixir_format_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_elixir_lint_pass",
@@ -534,6 +596,8 @@ STRUCTURED_CASES = [
         "tool_names": ["credo"],
         "tool_binaries": ["//elixir/tools:credo"],
         "expected_file": ":matrix/matrix_elixir_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_elixir_lint_fail",
@@ -545,6 +609,8 @@ STRUCTURED_CASES = [
         "tool_names": ["credo"],
         "tool_binaries": ["//elixir/tools:credo"],
         "expected_file": ":matrix/matrix_elixir_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_elixir_lint_syntax",
@@ -556,6 +622,8 @@ STRUCTURED_CASES = [
         "tool_names": ["credo"],
         "tool_binaries": ["//elixir/tools:credo"],
         "expected_file": ":matrix/matrix_elixir_lint_syntax.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_zig_format_pass",

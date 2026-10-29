@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_d_lint_fail
+capability LINT
+stages 1
+stage dscanner classes=d sources=matrix/dscanner_dirty.d
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING dscanner undocumented_declaration_check matrix/dscanner_dirty.d 28 28 fixable=false "Public declaration 'add' is undocumented."
+terminal 1
+terminal WARNING dscanner undocumented_declaration_check matrix/dscanner_dirty.d 28 28 fixable=false "Public declaration 'add' is undocumented."
+replacements 0

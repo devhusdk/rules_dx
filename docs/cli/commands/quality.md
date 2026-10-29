@@ -457,8 +457,8 @@ line and column and stays untouched. Use the wrappers from
 ### D formatting
 
 `dfmt` uses the pinned dfmt that `d_library`, `d_binary` and `d_test` carry.
-Select `dfmt` in a `d` family. No flag is needed. It runs on Linux x86_64
-only.
+Select `dfmt` in a `d` family. No flag is needed. It runs on Linux x86_64,
+Linux arm64 and macOS arm64.
 
 ```python
 quality_family(
@@ -486,7 +486,7 @@ untouched. dx runs dfmt with its default style and LF line endings and ignores
 
 `dscanner` uses the pinned D-Scanner that `d_library`, `d_binary` and `d_test`
 carry. Select `dscanner` in a `d` family. No flag is needed. It runs on Linux
-x86_64 only.
+x86_64, Linux arm64 and macOS arm64.
 
 ```python
 quality_family(

@@ -159,11 +159,11 @@ single_version_override(
     version = "7.1.0",
 )
 
-# floor: equals tested; not yet searched (#3747)
+# floor: previous tested version; not yet searched (#3747)
 bazel_dep(name = "protobuf", version = "34.0.bcr.1")
 single_version_override(
     module_name = "protobuf",
-    version = "34.0.bcr.1",
+    version = "36.2",
 )
 
 # floor: equals tested; not yet searched (#3747)

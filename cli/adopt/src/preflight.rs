@@ -50,7 +50,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_julia", "0.8.0"),
     ("rules_perl", "1.5.0"),
     ("lua", "5.4.6.bcr.1"),
-    ("aspect_rules_py", "2.0.0-alpha.6"),
+    ("aspect_rules_py", "2.0.0-alpha.10"),
     ("aspect_rules_js", "3.5.2"),
     ("aspect_rules_ts", "3.10.1"),
     ("aspect_rules_jest", "0.26.0"),

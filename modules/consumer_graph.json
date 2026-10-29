@@ -5,7 +5,7 @@
   "aspect_bazel_lib": "2.22.5",
   "aspect_rules_jest": "0.26.0",
   "aspect_rules_js": "3.5.2",
-  "aspect_rules_py": "2.0.0-alpha.6",
+  "aspect_rules_py": "2.0.0-alpha.10",
   "aspect_rules_ts": "3.10.1",
   "aspect_tools_telemetry": "0.5.2",
   "bazel_features": "1.51.0",

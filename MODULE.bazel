@@ -765,14 +765,14 @@ use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_dfmt", "dx_d_dscanner", "dx_d_i
 register_toolchains("@dx_d_toolchains//:all")
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
+bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
 single_version_override(
     module_name = "aspect_rules_py",
     patch_strip = 1,
     patches = [
         "//patches/aspect_rules_py:windows_venv.patch",
     ],
-    version = "2.0.0-alpha.6",
+    version = "2.0.0-alpha.10",
 )
 
 # floor: equals tested; not yet searched (#3747)

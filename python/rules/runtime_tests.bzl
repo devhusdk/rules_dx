@@ -27,7 +27,7 @@ def python_runtime_unit_tests(name):
             expect_equal(
                 "aspect backend stays pinned",
                 _MOD_ASPECT_PY,
-                "2.0.0-alpha.6",
+                "2.0.0-alpha.10",
             ),
             expect_equal(
                 "rules_python stays pinned beside aspect",

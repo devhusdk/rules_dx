@@ -269,6 +269,41 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_fortran_format_pass",
+        "generated": {
+            "matrix/fortran_format_clean.f90": "program clean\n\n    implicit none\n\n    integer :: x\n    x = 1\n    print *, x\nend program clean\n",
+        },
+        "capability": "format",
+        "stages": ["ffmt;fortran;matrix/fortran_format_clean.f90"],
+        "tool_names": ["ffmt"],
+        "tool_binaries": ["@dx_tools//:ffmt"],
+        "expected_file": ":matrix/matrix_fortran_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_fortran_format_fail",
+        "generated": {
+            "matrix/fortran_format_dirty.f90": "program dirty\nimplicit none\ninteger::x\nx=1\nprint *,x\nend program dirty\n",
+        },
+        "capability": "format",
+        "stages": ["ffmt;fortran;matrix/fortran_format_dirty.f90"],
+        "tool_names": ["ffmt"],
+        "tool_binaries": ["@dx_tools//:ffmt"],
+        "expected_file": ":matrix/matrix_fortran_format_fail.expected.txt",
+    },
+    {
+        "name": "matrix_fortran_format_mixed",
+        "generated": {
+            "matrix/fortran_format_mixed/dirty.f90": "program dirty\nimplicit none\ninteger::x\nx=1\nprint *,x\nend program dirty\n",
+            "matrix/fortran_format_mixed/fixed.f": "C fixed form\n      PROGRAM T\n      X=1\n      END\n",
+            "matrix/fortran_format_mixed/fixed.F": "C fixed form\n      PROGRAM T\n      X=1\n      END\n",
+        },
+        "capability": "format",
+        "stages": ["ffmt;fortran;matrix/fortran_format_mixed/dirty.f90,matrix/fortran_format_mixed/fixed.F,matrix/fortran_format_mixed/fixed.f"],
+        "tool_names": ["ffmt"],
+        "tool_binaries": ["@dx_tools//:ffmt"],
+        "expected_file": ":matrix/matrix_fortran_format_mixed.expected.txt",
+    },
+    {
         "name": "matrix_fortran_lint_pass",
         "generated": {
             "matrix/fortran_clean.f90": "module clean_m\n  implicit none (type, external)\n  private\n  public :: add\n\ncontains\n\n  integer function add(a, b)\n    integer, intent(in) :: a, b\n    add = a + b\n  end function add\n\nend module clean_m\n",

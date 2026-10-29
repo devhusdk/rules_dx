@@ -923,6 +923,20 @@ JSONNET_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+FORTRAN_FFMT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["fortran"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "fortran",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "ffmt",
+    "transport": "batched",
+}
+
 FORTRAN_FORTITUDE_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1477,6 +1491,7 @@ SUPPORT_RECORDS = [
     CUE_TYPECHECK_SUPPORT,
     JSONNET_FORMAT_SUPPORT,
     JSONNET_LINT_SUPPORT,
+    FORTRAN_FFMT_FORMAT_SUPPORT,
     FORTRAN_FORTITUDE_LINT_SUPPORT,
     HASKELL_HLINT_LINT_SUPPORT,
     HASKELL_ORMOLU_FORMAT_SUPPORT,

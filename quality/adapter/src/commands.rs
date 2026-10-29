@@ -49,6 +49,12 @@ const FORTITUDE_CHECK_ARGS: &[&str] = &[
     "--output-format",
     "json",
 ];
+// ffmt has no `--config` flag: it reads `ffmt.toml`, `.ffmt.toml` or `pyproject.toml` from the
+// working directory and its parents, so the runner pins the working directory to a staged config.
+// `--no-cache` keeps it from writing a cache, `--no-ignore` stops `.gitignore` files from hiding
+// an explicitly named file, and `--color never` keeps ANSI codes out of the path list.
+const FFMT_CHECK_ARGS: &[&str] = &["--check", "--no-cache", "--no-ignore", "--color", "never"];
+const FFMT_FIX_ARGS: &[&str] = &["--no-cache", "--no-ignore", "--color", "never"];
 const TY_BASE: &[&str] = &[
     "check",
     "--output-format",
@@ -1319,6 +1325,16 @@ pub fn jsonnet_lint_check(binary: &Path, files: &[&Path]) -> Invocation {
 /// One batched lint over explicit free-form files. It prints `[]` when every file is clean.
 pub fn fortitude_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, FORTITUDE_CHECK_ARGS, files, "")
+}
+
+/// `ffmt --check` prints one unformatted path per line and exits 1; `config_dir_rel` is the
+/// directory that holds the staged `ffmt.toml`.
+pub fn ffmt_check(binary: &Path, files: &[&Path], config_dir_rel: &str) -> Invocation {
+    fixed(binary, FFMT_CHECK_ARGS, files, config_dir_rel)
+}
+
+pub fn ffmt_fix(binary: &Path, files: &[&Path], config_dir_rel: &str) -> Invocation {
+    fixed(binary, FFMT_FIX_ARGS, files, config_dir_rel)
 }
 
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

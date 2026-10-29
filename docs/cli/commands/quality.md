@@ -261,6 +261,7 @@ to.
 | `errcheck` | lint | go |
 | `eslint` | lint | astro, javascript, mdx, svelte, vue |
 | `fantomas` | format | fsharp |
+| `ffmt` | format | fortran |
 | `flake8` | lint | python |
 | `flang` | typecheck | fortran |
 | `flatc` | lint, typecheck | flatbuffers |
@@ -341,7 +342,7 @@ C, C++ and Objective-C (`clang_syntax`) typecheck is opt-in (`typecheck = ["clan
 
 CUDA (`nvcc_syntax`) typecheck is opt-in (`typecheck = ["nvcc_syntax"]` on the `cuda` family). It replays each `CudaCompile` action with the exact nvcc command line, inputs and environment Bazel configured, changing only `-c` to `-cuda` (nvcc's front-end stage, which stops before the host compile), the output to `/dev/null`, and dropping dependency-file and keep-temporary flags. Nothing else is translated, so `-gencode`, `-Xcompiler` and `-ccbin` match the real build. Device compilation and ptxas still run for every `-gencode` architecture, so the check is heavy; it is only cheaper than the build by the host compile. Host-compiler-only warnings (for example `-W` flags passed through `-Xcompiler`) are not reported. Diagnostics inside a header owned by another target are dropped because nvcc prints no include chain; the failing exit then reports an error without a located finding. Params files and header-only `cuda_library` targets (which have no compile action) fail with an explicit error. The tool has no fix support.
 
-Fortran (`fortran`) has no formatter. Fortran targets are tagged `no-format`, so `dx format` skips them. The `fortitude` linter is described under Fortran below. Typecheck is opt-in, see Fortran and D typechecking.
+Fortran (`fortran`) formats with `ffmt` and lints with `fortitude`, both described under Fortran below. Typecheck is opt-in, see Fortran and D typechecking.
 
 OCaml (`ocaml`) has no formatter and no linter. OCaml targets are tagged `no-format`, `no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck` skip them.
 
@@ -1627,7 +1628,35 @@ linted. A syntax error in a free-form file is reported as a finding with the
 file, line and column. A run that exits with a code it does not recognise, an
 exit that disagrees with its report, or a finding in a file that was not passed
 fails and never counts as clean. `fortitude --fix` is not wired, so `--apply`
-leaves the files alone. There is no Fortran formatter yet.
+leaves the files alone.
+
+`ffmt` 0.4.5 formats free-form Fortran and runs from the managed pin, which is
+taken from the PyPI wheel. Select it with `format = ["ffmt"]`:
+
+```python
+quality_family(
+    name = "fortran_family",
+    family_id = "fortran",
+    format = ["ffmt"],
+    lint = ["fortitude"],
+)
+```
+
+ffmt has no `--config` flag. It reads `ffmt.toml` from its working directory and
+every parent, so dx runs it in a directory that holds either a default empty
+`ffmt.toml` or the config bound with `ffmt_config`. Nothing above that
+directory is ever read, including a `pyproject.toml`, which is not supported.
+The bound file must be named `ffmt.toml` or `.ffmt.toml`. An invalid config
+makes ffmt exit 2, which is an error and never a clean run.
+
+Only `.f90`, `.f95`, `.f03`, `.F90`, `.F95` and `.fpp` sources reach ffmt, for
+`dx format` and for `--apply` alike. Fixed-form `.f` and `.F` files are skipped
+because ffmt rewrites a fixed-form file as free-form source and corrupts it.
+`.f08` and `.F08` are skipped because ffmt rejects them. A file with a syntax
+error is reported by ffmt as unformatted, and `fortitude` reports the error.
+ffmt prints each unformatted path and exits 1. Output that names a file the run
+did not pass, or an exit that disagrees with the output, is an error. There is
+no ffmt build for Windows arm64, which runs the x86_64 build emulated.
 
 ### Haskell
 

@@ -1317,17 +1317,33 @@ impl RealBackend {
                     Ok(findings)
                 }
             }
+            "ffmt" => {
+                // Fixed-form `.f` and `.F` and the `.f08` family never reach ffmt; an empty
+                // set skips the run because ffmt exits 2 when it finds no Fortran file.
+                let accepted: Vec<&Path> = refs
+                    .iter()
+                    .copied()
+                    .filter(|path| ffmt_accepts(path))
+                    .collect();
+                if accepted.is_empty() {
+                    return Ok(Vec::new());
+                }
+                let dir = Self::ffmt_config_dir(tool)?;
+                let invocation = commands::ffmt_check(&tool.binary, &accepted, &dir);
+                let out = self.run(tool_id, tool, &invocation, scratch)?;
+                let accepted_strs: Vec<&str> = accepted.iter().filter_map(|p| p.to_str()).collect();
+                parsed(
+                    tool_id,
+                    parsers::parse_ffmt(&out.stdout, out.code, &accepted_strs),
+                )
+            }
             "fortitude" => {
                 // fortitude parses free-form source only; it reports a valid fixed-form `.f`
                 // or `.F` file as a syntax error, so those are not handed to it.
                 let free_form: Vec<&Path> = refs
                     .iter()
                     .copied()
-                    .filter(|path| {
-                        !path
-                            .extension()
-                            .is_some_and(|ext| ext.eq_ignore_ascii_case("f"))
-                    })
+                    .filter(|path| fortran_free_form(path))
                     .collect();
                 if free_form.is_empty() {
                     return Ok(Vec::new());

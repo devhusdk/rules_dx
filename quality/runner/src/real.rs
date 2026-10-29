@@ -42,6 +42,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "fantomas",
     "flake8",
     "flang",
+    "ffmt",
     "flatc",
     "fortitude",
     "fsc",
@@ -165,6 +166,12 @@ const REGAL_DEFAULTS_BYTES: &[u8] = b"";
 const GERSEMI_DEFAULTS_REL: &str = "dx-gersemi-default/.gersemirc";
 /// An empty config loads and keeps every option at its default.
 const GERSEMI_DEFAULTS_BYTES: &[u8] = b"";
+/// ffmt reads `ffmt.toml` from its working directory and every parent, with no flag to name one.
+/// The run starts in the directory that holds the config, so nothing above it is ever read; the
+/// default is empty and keeps every option at its upstream default.
+const FFMT_DEFAULTS_DIR: &str = "dx-ffmt-default";
+const FFMT_DEFAULTS_REL: &str = "dx-ffmt-default/ffmt.toml";
+const FFMT_DEFAULTS_BYTES: &[u8] = b"";
 const MBAKE_DEFAULTS_REL: &str = "dx-mbake-default/.bake.toml";
 /// mbake strips the final newline unless told to keep it; everything else stays at its default
 /// (no `.PHONY` insertion, grouping, or variable alignment).
@@ -555,6 +562,22 @@ fn cleaned<T>(tool_id: &str, scratch: Scratch, value: T) -> Result<T, RunnerErro
 
 fn hint_dir<'a>(config_rel: Option<&'a str>, cwd_rel: &'a str) -> Option<&'a str> {
     config_rel.map(|_| cwd_rel)
+}
+
+/// Free-form Fortran: fortitude and ffmt both misread fixed-form `.f` and `.F` sources.
+fn fortran_free_form(path: &Path) -> bool {
+    !path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("f"))
+}
+
+/// What ffmt formats safely. It rewrites fixed-form `.F` as free-form, which corrupts the file,
+/// and exits 2 on `.f08` and `.F08`. Both the check and the fix path use this one filter.
+fn ffmt_accepts(path: &Path) -> bool {
+    fortran_free_form(path)
+        && !path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("f08"))
 }
 
 fn parent_rel(rel: &str) -> String {

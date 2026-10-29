@@ -31,7 +31,7 @@ def fortran_wrapper_contract_tests(name):
         file_classes = ["fortran"],
         extra_checks = [
             expect_equal("the extensions match rules_fortran", ["." + ext for ext in FORTRAN_EXTENSIONS], UPSTREAM_EXTENSIONS),
-            expect_equal("format skips Fortran", with_defaults({"tags": ["x"]})["tags"], ["x", "no-format"]),
+            expect_equal("lint and format both run on Fortran", with_defaults({"tags": ["x"]})["tags"], ["x"]),
             expect_true("the Fortran cell is the default", with_defaults({})["target_compatible_with"] == FORTRAN_COMPATIBLE_WITH),
             expect_equal("an explicit compatibility is kept", with_defaults({"target_compatible_with": []})["target_compatible_with"], []),
             expect_equal(

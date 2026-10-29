@@ -55,6 +55,7 @@ _NATIVE_CONFIG_SUFFIXES = {
     "eslint": [".js", ".mjs", ".cjs"],
     "credo": [".exs"],
     "dart": [".yaml"],
+    "ffmt": [".toml"],
     "fsharplint": [".json"],
     "gersemi": [".gersemirc", ".yaml", ".yml"],
     "gplint": [".gplintrc", ".json"],
@@ -290,6 +291,7 @@ regal_config = _make_native_config_rule("regal")
 checkmake_config = _make_native_config_rule("checkmake")
 gersemi_config = _make_native_config_rule("gersemi")
 cmakelint_config = _make_native_config_rule("cmakelint")
+ffmt_config = _make_native_config_rule("ffmt")
 mbake_config = _make_native_config_rule("mbake")
 tflint_config = _make_native_config_rule("tflint")
 credo_config = _make_native_config_rule("credo")

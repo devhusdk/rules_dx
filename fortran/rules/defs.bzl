@@ -10,7 +10,7 @@ load("//quality:sources.bzl", "QualitySourcesInfo")
 
 FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/toolchain", sorted(FORTRAN_CELLS.keys()))
 
-SKIP_TAGS = ["no-format"]
+SKIP_TAGS = []
 
 FORTRAN_EXTENSIONS = ["f", "f90", "f95", "f03", "f08", "F", "F90", "F95", "F03", "F08"]
 

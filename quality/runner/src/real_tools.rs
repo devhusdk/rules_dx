@@ -2488,6 +2488,140 @@ fn mbake_failing_without_a_file_is_an_error_not_a_clean_run() {
         .is_err());
 }
 
+/// Stands in for ffmt: a file holding `BAD` is unformatted, a fix run rewrites it to `GOOD`.
+fn ffmt_run(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+    config_dir: &str,
+    config_bytes: &[u8],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(cwd.ends_with(config_dir), "{cwd:?}");
+    assert_eq!(
+        std::fs::read(cwd.join("ffmt.toml")).expect("config is staged in the working directory"),
+        config_bytes
+    );
+    let flags: Vec<String> = argv[1..]
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    for flag in ["--no-cache", "--no-ignore", "--color", "never"] {
+        assert!(flags.iter().any(|arg| arg == flag), "{flag} is always set");
+    }
+    assert!(
+        !flags.iter().any(|arg| arg == "--config"),
+        "ffmt has no --config"
+    );
+    let files: Vec<&String> = flags.iter().filter(|arg| arg.starts_with('/')).collect();
+    assert!(!files.is_empty(), "ffmt is never run without a file");
+    for file in &files {
+        let lower = file.to_ascii_lowercase();
+        assert!(
+            !lower.ends_with(".f") && !lower.ends_with(".f08"),
+            "{file} never reaches ffmt"
+        );
+    }
+    let check = flags.iter().any(|arg| arg == "--check");
+    let mut dirty = String::new();
+    for file in files {
+        let text = std::fs::read_to_string(file).expect("read staged file");
+        if !text.contains("BAD") {
+            continue;
+        }
+        if check {
+            dirty.push_str(&format!("{file}\n"));
+        } else {
+            std::fs::write(file, text.replace("BAD", "GOOD")).expect("fix writes back");
+        }
+    }
+    Ok(ChildOutput {
+        code: Some(i32::from(!dirty.is_empty())),
+        stdout: dirty.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn ffmt_defaults(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    ffmt_run(argv, cwd, env, "dx-ffmt-default", b"")
+}
+
+fn ffmt_exit_two(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: Vec::new(),
+        stderr: b"ffmt: parse error in ffmt.toml\n".to_vec(),
+    })
+}
+
+fn ffmt_files(names: &[&str]) -> BTreeMap<String, String> {
+    names
+        .iter()
+        .map(|name| ((*name).to_owned(), "BAD\n".to_owned()))
+        .collect()
+}
+
+#[test]
+fn ffmt_check_never_writes_fix_rewrites_and_a_recheck_is_clean() {
+    let backend = backend_for("ffmt", plain_tool(), ffmt_defaults);
+    let findings = backend
+        .diagnose("ffmt", "format", &single("a.f90", "BAD\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "ffmt");
+    assert!(backend
+        .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
+        .expect("diagnosed")
+        .is_empty());
+    let fixed = backend
+        .apply_fix("ffmt", "a.f90", "BAD\n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, "GOOD\n");
+}
+
+#[test]
+fn ffmt_never_receives_fixed_form_or_f08_sources_on_check_or_fix() {
+    let backend = backend_for("ffmt", plain_tool(), ffmt_defaults);
+    let names = ["a.f", "b.F", "c.f08", "d.F08", "e.f90"];
+    let findings = backend
+        .diagnose("ffmt", "format", &ffmt_files(&names))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    // Nothing left to format skips the run: the stand-in asserts it gets a file.
+    assert!(backend
+        .diagnose("ffmt", "format", &ffmt_files(&["a.f", "b.F", "c.f08"]))
+        .expect("diagnosed")
+        .is_empty());
+    for name in ["a.f", "b.F", "c.f08", "d.F08"] {
+        let text = backend
+            .apply_fix("ffmt", name, "BAD\n", "format")
+            .expect("kept");
+        assert_eq!(text, "BAD\n", "{name} is returned untouched");
+    }
+    assert_eq!(
+        backend
+            .apply_fix("ffmt", "e.F90", "BAD\n", "format")
+            .expect("fixed"),
+        "GOOD\n"
+    );
+}
+
+#[test]
+fn ffmt_failing_is_an_error_not_a_clean_run() {
+    let backend = backend_for("ffmt", plain_tool(), ffmt_exit_two);
+    assert!(backend
+        .diagnose("ffmt", "format", &single("a.f90", "GOOD\n"))
+        .is_err());
+}
+
 fn elvis_report(argv: &[OsString], cwd: &Path, config_tail: &str) -> io::Result<ChildOutput> {
     let at = argv
         .iter()

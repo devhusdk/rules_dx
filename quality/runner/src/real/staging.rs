@@ -69,6 +69,12 @@ impl RealBackend {
                 contents: MirrorContents::Bytes(GERSEMI_DEFAULTS_BYTES.to_vec()),
             });
         }
+        if tool_id == "ffmt" && tool.config_rel.is_none() {
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(FFMT_DEFAULTS_REL),
+                contents: MirrorContents::Bytes(FFMT_DEFAULTS_BYTES.to_vec()),
+            });
+        }
         if tool_id == "mbake" && tool.config_rel.is_none() {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(MBAKE_DEFAULTS_REL),
@@ -466,6 +472,21 @@ impl RealBackend {
                 .map_err(|err| execution(TOOL_ID, format!("scratch config: {err}")))?
         };
         Ok(dir)
+    }
+
+    /// The directory ffmt runs in: the one that holds its config, user supplied or the staged
+    /// default. ffmt only recognizes two file names, so another name would be ignored silently.
+    pub(super) fn ffmt_config_dir(tool: &RealTool) -> Result<String, RunnerError> {
+        let Some(rel) = tool.config_rel.as_deref() else {
+            return Ok(FFMT_DEFAULTS_DIR.to_owned());
+        };
+        match Path::new(rel).file_name().and_then(|name| name.to_str()) {
+            Some("ffmt.toml" | ".ffmt.toml") => Ok(parent_rel(rel)),
+            _ => Err(execution(
+                "ffmt",
+                format!("config {rel} must be named ffmt.toml or .ffmt.toml"),
+            )),
+        }
     }
 
     pub(super) fn cwd_rel(tool_id: &str, config_rel: Option<&str>) -> String {

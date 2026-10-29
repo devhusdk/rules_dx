@@ -36,6 +36,7 @@ PLATFORM_FALLBACKS = {
 # here (sorted), so a new upstream build forces this list to shrink.
 EMULATED_TOOLS = {
     "windows_arm64": [
+        "ffmt",
         "hadolint",
         "hlint",
         "keep_sorted",

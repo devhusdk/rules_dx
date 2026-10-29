@@ -6,7 +6,7 @@ load("@rules_erlang//:erlang_app_info.bzl", _ErlangAppInfo = "ErlangAppInfo")
 load("//elixir/toolchain:pins.bzl", _ELIXIR_CELLS = "ELIXIR_CELLS")
 load("//erlang/rules:beam.bzl", "beam_info")
 load("//erlang/rules:defs.bzl", _escript_archive = "escript_archive")
-load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo")
+load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerPltInfo", "ErlangNifInfo")
 load("//erlang/toolchain:cells.bzl", "otp_compatible_with")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -36,13 +36,21 @@ _SPECS = [("elixir", ["ex", "exs"])]
 _EXTS = [".ex", ".exs"]
 
 def _beam_info(ctx, upstream):
+    nifs = [nif[ErlangNifInfo] for nif in ctx.attr.nifs]
     plts = [dep[DialyzerPltInfo].plt for dep in ctx.attr._dialyzer_plts]
     code = [f for dep in ctx.attr._dialyzer_code for f in dep[DefaultInfo].files.to_list()]
-    return [beam_info(upstream, plts, code)]
+    return [ErlangNifInfo(
+        libraries = depset(transitive = [nif.libraries for nif in nifs]),
+        objects_lists = depset(transitive = [nif.objects_lists for nif in nifs]),
+    ), beam_info(upstream, plts, code)]
 
 _elixir_app_forward = dx_library_forward_rule(
     extra_providers = _beam_info,
     extra_attrs = {
+        "nifs": attr.label_list(
+            doc = "erlang_nif targets this app loads from its priv directory.",
+            providers = [ErlangNifInfo],
+        ),
         "_dialyzer_code": attr.label_list(
             default = ["//elixir/tools:dialyzer_code"],
             doc = "The Elixir compiler beams dialyzer loads to read the debug info of Elixir beams.",
@@ -53,7 +61,7 @@ _elixir_app_forward = dx_library_forward_rule(
             doc = "The Elixir standard-library PLT dialyzer checks Elixir beams against.",
         ),
     },
-    provides = [_ErlangAppInfo, BeamInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    provides = [_ErlangAppInfo, BeamInfo, ErlangNifInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     required_providers = [(_ErlangAppInfo, "ErlangAppInfo")],
     quality_specs = _SPECS,
     what = "elixir_app",
@@ -97,12 +105,26 @@ def app_kwargs(kwargs, srcs):
         upstream["app_extra_keys"] = app_mod_entry(module) + (",\n" + extra if extra else "")
     return upstream
 
+def nif_priv(kwargs, nifs, glob = None):
+    """Returns the full priv list: globbed priv files, extra_priv, then the NIF libraries."""
+    glob = glob if glob != None else native.glob
+    extra = list(kwargs.get("extra_priv", []))
+    excluded = [e for e in extra if not (e.startswith(":") or e.startswith("//") or e.startswith("@"))]
+    return glob(["priv/**/*"], exclude = excluded, allow_empty = True) + extra + list(nifs)
+
 def elixir_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_elixir elixir_app macro."""
     tags = kwargs.pop("tags", None)
+    nifs = kwargs.pop("nifs", [])
+    if nifs:
+        # rules_erlang rejects extra_priv next to srcs, so list priv in full.
+        kwargs["priv"] = nif_priv(kwargs, nifs)
+        kwargs.pop("extra_priv", None)
     owned = app_sources(kwargs)
     _elixir_app(name = name + "_upstream", testonly = testonly, tags = dx_upstream_tags(tags), **app_kwargs(kwargs, owned))
     forward_kwargs = {"testonly": True} if testonly else {}
+    if nifs:
+        forward_kwargs["nifs"] = nifs
     if tags != None:
         forward_kwargs["tags"] = tags
     if kwargs.get("target_compatible_with") != None:

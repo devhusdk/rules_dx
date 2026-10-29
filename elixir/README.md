@@ -55,6 +55,7 @@ escript_archive(
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 
 - `elixir_app` is named `erlang_app` unless you pass `name`.
+- `elixir_app(nifs = [...])` takes `erlang_nif` targets, places them in `priv/`, and forwards `ErlangNifInfo`.
 - `testonly = True` marks the app and everything it builds test-only.
 - `tags` reach the app and every target it builds; the generated targets are
   `manual`, so `//...` builds only the app.

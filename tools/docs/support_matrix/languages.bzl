@@ -263,6 +263,10 @@ PLATFORM_NOT_APPLICABLE = {
         "windows_x86_64": "AppImage is a Linux format",
         "windows_arm64": "AppImage is a Linux format",
     },
+    "apple": {
+        "windows_arm64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+        "windows_x86_64": "Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS",
+    },
     "cuda": {
         "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS",
         "windows_arm64": "NVIDIA ships no CUDA toolkit for Windows arm64",
@@ -293,7 +297,6 @@ TOOL_NOT_APPLICABLE = {
 }
 
 GAP_ISSUES = {
-    "build:apple:*": 4540,
     "build:cuda:linux_arm64": 4541,
     "build:cuda:windows_x86_64": 4541,
     "build:d:windows_*": 4542,

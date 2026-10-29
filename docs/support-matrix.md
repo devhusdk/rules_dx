@@ -51,7 +51,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | --- | --- |
 | Android | none |
 | AppImage | `macos_arm64`, `windows_x86_64`, `windows_arm64`: AppImage is a Linux format |
-| Apple | `windows_x86_64`, `windows_arm64`: not tested yet |
+| Apple | `windows_x86_64`, `windows_arm64`: Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS |
 | CMake | none |
 | Dockerfile | none |
 | Make | none |

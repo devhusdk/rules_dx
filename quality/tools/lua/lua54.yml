@@ -1,0 +1,19 @@
+---
+# Lua 5.4 additions for selene, which ships no lua54 std. Use it as
+# `std = "lua53+lua54"`: the lua53 std supplies the globals, this file adds the
+# 5.4 ones and the parser versions. lua_versions must be explicit and base must
+# stay unset: StandardLibrary::extend replaces lua_versions with the other
+# side's (so a `base:` chain collapses back to lua52) instead of merging.
+lua_versions:
+  - lua52
+  - lua53
+  - lua54
+globals:
+  coroutine.close:
+    args:
+      - type: any
+  warn:
+    args:
+      - type: string
+      - required: false
+        type: "..."

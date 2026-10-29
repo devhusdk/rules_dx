@@ -1,0 +1,19 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+lua_library(
+    name = "testdata",
+    testonly = True,
+    srcs = [
+        "lua54_valid.lua",
+        "undefined_variable.lua",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

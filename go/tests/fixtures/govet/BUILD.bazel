@@ -1,27 +1,20 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//go/rules:defs.bzl", "go_library")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-exports_files([
-    "Sample.go",
-    "check_text.txt",
-])
-
-filegroup(
-    name = "sample_source",
-    testonly = True,
-    srcs = ["Sample.go"],
+go_library(
+    name = "clean",
+    srcs = ["clean.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/clean",
+    tags = ["manual"],
 )
 
-real_source_target(
-    name = "corpus_starlark",
-    testonly = True,
-    aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = [
-        "BUILD.bazel",
-    ],
-    tags = ["corpus"],
+go_library(
+    name = "dirty",
+    srcs = ["dirty.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/dirty",
+    tags = ["manual"],
 )

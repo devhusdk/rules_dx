@@ -937,17 +937,6 @@ fn staticcheck_check_is_json_with_config_dir_cwd() {
 }
 
 #[test]
-fn govet_and_errcheck_take_plain_file_lists() {
-    let file = Path::new("/scratch/Sample.go");
-    let govet = govet_check(Path::new(BIN), &[file]);
-    assert_eq!(argv_strings(&govet), vec![BIN, "/scratch/Sample.go"]);
-    assert_eq!(govet.cwd_rel, "");
-    let errcheck = errcheck_check(Path::new(BIN), &[file]);
-    assert_eq!(argv_strings(&errcheck), vec![BIN, "/scratch/Sample.go"]);
-    assert_eq!(errcheck.cwd_rel, "");
-}
-
-#[test]
 fn structured_checks_encode_pinned_shapes() {
     let proto = Path::new("/scratch/proto/hello.proto");
     let root = Path::new("/scratch");

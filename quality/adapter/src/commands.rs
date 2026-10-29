@@ -920,14 +920,6 @@ pub fn staticcheck_check(
     )
 }
 
-pub fn govet_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, EMPTY_ARGS, files, "")
-}
-
-pub fn errcheck_check(binary: &Path, files: &[&Path]) -> Invocation {
-    fixed(binary, EMPTY_ARGS, files, "")
-}
-
 pub fn google_java_format_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, GOOGLE_JAVA_FORMAT_CHECK_ARGS, files, "")
 }

@@ -4,8 +4,10 @@ stages 1
 stage errcheck classes=go sources=matrix/errcheck_dirty.go
 completed_rounds 1
 convergence STABLE
-initial 1
-initial WARNING errcheck - matrix/errcheck_dirty.go 89 89 fixable=false "unchecked error: f.WriteString(\"hello\")"
-terminal 1
-terminal WARNING errcheck - matrix/errcheck_dirty.go 89 89 fixable=false "unchecked error: f.WriteString(\"hello\")"
+initial 2
+initial WARNING errcheck errcheck matrix/errcheck_dirty.go 127 127 fixable=false "unchecked error"
+initial WARNING errcheck errcheck matrix/errcheck_dirty.go 145 145 fixable=false "unchecked error"
+terminal 2
+terminal WARNING errcheck errcheck matrix/errcheck_dirty.go 127 127 fixable=false "unchecked error"
+terminal WARNING errcheck errcheck matrix/errcheck_dirty.go 145 145 fixable=false "unchecked error"
 replacements 0

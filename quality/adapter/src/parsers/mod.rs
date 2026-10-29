@@ -24,7 +24,6 @@ pub mod djlint;
 pub mod dscanner;
 pub mod elvis;
 pub mod erlfmt;
-pub mod errcheck;
 pub mod eslint;
 pub mod fantomas;
 pub mod flake8;
@@ -38,7 +37,6 @@ mod gnu_diagnostics;
 pub mod go_analysis;
 pub mod gofumpt;
 pub mod google_java_format;
-pub mod govet;
 pub mod gplint;
 pub mod hadolint;
 pub mod helm;
@@ -105,7 +103,6 @@ pub mod vale;
 pub mod yamlfmt;
 pub mod yamllint;
 pub mod zig_ast_check;
-pub mod zig_compile;
 pub mod zig_fmt;
 
 pub use ansible_lint::parse_ansible_lint;
@@ -134,7 +131,6 @@ pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
 pub use dscanner::parse_dscanner;
 pub use elvis::parse_elvis;
 pub use erlfmt::parse_erlfmt;
-pub use errcheck::parse_errcheck;
 pub use eslint::{parse_eslint, parse_graphql_eslint};
 pub use fantomas::parse_fantomas;
 pub use flake8::parse_flake8;
@@ -147,7 +143,6 @@ pub use gersemi::parse_gersemi;
 pub use go_analysis::{parse_go_analysis, parse_gotype};
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
-pub use govet::parse_govet;
 pub use gplint::parse_gplint;
 pub use hadolint::parse_hadolint;
 pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, RenderedFile};
@@ -213,7 +208,6 @@ pub use vale::parse_vale;
 pub use yamlfmt::parse_yamlfmt;
 pub use yamllint::parse_yamllint;
 pub use zig_ast_check::parse_zig_ast_check;
-pub use zig_compile::parse_zig_compile;
 pub use zig_fmt::parse_zig_fmt;
 
 use std::path::Path;
@@ -1726,14 +1720,6 @@ mod tests {
         super::go_analysis::parse_gotype("gotype", input, code, files)
     }
 
-    fn fuzz_errcheck(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::errcheck::parse_errcheck(input, code, files)
-    }
-
     fn fuzz_eslint(
         input: &[u8],
         code: Option<i32>,
@@ -1822,14 +1808,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::google_java_format::parse_google_java_format(input, code, files)
-    }
-
-    fn fuzz_govet(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::govet::parse_govet(input, code, files)
     }
 
     fn fuzz_helm(
@@ -2185,14 +2163,6 @@ mod tests {
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
         super::julia_format::parse_julia_format(input, input, code, files)
-    }
-
-    fn fuzz_zig_compile(
-        input: &[u8],
-        code: Option<i32>,
-        files: &[&str],
-    ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::zig_compile::parse_zig_compile(input, code, files)
     }
 
     fn fuzz_zig_ast_check(
@@ -2659,7 +2629,6 @@ mod tests {
         ("ldc", fuzz_ldc),
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
-        ("errcheck", fuzz_errcheck),
         ("go_analysis", fuzz_go_analysis),
         ("gotype", fuzz_gotype),
         ("eslint", fuzz_eslint),
@@ -2672,7 +2641,6 @@ mod tests {
         ("gofumpt", fuzz_gofumpt),
         ("google_java_format", fuzz_google_java_format),
         ("graphql_eslint", fuzz_graphql_eslint),
-        ("govet", fuzz_govet),
         ("gplint", fuzz_gplint),
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
@@ -2751,7 +2719,6 @@ mod tests {
         ("yamlfmt", fuzz_yamlfmt),
         ("yamllint", fuzz_yamllint),
         ("zig_ast_check", fuzz_zig_ast_check),
-        ("zig_compile", fuzz_zig_compile),
         ("zig_fmt", fuzz_zig_fmt),
     ];
 
@@ -2780,7 +2747,6 @@ mod tests {
         ("ldc", include_str!("ldc.rs")),
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),
-        ("errcheck", include_str!("errcheck.rs")),
         ("go_analysis", include_str!("go_analysis.rs")),
         ("gotype", include_str!("go_analysis.rs")),
         ("eslint", include_str!("eslint.rs")),
@@ -2792,7 +2758,6 @@ mod tests {
         ("fsharplint", include_str!("fsharplint.rs")),
         ("gofumpt", include_str!("gofumpt.rs")),
         ("google_java_format", include_str!("google_java_format.rs")),
-        ("govet", include_str!("govet.rs")),
         ("gplint", include_str!("gplint.rs")),
         ("hadolint", include_str!("hadolint.rs")),
         ("helm", include_str!("helm.rs")),
@@ -2864,7 +2829,6 @@ mod tests {
         ("yamlfmt", include_str!("yamlfmt.rs")),
         ("yamllint", include_str!("yamllint.rs")),
         ("zig_ast_check", include_str!("zig_ast_check.rs")),
-        ("zig_compile", include_str!("zig_compile.rs")),
         ("zig_fmt", include_str!("zig_fmt.rs")),
     ];
 

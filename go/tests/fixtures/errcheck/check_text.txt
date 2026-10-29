@@ -1,1 +1,0 @@
-go/tests/fixtures/errcheck/Sample.go:7:2: unchecked error: f.WriteString("hello")

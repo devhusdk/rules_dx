@@ -26,7 +26,7 @@ load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps"
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
-load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
+load("//quality:compile_check.bzl", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
@@ -604,8 +604,20 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "dotnet",
     },
+    "errcheck": {
+        "capabilities": ["lint"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "go",
+    },
     "gotype": {
         "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "go",
+    },
+    "govet": {
+        "capabilities": ["lint"],
         "kind": "upstream",
         "resources": "heavy",
         "shard": "go",
@@ -797,12 +809,6 @@ _REAL_TOOL_TABLE = {
         "shard": "core",
         "target_tool": True,
     },
-    "zig": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "zig",
-    },
     "zig_ast_check": {
         "attr": attr.label(default = "//config:tool_zig_ast_check", allow_files = True, cfg = "exec"),
         "capabilities": ["lint"],
@@ -820,6 +826,8 @@ _REAL_TOOL_TABLE = {
         "target_tool": True,
     },
 }
+
+_GO_ANALYSIS_TOOLS = ["errcheck", "gotype", "govet"]
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 
@@ -1398,20 +1406,21 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         else:
             jvm_check = target[JvmCheckInfo]
 
-    go_report = None
-    if "gotype" in [stage["tool"] for stage in resolved]:
-        if GoAnalysisInfo not in target:
-            if GoArchive not in target:
-                resolved = drop_pipeline_tool(resolved, "gotype")
-                if len(resolved) == 0:
-                    return []
+    go_reports = {}
+    for go_tool in _GO_ANALYSIS_TOOLS:
+        if go_tool in [stage["tool"] for stage in resolved]:
+            if GoAnalysisInfo not in target:
+                if GoArchive not in target:
+                    resolved = drop_pipeline_tool(resolved, go_tool)
+                    if len(resolved) == 0:
+                        return []
+                else:
+                    fail(what + ": " + go_tool + " needs the Go analysis aspect report for a rules_go target")
             else:
-                fail(what + ": gotype needs the Go analysis aspect report for a rules_go target")
-        else:
-            go_report = target[GoAnalysisInfo].reports["gotype"]
+                go_reports[go_tool] = target[GoAnalysisInfo].reports[go_tool]
 
     compile_check = None
-    for compile_tool in COMPILE_CHECK_TOOLS:
+    for compile_tool in ["flang", "ldc"]:
         if compile_tool in [stage["tool"] for stage in resolved]:
             if CompileCheckInfo not in target or target[CompileCheckInfo].tool != compile_tool:
                 resolved = drop_pipeline_tool(resolved, compile_tool)
@@ -1814,13 +1823,13 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             for diagnostics in rustc_diagnostics:
                 upstream.append(diagnostics.path)
                 inputs.append(diagnostics)
-        if tool == "gotype":
-            upstream.append(go_report.path)
-            inputs.append(go_report)
+        if tool in go_reports:
+            upstream.append(go_reports[tool].path)
+            inputs.append(go_reports[tool])
         if tool == "javac":
             upstream.append(jvm_check.log.path)
             inputs.append(jvm_check.log)
-        if tool in COMPILE_CHECK_TOOLS:
+        if tool == "flang" or tool == "ldc":
             for i in range(len(compile_check.diagnostics)):
                 upstream.append(compile_check.diagnostics[i].path)
                 inputs.append(compile_check.diagnostics[i])
@@ -2042,6 +2051,14 @@ _REAL_SHARD_SPECS = {
         "doc": "Additive Ruby lint family aspect (RuboCop).",
         "shard": "ruby",
         "suffix": "-ruby",
+    },
+    "real_go_lint": {
+        "capability": "lint",
+        "doc": "Additive Go lint family aspect (delegated dx_govet and dx_errcheck over rules_go packages).",
+        "requires": [go_analysis_aspect],
+        "shard": "go",
+        "suffix": "-go",
+        "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
     },
     "real_go_typecheck": {
         "capability": "typecheck",
@@ -2424,13 +2441,6 @@ _REAL_SHARD_SPECS = {
         "shard": "text",
         "suffix": "-text",
     },
-    "real_zig_typecheck": {
-        "capability": "typecheck",
-        "doc": "Additive Zig typecheck family aspect (zig -fno-emit-bin replay of the compile action).",
-        "requires": [compile_check_aspect],
-        "shard": "zig",
-        "suffix": "-zig",
-    },
     "real_typecheck": {
         "capability": "typecheck",
         "doc": "Registers the exact-input real typecheck pipeline action in dx_results.",
@@ -2535,8 +2545,6 @@ real_format_aspect = _make_real_aspect("real_format")
 
 real_typecheck_aspect = _make_real_aspect("real_typecheck")
 
-real_zig_typecheck_aspect = _make_real_aspect("real_zig_typecheck")
-
 real_cc_format_aspect = _make_real_aspect("real_cc_format")
 
 real_cc_lint_aspect = _make_real_aspect("real_cc_lint")
@@ -2624,6 +2632,8 @@ real_terraform_format_aspect = _make_real_aspect("real_terraform_format")
 real_terraform_lint_aspect = _make_real_aspect("real_terraform_lint")
 
 real_go_format_aspect = _make_real_aspect("real_go_format")
+
+real_go_lint_aspect = _make_real_aspect("real_go_lint")
 
 real_go_typecheck_aspect = _make_real_aspect("real_go_typecheck")
 

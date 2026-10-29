@@ -6,6 +6,18 @@ load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
+_DRIVERS = {
+    "errcheck": "_errcheck",
+    "gotype": "_gotype",
+    "govet": "_govet",
+}
+
+_MNEMONICS = {
+    "errcheck": "GoErrcheck",
+    "gotype": "GoTypeCheck",
+    "govet": "GoVet",
+}
+
 GoAnalysisInfo = provider(
     doc = "Reports of the dx Go analysis drivers for one rules_go package.",
     fields = {
@@ -67,7 +79,7 @@ def _go_analysis_impl(target, ctx):
         if GoAnalysisInfo not in upstream:
             return []
         info = upstream[GoAnalysisInfo]
-        return [info, OutputGroupInfo(dx_gotype = depset(info.reports.values()))]
+        return [info, OutputGroupInfo(**{"dx_" + tool: depset([report]) for tool, report in info.reports.items()})]
     if GoArchive not in target:
         return []
     archive = target[GoArchive]
@@ -105,19 +117,22 @@ def _go_analysis_impl(target, ctx):
         "StdlibDir": stdlib.root_file.path + "/" + _install_suffix(mode),
         "Tags": list(mode.tags),
     }
-    config_file = ctx.actions.declare_file("dx_gotype/%s.config.json" % target.label.name)
+    config_file = ctx.actions.declare_file("dx_go_analysis/%s.config.json" % target.label.name)
     ctx.actions.write(config_file, json.encode(config))
-    report = ctx.actions.declare_file("dx_gotype/%s.json" % target.label.name)
-    ctx.actions.run(
-        mnemonic = "GoTypeCheck",
-        progress_message = "gotype %{label}",
-        executable = ctx.attr._gotype.files_to_run,
-        arguments = ["-out", report.path, config_file.path],
-        inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs]),
-        outputs = [report],
-        resource_set = dx_quality_heavy_resources,
-    )
-    return [GoAnalysisInfo(reports = {"gotype": report}), OutputGroupInfo(dx_gotype = depset([report]))]
+    reports = {}
+    for tool in sorted(_DRIVERS):
+        report = ctx.actions.declare_file("dx_%s/%s.json" % (tool, target.label.name))
+        ctx.actions.run(
+            mnemonic = _MNEMONICS[tool],
+            progress_message = tool + " %{label}",
+            executable = getattr(ctx.attr, _DRIVERS[tool]).files_to_run,
+            arguments = ["-out", report.path, config_file.path],
+            inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs]),
+            outputs = [report],
+            resource_set = dx_quality_heavy_resources,
+        )
+        reports[tool] = report
+    return [GoAnalysisInfo(reports = reports), OutputGroupInfo(**{"dx_" + tool: depset([report]) for tool, report in reports.items()})]
 
 go_analysis_aspect = aspect(
     implementation = _go_analysis_impl,
@@ -125,8 +140,18 @@ go_analysis_aspect = aspect(
     attr_aspects = ["upstream"],
     attrs = {
         "_go_stdlib": attr.label(default = "@rules_go//:stdlib"),
+        "_errcheck": attr.label(
+            default = "//config:tool_errcheck",
+            cfg = "exec",
+            executable = True,
+        ),
         "_gotype": attr.label(
             default = "//config:tool_gotype",
+            cfg = "exec",
+            executable = True,
+        ),
+        "_govet": attr.label(
+            default = "//config:tool_govet",
             cfg = "exec",
             executable = True,
         ),

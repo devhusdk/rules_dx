@@ -584,10 +584,12 @@ impl RealBackend {
             "csc" => self.check_csc_delegated(tool_id, tool, pairs),
             "fsc" => self.check_fsc_delegated(tool_id, tool, pairs),
             "clang_syntax" => self.check_clang_syntax_delegated(tool_id, tool, pairs),
-            "flang" | "ldc" | "zig" => self.check_compile_log_delegated(tool_id, tool, pairs),
+            "flang" | "ldc" => self.check_compile_log_delegated(tool_id, tool, pairs),
             "javac" => self.check_jvm_log_delegated(tool_id, tool, pairs),
             "nvcc_syntax" => self.check_nvcc_syntax_delegated(tool_id, tool, pairs),
-            "gotype" => self.check_gotype_delegated(tool_id, tool, pairs),
+            "errcheck" | "gotype" | "govet" => {
+                self.check_go_analysis_delegated(tool_id, tool, pairs)
+            }
             "tsc" => self.check_tsc_delegated(tool_id, tool, pairs),
             "fsharplint" => {
                 if !tool.upstream_diagnostics.is_empty() {
@@ -974,27 +976,6 @@ impl RealBackend {
                     parsed(
                         tool_id,
                         parsers::parse_staticcheck(&out.stdout, out.code, &strs),
-                    )
-                }
-            }
-            "govet" => {
-                if !tool.upstream_diagnostics.is_empty() {
-                    self.check_govet_delegated(tool_id, tool, pairs)
-                } else {
-                    let invocation = commands::govet_check(&tool.binary, &refs);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    parsed(tool_id, parsers::parse_govet(&out.stderr, out.code, &strs))
-                }
-            }
-            "errcheck" => {
-                if !tool.upstream_diagnostics.is_empty() {
-                    self.check_errcheck_delegated(tool_id, tool, pairs)
-                } else {
-                    let invocation = commands::errcheck_check(&tool.binary, &refs);
-                    let out = self.run(tool_id, tool, &invocation, scratch)?;
-                    parsed(
-                        tool_id,
-                        parsers::parse_errcheck(&out.stdout, out.code, &strs),
                     )
                 }
             }

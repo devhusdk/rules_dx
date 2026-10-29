@@ -187,9 +187,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude quality/artifacts
 # gazelle:exclude quality/tools/python
 # gazelle:exclude tools/depcheck
-# gazelle:exclude go/tests/fixtures/errcheck
 # gazelle:exclude go/tests/fixtures/gofumpt
-# gazelle:exclude go/tests/fixtures/govet
 # gazelle:exclude go/tests/fixtures/staticcheck
 # gazelle:exclude go/tests/fixtures/godeps
 # gazelle:exclude rust/tests/fixtures/hello

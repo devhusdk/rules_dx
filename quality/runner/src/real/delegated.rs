@@ -239,7 +239,7 @@ impl RealBackend {
         Ok(findings)
     }
 
-    pub(super) fn check_gotype_delegated(
+    pub(super) fn check_go_analysis_delegated(
         &self,
         tool_id: &str,
         tool: &RealTool,
@@ -252,15 +252,20 @@ impl RealBackend {
         let [path] = tool.upstream_diagnostics.as_slice() else {
             return Err(execution(
                 tool_id,
-                "gotype needs the report of the target package; the Go aspect did not supply it"
-                    .to_owned(),
+                format!(
+                    "{tool_id} needs the report of the target package; the Go aspect did not supply it"
+                ),
             ));
         };
         let bytes = std::fs::read(path)
             .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
         let mut findings = parsed(
             tool_id,
-            parsers::parse_gotype("gotype", &bytes, Some(0), &workspaces),
+            match tool_id {
+                "gotype" => parsers::parse_gotype("gotype", &bytes, Some(0), &workspaces),
+                "errcheck" => parsers::parse_go_analysis("errcheck", &bytes, Some(0), &workspaces),
+                _ => parsers::parse_go_analysis("govet", &bytes, Some(0), &workspaces),
+            },
         )?;
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;
@@ -486,7 +491,6 @@ impl RealBackend {
         let parse: CompileLogParser = match tool_id {
             "flang" => parsers::parse_flang,
             "ldc" => parsers::parse_ldc,
-            "zig" => parsers::parse_zig_compile,
             other => {
                 return Err(execution(
                     other,
@@ -582,58 +586,6 @@ impl RealBackend {
             findings.extend(parsed(
                 tool_id,
                 parsers::parse_staticcheck(&bytes, Some(0), &workspaces),
-            )?);
-        }
-        for found in &mut findings {
-            let absolute = reanchor(tool_id, pairs, &found.file)?;
-            found.file = absolute.to_string_lossy().into_owned();
-        }
-        Ok(findings)
-    }
-
-    pub(super) fn check_govet_delegated(
-        &self,
-        tool_id: &str,
-        tool: &RealTool,
-        pairs: &[(String, PathBuf)],
-    ) -> Result<Vec<FileFinding>, RunnerError> {
-        let workspaces: Vec<&str> = pairs
-            .iter()
-            .map(|(workspace, _)| workspace.as_str())
-            .collect();
-        let mut findings = Vec::new();
-        for path in &tool.upstream_diagnostics {
-            let bytes = std::fs::read(path)
-                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_govet(&bytes, Some(0), &workspaces),
-            )?);
-        }
-        for found in &mut findings {
-            let absolute = reanchor(tool_id, pairs, &found.file)?;
-            found.file = absolute.to_string_lossy().into_owned();
-        }
-        Ok(findings)
-    }
-
-    pub(super) fn check_errcheck_delegated(
-        &self,
-        tool_id: &str,
-        tool: &RealTool,
-        pairs: &[(String, PathBuf)],
-    ) -> Result<Vec<FileFinding>, RunnerError> {
-        let workspaces: Vec<&str> = pairs
-            .iter()
-            .map(|(workspace, _)| workspace.as_str())
-            .collect();
-        let mut findings = Vec::new();
-        for path in &tool.upstream_diagnostics {
-            let bytes = std::fs::read(path)
-                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            findings.extend(parsed(
-                tool_id,
-                parsers::parse_errcheck(&bytes, Some(0), &workspaces),
             )?);
         }
         for found in &mut findings {

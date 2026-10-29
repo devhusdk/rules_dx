@@ -333,7 +333,6 @@ to.
 | `vale` | lint | markdown |
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
-| `zig` | typecheck | zig |
 | `zig_ast_check` | lint | zig |
 | `zig_fmt` | format | zig |
 
@@ -799,6 +798,23 @@ export data, so a type error in a dependency fails the build of its dependents
 instead of being reported by them. Use `--@rules_dx//config:tool_gotype=<target>`
 to replace the driver.
 
+### Go linting
+
+`govet` and `errcheck` lint every `go_library`, `go_binary` and `go_test`. They
+are opt-in: no curated Go lint default is set. A Bazel action per tool runs the
+`dx_govet` or `dx_errcheck` driver once per package, on the same inputs as
+`gotype`, so the build tags, GOOS, GOARCH and cgo setting match the real
+compile. The drivers run the vet and errcheck analyzers directly, so no
+`go list`, module cache or network access is needed. A finding has the analyzer
+name as its rule and sits at its line and column in the target's own sources.
+An analyzer error, an import with no export data, or a missing report fails the
+run instead of passing it. Neither tool fixes, so `--apply` changes nothing.
+Facts do not cross packages yet, so analyzers that depend on them see each
+package alone. Use `--@rules_dx//config:tool_govet=<target>` or
+`--@rules_dx//config:tool_errcheck=<target>` to replace a driver; it must take
+`-out FILE CONFIG` and write the dx unit JSON report. `staticcheck` still runs
+the standalone binary.
+
 ### Java typechecking
 
 `javac` typechecks every `java_library`, `java_binary` and `java_test`. A
@@ -830,20 +846,6 @@ x86_64 only and never fix, so `--apply` changes nothing. Fortran modules that a
 source takes from another source of the same target come from the real build:
 a type error in the providing source fails `bazel build` instead of showing as
 a finding.
-
-### Zig typechecking
-
-`zig` is opt-in: select it with `typecheck = ["zig"]` on a `zig` family. It
-replays the `zig build-exe`, `build-lib` and `test` action that the Zig rules
-configured, so the flags, modules and cache settings match the real build. The
-replay adds `-fno-emit-bin` and drops every `-femit-*` flag, so it writes no
-binaries, assembly or bitcode. An error is reported at its line and column in the
-target's own sources. An error in another file, or a failed run with no error in
-the target's sources, fails the run instead of passing it. `zig` never fixes, so
-`--apply` changes nothing. Zig analyzes lazily, so only declarations that the
-root module references are checked: an unused function with a type error is not
-reported. `zig_library` has no compile action of its own, so libraries are only
-checked through the `zig_binary` or `zig_test` that depends on them.
 
 ### TypeScript typechecking
 

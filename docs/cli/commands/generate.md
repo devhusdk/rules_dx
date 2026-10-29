@@ -64,7 +64,7 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")` and `("openapi", "typescript")`.
+`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")` and `("openapi", "typescript")`.
 
 The openapi/typescript pair comes from `openapi_typescript_client` in
 `@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
@@ -116,6 +116,22 @@ code's version check. Bind `flatbuffers_codegen_shard` with `language = "java"`
 to the `flatbuffers_java_library`; each entry's `EXEC_PATH` is the srcjar of one
 direct dep. For breaking-change checks see `flatbuffers_conform_test` in
 [quality](quality.md#breaking-change-check).
+
+The capnp/cpp pair comes from `capnp_cc_library` in
+`@rules_dx//capnproto/rules:codegen.bzl`, which runs the pinned `capnp compile`
+with `capnpc-c++` once per `capnp_library` and compiles the output once per
+library, so two C++ targets that share a schema library never link duplicate
+symbols. The declared import closure (the library's schemas, its deps and the
+bundled `/capnp/*.capnp`) is staged as symlinks under a private root and compiled
+with `--no-standard-import`, so an import outside `deps` fails with or without a
+sandbox. Relative imports resolve inside that root, but the generated headers
+include them relatively, so a relative import must stay in the importing
+schema's own directory; use an absolute `/pkg/file.capnp` import across packages.
+`capnp_codegen_shard` binds one plan entry with an `EXEC_PATH` suffix to each
+generated `.capnp.h` and `.capnp.c++` file; the shard lists the files of the
+libraries in the `deps` of the `capnp_cc_library` only. The pin is built for
+Linux x86_64 only, as for `dx quality`; Rust and managed-language generation are
+not part of this pair yet.
 
 ## Android inputs
 

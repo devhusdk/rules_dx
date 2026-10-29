@@ -66,6 +66,14 @@ def codegen_defs_unit_tests(name):
                 [True, True, True, False],
             ),
             expect_equal(
+                "codegen admits the capnp cpp pair (#2316) and defers other languages",
+                [
+                    codegen_pair_error("capnp", "cpp") == "",
+                    codegen_pair_error("capnp", "rust") == "",
+                ],
+                [True, False],
+            ),
+            expect_equal(
                 "codegen_path_error accepts relative paths",
                 [codegen_path_error("src/a.rs"), codegen_path_error("a")],
                 ["", ""],

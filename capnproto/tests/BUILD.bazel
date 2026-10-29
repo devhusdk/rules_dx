@@ -1,0 +1,151 @@
+load("//capnproto/rules:codegen.bzl", "capnp_cc_library", "capnp_codegen_shard")
+load("//cc/rules:defs.bzl", "cc_test")
+load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":failure_tests.bzl", "capnp_codegen_failure_test")
+
+package(default_visibility = ["//visibility:private"])
+
+# C++ for both libraries; the schema in api/ imports the one in base/.
+capnp_cc_library(
+    name = "shapes_cc",
+    deps = [
+        "//capnproto/tests/api",
+        "//capnproto/tests/base",
+    ],
+)
+
+cc_test(
+    name = "cc_roundtrip_test",
+    size = "small",
+    srcs = ["cc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [":shapes_cc"],
+)
+
+# A second library over the same schemas must share the one compile per library.
+capnp_cc_library(
+    name = "shapes_cc_again",
+    deps = [
+        "//capnproto/tests/api",
+        "//capnproto/tests/base",
+    ],
+)
+
+cc_test(
+    name = "cc_both_libraries_test",
+    size = "small",
+    srcs = ["cc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [
+        ":shapes_cc",
+        ":shapes_cc_again",
+    ],
+)
+
+capnp_codegen_shard(
+    name = "shapes_cc_shard",
+    entries = [
+        "gen/base/common.capnp.h|gen|dx.base|capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.h",
+        "gen/base/common.capnp.c++|gen|dx.base|capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.c++",
+        "gen/api/kind.capnp.h|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/kind.capnp.h",
+        "gen/api/kind.capnp.c++|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/kind.capnp.c++",
+        "gen/api/shape.capnp.h|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/shape.capnp.h",
+        "gen/api/shape.capnp.c++|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/shape.capnp.c++",
+    ],
+    language = "cpp",
+    library = ":shapes_cc",
+)
+
+codegen_shard_argv_test(
+    name = "shapes_cc_shard_argv_test",
+    expected = [
+        "--producer",
+        "//capnproto/tests:shapes_cc_shard",
+        "--language",
+        "cpp",
+        "--entry",
+        "gen/base/common.capnp.h|gen|dx.base|capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.h",
+        "--entry",
+        "gen/base/common.capnp.c++|gen|dx.base|capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.c++",
+        "--entry",
+        "gen/api/kind.capnp.h|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/kind.capnp.h",
+        "--entry",
+        "gen/api/kind.capnp.c++|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/kind.capnp.c++",
+        "--entry",
+        "gen/api/shape.capnp.h|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/shape.capnp.h",
+        "--entry",
+        "gen/api/shape.capnp.c++|gen|dx.api|capnproto/tests/api/_capnp_cc/capnproto/tests/api/shape.capnp.c++",
+        "--output",
+    ],
+    output = "capnproto/tests/shapes_cc_shard.dxcodegen.pb",
+    target_under_test = ":shapes_cc_shard",
+)
+
+# Failing fixtures: only built by the analysis tests below.
+capnp_codegen_shard(
+    name = "unclaimed_shard",
+    entries = ["gen/base/common.capnp.h|gen|dx.base|capnproto/tests/base/_capnp_cc/capnproto/tests/base/common.capnp.h"],
+    language = "cpp",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+capnp_codegen_shard(
+    name = "stray_shard",
+    entries = ["gen/other.h|gen|dx|capnproto/tests/other.h"],
+    language = "cpp",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+capnp_codegen_shard(
+    name = "python_shard",
+    entries = ["gen/a.py|gen|a|common.capnp.h"],
+    language = "python",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+capnp_codegen_shard(
+    name = "rust_shard_on_cc",
+    entries = ["gen/a.rs|gen|a|common.capnp.h"],
+    language = "rust",
+    library = ":shapes_cc",
+    tags = ["manual"],
+)
+
+capnp_codegen_failure_test(
+    name = "unclaimed_artifact_test",
+    message = "unreported capnp_generated_srcs artifact",
+    target_under_test = ":unclaimed_shard",
+)
+
+capnp_codegen_failure_test(
+    name = "stray_entry_test",
+    message = "matches no capnp_generated_srcs artifact",
+    target_under_test = ":stray_shard",
+)
+
+capnp_codegen_failure_test(
+    name = "non_admitted_pair_test",
+    message = "unsupported codegen pair ('capnp', 'python')",
+    target_under_test = ":python_shard",
+)
+
+capnp_codegen_failure_test(
+    name = "rust_pair_deferred_test",
+    message = "unsupported codegen pair ('capnp', 'rust')",
+    target_under_test = ":rust_shard_on_cc",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "failure_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

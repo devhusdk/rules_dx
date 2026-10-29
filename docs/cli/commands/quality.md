@@ -1347,6 +1347,9 @@ x86_64. Select it in a `capnp` family. The family is opt-in and part of no
 curated default. Format is not applicable: no maintained `.capnp` formatter
 exists, and `capnp` only validates.
 
+For C++ code generation from the same `capnp_library` targets see
+[generate](generate.md#codegen-pairs).
+
 ```python
 load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
 

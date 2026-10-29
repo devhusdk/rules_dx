@@ -4,6 +4,7 @@ load(":defs_tests.bzl", "capnp_library_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "codegen.bzl",
     "defs.bzl",
     "defs_tests.bzl",
 ])
@@ -15,6 +16,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "codegen.bzl",
         "defs.bzl",
         "defs_tests.bzl",
     ],

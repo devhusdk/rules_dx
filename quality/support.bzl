@@ -923,6 +923,36 @@ DOCKERFILE_PRETTIER_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+PERL_PERLCRITIC_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["perl"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "perl",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "perlcritic",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
+}
+
+PERL_PERLTIDY_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["perl"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "perl",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "perltidy",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
+}
+
 PHP_PRETTIER_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -935,6 +965,36 @@ PHP_PRETTIER_FORMAT_SUPPORT = {
     "state": "supported",
     "tool": "prettier",
     "transport": "batched",
+}
+
+PHP_PHPCS_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["php"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "php",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "phpcs",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
+}
+
+PHP_PHPSTAN_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["php"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "php",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "phpstan",
+    "transport": "batched",
+    "unsupported": ["windows_arm64"],
 }
 
 SQL_PRETTIER_FORMAT_SUPPORT = {
@@ -1172,7 +1232,7 @@ POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "powershell",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "psscriptanalyzer",
     "transport": "batched",
@@ -1186,7 +1246,7 @@ POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT = {
     "execution": "direct",
     "family": "powershell",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
     "state": "supported",
     "tool": "psscriptanalyzer",
     "transport": "batched",
@@ -1643,6 +1703,10 @@ SUPPORT_RECORDS = [
     ANSIBLE_PRETTIER_FORMAT_SUPPORT,
     KUBERNETES_PRETTIER_FORMAT_SUPPORT,
     DOCKERFILE_PRETTIER_FORMAT_SUPPORT,
+    PERL_PERLCRITIC_LINT_SUPPORT,
+    PERL_PERLTIDY_FORMAT_SUPPORT,
+    PHP_PHPCS_LINT_SUPPORT,
+    PHP_PHPSTAN_TYPECHECK_SUPPORT,
     PHP_PRETTIER_FORMAT_SUPPORT,
     SQL_PRETTIER_FORMAT_SUPPORT,
     SQL_SQLFLUFF_FORMAT_SUPPORT,

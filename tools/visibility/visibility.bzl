@@ -61,6 +61,7 @@ VIS_ENV_SHARD = VIS_CLI + [
 ]
 
 VIS_CLI_GENERATION = VIS_CLI + [
+    "//capnproto/rules:__pkg__",
     "//flatbuffers/rules:__pkg__",
     "//api_spec/rules:__pkg__",
     "//generation:__pkg__",

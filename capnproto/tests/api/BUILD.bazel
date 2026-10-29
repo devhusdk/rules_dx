@@ -1,0 +1,21 @@
+load("//capnproto/rules:defs.bzl", "capnp_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//capnproto:__subpackages__"])
+
+capnp_library(
+    name = "api",
+    srcs = [
+        "kind.capnp",
+        "shape.capnp",
+    ],
+    deps = ["//capnproto/tests/base"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

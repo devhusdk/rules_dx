@@ -10,12 +10,14 @@ _DRIVERS = {
     "errcheck": "_errcheck",
     "gotype": "_gotype",
     "govet": "_govet",
+    "staticcheck": "_staticcheck",
 }
 
 _MNEMONICS = {
     "errcheck": "GoErrcheck",
     "gotype": "GoTypeCheck",
     "govet": "GoVet",
+    "staticcheck": "GoStaticcheck",
 }
 
 GoAnalysisInfo = provider(
@@ -152,6 +154,11 @@ go_analysis_aspect = aspect(
         ),
         "_govet": attr.label(
             default = "//config:tool_govet",
+            cfg = "exec",
+            executable = True,
+        ),
+        "_staticcheck": attr.label(
+            default = "//config:tool_staticcheck",
             cfg = "exec",
             executable = True,
         ),

@@ -751,6 +751,12 @@ _REAL_TOOL_TABLE = {
         "runfiles_env": True,
         "shard": "sql",
     },
+    "staticcheck": {
+        "capabilities": ["lint"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "go",
+    },
     "statix": {
         "attr": attr.label(default = "//quality/tools/rust:statix", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -909,7 +915,7 @@ _REAL_TOOL_TABLE = {
 
 _JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
 
-_GO_ANALYSIS_TOOLS = ["errcheck", "gotype", "govet"]
+_GO_ANALYSIS_TOOLS = ["errcheck", "gotype", "govet", "staticcheck"]
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 

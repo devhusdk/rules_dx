@@ -20,6 +20,8 @@ require (
 	honnef.co/go/tools v0.8.2
 )
 
+require github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
+
 require (
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
 	golang.org/x/sync v0.23.0 // indirect

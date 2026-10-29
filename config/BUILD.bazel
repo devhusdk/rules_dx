@@ -107,6 +107,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_staticcheck",
+    build_setting_default = "//go/tools/analysis/cmd/dx_staticcheck",
+)
+
+label_flag(
     name = "tool_gotype",
     build_setting_default = "//go/tools/analysis/cmd/dx_gotype",
 )

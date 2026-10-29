@@ -190,6 +190,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "topiary",
+        config: FixConfig::None,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "typstyle",
         config: FixConfig::None,
         keep_exit_one: false,
@@ -1113,6 +1119,7 @@ impl super::RealBackend {
                 "jsonnetfmt" => Ok(commands::jsonnetfmt_fix(&tool.binary, refs)),
                 "nixfmt" => Ok(commands::nixfmt_fix(&tool.binary, refs)),
                 "ormolu" => Ok(commands::ormolu_fix(&tool.binary, refs)),
+                "topiary" => Ok(commands::topiary_fix(&tool.binary, refs)),
                 "typstyle" => Ok(commands::typstyle_fix(&tool.binary, refs)),
                 "opa" => match refs {
                     [file] => Ok(commands::opa_fmt_fix(&tool.binary, file)),

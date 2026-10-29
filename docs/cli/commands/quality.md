@@ -331,6 +331,7 @@ to.
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
 | `tflint` | lint | terraform |
+| `topiary` | format | ocaml |
 | `tsc` | typecheck | typescript, tsx |
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
@@ -1679,6 +1680,35 @@ error is reported by ffmt as unformatted, and `fortitude` reports the error.
 ffmt prints each unformatted path and exits 1. Output that names a file the run
 did not pass, or an exit that disagrees with the output, is an error. There is
 no ffmt build for Windows arm64, which runs the x86_64 build emulated.
+
+### OCaml formatting
+
+`dx format` runs `topiary` on `.ml` and `.mli` sources. It is opt-in: select it
+in an `ocaml` family with `format = ["topiary"]`, and OCaml files are not
+formatted until then.
+
+```python
+quality_family(
+    name = "ocaml_family",
+    family_id = "ocaml",
+    format = ["topiary"],
+)
+```
+
+The tool is `dx_topiary`, a small binary built from source on Linux x86_64,
+Linux arm64, macOS arm64 and Windows x86_64. It links topiary 0.8.0 with the
+tree-sitter OCaml grammar 0.24.0, so nothing is fetched at run time and no
+config, environment variable or home directory is read. Three things differ
+from what an OCaml developer may expect:
+
+- The output is topiary's, not ocamlformat's, so it differs from ocamlformat. A
+  `.ocamlformat` file is ignored. That is why the tool is opt-in.
+- `.mll` and `.mly` files are not formatted.
+- A syntax error is a tool error (exit 2) and never a clean run.
+
+It prints each unformatted path and exits 1. Output that names a file the run
+did not pass, or an exit that disagrees with the output, is an error. There is
+no ocamlformat build yet, and `dx lint` has no OCaml linter (#4621).
 
 ### Haskell
 

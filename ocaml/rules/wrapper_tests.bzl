@@ -19,7 +19,7 @@ def ocaml_wrapper_contract_tests(name):
             expect_equal("the sys emitter builds native", toolchain_choice("ocamlopt.opt", "sys"), "ocamlopt.opt"),
             expect_equal("the sys emitter replaces the bytecode default", toolchain_choice("ocamlc.opt", "sys"), "ocamlopt.opt"),
             expect_equal("owned sources are .ml and .mli files", owned_sources("a.ml", ":sig", None, "b.mli"), ["a.ml", "b.mli"]),
-            expect_equal("format, lint and typecheck skip OCaml", with_defaults({"tags": ["x"]})["tags"], ["x", "no-format", "no-lint", "no-typecheck"]),
+            expect_equal("lint and typecheck skip OCaml, format does not", with_defaults({"tags": ["x"]})["tags"], ["x", "no-lint", "no-typecheck"]),
             expect_equal("upstream actions stay local", upstream_tags(None)[-1], "no-remote-exec"),
             expect_equal("binaries link without a runtime only for the vm emitter", type(link_kwargs({"opts": ["-g"]})["opts"]), "select"),
             expect_equal("binaries without opts get the emitter select", type(link_kwargs({})["opts"]), "select"),

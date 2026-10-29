@@ -99,6 +99,7 @@ pub mod stylua;
 pub mod taplo;
 pub mod terraform;
 pub mod tflint;
+pub mod topiary;
 pub mod tsc;
 pub mod ty;
 pub mod typstyle;
@@ -208,6 +209,7 @@ pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use tflint::parse_tflint;
+pub use topiary::parse_topiary;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
 pub use typstyle::parse_typstyle;
@@ -1778,6 +1780,14 @@ mod tests {
         Ok(both.findings)
     }
 
+    fn fuzz_topiary(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::topiary::parse_topiary(input, code, files)
+    }
+
     fn fuzz_ffmt(
         input: &[u8],
         code: Option<i32>,
@@ -2667,6 +2677,7 @@ mod tests {
         ("checkstyle", fuzz_checkstyle),
         ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
+        ("topiary", fuzz_topiary),
         ("clang_format", fuzz_clang_format),
         ("clang_syntax", fuzz_clang_syntax),
         ("clang_tidy", fuzz_clang_tidy),
@@ -2793,6 +2804,7 @@ mod tests {
         ("checkstyle", include_str!("checkstyle.rs")),
         ("cmakelint", include_str!("cmakelint.rs")),
         ("tflint", include_str!("tflint.rs")),
+        ("topiary", include_str!("topiary.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_syntax", include_str!("clang_syntax.rs")),
         ("clang_tidy", include_str!("clang_tidy.rs")),

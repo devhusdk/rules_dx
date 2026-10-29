@@ -309,7 +309,6 @@ GAP_ISSUES = {
     "format:asciidoc": 4439,
     "format:cloudformation": 4439,
     "format:helm": 4439,
-    "format:ocaml": 4686,
     "format:rst": 4439,
     "lint:cuda": 4616,
     "lint:julia": 4623,

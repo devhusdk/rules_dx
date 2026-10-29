@@ -1925,6 +1925,19 @@ impl RealBackend {
                     )
                 },
             ),
+            "topiary" => self.check_files(
+                tool_id,
+                tool,
+                scratch,
+                pairs,
+                |files| Ok(commands::topiary_check(&tool.binary, files)),
+                |out, names| {
+                    parsed(
+                        tool_id,
+                        parsers::parse_topiary(&out.stdout, out.code, names),
+                    )
+                },
+            ),
             "ansible_lint" => {
                 let roots = staging::ansible_collections_roots(
                     tool.tool_files.iter().map(|(rel, _)| rel.as_str()),

@@ -14,6 +14,15 @@ path = "src/lib.rs"
 [dependencies]
 deadnix = "=1.3.1"
 
+# dx_topiary (//quality/tools/rust/topiary): the OCaml grammar tag must match the
+# grammar rev topiary pins in topiary-config/languages.ncl at the topiary
+# version below (0.8.0 -> a45fda5 == tree-sitter-ocaml v0.24.0). Re-derive it
+# from that file on every topiary bump. tree-sitter is pinned by topiary-core.
+topiary-core = "=0.8.0"
+topiary-queries = { version = "=0.8.0", default-features = false, features = ["ocaml", "ocaml_interface"] }
+tree-sitter = "=0.26.12"
+tree-sitter-ocaml = "=0.24.0"
+
 # statix @ 52530001bdbc8e94aae0d406a929c7ad7f09d9d1
 anyhow = "=1.0.103"
 ariadne = "=0.6.0"
@@ -33,7 +42,7 @@ sha2 = "=0.11.0"
 similar = "=3.1.0"
 syn = { version = "=2.0.119", features = ["full"] }
 tempfile = "=3.27.0"
-thiserror = "=2.0.18"
+thiserror = "2.0.21"
 toml = "=1.1.3"
 
 # selene @ 0.32.0 (built from source, //quality/tools/rust:selene.BUILD.bazel).

@@ -2,7 +2,7 @@
   "binary_crates": [
     "deadnix 1.3.1"
   ],
-  "checksum": "eec30c9318e4c097a4cda0cd3d5e362b5ac2424cd18bf2c24da83fc08b16d6e2",
+  "checksum": "12299d24fdb28b6c9d376cc396a3015ea0f1d9b7e2eb6ec9e27c0964b2f437d7",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -31,6 +31,7 @@
     ],
     "cfg(all(target_arch = \"loongarch64\", target_os = \"linux\"))": [],
     "cfg(all(target_arch = \"wasm32\", target_os = \"unknown\"))": [],
+    "cfg(all(target_os = \"emscripten\", wasm_bindgen_unstable_tokio))": [],
     "cfg(all(target_os = \"uefi\", getrandom_backend = \"efi_rng\"))": [],
     "cfg(any())": [],
     "cfg(any(target_arch = \"aarch64\", target_arch = \"x86_64\", target_arch = \"x86\"))": [
@@ -58,11 +59,18 @@
       "aarch64-unknown-linux-gnu",
       "x86_64-unknown-linux-gnu"
     ],
+    "cfg(not(target_arch = \"wasm32\"))": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu"
+    ],
     "cfg(not(windows))": [
       "aarch64-apple-darwin",
       "aarch64-unknown-linux-gnu",
       "x86_64-unknown-linux-gnu"
     ],
+    "cfg(target_arch = \"wasm32\")": [],
     "cfg(target_os = \"android\")": [],
     "cfg(target_os = \"haiku\")": [],
     "cfg(target_os = \"hermit\")": [],
@@ -2216,6 +2224,35 @@
       ],
       "version": "1.0.0"
     },
+    "diff 0.1.13": {
+      "common_attrs": {
+        "edition": "2015"
+      },
+      "library_target_name": "diff",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "diff",
+      "package_url": "https://github.com/utkarshkukreti/diff.rs",
+      "repository": {
+        "Http": {
+          "sha256": "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8",
+          "url": "https://static.crates.io/crates/diff/0.1.13/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "diff",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.1.13"
+    },
     "digest 0.11.3": {
       "common_attrs": {
         "crate_features": [
@@ -2509,7 +2546,7 @@
             "target": "termcolor"
           },
           {
-            "id": "thiserror 2.0.18",
+            "id": "thiserror 2.0.21",
             "target": "thiserror"
           },
           {
@@ -2524,6 +2561,22 @@
           {
             "id": "toml 1.1.3+spec-1.1.0",
             "target": "toml"
+          },
+          {
+            "id": "topiary-core 0.8.0",
+            "target": "topiary_core"
+          },
+          {
+            "id": "topiary-queries 0.8.0",
+            "target": "topiary_queries"
+          },
+          {
+            "id": "tree-sitter 0.26.12",
+            "target": "tree_sitter"
+          },
+          {
+            "id": "tree-sitter-ocaml 0.24.0",
+            "target": "tree_sitter_ocaml"
           }
         ],
         "edition": "2021",
@@ -4290,6 +4343,96 @@
       ],
       "version": "0.9.1"
     },
+    "miette 7.6.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "derive"
+        ],
+        "deps": [
+          {
+            "id": "cfg-if 1.0.5",
+            "target": "cfg_if"
+          },
+          {
+            "id": "unicode-width 0.1.14",
+            "target": "unicode_width"
+          }
+        ],
+        "edition": "2018",
+        "proc_macro_deps": [
+          {
+            "id": "miette-derive 7.6.0",
+            "target": "miette_derive"
+          }
+        ]
+      },
+      "library_target_name": "miette",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "miette",
+      "package_url": "https://github.com/zkat/miette",
+      "repository": {
+        "Http": {
+          "sha256": "5f98efec8807c63c752b5bd61f862c165c115b0a35685bdcfd9238c7aeb592b7",
+          "url": "https://static.crates.io/crates/miette/7.6.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "miette",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "7.6.0"
+    },
+    "miette-derive 7.6.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.106",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.46",
+            "target": "quote"
+          },
+          {
+            "id": "syn 2.0.119",
+            "target": "syn"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "miette_derive",
+      "license": "Apache-2.0",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "miette-derive",
+      "package_url": "https://github.com/zkat/miette",
+      "repository": {
+        "Http": {
+          "sha256": "db5b29714e950dbb20d5e6f74f9dcec4edbcc1067bb7f8ed198c097b8c1a818b",
+          "url": "https://static.crates.io/crates/miette-derive/7.6.0/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "miette_derive",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "7.6.0"
+    },
     "miniz_oxide 0.9.1": {
       "common_attrs": {
         "deps": [
@@ -4625,6 +4768,83 @@
         }
       ],
       "version": "0.2.17"
+    },
+    "pretty_assertions 1.4.1": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "diff 0.1.13",
+            "target": "diff"
+          },
+          {
+            "id": "yansi 1.0.1",
+            "target": "yansi"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "pretty_assertions",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "pretty_assertions",
+      "package_url": "https://github.com/rust-pretty-assertions/rust-pretty-assertions",
+      "repository": {
+        "Http": {
+          "sha256": "3ae130e2f271fbc2ac3a40fb1d07180839cdbbe443c7a27e1e3c13c5cac0116d",
+          "url": "https://static.crates.io/crates/pretty_assertions/1.4.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "pretty_assertions",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.4.1"
+    },
+    "prettydiff 0.9.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "owo-colors 4.4.0",
+            "target": "owo_colors"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "prettydiff",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "prettydiff",
+      "package_url": "https://github.com/romankoblov/prettydiff",
+      "repository": {
+        "Http": {
+          "sha256": "ac17546d82912e64874e3d5b40681ce32eac4e5834344f51efcf689ff1550a65",
+          "url": "https://static.crates.io/crates/prettydiff/0.9.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "prettydiff",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.9.0"
     },
     "proc-macro-error 1.0.4": {
       "build_script_attrs": {
@@ -5333,6 +5553,95 @@
       ],
       "version": "0.14.0"
     },
+    "rootcause 0.13.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default"
+        ],
+        "deps": [
+          {
+            "id": "hashbrown 0.17.1",
+            "target": "hashbrown"
+          },
+          {
+            "id": "indexmap 2.14.0",
+            "target": "indexmap"
+          },
+          {
+            "id": "rootcause-internals 0.13.0",
+            "target": "rootcause_internals"
+          },
+          {
+            "id": "rustc-hash 2.1.3",
+            "target": "rustc_hash"
+          },
+          {
+            "id": "triomphe 0.1.17",
+            "target": "triomphe"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "rootcause",
+      "license": "MIT/Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "rootcause",
+      "package_url": "https://github.com/rootcause-rs/rootcause",
+      "repository": {
+        "Http": {
+          "sha256": "b660d9968fae12f4e691f2b2be5d9a3a6de875300c682e8d2cb89a618dd60875",
+          "url": "https://static.crates.io/crates/rootcause/0.13.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "rootcause",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.13.0"
+    },
+    "rootcause-internals 0.13.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "triomphe 0.1.17",
+            "target": "triomphe"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "rootcause_internals",
+      "license": "MIT/Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "rootcause-internals",
+      "package_url": "https://github.com/rootcause-rs/rootcause",
+      "repository": {
+        "Http": {
+          "sha256": "0184f6fcff3b58b7c963aee6e3cc915c04331aa6eef974f79d7d44d21e246c24",
+          "url": "https://static.crates.io/crates/rootcause-internals/0.13.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "rootcause_internals",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.13.0"
+    },
     "rowan 0.15.19": {
       "common_attrs": {
         "deps": [
@@ -5492,6 +5801,35 @@
         }
       ],
       "version": "1.1.0"
+    },
+    "rustc-hash 2.1.3": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "rustc_hash",
+      "license": "Apache-2.0 OR MIT",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "rustc-hash",
+      "package_url": "https://github.com/rust-lang/rustc-hash",
+      "repository": {
+        "Http": {
+          "sha256": "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d",
+          "url": "https://static.crates.io/crates/rustc-hash/2.1.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "rustc_hash",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "2.1.3"
     },
     "rustix 1.1.6": {
       "build_script_attrs": {},
@@ -5866,10 +6204,16 @@
       "common_attrs": {
         "crate_features": [
           "default",
+          "indexmap",
+          "preserve_order",
           "std"
         ],
         "deps": {
           "common": [
+            {
+              "id": "indexmap 2.14.0",
+              "target": "indexmap"
+            },
             {
               "id": "itoa 1.0.18",
               "target": "itoa"
@@ -6151,6 +6495,10 @@
     },
     "shlex 2.0.1": {
       "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
         "edition": "2018"
       },
       "library_target_name": "shlex",
@@ -6278,6 +6626,35 @@
         }
       ],
       "version": "0.3.7"
+    },
+    "streaming-iterator 0.1.9": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "streaming_iterator",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "streaming-iterator",
+      "package_url": "https://github.com/sfackler/streaming-iterator",
+      "repository": {
+        "Http": {
+          "sha256": "2b2231b7c3057d5e4ad0156fb3dc807d900806020c5ffa3ee6ff2c8c76fb8520",
+          "url": "https://static.crates.io/crates/streaming-iterator/0.1.9/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "streaming_iterator",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.1.9"
     },
     "strsim 0.11.1": {
       "common_attrs": {
@@ -6817,7 +7194,7 @@
       ],
       "version": "1.0.69"
     },
-    "thiserror 2.0.18": {
+    "thiserror 2.0.21": {
       "build_script_attrs": {},
       "common_attrs": {
         "crate_features": [
@@ -6830,7 +7207,7 @@
         ],
         "proc_macro_deps": [
           {
-            "id": "thiserror-impl 2.0.18",
+            "id": "thiserror-impl 2.0.21",
             "target": "thiserror_impl"
           }
         ]
@@ -6846,8 +7223,8 @@
       "package_url": "https://github.com/dtolnay/thiserror",
       "repository": {
         "Http": {
-          "sha256": "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4",
-          "url": "https://static.crates.io/crates/thiserror/2.0.18/download"
+          "sha256": "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e",
+          "url": "https://static.crates.io/crates/thiserror/2.0.21/download"
         }
       },
       "targets": [
@@ -6864,7 +7241,7 @@
           }
         }
       ],
-      "version": "2.0.18"
+      "version": "2.0.21"
     },
     "thiserror-impl 1.0.69": {
       "common_attrs": {
@@ -6909,7 +7286,7 @@
       ],
       "version": "1.0.69"
     },
-    "thiserror-impl 2.0.18": {
+    "thiserror-impl 2.0.21": {
       "common_attrs": {
         "deps": [
           {
@@ -6921,7 +7298,7 @@
             "target": "quote"
           },
           {
-            "id": "syn 2.0.119",
+            "id": "syn 3.0.9",
             "target": "syn"
           }
         ],
@@ -6938,8 +7315,8 @@
       "package_url": "https://github.com/dtolnay/thiserror",
       "repository": {
         "Http": {
-          "sha256": "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5",
-          "url": "https://static.crates.io/crates/thiserror-impl/2.0.18/download"
+          "sha256": "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524",
+          "url": "https://static.crates.io/crates/thiserror-impl/2.0.21/download"
         }
       },
       "targets": [
@@ -6950,7 +7327,7 @@
           }
         }
       ],
-      "version": "2.0.18"
+      "version": "2.0.21"
     },
     "thread_local 1.1.10": {
       "common_attrs": {
@@ -7021,6 +7398,94 @@
         }
       ],
       "version": "1.8.1"
+    },
+    "tokio 1.54.1": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "macros",
+          "rt",
+          "tokio-macros"
+        ],
+        "deps": [
+          {
+            "id": "pin-project-lite 0.2.17",
+            "target": "pin_project_lite"
+          }
+        ],
+        "edition": "2021",
+        "proc_macro_deps": [
+          {
+            "id": "tokio-macros 2.7.2",
+            "target": "tokio_macros"
+          }
+        ]
+      },
+      "library_target_name": "tokio",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "tokio",
+      "package_url": "https://github.com/tokio-rs/tokio",
+      "repository": {
+        "Http": {
+          "sha256": "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3",
+          "url": "https://static.crates.io/crates/tokio/1.54.1/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tokio",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.54.1"
+    },
+    "tokio-macros 2.7.2": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.106",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.46",
+            "target": "quote"
+          },
+          {
+            "id": "syn 3.0.9",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "tokio_macros",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "tokio-macros",
+      "package_url": "https://github.com/tokio-rs/tokio",
+      "repository": {
+        "Http": {
+          "sha256": "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e",
+          "url": "https://static.crates.io/crates/tokio-macros/2.7.2/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "tokio_macros",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "2.7.2"
     },
     "toml 0.7.2": {
       "common_attrs": {
@@ -7341,6 +7806,239 @@
       ],
       "version": "1.1.3+spec-1.1.0"
     },
+    "topiary-core 0.8.0": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "log"
+        ],
+        "deps": {
+          "common": [
+            {
+              "id": "log 0.4.34",
+              "target": "log"
+            },
+            {
+              "id": "miette 7.6.0",
+              "target": "miette"
+            },
+            {
+              "id": "pretty_assertions 1.4.1",
+              "target": "pretty_assertions"
+            },
+            {
+              "id": "prettydiff 0.9.0",
+              "target": "prettydiff"
+            },
+            {
+              "id": "rayon 1.12.0",
+              "target": "rayon"
+            },
+            {
+              "id": "rootcause 0.13.0",
+              "target": "rootcause"
+            },
+            {
+              "id": "serde 1.0.228",
+              "target": "serde"
+            },
+            {
+              "id": "serde_json 1.0.150",
+              "target": "serde_json"
+            },
+            {
+              "id": "streaming-iterator 0.1.9",
+              "target": "streaming_iterator"
+            },
+            {
+              "id": "thiserror 2.0.21",
+              "target": "thiserror"
+            },
+            {
+              "id": "tokio 1.54.1",
+              "target": "tokio"
+            },
+            {
+              "id": "topiary-tree-sitter-facade 0.8.0",
+              "target": "topiary_tree_sitter_facade"
+            },
+            {
+              "id": "tree-sitter 0.26.12",
+              "target": "tree_sitter"
+            }
+          ],
+          "selects": {
+            "cfg(target_arch = \"wasm32\")": [
+              {
+                "id": "topiary-web-tree-sitter-sys 0.8.0",
+                "target": "topiary_web_tree_sitter_sys"
+              }
+            ]
+          }
+        },
+        "edition": "2024"
+      },
+      "library_target_name": "topiary_core",
+      "license": "MIT",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "topiary-core",
+      "package_url": "https://github.com/topiary/topiary",
+      "repository": {
+        "Http": {
+          "sha256": "958195c18d04f21aefbb0961313d11328f197c00883cbf6023a14d119b19818f",
+          "url": "https://static.crates.io/crates/topiary-core/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "topiary_core",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
+    "topiary-queries 0.8.0": {
+      "common_attrs": {
+        "crate_features": [
+          "ocaml",
+          "ocaml_interface"
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "topiary_queries",
+      "license": "MIT",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "topiary-queries",
+      "package_url": "https://github.com/topiary/topiary",
+      "repository": {
+        "Http": {
+          "sha256": "a158a93789b7a4f51995b4f4c9b54ee608ab5ef10a296281bfe32d6406346d0a",
+          "url": "https://static.crates.io/crates/topiary-queries/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "topiary_queries",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
+    "topiary-tree-sitter-facade 0.8.0": {
+      "common_attrs": {
+        "deps": {
+          "common": [],
+          "selects": {
+            "cfg(not(target_arch = \"wasm32\"))": [
+              {
+                "id": "streaming-iterator 0.1.9",
+                "target": "streaming_iterator"
+              },
+              {
+                "id": "tree-sitter 0.26.12",
+                "target": "tree_sitter"
+              },
+              {
+                "id": "tree-sitter-language 0.1.9",
+                "target": "tree_sitter_language"
+              }
+            ],
+            "cfg(target_arch = \"wasm32\")": [
+              {
+                "id": "js-sys 0.3.106",
+                "target": "js_sys"
+              },
+              {
+                "id": "topiary-web-tree-sitter-sys 0.8.0",
+                "target": "topiary_web_tree_sitter_sys"
+              },
+              {
+                "id": "wasm-bindgen 0.2.129",
+                "target": "wasm_bindgen"
+              },
+              {
+                "id": "web-sys 0.3.106",
+                "target": "web_sys"
+              }
+            ]
+          }
+        },
+        "edition": "2024"
+      },
+      "library_target_name": "topiary_tree_sitter_facade",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "topiary-tree-sitter-facade",
+      "package_url": "https://github.com/topiary/topiary",
+      "repository": {
+        "Http": {
+          "sha256": "f2984de5d8bd612fbeb62e5d0c3e08386d163dd7e579da6928073027c683b9c7",
+          "url": "https://static.crates.io/crates/topiary-tree-sitter-facade/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "topiary_tree_sitter_facade",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
+    "topiary-web-tree-sitter-sys 0.8.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "js-sys 0.3.106",
+            "target": "js_sys"
+          },
+          {
+            "id": "wasm-bindgen 0.2.129",
+            "target": "wasm_bindgen"
+          },
+          {
+            "id": "wasm-bindgen-futures 0.4.79",
+            "target": "wasm_bindgen_futures"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "topiary_web_tree_sitter_sys",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "topiary-web-tree-sitter-sys",
+      "package_url": "https://github.com/topiary/topiary",
+      "repository": {
+        "Http": {
+          "sha256": "23624f31ca6e129b38d3bfcc748e53121b375725e4019a98f1433bb3d66b6198",
+          "url": "https://static.crates.io/crates/topiary-web-tree-sitter-sys/0.8.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "topiary_web_tree_sitter_sys",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.8.0"
+    },
     "tracing 0.1.44": {
       "common_attrs": {
         "crate_features": [
@@ -7512,6 +8210,209 @@
         }
       ],
       "version": "0.3.23"
+    },
+    "tree-sitter 0.26.12": {
+      "build_script_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.10.0",
+            "target": "cc"
+          },
+          {
+            "id": "serde_json 1.0.150",
+            "target": "serde_json"
+          }
+        ],
+        "link_deps": [
+          {
+            "id": "tree-sitter-language 0.1.9",
+            "target": "tree_sitter_language"
+          }
+        ],
+        "links": "tree-sitter"
+      },
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "regex 1.13.1",
+            "target": "regex"
+          },
+          {
+            "id": "regex-syntax 0.8.11",
+            "target": "regex_syntax"
+          },
+          {
+            "id": "streaming-iterator 0.1.9",
+            "target": "streaming_iterator"
+          },
+          {
+            "id": "tree-sitter-language 0.1.9",
+            "target": "tree_sitter_language"
+          }
+        ],
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "tree_sitter",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "tree-sitter",
+      "package_url": "https://github.com/tree-sitter/tree-sitter",
+      "repository": {
+        "Http": {
+          "sha256": "83c567a8e18ae93f20982c90370b16fd24023aeaf52f6052b96957ab253a0fec",
+          "url": "https://static.crates.io/crates/tree-sitter/0.26.12/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tree_sitter",
+            "crate_root": "binding_rust/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "binding_rust/build.rs"
+          }
+        }
+      ],
+      "version": "0.26.12"
+    },
+    "tree-sitter-language 0.1.9": {
+      "build_script_attrs": {
+        "links": "tree-sitter-language"
+      },
+      "common_attrs": {
+        "edition": "2024",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "tree_sitter_language",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "tree-sitter-language",
+      "package_url": "https://github.com/tree-sitter/tree-sitter",
+      "repository": {
+        "Http": {
+          "sha256": "d0af592be68c579aa78a16846bd19422978c3c52e438523d45ff5d1bff1f9d4a",
+          "url": "https://static.crates.io/crates/tree-sitter-language/0.1.9/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tree_sitter_language",
+            "crate_root": "src/language.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "build.rs"
+          }
+        }
+      ],
+      "version": "0.1.9"
+    },
+    "tree-sitter-ocaml 0.24.0": {
+      "build_script_attrs": {
+        "deps": [
+          {
+            "id": "cc 1.10.0",
+            "target": "cc"
+          }
+        ],
+        "link_deps": [
+          {
+            "id": "tree-sitter-language 0.1.9",
+            "target": "tree_sitter_language"
+          }
+        ]
+      },
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "tree-sitter-language 0.1.9",
+            "target": "tree_sitter_language"
+          }
+        ],
+        "edition": "2021",
+        "extra_deps": [
+          ":build_script_build"
+        ]
+      },
+      "library_target_name": "tree_sitter_ocaml",
+      "license": "MIT",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "tree-sitter-ocaml",
+      "package_url": "https://github.com/tree-sitter/tree-sitter-ocaml",
+      "repository": {
+        "Http": {
+          "sha256": "0475911ca3901dd9f8d8522d114b60cfdccc53675fd77460d86334b46a74017e",
+          "url": "https://static.crates.io/crates/tree-sitter-ocaml/0.24.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "tree_sitter_ocaml",
+            "crate_root": "bindings/rust/lib.rs"
+          }
+        },
+        {
+          "BuildScript": {
+            "crate_name": "build_script_build",
+            "crate_root": "bindings/rust/build.rs"
+          }
+        }
+      ],
+      "version": "0.24.0"
+    },
+    "triomphe 0.1.17": {
+      "common_attrs": {
+        "edition": "2021"
+      },
+      "library_target_name": "triomphe",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "triomphe",
+      "package_url": "https://github.com/Manishearth/triomphe",
+      "repository": {
+        "Http": {
+          "sha256": "0d15f4f5898bcfc5d8a8e45ed30b2f108d710c1a2e5489dbf80e078f707181bc",
+          "url": "https://static.crates.io/crates/triomphe/0.1.17/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "triomphe",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.1.17"
     },
     "typenum 1.20.1": {
       "common_attrs": {
@@ -8004,6 +8905,55 @@
       ],
       "version": "0.2.129"
     },
+    "wasm-bindgen-futures 0.4.79": {
+      "common_attrs": {
+        "deps": {
+          "common": [
+            {
+              "id": "js-sys 0.3.106",
+              "target": "js_sys"
+            },
+            {
+              "id": "wasm-bindgen 0.2.129",
+              "target": "wasm_bindgen"
+            }
+          ],
+          "selects": {
+            "cfg(all(target_os = \"emscripten\", wasm_bindgen_unstable_tokio))": [
+              {
+                "id": "tokio 1.54.1",
+                "target": "tokio"
+              }
+            ]
+          }
+        },
+        "edition": "2021"
+      },
+      "library_target_name": "wasm_bindgen_futures",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "wasm-bindgen-futures",
+      "package_url": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/futures",
+      "repository": {
+        "Http": {
+          "sha256": "3cbab34de2d982e9b48e18d216d04c4a6f641066ff19ffb699980f591ee3610e",
+          "url": "https://static.crates.io/crates/wasm-bindgen-futures/0.4.79/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "wasm_bindgen_futures",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.4.79"
+    },
     "wasm-bindgen-macro 0.2.129": {
       "common_attrs": {
         "deps": [
@@ -8140,6 +9090,45 @@
         }
       ],
       "version": "0.2.129"
+    },
+    "web-sys 0.3.106": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "js-sys 0.3.106",
+            "target": "js_sys"
+          },
+          {
+            "id": "wasm-bindgen 0.2.129",
+            "target": "wasm_bindgen"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "web_sys",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "web-sys",
+      "package_url": "https://github.com/wasm-bindgen/wasm-bindgen/tree/master/crates/web-sys",
+      "repository": {
+        "Http": {
+          "sha256": "88261b9deccee56594c11a3460c462c41f58d148598fe70ad77070126a68aba4",
+          "url": "https://static.crates.io/crates/web-sys/0.3.106/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "web_sys",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.3.106"
     },
     "winapi 0.3.9": {
       "build_script_attrs": {},
@@ -8781,10 +9770,14 @@
     "syn 2.0.119",
     "tempfile 3.27.0",
     "termcolor 1.4.1",
-    "thiserror 2.0.18",
+    "thiserror 2.0.21",
     "threadpool 1.8.1",
     "toml 0.7.2",
-    "toml 1.1.3+spec-1.1.0"
+    "toml 1.1.3+spec-1.1.0",
+    "topiary-core 0.8.0",
+    "topiary-queries 0.8.0",
+    "tree-sitter 0.26.12",
+    "tree-sitter-ocaml 0.24.0"
   ],
   "direct_dev_deps": [],
   "workspace_members": {

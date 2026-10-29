@@ -1263,6 +1263,15 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/sample.lua"
         ]
     );
+    let topiary_files = [Path::new("/scratch/a.ml"), Path::new("/scratch/b.mli")];
+    assert_eq!(
+        argv_strings(&topiary_check(Path::new(BIN), &topiary_files)),
+        vec![BIN, "/scratch/a.ml", "/scratch/b.mli"]
+    );
+    assert_eq!(
+        argv_strings(&topiary_fix(Path::new(BIN), &topiary_files)),
+        vec![BIN, "--write", "/scratch/a.ml", "/scratch/b.mli"]
+    );
     let ffmt_files = [Path::new("/scratch/a.f90")];
     let ffmt_check_argv = ffmt_check(Path::new(BIN), &ffmt_files, "dx-ffmt-default");
     assert_eq!(ffmt_check_argv.cwd_rel, "dx-ffmt-default");

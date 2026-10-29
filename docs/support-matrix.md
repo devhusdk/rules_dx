@@ -80,7 +80,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` |
 | Julia | no | `julia_format` | no |
-| Kotlin | `ktlint` | `ktfmt` | no |
+| Kotlin | `ktlint` | `ktfmt` | `kotlinc` |
 | Lua | no | `stylua` | `luals` |
 | MDX | `eslint` | `remark` | no |
 | OCaml | no | no | no |

@@ -322,7 +322,6 @@ GAP_ISSUES = {
     "typecheck:astro": 1767,
     "typecheck:haskell": 4530,
     "typecheck:julia": 4532,
-    "typecheck:kotlin": 4528,
     "typecheck:mdx": 1768,
     "typecheck:ocaml": 4530,
     "typecheck:pkl": 4533,

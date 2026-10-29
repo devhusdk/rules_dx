@@ -208,7 +208,7 @@ workspace_policy(
 | `java` | `google_java_format` | `checkstyle`, `pmd`, `spotbugs` | `javac` |
 | `javascript` | `biome` | `biome` | disabled |
 | `json` | `prettier` | `biome` | disabled |
-| `kotlin` | `ktfmt` | `ktlint` | disabled |
+| `kotlin` | `ktfmt` | `ktlint` | `kotlinc` |
 | `markdown` | disabled | `markdown_check`, `vale` | disabled |
 | `mdx` | `remark` | disabled | disabled |
 | `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
@@ -283,6 +283,7 @@ to.
 | `jsonnetfmt` | format | jsonnet |
 | `julia_format` | format | julia |
 | `keep_sorted` | lint | text |
+| `kotlinc` | typecheck | kotlin |
 | `ktfmt` | format | kotlin |
 | `ktlint` | lint | kotlin |
 | `kubeconform` | lint | kubernetes |
@@ -866,7 +867,26 @@ honoured. `javac` never fixes, so `--apply` changes nothing. It adds a second
 javac pass on top of the real compile, only under `dx typecheck` and
 `dx check`; `bazel build` is unchanged. The classpath is the transitive compile
 classpath, so strict-deps violations are not reported. Java sources inside
-`kt_jvm_library` targets, Kotlin and Scala are not typechecked yet.
+`kt_jvm_library` targets and Scala are not typechecked yet.
+
+### Kotlin typechecking
+
+`kotlinc` typechecks every `kt_jvm_library`, `kt_jvm_binary` and `kt_jvm_test`
+(and the `kotlin_*` wrappers over them) with the Kotlin compiler of the
+consumer's own `kt_toolchain`. A Bazel action runs kotlinc without keeping
+classes over the target's `.kt` and `.kts` sources and `.srcjar` files. It uses
+the transitive compile classpath, the toolchain's `kotlinc_opts` or the
+target's own, `-Werror`, the module name, the `associates` as friend paths (so
+`internal` members resolve), and the target's compiler plugins. Java sources
+in the target are only used to resolve symbols; they are not checked as Java.
+The driver loads the toolchain's compiler jars at run time, so it follows
+whichever Kotlin version you use. A compiler error is a
+`kotlinc/<DIAGNOSTIC_NAME>` error at its line and column. Targets with kapt or
+KSP processors are skipped, because the generated sources would turn into
+false errors. `kotlinc` never fixes, so `--apply` changes nothing. It is a
+second full kotlinc pass on top of the real compile, only under `dx typecheck`
+and `dx check`; `bazel build` is unchanged. Without a Kotlin toolchain the
+check is skipped.
 
 ### Fortran and D typechecking
 

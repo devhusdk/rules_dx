@@ -1781,6 +1781,65 @@ fn delegated_javac_fails_closed_without_its_log() {
     assert!(error.to_string().contains("check log"), "{error}");
 }
 
+const KOTLINC_SOURCE: &str = "fun f(): Int {\n  return \"s\"\n}\n";
+
+fn kotlinc_log(exit: i32, file: &str) -> String {
+    let diagnostics = if exit == 0 {
+        String::new()
+    } else {
+        format!(
+            r#"{{"file":"{file}","line":2,"column":10,"severity":"error","code":"RETURN_TYPE_MISMATCH","message":"type mismatch"}}"#
+        )
+    };
+    format!(r#"{{"version":1,"tool":"kotlinc","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+}
+
+#[test]
+fn delegated_kotlinc_is_clean_and_reports_owned_errors() {
+    let clean = upstream_file("kotlinc", &kotlinc_log(0, ""));
+    let findings = backend_for(
+        "kotlinc",
+        delegated_tool(clean.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE))
+    .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("kotlinc", &kotlinc_log(1, "k/A.kt"));
+    let findings = backend_for(
+        "kotlinc",
+        delegated_tool(dirty.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE))
+    .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "k/A.kt");
+    assert_eq!(findings[0].rule_id, "RETURN_TYPE_MISMATCH");
+}
+
+#[test]
+fn delegated_kotlinc_never_reports_a_failing_target_clean() {
+    let generated = upstream_file("kotlinc", &kotlinc_log(1, "bazel-out/k8/bin/k/Gen.kt"));
+    let result = backend_for(
+        "kotlinc",
+        delegated_tool(generated.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE));
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn delegated_kotlinc_fails_closed_without_its_log() {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("kotlinc", tool, must_not_spawn)
+        .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE))
+        .expect_err("missing log");
+    assert!(error.to_string().contains("check log"), "{error}");
+}
+
 #[test]
 fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
     let report = upstream_file(

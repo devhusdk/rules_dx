@@ -1,0 +1,22 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//kotlin/rules:defs.bzl", "kotlin_library")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["Bad.kt"])
+
+# Deliberately fails to compile; consumed by quality/tests/kotlinc_consumer_test.rs, never built by //....
+kotlin_library(
+    name = "type_error",
+    testonly = True,
+    srcs = ["Bad.kt"],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

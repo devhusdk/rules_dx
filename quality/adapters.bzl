@@ -77,6 +77,7 @@ REAL_ADAPTERS = {
     "jsonnetfmt": {"format": ["jsonnet"]},
     "julia_format": {"format": ["julia"]},
     "keep_sorted": {"lint": ["text"]},
+    "kotlinc": {"typecheck": ["kotlin"]},
     "ktfmt": {"format": ["kotlin"]},
     "ktlint": {"lint": ["kotlin"]},
     "kubeconform": {"lint": ["kubernetes"]},

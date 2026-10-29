@@ -6,8 +6,24 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 /// The only log version this parser understands.
 const VERSION: u64 = 1;
 
-/// javac reports this error, with no position, when `-Werror` turned warnings into a failure.
-const WARNINGS_AS_ERRORS: &str = "compiler.err.warnings.and.werror";
+/// The error code, with no position, that reports `-Werror` turned warnings into a failure.
+///
+/// javac reports it itself. The kotlinc driver synthesizes it from kotlinc's position-less
+/// "warnings found and -Werror specified" error.
+fn warnings_as_errors(tool: &str) -> &'static str {
+    match tool {
+        "kotlinc" => "kotlinc.warnings.as.errors",
+        _ => "compiler.err.warnings.and.werror",
+    }
+}
+
+/// javac expands tabs in columns. kotlinc counts UTF-16 units from 1 and keeps tabs as one.
+fn column_encoding(tool: &str) -> ColumnEncoding {
+    match tool {
+        "kotlinc" => ColumnEncoding::Utf16,
+        _ => ColumnEncoding::ScalarsTabs { width: 8 },
+    }
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -29,7 +45,7 @@ struct Diagnostic {
     message: String,
 }
 
-/// Parses the versioned JSON log of a check-only compiler driver (javac today).
+/// Parses the versioned JSON log of a check-only compiler driver (javac and kotlinc).
 ///
 /// `code` is the driver's own exit status. The compiler's status is inside the log. Findings
 /// outside `files` (generated sources, unlocated notes) are dropped, but a failed compile that
@@ -60,7 +76,7 @@ pub fn parse_jvm_diagnostics(
     let promote = log
         .diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.code == WARNINGS_AS_ERRORS);
+        .any(|diagnostic| diagnostic.code == warnings_as_errors(tool));
     let mut findings = Vec::new();
     let mut dropped: Option<String> = None;
     for diagnostic in log.diagnostics {
@@ -101,7 +117,7 @@ pub fn parse_jvm_diagnostics(
                 },
                 end: None,
                 suggestions: Vec::new(),
-                encoding: ColumnEncoding::ScalarsTabs { width: 8 },
+                encoding: column_encoding(tool),
                 related: Vec::new(),
             },
         });
@@ -185,7 +201,7 @@ mod tests {
     fn werror_promotes_warnings_to_errors() {
         let body = [
             entry("j/A.java", 5, "warning", "compiler.warn.y"),
-            entry("", 0, "error", WARNINGS_AS_ERRORS),
+            entry("", 0, "error", "compiler.err.warnings.and.werror"),
         ]
         .join(",");
         let found = parse_jvm_diagnostics("javac", &log(1, &body), Some(0), &["j/A.java"]).unwrap();
@@ -230,5 +246,30 @@ mod tests {
         assert!(parse_jvm_diagnostics("javac", other, Some(0), &[]).is_err());
         let sev = entry("j/A.java", 1, "fatal", "c");
         assert!(parse_jvm_diagnostics("javac", &log(0, &sev), Some(0), &["j/A.java"]).is_err());
+    }
+
+    fn kotlin_log(exit: i32, diagnostics: &str) -> Vec<u8> {
+        String::from_utf8(log(exit, diagnostics))
+            .unwrap()
+            .replace("\"javac\"", "\"kotlinc\"")
+            .into_bytes()
+    }
+
+    #[test]
+    fn kotlinc_columns_are_utf16_and_werror_uses_its_own_code() {
+        let body = [
+            entry("k/A.kt", 5, "warning", "UNUSED_VARIABLE"),
+            entry("k/A.kt", 6, "error", "TYPE_MISMATCH"),
+            entry("", 0, "error", "kotlinc.warnings.as.errors"),
+        ]
+        .join(",");
+        let found =
+            parse_jvm_diagnostics("kotlinc", &kotlin_log(1, &body), Some(0), &["k/A.kt"]).unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].finding.severity, ToolSeverity::Error);
+        assert_eq!(found[0].finding.tool_id, "kotlinc");
+        assert_eq!(found[1].finding.rule_id, "TYPE_MISMATCH");
+        assert_eq!(found[1].finding.encoding, ColumnEncoding::Utf16);
+        assert!(parse_jvm_diagnostics("javac", &kotlin_log(0, ""), Some(0), &[]).is_err());
     }
 }

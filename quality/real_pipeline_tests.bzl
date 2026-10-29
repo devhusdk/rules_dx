@@ -52,6 +52,7 @@ _TYPECHECK_SELECTIONS = {
     "java": ["javac"],
     "javascript": [],
     "json": [],
+    "kotlin": ["kotlinc"],
     "markdown": [],
     "rust": ["rustc"],
     "starlark": [],
@@ -262,6 +263,15 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("javac", "format"),
                 ],
                 [["java"], [], []],
+            ),
+            expect_equal(
+                "real_supported_classes returns kotlinc typecheck support only",
+                [
+                    real_supported_classes("kotlinc", "typecheck"),
+                    real_supported_classes("kotlinc", "lint"),
+                    real_supported_classes("kotlinc", "format"),
+                ],
+                [["kotlin"], [], []],
             ),
             expect_equal(
                 "real_supported_classes returns flang and ldc typecheck support only",

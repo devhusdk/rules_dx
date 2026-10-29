@@ -86,6 +86,11 @@ def registry_unit_tests(name):
                 [True, True],
             ),
             expect_equal(
+                "kotlinc is a registry tool",
+                is_registry_tool("kotlinc"),
+                True,
+            ),
+            expect_equal(
                 "tsc is a registry tool",
                 is_registry_tool("tsc"),
                 True,

@@ -295,9 +295,17 @@ PLATFORM_NOT_APPLICABLE = {
 
 # A platform a quality tool cannot run on, keyed by tool name, with the reason.
 TOOL_NOT_APPLICABLE = {
+    "rubocop": {
+        "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+        "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
+    },
     "sorbet": {
         "windows_arm64": "Sorbet ships no Windows build",
         "windows_x86_64": "Sorbet ships no Windows build",
+    },
+    "standardrb": {
+        "windows_arm64": "Ruby portable builds ship no Windows interpreter",
+        "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
     },
 }
 

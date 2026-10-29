@@ -322,7 +322,7 @@ def _toolchain_platforms():
     }
 
 # Records that must name every platform as either supported or unsupported with a reason comment.
-_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "ormolu", "qmlformat", "qmllint", "rustfmt", "zig_fmt"]
+_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "rubocop", "rustfmt", "standardrb", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""

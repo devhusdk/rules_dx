@@ -1,4 +1,14 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(["padded_archive.pubspec.lock"])
+
+# Fetching `nested@1.0.0` extracts an archive with bytes after the gzip stream;
+# Bazel's own extractor rejects it, so this breaks if the pinned bsdtar goes.
+build_test(
+    name = "padded_pub_archive_test",
+    targets = ["@dx_dart_padded_archive//:nested"],
+)
 
 real_source_target(
     name = "corpus_starlark",

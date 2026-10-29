@@ -97,6 +97,15 @@ pub const OVERRIDES: &[Override] = &[
         ],
     },
     Override {
+        module: "rules_dart",
+        version: "0.8.0",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "hermetic_tar.patch",
+            content: include_str!("../../../patches/rules_dart/hermetic_tar.patch"),
+        }],
+    },
+    Override {
         module: "aspect_rules_py",
         version: "2.0.0-alpha.6",
         patch_strip: 1,
@@ -493,6 +502,9 @@ mod tests {
         ));
         assert!(rendered.contains(
             "    patches = [\n        \"//third_party/rules_dx:rules_rust.lld_link.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_stdlib_linkflags.patch\",\n    ],\n"
+        ));
+        assert!(rendered.contains(
+            "\nsingle_version_override(\n    module_name = \"rules_dart\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx:rules_dart.hermetic_tar.patch\"],\n    version = \"0.8.0\",\n)\n"
         ));
         let module = ModuleFile::parse(&rendered).expect("parses");
         assert_eq!(

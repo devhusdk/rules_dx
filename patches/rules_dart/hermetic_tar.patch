@@ -1,0 +1,94 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index 5475258..6ae2cd2 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -62,6 +62,22 @@ bazel_dep(name = "apple_support", version = "2.10.1", dev_dependency = True)
+ # downstream modules get it; self-registers its copy toolchains.
+ bazel_dep(name = "bazel_lib", version = "3.7.2")
+ 
++# `pub_lock_package` extracts pub.dev archives with a pinned bsdtar rather than
++# the host `tar`, so fetching works on hosts (and hermetic sandboxes) without a
++# usable ambient `tar`.
++bazel_dep(name = "tar.bzl", version = "0.10.4")
++
++bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(
++    bsd_tar_toolchains,
++    "bsd_tar_toolchains_darwin_amd64",
++    "bsd_tar_toolchains_darwin_arm64",
++    "bsd_tar_toolchains_linux_amd64",
++    "bsd_tar_toolchains_linux_arm64",
++    "bsd_tar_toolchains_windows_amd64",
++    "bsd_tar_toolchains_windows_arm64",
++)
++
+ bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)
+ bazel_dep(name = "rules_shell", version = "0.8.0", dev_dependency = True)
+ bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.2", dev_dependency = True)
+diff --git a/dart/pub/pub_lock_package.bzl b/dart/pub/pub_lock_package.bzl
+index 786f739..6dae409 100644
+--- a/dart/pub/pub_lock_package.bzl
++++ b/dart/pub/pub_lock_package.bzl
+@@ -19,6 +19,39 @@ load("//dart/pub/private:language_version.bzl", _derive_language_version = "deri
+ derive_language_version = _derive_language_version
+ make_dart_library_build_content = _make_dart_library_build_content
+ 
++# Host platform -> pinned bsdtar binary. Kept in one helper so other rule sets
++# that extract pub archives can reuse it. No fallback to an ambient `tar`.
++_BSDTAR = {
++    "darwin_amd64": Label("@bsd_tar_toolchains_darwin_amd64//:tar"),
++    "darwin_arm64": Label("@bsd_tar_toolchains_darwin_arm64//:tar"),
++    "linux_amd64": Label("@bsd_tar_toolchains_linux_amd64//:tar"),
++    "linux_arm64": Label("@bsd_tar_toolchains_linux_arm64//:tar"),
++    "windows_amd64": Label("@bsd_tar_toolchains_windows_amd64//:tar.exe"),
++    "windows_arm64": Label("@bsd_tar_toolchains_windows_arm64//:tar.exe"),
++}
++
++def _bsdtar_path(ctx):
++    os_name = ctx.os.name.lower()
++    if os_name.startswith("mac os"):
++        os_key = "darwin"
++    elif os_name.startswith("windows"):
++        os_key = "windows"
++    elif os_name == "linux":
++        os_key = "linux"
++    else:
++        os_key = os_name
++    arch = ctx.os.arch.lower()
++    if arch in ("amd64", "x86_64", "x64"):
++        arch_key = "amd64"
++    elif arch in ("aarch64", "arm64"):
++        arch_key = "arm64"
++    else:
++        arch_key = arch
++    label = _BSDTAR.get("{}_{}".format(os_key, arch_key))
++    if not label:
++        fail("rules_dart: no pinned bsdtar for host os={} arch={}".format(ctx.os.name, ctx.os.arch))
++    return str(ctx.path(label))
++
+ def _pub_lock_package_impl(ctx):
+     url = "{base}/packages/{name}/versions/{version}.tar.gz".format(
+         base = ctx.attr.base_url,
+@@ -33,17 +66,18 @@ def _pub_lock_package_impl(ctx):
+     # is a valid tar.gz (GNU `tar -xzf` accepts it, `gunzip -t` reports
+     # "trailing garbage ignored").
+     #
+-    # We download the archive, then extract with the system `tar`
+-    # command, which tolerates the trailing bytes. The sha256 still
++    # We download the archive, then extract it with a pinned bsdtar (libarchive)
++    # from tar.bzl, which tolerates the trailing bytes. Using a declared binary
++    # instead of the host `tar` keeps the fetch hermetic. The sha256 still
+     # verifies the download so integrity is preserved.
+     ctx.download(
+         url = url,
+         output = "_archive.tar.gz",
+         sha256 = ctx.attr.sha256 if ctx.attr.sha256 else "",
+     )
+-    result = ctx.execute(["tar", "-xzf", "_archive.tar.gz"])
++    result = ctx.execute([_bsdtar_path(ctx), "-xzf", "_archive.tar.gz", "--no-same-owner"])
+     if result.return_code != 0:
+-        fail("tar -xzf failed for {url}:\nstdout: {out}\nstderr: {err}".format(
++        fail("bsdtar -xzf failed for {url}:\nstdout: {out}\nstderr: {err}".format(
+             url = url,
+             out = result.stdout,
+             err = result.stderr,

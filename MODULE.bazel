@@ -523,6 +523,8 @@ zig.toolchain(zig_version = "0.16.0")
 bazel_dep(name = "rules_dart", version = "0.8.0")
 single_version_override(
     module_name = "rules_dart",
+    patch_strip = 1,
+    patches = ["//patches/rules_dart:hermetic_tar.patch"],
     version = "0.8.0",
 )
 
@@ -539,7 +541,15 @@ pub.from_lock(
     lock = "//third_party/dart:pubspec.lock",
     on_version_conflict = "upgrade",
 )
-use_repo(pub, "dx_dart_deps")
+
+# pub.dev pads some archives (here `nested`) with bytes after the gzip stream,
+# which Bazel's own extractor rejects. Fetching one guards the pinned bsdtar in
+# //patches/rules_dart:hermetic_tar.patch.
+pub.from_lock(
+    name = "dx_dart_padded_archive",
+    lock = "//dart/tests:padded_archive.pubspec.lock",
+)
+use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_julia", version = "0.8.0")

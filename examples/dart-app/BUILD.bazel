@@ -5,6 +5,14 @@ _PUBLIC = ["//visibility:public"]
 
 package(default_visibility = ["//:__subpackages__"])
 
+exports_files(
+    [
+        "BUILD.bazel",
+        "analysis_options.yaml",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 dart_config(
     name = "dart_config",
     src = "analysis_options.yaml",

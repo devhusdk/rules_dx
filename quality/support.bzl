@@ -1440,6 +1440,90 @@ JUPYTER_RUFF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+PYTHON_FLAKE8_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["python", "python_stub"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "python",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "flake8",
+    "transport": "batched",
+}
+
+PYTHON_PYDOCLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["python", "python_stub"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "python",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "pydoclint",
+    "transport": "batched",
+}
+
+PYTHON_PYLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["python", "python_stub"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "python",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "pylint",
+    "transport": "batched",
+}
+
+PYTHON_RUFF_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["python", "python_stub"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "python",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ruff",
+    "transport": "batched",
+}
+
+PYTHON_RUFF_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["python", "python_stub"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "python",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ruff",
+    "transport": "batched",
+}
+
+PYTHON_TY_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["python", "python_stub"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "python",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "ty",
+    "transport": "batched",
+}
+
 JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1791,6 +1875,12 @@ SUPPORT_RECORDS = [
     REGO_REGAL_LINT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_FORMAT_SUPPORT,
     POWERSHELL_PSSCRIPTANALYZER_LINT_SUPPORT,
+    PYTHON_FLAKE8_LINT_SUPPORT,
+    PYTHON_PYDOCLINT_LINT_SUPPORT,
+    PYTHON_PYLINT_LINT_SUPPORT,
+    PYTHON_RUFF_FORMAT_SUPPORT,
+    PYTHON_RUFF_LINT_SUPPORT,
+    PYTHON_TY_TYPECHECK_SUPPORT,
     JUPYTER_RUFF_FORMAT_SUPPORT,
     JUPYTER_RUFF_LINT_SUPPORT,
     JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT,

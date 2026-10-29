@@ -8,6 +8,7 @@ go_library(
     deps = [
         "@org_golang_x_tools//go/analysis",
         "@org_golang_x_tools//go/analysis/unitchecker",
+        "@org_golang_x_tools//go/gcexportdata",
     ],
 )
 

@@ -1,1 +1,0 @@
-go/tests/fixtures/govet/Sample.go:7:2: non-constant format string in call to fmt.Printf

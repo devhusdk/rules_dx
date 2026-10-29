@@ -3,6 +3,5 @@ package govet
 import "fmt"
 
 func Greet(name string) string {
-	fmt.Printf(name)
-	return "hello " + name
+	return fmt.Sprintf("hello %s", name)
 }

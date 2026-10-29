@@ -41,13 +41,6 @@ needed. The Zig SDK is fetched only for Zig targets:
 dx format --apply
 ```
 
-## Typechecking
-
-`dx typecheck` replays the compile action of a `zig_binary` or `zig_test` with
-`-fno-emit-bin` when a `zig` family selects `zig`. Zig analyzes lazily, so only
-code reachable from the root module is checked, and `zig_library` is not
-checked on its own.
-
 ## Linting
 
 `dx lint` runs `zig ast-check` when a `zig` family selects `zig_ast_check`. No

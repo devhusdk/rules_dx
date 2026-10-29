@@ -92,8 +92,14 @@ fn delegated_findings_are_reanchored_to_the_staged_source() {
             "yamllint",
             "src/a.scala:1:1: [warning] finding (trailing-spaces)\n",
         ),
-        ("govet", "src/a.scala:1:1: finding\n"),
-        ("errcheck", "src/a.scala:1:1: finding\n"),
+        (
+            "govet",
+            r#"{"p":{"printf":[{"posn":"src/a.scala:1:1","message":"finding"}]}}"#,
+        ),
+        (
+            "errcheck",
+            r#"{"p":{"errcheck":[{"posn":"src/a.scala:1:1","message":"finding"}]}}"#,
+        ),
         (
             "clang_tidy",
             "src/a.scala:1:1: warning: finding [demo-check]\n",
@@ -223,10 +229,10 @@ pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
             r#"<results version="2"><errors></errors></results>"#,
         ),
         ("djlint", ""),
-        ("errcheck", ""),
+        ("errcheck", "{}"),
         ("fsharplint", ""),
         ("gotype", "{}"),
-        ("govet", ""),
+        ("govet", "{}"),
         ("keep_sorted", ""),
         (
             "qmllint",
@@ -1488,7 +1494,7 @@ fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool
 
 const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
 
-const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 3] = [
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 2] = [
     (
         "flang",
         "src/a.f90",
@@ -1500,12 +1506,6 @@ const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 3] = [
         "src/a.d",
         "src/a.d:4:9: Error: undefined identifier `y`\n",
         "src/gen.d:4:9: Error: undefined identifier `y`\n",
-    ),
-    (
-        "zig",
-        "src/a.zig",
-        "src/a.zig:4:9: error: use of undeclared identifier 'y'\n",
-        "src/gen.zig:4:9: error: use of undeclared identifier 'y'\n",
     ),
 ];
 
@@ -1807,4 +1807,20 @@ fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
     assert!(backend
         .diagnose("gotype", "typecheck", &single("a.txt", "x\n"))
         .is_err());
+}
+
+#[test]
+fn go_lint_tools_fail_closed_without_exactly_one_report() {
+    for tool_id in ["govet", "errcheck"] {
+        let mut tool = delegated_tool(std::path::PathBuf::new());
+        tool.upstream_diagnostics.clear();
+        let backend = backend_for(tool_id, tool, must_not_spawn);
+        let error = backend
+            .diagnose(tool_id, "lint", &single("a.go", "package a\n"))
+            .expect_err("no upstream report");
+        assert!(
+            error.to_string().contains("did not supply it"),
+            "{tool_id}: {error}"
+        );
+    }
 }

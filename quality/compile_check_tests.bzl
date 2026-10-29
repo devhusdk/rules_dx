@@ -1,11 +1,10 @@
-"""Unit tests for the Fortran, D and Zig compile replay rewrites."""
+"""Unit tests for the Fortran and D compile replay rewrites."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":compile_check.bzl", "flang_check_argv", "ldc_check_argv", "zig_check_argv", "zig_replayable")
+load(":compile_check.bzl", "flang_check_argv", "ldc_check_argv")
 
 _FLANG = "external/flang/bin/flang"
 _LDC = "external/ldc/bin/ldmd2"
-_ZIG = "external/zig/zig"
 
 def compile_check_unit_tests(name):
     """Declares the rewrite unit tests."""
@@ -61,46 +60,6 @@ def compile_check_unit_tests(name):
             expect_equal(
                 "ldc params files are rejected",
                 ldc_check_argv([_LDC, "@a.params", "a.d"], "").error != "",
-                True,
-            ),
-            expect_equal(
-                "zig drops every -femit flag and adds -fno-emit-bin",
-                zig_check_argv([_ZIG, "build-exe", "-femit-bin=out/a", "-femit-asm=out/a.s", "-O", "Debug", "-Mroot=src/a.zig"], "").argv,
-                [_ZIG, "build-exe", "-O", "Debug", "-Mroot=src/a.zig", "-fno-emit-bin"],
-            ),
-            expect_equal(
-                "zig keeps an existing -fno-emit-bin once",
-                zig_check_argv([_ZIG, "test", "--test-no-exec", "-fno-emit-bin", "-femit-llvm-bc=out/a.bc", "-Mroot=src/a.zig"], "").argv,
-                [_ZIG, "test", "--test-no-exec", "-fno-emit-bin", "-Mroot=src/a.zig"],
-            ),
-            expect_equal(
-                "zig reports the root module source",
-                zig_check_argv([_ZIG, "build-lib", "--dep", "x=y", "-Mroot=src/a.zig", "-Mx=lib/x.zig"], "").source,
-                "src/a.zig",
-            ),
-            expect_equal(
-                "zig without a source is rejected",
-                zig_check_argv([_ZIG, "build-exe", "-femit-bin=a"], "").error != "",
-                True,
-            ),
-            expect_equal(
-                "zig cc_common relink argv (no .zig root module) is rejected by the rewrite",
-                zig_check_argv([_ZIG, "build-lib", "-fPIC", "-fcompiler-rt", "-femit-bin=out/a.a", "out/a.bc"], "").error != "",
-                True,
-            ),
-            expect_equal(
-                "zig relink argv is not replayable",
-                zig_replayable([_ZIG, "build-lib", "-fPIC", "-fcompiler-rt", "-femit-bin=out/a.a", "out/a.bc"]),
-                False,
-            ),
-            expect_equal(
-                "zig root module argv is replayable",
-                zig_replayable([_ZIG, "test", "-Mroot=src/a.zig"]),
-                True,
-            ),
-            expect_equal(
-                "zig params files are rejected",
-                zig_check_argv([_ZIG, "build-exe", "@a.params"], "").error != "",
                 True,
             ),
         ],

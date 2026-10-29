@@ -1,1 +1,1 @@
-matrix/govet_dirty.go:7:2: non-constant format string in call to fmt.Printf
+{"matrix/govet":{"printf":[{"posn":"matrix/govet_dirty.go:7:14","end":"matrix/govet_dirty.go:7:18","message":"non-constant format string in call to fmt.Printf"}]}}

@@ -133,7 +133,6 @@ REAL_ADAPTERS = {
     "vale": {"lint": ["asciidoc", "markdown", "rst"]},
     "yamlfmt": {"format": ["yaml"]},
     "yamllint": {"lint": ["yaml"]},
-    "zig": {"typecheck": ["zig"]},
     "zig_ast_check": {"lint": ["zig"]},
     "zig_fmt": {"format": ["zig"]},
 }

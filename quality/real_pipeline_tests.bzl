@@ -27,6 +27,7 @@ def _inherit_guard():
     return bad
 
 _LINT_SELECTIONS = {
+    "go": ["errcheck", "govet"],
     "javascript": ["biome"],
     "json": ["biome"],
     "markdown": ["markdown_check", "vale"],
@@ -235,6 +236,16 @@ def real_pipeline_unit_tests(name):
                 [["asciidoc", "markdown", "rst"], []],
             ),
             expect_equal(
+                "real_supported_classes returns go lint support only",
+                [
+                    real_supported_classes("govet", "lint"),
+                    real_supported_classes("errcheck", "lint"),
+                    real_supported_classes("govet", "typecheck"),
+                    real_supported_classes("errcheck", "format"),
+                ],
+                [["go"], ["go"], [], []],
+            ),
+            expect_equal(
                 "real_supported_classes returns gotype typecheck support only",
                 [
                     real_supported_classes("gotype", "typecheck"),
@@ -253,16 +264,14 @@ def real_pipeline_unit_tests(name):
                 [["java"], [], []],
             ),
             expect_equal(
-                "real_supported_classes returns flang, ldc and zig typecheck support only",
+                "real_supported_classes returns flang and ldc typecheck support only",
                 [
                     real_supported_classes("flang", "typecheck"),
                     real_supported_classes("flang", "lint"),
                     real_supported_classes("ldc", "typecheck"),
                     real_supported_classes("ldc", "format"),
-                    real_supported_classes("zig", "typecheck"),
-                    real_supported_classes("zig", "lint"),
                 ],
-                [["fortran"], [], ["d"], [], ["zig"], []],
+                [["fortran"], [], ["d"], []],
             ),
             expect_equal(
                 "real_supported_classes returns tsc typecheck support only",
@@ -369,6 +378,8 @@ def real_pipeline_unit_tests(name):
                     "biome": ["javascript", "json", "json5", "jsonc", "jsx", "tsx", "typescript"],
                     "buildifier": ["starlark"],
                     "clippy": ["rust"],
+                    "errcheck": ["go"],
+                    "govet": ["go"],
                     "markdown_check": ["markdown"],
                     "taplo": ["toml"],
                     "vale": ["markdown"],

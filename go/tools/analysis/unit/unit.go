@@ -2,11 +2,15 @@ package unit
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"go/build"
+	"go/parser"
+	"go/token"
+	"go/types"
 	"io"
 	"os"
 	"os/exec"
@@ -16,6 +20,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/unitchecker"
+	"golang.org/x/tools/go/gcexportdata"
 )
 
 const ChildEnv = "DX_UNIT_CHILD"
@@ -29,6 +34,7 @@ type Config struct {
 	PackageFile map[string]string
 	Standard    map[string]bool
 	PackageVetx map[string]string
+	StdlibDir   string
 	GoVersion   string
 	GOOS        string
 	GOARCH      string
@@ -162,6 +168,109 @@ func emitError(out string, stdout io.Writer, cfg *Config, tool, msg string) erro
 	return emit(out, stdout, cfg, map[string]map[string]json.RawMessage{cfg.ImportPath: {tool: raw}})
 }
 
+const vetxMagic = "vetx"
+
+func packageImports(files []string) ([]string, error) {
+	seen := map[string]bool{}
+	fset := token.NewFileSet()
+	for _, name := range files {
+		f, err := parser.ParseFile(fset, name, nil, parser.ImportsOnly)
+		if err != nil {
+			return nil, err
+		}
+		for _, spec := range f.Imports {
+			path := strings.Trim(spec.Path.Value, "\"`")
+			if path != "C" && path != "unsafe" {
+				seen[path] = true
+			}
+		}
+	}
+	paths := make([]string, 0, len(seen))
+	for path := range seen {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
+func exportFile(cfg *Config, resolved string) string {
+	if file, ok := cfg.PackageFile[resolved]; ok {
+		return file
+	}
+	if cfg.StdlibDir == "" {
+		return ""
+	}
+	file := filepath.Join(cfg.StdlibDir, filepath.FromSlash(resolved)+".a")
+	if _, err := os.Stat(file); err != nil {
+		return ""
+	}
+	return file
+}
+
+func writeVetx(fset *token.FileSet, imported map[string]*types.Package, export, resolved, out string) error {
+	file, err := os.Open(export)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	reader, err := gcexportdata.NewReader(file)
+	if err != nil {
+		return err
+	}
+	pkg, err := gcexportdata.Read(reader, fset, imported, resolved)
+	if err != nil {
+		return err
+	}
+	var exported bytes.Buffer
+	if err := gcexportdata.Write(&exported, fset, pkg); err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	buf.WriteString(vetxMagic)
+	buf.Write(make([]byte, 8))
+	buf.Write(exported.Bytes()[1:])
+	data := buf.Bytes()
+	binary.LittleEndian.PutUint32(data[4:8], uint32(len(data)-12))
+	return os.WriteFile(out, data, 0o644)
+}
+
+func vetxForImports(cfg *Config, files []string, dir string) (map[string]string, map[string]string, error) {
+	paths, err := packageImports(files)
+	if err != nil {
+		return nil, nil, err
+	}
+	vetx := map[string]string{}
+	for path, file := range cfg.PackageVetx {
+		vetx[path] = file
+	}
+	importMap := map[string]string{}
+	for path, resolved := range cfg.ImportMap {
+		importMap[path] = resolved
+	}
+	fset := token.NewFileSet()
+	imported := map[string]*types.Package{}
+	for i, path := range paths {
+		resolved, ok := importMap[path]
+		if !ok {
+			resolved = path
+			importMap[path] = path
+		}
+		if _, ok := vetx[resolved]; ok {
+			continue
+		}
+		export := exportFile(cfg, resolved)
+		if export == "" {
+			continue
+		}
+		out := filepath.Join(dir, fmt.Sprintf("%d.vetx", i))
+		if err := writeVetx(fset, imported, export, resolved, out); err != nil {
+			return nil, nil, fmt.Errorf("export data of %s: %w", resolved, err)
+		}
+		vetx[resolved] = out
+	}
+	return vetx, importMap, nil
+}
+
 func touch(path string) error {
 	if path == "" {
 		return nil
@@ -236,10 +345,14 @@ func run(tool string, analyzers []*analysis.Analyzer, configure func([]string) e
 	if id == "" {
 		id = cfg.ImportPath
 	}
+	vetx, importMap, err := vetxForImports(&cfg, files, dir)
+	if err != nil {
+		return 0, emitError(*out, stdout, &cfg, tool, err.Error())
+	}
 	inner := checkerConfig{
 		ID: id, Compiler: "gc", ImportPath: cfg.ImportPath, GoVersion: cfg.GoVersion,
-		GoFiles: files, ImportMap: cfg.ImportMap, PackageFile: cfg.PackageFile,
-		Standard: cfg.Standard, PackageVetx: cfg.PackageVetx, VetxOnly: cfg.VetxOnly,
+		GoFiles: files, ImportMap: importMap, PackageFile: cfg.PackageFile,
+		Standard: cfg.Standard, PackageVetx: vetx, VetxOnly: cfg.VetxOnly,
 		VetxOutput: cfg.VetxOutput, Stdout: report,
 	}
 	encoded, err := json.Marshal(inner)

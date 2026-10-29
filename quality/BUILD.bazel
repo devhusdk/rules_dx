@@ -272,12 +272,10 @@ quality_family(
 
 quality_family(
     name = "default_scala_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["lint"],
     family_id = "scala",
     format = ["scalafmt"],
+    typecheck = ["scalac"],
 )
 
 quality_family(

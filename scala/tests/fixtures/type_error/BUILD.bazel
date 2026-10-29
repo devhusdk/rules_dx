@@ -1,0 +1,22 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//scala/rules:defs.bzl", "scala_library")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files(["Bad.scala"])
+
+# Deliberately fails to compile; consumed by quality/tests/scalac_consumer_test.rs, never built by //....
+scala_library(
+    name = "type_error",
+    testonly = True,
+    srcs = ["Bad.scala"],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -235,6 +235,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "ruff",
             "rustc",
             "rustfmt",
+            "scalac",
             "scalafix",
             "scalafmt",
             "shellcheck",

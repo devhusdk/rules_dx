@@ -585,7 +585,7 @@ impl RealBackend {
             "fsc" => self.check_fsc_delegated(tool_id, tool, pairs),
             "clang_syntax" => self.check_clang_syntax_delegated(tool_id, tool, pairs),
             "flang" | "ldc" => self.check_compile_log_delegated(tool_id, tool, pairs),
-            "javac" | "kotlinc" => self.check_jvm_log_delegated(tool_id, tool, pairs),
+            "javac" | "kotlinc" | "scalac" => self.check_jvm_log_delegated(tool_id, tool, pairs),
             "nvcc_syntax" => self.check_nvcc_syntax_delegated(tool_id, tool, pairs),
             "errcheck" | "gotype" | "govet" => {
                 self.check_go_analysis_delegated(tool_id, tool, pairs)

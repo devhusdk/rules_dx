@@ -99,6 +99,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "ruff",
     "rustc",
     "rustfmt",
+    "scalac",
     "scalafix",
     "scalafmt",
     "shellcheck",

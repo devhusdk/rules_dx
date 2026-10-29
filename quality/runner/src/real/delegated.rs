@@ -195,7 +195,7 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// Reads the versioned JSON log of a JVM compiler check (javac today).
+    /// Reads the versioned JSON log of a JVM compiler check (javac, kotlinc, scalac).
     ///
     /// A failed driver fails its Bazel action, so the log's own exit status carries javac's result
     /// and the process exit status is always zero here.
@@ -212,6 +212,7 @@ impl RealBackend {
         let name: &'static str = match tool_id {
             "javac" => "javac",
             "kotlinc" => "kotlinc",
+            "scalac" => "scalac",
             other => {
                 return Err(execution(
                     other,

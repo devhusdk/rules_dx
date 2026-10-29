@@ -8,19 +8,20 @@ const VERSION: u64 = 1;
 
 /// The error code, with no position, that reports `-Werror` turned warnings into a failure.
 ///
-/// javac reports it itself. The kotlinc driver synthesizes it from kotlinc's position-less
-/// "warnings found and -Werror specified" error.
+/// javac reports it itself. The kotlinc and scalac drivers synthesize it from the compiler's
+/// position-less -Werror error.
 fn warnings_as_errors(tool: &str) -> &'static str {
     match tool {
         "kotlinc" => "kotlinc.warnings.as.errors",
+        "scalac" => "scalac.warnings.as.errors",
         _ => "compiler.err.warnings.and.werror",
     }
 }
 
-/// javac expands tabs in columns. kotlinc counts UTF-16 units from 1 and keeps tabs as one.
+/// javac expands tabs in columns. kotlinc and scalac count UTF-16 units from 1 and keep tabs as one.
 fn column_encoding(tool: &str) -> ColumnEncoding {
     match tool {
-        "kotlinc" => ColumnEncoding::Utf16,
+        "kotlinc" | "scalac" => ColumnEncoding::Utf16,
         _ => ColumnEncoding::ScalarsTabs { width: 8 },
     }
 }
@@ -45,7 +46,7 @@ struct Diagnostic {
     message: String,
 }
 
-/// Parses the versioned JSON log of a check-only compiler driver (javac and kotlinc).
+/// Parses the versioned JSON log of a check-only compiler driver (javac, kotlinc and scalac).
 ///
 /// `code` is the driver's own exit status. The compiler's status is inside the log. Findings
 /// outside `files` (generated sources, unlocated notes) are dropped, but a failed compile that
@@ -271,5 +272,25 @@ mod tests {
         assert_eq!(found[1].finding.rule_id, "TYPE_MISMATCH");
         assert_eq!(found[1].finding.encoding, ColumnEncoding::Utf16);
         assert!(parse_jvm_diagnostics("javac", &kotlin_log(0, ""), Some(0), &[]).is_err());
+    }
+
+    #[test]
+    fn scalac_columns_are_utf16_and_werror_uses_its_own_code() {
+        let body = [
+            entry("s/A.scala", 5, "warning", "scalac"),
+            entry("s/A.scala", 6, "error", "scalac"),
+            entry("", 0, "error", "scalac.warnings.as.errors"),
+        ]
+        .join(",");
+        let scala_log = String::from_utf8(log(1, &body))
+            .unwrap()
+            .replace("\"javac\"", "\"scalac\"")
+            .into_bytes();
+        let found = parse_jvm_diagnostics("scalac", &scala_log, Some(0), &["s/A.scala"]).unwrap();
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].finding.tool_id, "scalac");
+        assert_eq!(found[1].finding.rule_id, "scalac");
+        assert_eq!(found[1].finding.encoding, ColumnEncoding::Utf16);
+        assert!(parse_jvm_diagnostics("javac", &scala_log, Some(0), &[]).is_err());
     }
 }

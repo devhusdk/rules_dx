@@ -274,6 +274,15 @@ def real_pipeline_unit_tests(name):
                 [["kotlin"], [], []],
             ),
             expect_equal(
+                "real_supported_classes returns scalac typecheck support only",
+                [
+                    real_supported_classes("scalac", "typecheck"),
+                    real_supported_classes("scalac", "lint"),
+                    real_supported_classes("scalac", "format"),
+                ],
+                [["scala"], [], []],
+            ),
+            expect_equal(
                 "real_supported_classes returns flang and ldc typecheck support only",
                 [
                     real_supported_classes("flang", "typecheck"),

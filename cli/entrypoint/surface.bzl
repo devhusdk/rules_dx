@@ -4,7 +4,9 @@
 # module cannot see them, so no supported file may load from one.
 DEV_ONLY_REPOS = [
     "cosign",
+    "dx_qt",
     "dx_rustdoc",
+    "dx_yard",
     "firefox",
     "googletest",
     "rules_nodejs",

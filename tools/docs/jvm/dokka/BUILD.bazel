@@ -19,8 +19,9 @@ kotlin_binary(
         "Types.kt",
     ],
     main_class = "dx.docs.dokka.Main",
-    resource_strip_prefix = "tools/docs/jvm/dokka/resources",
-    resources = ["resources/META-INF/services/org.jetbrains.dokka.plugability.DokkaPlugin"],
+    # The default src/main/resources prefix strip also works from an external repository, where
+    # rules_kotlin cannot match an explicit resource_strip_prefix.
+    resources = ["src/main/resources/META-INF/services/org.jetbrains.dokka.plugability.DokkaPlugin"],
     runtime_deps = ["@dx_dokka//:org_jetbrains_dokka_analysis_kotlin_symbols"],
     deps = [
         "//tools/docs/jvm/record:api_record_writer",

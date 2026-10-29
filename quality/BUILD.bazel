@@ -394,6 +394,15 @@ consumer_policy_tests(
             "subject": "//quality/tests/fixtures/consumer_policy:clean_typst",
         },
         {
+            "case": "bicep_checked",
+            "expected_dx_results": [
+                "clean_bicep-real-format-bicep.pb",
+                "clean_bicep-real-lint-bicep.pb",
+            ],
+            "policy": "//quality/tests/fixtures/consumer_policy:bicep_policy",
+            "subject": "//quality/tests/fixtures/consumer_policy:clean_bicep",
+        },
+        {
             "case": "rego_checked",
             "expected_dx_results": [
                 "clean_rego-real-format-rego.pb",
@@ -657,6 +666,7 @@ test_suite(
         ":clang_tidy_run_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cc_cppcheck_test",
+        ":consumer_policy_bicep_checked_test",
         ":consumer_policy_cloudformation_linted_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",

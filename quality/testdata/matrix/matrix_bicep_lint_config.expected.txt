@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_bicep_lint_config
+capability LINT
+stages 1
+stage bicep classes=bicep sources=matrix/bicep_config/a.bicep
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR bicep no-unused-params matrix/bicep_config/a.bicep 6 6 fixable=false "Parameter \"unused\" is declared but never used. [https://aka.ms/bicep/linter-diagnostics#no-unused-params]"
+terminal 1
+terminal ERROR bicep no-unused-params matrix/bicep_config/a.bicep 6 6 fixable=false "Parameter \"unused\" is declared but never used. [https://aka.ms/bicep/linter-diagnostics#no-unused-params]"
+replacements 0

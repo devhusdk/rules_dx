@@ -103,6 +103,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Ansible | `ansible_lint` | `prettier` | n/a |
 | API specs | `redocly` | `prettier` | n/a |
 | AsciiDoc | `vale` | no | n/a |
+| Bicep | `bicep` | `bicep` | n/a |
 | Cap'n Proto | `capnp` | n/a | `capnp` |
 | CloudFormation | `cfn_lint` | no | n/a |
 | CUE | n/a | `cue` | `cue` |
@@ -140,6 +141,7 @@ Not applicable for `typecheck`:
 - `ansible`: dynamically typed YAML playbooks; no type system beyond ansible-lint
 - `api_spec`: declarative API description; no type system beyond schema validation
 - `asciidoc`: markup; no static type system
+- `bicep`: declarative templates; bicep lint already reports compile errors and analyzer rules, so there is no separate type check
 - `cloudformation`: declarative templates; cfn-lint schema validation is lint, not type checking
 - `cmake`: no static type system; build language with untyped strings
 - `dockerfile`: no static type system; hadolint covers lint

@@ -230,6 +230,7 @@ to.
 | Tool ID | Verbs | Families |
 | --- | --- | --- |
 | `ansible_lint` | lint | ansible |
+| `bicep` | format, lint | bicep |
 | `biome` | format, lint | javascript, json, typescript |
 | `buf` | format, lint | protobuf |
 | `buildifier` | format, lint | starlark |
@@ -1989,20 +1990,37 @@ terraform_module(
 
 ### Bicep
 
+`bicep format` and `bicep lint` come from the pinned Bicep CLI v0.48.1, which
+runs on all five platforms through the managed tool hub. The `bicep` family
+formats and lints with `bicep` by default. Typecheck stays disabled.
+`format --apply` rewrites a file in place; `lint` is check-only.
+
 Own Bicep files with `bicep_module` from `@rules_dx//bicep/rules:defs.bzl`. It
 accepts `.bicep` and `.bicepparam` files in `srcs`, other Bicep modules in
 `deps`, and files read by Bicep `load` functions in `data`. Files in `data` are
 never checked, and a `bicepconfig.json` there is refused: bind the configuration
-with `bicep_config` instead. The pinned Bicep CLI v0.48.1 is available for all
-five platforms through the managed tool hub; formatting, linting and compiling
-with it are not wired into `dx format` or `dx lint` yet, so a `bicep_module`
-target is owned but not yet checked.
+with `bicep_config` instead.
+
+dx runs Bicep with an empty scratch home, so the `~/.bicep` module cache is never
+read, and it never restores modules (`lint --no-restore`). A `bicepconfig.json`
+is always written at the scratch root, so Bicep's upward search never reaches
+the host: it is the bound `bicep_config`, or an empty `{}`. Diagnostics in a
+dependency are not reported on the target that references it. A module from a
+registry (`br:`) is not supported yet: it is reported as an error with a hint.
 
 ```python
 load("@rules_dx//bicep/rules:defs.bzl", "bicep_module")
+load("@rules_dx//quality:native_config.bzl", "bicep_config")
+
+bicep_config(
+    name = "strict",
+    src = "bicepconfig.json",
+    visibility = ["//visibility:public"],
+)
 
 bicep_module(
     name = "network",
+    aspect_hints = [":strict"],
     srcs = ["network.bicep", "network.bicepparam"],
     deps = ["//infra/common:modules"],
 )

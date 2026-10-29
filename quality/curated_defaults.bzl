@@ -9,6 +9,12 @@ CURATED_DEFAULTS = {
         "lint": [],
         "typecheck": [],
     },
+    "bicep": {
+        "audit": [],
+        "format": ["bicep"],
+        "lint": ["bicep"],
+        "typecheck": [],
+    },
     "cc": {
         "audit": [],
         "format": ["clang_format"],
@@ -157,6 +163,7 @@ CURATED_DEFAULTS = {
 
 FORMAT_FROZEN = {
     "astro": ["prettier"],
+    "bicep": ["bicep"],
     "cc": ["clang_format"],
     "cloudformation": [],
     "dockerfile": [],

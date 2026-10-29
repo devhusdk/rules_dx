@@ -224,7 +224,11 @@ def native_config_unit_tests(name):
                 "native_config_error rejects an unknown tool",
                 native_config_error("nope", "x.json", True, []),
                 "native_config: unknown tool 'nope': want one of " +
+<<<<<<< HEAD
                 "ansible_lint, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, djlint, elvis, eslint, ffmt, fsharplint, gersemi, gplint, graphql_eslint, hadolint, kubeconform, latexindent, luals, mbake, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, sqlfluff, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
+=======
+                "ansible_lint, bicep, biome, buf, buildifier, cfn_lint, checkmake, checkstyle, clang_format, clang_tidy, cmakelint, cppcheck, credo, csharpier, dart, djlint, elvis, eslint, fsharplint, gersemi, gplint, graphql_eslint, hadolint, kubeconform, latexindent, luals, mbake, phpcs, phpstan, pmd, prettier, psscriptanalyzer, qmlformat, qmllint, redocly, regal, remark, rubocop, ruff, rustfmt, scalafix, scalafmt, shellcheck, sqlfluff, standardrb, staticcheck, statix, stylelint, stylua, taplo, tflint, vale, yamlfmt, yamllint",
+>>>>>>> 45a9a2f44 (feat(bicep): format and lint with the pinned Bicep CLI)
             ),
             expect_equal(
                 "native_config_error requires a config",

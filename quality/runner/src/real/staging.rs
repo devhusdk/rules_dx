@@ -14,17 +14,59 @@ pub(super) struct FsharplintInputs {
     pub langversion: String,
 }
 
+/// Points Bicep's module cache at the scratch home whatever the bound config says, because
+/// .NET on Windows ignores `USERPROFILE` and a config may name a host `cacheRootDirectory`.
+/// A config that is not plain JSON object text is kept as is.
+fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
+    let mut config = match bound {
+        None => serde_json::Value::Object(serde_json::Map::new()),
+        Some(bytes) => match serde_json::from_slice::<serde_json::Value>(&bytes) {
+            Ok(value) if value.is_object() => value,
+            _ => return bytes,
+        },
+    };
+    if let Some(object) = config.as_object_mut() {
+        object.insert(
+            "cacheRootDirectory".to_owned(),
+            serde_json::Value::String(
+                root.join(BICEP_HOME_REL)
+                    .join(".bicep")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+        );
+    }
+    let mut out =
+        serde_json::to_vec_pretty(&config).unwrap_or_else(|_| BICEP_DEFAULTS_BYTES.to_vec());
+    out.push(b'\n');
+    out
+}
+
 impl RealBackend {
     pub(super) fn mirror_tool_files(
         tool_id: &str,
         tool: &RealTool,
         staged: &[MirrorFile],
+        root: &Path,
     ) -> Vec<MirrorFile> {
         let mut mirrors = Vec::with_capacity(tool.tool_files.len() + 1);
         for (rel, bytes) in &tool.tool_files {
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(rel),
                 contents: MirrorContents::Bytes(bytes.clone()),
+            });
+        }
+        if tool_id == "bicep" {
+            let bound = tool.config_rel.as_deref().and_then(|rel| {
+                tool.tool_files
+                    .iter()
+                    .find(|(file, _)| file == rel)
+                    .map(|(_, bytes)| bytes.clone())
+            });
+            mirrors.retain(|mirror| mirror.mirror_rel != Path::new(BICEP_CONFIG_REL));
+            mirrors.push(MirrorFile {
+                mirror_rel: PathBuf::from(BICEP_CONFIG_REL),
+                contents: MirrorContents::Bytes(pin_bicep_cache(bound, root)),
             });
         }
         if tool_id == "rustfmt" && tool.config_rel.is_none() {
@@ -194,7 +236,7 @@ impl RealBackend {
             });
             resolve_pairs.push((path.clone(), absolute));
         }
-        let tools = Self::mirror_tool_files(tool_id, tool, &mirrors);
+        let tools = Self::mirror_tool_files(tool_id, tool, &mirrors, scratch.root());
         mirrors.extend(tools);
         write_all(&scratch, tool_id, &mirrors)?;
         Ok(StagedScratch {

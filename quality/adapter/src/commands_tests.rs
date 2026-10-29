@@ -1527,6 +1527,33 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
         argv_strings(&pkl_fix(Path::new(BIN), &[pkl])),
         vec![BIN, "format", "-w", "/scratch/Sample.pkl"]
     );
+    let bicep = Path::new("/scratch/main.bicep");
+    assert_eq!(
+        argv_strings(&bicep_format_check(Path::new(BIN), bicep)),
+        vec![
+            BIN,
+            "format",
+            "--newline-kind",
+            "LF",
+            "--stdout",
+            "/scratch/main.bicep"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&bicep_format_fix(Path::new(BIN), bicep)),
+        vec![BIN, "format", "--newline-kind", "LF", "/scratch/main.bicep"]
+    );
+    assert_eq!(
+        argv_strings(&bicep_lint_check(Path::new(BIN), bicep)),
+        vec![
+            BIN,
+            "lint",
+            "--no-restore",
+            "--diagnostics-format",
+            "sarif",
+            "/scratch/main.bicep"
+        ]
+    );
     let rego = Path::new("/scratch/policy/a.rego");
     assert_eq!(
         argv_strings(&opa_fmt_check(Path::new(BIN), rego)),

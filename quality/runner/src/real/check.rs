@@ -1945,6 +1945,7 @@ impl RealBackend {
                     parsers::parse_ansible_lint(&out.stdout, &out.stderr, out.code, &strs),
                 )
             }
+            "bicep" => self.check_bicep(tool_id, tool, capability, staged),
             "cfn_lint" => self.check_cfn_lint(tool_id, tool, staged, config.as_deref()),
             "cmakelint" => self.check_cmakelint(tool_id, tool, staged, config.as_deref()),
             "sqlfluff" => match config.as_deref() {

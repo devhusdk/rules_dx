@@ -40,6 +40,7 @@ CONFIG_TOOL_ALIASES = {"helm": "kubeconform"}
 
 _NATIVE_CONFIG_SUFFIXES = {
     "ansible_lint": [".ansible-lint", ".yml", ".yaml"],
+    "bicep": ["bicepconfig.json"],
     "biome": [".json"],
     "buf": [".yaml"],
     "buildifier": [".json"],
@@ -283,6 +284,8 @@ shellcheck_config = _make_native_config_rule("shellcheck")
 yamllint_config = _make_native_config_rule("yamllint")
 
 ansible_lint_config = _make_native_config_rule("ansible_lint")
+
+bicep_config = _make_native_config_rule("bicep")
 
 cfn_lint_config = _make_native_config_rule("cfn_lint")
 

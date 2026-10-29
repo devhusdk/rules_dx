@@ -34,7 +34,7 @@ rust.toolchain(
 )
 use_repo(rust, "rust_toolchains")
 bazel_dep(name = "rules_python", version = "1.9.0")
-bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.6")
+bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
 
 python_interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
 python_interpreters.toolchain(python_version = "3.12")

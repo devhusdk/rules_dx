@@ -1,8 +1,8 @@
 diff --git a/py/private/py_venv/BUILD.bazel b/py/private/py_venv/BUILD.bazel
-index 86249c1..689a6d3 100644
+index 8df0198..596f3cf 100644
 --- a/py/private/py_venv/BUILD.bazel
 +++ b/py/private/py_venv/BUILD.bazel
-@@ -11,6 +11,12 @@ exports_files([
+@@ -10,6 +10,12 @@ exports_files([
      "templates/venv_activate.tmpl.sh",
  ])
  
@@ -16,7 +16,7 @@ index 86249c1..689a6d3 100644
      name = "debug_venv",
      build_setting_default = False,
 diff --git a/py/private/py_venv/py_venv.bzl b/py/private/py_venv/py_venv.bzl
-index afc3005..fca7530 100644
+index 5ddeec1..022c2bf 100644
 --- a/py/private/py_venv/py_venv.bzl
 +++ b/py/private/py_venv/py_venv.bzl
 @@ -27,6 +27,7 @@ layout details.
@@ -27,26 +27,26 @@ index afc3005..fca7530 100644
  load("//py/private:py_library.bzl", _py_library = "py_library_utils")
  load("//py/private:py_semantics.bzl", _py_semantics = "semantics")
  load("//py/private:transitions.bzl", "python_transition")
-@@ -81,6 +82,7 @@ def _assemble_shared(ctx):
+@@ -84,6 +85,7 @@ def _assemble_venv_target(ctx, executable, console_scripts):
          site_merge_script_py = ctx.file._site_merge_script,
-         console_script_tmpl = ctx.file._console_script_tmpl,
-         venv_name = ".{}".format(safe_name),
+         console_script_tmpl = ctx.file._console_script_tmpl if console_scripts else None,
+         venv_name = ".{}".format(venv_stem),
 +        windows_venv_launcher = ctx.file._windows_venv_launcher,
      )
+     venv_only = assembled.console_scripts + ([assembled.activate] if assembled.activate != None else [])
  
-     srcs_depset = _py_library.make_srcs_depset(ctx)
-@@ -115,6 +117,8 @@ def _common_providers(ctx, shared, executable = None):
-         # Deliberately no PyInfo: a venv is a terminal artifact, not a source of imports.
-         VirtualenvInfo(
-             bin_python = shared.venv.bin_python,
-+            interpreter = shared.venv.interpreter,
-+            launcher_script = shared.venv.launcher_script,
-             imports = shared.imports_depset,
-             transitive_sources = shared.srcs_depset,
-         ),
-@@ -227,6 +231,10 @@ does not reinsert a wheel.
-         allow_single_file = True,
-         default = "//py/private/py_venv:templates/_virtualenv.py",
+@@ -112,6 +114,8 @@ def _assemble_venv_target(ctx, executable, console_scripts):
+ 
+     return VirtualenvInfo(
+         bin_python = assembled.bin_python,
++        interpreter = assembled.interpreter,
++        launcher_script = assembled.launcher_script,
+         imports = imports_depset,
+         pyi_imports = _py_library.make_pyi_imports_depset(
+             ctx,
+@@ -252,6 +256,10 @@ does not reinsert a wheel.
+     "_freethreaded_flag": attr.label(
+         default = "//py/private/interpreter:freethreaded",
      ),
 +    "_windows_venv_launcher": attr.label(
 +        allow_single_file = True,
@@ -55,29 +55,20 @@ index afc3005..fca7530 100644
      "_windows_constraint": attr.label(
          default = "@platforms//os:windows",
      ),
-@@ -285,6 +293,8 @@ _py_venv = rule(
-         # site_merge action. Optional so venvs keep analyzing in setups
-         # that never registered rules_py's exec-tools toolchain.
-         config_common.toolchain_type(EXEC_TOOLS_TOOLCHAIN, mandatory = False),
-+        launcher.finalizer_toolchain_type,
-+        launcher.template_toolchain_type,
-     ],
-     executable = True,
-     cfg = python_transition,
-@@ -309,6 +319,8 @@ _py_venv_lib = rule(
-         # Same optional exec-tools dependency as `_py_venv`: assemble_venv
-         # needs it to run the site_merge action when a package needs a merge.
-         config_common.toolchain_type(EXEC_TOOLS_TOOLCHAIN, mandatory = False),
-+        launcher.finalizer_toolchain_type,
-+        launcher.template_toolchain_type,
-     ],
-     cfg = python_transition,
- )
+@@ -306,6 +314,8 @@ _venv_toolchains = [
+     # site_merge action. Optional so venvs keep analyzing in setups
+     # that never registered rules_py's exec-tools toolchain.
+     config_common.toolchain_type(EXEC_TOOLS_TOOLCHAIN, mandatory = False),
++    launcher.finalizer_toolchain_type,
++    launcher.template_toolchain_type,
+ ]
+ 
+ _py_venv = rule(
 diff --git a/py/private/py_venv/py_venv_exec.bzl b/py/private/py_venv/py_venv_exec.bzl
-index c4af4f0..378a597 100644
+index fdcc775..fee7a71 100644
 --- a/py/private/py_venv/py_venv_exec.bzl
 +++ b/py/private/py_venv/py_venv_exec.bzl
-@@ -88,13 +88,37 @@ def _py_venv_exec_impl(ctx):
+@@ -98,13 +98,37 @@ def _py_venv_exec_impl(ctx):
      # The launcher runtime resolves transformed-arg positions through
      # the Bazel runfiles manifest, then `execve`s the venv python.
      executable_launcher = ctx.actions.declare_file(ctx.attr.name)
@@ -319,7 +310,7 @@ index 0000000..eed35d6
 +if __name__ == "__main__":
 +    entry(sys.argv)
 diff --git a/py/private/py_venv/toolchains_resolver.bzl b/py/private/py_venv/toolchains_resolver.bzl
-index 759349b..91a2980 100644
+index d17336d..35a089c 100644
 --- a/py/private/py_venv/toolchains_resolver.bzl
 +++ b/py/private/py_venv/toolchains_resolver.bzl
 @@ -140,9 +140,9 @@ def resolve_venv_toolchain(ctx, *, py_toolchain, is_windows, venv_name):
@@ -335,7 +326,7 @@ index 759349b..91a2980 100644
          versioned_python_names = _versioned_python_names(py_toolchain),
          bin_python_target_path = _bin_python_target_path(ctx, py_toolchain, depth),
 diff --git a/py/private/py_venv/types.bzl b/py/private/py_venv/types.bzl
-index a5d63f5..c554b58 100644
+index ae57a26..ce0a575 100644
 --- a/py/private/py_venv/types.bzl
 +++ b/py/private/py_venv/types.bzl
 @@ -21,6 +21,8 @@ binary's launcher exec's the venv's `bin_python`.
@@ -345,22 +336,22 @@ index a5d63f5..c554b58 100644
 +        "interpreter": "File or None — the toolchain python.exe the Windows launcher starts directly. Set on Windows only.",
 +        "launcher_script": "File or None — the windows_venv_launcher.py template run by that python.exe (`--run` mode). Set on Windows only.",
          "imports": "depset[str] — rlocation-root-relative import paths covered by this venv. Mirrors `PyInfo.imports` of the venv's dep closure.",
-         "transitive_sources": "depset[File] — first-party Python sources carried by this venv (its own `srcs` plus those of any `deps` that emit `PyInfo`). Surfaced by py_binary as `PyInfo.transitive_sources` so downstream consumers see the same source closure they'd see if srcs/deps lived on the binary directly.",
-     },
+         "pyi_imports": "depset[str] — import roots of `pyi_deps` in the transitive closure, for type checkers only. Surfaced by py_binary as `PyInfo.pyi_imports`.",
+         "runtime_runfiles": "Runfiles — venv, wheels, and data without Python import sources.",
 diff --git a/py/private/py_venv/venv.bzl b/py/private/py_venv/venv.bzl
-index c998f6f..96e5e72 100644
+index ffa191f..601f0cd 100644
 --- a/py/private/py_venv/venv.bzl
 +++ b/py/private/py_venv/venv.bzl
-@@ -35,6 +35,8 @@ Bazel's action cache treats each piece independently (no tree-artifact
+@@ -33,6 +33,8 @@ Bazel's action cache treats each piece independently (no tree-artifact
  + remote-exec materialisation surprises).
  """
  
 +load("@bazel_lib//lib:paths.bzl", "to_rlocation_path")
 +load("@hermetic_launcher//launcher:lib.bzl", "launcher")
- load("//py/private:py_library.bzl", _py_library = "py_library_utils")
  load("//py/private/toolchain:types.bzl", "EXEC_TOOLS_TOOLCHAIN")
  load(":toolchains_resolver.bzl", "resolve_venv_toolchain")
-@@ -67,6 +69,23 @@ _ADDSITEDIR_LINE = (
+ load(":virtuals_resolvers.bzl", "enforce_collision_policy", "resolve_wheel_collisions")
+@@ -64,6 +66,23 @@ _ADDSITEDIR_LINE = (
      "vars().get(\"known_paths\"))"
  )
  
@@ -384,8 +375,8 @@ index c998f6f..96e5e72 100644
  def _dict_to_exports(env):
      return ["export %s=\"%s\"" % (k, v) for (k, v) in env.items()]
  
-@@ -84,7 +103,8 @@ def assemble_venv(
-         virtualenv_shim_py,
+@@ -81,7 +100,8 @@ def assemble_venv(
+         venv_activate_tmpl,
          site_merge_script_py,
          console_script_tmpl,
 -        venv_name):
@@ -394,26 +385,26 @@ index c998f6f..96e5e72 100644
      """Declare every file + symlink that makes up a venv for a target.
  
      Args:
-@@ -114,6 +134,9 @@ def assemble_venv(
-       console_script_tmpl: File — the console-script wrapper template
-         (usually `ctx.file._console_script_tmpl`).
-       venv_name: str — the venv dir basename (e.g. "." + safe_name).
+@@ -111,6 +131,9 @@ def assemble_venv(
+       console_script_tmpl: File or None — the console-script wrapper template
+         (usually `ctx.file._console_script_tmpl`); `None` skips wrappers.
+       venv_name: str — the venv dir basename (e.g. "." + venv_stem).
 +      windows_venv_launcher: File — `templates/windows_venv_launcher.py`
 +        (usually `ctx.file._windows_venv_launcher`). Required when
 +        `is_windows`.
  
      Returns:
        struct with:
-@@ -121,6 +144,8 @@ def assemble_venv(
-             to rlocation-resolve and exec.
-         all_files: list[File] — every declared output, ready for runfiles
-             / DefaultInfo aggregation.
+@@ -120,6 +143,8 @@ def assemble_venv(
+             / DefaultInfo aggregation, except `activate` and `console_scripts`.
+         activate: File or None — `bin/activate`.
+         console_scripts: list[File] — `bin/<name>` wrappers.
 +        interpreter: File — the toolchain python.exe on Windows, else None.
 +        launcher_script: File — the Windows launcher script, else None.
      """
  
-     wheels_depset = _py_library.make_wheels_depset(ctx)
-@@ -167,6 +192,7 @@ def assemble_venv(
+     top_level_to_site_pkgs, fully_covered_site_pkgs, console_scripts_map, merge_groups, data_file_to_site_pkgs, collisions = resolve_wheel_collisions(
+@@ -168,6 +193,7 @@ def assemble_venv(
      # a cached per-wheel prefix rather than formatting every component.
      site_packages_prefix = site_packages_rel + "/"
      target_prefix_by_sp = {}
@@ -421,7 +412,7 @@ index c998f6f..96e5e72 100644
      for tl, wheel_site_pkgs in top_level_to_site_pkgs.items():
          out = ctx.actions.declare_symlink(site_packages_prefix + tl)
          target_prefix = target_prefix_by_sp.get(wheel_site_pkgs)
-@@ -176,6 +202,14 @@ def assemble_venv(
+@@ -177,6 +203,14 @@ def assemble_venv(
          target_path = target_prefix + tl
          if "/" in tl:
              target_path = "../" * tl.count("/") + target_path
@@ -436,7 +427,7 @@ index c998f6f..96e5e72 100644
          ctx.actions.symlink(
              output = out,
              target_path = target_path,
-@@ -209,6 +243,14 @@ def assemble_venv(
+@@ -210,6 +244,14 @@ def assemble_venv(
              "../" * datapath.count("/") +
              venv_to_runfiles_escape + "/" + install_root + "/" + datapath
          )
@@ -451,7 +442,7 @@ index c998f6f..96e5e72 100644
          ctx.actions.symlink(
              output = out,
              target_path = target_path,
-@@ -303,6 +345,8 @@ def assemble_venv(
+@@ -313,6 +355,8 @@ def assemble_venv(
      # known_layout_site_pkgs so we don't have to materialise imports_depset
      # via .to_list().
      pth_lines.add_all(imports_depset, map_each = _format_imp, allow_closure = True)
@@ -459,8 +450,8 @@ index c998f6f..96e5e72 100644
 +        pth_lines.add(_WINDOWS_PATHS_LINE)
  
      site_packages_pth_file = ctx.actions.declare_file(
-         "{}/{}.pth".format(site_packages_rel, safe_name),
-@@ -337,17 +381,44 @@ def assemble_venv(
+         "{}/{}.pth".format(site_packages_rel, venv_stem),
+@@ -347,17 +391,44 @@ def assemble_venv(
      # absolute target bakes in the build-host execroot path that does not
      # exist inside an OCI container, leaving a dangling symlink. The
      # target path itself is computed by resolve_venv_toolchain.
@@ -511,10 +502,10 @@ index c998f6f..96e5e72 100644
          sym = ctx.actions.declare_symlink("{}/bin/{}".format(venv_name, versioned_name))
          ctx.actions.symlink(
              output = sym,
-@@ -412,4 +483,6 @@ def assemble_venv(
-     return struct(
-         bin_python = bin_python,
-         all_files = declared,
+@@ -403,4 +474,6 @@ def assemble_venv(
+         declared_outputs = declared,
+         activate = bin_activate,
+         console_scripts = console_scripts,
 +        interpreter = py_toolchain.python if is_windows else None,
 +        launcher_script = windows_venv_launcher if is_windows else None,
      )

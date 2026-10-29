@@ -107,7 +107,7 @@ pub const OVERRIDES: &[Override] = &[
     },
     Override {
         module: "aspect_rules_py",
-        version: "2.0.0-alpha.6",
+        version: "2.0.0-alpha.10",
         patch_strip: 1,
         patches: &[OverridePatch {
             file: "windows_venv.patch",

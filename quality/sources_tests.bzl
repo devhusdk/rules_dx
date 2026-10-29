@@ -8,6 +8,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "text",
     "c",
     "capnp",
+    "thrift",
     "cpp",
     "cuda",
     "csharp",

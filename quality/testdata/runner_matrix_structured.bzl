@@ -270,6 +270,100 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_capnp_lint_import_escape_absolute.expected.txt",
     },
     {
+        "name": "matrix_thrift_lint_pass",
+        "generated": {
+            "quality/testdata/matrix/thrift_pass/main.thrift": "include \"base.thrift\"\n\nnamespace cpp fixtures\n\nstruct Sample {\n  1: base.Common common,\n}\n",
+        },
+        "siblings": [
+            ":matrix/thrift_pass/base.thrift",
+        ],
+        "capability": "lint",
+        "stages": ["thrift;thrift;quality/testdata/matrix/thrift_pass/main.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_lint_pass.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_typecheck_pass",
+        "generated": {
+            "quality/testdata/matrix/thrift_pass/main.thrift": "include \"base.thrift\"\n\nnamespace cpp fixtures\n\nstruct Sample {\n  1: base.Common common,\n}\n",
+        },
+        "siblings": [
+            ":matrix/thrift_pass/base.thrift",
+        ],
+        "capability": "typecheck",
+        "stages": ["thrift;thrift;quality/testdata/matrix/thrift_pass/main.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_typecheck_pass.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_typecheck_semantic_fail",
+        "generated": {
+            "matrix/thrift_semantic.thrift": "struct Sample {\n  1: Nope x,\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["thrift;thrift;matrix/thrift_semantic.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_typecheck_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_typecheck_warning_ignored",
+        "generated": {
+            "matrix/thrift_warning.thrift": "const i64 Big = 5000000000\n",
+        },
+        "capability": "typecheck",
+        "stages": ["thrift;thrift;matrix/thrift_warning.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_typecheck_warning_ignored.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_lint_warning_fail",
+        "generated": {
+            "matrix/thrift_warning.thrift": "const i64 Big = 5000000000\n",
+        },
+        "capability": "lint",
+        "stages": ["thrift;thrift;matrix/thrift_warning.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_lint_warning_fail.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_lint_semantic_fail",
+        "generated": {
+            "matrix/thrift_semantic.thrift": "struct Sample {\n  1: Nope x,\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["thrift;thrift;matrix/thrift_semantic.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_lint_semantic_fail.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_lint_syntax_error",
+        "generated": {
+            "matrix/thrift_syntax.thrift": "struct Sample {\n  1: i32 x\n",
+        },
+        "capability": "lint",
+        "stages": ["thrift;thrift;matrix/thrift_syntax.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_lint_syntax_error.expected.txt",
+    },
+    {
+        "name": "matrix_thrift_lint_include_undeclared",
+        "generated": {
+            "matrix/thrift_include.thrift": "include \"undeclared.thrift\"\n\nstruct Sample {\n  1: i32 x,\n}\n",
+        },
+        "capability": "lint",
+        "stages": ["thrift;thrift;matrix/thrift_include.thrift"],
+        "tool_names": ["thrift"],
+        "tool_binaries": ["@dx_thrift//:thrift_compiler"],
+        "expected_file": ":matrix/matrix_thrift_lint_include_undeclared.expected.txt",
+    },
+    {
         "name": "matrix_qml_format_pass",
         "generated": {
             "matrix/qmlformat_clean.qml": "import QtQuick\n\nItem {\n    property string greet: \"hello\"\n}\n",

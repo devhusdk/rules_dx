@@ -1296,6 +1296,29 @@ pub fn flatc_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invoc
     }
 }
 
+/// Validates one schema with `thrift --gen json`, which parses it and its
+/// includes and writes only under `out`. `-strict` is required: without it a
+/// missing include is only a warning and the run would pass. `-v` makes the
+/// compiler list every file it scans, which the runner checks against the
+/// declared inputs, and `root` is the only include search path.
+pub fn thrift_check(binary: &Path, file: &Path, root: &Path, out: &Path) -> Invocation {
+    Invocation {
+        argv: vec![
+            binary.as_os_str().to_owned(),
+            OsString::from("-strict"),
+            OsString::from("-v"),
+            OsString::from("-I"),
+            root.as_os_str().to_owned(),
+            OsString::from("-out"),
+            out.as_os_str().to_owned(),
+            OsString::from("--gen"),
+            OsString::from("json"),
+            file.as_os_str().to_owned(),
+        ],
+        cwd_rel: String::new(),
+    }
+}
+
 pub fn buf_lint_check(
     binary: &Path,
     files: &[&Path],

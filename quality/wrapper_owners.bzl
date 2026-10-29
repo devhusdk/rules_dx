@@ -70,6 +70,7 @@ WRAPPER_OWNERS = {
     "svelte": "//svelte/rules:defs.bzl",
     "terraform": "//terraform/rules:defs.bzl",
     "text": "other",
+    "thrift": "//thrift/rules:defs.bzl",
     "toml": "other",
     "typescript": "//typescript/rules:defs.bzl",
     "vue": "//vue/rules:defs.bzl",

@@ -868,6 +868,36 @@ CAPNP_CAPNP_TYPECHECK_SUPPORT = {
     "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
+THRIFT_THRIFT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["thrift"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "thrift",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "thrift",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+}
+
+THRIFT_THRIFT_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["thrift"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "thrift",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "thrift",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+}
+
 CSS_STYLELINT_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1980,6 +2010,8 @@ SUPPORT_RECORDS = [
     CAPNP_CAPNP_TYPECHECK_SUPPORT,
     FLATBUFFERS_FLATC_LINT_SUPPORT,
     FLATBUFFERS_FLATC_TYPECHECK_SUPPORT,
+    THRIFT_THRIFT_LINT_SUPPORT,
+    THRIFT_THRIFT_TYPECHECK_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAC_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,

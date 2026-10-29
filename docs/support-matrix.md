@@ -121,6 +121,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | reStructuredText | `vale` | no | n/a |
 | SQL | `sqlfluff` | `prettier`, `sqlfluff` | n/a |
 | Terraform | `tflint` | `terraform` | no |
+| Thrift | `thrift` | n/a | `thrift` |
 | Typst | no | `typstyle` | n/a |
 | XML | `xmllint` | `prettier` | n/a |
 | YAML | `yamllint` | `yamlfmt` | n/a |
@@ -131,6 +132,7 @@ Not applicable for `format`:
 
 - `capnp`: schema IDL; no maintained .capnp formatter exists, capnp only validates
 - `flatbuffers`: schema IDL; no maintained .fbs formatter exists, flatc only validates
+- `thrift`: schema IDL; the thrift compiler has no formatter, it only validates
 
 Not applicable for `lint`:
 

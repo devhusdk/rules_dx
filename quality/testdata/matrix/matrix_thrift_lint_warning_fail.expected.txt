@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_thrift_lint_warning_fail
+capability LINT
+stages 1
+stage thrift classes=thrift sources=matrix/thrift_warning.thrift
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING thrift warning matrix/thrift_warning.thrift 0 0 fixable=false "64-bit constant \"5000000000\" may not work in all languages."
+terminal 1
+terminal WARNING thrift warning matrix/thrift_warning.thrift 0 0 fixable=false "64-bit constant \"5000000000\" may not work in all languages."
+replacements 0

@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_thrift_typecheck_pass
+capability TYPECHECK
+stages 1
+stage thrift classes=thrift sources=quality/testdata/matrix/thrift_pass/main.thrift
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

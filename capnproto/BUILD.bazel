@@ -2,10 +2,27 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(["pins.bzl"])
 
-# Schemas the compiler resolves from /capnp/*.capnp: c++, schema, stream and compat/json.
-alias(
+# Schemas the compiler resolves from /capnp/*.capnp: c++, schema, stream and compat/json,
+# plus java.capnp from capnpc-java, so Java annotations lint and generate alike.
+filegroup(
     name = "std",
-    actual = "@dx_capnproto//src/capnp:capnp_system_library",
+    srcs = [
+        "@dx_capnproto//src/capnp:capnp_system_library",
+        "@dx_capnproto_java//:compiler/src/main/schema/capnp/java.capnp",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Runtimes built from the pinned archives, so they cannot drift from the generators.
+alias(
+    name = "runtime_rust",
+    actual = "@dx_capnproto_rust//:capnp",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "runtime_java",
+    actual = "@dx_capnproto_java//:runtime",
     visibility = ["//visibility:public"],
 )
 
@@ -14,7 +31,9 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "java.BUILD.bazel",
         "pins.bzl",
+        "rust.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

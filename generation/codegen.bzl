@@ -41,6 +41,8 @@ DX_CODEGEN_ADMITTED_PAIRS = (
     ("flatbuffers", "rust"),
     ("flatbuffers", "java"),
     ("capnp", "cpp"),
+    ("capnp", "rust"),
+    ("capnp", "java"),
 )
 
 def codegen_path_error(path):

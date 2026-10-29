@@ -161,6 +161,21 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_capnp_lint_pass.expected.txt",
     },
     {
+        "name": "matrix_capnp_lint_java_annotation_pass",
+        "generated": {
+            "quality/testdata/matrix/capnp_java/main.capnp": "@0xe3c1a4b7d9f20586;\n\nusing Java = import \"/capnp/java.capnp\";\n$Java.package(\"fixtures\");\n$Java.outerClassname(\"Sample\");\n\nstruct Item {\n  id @0 :UInt32;\n}\n",
+        },
+        "staged_siblings": {
+            "@dx_capnproto//src/capnp:capnp_system_library": "/src/capnp/:capnp/",
+            "@dx_capnproto_java//:compiler/src/main/schema/capnp/java.capnp": "/schema/capnp/:capnp/",
+        },
+        "capability": "lint",
+        "stages": ["capnp;capnp;quality/testdata/matrix/capnp_java/main.capnp"],
+        "tool_names": ["capnp"],
+        "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
+        "expected_file": ":matrix/matrix_capnp_lint_java_annotation_pass.expected.txt",
+    },
+    {
         "name": "matrix_capnp_typecheck_pass",
         "generated": {
             "quality/testdata/matrix/capnp_pass/main.capnp": "@0xd0b9ad1f14bf0b37;\n\nusing Cxx = import \"/capnp/c++.capnp\";\n$Cxx.namespace(\"fixtures\");\n\nusing Base = import \"base.capnp\";\nusing Abs = import \"/quality/testdata/matrix/capnp_pass/base.capnp\";\n\nstruct Sample {\n  base @0 :Base.Base;\n  again @1 :Abs.Base;\n}\n",

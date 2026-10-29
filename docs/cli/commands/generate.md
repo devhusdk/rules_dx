@@ -64,7 +64,7 @@ An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")` and `("openapi", "typescript")`.
+`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")` and `("openapi", "typescript")`.
 
 The openapi/typescript pair comes from `openapi_typescript_client` in
 `@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
@@ -130,8 +130,33 @@ schema's own directory; use an absolute `/pkg/file.capnp` import across packages
 `capnp_codegen_shard` binds one plan entry with an `EXEC_PATH` suffix to each
 generated `.capnp.h` and `.capnp.c++` file; the shard lists the files of the
 libraries in the `deps` of the `capnp_cc_library` only. The pin is built for
-Linux x86_64 only, as for `dx quality`; Rust and managed-language generation are
-not part of this pair yet.
+Linux x86_64 only, as for `dx quality`.
+
+The capnp/rust pair comes from `capnp_rust_library(name, library, deps)` in the
+same file. It generates one crate per `capnp_library`, with the pinned `capnp`
+compiler and the `capnpc` code generator of the pinned `capnproto-rust` archive.
+The crate's `deps` must mirror the library's direct deps: one `capnp_rust_library`
+for each `capnp_library` in the library's `deps`, because Rust sees only direct
+dependencies. A missing one fails at analysis. An import of a dependency's
+schema becomes a `::dep_crate::x_capnp` path, so a type is never duplicated
+across crates, and `/capnp/schema.capnp` maps to the `capnp` crate. An import
+that is neither owned by the library nor provided by a dependency fails the
+build, naming the import. Each schema becomes a top-level module `<stem>_capnp`,
+so two schemas of one library with the same file stem fail at analysis. Annotation
+schemas such as `/capnp/c++.capnp` generate no code. `crate_name` renames the
+crate for dependents. Bind `capnp_codegen_shard` with `language = "rust"` to the
+`NAME_generated` target; it lists the generated `*_capnp.rs` files, never the
+`lib.rs` the driver writes.
+
+The capnp/java pair comes from `capnp_java_library` in the same file, which runs
+`capnp compile` with the `capnpc-java` plugin (capnproto-java, built from source)
+once per `capnp_library`, packs the output into `_capnp_java/<lib>.srcjar` and
+compiles it with `java_common.compile` against the Java runtime built from the
+same archive. Every schema needs the `$Java.package` annotation from
+`/capnp/java.capnp`, which is bundled with the other `/capnp/` schemas; without it
+`capnpc-java` fails with `no Java package name found`. Bind `capnp_codegen_shard`
+with `language = "java"` to the `capnp_java_library`; each entry's `EXEC_PATH` is
+the srcjar of one direct dep. Both pairs are built for Linux x86_64 only.
 
 ## Android inputs
 

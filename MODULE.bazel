@@ -1308,6 +1308,24 @@ _http_archive(
     urls = ["https://github.com/capnproto/capnproto/archive/refs/tags/v1.5.0.tar.gz"],
 )
 
+# capnp and capnpc Rust crates; literals mirror //capnproto:pins.bzl.
+_http_archive(
+    name = "dx_capnproto_rust",
+    build_file = "//capnproto:rust.BUILD.bazel",
+    sha256 = "5251a6e7d6e52617c33bfaa523a3abd862307720c481779c24c2162d342d63f5",
+    strip_prefix = "capnproto-rust-capnp-v0.27.3",
+    urls = ["https://github.com/capnproto/capnproto-rust/archive/refs/tags/capnp-v0.27.3.tar.gz"],
+)
+
+# capnpc-java (C++ plugin built against @dx_capnproto), the Java runtime and java.capnp.
+_http_archive(
+    name = "dx_capnproto_java",
+    build_file = "//capnproto:java.BUILD.bazel",
+    sha256 = "904525c4433fb1779bbc4face11887b016f949f1b019755b1886c5f367f4c091",
+    strip_prefix = "capnproto-java-0.1.16",
+    urls = ["https://github.com/capnproto/capnproto-java/archive/refs/tags/v0.1.16.tar.gz"],
+)
+
 # Rust runtime from the same archive (same sha256, so one download) and its bitflags dep.
 _http_archive(
     name = "dx_flatbuffers_rust",

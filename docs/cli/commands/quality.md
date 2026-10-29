@@ -1425,7 +1425,7 @@ x86_64. Select it in a `capnp` family. The family is opt-in and part of no
 curated default. Format is not applicable: no maintained `.capnp` formatter
 exists, and `capnp` only validates.
 
-For C++ code generation from the same `capnp_library` targets see
+For C++, Rust and Java code generation from the same `capnp_library` targets see
 [generate](generate.md#codegen-pairs).
 
 ```python
@@ -1452,7 +1452,8 @@ Own schemas with `capnp_library`. List the package files in `srcs` and the
 libraries they import in `deps`. An import resolves only from the `deps`
 closure, relative to the importing file or from the workspace root
 (`/pkg/x.capnp`), plus the schemas bundled with the compiler under `/capnp/`:
-`/capnp/c++.capnp`, `/capnp/schema.capnp`, `/capnp/stream.capnp` and
+`/capnp/c++.capnp`, `/capnp/java.capnp` (from capnproto-java, for the
+`$Java.package` annotations), `/capnp/schema.capnp`, `/capnp/stream.capnp` and
 `/capnp/compat/json.capnp`. A check runs
 `capnp compile --no-standard-import -I <root> --src-prefix=<root> -o-` from a
 scratch root that holds only those declared inputs, so an undeclared import is

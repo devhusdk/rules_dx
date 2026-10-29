@@ -1,0 +1,48 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//capnproto:__subpackages__"])
+
+# Generates the Rust crate sources of one capnp_rust_library from the pinned capnp
+# compiler and the pinned capnpc crate. No crates.io dependency.
+rust_binary(
+    name = "capnpc_rust_dx",
+    srcs = ["main.rs"],
+    crate_name = "capnpc_rust_dx",
+    crate_root = "main.rs",
+    edition = "2021",
+    rustc_flags = ["--cap-lints=allow"],
+    deps = [
+        "@dx_capnproto_rust//:capnp",
+        "@dx_capnproto_rust//:capnpc",
+    ],
+)
+
+# keep
+rust_test(
+    name = "capnpc_rust_dx_test",
+    size = "small",
+    crate = ":capnpc_rust_dx",
+)
+
+rustfmt_test(
+    name = "capnpc_rust_dx_fmt_test",
+    size = "small",
+    targets = [
+        ":capnpc_rust_dx",
+        ":capnpc_rust_dx_test",
+    ],
+)
+
+rust_clippy_test(
+    name = "capnpc_rust_dx_clippy_test",
+    size = "small",
+    targets = [":capnpc_rust_dx"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -761,7 +761,7 @@ single_version_override(
 )
 
 # floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_nodejs", version = "6.7.7")
+bazel_dep(name = "rules_nodejs", version = "6.7.7", dev_dependency = True)
 single_version_override(
     module_name = "rules_nodejs",
     version = "6.7.7",

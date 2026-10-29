@@ -52,6 +52,12 @@ a name alone. Third-party packages need a `# gazelle:resolve julia` line.
 `julia_format`. The formatter and its packages are fetched only for Julia
 targets. Syntax errors are reported with line and column and are never written.
 
+## Type checking
+
+`dx typecheck` runs JET 0.13.1 when a `julia` family selects `jet` and
+`--@rules_dx//config:tool_jet=@rules_dx//julia/tools/jet:jet` is set. Findings
+are reported at their line. See `docs/cli/commands/quality.md`.
+
 ## Platforms
 
 | Platform | Support |

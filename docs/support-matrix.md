@@ -79,7 +79,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Haskell | `hlint` | `ormolu` | no |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` |
-| Julia | no | `julia_format` | no |
+| Julia | no | `julia_format` | `jet` |
 | Kotlin | `ktlint` | `ktfmt` | `kotlinc` |
 | Lua | `selene` | `stylua` | `luals` |
 | MDX | `eslint` | `remark` | no |

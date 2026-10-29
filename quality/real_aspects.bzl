@@ -43,6 +43,7 @@ load("//php/rules:php.bzl", "staged_path")
 load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//quality:support.bzl", "support_unpinned_tools")
+load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//bicep/rules:providers.bzl", "BicepInfo")
 load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
@@ -181,6 +182,14 @@ _REAL_TOOL_TABLE = {
         "fallback": "=@rules_dx//php/tools:phpcs",
         "kind": "setting",
         "resources": "medium",
+        "shard": "core",
+    },
+    "jet": {
+        "attr": attr.label(default = "//config:tool_jet", allow_files = True, cfg = "exec"),
+        "capabilities": ["typecheck"],
+        "fallback": "=@rules_dx//julia/tools/jet:jet",
+        "kind": "setting",
+        "resources": "heavy",
         "shard": "core",
     },
     "luals": {
@@ -1148,6 +1157,42 @@ def _fsharplint_context(target, ctx, what):
     )
     return (refs, context)
 
+def _runfiles_path(ctx, file):
+    """Returns the runfiles-relative path of one file."""
+    if file.short_path.startswith("../"):
+        return file.short_path[3:]
+    return ctx.workspace_name + "/" + file.short_path
+
+def _jet_staging(target, ctx, path_to_file):
+    """Returns the staged dependency sources and the analysis config of one Julia target."""
+    info = target[JuliaInfo]
+    owned = {f.path: ws for (ws, f) in path_to_file.items()}
+    main = getattr(ctx.rule.attr, "main", None)
+    main_files = main.files.to_list() if main != None else []
+    if info.entry != None and info.entry.path in owned:
+        roots = [owned[info.entry.path]]
+    elif len(main_files) == 1 and main_files[0].path in owned:
+        roots = [owned[main_files[0].path]]
+    else:
+        roots = sorted(owned.values())
+    staged = []
+    seen = {}
+    candidates = info.transitive_srcs.to_list() + [f for f in info.runfiles.files.to_list() if f.basename in ("Project.toml", "JuliaProject.toml") and "/share/julia/" not in f.short_path]
+    for f in sorted(candidates, key = lambda f: f.path):
+        if f.is_directory or f.path in seen:
+            continue
+        seen[f.path] = True
+        staged.append(("dx-jet/rf/" + _runfiles_path(ctx, f), f))
+    config = ctx.actions.declare_file(target.label.name + "-jet-config.toml")
+    ctx.actions.write(
+        output = config,
+        content = "includes = %s\nroots = %s\n" % (
+            json.encode(sorted(info.includes.to_list())),
+            json.encode(roots),
+        ),
+    )
+    return (staged, config)
+
 def _helm_context(target, ctx, what):
     """Returns the chart context file for one helm_chart target."""
     if HelmChartInfo not in target:
@@ -1497,6 +1542,16 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     fsharplint_context = None
     if "fsharplint" in [stage["tool"] for stage in resolved]:
         (fsharplint_refs, fsharplint_context) = _fsharplint_context(target, ctx, what)
+
+    jet_staged = []
+    jet_config = None
+    if "jet" in [stage["tool"] for stage in resolved]:
+        if JuliaInfo not in target:
+            resolved = drop_pipeline_tool(resolved, "jet")
+            if len(resolved) == 0:
+                return []
+        else:
+            (jet_staged, jet_config) = _jet_staging(target, ctx, path_to_file)
 
     helm_context = None
     if "helm" in [stage["tool"] for stage in resolved]:
@@ -1884,6 +1939,12 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
                 tool_files.append(real_request_tool_file(rel, tree.path))
                 inputs.append(tree)
             inputs.extend(zanuda_stdlib)
+        if tool == "jet" and jet_config != None:
+            for (rel, staged_file) in jet_staged:
+                tool_files.append(real_request_tool_file(rel, staged_file.path))
+                inputs.append(staged_file)
+            tool_files.append(real_request_tool_file("dx-jet/config.toml", jet_config.path))
+            inputs.append(jet_config)
         if tool == "luals":
             for (rel, module_file) in luals_modules:
                 tool_files.append(real_request_tool_file(rel, module_file.path))

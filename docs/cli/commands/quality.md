@@ -250,6 +250,7 @@ to.
 | `deadnix` | lint | nix |
 | `dfmt` | format | d |
 | `dialyzer` | typecheck | erlang, elixir |
+| `jet` | typecheck | julia |
 | `luals` | typecheck | lua |
 | `phpcs` | lint | php |
 | `phpstan` | typecheck | php |
@@ -365,19 +366,19 @@ bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:tool_ruff=//tools:my_ruf
 
 - `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `gofumpt`, `gotype`, `qmlformat`, `qmllint`,
   `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`, `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`,
-  `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`
+  `jet`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format`, `credo`, `ormolu`
   and `nixfmt` have override flags.
 - The `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and `nixfmt` alternates
   must be a single executable file.
   Anything else fails the analysis with the tool named.
 - The `gofumpt`, `gotype`, `qmlformat`, `qmllint`, `julia_format`, `zig_ast_check`, `zig_fmt`, `dart`, `dfmt`,
-  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format` and `credo` alternates must be
+  `dscanner`, `perlcritic`, `perltidy`, `erlfmt`, `elvis`, `dialyzer`, `jet`, `luals`, `phpcs`, `phpstan`, `sorbet`, `mix_format` and `credo` alternates must be
   executable targets, such as
   `@dx_qt//:qmlformat`, `@dx_qt//:qmllint`, `@rules_dx//julia/tools:julia_format`,
   `@rules_dx//zig/tools:zig`, `@rules_dx//dart/tools:dart`, `@rules_dx//d/tools:dfmt`, `@rules_dx//d/tools:dscanner`,
   `@rules_dx//perl/tools:perlcritic`, `@rules_dx//perl/tools:perltidy`,
   `@rules_dx//erlang/tools:erlfmt`, `@rules_dx//erlang/tools:elvis`,
-  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//lua/tools:luals`, `@rules_dx//php/tools:phpcs`, `@rules_dx//php/tools:phpstan`,
+  `@rules_dx//erlang/tools:dialyzer`, `@rules_dx//julia/tools/jet:jet`, `@rules_dx//lua/tools:luals`, `@rules_dx//php/tools:phpcs`, `@rules_dx//php/tools:phpstan`,
   `@rules_dx//ruby/tools:sorbet`, `@rules_dx//elixir/tools:mix_format` and
   `@rules_dx//elixir/tools:credo`.
   A target without an executable fails the analysis.
@@ -760,6 +761,32 @@ an error at its line with the rule as `phpstan/<identifier>`, or `phpstan/error`
 when PHPStan names none. Only findings in the target's own sources are
 reported. PHPStan never fixes, so `--apply` changes nothing. The platform is
 `linux_x86_64`, the only one with a pinned PHP.
+
+### Julia type checking
+
+`jet` has no default executable. Select `jet` in a `julia` family and point the
+flag at the pinned JET 0.13.1.
+
+```starlark
+quality_family(
+    name = "julia_family",
+    family_id = "julia",
+    typecheck = ["jet"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- typecheck -- --@rules_dx//config:tool_jet=@rules_dx//julia/tools/jet:jet
+```
+
+Without the flag, a policy that selects `jet` fails the analysis and names the
+flag. JET analyzes the sources of each `julia_library` target with the sources
+of its deps on the load path. Only findings in the target's own sources are
+reported; each has the rule `jet/<kind>` at its line, such as
+`jet/UndefVar`. Every finding is an error. JET runs from a separate pinned
+environment and precompiles the packages it needs on first use, so the first
+run is slow. Packages that need JLL binaries are not available to it. JET never
+fixes, so `--apply` changes nothing.
 
 ### Lua type checking
 

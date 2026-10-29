@@ -36,8 +36,10 @@ load(
     "erlang_subject",
     "erlang_typecheck_subject",
     "erlfmt_flag_tests",
+    "jet_flag_tests",
     "julia_format_flag_tests",
     "julia_subject",
+    "julia_typecheck_subject",
     "lua_typecheck_subject",
     "luals_flag_tests",
     "mix_format_flag_tests",
@@ -1761,6 +1763,33 @@ julia_subject(
 julia_format_flag_tests(
     name = "julia_format_flag",
     subject = ":julia_subject",
+)
+
+quality_family(
+    name = "julia_typecheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "julia",
+    typecheck = ["jet"],
+)
+
+workspace_policy(
+    name = "julia_typecheck_policy",
+    families = [":julia_typecheck_family"],
+)
+
+julia_typecheck_subject(
+    name = "julia_typecheck_subject",
+    testonly = True,
+    target = "//julia/tests/fixtures/hello:Greet",
+)
+
+jet_flag_tests(
+    name = "jet_flag",
+    subject = ":julia_typecheck_subject",
 )
 
 quality_family(

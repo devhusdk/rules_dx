@@ -59,6 +59,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "helm",
     "hlint",
     "javac",
+    "jet",
     "jsonnet_lint",
     "jsonnetfmt",
     "julia_format",

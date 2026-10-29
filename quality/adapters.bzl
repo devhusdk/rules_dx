@@ -73,6 +73,7 @@ REAL_ADAPTERS = {
     "helm": {"lint": ["helm"]},
     "hlint": {"lint": ["haskell"]},
     "javac": {"typecheck": ["java"]},
+    "jet": {"typecheck": ["julia"]},
     "jsonnet_lint": {"lint": ["jsonnet"]},
     "jsonnetfmt": {"format": ["jsonnet"]},
     "julia_format": {"format": ["julia"]},

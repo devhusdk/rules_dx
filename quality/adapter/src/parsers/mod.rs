@@ -43,6 +43,7 @@ pub mod gplint;
 pub mod hadolint;
 pub mod helm;
 pub mod hlint;
+pub mod jet;
 pub mod jsonnet_lint;
 pub mod jsonnetfmt;
 pub mod julia_format;
@@ -157,6 +158,7 @@ pub use gplint::parse_gplint;
 pub use hadolint::parse_hadolint;
 pub use helm::{parse_helm_lint, parse_helm_template_error, split_rendered, RenderedFile};
 pub use hlint::parse_hlint;
+pub use jet::parse_jet;
 pub use jsonnet_lint::parse_jsonnet_lint;
 pub use jsonnetfmt::parse_jsonnetfmt;
 pub use julia_format::parse_julia_format;
@@ -1852,6 +1854,14 @@ mod tests {
         super::helm::parse_helm_lint(input, code, "", files)
     }
 
+    fn fuzz_jet(
+        input: &[u8],
+        _code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jet::parse_jet(input, files)
+    }
+
     fn fuzz_jsonnet_lint(
         input: &[u8],
         code: Option<i32>,
@@ -2749,6 +2759,7 @@ mod tests {
         ("hadolint", fuzz_hadolint),
         ("helm", fuzz_helm),
         ("hlint", fuzz_hlint),
+        ("jet", fuzz_jet),
         ("jsonnet_lint", fuzz_jsonnet_lint),
         ("jsonnetfmt", fuzz_jsonnetfmt),
         ("dart", fuzz_dart_format),
@@ -2876,6 +2887,7 @@ mod tests {
         ("hadolint", include_str!("hadolint.rs")),
         ("helm", include_str!("helm.rs")),
         ("hlint", include_str!("hlint.rs")),
+        ("jet", include_str!("jet.rs")),
         ("jsonnet_lint", include_str!("jsonnet_lint.rs")),
         ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
         ("dart", include_str!("dart_format.rs")),

@@ -195,6 +195,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "helm",
             "hlint",
             "javac",
+            "jet",
             "jsonnet_lint",
             "jsonnetfmt",
             "julia_format",

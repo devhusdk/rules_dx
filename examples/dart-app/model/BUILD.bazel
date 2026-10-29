@@ -5,6 +5,14 @@ _PUBLIC = ["//visibility:public"]
 
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
+exports_files(
+    glob([
+        "lib/**",
+        "schema.json",
+    ]) + ["BUILD.bazel"],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 genrule(
     name = "schema_g_dart",
     srcs = ["schema.json"],

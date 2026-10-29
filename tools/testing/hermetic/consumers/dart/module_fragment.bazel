@@ -1,0 +1,9 @@
+bazel_dep(name = "rules_dart", version = "0.8.0")
+
+pub = use_extension("@rules_dart//dart/pub:extensions.bzl", "pub")
+pub.from_lock(
+    name = "dart_app_pub",
+    lock = "//third_party/dart:pubspec.lock",
+    on_version_conflict = "upgrade",
+)
+use_repo(pub, dx_dart_deps = "dart_app_pub")

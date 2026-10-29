@@ -1780,6 +1780,44 @@ JULIA_JULIA_FORMAT_FORMAT_SUPPORT = {
     "unsupported": ["windows_arm64"],
 }
 
+# linux_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
+# macos_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
+# windows_arm64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
+# windows_x86_64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
+D_DFMT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["d"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "d",
+    "fix": "supported",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "dfmt",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
+# linux_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
+# macos_arm64: LDC_CELLS includes it; no runner-matrix case proves this tool here yet (#4664)
+# windows_arm64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
+# windows_x86_64: LDC_CELLS in d/toolchain/pins.bzl has no windows cell
+D_DSCANNER_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["d"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "d",
+    "fix": "check_only",
+    "platforms": ["linux_x86_64"],
+    "state": "supported",
+    "tool": "dscanner",
+    "transport": "batched",
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+}
+
 ZIG_ZIG_FMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2014,6 +2052,8 @@ SUPPORT_RECORDS = [
     MDX_ESLINT_LINT_SUPPORT,
     TYPESCRIPT_BIOME_FORMAT_SUPPORT,
     TYPESCRIPT_BIOME_LINT_SUPPORT,
+    D_DFMT_FORMAT_SUPPORT,
+    D_DSCANNER_LINT_SUPPORT,
     ELIXIR_CREDO_LINT_SUPPORT,
     ELIXIR_MIX_FORMAT_FORMAT_SUPPORT,
     ERLANG_ELVIS_LINT_SUPPORT,

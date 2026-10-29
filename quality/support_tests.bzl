@@ -1,5 +1,6 @@
 """Unit tests for explicit tool support records."""
 
+load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "RULES_DART_PLATFORMS")
 load("//elixir/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/toolchain:pins.bzl", ERLANG_CELLS = "CELLS")
@@ -291,7 +292,9 @@ def _canonical(cells):
 def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),
+        "dfmt": _canonical(LDC_CELLS.keys()),
         "dart": sorted(RULES_DART_PLATFORMS.keys()),
+        "dscanner": _canonical(LDC_CELLS.keys()),
         "elvis": _canonical(ERLANG_CELLS.keys()),
         "erlfmt": _canonical(ERLANG_CELLS.keys()),
         "julia_format": sorted(JULIA_PLATFORMS.keys()),

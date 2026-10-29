@@ -28,9 +28,54 @@ var badFunc = &analysis.Analyzer{
 	},
 }
 
+var worseFunc = &analysis.Analyzer{
+	Name: "worsefunc",
+	Doc:  "reports functions named Worse",
+	Run: func(pass *analysis.Pass) (any, error) {
+		for _, file := range pass.Files {
+			for _, decl := range file.Decls {
+				if fn, ok := decl.(*ast.FuncDecl); ok && strings.HasPrefix(fn.Name.Name, "Worse") {
+					pass.Reportf(fn.Pos(), "function Worse is forbidden")
+				}
+			}
+		}
+		return nil, nil
+	},
+}
+
+func hasFlag(extra []string, flag string) bool {
+	for _, arg := range extra {
+		if arg == flag {
+			return true
+		}
+	}
+	return false
+}
+
+var dropLines bool
+
+var options = unit.Options{
+	Configure: func(extra []string) error {
+		dropLines = hasFlag(extra, "-drop-lines")
+		return nil
+	},
+	Select: func(extra []string) []*analysis.Analyzer {
+		if hasFlag(extra, "-only-worse") {
+			return []*analysis.Analyzer{worseFunc}
+		}
+		return []*analysis.Analyzer{badFunc, worseFunc}
+	},
+	Filter: func(cfg *unit.Config, tree unit.Tree) unit.Tree {
+		if dropLines {
+			delete(tree[cfg.ImportPath], "worsefunc")
+		}
+		return tree
+	},
+}
+
 func TestMain(m *testing.M) {
 	if os.Getenv(unit.ChildEnv) != "" {
-		os.Exit(unit.Main("badfunc", []*analysis.Analyzer{badFunc}, nil, os.Args[1:], os.Stdout, os.Stderr))
+		os.Exit(unit.Run("badfunc", []*analysis.Analyzer{badFunc}, options, os.Args[1:], os.Stdout, os.Stderr))
 	}
 	os.Exit(m.Run())
 }
@@ -46,7 +91,7 @@ func write(t *testing.T, dir, name, body string) string {
 	return path
 }
 
-func runUnit(t *testing.T, cfg unit.Config) (report, string) {
+func runUnit(t *testing.T, cfg unit.Config, extra ...string) (report, string) {
 	t.Helper()
 	dir := t.TempDir()
 	cfg.ImportPath = "example.com/p"
@@ -58,7 +103,7 @@ func runUnit(t *testing.T, cfg unit.Config) (report, string) {
 	}
 	cfgPath := write(t, dir, "cfg.json", string(raw))
 	var out, errOut bytes.Buffer
-	code := unit.Main("badfunc", []*analysis.Analyzer{badFunc}, nil, []string{cfgPath}, &out, &errOut)
+	code := unit.Run("badfunc", []*analysis.Analyzer{badFunc}, options, append([]string{cfgPath}, extra...), &out, &errOut)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut.String())
 	}
@@ -117,5 +162,33 @@ func TestNoFilesIsEmptyReport(t *testing.T) {
 	}
 	if _, err := os.Stat(vetx); err != nil {
 		t.Fatal("vetx output was not created")
+	}
+}
+
+func TestSelectDropsAnalyzer(t *testing.T) {
+	dir := t.TempDir()
+	file := write(t, dir, "a.go", "package p\n\nfunc Bad() {}\n\nfunc Worse() {}\n")
+	got, _ := runUnit(t, unit.Config{GoFiles: []string{file}})
+	if _, ok := got["example.com/p"]["badfunc"]; !ok {
+		t.Fatalf("default set lost badfunc: %v", got)
+	}
+	got, _ = runUnit(t, unit.Config{GoFiles: []string{file}}, "-only-worse")
+	if _, ok := got["example.com/p"]["badfunc"]; ok {
+		t.Fatalf("Select did not drop badfunc: %v", got)
+	}
+	if _, ok := got["example.com/p"]["worsefunc"]; !ok {
+		t.Fatalf("Select dropped worsefunc: %v", got)
+	}
+}
+
+func TestFilterRemovesDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	file := write(t, dir, "a.go", "package p\n\nfunc Bad() {}\n\nfunc Worse() {}\n")
+	got, _ := runUnit(t, unit.Config{GoFiles: []string{file}}, "-drop-lines")
+	if _, ok := got["example.com/p"]["worsefunc"]; ok {
+		t.Fatalf("Filter kept worsefunc: %v", got)
+	}
+	if _, ok := got["example.com/p"]["badfunc"]; !ok {
+		t.Fatalf("Filter dropped badfunc: %v", got)
 	}
 }

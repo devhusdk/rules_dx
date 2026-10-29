@@ -125,7 +125,7 @@ REAL_ADAPTERS = {
     "terraform": {"format": ["terraform"]},
     "tflint": {"lint": ["terraform"]},
     "ty": {"typecheck": ["jupyter", "python", "python_stub"]},
-    "tsc": {"typecheck": ["tsx", "typescript"]},
+    "tsc": {"typecheck": ["javascript", "jsx", "tsx", "typescript"]},
     "typstyle": {"format": ["typst"]},
     "latexindent": {"format": ["latex"]},
     "ldc": {"typecheck": ["d"]},

@@ -316,7 +316,6 @@ GAP_ISSUES = {
     "support:*": 4441,
     "typecheck:astro": 1767,
     "typecheck:haskell": 4530,
-    "typecheck:javascript": 4524,
     "typecheck:julia": 4532,
     "typecheck:kotlin": 4528,
     "typecheck:mdx": 1768,

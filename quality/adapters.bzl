@@ -141,6 +141,7 @@ REAL_ADAPTERS = {
     "xmllint": {"lint": ["xml"]},
     "yamlfmt": {"format": ["yaml"]},
     "yamllint": {"lint": ["yaml"]},
+    "zanuda": {"lint": ["ocaml"]},
     "zig": {"typecheck": ["zig"]},
     "zig_ast_check": {"lint": ["zig"]},
     "zig_fmt": {"format": ["zig"]},

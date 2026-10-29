@@ -58,6 +58,7 @@ sh_test(
         ":dirty_cmts",
         ":zanuda",
         "@dx_ocaml_toolchains//:stdlib_cmi",
+        "@dx_ocaml_toolchains//:stdlib_cmis",
     ],
 )
 

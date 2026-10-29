@@ -92,6 +92,7 @@ _ALIAS = """alias(
 CELL_ALIASES = {
     "stdlib": "//:stdlib",
     "stdlib_cmi": "//:lib/ocaml/stdlib.cmi",
+    "stdlib_cmis": "//:stdlib_cmis",
     "tree": "//:tree",
 }
 

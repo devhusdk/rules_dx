@@ -83,7 +83,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Kotlin | `ktlint` | `ktfmt` | `kotlinc` |
 | Lua | `selene` | `stylua` | `luals` |
 | MDX | `eslint` | `remark` | no |
-| OCaml | no | `topiary` | no |
+| OCaml | `zanuda` | `topiary` | no |
 | Perl | `perlcritic` | `perltidy` | n/a |
 | PHP | `phpcs` | `prettier` | `phpstan` |
 | PowerShell | `psscriptanalyzer` | `psscriptanalyzer` | n/a |

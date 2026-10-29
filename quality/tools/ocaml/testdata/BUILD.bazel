@@ -11,6 +11,7 @@ ocaml_module(
 ocaml_module(
     name = "dirty",
     struct = "dirty.ml",
+    tags = ["no-lint"],
 )
 
 real_source_target(

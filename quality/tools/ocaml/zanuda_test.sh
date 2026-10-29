@@ -21,7 +21,12 @@ version="$("$zanuda" -version)"
 for id in if_bool list_length_comparisons; do
   grep -q "\"value\":\"$id\"" "$scratch/dirty.jsonl" || { cat "$scratch/dirty.jsonl" >&2; fail "dirty fixture: no $id finding"; }
 done
-grep -q '"path":"[^"]*dirty.ml"' "$scratch/dirty.jsonl" || fail "dirty fixture: findings do not name dirty.ml"
+# Typed and untyped findings alike name the source the list gives, not the compile-time path.
+listed="$(awk -F '\t' 'NR == 1 {print $2}' "$dirty_list")"
+while IFS= read -r path; do
+  [[ "$path" == "$listed" ]] || fail "dirty fixture: finding names $path, want $listed"
+done < <(grep -o '"path":"[^"]*"' "$scratch/dirty.jsonl" | sed 's/^"path":"//; s/"$//')
+grep -q '"path"' "$scratch/dirty.jsonl" || fail "dirty fixture: no finding names a path"
 
 "$zanuda" -cmt-list "$clean_list" "${lint[@]}" -ordjsonl "$scratch/clean.jsonl" >/dev/null 2>&1 || fail "clean fixture: zanuda exited non-zero"
 [[ ! -s "$scratch/clean.jsonl" ]] || { cat "$scratch/clean.jsonl" >&2; fail "clean fixture: unexpected findings"; }

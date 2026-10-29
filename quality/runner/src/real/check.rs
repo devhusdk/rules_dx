@@ -736,6 +736,7 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "zanuda" => self.check_zanuda(tool_id, tool, scratch, pairs),
             "phpcs" => {
                 // phpcs reports the paths it was given, resolved; pass and match canonical ones.
                 let mut owned: Vec<(PathBuf, &PathBuf)> = Vec::with_capacity(pairs.len());
@@ -2017,6 +2018,75 @@ impl RealBackend {
     /// non-Python or malformed notebook never reports clean.
     /// `cue vet -c=false` once per package, by import path from the enclosing CUE module root, so
     /// imports and ancestor-directory files of the same package resolve as in the real instance.
+    /// zanuda reads the typed trees the compile wrote, not the sources: the aspect stages each
+    /// `.cmt`/`.cmti` as `dx-zanuda/{impl,intf}/<source workspace path>.cmt[i]`. This batch lints
+    /// the entries whose source is in `pairs` and fails when an owned source has none, so a
+    /// target built with `-no-bin-annot` never reads as clean.
+    fn check_zanuda(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        scratch: &Scratch,
+        pairs: &[(String, PathBuf)],
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let mut lines = Vec::with_capacity(pairs.len());
+        for (workspace, absolute) in pairs {
+            let kind = if workspace.ends_with(".mli") {
+                ("intf", "cmti")
+            } else {
+                ("impl", "cmt")
+            };
+            let rel = format!("dx-zanuda/{}/{workspace}.{}", kind.0, kind.1);
+            if !tool.tool_files.iter().any(|(known, _)| *known == rel) {
+                return Err(execution(
+                    tool_id,
+                    format!(
+                        "no .{} for {workspace}; was it compiled with -no-bin-annot?",
+                        kind.1
+                    ),
+                ));
+            }
+            lines.push(format!(
+                "{}\t{}\t{}",
+                kind.0,
+                absolute.display(),
+                scratch.root().join(&rel).display()
+            ));
+        }
+        if lines.is_empty() {
+            return Ok(Vec::new());
+        }
+        let dir = scratch.root().join("dx-zanuda");
+        std::fs::create_dir_all(&dir)
+            .map_err(|err| execution(tool_id, format!("create {}: {err}", dir.display())))?;
+        let list = dir.join("list.tsv");
+        let report = dir.join("out.jsonl");
+        std::fs::write(&list, lines.join("\n") + "\n")
+            .map_err(|err| execution(tool_id, format!("write {}: {err}", list.display())))?;
+        let invocation = commands::zanuda_check(&tool.binary, &list, &report);
+        let out = self.run(tool_id, tool, &invocation, scratch)?;
+        if out.code != Some(0) {
+            let tail = String::from_utf8_lossy(&out.stderr);
+            return Err(execution(
+                tool_id,
+                format!(
+                    "exit {}: {}",
+                    out.code
+                        .map_or_else(|| "by signal".to_owned(), |c| c.to_string()),
+                    tail.trim()
+                ),
+            ));
+        }
+        let bytes = std::fs::read(&report)
+            .map_err(|err| execution(tool_id, format!("read {}: {err}", report.display())))?;
+        let names: Vec<String> = pairs
+            .iter()
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        let strs: Vec<&str> = names.iter().map(String::as_str).collect();
+        parsed(tool_id, parsers::parse_zanuda(&bytes, out.code, &strs))
+    }
+
     fn check_cue_vet(
         &self,
         tool_id: &str,

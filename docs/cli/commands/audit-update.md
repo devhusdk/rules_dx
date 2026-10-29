@@ -326,7 +326,8 @@ exports nothing.
 dx update [--check] [--apply] [--offline] [--frozen] [selector ...]
 ```
 
-Updates dependencies per set through the qualified resolvers. Checks by
+Updates dependencies per set through the qualified resolvers. In `rules_dx` the sets come
+from its root `dx.toml`. Checks by
 default; `--apply` writes updates. Sets: `cargo`, `go`, `maven`, `npm`,
 `npm-adopt`, `npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`, `uv`,
 `uv-adopt`, `uv-adopt-polyglot`, `uv-tools`. Selectors are `set`, `set:package`,
@@ -555,8 +556,12 @@ A workspace outside `rules_dx` declares its own dependency sets in a
 committed `dx.toml` at the workspace root. When `dx.toml` declares at least
 one `[[dependency_set]]`, `update`, `security`, and `license` resolve names and
 scopes from it instead of the built-in sets. No built-in set is selected for
-those commands. `bump` and `add` keep the built-in selectors, such as `cargo:anyhow`,
-unless the selector head names a declared set. A `dx.toml` with only `[dx]` or
+those commands. `bump` and `add` use the built-in selectors, such as `cargo:anyhow`,
+only when the selector head names no declared set. `rules_dx` itself is such a workspace: its
+root `dx.toml` declares the 14 sets listed above under their built-in names, so every command
+reads them from that file. A path or label that names a declared manifest or lock, such as
+`//:cargo-bazel-lock.json` or `third_party/jvm/maven_install.json`, selects only the set that
+declares it. A `dx.toml` with only `[dx]` or
 `[quality]` tables keeps the built-in sets. A `dx.toml` with neither sets nor
 those tables fails with exit `2`.
 

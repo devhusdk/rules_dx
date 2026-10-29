@@ -60,3 +60,91 @@ set = "npm"
 versions = "=10.11.0"
 reason = "Pulled only by @graphql-eslint/eslint-plugin 4.4.2, the latest release, which requires ^10; lint-time tool over repo-owned schemas, not shipped; the fix exists only in 12.x."
 expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-6q48-6c7w-9gw2"
+package = "certifi"
+set = "uv-adopt"
+versions = "=2026.7.22"
+reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; refresh it with `dx update --apply` once the fixture can move."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-6q48-6c7w-9gw2"
+package = "certifi"
+set = "uv-adopt-polyglot"
+versions = "=2026.7.22"
+reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; refresh it with `dx update --apply` once the fixture can move."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "PYSEC-2026-4320"
+package = "certifi"
+set = "uv-adopt"
+versions = "=2026.7.22"
+reason = "Same finding as GHSA-6q48-6c7w-9gw2; the lock is a consumer fixture that is not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "PYSEC-2026-4320"
+package = "certifi"
+set = "uv-adopt-polyglot"
+versions = "=2026.7.22"
+reason = "Same finding as GHSA-6q48-6c7w-9gw2; the lock is a consumer fixture that is not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-6w46-j5rx-g56g"
+package = "pytest"
+set = "uv-adopt"
+versions = "=8.3.4"
+reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; the fix needs pytest 9."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-6w46-j5rx-g56g"
+package = "pytest"
+set = "uv-adopt-polyglot"
+versions = "=8.3.4"
+reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; the fix needs pytest 9."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "PYSEC-2026-1845"
+package = "pytest"
+set = "uv-adopt"
+versions = "=8.3.4"
+reason = "Same finding as GHSA-6w46-j5rx-g56g; the lock is a consumer fixture that is not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "PYSEC-2026-1845"
+package = "pytest"
+set = "uv-adopt-polyglot"
+versions = "=8.3.4"
+reason = "Same finding as GHSA-6w46-j5rx-g56g; the lock is a consumer fixture that is not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-g6cj-pr64-35w5"
+package = "cryptography"
+set = "uv-tools"
+versions = "=49.0.0"
+reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix needs cryptography 50."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "PYSEC-2026-3552"
+package = "cryptography"
+set = "uv-tools"
+versions = "=49.0.0"
+reason = "Same finding as GHSA-g6cj-pr64-35w5; quality/tools/python/uv.lock is a lint-time tool environment that is not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-22qq-2fwx-7p67"
+package = "pylint"
+set = "uv-tools"
+versions = "=4.0.8"
+reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix is pylint 4.0.9."
+expires = "2027-01-28"

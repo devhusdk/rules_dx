@@ -1,5 +1,3 @@
-"""paket.main_extension helpers."""
-
 "Generated"
 
 load(":paket.main.bzl", _main = "main")

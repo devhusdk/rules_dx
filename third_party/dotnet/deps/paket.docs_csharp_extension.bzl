@@ -1,5 +1,3 @@
-"""paket.docs_csharp_extension helpers."""
-
 "Generated"
 
 load(":paket.docs_csharp.bzl", _docs_csharp = "docs_csharp")

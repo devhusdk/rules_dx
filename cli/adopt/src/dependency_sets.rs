@@ -1047,9 +1047,52 @@ fn scope_covers(scope: &str, package: &str) -> bool {
     }
 }
 
+/// Returns the workspace-relative file a path or `//pkg:file` label names, before
+/// `normalize_scope` drops the label's target name.
+fn declared_file_path(target: &str) -> Option<String> {
+    if target.ends_with("...") {
+        return None;
+    }
+    if let Some(rest) = target.strip_prefix("//") {
+        let (package, name) = rest.split_once(':')?;
+        if name.is_empty() {
+            return None;
+        }
+        return Some(if package.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{package}/{name}")
+        });
+    }
+    let mut path = target;
+    while let Some(rest) = path.strip_prefix("./") {
+        path = rest;
+    }
+    (!path.is_empty() && !path.contains(':')).then(|| path.to_owned())
+}
+
 pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     if target.starts_with('@') {
         return Vec::new();
+    }
+    if !target.contains("MODULE.bazel") {
+        if let Some(path) = declared_file_path(target) {
+            let mut owners: Vec<&str> = registry
+                .sets
+                .iter()
+                .filter(|set| {
+                    set.manifests
+                        .iter()
+                        .chain(&set.locks)
+                        .any(|file| *file == path)
+                })
+                .map(|set| set.name.as_str())
+                .collect();
+            if !owners.is_empty() {
+                owners.sort();
+                return owners;
+            }
+        }
     }
     let (mut package, recursive) = normalize_scope(target);
     if package == "." {
@@ -2151,6 +2194,58 @@ scopes = ["apps/leaf"]
         assert_eq!(owning_sets(&registry, "//:MODULE.bazel").len(), 2);
         let bare = load_text(&text.replace("\".\"", "\"apps/root\""));
         assert_eq!(owning_sets(&bare, "//:x"), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn declared_manifests_and_locks_select_their_own_set() {
+        let text = r#"
+schema_version = 1
+
+[[dependency_set]]
+name = "cargo"
+ecosystem = "cargo"
+repository = "hub"
+manifests = ["rust/Cargo.toml"]
+locks = ["rust/Cargo.lock", "cargo-bazel-lock.json"]
+scopes = ["rust"]
+
+[[dependency_set]]
+name = "maven"
+ecosystem = "maven"
+repository = "maven"
+manifests = ["MODULE.bazel"]
+locks = ["third_party/jvm/maven_install.json"]
+scopes = ["java"]
+
+[[dependency_set]]
+name = "npm"
+ecosystem = "npm"
+manifests = ["package.json"]
+locks = ["pnpm-lock.yaml"]
+scopes = ["javascript"]
+
+[[dependency_set]]
+name = "root"
+ecosystem = "uv"
+manifests = ["pyproject.toml"]
+locks = ["uv.lock"]
+scopes = ["."]
+"#;
+        let registry = load_text(text);
+        assert_eq!(
+            owning_sets(&registry, "//:cargo-bazel-lock.json"),
+            vec!["cargo"]
+        );
+        assert_eq!(
+            owning_sets(&registry, "third_party/jvm/maven_install.json"),
+            vec!["maven"]
+        );
+        assert_eq!(
+            owning_sets(&registry, "//third_party/jvm:maven_install.json"),
+            vec!["maven"]
+        );
+        assert_eq!(owning_sets(&registry, "//:pnpm-lock.yaml"), vec!["npm"]);
+        assert_eq!(owning_sets(&registry, "//:other"), vec!["root"]);
     }
 
     #[test]

@@ -1,5 +1,3 @@
-"""paket.docs_fsharp_extension helpers."""
-
 "Generated"
 
 load(":paket.docs_fsharp.bzl", _docs_fsharp = "docs_fsharp")

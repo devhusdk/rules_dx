@@ -249,6 +249,7 @@ exports_files([
     "csharp/README.md",
     "cuda/README.md",
     "d/README.md",
+    "dx.toml",
     "elixir/README.md",
     "dart/README.md",
     "fortran/README.md",

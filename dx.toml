@@ -1,0 +1,301 @@
+# Dependency sets for rules_dx itself. Names are referenced by bump.yml and security.toml.
+# Deliberately no [dx] or [quality] table: nested example workspaces search parent
+# directories for dx.toml and would inherit it.
+schema_version = 1
+
+# Mirrors the dx_crates hub in MODULE.bazel; root_dx_toml_tests keeps them in sync.
+[[dependency_set]]
+name = "cargo"
+ecosystem = "cargo"
+repository = "dx_crates"
+manifests = [
+    "rust/tests/fixtures/hello/Cargo.toml",
+    "cc/context/Cargo.toml",
+    "cli/process/Cargo.toml",
+    "cli/apply/Cargo.toml",
+    "cli/atomic_fs/Cargo.toml",
+    "cli/adopt/Cargo.toml",
+    "cli/setup/Cargo.toml",
+    "cli/clean/Cargo.toml",
+    "cli/audit/Cargo.toml",
+    "cli/advisory_prep/Cargo.toml",
+    "cli/tool_resolve/Cargo.toml",
+    "cli/output/Cargo.toml",
+    "cli/path/Cargo.toml",
+    "cli/proto_validate/Cargo.toml",
+    "cli/schema/Cargo.toml",
+    "cli/sbom/Cargo.toml",
+    "cli/sbom/schema/Cargo.toml",
+    "cli/shard_writer/Cargo.toml",
+    "cli/bep/Cargo.toml",
+    "cli/execlog/Cargo.toml",
+    "cli/cli/Cargo.toml",
+    "cli/diff/Cargo.toml",
+    "cli/digest/Cargo.toml",
+    "cli/lcov/Cargo.toml",
+    "cli/env/Cargo.toml",
+    "cli/codegen/Cargo.toml",
+    "cli/env_plan/Cargo.toml",
+    "cli/fingerprint/Cargo.toml",
+    "cli/test_scratch/Cargo.toml",
+    "cli/roots/Cargo.toml",
+    "cli/update/Cargo.toml",
+    "cli/bump/Cargo.toml",
+    "cli/identity/Cargo.toml",
+    "cli/binfmt/Cargo.toml",
+    "cli/plan/Cargo.toml",
+    "cli/worktree/Cargo.toml",
+    "cli/shim/Cargo.toml",
+    "deploy/rules/Cargo.toml",
+    "deploy/offline/bootstrap/Cargo.toml",
+    "deploy/release/Cargo.toml",
+    "deploy/install/Cargo.toml",
+    "env/env_shard/Cargo.toml",
+    "env/stubs/Cargo.toml",
+    "generation/codegen_shard/Cargo.toml",
+    "generation/result/Cargo.toml",
+    "quality/adapter/Cargo.toml",
+    "quality/tools/javascript/launcher/Cargo.toml",
+    "quality/markdown/Cargo.toml",
+    "quality/notebook/Cargo.toml",
+    "quality/result/Cargo.toml",
+    "quality/runner/Cargo.toml",
+    "tools/docs/ir/ir/Cargo.toml",
+    "tools/docs/rust/extract/Cargo.toml",
+    "tools/docs/typescript/extract/Cargo.toml",
+    "tools/docs/components/extract/Cargo.toml",
+    "tools/docs/go/extract/Cargo.toml",
+    "tools/docs/ruby/extract/Cargo.toml",
+    "tools/docs/python/extract/Cargo.toml",
+    "tools/docs/powershell/extract/Cargo.toml",
+    "tools/docs/jvm/convert/Cargo.toml",
+    "tools/docs/dotnet/extract/Cargo.toml",
+    "tools/docs/site/browser/Cargo.toml",
+    "tools/docs/site/aggregate/Cargo.toml",
+    "tools/docs/site/build/Cargo.toml",
+    "tools/docs/site/check/Cargo.toml",
+    "tools/bazelrc/Cargo.toml",
+    "tools/depcheck/Cargo.toml",
+    "tools/repin_all/Cargo.toml",
+    "libs/gomod/Cargo.toml",
+    "libs/archive/Cargo.toml",
+    "libs/module_bazel/Cargo.toml",
+    "tools/testing/Cargo.toml",
+    "appimage/packer/Cargo.toml",
+    "qt/rust/Cargo.toml",
+]
+locks = [
+    "rust/tests/fixtures/hello/Cargo.lock",
+    "cargo-bazel-lock.json",
+]
+scopes = [
+    "examples/adopt-rust",
+    "tools/docs",
+    "rust",
+    "cli",
+    "generation",
+    "env",
+    "quality",
+]
+
+[[dependency_set]]
+name = "go"
+ecosystem = "go"
+manifests = [
+    "third_party/go/go.mod",
+]
+locks = [
+    "third_party/go/go.sum",
+]
+scopes = [
+    "go",
+    "third_party/go",
+    "examples/adopt-go",
+]
+
+[[dependency_set]]
+name = "maven"
+ecosystem = "maven"
+repository = "maven"
+manifests = [
+    "MODULE.bazel",
+]
+locks = [
+    "third_party/jvm/maven_install.json",
+]
+scopes = [
+    "java",
+    "kotlin",
+    "scala",
+    "third_party/jvm",
+    "examples/adopt-java",
+    "examples/adopt-kotlin",
+    "examples/adopt-scala",
+]
+
+[[dependency_set]]
+name = "npm"
+ecosystem = "npm"
+manifests = [
+    "package.json",
+]
+locks = [
+    "pnpm-lock.yaml",
+]
+scopes = [
+    ".",
+    "javascript",
+    "typescript",
+    "astro",
+    "svelte",
+    "vue",
+    "mdx",
+]
+
+[[dependency_set]]
+name = "npm-tools"
+ecosystem = "npm"
+manifests = [
+    "quality/tools/javascript/package.json",
+]
+locks = [
+    "quality/tools/javascript/pnpm-lock.yaml",
+]
+scopes = [
+    "quality/tools/javascript",
+]
+
+[[dependency_set]]
+name = "npm-adopt"
+ecosystem = "npm"
+manifests = [
+    "examples/adopt-js-ts/package.json",
+]
+locks = [
+    "examples/adopt-js-ts/pnpm-lock.yaml",
+]
+scopes = [
+    "examples/adopt-js-ts",
+]
+
+[[dependency_set]]
+name = "npm-adopt-polyglot"
+ecosystem = "npm"
+manifests = [
+    "examples/adopt-polyglot/package.json",
+]
+locks = [
+    "examples/adopt-polyglot/pnpm-lock.yaml",
+]
+scopes = [
+    "examples/adopt-polyglot",
+]
+
+[[dependency_set]]
+name = "nuget"
+ecosystem = "nuget"
+manifests = [
+    "third_party/dotnet/paket.dependencies",
+]
+locks = [
+    "third_party/dotnet/paket.lock",
+    "third_party/dotnet/deps/paket.main.bzl",
+    "third_party/dotnet/deps/paket.main_extension.bzl",
+    "third_party/dotnet/deps/paket.docs_csharp.bzl",
+    "third_party/dotnet/deps/paket.docs_csharp_extension.bzl",
+    "third_party/dotnet/deps/paket.docs_fsharp.bzl",
+    "third_party/dotnet/deps/paket.docs_fsharp_extension.bzl",
+    "third_party/dotnet/deps/paket.fsharplint.bzl",
+    "third_party/dotnet/deps/paket.fsharplint_extension.bzl",
+]
+scopes = [
+    "csharp",
+    "fsharp",
+    "third_party/dotnet",
+    "examples/adopt-csharp",
+    "examples/adopt-fsharp",
+]
+
+[[dependency_set]]
+name = "powershell"
+ecosystem = "powershell"
+manifests = [
+    "third_party/powershell/PSGallery.requirements.psd1",
+]
+locks = [
+    "third_party/powershell/PSGallery.lock.json",
+]
+scopes = [
+    "powershell",
+    "third_party/powershell",
+    "examples/adopt-powershell",
+]
+
+[[dependency_set]]
+name = "ruby"
+ecosystem = "ruby"
+manifests = [
+    "third_party/ruby/Gemfile",
+]
+locks = [
+    "third_party/ruby/Gemfile.lock",
+    "examples/adopt-ruby/Gemfile.lock",
+]
+scopes = [
+    "ruby",
+    "third_party/ruby",
+    "examples/adopt-ruby",
+]
+
+[[dependency_set]]
+name = "uv"
+ecosystem = "uv"
+manifests = [
+    "python/tests/fixtures/hello/pyproject.toml",
+]
+locks = [
+    "python/tests/fixtures/hello/uv.lock",
+]
+scopes = [
+    "python",
+    "python/tests/fixtures/hello",
+]
+
+[[dependency_set]]
+name = "uv-tools"
+ecosystem = "uv"
+manifests = [
+    "quality/tools/python/pyproject.toml",
+]
+locks = [
+    "quality/tools/python/uv.lock",
+]
+scopes = [
+    "quality/tools/python",
+]
+
+[[dependency_set]]
+name = "uv-adopt"
+ecosystem = "uv"
+manifests = [
+    "examples/adopt-python/pyproject.toml",
+]
+locks = [
+    "examples/adopt-python/uv.lock",
+]
+scopes = [
+    "examples/adopt-python",
+]
+
+[[dependency_set]]
+name = "uv-adopt-polyglot"
+ecosystem = "uv"
+manifests = [
+    "examples/adopt-polyglot/pyproject.toml",
+]
+locks = [
+    "examples/adopt-polyglot/uv.lock",
+]
+scopes = [
+    "examples/adopt-polyglot",
+]

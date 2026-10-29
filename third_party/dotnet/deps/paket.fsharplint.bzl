@@ -1,5 +1,3 @@
-"""paket.fsharplint helpers."""
-
 "GENERATED"
 
 load("@rules_dotnet//dotnet:defs.bzl", "nuget_repo")

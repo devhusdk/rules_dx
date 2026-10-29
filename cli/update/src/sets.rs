@@ -361,4 +361,59 @@ mod tests {
             .updater()
             .contains("examples/adopt-polyglot"));
     }
+
+    /// TEMPORARY: proves the root `dx.toml` is a like-for-like move of the built-in
+    /// tables. The built-in tables and this test are deleted together (S8f of #1677).
+    #[test]
+    fn root_dx_toml_matches_builtin_tables() {
+        let configured = crate::root_dx_toml_tests::sets();
+        let registry = dx_adopt::dependency_sets::Registry {
+            sets: configured.clone(),
+        };
+        for id in SetId::ALL {
+            let record = configured
+                .iter()
+                .find(|set| set.name == id.name())
+                .unwrap_or_else(|| panic!("{} missing from dx.toml", id.name()));
+            let want_ecosystem = id.name().split('-').next().unwrap_or("");
+            assert_eq!(record.ecosystem.name(), want_ecosystem, "{}", id.name());
+            for manifest in id.manifests() {
+                assert!(
+                    record.manifests.iter().any(|m| m == manifest),
+                    "{} manifest {manifest}",
+                    id.name()
+                );
+            }
+            for lock in id.locks() {
+                // `go.mod` is a manifest here, and the nuget `deps` directory became its files.
+                if *lock == "third_party/dotnet/deps" {
+                    continue;
+                }
+                assert!(
+                    record
+                        .locks
+                        .iter()
+                        .chain(&record.manifests)
+                        .any(|l| l == lock),
+                    "{} lock {lock}",
+                    id.name()
+                );
+            }
+        }
+        for (prefix, builtin) in crate::selector::owning_prefixes() {
+            let owners = dx_adopt::dependency_sets::owning_sets(&registry, prefix);
+            for id in *builtin {
+                assert!(owners.contains(&id.name()), "{prefix} loses {}", id.name());
+            }
+            let allowed_extra =
+                matches!(*prefix, "quality/tools/javascript" | "quality/tools/python");
+            for owner in &owners {
+                let extra = !builtin.iter().any(|id| id.name() == *owner);
+                assert!(
+                    !extra || (allowed_extra && *owner == "cargo"),
+                    "{prefix} gains {owner}"
+                );
+            }
+        }
+    }
 }

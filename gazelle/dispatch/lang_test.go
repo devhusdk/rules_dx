@@ -164,6 +164,7 @@ func TestUnionLoadsCoverAllExtensions(t *testing.T) {
 	}
 	for _, want := range []string{
 		"//elixir/rules:defs.bzl",
+		"//erlang/rules:defs.bzl",
 		"//powershell/rules:defs.bzl",
 		"//python/rules:defs.bzl",
 		"//rust/rules:defs.bzl",

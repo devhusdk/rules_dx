@@ -1,0 +1,5 @@
+{application, demo, [
+    {description, "Demo app."},
+    {vsn, "1.0.0"},
+    {mod, {demo_app, []}}
+]}.

@@ -135,3 +135,14 @@ The `wx` application, sources and docs are dropped on every cell.
 
 Elixir targets still run only on `linux_x86_64`. On other platforms
 Erlang and Elixir targets are skipped.
+
+## Generating targets
+
+`dx generate` writes an `erlang_app` for a directory that holds a
+`src/*.app.src` or a `rebar.config`. It lists `src/**/*.erl`, `src/**/*.hrl`
+and `include/**/*.hrl`, reads the name, `vsn`, `description` and `mod` from
+the `.app.src`, and resolves remote calls, `-behaviour`, `-import` and
+`-parse_transform` to other `erlang_app` rules. OTP applications beyond
+kernel and stdlib go to `extra_apps`. Sources under `c_src` become one
+`erlang_nif` in the same package, wired through `nifs`. Test rules and
+`rebar.config` dependencies are not generated yet.

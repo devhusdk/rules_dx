@@ -1,0 +1,16 @@
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_app", "erlang_nif")
+
+erlang_nif(
+    name = "fast_nif",
+    srcs = ["c_src/fast.c"],
+    hdrs = ["c_src/fast.h"],
+)
+
+erlang_app(
+    name = "erlang_app",
+    srcs = ["src/fast.erl"],
+    app_description = "Fast.",
+    app_name = "fast",
+    app_version = "0.1.0",
+    nifs = [":fast_nif"],
+)

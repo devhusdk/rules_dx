@@ -1,0 +1,10 @@
+load("@rules_dx//erlang/rules:defs.bzl", "erlang_app")
+
+# gazelle:resolve erlang thoas @erlang_app_thoas//:erlang_app
+
+erlang_app(
+    name = "erlang_app",
+    srcs = ["src/u.erl"],
+    app_name = "u",
+    deps = ["@erlang_app_thoas//:erlang_app"],
+)

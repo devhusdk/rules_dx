@@ -1218,6 +1218,14 @@ _http_archive(
 )
 
 _http_archive(
+    name = "dx_selene_src",
+    build_file = "//quality/tools/rust:selene.BUILD.bazel",
+    sha256 = "cd208a4b3bae38decc9c7bb797c19615caaecf67606b3e593ca60b64d3416cd5",
+    strip_prefix = "selene-0.32.0",
+    urls = ["https://github.com/Kampfkarren/selene/archive/refs/tags/0.32.0.tar.gz"],
+)
+
+_http_archive(
     name = "shared_tasks_adler2",
     build_file = "//examples/shared-rust:adler2.BUILD.bazel",
     sha256 = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa",

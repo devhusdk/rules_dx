@@ -1,0 +1,72 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+# selene 0.32.0, built from source. The upstream release binaries are compiled
+# without selene-lib's lua52/lua53/lua54 features (Kampfkarren/selene#645), so
+# valid Lua 5.2+ syntax is reported as a parse error. Building here enables
+# those features. The roblox and tracy features stay off, which keeps ureq (and
+# any network access) out of the binary.
+# --cap-lints=allow keeps upstream warnings from failing under --deny=warnings.
+
+rust_library(
+    name = "selene_lib",
+    srcs = glob(["selene-lib/src/**/*.rs"]),
+    compile_data = glob(["selene-lib/default_std/**"]),
+    crate_features = [
+        "lua52",
+        "lua53",
+        "lua54",
+    ],
+    crate_name = "selene_lib",
+    crate_root = "selene-lib/src/lib.rs",
+    edition = "2021",
+    proc_macro_deps = ["@dx_quality_crates//:paste"],
+    rustc_env = {"CARGO_PKG_VERSION": "0.32.0"},
+    rustc_flags = ["--cap-lints=allow"],
+    deps = [
+        "@dx_quality_crates//:codespan",
+        "@dx_quality_crates//:codespan-reporting",
+        "@dx_quality_crates//:full_moon",
+        "@dx_quality_crates//:id-arena",
+        "@dx_quality_crates//:if_chain",
+        "@dx_quality_crates//:lazy_static",
+        "@dx_quality_crates//:once_cell",
+        "@dx_quality_crates//:profiling",
+        "@dx_quality_crates//:regex",
+        "@dx_quality_crates//:serde",
+        "@dx_quality_crates//:serde_yaml",
+        "@dx_quality_crates//:toml07",
+    ],
+)
+
+rust_binary(
+    name = "selene",
+    srcs = glob(["selene/src/**/*.rs"]),
+    crate_root = "selene/src/main.rs",
+    edition = "2021",
+    rustc_env = {"CARGO_PKG_VERSION": "0.32.0"},
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":selene_lib",
+        "@dx_quality_crates//:atty",
+        "@dx_quality_crates//:cfg-if",
+        "@dx_quality_crates//:chrono",
+        "@dx_quality_crates//:codespan",
+        "@dx_quality_crates//:codespan-reporting",
+        "@dx_quality_crates//:color-eyre",
+        "@dx_quality_crates//:dirs",
+        "@dx_quality_crates//:full_moon",
+        "@dx_quality_crates//:glob",
+        "@dx_quality_crates//:globset",
+        "@dx_quality_crates//:lazy_static",
+        "@dx_quality_crates//:num_cpus",
+        "@dx_quality_crates//:profiling",
+        "@dx_quality_crates//:serde",
+        "@dx_quality_crates//:serde_json",
+        "@dx_quality_crates//:serde_yaml",
+        "@dx_quality_crates//:structopt",
+        "@dx_quality_crates//:termcolor",
+        "@dx_quality_crates//:threadpool",
+        "@dx_quality_crates//:toml07",
+    ],
+)

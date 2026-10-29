@@ -6,6 +6,7 @@ exports_files([
     "Cargo.lock",
     "Cargo.toml",
     "cargo-bazel-lock.json",
+    "selene.BUILD.bazel",
     "statix.BUILD.bazel",
 ])
 
@@ -22,4 +23,9 @@ alias(
 alias(
     name = "statix",
     actual = "@dx_statix_src//:statix",
+)
+
+alias(
+    name = "selene",
+    actual = "@dx_selene_src//:selene",
 )

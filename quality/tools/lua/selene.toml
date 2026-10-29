@@ -1,0 +1,2 @@
+# Default selene config for rules_dx Lua targets (Lua 5.4, matching //lua).
+std = "lua53+lua54"

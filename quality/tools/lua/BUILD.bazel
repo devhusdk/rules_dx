@@ -1,0 +1,51 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# Default selene config and Lua 5.4 standard library for the Lua lint adapter.
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "lua54.yml",
+    "selene.toml",
+])
+
+filegroup(
+    name = "selene_config",
+    srcs = [
+        "lua54.yml",
+        "selene.toml",
+    ],
+)
+
+sh_test(
+    name = "selene_smoke_test",
+    size = "small",
+    srcs = ["selene_smoke_test.sh"],
+    args = [
+        "$(rootpath //quality/tools/rust:selene)",
+        "$(rootpath selene.toml)",
+        "$(rootpath testdata/lua54_valid.lua)",
+        "$(rootpath testdata/undefined_variable.lua)",
+    ],
+    data = [
+        "lua54.yml",
+        "selene.toml",
+        "testdata/lua54_valid.lua",
+        "testdata/undefined_variable.lua",
+        "//quality/tools/rust:selene",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["selene.toml"],
+)

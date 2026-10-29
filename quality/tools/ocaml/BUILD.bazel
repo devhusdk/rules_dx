@@ -1,4 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":cmt_list.bzl", "ocaml_cmt_list")
 load(":dune_build.bzl", "dx_dune_build")
@@ -22,6 +23,31 @@ dx_dune_build(
     srcs = ["@dx_ocaml_duniverse//:srcs"],
     target = "zanuda/src/main.exe",
     workspace = "@dx_ocaml_duniverse//:dune-project",
+)
+
+# The aspect's tool attribute. The hermetic OCaml toolchain has no cell for most
+# exec platforms, so the real zanuda resolves only where it is supported
+# (linux_x86_64); elsewhere the aspect still analyzes and the stub fails closed
+# if it is ever run.
+alias(
+    name = "zanuda_tool",
+    actual = select({
+        ":zanuda_platform": ":zanuda",
+        "//conditions:default": ":zanuda_unsupported",
+    }),
+)
+
+config_setting(
+    name = "zanuda_platform",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+sh_binary(
+    name = "zanuda_unsupported",
+    srcs = ["zanuda_unsupported.sh"],
 )
 
 filegroup(

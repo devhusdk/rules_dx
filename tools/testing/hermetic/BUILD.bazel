@@ -510,6 +510,40 @@ hermetic_qualification(
 )
 
 hermetic_qualification(
+    name = "dart",
+    failures = {
+        "//examples/dart-app/failures:type_error": "A value of type 'String' can't be assigned to a variable of type 'int'",
+        "//examples/dart-app/failures:undeclared_dep": "imports package:collection/collection.dart, but no dependency",
+        "//examples/dart-app/failures:missing_part": "does_not_exist.dart': File not found",
+    },
+    files = {
+        "//examples/dart-app/cli:bin/inventory.dart": "examples/dart-app/cli/bin/inventory.dart",
+        "//examples/dart-app/cli:lib/inventory_cli.dart": "examples/dart-app/cli/lib/inventory_cli.dart",
+        "//examples/dart-app/cli:test/exit_codes_test.dart": "examples/dart-app/cli/test/exit_codes_test.dart",
+        "//examples/dart-app/cli:BUILD.bazel": "examples/dart-app/cli/BUILD.bazel",
+        "//examples/dart-app/failures:BUILD.bazel": "examples/dart-app/failures/BUILD.bazel",
+        "//examples/dart-app/failures:missing_part.dart": "examples/dart-app/failures/missing_part.dart",
+        "//examples/dart-app/failures:type_error.dart": "examples/dart-app/failures/type_error.dart",
+        "//examples/dart-app/failures:undeclared_dep.dart": "examples/dart-app/failures/undeclared_dep.dart",
+        "//examples/dart-app/gen:bin/gen_schema.dart": "examples/dart-app/gen/bin/gen_schema.dart",
+        "//examples/dart-app/gen:BUILD.bazel": "examples/dart-app/gen/BUILD.bazel",
+        "//examples/dart-app/ledger:data/items.csv": "examples/dart-app/ledger/data/items.csv",
+        "//examples/dart-app/ledger:lib/ledger.dart": "examples/dart-app/ledger/lib/ledger.dart",
+        "//examples/dart-app/ledger:test/ledger_test.dart": "examples/dart-app/ledger/test/ledger_test.dart",
+        "//examples/dart-app/ledger:BUILD.bazel": "examples/dart-app/ledger/BUILD.bazel",
+        "//examples/dart-app/model:lib/model.dart": "examples/dart-app/model/lib/model.dart",
+        "//examples/dart-app/model:BUILD.bazel": "examples/dart-app/model/BUILD.bazel",
+        "//examples/dart-app/model:schema.json": "examples/dart-app/model/schema.json",
+        "//examples/dart-app:BUILD.bazel": "examples/dart-app/BUILD.bazel",
+        "//examples/dart-app:analysis_options.yaml": "examples/dart-app/analysis_options.yaml",
+        "//third_party/dart:pubspec.lock": "examples/dart-app/pubspec.lock",
+    },
+    languages = ["dart"],
+    module_fragment = "consumers/dart/module_fragment.bazel",
+    patterns = ["//..."],
+)
+
+hermetic_qualification(
     name = "cuda",
     files = {
         "consumers/cuda/apps/format.BUILD.bazel": "examples/cuda-app/format/BUILD.bazel",

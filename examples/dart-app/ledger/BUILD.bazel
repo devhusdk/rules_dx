@@ -5,6 +5,16 @@ _PUBLIC = ["//visibility:public"]
 
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
+exports_files(
+    [
+        "BUILD.bazel",
+        "lib/ledger.dart",
+        "test/ledger_test.dart",
+        "data/items.csv",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 filegroup(
     name = "items",
     srcs = ["data/items.csv"],

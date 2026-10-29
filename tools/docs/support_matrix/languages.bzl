@@ -88,7 +88,7 @@ ROWS = [
         "title": "CUDA",
     },
     {"ci_tests": ["//d/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": "D"},
-    {"ci_tests": ["//dart/tests/runtime:greet_test"], "name": "dart", "section": "languages", "title": "Dart"},
+    {"ci_tests": ["//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"], "name": "dart", "section": "languages", "title": "Dart"},
     {
         "ci_tests": ["//elixir/tests/runtime:probe_test"],
         "consumer_tests": ["//elixir/tests/starter:starter_test"] + _starter_consumers("elixir"),

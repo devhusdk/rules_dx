@@ -5,6 +5,14 @@ _PUBLIC = ["//visibility:public"]
 
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
+exports_files(
+    [
+        "BUILD.bazel",
+        "bin/gen_schema.dart",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 dart_binary(
     name = "gen_schema",
     aspect_hints = ["//examples/dart-app:dart_config"],

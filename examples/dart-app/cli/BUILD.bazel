@@ -5,6 +5,16 @@ _PUBLIC = ["//visibility:public"]
 
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
+exports_files(
+    [
+        "BUILD.bazel",
+        "lib/inventory_cli.dart",
+        "bin/inventory.dart",
+        "test/exit_codes_test.dart",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 dart_library(
     name = "inventory_cli",
     package_name = "inventory_cli",

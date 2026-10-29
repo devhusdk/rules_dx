@@ -3,6 +3,16 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//examples/dart-app:__subpackages__"])
 
+exports_files(
+    [
+        "BUILD.bazel",
+        "missing_part.dart",
+        "type_error.dart",
+        "undeclared_dep.dart",
+    ],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
+)
+
 # Each target fails on purpose. They are manual so //... never builds them.
 
 dart_binary(

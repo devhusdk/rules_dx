@@ -20,7 +20,7 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": "no hello-world fixture yet (#4701)"
+      "skipped": null
     },
     {
       "name": "python",
@@ -34,7 +34,7 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": "no hello-world fixture yet (#4701)"
+      "skipped": null
     },
     {
       "name": "javascript",
@@ -76,7 +76,7 @@
       "dx_version": null,
       "dx_source": null,
       "ceiling_s": null,
-      "skipped": "no hello-world fixture yet (#4701)"
+      "skipped": null
     },
     {
       "name": "java",

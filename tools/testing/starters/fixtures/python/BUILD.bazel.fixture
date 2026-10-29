@@ -1,0 +1,23 @@
+load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_py_test")
+
+python_library(
+    name = "demo-app",
+    srcs = ["hello.py"],
+    imports = ["."],
+)
+
+python_binary(
+    name = "demo-app_bin",
+    srcs = ["main.py"],
+    imports = ["."],
+    main = "main.py",
+    deps = [":demo-app"],
+)
+
+python_py_test(
+    name = "demo-app_test",
+    srcs = ["hello_test.py"],
+    imports = ["."],
+    main = "hello_test.py",
+    deps = [":demo-app"],
+)

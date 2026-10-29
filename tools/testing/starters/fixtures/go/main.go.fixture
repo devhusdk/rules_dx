@@ -1,0 +1,11 @@
+package main
+
+import (
+	"fmt"
+
+	"example.com/demo-app/hello"
+)
+
+func main() {
+	fmt.Println(hello.Hello("world"))
+}

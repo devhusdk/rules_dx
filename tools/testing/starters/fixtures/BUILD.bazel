@@ -57,6 +57,12 @@ filegroup(
 )
 
 filegroup(
+    name = "go",
+    srcs = glob(["go/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "haskell",
     srcs = glob(["haskell/**"]),
     visibility = ["//visibility:public"],
@@ -105,6 +111,12 @@ filegroup(
 )
 
 filegroup(
+    name = "python",
+    srcs = glob(["python/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "ruby",
     srcs = glob(["ruby/**"]),
     visibility = ["//visibility:public"],
@@ -113,6 +125,12 @@ filegroup(
 filegroup(
     name = "rust-android",
     srcs = glob(["rust-android/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "rust",
+    srcs = glob(["rust/**"]),
     visibility = ["//visibility:public"],
 )
 

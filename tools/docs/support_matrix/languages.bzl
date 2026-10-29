@@ -105,7 +105,7 @@ ROWS = [
     },
     {"ci_tests": ["//fortran/tests/runtime:stats_test"], "consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "title": "Fortran"},
     {"ci_tests": _hello("fsharp"), "name": "fsharp", "section": "languages", "title": "F#"},
-    {"ci_tests": _hello("go"), "name": "go", "section": "languages", "title": "Go"},
+    {"ci_tests": _hello("go"), "consumer_tests": _starter_consumers("go"), "name": "go", "section": "languages", "title": "Go"},
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": ["//haskell/tests/starter:starter_test"] + _starter_consumers("haskell"), "name": "haskell", "section": "languages", "title": "Haskell"},
     {"ci_tests": _hello("java"), "name": "java", "section": "languages", "title": "Java"},
     {"ci_tests": _hello("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
@@ -122,7 +122,7 @@ ROWS = [
         "consumer_tests": [
             "//python/tests/consumer:service_consumer_test",
             "//python/tests/consumer:docs_consumer_test",
-        ],
+        ] + _starter_consumers("python"),
         "name": "python",
         "section": "languages",
         "title": "Python",
@@ -130,7 +130,7 @@ ROWS = [
     {"ci_tests": _hello("ruby"), "consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "title": "Ruby"},
     {
         "ci_tests": ["//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
-        "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"],
+        "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"] + _starter_consumers("rust"),
         "name": "rust",
         "section": "languages",
         "title": "Rust",

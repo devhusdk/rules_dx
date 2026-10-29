@@ -1789,6 +1789,8 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_powershell_format_fail",
@@ -1802,6 +1804,8 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_powershell_format_syntax_error",
@@ -1815,6 +1819,8 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_format_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_powershell_format_crlf_fail",
@@ -1828,6 +1834,8 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_format_crlf_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_powershell_lint_pass",
@@ -1841,6 +1849,8 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_powershell_lint_fail",
@@ -1854,6 +1864,8 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/powershell:psscriptanalyzer"],
         "tool_env": ["psscriptanalyzer=PATH=/usr/bin:/bin"],
         "expected_file": ":matrix/matrix_powershell_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_ansible_lint_pass",

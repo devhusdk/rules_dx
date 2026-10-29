@@ -1,7 +1,9 @@
-load("//capnproto/rules:codegen.bzl", "capnp_cc_library", "capnp_codegen_shard")
+load("//capnproto/rules:codegen.bzl", "capnp_cc_library", "capnp_codegen_shard", "capnp_java_library", "capnp_rust_library")
 load("//cc/rules:defs.bzl", "cc_test")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//java/rules:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
 load(":failure_tests.bzl", "capnp_codegen_failure_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -82,6 +84,128 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_cc_shard",
 )
 
+# Rust: one crate per capnp_library; api_rs mirrors the api -> base dependency and
+# refers to base_rs types by path instead of copying them.
+capnp_rust_library(
+    name = "base_rs",
+    library = "//capnproto/tests/base",
+)
+
+capnp_rust_library(
+    name = "api_rs",
+    library = "//capnproto/tests/api",
+    deps = [":base_rs"],
+)
+
+rust_test(
+    name = "rs_roundtrip_test",
+    size = "small",
+    srcs = ["rs_roundtrip_test.rs"],
+    deps = [
+        ":api_rs",
+        ":base_rs",
+        "//capnproto:runtime_rust",
+    ],
+)
+
+capnp_codegen_shard(
+    name = "base_rs_shard",
+    entries = [
+        "gen/base/common_capnp.rs|gen|dx.base|capnproto/tests/base_rs_generated_capnp_rs/capnproto/tests/base/common_capnp.rs",
+    ],
+    language = "rust",
+    library = ":base_rs_generated",
+)
+
+codegen_shard_argv_test(
+    name = "base_rs_shard_argv_test",
+    expected = [
+        "--producer",
+        "//capnproto/tests:base_rs_shard",
+        "--language",
+        "rust",
+        "--entry",
+        "gen/base/common_capnp.rs|gen|dx.base|capnproto/tests/base_rs_generated_capnp_rs/capnproto/tests/base/common_capnp.rs",
+        "--output",
+    ],
+    output = "capnproto/tests/base_rs_shard.dxcodegen.pb",
+    target_under_test = ":base_rs_shard",
+)
+
+capnp_codegen_shard(
+    name = "api_rs_shard",
+    entries = [
+        "gen/api/kind_capnp.rs|gen|dx.api|capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/api/kind_capnp.rs",
+        "gen/api/shape_capnp.rs|gen|dx.api|capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/api/shape_capnp.rs",
+    ],
+    language = "rust",
+    library = ":api_rs_generated",
+)
+
+codegen_shard_argv_test(
+    name = "api_rs_shard_argv_test",
+    expected = [
+        "--producer",
+        "//capnproto/tests:api_rs_shard",
+        "--language",
+        "rust",
+        "--entry",
+        "gen/api/kind_capnp.rs|gen|dx.api|capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/api/kind_capnp.rs",
+        "--entry",
+        "gen/api/shape_capnp.rs|gen|dx.api|capnproto/tests/api_rs_generated_capnp_rs/capnproto/tests/api/shape_capnp.rs",
+        "--output",
+    ],
+    output = "capnproto/tests/api_rs_shard.dxcodegen.pb",
+    target_under_test = ":api_rs_shard",
+)
+
+# Java: one compile per capnp_library, against the runtime from the pinned archive.
+capnp_java_library(
+    name = "shapes_java",
+    deps = [
+        "//capnproto/tests/api",
+        "//capnproto/tests/base",
+    ],
+)
+
+java_test(
+    name = "JavaRoundtripTest",
+    size = "small",
+    srcs = ["JavaRoundtripTest.java"],
+    main_class = "JavaRoundtripTest",
+    tags = ["no-lint"],  # no checkstyle config in this fixture package
+    test_class = "JavaRoundtripTest",
+    use_testrunner = False,
+    deps = [":shapes_java"],
+)
+
+capnp_codegen_shard(
+    name = "shapes_java_shard",
+    entries = [
+        "gen/base/common.srcjar|gen|dx.base|capnproto/tests/base/_capnp_java/base.srcjar",
+        "gen/api/shape.srcjar|gen|dx.api|capnproto/tests/api/_capnp_java/api.srcjar",
+    ],
+    language = "java",
+    library = ":shapes_java",
+)
+
+codegen_shard_argv_test(
+    name = "shapes_java_shard_argv_test",
+    expected = [
+        "--producer",
+        "//capnproto/tests:shapes_java_shard",
+        "--language",
+        "java",
+        "--entry",
+        "gen/base/common.srcjar|gen|dx.base|capnproto/tests/base/_capnp_java/base.srcjar",
+        "--entry",
+        "gen/api/shape.srcjar|gen|dx.api|capnproto/tests/api/_capnp_java/api.srcjar",
+        "--output",
+    ],
+    output = "capnproto/tests/shapes_java_shard.dxcodegen.pb",
+    target_under_test = ":shapes_java_shard",
+)
+
 # Failing fixtures: only built by the analysis tests below.
 capnp_codegen_shard(
     name = "unclaimed_shard",
@@ -134,9 +258,28 @@ capnp_codegen_failure_test(
 )
 
 capnp_codegen_failure_test(
-    name = "rust_pair_deferred_test",
-    message = "unsupported codegen pair ('capnp', 'rust')",
+    name = "rust_shard_on_cc_test",
+    message = "does not match //capnproto/tests:shapes_cc, which generates cpp",
     target_under_test = ":rust_shard_on_cc",
+)
+
+# A rust crate whose library depends on base, but whose deps omit base_rs.
+capnp_rust_library(
+    name = "api_rs_nodep",
+    library = "//capnproto/tests/api",
+    tags = ["manual"],
+)
+
+capnp_codegen_failure_test(
+    name = "rust_missing_crate_dep_test",
+    message = "has no capnp_rust_library in deps",
+    target_under_test = ":api_rs_nodep_generated",
+)
+
+capnp_codegen_failure_test(
+    name = "rust_duplicate_module_test",
+    message = "generate module common_capnp",
+    target_under_test = "//capnproto/tests/dup:dup_rs_generated",
 )
 
 real_source_target(

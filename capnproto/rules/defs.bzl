@@ -5,6 +5,8 @@ load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 CapnpInfo = provider(
     doc = "Cap'n Proto schemas of one library and its transitive dependencies.",
     fields = {
+        "label": "string: label of the capnp_library that owns direct_srcs.",
+        "direct_deps": "List[CapnpInfo]: the capnp_library targets named in deps, before transitive closure.",
         "direct_srcs": "List[File]: schemas owned by this library.",
         "transitive_srcs": "depset[File]: schemas of this library and every dependency.",
         "transitive_imports": "depset[struct(path, file)]: every schema an import can reach, with its path from the import root.",
@@ -13,19 +15,23 @@ CapnpInfo = provider(
 
 _STD_MARKER = "/src/capnp/"
 
+# capnpc-java ships java.capnp under compiler/src/main/schema/capnp/.
+_STD_JAVA_MARKER = "/schema/capnp/"
+
 def std_import_path(short_path):
     """Maps a bundled schema's short_path to its import path under /capnp/.
 
     Args:
-      short_path: short_path of a file from the capnp archive (`../<repo>/src/capnp/...`).
+      short_path: short_path of a file from the capnp archive (`../<repo>/src/capnp/...` or `../<repo>/.../schema/capnp/...`).
 
     Returns:
       The path from the import root, for example `capnp/c++.capnp`.
     """
-    at = short_path.rfind(_STD_MARKER)
-    if at < 0:
-        fail("not a bundled capnp schema: " + short_path)
-    return "capnp/" + short_path[at + len(_STD_MARKER):]
+    for marker in (_STD_MARKER, _STD_JAVA_MARKER):
+        at = short_path.rfind(marker)
+        if at >= 0:
+            return "capnp/" + short_path[at + len(marker):]
+    fail("not a bundled capnp schema: " + short_path)
 
 def _capnp_library_impl(ctx):
     direct = ctx.files.srcs
@@ -44,7 +50,13 @@ def _capnp_library_impl(ctx):
     )
     return [
         DefaultInfo(files = depset(direct)),
-        CapnpInfo(direct_srcs = direct, transitive_srcs = transitive, transitive_imports = imports),
+        CapnpInfo(
+            label = str(ctx.label),
+            direct_deps = [dep[CapnpInfo] for dep in ctx.attr.deps],
+            direct_srcs = direct,
+            transitive_srcs = transitive,
+            transitive_imports = imports,
+        ),
         dx_quality_sources(direct, [("capnp", ["capnp"])], str(ctx.label)),
     ]
 

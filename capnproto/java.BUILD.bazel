@@ -1,0 +1,26 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_java//java:java_library.bzl", "java_library")
+
+exports_files(["compiler/src/main/schema/capnp/java.capnp"])
+
+# The compiler plugin. VERSION falls back to "(unknown)" without config.h.
+cc_binary(
+    name = "capnpc-java",
+    srcs = ["compiler/src/main/cpp/capnpc-java.c++"],
+    copts = [
+        "-std=c++17",
+        "-w",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["@dx_capnproto//src/capnp:capnpc"],
+)
+
+java_library(
+    name = "runtime",
+    srcs = glob(["runtime/src/main/java/**/*.java"]),
+    javacopts = [
+        "-Xlint:none",
+        "-nowarn",
+    ],
+    visibility = ["//visibility:public"],
+)

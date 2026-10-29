@@ -8,10 +8,11 @@ def _closure_impl(ctx):
     info = analysistest.target_under_test(env)[CapnpInfo]
     paths = sorted([i.path for i in info.transitive_imports.to_list()])
     asserts.equals(env, ["capnproto/rules/testdata/base.capnp", "capnproto/rules/testdata/top.capnp"], [p for p in paths if not p.startswith("capnp/")])
-    asserts.equals(env, ["capnp/c++.capnp", "capnp/compat/json.capnp", "capnp/schema.capnp", "capnp/stream.capnp"], [p for p in paths if p.startswith("capnp/")])
+    asserts.equals(env, ["capnp/c++.capnp", "capnp/compat/json.capnp", "capnp/java.capnp", "capnp/schema.capnp", "capnp/stream.capnp"], [p for p in paths if p.startswith("capnp/")])
     asserts.equals(env, ["top.capnp"], [f.basename for f in info.direct_srcs])
     asserts.equals(env, ["base.capnp", "top.capnp"], sorted([f.basename for f in info.transitive_srcs.to_list()]))
     asserts.equals(env, "capnp/compat/json.capnp", std_import_path("../+http_archive+dx_capnproto/src/capnp/compat/json.capnp"))
+    asserts.equals(env, "capnp/java.capnp", std_import_path("../+http_archive+dx_capnproto_java/compiler/src/main/schema/capnp/java.capnp"))
     return analysistest.end(env)
 
 _closure_test = analysistest.make(_closure_impl)

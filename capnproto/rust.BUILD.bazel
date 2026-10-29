@@ -1,0 +1,25 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+# The capnp runtime and the capnpc code generator library, from one source archive.
+rust_library(
+    name = "capnp",
+    srcs = glob(["capnp/src/**/*.rs"]),
+    crate_features = [
+        "alloc",
+        "std",
+    ],
+    crate_root = "capnp/src/lib.rs",
+    edition = "2021",
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:public"],
+)
+
+rust_library(
+    name = "capnpc",
+    srcs = glob(["capnpc/src/**/*.rs"]),
+    crate_root = "capnpc/src/lib.rs",
+    edition = "2021",
+    rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//visibility:public"],
+    deps = [":capnp"],
+)

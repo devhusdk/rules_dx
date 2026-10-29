@@ -426,6 +426,10 @@ NATIVE_CASES = [
         "upstream_tools": ["gotype"],
         "upstream_srcs": [":matrix/matrix_go_gotype_pass.upstream.gotype.txt"],
         "expected_file": ":matrix/matrix_go_gotype_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_go_gotype_fail",
@@ -437,6 +441,10 @@ NATIVE_CASES = [
         "upstream_tools": ["gotype"],
         "upstream_srcs": [":matrix/matrix_go_gotype_fail.upstream.gotype.txt"],
         "expected_file": ":matrix/matrix_go_gotype_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_go_govet_pass",

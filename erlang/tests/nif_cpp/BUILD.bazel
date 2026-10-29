@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_nif", "erlc_opts", "eunit", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_nif", "erlang_release", "erlc_opts", "eunit", "test_erlang_app")
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -24,6 +24,12 @@ erlang_app(
         ":dx_cpp_a_nif",
         ":dx_cpp_b_nif",
     ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_release(
+    name = "release",
+    apps = [":erlang_app"],
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 

@@ -375,6 +375,52 @@ def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, 
         visibility = visibility,
     )
 
+def _erlang_release_impl(ctx):
+    apps = []
+    for app in ctx.attr.apps + flat_deps(ctx.attr.apps):
+        if app[_ErlangAppInfo].app_name not in [a[_ErlangAppInfo].app_name for a in apps]:
+            apps.append(app)
+    out = ctx.actions.declare_directory(ctx.label.name)
+    inputs = []
+    lines = ["set -eu", 'out="$1"', 'mkdir -p "$out"']
+    for app in apps:
+        info = app[_ErlangAppInfo]
+        base = '"$out/lib/' + info.app_name + '"'
+        lines.append("mkdir -p " + base + "/ebin " + base + "/priv")
+        for f in info.beam:
+            inputs.append(f)
+            if f.is_directory:
+                lines.append('cp -R "' + f.path + '"/. ' + base + "/ebin/")
+            else:
+                lines.append('cp -f "' + f.path + '" ' + base + "/ebin/")
+        for f in info.priv:
+            inputs.append(f)
+            lines.append('cp -f "' + f.path + '" ' + base + "/priv/")
+        if ErlangNifInfo in app:
+            for f in app[ErlangNifInfo].libraries.to_list():
+                inputs.append(f)
+                lines.append('cp -f "' + f.path + '" ' + base + "/priv/" + f.basename)
+    ctx.actions.run_shell(
+        inputs = inputs,
+        outputs = [out],
+        command = "\n".join(lines),
+        arguments = [out.path],
+        mnemonic = "ErlangRelease",
+        progress_message = "Assembling Erlang release %{label}",
+    )
+    return [DefaultInfo(files = depset([out]), runfiles = ctx.runfiles([out]))]
+
+erlang_release = rule(
+    implementation = _erlang_release_impl,
+    doc = "Assembles a release tree with lib/<app>/ebin and lib/<app>/priv, carrying each app's NIF libraries in priv.",
+    attrs = {"apps": attr.label_list(
+        mandatory = True,
+        providers = [_ErlangAppInfo],
+        doc = "erlang_app targets to include, with their dependencies.",
+    )},
+    provides = [DefaultInfo],
+)
+
 def erlang_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_erlang erlang_app macro."""
     _app(_erlang_app, name, testonly, visibility, kwargs)

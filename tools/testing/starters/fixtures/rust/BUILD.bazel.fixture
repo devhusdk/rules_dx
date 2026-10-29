@@ -1,0 +1,41 @@
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
+
+rust_library(
+    name = "demo-app",
+    srcs = ["src/lib.rs"],
+    crate_name = "demo_app",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_binary(
+    name = "demo-app_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "demo_app_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = [":demo-app"],
+)
+
+rust_test(
+    name = "demo-app_test",
+    crate = ":demo-app",
+)
+
+rustfmt_test(
+    name = "demo-app_fmt_test",
+    size = "small",
+    targets = [
+        ":demo-app",
+        ":demo-app_bin",
+    ],
+)
+
+rust_clippy_test(
+    name = "demo-app_clippy_test",
+    size = "small",
+    targets = [
+        ":demo-app",
+        ":demo-app_bin",
+    ],
+)

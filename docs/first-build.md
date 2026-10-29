@@ -7,11 +7,11 @@ generated from [first-build.json](first-build.json) by
 
 | Language | Init | Test | Total | Download MB | Date | dx version |
 | --- | --- | --- | --- | --- | --- | --- |
-| `rust` | skipped | skipped | skipped | skipped | skipped | skipped |
-| `python` | skipped | skipped | skipped | skipped | skipped | skipped |
+| `rust` | pending | pending | pending | pending | pending | pending |
+| `python` | pending | pending | pending | pending | pending | pending |
 | `javascript` | skipped | skipped | skipped | skipped | skipped | skipped |
 | `typescript` | skipped | skipped | skipped | skipped | skipped | skipped |
-| `go` | skipped | skipped | skipped | skipped | skipped | skipped |
+| `go` | pending | pending | pending | pending | pending | pending |
 | `java` | skipped | skipped | skipped | skipped | skipped | skipped |
 | `kotlin` | skipped | skipped | skipped | skipped | skipped | skipped |
 | `scala` | skipped | skipped | skipped | skipped | skipped | skipped |
@@ -42,11 +42,8 @@ generated from [first-build.json](first-build.json) by
 
 Skipped:
 
-- `rust`: no hello-world fixture yet (#4701)
-- `python`: no hello-world fixture yet (#4701)
 - `javascript`: no hello-world fixture yet (#4701)
 - `typescript`: no hello-world fixture yet (#4701)
-- `go`: no hello-world fixture yet (#4701)
 - `java`: no hello-world fixture yet (#4701)
 - `kotlin`: no hello-world fixture yet (#4701)
 - `scala`: no hello-world fixture yet (#4701)

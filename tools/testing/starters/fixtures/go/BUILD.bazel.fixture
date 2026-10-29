@@ -1,0 +1,20 @@
+load("@rules_dx//go/rules:defs.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "demo-app",
+    srcs = ["hello.go"],
+    importpath = "example.com/demo-app/hello",
+)
+
+go_binary(
+    name = "demo-app_bin",
+    srcs = ["main.go"],
+    importpath = "example.com/demo-app",
+    deps = [":demo-app"],
+)
+
+go_test(
+    name = "demo-app_test",
+    srcs = ["hello_test.go"],
+    embed = [":demo-app"],
+)

@@ -185,6 +185,29 @@ nested_bazel_test(
 )
 
 nested_bazel_test(
+    name = "go",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:go",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "go",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:go)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
     name = "haskell",
     size = "enormous",
     srcs = ["starter_consumer_test.rs"],
@@ -375,6 +398,29 @@ nested_bazel_test(
 )
 
 nested_bazel_test(
+    name = "python",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:python",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "python",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:python)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
     name = "ruby",
     size = "enormous",
     srcs = ["starter_consumer_test.rs"],
@@ -388,6 +434,29 @@ nested_bazel_test(
         "DX_BIN": "$(rootpath //cli/cli:dx)",
         "DX_FIXTURE": "ruby",
         "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:ruby)",
+    },
+    network = True,
+    tags = STARTER_CONSUMER_TAGS,
+    deps = [
+        "//tools/testing:dx_nested",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+nested_bazel_test(
+    name = "rust",
+    size = "enormous",
+    srcs = ["starter_consumer_test.rs"],
+    crate_root = "starter_consumer_test.rs",
+    data = [
+        "//:module_srcs",
+        "//cli/cli:dx",
+        "//tools/testing/starters/fixtures:rust",
+    ],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_FIXTURE": "rust",
+        "DX_FIXTURE_FILES": "$(rootpaths //tools/testing/starters/fixtures:rust)",
     },
     network = True,
     tags = STARTER_CONSUMER_TAGS,

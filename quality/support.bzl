@@ -224,9 +224,121 @@ SCALA_SCALAFIX_SUPPORT = {
     "execution": "direct",
     "family": "scala",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "scalafix",
+    "transport": "batched",
+}
+
+JAVA_CHECKSTYLE_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["java"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "java",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "checkstyle",
+    "transport": "batched",
+}
+
+JAVA_GOOGLE_JAVA_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["java"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "java",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "google_java_format",
+    "transport": "batched",
+}
+
+JAVA_JAVAC_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["java"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "java",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "javac",
+    "transport": "batched",
+}
+
+JAVA_PMD_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["java"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "java",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "pmd",
+    "transport": "batched",
+}
+
+JAVA_SPOTBUGS_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["java"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "java",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "spotbugs",
+    "transport": "batched",
+}
+
+KOTLIN_KOTLINC_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["kotlin"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "kotlin",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "kotlinc",
+    "transport": "batched",
+}
+
+KOTLIN_KTFMT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["kotlin"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "kotlin",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "ktfmt",
+    "transport": "batched",
+}
+
+KOTLIN_KTLINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["kotlin"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "kotlin",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "ktlint",
     "transport": "batched",
 }
 
@@ -1789,6 +1901,14 @@ SUPPORT_RECORDS = [
     FLATBUFFERS_FLATC_TYPECHECK_SUPPORT,
     SCALA_SCALAFMT_SUPPORT,
     SCALA_SCALAFIX_SUPPORT,
+    JAVA_CHECKSTYLE_SUPPORT,
+    JAVA_GOOGLE_JAVA_FORMAT_SUPPORT,
+    JAVA_JAVAC_SUPPORT,
+    JAVA_PMD_SUPPORT,
+    JAVA_SPOTBUGS_SUPPORT,
+    KOTLIN_KOTLINC_SUPPORT,
+    KOTLIN_KTFMT_SUPPORT,
+    KOTLIN_KTLINT_SUPPORT,
     CSHARP_CSHARPIER_SUPPORT,
     CSHARP_CSC_SUPPORT,
     CSHARP_ROSLYN_SUPPORT,

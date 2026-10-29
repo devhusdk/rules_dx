@@ -54,6 +54,7 @@ SCALA_DOTNET_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_scala_lint_fail",
@@ -72,6 +73,7 @@ SCALA_DOTNET_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_csharp_format_pass",

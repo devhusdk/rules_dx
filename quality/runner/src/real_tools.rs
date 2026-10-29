@@ -4511,6 +4511,142 @@ fn sqlfluff_format_fix_rewrites_and_lint_fix_stays_check_only() {
     );
 }
 
+static SQLFLUFF_NESTED_ARGV: std::sync::Mutex<Vec<Vec<String>>> = std::sync::Mutex::new(Vec::new());
+
+fn sqlfluff_nested_fake(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let args: Vec<String> = argv
+        .iter()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    SQLFLUFF_NESTED_ARGV
+        .lock()
+        .expect("lock")
+        .push(args.clone());
+    assert!(args.iter().any(|arg| arg == "--ignore-local-config"));
+    if args[0] == "format" {
+        return sqlfluff_format_fake(argv, cwd, env);
+    }
+    sqlfluff_fake(argv, cwd, env)
+}
+
+fn sqlfluff_nested_tool(nested: &str) -> RealTool {
+    let mut tool = sqlfluff_tool(SQLFLUFF_CONFIG);
+    tool.tool_files
+        .push(("sql/sub/.sqlfluff".to_owned(), nested.as_bytes().to_vec()));
+    tool
+}
+
+fn nested_config_args(files: &[&str]) -> Vec<Vec<String>> {
+    SQLFLUFF_NESTED_ARGV
+        .lock()
+        .expect("lock")
+        .iter()
+        .filter(|args| {
+            let separator = args.iter().position(|arg| arg == "--").expect("separator");
+            files
+                .iter()
+                .any(|file| args[separator + 1..].iter().any(|arg| arg.ends_with(file)))
+        })
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn sqlfluff_nested_configs_split_the_run_by_directory() {
+    let backend = backend_for(
+        "sqlfluff",
+        sqlfluff_nested_tool("[sqlfluff]\ntemplater = placeholder\n"),
+        sqlfluff_nested_fake,
+    );
+    let mut files = single("sql/a_nested_check.sql", SQL_DIRTY);
+    files.insert(
+        "sql/sub/b_nested_check.sql".to_owned(),
+        SQL_CLEAN.to_owned(),
+    );
+    let findings = backend
+        .diagnose("sqlfluff", "lint", &files)
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    let runs = nested_config_args(&["a_nested_check.sql", "b_nested_check.sql"]);
+    assert_eq!(runs.len(), 2);
+    let config = |args: &Vec<String>| {
+        let at = args
+            .iter()
+            .position(|arg| arg == "--config")
+            .expect("config");
+        args[at + 1].clone()
+    };
+    assert_ne!(config(&runs[0]), config(&runs[1]));
+    let merged = runs
+        .iter()
+        .map(config)
+        .find(|path| path.contains(".dx-sqlfluff"))
+        .expect("merged config");
+    assert!(merged.ends_with(".sqlfluff"));
+}
+
+#[test]
+fn sqlfluff_without_nested_configs_keeps_the_bound_config() {
+    let backend = backend_for(
+        "sqlfluff",
+        sqlfluff_tool(SQLFLUFF_CONFIG),
+        sqlfluff_nested_fake,
+    );
+    let mut files = single("sql/a_plain.sql", SQL_CLEAN);
+    files.insert("sql/sub/b_plain.sql".to_owned(), SQL_CLEAN.to_owned());
+    backend
+        .diagnose("sqlfluff", "lint", &files)
+        .expect("diagnosed");
+    let runs = nested_config_args(&["a_plain.sql", "b_plain.sql"]);
+    assert_eq!(runs.len(), 1);
+    assert!(runs[0].iter().all(|arg| !arg.contains(".dx-sqlfluff")));
+}
+
+#[test]
+fn sqlfluff_refuses_a_nested_config_with_a_banned_templater() {
+    let backend = backend_for(
+        "sqlfluff",
+        sqlfluff_nested_tool("[sqlfluff]\ntemplater = python\n"),
+        sqlfluff_nested_fake,
+    );
+    let err = backend
+        .diagnose("sqlfluff", "lint", &single("sql/sub/c.sql", SQL_CLEAN))
+        .expect_err("refused");
+    let text = err.to_string();
+    assert!(text.contains("sql/sub/.sqlfluff"), "{text}");
+    assert!(text.contains("templater"), "{text}");
+}
+
+#[test]
+fn sqlfluff_format_fix_uses_the_merged_config_below_a_nested_config() {
+    let backend = backend_for(
+        "sqlfluff",
+        sqlfluff_nested_tool("[sqlfluff]\ntemplater = placeholder\n"),
+        sqlfluff_nested_fake,
+    );
+    let plain = backend
+        .apply_fix("sqlfluff", "sql/a_nested_fix.sql", SQL_DIRTY, "format")
+        .expect("formatted");
+    let nested = backend
+        .apply_fix("sqlfluff", "sql/sub/b_nested_fix.sql", SQL_DIRTY, "format")
+        .expect("formatted");
+    assert_eq!(plain, "select a, b from t\n");
+    assert_eq!(nested, "select a, b from t\n");
+    let runs = nested_config_args(&["a_nested_fix.sql", "b_nested_fix.sql"]);
+    assert_eq!(runs.len(), 2);
+    assert!(runs.iter().all(|args| args[0] == "format"));
+    let merged = runs
+        .iter()
+        .filter(|args| args.iter().any(|arg| arg.contains(".dx-sqlfluff")))
+        .count();
+    assert_eq!(merged, 1);
+}
+
 const NOTEBOOK_DIRTY: &str = "{\n  \"cells\": [\n    {\n      \"cell_type\": \"markdown\",\n      \"metadata\": {},\n      \"source\": [\"# Title\"]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": 7,\n      \"metadata\": {\"tags\": [\"keep\"]},\n      \"outputs\": [{\"name\": \"stdout\", \"output_type\": \"stream\", \"text\": [\"hi\\n\"]}],\n      \"source\": [\n        \"import os\\n\",\n        \"print('hi')\"\n      ]\n    },\n    {\n      \"cell_type\": \"code\",\n      \"execution_count\": null,\n      \"metadata\": {},\n      \"outputs\": [],\n      \"source\": [\"x   =   1\"]\n    }\n  ],\n  \"metadata\": {\"language_info\": {\"name\": \"python\"}},\n  \"nbformat\": 4,\n  \"nbformat_minor\": 5\n}\n";
 
 fn notebook_backend() -> RealBackend {

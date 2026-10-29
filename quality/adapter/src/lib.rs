@@ -21,6 +21,7 @@ pub mod kubernetes_preflight;
 pub mod launch;
 pub mod parsers;
 pub mod pointer_index;
+pub mod sqlfluff_config;
 pub mod sqlfluff_preflight;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

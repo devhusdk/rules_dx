@@ -179,6 +179,7 @@ rust_library(
         "src/parsers/zig_ast_check.rs",
         "src/parsers/zig_fmt.rs",
         "src/pointer_index.rs",
+        "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
     ],
     aliases = aliases(
@@ -329,6 +330,7 @@ rust_test(
         "src/parsers/zig_ast_check.rs",
         "src/parsers/zig_fmt.rs",
         "src/pointer_index.rs",
+        "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
     ],
     aliases = aliases(

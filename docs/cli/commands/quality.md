@@ -3123,6 +3123,27 @@ templaters, the `templater:dbt` and `templater:python` sections, and the
 refused, because they load project code or files the target does not own.
 Macros declared inline under `[sqlfluff:templater:jinja:macros]` work.
 
+To apply a different config below a directory, list a nested `.sqlfluff` in
+the `data` of the `sqlfluff_config`:
+
+```python
+sqlfluff_config(
+    name = "sqlfluff_config",
+    src = ".sqlfluff",
+    data = ["queries/.sqlfluff"],
+)
+```
+
+A nested `.sqlfluff` applies to the files below its directory. The bound
+config is always the base. dx merges the configs for each file from the
+shallowest to the deepest, key by key, and a deeper value wins. A nested config
+may switch the templater to `raw`, `jinja` or `placeholder` and does not need
+to set a `dialect`. dx checks every nested config with the rules above and
+names the file when one is refused. `setup.cfg`, `tox.ini`, `pyproject.toml`
+and `.sqlfluff` files that are not listed in `data` are still never read. Each
+distinct set of nested configs runs sqlfluff once more, which adds about one to
+two seconds per set.
+
 Findings keep their sqlfluff rule code (for example `LT01`). A file sqlfluff
 cannot parse or template is reported as an error finding (`PRS` or `TMP`) and
 never counts as clean. Rule warnings from `warnings = ...` stay warnings.

@@ -118,12 +118,6 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
-        tool: "sqlfluff",
-        config: FixConfig::Required,
-        keep_exit_one: true,
-        crash_stderr: None,
-    },
-    FixSpec {
         tool: "scalafmt",
         config: FixConfig::Optional,
         keep_exit_one: false,
@@ -357,6 +351,7 @@ pub(super) enum Route {
     Rustfmt,
     Scalafix,
     AnsibleLint,
+    Sqlfluff,
     Rewrite(fn(&Path, &[&Path]) -> Invocation),
 }
 
@@ -425,7 +420,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         }),
         // Lint is check-only; only the format capability rewrites files.
         "sqlfluff" if capability != "format" => Ok(Route::Keep),
-        "sqlfluff" => spec(true),
+        "sqlfluff" => Ok(Route::Sqlfluff),
         "scalafix" => Ok(Route::Scalafix),
         "ansible_lint" => Ok(Route::AnsibleLint),
         "dfmt" => Ok(Route::Rewrite(commands::dfmt_fix)),
@@ -448,7 +443,11 @@ impl Route {
         match self {
             Route::Spec { placeholders, .. } => placeholders,
             Route::Rustfmt => &["rs"],
-            Route::Keep | Route::Scalafix | Route::AnsibleLint | Route::Rewrite(_) => &[],
+            Route::Keep
+            | Route::Scalafix
+            | Route::AnsibleLint
+            | Route::Sqlfluff
+            | Route::Rewrite(_) => &[],
         }
     }
 }
@@ -846,8 +845,42 @@ impl super::RealBackend {
                 };
                 Ok(commands::ansible_lint_fix(&tool.binary, refs, &context))
             }
+            Route::Sqlfluff => {
+                let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
+                    return Err(execution(tool_id, "sqlfluff requires a config".to_owned()));
+                };
+                Ok(commands::sqlfluff_format_fix(&tool.binary, refs, &config))
+            }
             Route::Rewrite(fix) => Ok(fix(&tool.binary, refs)),
         }
+    }
+
+    /// Preflights, then runs `sqlfluff format` once per distinct config chain.
+    fn spawn_sqlfluff_fix(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        refs: &[&Path],
+        scratch: &Scratch,
+    ) -> Result<Outcome, RunnerError> {
+        let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
+            return Err(execution(tool_id, "sqlfluff requires a config".to_owned()));
+        };
+        let runs = super::sqlfluff::plan_sqlfluff(tool_id, tool, scratch, &config, refs)?;
+        for file in refs {
+            if let Ok(text) = std::fs::read_to_string(file) {
+                quality_adapter::sqlfluff_preflight::check_inline_config(&text)
+                    .map_err(|err| execution(tool_id, format!("{err} (in {})", file.display())))?;
+            }
+        }
+        let mut fixed = true;
+        for run in &runs {
+            let files: Vec<&Path> = run.files.iter().map(PathBuf::as_path).collect();
+            let invocation = commands::sqlfluff_format_fix(&tool.binary, &files, &run.config);
+            let out = self.run(tool_id, tool, &invocation, scratch)?;
+            fixed &= matches!(out.code, Some(0) | Some(1));
+        }
+        Ok(if fixed { Outcome::Fixed } else { Outcome::Kept })
     }
 
     /// Runs one fix spawn and judges it by the per-file rule of its route.
@@ -860,10 +893,14 @@ impl super::RealBackend {
         scratch: &Scratch,
         names: &[String],
     ) -> Result<Outcome, RunnerError> {
+        if matches!(route, Route::Sqlfluff) {
+            return self.spawn_sqlfluff_fix(tool_id, tool, refs, scratch);
+        }
         let invocation = self.fix_invocation(route, tool_id, tool, refs, scratch)?;
         let out = self.run(tool_id, tool, &invocation, scratch)?;
         Ok(match route {
             Route::Keep => Outcome::Kept,
+            Route::Sqlfluff => Outcome::Kept,
             Route::Spec { format, .. } => {
                 let crash = fix_spec(tool_id, format)
                     .and_then(|spec| spec.crash_stderr)
@@ -968,22 +1005,6 @@ impl super::RealBackend {
                         let launch = ResolvedTool::javascript(tool_id, &tool.binary);
                         Ok(commands::eslint_fix(&launch, refs, cfg)
                             .map_err(|err| execution(tool_id, err.to_string()))?)
-                    }
-                    "sqlfluff" => {
-                        // The fix path skips `check_sqlfluff`, so it repeats the same preflight.
-                        let text = std::fs::read_to_string(cfg)
-                            .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
-                        quality_adapter::sqlfluff_preflight::check_config(&text)
-                            .map_err(|err| execution(tool_id, err))?;
-                        for file in refs {
-                            if let Ok(text) = std::fs::read_to_string(file) {
-                                quality_adapter::sqlfluff_preflight::check_inline_config(&text)
-                                    .map_err(|err| {
-                                        execution(tool_id, format!("{err} (in {})", file.display()))
-                                    })?;
-                            }
-                        }
-                        Ok(commands::sqlfluff_format_fix(&tool.binary, refs, cfg))
                     }
                     _ => Err(execution(
                         tool_id,

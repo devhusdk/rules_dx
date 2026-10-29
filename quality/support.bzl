@@ -825,6 +825,62 @@ JAVASCRIPT_PRETTIER_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+ASTRO_ESLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["astro"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "astro",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "eslint",
+    "transport": "batched",
+}
+
+SVELTE_ESLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["svelte"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "svelte",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "eslint",
+    "transport": "batched",
+}
+
+VUE_ESLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["vue"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "vue",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "eslint",
+    "transport": "batched",
+}
+
+MDX_ESLINT_LINT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "lint",
+    "classes": ["mdx"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "mdx",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "eslint",
+    "transport": "batched",
+}
+
 TYPESCRIPT_BIOME_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -1742,6 +1798,10 @@ SUPPORT_RECORDS = [
     JAVASCRIPT_BIOME_LINT_SUPPORT,
     JAVASCRIPT_ESLINT_LINT_SUPPORT,
     JAVASCRIPT_PRETTIER_FORMAT_SUPPORT,
+    ASTRO_ESLINT_LINT_SUPPORT,
+    SVELTE_ESLINT_LINT_SUPPORT,
+    VUE_ESLINT_LINT_SUPPORT,
+    MDX_ESLINT_LINT_SUPPORT,
     TYPESCRIPT_BIOME_FORMAT_SUPPORT,
     TYPESCRIPT_BIOME_LINT_SUPPORT,
     ELIXIR_CREDO_LINT_SUPPORT,

@@ -148,6 +148,9 @@ JS_CASES = [
         "config_tools": ["eslint"],
         "config_files": [":eslint_cfg/eslint.astro.mjs"],
         "expected_file": ":matrix/matrix_astro_eslint_plugin_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_svelte_eslint_plugin_fail",
@@ -161,6 +164,9 @@ JS_CASES = [
         "config_tools": ["eslint"],
         "config_files": [":eslint_cfg/eslint.svelte.mjs"],
         "expected_file": ":matrix/matrix_svelte_eslint_plugin_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_vue_eslint_plugin_fail",
@@ -174,6 +180,9 @@ JS_CASES = [
         "config_tools": ["eslint"],
         "config_files": [":eslint_cfg/eslint.vue.mjs"],
         "expected_file": ":matrix/matrix_vue_eslint_plugin_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_vue_eslint_unlisted_import_fail",
@@ -253,6 +262,9 @@ JS_CASES = [
         "config_tools": ["eslint"],
         "config_files": [":eslint_cfg/eslint.mdx.mjs"],
         "expected_file": ":matrix/matrix_mdx_eslint_plugin_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_javascript_malformed_fail",

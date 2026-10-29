@@ -1971,7 +1971,13 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::bicep::parse_bicep_format(input, code, input, files.first().copied().unwrap_or(""))
+        super::bicep::parse_bicep_format(
+            input,
+            b"",
+            code,
+            input,
+            files.first().copied().unwrap_or(""),
+        )
     }
 
     fn fuzz_opa_fmt(

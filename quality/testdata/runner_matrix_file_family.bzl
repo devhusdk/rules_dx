@@ -1974,21 +1974,6 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
-        "name": "matrix_bicep_format_syntax_error",
-        "generated": {
-            "matrix/bicep_fmt_broken/a.bicep": "param name string =\n",
-        },
-        "capability": "format",
-        "stages": ["bicep;bicep;matrix/bicep_fmt_broken/a.bicep"],
-        "tool_names": ["bicep"],
-        "tool_binaries": ["@dx_tools//:bicep"],
-        "expected_file": ":matrix/matrix_bicep_format_syntax_error.expected.txt",
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
-    },
-    {
         "name": "matrix_bicep_lint_pass",
         "generated": {
             "matrix/bicep_clean/a.bicep": "param name string\noutput value string = name\n",

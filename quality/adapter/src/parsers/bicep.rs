@@ -56,6 +56,7 @@ pub fn parse_bicep_lint(
 /// output for a non-empty file is an error, never clean.
 pub fn parse_bicep_format(
     stdout: &[u8],
+    stderr: &[u8],
     code: Option<i32>,
     input: &[u8],
     file: &str,
@@ -66,6 +67,11 @@ pub fn parse_bicep_format(
             TOOL,
             format!("unexpected exit {}", code_name(code)),
         ));
+    }
+    // A file that does not parse still exits 0 and echoes the source; the BCP diagnostic is on
+    // stderr. That must not read as already formatted.
+    if String::from_utf8_lossy(stderr).contains("Error BCP") {
+        return Err(ParseError::shape(TOOL, "file does not parse"));
     }
     if stdout.is_empty() && !input.is_empty() {
         return Err(ParseError::shape(TOOL, "empty output for a non-empty file"));
@@ -115,6 +121,13 @@ mod tests {
         format!(
             "{{\"ruleId\":\"{rule}\",{level}\"message\":{{\"text\":\"message {rule}\"}},\"locations\":[{{\"physicalLocation\":{{\"artifactLocation\":{{\"uri\":\"file://{file}\"}},\"region\":{{\"startLine\":{line},\"charOffset\":{column}}}}}}}]}}"
         )
+    }
+
+    #[test]
+    fn format_syntax_error_on_stderr_is_an_error() {
+        let src = b"param name string =\n";
+        let err = b"/a.bicep(1,20) : Error BCP009: Expected a literal value.\n";
+        assert!(parse_bicep_format(src, err, Some(0), src, FILE).is_err());
     }
 
     #[test]
@@ -183,22 +196,22 @@ mod tests {
     #[test]
     fn format_clean_and_unformatted() {
         let source = b"param x string\n";
-        assert!(parse_bicep_format(source, Some(0), source, FILE)
+        assert!(parse_bicep_format(source, b"", Some(0), source, FILE)
             .unwrap()
             .is_empty());
-        let found = parse_bicep_format(source, Some(0), b"param   x string\n", FILE).unwrap();
+        let found = parse_bicep_format(source, b"", Some(0), b"param   x string\n", FILE).unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].finding.start.line, 1);
-        let found = parse_bicep_format(b"a\nb\n", Some(0), b"a\nb  \n", FILE).unwrap();
+        let found = parse_bicep_format(b"a\nb\n", b"", Some(0), b"a\nb  \n", FILE).unwrap();
         assert_eq!(found[0].finding.start.line, 2);
     }
 
     #[test]
     fn format_failures_are_errors() {
-        assert!(parse_bicep_format(b"", Some(0), b"param x string\n", FILE).is_err());
-        assert!(parse_bicep_format(b"param x string\n", Some(1), b"", FILE).is_err());
-        assert!(parse_bicep_format(b"param x string\n", None, b"", FILE).is_err());
-        assert!(parse_bicep_format(b"", Some(0), b"", FILE)
+        assert!(parse_bicep_format(b"", b"", Some(0), b"param x string\n", FILE).is_err());
+        assert!(parse_bicep_format(b"param x string\n", b"", Some(1), b"", FILE).is_err());
+        assert!(parse_bicep_format(b"param x string\n", b"", None, b"", FILE).is_err());
+        assert!(parse_bicep_format(b"", b"", Some(0), b"", FILE)
             .unwrap()
             .is_empty());
     }

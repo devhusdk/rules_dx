@@ -30,7 +30,7 @@ impl RealBackend {
                 let file = absolute.to_string_lossy();
                 findings.extend(parsed(
                     tool_id,
-                    parsers::parse_bicep_format(&out.stdout, out.code, &input, &file),
+                    parsers::parse_bicep_format(&out.stdout, &out.stderr, out.code, &input, &file),
                 )?);
             }
             return Ok(findings);

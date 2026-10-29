@@ -3164,3 +3164,29 @@ fn jet_check_writes_only_the_report() {
         ]
     );
 }
+
+#[test]
+fn thrift_check_is_strict_verbose_and_writes_only_to_out() {
+    let invocation = thrift_check(
+        Path::new(BIN),
+        Path::new("/scratch/pkg/x.thrift"),
+        Path::new("/scratch"),
+        Path::new("/scratch/.dx-thrift-out"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "-strict",
+            "-v",
+            "-I",
+            "/scratch",
+            "-out",
+            "/scratch/.dx-thrift-out",
+            "--gen",
+            "json",
+            "/scratch/pkg/x.thrift"
+        ]
+    );
+    assert_eq!(invocation.cwd_rel, "");
+}

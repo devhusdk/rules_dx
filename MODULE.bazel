@@ -1367,6 +1367,15 @@ _http_archive(
     urls = ["https://github.com/capnproto/capnproto-java/archive/refs/tags/v0.1.16.tar.gz"],
 )
 
+# thrift is built from the Apache release tarball; literals mirror //thrift:pins.bzl.
+_http_archive(
+    name = "dx_thrift",
+    build_file = "//thrift:compiler.BUILD.bazel",
+    sha256 = "66da4707214c54c94bac082103dc67adaf9e08925662700f269170a7b534b214",
+    strip_prefix = "thrift-0.25.0",
+    urls = ["https://archive.apache.org/dist/thrift/0.25.0/thrift-0.25.0.tar.gz"],
+)
+
 # Rust runtime from the same archive (same sha256, so one download) and its bitflags dep.
 _http_archive(
     name = "dx_flatbuffers_rust",

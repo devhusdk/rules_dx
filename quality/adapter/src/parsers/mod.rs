@@ -101,6 +101,7 @@ pub mod stylua;
 pub mod taplo;
 pub mod terraform;
 pub mod tflint;
+pub mod thrift;
 pub mod topiary;
 pub mod tsc;
 pub mod ty;
@@ -215,6 +216,7 @@ pub use stylua::parse_stylua;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use tflint::parse_tflint;
+pub use thrift::{parse_thrift, ThriftReport};
 pub use topiary::parse_topiary;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
@@ -1788,6 +1790,15 @@ mod tests {
         Ok(both.findings)
     }
 
+    fn fuzz_thrift(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let both = super::thrift::parse_thrift(input, input, code, files)?;
+        Ok(both.findings)
+    }
+
     fn fuzz_topiary(
         input: &[u8],
         code: Option<i32>,
@@ -2723,6 +2734,7 @@ mod tests {
         ("checkstyle", fuzz_checkstyle),
         ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
+        ("thrift", fuzz_thrift),
         ("topiary", fuzz_topiary),
         ("clang_format", fuzz_clang_format),
         ("clang_syntax", fuzz_clang_syntax),
@@ -2854,6 +2866,7 @@ mod tests {
         ("checkstyle", include_str!("checkstyle.rs")),
         ("cmakelint", include_str!("cmakelint.rs")),
         ("tflint", include_str!("tflint.rs")),
+        ("thrift", include_str!("thrift.rs")),
         ("topiary", include_str!("topiary.rs")),
         ("clang_format", include_str!("clang_format.rs")),
         ("clang_syntax", include_str!("clang_syntax.rs")),

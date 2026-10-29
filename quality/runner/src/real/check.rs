@@ -1221,6 +1221,56 @@ impl RealBackend {
                 }
                 Ok(findings)
             }
+            "thrift" => {
+                let root = std::fs::canonicalize(scratch.root()).map_err(|err| {
+                    execution(tool_id, format!("canonicalize scratch root: {err}"))
+                })?;
+                let out_dir = root.join(".dx-thrift-out");
+                std::fs::create_dir_all(&out_dir)
+                    .map_err(|err| execution(tool_id, format!("create output dir: {err}")))?;
+                let mut findings = Vec::new();
+                for (workspace, absolute) in pairs {
+                    // thrift prints realpaths of the staged copy, so check and report that one.
+                    let file = std::fs::canonicalize(root.join(workspace))
+                        .map_err(|err| execution(tool_id, format!("resolve {workspace}: {err}")))?;
+                    let invocation = commands::thrift_check(&tool.binary, &file, &root, &out_dir);
+                    let out = self.run(tool_id, tool, &invocation, scratch)?;
+                    // Exit 1 is a schema error; a usage error also exits 1 and the parser
+                    // rejects it. Anything else is not a verdict.
+                    if !matches!(out.code, Some(0 | 1)) {
+                        let code = out
+                            .code
+                            .map_or_else(|| "signal".to_owned(), |code| code.to_string());
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        return Err(execution(
+                            tool_id,
+                            format!("exit {code}: {}", stderr.trim()),
+                        ));
+                    }
+                    let name = file.to_string_lossy().into_owned();
+                    let report = parsed(
+                        tool_id,
+                        parsers::parse_thrift(&out.stdout, &out.stderr, out.code, &[name.as_str()]),
+                    )?;
+                    declared_input_escape(tool_id, workspace, &root, &report.dependencies)?;
+                    let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
+                    for mut item in report.findings {
+                        // Typecheck is the error-only view of the same thrift run.
+                        if capability == "typecheck"
+                            && !matches!(
+                                item.finding.severity,
+                                quality_adapter::ToolSeverity::Error
+                            )
+                        {
+                            continue;
+                        }
+                        item.file = absolute.to_string_lossy().into_owned();
+                        item.finding.message = item.finding.message.replace(&scratch_prefix, "");
+                        findings.push(item);
+                    }
+                }
+                Ok(findings)
+            }
             "qmlformat" => {
                 let mut findings = Vec::new();
                 for (workspace, absolute) in pairs {
@@ -2610,6 +2660,29 @@ mod declared_input_tests {
             .contains("is outside the declared inputs of pkg/a.fbs"));
         let missing = vec![inner.join("pkg/none.fbs").to_string_lossy().into_owned()];
         assert!(declared_input_escape("flatc", "pkg/a.fbs", &inner, &missing).is_err());
+    }
+
+    #[test]
+    fn thrift_absolute_and_parent_includes_outside_the_root_fail() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let root = std::fs::canonicalize(dir.path()).expect("root");
+        std::fs::create_dir_all(root.join("root/pkg")).expect("pkg");
+        std::fs::write(root.join("root/pkg/a.thrift"), "struct A {}").expect("a");
+        std::fs::write(root.join("outside.thrift"), "struct O {}").expect("outside");
+        let inner = root.join("root");
+        let own = vec![inner.join("pkg/a.thrift").to_string_lossy().into_owned()];
+        declared_input_escape("thrift", "pkg/a.thrift", &inner, &own).expect("inside");
+        let absolute = vec![root.join("outside.thrift").to_string_lossy().into_owned()];
+        let err = declared_input_escape("thrift", "pkg/a.thrift", &inner, &absolute)
+            .expect_err("absolute include escapes");
+        assert!(err
+            .to_string()
+            .contains("is outside the declared inputs of pkg/a.thrift"));
+        let parent = vec![inner
+            .join("pkg/../../outside.thrift")
+            .to_string_lossy()
+            .into_owned()];
+        assert!(declared_input_escape("thrift", "pkg/a.thrift", &inner, &parent).is_err());
     }
 }
 

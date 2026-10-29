@@ -334,6 +334,7 @@ to.
 | `taplo` | format, lint | toml |
 | `terraform` | format | terraform |
 | `tflint` | lint | terraform |
+| `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
 | `tsc` | typecheck | typescript, tsx |
 | `ty` | typecheck | python, jupyter |
@@ -1516,6 +1517,58 @@ executable fails with `set --@rules_dx//config:tool_capnp to a capnp binary`.
 `capnp` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
 macOS arm64 and Windows x86_64 are marked unsupported until `capnp` is
 qualified there. Code generation for Cap'n Proto is not available yet.
+
+### Thrift
+
+`thrift` 0.25.0 lints `.thrift` schemas. It is built from the pinned Apache
+release tarball (`@dx_thrift`), not downloaded as a binary, and runs on Linux
+x86_64. Select it in a `thrift` family. The family is opt-in and part of no
+curated default. Format is not applicable: the compiler has no formatter and
+only validates.
+
+```python
+load("@rules_dx//thrift/rules:defs.bzl", "thrift_library")
+
+quality_family(
+    name = "thrift_family",
+    family_id = "thrift",
+    lint = ["thrift"],
+)
+
+thrift_library(
+    name = "order",
+    srcs = ["order.thrift"],
+    deps = ["//item"],
+)
+```
+
+```sh
+bazel run @rules_dx//:dx -- lint //api/...
+```
+
+Own schemas with `thrift_library`. List the package files in `srcs` and the
+libraries they include in `deps`. An include resolves only from the `deps`
+closure, relative to the including file or from the workspace root
+(`pkg/x.thrift`). A check runs
+`thrift -strict -v -I <root> -out <scratch> --gen json <file>` in a scratch root
+that holds only those declared inputs. `-strict` is always passed, because
+without it a missing include is only a warning. The `-v` output lists every file
+the compiler scanned, and a scanned file outside the scratch root, such as an
+absolute include or a `..` include that leaves the root, fails the run instead of
+reading the host filesystem. The JSON output is written only under the scratch
+directory, so a check never writes to the workspace. Warnings are lint findings
+at their line. A syntax error, an unknown type, a missing include or output the
+adapter cannot read fails the run and never counts as clean. Typecheck reports
+errors only. Thrift has no formatter, so format is not applicable, and `--apply`
+has nothing to fix. There is no breaking-change check.
+
+To run another `thrift`, point the flag at it:
+`--@rules_dx//config:tool_thrift=//tools:thrift`. A target without an
+executable fails with `set --@rules_dx//config:tool_thrift to a thrift binary`.
+
+`thrift` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
+macOS arm64 and Windows x86_64 are marked unsupported until `thrift` is
+qualified there. Code generation for Thrift is not available yet.
 
 ### CUE
 

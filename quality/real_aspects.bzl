@@ -37,6 +37,7 @@ load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
 load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//capnproto/rules:defs.bzl", "CapnpInfo")
 load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
+load("//thrift/rules:defs.bzl", "ThriftInfo")
 load("//lua/private:providers.bzl", "LuaInfo")
 load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
 load("//php/rules:php.bzl", "staged_path")
@@ -322,6 +323,14 @@ _REAL_TOOL_TABLE = {
         "kind": "setting",
         "resources": "light",
         "shard": "flatbuffers",
+    },
+    "thrift": {
+        "attr": attr.label(default = "//config:tool_thrift", allow_files = True, cfg = "exec", executable = True),
+        "capabilities": ["lint", "typecheck"],
+        "fallback": " to a thrift binary",
+        "kind": "setting",
+        "resources": "light",
+        "shard": "thrift",
     },
     "fsharplint": {
         "attr": attr.label(default = "//quality/tools/dotnet/fsharplint", cfg = "exec", executable = True),
@@ -1042,6 +1051,9 @@ def _flatc_closure(target):
         staged.append((ws_path, f))
     return staged
 
+def _thrift_closure(target):
+    return [(i.path, i.file) for i in target[ThriftInfo].transitive_includes.to_list()]
+
 # Tools whose declared import closure is staged next to the checked files:
 # tool -> (provider, closure(target) -> [(staged path, File)], strict). A strict
 # tool fails when two different Files claim one staged path, because the
@@ -1049,6 +1061,7 @@ def _flatc_closure(target):
 _CLOSURE_STAGING = {
     "capnp": (CapnpInfo, _capnp_closure, True),
     "flatc": (FlatBuffersInfo, _flatc_closure, False),
+    "thrift": (ThriftInfo, _thrift_closure, True),
 }
 
 QmlContextInfo = provider(
@@ -2408,6 +2421,18 @@ _REAL_SHARD_SPECS = {
         "shard": "flatbuffers",
         "suffix": "-flatbuffers",
     },
+    "real_thrift_lint": {
+        "capability": "lint",
+        "doc": "Additive Thrift lint family aspect (thrift).",
+        "shard": "thrift",
+        "suffix": "-thrift",
+    },
+    "real_thrift_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Thrift typecheck family aspect (thrift errors only).",
+        "shard": "thrift",
+        "suffix": "-thrift",
+    },
     "real_protobuf_format": {
         "capability": "format",
         "doc": "Additive Protocol Buffers format family aspect (buf format).",
@@ -2902,6 +2927,8 @@ real_capnp_lint_aspect = _make_real_aspect("real_capnp_lint")
 real_capnp_typecheck_aspect = _make_real_aspect("real_capnp_typecheck")
 real_flatbuffers_lint_aspect = _make_real_aspect("real_flatbuffers_lint")
 real_flatbuffers_typecheck_aspect = _make_real_aspect("real_flatbuffers_typecheck")
+real_thrift_lint_aspect = _make_real_aspect("real_thrift_lint")
+real_thrift_typecheck_aspect = _make_real_aspect("real_thrift_typecheck")
 real_protobuf_lint_aspect = _make_real_aspect("real_protobuf_lint")
 
 real_terraform_format_aspect = _make_real_aspect("real_terraform_format")

@@ -131,6 +131,7 @@ REAL_ADAPTERS = {
     "taplo": {"format": ["toml"], "lint": ["toml"]},
     "terraform": {"format": ["terraform"]},
     "tflint": {"lint": ["terraform"]},
+    "thrift": {"lint": ["thrift"], "typecheck": ["thrift"]},
     "topiary": {"format": ["ocaml"]},
     "ty": {"typecheck": ["jupyter", "python", "python_stub"]},
     "tsc": {"typecheck": ["javascript", "jsx", "tsx", "typescript"]},
@@ -216,6 +217,7 @@ REAL_CLASS_TO_FAMILY = {
     "svelte": "svelte",
     "terraform": "terraform",
     "text": "text",
+    "thrift": "thrift",
     "toml": "toml",
     "typescript": "typescript",
     "tsx": "typescript",
@@ -242,6 +244,7 @@ NOT_APPLICABLE = {
     "format": {
         "capnp": "schema IDL; no maintained .capnp formatter exists, capnp only validates",
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
+        "thrift": "schema IDL; the thrift compiler has no formatter, it only validates",
     },
     "typecheck": {
         "ansible": "dynamically typed YAML playbooks; no type system beyond ansible-lint",

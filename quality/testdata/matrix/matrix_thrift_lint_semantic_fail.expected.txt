@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_thrift_lint_semantic_fail
+capability LINT
+stages 1
+stage thrift classes=thrift sources=matrix/thrift_semantic.thrift
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR thrift error matrix/thrift_semantic.thrift 0 0 fixable=false "Type \"Nope\" not defined"
+terminal 1
+terminal ERROR thrift error matrix/thrift_semantic.thrift 0 0 fixable=false "Type \"Nope\" not defined"
+replacements 0

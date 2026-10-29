@@ -1,0 +1,29 @@
+"""Builds the Apache Thrift compiler from the release tarball."""
+
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+# Generators register through static constructors in t_generator_registry.h, so every
+# generator source is compiled straight into the binary rather than via a library.
+cc_binary(
+    name = "thrift_compiler",
+    srcs = glob([
+        "compiler/cpp/src/thrift/**/*.cc",
+        "compiler/cpp/src/thrift/**/*.cpp",
+        "compiler/cpp/src/thrift/**/*.h",
+        "compiler/cpp/src/thrift/**/*.hh",
+    ], exclude = [
+        "compiler/cpp/src/thrift/windows/**",
+        # Test-only duplicate of the diagnostics main.cc defines.
+        "compiler/cpp/src/thrift/logging.cc",
+    ]),
+    copts = ["-w"],
+    includes = ["compiler/cpp/src"],
+    visibility = ["//visibility:public"],
+)
+
+# A real upstream schema, used by the thrift_library cross-repo analysis test.
+filegroup(
+    name = "sample_schema",
+    srcs = ["test/ThriftTest.thrift"],
+    visibility = ["//visibility:public"],
+)

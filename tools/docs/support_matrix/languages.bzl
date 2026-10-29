@@ -328,7 +328,6 @@ GAP_ISSUES = {
     "typecheck:svelte": 1766,
     "typecheck:terraform": 4751,
     "typecheck:vue": 4525,
-    "typecheck:zig": 4530,
 }
 
 GAP_ENFORCEMENT = True

@@ -124,6 +124,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "yamlfmt",
     "xmllint",
     "yamllint",
+    "zig",
     "zig_ast_check",
     "zig_fmt",
 ];

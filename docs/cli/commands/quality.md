@@ -341,6 +341,7 @@ to.
 | `xmllint` | lint | xml |
 | `yamlfmt` | format | yaml |
 | `yamllint` | lint | yaml |
+| `zig` | typecheck | zig |
 | `zig_ast_check` | lint | zig |
 | `zig_fmt` | format | zig |
 
@@ -925,6 +926,20 @@ x86_64 only and never fix, so `--apply` changes nothing. Fortran modules that a
 source takes from another source of the same target come from the real build:
 a type error in the providing source fails `bazel build` instead of showing as
 a finding.
+
+### Zig typechecking
+
+`zig` is opt-in: select it with `typecheck = ["zig"]` on a `zig` family. It
+replays the `zig build-exe`, `build-lib` and `test` action that the Zig rules
+configured, so the flags, modules and cache settings match the real build. The
+replay adds `-fno-emit-bin` and drops every `-femit-*` flag, so it writes no
+binaries, assembly or bitcode. An error is reported at its line and column in the
+target's own sources. An error in another file, or a failed run with no error in
+the target's sources, fails the run instead of passing it. `zig` never fixes, so
+`--apply` changes nothing. Zig analyzes lazily, so only declarations that the
+root module references are checked: an unused function with a type error is not
+reported. `zig_library` has no compile action of its own, so libraries are only
+checked through the `zig_binary` or `zig_test` that depends on them.
 
 ### TypeScript typechecking
 

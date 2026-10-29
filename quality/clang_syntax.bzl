@@ -4,6 +4,7 @@ load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 
 ClangSyntaxInfo = provider(
     doc = "Syntax-only replays of the compile actions of one C/C++/Objective-C target.",
@@ -19,7 +20,9 @@ ClangSyntaxInfo = provider(
 )
 
 _SOURCE_EXTENSIONS = ["h", "hh", "hpp", "hxx", "h++", "inc", "inl", "tcc", "c", "cc", "cpp", "cxx", "c++", "m", "mm", "cu", "cuh"]
-_MNEMONICS = ["CppCompile", "ObjcCompile"]
+_MNEMONICS = ["CppCompile", "ObjcCompile", "CudaCompile"]
+_CUDA_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-include"]
+_CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 
 # Flags that produce build outputs and are not wanted for a syntax-only run.
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
@@ -102,6 +105,52 @@ def clang_tidy_argv(tidy, argv, src):
         flags.append(arg)
     return struct(argv = [tidy, src, "--"] + flags, error = "")
 
+def cuda_tidy_argv(tidy, argv, src):
+    """Projects an nvcc compile command line into a clang-tidy command line (`-x cuda`).
+
+    Only the flags clang understands the same way are carried over (include paths,
+    defines, -std, -include); nvcc-only flags (-gencode, -arch, -Xcompiler wrappers,
+    -rdc, ...) are dropped. --cuda-path is the toolkit root derived from the nvcc path.
+
+    Args:
+      tidy: string: the clang-tidy executable path.
+      argv: list of string: the nvcc compile action command line, nvcc first.
+      src: string: the source path the action compiles.
+
+    Returns:
+      A struct with `argv` and `error` (non-empty when the command line cannot be projected).
+    """
+    if len(argv) == 0 or argv[0].rpartition("/")[2] != "nvcc":
+        return struct(argv = [], error = "only nvcc compile commands can be projected into clang-tidy")
+    if src == "" or src not in argv:
+        return struct(argv = [], error = "the source " + src + " is not on the compile command line")
+    root = argv[0].rpartition("/")[0].rpartition("/")[0]
+    flags = ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version"]
+    if root != "":
+        flags.append("--cuda-path=" + root)
+    i = 1
+    for _ in range(len(argv)):
+        if i >= len(argv):
+            break
+        arg = argv[i]
+        i += 1
+        if arg in _CUDA_VALUE_FLAGS and i < len(argv):
+            flags += [arg, argv[i]]
+            i += 1
+        elif arg in ["-Xcompiler", "--compiler-options"] and i < len(argv):
+            # Host compiler flags: only the ones clang shares survive.
+            for part in argv[i].split(","):
+                if part.startswith(("-I", "-D", "-U", "-isystem", "-std=", "-iquote")):
+                    flags.append(part)
+            i += 1
+        elif arg in _CUDA_PASS_THROUGH and i < len(argv):
+            i += 1
+        elif arg.startswith(("-I", "-D", "-U", "-isystem", "-iquote")) or arg.startswith(("-std=", "--std=")):
+            flags.append(arg.replace("--std=", "-std=", 1))
+        elif arg in ["-o", "-MF", "-MT", "-arch", "-code", "-gencode", "-ccbin", "--output-file", "--compiler-bindir"] and i < len(argv):
+            i += 1
+    return struct(argv = [tidy, src, "--"] + flags, error = "")
+
 def _first(value):
     return value[0] if type(value) == "list" else value
 
@@ -157,11 +206,34 @@ def _clang_syntax_impl(target, ctx):
     diagnostics = []
     statuses = []
     tidy_diagnostics = []
+    cuda_indices = [i for i in range(len(actions)) if actions[i].mnemonic == "CudaCompile"]
+    cuda_keep = [cuda_indices[j] for j in nvcc_syntax_select([actions[i].argv or [] for i in cuda_indices])]
     for i in range(len(actions)):
         action = actions[i]
         argv = action.argv
         if argv == None:
             fail("clang_syntax: Bazel does not expose the command line of the %s action of %s" % (action.mnemonic, target.label))
+        if action.mnemonic == "CudaCompile":
+            # nvcc compiles each source several times (pic/rdc variants); lint one.
+            if i not in cuda_keep:
+                continue
+            src = nvcc_syntax_source(list(argv))
+            tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src)
+            if tidy_argv.error != "":
+                fail("clang_tidy: " + str(target.label) + ": " + tidy_argv.error)
+            tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s_%d.log" % (target.label.name, i))
+            ctx.actions.run_shell(
+                mnemonic = "ClangTidy",
+                progress_message = "clang-tidy %{label}: " + src,
+                command = 'bash "$@"',
+                arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
+                inputs = depset([tidy, runner], transitive = [action.inputs, headers]),
+                outputs = [tidy_log],
+                env = action.env,
+                resource_set = dx_quality_heavy_resources,
+            )
+            tidy_diagnostics.append(tidy_log)
+            continue
         src = clang_syntax_source(list(argv))
         rewritten = clang_syntax_argv(list(argv), src)
         if rewritten.error != "":

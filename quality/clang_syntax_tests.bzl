@@ -1,7 +1,7 @@
 """Unit tests for the clang_syntax argv rewrite."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source")
+load(":clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
 
 _CLANG = "external/llvm/bin/clang"
 
@@ -13,6 +13,11 @@ def clang_syntax_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "CUDA: nvcc flags are translated to clang -x cuda with the toolkit root",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-Iinc", "-DX=1", "-Xcompiler", "-fPIC,-isystem/x", "-gencode", "arch=compute_80,code=sm_80", "-rdc=true", "-std=c++17", "-c", "a.cu", "-o", "a.o"], "a.cu").argv,
+                ["tidy", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
+            ),
             expect_equal(
                 "clang-tidy gets the source then -- then the compile flags",
                 clang_tidy_argv("tidy", [_CLANG, "-DX=1", "-c", "a.c", "-o", "a.o"], "a.c").argv,

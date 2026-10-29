@@ -68,7 +68,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Astro | `eslint` | `prettier` | no |
 | C and C++ | `clang_tidy`, `cppcheck` | `clang_format` | `clang_syntax` |
 | C# | `roslyn` | `csharpier` | `csc` |
-| CUDA | no | `clang_format` | `nvcc_syntax` |
+| CUDA | `clang_tidy` | `clang_format` | `nvcc_syntax` |
 | D | `dscanner` | `dfmt` | `ldc` |
 | Dart | `dart` | `dart` | `dart` |
 | Elixir | `credo` | `mix_format` | `dialyzer` |

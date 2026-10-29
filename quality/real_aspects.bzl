@@ -1515,7 +1515,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     clang_syntax = None
     if "clang_syntax" in [stage["tool"] for stage in resolved] or "clang_tidy" in [stage["tool"] for stage in resolved]:
         if ClangSyntaxInfo not in target:
-            fail(what + ": clang_syntax and clang_tidy need a cc_* or objc_* target with compile actions (a header-only library needs --features=parse_headers)")
+            fail(what + ": clang_syntax and clang_tidy need a cc_*, objc_* or cuda_* target with compile actions (a header-only library needs --features=parse_headers)")
         clang_syntax = target[ClangSyntaxInfo]
 
     nvcc_syntax = None

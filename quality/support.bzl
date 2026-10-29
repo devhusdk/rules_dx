@@ -401,6 +401,20 @@ NIX_NIXFMT_SUPPORT = {
     "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
 }
 
+OCAML_TOPIARY_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["ocaml"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "ocaml",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "state": "supported",
+    "tool": "topiary",
+    "transport": "single",
+}
+
 NIX_DEADNIX_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -1504,6 +1518,7 @@ SUPPORT_RECORDS = [
     NIX_STATIX_SUPPORT,
     NIX_DEADNIX_SUPPORT,
     NIX_NIXFMT_SUPPORT,
+    OCAML_TOPIARY_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT,
     HTML_TEMPLATE_DJLINT_LINT_SUPPORT,
     TEXT_KEEP_SORTED_SUPPORT,

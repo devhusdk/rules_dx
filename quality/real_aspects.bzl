@@ -788,6 +788,13 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "terraform",
     },
+    "topiary": {
+        "attr": attr.label(default = "//quality/tools/rust:topiary", cfg = "exec", executable = True),
+        "capabilities": ["format"],
+        "kind": "executable",
+        "resources": "light",
+        "shard": "ocaml",
+    },
     "ty": {
         "attr": attr.label(default = "@dx_tools//:ty", allow_single_file = True, cfg = "exec"),
         "capabilities": ["typecheck"],
@@ -2526,6 +2533,12 @@ _REAL_SHARD_SPECS = {
         "shard": "pkl",
         "suffix": "-pkl",
     },
+    "real_ocaml_format": {
+        "capability": "format",
+        "doc": "Additive OCaml format family aspect (topiary).",
+        "shard": "ocaml",
+        "suffix": "-ocaml",
+    },
     "real_terraform_format": {
         "capability": "format",
         "doc": "Additive Terraform format family aspect (terraform fmt).",
@@ -2710,6 +2723,8 @@ real_make_lint_aspect = _make_real_aspect("real_make_lint")
 real_nix_format_aspect = _make_real_aspect("real_nix_format")
 
 real_nix_lint_aspect = _make_real_aspect("real_nix_lint")
+
+real_ocaml_format_aspect = _make_real_aspect("real_ocaml_format")
 
 real_kubernetes_lint_aspect = _make_real_aspect("real_kubernetes_lint")
 

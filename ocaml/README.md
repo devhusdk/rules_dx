@@ -125,9 +125,11 @@ See [examples/ocaml-app](../examples/ocaml-app/README.md) for a multi-package ap
 
 ## Formatting and linting
 
-No OCaml formatter or linter runs. The rules tag every target `no-format`,
-`no-lint` and `no-typecheck`, so `dx format`, `dx lint` and `dx typecheck`
-skip it. The compiler is the type check.
+`dx format` runs `topiary` on `.ml` and `.mli` sources when the `ocaml` family
+selects it with `format = ["topiary"]`. Its output differs from ocamlformat and
+a `.ocamlformat` file is ignored. `.mll` and `.mly` files are not formatted. No
+OCaml linter runs. The rules tag every target `no-lint` and `no-typecheck`, so
+`dx lint` and `dx typecheck` skip it. The compiler is the type check.
 
 ### Internal tool: zanuda
 

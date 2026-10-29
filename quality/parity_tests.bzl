@@ -5,9 +5,9 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
 PARITY_SCHEMA_VERSION = 1
 
-PARITY_DEFERRED = {
-    "ocaml": ["ADR", "no OCaml formatter or linter is pinned"],
-}
+# No class is deferred today: OCaml gained its formatter (topiary), and its missing linter is
+# tracked by #4621 in the support matrix. A class cannot be both adapter-backed and deferred.
+PARITY_DEFERRED = {}
 
 def _adapter_backed_classes():
     backed = {}
@@ -72,14 +72,16 @@ def _malformed_deferrals():
             bad.append(class_id)
     return bad
 
-def deferred_pipeline_error(target_classes, capability):
+def deferred_pipeline_error(target_classes, capability, registry = None):
     """Returns a fail-closed error for deferred classes with sources."""
-    deferred = sorted([c for c in target_classes if c in PARITY_DEFERRED])
+    if registry == None:
+        registry = PARITY_DEFERRED
+    deferred = sorted([c for c in target_classes if c in registry])
     if len(deferred) == 0:
         return ""
     details = []
     for class_id in deferred:
-        entry = PARITY_DEFERRED[class_id]
+        entry = registry[class_id]
         details.append(class_id + " (" + entry[0] + ": " + entry[1] + ")")
     return "deferred " + capability + " pipeline for " + ", ".join(details) + ": no adapter claims these classes"
 
@@ -135,7 +137,7 @@ def parity_unit_tests(name):
             ),
             expect_equal(
                 "deferred pipeline error names the deferral with owner and route",
-                deferred_pipeline_error(["rust", "ocaml"], "lint") != "",
+                deferred_pipeline_error(["rust", "ocaml"], "lint", {"ocaml": ["ADR", "no OCaml linter is pinned"]}) != "",
                 True,
             ),
         ],

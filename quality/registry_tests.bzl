@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
-load(":registry.bzl", "REGISTRY_SCHEMA_VERSION", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_deferred_classes", "registry_families", "registry_schema_error", "registry_tools")
+load(":registry.bzl", "REGISTRY_SCHEMA_VERSION", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
 
 _A = {"ty": {"typecheck": ["python"]}}
 _C = {"python": "python", "yaml": "yaml"}
@@ -29,9 +29,8 @@ def registry_unit_tests(name):
                     len(registry_families()) > 0,
                     len(registry_tools()) > 0,
                     len(registry_curated_families()) > 0,
-                    len(registry_deferred_classes()) > 0,
                 ],
-                [True, True, True, True, True],
+                [True, True, True, True],
             ),
             expect_equal(
                 "registry queries admit the frozen core",

@@ -29,3 +29,8 @@ alias(
     name = "selene",
     actual = "@dx_selene_src//:selene",
 )
+
+alias(
+    name = "topiary",
+    actual = "//quality/tools/rust/topiary:dx_topiary",
+)

@@ -4791,6 +4791,71 @@ fn fake_nixfmt(
     })
 }
 
+const TOPIARY_CLEAN: &str = "let x = 1\n";
+
+/// A fake `dx_topiary` that follows its contract: check mode lists the paths that would change
+/// and exits 1, `--write` rewrites them, and a file holding `BROKEN` is a syntax error (exit 2).
+fn fake_topiary(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let write = argv.iter().any(|arg| arg == "--write");
+    let mut dirty = String::new();
+    let mut stderr = String::new();
+    for file in argv.iter().skip(1).filter(|arg| *arg != "--write") {
+        let name = file.to_string_lossy().into_owned();
+        let text = std::fs::read_to_string(file)?;
+        if text.contains("BROKEN") {
+            stderr.push_str(&format!("{name}:1:5: syntax error\n"));
+        } else if text != TOPIARY_CLEAN {
+            if write {
+                std::fs::write(file, TOPIARY_CLEAN)?;
+            } else {
+                dirty.push_str(&format!("{name}\n"));
+            }
+        }
+    }
+    let code = if !stderr.is_empty() {
+        2
+    } else {
+        i32::from(!dirty.is_empty())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: dirty.into_bytes(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+fn topiary_reports_a_dirty_file_and_fix_rewrites_it() {
+    let backend = backend_for("topiary", plain_tool(), fake_topiary);
+    let findings = backend
+        .diagnose("topiary", "format", &single("a.ml", "let   x=1\n"))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "topiary");
+    assert_eq!(findings[0].path, "a.ml");
+    assert!(backend
+        .diagnose("topiary", "format", &single("a.mli", TOPIARY_CLEAN))
+        .expect("diagnosed")
+        .is_empty());
+    let fixed = backend
+        .apply_fix("topiary", "a.ml", "let   x=1\n", "format")
+        .expect("fixed");
+    assert_eq!(fixed, TOPIARY_CLEAN);
+}
+
+#[test]
+fn topiary_syntax_error_is_an_error_not_a_clean_run() {
+    let backend = backend_for("topiary", plain_tool(), fake_topiary);
+    assert!(backend
+        .diagnose("topiary", "format", &single("a.ml", "BROKEN\n"))
+        .is_err());
+}
+
 static TFLINT_SPAWNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 fn tflint_arg<'a>(argv: &'a [OsString], prefix: &str) -> Vec<&'a str> {

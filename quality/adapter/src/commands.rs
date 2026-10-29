@@ -59,6 +59,9 @@ const FFMT_FIX_ARGS: &[&str] = &["--no-cache", "--no-ignore", "--color", "never"
 /// or an entity can never reach outside the staged files. `--noent`, `--loaddtd` and `--valid`
 /// stay off, which keeps external entities and DTDs unread.
 const XMLLINT_CHECK_ARGS: &[&str] = &["--noout", "--nonet", "--nocatalogs"];
+// dx_topiary takes only file arguments: it reads no configuration, environment or `.ocamlformat`.
+// Check mode prints the paths that would change and exits 1; `--write` rewrites in place.
+const TOPIARY_FIX_ARGS: &[&str] = &["--write"];
 const TY_BASE: &[&str] = &[
     "check",
     "--output-format",
@@ -1369,6 +1372,15 @@ pub fn ffmt_fix(binary: &Path, files: &[&Path], config_dir_rel: &str) -> Invocat
 /// One batched well-formedness check. It prints nothing when every file is clean.
 pub fn xmllint_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, XMLLINT_CHECK_ARGS, files, "")
+}
+
+/// `dx_topiary` prints one unformatted path per line and exits 1.
+pub fn topiary_check(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, &[], files, "")
+}
+
+pub fn topiary_fix(binary: &Path, files: &[&Path]) -> Invocation {
+    fixed(binary, TOPIARY_FIX_ARGS, files, "")
 }
 
 pub fn jsonnetfmt_check(binary: &Path, files: &[&Path]) -> Invocation {

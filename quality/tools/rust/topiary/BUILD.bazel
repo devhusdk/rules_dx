@@ -1,0 +1,38 @@
+load("//rust/rules:defs.bzl", "rust_binary", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_visibility = ["//quality/tools/rust:__pkg__"])
+
+_DEPS = [
+    "@dx_quality_crates//:topiary-core",
+    "@dx_quality_crates//:topiary-queries",
+    "@dx_quality_crates//:tree-sitter",
+    "@dx_quality_crates//:tree-sitter-ocaml",
+]
+
+rust_binary(
+    name = "dx_topiary",
+    srcs = ["main.rs"],
+    crate_name = "dx_topiary",
+    crate_root = "main.rs",
+    edition = "2021",
+    deps = _DEPS,
+)
+
+rust_test(
+    name = "dx_topiary_test",
+    size = "small",
+    crate = ":dx_topiary",
+    deps = _DEPS,
+)
+
+rustfmt_test(
+    name = "dx_topiary_fmt_test",
+    size = "small",
+    targets = [":dx_topiary"],
+)
+
+rust_clippy_test(
+    name = "dx_topiary_clippy_test",
+    size = "small",
+    targets = [":dx_topiary"],
+)

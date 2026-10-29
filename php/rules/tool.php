@@ -8,10 +8,27 @@ function fail(string $message): never
     exit(1);
 }
 
+/** @return array<string, string> the variables a child process needs on this host; Windows cannot start one without them. */
+function hostEnv(): array
+{
+    $env = [];
+    if (DIRECTORY_SEPARATOR === '\\') {
+        foreach (['SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP'] as $name) {
+            $value = getenv($name);
+            if ($value !== false) {
+                $env[$name] = $value;
+            }
+        }
+    }
+
+    return $env;
+}
+
 function run(array $command, array $env): array
 {
     $pipes = [];
-    $process = proc_open($command, [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes, null, $env);
+    $null = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
+    $process = proc_open($command, [0 => ['file', $null, 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes, null, $env + hostEnv());
     if ($process === false) {
         fail('cannot start ' . $command[0]);
     }

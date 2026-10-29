@@ -182,12 +182,13 @@ Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
 | `linux_x86_64` | Pinned; qualified by CI |
 | `linux_arm64` | Pinned; qualified by CI |
 | `macos_arm64` | Pinned; qualified by CI |
-| `windows_x86_64` | Gap (#4552); needs a Windows launcher |
+| `windows_x86_64` | Pinned; qualified by CI |
 | `windows_arm64` | Unsupported; no Windows arm64 PHP 8.5 build exists |
 
-Three cells have a pinned PHP. The rules mark their targets
+Four cells have a pinned PHP. The rules mark their targets
 incompatible elsewhere, so a build fails instead of running the host PHP.
-Launchers start through a bash script.
+Launchers start through a bash script, except on Windows, where a small
+native launcher starts PHP from a descriptor file beside the `.exe`.
 
 ## License
 

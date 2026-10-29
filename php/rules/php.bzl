@@ -113,20 +113,94 @@ fi
 export RUNFILES_DIR="$runfiles"
 {body}"""
 
-def launcher_script(php, ini, tail):
-    """Returns the launcher that runs the runfiles php with -n, the ini flags and one argument tail."""
+_BARE = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./=-"
+
+def lit(text):
+    """Returns a launcher token for one literal argument."""
+    return ("arg", text)
+
+def rf(key):
+    """Returns a launcher token for the absolute path of one runfiles key."""
+    return ("path", key)
+
+def rf_prefixed(prefix, key):
+    """Returns a launcher token for a prefix followed by the absolute path of one runfiles key."""
+    return ("prefixed", prefix, key)
+
+def env_flag(flag, var):
+    """Returns a launcher token for a flag and the value of an environment variable, left out when the variable is unset or empty."""
+    return ("env_flag", flag, var)
+
+def _bash_word(token):
+    kind = token[0]
+    if kind == "arg":
+        text = token[1]
+        return text if text and all([c in _BARE for c in text.elems()]) else shell_quote(text)
+    if kind == "path":
+        return '"$runfiles/{}"'.format(token[1])
+    if kind == "prefixed":
+        return '"{}$runfiles/{}"'.format(token[1], token[2])
+    if kind == "env_flag":
+        return '${{{var}:+{flag} "${var}"}}'.format(flag = token[1], var = token[2])
+    fail("unknown launcher token " + kind)
+
+def launcher_script(php, ini, tokens):
+    """Returns the bash launcher that runs the runfiles php with -n, the ini flags, the tokens and the user's arguments."""
     flags = "".join([shell_quote(flag) + " " for flag in ini_flags(ini)])
+    tail = " ".join([_bash_word(token) for token in tokens] + ['"$@"'])
     return _LAUNCHER.format(body = 'exec "$runfiles/{php}" -n {flags}{tail}\n'.format(php = php, flags = flags, tail = tail))
 
-def _write_launcher(ctx, tail):
+def _descriptor_line(token):
+    kind = token[0]
+    for text in token[1:]:
+        if "\n" in text or "\r" in text or (kind in ("prefixed", "env_flag") and "\t" in text):
+            fail("launcher token " + repr(token) + " cannot hold a line break or tab")
+    if kind in ("prefixed", "env_flag"):
+        return kind + "=" + token[1] + "\t" + token[2]
+    return kind + "=" + token[1]
+
+def launcher_descriptor(php, ini, tokens):
+    """Returns the descriptor text the native launcher reads: the same program and arguments as launcher_script."""
+    lines = ["version=1", "program=" + php, "arg=-n"]
+    for flag in ini_flags(ini):
+        lines.append("arg=" + flag)
+    lines.extend([_descriptor_line(token) for token in tokens])
+    return "\n".join(lines) + "\n"
+
+LAUNCHER_ATTRS = {
+    "_exec_launcher": attr.label(default = Label("//libs/launcher:exec_launcher"), executable = True, cfg = "target", doc = "The native launcher used on Windows."),
+    "_windows_os": attr.label(default = Label("@platforms//os:windows")),
+}
+
+def write_launcher(ctx, php, ini, tokens):
+    """Writes the launcher of a php program: a bash script, or the native launcher with a descriptor on Windows.
+
+    Returns the executable and the runfiles the launcher needs beside the php files.
+    """
+    key = runfiles_path(ctx.workspace_name, php.interpreter)
+    if ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo]):
+        launcher = ctx.actions.declare_file(ctx.label.name + ".exe")
+        descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
+        ctx.actions.write(descriptor, launcher_descriptor(key, ini, tokens))
+        ctx.actions.symlink(output = launcher, target_file = ctx.executable._exec_launcher, is_executable = True)
+        files = [launcher, descriptor]
+        runfiles = ctx.runfiles(files = files).merge(ctx.attr._exec_launcher[DefaultInfo].default_runfiles)
+    else:
+        launcher = ctx.actions.declare_file(ctx.label.name)
+        ctx.actions.write(launcher, launcher_script(key, ini, tokens), is_executable = True)
+        runfiles = ctx.runfiles(files = [launcher])
+    return launcher, runfiles
+
+def _write_launcher(ctx, tokens):
     """Writes the launcher of a binary or test."""
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
-    launcher = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(launcher, launcher_script(runfiles_path(ctx.workspace_name, php.interpreter), ctx.attr.ini, tail), is_executable = True)
-    return launcher, php.files
+    launcher, runfiles = write_launcher(ctx, php, ctx.attr.ini, tokens)
+    return launcher, runfiles.merge(ctx.runfiles(transitive_files = php.files))
 
-def _runfiles(ctx, files, transitive):
-    runfiles = ctx.runfiles(files = files, transitive_files = depset(transitive = transitive))
+def _runfiles(ctx, files, transitive, base = None):
+    runfiles = ctx.runfiles(files = files + ctx.files.data, transitive_files = depset(transitive = transitive))
+    if base:
+        runfiles = runfiles.merge(base)
     for target in ctx.attr.data + ctx.attr.deps:
         runfiles = runfiles.merge(target[DefaultInfo].default_runfiles)
     return runfiles
@@ -165,14 +239,15 @@ def _php_binary_impl(ctx):
     info = _php_info(ctx, srcs)
     tree = _autoload(ctx, info, autoloader_suffix(ctx.label))
     root = runfiles_path(ctx.workspace_name, tree)
-    tail = '-d "auto_prepend_file=$runfiles/{root}/vendor/autoload.php" "$runfiles/{root}/{main}" "$@"'.format(
-        root = root,
-        main = staged_path(ctx.file.main),
-    )
-    launcher, php_files = _write_launcher(ctx, tail)
+    tokens = [
+        lit("-d"),
+        rf_prefixed("auto_prepend_file=", root + "/vendor/autoload.php"),
+        rf(root + "/" + staged_path(ctx.file.main)),
+    ]
+    launcher, base = _write_launcher(ctx, tokens)
     return [
         info,
-        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [launcher, tree], [php_files])),
+        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [tree], [], base)),
         OutputGroupInfo(_validation = depset(_lint(ctx, srcs)), php_autoload = depset([tree])),
         _environment(ctx),
         _instrumented(ctx, ["main", "srcs"]),
@@ -184,18 +259,18 @@ def _php_test_impl(ctx):
     tree = _autoload(ctx, info, autoloader_suffix(ctx.label))
     root = runfiles_path(ctx.workspace_name, tree)
     phpunit = ctx.file._phpunit
-    config = '--configuration "$runfiles/{}"'.format(runfiles_path(ctx.workspace_name, ctx.file.config)) if ctx.file.config else "--no-configuration"
-    tests = " ".join(['"$runfiles/{}/{}"'.format(root, staged_path(f)) for f in srcs])
-    tail = (
-        '"$runfiles/{phpunit}" --bootstrap "$runfiles/{root}/vendor/autoload.php" {config} ' +
-        "--fail-on-empty-test-suite --do-not-cache-test-index " +
-        '${{XML_OUTPUT_FILE:+--log-junit "$XML_OUTPUT_FILE"}} {tests} "$@"'
-    ).format(phpunit = runfiles_path(ctx.workspace_name, phpunit), root = root, config = config, tests = tests)
-    launcher, php_files = _write_launcher(ctx, tail)
+    tokens = [rf(runfiles_path(ctx.workspace_name, phpunit)), lit("--bootstrap"), rf(root + "/vendor/autoload.php")]
+    if ctx.file.config:
+        tokens += [lit("--configuration"), rf(runfiles_path(ctx.workspace_name, ctx.file.config))]
+    else:
+        tokens.append(lit("--no-configuration"))
+    tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
+    tokens += [rf(root + "/" + staged_path(f)) for f in srcs]
+    launcher, base = _write_launcher(ctx, tokens)
     extra = [phpunit] + ([ctx.file.config] if ctx.file.config else [])
     return [
         info,
-        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [launcher, tree] + extra, [php_files])),
+        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [tree] + extra, [], base)),
         OutputGroupInfo(_validation = depset(_lint(ctx, srcs)), php_autoload = depset([tree])),
         _environment(ctx),
         _instrumented(ctx),
@@ -207,7 +282,7 @@ _COMMON_ATTRS = {
     "_tool": attr.label(default = _TOOL, allow_single_file = True, cfg = "exec", doc = "The build-time helper script."),
 }
 
-_RUN_ATTRS = _COMMON_ATTRS | {
+_RUN_ATTRS = _COMMON_ATTRS | LAUNCHER_ATTRS | {
     "env": attr.string_dict(doc = "Environment for `bazel run` and `bazel test`; values expand $(location) of data."),
     "env_inherit": attr.string_list(doc = "Environment variable names inherited from the caller."),
     "ini": attr.string_dict(doc = "php.ini settings passed as -d flags; PHP otherwise runs with -n and no php.ini."),

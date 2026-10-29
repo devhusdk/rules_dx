@@ -1,5 +1,4 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("//php/rules:php.bzl", "php_autoload_tree")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -43,20 +42,22 @@ php_binary(
     main = "bin/missing.php",
 )
 
-sh_test(
-    name = "main_test",
+php_test(
+    name = "cli_test",
     size = "small",
-    srcs = ["main_test.sh"],
-    args = ["$(rootpath :main)"],
-    data = [":main"],
-)
-
-sh_test(
-    name = "missing_test",
-    size = "small",
-    srcs = ["missing_test.sh"],
-    args = ["$(rootpath :missing)"],
-    data = [":missing"],
+    srcs = ["test/CliTest.php"],
+    data = [
+        ":autoload_a",
+        ":autoload_b",
+        ":main",
+        ":missing",
+    ],
+    env = {
+        "MAIN_BIN": "$(rootpath :main)",
+        "MISSING_BIN": "$(rootpath :missing)",
+        "TREE_A": "$(rootpath :autoload_a)",
+        "TREE_B": "$(rootpath :autoload_b)",
+    },
 )
 
 [
@@ -68,20 +69,6 @@ sh_test(
     )
     for copy in ("a", "b")
 ]
-
-sh_test(
-    name = "autoload_reproducible_test",
-    size = "small",
-    srcs = ["same_tree_test.sh"],
-    args = [
-        "$(rootpath :autoload_a)",
-        "$(rootpath :autoload_b)",
-    ],
-    data = [
-        ":autoload_a",
-        ":autoload_b",
-    ],
-)
 
 build_test(
     name = "groups_test",

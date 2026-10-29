@@ -1216,6 +1216,7 @@ impl RealBackend {
                 }
             }
             "cue" if capability == "typecheck" => self.check_cue_vet(tool_id, tool, staged),
+            "pkl" if capability == "typecheck" => self.check_pkl_eval(tool_id, tool, staged),
             "cue" => {
                 let invocation = commands::cue_check(&tool.binary, &refs);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
@@ -2096,6 +2097,80 @@ impl RealBackend {
                 tool_id,
                 format!(
                     "cue vet failed in dependencies before the owned files were checked: {}",
+                    names.join(", ")
+                ),
+            ));
+        }
+        Ok(findings)
+    }
+
+    /// `pkl eval` once per owned module with imports staged beside it. Pkl stops at the first
+    /// error, so a batched run would lose findings and misattribute them. Abstract modules are
+    /// only loaded (`-x 1`), since rendering one reports its by-design unset properties. Values
+    /// are lazy: only what the module renders is forced, so hidden or unused members are not
+    /// checked. An error whose first frame is a non-owned file is an execution error.
+    fn check_pkl_eval(
+        &self,
+        tool_id: &str,
+        tool: &RealTool,
+        staged: &StagedScratch,
+    ) -> Result<Vec<FileFinding>, RunnerError> {
+        let scratch = &staged.scratch;
+        let owned: Vec<String> = staged
+            .pairs
+            .iter()
+            .map(|(_, absolute)| absolute.to_string_lossy().into_owned())
+            .collect();
+        let owned: Vec<&str> = owned.iter().map(String::as_str).collect();
+        let mut known_paths: Vec<String> = owned.iter().map(|path| (*path).to_owned()).collect();
+        for (_, absolute) in &staged.resolve_pairs {
+            let text = absolute.to_string_lossy().into_owned();
+            if !known_paths.contains(&text) {
+                known_paths.push(text);
+            }
+        }
+        let known: Vec<&str> = known_paths.iter().map(String::as_str).collect();
+        let mut findings: Vec<FileFinding> = Vec::new();
+        let mut reported = Vec::new();
+        for (ws, absolute) in &staged.pairs {
+            let text = std::fs::read_to_string(absolute)
+                .map_err(|err| execution(tool_id, format!("read {ws}: {err}")))?;
+            let load_only = text
+                .lines()
+                .any(|line| line.trim_start().starts_with("abstract module"));
+            let invocation = commands::pkl_eval(&tool.binary, absolute, scratch.root(), load_only);
+            let out = self.run(tool_id, tool, &invocation, scratch)?;
+            let found = parsed(
+                tool_id,
+                parsers::parse_pkl_eval(&out.stdout, &out.stderr, out.code, &known),
+            )?;
+            for item in found {
+                if owned.contains(&item.file.as_str()) {
+                    if !findings.contains(&item) {
+                        findings.push(item);
+                    }
+                } else {
+                    reported.push(item.file);
+                }
+            }
+        }
+        if findings.is_empty() && !reported.is_empty() {
+            let mut names: Vec<String> = staged
+                .resolve_pairs
+                .iter()
+                .filter(|(_, absolute)| {
+                    reported
+                        .iter()
+                        .any(|r| r.as_str() == absolute.to_string_lossy())
+                })
+                .map(|(ws, _)| ws.clone())
+                .collect();
+            names.sort();
+            names.dedup();
+            return Err(execution(
+                tool_id,
+                format!(
+                    "pkl eval failed in dependencies before the owned files were checked: {}",
                     names.join(", ")
                 ),
             ));

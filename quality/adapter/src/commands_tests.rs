@@ -1039,6 +1039,49 @@ fn cue_vet_is_non_concrete_and_runs_from_the_module_root() {
 }
 
 #[test]
+fn pkl_eval_is_offline_sealed_and_per_module() {
+    let module = Path::new("/scratch/app/main.pkl");
+    let root = Path::new("/scratch");
+    let full = pkl_eval(Path::new(BIN), module, root, false);
+    assert_eq!(full.cwd_rel, "");
+    assert_eq!(
+        argv_strings(&full),
+        vec![
+            BIN,
+            "eval",
+            "--no-cache",
+            "--no-project",
+            "--allowed-modules",
+            "pkl:,file:",
+            "--allowed-resources",
+            "prop:,env:,file:",
+            "--root-dir",
+            "/scratch",
+            "/scratch/app/main.pkl",
+        ]
+    );
+    let load = pkl_eval(Path::new(BIN), module, root, true);
+    assert_eq!(
+        argv_strings(&load),
+        vec![
+            BIN,
+            "eval",
+            "--no-cache",
+            "--no-project",
+            "--allowed-modules",
+            "pkl:,file:,repl:",
+            "--allowed-resources",
+            "prop:,env:,file:",
+            "--root-dir",
+            "/scratch",
+            "-x",
+            "1",
+            "/scratch/app/main.pkl",
+        ]
+    );
+}
+
+#[test]
 fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let cue_file = Path::new("/scratch/Sample.cue");
     assert_eq!(

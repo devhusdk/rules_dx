@@ -104,6 +104,125 @@ fn split_location(message: &str) -> (&str, u64, u64) {
     }
 }
 
+/// `pkl eval` of one module. Exit 0 with no output on stderr is clean. Exit 1 prints one
+/// `Pkl Error` block; its first `at ... (file:///path, line N)` frame is the finding, which may
+/// sit in an imported file. Every other exit or output shape is an error, never clean.
+pub fn parse_pkl_eval(
+    stdout: &[u8],
+    stderr: &[u8],
+    code: Option<i32>,
+    known: &[&str],
+) -> Result<Vec<FileFinding>, ParseError> {
+    // Stdout holds the rendered module on success; it is size-checked and otherwise ignored.
+    as_text(TOOL, stdout)?;
+    let errors = as_text(TOOL, stderr)?;
+    match code {
+        Some(0) if errors.trim().is_empty() => Ok(Vec::new()),
+        Some(1) => eval_error(errors, known).map(|found| vec![found]),
+        _ => Err(ParseError::shape(
+            TOOL,
+            format!("unexpected eval exit {} with output", code_name(code)),
+        )),
+    }
+}
+
+const EVAL_HEADER: &str = "\u{2013}\u{2013} Pkl Error \u{2013}\u{2013}";
+
+fn eval_error(stderr: &str, known: &[&str]) -> Result<FileFinding, ParseError> {
+    let lines: Vec<&str> = stderr.lines().map(str::trim_end).collect();
+    if lines.first() != Some(&EVAL_HEADER) || lines[1..].contains(&EVAL_HEADER) {
+        return Err(ParseError::shape(
+            TOOL,
+            "eval error output is not a single Pkl Error block",
+        ));
+    }
+    let message = lines[1..]
+        .iter()
+        .take_while(|line| !line.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if message.is_empty() {
+        return Err(ParseError::shape(TOOL, "Pkl Error block without a message"));
+    }
+    let Some(at) = lines.iter().position(|line| line.starts_with("at ")) else {
+        return Err(ParseError::shape(
+            TOOL,
+            format!("error without a located frame: {message}"),
+        ));
+    };
+    let (path, row) = frame_location(lines[at])
+        .ok_or_else(|| ParseError::shape(TOOL, format!("unlocated first frame: {}", lines[at])))?;
+    let file = known_native(TOOL, known, &path)?;
+    let column = frame_column(&lines[..at]);
+    Ok(finding(
+        TOOL,
+        file,
+        String::new(),
+        message,
+        ToolSeverity::Error,
+        TextPosition {
+            line: row.max(1),
+            column,
+        },
+        ColumnEncoding::Scalars,
+    ))
+}
+
+/// The file path and line of an `at <name> (file:///path, line N)` frame.
+fn frame_location(frame: &str) -> Option<(String, u64)> {
+    let inner = frame.strip_suffix(')')?.rsplit_once(" (")?.1;
+    let (uri, row) = inner.rsplit_once(", line ")?;
+    let path = percent_decode(uri.strip_prefix("file://")?)?;
+    // A Windows drive path is spelled `file:///C:/dir/a.pkl`.
+    let bytes = path.as_bytes();
+    let path = if bytes.len() > 3
+        && bytes[0] == b'/'
+        && bytes[1].is_ascii_alphabetic()
+        && bytes[2] == b':'
+    {
+        path[1..].to_owned()
+    } else {
+        path
+    };
+    if !path.starts_with('/') && !path.as_bytes().get(1).is_some_and(|c| *c == b':') {
+        return None;
+    }
+    Some((path, row.parse().ok()?))
+}
+
+fn percent_decode(text: &str) -> Option<String> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let hex = text.get(index + 1..index + 3)?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            index += 3;
+        } else {
+            out.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// The 1-based column of the first caret under the snippet line above the frame, or 1.
+fn frame_column(before: &[&str]) -> u64 {
+    let [.., snippet, carets] = before else {
+        return 1;
+    };
+    let Some(gutter) = snippet.find("| ").map(|at| at + 2) else {
+        return 1;
+    };
+    let Some(caret) = carets.find('^') else {
+        return 1;
+    };
+    let offset = carets[..caret].chars().count().saturating_sub(gutter);
+    offset as u64 + 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +292,95 @@ mod tests {
             assert!(matches!(listed, Err(ParseError::UnknownFile { .. })));
             assert!(matches!(located, Err(ParseError::UnknownFile { .. })));
         }
+    }
+
+    const OWNED: &str = "/s/main.pkl";
+    const KNOWN: [&str; 2] = ["/s/main.pkl", "/s/lib/dep.pkl"];
+    const FRAMES: &str = "\n131 | renderer.renderDocument(value)\n      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nat pkl.base#Module.output.text (https://github.com/apple/pkl/blob/0.32.1/stdlib/base.pkl#L131)\n";
+
+    fn block(message: &str, snippet: &str, carets: &str, file: &str) -> String {
+        format!(
+            "\u{2013}\u{2013} Pkl Error \u{2013}\u{2013}\n{message}\n\n{snippet}\n{carets}\nat main#x (file://{file}, line 1)\n{FRAMES}"
+        )
+    }
+
+    #[test]
+    fn eval_clean_is_exit_zero_with_quiet_stderr() {
+        assert!(parse_pkl_eval(b"x = 1\n", b"", Some(0), &KNOWN)
+            .expect("ok")
+            .is_empty());
+    }
+
+    #[test]
+    fn eval_reports_a_type_mismatch_with_its_location() {
+        let err = block(
+            "Expected value of type `Int`, but got type `String`.\nValue: \"a\"",
+            "1 | x: Int = \"a\"",
+            "       ^^^",
+            OWNED,
+        );
+        let found = parse_pkl_eval(b"", err.as_bytes(), Some(1), &KNOWN).expect("ok");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, OWNED);
+        assert_eq!(found[0].finding.start.line, 1);
+        assert_eq!(found[0].finding.start.column, 4);
+        assert!(found[0]
+            .finding
+            .message
+            .starts_with("Expected value of type"));
+    }
+
+    #[test]
+    fn eval_reports_an_undefined_property() {
+        let err = block("Cannot find property `y`.", "1 | x = y", "        ^", OWNED);
+        let found = parse_pkl_eval(b"", err.as_bytes(), Some(1), &KNOWN).expect("ok");
+        assert_eq!(found[0].finding.message, "Cannot find property `y`.");
+        assert_eq!(found[0].finding.start.column, 9 - 4);
+    }
+
+    #[test]
+    fn eval_returns_an_error_located_in_an_imported_file_with_its_path() {
+        let err = block(
+            "Cannot find property `y`.",
+            "1 | v = y",
+            "        ^",
+            "/s/lib/dep.pkl",
+        );
+        let found = parse_pkl_eval(b"", err.as_bytes(), Some(1), &KNOWN).expect("ok");
+        assert_eq!(found[0].file, "/s/lib/dep.pkl");
+    }
+
+    #[test]
+    fn eval_decodes_percent_escapes_in_paths() {
+        let known = ["/s/a b.pkl"];
+        let err = block("Oops.", "1 | x", "    ^", "/s/a%20b.pkl");
+        let found = parse_pkl_eval(b"", err.as_bytes(), Some(1), &known).expect("ok");
+        assert_eq!(found[0].file, "/s/a b.pkl");
+    }
+
+    #[test]
+    fn eval_never_reports_an_unexpected_shape_as_clean() {
+        let header = "\u{2013}\u{2013} Pkl Error \u{2013}\u{2013}\n";
+        let no_frame = format!("{header}Refusing to load module `https://x/y.pkl`.\n");
+        assert!(parse_pkl_eval(b"", no_frame.as_bytes(), Some(1), &KNOWN).is_err());
+        assert!(parse_pkl_eval(b"", b"", Some(1), &KNOWN).is_err());
+        assert!(parse_pkl_eval(b"", b"warning\n", Some(0), &KNOWN).is_err());
+        assert!(parse_pkl_eval(b"", b"", Some(2), &KNOWN).is_err());
+        assert!(parse_pkl_eval(b"", b"", None, &KNOWN).is_err());
+        assert!(parse_pkl_eval(&[0xff], b"", Some(0), &KNOWN).is_err());
+        let ok = block("Oops.", "1 | x", "    ^", OWNED);
+        let twice = format!("{ok}{ok}");
+        assert!(parse_pkl_eval(b"", twice.as_bytes(), Some(1), &KNOWN).is_err());
+        let junk = format!("crash\n{ok}");
+        assert!(parse_pkl_eval(b"", junk.as_bytes(), Some(1), &KNOWN).is_err());
+        let stdlib = format!("{header}Oops.\n{FRAMES}");
+        assert!(parse_pkl_eval(b"", stdlib.as_bytes(), Some(1), &KNOWN).is_err());
+    }
+
+    #[test]
+    fn eval_cannot_report_a_file_outside_the_run() {
+        let err = block("Oops.", "1 | x", "    ^", "/elsewhere.pkl");
+        let got = parse_pkl_eval(b"", err.as_bytes(), Some(1), &KNOWN).expect_err("fails");
+        assert!(matches!(got, ParseError::UnknownFile { .. }));
     }
 }

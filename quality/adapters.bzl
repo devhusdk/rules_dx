@@ -92,7 +92,7 @@ REAL_ADAPTERS = {
     "opa": {"format": ["rego"], "typecheck": ["rego"]},
     "perlcritic": {"lint": ["perl"]},
     "perltidy": {"format": ["perl"]},
-    "pkl": {"format": ["pkl"]},
+    "pkl": {"format": ["pkl"], "typecheck": ["pkl"]},
     "regal": {"lint": ["rego"]},
     "luals": {"typecheck": ["lua"]},
     "phpcs": {"lint": ["php"]},

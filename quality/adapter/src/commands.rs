@@ -175,6 +175,28 @@ const ORMOLU_FIX_ARGS: &[&str] = &[
     "never",
 ];
 const PKL_CHECK_ARGS: &[&str] = &["format", "--diff-name-only"];
+/// Offline, cache-free evaluation: only `pkl:` and `file:` modules load, so `package:` and
+/// `https:` imports fail instead of reaching the network, and `--no-project` ignores any PklProject.
+const PKL_EVAL_ARGS: &[&str] = &[
+    "eval",
+    "--no-cache",
+    "--no-project",
+    "--allowed-modules",
+    "pkl:,file:",
+    "--allowed-resources",
+    "prop:,env:,file:",
+];
+/// Load-only evaluation of abstract modules: `-x 1` links imports and checks type names without
+/// forcing values, which an abstract module leaves unset by design.
+const PKL_LOAD_ONLY_ARGS: &[&str] = &[
+    "eval",
+    "--no-cache",
+    "--no-project",
+    "--allowed-modules",
+    "pkl:,file:,repl:",
+    "--allowed-resources",
+    "prop:,env:,file:",
+];
 const PKL_FIX_ARGS: &[&str] = &["format", "-w"];
 const BICEP_FORMAT_CHECK_ARGS: &[&str] = &["format", "--newline-kind", "LF", "--stdout"];
 const BICEP_FORMAT_FIX_ARGS: &[&str] = &["format", "--newline-kind", "LF"];
@@ -1560,6 +1582,25 @@ pub fn ormolu_fix(binary: &Path, files: &[&Path]) -> Invocation {
 
 pub fn pkl_check(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, PKL_CHECK_ARGS, files, "")
+}
+
+/// One evaluation of a single module with file access limited to `root`. Only stderr carries
+/// findings. `load_only` evaluates the constant `1` instead of rendering the module.
+pub fn pkl_eval(binary: &Path, module: &Path, root: &Path, load_only: bool) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    let args = if load_only {
+        PKL_LOAD_ONLY_ARGS
+    } else {
+        PKL_EVAL_ARGS
+    };
+    head.extend(args.iter().map(OsString::from));
+    head.push(OsString::from("--root-dir"));
+    head.push(root.as_os_str().to_owned());
+    if load_only {
+        head.push(OsString::from("-x"));
+        head.push(OsString::from("1"));
+    }
+    assemble(binary, head, &[module], "")
 }
 
 pub fn pkl_fix(binary: &Path, files: &[&Path]) -> Invocation {

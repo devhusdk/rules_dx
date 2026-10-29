@@ -301,7 +301,7 @@ to.
 | `opa` | format, typecheck | rego |
 | `perlcritic` | lint | perl |
 | `perltidy` | format | perl |
-| `pkl` | format | pkl |
+| `pkl` | format, typecheck | pkl |
 | `pmd` | lint | java |
 | `prettier` | format | ansible, api_spec, astro, css, dockerfile, gherkin, graphql, html, javascript, json, kubernetes, php, sql, svelte, typescript, vue, xml |
 | `psscriptanalyzer` | format, lint | powershell |
@@ -1862,7 +1862,8 @@ policy: family 'latex' selects lint tool 'chktex', which has no pinned build on 
 
 ### Pkl
 
-`pkl format` runs from the managed pin for format. Select it in a `pkl` family.
+`pkl format` (format) and `pkl eval` (typecheck) run from the managed pin.
+Select them in a `pkl` family.
 It runs on Linux x86_64.
 
 ```python
@@ -1870,6 +1871,7 @@ quality_family(
     name = "pkl_family",
     family_id = "pkl",
     format = ["pkl"],
+    typecheck = ["pkl"],
 )
 ```
 
@@ -1884,6 +1886,16 @@ check never writes. `--apply` rewrites only the files the selected targets own.
 An unformatted file is reported at the start of the file. A syntax error fails
 the run with the file, line and column. It never counts as clean. `pkl format`
 checks syntax only and does not resolve imports. It takes no config file.
+
+`dx typecheck` runs `pkl eval` once per owned module, offline: only `pkl:` and
+`file:` modules load, nothing is cached, and file access is limited to the
+staged workspace. Imports resolve from `srcs` and `deps`. `package:` and
+`https:` imports and `PklProject` dependencies are not supported. An error is
+reported at its first frame in a file the target owns; an error only in a
+dependency fails the run. An `abstract module` is only loaded, so its syntax,
+imports and type names are checked but its values are not. Pkl is lazy, so only
+what a module renders is forced: hidden and `local` members and unused
+functions are not checked.
 
 To use another Pkl executable, point `tool_pkl` at it.
 

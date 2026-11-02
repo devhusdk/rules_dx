@@ -1,11 +1,14 @@
 """Hermetic LDC acquisition, the pinned rules_d sources and toolchain registration."""
 
-load("//erlang/toolchain:pins.bzl", "CELLS")
-load("//erlang/toolchain:repos.bzl", "CLOSURE_DIR", "runtime_closure")
+load("//erlang/toolchain:pins.bzl", "CELLS", "RUNTIME_MIRROR")
+load("//libs/starlark:deb_closure.bzl", "deb_closure")
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load("//libs/starlark:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
 
 HUB_NAME = "dx_d_toolchains"
+
+CLOSURE_DIR = "dx_closure"
 
 LDC_PREFIX = "dx_d_ldc_"
 
@@ -33,7 +36,6 @@ DROPPED_PATHS = [
     "MODULE.bazel",
     "MODULE.bazel.lock",
     "REPO.bazel",
-    "WORKSPACE",
     "WORKSPACE.bazel",
     "_typos.toml",
     "d/extensions.bzl",
@@ -43,7 +45,6 @@ DROPPED_PATHS = [
     "docs",
     "dub",
     "e2e",
-    "examples",
     "renovate.json",
     "tools",
 ]
@@ -260,31 +261,6 @@ def ldc_runtime(cell):
         fail("LDC cell " + cell + " names runtime packages the cell does not pin: " + repr(wanted))
     return packages
 
-def _rules_d_impl(rctx):
-    rctx.download_and_extract(
-        url = rctx.attr.url,
-        sha256 = rctx.attr.sha256,
-        stripPrefix = "rules_d-" + rctx.attr.version,
-    )
-    for path in DROPPED_PATHS:
-        rctx.delete(path)
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", _ROOT_BUILD)
-    for patch in rctx.attr.patches:
-        rctx.patch(patch, strip = 1)
-    return rctx.repo_metadata(reproducible = True)
-
-_rules_d = repository_rule(
-    implementation = _rules_d_impl,
-    doc = "Fetches the pinned rules_d sources without their module, toolchain and dub setup.",
-    attrs = {
-        "patches": attr.label_list(doc = "Patches applied after extraction."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "url": attr.string(mandatory = True, doc = "Archive URL."),
-        "version": attr.string(mandatory = True, doc = "Pinned rules_d release."),
-    },
-)
-
 def _extract_7z(rctx, cell):
     """Unpacks a .7z LDC archive with the pinned 7-Zip, leaving no extractor or scratch archive behind."""
     seven_zip = seven_zip_fetch(rctx, SEVEN_ZIP_DIR)
@@ -319,7 +295,7 @@ def _ldc_impl(rctx):
     for path in ldc_required_paths(cell):
         if not rctx.path(path).exists:
             fail("LDC archive " + cell.archive + " has no " + path)
-    runtime_closure(rctx, ldc_runtime(rctx.attr.cell))
+    deb_closure(rctx, RUNTIME_MIRROR, ldc_runtime(rctx.attr.cell), CLOSURE_DIR)
     compiler = cell.compiler
     if cell.wrapper:
         compiler = COMPILER_WRAPPER
@@ -353,7 +329,8 @@ _ldc = repository_rule(
     },
 )
 
-def _hub_impl(rctx):
+def hub_build():
+    """Returns the hub BUILD file: one D toolchain per qualified cell."""
     content = []
     for cell in sorted(LDC_CELLS.keys()):
         content.append(_TOOLCHAIN.format(
@@ -361,51 +338,37 @@ def _hub_impl(rctx):
             constraints = repr(LDC_CELLS[cell].exec_compatible_with),
             repo = ldc_repository_name(cell),
         ))
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", "\n".join(content))
-    return rctx.repo_metadata(reproducible = True)
+    return "\n".join(content)
 
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares one D toolchain per qualified cell.",
-)
-
-def _tool_source_impl(rctx):
-    source = TOOL_SOURCES[rctx.attr.tool]
-    rctx.download_and_extract(
-        url = source.url,
-        sha256 = source.sha256,
-        stripPrefix = source.strip_prefix,
-    )
-    for path in source.dropped:
-        rctx.delete(path)
-    for path, content in source.files.items():
-        rctx.file(path, content)
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", TOOL_BUILDS[rctx.attr.tool])
-    return rctx.repo_metadata(reproducible = True)
-
-_tool_source = repository_rule(
-    implementation = _tool_source_impl,
-    doc = "Fetches the pinned sources of one D quality tool.",
-    attrs = {
-        "tool": attr.string(mandatory = True, doc = "Pinned tool source name."),
-    },
-)
+def tool_files(tool):
+    """Returns the files written into one D quality tool source repository."""
+    files = dict(TOOL_SOURCES[tool].files)
+    files["BUILD.bazel"] = TOOL_BUILDS[tool]
+    return files
 
 def _d_impl(mctx):
-    _rules_d(
+    pinned_archive(
         name = "rules_d",
+        dropped = DROPPED_PATHS,
+        files = {"BUILD.bazel": _ROOT_BUILD},
         patches = [Label("//patches/rules_d:pic_link.patch")],
         sha256 = RULES_D_SHA256,
-        url = RULES_D_URL,
-        version = RULES_D_VERSION,
+        strip_prefix = "rules_d-" + RULES_D_VERSION,
+        urls = [RULES_D_URL],
     )
     for cell in sorted(LDC_CELLS.keys()):
         _ldc(name = ldc_repository_name(cell), cell = cell)
-    _hub(name = HUB_NAME)
+    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
     for tool in sorted(TOOL_SOURCES.keys()):
-        _tool_source(name = tool, tool = tool)
+        source = TOOL_SOURCES[tool]
+        pinned_archive(
+            name = tool,
+            dropped = source.dropped,
+            files = tool_files(tool),
+            sha256 = source.sha256,
+            strip_prefix = source.strip_prefix,
+            urls = [source.url],
+        )
     return mctx.extension_metadata(reproducible = True)
 
 d = module_extension(

@@ -1,5 +1,6 @@
 """Hermetic OCaml acquisition and toolchain registration."""
 
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
     ":pins.bzl",
     "OCAML_CELLS",
@@ -126,30 +127,6 @@ def conda_stem(url):
         fail("OCaml package " + url + " is not a .conda archive")
     return name[:-len(".conda")]
 
-def _rules_ocaml_impl(rctx):
-    rctx.download_and_extract(
-        url = rctx.attr.url,
-        sha256 = rctx.attr.sha256,
-        stripPrefix = "rules_ocaml-" + rctx.attr.commit,
-    )
-    for path in DROPPED_PATHS:
-        rctx.delete(path)
-    rctx.file("REPO.bazel", "")
-    for patch in rctx.attr.patches:
-        rctx.patch(patch, strip = 1)
-    return rctx.repo_metadata(reproducible = True)
-
-_rules_ocaml = repository_rule(
-    implementation = _rules_ocaml_impl,
-    doc = "Fetches the pinned rules_ocaml sources with the hermetic OCaml patch.",
-    attrs = {
-        "commit": attr.string(mandatory = True, doc = "Pinned rules_ocaml commit."),
-        "patches": attr.label_list(doc = "Patches applied after extraction."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "url": attr.string(mandatory = True, doc = "Archive URL."),
-    },
-)
-
 def _install_package(rctx, package):
     stem = conda_stem(package.url)
     rctx.download(url = package.url, output = "_conda/" + stem + ".conda", sha256 = package.sha256)
@@ -191,7 +168,8 @@ _dist = repository_rule(
     },
 )
 
-def _hub_impl(rctx):
+def hub_build():
+    """Returns the hub BUILD file: toolchains per cell and emitter, and the target cell aliases."""
     content = []
     for cell in sorted(OCAML_CELLS.keys()):
         for emitter in OCAML_CELLS[cell].emitters:
@@ -211,29 +189,23 @@ def _hub_impl(rctx):
         if alias in EMPTY_DEFAULT_ALIASES:
             cases["//conditions:default"] = ":none"
         content.append(_ALIAS.format(name = alias, cases = repr(cases)))
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", "\n".join(content))
-    return rctx.repo_metadata(reproducible = True)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares the OCaml toolchains per cell and emitter, and the ocamlrun and the install tree of the target cell.",
-)
+    return "\n".join(content)
 
 def _ocaml_impl(mctx):
-    _rules_ocaml(
+    pinned_archive(
         name = "rules_ocaml",
-        commit = RULES_OCAML_COMMIT,
+        dropped = DROPPED_PATHS,
         patches = [
             Label("//patches/rules_ocaml:hermetic_ocaml.patch"),
             Label("//patches/rules_ocaml:native_cc_env.patch"),
         ],
         sha256 = RULES_OCAML_SHA256,
-        url = RULES_OCAML_URL,
+        strip_prefix = "rules_ocaml-" + RULES_OCAML_COMMIT,
+        urls = [RULES_OCAML_URL],
     )
     for cell in sorted(OCAML_CELLS.keys()):
         _dist(name = DIST_PREFIX + cell, cell = cell)
-    _hub(name = HUB_NAME)
+    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
     return mctx.extension_metadata(reproducible = True)
 
 ocaml = module_extension(

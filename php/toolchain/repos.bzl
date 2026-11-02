@@ -1,5 +1,6 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "COMPOSER", "PHPCS", "PHPSTAN", "PHPUNIT", "PHP_CELLS", "PHP_VERSION")
 
 HUB_NAME = "dx_php_toolchains"
@@ -62,68 +63,30 @@ def hub_build(cells):
         ))
     return "\n".join(content)
 
-def _runtime_impl(rctx):
-    rctx.download_and_extract(url = rctx.attr.urls, sha256 = rctx.attr.sha256)
-    if not rctx.path(rctx.attr.interpreter).exists:
-        fail("PHP archive " + rctx.attr.archive + " has no " + rctx.attr.interpreter + " binary")
-    rctx.file(VERSION_FILE, rctx.attr.version + "\n")
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", runtime_build(rctx.attr.version, rctx.attr.interpreter))
-    return rctx.repo_metadata(reproducible = True)
-
-_runtime = repository_rule(
-    implementation = _runtime_impl,
-    doc = "Acquires one pinned static PHP CLI build.",
-    attrs = {
-        "archive": attr.string(mandatory = True, doc = "Release archive name."),
-        "interpreter": attr.string(default = "php", doc = "File name of the PHP binary in the archive."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "urls": attr.string_list(mandatory = True, doc = "Archive URLs, tried in order."),
-        "version": attr.string(mandatory = True, doc = "PHP version the archive holds."),
-    },
-)
-
-def _phar_impl(rctx):
-    rctx.download(url = rctx.attr.urls, output = rctx.attr.file, sha256 = rctx.attr.sha256)
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", 'package(default_visibility = ["//visibility:public"])\n\nexports_files([{}])\n'.format(repr(rctx.attr.file)))
-    return rctx.repo_metadata(reproducible = True)
-
-php_phar = repository_rule(
-    implementation = _phar_impl,
-    doc = "Downloads one pinned PHP archive (phar) and exports it as a file.",
-    attrs = {
-        "file": attr.string(mandatory = True, doc = "File name the phar is exported as."),
-        "sha256": attr.string(mandatory = True, doc = "Phar digest."),
-        "urls": attr.string_list(mandatory = True, doc = "Phar URLs, tried in order."),
-    },
-)
-
-def _hub_impl(rctx):
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", hub_build(PHP_CELLS.keys()))
-    return rctx.repo_metadata(reproducible = True)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares the PHP runtime and exec toolchains per qualified cell.",
-)
+def phar_build(file):
+    """Returns the BUILD file that exports one downloaded phar."""
+    return 'package(default_visibility = ["//visibility:public"])\n\nexports_files([{}])\n'.format(repr(file))
 
 def _php_impl(mctx):
     for cell in sorted(PHP_CELLS.keys()):
-        _runtime(
+        pinned_archive(
             name = RUNTIME_PREFIX + cell,
-            archive = PHP_CELLS[cell].archive,
-            interpreter = PHP_CELLS[cell].interpreter,
+            files = {
+                "BUILD.bazel": runtime_build(PHP_VERSION, PHP_CELLS[cell].interpreter),
+                VERSION_FILE: PHP_VERSION + "\n",
+            },
+            required = [PHP_CELLS[cell].interpreter],
             sha256 = PHP_CELLS[cell].sha256,
             urls = PHP_CELLS[cell].urls,
-            version = PHP_VERSION,
         )
-    _hub(name = HUB_NAME)
-    php_phar(name = "dx_composer", file = "composer.phar", sha256 = COMPOSER.sha256, urls = COMPOSER.urls)
-    php_phar(name = "dx_phpunit", file = "phpunit.phar", sha256 = PHPUNIT.sha256, urls = PHPUNIT.urls)
-    php_phar(name = "dx_phpcs", file = "phpcs.phar", sha256 = PHPCS.sha256, urls = PHPCS.urls)
-    php_phar(name = "dx_phpstan", file = "phpstan.phar", sha256 = PHPSTAN.sha256, urls = PHPSTAN.urls)
+    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
+    for name, file, pin in [
+        ("dx_composer", "composer.phar", COMPOSER),
+        ("dx_phpunit", "phpunit.phar", PHPUNIT),
+        ("dx_phpcs", "phpcs.phar", PHPCS),
+        ("dx_phpstan", "phpstan.phar", PHPSTAN),
+    ]:
+        pinned_archive(name = name, download_as = file, files = {"BUILD.bazel": phar_build(file)}, sha256 = pin.sha256, urls = pin.urls)
     return mctx.extension_metadata(reproducible = True)
 
 php = module_extension(

@@ -1,11 +1,12 @@
 use dx_nested::Case;
 
 const TAMPERED_MODULE: &str = r#"
-php_phar = use_repo_rule("@rules_dx//php/toolchain:repos.bzl", "php_phar")
+pinned_archive = use_repo_rule("@rules_dx//libs/starlark:repo.bzl", "pinned_archive")
 
-php_phar(
+pinned_archive(
     name = "tampered_phar",
-    file = "composer.phar",
+    download_as = "composer.phar",
+    files = {"BUILD.bazel": 'exports_files(["composer.phar"])\n'},
     sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
     urls = ["https://getcomposer.org/download/2.10.3/composer.phar"],
 )

@@ -172,7 +172,7 @@ TOOL_SOURCES = {
         url = "https://github.com/dlang-community/DCD/archive/refs/tags/v" + DCD_VERSION + ".tar.gz",
     ),
     "dx_d_dfmt": struct(
-        dropped = ["bin", "tests", "dub.json", "dub.selections.json", "makefile", "Makefile"],
+        dropped = ["tests", "dub.json", "makefile"],
         files = {"githash.txt": "v" + DFMT_VERSION + "\n"},
         sha256 = "baf8da47a743b0f4a27629bd42b3389a82e91e4d4f88b4ce9487dc15b1518f1f",
         strip_prefix = "dfmt-" + DFMT_VERSION,
@@ -221,7 +221,7 @@ TOOL_SOURCES = {
         url = "https://github.com/dlang-community/libddoc/archive/refs/tags/v" + LIBDDOC_VERSION + ".tar.gz",
     ),
     "dx_d_libdparse": struct(
-        dropped = ["dub.json", "dub.selections.json", "makefile", "Makefile", "tests"],
+        dropped = ["dub.json"],
         files = {},
         sha256 = "83825fda4ce67cac49e1bfdce0051a9e2499a5fadbf3a7f4d0853b487eaebc82",
         strip_prefix = "libdparse-" + LIBDPARSE_VERSION,

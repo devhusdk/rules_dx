@@ -26,32 +26,35 @@ GETOPT_VERSION = "1.0.3"
 TOOL_SOURCES = {
     "dx_elvis": struct(
         dropped = ["src/elvis.app.src"],
-        # Escripts load elvis_config lazily, so the existing-atom lookup fails with badarg.
-        replaced = {"src/elvis.erl": [("list_to_existing_atom(Format)", "list_to_atom(Format)")]},
+        patches = [Label("//patches/elvis:lazy_format.patch")],
         sha256 = "ea0d3438062d94b686b375e98995584ed7b6b8863582f77b1966971299e400f4",
         strip_prefix = "elvis-" + ELVIS_VERSION,
         url = "https://github.com/inaka/elvis/archive/refs/tags/" + ELVIS_VERSION + ".tar.gz",
     ),
     "dx_elvis_core": struct(
         dropped = ["src/elvis_core.app.src"],
+        patches = [],
         sha256 = "b93a464eb500e9e3f199d0dec280af6f2000335c0e0c8bb21af3782119fc5b73",
         strip_prefix = "elvis_core-" + ELVIS_CORE_VERSION,
         url = "https://github.com/inaka/elvis_core/archive/refs/tags/" + ELVIS_CORE_VERSION + ".tar.gz",
     ),
     "dx_erlfmt": struct(
         dropped = ["src/rebar3_fmt_prv.erl"],
+        patches = [],
         sha256 = "c7205f3a28dac589c623f21546d63d5b04cc669545d03485cb88552de0117f43",
         strip_prefix = "erlfmt-" + ERLFMT_VERSION,
         url = "https://github.com/WhatsApp/erlfmt/archive/refs/tags/v" + ERLFMT_VERSION + ".tar.gz",
     ),
     "dx_erlang_getopt": struct(
         dropped = ["ebin"],
+        patches = [],
         sha256 = "e5a4ec9c6312ec5a850dea13ffa2cd50850e694fd79597cf76acb548287134d9",
         strip_prefix = "getopt-" + GETOPT_VERSION,
         url = "https://github.com/jcomellas/getopt/archive/refs/tags/v" + GETOPT_VERSION + ".tar.gz",
     ),
     "dx_katana_code": struct(
         dropped = ["src/katana_code.app.src"],
+        patches = [],
         sha256 = "da09a4b30d191bc000d3fbe8fd08e4161acc43a5cfc67c123c07b78b75562133",
         strip_prefix = "katana-code-" + KATANA_CODE_VERSION,
         url = "https://github.com/inaka/katana-code/archive/refs/tags/" + KATANA_CODE_VERSION + ".tar.gz",

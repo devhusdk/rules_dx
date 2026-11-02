@@ -1,0 +1,54 @@
+"""Shared repository rules that write rendered files and fetch pinned archives."""
+
+def _write_files(rctx):
+    rctx.file("REPO.bazel", "")
+    for path, content in rctx.attr.files.items():
+        rctx.file(path, content)
+
+def _hub_repo_impl(rctx):
+    _write_files(rctx)
+    return rctx.repo_metadata(reproducible = True)
+
+hub_repo = repository_rule(
+    implementation = _hub_repo_impl,
+    doc = "Writes rendered files into a repository that downloads nothing.",
+    attrs = {
+        "files": attr.string_dict(doc = "Repository path to file content."),
+    },
+)
+
+def _pinned_archive_impl(rctx):
+    if rctx.attr.download_as:
+        rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256)
+    else:
+        rctx.download_and_extract(
+            url = rctx.attr.urls,
+            sha256 = rctx.attr.sha256,
+            stripPrefix = rctx.attr.strip_prefix,
+            type = rctx.attr.type,
+        )
+    missing = [path for path in rctx.attr.required + rctx.attr.dropped if not rctx.path(path).exists]
+    if missing:
+        fail("{} archive does not ship {}".format(rctx.name, ", ".join(missing)))
+    for path in rctx.attr.dropped:
+        rctx.delete(path)
+    _write_files(rctx)
+    for patch in rctx.attr.patches:
+        rctx.patch(patch, strip = 1)
+    return rctx.repo_metadata(reproducible = True)
+
+pinned_archive = repository_rule(
+    implementation = _pinned_archive_impl,
+    doc = "Fetches one pinned archive, prunes it, writes rendered files and applies patches.",
+    attrs = {
+        "download_as": attr.string(doc = "File name to download to without extracting."),
+        "dropped": attr.string_list(doc = "Paths deleted after extraction."),
+        "files": attr.string_dict(doc = "Repository path to file content."),
+        "patches": attr.label_list(doc = "Patches applied last with strip 1."),
+        "required": attr.string_list(doc = "Paths the archive must ship."),
+        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
+        "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),
+        "type": attr.string(doc = "Archive type when the URL does not show it."),
+        "urls": attr.string_list(mandatory = True, doc = "Archive URLs, tried in order."),
+    },
+)

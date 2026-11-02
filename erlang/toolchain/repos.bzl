@@ -1,5 +1,7 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
+load("//libs/starlark:deb_closure.bzl", "deb_closure")
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
     ":pins.bzl",
     "CELLS",
@@ -253,34 +255,6 @@ def dropped_application(directory):
     """Returns whether one lib directory is an application the runtime drops."""
     return directory.split("-")[0] in DROPPED_APPLICATIONS
 
-def _rules_erlang_impl(rctx):
-    rctx.download_and_extract(
-        url = rctx.attr.url,
-        sha256 = rctx.attr.sha256,
-        type = "tar.gz",
-        stripPrefix = "rules_erlang-" + rctx.attr.commit,
-    )
-    rctx.delete("MODULE.bazel")
-    rctx.delete("gazelle")
-    rctx.delete("test")
-    rctx.file("BUILD.bazel", _ROOT_BUILD)
-    rctx.file("private/BUILD.bazel", _PRIVATE_BUILD)
-    rctx.file("REPO.bazel", "")
-    for patch in rctx.attr.patches:
-        rctx.patch(patch, strip = 1)
-    return rctx.repo_metadata(reproducible = True)
-
-_rules_erlang = repository_rule(
-    implementation = _rules_erlang_impl,
-    doc = "Fetches the pinned rules_erlang sources with the hermetic OTP patch.",
-    attrs = {
-        "commit": attr.string(mandatory = True, doc = "Pinned rules_erlang commit."),
-        "patches": attr.label_list(doc = "Patches applied after extraction."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "url": attr.string(mandatory = True, doc = "Archive URL."),
-    },
-)
-
 def _link(rctx, target, link):
     rctx.delete(link)
     rctx.symlink(target, link)
@@ -310,32 +284,6 @@ def _prune(rctx):
         for sub in DROPPED_APPLICATION_DIRS:
             rctx.delete(app.get_child(sub))
 
-def runtime_closure(rctx, packages):
-    """Extracts the pinned runtime libraries and their licenses into the closure directory."""
-    for package in packages:
-        scratch = "_debs/" + package.package
-        rctx.download_and_extract(
-            url = RUNTIME_MIRROR + "/" + package.deb,
-            sha256 = package.sha256,
-            output = scratch,
-            type = "deb",
-        )
-        data = [entry for entry in rctx.path(scratch).readdir() if entry.basename.startswith("data.tar")]
-        if len(data) != 1:
-            fail("{} has no single data archive".format(package.deb))
-        rctx.extract(data[0], output = scratch + "/data")
-        for soname, path in package.libraries.items():
-            source = rctx.path(scratch + "/data/" + path)
-            if not source.exists:
-                fail("{} does not ship {}".format(package.deb, path))
-            rctx.rename(source.realpath, CLOSURE_DIR + "/lib/" + soname)
-        if package.copyright != None:
-            copyright = rctx.path(scratch + "/data/" + package.copyright)
-            if not copyright.exists:
-                fail("{} does not ship {}".format(package.deb, package.copyright))
-            rctx.file(CLOSURE_DIR + "/licenses/" + package.package, rctx.read(copyright), executable = False)
-    rctx.delete("_debs")
-
 def _otp_repo_impl(rctx):
     cell = CELLS[rctx.attr.cell]
     rctx.download_and_extract(
@@ -353,7 +301,7 @@ def _otp_repo_impl(rctx):
         fail("OTP archive ships no " + nif_include_dir() + "/erl_nif.h")
     _install(rctx, CLOSURE_DIR if cell.runtime else None)
     if cell.runtime:
-        runtime_closure(rctx, cell.runtime)
+        deb_closure(rctx, RUNTIME_MIRROR, cell.runtime, CLOSURE_DIR)
     rctx.file(VERSION_FILE, OTP_VERSION + "\n")
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", _OTP_BUILD.format(
@@ -372,38 +320,8 @@ _otp_repo = repository_rule(
     },
 )
 
-def replace_once(content, edits, what):
-    """Applies each (old, new) edit to content, failing unless old occurs exactly once."""
-    for old, new in edits:
-        if content.count(old) != 1:
-            fail("%s: expected one %r, found %d" % (what, old, content.count(old)))
-        content = content.replace(old, new)
-    return content
-
-def _tool_source_impl(rctx):
-    source = TOOL_SOURCES[rctx.attr.tool]
-    rctx.download_and_extract(
-        url = source.url,
-        sha256 = source.sha256,
-        stripPrefix = source.strip_prefix,
-    )
-    for path in source.dropped:
-        rctx.delete(path)
-    for path, edits in getattr(source, "replaced", {}).items():
-        rctx.file(path, replace_once(rctx.read(path), edits, rctx.attr.tool + "/" + path))
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", TOOL_BUILDS[rctx.attr.tool])
-    return rctx.repo_metadata(reproducible = True)
-
-_tool_source = repository_rule(
-    implementation = _tool_source_impl,
-    doc = "Fetches the pinned sources of one Erlang quality tool.",
-    attrs = {
-        "tool": attr.string(mandatory = True, doc = "Pinned tool source name."),
-    },
-)
-
-def _hub_impl(rctx):
+def hub_build():
+    """Returns the hub BUILD file: one Erlang toolchain per qualified cell and the erl_nif alias."""
     content = ['load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n']
     for cell in sorted(CELLS.keys()):
         content.append(_TOOLCHAIN.format(
@@ -411,32 +329,40 @@ def _hub_impl(rctx):
             constraints = repr(CELLS[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
         ))
-    rctx.file("REPO.bazel", "")
     content.append(_HUB_NIF.format(
         compatible = repr(nif_compatible_cases(CELLS.keys())),
         deps = repr(nif_header_cases(CELLS.keys())),
     ))
-    rctx.file("BUILD.bazel", "\n".join(content))
-    return rctx.repo_metadata(reproducible = True)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares one Erlang toolchain per qualified host cell.",
-)
+    return "\n".join(content)
 
 def _erlang_impl(mctx):
-    _rules_erlang(
+    pinned_archive(
         name = "rules_erlang",
-        commit = RULES_ERLANG_COMMIT,
+        dropped = ["MODULE.bazel", "gazelle", "test"],
+        files = {
+            "BUILD.bazel": _ROOT_BUILD,
+            "private/BUILD.bazel": _PRIVATE_BUILD,
+        },
         patches = [Label("//patches/rules_erlang:hermetic_otp.patch")],
         sha256 = RULES_ERLANG_SHA256,
-        url = RULES_ERLANG_URL,
+        strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,
+        type = "tar.gz",
+        urls = [RULES_ERLANG_URL],
     )
     for cell in sorted(CELLS.keys()):
         _otp_repo(name = cell_repository_name(cell), cell = cell)
-    _hub(name = HUB_NAME)
+    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
     for tool in sorted(TOOL_SOURCES.keys()):
-        _tool_source(name = tool, tool = tool)
+        source = TOOL_SOURCES[tool]
+        pinned_archive(
+            name = tool,
+            dropped = source.dropped,
+            files = {"BUILD.bazel": TOOL_BUILDS[tool]},
+            patches = source.patches,
+            sha256 = source.sha256,
+            strip_prefix = source.strip_prefix,
+            urls = [source.url],
+        )
     return mctx.extension_metadata(reproducible = True)
 
 erlang = module_extension(

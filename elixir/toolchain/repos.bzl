@@ -2,6 +2,7 @@
 
 load("//elixir/rules:hex.bzl", "hex_extract")
 load("//erlang/toolchain:pins.bzl", "CELLS")
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
     ":pins.bzl",
     "CREDO_PACKAGES",
@@ -12,6 +13,7 @@ load(
     "ELIXIR_URL",
     "ELIXIR_VERSION",
     "RULES_ELIXIR_COMMIT",
+    "RULES_ELIXIR_DROPPED",
     "RULES_ELIXIR_SHA256",
     "RULES_ELIXIR_URL",
 )
@@ -141,30 +143,6 @@ _credo = repository_rule(
     doc = "Builds the pinned Credo and its dependencies from Hex sources.",
 )
 
-def _rules_elixir_impl(rctx):
-    rctx.download_and_extract(
-        url = rctx.attr.url,
-        sha256 = rctx.attr.sha256,
-        stripPrefix = "rules_elixir-" + rctx.attr.commit,
-    )
-    for path in ["MODULE.bazel", "examples", "test", ".bazelversion", ".bazelrc", ".bazelignore"]:
-        rctx.delete(path)
-    rctx.file("REPO.bazel", "")
-    for patch in rctx.attr.patches:
-        rctx.patch(patch, strip = 1)
-    return rctx.repo_metadata(reproducible = True)
-
-_rules_elixir = repository_rule(
-    implementation = _rules_elixir_impl,
-    doc = "Fetches the pinned rules_elixir sources with the hermetic Elixir patch.",
-    attrs = {
-        "commit": attr.string(mandatory = True, doc = "Pinned rules_elixir commit."),
-        "patches": attr.label_list(doc = "Patches applied after extraction."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "url": attr.string(mandatory = True, doc = "Archive URL."),
-    },
-)
-
 def _dist_impl(rctx):
     rctx.download_and_extract(url = ELIXIR_URL, sha256 = ELIXIR_SHA256, type = "zip")
     if rctx.read("VERSION").strip() != ELIXIR_VERSION:
@@ -193,27 +171,17 @@ def hub_build(cells):
         repo = DIST_NAME,
     ) for cell in cells])
 
-def _hub_impl(rctx):
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", hub_build(ELIXIR_CELLS))
-    return rctx.repo_metadata(reproducible = True)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares one Elixir toolchain per qualified OTP cell.",
-)
-
 def _elixir_impl(mctx):
-    _rules_elixir(
+    pinned_archive(
         name = "rules_elixir",
-        commit = RULES_ELIXIR_COMMIT,
-        # The combined diff of the upstream rules_elixir PRs drafted in #3744.
+        dropped = RULES_ELIXIR_DROPPED,
         patches = [Label("//patches/rules_elixir:hermetic_elixir.patch")],
         sha256 = RULES_ELIXIR_SHA256,
-        url = RULES_ELIXIR_URL,
+        strip_prefix = "rules_elixir-" + RULES_ELIXIR_COMMIT,
+        urls = [RULES_ELIXIR_URL],
     )
     _dist(name = DIST_NAME)
-    _hub(name = HUB_NAME)
+    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(ELIXIR_CELLS)})
     _credo(name = CREDO_NAME)
     return mctx.extension_metadata(reproducible = True)
 

@@ -1,6 +1,7 @@
 """Hermetic GHC acquisition and toolchain registration."""
 
 load("//libs/starlark:deb_closure.bzl", "deb_closure")
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
     ":pins.bzl",
     "CELLS",
@@ -319,33 +320,6 @@ def _execute(rctx, arguments, **kwargs):
         fail("{} failed ({}):\n{}{}".format(arguments[0], result.return_code, result.stdout, result.stderr))
     return result
 
-def _rules_haskell_impl(rctx):
-    rctx.download_and_extract(
-        url = rctx.attr.url,
-        sha256 = rctx.attr.sha256,
-        stripPrefix = "rules_haskell-" + rctx.attr.commit,
-    )
-    for path in DROPPED_PATHS:
-        if not rctx.path(path).exists:
-            fail("rules_haskell no longer ships " + path)
-        rctx.delete(path)
-    rctx.file("BUILD.bazel", _ROOT_BUILD)
-    rctx.file("REPO.bazel", "")
-    for patch in rctx.attr.patches:
-        rctx.patch(patch, strip = 1)
-    return rctx.repo_metadata(reproducible = True)
-
-_rules_haskell = repository_rule(
-    implementation = _rules_haskell_impl,
-    doc = "Fetches the pinned rules_haskell sources with the hermetic GHC patch.",
-    attrs = {
-        "commit": attr.string(mandatory = True, doc = "Pinned rules_haskell commit."),
-        "patches": attr.label_list(doc = "Patches applied after extraction."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "url": attr.string(mandatory = True, doc = "Archive URL."),
-    },
-)
-
 def _gmp_registration(rctx):
     confs = [entry for entry in rctx.path(LIBDIR + "/package.conf.d").readdir() if entry.basename.startswith(GMP_PACKAGE + "-")]
     if len(confs) != 1:
@@ -416,7 +390,8 @@ _ghc_repo = repository_rule(
     },
 )
 
-def _hub_impl(rctx):
+def hub_files():
+    """Returns the hub files: the toolchains package and the root runtime closure aliases."""
     toolchains = []
     content = []
     arms = []
@@ -433,25 +408,22 @@ def _hub_impl(rctx):
         arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, cell_repository_name(cell)))
     for name in ["gmp", "licenses"]:
         content.append(_HUB_ALIAS.format(name = name, arms = "\n".join(arms).replace("{name}", name)))
-    rctx.file("REPO.bazel", "")
-    rctx.file(TOOLCHAINS_PACKAGE + "/BUILD.bazel", "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains))
     for name in TOOLCHAIN_LIBRARIES:
         content.append("haskell_toolchain_library(name = \"{}\")\n".format(name))
-    rctx.file("BUILD.bazel", "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content))
-    return rctx.repo_metadata(reproducible = True)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares one Haskell toolchain per qualified host cell and the runtime closure aliases.",
-)
+    return {
+        "BUILD.bazel": "load(\"@rules_haskell//haskell:defs.bzl\", \"haskell_toolchain_library\")\n\npackage(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(content),
+        TOOLCHAINS_PACKAGE + "/BUILD.bazel": "package(default_visibility = [\"//visibility:public\"])\n\n" + "\n".join(toolchains),
+    }
 
 def _haskell_impl(mctx):
-    _rules_haskell(
+    pinned_archive(
         name = "rules_haskell",
-        commit = RULES_HASKELL_COMMIT,
+        dropped = DROPPED_PATHS,
+        files = {"BUILD.bazel": _ROOT_BUILD},
         patches = [Label("//patches/rules_haskell:hermetic_haskell.patch")],
         sha256 = RULES_HASKELL_SHA256,
-        url = RULES_HASKELL_URL,
+        strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,
+        urls = [RULES_HASKELL_URL],
     )
     for cell in sorted(CELLS.keys()):
         _ghc_repo(
@@ -459,7 +431,7 @@ def _haskell_impl(mctx):
             cell = cell,
             python = Label(CELLS[cell].python + "//:bin/python3"),
         )
-    _hub(name = HUB_NAME)
+    hub_repo(name = HUB_NAME, files = hub_files())
     return mctx.extension_metadata(reproducible = True)
 
 haskell = module_extension(

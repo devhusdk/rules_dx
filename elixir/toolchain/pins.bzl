@@ -23,6 +23,8 @@ RULES_ELIXIR_SHA256 = "eae82d40b892603a5d6243b83a6f6096d8da023ed2b7f450e2648b36d
 
 RULES_ELIXIR_URL = "https://github.com/bazelverse/rules_elixir/archive/" + RULES_ELIXIR_COMMIT + ".tar.gz"
 
+RULES_ELIXIR_DROPPED = [".bazelignore", ".bazelrc", ".bazelversion", "MODULE.bazel", "examples", "test"]
+
 # Credo and its dependencies, built from the Hex tarballs (#2349).
 CREDO_PACKAGES = {
     "bunt": struct(

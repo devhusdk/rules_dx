@@ -1,5 +1,6 @@
 """Hermetic Flang acquisition and Fortran toolchain registration."""
 
+load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(
     ":pins.bzl",
     "FLANG_RT_PREFIX",
@@ -94,44 +95,9 @@ def flang_rt_build(template, hub):
     """Returns the flang-rt BUILD file wired to the hub's exec Flang."""
     return template.replace("{flang}", "@" + hub + "//:flang").replace("{compiler_files}", "@" + hub + "//:compiler_files")
 
-def _rules_fortran_impl(rctx):
-    rctx.download_and_extract(
-        url = rctx.attr.url,
-        sha256 = rctx.attr.sha256,
-        stripPrefix = "rules_fortran-" + rctx.attr.commit,
-    )
-    for patch in rctx.attr.patches:
-        rctx.patch(patch, strip = 1)
-    for path in DROPPED_PATHS:
-        rctx.delete(path)
-    rctx.file("REPO.bazel", "")
-    return rctx.repo_metadata(reproducible = True)
-
-_rules_fortran = repository_rule(
-    implementation = _rules_fortran_impl,
-    doc = "Fetches the pinned rules_fortran sources with the rules_dx patches.",
-    attrs = {
-        "commit": attr.string(mandatory = True, doc = "Pinned rules_fortran commit."),
-        "patches": attr.label_list(doc = "Patches applied after extraction."),
-        "sha256": attr.string(mandatory = True, doc = "Archive digest."),
-        "url": attr.string(mandatory = True, doc = "Archive URL."),
-    },
-)
-
-def _flang_impl(rctx):
-    cell = FORTRAN_CELLS[rctx.attr.cell]
-    rctx.download_and_extract(url = cell.url, sha256 = cell.sha256, stripPrefix = cell.strip_prefix)
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", _FLANG_BUILD.format(major = flang_major(FLANG_VERSION), exe = getattr(cell, "exe", "")))
-    return rctx.repo_metadata(reproducible = True)
-
-_flang = repository_rule(
-    implementation = _flang_impl,
-    doc = "Installs the pinned static Flang compiler of one cell.",
-    attrs = {
-        "cell": attr.string(mandatory = True, doc = "Cell key in FORTRAN_CELLS."),
-    },
-)
+def flang_build(cell):
+    """Returns the BUILD file of one cell's Flang repository."""
+    return _FLANG_BUILD.format(major = flang_major(FLANG_VERSION), exe = getattr(FORTRAN_CELLS[cell], "exe", ""))
 
 def _flang_rt_impl(rctx):
     archive = "_src/llvm-project.tar.xz"
@@ -151,7 +117,8 @@ _flang_rt = repository_rule(
     },
 )
 
-def _hub_impl(rctx):
+def hub_build():
+    """Returns the hub BUILD file: one Fortran toolchain per cell and the exec Flang aliases."""
     content = ['load("@rules_dx//fortran/toolchain:toolchain.bzl", "dx_fortran_toolchain")\n\npackage(default_visibility = ["//visibility:public"])\n']
     for cell in sorted(FORTRAN_CELLS.keys()):
         content.append(_TOOLCHAIN.format(
@@ -163,27 +130,27 @@ def _hub_impl(rctx):
     for tool in ["compiler_files", "flang"]:
         cases = {":" + cell + "_exec": "@" + FLANG_PREFIX + cell + "//:" + tool for cell in sorted(FORTRAN_CELLS.keys())}
         content.append(_TOOL.format(name = tool, cases = repr(cases)))
-    rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", "\n".join(content))
-    return rctx.repo_metadata(reproducible = True)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Declares one Fortran toolchain per cell and the exec Flang of the host cell.",
-)
+    return "\n".join(content)
 
 def _fortran_impl(mctx):
-    _rules_fortran(
+    pinned_archive(
         name = "rules_fortran",
-        commit = RULES_FORTRAN_COMMIT,
-        sha256 = RULES_FORTRAN_SHA256,
-        url = RULES_FORTRAN_URL,
+        dropped = DROPPED_PATHS,
         patches = [Label("//patches/rules_fortran:module_map_key.patch")],
+        sha256 = RULES_FORTRAN_SHA256,
+        strip_prefix = "rules_fortran-" + RULES_FORTRAN_COMMIT,
+        urls = [RULES_FORTRAN_URL],
     )
     for cell in sorted(FORTRAN_CELLS.keys()):
-        _flang(name = FLANG_PREFIX + cell, cell = cell)
+        pinned_archive(
+            name = FLANG_PREFIX + cell,
+            files = {"BUILD.bazel": flang_build(cell)},
+            sha256 = FORTRAN_CELLS[cell].sha256,
+            strip_prefix = FORTRAN_CELLS[cell].strip_prefix,
+            urls = [FORTRAN_CELLS[cell].url],
+        )
     _flang_rt(name = FLANG_RT_NAME, build_file = Label("//fortran/toolchain:flang_rt.BUILD.bazel"))
-    _hub(name = HUB_NAME)
+    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
     return mctx.extension_metadata(reproducible = True)
 
 fortran = module_extension(

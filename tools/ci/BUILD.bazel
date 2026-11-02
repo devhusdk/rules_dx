@@ -90,7 +90,7 @@ python_test(
         "//.github:actionlint.yaml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
-        "//.github:workflows/release.yml",
+        "//.github:workflows/release-cells.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",
@@ -806,7 +806,6 @@ rust_test(
     size = "small",
     srcs = ["release_cells_runners_test.rs"],
     data = [
-        "//.github:workflows/release.yml",
         "//.github:workflows/release-cells.yml",
         "//deploy/release:release_matrix",
     ],

@@ -32,15 +32,6 @@ fn upload_loop_assets(text: &str) -> Vec<String> {
     list.split_whitespace().map(str::to_owned).collect()
 }
 
-/// Assets named by the build matrix `- name: dx-*` cells.
-fn matrix_assets(text: &str) -> Vec<String> {
-    text.lines()
-        .filter_map(|line| line.trim().strip_prefix("- name: "))
-        .filter(|name| name.starts_with("dx-"))
-        .map(str::to_owned)
-        .collect()
-}
-
 fn sorted(mut names: Vec<String>) -> Vec<String> {
     names.sort();
     names
@@ -51,13 +42,8 @@ fn expected() -> Vec<String> {
 }
 
 #[test]
-fn the_workflow_builds_every_asset_the_launchers_can_ask_for() {
+fn the_workflow_uploads_every_asset_the_launchers_can_ask_for() {
     let text = workflow();
-    assert_eq!(
-        sorted(matrix_assets(&text)),
-        expected(),
-        "{WORKFLOW} matrix cells differ from ASSETS"
-    );
     assert_eq!(
         sorted(upload_loop_assets(&text)),
         expected(),
@@ -105,7 +91,7 @@ fn the_launchers_download_the_names_the_workflow_uploads() {
 fn the_sidecar_is_hash_two_spaces_name_beside_the_asset() {
     let text = workflow();
     assert!(
-        text.contains("printf '%s  %s\\n' \"$hash\" \"$ASSET\" > \"out/$ASSET.sha256\""),
+        text.contains("printf '%s  %s\\n' \"$hash\" \"$asset\" > \"out/$asset.sha256\""),
         "{WORKFLOW} sidecar is not '<hash>  <name>' in <asset>.sha256"
     );
     let source = read_runfiles(LAUNCHER);
@@ -225,7 +211,7 @@ fn the_source_job_is_read_only_and_gates_the_upload() {
         "{WORKFLOW} source job must stay read-only"
     );
     assert!(!text[source..upload].contains("contents: write"));
-    assert!(text[upload..].contains("needs: [build, source]"));
+    assert!(text[upload..].contains("needs: [cells, source]"));
 }
 
 #[test]
@@ -300,11 +286,12 @@ fn the_prebuilt_version_matches_the_module_and_the_cli() {
 }
 
 #[test]
-fn the_release_build_checks_the_binary_version_against_the_tag() {
+fn the_upload_checks_the_cells_version_and_commit_before_hashing() {
     let text = workflow();
     let check = text
-        .find("want=\"dx ${RELEASE_TAG#v}\"")
+        .find("test \"$CELLS_VERSION\" = \"${RELEASE_TAG#v}\"")
         .expect("version check");
+    assert!(text.contains("test \"$CELLS_SHA\" = \"$CANDIDATE_COMMIT\""));
     let hash = text.find("hash=\"$(sha256sum").expect("hash");
     assert!(
         check < hash,
@@ -364,12 +351,6 @@ fn the_archives_match_the_install_engine_cells() {
         assert!(
             trust.contains(&format!("suffix: \"{suffix}\",")),
             "{TRUST} lacks {suffix}"
-        );
-        let format = suffix.trim_start_matches('.');
-        assert!(
-            text.contains(&format!("- name: {asset}\n            runner:"))
-                && text.contains(&format!("            format: {format}\n")),
-            "{WORKFLOW} format for {asset}"
         );
     }
     assert!(text.contains("dx-windows-*) archive=\"$asset.zip\""));

@@ -781,17 +781,17 @@ fn required_coverage_floor_is_exact_100() {
 }
 
 #[test]
-fn publish_dry_run_enforces_the_required_coverage_floor() {
+fn release_dry_run_enforces_the_required_coverage_floor() {
     let expected = required_coverage_floor();
     let (_, text) = workflow_values()
         .into_iter()
-        .find(|(name, _)| name.ends_with("workflows/publish-dry-run.yml"))
-        .expect("publish-dry-run.yml ships as config_consistency_test data");
+        .find(|(name, _)| name.ends_with("workflows/release.yml"))
+        .expect("release.yml ships as config_consistency_test data");
     assert!(
         coverage_floors(&text)
             .iter()
             .any(|floor| floor == &expected),
-        "publish-dry-run.yml must qualify the release with dx coverage at {expected}"
+        "release.yml must qualify the release with dx coverage at {expected}"
     );
 }
 

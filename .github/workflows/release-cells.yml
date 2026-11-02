@@ -1,10 +1,5 @@
 name: release-cells
 
-# Builds, qualifies and verifies one release archive per cell of //deploy/release:release_matrix on its
-# native runner. Read-only: no signing, no attestation, no upload to a release. publish-dry-run.yml calls
-# it today and release.yml can call it later. The runner map below is checked against the matrix by
-# //tools/ci:release_cells_runners_test.
-
 on:
   workflow_call:
     outputs:

@@ -1,4 +1,4 @@
-//! Pins the runner map of release-cells.yml (and the release.yml build matrix) to the release matrix.
+//! Pins the runner map of release-cells.yml to the release matrix.
 
 use serde_json::Value;
 
@@ -6,7 +6,6 @@ use ci_workflow::document;
 use dx_testing::resolve_runfiles;
 
 const CELLS: &str = ".github/workflows/release-cells.yml";
-const RELEASE: &str = ".github/workflows/release.yml";
 
 /// GitHub-hosted runner labels with the release matrix `(os, machine)` each one runs.
 const RUNNERS: [(&str, &str, &str); 5] = [
@@ -124,14 +123,6 @@ fn cell_rows() -> Vec<(String, String, String)> {
 fn release_cells_runner_map_matches_the_release_matrix() {
     let problems = problems(&document(CELLS), &matrix_cells());
     assert!(problems.is_empty(), "{problems:#?}");
-}
-
-#[test]
-fn release_yml_build_matrix_uses_the_same_runner_map() {
-    // Temporary drift guard until release.yml calls release-cells.yml.
-    let cells = runner_map(&document(CELLS));
-    let release = runner_map(&document(RELEASE));
-    assert_eq!(release, cells, "{RELEASE} differs from {CELLS}");
 }
 
 #[test]

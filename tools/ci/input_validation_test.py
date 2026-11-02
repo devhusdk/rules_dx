@@ -498,7 +498,7 @@ def test_evidence_runners_match_the_validator_platforms(tmp_path):
     )
 
 
-RELEASE_WORKFLOW = ".github/workflows/release.yml"
+RELEASE_WORKFLOW = ".github/workflows/release-cells.yml"
 ACTIONLINT_CONFIG = ".github/actionlint.yaml"
 
 
@@ -516,7 +516,7 @@ def dogfood_platforms(text):
 
 
 def release_runners(text):
-    """Returns the set of runners in the release.yml build matrix."""
+    """Returns the set of runners in the release-cells.yml matrix."""
     return set(re.findall(r"^\s*runner: (\S+)\s*$", text, flags=re.MULTILINE))
 
 

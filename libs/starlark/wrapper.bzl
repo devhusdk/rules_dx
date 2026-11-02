@@ -719,3 +719,24 @@ def dx_args_label_error(name, args, visible_labels, upstream_only):
             if key in [str(native.package_relative_label(item)) for item in labels or []]:
                 return "%s: args names %s, which is only in %s; add it to data" % (name, label, attr_name)
     return None
+
+def dx_source_library(language, extensions, noun):
+    """Defines a rule that owns the source files of one language for dx quality."""
+
+    def _impl(ctx):
+        return [
+            DefaultInfo(files = depset(
+                ctx.files.srcs,
+                transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
+            )),
+            dx_quality_sources(ctx.files.srcs, [(language, extensions)], str(ctx.label)),
+        ]
+
+    return rule(
+        implementation = _impl,
+        doc = "Owns the " + noun + " files of one package for dx quality.",
+        attrs = {
+            "srcs": attr.label_list(allow_files = ["." + ext for ext in extensions], doc = noun + " files of this package."),
+            "deps": attr.label_list(providers = [DefaultInfo], doc = noun + " libraries this package depends on."),
+        },
+    )

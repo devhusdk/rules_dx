@@ -1,14 +1,20 @@
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":wrapper_tests.bzl", "go_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
-    "wrapper_tests.bzl",
 ])
 
-go_wrapper_contract_tests(name = "wrapper_contract_tests")
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    file_classes = [
+        "go",
+        "c",
+        "cpp",
+    ],
+)
 
 real_source_target(
     name = "corpus_starlark",
@@ -16,7 +22,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

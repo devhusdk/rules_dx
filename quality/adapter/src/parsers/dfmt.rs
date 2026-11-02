@@ -1,7 +1,7 @@
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-use super::{as_text, code_name, finding, unformatted_at, FileFinding, ParseError};
+use super::{as_text, code_name, finding, rewrite_format, FileFinding, ParseError};
 
 const TOOL: &str = "dfmt";
 
@@ -30,23 +30,7 @@ pub fn parse_dfmt(
         }
         return Ok(errors);
     }
-    if code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} (want 0)", code_name(code)),
-        });
-    }
-    as_text(TOOL, stdout)?;
-    if stdout.is_empty() && !input.is_empty() {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: "no output for a non-empty file".to_owned(),
-        });
-    }
-    if stdout == input {
-        return Ok(Vec::new());
-    }
-    Ok(vec![unformatted_at(TOOL, file, 1, 1, ColumnEncoding::Utf8)])
+    rewrite_format(TOOL, stdout, code, input, file, ColumnEncoding::Utf8)
 }
 
 fn diagnostics(stderr: &[u8], file: &str) -> Result<Vec<FileFinding>, ParseError> {

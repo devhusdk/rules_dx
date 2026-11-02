@@ -1,4 +1,4 @@
-use super::{as_text, code_name, unformatted_at, FileFinding, ParseError};
+use super::{rewrite_format, FileFinding, ParseError};
 use crate::ColumnEncoding;
 
 pub fn parse_qmlformat(
@@ -7,24 +7,14 @@ pub fn parse_qmlformat(
     input: &[u8],
     file: &str,
 ) -> Result<Vec<FileFinding>, ParseError> {
-    const TOOL: &str = "qmlformat";
-    as_text(TOOL, stdout)?;
-    if code != Some(0) {
-        return Err(ParseError::Shape {
-            tool: TOOL,
-            detail: format!("exit {} (want 0)", code_name(code)),
-        });
-    }
-    if stdout == input {
-        return Ok(Vec::new());
-    }
-    Ok(vec![unformatted_at(
-        TOOL,
+    rewrite_format(
+        "qmlformat",
+        stdout,
+        code,
+        input,
         file,
-        1,
-        1,
         ColumnEncoding::Scalars,
-    )])
+    )
 }
 
 #[cfg(test)]

@@ -882,6 +882,31 @@ pub(super) fn listed_paths(
     Ok(findings)
 }
 
+/// One "file is not formatted" finding when a tool that prints the formatted file differs from its input.
+pub(super) fn rewrite_format(
+    tool: &'static str,
+    stdout: &[u8],
+    code: Option<i32>,
+    input: &[u8],
+    file: &str,
+    encoding: ColumnEncoding,
+) -> Result<Vec<FileFinding>, ParseError> {
+    as_text(tool, stdout)?;
+    if code != Some(0) {
+        return Err(ParseError::Shape {
+            tool,
+            detail: format!("exit {} (want 0)", code_name(code)),
+        });
+    }
+    if stdout.is_empty() && !input.is_empty() {
+        return Err(ParseError::shape(tool, "no output for a non-empty file"));
+    }
+    if stdout == input {
+        return Ok(Vec::new());
+    }
+    Ok(vec![unformatted_at(tool, file, 1, 1, encoding)])
+}
+
 /// The bytes as UTF-8 text, or a shape error naming the tool.
 fn as_text<'a>(tool: &'static str, bytes: &'a [u8]) -> Result<&'a str, ParseError> {
     check_output_size(tool, bytes)?;

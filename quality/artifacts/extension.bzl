@@ -1,356 +1,113 @@
 """Standalone tool acquisition."""
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
-load("//quality/artifacts:actionlint.linux_arm64.bzl", _actionlint_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:actionlint.linux_x86_64.bzl", _actionlint_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:actionlint.macos_arm64.bzl", _actionlint_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:actionlint.windows_arm64.bzl", _actionlint_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:actionlint.windows_x86_64.bzl", _actionlint_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:biome.linux_arm64.bzl", _biome_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:biome.linux_x86_64.bzl", _biome_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:biome.macos_arm64.bzl", _biome_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:biome.windows_arm64.bzl", _biome_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:biome.windows_x86_64.bzl", _biome_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:buf.linux_arm64.bzl", _buf_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:buf.linux_x86_64.bzl", _buf_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:buf.macos_arm64.bzl", _buf_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:buf.windows_arm64.bzl", _buf_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:buf.windows_x86_64.bzl", _buf_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:buildifier.linux_arm64.bzl", _buildifier_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:buildifier.linux_x86_64.bzl", _buildifier_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:buildifier.macos_arm64.bzl", _buildifier_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:buildifier.windows_arm64.bzl", _buildifier_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:buildifier.windows_x86_64.bzl", _buildifier_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:cue.linux_arm64.bzl", _cue_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:cue.linux_x86_64.bzl", _cue_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:cue.macos_arm64.bzl", _cue_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:cue.windows_arm64.bzl", _cue_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:cue.windows_x86_64.bzl", _cue_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ffmt.linux_arm64.bzl", _ffmt_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:ffmt.linux_x86_64.bzl", _ffmt_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ffmt.macos_arm64.bzl", _ffmt_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:ffmt.windows_x86_64.bzl", _ffmt_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:fortitude.linux_arm64.bzl", _fortitude_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:fortitude.linux_x86_64.bzl", _fortitude_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:fortitude.macos_arm64.bzl", _fortitude_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:fortitude.windows_arm64.bzl", _fortitude_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:fortitude.windows_x86_64.bzl", _fortitude_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:gitleaks.linux_arm64.bzl", _gitleaks_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:gitleaks.linux_x86_64.bzl", _gitleaks_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:gitleaks.macos_arm64.bzl", _gitleaks_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:gitleaks.windows_arm64.bzl", _gitleaks_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:gitleaks.windows_x86_64.bzl", _gitleaks_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:gersemi.linux_arm64.bzl", _gersemi_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:gersemi.linux_x86_64.bzl", _gersemi_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:gersemi.macos_arm64.bzl", _gersemi_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:gersemi.windows_arm64.bzl", _gersemi_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:gersemi.windows_x86_64.bzl", _gersemi_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:bicep.linux_arm64.bzl", _bicep_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:bicep.linux_x86_64.bzl", _bicep_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:bicep.macos_arm64.bzl", _bicep_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:bicep.windows_arm64.bzl", _bicep_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:bicep.windows_x86_64.bzl", _bicep_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:checkmake.linux_arm64.bzl", _checkmake_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:checkmake.linux_x86_64.bzl", _checkmake_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:checkmake.macos_arm64.bzl", _checkmake_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:checkmake.windows_arm64.bzl", _checkmake_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:checkmake.windows_x86_64.bzl", _checkmake_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:tflint.linux_arm64.bzl", _tflint_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:tflint.linux_x86_64.bzl", _tflint_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:tflint.macos_arm64.bzl", _tflint_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:tflint.windows_x86_64.bzl", _tflint_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:hadolint.linux_arm64.bzl", _hadolint_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:hadolint.linux_x86_64.bzl", _hadolint_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:hadolint.macos_arm64.bzl", _hadolint_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:hadolint.windows_x86_64.bzl", _hadolint_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:actionlint.bzl", _actionlint = "ARTIFACTS")
+load("//quality/artifacts:bicep.bzl", _bicep = "ARTIFACTS")
+load("//quality/artifacts:biome.bzl", _biome = "ARTIFACTS")
+load("//quality/artifacts:buf.bzl", _buf = "ARTIFACTS")
+load("//quality/artifacts:buildifier.bzl", _buildifier = "ARTIFACTS")
+load("//quality/artifacts:checkmake.bzl", _checkmake = "ARTIFACTS")
+load("//quality/artifacts:checkstyle.bzl", _checkstyle = "SOURCE")
+load("//quality/artifacts:cppcheck.bzl", _cppcheck = "SOURCE")
+load("//quality/artifacts:cue.bzl", _cue = "ARTIFACTS")
+load("//quality/artifacts:ffmt.bzl", _ffmt = "ARTIFACTS")
+load("//quality/artifacts:fortitude.bzl", _fortitude = "ARTIFACTS")
+load("//quality/artifacts:gersemi.bzl", _gersemi = "ARTIFACTS")
+load("//quality/artifacts:gitleaks.bzl", _gitleaks = "ARTIFACTS")
+load("//quality/artifacts:google_java_format.bzl", _google_java_format = "SOURCE")
+load("//quality/artifacts:hadolint.bzl", _hadolint = "ARTIFACTS")
+load("//quality/artifacts:helm.bzl", _helm = "ARTIFACTS")
+load("//quality/artifacts:hlint.bzl", _hlint = "ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "decode_artifacts", "encode_artifacts", "hub_build")
-load("//quality/artifacts:jsonnetfmt.linux_arm64.bzl", _jsonnetfmt_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:jsonnetfmt.linux_x86_64.bzl", _jsonnetfmt_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:jsonnetfmt.macos_arm64.bzl", _jsonnetfmt_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:jsonnetfmt.windows_arm64.bzl", _jsonnetfmt_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:jsonnetfmt.windows_x86_64.bzl", _jsonnetfmt_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:jsonnet_lint.linux_arm64.bzl", _jsonnet_lint_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:jsonnet_lint.linux_x86_64.bzl", _jsonnet_lint_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:jsonnet_lint.macos_arm64.bzl", _jsonnet_lint_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:jsonnet_lint.windows_arm64.bzl", _jsonnet_lint_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:jsonnet_lint.windows_x86_64.bzl", _jsonnet_lint_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:helm.linux_arm64.bzl", _helm_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:helm.linux_x86_64.bzl", _helm_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:helm.macos_arm64.bzl", _helm_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:helm.windows_arm64.bzl", _helm_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:helm.windows_x86_64.bzl", _helm_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:keep_sorted.linux_arm64.bzl", _keep_sorted_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:keep_sorted.linux_x86_64.bzl", _keep_sorted_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:keep_sorted.macos_arm64.bzl", _keep_sorted_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:keep_sorted.windows_x86_64.bzl", _keep_sorted_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:kubeconform.linux_arm64.bzl", _kubeconform_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:kubeconform.linux_x86_64.bzl", _kubeconform_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:kubeconform.macos_arm64.bzl", _kubeconform_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:kubeconform.windows_arm64.bzl", _kubeconform_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:kubeconform.windows_x86_64.bzl", _kubeconform_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:mdbook.linux_arm64.bzl", _mdbook_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:mdbook.linux_x86_64.bzl", _mdbook_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:mdbook.macos_arm64.bzl", _mdbook_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:mdbook.windows_x86_64.bzl", _mdbook_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:nixfmt.linux_x86_64.bzl", _nixfmt_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:hlint.linux_x86_64.bzl", _hlint_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:hlint.windows_x86_64.bzl", _hlint_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ormolu.linux_x86_64.bzl", _ormolu_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ormolu.windows_x86_64.bzl", _ormolu_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:opa.linux_arm64.bzl", _opa_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:opa.linux_x86_64.bzl", _opa_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:opa.macos_arm64.bzl", _opa_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:opa.windows_x86_64.bzl", _opa_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:regal.linux_arm64.bzl", _regal_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:regal.linux_x86_64.bzl", _regal_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:regal.macos_arm64.bzl", _regal_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:regal.windows_x86_64.bzl", _regal_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:pkl.linux_arm64.bzl", _pkl_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:pkl.linux_x86_64.bzl", _pkl_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:pkl.macos_arm64.bzl", _pkl_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:pkl.windows_x86_64.bzl", _pkl_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:jsonnet_lint.bzl", _jsonnet_lint = "ARTIFACTS")
+load("//quality/artifacts:jsonnetfmt.bzl", _jsonnetfmt = "ARTIFACTS")
+load("//quality/artifacts:keep_sorted.bzl", _keep_sorted = "ARTIFACTS")
+load("//quality/artifacts:ktfmt.bzl", _ktfmt = "SOURCE")
+load("//quality/artifacts:ktlint.bzl", _ktlint = "SOURCE")
+load("//quality/artifacts:kubeconform.bzl", _kubeconform = "ARTIFACTS")
+load("//quality/artifacts:latexindent.bzl", _latexindent = "ARTIFACTS")
+load("//quality/artifacts:mdbook.bzl", _mdbook = "ARTIFACTS")
+load("//quality/artifacts:nixfmt.bzl", _nixfmt = "ARTIFACTS")
+load("//quality/artifacts:opa.bzl", _opa = "ARTIFACTS")
+load("//quality/artifacts:ormolu.bzl", _ormolu = "ARTIFACTS")
+load("//quality/artifacts:pkl.bzl", _pkl = "ARTIFACTS")
 load("//quality/artifacts:platforms.bzl", "artifact_platform_key")
-load("//quality/artifacts:ruff.linux_arm64.bzl", _ruff_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:ruff.linux_x86_64.bzl", _ruff_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ruff.macos_arm64.bzl", _ruff_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:ruff.windows_arm64.bzl", _ruff_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:ruff.windows_x86_64.bzl", _ruff_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:scalafmt.linux_arm64.bzl", _scalafmt_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:scalafmt.linux_x86_64.bzl", _scalafmt_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:scalafmt.macos_arm64.bzl", _scalafmt_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:scalafmt.windows_x86_64.bzl", _scalafmt_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:shellcheck.linux_arm64.bzl", _shellcheck_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:shellcheck.linux_x86_64.bzl", _shellcheck_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:shellcheck.macos_arm64.bzl", _shellcheck_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:shellcheck.windows_x86_64.bzl", _shellcheck_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:shfmt.linux_arm64.bzl", _shfmt_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:shfmt.linux_x86_64.bzl", _shfmt_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:shfmt.macos_arm64.bzl", _shfmt_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:shfmt.windows_x86_64.bzl", _shfmt_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:stylua.linux_arm64.bzl", _stylua_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:stylua.linux_x86_64.bzl", _stylua_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:stylua.macos_arm64.bzl", _stylua_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:stylua.windows_x86_64.bzl", _stylua_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:taplo.linux_arm64.bzl", _taplo_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:taplo.linux_x86_64.bzl", _taplo_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:taplo.macos_arm64.bzl", _taplo_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:taplo.windows_arm64.bzl", _taplo_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:taplo.windows_x86_64.bzl", _taplo_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:terraform.linux_arm64.bzl", _terraform_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:terraform.linux_x86_64.bzl", _terraform_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:terraform.macos_arm64.bzl", _terraform_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:terraform.windows_arm64.bzl", _terraform_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:terraform.windows_x86_64.bzl", _terraform_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:latexindent.linux_arm64.bzl", _latexindent_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:latexindent.linux_x86_64.bzl", _latexindent_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:latexindent.macos_arm64.bzl", _latexindent_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:latexindent.windows_x86_64.bzl", _latexindent_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ty.linux_arm64.bzl", _ty_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:ty.linux_x86_64.bzl", _ty_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:ty.macos_arm64.bzl", _ty_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:ty.windows_arm64.bzl", _ty_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:ty.windows_x86_64.bzl", _ty_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:typstyle.linux_arm64.bzl", _typstyle_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:typstyle.linux_x86_64.bzl", _typstyle_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:typstyle.macos_arm64.bzl", _typstyle_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:typstyle.windows_arm64.bzl", _typstyle_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:typstyle.windows_x86_64.bzl", _typstyle_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:uv.linux_arm64.bzl", _uv_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:uv.linux_x86_64.bzl", _uv_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:uv.macos_arm64.bzl", _uv_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:uv.windows_arm64.bzl", _uv_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:uv.windows_x86_64.bzl", _uv_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:vale.linux_arm64.bzl", _vale_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:vale.linux_x86_64.bzl", _vale_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:vale.macos_arm64.bzl", _vale_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:vale.windows_arm64.bzl", _vale_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:vale.windows_x86_64.bzl", _vale_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:wasmtime.linux_arm64.bzl", _wasmtime_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:wasmtime.linux_x86_64.bzl", _wasmtime_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:wasmtime.macos_arm64.bzl", _wasmtime_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:wasmtime.macos_x86_64.bzl", _wasmtime_macos_x86_64 = "ARTIFACT")
-load("//quality/artifacts:wasmtime.windows_arm64.bzl", _wasmtime_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:wasmtime.windows_x86_64.bzl", _wasmtime_windows_x86_64 = "ARTIFACT")
-load("//quality/artifacts:yamlfmt.linux_arm64.bzl", _yamlfmt_linux_arm64 = "ARTIFACT")
-load("//quality/artifacts:yamlfmt.linux_x86_64.bzl", _yamlfmt_linux_x86_64 = "ARTIFACT")
-load("//quality/artifacts:yamlfmt.macos_arm64.bzl", _yamlfmt_macos_arm64 = "ARTIFACT")
-load("//quality/artifacts:yamlfmt.windows_arm64.bzl", _yamlfmt_windows_arm64 = "ARTIFACT")
-load("//quality/artifacts:yamlfmt.windows_x86_64.bzl", _yamlfmt_windows_x86_64 = "ARTIFACT")
+load("//quality/artifacts:pmd.bzl", _pmd = "SOURCE")
+load("//quality/artifacts:regal.bzl", _regal = "ARTIFACTS")
+load("//quality/artifacts:ruff.bzl", _ruff = "ARTIFACTS")
+load("//quality/artifacts:scalafmt.bzl", _scalafmt = "ARTIFACTS")
+load("//quality/artifacts:shellcheck.bzl", _shellcheck = "ARTIFACTS")
+load("//quality/artifacts:shfmt.bzl", _shfmt = "ARTIFACTS")
+load("//quality/artifacts:spotbugs.bzl", _spotbugs = "SOURCE")
+load("//quality/artifacts:stylua.bzl", _stylua = "ARTIFACTS")
+load("//quality/artifacts:taplo.bzl", _taplo = "ARTIFACTS")
+load("//quality/artifacts:terraform.bzl", _terraform = "ARTIFACTS")
+load("//quality/artifacts:tflint.bzl", _tflint = "ARTIFACTS")
+load("//quality/artifacts:ty.bzl", _ty = "ARTIFACTS")
+load("//quality/artifacts:typstyle.bzl", _typstyle = "ARTIFACTS")
+load("//quality/artifacts:uv.bzl", _uv = "ARTIFACTS")
+load("//quality/artifacts:vale.bzl", _vale = "ARTIFACTS")
+load("//quality/artifacts:wasmtime.bzl", _wasmtime = "ARTIFACTS")
+load("//quality/artifacts:yamlfmt.bzl", _yamlfmt = "ARTIFACTS")
+load("//quality/artifacts:zanuda.bzl", _zanuda = "SOURCE")
+load("//quality/tools/ocaml:repos.bzl", "dx_ocaml_duniverse")
 
 _ARTIFACTS = [
-    _actionlint_linux_x86_64,
-    _actionlint_linux_arm64,
-    _actionlint_macos_arm64,
-    _actionlint_windows_x86_64,
-    _actionlint_windows_arm64,
-    _biome_linux_x86_64,
-    _biome_linux_arm64,
-    _biome_macos_arm64,
-    _biome_windows_x86_64,
-    _biome_windows_arm64,
-    _buf_linux_x86_64,
-    _buf_linux_arm64,
-    _buf_macos_arm64,
-    _buf_windows_x86_64,
-    _buf_windows_arm64,
-    _buildifier_linux_x86_64,
-    _buildifier_linux_arm64,
-    _buildifier_macos_arm64,
-    _buildifier_windows_x86_64,
-    _buildifier_windows_arm64,
-    _cue_linux_x86_64,
-    _cue_linux_arm64,
-    _cue_macos_arm64,
-    _cue_windows_x86_64,
-    _cue_windows_arm64,
-    _ffmt_linux_x86_64,
-    _ffmt_linux_arm64,
-    _ffmt_macos_arm64,
-    _ffmt_windows_x86_64,
-    _fortitude_linux_x86_64,
-    _fortitude_linux_arm64,
-    _fortitude_macos_arm64,
-    _fortitude_windows_x86_64,
-    _fortitude_windows_arm64,
-    _gitleaks_linux_x86_64,
-    _gitleaks_linux_arm64,
-    _gitleaks_macos_arm64,
-    _gitleaks_windows_x86_64,
-    _gitleaks_windows_arm64,
-    _gersemi_linux_x86_64,
-    _gersemi_linux_arm64,
-    _gersemi_macos_arm64,
-    _gersemi_windows_x86_64,
-    _gersemi_windows_arm64,
-    _bicep_linux_x86_64,
-    _bicep_linux_arm64,
-    _bicep_macos_arm64,
-    _bicep_windows_x86_64,
-    _bicep_windows_arm64,
-    _checkmake_linux_x86_64,
-    _checkmake_linux_arm64,
-    _checkmake_macos_arm64,
-    _checkmake_windows_x86_64,
-    _checkmake_windows_arm64,
-    _tflint_linux_x86_64,
-    _tflint_linux_arm64,
-    _tflint_macos_arm64,
-    _tflint_windows_x86_64,
-    _hadolint_linux_x86_64,
-    _hadolint_linux_arm64,
-    _hadolint_macos_arm64,
-    _hadolint_windows_x86_64,
-    _jsonnetfmt_linux_x86_64,
-    _jsonnetfmt_linux_arm64,
-    _jsonnetfmt_macos_arm64,
-    _jsonnetfmt_windows_x86_64,
-    _jsonnetfmt_windows_arm64,
-    _jsonnet_lint_linux_x86_64,
-    _jsonnet_lint_linux_arm64,
-    _jsonnet_lint_macos_arm64,
-    _jsonnet_lint_windows_x86_64,
-    _jsonnet_lint_windows_arm64,
-    _helm_linux_x86_64,
-    _helm_linux_arm64,
-    _helm_macos_arm64,
-    _helm_windows_x86_64,
-    _helm_windows_arm64,
-    _keep_sorted_linux_x86_64,
-    _keep_sorted_linux_arm64,
-    _keep_sorted_macos_arm64,
-    _keep_sorted_windows_x86_64,
-    _kubeconform_linux_x86_64,
-    _kubeconform_linux_arm64,
-    _kubeconform_macos_arm64,
-    _kubeconform_windows_x86_64,
-    _kubeconform_windows_arm64,
-    _mdbook_linux_x86_64,
-    _mdbook_linux_arm64,
-    _mdbook_macos_arm64,
-    _mdbook_windows_x86_64,
-    _nixfmt_linux_x86_64,
-    _hlint_linux_x86_64,
-    _hlint_windows_x86_64,
-    _ormolu_linux_x86_64,
-    _ormolu_windows_x86_64,
-    _opa_linux_x86_64,
-    _opa_linux_arm64,
-    _opa_macos_arm64,
-    _opa_windows_x86_64,
-    _regal_linux_x86_64,
-    _regal_linux_arm64,
-    _regal_macos_arm64,
-    _regal_windows_x86_64,
-    _pkl_linux_x86_64,
-    _pkl_linux_arm64,
-    _pkl_macos_arm64,
-    _pkl_windows_x86_64,
-    _ruff_linux_x86_64,
-    _ruff_linux_arm64,
-    _ruff_macos_arm64,
-    _ruff_windows_x86_64,
-    _ruff_windows_arm64,
-    _scalafmt_linux_x86_64,
-    _scalafmt_linux_arm64,
-    _scalafmt_macos_arm64,
-    _scalafmt_windows_x86_64,
-    _shellcheck_linux_x86_64,
-    _shellcheck_linux_arm64,
-    _shellcheck_macos_arm64,
-    _shellcheck_windows_x86_64,
-    _shfmt_linux_x86_64,
-    _shfmt_linux_arm64,
-    _shfmt_macos_arm64,
-    _shfmt_windows_x86_64,
-    _stylua_linux_x86_64,
-    _stylua_linux_arm64,
-    _stylua_macos_arm64,
-    _stylua_windows_x86_64,
-    _taplo_linux_x86_64,
-    _taplo_linux_arm64,
-    _taplo_macos_arm64,
-    _taplo_windows_x86_64,
-    _taplo_windows_arm64,
-    _terraform_linux_x86_64,
-    _terraform_linux_arm64,
-    _terraform_macos_arm64,
-    _terraform_windows_x86_64,
-    _terraform_windows_arm64,
-    _ty_linux_x86_64,
-    _ty_linux_arm64,
-    _ty_macos_arm64,
-    _ty_windows_x86_64,
-    _ty_windows_arm64,
-    _latexindent_linux_x86_64,
-    _latexindent_linux_arm64,
-    _latexindent_macos_arm64,
-    _latexindent_windows_x86_64,
-    _typstyle_linux_x86_64,
-    _typstyle_linux_arm64,
-    _typstyle_macos_arm64,
-    _typstyle_windows_x86_64,
-    _typstyle_windows_arm64,
-    _uv_linux_x86_64,
-    _uv_linux_arm64,
-    _uv_macos_arm64,
-    _uv_windows_x86_64,
-    _uv_windows_arm64,
-    _vale_linux_x86_64,
-    _vale_linux_arm64,
-    _vale_macos_arm64,
-    _vale_windows_x86_64,
-    _vale_windows_arm64,
-    _wasmtime_linux_x86_64,
-    _wasmtime_linux_arm64,
-    _wasmtime_macos_arm64,
-    _wasmtime_windows_x86_64,
-    _wasmtime_windows_arm64,
-    _wasmtime_macos_x86_64,
-    _yamlfmt_linux_x86_64,
-    _yamlfmt_linux_arm64,
-    _yamlfmt_macos_arm64,
-    _yamlfmt_windows_x86_64,
-    _yamlfmt_windows_arm64,
+    artifact
+    for tool in [
+        _actionlint,
+        _bicep,
+        _biome,
+        _buf,
+        _buildifier,
+        _checkmake,
+        _cue,
+        _ffmt,
+        _fortitude,
+        _gersemi,
+        _gitleaks,
+        _hadolint,
+        _helm,
+        _hlint,
+        _jsonnet_lint,
+        _jsonnetfmt,
+        _keep_sorted,
+        _kubeconform,
+        _latexindent,
+        _mdbook,
+        _nixfmt,
+        _opa,
+        _ormolu,
+        _pkl,
+        _regal,
+        _ruff,
+        _scalafmt,
+        _shellcheck,
+        _shfmt,
+        _stylua,
+        _taplo,
+        _terraform,
+        _tflint,
+        _ty,
+        _typstyle,
+        _uv,
+        _vale,
+        _wasmtime,
+        _yamlfmt,
+    ]
+    for artifact in tool.values()
+]
+
+TOOL_SOURCES = [
+    _checkstyle,
+    _cppcheck,
+    _google_java_format,
+    _ktfmt,
+    _ktlint,
+    _pmd,
+    _spotbugs,
+    _zanuda,
 ]
 
 TOOL_ARTIFACTS = _ARTIFACTS
@@ -366,6 +123,35 @@ _standalone_tool_repo = repository_rule(
     implementation = _standalone_tool_repo_impl,
     attrs = ACQUIRE_ATTRS,
 )
+
+def _source_repo(source):
+    kind = source["kind"]
+    if kind == "archive":
+        http_archive(
+            name = source["repo"],
+            build_file = Label(source["build_file"]),
+            sha256 = source["sha256"],
+            strip_prefix = source["strip_prefix"],
+            urls = source["urls"],
+        )
+    elif kind == "file":
+        http_file(
+            name = source["repo"],
+            downloaded_file_path = source["downloaded_file_path"],
+            sha256 = source["sha256"],
+            urls = source["urls"],
+        )
+    elif kind == "duniverse":
+        dx_ocaml_duniverse(
+            name = source["repo"],
+            packages = json.encode([
+                {"dir": p["dir"], "name": p["name"], "sha256": p["sha256"], "url": p["url"]}
+                for p in source["packages"]
+            ]),
+            patches = [Label(patch) for patch in source["patches"]],
+        )
+    else:
+        fail("dx_tools: unsupported source kind for '%s': %s" % (source["repo"], kind))
 
 def _hub_repo_impl(ctx):
     decoded = decode_artifacts(ctx.attr.artifacts)
@@ -452,6 +238,9 @@ def _dx_tools_impl(ctx):
         cpu_x86_64 = cpu_x86_64,
         cpu_arm64 = cpu_arm64,
     )
+    for source in TOOL_SOURCES:
+        _source_repo(source)
+    return ctx.extension_metadata(reproducible = True)
 
 _platform = tag_class(attrs = {
     "cpu_arm64": attr.label(

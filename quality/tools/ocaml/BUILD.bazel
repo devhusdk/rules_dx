@@ -10,8 +10,6 @@ package(default_visibility = ["//visibility:public"])
 exports_files(glob(["patches/*.patch"]) + [
     "cmt_list.bzl",
     "dune_build.bzl",
-    "extension.bzl",
-    "pins.bzl",
     "repos.bzl",
     "tools_tests.bzl",
 ])
@@ -95,8 +93,6 @@ real_source_target(
         "BUILD.bazel",
         "cmt_list.bzl",
         "dune_build.bzl",
-        "extension.bzl",
-        "pins.bzl",
         "repos.bzl",
         "tools_tests.bzl",
     ],

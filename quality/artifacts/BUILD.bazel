@@ -14,7 +14,7 @@ py_binary(
 )
 
 py_test(
-    name = "update_test",
+    name = "update_unit_test",
     size = "small",
     srcs = [
         "update.py",
@@ -55,7 +55,7 @@ test_suite(
         ":corpus_coverage",
         ":metadata",
         ":platforms",
-        ":update_test",
+        ":update_unit_test",
         "//quality/artifacts/acquire_test",
         "//quality/artifacts/hub_test:hub_selection_analysis",
         "//quality/artifacts/hub_test:hub_selection_unit",

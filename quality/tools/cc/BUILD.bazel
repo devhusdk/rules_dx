@@ -1,13 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load(":metadata_tests.bzl", "cc_metadata_tests")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files([
-    "cppcheck.BUILD",
-    "extension.bzl",
-    "repos.bzl",
-])
+exports_files(["cppcheck.BUILD"])
 
 alias(
     name = "cppcheck",
@@ -17,18 +12,6 @@ alias(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = [
-        "BUILD.bazel",
-        "extension.bzl",
-        "metadata_tests.bzl",
-        "repos.bzl",
-    ],
+    starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-cc_metadata_tests(name = "metadata")
-
-test_suite(
-    name = "all",
-    tests = [":metadata"],
 )

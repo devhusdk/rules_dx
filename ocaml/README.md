@@ -145,7 +145,7 @@ findings report the same workspace path.
 - **Build.** `dx_dune_build` (`quality/tools/ocaml/dune_build.bzl`) bootstraps
   dune and builds zanuda in two Bazel actions with the pinned native OCaml,
   the resolved C toolchain, no network and no dune cache. The 22 source
-  archives are pinned in `quality/tools/ocaml/pins.bzl` and unpacked side by
+  archives are pinned in `quality/artifacts/zanuda.bzl` and unpacked side by
   side by `@dx_ocaml_duniverse`. The rule is generic over sources and target.
 - **Patches.** `quality/tools/ocaml/patches/` removes zanuda's dynamic plugin
   loading, adds `-cmt-list FILE` (analyze listed sources and `.cmt` files
@@ -158,7 +158,7 @@ findings report the same workspace path.
   upstream dune-project still says so.
 - **License.** zanuda is LGPL-3.0-only and runs as a separate process; the
   licenses of the whole closure are in `//quality/tools/ocaml:zanuda_licenses`.
-- **Updating.** Change the pins in `pins.bzl` and keep the OCaml version inside
+- **Updating.** Change the pins in `zanuda.bzl` and keep the OCaml version inside
   `ZANUDA_OCAML_RANGES`; `pins_test` fails if the toolchain leaves the range,
   because `.cmt` files only load with the compiler that wrote them.
 

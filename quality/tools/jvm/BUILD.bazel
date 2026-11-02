@@ -1,13 +1,7 @@
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":metadata_tests.bzl", "jvm_metadata_tests")
 
 package(default_visibility = ["//:__subpackages__"])
-
-exports_files([
-    "extension.bzl",
-    "repos.bzl",
-])
 
 java_import(
     name = "google_java_format_import",
@@ -82,18 +76,6 @@ java_binary(
 real_source_target(
     name = "corpus_starlark",
     aspect_hints = ["//:buildifier_config"],
-    starlark_srcs = [
-        "BUILD.bazel",
-        "extension.bzl",
-        "metadata_tests.bzl",
-        "repos.bzl",
-    ],
+    starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-jvm_metadata_tests(name = "metadata")
-
-test_suite(
-    name = "all",
-    tests = [":metadata"],
 )

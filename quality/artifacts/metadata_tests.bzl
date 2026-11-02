@@ -1,7 +1,7 @@
 """Load tests pinning standalone-artifact metadata."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
-load(":extension.bzl", "TOOL_ARTIFACTS")
+load(":extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
 load(":hub.bzl", "artifact_metadata_errors")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")
 
@@ -51,11 +51,35 @@ def _artifact_checks(artifact):
         expect_equal(label + " exe suffix", str(artifact.get("executable", "")).endswith(".exe"), artifact.get("os") == "windows"),
     ]
 
+def _download_checks(label, version, urls, sha256):
+    checks = [
+        expect_true(label + " sha256 is hex", _is_sha256(sha256)),
+        expect_true(label + " urls present", len(urls) > 0),
+    ]
+    for url in urls:
+        checks.append(expect_true(label + " https url", url.startswith("https://")))
+        checks.append(expect_true(label + " url carries version", version in url))
+    return checks
+
+def _source_checks(source):
+    label = source["repo"]
+    if source["kind"] == "duniverse":
+        checks = []
+        for package in source["packages"]:
+            checks += _download_checks(label + " " + package["name"], package["version"], [package["url"]], package["sha256"])
+        return checks
+    return _download_checks(label, source["version"], source["urls"], source["sha256"])
+
 def metadata_tests(name):
     """Declare the standalone-artifact metadata test."""
     checks = [expect_equal("released artifacts carry valid metadata", artifact_metadata_errors(TOOL_ARTIFACTS), [])]
     for artifact in TOOL_ARTIFACTS:
         checks += _artifact_checks(artifact)
+
+    for source in TOOL_SOURCES:
+        checks += _source_checks(source)
+    repos = [source["repo"] for source in TOOL_SOURCES]
+    checks.append(expect_equal("source repos are unique", len(repos), len(depset(repos).to_list())))
 
     derived_repos = sorted(["dx_%s_%s_%s" % (artifact["tool"], artifact["os"], artifact["cpu"]) for artifact in TOOL_ARTIFACTS])
     checks.append(expect_equal("dx tool repos match metadata", DX_TOOL_REPOS, derived_repos))

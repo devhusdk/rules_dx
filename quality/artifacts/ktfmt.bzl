@@ -1,0 +1,13 @@
+"""ktfmt source lock."""
+
+SOURCE = {
+    "downloaded_file_path": "ktfmt.jar",
+    "kind": "file",
+    "repo": "jvm_ktfmt",
+    "sha256": "a015521ddb1c7a80c41edb56b91b4a231439592ffd2e85ac866ff8134c37c112",
+    "urls": [
+        "https://repo1.maven.org/maven2/com/facebook/ktfmt/0.63/ktfmt-0.63-with-dependencies.jar",
+        "https://maven-central.storage-download.googleapis.com/maven2/com/facebook/ktfmt/0.63/ktfmt-0.63-with-dependencies.jar",
+    ],
+    "version": "0.63",
+}

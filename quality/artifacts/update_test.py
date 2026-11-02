@@ -72,7 +72,13 @@ class HelmPinTest(unittest.TestCase):
         spec = update.TOOLS["helm"]
         self.assertEqual(
             sorted(spec["platforms"]),
-            ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            [
+                "linux_arm64",
+                "linux_x86_64",
+                "macos_arm64",
+                "windows_arm64",
+                "windows_x86_64",
+            ],
         )
         for platform in spec["platforms"].values():
             self.assertEqual(platform["checksums_url"], platform["url"] + ".sha256sum")
@@ -116,16 +122,14 @@ class PeMachineTest(unittest.TestCase):
             with open(path, "wb") as handle:
                 handle.write(b"\x7fELF" + bytes(100))
             with self.assertRaises(SystemExit):
-
+                update._check_pe_machine("tool.exe", {"cpu": "x86_64"}, path)
 
 
 class PypiDigestTest(unittest.TestCase):
     SPEC = {"url": "https://files.example/a.whl", "pypi": {"filename": "a.whl"}}
 
     def _meta(self, url="https://files.example/a.whl", sha="abc"):
-        return {
-            "urls": [{"filename": "a.whl", "url": url, "digests": {"sha256": sha}}]
-        }
+        return {"urls": [{"filename": "a.whl", "url": url, "digests": {"sha256": sha}}]}
 
     def test_match(self):
         self.assertIsNone(update._pypi_digest_error(self._meta(), self.SPEC, "abc"))
@@ -172,6 +176,34 @@ class ArgsTest(unittest.TestCase):
             update._parse_args(["--tool"])
         with self.assertRaises(SystemExit):
             update._parse_args(["--tool", "nope"])
+
+
+class EmitTest(unittest.TestCase):
+    def test_one_file_per_tool_keyed_by_platform(self):
+        path, content = update._emit(
+            "demo",
+            {
+                "windows_x86_64": {"tool": "demo", "size": 2},
+                "linux_x86_64": {"tool": "demo", "size": 1},
+            },
+        )
+        self.assertEqual(os.path.basename(path), "demo.bzl")
+        self.assertEqual(
+            content,
+            '"""demo standalone artifact metadata -- GENERATED, do not edit."""\n'
+            "\n"
+            "# buildifier: disable=attr-licenses\n"
+            "ARTIFACTS = {\n"
+            '    "linux_x86_64": {\n'
+            '        "size": 1,\n'
+            '        "tool": "demo",\n'
+            "    },\n"
+            '    "windows_x86_64": {\n'
+            '        "size": 2,\n'
+            '        "tool": "demo",\n'
+            "    },\n"
+            "}\n",
+        )
 
 
 if __name__ == "__main__":

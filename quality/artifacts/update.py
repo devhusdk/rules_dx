@@ -1373,7 +1373,10 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://files.pythonhosted.org/packages/c6/cc/a0cec0548b3f6b791b1c6be146ddf0ccdb072b58cab624f7e2380dfa28a7/ffmt-0.4.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
                 "kind": "zip",
                 "executable": "ffmt-0.4.5.data/scripts/ffmt",
-                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"},
+                "pypi": {
+                    "project": "ffmt",
+                    "filename": "ffmt-0.4.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+                },
             },
             "linux_arm64": {
                 "os": "linux",
@@ -1382,7 +1385,10 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://files.pythonhosted.org/packages/10/51/9a1dd26978fa168e54b2f51379f869a2eeb7d3e0b6927abc260243924c27/ffmt-0.4.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
                 "kind": "zip",
                 "executable": "ffmt-0.4.5.data/scripts/ffmt",
-                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"},
+                "pypi": {
+                    "project": "ffmt",
+                    "filename": "ffmt-0.4.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+                },
             },
             "macos_arm64": {
                 "os": "macos",
@@ -1391,7 +1397,10 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://files.pythonhosted.org/packages/fd/cc/831467148dca74833b69b9f3d66dc23a09320435aeb43ecfa72404861189/ffmt-0.4.5-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
                 "kind": "zip",
                 "executable": "ffmt-0.4.5.data/scripts/ffmt",
-                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl"},
+                "pypi": {
+                    "project": "ffmt",
+                    "filename": "ffmt-0.4.5-py3-none-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
+                },
             },
             "windows_x86_64": {
                 "os": "windows",
@@ -1400,7 +1409,10 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "url": "https://files.pythonhosted.org/packages/f7/d3/71455cfd57d2fa4b031f5be6a0b9517bf0b785fd8fd53605ab637abba7ef/ffmt-0.4.5-py3-none-win_amd64.whl",
                 "kind": "zip",
                 "executable": "ffmt-0.4.5.data/scripts/ffmt.exe",
-                "pypi": {"project": "ffmt", "filename": "ffmt-0.4.5-py3-none-win_amd64.whl"},
+                "pypi": {
+                    "project": "ffmt",
+                    "filename": "ffmt-0.4.5-py3-none-win_amd64.whl",
+                },
             },
         },
     },
@@ -2433,14 +2445,13 @@ def _check_hadolint_shellcheck(workdir):
         sys.exit(error)
 
 
-def _emit(artifact, tool, platform_key):
-    filename = "%s.%s.bzl" % (tool, platform_key)
-    path = os.path.join(_source_dir(), filename)
+def _emit(tool, artifacts):
+    path = os.path.join(_source_dir(), "%s.bzl" % tool)
     content = (
-        '"""%s standalone artifact metadata (%s) -- GENERATED, do not edit."""\n'
+        '"""%s standalone artifact metadata -- GENERATED, do not edit."""\n'
         "\n"
         "# buildifier: disable=attr-licenses\n"
-        "ARTIFACT = %s\n" % (tool, platform_key, _starlark(artifact))
+        "ARTIFACTS = %s\n" % (tool, _starlark(artifacts))
     )
     return path, content
 
@@ -2476,24 +2487,26 @@ def main(argv):
     for tool, config in TOOLS.items():
         if only_tool and tool != only_tool:
             continue
+        artifacts = {}
         for platform_key, spec in config["platforms"].items():
             with tempfile.TemporaryDirectory(prefix="dx-artifacts-") as workdir:
-                artifact = _collect(tool, platform_key, spec, workdir)
-            path, content = _emit(artifact, tool, platform_key)
-            if verify_only:
-                with open(path, encoding="utf-8") as handle:
-                    if handle.read() != content:
-                        print("update: %s is stale or upstream bytes changed" % path)
-                        failed = True
-                    else:
-                        print("update: %s verified" % os.path.basename(path))
-            else:
-                with open(path, "w", encoding="utf-8") as handle:
-                    handle.write(content)
-                print(
-                    "update: wrote %s (%d bytes, sha256 %s...)"
-                    % (path, artifact["size"], artifact["sha256"][:16])
-                )
+                artifacts[platform_key] = _collect(tool, platform_key, spec, workdir)
+        path, content = _emit(tool, artifacts)
+        if verify_only:
+            if not os.path.exists(path):
+                print("update: %s is missing" % path)
+                failed = True
+                continue
+            with open(path, encoding="utf-8") as handle:
+                if handle.read() != content:
+                    print("update: %s is stale or upstream bytes changed" % path)
+                    failed = True
+                else:
+                    print("update: %s verified" % os.path.basename(path))
+        else:
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(content)
+            print("update: wrote %s (%d platforms)" % (path, len(artifacts)))
     if failed:
         sys.exit(1)
 

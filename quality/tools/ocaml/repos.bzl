@@ -1,7 +1,5 @@
 """The source repository dune builds OCaml tools from."""
 
-load(":pins.bzl", "DUNIVERSE")
-
 # Directories that only hold tests, docs or benchmarks; dropping them keeps the
 # source filegroup small and free of files Bazel cannot glob.
 _PRUNED = ["test", "tests", "doc", "docs", "bench", "example", "examples", "review_tests"]
@@ -56,10 +54,3 @@ dx_ocaml_duniverse = repository_rule(
         "patches": attr.label_list(allow_files = [".patch"], doc = "Patches named <dir>.<description>.patch, applied inside <dir> in file name order."),
     },
 )
-
-def duniverse_packages():
-    """Returns the DUNIVERSE entries as the JSON the repository rule takes."""
-    return json.encode([
-        {"dir": p.dir, "name": p.name, "sha256": p.sha256, "url": p.url}
-        for p in DUNIVERSE
-    ])

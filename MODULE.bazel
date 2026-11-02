@@ -717,9 +717,6 @@ use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")
 
 register_toolchains("@dx_ocaml_toolchains//:all")
 
-ocaml_duniverse = use_extension("//quality/tools/ocaml:extension.bzl", "duniverse")
-use_repo(ocaml_duniverse, "dx_ocaml_duniverse")
-
 fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
 use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
 
@@ -1455,6 +1452,7 @@ dx_tools.platform(
 )
 use_repo(
     dx_tools,
+    "cc_cppcheck",
     "dx_actionlint_linux_arm64",
     "dx_actionlint_linux_x86_64",
     "dx_actionlint_macos_arm64",
@@ -1548,6 +1546,7 @@ use_repo(
     "dx_mdbook_macos_arm64",
     "dx_mdbook_windows_x86_64",
     "dx_nixfmt_linux_x86_64",
+    "dx_ocaml_duniverse",
     "dx_opa_linux_arm64",
     "dx_opa_linux_x86_64",
     "dx_opa_macos_arm64",
@@ -1629,6 +1628,12 @@ use_repo(
     "dx_yamlfmt_macos_arm64",
     "dx_yamlfmt_windows_arm64",
     "dx_yamlfmt_windows_x86_64",
+    "jvm_checkstyle",
+    "jvm_google_java_format",
+    "jvm_ktfmt",
+    "jvm_ktlint",
+    "jvm_pmd_dist",
+    "jvm_spotbugs_dist",
 )
 
 yard = use_extension("//tools/docs/ruby:repos.bzl", "yard", dev_dependency = True)
@@ -1640,20 +1645,6 @@ use_repo(
     "dx_firefox",
     "dx_firefox_linux_arm64",
     "dx_firefox_linux_x86_64",
-)
-
-cc_tools = use_extension("//quality/tools/cc:extension.bzl", "cc_tools")
-use_repo(cc_tools, "cc_cppcheck")
-
-jvm_tools = use_extension("//quality/tools/jvm:extension.bzl", "jvm_tools")
-use_repo(
-    jvm_tools,
-    "jvm_checkstyle",
-    "jvm_google_java_format",
-    "jvm_ktfmt",
-    "jvm_ktlint",
-    "jvm_pmd_dist",
-    "jvm_spotbugs_dist",
 )
 
 _hub_fixture_repo = use_repo_rule("//quality/artifacts/hub_test:repos.bzl", "hub_fixture_repo")

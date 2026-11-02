@@ -1,7 +1,6 @@
 # Documentation Instructions
 
-- User docs live in `docs/cli/commands/`, `docs/github-ci.md`, `docs/adopting-existing-bazel.md`, the generated `docs/support-matrix.md`, and short READMEs. Nothing else is user docs.
-- Delete anything else. Do not move internal docs. Do not link to them.
+- Docs are for people who use or release rules_dx: command pages, guides, tutorials, the generated `docs/support-matrix.md`, READMEs, and runbooks like `RELEASING.md`.
 - One page per command or task. Commands first. Short sentences.
 - User docs stay complete: every command page documents its flags, scopes, output, reports, exit codes, and examples. Match `dx <command> --help`.
 - Delete rationale, history, alternatives, status notes, qualification notes, and issue numbers. If a user does not type it or decide it, delete it.

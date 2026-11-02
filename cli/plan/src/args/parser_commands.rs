@@ -9,10 +9,10 @@ use dx_testing::cli::strings;
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
-        "security", "license", "update", "bump", "add", "upgrade", "docs", "status", "init",
+        "security", "license", "update", "bump", "upgrade", "docs", "status", "init",
     ] {
         let base = match command {
-            "bump" | "add" => vec![command, "cargo:demo", "1.0.0"],
+            "bump" => vec![command, "cargo:demo", "1.0.0"],
             "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
             _ => vec![command],
         };
@@ -84,7 +84,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
 
 fn required_words(name: &str) -> &'static [&'static str] {
     match name {
-        "bump" | "add" => &["cargo:demo", "1.0.0"],
+        "bump" => &["cargo:demo", "1.0.0"],
         "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "watch" => &["run", "//:demo"],
@@ -369,79 +369,6 @@ fn bump_needs_exactly_one_selector_plus_version() {
         ])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
-            option: "--".to_owned(),
-        })
-    );
-}
-
-#[test]
-fn add_needs_exactly_one_selector_plus_version() {
-    let add = parse(&strings(&["add", "cargo:serde", "1.2.3"])).expect("parse add");
-    assert_eq!(add.command, Command::Add);
-    assert_eq!(add.command.name(), "add");
-    assert!(!add.command.is_adoption());
-    assert!(!add.command.is_managed());
-    assert_eq!(
-        add.targets,
-        vec!["cargo:serde".to_owned(), "1.2.3".to_owned()]
-    );
-    assert_eq!(
-        parse(&strings(&["add"])),
-        Err(ArgsError::MissingValue {
-            option: "<set:package> <version>".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["add", "cargo:serde"])),
-        Err(ArgsError::MissingValue {
-            option: "<set:package> <version>".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["add", "cargo:serde", "1.2.3", "npm:react"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "add",
-            option: "npm:react".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "add",
-            "cargo:serde",
-            "1.2.3",
-            "--fail-on=error"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "add",
-            option: "--fail-on".to_owned(),
-        })
-    );
-    let got = parse(&strings(&["add", "cargo:serde", "1.2.3", "--output=json"])).expect("add json");
-    assert_eq!(got.command, Command::Add);
-    assert_eq!(got.output, OutputMode::Json);
-    assert_eq!(
-        parse(&strings(&["add", "cargo:serde", "1.2.3", "--output=diff"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "add",
-            option: "--output=diff".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "add",
-            "cargo:serde",
-            "1.2.3",
-            "--report=sarif=out.sarif"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "add",
-            option: "--report=sarif=out.sarif".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["add", "cargo:serde", "1.2.3", "--", "--jobs=4"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "add",
             option: "--".to_owned(),
         })
     );
@@ -1228,25 +1155,6 @@ fn generate_refuses_external_labels_but_takes_main_repo_forms() {
 }
 
 #[test]
-fn add_accepts_apply_offline_and_frozen() {
-    let got = parse(&strings(&[
-        "add",
-        "npm:vue",
-        "3.5.42",
-        "--apply",
-        "--offline",
-        "--frozen",
-    ]))
-    .expect("add flags");
-    assert_eq!(got.command, Command::Add);
-    assert!(got.applies());
-    assert!(got.offline);
-    assert!(got.frozen);
-    let check = parse(&strings(&["add", "npm:vue", "3.5.42"])).expect("add check");
-    assert!(!check.applies());
-}
-
-#[test]
 fn init_with_and_full_select_parts() {
     use dx_adopt::{InitPart, InitParts};
     let parts = |words: &[&str]| parse(&strings(words)).expect("parses").init_parts;
@@ -1325,7 +1233,7 @@ fn floor_and_reason_parse_only_on_bump() {
     assert_eq!(bare.reason, None);
     for words in [
         vec!["update", "--floor"],
-        vec!["add", "bazel:rules_cc", "0.2.0", "--floor"],
+        vec!["build", "bazel:rules_cc", "0.2.0", "--floor"],
         vec!["update", "--reason", "x"],
         vec!["build", "//a:one", "--reason", "x"],
     ] {

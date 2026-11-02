@@ -75,9 +75,9 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         Command::Bump => &[
             CODE_BUMP_WIDENED,
             CODE_BUMP_NO_CHANGE,
+            CODE_ADD_DECLARED,
             CODE_UPDATE_SET_SUCCESS,
         ],
-        Command::Add => &[CODE_ADD_DECLARED, CODE_UPDATE_SET_SUCCESS],
         Command::Codegen | Command::Env => &[CODE_MANAGED_DRIFT],
         Command::Worktree => &[],
         Command::Init => &[CODE_INIT_PLAN_PARTIAL],

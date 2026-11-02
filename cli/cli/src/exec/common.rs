@@ -221,7 +221,6 @@ pub(crate) const CODE_MANAGED_NO_CAPABILITY: &str = "no_capability";
 pub(crate) const CODE_AUDIT_FAILED: &str = "audit_failed";
 pub(crate) const CODE_UPDATE_FAILED: &str = "update_failed";
 pub(crate) const CODE_BUMP_FAILED: &str = "bump_failed";
-pub(crate) const CODE_ADD_FAILED: &str = "add_failed";
 pub(crate) const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub(crate) const CODE_FROZEN_LOCKED: &str = "frozen_locked";
 /// Runs `git` in `workspace` and returns its stdout; a launch error or a non-zero exit is an error.

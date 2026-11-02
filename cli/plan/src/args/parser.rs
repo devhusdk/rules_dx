@@ -719,7 +719,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
-    if matches!(command, Command::Bump | Command::Add) {
+    if matches!(command, Command::Bump) {
         if targets.len() > 2 {
             return Err(extra_positional(command, &targets[2]));
         }

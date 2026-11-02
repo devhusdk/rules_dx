@@ -1,10 +1,12 @@
 use super::*;
-use crate::request::BumpPlanOutcome;
+use crate::request::{BumpPlanOutcome, ConfiguredKind};
+
+fn request(selector: &str, version: &str) -> AddRequest {
+    AddRequest::from_bump(&BumpRequest::parse(selector, version).expect("bump request"))
+}
 
 fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError> {
-    AddRequest::parse(selector, version)
-        .expect("request")
-        .plan_insert(content)
+    request(selector, version).plan_insert(content)
 }
 
 /// `dx bump` reads what `dx add` wrote: the same version is current, a higher one widens.
@@ -43,66 +45,6 @@ fn assert_declared(selector: &str, content: &str, manifest: &str) {
 }
 
 #[test]
-fn sets_are_the_bump_sets_without_github_actions() {
-    let expected: Vec<BumpSet> = BumpSet::ALL
-        .into_iter()
-        .filter(|set| *set != BumpSet::GithubActions)
-        .collect();
-    assert_eq!(AddRequest::SETS.to_vec(), expected);
-    assert_eq!(AddRequest::pipe_list(), "bazel|cargo|go|maven|npm|nuget");
-}
-
-#[test]
-fn parse_rejects_bump_only_targets_with_a_hint() {
-    for selector in ["github-actions:actions/checkout", "github-actions"] {
-        let error = AddRequest::parse(selector, "v4").expect_err("rejected");
-        assert!(matches!(error, AddError::UnsupportedSet { .. }), "{error}");
-        assert!(
-            error.to_string().contains("dx bump github-actions:"),
-            "{error}"
-        );
-    }
-    let error = AddRequest::parse("bazel:.bazelversion", "8.0.0").expect_err("rejected");
-    assert!(
-        error.to_string().contains("dx bump bazel:.bazelversion"),
-        "{error}"
-    );
-    assert_eq!(AddRequest::parse("", "1.0.0"), Err(AddError::Empty));
-    assert_eq!(AddRequest::parse("cargo:demo", ""), Err(AddError::Empty));
-    assert_eq!(
-        AddRequest::parse("cargo", "1.0.0"),
-        Err(AddError::BareSet {
-            set: "cargo".to_owned()
-        })
-    );
-    assert!(matches!(
-        AddRequest::parse("//foo:bar", "1.0.0"),
-        Err(AddError::NotAPackage { .. })
-    ));
-    let unknown = AddRequest::parse("pip:demo", "1.0.0").expect_err("unknown");
-    assert!(
-        unknown
-            .to_string()
-            .contains("bazel|cargo|go|maven|npm|nuget"),
-        "{unknown}"
-    );
-    assert!(matches!(
-        AddRequest::parse("cargo:demo", "^1"),
-        Err(AddError::Bump(BumpError::Version(_)))
-    ));
-    for message in [
-        AddError::Empty.to_string(),
-        unknown.to_string(),
-        AddError::BareSet {
-            set: "cargo".to_owned(),
-        }
-        .to_string(),
-    ] {
-        assert!(!message.contains("bump"), "{message}");
-    }
-}
-
-#[test]
 fn bazel_inserts_after_the_last_dep() {
     let before = "module(name = \"m\")\n\nbazel_dep(name = \"a\", version = \"1.0.0\")\n\nuse_repo(x, \"y\")\n";
     let after = add("bazel:demo", "1.2.3", before).expect("insert");
@@ -125,13 +67,13 @@ fn bazel_inserts_after_the_last_dep() {
 
 #[test]
 fn configured_bazel_sets_insert_into_their_manifest() {
-    let request =
-        AddRequest::parse_configured("tools", "tools/MODULE.bazel", "tools:demo", "1.2.3")
-            .expect("request");
+    let request = AddRequest::from_bump(
+        &BumpRequest::parse_configured("tools", "tools/MODULE.bazel", "tools:demo", "1.2.3")
+            .expect("request"),
+    );
     assert_eq!(request.target_manifest(), "tools/MODULE.bazel");
     assert!(request.needs_update_refresh());
     assert_eq!(request.target.refresh_command(), "bazel mod deps");
-    assert!(request.summary().contains("`bazel mod deps`"));
     let after = request
         .plan_insert("module(name = \"t\")\n")
         .expect("insert");
@@ -338,8 +280,8 @@ fn configured(
     kind: ConfiguredKind,
     repository: Option<&str>,
     selector: &str,
-) -> Result<AddRequest, AddError> {
-    AddRequest::parse_configured_set(
+) -> Result<AddRequest, BumpError> {
+    BumpRequest::parse_configured_set(
         kind,
         "tools",
         &["apps/tools/manifest".to_owned()],
@@ -347,6 +289,7 @@ fn configured(
         selector,
         "1.2.3",
     )
+    .map(|bump| AddRequest::from_bump(&bump))
 }
 
 #[test]
@@ -416,12 +359,4 @@ fn configured_maven_adds_to_the_named_repository_install() {
     .expect("request")
     .plan_insert(&content);
     assert!(matches!(missing, Err(AddError::UnsupportedManifest { .. })));
-}
-
-#[test]
-fn configured_uv_sets_are_refused() {
-    assert!(matches!(
-        configured(ConfiguredKind::Uv, None, "tools:demo"),
-        Err(AddError::UnsupportedSet { .. })
-    ));
 }

@@ -166,7 +166,7 @@ fn reserved_commands_are_usage_errors_with_their_tip() {
 fn plain_words(command: Command) -> Vec<String> {
     let mut words = vec![command.name().to_owned()];
     match command {
-        Command::Bump | Command::Add => words.extend(strings(&["cargo:demo", "1.0.0"])),
+        Command::Bump => words.extend(strings(&["cargo:demo", "1.0.0"])),
         Command::Upgrade => {
             words.extend(strings(&["--from=1.0.0", "--to=2.0.0"]));
         }

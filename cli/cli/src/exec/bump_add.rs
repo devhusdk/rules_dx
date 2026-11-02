@@ -1,80 +1,48 @@
 use super::common::*;
 use super::dep_edit;
-use dx_output::{command_started, OutputMode};
-use dx_plan::args::{Command, Invocation};
-use dx_plan::reports::plan_reports;
+use dx_plan::args::Invocation;
 
 const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
-    command: "add",
+    command: "bump",
     noun: "add",
     set_action: "add to",
     notice_code: CODE_ADD_DECLARED,
-    failure_code: CODE_ADD_FAILED,
+    failure_code: CODE_BUMP_FAILED,
     noop_note: "pinned module lock; no-op success; go.sum is not refreshed",
 };
 
-pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
-    debug_assert!(
-        invocation.command == Command::Add,
-        "add dispatch guards commands"
-    );
-    let Env {
+pub(super) struct Io<'a> {
+    pub(super) workspace: &'a std::path::Path,
+    pub(super) runner: &'a dyn dx_process::Runner,
+    pub(super) query_runner: &'a dyn dx_plan::resolve::QueryRunner,
+    pub(super) out: &'a mut dyn std::io::Write,
+    pub(super) err: &'a mut dyn std::io::Write,
+}
+
+/// Declares a package `dx bump` could not find; `missing` is the not-found failure.
+pub(super) fn add_missing(
+    invocation: &Invocation,
+    io: Io<'_>,
+    bump: &dx_bump::BumpRequest,
+    missing: &str,
+) -> i32 {
+    let Io {
         workspace,
         runner,
         query_runner,
         out,
         err,
-        ..
-    } = env;
-    if let Err(error) = plan_reports(
-        workspace,
-        invocation.command,
-        &invocation.reports,
-        &invocation.output,
-    ) {
-        return pre_exec(invocation.output, out, err, &error.to_string());
+    } = io;
+    let unsupported = bump.set == dx_bump::BumpSet::GithubActions
+        || bump
+            .configured_kind()
+            .is_some_and(|kind| kind == dx_bump::ConfiguredKind::Uv);
+    if unsupported {
+        return operational(invocation, out, err, CODE_BUMP_FAILED, missing);
     }
-    if invocation.targets.len() != 2 {
-        return pre_exec(
-            invocation.output,
-            out,
-            err,
-            "add needs exactly <selector> <version>",
-        );
-    }
-    let (selector, version) = (&invocation.targets[0], &invocation.targets[1]);
-    let parsed = match dep_edit::configured_set(&ADD_VERB, invocation, out, err, workspace, true) {
-        Ok(Some(configured)) => dx_bump::AddRequest::parse_configured_set(
-            configured.kind,
-            &configured.name,
-            &configured.manifests,
-            configured.repository.as_deref(),
-            selector,
-            version,
-        ),
-        Ok(None) => dx_bump::AddRequest::parse(selector, version),
-        Err(exit) => return exit,
-    };
-    let request = match parsed {
-        Ok(request) => request,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-    };
-    let verbose = invocation.chatty();
+    let request = dx_bump::AddRequest::from_bump(bump);
     let applies = invocation.applies();
-    if invocation.output == OutputMode::Json {
-        let mode = if applies { "default" } else { "check" };
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
-            return exit;
-        }
-    } else if verbose && applies {
-        let summary = frozen_summary(
-            offline_summary(request.summary(), invocation.offline),
-            invocation.frozen,
-        );
-        if let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
-            return exit;
-        }
-    }
+    let verbose = invocation.chatty();
     if applies {
         if let Err(exit) = dep_edit::preflight(
             &ADD_VERB,
@@ -91,17 +59,17 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
     let manifest = request.target_manifest().to_owned();
     let inserted = match plan_insert(&request, workspace, &manifest) {
         Ok(inserted) => inserted,
-        Err(message) => return operational(invocation, out, err, CODE_ADD_FAILED, &message),
+        Err(message) => return operational(invocation, out, err, CODE_BUMP_FAILED, &message),
     };
     if !applies {
         let message = format!(
-            "add pending: {} {} is not declared in {manifest} (run `dx add {} {} --apply`)",
+            "bump pending: {} {} is not declared in {manifest} (run `dx bump {} {} --apply`)",
             request.selector,
             request.version.display(),
             request.selector,
             request.version.display(),
         );
-        return operational(invocation, out, err, CODE_ADD_FAILED, &message);
+        return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
     }
     let refresh = if request.target.configured.is_some() {
         request.target.refresh_command()
@@ -159,5 +127,5 @@ fn plan_insert(
 }
 
 #[cfg(test)]
-#[path = "add_tests.rs"]
+#[path = "bump_add_tests.rs"]
 mod tests;

@@ -186,7 +186,6 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::Clean
             | Command::Update
             | Command::Bump
-            | Command::Add
             | Command::Upgrade
             | Command::Completion
             | Command::Init
@@ -548,7 +547,7 @@ mod tests {
     fn completing_words(command: Command) -> Vec<String> {
         let owned = |words: &[&str]| words.iter().map(|word| (*word).to_owned()).collect();
         match command {
-            Command::Bump | Command::Add => owned(&["rust:serde", "1.0.0"]),
+            Command::Bump => owned(&["rust:serde", "1.0.0"]),
             Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["lint"]),

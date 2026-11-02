@@ -413,13 +413,14 @@ bazel run @rules_dx//:dx -- update --apply npm-adopt npm-adopt-polyglot uv-adopt
 dx bump [--apply] [--offline] [--frozen] [--floor] [--reason=<text>] <set:package> <version>
 ```
 
-Widens one declared requirement to a new version. Checks by default;
-`--apply` widens. Without `--apply`, bump exits `0` when the manifest already
+Widens one requirement to a new version, or declares it when missing. Checks by default;
+`--apply` writes. Without `--apply`, bump exits `0` when the manifest already
 declares the version and exits `1` with `bump drift` when a widen is pending.
 Takes exactly one
 `set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
-`go`, `maven`, `npm`, `nuget`. The package must already be declared in the
-manifest, or the run fails without writing.
+`go`, `maven`, `npm`, `nuget`. A package the manifest does not declare yet is
+added at that exact version. `github-actions`, `bazel:.bazelversion` and
+configured `uv` sets cannot add; the run fails without writing.
 
 A `bazel` module has two versions. The floor, in its `bazel_dep`, is the oldest
 version consumers may resolve. The tested version, in a root-only
@@ -480,9 +481,15 @@ needs a refresh under `--offline` fails before widening with
 `offline_required`, and `--frozen` fails before widening with
 `frozen_locked`.
 
+A missing package is inserted in the same manifest and shape the widen edits:
+a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line,
+a `maven.install` coordinate, a `dependencies` entry in `package.json`, or a
+`nuget` line in `paket.dependencies`. It then refreshes like a widen. Without
+`--apply`, bump exits `1` with `bump pending`.
+
 `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
-Output: `--output text|json`. JSON emits a `bump_widened` notice for each
+Output: `--output text|json`. JSON emits an `add_declared` notice for an insert, a `bump_widened` notice for each
 written manifest and an `update_set_success` notice after the lock refresh.
 Exit codes: 0 success, 2 usage or scope errors, 1 a pending widen without
 `--apply` or an operational failure.
@@ -491,63 +498,7 @@ Exit codes: 0 success, 2 usage or scope errors, 1 a pending widen without
 bazel run @rules_dx//:dx -- bump --apply cargo:anyhow 1.0.100
 bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
 bazel run @rules_dx//:dx -- bump --apply bazel-modules:rules_cc 0.3.0
-```
-
-## `dx add`
-
-```text
-dx add [--apply] [--offline] [--frozen] <set:package> <version>
-```
-
-Declares one new requirement at an exact version. Checks by default;
-`--apply` adds. Without `--apply`, add exits `1` with `add pending` and
-writes nothing. Takes exactly one `set:package` plus one version, never a
-batch. Sets: `bazel`, `cargo`, `go`, `maven`, `npm`, `nuget`. The package
-must not be declared yet: a declared package fails in both modes and names
-the `dx bump` command that changes its version.
-
-Each set writes the same manifest `dx bump` widens and keeps every other byte:
-
-- `bazel`: a `bazel_dep` after the last top-level `bazel_dep` in
-  `MODULE.bazel`.
-- `cargo`: a `[dependencies]` entry, kept sorted when the table already is.
-- `go`: a `require` line in the first direct `require` block of `go.mod`.
-- `maven`: a coordinate at the end of the `artifacts` of the
-  `maven.install` that feeds the default `@maven` repository.
-- `npm`: a `dependencies` entry in `package.json`.
-- `nuget`: a `nuget` line in the main group of `paket.dependencies`.
-
-A configured `bazel`, `cargo`, `go`, `maven`, `npm`, or `nuget` set from
-`dx.toml` is selected as `<set>:<package>` and adds to the set's own manifest,
-in the same shape as the built-in set. A configured `cargo` set needs exactly
-one `Cargo.toml` (`add needs exactly one Cargo.toml in set <set>`). A
-configured `maven` set adds to the `maven.install` that feeds the set's
-`repository`. A read-only set fails without writing. Configured `uv`,
-`ruby`, and `powershell` sets fail with `add is not supported`. A configured
-`nuget` set never refreshes: the add reports `run paket update` instead of a
-refresh.
-`github-actions` and `bazel:.bazelversion` are usage errors: add the `uses:`
-step by hand, or change the pin with `dx bump`.
-
-`cargo`, `maven`, `npm`, and `nuget` refresh automatically through
-`dx update --apply <set>`. `go` refreshes as a no-op and does not update
-`go.sum`. `bazel` is file-only. A failed refresh keeps the add and exits `1`.
-A set that needs a refresh under `--offline` fails before writing with
-`offline_required`. `--frozen` always fails before writing with
-`frozen_locked`.
-
-`--fail-on`, `--report`, and Bazel options do not apply.
-`--bazel-startup-option` applies to the Bazel run that refreshes the lock.
-Output: `--output text|json`. JSON emits an `add_declared` notice for the
-written manifest and an `update_set_success` notice after the lock refresh.
-Exit codes: 0 success, 2 usage or scope errors, 1 a pending add without
-`--apply`, a declared package, or an operational
-failure.
-
-```sh
-bazel run @rules_dx//:dx -- add --apply cargo:serde 1.0.200
-bazel run @rules_dx//:dx -- add --apply npm:vue 3.5.42
-bazel run @rules_dx//:dx -- add --apply bazel-modules:rules_go 0.50.0
+bazel run @rules_dx//:dx -- bump --apply npm:vue 3.5.42
 ```
 
 ## Consumer dependency sets (`dx.toml`)
@@ -556,7 +507,7 @@ A workspace outside `rules_dx` declares its own dependency sets in a
 committed `dx.toml` at the workspace root. When `dx.toml` declares at least
 one `[[dependency_set]]`, `update`, `security`, and `license` resolve names and
 scopes from it instead of the built-in sets. No built-in set is selected for
-those commands. `bump` and `add` use the built-in selectors, such as `cargo:anyhow`,
+those commands. `bump` uses the built-in selectors, such as `cargo:anyhow`,
 only when the selector head names no declared set. `rules_dx` itself is such a workspace: its
 root `dx.toml` declares the 14 sets listed above under their built-in names, so every command
 reads them from that file. A path or label that names a declared manifest or lock, such as
@@ -649,7 +600,7 @@ text_present = true
 
 `dx update` reports a `bazel` set as pinned. `dx update --apply`
 changes nothing; change a pin with `dx bump <set>:<module> <version>`.
-`dx bump --apply` and `dx add --apply` on a configured `bazel` set then refresh
+`dx bump --apply` on a configured `bazel` set then refresh
 its lock with `bazel mod deps --lockfile_mode=update`, run in the set's
 directory. The set must list exactly the `MODULE.bazel.lock` beside its
 manifest in `locks`; `--offline`, `--frozen` and any other lock layout refuse

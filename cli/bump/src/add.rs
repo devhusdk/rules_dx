@@ -1,11 +1,8 @@
-//! `dx add`: declare one new requirement in the manifest `dx bump` widens.
+//! Declares a requirement `dx bump` found missing.
 
-use super::request::{
-    parse_configured_selector, parse_foreign_selector, parse_selector, BumpError, BumpRequest,
-    ConfiguredKind, ConfiguredSet, DepTarget,
-};
+use super::request::{BumpError, BumpRequest, DepTarget};
 use super::sets::BumpSet;
-use super::version::{self, WidenVersion};
+use super::version::WidenVersion;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AddRequest {
@@ -17,14 +14,6 @@ pub struct AddRequest {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum AddError {
-    #[error("empty add selector or version; expected `dx add <set:package> <version>`")]
-    Empty,
-    #[error("unknown add selector {selector:?}; expected {} as `set:package` (e.g. cargo:anyhow, maven:junit:junit)", AddRequest::pipe_list())]
-    UnknownSelector { selector: String },
-    #[error("add needs one package, not a whole set: {set:?} selects the set; use `{set}:<package> <version>`")]
-    BareSet { set: String },
-    #[error("add needs `set:package`, not a label or path: {target:?}")]
-    NotAPackage { target: String },
     #[error("add does not support {selector:?}: {hint}")]
     UnsupportedSet {
         selector: String,
@@ -41,10 +30,6 @@ pub enum AddError {
 impl From<BumpError> for AddError {
     fn from(error: BumpError) -> AddError {
         match error {
-            BumpError::Empty => AddError::Empty,
-            BumpError::UnknownSelector { selector } => AddError::UnknownSelector { selector },
-            BumpError::BareSet { set } => AddError::BareSet { set },
-            BumpError::NotAPackage { target } => AddError::NotAPackage { target },
             BumpError::UnsupportedManifest { manifest, reason } => {
                 AddError::UnsupportedManifest { manifest, reason }
             }
@@ -55,120 +40,16 @@ impl From<BumpError> for AddError {
 
 const GITHUB_ACTIONS_HINT: &str =
     "add the `uses:` step to the workflow, then pin it with `dx bump github-actions:<owner/repo> <tag-or-sha>`";
-const UV_HINT: &str =
-    "configured uv sets have no insert plan; add the requirement to pyproject.toml, then run `dx update --apply`";
-const BAZELVERSION_HINT: &str =
-    ".bazelversion always pins one Bazel version; change it with `dx bump bazel:.bazelversion <version>`";
 
 impl AddRequest {
-    /// The sets `dx add` declares packages in, in help and docs order.
-    pub const SETS: [BumpSet; 6] = [
-        BumpSet::Bazel,
-        BumpSet::Cargo,
-        BumpSet::Go,
-        BumpSet::Maven,
-        BumpSet::Npm,
-        BumpSet::NuGet,
-    ];
-
-    pub fn names() -> Vec<&'static str> {
-        Self::SETS.iter().map(|set| set.name()).collect()
-    }
-
-    pub fn pipe_list() -> String {
-        Self::names().join("|")
-    }
-
-    pub fn parse(selector: &str, version: &str) -> Result<AddRequest, AddError> {
-        if selector.is_empty() || version.is_empty() {
-            return Err(AddError::Empty);
+    /// The insert request for the package a bump request names.
+    pub fn from_bump(bump: &BumpRequest) -> AddRequest {
+        AddRequest {
+            target: bump.target(),
+            version: bump.version.clone(),
+            selector: bump.selector.clone(),
+            raw_version: bump.raw_version.clone(),
         }
-        if selector.split_once(':').map(|(head, _)| head) == Some(BumpSet::GithubActions.name())
-            || selector == BumpSet::GithubActions.name()
-        {
-            return Err(AddError::UnsupportedSet {
-                selector: selector.to_owned(),
-                hint: GITHUB_ACTIONS_HINT,
-            });
-        }
-        let (set, package) = parse_selector(selector)?;
-        if set == BumpSet::Bazel && package == ".bazelversion" {
-            return Err(AddError::UnsupportedSet {
-                selector: selector.to_owned(),
-                hint: BAZELVERSION_HINT,
-            });
-        }
-        let parsed = version::parse(set, version).map_err(BumpError::from)?;
-        Ok(AddRequest {
-            target: DepTarget {
-                set,
-                package,
-                manifest: None,
-                configured: None,
-            },
-            version: parsed,
-            selector: selector.to_owned(),
-            raw_version: version.to_owned(),
-        })
-    }
-
-    /// Parses a request against a configured dx.toml set of `kind` with all its manifests.
-    pub fn parse_configured_set(
-        kind: ConfiguredKind,
-        set_name: &str,
-        manifests: &[String],
-        repository: Option<&str>,
-        selector: &str,
-        version: &str,
-    ) -> Result<AddRequest, AddError> {
-        if selector.is_empty() || version.is_empty() {
-            return Err(AddError::Empty);
-        }
-        if kind == ConfiguredKind::Uv {
-            return Err(AddError::UnsupportedSet {
-                selector: selector.to_owned(),
-                hint: UV_HINT,
-            });
-        }
-        let package = match kind {
-            ConfiguredKind::Bazel => parse_configured_selector(set_name, selector)?,
-            _ => parse_foreign_selector(set_name, kind, selector)?,
-        };
-        let set = kind.grammar();
-        let parsed = version::parse(set, version).map_err(BumpError::from)?;
-        Ok(AddRequest {
-            target: DepTarget {
-                set,
-                package,
-                manifest: manifests.first().cloned(),
-                configured: Some(ConfiguredSet {
-                    name: set_name.to_owned(),
-                    kind,
-                    manifests: manifests.to_vec(),
-                    repository: repository.map(str::to_owned),
-                }),
-            },
-            version: parsed,
-            selector: selector.to_owned(),
-            raw_version: version.to_owned(),
-        })
-    }
-
-    /// Parses a request against a configured dx.toml bazel set that owns `manifest`.
-    pub fn parse_configured(
-        set_name: &str,
-        manifest: &str,
-        selector: &str,
-        version: &str,
-    ) -> Result<AddRequest, AddError> {
-        Self::parse_configured_set(
-            ConfiguredKind::Bazel,
-            set_name,
-            &[manifest.to_owned()],
-            None,
-            selector,
-            version,
-        )
     }
 
     pub fn set(&self) -> BumpSet {
@@ -189,25 +70,6 @@ impl AddRequest {
 
     pub fn target_manifest(&self) -> &str {
         self.target.target_manifest()
-    }
-
-    pub fn summary(&self) -> String {
-        let through = if let Some(follow_up) = self.target.follow_up() {
-            follow_up
-        } else if self.needs_update_refresh() {
-            format!(
-                "then refresh via `{}` automatically",
-                self.target.refresh_command()
-            )
-        } else {
-            "then preset flag-diff review plus `bazel build //...`".to_owned()
-        };
-        format!(
-            "Add {} at {} to {} ({through})",
-            self.selector,
-            self.version.display(),
-            self.target_manifest(),
-        )
     }
 
     /// The `dx bump` request for the same package and version.

@@ -1,8 +1,8 @@
-mod add;
 mod affected;
 mod audit;
 mod build_failures;
 mod bump;
+mod bump_add;
 mod changed_coverage;
 mod clean;
 pub mod common;
@@ -262,7 +262,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Security | Command::License => audit::execute_audit(invocation, env),
         Command::Update => update::execute_update(invocation, env),
         Command::Bump => bump::execute_bump(invocation, env),
-        Command::Add => add::execute_add(invocation, env),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
             quality::execute_quality(invocation, env)
@@ -333,13 +332,12 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 12] = [
+    const NO_BAZEL_BUILD: [Command; 11] = [
         Command::Security,
         Command::License,
         Command::Clean,
         Command::Update,
         Command::Bump,
-        Command::Add,
         Command::Upgrade,
         Command::Status,
         Command::Watch,
@@ -444,7 +442,6 @@ mod tests {
             vec!["license", "--dry-run=false"],
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
-            vec!["add", "cargo:anyhow", "1.2.3", "--dry-run"],
             vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
         ] {
             let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));

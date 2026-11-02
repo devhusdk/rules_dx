@@ -81,7 +81,6 @@ mod tests {
         Command::Clean,
         Command::Update,
         Command::Bump,
-        Command::Add,
         Command::Codegen,
         Command::Env,
         Command::Init,

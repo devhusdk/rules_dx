@@ -1,4 +1,4 @@
-//! Insert planners for the manifests `dx add` writes. Each one keeps every other byte.
+//! Insert planners for the manifests a missing `dx bump` package is written to. Each one keeps every other byte.
 
 use crate::request::plans::{paket_tokens, JsonScan, NPM_SECTIONS};
 

@@ -24,7 +24,6 @@ Commands:
   clean       prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
   update      update dependencies per set through qualified resolvers (check by default; --apply writes updates)
   bump        widen one declared requirement to a new version (check by default; --apply widens)
-  add         declare one new requirement at an exact version (check by default; --apply adds)
   codegen     materialize declared generated source (check by default; --apply writes)
   env         collect the managed development environment (check by default; --apply writes managed state)
   init        start or adopt a dx workspace in this or a new directory (absent-only; check by default; --apply scaffolds)

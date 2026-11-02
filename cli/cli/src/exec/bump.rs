@@ -1,3 +1,4 @@
+use super::bump_add;
 use super::common::*;
 use super::dep_edit;
 pub use dx_bump::gha::COMMIT_JSON_ENV;
@@ -67,7 +68,18 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     );
     let verbose = invocation.chatty();
     if !invocation.applies() {
-        return check_bump(invocation, out, err, workspace, &request, verbose);
+        return check_bump(
+            invocation,
+            bump_add::Io {
+                workspace,
+                runner,
+                query_runner,
+                out,
+                err,
+            },
+            &request,
+            verbose,
+        );
     }
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
@@ -82,6 +94,16 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(planned) => planned,
         Err(WidenFailure::Usage(message)) => {
             return pre_exec(invocation.output, out, err, &message);
+        }
+        Err(WidenFailure::Missing(message)) => {
+            let io = bump_add::Io {
+                workspace,
+                runner,
+                query_runner,
+                out,
+                err,
+            };
+            return bump_add::add_missing(invocation, io, &request, &message);
         }
         Err(WidenFailure::Failed(message)) => {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
@@ -167,12 +189,17 @@ fn configured_request(
 
 fn check_bump(
     invocation: &Invocation,
-    out: &mut dyn std::io::Write,
-    err: &mut dyn std::io::Write,
-    workspace: &std::path::Path,
+    io: bump_add::Io<'_>,
     request: &dx_bump::BumpRequest,
     verbose: bool,
 ) -> i32 {
+    let bump_add::Io {
+        workspace,
+        runner,
+        query_runner,
+        out,
+        err,
+    } = io;
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "check")) {
             return exit;
@@ -182,6 +209,16 @@ fn check_bump(
         Ok(planned) => planned,
         Err(WidenFailure::Usage(message)) => {
             return pre_exec(invocation.output, out, err, &message);
+        }
+        Err(WidenFailure::Missing(message)) => {
+            let io = bump_add::Io {
+                workspace,
+                runner,
+                query_runner,
+                out,
+                err,
+            };
+            return bump_add::add_missing(invocation, io, request, &message);
         }
         Err(WidenFailure::Failed(message)) => {
             return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
@@ -293,6 +330,7 @@ fn widen_targets(
 /// Why a widen could not be planned: a refused argument (exit 2) or a failed edit.
 enum WidenFailure {
     Usage(String),
+    Missing(String),
     Failed(String),
 }
 
@@ -339,6 +377,12 @@ fn plan_widens(
                 planned.push((manifest, text, false));
             }
             Err(dx_bump::BumpError::NotFound { .. }) if request.set.spans_manifests() => {}
+            Err(error @ dx_bump::BumpError::NotFound { .. }) => {
+                return Err(WidenFailure::Missing(format!(
+                    "failed to widen {}: {error}",
+                    request.selector
+                )));
+            }
             Err(error) if error.is_usage() => {
                 return Err(WidenFailure::Usage(format!(
                     "failed to widen {}: {error}",
@@ -365,15 +409,14 @@ fn plan_widens(
         } else {
             request.target_manifest().to_owned()
         };
-        return Err(format!(
+        return Err(WidenFailure::Missing(format!(
             "failed to widen {}: {}",
             request.selector,
             dx_bump::BumpError::NotFound {
                 manifest,
                 package: request.package.clone(),
             }
-        )
-        .into());
+        )));
     }
     Ok(planned)
 }
@@ -700,9 +743,6 @@ scopes = ["tools/ps"]
         let (code, _, err) = harness.run(&["bump", "crates:serde", "2.0.0", "--frozen", "--apply"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("frozen_locked"), "{err}");
-        let (code, _, err) = harness.run(&["bump", "crates:missing", "2.0.0", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("any manifest of set crates"), "{err}");
         let (code, _, err) = harness.run(&["bump", "crates", "2.0.0", "--apply"]);
         assert_eq!(code, 2, "{err}");
         let (code, _, err) = harness.run(&[
@@ -804,10 +844,6 @@ scopes = ["tools/ps"]
             assert_eq!(code, 1, "{err}");
             assert!(err.contains(want), "{err}");
         }
-        let (code, _, err) =
-            harness.run(&["bump", "jvm:com.google.guava:guava", "33.0.0", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("no declared requirement"), "{err}");
         harness.write_source("third_party/maven_install.json", "{}\n");
         harness.write_source(
             "dx.toml",
@@ -1064,16 +1100,10 @@ scopes = ["tools"]
             "scopes = [\"third_party/go\"]\nwritable = false",
             1,
         );
-        let cases: [(&str, Option<&str>, Vec<&str>, &str); 4] = [
+        let cases: [(&str, Option<&str>, Vec<&str>, &str); 3] = [
             ("frozen", None, vec!["--frozen"], "frozen_locked"),
             ("offline", None, vec!["--offline"], "offline_required"),
             ("readonly", Some(&writable_false), vec![], "read-only set"),
-            (
-                "missing",
-                None,
-                vec!["--missing"],
-                "no declared requirement",
-            ),
         ];
         for (name, dx_toml, flags, want) in cases {
             let harness = go_harness(&format!("bump-consumer-go-refuse-{name}"));
@@ -1087,11 +1117,7 @@ scopes = ["tools"]
                 "v0.7.0",
                 "--apply",
             ];
-            if flags == ["--missing"] {
-                words[1] = "gomods:example.com/absent";
-            } else {
-                words.extend(flags);
-            }
+            words.extend(flags);
             let (code, out, err) = run_go(&harness, &runner, &words);
             assert_eq!(code, 1, "{name}: {out}{err}");
             assert!(format!("{out}{err}").contains(want), "{name}: {out}{err}");
@@ -1855,13 +1881,10 @@ scopes = ["tools"]
         let (code, out, err) = harness.run(&["bump", "bazel:rules_cc", "0.2.22", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(read(), after, "second run is a no-op");
-        for (selector, reason) in [
-            (
-                "bazel:rules_rust",
-                "bazel_dep \"rules_rust\" at line 10 has a computed version",
-            ),
-            ("bazel:rules_go", "no declared requirement for \"rules_go\""),
-        ] {
+        for (selector, reason) in [(
+            "bazel:rules_rust",
+            "bazel_dep \"rules_rust\" at line 10 has a computed version",
+        )] {
             let (code, _, err) = harness.run(&["bump", selector, "1.0.0", "--apply"]);
             assert_eq!(code, 1, "{err}");
             assert!(err.contains(reason), "{err}");
@@ -1961,16 +1984,14 @@ scopes = ["tools"]
     }
 
     #[test]
-    fn live_missing_requirement_fails_without_writing() {
+    fn live_missing_requirement_is_added() {
         let harness = Harness::new("bump-live-missing");
         seed(&harness, HELLO_CARGO, "[dependencies]\nserde = \"1\"\n");
         let (code, _, err) = harness.run(&["bump", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("bump_failed"), "{err}");
-        assert!(err.contains("no declared requirement"), "{err}");
+        assert_eq!(code, 0, "{err}");
         assert_eq!(
             std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read"),
-            "[dependencies]\nserde = \"1\"\n"
+            "[dependencies]\nanyhow = \"1.2.3\"\nserde = \"1\"\n"
         );
     }
 
@@ -2484,21 +2505,12 @@ scopes = ["tools"]
     }
 
     #[test]
-    fn cargo_crate_missing_from_every_manifest_fails_without_writing() {
+    fn cargo_crate_missing_from_every_manifest_is_added_to_the_default_manifest() {
         let harness = Harness::new("bump-cargo-missing-everywhere");
         seed_cargo(&harness, &CARGO_TREE);
         let (code, _, err) = harness.run(&["bump", "cargo:tokio", "1.2.3", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(
-            err.contains(
-                "no declared requirement for \"tokio\" in any of the 3 manifests of the crate.from_cargo hub in MODULE.bazel"
-            ),
-            "{err}"
-        );
-        for (path, text) in CARGO_TREE {
-            assert_eq!(read(&harness, path), text, "{path}");
-        }
-        assert!(harness.seen_env.borrow().is_empty());
+        assert_eq!(code, 0, "{err}");
+        assert!(read(&harness, HELLO_CARGO).contains("tokio = \"1.2.3\""));
     }
 
     #[test]

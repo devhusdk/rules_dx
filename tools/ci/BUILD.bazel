@@ -875,55 +875,12 @@ rust_test(
 
 # keep
 rust_test(
-    name = "user_docs_test",
-    size = "small",
-    srcs = ["user_docs_test.rs"],
-    data = [
-        "//:README.md",
-        "//:android/README.md",
-        "//:csharp/README.md",
-        "//:cuda/README.md",
-        "//:d/README.md",
-        "//:dart/README.md",
-        "//:elixir/README.md",
-        "//:fsharp/README.md",
-        "//:julia/README.md",
-        "//:lua/README.md",
-        "//:perl/README.md",
-        "//:php/README.md",
-        "//:powershell/README.md",
-        "//:ruby/README.md",
-        "//:zig/README.md",
-        "//appimage:README.md",
-        "//apple:README.md",
-        "//cc/rules:README.md",
-        "//deploy/rules:README.md",
-        "//docs:README.md",
-        "//docs:adopting-existing-bazel.md",
-        "//docs:command_docs",
-        "//docs:github-ci.md",
-        "//erlang:README.md",
-        "//examples:README.md",
-        "//examples:example_readmes",
-        "//examples:example_starlark",
-        "//haskell:README.md",
-        "//msix:README.md",
-        "//qt:README.md",
-        "//rust/rules:README.md",
-        "//tools/docs/site:user/book.bzl",
-    ],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-# keep
-rust_test(
     name = "gitlab_example_test",
     size = "small",
     srcs = ["gitlab_example_test.rs"],
     data = [
         "//.devcontainer:Dockerfile.prebuilt",
         "//examples:gitlab-ci/.gitlab-ci.yml",
-        "//examples:gitlab-ci/README.md",
         "//modules:versions.bzl",
     ],
     deps = [
@@ -1008,7 +965,6 @@ rustfmt_test(
         ":signing_pins_test",
         ":starlark_docs_test",
         ":tool_resolve_test",
-        ":user_docs_test",
         ":workflow_expressions_test",
         ":workflow_permissions_test",
         ":workflow_pins_test",

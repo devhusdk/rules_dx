@@ -9,65 +9,6 @@ exports_files([
     "gitlab-ci/.gitlab-ci.yml",
 ])
 
-ADOPT_READMES = [
-    "//examples/adopt-android:README.md",
-    "//examples/adopt-cpp:README.md",
-    "//examples/adopt-csharp:README.md",
-    "//examples/adopt-dart:README.md",
-    "//examples/adopt-fsharp:README.md",
-    "//examples/adopt-go:README.md",
-    "//examples/adopt-java:README.md",
-    "//examples/adopt-js-ts:README.md",
-    "//examples/adopt-kotlin:README.md",
-    "//examples/adopt-polyglot:README.md",
-    "//examples/adopt-powershell:README.md",
-    "//examples/adopt-python:README.md",
-    "//examples/adopt-ruby:README.md",
-    "//examples/adopt-rust:README.md",
-    "//examples/adopt-scala:README.md",
-]
-
-filegroup(
-    name = "adopt_readmes",
-    srcs = ADOPT_READMES,
-)
-
-filegroup(
-    name = "example_readmes",
-    srcs = ADOPT_READMES + [
-        "README.md",
-        "consumer-ci/README.md",
-        "docs-ci/README.md",
-        "gitlab-ci/README.md",
-        "//examples/api-spec:README.md",
-        "//examples/appimage-app:README.md",
-        "//examples/astro-app:README.md",
-        "//examples/c-app:README.md",
-        "//examples/cpp-app:README.md",
-        "//examples/cuda-app:README.md",
-        "//examples/dart-app:README.md",
-        "//examples/elixir-app:README.md",
-        "//examples/erlang-app:README.md",
-        "//examples/haskell-app:README.md",
-        "//examples/java-app:README.md",
-        "//examples/julia-app:README.md",
-        "//examples/kotlin-app:README.md",
-        "//examples/lua-app:README.md",
-        "//examples/mixed/hello:README.md",
-        "//examples/msix-app:README.md",
-        "//examples/node-app:README.md",
-        "//examples/ocaml-app:README.md",
-        "//examples/perl-app:README.md",
-        "//examples/prose-docs:README.md",
-        "//examples/python-service:README.md",
-        "//examples/qt-app:README.md",
-        "//examples/qt-rust:README.md",
-        "//examples/qt-tasks:README.md",
-        "//examples/shared-rust:README.md",
-        "//examples/zig-app:README.md",
-    ],
-)
-
 _EXAMPLE_STARLARK = [
     ":corpus_starlark",
     "//examples/adopt-android:corpus_starlark",

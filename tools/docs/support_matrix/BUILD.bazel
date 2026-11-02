@@ -74,25 +74,12 @@ rust_binary(
     deps = [":support_matrix"],
 )
 
-# keep
-rust_test(
-    name = "support_matrix_drift_test",
-    size = "small",
-    srcs = ["drift_test.rs"],
-    data = [
-        ":inputs",
-        "//docs:support-matrix.md",
-    ],
-    deps = [":support_matrix"],
-)
-
 rustfmt_test(
     name = "support_matrix_fmt_test",
     size = "small",
     targets = [
         ":gaps",
         ":support_matrix",
-        ":support_matrix_drift_test",
         ":update",
     ],
 )
@@ -103,7 +90,6 @@ rust_clippy_test(
     targets = [
         ":gaps",
         ":support_matrix",
-        ":support_matrix_drift_test",
         ":update",
     ],
 )

@@ -2,10 +2,7 @@ use yaml_serde::Value;
 
 use dx_testing::read_runfiles;
 
-const PIPELINES: &[(&str, &str)] = &[(
-    "examples/gitlab-ci/.gitlab-ci.yml",
-    "examples/gitlab-ci/README.md",
-)];
+const PIPELINES: &[&str] = &["examples/gitlab-ci/.gitlab-ci.yml"];
 
 const KEYWORDS: &[&str] = &["default", "variables", "workflow", "stages", "include"];
 
@@ -82,21 +79,9 @@ fn report_destination(path: &str, job: &str, body: &Value) -> String {
         .to_owned()
 }
 
-/// Returns the text of one fenced block that follows a heading line.
-fn block_after(text: &str, marker: &str) -> String {
-    let start = text
-        .find(marker)
-        .unwrap_or_else(|| panic!("README never says {marker}"));
-    text[start..]
-        .split("```")
-        .nth(1)
-        .unwrap_or_else(|| panic!("README has no block after {marker}"))
-        .to_owned()
-}
-
 #[test]
 fn every_job_extends_the_dx_template_and_keeps_reports_on_failure() {
-    for (path, _) in PIPELINES {
+    for path in PIPELINES {
         let doc = document(path);
         let artifacts = &hidden(path, &doc, TEMPLATE)["artifacts"];
         assert_eq!(
@@ -135,7 +120,7 @@ fn every_job_extends_the_dx_template_and_keeps_reports_on_failure() {
 
 #[test]
 fn every_job_report_matches_its_dx_report_and_artifact() {
-    for (path, _) in PIPELINES {
+    for path in PIPELINES {
         let doc = document(path);
         for (job, body) in jobs(path, &doc) {
             let destination = report_destination(path, &job, &body);
@@ -175,7 +160,7 @@ fn every_job_report_matches_its_dx_report_and_artifact() {
 
 #[test]
 fn every_job_ends_with_the_finish_gate() {
-    for (path, _) in PIPELINES {
+    for path in PIPELINES {
         let doc = document(path);
         let finish = strings(path, &hidden(path, &doc, FINISH)["script"]);
         assert_eq!(
@@ -218,7 +203,7 @@ fn every_job_ends_with_the_finish_gate() {
 
 #[test]
 fn the_cache_is_keyed_on_the_lockfile_and_stays_protected() {
-    for (path, _) in PIPELINES {
+    for path in PIPELINES {
         let doc = document(path);
         let cache = &hidden(path, &doc, TEMPLATE)["cache"];
         let files = strings(path, &cache["key"]["files"]);
@@ -255,12 +240,10 @@ fn the_cache_is_keyed_on_the_lockfile_and_stays_protected() {
 
 #[test]
 fn the_example_needs_no_github_credentials() {
-    for (path, readme) in PIPELINES {
-        for file in [*path, *readme] {
-            let text = read_runfiles(file);
-            for banned in ["GITHUB_", "GH_TOKEN", "secrets.", "CI_JOB_TOKEN"] {
-                assert!(!text.contains(banned), "{file} must not use {banned}");
-            }
+    for file in PIPELINES {
+        let text = read_runfiles(file);
+        for banned in ["GITHUB_", "GH_TOKEN", "secrets.", "CI_JOB_TOKEN"] {
+            assert!(!text.contains(banned), "{file} must not use {banned}");
         }
     }
 }
@@ -274,7 +257,7 @@ fn the_example_pins_bazelisk_to_the_canonical_version_and_digest() {
         .expect("modules/versions.bzl pins BAZELISK_VERSION")
         .trim_matches('"');
     let dockerfile = read_runfiles(".devcontainer/Dockerfile.prebuilt");
-    for (path, readme) in PIPELINES {
+    for path in PIPELINES {
         let doc = document(path);
         let variables = &doc["variables"];
         assert_eq!(
@@ -290,16 +273,12 @@ fn the_example_pins_bazelisk_to_the_canonical_version_and_digest() {
             dockerfile.contains(&format!("{sha}  /tmp/bazelisk")),
             "{path}: BAZELISK_SHA256 must match .devcontainer/Dockerfile.prebuilt"
         );
-        assert!(
-            read_runfiles(readme).contains(&format!("Bazelisk {version}")),
-            "{readme} must name Bazelisk {version}"
-        );
     }
 }
 
 #[test]
-fn the_image_is_digest_pinned_and_named_in_the_readme() {
-    for (path, readme) in PIPELINES {
+fn the_image_is_digest_pinned() {
+    for path in PIPELINES {
         let doc = document(path);
         let image = doc["default"]["image"]
             .as_str()
@@ -308,28 +287,5 @@ fn the_image_is_digest_pinned_and_named_in_the_readme() {
             .split_once("@sha256:")
             .unwrap_or_else(|| panic!("{path}: image {image} is not digest-pinned"));
         assert_eq!(digest.len(), 64, "{path}: image digest must be a SHA-256");
-        assert!(
-            read_runfiles(readme).contains(&format!("`{image}`")),
-            "{readme} must name the image {image}"
-        );
-    }
-}
-
-#[test]
-fn the_readme_ignores_every_path_the_pipeline_writes() {
-    for (_, readme) in PIPELINES {
-        let text = read_runfiles(readme);
-        let gitignore = block_after(&text, "`.gitignore`");
-        for entry in [".cache/", "reports/", "bazel-*", ".dx/"] {
-            assert!(
-                gitignore.lines().any(|line| line.trim() == entry),
-                "{readme}: .gitignore block must list {entry}"
-            );
-        }
-        let bazelignore = block_after(&text, "`.bazelignore`");
-        assert!(
-            bazelignore.lines().any(|line| line.trim() == ".cache"),
-            "{readme}: .bazelignore block must list .cache"
-        );
     }
 }

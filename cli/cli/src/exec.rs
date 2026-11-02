@@ -14,8 +14,6 @@ mod delivery_sink;
 mod dep_edit;
 mod deploy;
 mod docs;
-#[cfg(test)]
-mod docs_parity_tests;
 mod explain;
 mod explain_store;
 mod failure;

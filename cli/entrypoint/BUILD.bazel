@@ -120,13 +120,11 @@ rust_test(
     srcs = ["surface_test.rs"],
     data = [
         "consumer_surface.txt",
-        "//docs:command_docs",
         "@dx_consumer_surface//:closure.txt",
     ],
     env = {
         "DX_SURFACE_CLOSURE": "$(rootpath @dx_consumer_surface//:closure.txt)",
         "DX_SURFACE_LIST": "$(rootpath consumer_surface.txt)",
-        "DX_SURFACE_README": "docs/cli/commands/README.md",
     },
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

@@ -1,10 +1,11 @@
 """Module extension for the pinned nested Bazel binaries."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load(":bazel_pins.bzl", "NESTED_BAZEL_SHA256", "NESTED_BAZEL_VERSION")
+load(":bazel_pins.bzl", "NESTED_BAZEL_SHA256")
 
 def _nested_bazel_impl(mctx):
     """Declares one pinned Bazel binary per platform."""
+    version = mctx.read(Label("//:.bazelversion")).strip()
     for platform, sha256 in NESTED_BAZEL_SHA256.items():
         suffix = ".exe" if platform.startswith("windows-") else ""
         http_file(
@@ -13,7 +14,7 @@ def _nested_bazel_impl(mctx):
             executable = True,
             sha256 = sha256,
             urls = ["https://github.com/bazelbuild/bazel/releases/download/{v}/bazel-{v}-{p}{s}".format(
-                v = NESTED_BAZEL_VERSION,
+                v = version,
                 p = platform,
                 s = suffix,
             )],

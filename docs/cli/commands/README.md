@@ -658,7 +658,7 @@ Patch releases keep every supported label and flag.
 Minor releases add without breaking old uses.
 A breaking change needs a new major version and a migration.
 Readers tolerate added fields and fail on a new major schema.
-Bazel 9.2.0 is the tested baseline.
+The Bazel version in `.bazelversion` is the tested baseline.
 
 rules_dx does not provide debugger acquisition, launch or attach integration,
 Debug Adapter Protocol adapters, or generated debugger configurations. These

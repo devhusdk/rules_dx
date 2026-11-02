@@ -8,8 +8,8 @@ use crate::scaffold::ScaffoldFile;
 /// The module name `dx init` uses for the current directory.
 pub const DEFAULT_INIT_MODULE: &str = "my_project";
 
-/// The Bazel version a fresh workspace pins in `.bazelversion`; matches this repository's.
-pub const FRESH_BAZEL_VERSION: &str = "9.2.0";
+/// The Bazel version a fresh workspace pins in `.bazelversion`.
+pub const FRESH_BAZEL_VERSION: &str = dx_preset::PRESET_BAZEL_VERSION;
 
 const RESERVED_STEMS: &[&str] = &[
     "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
@@ -216,9 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_bazel_version_matches_this_repository() {
-        let pinned = crate::version::repo_text(".bazelversion");
-        assert_eq!(pinned.trim(), FRESH_BAZEL_VERSION);
+    fn fresh_workspace_pins_the_bazel_version() {
         assert_eq!(
             plan_fresh_files("demo")[1].content,
             format!("{FRESH_BAZEL_VERSION}\n")

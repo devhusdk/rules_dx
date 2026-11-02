@@ -1,8 +1,7 @@
 # Prebuilt devcontainer image with a pinned base and Bazelisk.
 FROM ubuntu:24.04@sha256:69cecf4bbf72d2d44a9eef1b71fb98c7fb973d78af11399deccef19beb008ad9
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    USE_BAZEL_VERSION=9.2.0
+ENV DEBIAN_FRONTEND=noninteractive
 
 # hadolint ignore=DL3008
 RUN apt-get update \
@@ -12,12 +11,16 @@ RUN apt-get update \
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Pinned Bazelisk launcher.
-RUN curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/bazelisk \
-      "https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64" \
-    && echo "5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992  /tmp/bazelisk" | sha256sum -c - \
+COPY tools/bazelisk/pin.env .bazelversion /tmp/pins/
+# hadolint ignore=SC1091
+RUN . /tmp/pins/pin.env \
+    && curl -fsSL --proto '=https' --tlsv1.2 --retry 3 --retry-delay 2 -o /tmp/bazelisk \
+      "https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64" \
+    && echo "${BAZELISK_SHA256_LINUX_AMD64}  /tmp/bazelisk" | sha256sum -c - \
     && install -m755 /tmp/bazelisk /usr/local/bin/bazel \
     && rm /tmp/bazelisk \
-    && bazel version
+    && USE_BAZEL_VERSION="$(cat /tmp/pins/.bazelversion)" bazel version \
+    && rm -r /tmp/pins
 
 # Non-root dev user matching the devcontainers convention.
 RUN useradd -m -s /bin/bash vscode

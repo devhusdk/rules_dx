@@ -1,0 +1,22 @@
+name: setup-bazel
+description: Install the pinned Bazelisk with bazel-contrib/setup-bazel.
+inputs:
+  cache-save:
+    description: Save the Bazelisk cache.
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Read the Bazelisk pin
+      id: pin
+      shell: bash
+      run: |
+        version="$(sed -n 's/^BAZELISK_VERSION=//p' tools/bazelisk/pin.env)"
+        test -n "$version"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      with:
+        bazelisk-version: ${{ steps.pin.outputs.version }}
+        bazelisk-cache: true
+        cache-save: ${{ inputs.cache-save }}

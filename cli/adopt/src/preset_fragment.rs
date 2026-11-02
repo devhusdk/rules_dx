@@ -7,17 +7,11 @@ pub use dx_preset::{
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn dx_stamp_tracks_single_version() {
         assert_eq!(
             crate::version::DX_VERSION,
             crate::version::repo_module_version()
-        );
-        assert_eq!(
-            PRESET_BAZEL_VERSION,
-            crate::version::repo_text(".bazelversion").trim()
         );
     }
 }

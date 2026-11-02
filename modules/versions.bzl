@@ -6,9 +6,6 @@ TESTED_<DEP> is the tested-latest version, written in its root-only
 `single_version_override`. Dev-only deps keep one <DEP>_VERSION pin.
 """
 
-BAZEL_VERSION = "9.2.0"
-BAZELISK_VERSION = "1.29.0"
-
 FLOOR_RULES_RUST = "0.75.0"
 TESTED_RULES_RUST = "0.75.0"
 FLOOR_RULES_RUST_PROST = "0.75.0"

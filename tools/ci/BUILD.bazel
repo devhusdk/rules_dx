@@ -426,15 +426,14 @@ rust_test(
 
 # keep
 rust_test(
-    name = "bazelisk_pins_test",
+    name = "setup_bazel_test",
     size = "small",
-    srcs = ["bazelisk_pins_test.rs"],
+    srcs = ["setup_bazel_test.rs"],
     data = [
         ":input_validation.py",
-        "//:.bazelversion",
-        "//.devcontainer:Dockerfile.prebuilt",
         "//.github:workflows",
-        "//modules:versions.bzl",
+        "//examples:gitlab-ci/.gitlab-ci.yml",
+        "//tools/bazelisk:pin.env",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
@@ -855,11 +854,7 @@ rust_test(
     name = "gitlab_example_test",
     size = "small",
     srcs = ["gitlab_example_test.rs"],
-    data = [
-        "//.devcontainer:Dockerfile.prebuilt",
-        "//examples:gitlab-ci/.gitlab-ci.yml",
-        "//modules:versions.bzl",
-    ],
+    data = ["//examples:gitlab-ci/.gitlab-ci.yml"],
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:yaml_serde",
@@ -925,7 +920,6 @@ rustfmt_test(
         ":advisory_snapshots_test",
         ":aggregate_gates_test",
         ":artifact_writes_test",
-        ":bazelisk_pins_test",
         ":bump_auth_test",
         ":ci_workflow",
         ":ci_workflow_test",
@@ -939,6 +933,7 @@ rustfmt_test(
         ":release_cells_runners_test",
         ":reusable_callers_test",
         ":rustfmt_coverage_test",
+        ":setup_bazel_test",
         ":signing_pins_test",
         ":starlark_docs_test",
         ":tool_resolve_test",

@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - ".devcontainer/Dockerfile.prebuilt"
+      - ".bazelversion"
+      - "tools/bazelisk/pin.env"
       - ".github/workflows/ghcr.yml"
       - ".devcontainer/devcontainer.json"
   workflow_dispatch:
@@ -64,7 +66,7 @@ jobs:
             echo "### ghcr-prebuilt — ${JOB_STATUS}"
             echo ""
             echo "- base: \`ubuntu:24.04@sha256:69cecf4...\` (pinned digest, resolved 2026-09-17; re-pin deliberately)."
-            echo "- Bazel: Bazelisk v1.29.0 (pinned sha256) + Bazel 9.2.0 via USE_BAZEL_VERSION; no ambient toolchains."
+            echo "- Bazel: Bazelisk v$(sed -n 's/^BAZELISK_VERSION=//p' tools/bazelisk/pin.env) (pinned sha256) + Bazel $(cat .bazelversion) from .bazelversion; no ambient toolchains."
             echo "- tag: \`0.0.0-sha-<sha>\` tracks single-version dx == module (0.0.0); digest pin \`ghcr.io/...@sha256:<digest>\` never latest."
             echo "- push: only on workflow_dispatch + approve:true (explicit owner approval); PRs build only."
             echo "- signing: dry-run would-sign \`cosign sign <digest>\` on the #311 trust root plus attestation (same as //deploy/release:signing_demo); gated push signs + verifies (\`cosign sign --yes\` / \`cosign verify\` / actions/attest provenance + \`gh attestation verify\`) with id-token OIDC."

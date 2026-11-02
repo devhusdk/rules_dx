@@ -21,7 +21,6 @@ env:
   BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
   # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
-  BAZELISK_VERSION: "1.29.0"
 
 concurrency:
   # Main pushes share one group with cancel-in-progress off: one run keeps
@@ -74,10 +73,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
@@ -127,10 +124,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
@@ -199,10 +194,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Allow unprivileged user namespaces
         run: |
@@ -257,10 +250,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
@@ -335,10 +326,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
@@ -419,10 +408,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
@@ -488,10 +475,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
@@ -581,10 +566,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0
+      - uses: ./.github/actions/setup-bazel
         with:
-          bazelisk-version: ${{ env.BAZELISK_VERSION }}
-          bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
       - name: Locate the Bazel repository cache
         id: repo-cache

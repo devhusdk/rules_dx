@@ -84,7 +84,6 @@ fn preset_parity() {
         &[
             "PRESET_BAZEL_VERSION",
             "PRESET_DX_VERSION",
-            "\"9.2.0\"",
             "\"0.0.0\"",
         ],
     )

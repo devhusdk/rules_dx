@@ -1,7 +1,5 @@
 """Pinned Bazel release binaries for nested Bazel tests."""
 
-NESTED_BAZEL_VERSION = "9.2.0"
-
 NESTED_BAZEL_SHA256 = {
     "darwin-arm64": "dd466352a3e4d3581b8898740ee1ff208866ccbe25f8d367c5dcb950219587e6",
     "darwin-x86_64": "14c9bcb01303b38192e0e2895051c1bcf19bf89d7e416f5aeeeb48b6b624cfbf",

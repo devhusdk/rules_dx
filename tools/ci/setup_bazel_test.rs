@@ -1,15 +1,15 @@
 use dx_testing::read_runfiles;
 
-const BAZELVERSION: &str = ".bazelversion";
-const DOCKERFILE: &str = ".devcontainer/Dockerfile.prebuilt";
-const VERSIONS_BZL: &str = "modules/versions.bzl";
+const PIN_ENV: &str = "tools/bazelisk/pin.env";
+const LOCAL_ACTION: &str = "./.github/actions/setup-bazel";
+const UPSTREAM_ACTION: &str = "bazel-contrib/setup-bazel@";
 
-fn starlark_const(text: &str, name: &str) -> String {
-    dx_testing::starlark_const(text, name, VERSIONS_BZL)
-}
-
-fn bazelisk_pin() -> String {
-    starlark_const(&read_runfiles(VERSIONS_BZL), "BAZELISK_VERSION")
+fn pin(name: &str) -> String {
+    read_runfiles(PIN_ENV)
+        .lines()
+        .find_map(|line| line.strip_prefix(&format!("{name}=")))
+        .unwrap_or_else(|| panic!("{PIN_ENV} sets no {name}"))
+        .to_owned()
 }
 
 fn workflows() -> Vec<(String, String)> {
@@ -22,45 +22,43 @@ fn workflows() -> Vec<(String, String)> {
         .collect()
 }
 
+fn is_setup_bazel(uses: &str) -> bool {
+    uses == LOCAL_ACTION || uses.starts_with(UPSTREAM_ACTION)
+}
+
 fn setup_bazel_workflows() -> Vec<(String, String)> {
     let users: Vec<(String, String)> = workflows()
         .into_iter()
-        .filter(|(_, text)| text.contains("- uses: bazel-contrib/setup-bazel@"))
+        .filter(|(_, text)| {
+            text.lines().any(|line| {
+                line.trim()
+                    .strip_prefix("- uses: ")
+                    .is_some_and(is_setup_bazel)
+            })
+        })
         .collect();
     assert!(!users.is_empty(), "no workflow installs Bazelisk");
     users
 }
 
 #[test]
-fn every_setup_bazel_workflow_declares_the_canonical_bazelisk_pin() {
-    let declaration = format!("BAZELISK_VERSION: \"{}\"", bazelisk_pin());
-    for (name, text) in setup_bazel_workflows() {
-        assert_eq!(
-            text.matches(&declaration).count(),
-            1,
-            "{name} must declare {declaration} exactly once"
-        );
-    }
-}
-
-#[test]
-fn every_setup_bazel_step_reads_the_workflow_pin() {
-    for (name, text) in setup_bazel_workflows() {
-        for line in text.lines() {
-            let Some(value) = line.trim().strip_prefix("bazelisk-version:") else {
-                continue;
-            };
-            assert_eq!(
-                value.trim(),
-                "${{ env.BAZELISK_VERSION }}",
-                "{name} hardcodes a Bazelisk version instead of its BAZELISK_VERSION pin"
-            );
-        }
+fn reusable_workflows_and_the_gitlab_example_match_the_bazelisk_pin() {
+    let version = format!("BAZELISK_VERSION: \"{}\"", pin("BAZELISK_VERSION"));
+    for name in [
+        ".github/workflows/reusable-consumer.yml",
+        ".github/workflows/reusable-docs.yml",
+        "examples/gitlab-ci/.gitlab-ci.yml",
+    ] {
         assert!(
-            !text.contains("bazelisk/releases/download/"),
-            "{name} downloads Bazelisk itself instead of taking the pin from {VERSIONS_BZL}"
+            read_runfiles(name).contains(&version),
+            "{name} must declare {version} from {PIN_ENV}"
         );
     }
+    let sha = format!("BAZELISK_SHA256: {}", pin("BAZELISK_SHA256_LINUX_AMD64"));
+    assert!(
+        read_runfiles("examples/gitlab-ci/.gitlab-ci.yml").contains(&sha),
+        "the GitLab example must declare {sha} from {PIN_ENV}"
+    );
 }
 
 fn repo_cache_key(prefix: &str) -> String {
@@ -244,7 +242,9 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
         for (job, body) in jobs {
             let steps = body["steps"].as_array().cloned().unwrap_or_default();
             let indices = |action: &str| steps_using(&steps, action);
-            let setups = indices("bazel-contrib/setup-bazel");
+            let setups: Vec<usize> = (0..steps.len())
+                .filter(|&i| steps[i]["uses"].as_str().is_some_and(is_setup_bazel))
+                .collect();
             if setups.is_empty() {
                 continue;
             }
@@ -457,49 +457,4 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
         prune_runs.windows(2).all(|pair| pair[0] == pair[1]),
         "every saver must prune the repository cache with the same script"
     );
-}
-
-#[test]
-fn the_devcontainer_fetches_the_canonical_bazelisk_version() {
-    let url = format!(
-        "https://github.com/bazelbuild/bazelisk/releases/download/v{}/bazelisk-linux-amd64",
-        bazelisk_pin()
-    );
-    assert_eq!(
-        read_runfiles(DOCKERFILE).matches(&url).count(),
-        1,
-        "{DOCKERFILE} must fetch {url} exactly once"
-    );
-}
-
-#[test]
-fn the_devcontainer_runs_the_pinned_bazel_version() {
-    let bazel = starlark_const(&read_runfiles(VERSIONS_BZL), "BAZEL_VERSION");
-    assert!(
-        read_runfiles(DOCKERFILE).contains(&format!("USE_BAZEL_VERSION={bazel}")),
-        "{DOCKERFILE} must set USE_BAZEL_VERSION={bazel} to the {VERSIONS_BZL} pin"
-    );
-    assert_eq!(
-        read_runfiles(BAZELVERSION).trim(),
-        bazel,
-        "{BAZELVERSION} must carry the {VERSIONS_BZL} Bazel version"
-    );
-}
-
-#[test]
-fn the_ghcr_summary_reports_the_pins_it_built() {
-    let versions = read_runfiles(VERSIONS_BZL);
-    let text = read_runfiles(".github/workflows/ghcr.yml");
-    for claim in [
-        format!(
-            "Bazelisk v{}",
-            starlark_const(&versions, "BAZELISK_VERSION")
-        ),
-        format!("Bazel {}", starlark_const(&versions, "BAZEL_VERSION")),
-    ] {
-        assert!(
-            text.contains(&claim),
-            "the ghcr job summary must report {claim} from {VERSIONS_BZL}"
-        );
-    }
 }

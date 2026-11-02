@@ -11,7 +11,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-pub const PRESET_BAZEL_VERSION: &str = "9.2.0";
+pub const PRESET_BAZEL_VERSION: &str = include_str!("../../../.bazelversion").trim_ascii_end();
 
 pub const PRESET_DX_VERSION: &str = "0.0.0";
 
@@ -609,7 +609,6 @@ mod tests {
 
     #[test]
     fn pins_track_canonical_versions() {
-        assert_eq!(PRESET_BAZEL_VERSION, "9.2.0");
         assert_eq!(PRESET_DX_VERSION, "0.0.0");
     }
 

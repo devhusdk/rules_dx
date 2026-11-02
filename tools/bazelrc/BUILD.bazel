@@ -9,6 +9,7 @@ package(default_visibility = VIS_TOOLS)
 rust_library(
     name = "dx_preset",
     srcs = ["src/lib.rs"],
+    compile_data = ["//:.bazelversion"],
     aliases = aliases(
         package_name = "tools/dx_preset",
         normal = True,

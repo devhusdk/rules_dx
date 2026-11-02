@@ -249,34 +249,6 @@ fn the_example_needs_no_github_credentials() {
 }
 
 #[test]
-fn the_example_pins_bazelisk_to_the_canonical_version_and_digest() {
-    let versions = read_runfiles("modules/versions.bzl");
-    let version = versions
-        .lines()
-        .find_map(|line| line.strip_prefix("BAZELISK_VERSION = "))
-        .expect("modules/versions.bzl pins BAZELISK_VERSION")
-        .trim_matches('"');
-    let dockerfile = read_runfiles(".devcontainer/Dockerfile.prebuilt");
-    for path in PIPELINES {
-        let doc = document(path);
-        let variables = &doc["variables"];
-        assert_eq!(
-            variables["BAZELISK_VERSION"].as_str(),
-            Some(version),
-            "{path}: BAZELISK_VERSION must match modules/versions.bzl"
-        );
-        let sha = variables["BAZELISK_SHA256"]
-            .as_str()
-            .unwrap_or_else(|| panic!("{path} pins no BAZELISK_SHA256"));
-        assert_eq!(sha.len(), 64, "{path}: BAZELISK_SHA256 must be a SHA-256");
-        assert!(
-            dockerfile.contains(&format!("{sha}  /tmp/bazelisk")),
-            "{path}: BAZELISK_SHA256 must match .devcontainer/Dockerfile.prebuilt"
-        );
-    }
-}
-
-#[test]
 fn the_image_is_digest_pinned() {
     for path in PIPELINES {
         let doc = document(path);

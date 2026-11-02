@@ -16,7 +16,7 @@ bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov //...
 
 The same recipe works on any CI provider:
 
-1. Install Bazelisk 1.29.0 as `bazel` and check its SHA-256.
+1. Install Bazelisk as `bazel` and check its SHA-256.
 2. Commit `.bazelversion`.
 3. Set `XDG_CACHE_HOME` to `.cache` inside the checkout.
 4. Run `mkdir -p reports`, then the `dx` lines above.

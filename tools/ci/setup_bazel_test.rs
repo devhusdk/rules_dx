@@ -61,6 +61,26 @@ fn reusable_workflows_and_the_gitlab_example_match_the_bazelisk_pin() {
     );
 }
 
+#[test]
+fn only_the_reusable_workflows_call_upstream_setup_bazel_directly() {
+    let direct: Vec<String> = workflows()
+        .into_iter()
+        .filter(|(_, text)| {
+            text.lines()
+                .any(|line| line.contains(&format!("uses: {UPSTREAM_ACTION}")))
+        })
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(
+        direct,
+        [
+            ".github/workflows/reusable-consumer.yml",
+            ".github/workflows/reusable-docs.yml"
+        ],
+        "other workflows must use {LOCAL_ACTION}"
+    );
+}
+
 fn repo_cache_key(prefix: &str) -> String {
     format!("{prefix}${{{{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}}}")
 }

@@ -386,9 +386,13 @@ rust_test(
     size = "small",
     srcs = ["action_pins_test.rs"],
     data = [
+        "//.github:actions",
         "//.github:workflows",
     ],
-    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
+    env = {
+        "DX_ACTIONS": "$(rootpaths //.github:actions)",
+        "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
+    },
     deps = ["//tools/testing:dx_testing"],
 )
 

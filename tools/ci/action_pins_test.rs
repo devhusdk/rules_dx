@@ -27,7 +27,11 @@ fn uses_lines(text: &str) -> Vec<(usize, String)> {
 
 fn action_pins() -> Vec<ActionPin> {
     let mut pins = Vec::new();
-    for name in dx_testing::workflow_files() {
+    let actions = std::env::var("DX_ACTIONS").expect("DX_ACTIONS is unset");
+    let files = dx_testing::workflow_files()
+        .into_iter()
+        .chain(actions.split_whitespace().map(str::to_owned));
+    for name in files {
         let text = read_runfiles(&name);
         for (line, uses) in uses_lines(&text) {
             if uses.starts_with("./") || uses.starts_with("docker://") {

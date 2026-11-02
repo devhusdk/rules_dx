@@ -15,6 +15,11 @@ filegroup(
     ),
 )
 
+filegroup(
+    name = "actions",
+    srcs = glob(["actions/*/action.yml"]),
+)
+
 exports_files([
     "actionlint.yaml",
     "rulesets/main.json",

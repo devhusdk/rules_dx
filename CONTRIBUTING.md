@@ -64,8 +64,6 @@ Three checks cover that:
 - `//modules:consumer_deps_test` also keeps the hermetic consumer
   `module_fragment.bazel` files and the inline module of `consumer_names_test.rs`
   from pinning a consumer dep above its floor, which would hide a lowered floor.
-- `floor.yml` repeats the graph check nightly, once at the floors and once with
-  every dep at its tested version (`DX_CONSUMER_OVERRIDES=tested`).
 
 ### Trying a lower floor
 
@@ -77,8 +75,7 @@ module. Locally:
     bazel test //modules:floor_graph_test --test_tag_filters= \
       --test_env=DX_CONSUMER_OVERRIDES=rules_shell=0.6.1
 
-Or dispatch `floor.yml` with the `overrides` input. Patched modules cannot be
-overridden. The procedure for a floor search is: list the module's versions in
+Patched modules cannot be overridden. The procedure for a floor search is: list the module's versions in
 the BCR, step down one release at a time, check that the `.bzl` files rules_dx
 loads from it still find the symbols they need, and keep the lowest version that
 passes the graph check and the consumer suites. Record why in the `# floor:`
@@ -86,8 +83,7 @@ comment with `dx bump ... --floor --reason`. Skip dev-only and patched deps.
 
 To run the hermetic consumer suites at candidate versions, add
 `--test_env=DX_CONSUMER_OVERRIDES=<module>=<version>` to a `hermetic-consumer`
-test (the harness rewrites each consumer `MODULE.bazel` the same way), or dispatch
-`floor.yml` with `overrides` and `consumer_target`.
+test (the harness rewrites each consumer `MODULE.bazel` the same way).
 
 A tested-only bump leaves the floor at the previous tested version, and its
 comment says so. Do not lower a floor without a floor search; the searches

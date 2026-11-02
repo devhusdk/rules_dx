@@ -7,7 +7,6 @@ const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
-const CANCEL_WORKFLOW: &str = ".github/workflows/cancel-stale.yml";
 
 const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
 
@@ -265,7 +264,7 @@ fn ci_can_be_dispatched_but_takes_no_inputs() {
     let on = triggers(CI_WORKFLOW);
     assert!(
         on.get("workflow_dispatch").is_some(),
-        "{CI_WORKFLOW} must be dispatchable so a qualify/<sha> branch can run the matrix: {on}"
+        "{CI_WORKFLOW} must be dispatchable so a maintainer can run the matrix: {on}"
     );
     assert!(
         on["workflow_dispatch"].get("inputs").is_none(),
@@ -329,82 +328,7 @@ fn every_matrix_cell_records_its_runner_image() {
     }
 }
 
-/// Returns the env table and run script of one job's only step.
-fn cancel_step(job: &str) -> (Value, String) {
-    let document = document(CANCEL_WORKFLOW);
-    let step = &document["jobs"][job]["steps"][0];
-    let run = step["run"]
-        .as_str()
-        .unwrap_or_else(|| panic!("{CANCEL_WORKFLOW} job {job} steps.0.run is not a script"))
-        .to_owned();
-    (step["env"].clone(), run)
-}
-
-/// Returns the run statuses one cancel job sweeps.
-fn statuses_of(env: &Value) -> Vec<String> {
-    env["STATUSES"]
-        .as_str()
-        .unwrap_or_else(|| panic!("{CANCEL_WORKFLOW} step declares no STATUSES: {env}"))
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect()
-}
-
-#[test]
-fn cancel_stale_runs_on_closed_pull_requests_and_main_pushes() {
-    let on = triggers(CANCEL_WORKFLOW);
-    assert_eq!(
-        on["pull_request_target"]["types"],
-        json!(["closed"]),
-        "{on}"
-    );
-    assert_eq!(on["push"]["branches"], json!(["main"]), "{on}");
-    let document = document(CANCEL_WORKFLOW);
-    assert_eq!(document["permissions"]["actions"], "write");
-    assert_eq!(document["permissions"]["pull-requests"], "read");
-    assert_eq!(
-        document["jobs"]["cancel-closed-prs"]["if"],
-        json!("github.event_name == 'push' || !github.event.pull_request.merged"),
-    );
-    assert_eq!(
-        document["jobs"]["cancel-replaced-main"]["if"],
-        json!("github.event_name == 'push'"),
-    );
-    for job in ["cancel-closed-prs", "cancel-replaced-main"] {
-        assert_eq!(
-            document["jobs"][job]["runs-on"],
-            json!("ubuntu-slim"),
-            "{job}"
-        );
-    }
-}
-
-/// Closing a pull request cancels its ci run through the shared concurrency group.
-#[test]
-fn closed_pull_requests_join_the_ci_concurrency_group() {
-    let ci = document(CI_WORKFLOW);
-    assert_eq!(ci["name"], json!("ci"));
-    assert_eq!(
-        ci["concurrency"]["group"],
-        json!("ci-${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main') || github.sha }}"),
-    );
-    assert_eq!(
-        ci["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' }}"),
-    );
-    let cancel = document(CANCEL_WORKFLOW);
-    assert_eq!(
-        cancel["concurrency"]["group"],
-        json!("${{ github.event_name == 'pull_request_target' && format('ci-ci-{0}', github.event.pull_request.number) || 'cancel-stale-main' }}"),
-    );
-    assert_eq!(
-        cancel["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request_target' }}"),
-    );
-}
-
-/// Pull requests keep `ci-ci-<number>`; main pushes share `ci-ci-main`, which
-/// cannot collide with `cancel-stale-main` or a numeric PR group; only PRs cancel.
+/// Pull requests keep `ci-ci-<number>`; main pushes share `ci-ci-main`; only PRs cancel.
 #[test]
 fn main_pushes_share_one_group_and_only_prs_cancel() {
     let ci = document(CI_WORKFLOW);
@@ -414,72 +338,11 @@ fn main_pushes_share_one_group_and_only_prs_cancel() {
     );
     assert!(group.contains("github.ref == 'refs/heads/main' && 'main'"));
     assert!(group.ends_with("|| github.sha }}"));
-    assert_ne!("ci-ci-main", "cancel-stale-main");
     assert!("main".parse::<u64>().is_err());
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],
         json!("${{ github.event_name == 'pull_request' }}"),
     );
-}
-
-#[test]
-fn closed_pull_requests_lose_queued_and_running_runs() {
-    let (env, script) = cancel_step("cancel-closed-prs");
-    assert_eq!(
-        statuses_of(&env),
-        ["queued", "in_progress", "waiting", "pending", "requested"],
-    );
-    for needle in [
-        "-f state=open",
-        "-f event=pull_request",
-        "<<'DX_STALE_PR_RUNS'",
-        "actions/runs/${id}/force-cancel",
-    ] {
-        assert!(
-            script.contains(needle),
-            "cancel-closed-prs must state {needle:?}: {script}"
-        );
-    }
-}
-
-#[test]
-fn main_pushes_cancel_only_queued_runs_of_older_commits() {
-    let (env, script) = cancel_step("cancel-replaced-main");
-    let statuses = statuses_of(&env);
-    assert_eq!(statuses, ["queued", "waiting", "pending", "requested"]);
-    assert_eq!(env["NEW_SHA"], json!("${{ github.sha }}"));
-    for needle in [
-        "-f event=push -f branch=main",
-        "<<'DX_STALE_MAIN_RUNS'",
-        "actions/runs/${id}/cancel\"",
-    ] {
-        assert!(
-            script.contains(needle),
-            "cancel-replaced-main must state {needle:?}: {script}"
-        );
-    }
-}
-
-#[test]
-fn cancel_failures_fail_the_job() {
-    for job in ["cancel-closed-prs", "cancel-replaced-main"] {
-        let (_, script) = cancel_step(job);
-        assert!(
-            !script.contains("|| true"),
-            "{job} hides failures: {script}"
-        );
-        for needle in [
-            "set -euo pipefail",
-            "*\"(HTTP 409)\"*)",
-            "failed=1",
-            "exit \"$failed\"",
-        ] {
-            assert!(
-                script.contains(needle),
-                "{job} must state {needle:?}: {script}"
-            );
-        }
-    }
 }
 
 #[test]

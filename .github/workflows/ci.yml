@@ -6,8 +6,7 @@ on:
   pull_request:
   workflow_dispatch:
   # Gives main a known pass or fail twice a day. Scheduled runs use a
-  # per-SHA concurrency group (not the shared main push group), are never swept by cancel-stale (it lists
-  # event=push only), and never publish (publish needs event_name == 'push').
+  # per-SHA concurrency group (not the shared main push group) and never publish (publish needs event_name == 'push').
   schedule:
     - cron: "17 3,15 * * *"
   merge_group:
@@ -27,8 +26,8 @@ env:
 concurrency:
   # Main pushes share one group with cancel-in-progress off: one run keeps
   # running and the newest push replaces only the waiting one, so main gets a
-  # real result every cycle. PRs get ci-ci-<number> (cancel-stale relies on it);
-  # schedule, dispatch (qualify/<sha>) and merge_group stay per SHA.
+  # real result every cycle. PRs get ci-ci-<number>;
+  # schedule, dispatch and merge_group stay per SHA.
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref == 'refs/heads/main' && 'main') || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 

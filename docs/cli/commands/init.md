@@ -286,7 +286,7 @@ first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
 `setlocal`, `set "VERSION=<v>"`). Any other launcher is yours and is never
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
 When a launcher would change and `.dx/version` is not semver, init fails with
-`init_failed` before writing any file. `dx rollback --apply` refreshes existing launchers the
+`init_failed` before writing any file. `dx upgrade --apply` refreshes existing launchers the
 same way.
 
 ## Git hooks
@@ -323,6 +323,4 @@ endings stay as they are).
 - If the root `.bazelrc` repeats lines the preset owns, or is a symlink, apply
   prints a note and adds no imports.
 - In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.
-- `dx upgrade` refreshes existing stale layers. `dx rollback` refreshes them only
-  when the restored pin is this dx; otherwise it prints a hint to run
-  `tools/dx init --apply` under the restored pin.
+- `dx upgrade` refreshes existing stale layers.

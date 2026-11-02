@@ -101,7 +101,7 @@ Other languages follow the same pattern. Each language's rules are listed in
 
 - To undo a package, restore its `load()` lines.
 - To go back to an earlier `rules_dx` version, see
-  [Upgrade, rollback](cli/commands/upgrade-rollback.md). Rollback changes the
+  [Upgrade](cli/commands/upgrade.md). It changes the
   version pin. It does not remove `rules_dx`.
 - To remove `rules_dx`, delete the `bazel_dep`, the `include()` line, and
   `third_party/rules_dx/`, and restore your own overrides.

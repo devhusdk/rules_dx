@@ -67,7 +67,6 @@ pub(crate) struct Flags {
     pub(crate) debug: bool,
     pub(crate) release: bool,
     pub(crate) prune_unobserved: bool,
-    pub(crate) from: Option<String>,
     pub(crate) to: Option<String>,
     pub(crate) here: bool,
     pub(crate) affected: bool,
@@ -419,16 +418,8 @@ composite_group! {
 }
 
 flag_group! {
-    /// Run the upgrade and record the recovery pointer.
+    /// Move the pin and refresh existing files.
     UpgradeApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Restore the previous recorded pin.
-    RollbackApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
     }
@@ -500,15 +491,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Migrate from this version.
-    FromFlag, {
-        #[arg(long, allow_negative_numbers = true, overrides_with = "from", value_parser = non_empty)]
-        from: Option<String>,
-    }
-}
-
-flag_group! {
-    /// Migrate to this version.
+    /// Version to pin; must equal this binary.
     ToFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "to", value_parser = non_empty)]
         to: Option<String>,
@@ -687,14 +670,6 @@ composite_group! {
     LogPairArgs, {
         old_log: OldLogFlag,
         new_log: NewLogFlag,
-    }
-}
-
-composite_group! {
-    /// The migration gate flags.
-    MigrationArgs, {
-        from: FromFlag,
-        to: ToFlag,
     }
 }
 
@@ -969,7 +944,7 @@ command_args! {
     /// The flags `dx init` accepts.
     Init => 17, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 18, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
+    Upgrade => 18, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.
     Status => 19, NoScopeTail, {
         output: OutputFlag,
@@ -994,10 +969,8 @@ command_args! {
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx rollback` accepts.
-    Rollback => 23, NoScopeTail, { output: OutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 24, NoPassthroughTail, {
+    Worktree => 23, NoPassthroughTail, {
         output: OutputFlag,
         path_only: PathOnlyFlag,
         apply: ApplyFlag,
@@ -1007,9 +980,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 25, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
+    Explain => 24, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 26, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 25, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]

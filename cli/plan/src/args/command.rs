@@ -23,7 +23,6 @@ pub enum Command {
     Watch,
     Completion,
     Docs,
-    Rollback,
     Worktree,
     Explain,
     Install,
@@ -97,7 +96,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 27] = [
+pub static COMMANDS: [CommandMeta; 26] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -444,9 +443,9 @@ pub static COMMANDS: [CommandMeta; 27] = [
         command: Command::Upgrade,
         name: "upgrade",
         scope_policy: "reject",
-        describe: "pin the module version and refresh existing launchers and the AGENTS.md block (runs on skew; check by default; --apply upgrades)",
-        usage: "Usage: dx upgrade [--apply] --from <version> --to <version>",
-        scopes: "Scopes: none (repository-wide: writes .dx/version and the pin history, refreshes existing tools/dx launchers and an existing AGENTS.md block; --to must equal this binary's version; --from/--to required, positional scopes rejected).",
+        describe: "move the pin to any version, newer or older, and refresh existing launchers and the AGENTS.md block (runs on skew; check by default; --apply moves)",
+        usage: "Usage: dx upgrade [--apply] --to <version>",
+        scopes: "Scopes: none (repository-wide: reads and writes .dx/version, refreshes existing tools/dx launchers and an existing AGENTS.md block; --to must equal this binary's version; --to required, positional scopes rejected).",
         is_managed: false,
         is_adoption: true,
         supports_json: true,
@@ -534,25 +533,6 @@ pub static COMMANDS: [CommandMeta; 27] = [
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
-        command: Command::Rollback,
-        name: "rollback",
-        scope_policy: "reject",
-        describe: "restore the previous recorded pin (check by default; --apply restores)",
-        usage: "Usage: dx rollback [--apply]",
-        scopes: "Scopes: none (rollback takes no scopes).",
-        is_managed: false,
-        is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Proceed,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
     },
     CommandMeta {
         command: Command::Worktree,
@@ -729,9 +709,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 17] = [
+    pub(crate) const APPLY_COMMANDS: [Command; 16] = [
         Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Bump, Codegen, Env, Init,
-        Upgrade, Watch, Rollback, Worktree, Install,
+        Upgrade, Watch, Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
@@ -815,7 +795,6 @@ mod tests {
             Command::Watch,
             Command::Completion,
             Command::Docs,
-            Command::Rollback,
             Command::Worktree,
             Command::Explain,
             Command::Install,
@@ -867,7 +846,6 @@ mod tests {
             Command::Bump,
             Command::Init,
             Command::Upgrade,
-            Command::Rollback,
         ] {
             assert!(
                 command.describe().contains("check by default"),
@@ -912,7 +890,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|bump|codegen|env|init|upgrade|status|watch|completion|docs|rollback|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|bump|codegen|env|init|upgrade|status|watch|completion|docs|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }
@@ -953,7 +931,7 @@ mod tests {
             if command.is_adoption()
                 && matches!(
                     command,
-                    Command::Status | Command::Upgrade | Command::Completion | Command::Rollback
+                    Command::Status | Command::Upgrade | Command::Completion
                 )
             {
                 assert!(

@@ -18,10 +18,8 @@ pub fn pin_rewrite_hint(version: &str) -> String {
 pub fn version_move_hint(from: &str, to: &str) -> String {
     if version_pin_matches_module(from, to) {
         "dx status".to_owned()
-    } else if crate::migrate::migrate_is_upgrade(from, to) {
-        format!("dx upgrade --from {from} --to {to}")
     } else {
-        "dx rollback".to_owned()
+        format!("dx upgrade --to {to}")
     }
 }
 
@@ -30,10 +28,8 @@ pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
         pin_rewrite_hint(module_version)
     } else if version_pin_matches_module(pinned, module_version) {
         "dx status".to_owned()
-    } else if crate::migrate::migrate_is_upgrade(pinned, module_version) {
-        format!("dx upgrade --from {pinned} --to {module_version} --apply")
     } else {
-        pin_rewrite_hint(module_version)
+        format!("dx upgrade --to {module_version} --apply")
     }
 }
 
@@ -75,65 +71,6 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
         },
     )?;
     Ok(())
-}
-
-pub const VERSION_HISTORY_REL: &str = ".dx/version-history.json";
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PinRecord {
-    #[serde(deserialize_with = "serde::Deserialize::deserialize")]
-    pub previous: Option<String>,
-    #[serde(deserialize_with = "serde::Deserialize::deserialize")]
-    pub current: Option<String>,
-}
-
-pub(crate) fn render_pin_record(record: &PinRecord) -> Result<String, AdoptError> {
-    serde_json::to_string(record).map_err(|e| AdoptError::WritePinRecord {
-        detail: e.to_string(),
-    })
-}
-
-pub(crate) fn parse_pin_record(text: &str) -> Result<PinRecord, AdoptError> {
-    serde_json::from_str::<PinRecord>(text).map_err(|e| AdoptError::PinRecordUnreadable {
-        detail: e.to_string(),
-    })
-}
-
-pub fn record_pin_operation(
-    root: &Path,
-    previous: Option<&str>,
-    current: Option<&str>,
-) -> Result<(), AdoptError> {
-    let record = PinRecord {
-        previous: previous.map(str::to_owned),
-        current: current.map(str::to_owned),
-    };
-    let dir = root.join(".dx");
-    std::fs::create_dir_all(&dir).map_err(|e| AdoptError::CreateDxDir {
-        detail: e.to_string(),
-    })?;
-    let rendered = render_pin_record(&record)?;
-    dx_atomic_fs::write_atomic(
-        &dir.join("version-history.json"),
-        format!("{rendered}\n").as_bytes(),
-    )
-    .map_err(|e| AdoptError::WritePinRecord {
-        detail: e.to_string(),
-    })?;
-    Ok(())
-}
-
-pub fn read_pin_record(root: &Path) -> Result<PinRecord, AdoptError> {
-    let raw = std::fs::read_to_string(root.join(VERSION_HISTORY_REL)).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            return AdoptError::PinRecordMissing;
-        }
-        AdoptError::PinRecordUnreadable {
-            detail: e.to_string(),
-        }
-    })?;
-    parse_pin_record(&raw)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -428,19 +365,14 @@ mod tests {
         assert_eq!(pin_fix_hint("1.2.3", "1.2.3"), "dx status");
         assert_eq!(
             pin_fix_hint("1.2.3", "2.0.0"),
-            "dx upgrade --from 1.2.3 --to 2.0.0 --apply"
+            "dx upgrade --to 2.0.0 --apply"
         );
-        assert_eq!(pin_fix_hint("2.0.0", "1.2.3"), "write 1.2.3 to .dx/version");
+        assert_eq!(
+            pin_fix_hint("2.0.0", "1.2.3"),
+            "dx upgrade --to 1.2.3 --apply"
+        );
         for bad in ["", "v1", "1.2", "garbage"] {
             assert_eq!(pin_fix_hint(bad, "1.2.3"), "write 1.2.3 to .dx/version");
-        }
-        for (pin, module) in [
-            ("1.2.3", "1.2.3"),
-            ("1.2.3", "2.0.0"),
-            ("2.0.0", "1.2.3"),
-            ("bad", "1.2.3"),
-        ] {
-            assert!(!pin_fix_hint(pin, module).contains("dx rollback"));
         }
     }
 
@@ -459,184 +391,6 @@ mod tests {
         assert_eq!(DX_VERSION, module_version);
         assert_eq!(MODULE_VERSION, module_version);
         assert!(version_pin_matches_module(DX_VERSION, MODULE_VERSION));
-    }
-
-    #[test]
-    fn pin_record_round_trips_through_json() {
-        for record in [
-            PinRecord {
-                previous: None,
-                current: Some("0.1.0".to_owned()),
-            },
-            PinRecord {
-                previous: Some("0.0.0".to_owned()),
-                current: Some("0.1.0".to_owned()),
-            },
-            PinRecord {
-                previous: Some("0.1.0".to_owned()),
-                current: None,
-            },
-            PinRecord {
-                previous: None,
-                current: None,
-            },
-            PinRecord {
-                previous: Some("a\"b\\c\nd\teé".to_owned()),
-                current: Some("\u{1}tail".to_owned()),
-            },
-        ] {
-            let rendered = render_pin_record(&record).expect("render");
-            assert_eq!(parse_pin_record(&rendered).expect("round trip"), record);
-            assert_eq!(
-                parse_pin_record(&format!("  {rendered} \n")).expect("padded"),
-                record
-            );
-        }
-        assert_eq!(
-            render_pin_record(&PinRecord {
-                previous: Some("0.0.0".to_owned()),
-                current: Some("0.1.0".to_owned()),
-            })
-            .expect("render"),
-            "{\"previous\":\"0.0.0\",\"current\":\"0.1.0\"}"
-        );
-        assert_eq!(
-            render_pin_record(&PinRecord {
-                previous: None,
-                current: None,
-            })
-            .expect("render"),
-            "{\"previous\":null,\"current\":null}"
-        );
-        assert_eq!(
-            render_pin_record(&PinRecord {
-                previous: Some("\u{1}a/b".to_owned()),
-                current: None,
-            })
-            .expect("render"),
-            "{\"previous\":\"\\u0001a/b\",\"current\":null}"
-        );
-        assert_eq!(
-            parse_pin_record("{\"previous\":\"\\u0008\",\"current\":\"\\u000c\"}")
-                .expect("legacy escapes"),
-            PinRecord {
-                previous: Some("\u{8}".to_owned()),
-                current: Some("\u{c}".to_owned()),
-            }
-        );
-        assert_eq!(
-            parse_pin_record("{\"previous\":\"\\ud83d\\ude00\",\"current\":null}")
-                .expect("surrogate pair"),
-            PinRecord {
-                previous: Some("\u{1f600}".to_owned()),
-                current: None,
-            }
-        );
-    }
-
-    #[test]
-    fn pin_record_rejects_anything_but_its_shape() {
-        for text in [
-            "",
-            "{}",
-            "{\"previous\":null}",
-            "{\"previous\":null,\"current\":null",
-            "{\"previous\":null,\"current\":null}}",
-            "{\"previous\":null,\"current\":null} trailing",
-            "{\"previous\":\"0.0.0\"}",
-            "{\"previous\":0,\"current\":null}",
-            "{\"previous\":null,\"current\":1.5}",
-            "{\"previous\":null,\"CURRENT\":null}",
-            "{\"previous\":null,\"previous\":null,\"current\":null}",
-            "{\"previous\":\"0.1",
-            "{\"current\":null}",
-            "{\"previous\":\"\\ud800\",\"current\":null}",
-            "{\"previous\":\"a\u{1}b\",\"current\":null}",
-            "{\"previous\":\"unterminated,\"current\":null}",
-            "{\"previous\":\"bad\\escape\",\"current\":null}",
-            "{\"previous\":\"bad\\u12\",\"current\":null}",
-            "{\"previous\":\"bad\\uzzzz\",\"current\":null}",
-            "{\"previous\":nul,\"current\":null}",
-            "{\"previous\":null,\"current\":null,\"extra\":1}",
-            "null",
-        ] {
-            assert!(parse_pin_record(text).is_err(), "{text:?}");
-        }
-        assert_eq!(
-            parse_pin_record("{\"previous\":null,\"current\":null}").expect("canonical"),
-            PinRecord {
-                previous: None,
-                current: None,
-            }
-        );
-        assert_eq!(
-            parse_pin_record("{\"current\":\"0.1.0\",\"previous\":\"0.0.0\"}").expect("reordered"),
-            PinRecord {
-                previous: Some("0.0.0".to_owned()),
-                current: Some("0.1.0".to_owned()),
-            }
-        );
-    }
-
-    #[test]
-    fn pin_record_error_strings_name_the_blocker() {
-        assert_eq!(
-            AdoptError::PinRecordMissing.to_string(),
-            "no recorded pin operation: nothing to roll back"
-        );
-        assert_eq!(
-            AdoptError::PinRecordUnreadable {
-                detail: "denied".to_owned(),
-            }
-            .to_string(),
-            "unreadable pin record: denied"
-        );
-        assert_eq!(
-            AdoptError::WritePinRecord {
-                detail: "denied".to_owned(),
-            }
-            .to_string(),
-            "write pin record: denied"
-        );
-        assert_eq!(
-            AdoptError::NoQualifiedManifest {
-                from: "1.2.3".to_owned(),
-                to: "2.0.0".to_owned(),
-                manifest: "migrate-v1-to-v2.json".to_owned(),
-            }
-            .to_string(),
-            "no qualified migration 1.2.3 -> 2.0.0: manifest migrate-v1-to-v2.json is not shipped"
-        );
-    }
-
-    #[test]
-    fn pin_record_file_round_trips_and_missing_is_explicit() {
-        let root =
-            std::env::temp_dir().join(format!("dx-adopt-record-{}-roundtrip", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        assert_eq!(
-            read_pin_record(&root).unwrap_err(),
-            AdoptError::PinRecordMissing
-        );
-        record_pin_operation(&root, Some("0.0.0"), Some("0.1.0")).expect("record");
-        assert_eq!(
-            read_pin_record(&root).expect("read back"),
-            PinRecord {
-                previous: Some("0.0.0".to_owned()),
-                current: Some("0.1.0".to_owned()),
-            }
-        );
-        record_pin_operation(&root, None, None).expect("blank record");
-        assert_eq!(
-            read_pin_record(&root).expect("blank back"),
-            PinRecord {
-                previous: None,
-                current: None,
-            }
-        );
-        std::fs::write(root.join(VERSION_HISTORY_REL), "not json").expect("corrupt");
-        assert!(read_pin_record(&root).is_err());
-        let _ = std::fs::remove_dir_all(&root);
     }
 
     fn no_includes(label: &str) -> Result<String, String> {

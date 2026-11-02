@@ -57,7 +57,6 @@ mod tests {
     const CLEAN: bool = false;
 
     const PROCEED: &[Command] = &[
-        Command::Rollback,
         Command::Upgrade,
         Command::Status,
         Command::Completion,
@@ -193,22 +192,20 @@ mod tests {
         assert!(message.contains(dx_adopt::MODULE_VERSION), "{message}");
         assert!(
             message.ends_with(&format!(
-                "; fix: write {} to .dx/version",
+                "; fix: dx upgrade --to {} --apply",
                 dx_adopt::MODULE_VERSION
             )),
             "{message}"
         );
-        assert!(!message.contains("dx rollback"), "{message}");
         assert!(!message.contains("dx version --"), "{message}");
         let older = diagnostic("0.0.0-alpha.1");
         assert!(
             older.ends_with(&format!(
-                "; fix: dx upgrade --from 0.0.0-alpha.1 --to {} --apply",
+                "; fix: dx upgrade --to {} --apply",
                 dx_adopt::MODULE_VERSION
             )),
             "{older}"
         );
-        assert!(!older.contains("dx rollback"), "{older}");
     }
 
     #[test]

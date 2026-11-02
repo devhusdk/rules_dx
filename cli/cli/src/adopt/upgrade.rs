@@ -1,16 +1,35 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::exec::common::{check_stdout_write, emit_started};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
+use dx_output::{command_finished, command_started, status_event, FinishedCounts, StatusEvent};
 use dx_plan::args::Invocation;
 
 use dx_output::OutputMode;
 
-use super::rollback::json_pin;
 use super::status::CODE_STATUS_PIN_MISMATCH;
 use super::{agents, operational, pre_exec, summaries_suppressed};
 
 pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
+
+fn json_pin(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    mode: &str,
+    detail: &str,
+) -> Result<(), i32> {
+    emit_built(out, command_started(invocation.command.name(), mode))?;
+    emit_built(
+        out,
+        status_event(&StatusEvent {
+            name: "pin".to_owned(),
+            status: "ok".to_owned(),
+            detail: detail.to_owned(),
+            hint: "dx status".to_owned(),
+        }),
+    )?;
+    emit_event(out, &command_finished(0, &FinishedCounts::default()))
+}
 
 /// Reports one failure; JSON output opens the stream first so the envelope stays whole.
 fn fail(
@@ -28,30 +47,20 @@ fn fail(
     operational(invocation, out, err, code, message)
 }
 
-/// Pins `--to` (this binary's own version) over a `--from` pin, records the move for
-/// `dx rollback`, then refreshes existing launchers and an existing AGENTS.md block.
-/// Every refusal runs before the first write.
+/// Moves the `.dx/version` pin to `--to`, newer or older, then refreshes existing
+/// launchers, the preset and an existing AGENTS.md block. Every refusal runs before the first write.
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
     workspace: &Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let (Some(from), Some(to)) = (invocation.from.as_deref(), invocation.to.as_deref()) else {
-        return pre_exec(
-            invocation.output,
-            out,
-            err,
-            "upgrade needs --from <version> --to <version>",
-        );
+    let Some(to) = invocation.to.as_deref() else {
+        return pre_exec(invocation.output, out, err, "upgrade needs --to <version>");
     };
     let intent = dx_adopt::UpgradeIntent {
         apply: invocation.applies(),
         workspace: invocation.workspace.clone(),
-    };
-    let plan = match dx_adopt::plan_upgrade(from, to, &intent) {
-        Ok(plan) => plan,
-        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let refuse = |out: &mut dyn Write, err: &mut dyn Write, message: &str| {
         fail(
@@ -64,7 +73,7 @@ pub(crate) fn execute_upgrade(
     };
     if !dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
         let message = format!(
-            "this dx is {}, not {to}; run the {to} binary: `bazel run @rules_dx//:dx -- upgrade --from {from} --to {to} --apply`",
+            "this dx is {}, not {to}; run the {to} binary: `bazel run @rules_dx//:dx -- upgrade --to {to} --apply`",
             dx_adopt::MODULE_VERSION,
         );
         return refuse(out, err, &message);
@@ -78,13 +87,6 @@ pub(crate) fn execute_upgrade(
         Err(error) => return refuse(out, err, &error.to_string()),
     };
     let rerun = dx_adopt::version_pin_matches_module(&pin, to);
-    if !rerun && !dx_adopt::version_pin_matches_module(&pin, from) {
-        let message = format!(
-            "pin {pin} is neither --from {from} nor --to {to}; fix: {}",
-            dx_adopt::pin_fix_hint(&pin, dx_adopt::MODULE_VERSION)
-        );
-        return refuse(out, err, &message);
-    }
     let is_json = invocation.output == OutputMode::Json;
     if !invocation.applies() {
         if rerun {
@@ -98,32 +100,27 @@ pub(crate) fn execute_upgrade(
             }
             return 0;
         }
-        let retry = dx_adopt::plan_upgrade(
-            from,
+        let retry = dx_adopt::upgrade_retry_command(
             to,
             &dx_adopt::UpgradeIntent {
                 apply: true,
                 ..intent
             },
-        )
-        .map(|plan| plan.retry_command)
-        .unwrap_or_else(|_| plan.retry_command.clone());
-        let message = format!("pin {pin} can upgrade to {to} (run `{retry}`)");
+        );
+        let message = format!("pin {pin} can move to {to} (run `{retry}`)");
         return fail(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
     }
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, to, false) {
         return refuse(out, err, &error.to_string());
     }
+    let recovery = dx_adopt::upgrade_recovery_message(to, &intent);
     let landed = |out: &mut dyn Write, err: &mut dyn Write, what: &str| {
-        let message = format!("pinned {to} but {what}; {}", plan.message);
+        let message = format!("pinned {to} but {what}; {recovery}");
         fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
     };
     if !rerun {
         if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
             return refuse(out, err, &error.to_string());
-        }
-        if let Err(error) = dx_adopt::record_pin_operation(workspace, Some(&pin), Some(to)) {
-            return landed(out, err, &format!("history unavailable: {error}"));
         }
     }
     let mut wrote = match dx_adopt::refresh_launcher_files(workspace, to) {
@@ -165,7 +162,6 @@ mod tests {
     use super::*;
     use crate::adopt::test_support::{event, event_kinds, invocation, json_events, run};
     use dx_plan::skew::{disposition, is_skewed, SkewDisposition};
-    use dx_process::pre_exec_code;
     use std::path::PathBuf;
 
     const OLD: &str = "0.0.0-alpha.1";
@@ -204,9 +200,8 @@ mod tests {
     }
 
     fn upgrade(extra: &[&str]) -> Invocation {
-        let from = format!("--from={OLD}");
         let to = format!("--to={}", module());
-        let mut words = vec!["upgrade", from.as_str(), to.as_str()];
+        let mut words = vec!["upgrade", to.as_str()];
         words.extend_from_slice(extra);
         invocation(&words)
     }
@@ -235,9 +230,6 @@ mod tests {
         );
         assert_eq!(read_pin(&root), module());
         assert!(!is_skewed(&read_pin(&root)));
-        let record = dx_adopt::read_pin_record(&root).expect("record");
-        assert_eq!(record.previous.as_deref(), Some(OLD));
-        assert_eq!(record.current.as_deref(), Some(module()));
         let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
         assert_ne!(agents, STALE_AGENTS);
         assert!(agents.starts_with("# Mine\n") && agents.ends_with("Tail.\n"));
@@ -276,10 +268,7 @@ mod tests {
         let (code, _out, err) = run(&upgrade(&[]), &root);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains(CODE_STATUS_PIN_MISMATCH), "{err}");
-        assert!(
-            err.contains(&format!("can upgrade to {}", module())),
-            "{err}"
-        );
+        assert!(err.contains(&format!("can move to {}", module())), "{err}");
         assert!(err.contains("--apply`"), "{err}");
         assert_eq!(snapshot(&root), before, "check must not write");
         let (_scratch, root) = pinned("dx-adopt-upgrade-current-", module());
@@ -289,15 +278,32 @@ mod tests {
     }
 
     #[test]
-    fn a_from_that_does_not_match_the_pin_is_refused() {
-        let (_scratch, root) = pinned("dx-adopt-upgrade-from-", "0.0.0-alpha.2");
-        let before = snapshot(&root);
-        let (code, _out, err) = run(&upgrade(&["--apply"]), &root);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
-        assert!(err.contains("is neither --from"), "{err}");
-        assert!(err.contains("nothing was written"), "{err}");
-        assert_eq!(snapshot(&root), before);
+    fn upgrade_moves_a_newer_pin_back() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-down-", "9.9.9");
+        dx_adopt::write_launcher_files(&root, "9.9.9", &mut dx_adopt::Applied::default())
+            .expect("launchers");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.starts_with(&format!("pinned {} (upgrade from 9.9.9)\n", module())),
+            "{out}"
+        );
+        assert_eq!(read_pin(&root), module());
+        assert_eq!(
+            dx_adopt::launcher_version(&root, "tools/dx").as_deref(),
+            Some(module())
+        );
+    }
+
+    #[test]
+    fn upgrade_moves_forward_and_back() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-round-", OLD);
+        assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);
+        assert_eq!(read_pin(&root), module());
+        dx_adopt::write_version_pin(&root, "9.9.9").expect("newer pin");
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(read_pin(&root), module());
     }
 
     #[test]
@@ -314,38 +320,25 @@ mod tests {
     fn a_to_other_than_this_binary_is_refused() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-to-", "1.2.3");
         let before = snapshot(&root);
-        let inv = invocation(&["upgrade", "--apply", "--from=1.2.3", "--to=2.0.0"]);
+        let inv = invocation(&["upgrade", "--apply", "--to=2.0.0"]);
         let (code, _out, err) = run(&inv, &root);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
         assert!(
-            err.contains("bazel run @rules_dx//:dx -- upgrade --from 1.2.3 --to 2.0.0 --apply"),
+            err.contains("bazel run @rules_dx//:dx -- upgrade --to 2.0.0 --apply"),
             "{err}"
         );
         assert_eq!(snapshot(&root), before);
     }
 
     #[test]
-    fn a_rerun_after_apply_succeeds_and_keeps_the_history() {
+    fn a_rerun_after_apply_succeeds() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-rerun-", OLD);
         let apply = upgrade(&["--apply"]);
         assert_eq!(run(&apply, &root).0, 0);
-        let history = std::fs::read(root.join(dx_adopt::VERSION_HISTORY_REL)).expect("history");
         let (code, out, err) = run(&apply, &root);
         assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(
-            std::fs::read(root.join(dx_adopt::VERSION_HISTORY_REL)).expect("history"),
-            history
-        );
-    }
-
-    #[test]
-    fn rollback_restores_the_pin_upgrade_replaced() {
-        let (_scratch, root) = pinned("dx-adopt-upgrade-rollback-", OLD);
-        assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);
-        let (code, out, err) = run(&invocation(&["rollback", "--apply"]), &root);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(read_pin(&root), OLD);
+        assert_eq!(out, format!("pinned {} (upgrade current)\n", module()));
     }
 
     #[test]
@@ -359,8 +352,9 @@ mod tests {
             vec!["command_started", "status", "command_finished"]
         );
         assert_eq!(events[1]["name"], "pin");
-        let (_scratch, root) = pinned("dx-adopt-upgrade-json-refused-", "0.0.0-alpha.2");
-        let (code, out, _err) = run(&upgrade(&["--apply", "--output=json"]), &root);
+        let (_scratch, root) = pinned("dx-adopt-upgrade-json-refused-", OLD);
+        let inv = invocation(&["upgrade", "--apply", "--to=2.0.0", "--output=json"]);
+        let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 1);
         let events = json_events(&out);
         assert_eq!(
@@ -374,8 +368,9 @@ mod tests {
     fn following_the_hint_for_a_newer_pin_clears_skew() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-newer-", "9.9.9");
         let hint = dx_adopt::pin_fix_hint("9.9.9", module());
-        assert_eq!(hint, format!("write {} to .dx/version", module()));
-        dx_adopt::write_version_pin(&root, module()).expect("follow hint");
+        let words: Vec<&str> = hint.split_whitespace().skip(1).collect();
+        let (code, out, err) = run(&invocation(&words), &root);
+        assert_eq!(code, 0, "{out}{err}");
         assert!(!is_skewed(&read_pin(&root)));
     }
 
@@ -402,15 +397,5 @@ mod tests {
     #[test]
     fn upgrade_codes_are_stable_single_source() {
         assert_eq!(CODE_UPGRADE_FAILED, "upgrade_failed");
-    }
-
-    #[test]
-    fn upgrade_rejects_downgrade_pre_exec() {
-        let inv = invocation(&["upgrade", "--from=2.0.0", "--to=1.0.0"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-upgrade-downgrade-");
-        let root = scratch.path().to_path_buf();
-        let (code, _out, err) = run(&inv, &root);
-        assert_eq!(code, pre_exec_code());
-        assert!(err.contains("upgrade-only"));
     }
 }

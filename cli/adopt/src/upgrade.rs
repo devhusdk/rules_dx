@@ -1,21 +1,8 @@
-use super::AdoptError;
-
 /// What the caller asked for: whether it applies and which workspace it named.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct UpgradeIntent {
     pub apply: bool,
     pub workspace: Option<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UpgradePlan {
-    pub from: String,
-    pub to: String,
-    pub manifest: String,
-    pub retry_command: String,
-    pub restore_command: Option<String>,
-    pub refresh_commands: Vec<String>,
-    pub message: String,
 }
 
 fn shell_word(word: &str) -> String {
@@ -30,135 +17,46 @@ fn shell_word(word: &str) -> String {
     }
 }
 
-fn flags(intent: &UpgradeIntent) -> String {
-    let mut out = String::new();
+/// The command that reruns this upgrade.
+pub fn upgrade_retry_command(to: &str, intent: &UpgradeIntent) -> String {
+    let mut command = format!("dx upgrade --to {}", shell_word(to));
     if intent.apply {
-        out.push_str(" --apply");
+        command.push_str(" --apply");
     }
     if let Some(workspace) = &intent.workspace {
-        out.push_str(" --workspace ");
-        out.push_str(&shell_word(workspace));
+        command.push_str(" --workspace ");
+        command.push_str(&shell_word(workspace));
     }
-    out
+    command
 }
 
-pub fn upgrade_retry_command(from: &str, to: &str, intent: &UpgradeIntent) -> String {
-    format!("dx upgrade --from {from} --to {to}{}", flags(intent))
-}
-
-pub fn upgrade_restore_command_for(intent: &UpgradeIntent) -> Option<String> {
-    intent
-        .apply
-        .then(|| format!("dx rollback{}", flags(intent)))
-}
-
-pub fn upgrade_refresh_commands(intent: &UpgradeIntent) -> Vec<String> {
-    ["init", "env", "codegen"]
-        .iter()
-        .map(|command| format!("dx {command}{}", flags(intent)))
-        .collect()
-}
-
-pub fn upgrade_recovery_message(plan: &UpgradePlan) -> String {
-    match &plan.restore_command {
-        Some(restore) => format!(
-            "recovery: rerun `{}` (idempotent); to discard a landed pin run `{restore}` then run `{}`",
-            plan.retry_command,
-            plan.refresh_commands.join("` and `"),
-        ),
-        None => format!("recovery: rerun `{}` (idempotent)", plan.retry_command),
-    }
-}
-
-fn build_plan(from: &str, to: &str, manifest: String, intent: &UpgradeIntent) -> UpgradePlan {
-    let mut plan = UpgradePlan {
-        from: from.to_owned(),
-        to: to.to_owned(),
-        manifest,
-        retry_command: upgrade_retry_command(from, to, intent),
-        restore_command: upgrade_restore_command_for(intent),
-        refresh_commands: upgrade_refresh_commands(intent),
-        message: String::new(),
-    };
-    plan.message = upgrade_recovery_message(&plan);
-    plan
-}
-
-pub fn plan_upgrade(
-    from: &str,
-    to: &str,
-    intent: &UpgradeIntent,
-) -> Result<UpgradePlan, AdoptError> {
-    let migrate = super::plan_migrate(from, to)?;
-    Ok(build_plan(from, to, migrate.manifest, intent))
+/// The recovery line for an upgrade that stopped part way.
+pub fn upgrade_recovery_message(to: &str, intent: &UpgradeIntent) -> String {
+    format!(
+        "recovery: rerun `{}` (idempotent)",
+        upgrade_retry_command(to, intent)
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn applying() -> UpgradeIntent {
-        UpgradeIntent {
+    #[test]
+    fn recovery_reruns_the_same_upgrade() {
+        let check = UpgradeIntent::default();
+        assert_eq!(
+            upgrade_recovery_message("2.0.0", &check),
+            "recovery: rerun `dx upgrade --to 2.0.0` (idempotent)"
+        );
+        let apply = UpgradeIntent {
             apply: true,
             workspace: None,
-        }
-    }
-
-    #[test]
-    fn upgrade_reuses_migrate_gate_and_manifest() {
-        let intent = UpgradeIntent::default();
-        let plan = plan_upgrade("1.2.3", "2.0.0", &intent).expect("major plans");
-        assert_eq!(plan.from, "1.2.3");
-        assert_eq!(plan.to, "2.0.0");
-        assert_eq!(plan.manifest, "migrate-v1-to-v2.json");
-        assert_eq!(plan.retry_command, "dx upgrade --from 1.2.3 --to 2.0.0");
-        let minor = plan_upgrade("1.2.3", "1.3.0", &intent).expect("minor plans");
-        assert_eq!(minor.manifest, "migrate-v1.2.3-to-v1.3.0.json");
-        assert!(plan_upgrade("2.0.0", "1.0.0", &intent).is_err());
+        };
         assert_eq!(
-            plan_upgrade("2.0.0", "1.0.0", &intent)
-                .unwrap_err()
-                .to_string(),
-            "migrate is upgrade-only: 2.0.0 -> 1.0.0"
+            upgrade_retry_command("1.0.0", &apply),
+            "dx upgrade --to 1.0.0 --apply"
         );
-        assert_eq!(
-            plan_upgrade("", "2.0.0", &intent).unwrap_err().to_string(),
-            "migrate needs distinct versions: from and to must both be set"
-        );
-    }
-
-    #[test]
-    fn check_recovery_only_reruns_and_never_applies() {
-        let plan = plan_upgrade("1.2.3", "2.0.0", &UpgradeIntent::default()).expect("plans");
-        assert_eq!(plan.restore_command, None);
-        assert_eq!(
-            plan.message,
-            "recovery: rerun `dx upgrade --from 1.2.3 --to 2.0.0` (idempotent)"
-        );
-        assert!(!plan.message.contains("--apply"), "{}", plan.message);
-    }
-
-    #[test]
-    fn apply_recovery_names_only_surviving_commands() {
-        let plan = plan_upgrade("1.2.3", "2.0.0", &applying()).expect("plans");
-        assert_eq!(
-            plan.retry_command,
-            "dx upgrade --from 1.2.3 --to 2.0.0 --apply"
-        );
-        assert_eq!(plan.restore_command.as_deref(), Some("dx rollback --apply"));
-        assert_eq!(
-            plan.refresh_commands,
-            vec!["dx init --apply", "dx env --apply", "dx codegen --apply"]
-        );
-        assert!(plan.message.contains("idempotent"), "{}", plan.message);
-        for removed in [
-            "version --pin",
-            "version --rollback",
-            "dx setup",
-            "git checkout",
-        ] {
-            assert!(!plan.message.contains(removed), "{}", plan.message);
-        }
     }
 
     #[test]
@@ -175,18 +73,9 @@ mod tests {
             apply: true,
             workspace: Some("my repo".to_owned()),
         };
-        let plan = plan_upgrade("1.2.3", "2.0.0", &intent).expect("plans");
         assert_eq!(
-            plan.retry_command,
-            "dx upgrade --from 1.2.3 --to 2.0.0 --apply --workspace 'my repo'"
+            upgrade_retry_command("2.0.0", &intent),
+            "dx upgrade --to 2.0.0 --apply --workspace 'my repo'"
         );
-        assert_eq!(
-            plan.restore_command.as_deref(),
-            Some("dx rollback --apply --workspace 'my repo'")
-        );
-        assert!(plan
-            .refresh_commands
-            .iter()
-            .all(|command| command.ends_with("--workspace 'my repo'")));
     }
 }

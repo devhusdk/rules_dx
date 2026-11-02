@@ -18,7 +18,6 @@ pub mod init_dir;
 pub mod init_parts;
 pub mod launcher;
 pub mod load_graph;
-pub mod migrate;
 pub mod overrides;
 pub mod preflight;
 pub mod preset;
@@ -49,7 +48,6 @@ pub use launcher::{
     LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
 };
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
-pub use migrate::plan_migrate;
 pub use overrides::{
     apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };
@@ -64,11 +62,10 @@ pub use scaffold::{
     validate_rust_target_triples, Applied,
 };
 pub use status::{observed_status_checks, render_status_text, StatusCheck};
-pub use upgrade::{plan_upgrade, UpgradeIntent};
+pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent};
 pub use version::{
     local_path_overrides, module_dependency_status, pin_fix_hint, pin_is_valid, pin_rewrite_hint,
-    read_module_dependency, read_pin_record, read_version_pin, record_pin_operation,
-    render_module_dependency, version_pin_matches_module, write_version_pin, DX_VERSION,
-    MODULE_VERSION, VERSION_HISTORY_REL,
+    read_module_dependency, read_version_pin, render_module_dependency, version_pin_matches_module,
+    write_version_pin, DX_VERSION, MODULE_VERSION,
 };
 pub use watch::{plan_watch, WATCHABLE_COMMANDS};

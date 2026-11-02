@@ -189,7 +189,6 @@ pub fn spec(command: Command) -> CommandSpec {
         },
         Command::Init
         | Command::Upgrade
-        | Command::Rollback
         | Command::Worktree
         | Command::Explain
         | Command::Install

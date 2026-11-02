@@ -32,22 +32,6 @@ pub enum AdoptError {
     WatchSpawn { detail: String },
     #[error("watch failed: {detail}")]
     WatchFailed { detail: String },
-    #[error("migrate needs distinct versions: {detail}")]
-    MigrateVersions { detail: String },
-    #[error("migrate is upgrade-only: {from} -> {to}")]
-    MigrateNotUpgrade { from: String, to: String },
-    #[error("no qualified migration {from} -> {to}: manifest {manifest} is not shipped")]
-    NoQualifiedManifest {
-        from: String,
-        to: String,
-        manifest: String,
-    },
-    #[error("no recorded pin operation: nothing to roll back")]
-    PinRecordMissing,
-    #[error("unreadable pin record: {detail}")]
-    PinRecordUnreadable { detail: String },
-    #[error("write pin record: {detail}")]
-    WritePinRecord { detail: String },
     #[error("invalid directory for dx init: {dir:?}: {reason}")]
     InitInvalidDir { dir: String, reason: String },
     #[error("invalid module name for dx init: {module:?}: {reason}")]

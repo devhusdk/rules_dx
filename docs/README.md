@@ -25,7 +25,7 @@ guides below.
 - [Init](cli/commands/init.md): set up a workspace.
 - [Status](cli/commands/status.md): health report and the version pin.
 - [Completion](cli/commands/completion.md): shell completions.
-- [Upgrade, rollback](cli/commands/upgrade-rollback.md): change the pin.
+- [Upgrade](cli/commands/upgrade.md): change the pin.
 - [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.
 - [Worktree](cli/commands/worktree.md): worktree slots.

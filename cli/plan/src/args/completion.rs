@@ -687,7 +687,6 @@ mod tests {
                 | Command::Init
                 | Command::Upgrade
                 | Command::Status
-                | Command::Rollback
                 | Command::Worktree
                 | Command::Explain
                 | Command::Install => {
@@ -797,7 +796,6 @@ mod tests {
             "--min-coverage",
             "--bazel",
             "--configured",
-            "--from",
             "--to",
             "--serve",
             "--port",

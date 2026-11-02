@@ -13,7 +13,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
     ] {
         let base = match command {
             "bump" => vec![command, "cargo:demo", "1.0.0"],
-            "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
+            "upgrade" => vec![command, "--to=2.0.0"],
             _ => vec![command],
         };
         for option in ["--fail-on=error", "--report=junit=report.xml", "--bazel"] {
@@ -36,7 +36,6 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         }
     }
     for words in [
-        vec!["upgrade", "--from="],
         vec!["upgrade", "--to="],
         vec!["lint", "--pin=1.0.0"],
         vec!["build", "--pin=1.0.0"],
@@ -85,7 +84,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
 fn required_words(name: &str) -> &'static [&'static str] {
     match name {
         "bump" => &["cargo:demo", "1.0.0"],
-        "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
+        "upgrade" => &["--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
@@ -370,19 +369,10 @@ fn bump_needs_exactly_one_selector_plus_version() {
 }
 
 #[test]
-fn upgrade_needs_from_and_to_versions() {
-    let upgrade_ok =
-        parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("upgrade parses");
+fn upgrade_needs_a_to_version() {
+    let upgrade_ok = parse(&strings(&["upgrade", "--to=2.0.0"])).expect("upgrade parses");
     assert_eq!(upgrade_ok.command, Command::Upgrade);
-    assert_eq!(upgrade_ok.from, Some("1.2.3".to_owned()));
     assert_eq!(upgrade_ok.to, Some("2.0.0".to_owned()));
-    assert_eq!(
-        parse(&strings(&["lint", "--from=1.0.0"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "lint",
-            option: "--from".to_owned(),
-        })
-    );
     assert_eq!(
         parse(&strings(&["build", "//a:one", "--to=2.0.0"])),
         Err(ArgsError::UnsupportedOption {
@@ -408,48 +398,32 @@ fn removed_new_points_at_init() {
 }
 
 #[test]
-fn upgrade_needs_from_and_to_with_no_scopes() {
-    let got = parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("parse upgrade");
+fn upgrade_needs_to_with_no_scopes() {
+    let got = parse(&strings(&["upgrade", "--to=2.0.0"])).expect("parse upgrade");
     assert_eq!(got.command, Command::Upgrade);
     assert!(got.command.is_adoption());
     assert!(got.command.supports_json());
     assert_eq!(
-        parse(&strings(&["upgrade", "--from=1.2.3"])),
+        parse(&strings(&["upgrade", "--apply"])),
         Err(ArgsError::MissingValue {
-            option: "--from <version> --to <version>".to_owned(),
+            option: "--to <version>".to_owned(),
         })
     );
     assert_eq!(
-        parse(&strings(&[
-            "upgrade",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "//a:one"
-        ])),
+        parse(&strings(&["upgrade", "--to=2.0.0", "//a:one"])),
         Err(ArgsError::UnsupportedOption {
             command: "upgrade",
             option: "//a:one".to_owned(),
         })
     );
     assert_eq!(
-        parse(&strings(&[
-            "upgrade",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--diff"
-        ])),
+        parse(&strings(&["upgrade", "--to=2.0.0", "--diff"])),
         Err(ArgsError::UnsupportedOption {
             command: "upgrade",
             option: "--diff".to_owned(),
         })
     );
-    let json = parse(&strings(&[
-        "upgrade",
-        "--from=1.2.3",
-        "--to=2.0.0",
-        "--output=json",
-    ]))
-    .expect("upgrade json");
+    let json = parse(&strings(&["upgrade", "--to=2.0.0", "--output=json"])).expect("upgrade json");
     assert_eq!(json.output, OutputMode::Json);
 }
 
@@ -548,13 +522,7 @@ fn output_contract_has_no_silent_ignore() {
     .expect("bump json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
-    let got = parse(&strings(&[
-        "upgrade",
-        "--from=1.2.3",
-        "--to=2.0.0",
-        "--output=json",
-    ]))
-    .expect("upgrade json");
+    let got = parse(&strings(&["upgrade", "--to=2.0.0", "--output=json"])).expect("upgrade json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
     let got = parse(&strings(&["status", "--output=json"])).expect("status json");
@@ -608,7 +576,7 @@ fn output_contract_has_no_silent_ignore() {
         vec!["env", "--diff"],
         vec!["docs", "--diff"],
         vec!["bump", "cargo:anyhow", "1.2.3", "--diff"],
-        vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--diff"],
+        vec!["upgrade", "--to=2.0.0", "--diff"],
     ] {
         assert_eq!(
             parse(&strings(&words)),
@@ -659,12 +627,12 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 }
 
 #[test]
-fn version_rollback_and_check_parse() {
+fn version_flags_stay_with_their_commands() {
     for words in [
         vec!["status", "--serve"],
-        vec!["test", "//a:one", "--from=0.1.0"],
+        vec!["test", "//a:one", "--to=0.1.0"],
         vec!["lint", "--serve"],
-        vec!["status", "--from=0.1.0"],
+        vec!["status", "--to=0.1.0"],
     ] {
         assert!(
             matches!(
@@ -727,7 +695,7 @@ fn docs_check_serve_port_parse() {
         vec!["build", "--open"],
         vec!["docs", "--fail-on=error"],
         vec!["docs", "--report=sarif=out.sarif"],
-        vec!["docs", "--from=0.1.0"],
+        vec!["docs", "--to=0.1.0"],
         vec!["docs", "--diff"],
     ] {
         assert!(
@@ -809,7 +777,7 @@ fn managed_commands_parse_repo_and_exact_scopes() {
     for words in [
         vec!["env", "--fail-on=error"],
         vec!["codegen", "--report=sarif=out.sarif"],
-        vec!["env", "--from=0.1.0"],
+        vec!["env", "--to=0.1.0"],
     ] {
         assert!(
             matches!(
@@ -981,7 +949,7 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         vec!["codegen", "--offline"],
         vec!["status", "--offline"],
         vec!["docs", "--offline"],
-        vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--offline"],
+        vec!["upgrade", "--to=2.0.0", "--offline"],
     ] {
         assert_eq!(
             parse(&strings(&words)),
@@ -1060,7 +1028,7 @@ fn clean_names_its_scope_before_the_passthrough_it_also_refuses() {
             "//:demo".to_owned(),
         ),
         (
-            vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--", "--config=ci"],
+            vec!["upgrade", "--to=2.0.0", "--", "--config=ci"],
             "--".to_owned(),
         ),
     ] {

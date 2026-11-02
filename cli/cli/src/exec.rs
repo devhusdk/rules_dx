@@ -231,11 +231,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         return affected::execute_affected(invocation, env);
     }
     match invocation.command {
-        Command::Init
-        | Command::Upgrade
-        | Command::Rollback
-        | Command::Status
-        | Command::Completion => {
+        Command::Init | Command::Upgrade | Command::Status | Command::Completion => {
             let Env {
                 workspace,
                 out,
@@ -332,7 +328,7 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 11] = [
+    const NO_BAZEL_BUILD: [Command; 10] = [
         Command::Security,
         Command::License,
         Command::Clean,
@@ -341,7 +337,6 @@ mod tests {
         Command::Upgrade,
         Command::Status,
         Command::Watch,
-        Command::Rollback,
         Command::Worktree,
         Command::Explain,
     ];
@@ -442,7 +437,7 @@ mod tests {
             vec!["license", "--dry-run=false"],
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
-            vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
+            vec!["upgrade", "--to=2.0.0", "--dry-run"],
         ] {
             let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));
             let harness = Harness::new(&name);

@@ -509,7 +509,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         debug,
         release,
         prune_unobserved,
-        from,
         to,
         here,
         affected,
@@ -676,9 +675,9 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(missing_positional(command));
         }
     }
-    if matches!(command, Command::Upgrade) && (from.is_none() || to.is_none()) {
+    if matches!(command, Command::Upgrade) && to.is_none() {
         return Err(ArgsError::MissingValue {
-            option: "--from <version> --to <version>".to_owned(),
+            option: "--to <version>".to_owned(),
         });
     }
     if command == Command::Generate {
@@ -747,11 +746,6 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(extra_positional(command, &targets[0]));
                 }
             }
-            Command::Rollback => {
-                if !targets.is_empty() {
-                    return Err(extra_positional(command, &targets[0]));
-                }
-            }
             Command::Completion => {
                 if targets.len() > 1 {
                     return Err(extra_positional(command, &targets[1]));
@@ -798,7 +792,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         bazel_options,
         app_args,
         prune_unobserved,
-        from,
         to,
         here,
         affected,
@@ -968,7 +961,7 @@ mod startup_tests {
             None
         );
         assert_eq!(
-            early_output_flag(&strings(&["lint", "--from", "--output"])),
+            early_output_flag(&strings(&["lint", "--to", "--output"])),
             None,
             "a value slot swallows the next word"
         );
@@ -1011,7 +1004,7 @@ mod startup_tests {
             "a bare flag keeps the earlier value"
         );
         assert_eq!(
-            early_output_flag(&strings(&["lint", "--from", "-ojson"])),
+            early_output_flag(&strings(&["lint", "--to", "-ojson"])),
             None,
             "a value slot swallows a short spelling"
         );
@@ -1033,7 +1026,7 @@ mod startup_tests {
             &["lint", "-q=false"],
             &["lint", "-json"],
             &["lint", "-qv"],
-            &["lint", "--from", "-qojson"],
+            &["lint", "--to", "-qojson"],
             &["lint", "--", "-qojson"],
         ] {
             assert_eq!(early_output_flag(&strings(words)), None, "{words:?}");

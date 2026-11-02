@@ -24,7 +24,7 @@ bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 - [`dx install`](install.md)
 - [`dx status`](status.md)
 - [`dx completion`](completion.md)
-- [`dx upgrade`, `dx rollback`](upgrade-rollback.md)
+- [`dx upgrade`](upgrade.md)
 - [`dx watch`](watch.md)
 - [`dx worktree`](worktree.md)
 

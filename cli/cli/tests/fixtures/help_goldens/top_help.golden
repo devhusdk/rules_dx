@@ -27,12 +27,11 @@ Commands:
   codegen     materialize declared generated source (check by default; --apply writes)
   env         collect the managed development environment (check by default; --apply writes managed state)
   init        start or adopt a dx workspace in this or a new directory (absent-only; check by default; --apply scaffolds)
-  upgrade     pin the module version and refresh existing launchers and the AGENTS.md block (runs on skew; check by default; --apply upgrades)
+  upgrade     move the pin to any version, newer or older, and refresh existing launchers and the AGENTS.md block (runs on skew; check by default; --apply moves)
   status      report workspace status; --verbose adds command capabilities; without .dx/version it exits 1 with status_pin_mismatch
   watch       watch for changes and rebuild (local only)
   completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell)
   docs        build and serve the mdBook documentation site (non-mutating)
-  rollback    restore the previous recorded pin (check by default; --apply restores)
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   explain     explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)
   install     verify and install a downloaded dx release archive (check by default; --apply writes)

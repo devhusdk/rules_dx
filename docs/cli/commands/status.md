@@ -98,7 +98,7 @@ directory cannot be opened.
   `dx init --apply --with=agents` writes it.
 
 `ok` passes. `warn` means unknown and does not fail. `error` fails, and
-the hint is the fix, for example `dx upgrade --from <version> --to <version> --apply`.
+the hint is the fix, for example `dx upgrade --to <version> --apply`.
 The `toolchain`, `bazel`, `module`, `overrides`, `init_plan`, `host`, `exec_tools`, `preset`, and `tools` detail text starts with
 `available:`, `unavailable:`, `unknown:`, or `not applicable:`. Unknown is
 never healthy.
@@ -132,10 +132,8 @@ dx: status_check_failed: failed checks: module, tools (see hint)
 
 `dx --version` prints the binary version and exits `0`. `dx status` reports
 the pin, the module version, and the `rules_dx` dependency. To change the pin,
-when it is older than the module version, run
-`dx upgrade --from <pin> --to <module version> --apply`. When it is newer or
-invalid, write the module version to `.dx/version`. `dx rollback --apply`
-restores the last pin `dx upgrade` or `dx rollback` recorded.
+run `dx upgrade --to <module version> --apply`. When the pin is not semver,
+write the module version to `.dx/version`.
 
 The [global shim](README.md#global-shim) sets `DX_SHIM=1` for the dx binary
 it runs.
@@ -148,7 +146,7 @@ example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
 `1.3.0`, so `dx build` stops with
 `version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
-- Runs anyway: `status`, `rollback`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
+- Runs anyway: `status`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
 - Warns and runs: `check`, `security`, `license`.
 - Stops with exit code `1`: every other command.
 
@@ -159,13 +157,13 @@ A missing file makes `dx status` exit `1` with
 `status_pin_mismatch`.
 
 A stop prints `dx: version skew: binary <version> pin <pin> module <version>; fix: <hint>`
-on stderr. The hint is `dx upgrade --from <pin> --to <module version> --apply`
-when the pin is older, otherwise `write <module version> to .dx/version`. Under `--output=json` it adds a `version_skew`
+on stderr. The hint is `dx upgrade --to <module version> --apply`
+when the pin is semver, otherwise `write <module version> to .dx/version`. Under `--output=json` it adds a `version_skew`
 error event, then `command_finished` with `exit_code` `1` and
 `results_complete` `false`.
 
 ```sh
 bazel run @rules_dx//:dx -- status
-bazel run @rules_dx//:dx -- rollback
+bazel run @rules_dx//:dx -- upgrade --to 1.3.0 --apply
 bazel run @rules_dx//:dx -- build //...
 ```

@@ -2,7 +2,6 @@ pub(crate) mod agents;
 pub(crate) mod claude_md;
 mod completion;
 mod init;
-mod rollback;
 mod status;
 mod status_tools;
 #[cfg(test)]
@@ -42,7 +41,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Init => init::execute_init(invocation, workspace, out, err),
         Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
         Command::Status => status::execute_status(invocation, workspace, out, err),
-        Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
         Command::Completion => completion::execute_completion(invocation, out, err),
         _ => pre_exec(invocation.output, out, err, "not an adoption command"),
     }
@@ -108,8 +106,8 @@ mod tests {
             vec!["status", "--output=json"],
             vec!["status", "--verbose"],
             vec!["status", "--output=json", "--verbose"],
-            vec!["upgrade", "--from=1.0.0", "--to=2.0.0"],
-            vec!["upgrade", "--from=1.0.0", "--to=2.0.0", "--output=json"],
+            vec!["upgrade", "--to=2.0.0"],
+            vec!["upgrade", "--to=2.0.0", "--output=json"],
             vec!["completion", "bash"],
             vec!["init"],
             vec!["init", "demo"],

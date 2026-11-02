@@ -168,7 +168,7 @@ fn plain_words(command: Command) -> Vec<String> {
     match command {
         Command::Bump => words.extend(strings(&["cargo:demo", "1.0.0"])),
         Command::Upgrade => {
-            words.extend(strings(&["--from=1.0.0", "--to=2.0.0"]));
+            words.extend(strings(&["--to=2.0.0"]));
         }
         Command::Run | Command::Deploy => {
             words.push("//:demo".to_owned());
@@ -450,14 +450,6 @@ fn old_tests_command_is_rejected_with_bazel_query_tip() {
         parse(&strings(&words)).unwrap_err(),
         &["unsupported command 'tests'", "bazel query 'tests("],
     );
-}
-
-#[test]
-fn rollback_parses_with_apply_only() {
-    let got = parse(&strings(&["rollback", "--apply"])).expect("parse");
-    assert_eq!(got.command, Command::Rollback);
-    assert!(got.apply);
-    assert!(parse(&strings(&["rollback", "//a:one"])).is_err());
 }
 
 #[test]

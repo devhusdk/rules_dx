@@ -87,7 +87,6 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         | Command::Completion
         | Command::Docs
         | Command::Explain
-        | Command::Install
-        | Command::Rollback => &[],
+        | Command::Install => &[],
     }
 }

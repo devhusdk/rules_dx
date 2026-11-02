@@ -60,9 +60,9 @@ fn strict_missing_values_fail_with_bare_flag() {
         &["--color"],
     );
     assert_usage(
-        &["upgrade", "--from", "--to=2.0.0"],
-        parse(&strings(&["upgrade", "--from", "--to=2.0.0"])).unwrap_err(),
-        &["--from"],
+        &["upgrade", "--to", "--apply"],
+        parse(&strings(&["upgrade", "--to", "--apply"])).unwrap_err(),
+        &["--to"],
     );
 }
 
@@ -199,7 +199,6 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         (vec!["docs", "--serve", "--port=notanumber"], "port"),
         (vec!["docs", "--serve", "--port="], "port"),
         (vec!["docs", "--serve", "--host="], "host"),
-        (vec!["upgrade", "--from="], "from"),
         (vec!["upgrade", "--to="], "to"),
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);

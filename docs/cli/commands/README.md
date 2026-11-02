@@ -16,7 +16,7 @@ bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 - [`dx lint`, `dx typecheck`, `dx format`](quality.md)
 - [`dx check`, `dx clean`](check-fix-clean.md)
 - [`dx generate`](generate.md)
-- [`dx env`, `dx codegen`](environment-codegen.md)
+- [`dx env`](env.md)
 - [`dx security`, `dx license`, `dx update`, `dx bump`](audit-update.md)
 - [`dx docs`](docs.md)
 - [`dx explain`](explain.md)
@@ -39,7 +39,7 @@ from stops most commands. See [Version Skew](status.md#version-skew).
 ## Build Slots
 
 `dx build`, `test`, `coverage`, `deploy`, `lint`, `typecheck`,
-`format`, `check`, `fix`, `generate`, `codegen`, `env`, `security`, `license` and
+`format`, `check`, `fix`, `generate`, `env`, `security`, `license` and
 `docs` take a build slot before they call Bazel.
 `dx run` holds a slot only while it builds and frees it before the app starts.
 `dx watch` takes one slot per iteration and holds none while it waits for

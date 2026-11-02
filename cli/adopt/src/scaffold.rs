@@ -19,7 +19,7 @@ pub const DEVCONTAINER_JSON: &str = concat!(    "{\n",
     "      \"extensions\": [\"rust-lang.rust-analyzer\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]\n",
     "    }\n",
     "  },\n",
-    "  \"postCreateCommand\": \"bazel run @rules_dx//:dx -- env --apply && bazel run @rules_dx//:dx -- codegen --apply\"\n",
+    "  \"postCreateCommand\": \"bazel run @rules_dx//:dx -- env --apply\"\n",
     "}\n",
 );
 
@@ -623,12 +623,8 @@ mod tests {
         let post_create = parsed["postCreateCommand"]
             .as_str()
             .expect("postCreateCommand string");
-        assert!(
-            post_create.contains("bazel run @rules_dx//:dx -- env --apply && "),
-            "bootstrap first: {post_create}"
-        );
-        assert!(
-            post_create.contains("bazel run @rules_dx//:dx -- codegen --apply"),
+        assert_eq!(
+            post_create, "bazel run @rules_dx//:dx -- env --apply",
             "{post_create}"
         );
         assert!(!post_create.contains("dx:env"), "{post_create}");
@@ -646,10 +642,6 @@ mod tests {
             "{DEVCONTAINER_JSON}"
         );
         assert!(!DEVCONTAINER_JSON.contains("dx:env"), "{DEVCONTAINER_JSON}");
-        assert!(
-            DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- codegen --apply"),
-            "{DEVCONTAINER_JSON}"
-        );
         assert!(
             !DEVCONTAINER_JSON.contains("//cli/cli:dx"),
             "{DEVCONTAINER_JSON}"

@@ -26,16 +26,14 @@ fn selected(harness: &Harness) -> bool {
 
 #[test]
 fn a_failed_start_event_starts_no_child_and_no_selection() {
-    for command in ["codegen", "env"] {
-        for (kind, want) in KINDS {
-            let h = Harness::new("m-start-fails");
-            let mut sink = Sink::new(Fault::WriteFails(kind), 1);
-            let code = run(&h, &[command, "--apply", "--output=json"], &mut sink);
-            assert_eq!(code, want, "{command} {kind:?}");
-            assert_eq!(launches(&h), 0, "{command} {kind:?}");
-            assert!(!selected(&h));
-            assert!(sink.bytes.is_empty());
-        }
+    for (kind, want) in KINDS {
+        let h = Harness::new("m-start-fails");
+        let mut sink = Sink::new(Fault::WriteFails(kind), 1);
+        let code = run(&h, &["env", "--apply", "--output=json"], &mut sink);
+        assert_eq!(code, want, "{kind:?}");
+        assert_eq!(launches(&h), 0, "{kind:?}");
+        assert!(!selected(&h));
+        assert!(sink.bytes.is_empty());
     }
 }
 
@@ -57,7 +55,7 @@ fn a_failed_text_summary_starts_no_child() {
     for (kind, want) in KINDS {
         let h = Harness::new("m-summary-fails");
         let mut sink = Sink::new(Fault::WriteFails(kind), 1);
-        let code = run(&h, &["codegen", "--apply", "--output=text"], &mut sink);
+        let code = run(&h, &["env", "--apply", "--output=text"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
         assert_eq!(launches(&h), 0);
         assert!(!selected(&h));
@@ -91,7 +89,7 @@ fn a_failed_selection_line_never_returns_success() {
         for from in 1..40 {
             let h = Harness::new("m-text-fails");
             let mut sink = Sink::new(Fault::WriteFails(kind), from);
-            let code = run(&h, &["codegen", "--apply", "--output=text"], &mut sink);
+            let code = run(&h, &["env", "--apply", "--output=text"], &mut sink);
             assert!(code == 0 || code == want, "{kind:?} from {from}: {code}");
             if code == want && selected(&h) && !sink.text().contains("selected setup") {
                 lost_the_line = true;

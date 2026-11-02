@@ -1447,7 +1447,7 @@ executable fails with `set --@rules_dx//config:tool_flatc to a flatc binary`.
 
 C++ code generation uses the pinned `flatc` through `flatbuffers_cc_library`
 and does not read this flag. See the codegen pairs in
-[generate](generate.md#codegen-pairs).
+[env](env.md#codegen-pairs).
 
 `flatc` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
 macOS arm64 and Windows x86_64 are marked unsupported until `flatc` is
@@ -1488,7 +1488,7 @@ curated default. Format is not applicable: no maintained `.capnp` formatter
 exists, and `capnp` only validates.
 
 For C++, Rust and Java code generation from the same `capnp_library` targets see
-[generate](generate.md#codegen-pairs).
+[env](env.md#codegen-pairs).
 
 ```python
 load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
@@ -2828,9 +2828,9 @@ update notices are off.
 `openapi_typescript_client(spec = ":pets")` from
 `@rules_dx//api_spec/rules:codegen.bzl` generates one self-contained TypeScript
 client from an OpenAPI root of the library, and `openapi_codegen_shard` binds it
-into the `dx codegen` plan. The same preflight checks run first, and the root
-must be OpenAPI. See `docs/cli/commands/generate.md` for the fixed flags and the
-verification with `dx codegen`.
+into the `dx env` plan. The same preflight checks run first, and the root
+must be OpenAPI. See `docs/cli/commands/env.md` for the fixed flags and the
+verification with `dx env`.
 
 ### Svelte
 

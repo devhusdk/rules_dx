@@ -78,7 +78,7 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
             CODE_ADD_DECLARED,
             CODE_UPDATE_SET_SUCCESS,
         ],
-        Command::Codegen | Command::Env => &[CODE_MANAGED_DRIFT],
+        Command::Env => &[CODE_MANAGED_DRIFT],
         Command::Worktree => &[],
         Command::Init => &[CODE_INIT_PLAN_PARTIAL],
         Command::Upgrade

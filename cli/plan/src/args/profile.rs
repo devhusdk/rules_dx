@@ -201,7 +201,7 @@ mod tests {
             vec!["lint", "--debug"],
             vec!["check", "--release"],
             vec!["generate", "--debug"],
-            vec!["codegen", "--release"],
+            vec!["env", "--release"],
             vec!["status", "--debug"],
             vec!["docs", "--debug"],
             vec!["docs", "--release"],

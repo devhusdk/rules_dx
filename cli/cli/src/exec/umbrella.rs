@@ -1381,17 +1381,15 @@ mod tests {
         for (name, plan) in planned {
             argvs.push((name.to_owned(), plan.expect("plan").argv));
         }
-        for command in [Command::Codegen, Command::Env] {
-            let plan = dx_plan::plan::plan_managed(
-                command,
-                &dx_setup::SetupScope::Repository,
-                &[],
-                "/tmp/bep.json",
-                &[],
-            )
-            .expect("managed plan");
-            argvs.push((format!("{command:?}"), plan.argv));
-        }
+        let plan = dx_plan::plan::plan_managed(
+            Command::Env,
+            &dx_setup::SetupScope::Repository,
+            &[],
+            "/tmp/bep.json",
+            &[],
+        )
+        .expect("managed plan");
+        argvs.push(("env".to_owned(), plan.argv));
         let selection = dx_plan::resolve::SelectionContext::for_test_execution(
             dx_plan::args::Profile::Dev,
             &[],

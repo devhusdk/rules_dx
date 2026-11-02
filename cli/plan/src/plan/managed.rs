@@ -16,24 +16,17 @@ pub fn plan_managed(
     if !command.is_managed() {
         return Err(unsupported());
     }
-    let roots = match command {
-        Command::Codegen => {
-            let scope = match scope {
-                dx_setup::SetupScope::Repository => dx_codegen::CodegenScope::Repository,
-                dx_setup::SetupScope::Exact(label) => {
-                    dx_codegen::CodegenScope::Exact(label.clone())
+    let roots = match scope {
+        dx_setup::SetupScope::Repository => {
+            let mut roots = dx_env_plan::scope_targets(&dx_env_plan::EnvScope::Repository);
+            for root in dx_codegen::scope_targets(&dx_codegen::CodegenScope::Repository) {
+                if !roots.contains(&root) {
+                    roots.push(root);
                 }
-            };
-            dx_codegen::scope_targets(&scope)
+            }
+            roots
         }
-        Command::Env => {
-            let scope = match scope {
-                dx_setup::SetupScope::Repository => dx_env_plan::EnvScope::Repository,
-                dx_setup::SetupScope::Exact(label) => dx_env_plan::EnvScope::Exact(label.clone()),
-            };
-            dx_env_plan::scope_targets(&scope)
-        }
-        _ => return Err(unsupported()),
+        dx_setup::SetupScope::Exact(label) => vec![label.clone()],
     };
     let argv = managed_argv(command, &roots, bazel_options, bep_path, startup_options)?;
     let display = match scope {
@@ -69,17 +62,8 @@ fn managed_argv(
     if !command.is_managed() {
         return Err(unsupported());
     }
-    let (aspects, output_groups) = match command {
-        Command::Codegen => (
-            vec![dx_codegen::CODEGEN_ASPECT.to_owned()],
-            vec![dx_codegen::OUTPUT_GROUP.to_owned()],
-        ),
-        Command::Env => (
-            vec![dx_env_plan::ENV_ASPECT.to_owned()],
-            vec![dx_env_plan::OUTPUT_GROUP.to_owned()],
-        ),
-        _ => return Err(unsupported()),
-    };
+    let aspects = [dx_env_plan::ENV_ASPECT, dx_codegen::CODEGEN_ASPECT];
+    let output_groups = [dx_env_plan::OUTPUT_GROUP, dx_codegen::OUTPUT_GROUP];
     let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 3);
     for aspect in &aspects {
         required.push(format!("--aspects={aspect}"));
@@ -123,7 +107,7 @@ mod tests {
         use dx_setup::SetupScope;
 
         let plan = plan_managed(
-            Command::Codegen,
+            Command::Env,
             &SetupScope::Repository,
             &strings(&["--jobs=4"]),
             "/tmp/bep.json",
@@ -140,32 +124,17 @@ mod tests {
                 "--jobs=4",
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
+                "--aspects=//env:plan.bzl%dx_env_plan_aspect",
                 "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect",
+                "--output_groups=dx_env_plans",
                 "--output_groups=dx_codegen_plans",
                 "--remote_download_outputs=toplevel",
                 "--build_event_json_file=/tmp/bep.json",
                 "--build_event_json_file_path_conversion=false",
+                "//dx:env",
                 "//dx:codegen",
             ])
         );
-        assert_eq!(plan.summary, "Running codegen for //...");
-        let plan = plan_managed(
-            Command::Env,
-            &SetupScope::Repository,
-            &[],
-            "/tmp/bep.json",
-            &[],
-        )
-        .expect("plan");
-        assert!(plan
-            .argv
-            .iter()
-            .any(|arg| arg == "--aspects=//env:plan.bzl%dx_env_plan_aspect"));
-        assert!(plan
-            .argv
-            .iter()
-            .any(|arg| arg == "--output_groups=dx_env_plans"));
-        assert_eq!(plan.argv.last(), Some(&"//dx:env".to_owned()));
         assert_eq!(plan.summary, "Running env for //...");
     }
 
@@ -173,15 +142,10 @@ mod tests {
     fn managed_plan_exact_scope_selects_label() {
         use dx_setup::SetupScope;
 
-        for command in [Command::Codegen, Command::Env] {
-            let scope = SetupScope::Exact("//a:one".to_owned());
-            let plan = plan_managed(command, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
-            assert_eq!(plan.argv.last(), Some(&"//a:one".to_owned()), "{command:?}");
-            assert_eq!(
-                plan.summary,
-                format!("Running {} for //a:one", command.name())
-            );
-        }
+        let scope = SetupScope::Exact("//a:one".to_owned());
+        let plan = plan_managed(Command::Env, &scope, &[], "/tmp/bep.json", &[]).expect("plan");
+        assert_eq!(plan.argv.last(), Some(&"//a:one".to_owned()));
+        assert_eq!(plan.summary, "Running env for //a:one");
     }
 
     #[test]
@@ -190,8 +154,8 @@ mod tests {
             "//generation:codegen_prost_fixture",
             "//generation:result_proto",
         ]);
-        let plan = plan_managed_with_roots(Command::Codegen, &roots, &[], "/tmp/bep.json", &[])
-            .expect("plan");
+        let plan =
+            plan_managed_with_roots(Command::Env, &roots, &[], "/tmp/bep.json", &[]).expect("plan");
         assert_eq!(
             plan.argv.last(),
             Some(&"//generation:result_proto".to_owned())
@@ -201,7 +165,7 @@ mod tests {
             .contains(&"//generation:codegen_prost_fixture".to_owned()));
         assert_eq!(
             plan.summary,
-            "Running codegen for //generation:codegen_prost_fixture //generation:result_proto"
+            "Running env for //generation:codegen_prost_fixture //generation:result_proto"
         );
         for command in [Command::Build, Command::Lint] {
             let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])
@@ -226,7 +190,8 @@ mod tests {
 
         let options = strings(&["--config=remote", "--jobs=4"]);
         let roots = strings(&["//a:one"]);
-        for command in [Command::Codegen, Command::Env] {
+        {
+            let command = Command::Env;
             let plans = [
                 plan_managed(
                     command,
@@ -288,7 +253,7 @@ mod tests {
             ),
         ] {
             let plan = plan_managed(
-                Command::Codegen,
+                Command::Env,
                 &SetupScope::Repository,
                 &strings(&[option]),
                 "/tmp/bep.json",
@@ -327,7 +292,7 @@ mod tests {
             "--remote_download_outputs=minimal",
         ] {
             let err = plan_managed(
-                Command::Codegen,
+                Command::Env,
                 &SetupScope::Repository,
                 &strings(&[conflicting]),
                 "/tmp/bep.json",
@@ -340,7 +305,7 @@ mod tests {
             );
         }
         let err = plan_managed(
-            Command::Codegen,
+            Command::Env,
             &SetupScope::Repository,
             &strings(&["--home_rc"]),
             "/tmp/bep.json",

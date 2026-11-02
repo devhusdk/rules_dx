@@ -3,7 +3,6 @@ use std::path::Path;
 use super::common::*;
 use super::managed_codegen::{collect_managed_codegen, empty_generated_id, stage_codegen_side};
 use super::managed_env::{collect_managed_env, empty_env_id, stage_env_side};
-use dx_plan::args::Command;
 
 pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String) {
     match error {
@@ -16,7 +15,6 @@ pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String)
 }
 
 pub(crate) fn prepare_managed_sides(
-    command: Command,
     workspace: &Path,
     state_root: &Path,
     bep: &Path,
@@ -27,44 +25,19 @@ pub(crate) fn prepare_managed_sides(
     ),
     (String, String),
 > {
-    let empties = || dx_setup::PreparedSides {
-        prepared_environment: None,
-        prepared_generated: None,
-        empty_environment: empty_env_id(),
-        empty_generated: empty_generated_id(),
-    };
-    match command {
-        Command::Codegen => {
-            let (_, plan) = collect_managed_codegen(bep, workspace)?;
-            let (generated, lease) = stage_codegen_side(state_root, workspace, &plan)?;
-            Ok((
-                dx_setup::PreparedSides {
-                    prepared_generated: Some(generated),
-                    ..empties()
-                },
-                vec![lease],
-            ))
-        }
-        Command::Env => {
-            let (_, plan) = collect_managed_env(bep, workspace)?;
-            let (environment, lease) = stage_env_side(state_root, &plan)?;
-            Ok((
-                dx_setup::PreparedSides {
-                    prepared_environment: Some(environment),
-                    ..empties()
-                },
-                vec![lease],
-            ))
-        }
-        // LCOV_EXCL_START - reason: unreached command, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        _ => {
-            debug_assert!(false, "managed dispatch guards commands");
-            Err((
-                CODE_INVALID_RESULT.to_owned(),
-                "unsupported managed command".to_owned(),
-            ))
-        } // LCOV_EXCL_STOP - reason: end unreached command, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-    }
+    let (_, env_plan) = collect_managed_env(bep, workspace)?;
+    let (_, codegen_plan) = collect_managed_codegen(bep, workspace)?;
+    let (environment, env_lease) = stage_env_side(state_root, &env_plan)?;
+    let (generated, codegen_lease) = stage_codegen_side(state_root, workspace, &codegen_plan)?;
+    Ok((
+        dx_setup::PreparedSides {
+            prepared_environment: Some(environment),
+            prepared_generated: Some(generated),
+            empty_environment: empty_env_id(),
+            empty_generated: empty_generated_id(),
+        },
+        vec![env_lease, codegen_lease],
+    ))
 }
 
 #[cfg(test)]

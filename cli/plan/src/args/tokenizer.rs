@@ -106,7 +106,7 @@ fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
 /// Removed command names and the tip each error carries.
 pub(crate) const REMOVED_COMMANDS: &[(&str, &str)] = &[
     ("capabilities", "run `dx status --verbose` for capability and readiness facts"),
-    ("setup", "run `dx env` and `dx codegen` instead (each takes --apply)"),
+    ("setup", "run `dx env` instead (it takes --apply)"),
     ("verify", "run `dx check`, `dx build`, `dx test` and `dx coverage` directly, in the order you need"),
     ("owners", "run `bazel query 'rdeps(//..., <label>, 1)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes"),
     ("deps", "run `bazel query 'deps(<label>)'`, or `bazel cquery 'deps(<label>)' --platforms=<platform>` for the configured graph; wrap the expression in single quotes"),

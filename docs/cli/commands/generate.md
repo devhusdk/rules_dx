@@ -9,7 +9,7 @@ bazel run @rules_dx//:dx -- generate --apply //... -- --jobs=4
 ```
 
 Updates `BUILD` declarations from source with Gazelle over the scope. To
-materialize declared generated source, use `dx codegen`. No scope means the whole
+materialize declared generated source, use [`dx env`](env.md). No scope means the whole
 repo. Use `--here` for the current dir tree. Checks by default and reports
 stale files without writing. Pass `--apply` to write them. Bazel options go
 after `--`.
@@ -59,103 +59,6 @@ counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
 run still emits its `change` events and `changes` with `applied` and `refused`.
 An incomplete check run, or a Bazel failure that leaves no result, emits no
 `change` events and no `changes`.
-
-## Codegen pairs
-
-The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")` and `("openapi", "typescript")`.
-
-The openapi/typescript pair comes from `openapi_typescript_client` in
-`@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
-`api_spec_library` into a single self-contained `NAME.ts` with the pinned
-`@redocly/cli` `generate-client`. Every generator flag is fixed in the rule
-(`--output-mode=single --runtime=inline --import-ext=js --generator=typescript
---args-style=grouped --error-mode=throw --date-type=string`), the config is dx's
-own, and the action runs without network. `root` is required when the spec has
-more than one root. `openapi_codegen_shard` binds one plan entry with an
-`EXEC_PATH` suffix to the generated file.
-
-A dx preflight runs before Redocly and fails the build with
-`path:line:col rule message` when the root is not an OpenAPI 3.0, 3.1 or 3.2
-document (AsyncAPI and Swagger roots are refused), when a `$ref` names a remote
-document (`dx/api-spec-remote-ref`), or when a `$ref` names a file the spec does
-not declare (`dx/api-spec-unresolved-ref`). Only OpenAPI is supported; AsyncAPI
-generation is a separate pair. Verify generated sources with
-`dx codegen`, which fails with "no current selection" until
-`dx codegen --apply` has run and with "stale selection" after the plan changes.
-
-The flatbuffers/cpp pair comes from `flatbuffers_cc_library` in
-`@rules_dx//flatbuffers/rules:codegen.bzl`, which runs the pinned `flatc`
-(`--cpp --keep-prefix`) once per `flatbuffers_library` schema over its declared
-include closure, and from `flatbuffers_codegen_shard`, which binds one plan entry
-with an `EXEC_PATH` suffix to each generated header. The headers are compiled
-against the C++ runtime of the same pinned archive, so the compiler and the
-runtime cannot drift. `gen_object_api = True` adds the object API; each variant writes under its own `_fbs` or `_fbs_obj` directory, so both can share one library. The shard
-lists the headers of the libraries in the `deps` of the `flatbuffers_cc_library`
-only; a library reached through those deps needs its own target and shard.
-
-The flatbuffers/rust pair comes from `flatbuffers_rust_library` in the same file.
-It makes one crate per root schema: `flatc --rust --gen-all` runs on the `root`
-(optional when the library owns one schema, otherwise required and one of its
-srcs) and writes one `<root>_generated.rs` that inlines the include closure,
-because flatc's Rust output uses `crate::` and `super::` paths that only compile
-inside one crate. The crate links the Rust runtime built from the same pinned
-archive. Bind the shard to the `NAME_generated` target, not to `NAME`; it binds
-only the flatc file, never the `lib.rs` dx writes. Two crates whose roots share a
-schema each get their own copy of its types, and those copies are not
-interchangeable.
-
-The flatbuffers/java pair comes from `flatbuffers_java_library`, which runs
-`flatc --java` once per `flatbuffers_library` (one compile per library, shared by
-every library that depends on it), packs the output into
-`_fbs_java/<lib>.srcjar` and compiles it with `java_common.compile`. The Java
-runtime is built from the same pinned archive and not taken from Maven, because
-the latest `flatbuffers-java` on Maven (25.2.10) is older than the generated
-code's version check. Bind `flatbuffers_codegen_shard` with `language = "java"`
-to the `flatbuffers_java_library`; each entry's `EXEC_PATH` is the srcjar of one
-direct dep. For breaking-change checks see `flatbuffers_conform_test` in
-[quality](quality.md#breaking-change-check).
-
-The capnp/cpp pair comes from `capnp_cc_library` in
-`@rules_dx//capnproto/rules:codegen.bzl`, which runs the pinned `capnp compile`
-with `capnpc-c++` once per `capnp_library` and compiles the output once per
-library, so two C++ targets that share a schema library never link duplicate
-symbols. The declared import closure (the library's schemas, its deps and the
-bundled `/capnp/*.capnp`) is staged as symlinks under a private root and compiled
-with `--no-standard-import`, so an import outside `deps` fails with or without a
-sandbox. Relative imports resolve inside that root, but the generated headers
-include them relatively, so a relative import must stay in the importing
-schema's own directory; use an absolute `/pkg/file.capnp` import across packages.
-`capnp_codegen_shard` binds one plan entry with an `EXEC_PATH` suffix to each
-generated `.capnp.h` and `.capnp.c++` file; the shard lists the files of the
-libraries in the `deps` of the `capnp_cc_library` only. The pin is built for
-Linux x86_64 only, as for `dx quality`.
-
-The capnp/rust pair comes from `capnp_rust_library(name, library, deps)` in the
-same file. It generates one crate per `capnp_library`, with the pinned `capnp`
-compiler and the `capnpc` code generator of the pinned `capnproto-rust` archive.
-The crate's `deps` must mirror the library's direct deps: one `capnp_rust_library`
-for each `capnp_library` in the library's `deps`, because Rust sees only direct
-dependencies. A missing one fails at analysis. An import of a dependency's
-schema becomes a `::dep_crate::x_capnp` path, so a type is never duplicated
-across crates, and `/capnp/schema.capnp` maps to the `capnp` crate. An import
-that is neither owned by the library nor provided by a dependency fails the
-build, naming the import. Each schema becomes a top-level module `<stem>_capnp`,
-so two schemas of one library with the same file stem fail at analysis. Annotation
-schemas such as `/capnp/c++.capnp` generate no code. `crate_name` renames the
-crate for dependents. Bind `capnp_codegen_shard` with `language = "rust"` to the
-`NAME_generated` target; it lists the generated `*_capnp.rs` files, never the
-`lib.rs` the driver writes.
-
-The capnp/java pair comes from `capnp_java_library` in the same file, which runs
-`capnp compile` with the `capnpc-java` plugin (capnproto-java, built from source)
-once per `capnp_library`, packs the output into `_capnp_java/<lib>.srcjar` and
-compiles it with `java_common.compile` against the Java runtime built from the
-same archive. Every schema needs the `$Java.package` annotation from
-`/capnp/java.capnp`, which is bundled with the other `/capnp/` schemas; without it
-`capnpc-java` fails with `no Java package name found`. Bind `capnp_codegen_shard`
-with `language = "java"` to the `capnp_java_library`; each entry's `EXEC_PATH` is
-the srcjar of one direct dep. Both pairs are built for Linux x86_64 only.
 
 ## Android inputs
 

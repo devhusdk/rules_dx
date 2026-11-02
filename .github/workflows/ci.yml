@@ -107,7 +107,6 @@ jobs:
               definition = json.load(handle)
           post_create = definition["postCreateCommand"]
           assert "bazel run @rules_dx//:dx -- env --apply" in post_create, post_create
-          assert "bazel run @rules_dx//:dx -- codegen --apply" in post_create, post_create
           assert "bazel build //..." not in post_create, post_create
           print("devcontainer definition valid:", post_create)
           EOF

@@ -181,7 +181,7 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: None,
             reports: &[],
         },
-        Command::Codegen | Command::Env => CommandSpec {
+        Command::Env => CommandSpec {
             command,
             aspects: &[],
             probe: None,
@@ -427,12 +427,10 @@ mod tests {
         let clean = spec(Command::Clean);
         assert!(clean.aspects.is_empty());
         assert!(clean.reports.is_empty());
-        for command in [Command::Codegen, Command::Env] {
-            let entry = spec(command);
-            assert!(entry.aspects.is_empty());
-            assert!(entry.reports.is_empty());
-            assert!(command.is_managed());
-        }
+        let env = spec(Command::Env);
+        assert!(env.aspects.is_empty());
+        assert!(env.reports.is_empty());
+        assert!(Command::Env.is_managed());
         for command in [Command::Security, Command::License] {
             let entry = spec(command);
             assert!(entry.aspects.is_empty());

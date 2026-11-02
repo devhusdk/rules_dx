@@ -20,7 +20,7 @@ guides below.
 - [Check, fix, clean](cli/commands/check-fix-clean.md): fix-up loops and cleanup.
 - [Generate](cli/commands/generate.md): refresh `BUILD` files.
 - [Docs](cli/commands/docs.md): build, check, and preview this site.
-- [Environment and codegen](cli/commands/environment-codegen.md): env and codegen.
+- [Environment](cli/commands/env.md): managed tools and generated source.
 - [Audit and update](cli/commands/audit-update.md): security, license, update, bump, add.
 - [Init](cli/commands/init.md): set up a workspace.
 - [Status](cli/commands/status.md): health report and the version pin.

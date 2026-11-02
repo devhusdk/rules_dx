@@ -15,7 +15,6 @@ pub enum Command {
     Clean,
     Update,
     Bump,
-    Codegen,
     Env,
     Init,
     Upgrade,
@@ -96,7 +95,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 26] = [
+pub static COMMANDS: [CommandMeta; 25] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -383,31 +382,12 @@ pub static COMMANDS: [CommandMeta; 26] = [
         labels: LabelsPolicy::Never,
     },
     CommandMeta {
-        command: Command::Codegen,
-        name: "codegen",
-        scope_policy: "default-repo|exact-label",
-        describe: "materialize declared generated source (check by default; --apply writes)",
-        usage: "Usage: dx codegen|env [--apply] [<label>] [-- bazel-options ...]",
-        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
-        is_managed: true,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::OnlyEmpty,
-    },
-    CommandMeta {
         command: Command::Env,
         name: "env",
         scope_policy: "default-repo|exact-label",
-        describe: "collect the managed development environment (check by default; --apply writes managed state)",
-        usage: "Usage: dx codegen|env [--apply] [<label>] [-- bazel-options ...]",
-        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
+        describe: "collect managed tools and generated source (check by default; --apply writes managed state)",
+        usage: "Usage: dx env [--apply] [<label>] [-- bazel-options ...]",
+        scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/env.md).",
         is_managed: true,
         is_adoption: false,
         supports_json: true,
@@ -709,9 +689,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 16] = [
-        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Bump, Codegen, Env, Init,
-        Upgrade, Watch, Worktree, Install,
+    pub(crate) const APPLY_COMMANDS: [Command; 15] = [
+        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Bump, Env, Init, Upgrade,
+        Watch, Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
@@ -754,11 +734,9 @@ mod tests {
         assert_eq!(Command::Test.name(), "test");
         assert_eq!(Command::Coverage.name(), "coverage");
         assert_eq!(Command::Run.name(), "run");
-        assert_eq!(Command::Codegen.name(), "codegen");
         assert_eq!(Command::Env.name(), "env");
-        assert!(Command::Codegen.is_managed());
         assert!(Command::Env.is_managed());
-        assert!(!Command::Codegen.is_adoption());
+        assert!(!Command::Env.is_adoption());
         assert!(!Command::Clean.is_managed());
         assert_eq!(Command::Docs.name(), "docs");
         assert!(!Command::Docs.is_adoption());
@@ -787,7 +765,6 @@ mod tests {
             Command::Clean,
             Command::Update,
             Command::Bump,
-            Command::Codegen,
             Command::Env,
             Command::Init,
             Command::Upgrade,
@@ -839,7 +816,6 @@ mod tests {
             Command::Format,
             Command::Generate,
             Command::Check,
-            Command::Codegen,
             Command::Env,
             Command::Clean,
             Command::Update,
@@ -890,7 +866,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|bump|codegen|env|init|upgrade|status|watch|completion|docs|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|bump|env|init|upgrade|status|watch|completion|docs|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }

@@ -254,7 +254,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Generate => generate::execute_generate(invocation, env),
         Command::Clean => clean::execute_clean(invocation, env),
-        Command::Codegen | Command::Env => managed::execute_managed(invocation, env),
+        Command::Env => managed::execute_managed(invocation, env),
         Command::Security | Command::License => audit::execute_audit(invocation, env),
         Command::Update => update::execute_update(invocation, env),
         Command::Bump => bump::execute_bump(invocation, env),
@@ -304,11 +304,10 @@ mod tests {
         assert_ne!(code, 141);
     }
 
-    const QUIET_ROWS: [(Command, &[&str]); 12] = [
+    const QUIET_ROWS: [(Command, &[&str]); 11] = [
         (Command::Generate, &["generate"]),
         (Command::Docs, &["docs"]),
         (Command::Env, &["env"]),
-        (Command::Codegen, &["codegen"]),
         (
             Command::Run,
             &[

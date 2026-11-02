@@ -15,7 +15,7 @@ with a scope.
 
 ## Repository-Wide Or One Exact Label
 
-- `dx env`, `dx codegen`
+- `dx env`
 
 Patterns, paths, and multiple labels are usage errors.
 

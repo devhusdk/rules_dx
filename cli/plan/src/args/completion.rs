@@ -715,7 +715,6 @@ mod tests {
         );
         let one = vec![String::from("//a:one")];
         for command in [
-            Command::Codegen,
             Command::Env,
             Command::Bump,
             Command::Completion,

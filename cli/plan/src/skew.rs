@@ -80,7 +80,6 @@ mod tests {
         Command::Clean,
         Command::Update,
         Command::Bump,
-        Command::Codegen,
         Command::Env,
         Command::Init,
         Command::Watch,

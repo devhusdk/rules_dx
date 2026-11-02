@@ -325,7 +325,6 @@ mod tests {
             "bazel",
             "bump",
             "clean",
-            "codegen",
             "completion",
             "coverage",
             "deploy",

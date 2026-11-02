@@ -428,7 +428,7 @@ fn unknown_command_fails() {
 }
 
 #[test]
-fn setup_is_rejected_with_env_and_codegen_tip() {
+fn setup_is_rejected_with_env_tip() {
     for words in [
         vec!["setup"],
         vec!["setup", "--apply"],
@@ -437,7 +437,7 @@ fn setup_is_rejected_with_env_and_codegen_tip() {
         assert_usage(
             &words,
             parse(&strings(&words)).unwrap_err(),
-            &["unsupported command 'setup'", "dx env", "dx codegen"],
+            &["unsupported command 'setup'", "dx env"],
         );
     }
 }

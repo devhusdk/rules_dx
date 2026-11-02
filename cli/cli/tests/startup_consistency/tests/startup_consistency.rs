@@ -87,17 +87,15 @@ fn generate_shares_the_startup_prefix() {
 #[test]
 fn managed_builds_share_the_startup_prefix() {
     local();
-    for command in [Command::Codegen, Command::Env] {
-        let plan = plan_managed_with_roots(
-            command,
-            &["//a:x".to_owned()],
-            &[],
-            "/tmp/bep.json",
-            &startup(),
-        )
-        .expect("plan");
-        assert_prefix(&plan.argv, "build");
-    }
+    let plan = plan_managed_with_roots(
+        Command::Env,
+        &["//a:x".to_owned()],
+        &[],
+        "/tmp/bep.json",
+        &startup(),
+    )
+    .expect("plan");
+    assert_prefix(&plan.argv, "build");
 }
 
 #[test]

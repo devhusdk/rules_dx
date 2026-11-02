@@ -331,14 +331,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Write generated source files.
-    CodegenApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
     /// Prune unselected managed state.
     CleanApplyFlag, {
         #[arg(long, overrides_with = "apply")]
@@ -937,20 +929,18 @@ command_args! {
     };
     /// The flags `dx bump` accepts.
     Bump => 14, NoPassthroughTail, { output: OutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, floor: FloorArgs, };
-    /// The flags `dx codegen` accepts.
-    Codegen => 15, BazelTail, { output: OutputFlag, apply: CodegenApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 16, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
+    Env => 15, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 17, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
+    Init => 16, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 18, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
+    Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.
-    Status => 19, NoScopeTail, {
+    Status => 18, NoScopeTail, {
         output: OutputFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 20, BazelTail, {
+    Watch => 19, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
@@ -962,15 +952,15 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 21, NoPassthroughTail, {};
+    Completion => 20, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 22, BazelTail, {
+    Docs => 21, BazelTail, {
         output: OutputFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx worktree` accepts.
-    Worktree => 23, NoPassthroughTail, {
+    Worktree => 22, NoPassthroughTail, {
         output: OutputFlag,
         path_only: PathOnlyFlag,
         apply: ApplyFlag,
@@ -980,9 +970,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 24, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
+    Explain => 23, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 25, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 24, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]

@@ -54,9 +54,9 @@ USER_BOOK = [
         "//docs:cli/commands/audit-update.md",
     ),
     mdbook_page(
-        "Environment And Codegen",
-        "docs/cli/commands/environment-codegen.md",
-        "//docs:cli/commands/environment-codegen.md",
+        "Env",
+        "docs/cli/commands/env.md",
+        "//docs:cli/commands/env.md",
     ),
     mdbook_page("Init", "docs/cli/commands/init.md", "//docs:cli/commands/init.md"),
     mdbook_page("Upgrade", "docs/cli/commands/upgrade.md", "//docs:cli/commands/upgrade.md"),

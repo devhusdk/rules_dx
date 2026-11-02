@@ -14,8 +14,8 @@ use proto::{
 pub use result_proto::dx::generation::v1 as proto;
 
 pub use dx_digest::DIGEST_LEN;
-pub use dx_schema::SCHEMA_MAJOR;
-pub use dx_schema::SCHEMA_MINOR;
+pub use dx_path::schema::SCHEMA_MAJOR;
+pub use dx_path::schema::SCHEMA_MINOR;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -135,7 +135,7 @@ fn validate_scopes(scopes: &[Scope]) -> Result<(), Error> {
         if scope.value.is_empty() {
             return Err(Error::EmptyScope { index });
         }
-        dx_proto_validate::check_unique_insert(&mut seen, &scope.value, |existing| {
+        dx_path::proto_validate::check_unique_insert(&mut seen, &scope.value, |existing| {
             Error::DuplicateScope {
                 value: (*existing).clone(),
             }
@@ -345,12 +345,12 @@ fn validate_ignored(ignored: &[IgnoredImport], scope_count: usize) -> Result<(),
             item.language.as_str(),
             item.import.as_str(),
         );
-        match dx_proto_validate::check_sorted_next(previous.as_ref(), &key) {
+        match dx_path::proto_validate::check_sorted_next(previous.as_ref(), &key) {
             Ok(()) => {}
-            Err(dx_proto_validate::OrderViolation::Duplicate) => {
+            Err(dx_path::proto_validate::OrderViolation::Duplicate) => {
                 return Err(Error::DuplicateIgnoredImport { index });
             }
-            Err(dx_proto_validate::OrderViolation::Unsorted) => {
+            Err(dx_path::proto_validate::OrderViolation::Unsorted) => {
                 return Err(Error::IgnoredOrder { index });
             }
         }
@@ -387,12 +387,12 @@ fn validate_errors(manifest: &GenerationManifest) -> Result<(), Error> {
             item.package.as_deref(),
             item.message.as_str(),
         );
-        match dx_proto_validate::check_sorted_next(previous.as_ref(), &key) {
+        match dx_path::proto_validate::check_sorted_next(previous.as_ref(), &key) {
             Ok(()) => {}
-            Err(dx_proto_validate::OrderViolation::Duplicate) => {
+            Err(dx_path::proto_validate::OrderViolation::Duplicate) => {
                 return Err(Error::DuplicateError { index });
             }
-            Err(dx_proto_validate::OrderViolation::Unsorted) => {
+            Err(dx_path::proto_validate::OrderViolation::Unsorted) => {
                 return Err(Error::ErrorOrder { index });
             }
         }
@@ -402,7 +402,7 @@ fn validate_errors(manifest: &GenerationManifest) -> Result<(), Error> {
 }
 
 pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
-    dx_schema::check_major(manifest.schema_major)
+    dx_path::schema::check_major(manifest.schema_major)
         .map_err(|found| Error::UnsupportedMajor { found })?;
     let mode = Mode::try_from(manifest.mode).map_err(|_| Error::InvalidMode {
         found: manifest.mode,
@@ -424,7 +424,7 @@ pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
     let mut files = std::collections::BTreeSet::new();
     for file in &manifest.files {
         validate_file(file, mode, manifest.scopes.len())?;
-        dx_proto_validate::check_unique_insert(&mut files, &file.path, |existing| {
+        dx_path::proto_validate::check_unique_insert(&mut files, &file.path, |existing| {
             Error::DuplicateFile {
                 path: (*existing).clone(),
             }
@@ -434,11 +434,11 @@ pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
 }
 
 pub fn encode_validated(manifest: &GenerationManifest) -> Result<Vec<u8>, Error> {
-    dx_proto_validate::encode_with_validation(manifest, validate)
+    dx_path::proto_validate::encode_with_validation(manifest, validate)
 }
 
 pub fn decode_validated(bytes: &[u8]) -> Result<GenerationManifest, Error> {
-    dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
+    dx_path::proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
 #[cfg(test)]

@@ -166,7 +166,7 @@ pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
                 path: entry.logical_path.clone(),
             });
         }
-        dx_proto_validate::check_unique_insert(&mut seen, &entry.logical_path, |existing| {
+        dx_path::proto_validate::check_unique_insert(&mut seen, &entry.logical_path, |existing| {
             Error::DuplicateLogicalPath {
                 producer: shard.producer.clone(),
                 path: (*existing).clone(),
@@ -177,11 +177,11 @@ pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
 }
 
 pub fn encode_validated(shard: &DxCodegenShard) -> Result<Vec<u8>, Error> {
-    dx_proto_validate::encode_with_validation(shard, validate)
+    dx_path::proto_validate::encode_with_validation(shard, validate)
 }
 
 pub fn decode_validated(bytes: &[u8]) -> Result<DxCodegenShard, Error> {
-    dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
+    dx_path::proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
 pub const ENTRY_SHAPE: &str = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE[|EXEC_PATH[|REPLACES]]";

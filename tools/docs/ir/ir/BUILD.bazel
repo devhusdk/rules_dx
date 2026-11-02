@@ -23,8 +23,6 @@ rust_library(
         package_name = "tools/docs/ir/documentation_ir",
     ) + [
         "//cli/path:dx_path",
-        "//cli/proto_validate:dx_proto_validate",
-        "//cli/schema:dx_schema",
         "//tools/docs/ir:doc_ir_proto_rs",
     ],
 )

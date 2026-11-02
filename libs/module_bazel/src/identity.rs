@@ -1,49 +1,11 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
-
-//! Package identity validation the dependency commands share.
-
-use std::sync::LazyLock;
-
-use regex::Regex;
+//! Package name checks for the dependency commands.
 
 const NPM_CHARSET: &str = "npm names use [A-Za-z0-9_.-] only";
 const NPM_SCOPE_CHARSET: &str = "npm scope/name use [A-Za-z0-9_.-] only";
 const MAVEN_CHARSET: &str = "maven group/artifact use [A-Za-z0-9_.-] only";
 
-fn dotted_name_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_.-]+$").ok());
-    RE.as_ref()
-}
-
-fn cargo_name_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_-]+$").ok());
-    RE.as_ref()
-}
-
-fn scoped_npm_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"^@[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$").ok());
-    RE.as_ref()
-}
-
-fn go_charset_re() -> Option<&'static Regex> {
-    static RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"^[A-Za-z0-9/._~+-]+$").ok());
-    RE.as_ref()
-}
-
 /// Accepts a name using only `[A-Za-z0-9_.-]`.
 fn dotted_name(text: &str) -> bool {
-    if let Some(re) = dotted_name_re() {
-        return re.is_match(text);
-    }
     !text.is_empty()
         && text
             .chars()
@@ -52,9 +14,6 @@ fn dotted_name(text: &str) -> bool {
 
 /// Accepts a crate name using only `[A-Za-z0-9_-]`.
 fn cargo_name(text: &str) -> bool {
-    if let Some(re) = cargo_name_re() {
-        return re.is_match(text);
-    }
     !text.is_empty()
         && text
             .chars()
@@ -107,15 +66,6 @@ pub fn validate_npm(package: &str) -> Result<(), &'static str> {
         return Err("npm package names never contain ':' or spaces");
     }
     if let Some(rest) = package.strip_prefix('@') {
-        if let Some(re) = scoped_npm_re() {
-            if re.is_match(package) {
-                return Ok(());
-            }
-            return match scoped_npm_parts(rest) {
-                Some(_) => Err(NPM_SCOPE_CHARSET),
-                None => Err("scoped npm names are @scope/name"),
-            };
-        }
         return match scoped_npm_parts(rest) {
             Some((scope, name)) => validate_dotted_pair(scope, name, NPM_SCOPE_CHARSET),
             None => Err("scoped npm names are @scope/name"),
@@ -135,14 +85,10 @@ pub fn validate_go(package: &str) -> Result<(), &'static str> {
     if package.starts_with('/') || package.ends_with('/') || package.contains("//") {
         return Err("go module paths use single '/' segments");
     }
-    let charset_ok = if let Some(re) = go_charset_re() {
-        re.is_match(package)
-    } else {
-        package
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '-' | '_' | '~' | '+'))
-    };
-    if charset_ok {
+    if package
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '.' | '-' | '_' | '~' | '+'))
+    {
         Ok(())
     } else {
         Err("go module paths use [A-Za-z0-9/_.-~+] only")
@@ -170,7 +116,6 @@ pub fn validate_maven(package: &str) -> Result<(), &'static str> {
 pub fn validate_nuget(package: &str) -> Result<(), &'static str> {
     validate_dotted(package, "nuget ids use [A-Za-z0-9_.-] only")
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

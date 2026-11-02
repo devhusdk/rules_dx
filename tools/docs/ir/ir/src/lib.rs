@@ -11,12 +11,12 @@
 pub use doc_ir_proto::dx::documentation::v1 as proto;
 use proto::{DocIr, Symbol};
 
-use dx_path::reject_reason;
-use dx_proto_validate::{
+use dx_path::proto_validate::{
     check_sorted_next, decode_with_validation, encode_with_validation, OrderViolation,
 };
-pub use dx_schema::SCHEMA_MAJOR;
-pub use dx_schema::SCHEMA_MINOR;
+use dx_path::reject_reason;
+pub use dx_path::schema::SCHEMA_MAJOR;
+pub use dx_path::schema::SCHEMA_MINOR;
 
 /// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
 pub fn escape_segment(segment: &str) -> String {
@@ -105,7 +105,7 @@ pub fn escape_id_segment(segment: &str) -> String {
 }
 
 pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
-    dx_schema::check_major(shard.schema_major)
+    dx_path::schema::check_major(shard.schema_major)
         .map_err(|found| Error::UnsupportedMajor { found })?;
     if shard.language.is_empty() {
         return Err(Error::EmptyLanguage);

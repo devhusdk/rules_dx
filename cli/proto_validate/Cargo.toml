@@ -1,8 +1,0 @@
-[package]
-name = "dx_proto_validate"
-version = "0.0.0"
-edition = "2021"
-
-[lib]
-name = "dx_proto_validate"
-path = "src/lib.rs"

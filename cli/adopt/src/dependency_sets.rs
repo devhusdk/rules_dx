@@ -853,7 +853,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 _ => Err(MAVEN_PACKAGE_CHARSET),
             }
         }
-        Ecosystem::Go => dx_identity::validate_go(package),
+        Ecosystem::Go => dx_module_bazel::identity::validate_go(package),
         Ecosystem::Uv
         | Ecosystem::Bazel
         | Ecosystem::Ruby

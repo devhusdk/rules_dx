@@ -10,6 +10,8 @@
     )
 )]
 
+pub mod identity;
+
 use std::collections::BTreeSet;
 use std::ops::Range;
 

@@ -701,14 +701,14 @@ pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpEr
             if package == ".bazelversion" {
                 Ok(())
             } else {
-                dx_identity::validate_dotted(package, BAZEL_CHARSET)
+                dx_module_bazel::identity::validate_dotted(package, BAZEL_CHARSET)
             }
         }
-        BumpSet::Cargo => dx_identity::validate_cargo(package),
-        BumpSet::Npm => dx_identity::validate_npm(package),
-        BumpSet::Go => dx_identity::validate_go(package),
-        BumpSet::Maven => dx_identity::validate_maven(package),
-        BumpSet::NuGet => dx_identity::validate_nuget(package),
+        BumpSet::Cargo => dx_module_bazel::identity::validate_cargo(package),
+        BumpSet::Npm => dx_module_bazel::identity::validate_npm(package),
+        BumpSet::Go => dx_module_bazel::identity::validate_go(package),
+        BumpSet::Maven => dx_module_bazel::identity::validate_maven(package),
+        BumpSet::NuGet => dx_module_bazel::identity::validate_nuget(package),
         BumpSet::GithubActions => match package.split_once('/') {
             None => Err("github-actions identities are owner/repo"),
             Some((owner, repo)) => {
@@ -720,7 +720,11 @@ pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpEr
                 {
                     Err("github-actions identities are owner/repo")
                 } else {
-                    dx_identity::validate_dotted_pair(owner, repo, GITHUB_ACTIONS_CHARSET)
+                    dx_module_bazel::identity::validate_dotted_pair(
+                        owner,
+                        repo,
+                        GITHUB_ACTIONS_CHARSET,
+                    )
                 }
             }
         },

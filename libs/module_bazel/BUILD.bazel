@@ -10,7 +10,10 @@ package(default_visibility = VIS_CLI_TOOLS + [
 dx_rust_crate(
     name = "dx_module_bazel",
     package_name = "libs/dx_module_bazel",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/identity.rs",
+        "src/lib.rs",
+    ],
     test_srcs = ["src/tests.rs"],
     deps = [
         "starlark_syntax",
@@ -32,5 +35,6 @@ real_source_target(
 )
 
 exports_files([
+    "src/identity.rs",
     "src/lib.rs",
 ])

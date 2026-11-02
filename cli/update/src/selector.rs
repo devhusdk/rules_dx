@@ -83,18 +83,20 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
         reason,
     };
     let reason = match set {
-        SetId::Cargo => dx_identity::validate_cargo(package),
+        SetId::Cargo => dx_module_bazel::identity::validate_cargo(package),
         SetId::Npm | SetId::NpmTools | SetId::NpmAdopt | SetId::NpmAdoptPolyglot => {
-            dx_identity::validate_npm(package)
+            dx_module_bazel::identity::validate_npm(package)
         }
-        SetId::Maven => dx_identity::validate_maven(package),
-        SetId::NuGet => dx_identity::validate_nuget(package),
-        SetId::Go => dx_identity::validate_go(package),
+        SetId::Maven => dx_module_bazel::identity::validate_maven(package),
+        SetId::NuGet => dx_module_bazel::identity::validate_nuget(package),
+        SetId::Go => dx_module_bazel::identity::validate_go(package),
         SetId::Uv | SetId::UvTools | SetId::UvAdopt | SetId::UvAdoptPolyglot => {
-            dx_identity::validate_dotted(package, UV_CHARSET)
+            dx_module_bazel::identity::validate_dotted(package, UV_CHARSET)
         }
-        SetId::Ruby => dx_identity::validate_dotted(package, RUBY_CHARSET),
-        SetId::PowerShell => dx_identity::validate_dotted(package, POWERSHELL_CHARSET),
+        SetId::Ruby => dx_module_bazel::identity::validate_dotted(package, RUBY_CHARSET),
+        SetId::PowerShell => {
+            dx_module_bazel::identity::validate_dotted(package, POWERSHELL_CHARSET)
+        }
     };
     reason.map_err(invalid)
 }

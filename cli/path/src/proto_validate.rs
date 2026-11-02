@@ -1,12 +1,4 @@
-#![cfg_attr(
-    not(test),
-    deny(
-        clippy::expect_used,
-        clippy::unwrap_used,
-        clippy::unreachable,
-        clippy::todo
-    )
-)]
+//! Order and uniqueness checks plus validated protobuf encode and decode.
 
 use prost::Message;
 use std::collections::BTreeSet;

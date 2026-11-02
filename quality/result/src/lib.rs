@@ -14,8 +14,8 @@ use proto::{
 };
 pub use result_proto::dx::quality::v1 as proto;
 
-pub use dx_schema::SCHEMA_MAJOR;
-pub use dx_schema::SCHEMA_MINOR;
+pub use dx_path::schema::SCHEMA_MAJOR;
+pub use dx_path::schema::SCHEMA_MINOR;
 pub const MAX_COMPLETED_ROUNDS: u32 = 10;
 pub use dx_digest::DIGEST_LEN;
 
@@ -150,7 +150,7 @@ fn check_unique_paths(
 ) -> Result<(), Error> {
     let mut seen = std::collections::BTreeSet::new();
     for path in paths {
-        dx_proto_validate::check_unique_insert(&mut seen, path, |existing| {
+        dx_path::proto_validate::check_unique_insert(&mut seen, path, |existing| {
             duplicate(existing.clone())
         })?;
     }
@@ -257,7 +257,7 @@ fn check_edits(file: &FileEdits) -> Result<(), Error> {
 }
 
 pub fn validate(result: &QualityResult) -> Result<(), Error> {
-    dx_schema::check_major(result.schema_major)
+    dx_path::schema::check_major(result.schema_major)
         .map_err(|found| Error::UnsupportedMajor { found })?;
     if result.producer.is_empty() {
         return Err(Error::EmptyProducer);
@@ -328,11 +328,11 @@ fn validate_stage(stage: &Stage, index: usize) -> Result<(), Error> {
 }
 
 pub fn encode_validated(result: &QualityResult) -> Result<Vec<u8>, Error> {
-    dx_proto_validate::encode_with_validation(result, validate)
+    dx_path::proto_validate::encode_with_validation(result, validate)
 }
 
 pub fn decode_validated(bytes: &[u8]) -> Result<QualityResult, Error> {
-    dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
+    dx_path::proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
 pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {

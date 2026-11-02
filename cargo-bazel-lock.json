@@ -1,5 +1,5 @@
 {
-  "checksum": "03fdf451518bd00756eddf3d8d4aa4fcf8f7ada035cac0879d89dea827664771",
+  "checksum": "54cbf3549adeb9f83af8b00a7878e9915cf058a7319407dd3fd2dd36e25bc327",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7346,29 +7346,6 @@
       ],
       "version": "0.0.0"
     },
-    "dx_identity 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "regex 1.13.1",
-            "target": "regex"
-          }
-        ],
-        "edition": "2021"
-      },
-      "library_target_name": "dx_identity",
-      "name": "dx_identity",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_identity",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
     "dx_install_tools 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -7688,23 +7665,6 @@
       ],
       "version": "0.0.0"
     },
-    "dx_proto_validate 0.0.0": {
-      "common_attrs": {
-        "edition": "2021"
-      },
-      "library_target_name": "dx_proto_validate",
-      "name": "dx_proto_validate",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_proto_validate",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
     "dx_release_tools 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -7809,23 +7769,6 @@
         {
           "Library": {
             "crate_name": "dx_sbom_schema",
-            "crate_root": "src/lib.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
-    "dx_schema 0.0.0": {
-      "common_attrs": {
-        "edition": "2021"
-      },
-      "library_target_name": "dx_schema",
-      "name": "dx_schema",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "dx_schema",
             "crate_root": "src/lib.rs"
           }
         }
@@ -27600,7 +27543,6 @@
     "dx_execlog 0.0.0": "cli/dx_execlog",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_gomod 0.0.0": "libs/dx_gomod",
-    "dx_identity 0.0.0": "cli/dx_identity",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
     "dx_js_launcher 0.0.0": "quality/tools/javascript/dx_js_launcher",
     "dx_lcov 0.0.0": "cli/dx_lcov",
@@ -27610,12 +27552,10 @@
     "dx_plan 0.0.0": "cli/dx_plan",
     "dx_preset 0.0.0": "tools/dx_preset",
     "dx_process 0.0.0": "cli/dx_process",
-    "dx_proto_validate 0.0.0": "cli/dx_proto_validate",
     "dx_release_tools 0.0.0": "deploy/dx_release_tools",
     "dx_roots 0.0.0": "cli/dx_roots",
     "dx_sbom 0.0.0": "cli/dx_sbom",
     "dx_sbom_schema 0.0.0": "cli/sbom/dx_sbom_schema",
-    "dx_schema 0.0.0": "cli/dx_schema",
     "dx_setup 0.0.0": "cli/dx_setup",
     "dx_shard_writer 0.0.0": "cli/dx_shard_writer",
     "dx_shim 0.0.0": "cli/dx_shim",

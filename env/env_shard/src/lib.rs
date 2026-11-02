@@ -141,7 +141,7 @@ pub fn validate(shard: &DxEnvShard) -> Result<(), Error> {
         check_key(&shard.producer, &entry.key)?;
         check_value(&shard.producer, &entry.key, &entry.value)?;
         check_exec_path(&shard.producer, &entry.exec_path)?;
-        dx_proto_validate::check_unique_insert(&mut seen, &entry.key, |existing| {
+        dx_path::proto_validate::check_unique_insert(&mut seen, &entry.key, |existing| {
             Error::DuplicateKey {
                 producer: shard.producer.clone(),
                 key: (*existing).clone(),
@@ -152,11 +152,11 @@ pub fn validate(shard: &DxEnvShard) -> Result<(), Error> {
 }
 
 pub fn encode_validated(shard: &DxEnvShard) -> Result<Vec<u8>, Error> {
-    dx_proto_validate::encode_with_validation(shard, validate)
+    dx_path::proto_validate::encode_with_validation(shard, validate)
 }
 
 pub fn decode_validated(bytes: &[u8]) -> Result<DxEnvShard, Error> {
-    dx_proto_validate::decode_with_validation(bytes, validate, Error::Decode)
+    dx_path::proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
 pub const ENTRY_SHAPE: &str = "KEY|VALUE[|EXEC_PATH]";

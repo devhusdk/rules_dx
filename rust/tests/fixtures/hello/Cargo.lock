@@ -1631,13 +1631,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dx_identity"
-version = "0.0.0"
-dependencies = [
- "regex",
-]
-
-[[package]]
 name = "dx_install_tools"
 version = "0.0.0"
 dependencies = [
@@ -1726,10 +1719,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dx_proto_validate"
-version = "0.0.0"
-
-[[package]]
 name = "dx_release_tools"
 version = "0.0.0"
 dependencies = [
@@ -1758,10 +1747,6 @@ dependencies = [
  "jsonschema",
  "serde_json",
 ]
-
-[[package]]
-name = "dx_schema"
-version = "0.0.0"
 
 [[package]]
 name = "dx_setup"

@@ -26,7 +26,6 @@ dx_rust_crate(
     dev_deps = ["toml"],
     extra_deps = [
         "//cli/digest:dx_digest",
-        "//cli/identity:dx_identity",
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
     ],

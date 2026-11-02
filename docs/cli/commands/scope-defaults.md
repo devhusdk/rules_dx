@@ -6,7 +6,7 @@ with a scope.
 ## No Scope Means `//...`
 
 - `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`
+  `dx format`, `dx check`, `dx security`, `dx license`
 
 ## No Scope Means The Repository
 
@@ -50,12 +50,12 @@ Patterns, paths, and multiple labels are usage errors.
   `bazel run` (`//path/...`, `//...` at the root). Never combines with
   explicit scopes. Accepted by `dx build`, `dx test`, `dx coverage`,
   `dx lint`, `dx typecheck`, `dx format`, `dx generate`, `dx check`,
-  `dx fix`, `dx security`, `dx license`, and `dx docs`.
+  `dx security`, `dx license`, and `dx docs`.
 - `--affected`: the targets your changes reach, described below. Never
   combines with explicit scopes or `--here`.
 - Targets that do not fit the target platform are skipped in `dx build`,
   `dx test`, `dx coverage`, `dx lint`, `dx typecheck`, `dx format`,
-  `dx check`, and `dx fix`, even when named, reached through files, or picked
+  and `dx check`, even when named, reached through files, or picked
   by `--affected`. Skipped tests report the outcome `skipped`. Pass
   `-- --noskip_incompatible_explicit_targets` to fail on them instead.
   `dx run` still fails on them.
@@ -69,7 +69,7 @@ bazel run @rules_dx//:dx -- build //cli/...
 
 `--affected` selects only what your changes can reach. It is accepted by
 `dx build`, `dx test`, `dx coverage`, `dx lint`,
-`dx typecheck`, `dx format`, `dx check`, `dx fix`, `dx security`, and
+`dx typecheck`, `dx format`, `dx check`, `dx security`, and
 `dx license`. `dx generate` and `dx docs` reject `--affected` (usage error,
 exit `2`).
 
@@ -84,8 +84,8 @@ exit `2`).
 - `dx test` and `dx coverage` keep only test targets.
 - `dx security` and `dx license` keep only targets a dependency set owns.
 - `dx check --affected` runs generate, format, lint, and typecheck as usual,
-  then the affected tests. `dx fix --affected` runs the same phases without
-  tests and only reports fixes; `dx fix --apply --affected` writes them.
+  then the affected tests. `dx check --apply --affected` runs the same phases
+  without tests and writes fixes.
   Generate and its re-check run Gazelle on the directories of the affected
   targets.
 - A change to `WORKSPACE`, `WORKSPACE.bazel`, `.bazelversion`, any
@@ -194,8 +194,7 @@ exit `2`).
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. `dx security` is the exception: when any file changed, it
   runs the secrets scan. With `--output=json` it emits `command_started` (with
-  `affected`) and `command_finished`; `mode` is `check` for `dx check`, and for `dx fix`,
-  `lint`, `typecheck` and `format` unless `--apply` is given; `dx build`,
+  `affected`) and `command_finished`; `mode` is `check` for `dx check`, `lint`, `typecheck` and `format` unless `--apply` is given; `dx build`,
   `test`, `coverage`, `security` and `license` report `default`.
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.

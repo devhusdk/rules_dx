@@ -67,7 +67,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
     (
         "--include-edits",
         &["--include-edits", "--output=json"],
-        &["lint", "typecheck", "format", "check", "fix"],
+        &["lint", "typecheck", "format", "check"],
     ),
     ("--min-coverage", &["--min-coverage=1"], &["coverage"]),
     (
@@ -140,7 +140,7 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
 
 #[test]
 fn include_edits_needs_json_output() {
-    for command in ["lint", "typecheck", "format", "check", "fix"] {
+    for command in ["lint", "typecheck", "format", "check"] {
         for output in [None, Some("--output=text"), Some("--output=diff")] {
             let mut words = vec![command, "--include-edits"];
             words.extend(output);
@@ -605,7 +605,6 @@ fn output_contract_has_no_silent_ignore() {
         "coverage",
         "run",
         "check",
-        "fix",
         "security",
         "license",
         "update",
@@ -643,14 +642,14 @@ fn output_contract_has_no_silent_ignore() {
         (vec!["watch", "test", "--output=json"], OutputMode::Json),
         (vec!["watch", "build", "-o", "json"], OutputMode::Json),
         (vec!["watch", "lint", "--output=diff"], OutputMode::Diff),
-        (vec!["watch", "fix", "-o", "diff"], OutputMode::Diff),
+        (vec!["watch", "check", "-o", "diff"], OutputMode::Diff),
         (vec!["watch", "-o", "diff", "format"], OutputMode::Diff),
     ] {
         let got = parse(&strings(&words)).expect("the wrapped command takes the mode");
         assert_eq!(got.command, Command::Watch, "{words:?}");
         assert_eq!(got.output, want, "{words:?}");
     }
-    for command in ["lint", "typecheck", "format", "generate", "check", "fix"] {
+    for command in ["lint", "typecheck", "format", "generate", "check"] {
         let got = parse(&strings(&[command, "--output=diff"])).expect("diff capable");
         assert_eq!(got.output, OutputMode::Diff, "command: {command}");
         assert!(got.command.supports_diff(), "command: {command}");
@@ -756,15 +755,8 @@ fn version_rollback_and_check_parse() {
 }
 
 #[test]
-fn check_rejects_apply_while_quality_defaults_to_check() {
-    assert!(
-        matches!(
-            parse(&strings(&["check", "--apply"])),
-            Err(ArgsError::UnsupportedOption { .. })
-        ),
-        "dx check stays read-only"
-    );
-    for command in ["lint", "typecheck", "format", "fix"] {
+fn check_defaults_to_check_and_applies_only_with_apply() {
+    for command in ["lint", "typecheck", "format", "check"] {
         let bare = parse(&strings(&[command])).expect("bare parses");
         assert!(!bare.applies(), "{command} checks without --apply");
         assert_eq!(bare.operation(), OperationMode::Check, "{command}");
@@ -968,7 +960,6 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         "test",
         "coverage",
         "check",
-        "fix",
         "docs",
     ] {
         let got = parse(&strings(&[command, "--here"])).expect("here parses");

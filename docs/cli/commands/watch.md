@@ -9,7 +9,7 @@ Flags go to the wrapped command and are checked as `dx <command>` checks
 them: `dx watch test --release`, `dx watch lint --report sarif=out.sarif`.
 A flag the wrapped command rejects fails before watching starts. Short
 options work wherever the long option does. Bare lint, typecheck, format, and
-fix only check; pass `--apply` to write on every iteration. Args after `--`
+check only report; pass `--apply` to write on every iteration. Args after `--`
 reach the wrapped command unchanged.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,

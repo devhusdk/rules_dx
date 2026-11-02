@@ -11,12 +11,12 @@ const END: &str = "<!-- dx:end -->";
 pub(crate) fn block() -> String {
     let dx = "tools/dx";
     let worktree = Command::Worktree.name();
-    let fix = Command::Fix.name();
+    let check = Command::Check.name();
     let test = Command::Test.name();
     format!(
         "{BEGIN}\n\
          - Start: `{dx} {worktree} add <branch>`. Finish: `{dx} {worktree} release`.\n\
-         - Fix first: `{dx} {fix} --apply --affected`.\n\
+         - Fix first: `{dx} {check} --apply --affected`.\n\
          - Then verify: `{dx} {test} --affected`.\n\
          - Read the `--output=json` result.\n\
          {END}\n"
@@ -159,7 +159,7 @@ mod tests {
         for want in [
             "tools/dx worktree add <branch>",
             "tools/dx worktree release",
-            "tools/dx fix --apply --affected",
+            "tools/dx check --apply --affected",
             "tools/dx test --affected",
             "--output=json",
         ] {
@@ -169,10 +169,10 @@ mod tests {
 
     #[test]
     fn the_block_commands_are_real_dx_commands() {
-        for command in [Command::Worktree, Command::Fix, Command::Test] {
+        for command in [Command::Worktree, Command::Check, Command::Test] {
             assert!(Command::parse(command.name()).is_some());
         }
-        for command in [Command::Fix, Command::Test] {
+        for command in [Command::Check, Command::Test] {
             assert!(
                 dx_plan::args::grammar::advertised_flags(command).contains(&"affected".to_owned())
             );
@@ -195,7 +195,7 @@ mod tests {
                 .collect()
         };
         let fix = dx_plan::args::parse(&line("- Fix first:")).expect("fix parses");
-        assert_eq!(fix.command, Command::Fix);
+        assert_eq!(fix.command, Command::Check);
         assert!(fix.applies() && fix.affected);
         let test = dx_plan::args::parse(&line("- Then verify:")).expect("test parses");
         assert_eq!(test.command, Command::Test);

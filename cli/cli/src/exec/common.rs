@@ -5,7 +5,7 @@ use dx_output::{
     command_started, notice_event, write_event, ActionCounts, ChangeEvent, ChangeKind,
     FindingRecord, NoticeEvent, OutputMode, Span,
 };
-use dx_plan::args::{Command, Invocation};
+use dx_plan::args::Invocation;
 use dx_plan::reports::Destination;
 use dx_plan::resolve::QueryRunner;
 use dx_process::{broken_pipe_code, operational_code, pre_exec_code, stdout_io_code, Runner};
@@ -283,11 +283,11 @@ impl PhaseKind {
         }
     }
 
-    /// Reports whether later phases of `command` still run after a phase of this kind.
-    pub(crate) fn continues(self, command: Command) -> bool {
+    /// Reports whether later phases still run after a phase of this kind.
+    pub(crate) fn continues(self, apply: bool) -> bool {
         match self {
             PhaseKind::Selection | PhaseKind::Host | PhaseKind::Cancelled => false,
-            PhaseKind::Compile => command != Command::Fix,
+            PhaseKind::Compile => !apply,
             _ => true,
         }
     }

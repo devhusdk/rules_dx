@@ -112,8 +112,8 @@ fn untracked_files_count_and_a_clean_tree_selects_nothing() {
     assert_eq!(clean.stdout.trim(), "no affected targets");
 
     for args in [
-        &["fix", "--affected"][..],
-        &["fix", "--apply", "--affected"][..],
+        &["check", "--affected"][..],
+        &["check", "--apply", "--affected"][..],
         &["check", "--affected"][..],
     ] {
         let run = dx_in(root, args);
@@ -126,7 +126,7 @@ fn untracked_files_count_and_a_clean_tree_selects_nothing() {
         );
     }
 
-    let json = dx_in(root, &["fix", "--affected", "--output=json"]);
+    let json = dx_in(root, &["check", "--affected", "--output=json"]);
     assert_eq!(json.status.code(), Some(0), "{}", json.combined());
     let events = lines(&json);
     assert_eq!(events.len(), 2, "{}", json.combined());

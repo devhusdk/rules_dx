@@ -75,7 +75,6 @@ mod tests {
         Command::Run,
         Command::Deploy,
         Command::Generate,
-        Command::Fix,
         Command::Format,
         Command::Lint,
         Command::Typecheck,

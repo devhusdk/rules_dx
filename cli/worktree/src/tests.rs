@@ -2960,7 +2960,10 @@ mod hooks {
     fn guard_blocks_git_worktree_for_every_agent() {
         for agent in ["claude", "codex", "cursor", "gemini"] {
             let verdict = guard(&payload(agent, "git worktree add ../x"));
-            assert!(matches!(verdict, hook::Guard::Block(_)), "{agent}: {verdict:?}");
+            assert!(
+                matches!(verdict, hook::Guard::Block(_)),
+                "{agent}: {verdict:?}"
+            );
             let verdict = guard(&payload(agent, "ls -la"));
             assert_eq!(verdict, hook::Guard::Allow, "{agent}");
         }
@@ -2971,9 +2974,13 @@ mod hooks {
         let input = payload("codex", "tools/dx test //x");
         let session = input["session_id"].as_str().unwrap().to_owned();
         let same = |_: &str| Some(session.clone());
-        assert_eq!(hook::guard_with(&input, &who("s1", 1), &|_| None, &same), hook::Guard::Allow);
+        assert_eq!(
+            hook::guard_with(&input, &who("s1", 1), &|_| None, &same),
+            hook::Guard::Allow
+        );
         let other = |_: &str| Some("main-thread".to_owned());
-        let hook::Guard::Rewrite(out) = hook::guard_with(&input, &who("s1", 1), &|_| None, &other) else {
+        let hook::Guard::Rewrite(out) = hook::guard_with(&input, &who("s1", 1), &|_| None, &other)
+        else {
             panic!("a subagent thread is rewritten");
         };
         let command = out["hookSpecificOutput"]["updatedInput"]["command"]

@@ -696,14 +696,12 @@ mod tests {
         use clap::ValueEnum;
         let dir = repo();
         let (plan, _) = run(dir.path(), Command::Test, &[]);
-        let cases: [(&[&str], &str); 16] = [
+        let cases: [(&[&str], &str); 14] = [
             (&["check", "--affected", "--output=json"], "check"),
-            (&["fix", "--affected", "--output=json"], "check"),
             (
-                &["fix", "--apply", "--affected", "--output=json"],
+                &["check", "--apply", "--affected", "--output=json"],
                 "default",
             ),
-            (&["fix", "--affected", "--output=json"], "check"),
             (&["lint", "--affected", "--output=json"], "check"),
             (
                 &["lint", "--apply", "--affected", "--output=json"],

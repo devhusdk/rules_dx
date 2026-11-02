@@ -13,7 +13,7 @@ List what changed.
 Run, then paste the result:
 
 ```sh
-tools/dx fix --affected --apply
+tools/dx check --affected --apply
 tools/dx check --affected --output=json
 ```
 

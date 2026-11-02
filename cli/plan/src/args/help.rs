@@ -448,15 +448,6 @@ mod tests {
             clean.contains("never touches Bazel outputs") || clean.contains("never Bazel outputs"),
             "clean surprise:\n{clean}"
         );
-        let fix_help = match parse(&strings(&["fix", "--help"])) {
-            Err(ArgsError::Help { text }) => text,
-            other => panic!("fix --help: want Help, got {other:?}"),
-        };
-        assert!(fix_help.contains("--apply"), "fix surprise:\n{fix_help}");
-        assert!(
-            fix_help.contains("Write fixes to source files"),
-            "fix apply help:\n{fix_help}"
-        );
         let apply_help = |command: Command| {
             super::super::grammar::subcommand_args(command)
                 .get_arguments()
@@ -465,7 +456,7 @@ mod tests {
                 .map(ToString::to_string)
         };
         assert_eq!(
-            apply_help(Command::Fix).as_deref(),
+            apply_help(Command::Check).as_deref(),
             Some("Write fixes to source files")
         );
         assert_eq!(
@@ -480,17 +471,14 @@ mod tests {
             apply_help(Command::Deploy).as_deref(),
             Some("Authorize the managed mutation or effect")
         );
-        assert!(
-            fix_help.contains("verifies with a read-only check"),
-            "fix verification guidance:\n{fix_help}"
-        );
         let check_help = match parse(&strings(&["check", "--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("check --help: want Help, got {other:?}"),
         };
+        assert!(check_help.contains("--apply"), "check apply:\n{check_help}");
         assert!(
-            check_help.contains("non-mutating"),
-            "check mode:\n{check_help}"
+            check_help.contains("verifies with a read-only check"),
+            "check verification guidance:\n{check_help}"
         );
         let coverage = match parse(&strings(&["coverage", "--help"])) {
             Err(ArgsError::Help { text }) => text,

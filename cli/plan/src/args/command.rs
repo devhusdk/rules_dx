@@ -12,7 +12,6 @@ pub enum Command {
     Run,
     Deploy,
     Check,
-    Fix,
     Clean,
     Update,
     Bump,
@@ -100,7 +99,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 29] = [
+pub static COMMANDS: [CommandMeta; 28] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -314,8 +313,8 @@ pub static COMMANDS: [CommandMeta; 29] = [
         command: Command::Check,
         name: "check",
         scope_policy: "default-//...",
-        describe: "run generate+format+lint+typecheck checks in order (non-mutating)",
-        usage: "Usage: dx check|fix [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        describe: "run generate+format+lint+typecheck in order (check by default; --apply writes fixes, then verifies with a read-only check)",
+        usage: "Usage: dx check [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -325,25 +324,6 @@ pub static COMMANDS: [CommandMeta; 29] = [
         supports_fail_on: true,
         default_release: false,
         skew: SkewKind::Warn,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
-        command: Command::Fix,
-        name: "fix",
-        scope_policy: "default-//...",
-        describe: "apply generate+format+lint+typecheck fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)",
-        usage: "Usage: dx check|fix [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
-        is_managed: false,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: true,
-        supports_here: true,
-        supports_fail_on: true,
-        default_release: false,
-        skew: SkewKind::Refuse,
         workflow_verb: None,
         first_slot: FirstSlot::None,
         labels: LabelsPolicy::Always,
@@ -524,8 +504,8 @@ pub static COMMANDS: [CommandMeta; 29] = [
         name: "watch",
         scope_policy: "require",
         describe: "watch for changes and rebuild (local only)",
-        usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]",
-        scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check|fix are watchable). Args after `--` reach the wrapped command as its own command-options.",
+        usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check> [scope ...] [-- bazel-options|--app-args ...]",
+        scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check are watchable). Args after `--` reach the wrapped command as its own command-options.",
         is_managed: false,
         is_adoption: true,
         supports_json: true,
@@ -771,12 +751,12 @@ pub(crate) mod owners {
     use super::Command::{self, *};
 
     pub(crate) const APPLY_COMMANDS: [Command; 18] = [
-        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Add, Codegen, Env,
+        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Bump, Add, Codegen, Env,
         Init, Upgrade, Watch, Rollback, Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
-    pub(crate) const AFFECTED_OWNERS: [Command; 10] = [
-        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check, Fix,
+    pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
+        Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check,
     ];
 }
 
@@ -846,7 +826,6 @@ mod tests {
             Command::Run,
             Command::Deploy,
             Command::Check,
-            Command::Fix,
             Command::Clean,
             Command::Update,
             Command::Bump,
@@ -895,15 +874,15 @@ mod tests {
     #[test]
     fn help_names_check_default_and_apply() {
         assert!(
-            Command::Check.describe().contains("non-mutating"),
-            "check help must name its non-mutating mode"
+            Command::Check.describe().contains("check by default"),
+            "check help must name its check default"
         );
         for command in [
             Command::Lint,
             Command::Typecheck,
             Command::Format,
-            Command::Fix,
             Command::Generate,
+            Command::Check,
             Command::Codegen,
             Command::Env,
             Command::Clean,
@@ -931,7 +910,6 @@ mod tests {
             Command::Format,
             Command::Generate,
             Command::Check,
-            Command::Fix,
         ] {
             assert!(
                 command.supports_diff(),
@@ -962,7 +940,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|codegen|env|init|upgrade|status|watch|completion|docs|rollback|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|bump|add|codegen|env|init|upgrade|status|watch|completion|docs|rollback|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }
@@ -1163,7 +1141,7 @@ mod tests {
                 ("completion", Some("<shell>")),
                 (
                     "watch",
-                    Some("<build|test|run|lint|typecheck|format|check|fix>")
+                    Some("<build|test|run|lint|typecheck|format|check>")
                 ),
             ]
         );

@@ -1,19 +1,17 @@
-# `dx check`, `dx fix`, And `dx clean`
+# `dx check` And `dx clean`
 
 ```sh
 bazel run @rules_dx//:dx -- check //...
-bazel run @rules_dx//:dx -- fix //...
 bazel run @rules_dx//:dx -- clean
 ```
 
-## `dx check` And `dx fix`
+## `dx check`
 
 ```text
-dx check [--here] [--affected] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
-dx fix [--here] [--affected] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--apply] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
-Before any phase, `dx check` and `dx fix` fail when your change adds build
+Before any phase, `dx check` fails when your change adds build
 output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 `.gradle/`, or a `build/` directory outside a source tree, or a file over
 1 MiB. The error names each file and exits `1`.
@@ -31,7 +29,7 @@ output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 - Outside a Git checkout the check is skipped.
 - If Git fails, the command exits `2` with code `build_output_git_failed`.
 
-`dx check` also compares the dx-generated `third_party/rules_dx/` overrides
+Without `--apply`, `dx check` also compares the dx-generated `third_party/rules_dx/` overrides
 with this `dx` before any phase runs. A missing or changed generated file
 fails with code `overrides_stale` and exit `1`; run `tools/dx init --apply` to
 regenerate. A workspace that has not added the include gets a note on stderr
@@ -42,11 +40,10 @@ Runs `generate`, then `format`, then `lint`, then `typecheck` in order.
 `--affected` limits `format`, `lint`, and `typecheck` to targets your git changes reach (see
 [Scope Defaults](scope-defaults.md)), runs `generate` on the packages of those
 targets, or on the whole repo when the scope widens to `//...`, and makes
-`dx check` run the affected tests as a last `test` phase. It skips that phase when no test is affected. With
+`dx check` run the affected tests as a last `test` phase. It skips that phase when no test is affected or when `--apply` is given. With
 `--output=json`, `affected.tests` on `command_started` lists the tests dx
-chose. With nothing affected, `dx check --affected` and `dx fix --affected`
-run no phase, `generate` included, and skip the build-output check. They print
-`no affected targets` and exit `0`. With `--output=json` they emit only
+chose. With nothing affected, `dx check --affected` runs no phase, `generate` included, and skip the build-output check. It prints
+`no affected targets` and exits `0`. With `--output=json` it emits only
 `command_started` (with `affected`) and `command_finished`; `mode` is `check`
 unless `--apply` is given. Affected targets that do not fit the host platform
 are skipped.
@@ -68,15 +65,15 @@ given. Colliding destinations fail before anything runs, parents must exist,
 and a failed write keeps the previous file bytes. `-` for stdout is rejected because the phases share
 one document.
 
-`dx check` and `dx fix` run every phase. A phase with findings or drift, a
+`dx check` runs every phase. A phase with findings or drift, a
 failed build or tool, a target that does not converge, incomplete results, or
 a report that cannot be written does not stop the next phase, so one run
 reports every phase. The run still exits nonzero, and a later clean phase
 never clears it. The run stops, and marks the remaining phases skipped, only
 on a bad scope or configuration, when Bazel cannot run (it fails to launch, is
 killed by a signal, or the disk is full), or on a cancel. A phase whose only
-failures are compile errors does not stop `dx check`, but it stops `dx fix`:
-the remaining phases are skipped (after `fix --apply` applied changes, `generate` still reruns once) with
+failures are compile errors does not stop `dx check`, but it stops `dx check --apply`:
+the remaining phases are skipped (after `check --apply` applied changes, `generate` still reruns once) with
 `<phase> skipped after <phase> failed to compile`. The skipped phases are named
 in the JSON `umbrella_phase_skipped` notice events. In text output, a run with a failed
 phase ends with a `dx: phases:` line on stderr that says how each phase ended.
@@ -96,9 +93,9 @@ failed phase that wrote nothing adds no `collection_failed` error.
 Output: `--output text|diff|json`. JSON keeps one `command_started` and one
 `command_finished` for the run. Each phase sits between a `phase_started` and
 a `phase_finished`, and its events carry `command`, `phase`, and a
-`correlation` such as `check/format`. `dx fix --apply` verification phases use
+`correlation` such as `check/format`. `dx check --apply` verification phases use
 `verify/<phase>`. When `format`, `lint`, or `typecheck` wrote a file,
-`dx fix --apply` runs `generate` again after `typecheck` so new sources and
+`dx check --apply` runs `generate` again after `typecheck` so new sources and
 imports reach the BUILD files; that phase uses `rerun/generate`. A
 `verify/<phase>` that writes events dx cannot read adds a
 correlated `collection_failed` error and fails the run. A phase that reported findings adds a correlated `notice`
@@ -120,16 +117,16 @@ edits.
 
 SARIF results carry `partialFingerprints` (`dx/v1`), `ruleIndex`, and `fixes` for machine-applicable replacements. Runs set `columnKind` to `unicodeCodePoints`.
 
-`dx check` only reports. `dx fix` checks by default; `dx fix --apply`
+`dx check` only reports. `dx check --apply`
 writes validated fixes, then re-checks read-only every phase up to the last
 one that changed or refused a file. The re-check runs only when every phase
-passed. When no phase changed anything, no re-check runs. `dx fix --apply` succeeds only when that re-check passes;
+passed. When no phase changed anything, no re-check runs. `dx check --apply` succeeds only when that re-check passes;
 remaining findings, a target that did not converge, or a failed verification
 stay visible and fail the run.
 
 When a phase finds changes, text prints
-`N file(s) need changes. Apply them with: dx fix --apply ...` with the scope
-you passed, `--affected` included. `next:` lines name `dx check` or `dx fix`
+`N file(s) need changes. Apply them with: dx check --apply ...` with the scope
+you passed, `--affected` included. `next:` lines name `dx check`
 with that scope.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a phase failed or
@@ -150,9 +147,9 @@ runnable tests.
 
 ```sh
 bazel run @rules_dx//:dx -- check //...
-bazel run @rules_dx//:dx -- fix --here
+bazel run @rules_dx//:dx -- check --here
 bazel run @rules_dx//:dx -- check --affected
-bazel run @rules_dx//:dx -- fix --apply //...
+bazel run @rules_dx//:dx -- check --apply //...
 ```
 
 ## `dx clean`

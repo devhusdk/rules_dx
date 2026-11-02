@@ -58,7 +58,7 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         Command::Build | Command::Run | Command::Deploy => WORKFLOW_CODES,
         Command::Test | Command::Coverage => TEST_CODES,
         Command::Generate => &[dx_plan::generate::IGNORED_IMPORT_CODE],
-        Command::Check | Command::Fix => UMBRELLA_CODES,
+        Command::Check => UMBRELLA_CODES,
         Command::Clean => &[
             CODE_CLEAN_PLANNED,
             CODE_CLEAN_PRUNED,

@@ -2,7 +2,7 @@ use super::super::{ArgsError, Command};
 use super::parse;
 use dx_testing::cli::strings;
 
-const AFFECTED: [Command; 10] = [
+const AFFECTED: [Command; 9] = [
     Command::Build,
     Command::Test,
     Command::Coverage,
@@ -10,7 +10,6 @@ const AFFECTED: [Command; 10] = [
     Command::Typecheck,
     Command::Format,
     Command::Check,
-    Command::Fix,
     Command::Security,
     Command::License,
 ];

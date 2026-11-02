@@ -496,7 +496,7 @@ fn slug_matches_github_fixtures() {
     assert_eq!(slug("rules_android"), "rules_android");
     assert_eq!(slug("C# basics"), "c-basics");
     assert_eq!(slug("x²"), "x");
-    assert_eq!(slug("dx fix --here"), "dx-fix---here");
+    assert_eq!(slug("dx check --here"), "dx-check---here");
 }
 
 #[test]

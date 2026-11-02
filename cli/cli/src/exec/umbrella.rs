@@ -622,7 +622,7 @@ fn test_phase_kind(code: i32, complete: bool, host: bool) -> PhaseKind {
     PhaseKind::from_bazel_exit(code, code == BAZEL_TESTS_FAILED && complete)
 }
 
-/// Where a `fix --apply` verification pass runs, minus its buffered streams.
+/// Where a `check --apply` verification pass runs, minus its buffered streams.
 struct VerifyContext<'a> {
     workspace: &'a Path,
     runner: &'a dyn Runner,
@@ -637,7 +637,7 @@ struct VerifyContext<'a> {
     bump_commit_json: Option<&'a str>,
 }
 
-/// Re-runs umbrella phases read-only through `through` after `fix --apply` touched them.
+/// Re-runs umbrella phases read-only through `through` after `check --apply` touched them.
 fn verify_fix(
     request: &UmbrellaRequest,
     context: &VerifyContext<'_>,
@@ -888,7 +888,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         proc_root,
         bump_commit_json,
     } = env;
-    let fix_apply = request.command == Command::Fix && request.applies();
+    let fix_apply = request.applies();
     // One rule-graph load serves every phase until a phase may have rewritten BUILD files.
     let graph_memo = MemoizedGraphQuery::new(query_runner);
     let query_runner: &dyn QueryRunner = &graph_memo;
@@ -919,7 +919,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
     if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
         return exit;
     }
-    if request.command == Command::Check {
+    if !fix_apply {
         if let Some(exit) = guard_overrides(workspace, request.common.output, out, err) {
             return exit;
         }
@@ -1113,7 +1113,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
         index += 1;
         if code != 0 {
-            if !kind.continues(request.command) {
+            if !kind.continues(fix_apply) {
                 stop_code = Some(code);
                 skip_cause = format!("{label} {}", kind.stop_reason());
                 if kind == PhaseKind::Compile
@@ -1575,7 +1575,7 @@ mod tests {
     }
 
     /// Serves apply content for the first `verify_from` launches, then
-    /// verification content, so `fix --apply` tests can stage what the
+    /// verification content, so `check --apply` tests can stage what the
     /// read-only re-check observes after the apply pass wrote sources.
     /// Quality launches from the `clean_from`th quality launch on serve
     /// `clean_files` instead, so a later phase does not re-offer an edit an
@@ -1697,7 +1697,7 @@ mod tests {
         }
     }
 
-    /// Runs one `fix --apply` whose launches from `verify_from` observe
+    /// Runs one `check --apply` whose launches from `verify_from` observe
     /// `verify_files` and `verify_intended` instead of the apply content.
     fn fix_apply_with_staged_verify(
         harness: &Harness,
@@ -1805,7 +1805,7 @@ mod tests {
 
     #[test]
     fn check_and_fix_json_report_build_output_before_finishing() {
-        for command in ["check", "fix"] {
+        for command in ["check"] {
             let harness = dirty_build_output(&format!("umbrella-{command}-json-build-output"));
             let (code, out, err) = harness.run(&[command, "--output=json"]);
             assert_eq!(code, 1, "{out}{err}");
@@ -2070,9 +2070,9 @@ mod tests {
     }
 
     #[test]
-    fn fix_check_flag_forces_check_mode() {
+    fn check_without_apply_stays_check_mode() {
         let harness = umbrella_findings("umbrella-fix-check");
-        let (code, out, _) = harness.run(&["fix", "--output=text"]);
+        let (code, out, _) = harness.run(&["check", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert_eq!(
@@ -2108,7 +2108,7 @@ mod tests {
             staged,
             Some(intended_witness("check", true, "", "")),
             4,
-            &["fix", "--apply", "--output=text"],
+            &["check", "--apply", "--output=text"],
         );
         assert_eq!(code, 0, "{out}{err}");
         assert!(
@@ -2134,7 +2134,7 @@ mod tests {
     #[test]
     fn fix_default_checks_without_writing() {
         let harness = umbrella_findings("umbrella-fix-default");
-        let (code, out, err) = harness.run(&["fix", "--output=text"]);
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert!(out.contains("Running lint analysis"), "{out}");
@@ -2178,7 +2178,7 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=text"],
+            &["check", "--apply", "--output=text"],
         );
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
@@ -2212,7 +2212,7 @@ mod tests {
     fn fix_apply_clean_runs_no_verification() {
         let mut harness = umbrella_clean("umbrella-fix-clean-no-verify");
         harness.intended = Some(intended_witness("default", true, "", ""));
-        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        let (code, out, err) = harness.run(&["check", "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
             out.matches("Running format analysis for //...").count(),
@@ -2231,7 +2231,7 @@ mod tests {
     fn fix_apply_json_clean_emits_no_verify_events() {
         let mut harness = umbrella_clean("umbrella-fix-clean-no-verify-json");
         harness.intended = Some(intended_witness("default", true, "", ""));
-        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        let (code, out, err) = harness.run(&["check", "--apply", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         assert!(
@@ -2270,7 +2270,7 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=text"],
+            &["check", "--apply", "--output=text"],
         );
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
@@ -2327,11 +2327,11 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=json"],
+            &["check", "--apply", "--output=json"],
         );
         assert_eq!(code, 1, "{out}");
         let events = json_events(&out);
-        assert_eq!(events.first().expect("first")["command"], "fix");
+        assert_eq!(events.first().expect("first")["command"], "check");
         assert_eq!(events.first().expect("first")["mode"], "default");
         let failure = event(&events, "error");
         assert_eq!(failure["code"], serde_json::json!("verification_failed"));
@@ -2351,7 +2351,7 @@ mod tests {
             &mut out,
             &mut err,
             OutputMode::Json,
-            "fix",
+            "check",
             "format",
             &["lint", "typecheck"],
         )
@@ -2382,7 +2382,7 @@ mod tests {
             &mut verification.out,
             &mut verification.err,
             OutputMode::Json,
-            ("fix", "check"),
+            ("check", "check"),
             "verify/lint",
             (b"not an event\n", b""),
             0,
@@ -2390,7 +2390,7 @@ mod tests {
         assert_eq!(forwarded, Ok(false));
         verification.readable = false;
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
+        deliver_verification(&mut out, &mut err, OutputMode::Json, "check", &verification)
             .expect("delivered");
         let err = String::from_utf8(err).expect("utf8");
         assert!(
@@ -2422,7 +2422,7 @@ mod tests {
             ended: None,
         };
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        deliver_verification(&mut out, &mut err, OutputMode::Json, "fix", &verification)
+        deliver_verification(&mut out, &mut err, OutputMode::Json, "check", &verification)
             .expect("delivered");
         assert!(out.is_empty() && err.is_empty());
     }
@@ -2440,11 +2440,7 @@ mod tests {
 
     #[test]
     fn check_and_fix_keep_going_after_a_diagnostic_free_unstable_phase() {
-        for words in [
-            ["check", "--output=text"],
-            ["fix", "--output=text"],
-            ["fix", "--apply"],
-        ] {
+        for words in [["check", "--output=text"], ["check", "--apply"]] {
             let mut harness = Harness::new("umbrella-unstable");
             harness.write_source("src/a.py", "x = 1\n");
             let bytes = oscillating(&harness);
@@ -2511,7 +2507,7 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=text"],
+            &["check", "--apply", "--output=text"],
         );
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
@@ -2533,7 +2529,7 @@ mod tests {
     #[test]
     fn fix_keeps_going_when_a_later_phase_goes_stale() {
         let harness = umbrella_findings("umbrella-stale");
-        let (code, out, _) = harness.run(&["fix", "--apply", "--output=text"]);
+        let (code, out, _) = harness.run(&["check", "--apply", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert!(out.contains("Running lint analysis for //..."), "{out}");
@@ -2560,7 +2556,7 @@ mod tests {
         );
     }
 
-    /// A `fix --apply` whose format edit goes stale before the apply pass.
+    /// A `check --apply` whose format edit goes stale before the apply pass.
     fn refused_format(name: &str) -> Harness {
         let mut harness = Harness::new(name);
         harness.write_source("src/a.py", "x = 1\n");
@@ -2576,7 +2572,7 @@ mod tests {
     #[test]
     fn fix_apply_fails_when_format_refuses_a_stale_source() {
         let harness = refused_format("umbrella-fix-refused");
-        let (code, out, err) = harness.run(&["fix", "--apply", "--output=text"]);
+        let (code, out, err) = harness.run(&["check", "--apply", "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
             std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -2596,7 +2592,7 @@ mod tests {
         );
 
         let harness = refused_format("umbrella-fix-refused-json");
-        let (code, out, err) = harness.run(&["fix", "--apply", "--output=json"]);
+        let (code, out, err) = harness.run(&["check", "--apply", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
         let events = json_events(&out);
         let format_finished = events_of_kind(&events, "phase_finished")
@@ -2632,7 +2628,7 @@ mod tests {
             code: 1,
             launches: Cell::new(0),
         };
-        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(runner.launches.get(), 4, "every phase launches");
@@ -2692,7 +2688,7 @@ mod tests {
             launches: Cell::new(0),
         };
         let output_flag = format!("--output={output}");
-        let inv = umbrella_invocation(harness, &["fix", "--apply", output_flag.as_str()]);
+        let inv = umbrella_invocation(harness, &["check", "--apply", output_flag.as_str()]);
         harness.execute_with(&inv, &runner)
     }
 
@@ -2790,7 +2786,7 @@ mod tests {
             code: 1,
             launches: Cell::new(0),
         };
-        let inv = umbrella_invocation(&harness, &["fix", "--apply", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--apply", "--output=json"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
@@ -2882,7 +2878,7 @@ mod tests {
     fn fix_stops_after_a_lint_compile_error() {
         let harness = umbrella_clean("umbrella-fix-compile");
         let runner = compile_fail_at_lint(&harness);
-        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(runner.launches.get(), 3, "typecheck never launches");
@@ -3028,7 +3024,7 @@ mod tests {
                 code: 36,
                 launches: Cell::new(0),
             };
-            let inv = umbrella_invocation(&harness, &["fix", output, "--report=sarif=out.sarif"]);
+            let inv = umbrella_invocation(&harness, &["check", output, "--report=sarif=out.sarif"]);
             harness.execute_with(&inv, &runner)
         };
         let (code, out, err) = run("--output=json");
@@ -3067,7 +3063,7 @@ mod tests {
     fn umbrella_sarif_skips_phase_that_could_not_render() {
         let harness = umbrella_findings("umbrella-sarif-unrendered");
         let (code, out, err) = harness.run(&[
-            "fix",
+            "check",
             "--apply",
             "--output=text",
             "--report=sarif=out.sarif",
@@ -3149,10 +3145,10 @@ mod tests {
     #[test]
     fn fix_json_reports_umbrella_lifecycle() {
         let harness = umbrella_clean("umbrella-fix-json");
-        let (code, out, err) = harness.run(&["fix", "--output=json"]);
+        let (code, out, err) = harness.run(&["check", "--output=json"]);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
-        assert_eq!(events.first().expect("first")["command"], "fix");
+        assert_eq!(events.first().expect("first")["command"], "check");
         assert_eq!(
             events.first().expect("first")["mode"],
             "check",
@@ -3217,7 +3213,7 @@ mod tests {
     fn fix_reports_a_full_disk_once_and_skips_the_later_phases() {
         let mut harness = umbrella_clean("umbrella-disk-full");
         harness.free_disk_bytes = Some(1 << 20);
-        let inv = umbrella_invocation(&harness, &["fix", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--output=json"]);
         let runner = FailFrom {
             inner: harness.runner(),
             from: 2,
@@ -3412,7 +3408,7 @@ mod tests {
         let inv = umbrella_invocation(
             &harness,
             &[
-                "fix",
+                "check",
                 "--apply",
                 "--output=text",
                 "--report=sarif=out.sarif",
@@ -3826,7 +3822,7 @@ mod tests {
     }
 
     #[test]
-    fn check_affected_hints_name_dx_fix_with_the_affected_flag() {
+    fn check_affected_hints_name_dx_check_apply_with_the_affected_flag() {
         let harness = umbrella_findings("umbrella-affected-hint");
         let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
         inv.affected = false;
@@ -3835,7 +3831,7 @@ mod tests {
         let (code, out, err) = harness.execute_with(&inv, &harness.runner());
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains("file(s) need changes. Apply them with: dx fix --apply --affected\n"),
+            err.contains("file(s) need changes. Apply them with: dx check --apply --affected\n"),
             "{err}"
         );
         for stale in ["dx format --apply", "dx lint --apply", "//test:"] {
@@ -3870,12 +3866,12 @@ mod tests {
     }
 
     #[test]
-    fn check_target_hints_name_dx_fix_with_the_user_patterns() {
+    fn check_target_hints_name_dx_check_apply_with_the_user_patterns() {
         let harness = umbrella_findings("umbrella-target-hint");
         let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains("file(s) need changes. Apply them with: dx fix --apply //test:corpus\n"),
+            err.contains("file(s) need changes. Apply them with: dx check --apply //test:corpus\n"),
             "{err}"
         );
         assert!(!err.contains("dx format --apply"), "{err}");
@@ -4176,7 +4172,7 @@ mod tests {
         assert_eq!(last["results_complete"], true, "{out}");
     }
 
-    /// Plays Gazelle for `fix --apply`: the first generate launch writes
+    /// Plays Gazelle for `check --apply`: the first generate launch writes
     /// `fixed` to `build` and its apply witness, later generate launches
     /// report a clean check, and quality launches fail to compile until
     /// `build` lists `source`.
@@ -4276,7 +4272,7 @@ mod tests {
             bep_line: failed_action("//src:lib", "c1", "Rustc", "out/lib.rlib", &uri),
             generate_launches: Cell::new(0),
         };
-        let inv = umbrella_invocation(&harness, &["fix", "--apply", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--apply", "--output=json"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
@@ -4306,7 +4302,7 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=json"],
+            &["check", "--apply", "--output=json"],
         );
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
@@ -4340,9 +4336,9 @@ mod tests {
         let findings = umbrella_findings("umbrella-no-rerun-fix");
         let checked = umbrella_findings("umbrella-no-rerun-check");
         for (harness, words) in [
-            (&clean, &["fix", "--apply", "--output=json"][..]),
-            (&refused, &["fix", "--apply", "--output=json"][..]),
-            (&findings, &["fix", "--output=json"][..]),
+            (&clean, &["check", "--apply", "--output=json"][..]),
+            (&refused, &["check", "--apply", "--output=json"][..]),
+            (&findings, &["check", "--output=json"][..]),
             (&checked, &["check", "--output=json"][..]),
         ] {
             let (_, out, err) = harness.run(words);
@@ -4384,7 +4380,7 @@ mod tests {
             bep_line: failed_action("//app:bin", "c1", "Clippy", "out/bin.clippy", &uri),
             launches: Cell::new(0),
         };
-        let inv = umbrella_invocation(&harness, &["fix", "--apply", "--output=json"]);
+        let inv = umbrella_invocation(&harness, &["check", "--apply", "--output=json"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(
@@ -4424,7 +4420,7 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=text"],
+            &["check", "--apply", "--output=text"],
         );
         assert_eq!(code, 0, "{out}{err}");
         let paths = intended_paths(&harness);
@@ -4464,7 +4460,7 @@ mod tests {
             code: 1,
             launches: Cell::new(0),
         };
-        let inv = umbrella_invocation(&harness, &["fix", "--apply", "--output=text"]);
+        let inv = umbrella_invocation(&harness, &["check", "--apply", "--output=text"]);
         let (code, out, err) = harness.execute_with(&inv, &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
@@ -4488,17 +4484,17 @@ mod tests {
             PhaseKind::Incomplete,
             PhaseKind::Report,
         ] {
-            assert!(kind.continues(Command::Check), "{kind:?}");
-            assert!(kind.continues(Command::Fix), "{kind:?}");
+            assert!(kind.continues(false), "{kind:?}");
+            assert!(kind.continues(true), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());
         }
         for kind in [PhaseKind::Selection, PhaseKind::Host, PhaseKind::Cancelled] {
-            assert!(!kind.continues(Command::Check), "{kind:?}");
-            assert!(!kind.continues(Command::Fix), "{kind:?}");
+            assert!(!kind.continues(false), "{kind:?}");
+            assert!(!kind.continues(true), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());
         }
-        assert!(PhaseKind::Compile.continues(Command::Check));
-        assert!(!PhaseKind::Compile.continues(Command::Fix));
+        assert!(PhaseKind::Compile.continues(false));
+        assert!(!PhaseKind::Compile.continues(true));
         assert_eq!(PhaseKind::Compile.stop_reason(), "failed to compile");
     }
 
@@ -4568,7 +4564,7 @@ mod tests {
         harness
             .query
             .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
-        let (code, out, err) = harness.run(&["fix", "--output=text", "pkg/a.py"]);
+        let (code, out, err) = harness.run(&["check", "--output=text", "pkg/a.py"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(graph_calls(&harness), 1, "default fix never writes");
     }
@@ -4607,7 +4603,7 @@ mod tests {
             verify_files,
             Some(intended_witness("check", true, "", "")),
             5,
-            &["fix", "--apply", "--output=text", "pkg/a.py"],
+            &["check", "--apply", "--output=text", "pkg/a.py"],
         );
         assert!(
             graph_calls(&harness) >= 2,

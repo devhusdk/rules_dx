@@ -4,7 +4,7 @@
 
 ```sh
 tools/dx worktree add <branch>
-tools/dx fix --apply --affected
+tools/dx check --apply --affected
 tools/dx test --affected
 tools/dx worktree release
 ```

@@ -775,8 +775,9 @@ mod tests {
 
     #[test]
     fn watch_never_upgrades_a_wrapped_check_to_apply() {
-        let check = build_iteration(&invocation(&["watch", "fix", "//..."])).expect("wrapped fix");
-        assert_eq!(check.command, Command::Fix);
+        let check =
+            build_iteration(&invocation(&["watch", "check", "//..."])).expect("wrapped fix");
+        assert_eq!(check.command, Command::Check);
         assert_eq!(check.targets, vec!["//...".to_owned()]);
         assert_eq!(check.operation(), OperationMode::Check);
         assert!(!check.applies());
@@ -785,8 +786,8 @@ mod tests {
             lint.quality_request().expect("quality").mode,
             OperationMode::Check
         );
-        let applied =
-            build_iteration(&invocation(&["watch", "--apply", "fix", "//..."])).expect("apply fix");
+        let applied = build_iteration(&invocation(&["watch", "--apply", "check", "//..."]))
+            .expect("apply fix");
         assert_eq!(applied.operation(), OperationMode::Apply);
         assert!(applied.applies());
     }
@@ -821,7 +822,7 @@ mod tests {
     fn watch_parses_wrapped_options_like_the_wrapped_command() {
         let got = invocation(&["watch", "build", "//...", "--", "--jobs=4"]);
         assert_eq!(got.raw_bazel_options(), vec!["--jobs=4".to_owned()]);
-        let got = invocation(&["watch", "--apply", "fix", "//app:bin"]);
+        let got = invocation(&["watch", "--apply", "check", "//app:bin"]);
         assert!(got.apply);
         assert!(dx_plan::args::parse(&["watch", "--apply", "run", "//app:bin"]).is_err());
         let got = invocation(&["watch", "lint", "--fail-on=error", "--report=sarif=a.sarif"]);

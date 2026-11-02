@@ -14,7 +14,7 @@ bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 
 - [`dx build`, `dx test`, `dx coverage`, `dx run`, `dx deploy`](build-test-coverage.md)
 - [`dx lint`, `dx typecheck`, `dx format`](quality.md)
-- [`dx check`, `dx fix`, `dx clean`](check-fix-clean.md)
+- [`dx check`, `dx clean`](check-fix-clean.md)
 - [`dx generate`](generate.md)
 - [`dx env`, `dx codegen`](environment-codegen.md)
 - [`dx security`, `dx license`, `dx update`, `dx bump`, `dx add`](audit-update.md)
@@ -386,7 +386,7 @@ configurations appear once, with a `count`.
   `effect` is `proposed` in check mode, and `applied` or `refused` with
   `--apply`. A `refused` change carries a `reason` and makes the run exit `1`. `--include-edits` adds
   `source_digest` and the full `edits`.
-- `phase_started`: a `dx check` or `dx fix` phase began, with `command`,
+- `phase_started`: a `dx check` phase began, with `command`,
   `phase`, `mode`, and `correlation`. Every event of the phase carries the same
   `command`, `phase`, and `correlation`.
 - `phase_finished`: a phase ended, with its `exit_code` and counts.

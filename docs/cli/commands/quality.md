@@ -82,8 +82,8 @@ When a check finds changes, text prints
 `N file(s) need changes. Apply them with: dx <command> --apply ...` with your
 workspace, scope, and Bazel options quoted for the shell. Credential-bearing
 options are left out. Failures print a `next:` line with the fix and a check
-command to run again. Inside `dx check` and `dx fix`, these lines name
-`dx fix --apply` or the umbrella command with your scope instead.
+command to run again. Inside `dx check`, these lines name
+`dx check --apply` or the umbrella command with your scope instead.
 
 A target that only reads a file never conflicts with a target that fixes it
 when both saw the same original bytes. The reading target's findings on that
@@ -3083,7 +3083,7 @@ runs on Linux x86_64. MDX has no typecheck.
 
 ```sh
 bazel run @rules_dx//:dx -- format //docs/...
-bazel run @rules_dx//:dx -- fix --apply //docs/...
+bazel run @rules_dx//:dx -- check --apply //docs/...
 ```
 
 A check never writes. `--apply` rewrites only the files the selected targets
@@ -3417,9 +3417,9 @@ its line and column with the rule name. A script that does not parse is
 reported as an error.
 
 Format runs `Invoke-Formatter` and is fixable: `dx format` reports each script
-that would change, and `dx fix` rewrites it. A script that does not parse, or
+that would change, and `dx check --apply` rewrites it. A script that does not parse, or
 is not UTF-8, is reported as an error at the parse failure and is never
-rewritten, so `dx fix` fails on it. A rewrite keeps the script's UTF-8 BOM, or
+rewritten, so `dx check --apply` fails on it. A rewrite keeps the script's UTF-8 BOM, or
 its lack of one, and its line endings: a script whose first line ends in CRLF
 keeps CRLF on every line. Scripts that are already formatted are not touched.
 

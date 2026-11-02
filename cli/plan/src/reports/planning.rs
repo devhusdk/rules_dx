@@ -547,7 +547,6 @@ mod tests {
             (Command::Lint, "sarif"),
             (Command::Typecheck, "sarif"),
             (Command::Check, "sarif"),
-            (Command::Fix, "sarif"),
             (Command::Test, "junit"),
             (Command::Coverage, "lcov"),
             (Command::Coverage, "sources"),

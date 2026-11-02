@@ -252,7 +252,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
             )
         }
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
-        Command::Check | Command::Fix => umbrella::execute_umbrella(invocation, env),
+        Command::Check => umbrella::execute_umbrella(invocation, env),
         Command::Build | Command::Test | Command::Coverage | Command::Run | Command::Deploy => {
             workflow::execute_workflow(invocation, env)
         }
@@ -309,7 +309,7 @@ mod tests {
         assert_ne!(code, 141);
     }
 
-    const QUIET_ROWS: [(Command, &[&str]); 13] = [
+    const QUIET_ROWS: [(Command, &[&str]); 12] = [
         (Command::Generate, &["generate"]),
         (Command::Docs, &["docs"]),
         (Command::Env, &["env"]),
@@ -331,7 +331,6 @@ mod tests {
         (Command::Typecheck, &["typecheck"]),
         (Command::Format, &["format"]),
         (Command::Check, &["check"]),
-        (Command::Fix, &["fix"]),
     ];
 
     const NO_BAZEL_BUILD: [Command; 12] = [

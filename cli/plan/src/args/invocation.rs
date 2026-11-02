@@ -44,7 +44,7 @@ pub struct CommonOptions {
     pub color: ColorMode,
 }
 
-/// The scope a dx check or dx fix run was given.
+/// The scope a dx check run was given.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HintScope {
     Affected,
@@ -454,15 +454,17 @@ impl Invocation {
     }
 
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
-        if !matches!(self.command, Command::Check | Command::Fix) {
+        if self.command != Command::Check {
             return Err(format!(
-                "option \"--command\" is not supported by dx {}: want check|fix",
+                "option \"--command\" is not supported by dx {}: want check",
                 self.command.name()
             ));
         }
         let affected = self.is_affected_plan();
         let test = match (&self.affected_handoff, self.command) {
-            (Some(AffectedHandoff { tests }), Command::Check) if !tests.is_empty() => {
+            (Some(AffectedHandoff { tests }), Command::Check)
+                if !tests.is_empty() && !self.applies() =>
+            {
                 let mut test = self.clone();
                 test.command = Command::Test;
                 test.apply = false;
@@ -662,11 +664,11 @@ mod tests {
 
     #[test]
     fn operation_authorizes_only_explicit_apply() {
-        let bare = invocation_for(Command::Fix, &[]);
+        let bare = invocation_for(Command::Check, &[]);
         assert!(!bare.apply);
         assert_eq!(bare.operation(), OperationMode::Check);
         assert!(!bare.applies());
-        let mut apply = invocation_for(Command::Fix, &[]);
+        let mut apply = invocation_for(Command::Check, &[]);
         apply.apply = true;
         assert_eq!(apply.operation(), OperationMode::Apply);
         assert!(apply.applies());
@@ -700,7 +702,7 @@ mod tests {
             vec!["//a/...".to_owned()]
         );
 
-        let mut fix = invocation_for(Command::Fix, &["//a/..."]);
+        let mut fix = invocation_for(Command::Check, &["//a/..."]);
         fix.apply = true;
         let request = fix.umbrella_request().expect("umbrella");
         assert_eq!(
@@ -712,7 +714,7 @@ mod tests {
             .expect("verify");
         assert_eq!(
             verify.origin.map(|origin| origin.command),
-            Some(Command::Fix)
+            Some(Command::Check)
         );
 
         let direct = invocation_for(Command::Lint, &["//a/..."]);
@@ -721,7 +723,7 @@ mod tests {
 
     #[test]
     fn affected_fix_scopes_generate_apply_and_verify_to_packages() {
-        let mut fix = invocation_for(Command::Fix, &["//a:x", "//b:y"]);
+        let mut fix = invocation_for(Command::Check, &["//a:x", "//b:y"]);
         fix.apply = true;
         fix.affected_handoff = Some(AffectedHandoff::default());
         let request = fix.umbrella_request().expect("umbrella");
@@ -962,8 +964,8 @@ mod tests {
             inv.quality_request().expect("quality").baseline.as_deref(),
             Some("b.json")
         );
-        let fix =
-            crate::args::parse_with(&["fix".to_owned()], &|_| None, &defaults).expect("parse fix");
+        let fix = crate::args::parse_with(&["check".to_owned()], &|_| None, &defaults)
+            .expect("parse fix");
         let umbrella = fix.umbrella_request().expect("umbrella");
         let phase = umbrella
             .phase_quality_request(Command::Lint, Vec::new())
@@ -1069,7 +1071,7 @@ mod tests {
 
     #[test]
     fn umbrella_phases_derive_typed_requests_without_resets() {
-        let umbrella = parsed(&["fix", "--apply", "--fail-on=error", "//a:one"])
+        let umbrella = parsed(&["check", "--apply", "--fail-on=error", "//a:one"])
             .umbrella_request()
             .expect("fix apply");
         assert_eq!(umbrella.mode, OperationMode::Apply);
@@ -1090,7 +1092,7 @@ mod tests {
 
     #[test]
     fn umbrella_verification_is_always_read_only() {
-        let umbrella = parsed(&["fix", "--apply", "//a:one"])
+        let umbrella = parsed(&["check", "--apply", "//a:one"])
             .umbrella_request()
             .expect("fix apply");
         let recheck = umbrella

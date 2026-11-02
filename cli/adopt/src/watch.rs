@@ -19,7 +19,6 @@ pub const WATCHABLE_COMMANDS: &[&str] = &[
     "typecheck",
     "format",
     "check",
-    "fix",
 ];
 
 pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
@@ -311,7 +310,6 @@ mod tests {
             "typecheck",
             "format",
             "check",
-            "fix",
         ] {
             assert!(
                 plan_watch(watchable, false).is_ok(),

@@ -1,4 +1,4 @@
-use dx_plan::args::{Command, HintScope, QualityRequest};
+use dx_plan::args::{HintScope, QualityRequest};
 
 pub(crate) use dx_plan::plan::shell_quote as quote;
 
@@ -34,7 +34,6 @@ fn echoed(options: &[String]) -> (Vec<String>, bool) {
 
 pub(crate) fn command_line(request: &QualityRequest, apply: bool) -> String {
     let command = match &request.origin {
-        Some(_) if apply => Command::Fix,
         Some(origin) => origin.command,
         None => request.command,
     };
@@ -122,6 +121,7 @@ pub(crate) const EVIDENCE_GAP_NEXT: &str =
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_plan::args::Command;
     pub(crate) fn request() -> QualityRequest {
         request_of(&[
             "lint",
@@ -173,30 +173,33 @@ mod tests {
         let affected = umbrella(Command::Check, HintScope::Affected);
         assert_eq!(
             command_line(&affected, true),
-            "dx fix --apply --affected -- --config=ci"
+            "dx check --apply --affected -- --config=ci"
         );
         assert_eq!(
             apply_hint(&affected, 3),
-            "3 file(s) need changes. Apply them with: dx fix --apply --affected -- --config=ci"
+            "3 file(s) need changes. Apply them with: dx check --apply --affected -- --config=ci"
         );
         assert_eq!(
             rerun_hint(&affected, "fix the Bazel error above"),
             "next: fix the Bazel error above, then run: dx check --affected -- --config=ci"
         );
-        let patterns = umbrella(Command::Fix, HintScope::Targets(vec!["//a/...".to_owned()]));
+        let patterns = umbrella(
+            Command::Check,
+            HintScope::Targets(vec!["//a/...".to_owned()]),
+        );
         assert_eq!(
             command_line(&patterns, true),
-            "dx fix --apply //a/... -- --config=ci"
+            "dx check --apply //a/... -- --config=ci"
         );
         assert_eq!(
             rerun_hint(&patterns, "fix it"),
-            "next: fix it, then run: dx fix //a/... -- --config=ci"
+            "next: fix it, then run: dx check //a/... -- --config=ci"
         );
         let mut secret = umbrella(Command::Check, HintScope::Affected);
         secret.bazel_options = vec!["--remote_header=x-token=abc".to_owned()];
         assert_eq!(
             apply_hint(&secret, 1),
-            "1 file(s) need changes. Apply them with: dx fix --apply --affected (add your credential options again)"
+            "1 file(s) need changes. Apply them with: dx check --apply --affected (add your credential options again)"
         );
     }
 

@@ -482,7 +482,7 @@ mod tests {
         assert!(root.join(".gemini/settings.json").exists());
         let agents = std::fs::read_to_string(root.join("AGENTS.md")).expect("agents");
         assert!(
-            agents.contains("tools/dx fix --apply --affected"),
+            agents.contains("tools/dx check --apply --affected"),
             "{agents}"
         );
         assert!(agents.contains("tools/dx test --affected"), "{agents}");

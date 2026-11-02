@@ -204,7 +204,7 @@ fn removed_dry_run_flag_is_unknown() {
         vec!["lint", "--dry-run=true"],
         vec!["lint", "--dry-run=false"],
         vec!["clean", "--dry-run", "--apply"],
-        vec!["fix", "--apply", "--dry-run"],
+        vec!["check", "--apply", "--dry-run"],
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--dry-run"]);
     }
@@ -212,7 +212,7 @@ fn removed_dry_run_flag_is_unknown() {
 
 #[test]
 fn repeated_apply_is_idempotent() {
-    let repeated = parse(&strings(&["fix", "--apply", "--apply"])).expect("last wins");
+    let repeated = parse(&strings(&["check", "--apply", "--apply"])).expect("last wins");
     assert!(repeated.apply);
     assert_eq!(repeated.operation(), OperationMode::Apply);
 }
@@ -225,7 +225,7 @@ fn apply_is_accepted_exactly_by_the_apply_commands() {
         let command = *command;
         let mut words = plain_words(command);
         if command == Command::Watch {
-            words[1] = "fix".to_owned();
+            words[1] = "check".to_owned();
         }
         words.push("--apply".to_owned());
         let listed = APPLY_COMMANDS.contains(&command);

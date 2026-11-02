@@ -691,7 +691,7 @@ mod tests {
         assert_eq!(lint["source"], serde_json::json!("cli-grammar"));
         for (name, effect) in [
             ("lint", "apply"),
-            ("fix", "apply"),
+            ("check", "apply"),
             ("build", "none"),
             ("status", "none"),
         ] {

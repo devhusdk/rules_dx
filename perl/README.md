@@ -96,7 +96,7 @@ under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
 ## Quality
 
 Perl sources form the `perl` class, so `dx check` sees them. The Perl
-wrappers carry perltidy 20260826, which `dx check` and `dx fix` run as the
+wrappers carry perltidy 20260826, which `dx check` runs as the
 formatter with its default style, LF line endings and no profile, so
 `.perltidyrc` and `$PERLTIDY` are never read. They also carry Perl::Critic
 1.156, which runs as the linter at severity 5 only with no profile, so

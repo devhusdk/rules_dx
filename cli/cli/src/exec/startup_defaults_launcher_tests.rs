@@ -644,7 +644,7 @@ fn removed_dry_run_is_rejected_from_every_source() {
         vec!["lint", "--dry-run"],
         vec!["lint", "--dry-run=true"],
         vec!["lint", "--dry-run=false"],
-        vec!["fix", "--dry-run", "--apply"],
+        vec!["check", "--dry-run", "--apply"],
     ] {
         let (code, out, err) = run_dx(root, &words, &[]);
         assert_eq!(code, Some(2), "{words:?}: {err}");

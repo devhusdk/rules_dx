@@ -17,7 +17,7 @@ pub fn pin_rewrite_hint(version: &str) -> String {
 
 pub fn version_move_hint(from: &str, to: &str) -> String {
     if version_pin_matches_module(from, to) {
-        "dx version --check".to_owned()
+        "dx status".to_owned()
     } else if crate::migrate::migrate_is_upgrade(from, to) {
         format!("dx upgrade --from {from} --to {to}")
     } else {
@@ -29,7 +29,7 @@ pub fn pin_fix_hint(pinned: &str, module_version: &str) -> String {
     if !pin_is_valid(pinned) {
         pin_rewrite_hint(module_version)
     } else if version_pin_matches_module(pinned, module_version) {
-        "dx version --check".to_owned()
+        "dx status".to_owned()
     } else if crate::migrate::migrate_is_upgrade(pinned, module_version) {
         format!("dx upgrade --from {pinned} --to {module_version} --apply")
     } else {
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn pin_fix_hint_names_only_surviving_commands() {
-        assert_eq!(pin_fix_hint("1.2.3", "1.2.3"), "dx version --check");
+        assert_eq!(pin_fix_hint("1.2.3", "1.2.3"), "dx status");
         assert_eq!(
             pin_fix_hint("1.2.3", "2.0.0"),
             "dx upgrade --from 1.2.3 --to 2.0.0 --apply"

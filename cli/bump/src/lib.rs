@@ -20,4 +20,4 @@ pub use request::{
     DepTarget, DepVersion,
 };
 pub use sets::BumpSet;
-pub use version::{compare, generic_major_bump_hint, is_stable, VersionError, WidenVersion};
+pub use version::{compare, is_stable, VersionError, WidenVersion};

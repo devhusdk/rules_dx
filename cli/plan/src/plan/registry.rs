@@ -200,7 +200,6 @@ pub fn spec(command: Command) -> CommandSpec {
         | Command::Explain
         | Command::Install
         | Command::Status
-        | Command::Version
         | Command::Watch
         | Command::Completion => CommandSpec {
             command,
@@ -231,12 +230,6 @@ pub fn spec(command: Command) -> CommandSpec {
             reports: &[],
         },
         Command::Bump | Command::Add => CommandSpec {
-            command,
-            aspects: &[],
-            probe: None,
-            reports: &[],
-        },
-        Command::Migrate => CommandSpec {
             command,
             aspects: &[],
             probe: None,
@@ -468,9 +461,6 @@ mod tests {
             assert!(spec.aspects.is_empty(), "{command:?}");
             assert!(spec.reports.is_empty(), "{command:?}");
         }
-        let migrate = spec(Command::Migrate);
-        assert!(migrate.aspects.is_empty());
-        assert!(migrate.reports.is_empty());
     }
 
     #[test]

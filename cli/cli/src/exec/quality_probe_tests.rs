@@ -28,7 +28,7 @@ fn clean_harness(name: &str) -> Harness {
 fn probed_shards_narrow_the_build_aspects() {
     let mut harness = clean_harness("probe-narrows");
     harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
-    let (code, _, _) = harness.run(&["lint", "--check", "--output=text"]);
+    let (code, _, _) = harness.run(&["lint", "--output=text"]);
     assert_eq!(code, 0);
     assert_eq!(harness.probe_argv.borrow().len(), 1);
     let builds = harness.build_argv.borrow();
@@ -57,7 +57,7 @@ fn failed_probe_falls_back_to_every_shard() {
         ("typecheck", dx_plan::args::Command::Typecheck),
     ] {
         let harness = clean_harness(&format!("probe-fallback-{command}"));
-        let (code, _, _) = harness.run(&[command, "--check", "--output=text"]);
+        let (code, _, _) = harness.run(&[command, "--output=text"]);
         assert_eq!(code, 0, "{command}");
         assert_eq!(harness.probe_argv.borrow().len(), 1, "{command}");
         let builds = harness.build_argv.borrow();
@@ -70,9 +70,9 @@ fn failed_probe_falls_back_to_every_shard() {
 fn probe_keeps_json_stdout_to_the_build_events() {
     let mut probed = clean_harness("probe-json");
     probed.probe_shards = Some(vec![]);
-    let (probed_code, probed_out, _) = probed.run(&["lint", "--check", "--output=json"]);
+    let (probed_code, probed_out, _) = probed.run(&["lint", "--output=json"]);
     let plain = clean_harness("probe-json-fallback");
-    let (plain_code, plain_out, _) = plain.run(&["lint", "--check", "--output=json"]);
+    let (plain_code, plain_out, _) = plain.run(&["lint", "--output=json"]);
     assert_eq!(probed_code, plain_code);
     assert_eq!(
         probed_out.lines().count(),
@@ -85,12 +85,8 @@ fn probe_keeps_json_stdout_to_the_build_events() {
 fn interrupted_probe_cancels_the_phase_without_a_build() {
     let mut harness = clean_harness("probe-interrupted");
     harness.probe_code = Some(super::super::common::BAZEL_INTERRUPTED);
-    let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&[
-        "lint",
-        "--check",
-        "--output=text",
-    ]))
-    .expect("parse");
+    let parsed =
+        dx_plan::args::parse(&dx_testing::cli::strings(&["lint", "--output=text"])).expect("parse");
     let inv = dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
@@ -111,7 +107,7 @@ fn probe_action_counts_add_to_the_build() {
     harness.probe_shards = Some(vec![]);
     harness.probe_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
     harness.build_metrics = Some(build_metrics_line(1, 1, 0, 0, 0));
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(harness.probe_argv.borrow().len(), 1);
     assert_eq!(
@@ -128,7 +124,7 @@ fn probe_action_counts_alone_are_reported() {
     let mut harness = clean_harness("probe-action-counts-alone");
     harness.probe_shards = Some(vec![]);
     harness.probe_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
         finished_actions(&out),

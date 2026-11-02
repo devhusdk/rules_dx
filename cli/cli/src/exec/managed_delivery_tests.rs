@@ -106,7 +106,7 @@ fn a_failed_drift_report_never_returns_success() {
     for (kind, want) in KINDS {
         let h = Harness::new("m-drift-fails");
         let mut sink = Sink::new(Fault::WriteFails(kind), 3);
-        let code = run(&h, &["env", "--check", "--output=json"], &mut sink);
+        let code = run(&h, &["env", "--output=json"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
         assert!(!sink.text().contains("command_finished"));
     }

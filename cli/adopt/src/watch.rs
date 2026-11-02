@@ -335,10 +335,8 @@ mod tests {
             "env",
             "generate",
             "init",
-            "migrate",
             "status",
             "update",
-            "version",
             "watch",
         ] {
             let err = plan_watch(not_watchable, false).expect_err("not watchable");

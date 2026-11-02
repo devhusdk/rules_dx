@@ -311,7 +311,7 @@ fn the_source_check_runs_only_when_the_caller_names_one() {
         "{WORKFLOW} step {SOURCE_CHECK:?} must be skipped without site_check"
     );
     assert!(
-        field(&step, "run").contains("docs --check \"$DX_DOCS_SITE_CHECK\""),
+        field(&step, "run").contains("docs \"$DX_DOCS_SITE_CHECK\""),
         "{WORKFLOW} step {SOURCE_CHECK:?} must check the caller's site_check label"
     );
 }

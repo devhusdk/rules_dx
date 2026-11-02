@@ -703,7 +703,7 @@ mod tests {
                 &["fix", "--apply", "--affected", "--output=json"],
                 "default",
             ),
-            (&["fix", "--check", "--affected", "--output=json"], "check"),
+            (&["fix", "--affected", "--output=json"], "check"),
             (&["lint", "--affected", "--output=json"], "check"),
             (
                 &["lint", "--apply", "--affected", "--output=json"],
@@ -724,10 +724,7 @@ mod tests {
             (&["coverage", "--affected", "--output=json"], "default"),
             (&["security", "--affected", "--output=json"], "default"),
             (&["license", "--affected", "--output=json"], "default"),
-            (
-                &["check", "--check", "--affected", "--output=json"],
-                "check",
-            ),
+            (&["check", "--affected", "--output=json"], "check"),
         ];
         let mut covered: Vec<String> = cases.iter().map(|(w, _)| w[0].to_owned()).collect();
         covered.sort();

@@ -6,7 +6,7 @@ populates the advisory snapshots under `.dx/advisory`. It is not a `dx`
 command; the rest of `dx` runs through `@rules_dx//:dx`:
 
 ```sh
-bazel run @rules_dx//:dx -- version
+bazel run @rules_dx//:dx -- status
 ```
 
 ## The Macro

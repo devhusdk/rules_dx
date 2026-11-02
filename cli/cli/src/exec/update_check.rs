@@ -42,7 +42,7 @@ fn run_probe(harness: &Harness, argv: &[&str], codes: &[Option<i32>]) -> ProbeRu
 #[test]
 fn check_selectors_resolve_to_sets_not_preset() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--check", "cargo"], &runner);
+    let (code, out, err) = run_with(&["update", "cargo"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("cannot check cargo"), "{err}");
@@ -54,7 +54,7 @@ fn check_selectors_resolve_to_sets_not_preset() {
     );
 
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--check", "uv"], &runner);
+    let (code, out, err) = run_with(&["update", "uv"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(runner.calls.borrow().len(), 1);
     assert_eq!(
@@ -77,7 +77,7 @@ fn check_selectors_resolve_to_sets_not_preset() {
 fn check_ignores_stale_preset() {
     let harness = Harness::new("update-check-ignores-preset");
     harness.write_source("tools/bazelrc/correctness.bazelrc", "# dirty\n");
-    let run = run_probe(&harness, &["update", "--check", "uv"], &[Some(0)]);
+    let run = run_probe(&harness, &["update", "uv"], &[Some(0)]);
     assert_eq!(run.code, 0, "{}", run.out);
     assert_eq!(run.argv.len(), 1);
     assert_eq!(
@@ -106,7 +106,7 @@ fn check_ignores_stale_preset() {
 fn check_current_reports_lockfile_without_writing() {
     let harness = Harness::new("update-check-current");
     harness.write_source("python/tests/fixtures/hello/uv.lock", "lock-bytes\n");
-    let run = run_probe(&harness, &["update", "--check", "uv"], &[Some(0)]);
+    let run = run_probe(&harness, &["update", "uv"], &[Some(0)]);
     assert_eq!(run.code, 0, "{}", run.out);
     assert_eq!(run.argv.len(), 1, "only the selected set runs");
     assert!(
@@ -131,7 +131,7 @@ fn check_stale_check_failure_reports_without_mutation() {
     let mut harness = Harness::new("update-check-stale");
     harness.bazel_code = 1;
     harness.write_source("python/tests/fixtures/hello/uv.lock", "lock-bytes\n");
-    let (code, out, err) = harness.run(&["update", "--check", "uv"]);
+    let (code, out, err) = harness.run(&["update", "uv"]);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("failed to check uv"), "{err}");
     assert!(err.contains("updater exited 1"), "{err}");
@@ -152,7 +152,7 @@ fn check_stale_check_failure_reports_without_mutation() {
 #[test]
 fn check_unavailable_names_refresh_command() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--check", "npm"], &runner);
+    let (code, out, err) = run_with(&["update", "npm"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(err.contains("cannot check npm"), "{err}");
@@ -169,7 +169,7 @@ fn check_unavailable_names_refresh_command() {
 #[test]
 fn check_frozen_reports_unsupported_and_runs_uv() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--check", "--frozen", "npm"], &runner);
+    let (code, out, err) = run_with(&["update", "--frozen", "npm"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_set_unsupported"), "{err}");
     assert!(!err.contains("frozen_locked"), "{err}");
@@ -179,7 +179,7 @@ fn check_frozen_reports_unsupported_and_runs_uv() {
     );
 
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(&["update", "--check", "--frozen", "uv"], &runner);
+    let (code, out, err) = run_with(&["update", "--frozen", "uv"], &runner);
     assert_eq!(code, 0, "{out}{err}");
     assert!(!err.contains("frozen_locked"), "{err}");
     assert_eq!(
@@ -198,7 +198,7 @@ fn check_frozen_reports_unsupported_and_runs_uv() {
 fn check_pinned_sets_report_manual_without_launching() {
     for set in ["go", "ruby", "powershell"] {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check", set], &runner);
+        let (code, out, err) = run_with(&["update", set], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains(&format!("{set} pins are manual")), "{out}");
         assert!(out.contains("nothing to resolve"), "{out}");
@@ -209,10 +209,7 @@ fn check_pinned_sets_report_manual_without_launching() {
 #[test]
 fn check_json_reports_current_pinned_unsupported() {
     let runner = ScriptRunner::new(&[]);
-    let (code, out, err) = run_with(
-        &["update", "--check", "uv", "go", "npm", "--output=json"],
-        &runner,
-    );
+    let (code, out, err) = run_with(&["update", "uv", "go", "npm", "--output=json"], &runner);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let kinds = event_kinds(&events);
@@ -257,7 +254,7 @@ fn check_json_reports_current_pinned_unsupported() {
 #[test]
 fn check_rejects_unknown_selector() {
     let harness = Harness::new("update-check-unknown");
-    let (code, _, err) = harness.run(&["update", "--check", "crates"]);
+    let (code, _, err) = harness.run(&["update", "crates"]);
     assert_eq!(code, 2, "{err}");
 }
 

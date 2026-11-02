@@ -1,6 +1,6 @@
 run lint analysis over resolved scopes (check by default; --apply writes fixes)
 
-Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]
+Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]
 
 Arguments:
   [TARGETS]...
@@ -39,9 +39,6 @@ Options:
 
       --include-edits
           Include full edits in JSON change records (needs --output json)
-
-      --check
-          Check without changing files
 
       --apply
           Write fixes to source files

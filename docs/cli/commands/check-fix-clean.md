@@ -9,8 +9,8 @@ bazel run @rules_dx//:dx -- clean
 ## `dx check` And `dx fix`
 
 ```text
-dx check [--here] [--affected] [--check] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
-dx fix [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx fix [--here] [--affected] [--apply] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Before any phase, `dx check` and `dx fix` fail when your change adds build
@@ -60,13 +60,12 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 (and the affected tests) writes its own log, and dx joins them into one
 `.dx/explain/<n>.binpb.zst`, keeping the two newest. A `-- bazel-options` entry
 that sets another execution log is refused.
-`--check` passes through to every phase. `--fail-on` applies to `format`,
+`--fail-on` applies to `format`,
 `lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
 `typecheck` phases into one document. `generate` and `test` take neither. A
 relative destination anchors at the workspace root; an absolute one writes as
 given. Colliding destinations fail before anything runs, parents must exist,
-and a failed write keeps the previous file bytes. `dx check` is always a check,
-so `--check` is implied. `-` for stdout is rejected because the phases share
+and a failed write keeps the previous file bytes. `-` for stdout is rejected because the phases share
 one document.
 
 `dx check` and `dx fix` run every phase. A phase with findings or drift, a
@@ -159,11 +158,11 @@ bazel run @rules_dx//:dx -- fix --apply //...
 ## `dx clean`
 
 ```text
-dx clean [--check] [--apply] [--prune-unobserved]
+dx clean [--apply] [--prune-unobserved]
 ```
 
 Reports unselected managed state under `.dx` by default and deletes
-nothing. `--check` is that default: it reports and deletes nothing. Pass `--apply` to prune it. A generation a live reader still
+nothing. Pass `--apply` to prune it. A generation a live reader still
 holds is never pruned. When process observation is unavailable (`/proc` cannot be listed, or any
 process cannot be read, such as one owned by another user or blocked by ptrace
 restrictions), dx keeps unobserved state and reports it; pass `--prune-unobserved` to prune it
@@ -217,7 +216,7 @@ Exit codes: `0` success, `2` usage errors including any scope,
 is unavailable exits `0`.
 
 ```sh
-bazel run @rules_dx//:dx -- clean --check
+bazel run @rules_dx//:dx -- clean
 bazel run @rules_dx//:dx -- clean --apply
 bazel run @rules_dx//:dx -- clean --apply --prune-unobserved
 ```

@@ -550,7 +550,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         include_edits,
         min_coverage,
         min_changed_line_coverage,
-        check,
         apply,
         debug,
         release,
@@ -640,12 +639,6 @@ fn parse_inner<S: AsRef<OsStr>>(
         "warning",
     );
     let build_slots = resolve_build_slots(build_slots, env_get, file.build_slots)?;
-    if check && apply {
-        return Err(ArgsError::ConflictingModes {
-            first: "--check",
-            second: "--apply",
-        });
-    }
     let color_name = invocation_defaults::resolve_string(
         color_name,
         invocation_defaults::env_string(env_get, invocation_defaults::DX_COLOR_ENV),
@@ -734,7 +727,7 @@ fn parse_inner<S: AsRef<OsStr>>(
             return Err(missing_positional(command));
         }
     }
-    if matches!(command, Command::Migrate | Command::Upgrade) && (from.is_none() || to.is_none()) {
+    if matches!(command, Command::Upgrade) && (from.is_none() || to.is_none()) {
         return Err(ArgsError::MissingValue {
             option: "--from <version> --to <version>".to_owned(),
         });
@@ -804,7 +797,7 @@ fn parse_inner<S: AsRef<OsStr>>(
                     return Err(extra_positional(command, &targets[0]));
                 }
             }
-            Command::Version | Command::Rollback => {
+            Command::Rollback => {
                 if !targets.is_empty() {
                     return Err(extra_positional(command, &targets[0]));
                 }
@@ -836,7 +829,6 @@ fn parse_inner<S: AsRef<OsStr>>(
     }
     Ok(Invocation {
         command,
-        check,
         apply,
         debug,
         release,
@@ -1393,15 +1385,14 @@ mod startup_tests {
             vec!["lint", "--help"],
             vec!["lint", "--output", "json", "--help"],
             vec!["lint", "-qo", "json", "-h"],
-            vec!["version", "--workspace=/repo", "--help"],
+            vec!["status", "--workspace=/repo", "--help"],
         ] {
             assert!(is_help_request(&strings(&words)), "{words:?} asks for help");
         }
         for words in [
             vec!["lint"],
-            vec!["lint", "--check"],
             vec!["new", "rust", "demo"],
-            vec!["version"],
+            vec!["status"],
             vec!["lint", "--", "--help"],
             vec!["lint", "--output", "--help"],
         ] {
@@ -1421,7 +1412,6 @@ mod startup_tests {
             Command::Lint,
             Command::Build,
             Command::Status,
-            Command::Version,
             Command::Docs,
             Command::Check,
             Command::Update,

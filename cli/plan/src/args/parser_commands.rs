@@ -1,4 +1,4 @@
-use super::super::command::owners::{AFFECTED_OWNERS, CHECK_OWNERS, PROFILE_OWNERS};
+use super::super::command::owners::{AFFECTED_OWNERS, PROFILE_OWNERS};
 use super::super::scope_error;
 use super::super::{assert_usage, ArgsError, Command, OperationMode};
 use super::parse;
@@ -9,24 +9,17 @@ use dx_testing::cli::strings;
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
-        "security", "license", "update", "bump", "add", "migrate", "upgrade", "docs", "status",
-        "version", "init",
+        "security", "license", "update", "bump", "add", "upgrade", "docs", "status", "init",
     ] {
         let base = match command {
             "bump" | "add" => vec![command, "cargo:demo", "1.0.0"],
-            "migrate" | "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
+            "upgrade" => vec![command, "--from=1.0.0", "--to=2.0.0"],
             _ => vec![command],
         };
-        for option in [
-            "--fail-on=error",
-            "--report=junit=report.xml",
-            "--bazel",
-            "--check",
-        ] {
+        for option in ["--fail-on=error", "--report=junit=report.xml", "--bazel"] {
             let supported = match option {
                 "--fail-on=error" => command == "security" || command == "license",
                 "--report=junit=report.xml" => command == "security" || command == "license",
-                "--check" => matches!(command, "generate" | "update" | "docs" | "version"),
                 _ => false,
             };
             if supported {
@@ -43,14 +36,13 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         }
     }
     for words in [
-        vec!["migrate", "--from="],
-        vec!["migrate", "--to="],
+        vec!["upgrade", "--from="],
+        vec!["upgrade", "--to="],
         vec!["lint", "--pin=1.0.0"],
         vec!["build", "--pin=1.0.0"],
         vec!["clean", "--pin=1.0.0"],
         vec!["coverage", "--pin=1.0.0"],
         vec!["status", "extra"],
-        vec!["version", "extra"],
         vec!["init", "one", "two"],
         vec!["watch"],
         vec!["docs", ":relative"],
@@ -58,8 +50,7 @@ fn command_option_ownership_rejects_every_unsupported_surface() {
         vec!["generate", ":relative"],
         vec!["security", ""],
         vec!["update", ""],
-        vec!["migrate", "--from=1.0.0", "--to=2.0.0", ":relative"],
-        vec!["--bazel", "bazel", "version"],
+        vec!["--bazel", "bazel", "status"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
@@ -94,7 +85,7 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
 fn required_words(name: &str) -> &'static [&'static str] {
     match name {
         "bump" | "add" => &["cargo:demo", "1.0.0"],
-        "migrate" | "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
+        "upgrade" => &["--from=1.0.0", "--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "watch" => &["run", "//:demo"],
         "completion" => &["bash"],
@@ -166,13 +157,12 @@ fn include_edits_needs_json_output() {
     }
 }
 
-const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 7] = [
+const REGISTRY_GATES: [(&str, fn(Command) -> bool, &[&str]); 6] = [
     (
         "--affected",
         |c| AFFECTED_OWNERS.contains(&c),
         &["--affected"],
     ),
-    ("--check", |c| CHECK_OWNERS.contains(&c), &["--check"]),
     ("--fail-on", Command::supports_fail_on, &["--fail-on=info"]),
     (
         "--fail-on",
@@ -325,13 +315,6 @@ fn bump_needs_exactly_one_selector_plus_version() {
         })
     );
     assert_eq!(
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--check".to_owned(),
-        })
-    );
-    assert_eq!(
         parse(&strings(&[
             "bump",
             "cargo:anyhow",
@@ -422,13 +405,6 @@ fn add_needs_exactly_one_selector_plus_version() {
         })
     );
     assert_eq!(
-        parse(&strings(&["add", "cargo:serde", "1.2.3", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "add",
-            option: "--check".to_owned(),
-        })
-    );
-    assert_eq!(
         parse(&strings(&[
             "add",
             "cargo:serde",
@@ -472,93 +448,7 @@ fn add_needs_exactly_one_selector_plus_version() {
 }
 
 #[test]
-fn migrate_needs_from_and_to_versions() {
-    let migrate =
-        parse(&strings(&["migrate", "--from=1.2.3", "--to=2.0.0"])).expect("parse migrate");
-    assert_eq!(migrate.command, Command::Migrate);
-    assert_eq!(migrate.command.name(), "migrate");
-    assert!(!migrate.command.is_adoption());
-    assert!(!migrate.command.is_managed());
-    assert_eq!(migrate.from, Some("1.2.3".to_owned()));
-    assert_eq!(migrate.to, Some("2.0.0".to_owned()));
-    let spaced =
-        parse(&strings(&["migrate", "--from", "1.2.3", "--to", "2.0.0"])).expect("spaced parse");
-    assert_eq!(spaced.from, Some("1.2.3".to_owned()));
-    assert_eq!(spaced.to, Some("2.0.0".to_owned()));
-    let scoped = parse(&strings(&[
-        "migrate",
-        "--from=1.2.3",
-        "--to=2.0.0",
-        "//a:one",
-    ]))
-    .expect("scoped parse");
-    assert_eq!(scoped.targets, vec!["//a:one".to_owned()]);
-    assert_eq!(
-        parse(&strings(&["migrate", "--from=1.2.3"])),
-        Err(ArgsError::MissingValue {
-            option: "--from <version> --to <version>".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["migrate"])),
-        Err(ArgsError::MissingValue {
-            option: "--from <version> --to <version>".to_owned(),
-        })
-    );
-    assert_usage(
-        &["migrate", "--from", "--to=2.0.0"],
-        parse(&strings(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
-        &["--from"],
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "migrate",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--check"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "migrate",
-            option: "--check".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "migrate",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--fail-on=error"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "migrate",
-            option: "--fail-on".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "migrate",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--report=sarif=out.sarif"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "migrate",
-            option: "--report=sarif=out.sarif".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "migrate",
-            "--from=1.2.3",
-            "--to=2.0.0",
-            "--",
-            "--jobs=4"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "migrate",
-            option: "--".to_owned(),
-        })
-    );
+fn upgrade_needs_from_and_to_versions() {
     let upgrade_ok =
         parse(&strings(&["upgrade", "--from=1.2.3", "--to=2.0.0"])).expect("upgrade parses");
     assert_eq!(upgrade_ok.command, Command::Upgrade);
@@ -738,15 +628,6 @@ fn output_contract_has_no_silent_ignore() {
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
     let got = parse(&strings(&[
-        "migrate",
-        "--from=1.2.3",
-        "--to=2.0.0",
-        "--output=json",
-    ]))
-    .expect("migrate json");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(got.command.supports_json());
-    let got = parse(&strings(&[
         "upgrade",
         "--from=1.2.3",
         "--to=2.0.0",
@@ -758,9 +639,6 @@ fn output_contract_has_no_silent_ignore() {
     let got = parse(&strings(&["status", "--output=json"])).expect("status json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(Command::Status.supports_json());
-    let got = parse(&strings(&["version", "--output=json"])).expect("version json");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(Command::Version.supports_json());
     for (words, want) in [
         (vec!["watch", "test", "--output=json"], OutputMode::Json),
         (vec!["watch", "build", "-o", "json"], OutputMode::Json),
@@ -785,7 +663,6 @@ fn output_contract_has_no_silent_ignore() {
         vec!["init", "proj", "--output=diff"],
         vec!["watch", "build", "--output=diff"],
         vec!["watch", "run", "//app:bin", "-o", "diff"],
-        vec!["version", "--output=diff"],
         vec!["completion", "bash", "--output=json"],
     ] {
         assert!(
@@ -805,13 +682,11 @@ fn output_contract_has_no_silent_ignore() {
         vec!["license", "--output=diff"],
         vec!["update", "--output=diff"],
         vec!["status", "--output=diff"],
-        vec!["version", "--output=diff"],
         vec!["clean", "--output=diff"],
         vec!["codegen", "--output=diff"],
         vec!["env", "--output=diff"],
         vec!["docs", "--output=diff"],
         vec!["bump", "cargo:anyhow", "1.2.3", "--output=diff"],
-        vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--output=diff"],
         vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--output=diff"],
     ] {
         assert_eq!(
@@ -830,7 +705,7 @@ fn bazel_is_an_unknown_command() {
     for words in [
         vec!["bazel", "build", "//...", "--", "--jobs=4"],
         vec!["bazel", "--jobs=4"],
-        vec!["--output=json", "bazel", "version"],
+        vec!["--output=json", "bazel", "status"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "words: {words:?}");
     }
@@ -864,11 +739,8 @@ fn test_and_coverage_keep_test_arg_passthrough_verbatim() {
 
 #[test]
 fn version_rollback_and_check_parse() {
-    let got = parse(&strings(&["version", "--check"])).expect("parse");
-    assert!(got.check);
     for words in [
         vec!["status", "--serve"],
-        vec!["status", "--check"],
         vec!["test", "//a:one", "--from=0.1.0"],
         vec!["lint", "--serve"],
         vec!["status", "--from=0.1.0"],
@@ -884,19 +756,6 @@ fn version_rollback_and_check_parse() {
 }
 
 #[test]
-fn version_rejects_scopes() {
-    for scope in ["//...", "//a:one", "a/b"] {
-        assert_eq!(
-            parse(&strings(&["version", scope])),
-            Err(ArgsError::UnsupportedOption {
-                command: "version",
-                option: scope.to_owned(),
-            })
-        );
-    }
-}
-
-#[test]
 fn check_rejects_apply_while_quality_defaults_to_check() {
     assert!(
         matches!(
@@ -905,22 +764,8 @@ fn check_rejects_apply_while_quality_defaults_to_check() {
         ),
         "dx check stays read-only"
     );
-    for words in [
-        vec!["lint", "--check", "--apply"],
-        vec!["fix", "--check", "--apply"],
-    ] {
-        assert_eq!(
-            parse(&strings(&words)),
-            Err(ArgsError::ConflictingModes {
-                first: "--check",
-                second: "--apply",
-            }),
-            "words: {words:?}"
-        );
-    }
     for command in ["lint", "typecheck", "format", "fix"] {
         let bare = parse(&strings(&[command])).expect("bare parses");
-        assert!(!bare.check, "{command}");
         assert!(!bare.applies(), "{command} checks without --apply");
         assert_eq!(bare.operation(), OperationMode::Check, "{command}");
         let applied = parse(&strings(&[command, "--apply"])).expect("apply parses");
@@ -932,22 +777,17 @@ fn check_rejects_apply_while_quality_defaults_to_check() {
 fn docs_check_serve_port_parse() {
     let got = parse(&strings(&["docs"])).expect("bare docs parses");
     assert_eq!(got.command, Command::Docs);
-    assert!(!got.check);
     assert!(!got.serve);
     assert_eq!(got.port, None);
     assert_eq!(got.host, None);
     assert!(!got.open);
-    let got = parse(&strings(&["docs", "--check"])).expect("check parses");
-    assert!(got.check);
     let got = parse(&strings(&["docs", "--serve"])).expect("serve parses");
     assert!(got.serve);
     assert_eq!(got.port, None);
     let got = parse(&strings(&["docs", "--serve", "--port=8080"])).expect("port parses");
     assert!(got.serve);
     assert_eq!(got.port, Some(8080));
-    let got =
-        parse(&strings(&["docs", "--check", "--serve", "--port", "9000"])).expect("split port");
-    assert!(got.check);
+    let got = parse(&strings(&["docs", "--serve", "--port", "9000"])).expect("split port");
     assert!(got.serve);
     assert_eq!(got.port, Some(9000));
     let got = parse(&strings(&["docs", "--serve", "--host=example.test"])).expect("host parses");
@@ -989,9 +829,7 @@ fn docs_check_serve_port_parse() {
     }
     let got = parse(&strings(&["docs", "--", "--jobs=4"])).expect("docs forwards command options");
     assert_eq!(got.bazel_options, strings(&["--jobs=4"]));
-    let got =
-        parse(&strings(&["docs", "--check", "--", "--config=ci"])).expect("docs check forwards");
-    assert!(got.check);
+    let got = parse(&strings(&["docs", "--", "--config=ci"])).expect("docs forwards");
     assert_eq!(got.bazel_options, strings(&["--config=ci"]));
 }
 
@@ -1068,20 +906,11 @@ fn managed_commands_parse_repo_and_exact_scopes() {
         );
     }
     for command in ["codegen", "env"] {
-        let got = parse(&strings(&[command, "--check"])).expect("check parses");
-        assert!(got.check, "{command} --check sets the flag");
+        let got = parse(&strings(&[command])).expect("bare parses");
         assert_eq!(got.operation(), OperationMode::Check);
         assert!(!got.applies());
         let got = parse(&strings(&[command, "--apply"])).expect("apply parses");
         assert!(got.applies());
-        assert_eq!(
-            parse(&strings(&[command, "--check", "--apply"])),
-            Err(ArgsError::ConflictingModes {
-                first: "--check",
-                second: "--apply",
-            }),
-            "{command} --check with --apply conflicts"
-        );
     }
 }
 
@@ -1171,13 +1000,11 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
         vec!["clean", "--here"],
         vec!["update", "--here"],
         vec!["bump", "cargo:anyhow", "1.2.3", "--here"],
-        vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--here"],
         vec!["codegen", "--here"],
         vec!["env", "--here"],
         vec!["run", "//app:bin", "--here"],
         vec!["deploy", "//app:bin", "--here"],
         vec!["status", "--here"],
-        vec!["version", "--here"],
         vec!["completion", "bash", "--here"],
     ] {
         assert_eq!(
@@ -1195,20 +1022,7 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
 fn completion_takes_exactly_one_shell() {
     let plain = parse(&strings(&["completion", "bash"])).expect("plain renders");
     assert_eq!(plain.command, Command::Completion);
-    assert!(!plain.check);
     assert_eq!(plain.targets, vec!["bash".to_owned()]);
-    for words in [
-        vec!["completion", "bash", "--check"],
-        vec!["completion", "--check"],
-    ] {
-        assert!(
-            matches!(
-                parse(&strings(&words)),
-                Err(ArgsError::UnsupportedOption { .. })
-            ),
-            "words: {words:?}"
-        );
-    }
     assert_eq!(
         parse(&strings(&["completion", "bash", "zsh"])),
         Err(ArgsError::UnsupportedOption {
@@ -1222,10 +1036,6 @@ fn completion_takes_exactly_one_shell() {
             option: "<shell>".to_owned(),
         })
     );
-    assert!(matches!(
-        parse(&strings(&["status", "--check"])),
-        Err(ArgsError::UnsupportedOption { .. })
-    ));
 }
 
 #[test]
@@ -1258,7 +1068,7 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         vec!["codegen", "--offline"],
         vec!["status", "--offline"],
         vec!["docs", "--offline"],
-        vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--offline"],
+        vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--offline"],
     ] {
         assert_eq!(
             parse(&strings(&words)),
@@ -1298,7 +1108,6 @@ fn a_refused_output_diff_is_named_before_any_other_flag_the_command_refuses() {
         ("clean", "--report=junit=one.xml"),
         ("update", "--report=junit=one.xml"),
         ("bump", "--report=junit=one.xml"),
-        ("migrate", "--report=junit=one.xml"),
         ("upgrade", "--report=junit=one.xml"),
         ("codegen", "--report=junit=one.xml"),
         ("env", "--report=junit=one.xml"),
@@ -1590,7 +1399,6 @@ fn install_refuses_missing_inputs_positionals_and_foreign_flags() {
     }
     for words in [
         vec!["install", "x", "--tag", "v1.2.3", "--archive", "a"],
-        vec!["install", "--tag", "v1.2.3", "--archive", "a", "--check"],
         vec!["install", "--tag", "v1.2.3", "--archive", "a", "--here"],
         vec!["install", "--tag", "v1.2.3", "--archive", "a", "--", "--x"],
         vec!["install", "--tag", "v1.2.3", "--archive", "a", "--version"],

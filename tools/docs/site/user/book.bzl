@@ -59,7 +59,6 @@ USER_BOOK = [
         "//docs:cli/commands/environment-codegen.md",
     ),
     mdbook_page("Init", "docs/cli/commands/init.md", "//docs:cli/commands/init.md"),
-    mdbook_page("Migrate", "docs/cli/commands/migrate.md", "//docs:cli/commands/migrate.md"),
     mdbook_page(
         "Upgrade, Rollback",
         "docs/cli/commands/upgrade-rollback.md",
@@ -73,9 +72,9 @@ USER_BOOK = [
         "//docs:cli/commands/offline-bundle.md",
     ),
     mdbook_page(
-        "Status, Version",
-        "docs/cli/commands/status-version.md",
-        "//docs:cli/commands/status-version.md",
+        "Status",
+        "docs/cli/commands/status.md",
+        "//docs:cli/commands/status.md",
     ),
     mdbook_page("Watch", "docs/cli/commands/watch.md", "//docs:cli/commands/watch.md"),
     mdbook_page("Worktree", "docs/cli/commands/worktree.md", "//docs:cli/commands/worktree.md"),

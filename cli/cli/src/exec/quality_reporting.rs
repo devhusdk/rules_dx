@@ -12,7 +12,7 @@ fn json_clean_check_succeeds() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 0);
     let events = json_events(&out);
     assert_eq!(
@@ -30,12 +30,7 @@ fn sarif_unreadable_snapshot_fails_report() {
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
     std::fs::remove_file(harness.workspace.join("src/a.py")).expect("remove");
-    let (code, _, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=text",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1);
     assert!(err.contains("dx: report_failed: failed to render SARIF report"));
 }
@@ -49,12 +44,7 @@ fn sarif_stale_snapshot_fails_report() {
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
     harness.write_source("src/a.py", "changed = true\n");
-    let (code, _, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=text",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1);
     assert!(err.contains("dx: report_failed: failed to render SARIF report"));
 }
@@ -68,12 +58,7 @@ fn sarif_non_utf8_snapshot_fails_report() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
-    let (code, _, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=text",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1);
     assert!(err.contains("dx: report_failed: failed to render SARIF report"));
 }
@@ -86,7 +71,7 @@ fn sarif_stdout_report_owns_stdout() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=text", "--report=sarif=-"]);
+    let (code, out, err) = harness.run(&["lint", "--output=text", "--report=sarif=-"]);
     assert_eq!(code, 1);
     assert!(out.contains("2.1.0"));
     assert!(!out.contains("Running lint"));
@@ -102,12 +87,8 @@ fn json_report_write_failure_emits_error() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, out, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=json",
-        "--report=sarif=nodir/out.sarif",
-    ]);
+    let (code, out, err) =
+        harness.run(&["lint", "--output=json", "--report=sarif=nodir/out.sarif"]);
     assert_eq!(code, 1);
     assert!(
         err.contains("dx: report_failed: failed to write sarif report to "),
@@ -132,12 +113,7 @@ fn json_file_report_emits_report_event() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, out, _) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=json",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, out, _) = harness.run(&["lint", "--output=json", "--report=sarif=out.sarif"]);
     assert_eq!(code, 0);
     let events = json_events(&out);
     let report = event(&events, "report");
@@ -153,12 +129,7 @@ fn diff_file_report_notes_to_stderr() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, _, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=diff",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, _, err) = harness.run(&["lint", "--output=diff", "--report=sarif=out.sarif"]);
     assert_eq!(code, 0);
     assert!(err.contains("Wrote sarif report to out.sarif."));
     assert!(harness.workspace.join("out.sarif").exists());
@@ -181,12 +152,7 @@ fn unknown_tool_finding_fails_sarif_render() {
             vec![],
         ),
     );
-    let (code, out, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=json",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, out, err) = harness.run(&["lint", "--output=json", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1);
     assert!(err.contains("dx: report_failed: failed to render SARIF report"));
     let events = json_events(&out);
@@ -205,8 +171,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
             .collect()
     }
     let check = umbrella_findings("json-change-check");
-    let (check_code, check_out, _) =
-        check.run(&["lint", "--check", "--output=json", "--include-edits"]);
+    let (check_code, check_out, _) = check.run(&["lint", "--output=json", "--include-edits"]);
     assert_eq!(check_code, 1);
     assert_eq!(
         std::fs::read(check.workspace.join("src/a.py")).expect("source"),
@@ -256,7 +221,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
     assert_eq!(applied_change["effect"], serde_json::json!("applied"));
     applied_change["effect"] = serde_json::json!("proposed");
     assert_eq!(&applied_change, change, "apply only changes the effect");
-    let (_, compact_out, _) = check.run(&["lint", "--check", "--output=json"]);
+    let (_, compact_out, _) = check.run(&["lint", "--output=json"]);
     let compact = changes(&compact_out);
     assert_eq!(compact[0]["edit_count"], serde_json::json!(1));
     assert!(compact[0].get("edits").is_none());
@@ -267,7 +232,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
 #[test]
 fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
     let check = umbrella_findings("diff-patch-check");
-    let (check_code, check_out, _) = check.run(&["lint", "--check", "--output=diff"]);
+    let (check_code, check_out, _) = check.run(&["lint", "--output=diff"]);
     assert_eq!(check_code, 1);
     assert_eq!(
         std::fs::read(check.workspace.join("src/a.py")).expect("source"),
@@ -572,7 +537,6 @@ fn alias_reports_are_rejected_before_any_write() {
     );
     let (code, _, err) = harness.run(&[
         "lint",
-        "--check",
         "--output=text",
         "--report=sarif=out.sarif",
         "--report=sarif=./out.sarif",
@@ -601,12 +565,7 @@ fn unwritable_report_destination_fails_with_cause() {
     let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
     permissions.set_readonly(true);
     std::fs::set_permissions(&locked, permissions).expect("readonly");
-    let (code, _, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=text",
-        "--report=sarif=locked/out.sarif",
-    ]);
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=locked/out.sarif"]);
     let mut permissions = std::fs::metadata(&locked).expect("metadata").permissions();
     permissions.set_readonly(false);
     std::fs::set_permissions(&locked, permissions).expect("writable");
@@ -633,12 +592,8 @@ fn failed_report_write_keeps_stale_report_bytes() {
     let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
     permissions.set_readonly(true);
     std::fs::set_permissions(&reports, permissions).expect("readonly");
-    let (code, _, err) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=text",
-        "--report=sarif=reports/out.sarif",
-    ]);
+    let (code, _, err) =
+        harness.run(&["lint", "--output=text", "--report=sarif=reports/out.sarif"]);
     let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
     permissions.set_readonly(false);
     std::fs::set_permissions(&reports, permissions).expect("writable");

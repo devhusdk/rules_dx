@@ -57,7 +57,6 @@ mod tests {
     const CLEAN: bool = false;
 
     const PROCEED: &[Command] = &[
-        Command::Version,
         Command::Rollback,
         Command::Upgrade,
         Command::Status,
@@ -84,7 +83,6 @@ mod tests {
         Command::Update,
         Command::Bump,
         Command::Add,
-        Command::Migrate,
         Command::Codegen,
         Command::Env,
         Command::Init,

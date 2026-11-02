@@ -157,7 +157,7 @@ fn cargo_sets_check_and_repin_one_crate_universe_hub_at_a_time() {
         .iter()
         .map(|path| read(path))
         .collect();
-    let run = dx_in(&root, &["update", "--check"], &[("REPIN", "1")]);
+    let run = dx_in(&root, &["update"], &[("REPIN", "1")]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         run.stdout.contains("crates lockfile current"),
@@ -179,7 +179,7 @@ fn cargo_sets_check_and_repin_one_crate_universe_hub_at_a_time() {
         &root.join("apps/rs/Cargo.toml"),
         &cargo_toml("app", &[("itoa", "1.0.11"), ("ryu", "1.0.18")]),
     );
-    let run = dx_in(&root, &["update", "--check", "crates"], &[]);
+    let run = dx_in(&root, &["update", "crates"], &[]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         !run.stdout.contains("crates lockfile current"),
@@ -201,7 +201,7 @@ fn cargo_sets_check_and_repin_one_crate_universe_hub_at_a_time() {
         "tools cargo-bazel lock changed"
     );
 
-    let run = dx_in(&root, &["update", "--check"], &[]);
+    let run = dx_in(&root, &["update"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
 }
 
@@ -246,7 +246,7 @@ fn cargo_set_package_repin_moves_one_crate() {
         "cargo-bazel lock not repinned"
     );
     assert_eq!(read(&tool_lock), tool_before, "tools Cargo.lock changed");
-    let run = dx_in(&root, &["update", "--check", "crates"], &[]);
+    let run = dx_in(&root, &["update", "crates"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
 
     let lock_before = read(&app_lock);

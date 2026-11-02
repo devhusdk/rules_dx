@@ -118,7 +118,6 @@ pub(crate) fn execute_add(invocation: &Invocation, env: Env<'_>) -> i32 {
             request.version.display()
         ),
         kept: format!("add kept in {manifest}; run `{refresh}` to lock it"),
-        hint: None,
     };
     let io = dep_edit::EditIo {
         workspace,

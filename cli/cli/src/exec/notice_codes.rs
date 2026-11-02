@@ -81,10 +81,8 @@ pub(crate) fn notice_codes(command: Command) -> &'static [&'static str] {
         Command::Codegen | Command::Env => &[CODE_MANAGED_DRIFT],
         Command::Worktree => &[],
         Command::Init => &[CODE_INIT_PLAN_PARTIAL],
-        Command::Migrate
-        | Command::Upgrade
+        Command::Upgrade
         | Command::Status
-        | Command::Version
         | Command::Watch
         | Command::Completion
         | Command::Docs

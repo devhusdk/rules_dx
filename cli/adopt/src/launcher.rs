@@ -1110,12 +1110,8 @@ mod tests {
         #[test]
         fn downloads_once_then_only_execs() {
             let fx = Fixture::new("dx-launcher-run-", true, None);
-            let (code, out, err) = fx.run(&["version", "--check"]);
-            assert_eq!(
-                (code, out.as_str()),
-                (Some(0), "ran version --check\n"),
-                "{err}"
-            );
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.downloads(), 1, "the sidecar is never fetched");
             assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
             let (code, out, err) = fx.run(&["status"]);

@@ -128,7 +128,7 @@ fn nuget_set_regenerates_only_its_declared_bzl_files() {
     let root = consumer();
     let before = snapshot(&root);
 
-    let run = dx_in(&root, &["update", "--check"]);
+    let run = dx_in(&root, &["update"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(!run.stdout.contains("lockfile current"), "{}", report(&run));
     let checked = snapshot(&root);
@@ -163,7 +163,7 @@ fn nuget_set_regenerates_only_its_declared_bzl_files() {
         .expect("utf-8");
     assert!(bzl.contains("Newtonsoft.Json"), "{bzl}");
 
-    let run = dx_in(&root, &["update", "--check"]);
+    let run = dx_in(&root, &["update"]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         run.stdout.contains("dotnet lockfile current"),
@@ -171,7 +171,7 @@ fn nuget_set_regenerates_only_its_declared_bzl_files() {
         report(&run)
     );
 
-    let run = dx_in(&root, &["update", "--check", "--offline"]);
+    let run = dx_in(&root, &["update", "--offline"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         format!("{}{}", run.stdout, run.stderr).contains("offline_required"),
@@ -183,7 +183,7 @@ fn nuget_set_regenerates_only_its_declared_bzl_files() {
         &root.join("third_party/dotnet/paket.lock"),
         "not a paket lock\n",
     );
-    let run = dx_in(&root, &["update", "--check"]);
+    let run = dx_in(&root, &["update"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(!run.stdout.contains("lockfile current"), "{}", report(&run));
 }

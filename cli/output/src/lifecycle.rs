@@ -1414,7 +1414,7 @@ mod tests {
             source: "cli-grammar".to_owned(),
             availability: "available".to_owned(),
             detail: "run lint analysis".to_owned(),
-            flags: vec!["--check".to_owned()],
+            flags: vec!["--apply".to_owned()],
             outputs: vec!["text".to_owned(), "json".to_owned()],
             reports: vec!["sarif".to_owned()],
             scope_policy: "default-//...".to_owned(),
@@ -1425,7 +1425,7 @@ mod tests {
         assert_eq!(event["event"], Value::String("capability".to_owned()));
         assert_eq!(event["schema"], schema());
         assert_eq!(event["name"], Value::String("lint".to_owned()));
-        assert_eq!(event["flags"][0], Value::String("--check".to_owned()));
+        assert_eq!(event["flags"][0], Value::String("--apply".to_owned()));
         assert_eq!(
             event,
             capability_value(&capability),
@@ -1637,7 +1637,7 @@ mod tests {
             name: "pin".to_owned(),
             status: "ok".to_owned(),
             detail: "dx 0.0.0 vs module 0.0.0".to_owned(),
-            hint: "dx version --check".to_owned(),
+            hint: "dx status".to_owned(),
         })
         .expect("status");
         assert_eq!(event["event"], Value::String("status".to_owned()));

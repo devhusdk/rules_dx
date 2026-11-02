@@ -226,7 +226,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
 
     let launcher = root.join("tools/dx");
     let launcher = launcher.to_str().expect("utf8");
-    let version = run_with(launcher, &["version"], &root, &env, "");
+    let version = run_with(launcher, &["--version"], &root, &env, "");
     assert_eq!(version.code, 0, "{}{}", version.stdout, version.stderr);
 
     let commands = hook_commands(&read(&root.join(".claude/settings.json")));
@@ -400,7 +400,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     let warm = PathBuf::from(again.stdout.trim());
     assert!(warm == slot || warm == sub_path, "{warm:?} is a new slot");
 
-    let status = run_with(launcher, &["status"], &root, &env, "");
+    let status = run_with(launcher, &["--version"], &root, &env, "");
     assert!(
         status.stdout.contains("agents: ok"),
         "{}{}",
@@ -490,7 +490,7 @@ fn hooks_ignore_bad_defaults_and_bad_input() {
     );
     assert_eq!(removed.code, 0, "{}{}", removed.stdout, removed.stderr);
 
-    let version = run(&["version"], "");
+    let version = run(&["status"], "");
     assert_eq!(version.code, 2, "{}{}", version.stdout, version.stderr);
 }
 

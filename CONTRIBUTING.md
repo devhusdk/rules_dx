@@ -21,7 +21,7 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 
 ## Issues and labels
 
-Use the bug template. Paste `dx version` and `dx status`.
+Use the bug template. Paste `dx status`.
 
 Each issue gets one priority label:
 

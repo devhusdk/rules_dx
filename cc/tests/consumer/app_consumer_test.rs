@@ -739,12 +739,9 @@ fn both_binaries_run_from_a_copied_tree_without_the_workspace() {
 #[test]
 fn format_check_passes_formatted_sources_and_flags_unformatted_ones() {
     let case = consumer();
-    let clean = dx(
-        &case,
-        &["format", "--check", "//examples/c-app/store:store"],
-    );
+    let clean = dx(&case, &["format", "//examples/c-app/store:store"]);
     assert_eq!(clean.status.code(), Some(0), "{}", clean.combined());
-    let dirty = dx(&case, &["format", "--check", "//negative:lint_probe"]);
+    let dirty = dx(&case, &["format", "//negative:lint_probe"]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
     assert!(
         dirty.combined().contains("negative/lint_error.c:2:"),

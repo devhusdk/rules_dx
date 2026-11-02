@@ -213,7 +213,7 @@ scopes = ["."]
     #[test]
     fn update_check_reports_the_set_pinned_and_apply_changes_nothing() {
         let h = harness("update", MODULE, Some(&lock_for("rules_cc", "0.2.1")));
-        let (code, out, err) = run(&["update", "--check", "--output=json"], &h);
+        let (code, out, err) = run(&["update", "--output=json"], &h);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("bazel-modules"), "{out}");
         let before = std::fs::read_to_string(h.workspace.join("MODULE.bazel.lock")).unwrap();

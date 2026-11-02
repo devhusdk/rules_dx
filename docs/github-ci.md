@@ -45,10 +45,10 @@ the check fails in Bazel before the check runs.
 `examples/consumer-ci/` calls `reusable-consumer.yml`. Nine checks run on
 every platform in `platforms`:
 
-- `lint`: `dx lint --check //...` (`--affected` on pull requests), with a SARIF report
-- `typecheck`: `dx typecheck --check //...` (`--affected` on pull requests), with a SARIF report
-- `format`: `dx format --check //...` (`--affected` on pull requests)
-- `generate`: `dx generate --check //...`
+- `lint`: `dx lint //...` (`--affected` on pull requests), with a SARIF report
+- `typecheck`: `dx typecheck //...` (`--affected` on pull requests), with a SARIF report
+- `format`: `dx format //...` (`--affected` on pull requests)
+- `generate`: `dx generate //...`
 - `security-audit`: `dx security //...`
 - `license-audit`: `dx license //...`
 - `test`: `dx test //...` (`--affected` on pull requests), with JUnit, failures and results reports
@@ -59,9 +59,6 @@ every platform in `platforms`:
 
 Each check reports once per platform as `<check> (<platform>)`, for example
 `lint (linux_x86_64)`.
-
-`--check` applies to the four quality checks. `dx security`, `dx license`,
-`dx test`, `dx build`, and `dx coverage` reject it.
 
 `validate (inputs)` runs first and checks the pin and every input. One
 `advisory snapshots (one run, every platform)` job fetches the advisory
@@ -182,8 +179,8 @@ for the output lines and error codes.
 
 ## Docs Workflow
 
-`examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint --check` over
-`docs_scope` (default `//...`), runs `dx docs --check` on `site_check` when
+`examples/docs-ci/` calls `reusable-docs.yml`. It runs `dx lint` over
+`docs_scope` (default `//...`), runs `dx docs` on `site_check` when
 you set it, then renders your `site` label with `dx docs` and checks the
 rendered tree for missing pages, styles, and search index, so broken links
 fail before deploy.
@@ -200,7 +197,7 @@ Inputs:
 - `environment`: Pages environment name. Default `github-pages`.
 - `site`: required. One target label in your repository whose output is the
   rendered mdBook tree, with `index.html` and `searchindex.js` at its root.
-- `site_check`: target label that `dx docs --check` runs. Default empty,
+- `site_check`: target label that `dx docs` runs. Default empty,
   which skips the source check.
 - `forbid`: text the rendered site must not contain, one entry per line.
   Default empty.

@@ -92,8 +92,8 @@ const LINT: [&str; 4] = [
     "--@my_dx//config:workspace=//:policy",
 ];
 
-fn lint(mode: &str) -> Vec<&str> {
-    let mut args = vec!["lint", mode];
+fn lint() -> Vec<&'static str> {
+    let mut args = vec!["lint"];
     args.extend_from_slice(&LINT);
     args
 }
@@ -102,7 +102,7 @@ fn lint(mode: &str) -> Vec<&str> {
 fn clean_check_run_is_complete() {
     let case = quality_consumer();
     let tamper = Tamper::new();
-    let run = dx(&case, &lint("--check"), &[], &tamper);
+    let run = dx(&case, &lint(), &[], &tamper);
     let all = events(&run);
     // The unused import is a finding (exit 1) but the evidence is complete.
     assert!(
@@ -120,7 +120,7 @@ fn tampered_check_run_is_incomplete() {
     let tamper = Tamper::new();
     let run = dx(
         &case,
-        &lint("--check"),
+        &lint(),
         &[("DX_TAMPER_FILE", r"/dirty-real-lint[^/]*\.pb$")],
         &tamper,
     );
@@ -144,7 +144,7 @@ fn tampered_apply_leaves_the_dirty_file_unchanged() {
     let path = case.root().join("app/dirty.py");
     let run = dx(
         &case,
-        &lint("--apply"),
+        &lint(),
         &[("DX_TAMPER_FILE", r"/dirty-real-lint[^/]*\.pb$")],
         &tamper,
     );

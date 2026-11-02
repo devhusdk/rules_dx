@@ -123,7 +123,7 @@ fn a_failed_text_finding_never_returns_success() {
     for (kind, want) in KINDS {
         let h = harness("q-text-finding-fails", false);
         let mut sink = Sink::new(Fault::WriteFails(kind), 2);
-        let (code, _) = run(&h, &["lint", "--check", "--output=text"], &mut sink);
+        let (code, _) = run(&h, &["lint", "--output=text"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
     }
 }
@@ -133,7 +133,7 @@ fn a_failed_diff_never_returns_success() {
     for (kind, want) in KINDS {
         let h = harness("q-diff-fails", true);
         let mut sink = Sink::new(Fault::WriteFails(kind), 1);
-        let (code, _) = run(&h, &["format", "--check", "--output=diff"], &mut sink);
+        let (code, _) = run(&h, &["format", "--output=diff"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
         assert!(sink.bytes.is_empty());
         assert_eq!(source(&h), b"x = 1\n");
@@ -160,10 +160,10 @@ fn partial_writes_deliver_every_event_whole() {
 fn partial_writes_deliver_the_whole_diff() {
     let h = harness("q-partial-diff", true);
     let mut whole = Sink::new(Fault::None, 0);
-    let (want, _) = run(&h, &["format", "--check", "--output=diff"], &mut whole);
+    let (want, _) = run(&h, &["format", "--output=diff"], &mut whole);
     let h = harness("q-partial-diff-bytes", true);
     let mut sink = Sink::new(Fault::OneByteWrites, 0);
-    let (code, _) = run(&h, &["format", "--check", "--output=diff"], &mut sink);
+    let (code, _) = run(&h, &["format", "--output=diff"], &mut sink);
     assert_eq!(code, want);
     assert_eq!(sink.bytes, whole.bytes);
     assert!(!sink.bytes.is_empty());
@@ -175,7 +175,7 @@ fn a_stdout_report_owns_stdout() {
     let mut sink = Sink::new(Fault::OneByteWrites, 0);
     let (_, err) = run(
         &h,
-        &["lint", "--check", "--output=text", "--report=sarif=-"],
+        &["lint", "--output=text", "--report=sarif=-"],
         &mut sink,
     );
     let document: serde_json::Value = serde_json::from_slice(&sink.bytes).expect("only SARIF");
@@ -190,7 +190,7 @@ fn a_failed_stdout_report_never_returns_success() {
         let mut sink = Sink::new(Fault::WriteFails(kind), 1);
         let (code, _) = run(
             &h,
-            &["lint", "--check", "--output=text", "--report=sarif=-"],
+            &["lint", "--output=text", "--report=sarif=-"],
             &mut sink,
         );
         assert_eq!(code, want, "{kind:?}");
@@ -203,12 +203,7 @@ fn a_report_file_still_lands_beside_clean_output() {
     let mut sink = Sink::new(Fault::None, 0);
     let (code, _) = run(
         &h,
-        &[
-            "lint",
-            "--check",
-            "--output=json",
-            "--report=sarif=out.sarif",
-        ],
+        &["lint", "--output=json", "--report=sarif=out.sarif"],
         &mut sink,
     );
     assert_eq!(code, 1);

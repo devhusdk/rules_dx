@@ -8,9 +8,9 @@ labels: bug
 
 For documentation issues, link the affected text.
 
-## dx version
+## dx --version
 
-Output of `dx version`.
+Output of `dx --version`.
 
 ## Bazel version
 

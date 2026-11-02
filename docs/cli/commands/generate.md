@@ -15,18 +15,16 @@ stale files without writing. Pass `--apply` to write them. Bazel options go
 after `--`.
 
 ```text
-dx generate [--here] [--check] [--apply] [scope...] [-- bazel-options...]
+dx generate [--here] [--apply] [scope...] [-- bazel-options...]
 ```
 
-- `--check`: fail if files are stale instead of writing them. Same as the
-  default.
-- `--apply`: write the updated BUILD files. Without it files stay untouched.
+- `--apply`: write the updated BUILD files. Without it files stay untouched and stale files fail the run.
 - `--fail-on`, `--report`, `--affected`: rejected as usage errors (exit `2`).
 - `--output text|diff|json`: result shape. `diff` prints one unified patch per
   stale file, or per file `--apply` wrote or did not apply.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` stale files with
-`--check` or the default, a file `--apply` did not write, incomplete results, a
+the default, a file `--apply` did not write, incomplete results, a
 missing or invalid generation result (`invalid_result`), a generation error
 reported by a language extension, or a patch that fails to render
 (`diff_failed`). Bazel failures keep Bazel's code.
@@ -35,11 +33,11 @@ reported by a language extension, or a patch that fails to render
 
 Text starts with `Running generate for <scope>`. `--quiet` hides it. Then it
 prints `Created <path>` or `Modified <path>` for each written file, or each
-stale file with `--check`, sorted by path. Each ignored import prints
+stale file without `--apply`, sorted by path. Each ignored import prints
 `Ignored import '<import>' in <path> [<language>]: Static import intentionally contributes no Bazel dependency`.
 Files that were not written go to stderr as `Not applied: <path> (<reason>)`.
 An incomplete `--apply` run still prints the files it wrote and the
-`Not applied` lines. An incomplete `--check` run, or a Bazel failure that
+`Not applied` lines. An incomplete check run, or a Bazel failure that
 leaves no result, prints no file lines.
 
 JSON starts with `command_started` with `mode` `check`, or `default` with
@@ -49,7 +47,7 @@ A refused change has a `reason`: `write_mismatch`, `missing_file`, or
 `unreadable_file`. Each ignored import emits a `notice` with `code`
 `ignored_import`, `level` `warning`, `path`, `language`, and `import`. A Bazel
 failure with `--apply`, or one that leaves results incomplete, emits a
-`bazel_failed` error. So does a Gazelle failure with `--check`, including a
+`bazel_failed` error. So does a Gazelle failure without `--apply`, including a
 nonzero exit that does not come with a Gazelle diff. A generation error from a
 language extension emits one `generation_failed` error per entry instead, with
 `message`, `phase` `execute`, and `path` when the failing package is known. It
@@ -58,7 +56,7 @@ Text output is unchanged: Gazelle's stderr lists every error. `command_finished`
 `results_complete`, `exit_code`, and `changes` with `create` and `modify`
 counts, plus `applied` and `refused` with `--apply`. An incomplete `--apply`
 run still emits its `change` events and `changes` with `applied` and `refused`.
-An incomplete `--check` run, or a Bazel failure that leaves no result, emits no
+An incomplete check run, or a Bazel failure that leaves no result, emits no
 `change` events and no `changes`.
 
 ## Codegen pairs
@@ -82,7 +80,7 @@ document (AsyncAPI and Swagger roots are refused), when a `$ref` names a remote
 document (`dx/api-spec-remote-ref`), or when a `$ref` names a file the spec does
 not declare (`dx/api-spec-unresolved-ref`). Only OpenAPI is supported; AsyncAPI
 generation is a separate pair. Verify generated sources with
-`dx codegen --check`, which fails with "no current selection" until
+`dx codegen`, which fails with "no current selection" until
 `dx codegen --apply` has run and with "stale selection" after the plan changes.
 
 The flatbuffers/cpp pair comes from `flatbuffers_cc_library` in
@@ -175,7 +173,7 @@ generated `cc_library`:
 
 Gazelle sets these attributes only when the rule doesn't have them. Set one
 yourself to keep your value. Gazelle never removes them when the include goes
-away, so delete a stale value by hand. After an upgrade, `--check` can report
+away, so delete a stale value by hand. After an upgrade, `dx generate` can report
 an existing NDK or JNI `cc_library` as stale.
 
 The `java` and `kotlin` languages generate an Android library kind for

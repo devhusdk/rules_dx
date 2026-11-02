@@ -1,6 +1,6 @@
 prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)
 
-Usage: dx clean [--check] [--apply] [--prune-unobserved]
+Usage: dx clean [--apply] [--prune-unobserved]
 
 Options:
       --workspace <WORKSPACE>
@@ -29,9 +29,6 @@ Options:
           Set output format
           
           [possible values: text, json]
-
-      --check
-          Check without changing files
 
       --apply
           Prune unselected managed state

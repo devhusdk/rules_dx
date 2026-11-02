@@ -187,9 +187,7 @@ pub(crate) fn runs_bazel(command: Command) -> bool {
             | Command::Update
             | Command::Bump
             | Command::Add
-            | Command::Migrate
             | Command::Upgrade
-            | Command::Version
             | Command::Completion
             | Command::Init
             | Command::Worktree
@@ -438,7 +436,7 @@ mod tests {
             other => panic!("clean --help: want Help, got {other:?}"),
         };
         assert!(
-            clean.contains("clean [--check] [--apply] [--prune-unobserved]"),
+            clean.contains("clean [--apply] [--prune-unobserved]"),
             "clean usage:\n{clean}"
         );
         assert!(clean.contains("--apply"), "clean flags:\n{clean}");
@@ -507,11 +505,6 @@ mod tests {
             other => panic!("build --help: want Help, got {other:?}"),
         };
         assert!(build.contains("--debug"), "build flags:\n{build}");
-        let version = match parse(&strings(&["version", "--help"])) {
-            Err(ArgsError::Help { text }) => text,
-            other => panic!("version --help: want Help, got {other:?}"),
-        };
-        assert!(version.contains("--check"), "version flags:\n{version}");
         use clap::ValueEnum;
         for command in Command::value_variants() {
             let text = render_command_help(*command);
@@ -568,7 +561,7 @@ mod tests {
         let owned = |words: &[&str]| words.iter().map(|word| (*word).to_owned()).collect();
         match command {
             Command::Bump | Command::Add => owned(&["rust:serde", "1.0.0"]),
-            Command::Migrate | Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
+            Command::Upgrade => owned(&["--from", "0.1.0", "--to", "0.2.0"]),
             Command::Completion => owned(&["bash"]),
             Command::Watch => owned(&["lint"]),
             Command::Install => owned(&["--tag", "v1.2.3", "--archive", "a.tar.gz"]),
@@ -656,7 +649,6 @@ mod tests {
             other => panic!("want Help, got {other:?}"),
         };
         assert!(text.contains("Usage: dx status"), "status help:\n{text}");
-        assert!(!text.contains("--check"), "status help:\n{text}");
     }
 
     #[test]

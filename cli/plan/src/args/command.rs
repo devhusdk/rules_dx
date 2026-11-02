@@ -17,13 +17,11 @@ pub enum Command {
     Update,
     Bump,
     Add,
-    Migrate,
     Codegen,
     Env,
     Init,
     Upgrade,
     Status,
-    Version,
     Watch,
     Completion,
     Docs,
@@ -102,7 +100,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 31] = [
+pub static COMMANDS: [CommandMeta; 29] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -146,7 +144,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "lint",
         scope_policy: "default-//...",
         describe: "run lint analysis over resolved scopes (check by default; --apply writes fixes)",
-        usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -165,7 +163,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "typecheck",
         scope_policy: "default-//...",
         describe: "run typecheck analysis over resolved scopes (check by default; --apply writes fixes)",
-        usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -184,7 +182,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "format",
         scope_policy: "default-//...",
         describe: "check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)",
-        usage: "Usage: dx lint|typecheck|format [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx lint|typecheck|format [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -203,7 +201,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "generate",
         scope_policy: "default-repo",
         describe: "update BUILD declarations from source with Gazelle (check by default; --apply writes)",
-        usage: "Usage: dx generate [--check] [--apply] [--here] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx generate [--apply] [--here] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target; main-repository labels only), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_managed: false,
         is_adoption: false,
@@ -317,7 +315,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "check",
         scope_policy: "default-//...",
         describe: "run generate+format+lint+typecheck checks in order (non-mutating)",
-        usage: "Usage: dx check|fix [--check] [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx check|fix [--here] [--affected] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -336,7 +334,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "fix",
         scope_policy: "default-//...",
         describe: "apply generate+format+lint+typecheck fixes in order (check by default; --apply writes fixes, then verifies with a read-only check)",
-        usage: "Usage: dx check|fix [--check] [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
+        usage: "Usage: dx check|fix [--apply] [--here] [--affected] [scope ...] [-- bazel-options ...]",
         scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Graph-scope commands select //... when no scope is supplied. Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default. --affected selects targets changed since the default branch merge-base plus their reverse dependencies; it cannot be combined with scopes or --here.",
         is_managed: false,
         is_adoption: false,
@@ -355,7 +353,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "clean",
         scope_policy: "reject",
         describe: "prune unselected managed state, never Bazel outputs; use `bazel clean` for those (check by default; --apply prunes; no scopes)",
-        usage: "Usage: dx clean [--check] [--apply] [--prune-unobserved]",
+        usage: "Usage: dx clean [--apply] [--prune-unobserved]",
         scopes: "Scopes: none (clean takes no scopes).",
         is_managed: false,
         is_adoption: false,
@@ -374,7 +372,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "update",
         scope_policy: "selector-default-all",
         describe: "update dependencies per set through qualified resolvers (check by default; --apply writes updates)",
-        usage: "Usage: dx update [--check] [--apply] [--offline] [--frozen] [selector ...]",
+        usage: "Usage: dx update [--apply] [--offline] [--frozen] [selector ...]",
         scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets.",
         is_managed: false,
         is_adoption: false,
@@ -427,30 +425,11 @@ pub static COMMANDS: [CommandMeta; 31] = [
         labels: LabelsPolicy::Never,
     },
     CommandMeta {
-        command: Command::Migrate,
-        name: "migrate",
-        scope_policy: "default-//...",
-        describe: "rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)",
-        usage: "Usage: dx migrate [--apply] --from <version> --to <version> [scope ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns or workspace-relative files/dirs. No scope selects //.... Scopes are accepted but not read until a migration ships.",
-        is_managed: false,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
         command: Command::Codegen,
         name: "codegen",
         scope_policy: "default-repo|exact-label",
         describe: "materialize declared generated source (check by default; --apply writes)",
-        usage: "Usage: dx codegen|env [--check] [--apply] [<label>] [-- bazel-options ...]",
+        usage: "Usage: dx codegen|env [--apply] [<label>] [-- bazel-options ...]",
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
         is_managed: true,
         is_adoption: false,
@@ -469,7 +448,7 @@ pub static COMMANDS: [CommandMeta; 31] = [
         name: "env",
         scope_policy: "default-repo|exact-label",
         describe: "collect the managed development environment (check by default; --apply writes managed state)",
-        usage: "Usage: dx codegen|env [--check] [--apply] [<label>] [-- bazel-options ...]",
+        usage: "Usage: dx codegen|env [--apply] [<label>] [-- bazel-options ...]",
         scopes: "Scopes: none for repository-wide canonical selection, or exactly one exact // or @ label; patterns, paths, relative labels, empty values, and multiple labels are usage failures (see docs/cli/commands/environment-codegen.md).",
         is_managed: true,
         is_adoption: false,
@@ -541,25 +520,6 @@ pub static COMMANDS: [CommandMeta; 31] = [
         labels: LabelsPolicy::Never,
     },
     CommandMeta {
-        command: Command::Version,
-        name: "version",
-        scope_policy: "reject",
-        describe: "report version and pin drift",
-        usage: "Usage: dx version [--check]",
-        scopes: "Scopes: none (version takes no scopes).",
-        is_managed: false,
-        is_adoption: true,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Proceed,
-        workflow_verb: None,
-        first_slot: FirstSlot::None,
-        labels: LabelsPolicy::Never,
-    },
-    CommandMeta {
         command: Command::Watch,
         name: "watch",
         scope_policy: "require",
@@ -601,9 +561,9 @@ pub static COMMANDS: [CommandMeta; 31] = [
         command: Command::Docs,
         name: "docs",
         scope_policy: "default-repo",
-        describe: "build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)",
-        usage: "Usage: dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
-        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//tools/docs/site:user_site, //tools/docs/site:user_site_check in --check). Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
+        describe: "build and serve the mdBook documentation site (non-mutating)",
+        usage: "Usage: dx docs [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope ...] [-- bazel-options ...]",
+        scopes: "Scopes: explicit Bazel labels/patterns (//..., //pkg:target), or workspace-relative files/dirs resolved via Bazel query. Bare scope selects the repository docs site (//tools/docs/site:user_site). Pass --here for the current directory tree instead (//path/...; //... at the root); --here cannot be combined with explicit scopes and never changes the no-flag default.",
         is_managed: false,
         is_adoption: false,
         supports_json: true,
@@ -810,14 +770,11 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 19] = [
-        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Add, Migrate, Codegen,
-        Env, Init, Upgrade, Watch, Rollback, Worktree, Install,
+    pub(crate) const APPLY_COMMANDS: [Command; 18] = [
+        Lint, Typecheck, Format, Generate, Deploy, Fix, Clean, Update, Bump, Add, Codegen, Env,
+        Init, Upgrade, Watch, Rollback, Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
-    pub(crate) const CHECK_OWNERS: [Command; 12] = [
-        Lint, Typecheck, Format, Generate, Check, Fix, Clean, Update, Codegen, Env, Version, Docs,
-    ];
     pub(crate) const AFFECTED_OWNERS: [Command; 10] = [
         Security, License, Lint, Typecheck, Format, Build, Test, Coverage, Check, Fix,
     ];
@@ -847,12 +804,7 @@ mod tests {
         assert_eq!(Command::Update.name(), "update");
         assert_eq!(Command::Bump.name(), "bump");
         assert_eq!(Command::Add.name(), "add");
-        assert_eq!(Command::Migrate.name(), "migrate");
         assert_eq!(Command::Upgrade.name(), "upgrade");
-        assert!(!Command::Migrate.is_adoption());
-        assert!(!Command::Migrate.is_managed());
-        assert!(Command::Migrate.supports_json());
-        assert!(!Command::Migrate.supports_diff());
         assert!(Command::Upgrade.is_adoption());
         assert!(Command::Upgrade.supports_json());
         assert!(!Command::Upgrade.supports_diff());
@@ -899,13 +851,11 @@ mod tests {
             Command::Update,
             Command::Bump,
             Command::Add,
-            Command::Migrate,
             Command::Codegen,
             Command::Env,
             Command::Init,
             Command::Upgrade,
             Command::Status,
-            Command::Version,
             Command::Watch,
             Command::Completion,
             Command::Docs,
@@ -960,7 +910,6 @@ mod tests {
             Command::Update,
             Command::Bump,
             Command::Add,
-            Command::Migrate,
             Command::Init,
             Command::Upgrade,
             Command::Rollback,
@@ -992,7 +941,6 @@ mod tests {
         assert!(!Command::Update.supports_diff());
         assert!(!Command::Bump.supports_diff());
         assert!(!Command::Add.supports_diff());
-        assert!(!Command::Migrate.supports_diff());
     }
 
     #[test]
@@ -1014,7 +962,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|migrate|codegen|env|init|upgrade|status|version|watch|completion|docs|rollback|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|fix|clean|update|bump|add|codegen|env|init|upgrade|status|watch|completion|docs|rollback|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }
@@ -1055,11 +1003,7 @@ mod tests {
             if command.is_adoption()
                 && matches!(
                     command,
-                    Command::Status
-                        | Command::Version
-                        | Command::Upgrade
-                        | Command::Completion
-                        | Command::Rollback
+                    Command::Status | Command::Upgrade | Command::Completion | Command::Rollback
                 )
             {
                 assert!(
@@ -1074,7 +1018,6 @@ mod tests {
         assert_eq!(Command::Bump.scope_policy(), "require-selector+version");
         assert_eq!(Command::Add.scope_policy(), "require-selector+version");
         assert_eq!(Command::Update.scope_policy(), "selector-default-all");
-        assert_eq!(Command::Migrate.scope_policy(), "default-//...");
     }
 
     #[test]

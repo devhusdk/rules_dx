@@ -233,7 +233,6 @@ impl UmbrellaRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invocation {
     pub command: Command,
-    pub check: bool,
     pub apply: bool,
     pub debug: bool,
     pub release: bool,
@@ -339,18 +338,10 @@ impl Invocation {
         &self.app_args
     }
 
-    pub fn mode(self) -> &'static str {
-        if self.check {
-            "check"
-        } else {
-            "default"
-        }
-    }
-
     /// The `command_started` mode: check unless `--apply` authorizes writing.
     pub fn started_mode(&self) -> &'static str {
         let check_only = self.command.supports_apply() && !self.applies();
-        if self.command == Command::Check || self.check || check_only {
+        if self.command == Command::Check || check_only {
             "check"
         } else {
             "default"
@@ -474,7 +465,6 @@ impl Invocation {
             (Some(AffectedHandoff { tests }), Command::Check) if !tests.is_empty() => {
                 let mut test = self.clone();
                 test.command = Command::Test;
-                test.check = false;
                 test.apply = false;
                 test.reports = Vec::new();
                 test.explain = false;
@@ -618,7 +608,6 @@ mod tests {
         use dx_output::{ColorMode, OutputMode, Threshold};
         Invocation {
             command,
-            check: false,
             apply: false,
             debug: false,
             release: false,
@@ -675,13 +664,8 @@ mod tests {
     fn operation_authorizes_only_explicit_apply() {
         let bare = invocation_for(Command::Fix, &[]);
         assert!(!bare.apply);
-        assert!(!bare.check);
         assert_eq!(bare.operation(), OperationMode::Check);
         assert!(!bare.applies());
-        let mut check = invocation_for(Command::Fix, &[]);
-        check.check = true;
-        assert_eq!(check.operation(), OperationMode::Check);
-        assert!(!check.applies());
         let mut apply = invocation_for(Command::Fix, &[]);
         apply.apply = true;
         assert_eq!(apply.operation(), OperationMode::Apply);
@@ -931,7 +915,7 @@ mod tests {
     #[test]
     fn quality_request_accepts_only_the_quality_family() {
         for command in ["lint", "typecheck", "format"] {
-            let request = parsed(&[command, "--check", "//a:one"])
+            let request = parsed(&[command, "//a:one"])
                 .quality_request()
                 .expect("quality family");
             assert_eq!(request.command.name(), command);
@@ -1007,9 +991,7 @@ mod tests {
 
     #[test]
     fn generate_and_umbrella_requests_validate_their_commands() {
-        let generate = parsed(&["generate", "--check"])
-            .generate_request()
-            .expect("generate");
+        let generate = parsed(&["generate"]).generate_request().expect("generate");
         assert_eq!(generate.mode, OperationMode::Check);
         assert!(parsed(&["lint"]).generate_request().is_err());
         let umbrella = parsed(&["check", "//..."])

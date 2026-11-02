@@ -14,7 +14,7 @@ reach the wrapped command unchanged.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,
   `check`, and `fix`. Other commands fail with `not watchable`.
-- Takes `--output`, `--check`, `--apply`, `--fail-on`, `--report`,
+- Takes `--output`, `--apply`, `--fail-on`, `--report`,
   `--include-edits`, `--here`, `--affected`, `--debug`, and `--release`, plus
   the global flags, when the wrapped command takes them.
 - `--here` resolves once from the current directory. `--affected` re-resolves

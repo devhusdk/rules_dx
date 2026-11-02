@@ -453,16 +453,11 @@ impl BumpRequest {
             }
             _ => "",
         };
-        let base = format!(
+        format!(
             "Widen {}{what} to {} in {place} ({through})",
             self.selector,
             self.version.display(),
-        );
-        if self.version.is_semver() {
-            format!("{base}; {}", version::generic_major_bump_hint())
-        } else {
-            base
-        }
+        )
     }
 
     pub fn plan_edit(&self, content: &str) -> Result<String, BumpError> {

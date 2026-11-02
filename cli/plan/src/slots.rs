@@ -2744,7 +2744,6 @@ mod tests {
         }
         for command in [
             Command::Status,
-            Command::Version,
             Command::Worktree,
             Command::Completion,
             Command::Explain,

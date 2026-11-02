@@ -137,10 +137,9 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/generate.html",
         "docs/cli/commands/docs.html",
         "docs/cli/commands/init.html",
-        "docs/cli/commands/migrate.html",
         "docs/cli/commands/upgrade-rollback.html",
         "docs/cli/commands/offline-bundle.html",
-        "docs/cli/commands/status-version.html",
+        "docs/cli/commands/status.html",
         "docs/cli/commands/watch.html",
         "docs/cli/commands/completion.html",
         "docs/cli/commands/scope-defaults.html",
@@ -298,7 +297,7 @@ fn every_page_links_to_every_other_page_it_names() {
         "docs.html",
         "quality.html",
         "scope-defaults.html",
-        "status-version.html#version-skew",
+        "status.html#version-skew",
     ] {
         assert!(
             commands.contains(page),
@@ -596,7 +595,9 @@ fn a_java_api_page_renders_its_signature_docs_source_and_relations() {
         "api/java/shapes/dx.fixture.shapes.Circle.scale~28double~2Cdouble~29.html",
     );
     assert!(
-        scale.contains("<code class=\"language-java\">public Circle scale(double horizontal, double vertical)"),
+        scale.contains(
+            "<code class=\"language-java\">public Circle scale(double horizontal, double vertical)"
+        ),
         "the signature must render as a Java code block"
     );
     assert!(scale.contains("Scales the radius by two factors"));
@@ -611,7 +612,10 @@ fn a_java_api_page_renders_its_signature_docs_source_and_relations() {
         )),
         "the page must link its source line"
     );
-    let area = read(&root, "api/java/shapes/dx.fixture.shapes.Circle.area~28~29.html");
+    let area = read(
+        &root,
+        "api/java/shapes/dx.fixture.shapes.Circle.area~28~29.html",
+    );
     assert!(
         area.contains("Returns the area of this shape."),
         "an override must show the documentation it inherits"
@@ -626,7 +630,10 @@ fn a_java_api_page_renders_its_signature_docs_source_and_relations() {
         "the doc link to Circle must resolve to its page"
     );
     let circle = read(&root, "api/java/shapes/dx.fixture.shapes.Circle.html");
-    assert!(!circle.contains("<script>alert"), "raw HTML from a doc comment leaked");
+    assert!(
+        !circle.contains("<script>alert"),
+        "raw HTML from a doc comment leaked"
+    );
     assert!(!circle.contains("Undocumented."));
     for hidden in ["hidden", "secret", "Internal"] {
         assert!(

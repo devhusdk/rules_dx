@@ -122,10 +122,6 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             request.version.display()
         ),
         kept: format!("widen kept in {manifest}"),
-        hint: request
-            .version
-            .is_semver()
-            .then(dx_bump::generic_major_bump_hint),
     };
     let io = dep_edit::EditIo {
         workspace,
@@ -2222,17 +2218,6 @@ scopes = ["tools"]
         );
     }
 
-    #[test]
-    fn major_bump_carries_migrate_hint() {
-        let harness = Harness::new("bump-major-hint-live");
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, out, err) = harness.run(&["bump", "cargo:anyhow", "2.0.0", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened cargo:anyhow to 2.0.0"), "{out}");
-        assert!(out.contains("major bump"), "{out}");
-        assert!(out.contains("migrate_failed"), "{out}");
-        assert!(out.contains("missing-versions"), "{out}");
-    }
     #[test]
     fn offline_live_resolver_fails_before_widen_without_mutation() {
         let harness = Harness::new("bump-offline-resolver");

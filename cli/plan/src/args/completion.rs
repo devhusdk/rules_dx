@@ -702,7 +702,6 @@ mod tests {
                 | Command::Init
                 | Command::Upgrade
                 | Command::Status
-                | Command::Version
                 | Command::Rollback
                 | Command::Worktree
                 | Command::Explain
@@ -812,7 +811,6 @@ mod tests {
         for flag in [
             "--fail-on",
             "--min-coverage",
-            "--check",
             "--bazel",
             "--configured",
             "--from",
@@ -946,14 +944,14 @@ mod tests {
             ["a.rs"]
         );
         assert_eq!(
-            prior_scopes(&words(&["--", "dx", "lint", "--check", ""])),
+            prior_scopes(&words(&["--", "dx", "lint", "--apply", ""])),
             empty
         );
         assert_eq!(
             prior_scopes(&words(&["--", "dx", "build", "--workspace", "/tmp", ""])),
             empty
         );
-        assert_eq!(prior_scopes(&words(&["lint", "--check", ""])), empty);
+        assert_eq!(prior_scopes(&words(&["lint", "--apply", ""])), empty);
         assert_eq!(prior_scopes(&words(&["watch", "build", ""])), ["build"]);
         assert_eq!(prior_scopes(&words(&["build", "--", "--jobs=4"])), empty);
         assert_eq!(prior_scopes(&[]), empty);
@@ -1507,7 +1505,7 @@ mod tests {
                 "lint",
                 "--workspace",
                 second_root.as_str(),
-                "--check",
+                "--apply",
                 "",
             ],
             first.path(),

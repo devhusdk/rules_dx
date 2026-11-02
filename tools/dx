@@ -114,7 +114,7 @@ build_dx() {
 query_inputs() {
   (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//:dx)) + buildfiles(deps(//:dx))')
 }
-# True for `update --apply [cargo]` without --check, --frozen or --offline: the only launches that may repin.
+# True for `update --apply [cargo]` without --frozen or --offline: the only launches that may repin.
 wants_cargo_repin() {
   [ "${1:-}" = update ] || return 1
   shift
@@ -123,7 +123,7 @@ wants_cargo_repin() {
   for w_arg in "$@"; do
     case $w_arg in
       --apply) w_apply=1 ;;
-      --check | --frozen | --offline) return 1 ;;
+      --frozen | --offline) return 1 ;;
       -*) ;;
       cargo) w_sel=$((w_sel + 1)) ;;
       *) return 1 ;;

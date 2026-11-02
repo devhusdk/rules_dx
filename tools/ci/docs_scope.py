@@ -1,4 +1,4 @@
-"""Validates the docs scope input and runs dx lint --check over it.
+"""Validates the docs scope input and runs dx lint over it.
 
 The docs workflow passes the docs_scope input through the DX_DOCS_SCOPE
 environment variable and runs this with bazel run. The value is
@@ -43,7 +43,7 @@ def parse_scope(text):
 
 
 def main():
-    """Runs dx lint --check over the validated scope and returns its exit status."""
+    """Runs dx lint over the validated scope and returns its exit status."""
     os.chdir(os.environ.get("BUILD_WORKING_DIRECTORY", "."))
     patterns = parse_scope(os.environ.get(SCOPE_ENV, ""))
     if patterns is None:
@@ -52,7 +52,7 @@ def main():
     for name in CONFIG_ENVS:
         config.extend(os.environ.get(name, "").split())
     bazel = shutil.which("bazel") or "bazel"
-    argv = [bazel, "run", *config, "@rules_dx//:dx", "--", "lint", "--check"]
+    argv = [bazel, "run", *config, "@rules_dx//:dx", "--", "lint"]
     argv += [*patterns, "--", *config]
     try:
         return subprocess.run(argv, check=False).returncode

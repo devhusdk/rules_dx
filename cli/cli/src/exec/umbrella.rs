@@ -1789,7 +1789,7 @@ mod tests {
     #[test]
     fn lint_check_rejects_build_output_without_launching_bazel() {
         let harness = dirty_build_output("umbrella-lint-build-output");
-        let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+        let (code, out, err) = harness.run(&["lint", "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("cli/target/debug/dx"), "{out}{err}");
         assert_eq!(harness.seen_env.borrow().len(), 0);
@@ -2072,7 +2072,7 @@ mod tests {
     #[test]
     fn fix_check_flag_forces_check_mode() {
         let harness = umbrella_findings("umbrella-fix-check");
-        let (code, out, _) = harness.run(&["fix", "--check", "--output=text"]);
+        let (code, out, _) = harness.run(&["fix", "--output=text"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("Running format analysis for //..."), "{out}");
         assert_eq!(
@@ -3028,10 +3028,7 @@ mod tests {
                 code: 36,
                 launches: Cell::new(0),
             };
-            let inv = umbrella_invocation(
-                &harness,
-                &["fix", "--check", output, "--report=sarif=out.sarif"],
-            );
+            let inv = umbrella_invocation(&harness, &["fix", output, "--report=sarif=out.sarif"]);
             harness.execute_with(&inv, &runner)
         };
         let (code, out, err) = run("--output=json");

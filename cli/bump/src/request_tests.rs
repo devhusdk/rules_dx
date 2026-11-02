@@ -552,19 +552,6 @@ fn summary_names_selector_version_and_next_step() {
 }
 
 #[test]
-fn summary_carries_major_bump_migrate_hint_for_semver() {
-    let bump = BumpRequest::parse("cargo:anyhow", "2.0.0").expect("cargo major");
-    let summary = bump.summary();
-    assert!(summary.contains("major bump"), "{summary}");
-    assert!(summary.contains("dx migrate --from"), "{summary}");
-    assert!(summary.contains("migrate_failed"), "{summary}");
-    assert!(summary.contains("missing-versions"), "{summary}");
-    let sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";
-    let bump = BumpRequest::parse("github-actions:actions/checkout", sha).expect("gha");
-    assert!(!bump.summary().contains("major bump"), "{}", bump.summary());
-}
-
-#[test]
 fn refresh_selector_chains_automatically_per_set() {
     let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     assert_eq!(bump.refresh_selector(), "cargo");

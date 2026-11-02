@@ -31,8 +31,6 @@ pub(crate) struct DepEdit<'a> {
     pub(crate) edited: String,
     /// Where the edit stays when the refresh fails, e.g. "widen kept in Cargo.toml".
     pub(crate) kept: String,
-    /// A suffix every success message carries.
-    pub(crate) hint: Option<&'static str>,
 }
 
 /// A configured dx.toml set a dependency verb edits.
@@ -318,16 +316,13 @@ pub(crate) fn write_and_refresh(
         .join(", ");
     let manifest = manifest.as_str();
     if !request.needs_update_refresh() {
-        let mut message = match request.follow_up() {
+        let message = match request.follow_up() {
             Some(follow_up) => format!("{} ({follow_up})", edit.edited),
             None => format!(
                 "{} (then run preset flag-diff review plus `bazel build //...`)",
                 edit.edited
             ),
         };
-        if let Some(hint) = edit.hint {
-            message.push_str(&format!("; {hint}"));
-        }
         if invocation.output == OutputMode::Json {
             if let Err(exit) =
                 emit_built(out, notice_event(&edited_notice(edit, manifest, &message)))
@@ -419,14 +414,10 @@ pub(crate) fn write_and_refresh(
         },
     };
     let refreshed = |note: &str| {
-        let mut message = format!(
+        format!(
             "{} and refreshed {update_selector} via `{refresh_command}` automatically ({note})",
             edit.edited
-        );
-        if let Some(hint) = edit.hint {
-            message.push_str(&format!("; {hint}"));
-        }
-        message
+        )
     };
     let kept = &edit.kept;
     let mut finish = |result: Result<(), String>, message: String| match result {
@@ -491,10 +482,6 @@ pub(crate) fn write_and_refresh(
                 "{} and refreshed {lock} via `{refresh_command}`",
                 edit.edited
             );
-            let message = match edit.hint {
-                Some(hint) => format!("{message}; {hint}"),
-                None => message,
-            };
             finish(result, message)
         }
     }
@@ -851,7 +838,6 @@ mod tests {
             selector: "cargo:anyhow",
             edited: "widened cargo:anyhow to 1.2.3 in Cargo.toml".to_owned(),
             kept: "widen kept in Cargo.toml".to_owned(),
-            hint: None,
         }
     }
 

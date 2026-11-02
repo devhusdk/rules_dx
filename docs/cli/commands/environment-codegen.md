@@ -6,8 +6,8 @@ bazel run @rules_dx//:dx -- codegen
 ```
 
 ```text
-dx env [--check] [--apply] [<label>] [-- bazel-options...]
-dx codegen [--check] [--apply] [<label>] [-- bazel-options...]
+dx env [--apply] [<label>] [-- bazel-options...]
+dx codegen [--apply] [<label>] [-- bazel-options...]
 ```
 
 `dx env` collects the managed tools and env values. It upgrades nothing.

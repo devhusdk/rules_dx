@@ -44,7 +44,7 @@ Each family owns the directories, `bazel_dep`s, quality tools, and Gazelle langu
 4. Add a label migration table and a docs test for the public label surface.
 5. Cut the first real module (android or apple), with a `dx_quality` extension.
 6. Move the remaining families, one per pull request.
-7. Release all modules together, then add a `dx migrate` manifest and the major release.
+7. Release all modules together, then the major release.
 
 ## Constraints for every step
 

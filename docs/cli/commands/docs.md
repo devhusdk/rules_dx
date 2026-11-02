@@ -1,14 +1,13 @@
 # `dx docs`
 
 ```text
-dx docs [--check] [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
+dx docs [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- bazel-options...]
 ```
 
 Builds the documentation site with Bazel and the pinned upstream mdBook:
 every `dx` command page, the GitHub CI guide, the examples, and an API reference
 for every public Rust crate.
-With no scope it builds the repository site (`//tools/docs/site:user_site`,
-`//tools/docs/site:user_site_check` in `--check`). Args after `--` go to Bazel unchanged.
+With no scope it builds `//tools/docs/site:user_site`. Args after `--` go to Bazel unchanged.
 The build also passes
 `--@rules_dx//config:clippy_output_diagnostics=true`
 and `--@rules_dx//config:rustc_output_diagnostics=true`. Another value for one of them,
@@ -21,8 +20,6 @@ workspace-relative files or dirs resolved through Bazel query. `--here` builds
 the current directory tree (`//path/...`, or `//...` at the root) and cannot be
 combined with explicit scopes (exit `2`).
 
-- `--check`: validate the book without rendering it. Builds the generated
-  summary and landing page only.
 - `--serve`: build, then preview the built site tree locally with
   `python3 -m http.server`. Needs `python3` on `PATH` and exactly one built
   site tree with an `index.html` entry page.
@@ -34,11 +31,10 @@ combined with explicit scopes (exit `2`).
 `--port`, `--host`, and `--open` need `--serve`.
 
 Output: `--output text|json`. `--output diff` is a usage error (exit `2`).
-Text prints `Running docs build for <scope> (mdBook render)`, or
-`Running docs check for <scope> (no render)` with `--check`. With `--serve`
+Text prints `Running docs build for <scope> (mdBook render)`. With `--serve`
 it then prints `Serving docs at <url> (<dir>)`, and `Opening <url>` with
-`--open`. JSON starts with `command_started` (mode `check` or `default`),
-then `operation` events (`summary`, plus `render` without `--check`). On
+`--open`. JSON starts with `command_started` (mode `default`),
+then `operation` events (`summary`, plus `render`). On
 failure one `error` follows: `launch_failed` when Bazel cannot be launched,
 `bazel_failed`, `disk_full`, `bazel_signalled`, or `serve_failed`. The stream
 ends with `command_finished`. A usage or option error fails before the command
@@ -63,13 +59,12 @@ fails to launch) and a signalled preview. Bazel failures keep Bazel's code.
 preview server's code is the exit code.
 
 ```sh
-bazel run @rules_dx//:dx -- docs --check
 bazel run @rules_dx//:dx -- docs
 bazel run @rules_dx//:dx -- docs --serve --port 8080
 bazel run @rules_dx//:dx -- docs --here
 bazel run @rules_dx//:dx -- docs --serve --host 0.0.0.0 --port 8080 --open //tools/docs/site:user_site
-bazel run @rules_dx//:dx -- docs --check --output=json
-bazel run @rules_dx//:dx -- docs --check -- --config=ci
+bazel run @rules_dx//:dx -- docs --output=json
+bazel run @rules_dx//:dx -- docs -- --config=ci
 ```
 
 The build never changes sources. Serve runs a local preview only. The site

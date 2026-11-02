@@ -15,10 +15,6 @@ impl WidenVersion {
             WidenVersion::GitCommit(sha) => sha.clone(),
         }
     }
-
-    pub fn is_semver(&self) -> bool {
-        matches!(self, WidenVersion::Semver(_))
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -41,10 +37,6 @@ pub fn is_stable(version: &semver::Version) -> bool {
 
 pub fn compare(left: &semver::Version, right: &semver::Version) -> std::cmp::Ordering {
     left.cmp(right)
-}
-
-pub fn generic_major_bump_hint() -> &'static str {
-    "if major bump, run `dx migrate --from <old> --to <new>` (no manifest yet => migrate_failed exit 1; missing --from/--to => exit 2 missing-versions)"
 }
 
 pub fn parse(set: BumpSet, text: &str) -> Result<WidenVersion, VersionError> {
@@ -127,7 +119,6 @@ mod tests {
             BumpSet::NuGet,
         ] {
             let parsed = parse(set, "1.2.3").expect("semver");
-            assert!(parsed.is_semver());
             assert_eq!(parsed.display(), "1.2.3");
             assert_eq!(parse(set, "v1.2.3").expect("v").display(), "1.2.3");
             assert_eq!(parse(set, "=1.2.3").expect("=").display(), "1.2.3");
@@ -241,13 +232,5 @@ mod tests {
             .parse::<toml_edit::DocumentMut>()
             .expect("toml_edit");
         assert_eq!(doc["version"].as_str(), Some("1.2.3"));
-    }
-
-    #[test]
-    fn generic_major_bump_hint_pins_exit_mapping() {
-        let generic = generic_major_bump_hint();
-        assert!(generic.contains("dx migrate --from"), "{generic}");
-        assert!(generic.contains("migrate_failed"), "{generic}");
-        assert!(generic.contains("missing-versions"), "{generic}");
     }
 }

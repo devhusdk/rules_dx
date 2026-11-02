@@ -181,7 +181,7 @@ fn dx_docs_renders_the_public_api_without_touching_sources() {
         before,
         "dx docs changed a source"
     );
-    let checked = dx(&root, &["--check", "//:site"]);
+    let checked = dx(&root, &["//:site"]);
     assert_eq!(checked.status.code(), Some(0), "{}", checked.combined());
 
     let pages = py_pages(&site(&root, "site"));

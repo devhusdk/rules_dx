@@ -117,7 +117,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
     let root = consumer();
     let before = snapshot(&root);
 
-    let run = dx_in(&root, &["update", "--check", "gomods"]);
+    let run = dx_in(&root, &["update", "gomods"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(!run.stdout.contains("lockfile current"), "{}", report(&run));
     assert!(
@@ -145,7 +145,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
         after.keys().collect::<Vec<_>>()
     );
 
-    let run = dx_in(&root, &["update", "--check", "gomods"]);
+    let run = dx_in(&root, &["update", "gomods"]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         run.stdout.contains("gomods lockfile current"),
@@ -153,7 +153,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
         report(&run)
     );
 
-    let run = dx_in(&root, &["update", "--check", "--offline", "gomods"]);
+    let run = dx_in(&root, &["update", "--offline", "gomods"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         format!("{}{}", run.stdout, run.stderr).contains("offline_required"),

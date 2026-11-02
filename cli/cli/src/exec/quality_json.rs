@@ -16,7 +16,7 @@ fn json_finding_names_lines_count_and_origin() {
     let mut harness = Harness::new("json-finding-lines");
     harness.write_source("src/a.py", "x = 1\nyy = 2\n");
     finding(&mut harness, &["//test:corpus"], 6, 8);
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let diagnostic = event(&events, "diagnostic");
@@ -43,7 +43,7 @@ fn json_finding_from_an_unreadable_file_keeps_byte_location() {
     harness.write_source("src/a.py", "x = 1\n");
     finding(&mut harness, &["//test:corpus"], 0, 1);
     harness.write_source("src/a.py", "changed = true\n");
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let diagnostic = event(&events, "diagnostic");
@@ -59,7 +59,7 @@ fn json_identical_findings_from_two_targets_print_once() {
     let mut harness = Harness::new("json-finding-fold");
     harness.write_source("src/a.py", "x = 1\n");
     finding(&mut harness, &["//test:one", "//test:two"], 0, 1);
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let diagnostics = events_of_kind(&events, "diagnostic");
@@ -84,7 +84,7 @@ fn json_findings_at_different_places_stay_apart() {
     harness.write_source("src/a.py", "x = 1\n");
     finding(&mut harness, &["//test:one"], 0, 1);
     finding(&mut harness, &["//test:two"], 2, 3);
-    let (_, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    let (_, out, _) = harness.run(&["lint", "--output=json"]);
     let events = json_events(&out);
     let diagnostics = events_of_kind(&events, "diagnostic");
     assert_eq!(diagnostics.len(), 2, "{out}");
@@ -119,12 +119,8 @@ fn json_stream_stops_at_the_first_broken_write() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
-    let inv = dx_plan::args::parse(&dx_testing::cli::strings(&[
-        "lint",
-        "--check",
-        "--output=json",
-    ]))
-    .expect("parse");
+    let inv =
+        dx_plan::args::parse(&dx_testing::cli::strings(&["lint", "--output=json"])).expect("parse");
     let runner = harness.runner();
     let mut out = BreaksAfter {
         lines: Vec::new(),
@@ -143,11 +139,11 @@ fn json_stream_stops_at_the_first_broken_write() {
 fn quality_json_reports_action_counts() {
     let mut harness = Harness::new("json-action-counts");
     harness.write_source("src/a.py", "x = 1\n");
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(finished_actions(&out), None, "{out}");
     harness.build_metrics = Some(build_metrics_line(10, 9, 2, 3, 5));
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, err) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
         finished_actions(&out),

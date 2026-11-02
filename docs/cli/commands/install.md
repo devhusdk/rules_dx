@@ -48,7 +48,7 @@ fixed and has no flag or environment override.
   changes nothing.
 - `--output text|json`.
 
-Scopes, `--check`, `--here` and `-- bazel-options` are usage errors.
+Scopes, `--here` and `-- bazel-options` are usage errors.
 
 ## Checks
 

@@ -34,7 +34,7 @@ spec, and `//examples/api-spec/pets:client_shard` binds it to `dx codegen`:
 
 ```sh
 bazel build //examples/api-spec/pets:client
-bazel run @rules_dx//:dx -- codegen --check //examples/api-spec/pets:client_shard
+bazel run @rules_dx//:dx -- codegen //examples/api-spec/pets:client_shard
 ```
 
 For the rules, the config and the checks dx runs before Redocly, see

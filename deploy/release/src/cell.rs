@@ -454,7 +454,7 @@ pub fn stage_consumer(
 }
 
 fn version_check(runner: &dyn Runner, exe: &Path, cwd: &Path, version: &str) -> Result<(), String> {
-    let stdout = ran(runner, exe, &["version"], cwd)?;
+    let stdout = ran(runner, exe, &["--version"], cwd)?;
     if stdout.contains(version) {
         return Ok(());
     }
@@ -1120,7 +1120,7 @@ pub fn verify_main(args: &[String]) -> Result<(bool, String), String> {
 
 pub const VERSION_USAGE: &str = "version --exe <path>";
 
-/// Takes the version from the first `dx <version>` line of `dx version` output.
+/// Takes the version from the first `dx <version>` line of `dx --version` output.
 pub fn printed_version(stdout: &str) -> Result<String, String> {
     stdout
         .lines()
@@ -1136,7 +1136,7 @@ pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, Stri
     let stdout = ran(
         runner,
         Path::new(&flag(&flags, "exe")),
-        &["version"],
+        &["--version"],
         Path::new("."),
     )?;
     printed_version(&stdout)

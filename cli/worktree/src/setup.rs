@@ -75,7 +75,7 @@ fn entry_value(matcher: Option<&str>, command: &str) -> Value {
 }
 
 /// Read-only commands Claude Code may run without asking. Never add a writer.
-const ALLOW: [&str; 5] = ["check", "test", "build", "status", "version"];
+const ALLOW: [&str; 4] = ["check", "test", "build", "status"];
 
 /// Variables the guard hook exports ahead of a dx command; each export is its own
 /// segment, so Manual mode would prompt for it without a rule.

@@ -62,7 +62,6 @@ def test_valid_scopes_reach_bazel_as_separate_arguments(tmp_path):
         "@rules_dx//:dx",
         "--",
         "lint",
-        "--check",
         "//...",
         "//docs:all",
         "@dep//pkg:tgt",

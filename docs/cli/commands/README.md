@@ -9,7 +9,7 @@ Locally, Bazel reads `~/.bazelrc` and the system rc for every `dx` call. Under
 
 ```sh
 bazel run @rules_dx//:dx -- build //...
-bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
+bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 ```
 
 - [`dx build`, `dx test`, `dx coverage`, `dx run`, `dx deploy`](build-test-coverage.md)
@@ -22,9 +22,8 @@ bazel run @rules_dx//:dx -- lint --check //... -- --jobs=4
 - [`dx explain`](explain.md)
 - [`dx init`](init.md)
 - [`dx install`](install.md)
-- [`dx status`, `dx version`](status-version.md)
+- [`dx status`](status.md)
 - [`dx completion`](completion.md)
-- [`dx migrate`](migrate.md)
 - [`dx upgrade`, `dx rollback`](upgrade-rollback.md)
 - [`dx watch`](watch.md)
 - [`dx worktree`](worktree.md)
@@ -35,7 +34,7 @@ Airgapped hosts install from a vendored bundle: see
 [Offline Bundle](offline-bundle.md).
 
 A `.dx/version` pin that disagrees with the rules_dx version `dx` was built
-from stops most commands. See [Version Skew](status-version.md#version-skew).
+from stops most commands. See [Version Skew](status.md#version-skew).
 
 ## Build Slots
 
@@ -45,7 +44,7 @@ from stops most commands. See [Version Skew](status-version.md#version-skew).
 `dx run` holds a slot only while it builds and frees it before the app starts.
 `dx watch` takes one slot per iteration and holds none while it waits for
 changes. `dx update` takes one slot at its first updater that runs Bazel and
-holds it until its updaters finish. `dx update --check` and updaters that do
+holds it until its updaters finish. `dx update` and updaters that do
 not run Bazel take none. Slots are shared by every
 worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
@@ -282,9 +281,9 @@ resolution changes and may fetch already pinned content. Combine them for both
 policies. Older dx versions spelled offline as `--frozen`: pass `--offline` for
 that behavior.
 
-`--check`, `--apply`, `--debug`, `--release`, `--here`, and `--affected` are
+`--apply`, `--debug`, `--release`, `--here`, and `--affected` are
 documented on the command pages that take them. `--here` limits a command to the
-current directory tree. `--affected` limits it to targets your changes reach. `--apply` never combines with `--check`. Bare `--debug` or
+current directory tree. `--affected` limits it to targets your changes reach. Bare `--debug` or
 `--release` means dev, except for deploy, where it means release.
 
 Exit codes: `0` success, `2` usage error, `1` failed check.
@@ -316,7 +315,7 @@ Any command can emit these `notice` events: `waiting_for_build_slot`,
 dx run that is gone.
 
 ```sh
-bazel run @rules_dx//:dx -- lint --check //... --output=json
+bazel run @rules_dx//:dx -- lint //... --output=json
 ```
 
 ### Agent sessions

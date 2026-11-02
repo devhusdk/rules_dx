@@ -123,7 +123,7 @@ fn maven_sets_pin_and_check_one_hub_at_a_time() {
     let tool_text = String::from_utf8(read(&tool_lock)).expect("utf-8 lock");
     assert!(tool_text.contains("jsr305"), "{tool_text}");
 
-    let run = dx_in(&root, &["update", "--check"], &[]);
+    let run = dx_in(&root, &["update"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         run.stdout.contains("jvm lockfile current"),
@@ -143,7 +143,7 @@ fn maven_sets_pin_and_check_one_hub_at_a_time() {
         ("RULES_JVM_EXTERNAL_REPIN", "1"),
         ("COURSIER_MIRRORS", "/nonexistent"),
     ] {
-        let run = dx_in(&root, &["update", "--check"], &[(key, value)]);
+        let run = dx_in(&root, &["update"], &[(key, value)]);
         assert_ne!(run.status.code(), Some(0), "{key}: {}", report(&run));
         assert!(
             !run.stdout.contains("lockfile current"),
@@ -158,7 +158,7 @@ fn maven_sets_pin_and_check_one_hub_at_a_time() {
         "artifacts = [\"javax.inject:javax.inject:1\", \"org.apache.commons:commons-lang3:3.14.0\"]",
     );
     write(&root.join("MODULE.bazel"), &edited);
-    let run = dx_in(&root, &["update", "--check"], &[]);
+    let run = dx_in(&root, &["update"], &[]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         !run.stdout.contains("jvm lockfile current"),
@@ -173,6 +173,6 @@ fn maven_sets_pin_and_check_one_hub_at_a_time() {
     assert!(app_text.contains("commons-lang3"), "{app_text}");
     assert_eq!(read(&tool_lock), before.1, "tools lock changed");
 
-    let run = dx_in(&root, &["update", "--check"], &[]);
+    let run = dx_in(&root, &["update"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
 }

@@ -43,10 +43,10 @@ fn usage_errors_print_the_command_usage() {
         String::from_utf8(output).expect("stderr is utf-8")
     };
     let parse_error = rendered(&["--nope", "build"]);
-    let pre_exec_error = rendered(&["version", "--check", "--apply"]);
+    let pre_exec_error = rendered(&["status", "--apply"]);
     for (label, text, command) in [
         ("parse", &parse_error, Command::Build),
-        ("pre-exec", &pre_exec_error, Command::Version),
+        ("pre-exec", &pre_exec_error, Command::Status),
     ] {
         assert!(
             text.contains(command.usage()),

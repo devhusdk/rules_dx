@@ -41,12 +41,11 @@ Only library actions start early. To turn pipelining off, set
 A bare `bazel build` with the quality aspect also needs `--@rules_rust//rust/settings:rustc_output_diagnostics=true` for the metadata (rmeta) diagnostics group to exist. `dx` sets it for you.
 
 ```text
-dx lint [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
-dx typecheck [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
-dx format [--here] [--affected] [--check] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [scope...] [-- bazel-options ...]
+dx lint [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx typecheck [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [scope...] [-- bazel-options ...]
 ```
 
-- `--check`: report findings without writing files. Same as the default.
 - `--apply`: write validated fixes and refresh the configured baseline.
   Without it files stay untouched.
   After `--apply`, findings point at files as written. Unwritten files keep
@@ -146,7 +145,7 @@ conflicting fix, a fix that was not applied, a failed report write, or a missing
 baseline. Bazel failures report `1`, not Bazel's code.
 
 ```sh
-bazel run @rules_dx//:dx -- lint --check //...
+bazel run @rules_dx//:dx -- lint //...
 bazel run @rules_dx//:dx -- format --here
 bazel run @rules_dx//:dx -- lint --affected
 bazel run @rules_dx//:dx -- typecheck --fail-on error //cli/...
@@ -162,7 +161,7 @@ to select your own.
 
 ```sh
 bazel run @rules_dx//:dx -- lint -- --@rules_dx//config:workspace=//quality:my_policy
-bazel run @rules_dx//:dx -- format --check //... -- --@rules_dx//config:workspace=//quality:my_policy
+bazel run @rules_dx//:dx -- format //... -- --@rules_dx//config:workspace=//quality:my_policy
 ```
 
 A policy is a `workspace_policy` of `quality_family` sections, loaded from
@@ -1333,7 +1332,7 @@ workspace_policy(
 ```
 
 ```sh
-bazel run @rules_dx//:dx -- format --check //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
+bazel run @rules_dx//:dx -- format //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
 bazel run @rules_dx//:dx -- format --apply //ios/... -- --@rules_dx//config:workspace=//quality:my_policy
 ```
 
@@ -2830,7 +2829,7 @@ update notices are off.
 client from an OpenAPI root of the library, and `openapi_codegen_shard` binds it
 into the `dx codegen` plan. The same preflight checks run first, and the root
 must be OpenAPI. See `docs/cli/commands/generate.md` for the fixed flags and the
-verification with `dx codegen --check`.
+verification with `dx codegen`.
 
 ### Svelte
 

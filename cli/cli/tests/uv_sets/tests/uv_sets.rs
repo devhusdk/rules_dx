@@ -243,7 +243,7 @@ fn assert_code(run: &Run, code: i32) {
 fn pinned_uv_checks_and_applies_only_the_selected_set() {
     let consumer = Consumer::new("uv-sets-flow-");
 
-    let missing = consumer.dx(&["update", "--check"], None);
+    let missing = consumer.dx(&["update"], None);
     assert_code(&missing, 1);
     assert!(
         missing.stderr.contains("is missing"),
@@ -283,10 +283,7 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
     let worker = consumer.lock(WORKER).expect("worker lock");
     assert_eq!(consumer.lock(FRONTEND), Some(frontend.clone()));
 
-    for args in [
-        &["update", "--check"][..],
-        &["update", "--check", "--frozen"][..],
-    ] {
+    for args in [&["update"][..], &["update", "--frozen"][..]] {
         let checked = consumer.dx(args, None);
         assert_code(&checked, 0);
         assert!(
@@ -311,7 +308,7 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
         &consumer.root.join(FRONTEND).join("pyproject.toml"),
         &pyproject("frontend", ">=3.10", Some(&consumer.index.url)),
     );
-    let stale = consumer.dx(&["update", "--check"], None);
+    let stale = consumer.dx(&["update"], None);
     assert_code(&stale, 1);
     assert!(
         stale
@@ -362,7 +359,7 @@ fn missing_or_relative_pinned_uv_is_never_clean() {
     assert_code(&applied, 0);
     let before = consumer.lock(FRONTEND).expect("frontend lock");
     for uv in ["", "uv"] {
-        let checked = consumer.dx(&["update", "--check"], Some(uv));
+        let checked = consumer.dx(&["update"], Some(uv));
         assert_code(&checked, 1);
         assert!(
             checked.stderr.contains("backend_unavailable"),
@@ -412,7 +409,7 @@ fn offline_check_without_the_needed_inputs_is_never_clean() {
     let applied = consumer.dx(&["update", "--apply"], None);
     assert_code(&applied, 0);
     let before = consumer.lock(FRONTEND).expect("frontend lock");
-    let online = consumer.dx(&["update", "--check"], None);
+    let online = consumer.dx(&["update"], None);
     assert_code(&online, 0);
     assert!(
         online
@@ -430,7 +427,7 @@ fn offline_check_without_the_needed_inputs_is_never_clean() {
             &[WHEEL, EXTRA_WHEEL],
         ),
     );
-    let stale = consumer.dx(&["update", "--check"], None);
+    let stale = consumer.dx(&["update"], None);
     assert_code(&stale, 1);
     assert!(
         !stale
@@ -439,7 +436,7 @@ fn offline_check_without_the_needed_inputs_is_never_clean() {
         "{}",
         stale.combined()
     );
-    let checked = consumer.dx(&["update", "--check", "--offline"], None);
+    let checked = consumer.dx(&["update", "--offline"], None);
     assert_code(&checked, 1);
     assert!(
         checked

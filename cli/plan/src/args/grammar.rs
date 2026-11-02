@@ -61,7 +61,6 @@ pub(crate) struct Flags {
     pub(crate) include_edits: bool,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) min_changed_line_coverage: Option<u32>,
-    pub(crate) check: bool,
     pub(crate) apply: bool,
     pub(crate) debug: bool,
     pub(crate) release: bool,
@@ -304,14 +303,6 @@ flag_group! {
 }
 
 flag_group! {
-    /// Check without changing files.
-    CheckFlag, {
-        #[arg(long, overrides_with = "check")]
-        check: bool,
-    }
-}
-
-flag_group! {
     /// Authorize the managed mutation or effect.
     ApplyFlag, {
         #[arg(long, overrides_with = "apply")]
@@ -370,14 +361,6 @@ flag_group! {
 flag_group! {
     /// Declare the new requirement.
     AddApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Rewrite breaking changes.
-    MigrateApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
     }
@@ -901,7 +884,6 @@ command_args! {
     Lint => 2, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
-        check: CheckFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
@@ -912,7 +894,6 @@ command_args! {
     Typecheck => 3, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
-        check: CheckFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
@@ -923,7 +904,6 @@ command_args! {
     Format => 4, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
-        check: CheckFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
         here: HereFlag,
@@ -932,7 +912,6 @@ command_args! {
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
         output: DiffOutputFlag,
-        check: CheckFlag,
         apply: GenerateApplyFlag,
         here: HereFlag,
     };
@@ -976,7 +955,6 @@ command_args! {
     Check => 11, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
-        check: CheckFlag,
         fail_on: FailOnFlag,
         explain: ExplainFlag,
         report: ReportFlag,
@@ -987,7 +965,6 @@ command_args! {
     Fix => 12, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
-        check: CheckFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
@@ -995,43 +972,34 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 13, NoScopeTail, { output: ReadOutputFlag, check: CheckFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 13, NoScopeTail, { output: ReadOutputFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: ReadOutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
-        check: CheckFlag,
         apply: UpdateApplyFlag,
     };
     /// The flags `dx bump` accepts.
     Bump => 15, NoPassthroughTail, { output: ReadOutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, floor: FloorArgs, };
     /// The flags `dx add` accepts.
     Add => 16, NoPassthroughTail, { output: ReadOutputFlag, apply: AddApplyFlag, own: OfflineFlag, frozen: FrozenFlag, };
-    /// The flags `dx migrate` accepts.
-    Migrate => 17, NoPassthroughTail, { output: ReadOutputFlag, apply: MigrateApplyFlag, own: MigrationArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 18, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: CodegenApplyFlag, };
+    Codegen => 17, BazelTail, { output: ReadOutputFlag, apply: CodegenApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 19, BazelTail, { output: ReadOutputFlag, check: CheckFlag, apply: EnvApplyFlag, };
+    Env => 18, BazelTail, { output: ReadOutputFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 20, NoPassthroughTail, { output: ReadOutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
+    Init => 19, NoPassthroughTail, { output: ReadOutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 21, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
+    Upgrade => 20, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
-    Status => 22, NoScopeTail, {
+    Status => 21, NoScopeTail, {
         output: ReadOutputFlag,
-    };
-    /// The flags `dx version` accepts.
-    Version => 23, NoScopeTail, {
-        output: ReadOutputFlag,
-        check: CheckFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 24, BazelTail, {
+    Watch => 22, BazelTail, {
         output: DiffOutputFlag,
         include_edits: IncludeEditsFlag,
-        check: CheckFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
         report: ReportFlag,
@@ -1040,18 +1008,17 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 25, NoPassthroughTail, {};
+    Completion => 23, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 26, BazelTail, {
+    Docs => 24, BazelTail, {
         output: ReadOutputFlag,
-        check: CheckFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 27, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
+    Rollback => 25, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
-    Worktree => 28, NoPassthroughTail, {
+    Worktree => 26, NoPassthroughTail, {
         output: WorktreeOutputFlag,
         apply: ApplyFlag,
         create: CreateFlag,
@@ -1060,9 +1027,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 29, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
+    Explain => 27, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 30, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 28, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]
@@ -1498,7 +1465,7 @@ mod tests {
         assert!(consumes_next("-qo", Some("json")));
         assert!(!consumes_next("-qo", Some("--quiet")));
         assert!(!consumes_next("-q", Some("json")));
-        assert!(!consumes_next("--check", Some("json")));
+        assert!(!consumes_next("--apply", Some("json")));
         assert_eq!(short_cluster("-q=false", None), None);
         assert_eq!(short_cluster("-json", None), None);
         assert_eq!(short_cluster("-qv", Some("json")), None);

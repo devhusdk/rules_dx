@@ -8,7 +8,7 @@ Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
 `powershell`. Runs outside a workspace.
 
 - Takes exactly one shell and prints its script to stdout.
-- No shell, more than one shell, `--check`, `--output=json`,
+- No shell, more than one shell, `--output=json`,
   `--output=diff`, or `--` Bazel options is a usage error.
 - Unknown shells fail with `unknown-shell`.
 

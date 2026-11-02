@@ -714,7 +714,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_bare_check_runs_configured_sets_and_no_phantoms() {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+        let (code, out, err, _) = run_consumer(&["update"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("Running update --check for frontend, worker"),
@@ -761,7 +761,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_without_pinned_uv_is_unavailable_and_never_clean() {
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
-        let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+        let (code, out, err, _) = run_consumer(&["update"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(err.contains("DX_UV_BIN"), "{err}");
@@ -802,7 +802,7 @@ source = { registry = "https://pypi.org/simple" }
         let harness = consumer_harness("fallback", DX_TOML, true);
         script_resolution(&harness, base.path(), "external/x/uv");
         script_resolution(&harness, base.path(), "external/x/python3");
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         let calls = harness.query.calls.borrow();
         assert_eq!(calls.len(), 2, "one cquery per tool: {calls:?}");
@@ -825,7 +825,7 @@ source = { registry = "https://pypi.org/simple" }
         let harness = consumer_harness("offline", DX_TOML, true);
         script_resolution(&harness, base.path(), "external/x/uv");
         script_resolution(&harness, base.path(), "external/x/python3");
-        let (code, out, err) = run_with(&["update", "--check", "--offline"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--offline"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         let calls = harness.query.calls.borrow();
         assert!(!calls.is_empty());
@@ -846,7 +846,7 @@ source = { registry = "https://pypi.org/simple" }
         harness
             .query
             .script_failure(1, "ERROR: no such repository '@dx_tools'\n");
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(err.contains("DX_UV_BIN"), "{err}");
@@ -864,7 +864,7 @@ source = { registry = "https://pypi.org/simple" }
         runner.version = Some("uv 0.1.0".to_owned());
         let harness = consumer_harness("wrong-version", DX_TOML, true);
         script_resolution(&harness, base.path(), "external/x/uv");
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("backend_unavailable"), "{err}");
         assert!(runner.calls.borrow().is_empty());
@@ -889,14 +889,11 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_backend_unavailable_reports_its_code() {
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
-        let (code, out, err, _) = run_consumer(&["update", "--check", "--output=json"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--output=json"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("\"code\":\"backend_unavailable\""), "{out}");
         assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
-        for args in [
-            &["update", "--check"][..],
-            &["update", "--apply", "worker"][..],
-        ] {
+        for args in [&["update"][..], &["update", "--apply", "worker"][..]] {
             let mut runner = ScriptRunner::new(&[]);
             runner.pinned = false;
             let (code, out, err, _) = run_consumer(args, &runner);
@@ -911,7 +908,7 @@ source = { registry = "https://pypi.org/simple" }
         for version in [None, Some("uv 0.11.0".to_owned())] {
             let mut runner = ScriptRunner::new(&[]);
             runner.version = version;
-            let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+            let (code, out, err, _) = run_consumer(&["update"], &runner);
             assert_eq!(code, 1, "{out}{err}");
             assert!(err.contains("backend_unavailable"), "{err}");
             assert!(err.contains("uv 0.12.23"), "{err}");
@@ -923,7 +920,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_failed_uv_fails_its_set_and_keeps_the_others() {
         let runner = ScriptRunner::new(&[("consumer-uv:apps/frontend", Some(1))]);
-        let (code, out, err, _) = run_consumer(&["update", "--check"], &runner);
+        let (code, out, err, _) = run_consumer(&["update"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("failed to check frontend: updater exited 1"),
@@ -944,7 +941,7 @@ source = { registry = "https://pypi.org/simple" }
         );
         let mut runner = ScriptRunner::new(&[]);
         runner.io_error = true;
-        let (code, out, err, _) = run_consumer(&["update", "--check", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "worker"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("failed to launch updater"), "{err}");
     }
@@ -957,7 +954,7 @@ source = { registry = "https://pypi.org/simple" }
             "exclude-newer = \"2020-01-01T00:00:00Z\"\n",
         );
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("apps/frontend/uv.toml exists"), "{err}");
         assert!(
@@ -1033,18 +1030,16 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_scopes_resolve_to_their_owning_sets() {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) =
-            run_consumer(&["update", "--check", "apps/frontend/app/main.py"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "apps/frontend/app/main.py"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(runner.calls.borrow().len(), 1);
         assert!(runner.calls.borrow()[0].contains(&"apps/frontend".to_owned()));
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "--check", "//..."], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "//..."], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(runner.calls.borrow().len(), 2);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) =
-            run_consumer(&["update", "--check", "//services/worker/..."], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "//services/worker/..."], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(runner.calls.borrow().len(), 1);
         assert!(runner.calls.borrow()[0].contains(&"services/worker".to_owned()));
@@ -1077,7 +1072,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_missing_lock_fails_check_without_launch() {
         let harness = consumer_harness("missing-lock", DX_TOML, false);
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "--check", "worker"], &runner, &harness);
+        let (code, _, err) = run_with(&["update", "worker"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("services/worker/uv.lock"), "{err}");
         assert!(err.contains("is missing"), "{err}");
@@ -1105,7 +1100,7 @@ writable = false
         assert!(err.contains("read-only"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check", "frontend"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "frontend"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(runner.calls.borrow().len(), 1);
     }
@@ -1113,7 +1108,7 @@ writable = false
     #[test]
     fn consumer_check_leaves_the_workspace_untouched() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, _, harness) = run_consumer(&["update", "--check"], &runner);
+        let (code, _, _, harness) = run_consumer(&["update"], &runner);
         assert_eq!(code, 0);
         assert_eq!(
             std::fs::read(harness.workspace.join("apps/frontend/uv.lock")).expect("lock"),
@@ -1149,8 +1144,7 @@ writable = false
         assert!(!err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) =
-            run_consumer(&["update", "--check", "--frozen", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--frozen", "worker"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("worker lockfile current (services/worker/uv.lock)"),
@@ -1162,7 +1156,7 @@ writable = false
     fn consumer_invalid_config_fails_before_any_backend() {
         let harness = consumer_harness("invalid", "schema_version = 1\n", true);
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, _, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("dx.toml"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
@@ -1171,7 +1165,7 @@ writable = false
     #[test]
     fn consumer_json_check_reports_per_set_correlations() {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "--check", "--output=json"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--output=json"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);
@@ -1273,7 +1267,7 @@ scopes = ["consumer-npm/web"]
     fn consumer_mixed_check_runs_uv_hermetic_and_npm_through_bazel() {
         let harness = mixed_harness("mixed-check");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("jobs lockfile current (consumer-npm/jobs/pnpm-lock.yaml)"),
@@ -1389,7 +1383,6 @@ scopes = ["consumer-npm/web"]
         let (code, out, err) = run_with(
             &[
                 "update",
-                "--check",
                 "--offline",
                 "--bazel-startup-option=--output_base=/tmp/npm-ob",
                 "web",
@@ -1423,7 +1416,7 @@ scopes = ["consumer-npm/web"]
             dx_plan::slots::Gate::new(scratch.path().join("slots"), 1, "me".to_owned(), false);
         let runner = ScriptRunner::new(&[]);
         let (code, out, err) = dx_plan::slots::with_gate(Some(gate), || {
-            run_with(&["update", "--check", "web"], &runner, &harness)
+            run_with(&["update", "web"], &runner, &harness)
         });
         assert_eq!(code, 0, "{out}{err}");
         let marked = (dx_plan::slots::SLOT_ENV_VAR.to_owned(), "1".to_owned());
@@ -1438,7 +1431,7 @@ scopes = ["consumer-npm/web"]
     fn consumer_npm_failures_stay_with_their_own_set() {
         let harness = mixed_harness("npm-fail");
         let runner = ScriptRunner::new(&[("consumer-npm:web", Some(1))]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("failed to check web: updater exited 1"),
@@ -1470,7 +1463,7 @@ scopes = ["consumer-npm/web"]
         );
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
-        let (code, _, err) = run_with(&["update", "--check", "web:react"], &runner, &harness);
+        let (code, _, err) = run_with(&["update", "web:react"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         let (code, _, err) = run_with(&["update", "--apply", "web:React"], &runner, &harness);
@@ -1482,7 +1475,7 @@ scopes = ["consumer-npm/web"]
         assert!(runner.calls.borrow().is_empty());
         std::fs::remove_file(harness.workspace.join("consumer-npm/web/pnpm-lock.yaml"))
             .expect("drop lock");
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("consumer-npm/web/pnpm-lock.yaml"), "{err}");
         assert!(err.contains("is missing"), "{err}");
@@ -1570,9 +1563,9 @@ scopes = ["tools/ps"]
     #[test]
     fn consumer_ruby_and_powershell_sets_report_pinned_and_launch_nothing() {
         for (argv, uv) in [
-            (vec!["update", "--check"], uv_call(true, "apps/frontend")),
+            (vec!["update"], uv_call(true, "apps/frontend")),
             (
-                vec!["update", "--check", "--offline", "--frozen"],
+                vec!["update", "--offline", "--frozen"],
                 uv_call(true, "apps/frontend"),
             ),
             (vec!["update", "--apply"], uv_call(false, "apps/frontend")),
@@ -1612,7 +1605,7 @@ scopes = ["tools/ps"]
         }
         let harness = pinned_harness("pinned-text");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("gems pins are manual; nothing to resolve"),
@@ -1630,7 +1623,7 @@ scopes = ["tools/ps"]
             ("gems:rspec-core", "bundle lock"),
             ("modules:Pester", "PSGallery.lock.json by hand"),
         ] {
-            for mode in ["--apply", "--check"] {
+            for mode in ["--apply", "--output=text"] {
                 let harness = pinned_harness("pinned-selective");
                 let runner = ScriptRunner::new(&[]);
                 let (code, out, err) = run_with(&["update", mode, selector], &runner, &harness);
@@ -1654,7 +1647,7 @@ scopes = ["tools/ps"]
         harness.write_source("apps/rb/Gemfile", PINNED_FILES[0].1);
         harness.write_source("apps/rb/gems.locked", PINNED_FILES[1].1);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("apps/rb/Gemfile.lock"), "{err}");
         assert!(!out.contains("pins are manual"), "{out}");
@@ -1669,7 +1662,7 @@ scopes = ["tools/ps"]
             true,
         );
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, _, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("must be named package.json"), "{err}");
         assert!(runner.calls.borrow().is_empty());
@@ -1769,7 +1762,7 @@ repository = "tool_crates"
     fn consumer_mixed_check_runs_uv_npm_and_cargo_each_their_own_way() {
         let harness = cargo_harness("cargo-check");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("crates lockfile current (consumer-rs/crates/Cargo.lock, consumer-rs/crates/cargo-bazel-lock.json)"),
@@ -1894,7 +1887,7 @@ repository = "tool_crates"
     fn consumer_cargo_failure_stays_with_its_own_set() {
         let harness = cargo_harness("cargo-fail");
         let runner = ScriptRunner::new(&[("consumer-cargo:tool_crates", Some(1))]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("failed to check tools: updater exited 1"),
@@ -1925,7 +1918,7 @@ repository = "tool_crates"
         );
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
-        let (code, out, err) = run_with(&["update", "--check", "crates:serde"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "crates:serde"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("select the set without a package"), "{err}");
@@ -1972,7 +1965,6 @@ repository = "tool_crates"
         let (code, out, err) = run_with(
             &[
                 "update",
-                "--check",
                 "--offline",
                 "--bazel-startup-option=--output_base=/tmp/cargo-ob",
                 "crates",
@@ -2001,7 +1993,7 @@ repository = "tool_crates"
         harness.write_source("rs/Cargo.toml", CARGO_MANIFEST);
         harness.write_source("rs/cargo-bazel-lock.json", "{}\n");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--check"], &runner, &harness);
+        let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("rs/Cargo.lock"), "{err}");
         assert!(runner.launches.borrow().is_empty());
@@ -2016,7 +2008,7 @@ repository = "tool_crates"
             harness.workspace.join("consumer-rs/crates/Cargo.lock"),
             b"rewritten\n".to_vec(),
         ));
-        let (code, out, err) = run_with(&["update", "--check", "crates"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "crates"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("failed to check crates: check_wrote: consumer-rs/crates/Cargo.lock (restored); declare `lockfile` in crate.from_cargo"),
@@ -2029,7 +2021,7 @@ repository = "tool_crates"
             harness.workspace.join("consumer-npm/web/pnpm-lock.yaml"),
             b"rewritten\n".to_vec(),
         ));
-        let (code, out, err) = run_with(&["update", "--check", "web"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "web"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains(
@@ -2100,11 +2092,7 @@ repository = "tool_maven"
     fn consumer_maven_check_fetches_each_hub_without_repin_env() {
         let harness = maven_harness("maven-check");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(
-            &["update", "--check", "jvm", "jvm_tools"],
-            &runner,
-            &harness,
-        );
+        let (code, out, err) = run_with(&["update", "jvm", "jvm_tools"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains("jvm lockfile current (third_party/maven_install.json)"),
@@ -2163,7 +2151,7 @@ repository = "tool_maven"
         for argv in [
             vec!["update", "--apply", "jvm:com.google.guava:guava"],
             vec!["update", "--apply", "--offline", "jvm"],
-            vec!["update", "--check", "jvm:com.google.guava:guava"],
+            vec!["update", "jvm:com.google.guava:guava"],
         ] {
             let runner = ScriptRunner::new(&[]);
             let (code, out, err) = run_with(&argv, &runner, &harness);
@@ -2198,7 +2186,7 @@ repository = "tool_maven"
             let harness = maven_harness(&format!("maven-unready-{name}"));
             harness.write_source(rewrite.0, rewrite.1);
             let runner = ScriptRunner::new(&[]);
-            let (code, out, err) = run_with(&["update", "--check", "jvm"], &runner, &harness);
+            let (code, out, err) = run_with(&["update", "jvm"], &runner, &harness);
             assert_ne!(code, 0, "{name}: {out}{err}");
             assert!(runner.launches.borrow().is_empty(), "{name}");
             assert!(!out.contains("lockfile current"), "{name}: {out}");
@@ -2218,7 +2206,7 @@ repository = "tool_maven"
             harness.workspace.join("third_party/maven_install.json"),
             b"rewritten\n".to_vec(),
         ));
-        let (code, out, err) = run_with(&["update", "--check", "jvm"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "jvm"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("check_wrote: third_party/maven_install.json (restored)"),
@@ -2342,7 +2330,7 @@ scopes = ["third_party/dotnet_tools"]
                 ("paket.main_extension.bzl", "ext\n"),
             ],
         );
-        let (code, out, err) = run_with(&["update", "--check", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "dotnet"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("dotnet lockfile current"), "{out}");
         let launches = runner.launches.borrow();
@@ -2384,7 +2372,7 @@ scopes = ["third_party/dotnet_tools"]
                 ("paket.main_extension.bzl", "ext\n"),
             ],
         );
-        let (code, out, err) = run_with(&["update", "--check", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "dotnet"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("stale generated locks: third_party/dotnet/deps/paket.main.bzl;"),
@@ -2476,7 +2464,7 @@ scopes = ["third_party/dotnet_tools"]
     fn consumer_nuget_offline_is_required_and_frozen_apply_runs() {
         let harness = nuget_harness("nuget-offline");
         for argv in [
-            vec!["update", "--check", "--offline", "dotnet"],
+            vec!["update", "--offline", "dotnet"],
             vec!["update", "--apply", "--offline", "dotnet"],
             vec!["update", "--apply", "dotnet:Newtonsoft.Json"],
         ] {
@@ -2490,11 +2478,7 @@ scopes = ["third_party/dotnet_tools"]
             );
         }
         let runner = ScriptRunner::new(&[]);
-        let (_, out, err) = run_with(
-            &["update", "--check", "--offline", "dotnet"],
-            &runner,
-            &harness,
-        );
+        let (_, out, err) = run_with(&["update", "--offline", "dotnet"], &runner, &harness);
         assert!(
             format!("{out}{err}").contains("offline_required"),
             "{out}{err}"
@@ -2523,7 +2507,7 @@ scopes = ["third_party/dotnet_tools"]
             "MODULE.bazel",
             "bazel_dep(name = \"other\", version = \"1\")\n",
         );
-        for mode in ["--check", "--apply"] {
+        for mode in ["--output=text", "--apply"] {
             let runner = ScriptRunner::new(&[]);
             let (code, out, err) = run_with(&["update", mode, "dotnet"], &runner, &harness);
             assert_ne!(code, 0, "{out}{err}");
@@ -2582,7 +2566,7 @@ scopes = ["third_party/go"]
         let before = go_bytes(&harness);
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "--check", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "gomods"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("gomods lockfile current"), "{out}");
         let launches = runner.launches.borrow();
@@ -2634,7 +2618,7 @@ scopes = ["third_party/go"]
         let before = go_bytes(&harness);
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "--check", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "gomods"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("stale generated locks: third_party/go/go.sum;"),
@@ -2698,10 +2682,7 @@ scopes = ["third_party/go"]
     fn consumer_go_offline_and_frozen_apply_never_launch() {
         let harness = go_harness("go-offline");
         for (argv, want) in [
-            (
-                vec!["update", "--check", "--offline", "gomods"],
-                "offline_required",
-            ),
+            (vec!["update", "--offline", "gomods"], "offline_required"),
             (
                 vec!["update", "--apply", "--offline", "gomods"],
                 "offline_required",
@@ -2726,11 +2707,7 @@ scopes = ["third_party/go"]
         // A frozen check only compares, so it still runs.
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(
-            &["update", "--check", "--frozen", "gomods"],
-            &runner,
-            &harness,
-        );
+        let (code, out, err) = run_with(&["update", "--frozen", "gomods"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(runner.launches.borrow().len(), 1);
     }
@@ -2742,7 +2719,7 @@ scopes = ["third_party/go"]
             "third_party/go/go.mod",
             &format!("{GO_MOD}\nreplace example.com/x => ../x\n"),
         );
-        for mode in ["--check", "--apply"] {
+        for mode in ["--output=text", "--apply"] {
             let runner = ScriptRunner::new(&[]);
             let (code, out, err) = run_with(&["update", mode, "gomods"], &runner, &harness);
             assert_ne!(code, 0, "{out}{err}");
@@ -2769,14 +2746,8 @@ scopes = ["third_party/go"]
     #[test]
     fn consumer_check_with_a_lock_linking_outside_fails_before_launch() {
         for (argv, lock) in [
-            (
-                ["update", "--check", "crates"],
-                "consumer-rs/crates/Cargo.lock",
-            ),
-            (
-                ["update", "--check", "web"],
-                "consumer-npm/web/pnpm-lock.yaml",
-            ),
+            (["update", "crates"], "consumer-rs/crates/Cargo.lock"),
+            (["update", "web"], "consumer-npm/web/pnpm-lock.yaml"),
         ] {
             let harness = cargo_harness("link-out");
             let outside = harness
@@ -2811,7 +2782,7 @@ scopes = ["third_party/go"]
             .writes
             .borrow_mut()
             .push((at.clone(), b"rewritten\n".to_vec()));
-        let (code, out, err) = run_with(&["update", "--check", "crates"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "crates"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("check_wrote: consumer-rs/crates/Cargo.lock (restored)"),
@@ -2839,7 +2810,7 @@ scopes = ["third_party/go"]
                 true,
             );
             let runner = ScriptRunner::new(&[]);
-            let (code, _, err) = run_with(&["update", "--check"], &runner, &harness);
+            let (code, _, err) = run_with(&["update"], &runner, &harness);
             assert_eq!(code, 2, "{err}");
             assert!(err.contains(want), "{err}");
             assert!(runner.calls.borrow().is_empty());

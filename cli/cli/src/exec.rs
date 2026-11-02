@@ -29,7 +29,6 @@ mod managed_codegen;
 mod managed_env;
 mod managed_prepare;
 mod managed_staging;
-mod migrate;
 pub(crate) mod notice_codes;
 #[cfg(test)]
 mod package_identity;
@@ -90,11 +89,7 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
 fn slot_exempt(command: Command) -> bool {
     matches!(
         command,
-        Command::Worktree
-            | Command::Version
-            | Command::Completion
-            | Command::Explain
-            | Command::Install
+        Command::Worktree | Command::Completion | Command::Explain | Command::Install
     )
 }
 
@@ -240,7 +235,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         | Command::Upgrade
         | Command::Rollback
         | Command::Status
-        | Command::Version
         | Command::Completion => {
             let Env {
                 workspace,
@@ -269,7 +263,6 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Update => update::execute_update(invocation, env),
         Command::Bump => bump::execute_bump(invocation, env),
         Command::Add => add::execute_add(invocation, env),
-        Command::Migrate => migrate::execute_migrate(invocation, env),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
             quality::execute_quality(invocation, env)
@@ -307,7 +300,7 @@ mod tests {
     #[test]
     fn execute_passes_nonzero_codes_through_a_failed_sink() {
         let harness = Harness::new("latch-nonzero");
-        let mut inv = invocation(&["version"]);
+        let mut inv = invocation(&["status"]);
         inv.here = true;
         let runner = harness.runner();
         let mut sink = Sink::new(Fault::FlushFails(ErrorKind::BrokenPipe), 0);
@@ -341,17 +334,15 @@ mod tests {
         (Command::Fix, &["fix"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 14] = [
+    const NO_BAZEL_BUILD: [Command; 12] = [
         Command::Security,
         Command::License,
         Command::Clean,
         Command::Update,
         Command::Bump,
         Command::Add,
-        Command::Migrate,
         Command::Upgrade,
         Command::Status,
-        Command::Version,
         Command::Watch,
         Command::Rollback,
         Command::Worktree,
@@ -455,7 +446,6 @@ mod tests {
             vec!["update", "--dry-run"],
             vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
             vec!["add", "cargo:anyhow", "1.2.3", "--dry-run"],
-            vec!["migrate", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
             vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--dry-run"],
         ] {
             let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));
@@ -672,7 +662,6 @@ mod tests {
         dx_atomic_fs::lease::acquire_exclusive_at(&busy, Duration::from_secs(10)).expect("free");
         for command in [
             Command::Worktree,
-            Command::Version,
             Command::Completion,
             Command::Explain,
             Command::Install,
@@ -706,7 +695,6 @@ mod tests {
         assert!(lease_refusal_for(Command::Build, &slot, &who(Some("s1"))).is_none());
         for command in [
             Command::Worktree,
-            Command::Version,
             Command::Completion,
             Command::Explain,
             Command::Install,

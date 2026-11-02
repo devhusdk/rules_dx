@@ -78,7 +78,7 @@ fn json_changes_emit_in_sorted_path_order_despite_reversed_arrival() {
     ];
     let bytes = harness.paths_result(&["src/a.py", "src/b.py"], changes);
     harness.results.insert("//test:corpus".to_owned(), bytes);
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -240,7 +240,7 @@ fn diff_missing_source_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("cannot render patch without verified source for src/missing.py"));
 }
@@ -264,7 +264,7 @@ fn diff_non_utf8_source_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("source for src/a.py is not UTF-8 text"));
 }
@@ -287,7 +287,7 @@ fn diff_unappliable_edit_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("cannot apply recorded edits for src/a.py"));
 }
@@ -310,7 +310,7 @@ fn diff_non_utf8_candidate_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("cannot apply recorded edits for src/a.py"));
 }
@@ -333,7 +333,7 @@ fn diff_identical_candidate_fails_render() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("dx: diff_failed: failed to render patch"));
 }
@@ -347,7 +347,7 @@ fn diff_stale_source_fails_render() {
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
     harness.write_source("src/a.py", "z = 2\n");
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -562,7 +562,7 @@ fn json_counts_cover_all_severities() {
             vec![],
         ),
     );
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1);
     let events = json_events(&out);
     assert_eq!(

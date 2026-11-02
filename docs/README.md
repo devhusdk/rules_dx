@@ -23,9 +23,8 @@ guides below.
 - [Environment and codegen](cli/commands/environment-codegen.md): env and codegen.
 - [Audit and update](cli/commands/audit-update.md): security, license, update, bump, add.
 - [Init](cli/commands/init.md): set up a workspace.
-- [Status and version](cli/commands/status-version.md): health report and the version pin.
+- [Status](cli/commands/status.md): health report and the version pin.
 - [Completion](cli/commands/completion.md): shell completions.
-- [Migrate](cli/commands/migrate.md): move to the current layout.
 - [Upgrade, rollback](cli/commands/upgrade-rollback.md): change the pin.
 - [Offline bundle](cli/commands/offline-bundle.md): build a vendored bundle and install from it.
 - [Watch](cli/commands/watch.md): rerun on file changes.

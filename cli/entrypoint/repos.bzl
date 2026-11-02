@@ -24,11 +24,11 @@ echo 'bazel_dep(name = "rules_dx", version = "0.0.0")' >> "$(location workspace/
 echo '0.0.0' > "$(location workspace/.dx/version)"
 ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" status --workspace "$$ws" > "$(location public_status.txt)"
-"$$public" version --workspace "$$ws" > "$(location public_version.txt)"
+"$$public" --version > "$(location public_version.txt)"
 "$$public" completion bash --workspace "$$ws" > "$(location public_completion.txt)"
 echo '9.9.9' > "$(location workspace/.dx/version)"
-if "$$public" version --check --workspace "$$ws" > "$(location public_drift.txt)" 2>&1; then
-  echo "dx version --check accepted a drifted pin" >&2
+if "$$public" status --workspace "$$ws" > "$(location public_drift.txt)" 2>&1; then
+  echo "dx status accepted a drifted pin" >&2
   exit 1
 fi
 grep -q status_pin_mismatch "$(location public_drift.txt)"

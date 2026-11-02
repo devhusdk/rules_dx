@@ -676,7 +676,7 @@ mod sh {
     fn checks_and_other_launches_never_repin() {
         for args in [
             &["update", "cargo"][..],
-            &["update", "--check", "--apply", "cargo"][..],
+            &["update", "--apply", "cargo"][..],
             &["update", "--apply", "--frozen", "cargo"][..],
             &["update", "--apply", "--offline", "cargo"][..],
             &["update", "--apply", "npm"][..],

@@ -9,7 +9,6 @@ fn strict_unknown_options_fail_with_whole_token() {
         vec!["lint", "-z"],
         vec!["lint", "--dry-run=yes"],
         vec!["lint", "--quiet=x"],
-        vec!["lint", "--check=x"],
         vec!["clean", "--bazel=yes"],
         vec!["init", "--overwrite"],
         vec!["-"],
@@ -61,8 +60,8 @@ fn strict_missing_values_fail_with_bare_flag() {
         &["--color"],
     );
     assert_usage(
-        &["migrate", "--from", "--to=2.0.0"],
-        parse(&strings(&["migrate", "--from", "--to=2.0.0"])).unwrap_err(),
+        &["upgrade", "--from", "--to=2.0.0"],
+        parse(&strings(&["upgrade", "--from", "--to=2.0.0"])).unwrap_err(),
         &["--from"],
     );
 }
@@ -141,7 +140,6 @@ fn strict_typo_suggestions_come_from_the_same_grammar() {
 fn strict_repeated_flags_are_last_wins() {
     for (words, command) in [
         (vec!["build", "--here", "--here"], Command::Build),
-        (vec!["lint", "--check", "--check"], Command::Lint),
         (vec!["lint", "--quiet", "--quiet"], Command::Lint),
         (vec!["build", "-vv"], Command::Build),
         (vec!["update", "--offline", "--frozen"], Command::Update),
@@ -175,7 +173,7 @@ fn strict_repeated_flags_are_last_wins() {
 #[test]
 fn bazel_is_not_a_command() {
     for words in [
-        vec!["bazel", "version"],
+        vec!["bazel", "status"],
         vec!["bazel", "build", "//...", "--", "--jobs=4"],
         vec!["bazel", "--help"],
     ] {
@@ -201,8 +199,8 @@ fn strict_typed_values_map_to_dx_errors_in_either_flag_order() {
         (vec!["docs", "--serve", "--port=notanumber"], "port"),
         (vec!["docs", "--serve", "--port="], "port"),
         (vec!["docs", "--serve", "--host="], "host"),
-        (vec!["migrate", "--from="], "from"),
-        (vec!["migrate", "--to="], "to"),
+        (vec!["upgrade", "--from="], "from"),
+        (vec!["upgrade", "--to="], "to"),
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);
     }
@@ -223,7 +221,7 @@ fn strict_here_conflicts_stay_imperative_and_ordered() {
     }
     assert!(
         matches!(
-            parse(&strings(&["version", "--here", "//pkg:target"])),
+            parse(&strings(&["status", "--here", "//pkg:target"])),
             Err(ArgsError::UnsupportedOption { .. })
         ),
         "the command gate must outrank the scope conflict"
@@ -352,7 +350,6 @@ fn strict_known_flags_on_wrong_commands_fail_as_unsupported() {
         vec!["build", "--host=example.test"],
         vec!["build", "--open"],
         vec!["lint", "--min-coverage=80"],
-        vec!["build", "--check"],
     ] {
         assert!(
             matches!(

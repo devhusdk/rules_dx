@@ -407,7 +407,7 @@ pub(super) fn live_json_emits_per_set_notices_and_finished() {
 }
 
 #[test]
-pub(super) fn default_checks_like_explicit_check_and_apply_updates() {
+pub(super) fn default_checks_and_apply_updates() {
     let runner = ScriptRunner::new(&[]);
     let (code, out, err) = run_with(&["update", "uv"], &runner);
     assert_eq!(code, 0, "{out}{err}");
@@ -417,11 +417,6 @@ pub(super) fn default_checks_like_explicit_check_and_apply_updates() {
         "default must run check backend: {:?}",
         runner.calls.borrow()[0]
     );
-    let runner_check = ScriptRunner::new(&[]);
-    let (code_check, out_check, err_check) = run_with(&["update", "--check", "uv"], &runner_check);
-    assert_eq!(code, code_check);
-    assert_eq!(out, out_check);
-    assert_eq!(err, err_check);
     let runner_apply = ScriptRunner::new(&[]);
     let (code_apply, _, _) = run_with(&["update", "--apply", "uv"], &runner_apply);
     assert_eq!(code_apply, 0);
@@ -479,7 +474,7 @@ pub(super) fn apply_takes_a_slot_only_for_bazel_backends() {
     for argv in [
         &["update", "--apply", "uv"][..],
         &["update", "uv"][..],
-        &["update", "--check"][..],
+        &["update"][..],
     ] {
         let (_, out, err) = run_with_busy_slot(argv, false);
         assert!(!err.contains("waiting for a build slot"), "{argv:?}: {err}");

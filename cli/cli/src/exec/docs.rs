@@ -6,7 +6,6 @@ use dx_plan::args::Invocation;
 use dx_plan::resolve::{first_line, quote_set, resolve, QueryRunner, SelectionContext};
 use std::path::{Path, PathBuf};
 
-const DOCS_CHECK_TARGET: &str = "//tools/docs/site:user_site_check";
 const DOCS_BUILD_TARGET: &str = "//tools/docs/site:user_site";
 
 const DOCS_DEFAULT_PORT: u16 = 8000;
@@ -92,14 +91,11 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         ..
     } = env;
     let json = invocation.output == OutputMode::Json;
-    let mode = if invocation.check { "check" } else { "default" };
     let (labels, scope_text) = if invocation.targets.is_empty() {
-        let target = if invocation.check {
-            DOCS_CHECK_TARGET
-        } else {
-            DOCS_BUILD_TARGET
-        };
-        (vec![target.to_owned()], target.to_owned())
+        (
+            vec![DOCS_BUILD_TARGET.to_owned()],
+            DOCS_BUILD_TARGET.to_owned(),
+        )
     } else {
         match resolve(
             &invocation.targets,
@@ -118,17 +114,8 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
             Err(error) => return resolve_failed(invocation.output, out, err, &error),
         }
     };
-    let (actions, summary): (&[&str], String) = if invocation.check {
-        (
-            &["summary"],
-            format!("Running docs check for {scope_text} (no render)"),
-        )
-    } else {
-        (
-            &["summary", "render"],
-            format!("Running docs build for {scope_text} (mdBook render)"),
-        )
-    };
+    let actions: &[&str] = &["summary", "render"];
+    let summary = format!("Running docs build for {scope_text} (mdBook render)");
     let bazel_options = invocation.quiet_bazel_options();
     let argv = match dx_plan::plan::bazel_argv(
         "build",
@@ -142,7 +129,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
     };
     if json {
-        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), mode)) {
+        if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {
             return exit;
         }
         for action in actions {
@@ -169,7 +156,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
                 CODE_BAZEL_FAILED,
                 &format!(
                     "Bazel docs {} failed with exit {bazel_code} (see stderr diagnostics; unit tools/docs/site:user_site, fixture tools/docs/site:demo_site, pinned mdBook 0.4.52)",
-                    if invocation.check { "check" } else { "build" },
+                    "build",
                 ),
                 bazel_code,
                 "execute",
@@ -296,7 +283,7 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
-    use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET, DOCS_CHECK_TARGET};
+    use super::{CODE_SERVE_FAILED, DOCS_BUILD_TARGET};
     use dx_plan::resolve::QueryResult;
     use dx_testing::cli::strings;
 
@@ -326,7 +313,7 @@ mod tests {
                 "--output=text"
             };
             let harness = Harness::new("docs-scope");
-            let (code, out, err) = harness.run(&["docs", "//docs:page", "--check", output]);
+            let (code, out, err) = harness.run(&["docs", "//docs:page", output]);
             assert_eq!(code, 0, "{out}{err}");
             assert!(out.contains("//docs:page"), "{out}");
             for signalled in [false, true] {
@@ -346,17 +333,7 @@ mod tests {
     }
 
     #[test]
-    fn docs_check_builds_aggregate_without_render() {
-        let harness = Harness::new("docs-check");
-        let (code, out, _) = harness.run(&["docs", "--check", "--output=text"]);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("Running docs check"), "{out}");
-        assert!(out.contains("no render"), "{out}");
-        assert!(!out.contains("mdBook render"), "{out}");
-    }
-
-    #[test]
-    fn docs_build_validates_and_renders() {
+    fn docs_builds_and_renders() {
         let harness = Harness::new("docs-build");
         let (code, out, _) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}");
@@ -366,10 +343,8 @@ mod tests {
 
     #[test]
     fn docs_default_summary_names_the_target_it_builds() {
-        let cases: Vec<(Vec<&str>, &str)> = vec![
-            (vec!["docs", "--output=text"], DOCS_BUILD_TARGET),
-            (vec!["docs", "--check", "--output=text"], DOCS_CHECK_TARGET),
-        ];
+        let cases: Vec<(Vec<&str>, &str)> =
+            vec![(vec!["docs", "--output=text"], DOCS_BUILD_TARGET)];
         for (words, target) in cases {
             let harness = Harness::new("docs-summary-scope");
             let (code, out, err) = harness.run(&words);
@@ -571,7 +546,7 @@ mod tests {
     #[test]
     fn docs_json_streams_started_operation_finished() {
         let harness = Harness::new("docs-json");
-        let (code, out, _) = harness.run(&["docs", "--check", "--output=json"]);
+        let (code, out, _) = harness.run(&["docs", "--output=json"]);
         assert_eq!(code, 0, "{out}");
         let events = json_events(&out);
         let kinds = event_kinds(&events);

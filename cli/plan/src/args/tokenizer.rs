@@ -46,9 +46,6 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
             }
         }
         clap::error::ErrorKind::UnknownArgument => {
-            if let Some(text) = removed_version_flag(args, error) {
-                return ArgsError::Usage { text };
-            }
             if let Some(text) = removed_clean_flag(args, error) {
                 return ArgsError::Usage { text };
             }
@@ -109,7 +106,7 @@ fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
 /// Removed command names and the tip each error carries.
 pub(crate) const REMOVED_COMMANDS: &[(&str, &str)] = &[
     ("capabilities", "run `dx status --verbose` for capability and readiness facts"),
-    ("setup", "run `dx env` and `dx codegen` instead (each takes --check or --apply)"),
+    ("setup", "run `dx env` and `dx codegen` instead (each takes --apply)"),
     ("verify", "run `dx check`, `dx build`, `dx test` and `dx coverage` directly, in the order you need"),
     ("owners", "run `bazel query 'rdeps(//..., <label>, 1)'`, or `bazel cquery` for the configured graph; wrap the expression in single quotes"),
     ("deps", "run `bazel query 'deps(<label>)'`, or `bazel cquery 'deps(<label>)' --platforms=<platform>` for the configured graph; wrap the expression in single quotes"),
@@ -182,33 +179,6 @@ fn removed_clean_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
         "error: unsupported option '--bazel' for dx clean\n\n  tip: dx clean only prunes managed state; run `bazel clean` to clean Bazel outputs"
             .to_owned(),
     )
-}
-
-fn removed_version_flag<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<String> {
-    use clap::error::{ContextKind, ContextValue};
-    let flag = match error.get(ContextKind::InvalidArg) {
-        Some(ContextValue::String(token)) => reported_flag(token)?,
-        _ => return None,
-    };
-    if !matches!(flag.as_str(), "--pin" | "--rollback") {
-        return None;
-    }
-    let is_version = args
-        .iter()
-        .filter_map(|word| word.as_ref().to_str())
-        .find(|word| Command::parse(word).is_some())
-        == Some("version");
-    if !is_version {
-        return None;
-    }
-    let tip = if flag == "--pin" {
-        "run `dx upgrade --from <version> --to <version> --apply` to change the pin"
-    } else {
-        "run `dx rollback --apply` to restore the previous pin"
-    };
-    Some(format!(
-        "error: unsupported option '{flag}' for dx version\n\n  tip: dx version only reports; {tip}"
-    ))
 }
 
 /// The flag name the parser reports, with visible aliases spelled canonically.

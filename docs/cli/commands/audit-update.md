@@ -13,7 +13,7 @@ current dir tree, or `--affected` for the sets that own targets your git
 changes reach (see [Scope Defaults](scope-defaults.md)). With no changes, or
 for `dx license` no owned set, they print `no affected targets` and exit `0`.
 When files changed but no set owns them, `dx security` runs only the secrets
-scan. Neither command changes files. `--check` and Bazel options do not apply.
+scan. Neither command changes files. Bazel options do not apply.
 
 `dx security` reads the lockfile of each set it owns and matches it against
 `.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
@@ -323,7 +323,7 @@ exports nothing.
 ## `dx update`
 
 ```text
-dx update [--check] [--apply] [--offline] [--frozen] [selector ...]
+dx update [--apply] [--offline] [--frozen] [selector ...]
 ```
 
 Updates dependencies per set through the qualified resolvers. In `rules_dx` the sets come
@@ -336,7 +336,7 @@ reports them pinned and changes nothing. `ruby` pins come from `bundle lock`
 on the seed host, `powershell` pins are hand-written in
 `third_party/powershell/PSGallery.lock.json`, and `go` pins track Gazelle and
 widen through `dx bump` with a `go` selector.
-`--check` validates the selected sets without writing. The `uv` set runs a
+Without `--apply`, `dx update` validates the selected sets and writes nothing. The `uv` set runs a
 read-only lockfile check and reports current, and a stale lock reports failed.
 `go`, `powershell`, and `ruby` report pinned. Every other resolvable set reports
 unsupported and fails the run; refresh those with `dx update --apply <set>`.
@@ -375,7 +375,7 @@ Override any of them in `user.bazelrc`.
 `--offline` forbids network: the run uses pinned cached snapshots and fails
 with `offline_required` when they are missing. `--frozen` forbids manifest
 and lock resolution changes: `--apply` fails with `frozen_locked` when a
-resolver would rewrite them. `--check` writes nothing, so `--frozen` does not
+resolver would rewrite them. A check writes nothing, so `--frozen` does not
 change it. Combine both flags for both policies.
 `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the cargo, maven, npm, npm-tools, and
@@ -391,14 +391,14 @@ notice, and every run ends with `command_finished`. Text prints
 A failed run prints an `update_recovery` notice with the rerun command. Text
 goes to stderr; JSON is a `notice` whose `scope` lists the sets to retry. After
 `--apply` the command is `dx update --apply <sets>`, plus
-`git checkout -- <locks>` to discard kept successes. After `--check` it is
+`git checkout -- <locks>` to discard kept successes. After a check it is
 `dx update <sets>`. In a consumer workspace the restore command uses the lock
 paths declared in `dx.toml`.
 Exit codes: 0 success, 2 usage or scope errors, 1 when any set is unsupported,
 failed, or blocked, or on an operational failure.
 
 ```sh
-bazel run @rules_dx//:dx -- update --check
+bazel run @rules_dx//:dx -- update
 bazel run @rules_dx//:dx -- update --apply go
 bazel run @rules_dx//:dx -- update --apply ruby
 bazel run @rules_dx//:dx -- update --apply powershell
@@ -478,9 +478,9 @@ refreshes nothing, and exits `0`, also under `--frozen` or `--offline`. Only
 manifests whose pin changes are written. When a widen is pending, a set that
 needs a refresh under `--offline` fails before widening with
 `offline_required`, and `--frozen` fails before widening with
-`frozen_locked`. A major bump also needs `dx migrate --from <old> --to <new>`.
+`frozen_locked`.
 
-`--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
 Output: `--output text|json`. JSON emits a `bump_widened` notice for each
 written manifest and an `update_set_success` notice after the lock refresh.
@@ -536,7 +536,7 @@ A set that needs a refresh under `--offline` fails before writing with
 `offline_required`. `--frozen` always fails before writing with
 `frozen_locked`.
 
-`--check`, `--fail-on`, `--report`, and Bazel options do not apply.
+`--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
 Output: `--output text|json`. JSON emits an `add_declared` notice for the
 written manifest and an `update_set_success` notice after the lock refresh.
@@ -647,7 +647,7 @@ versions = "0.2.1"
 text_present = true
 ```
 
-`dx update --check` reports a `bazel` set as pinned. `dx update --apply`
+`dx update` reports a `bazel` set as pinned. `dx update --apply`
 changes nothing; change a pin with `dx bump <set>:<module> <version>`.
 `dx bump --apply` and `dx add --apply` on a configured `bazel` set then refresh
 its lock with `bazel mod deps --lockfile_mode=update`, run in the set's
@@ -679,12 +679,12 @@ scopes = ["apps/web"]
 from the workspace root and writes that set's `pnpm-lock.yaml` only; no
 `node_modules` is created. `set:package` selectors such as
 `web:@types/node` run `update <packages> --lockfile-only` instead.
-`dx update --check` runs `install --lockfile-only --frozen-lockfile`, writes
+`dx update` runs `install --lockfile-only --frozen-lockfile`, writes
 nothing, and fails the set with `updater exited <code>` when the lock is stale.
-`--check --offline` adds pnpm `--offline` and Bazel
+A check with `--offline` adds pnpm `--offline` and Bazel
 `--repository_disable_download`. `--apply --offline` fails with
 `offline_required`, `--apply --frozen` fails with `frozen_locked`, and
-`--check` with a `set:package` selector is unsupported. `--bazel-startup-option`
+A check with a `set:package` selector is unsupported. `--bazel-startup-option`
 values reach the `bazel` call. pnpm runs with `npm_config_globalconfig` and
 `npm_config_userconfig` set to `/dev/null` (`NUL` on Windows), so user and
 global `.npmrc` files are ignored; a `.npmrc` in the set directory still
@@ -735,7 +735,7 @@ scopes = ["tools/ps"]
 
 `locks` must list the lock beside the manifest, `<set directory>/Gemfile.lock`
 or `<set directory>/PSGallery.lock.json`; otherwise `dx update` reports the
-set unsupported and names the missing path. `dx update --check` and
+set unsupported and names the missing path. `dx update` and
 `dx update --apply` report both as pinned, also under `--offline` and
 `--frozen`, and start no process. A `set:package` selector is unsupported:
 regenerate `Gemfile.lock` with `bundle lock`, or `PSGallery.lock.json` by
@@ -796,11 +796,11 @@ not), its literal `cargo_lockfile` is the set's `Cargo.lock`, and its
 root with `CARGO_BAZEL_REPIN=workspace`, `REPIN=workspace`,
 `CARGO_BAZEL_REPIN_ONLY=<repository>`, and `CARGO_BAZEL_ISOLATED=true`, so
 crate_universe re-resolves `Cargo.toml` into that hub's `Cargo.lock` and
-cargo-bazel lock only, without upgrading other crates. `dx update --check`
+cargo-bazel lock only, without upgrading other crates. `dx update`
 runs the same command with `CARGO_BAZEL_REPIN=false` and `REPIN=false`;
 crate_universe then fails the set with `updater exited <code>` when the lock
 no longer matches the manifest. Both variables are always set, so a `REPIN`
-exported in the shell does not turn a check into a write. `--check --offline`
+exported in the shell does not turn a check into a write. A check with `--offline`
 adds `--repository_disable_download`, `--apply --offline` fails with
 `offline_required`, and `--apply --frozen` fails with `frozen_locked`.
 `--apply <set>:<crate>` sets `CARGO_BAZEL_REPIN` and `REPIN` to the crate name,
@@ -808,7 +808,7 @@ which crate_universe runs as `cargo update --package <crate>` before it
 regenerates the cargo-bazel lock. Select one crate per cargo set per run;
 crate names crate_universe reads as repin modes (`all`, `workspace`, `false`,
 `0`, `off`, and similar) are refused, and a name with several locked versions
-fails with `updater exited <code>`. `--check` with a package is unsupported:
+fails with `updater exited <code>`. A check with a package is unsupported:
 select the set without a package.
 `--bazel-startup-option` values reach the `bazel` call. Bazel evaluates
 every `crate.from_cargo` hub of the workspace together, so a stale hub fails
@@ -848,7 +848,7 @@ repository = "maven"
 
 `dx update --apply` runs `bazel run @<repository>//:pin` from the workspace
 root with `RULES_JVM_EXTERNAL_REPIN=1` and nothing else; `REPIN` is never set
-because crate_universe also reads it. `dx update --check` runs
+because crate_universe also reads it. `dx update` runs
 `bazel fetch --repo=@<repository>` with no repin variable, so a stale lock
 fails the set with `updater exited <code>`. That only works while
 `fail_if_repin_required` is true (the default), and a check is refused as
@@ -860,7 +860,7 @@ Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`,
 `COURSIER_CONFIG_DIR`, and `SCALA_CLI_CONFIG` are refused for both modes
 because they redirect resolution. A `--repo_env=REPIN=...` in a bazelrc, and
 `~/.m2/settings.xml`, cannot be detected; the `check_wrote` guard is the
-backstop for the former. `--check --offline` adds
+backstop for the former. A check with `--offline` adds
 `--repository_disable_download`, `--apply --offline` fails with
 `offline_required`, and `--apply --frozen` fails with `frozen_locked`.
 `maven` sets take no `set:package`: pins are exact in `MODULE.bazel`.
@@ -894,7 +894,7 @@ the workspace and runs
 `bazel run @rules_dotnet//tools/paket2bazel -- --dependencies-file <scratch>/paket.dependencies --output-folder <scratch>/out`
 with the Bazel startup options but no rules_dx settings, then removes the scratch
 directory. `paket2bazel` never resolves: it renders `paket.lock`, which dx never
-writes. `--check` compares the generated files byte for byte with the declared
+writes. A check compares the generated files byte for byte with the declared
 locks; a difference, an undeclared generated file, or a declared file that was not
 generated fails the set and lists the paths. `--apply` writes only the declared
 files that differ, and writes nothing when an undeclared or missing file turns up.
@@ -929,7 +929,7 @@ all` walks the module graph, which is the contract Gazelle's `go_deps.from_file`
 a `go.sum` entry for every module in the build list. The run is forced to
 `GOENV=off`, `GOWORK=off`, `GOTOOLCHAIN=local`, `GOFLAGS=-modcacherw`, and an empty
 `GOMODCACHE`, `GOPATH` and `GOCACHE` under the scratch directory. It never edits
-`go.mod`; a changed `go.mod` fails the set. `--check` compares the generated `go.sum`
+`go.mod`; a changed `go.mod` fails the set. A check compares the generated `go.sum`
 with the committed one and fails on any difference; `--apply` writes `go.sum` only when
 the bytes differ. `go.sum` entries are added, never pruned: pruning is `go mod tidy`,
 which stays your call. The run always uses Go's default public proxy and checksum database; dx does not read
@@ -940,7 +940,7 @@ makes the set `unsupported` before anything launches, because host values can we
 verification or leak private module names. Every
 run starts from an empty module cache, so `--offline` fails with `offline_required` in
 both modes; `--apply --frozen` fails with `frozen_locked` because `go.sum` is a lock
-write, while `--check --frozen` runs. The `-C` flag needs a Go SDK of 1.20 or newer; an
+write, while a check with `--frozen` runs. The `-C` flag needs a Go SDK of 1.20 or newer; an
 older SDK fails the set. `go` sets take no `set:package`: sums cover the whole module
 graph, so edit the `require` in `go.mod` and run `dx update <set>`, or let
 `dx bump <set>:<module> <version>` widen the `require` and refresh `go.sum`; `dx security` matches the requirements in `go.mod` against
@@ -955,7 +955,7 @@ scope `.` owns the root package only: `//:x` and `//:` select the sets scoped
 `.`, while `//pkg:x` and `//pkg/...` never do; `//...` selects every set.
 Unknown names and unowned paths fail with exit `2`.
 
-`dx update` and `dx update --check` run the pinned uv `0.12.23` and the pinned
+`dx update` and `dx update` run the pinned uv `0.12.23` and the pinned
 interpreter. When `DX_UV_BIN` holds an absolute path, dx runs that file; when
 it is unset, dx resolves `@dx_tools//:uv` through Bazel in the workspace.
 `DX_UV_PYTHON` works the same way for
@@ -974,14 +974,14 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update
 ```
 
 `dx update --apply` runs `uv lock` in the set directory and writes that set's
-lock only. `dx update --check` runs `uv lock --check`, writes nothing, and
+lock only. `dx update` runs `uv lock --check`, writes nothing, and
 fails the set with `updater exited 1` when the lock is stale. Both pass
 `--no-config --no-cache --no-python-downloads --python <DX_UV_PYTHON>` and
 start uv with an empty environment, so `HOME`, `XDG_CONFIG_HOME`, `UV_*`
-variables, and user `uv.toml` files are ignored. `--check --offline` adds
+variables, and user `uv.toml` files are ignored. A check with `--offline` adds
 `--offline`; a lock that needs a download to verify then fails the set with
 `updater exited 2`. `--apply --offline` fails with `offline_required` and
-`--apply --frozen` fails with `frozen_locked`; `--check --frozen` runs.
+`--apply --frozen` fails with `frozen_locked`; a check with `--frozen` runs.
 A `uv.toml` in the set directory or any parent inside the workspace, or a
 `[tool.uv]` key other than `sources`, `workspace`, `dev-dependencies`,
 `default-groups`, `conflicts`, `package`, `managed`, `override-dependencies`,
@@ -1002,7 +1002,7 @@ PEP 440 `versions` range. `dx bump` refuses configured `ruby` and
 configured `bazel` sets widen as described under `dx bump`.
 
 ```sh
-bazel run @rules_dx//:dx -- update --check frontend
+bazel run @rules_dx//:dx -- update frontend
 bazel run @rules_dx//:dx -- update --apply worker
 bazel run @rules_dx//:dx -- update --apply web:@types/node
 bazel run @rules_dx//:dx -- security apps/frontend

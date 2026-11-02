@@ -141,7 +141,7 @@ fn module_check(root: &Path) -> StatusCheck {
                     "not applicable: this workspace is rules_dx {}",
                     version.as_deref().unwrap_or("unknown")
                 ),
-                "dx version --check",
+                "dx status",
             );
         }
     }
@@ -150,7 +150,7 @@ fn module_check(root: &Path) -> StatusCheck {
             "module",
             "ok",
             format!("available: rules_dx {version} matches dx {MODULE_VERSION}"),
-            "dx version --check",
+            "dx status",
         ),
         Some(version) => check(
             "module",
@@ -164,7 +164,7 @@ fn module_check(root: &Path) -> StatusCheck {
             "module",
             "warn",
             "unknown: rules_dx version comes from an override in MODULE.bazel".to_owned(),
-            "dx version",
+            "dx status",
         ),
         None => check(
             "module",

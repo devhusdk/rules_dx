@@ -130,7 +130,7 @@ fn npm_sets_lock_check_and_update_one_set_at_a_time() {
 
     let web_before = read(&web_lock);
     let worker_before = read(&worker_lock);
-    let run = dx_in(&root, &["update", "--check"], &[]);
+    let run = dx_in(&root, &["update"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert_eq!(read(&web_lock), web_before);
     assert_eq!(read(&worker_lock), worker_before);
@@ -143,7 +143,7 @@ fn npm_sets_lock_check_and_update_one_set_at_a_time() {
         ],
     );
     write(&root.join("apps/web/package.json"), &stale);
-    let run = dx_in(&root, &["update", "--check"], &[]);
+    let run = dx_in(&root, &["update"], &[]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert_eq!(read(&web_lock), web_before, "--check must not write");
 

@@ -829,7 +829,6 @@ mod tests {
         assert_eq!(got.reports.len(), 1);
         let got = invocation(&["watch", "-v", "test", "//..."]);
         assert!(got.verbose);
-        assert!(dx_plan::args::parse(&["watch", "--check", "build"]).is_err());
         assert!(dx_plan::args::parse(&["watch", "--fail-on=error", "build"]).is_err());
         assert!(dx_plan::args::parse(&["watch", "--report=failures=a.json", "build"]).is_ok());
     }

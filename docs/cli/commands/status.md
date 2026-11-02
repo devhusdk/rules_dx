@@ -1,9 +1,9 @@
-# `dx status` And `dx version`
+# `dx status`
 
 ```sh
 bazel run @rules_dx//:dx -- status
 bazel run @rules_dx//:dx -- status --output=json
-bazel run @rules_dx//:dx -- version
+bazel run @rules_dx//:dx -- --version
 ```
 
 ## `dx status`
@@ -130,52 +130,12 @@ JSON output has only `command_started`, `error`, and `command_finished`.
 dx: status_check_failed: failed checks: module, tools (see hint)
 ```
 
-## `dx version`
-
-```text
-dx version [--check]
-```
-
-Prints the version. Read-only: it never writes the pin. Bare `dx version`
-also prints the `rules_dx` dependency the workspace declares, including any
-override and its source.
-
-- `--check`: verify the pin without changing it.
-
-To change the pin: when the pin is older than the module version, run
+`dx --version` prints the binary version and exits `0`. `dx status` reports
+the pin, the module version, and the `rules_dx` dependency. To change the pin,
+when it is older than the module version, run
 `dx upgrade --from <pin> --to <module version> --apply`. When it is newer or
 invalid, write the module version to `.dx/version`. `dx rollback --apply`
 restores the last pin `dx upgrade` or `dx rollback` recorded.
-
-Flags: `--check`.
-Scopes: none.
-
-Output: `--output text|json`. Bare text prints one line each:
-`dx <version>`, `rules_dx <version>`, `pin <pin>`, and
-`dependency <dependency>`.
-
-Bare JSON emits `binary`, `module`, `pin`, and `dependency` status events.
-`pin` is `warn` when the pin differs from the module version. `dependency` is
-`warn` when MODULE.bazel is missing or unreadable, has no `rules_dx`
-dependency, or declares or overrides a different version. When MODULE.bazel or an included file cannot be parsed, `dependency` prints `unknown (<reason>)`. Bare `dx version`
-still exits `0` on these warnings.
-
-`dx version --check` prints `version ok: <pin>` on stdout. On drift it prints
-`dx: status_pin_mismatch: version drift: <pin> != <module>` on stderr and
-exits `1`. JSON emits `command_started`, one `pin` status event (`ok` or
-`error`), then `command_finished`. On drift a `status_pin_mismatch` error
-event comes before `command_finished`.
-
-A missing `.dx/version` makes both forms print no version lines and fail
-with `status_pin_mismatch`.
-
-Exit codes: `0` success, `2` usage errors including removed flags, `1` pin
-drift under `--check` or a missing `.dx/version`.
-
-```sh
-bazel run @rules_dx//:dx -- version
-bazel run @rules_dx//:dx -- version --check
-```
 
 The [global shim](README.md#global-shim) sets `DX_SHIM=1` for the dx binary
 it runs.
@@ -188,14 +148,14 @@ example, `MODULE.bazel` and `.dx/version` say `1.2.0` and the binary is
 `1.3.0`, so `dx build` stops with
 `version skew: binary 1.3.0 pin 1.2.0 module 1.3.0`.
 
-- Runs anyway: `version`, `status`, `rollback`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
+- Runs anyway: `status`, `rollback`, `upgrade`, `completion`, `worktree`, `explain`, `install`.
 - Warns and runs: `check`, `security`, `license`.
 - Stops with exit code `1`: every other command.
 
 `watch` answers for the command it
 wraps. A missing or empty `.dx/version` is not skew, so other commands run.
-An empty pin fails the `pin` check in `dx status` and `dx version --check`.
-A missing file makes `dx status` and `dx version` exit `1` with
+An empty pin fails the `pin` check in `dx status`.
+A missing file makes `dx status` exit `1` with
 `status_pin_mismatch`.
 
 A stop prints `dx: version skew: binary <version> pin <pin> module <version>; fix: <hint>`
@@ -205,7 +165,7 @@ error event, then `command_finished` with `exit_code` `1` and
 `results_complete` `false`.
 
 ```sh
-bazel run @rules_dx//:dx -- version --check
+bazel run @rules_dx//:dx -- status
 bazel run @rules_dx//:dx -- rollback
 bazel run @rules_dx//:dx -- build //...
 ```

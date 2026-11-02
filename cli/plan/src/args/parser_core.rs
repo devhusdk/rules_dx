@@ -7,7 +7,6 @@ use dx_testing::cli::strings;
 fn bare_command_parses_with_defaults() {
     let got = parse(&strings(&["lint"])).expect("parse");
     assert_eq!(got.command, Command::Lint);
-    assert!(!got.check);
     assert!(!got.debug);
     assert!(!got.release);
     assert_eq!(got.workspace, None);
@@ -19,7 +18,6 @@ fn bare_command_parses_with_defaults() {
     assert!(got.targets.is_empty());
     assert!(got.bazel_options.is_empty());
     assert!(got.bazel_startup_options.is_empty());
-    assert_eq!(got.mode(), "default");
 }
 
 #[test]
@@ -164,21 +162,12 @@ fn reserved_commands_are_usage_errors_with_their_tip() {
     }
 }
 
-#[test]
-fn check_selects_check_mode() {
-    let got = parse(&strings(&["format", "--check"])).expect("parse");
-    assert_eq!(got.command, Command::Format);
-    assert!(got.check);
-    assert_eq!(got.operation(), OperationMode::Check);
-    assert_eq!(got.mode(), "check");
-}
-
 /// The words one command needs before `--apply`, mirroring the required slots.
 fn plain_words(command: Command) -> Vec<String> {
     let mut words = vec![command.name().to_owned()];
     match command {
         Command::Bump | Command::Add => words.extend(strings(&["cargo:demo", "1.0.0"])),
-        Command::Migrate | Command::Upgrade => {
+        Command::Upgrade => {
             words.extend(strings(&["--from=1.0.0", "--to=2.0.0"]));
         }
         Command::Run | Command::Deploy => {
@@ -204,28 +193,6 @@ fn bare_commands_check_by_default_and_check_spelling_agrees() {
             OperationMode::Check,
             "dx {} defaults to check",
             command.name()
-        );
-    }
-    let explicit = parse(&strings(&["lint", "--check"])).expect("explicit check");
-    assert!(explicit.check);
-    assert_eq!(explicit.operation(), OperationMode::Check);
-}
-
-#[test]
-fn check_and_apply_conflict() {
-    for words in [
-        vec!["lint", "--check", "--apply"],
-        vec!["lint", "--apply", "--check"],
-        vec!["fix", "--check", "--apply"],
-        vec!["update", "--check", "--apply"],
-    ] {
-        assert_eq!(
-            parse(&strings(&words)),
-            Err(ArgsError::ConflictingModes {
-                first: "--check",
-                second: "--apply",
-            }),
-            "words: {words:?}"
         );
     }
 }
@@ -300,17 +267,11 @@ fn passthrough_apply_does_not_authorize() {
 fn generate_parses_repo_wide_with_bazel_options() {
     let got = parse(&strings(&["generate"])).expect("parse");
     assert_eq!(got.command, Command::Generate);
-    assert!(!got.check);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
     assert!(got.targets.is_empty());
     assert!(got.bazel_options.is_empty());
-    assert_eq!(got.mode(), "default");
-    let scoped = parse(&strings(&[
-        "generate", "--check", "//a:one", "--", "--jobs=4",
-    ]))
-    .expect("parse");
+    let scoped = parse(&strings(&["generate", "//a:one", "--", "--jobs=4"])).expect("parse");
     assert_eq!(scoped.command, Command::Generate);
-    assert!(scoped.check);
     assert_eq!(scoped.targets, strings(&["//a:one"]));
     assert_eq!(scoped.bazel_options, strings(&["--jobs=4"]));
 }
@@ -492,26 +453,10 @@ fn old_tests_command_is_rejected_with_bazel_query_tip() {
 }
 
 #[test]
-fn removed_version_flags_fail_with_explicit_command_tips() {
-    for (words, tip) in [
-        (vec!["version", "--pin", "1.0.0"], "dx upgrade --from"),
-        (vec!["version", "--pin=1.0.0"], "dx upgrade --from"),
-        (vec!["version", "--rollback"], "dx rollback --apply"),
-    ] {
-        assert_usage(
-            &words,
-            parse(&strings(&words)).unwrap_err(),
-            &["unsupported option", "dx version only reports", tip],
-        );
-    }
-}
-
-#[test]
 fn rollback_parses_with_apply_only() {
     let got = parse(&strings(&["rollback", "--apply"])).expect("parse");
     assert_eq!(got.command, Command::Rollback);
     assert!(got.apply);
-    assert!(parse(&strings(&["rollback", "--check"])).is_err());
     assert!(parse(&strings(&["rollback", "//a:one"])).is_err());
 }
 
@@ -570,28 +515,13 @@ fn workflow_commands_parse_scopes_and_options() {
 #[test]
 fn workflow_commands_reject_quality_only_options() {
     assert_eq!(
-        parse(&strings(&["build", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "build",
-            option: "--check".to_owned(),
-        })
-    );
-    assert_eq!(
         parse(&strings(&["test", "--fail-on=error"])),
         Err(ArgsError::UnsupportedOption {
             command: "test",
             option: "--fail-on".to_owned(),
         })
     );
-    assert_eq!(
-        parse(&strings(&["coverage", "--check", "--fail-on=info"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "coverage",
-            option: "--check".to_owned(),
-        }),
-        "check is reported before fail-on"
-    );
-    assert!(parse(&strings(&["lint", "--check", "--fail-on=error"])).is_ok());
+    assert!(parse(&strings(&["lint", "--fail-on=error"])).is_ok());
 }
 
 #[test]
@@ -654,7 +584,7 @@ fn inline_flag_values_and_empty_workspace_fail() {
             option: "--workspace".to_owned(),
         })
     );
-    for words in [vec!["lint", "--quiet=x"], vec!["lint", "--check=x"]] {
+    for words in [vec!["lint", "--quiet=x"]] {
         let flag = words[1].split('=').next().expect("a flag");
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[flag]);
     }
@@ -678,19 +608,8 @@ fn clean_parses_prune_unobserved() {
 
 #[test]
 fn clean_rejects_scopes_and_quality_options() {
-    let got = parse(&strings(&["clean", "--check"])).expect("clean check parses");
-    assert!(got.check, "clean --check sets the flag");
-    assert_eq!(got.operation(), OperationMode::Check);
-    assert!(!got.applies());
     let got = parse(&strings(&["clean", "--apply"])).expect("clean apply parses");
     assert!(got.applies());
-    assert_eq!(
-        parse(&strings(&["clean", "--check", "--apply"])),
-        Err(ArgsError::ConflictingModes {
-            first: "--check",
-            second: "--apply",
-        })
-    );
     assert_eq!(
         parse(&strings(&["clean", "--fail-on=error"])),
         Err(ArgsError::UnsupportedOption {
@@ -752,17 +671,6 @@ fn audit_update_parse_and_reject_unsupported_options() {
     assert_eq!(update.command.name(), "update");
     let selected = parse(&strings(&["update", "crates"])).expect("parse update selector");
     assert_eq!(selected.targets, vec!["crates".to_owned()]);
-    assert_eq!(
-        parse(&strings(&["security", "--check"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "security",
-            option: "--check".to_owned(),
-        })
-    );
-    let check = parse(&strings(&["update", "--check"])).expect("parse update check");
-    assert_eq!(check.command, Command::Update);
-    assert!(check.check);
-    assert_eq!(check.mode(), "check");
     assert_eq!(
         parse(&strings(&["update", "--fail-on=error"])),
         Err(ArgsError::UnsupportedOption {

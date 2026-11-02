@@ -628,24 +628,6 @@ mod tests {
     }
 
     #[test]
-    fn clean_explicit_check_matches_default() {
-        let default = Harness::new("clean-check-matches-default");
-        let stale = commit_clean_pair(&default, '3', '4');
-        let _current = commit_clean_pair(&default, '1', '2');
-        let (default_code, default_out, _) = default.run(&["clean", "--prune-unobserved"]);
-        let explicit = Harness::new("clean-check-matches-explicit");
-        let estale = commit_clean_pair(&explicit, '3', '4');
-        let _ecurrent = commit_clean_pair(&explicit, '1', '2');
-        assert_eq!(stale, estale, "fixtures agree");
-        let (explicit_code, explicit_out, _) =
-            explicit.run(&["clean", "--check", "--prune-unobserved"]);
-        assert_eq!(default_code, explicit_code);
-        assert_eq!(default_out, explicit_out);
-        assert_eq!(default_code, 1, "{default_out}");
-        assert!(default_out.contains("run `dx clean --apply` to prune it"));
-    }
-
-    #[test]
     fn clean_check_json_emits_planned_notices_with_drift_exit() {
         let harness = Harness::new("clean-check-json-drift");
         let stale = commit_clean_pair(&harness, '3', '4');

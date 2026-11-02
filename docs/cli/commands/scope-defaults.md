@@ -6,13 +6,12 @@ with a scope.
 ## No Scope Means `//...`
 
 - `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`, `dx migrate`
+  `dx format`, `dx check`, `dx fix`, `dx security`, `dx license`
 
 ## No Scope Means The Repository
 
 - `dx generate`: runs Gazelle over the whole repo.
-- `dx docs`: builds `//tools/docs/site:user_site`, or
-  `//tools/docs/site:user_site_check` in `--check`.
+- `dx docs`: builds `//tools/docs/site:user_site`.
 
 ## Repository-Wide Or One Exact Label
 
@@ -37,7 +36,7 @@ Patterns, paths, and multiple labels are usage errors.
 
 ## No Scopes
 
-- `dx clean`, `dx status`, `dx version`, `dx upgrade`, `dx rollback`, `dx worktree`, `dx explain`, `dx install`
+- `dx clean`, `dx status`, `dx upgrade`, `dx rollback`, `dx worktree`, `dx explain`, `dx install`
 
 ## Scope Shapes
 

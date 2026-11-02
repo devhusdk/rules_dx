@@ -11,7 +11,7 @@ fn check_mode_clean_run_succeeds() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, out, err) = harness.run(&["lint", "--check", "--output=text"]);
+    let (code, out, err) = harness.run(&["lint", "--output=text"]);
     assert_eq!(code, 0);
     assert!(out.contains("Running lint analysis for"));
     assert_eq!(err, "");
@@ -25,7 +25,7 @@ fn check_mode_fails_on_replacement_without_diagnostics() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=text"]);
+    let (code, out, _) = harness.run(&["lint", "--output=text"]);
     assert_eq!(code, 1);
     assert!(out.contains("Running lint analysis for //..."));
     assert_eq!(
@@ -40,17 +40,13 @@ fn check_mode_fails_on_replacement_without_diagnostics() {
 }
 
 #[test]
-fn check_and_default_report_findings_without_writing() {
+fn default_reports_findings_without_writing() {
     for command in ["lint", "typecheck", "format"] {
         let default = umbrella_findings(&format!("default-check-{command}"));
         let (default_code, default_out, _) = default.run(&[command, "--output=text"]);
-        let check = umbrella_findings(&format!("explicit-check-{command}"));
-        let (check_code, check_out, _) = check.run(&[command, "--check", "--output=text"]);
         assert_eq!(default_code, 1, "{command}");
-        assert_eq!(check_code, 1, "{command}");
-        assert_eq!(default_out, check_out, "{command}");
         assert!(!default_out.contains("Applied"), "{command}");
-        for harness in [&default, &check] {
+        for harness in [&default] {
             assert_eq!(
                 std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
                 b"x = 1\n",
@@ -63,8 +59,10 @@ fn check_and_default_report_findings_without_writing() {
             );
         }
         if command == "lint" {
-            assert!(check_out.contains("Running lint analysis for //..."));
-            assert!(check_out.contains("src/a.py:1:1: warning: unused [lint-tool/rule] (fixable)"));
+            assert!(default_out.contains("Running lint analysis for //..."));
+            assert!(
+                default_out.contains("src/a.py:1:1: warning: unused [lint-tool/rule] (fixable)")
+            );
         }
     }
 }
@@ -99,7 +97,7 @@ fn a_stream_without_bazels_last_event_never_reads_clean() {
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
     harness.unterminated_bep = true;
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1, "{out}");
     let events = json_events(&out);
     let incomplete = events_of_kind(&events, "error")
@@ -143,7 +141,7 @@ fn failed_target_prevents_mutation() {
 #[test]
 fn json_mode_emits_lifecycle_with_counts() {
     let harness = umbrella_findings("json");
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=json"]);
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
     assert_eq!(code, 1);
     let events = json_events(&out);
     let kinds = event_kinds(&events);
@@ -173,7 +171,7 @@ fn json_mode_emits_lifecycle_with_counts() {
 #[test]
 fn diff_mode_emits_patch_only() {
     let harness = umbrella_findings("diff");
-    let (code, out, _) = harness.run(&["lint", "--check", "--output=diff"]);
+    let (code, out, _) = harness.run(&["lint", "--output=diff"]);
     assert_eq!(code, 1);
     assert!(out.contains("--- a/src/a.py"));
     assert!(out.contains("+++ b/src/a.py"));
@@ -188,12 +186,7 @@ fn sarif_file_report_writes_after_validation() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
     );
-    let (code, out, _) = harness.run(&[
-        "lint",
-        "--check",
-        "--output=text",
-        "--report=sarif=out.sarif",
-    ]);
+    let (code, out, _) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1);
     assert!(out.contains("Wrote sarif report to out.sarif."));
     let document = std::fs::read(harness.workspace.join("out.sarif")).expect("sarif");
@@ -389,7 +382,7 @@ fn non_utf8_temp_path_is_operational() {
     let mut raw = harness.temp.join("x").into_os_string().into_vec();
     raw.push(0xff);
     let temp = PathBuf::from(std::ffi::OsString::from_vec(raw));
-    let invocation = invocation(&["lint", "--check"]);
+    let invocation = invocation(&["lint"]);
     let runner = harness.runner();
     let mut out = Vec::new();
     let mut err = Vec::new();

@@ -8,7 +8,6 @@ mod status_tools;
 #[cfg(test)]
 mod test_support;
 mod upgrade;
-mod version;
 pub(crate) mod watch;
 mod wiring;
 
@@ -43,7 +42,6 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
         Command::Init => init::execute_init(invocation, workspace, out, err),
         Command::Upgrade => upgrade::execute_upgrade(invocation, workspace, out, err),
         Command::Status => status::execute_status(invocation, workspace, out, err),
-        Command::Version => version::execute_version(invocation, workspace, out, err),
         Command::Rollback => rollback::execute_rollback(invocation, workspace, out, err),
         Command::Completion => completion::execute_completion(invocation, out, err),
         _ => pre_exec(invocation.output, out, err, "not an adoption command"),
@@ -170,15 +168,6 @@ mod tests {
             "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
         )
         .expect("module");
-        let (code, out, _err) = run(&inv, &root);
-        assert_eq!(code, 0);
-        assert!(!out.is_empty());
-
-        let inv = invocation(&["version", "--quiet"]);
-        let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-version-");
-        let root = scratch.path().to_path_buf();
-        std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0);
         assert!(!out.is_empty());

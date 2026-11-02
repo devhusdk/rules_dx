@@ -45,28 +45,28 @@ CHECKS = (
 MATRIX_CHECKS = (
     {
         "id": "lint",
-        "args": ["lint", "--check"],
+        "args": ["lint"],
         "reports": ["sarif=lint.sarif"],
         "passthrough": True,
         "timeout": 30,
     },
     {
         "id": "typecheck",
-        "args": ["typecheck", "--check"],
+        "args": ["typecheck"],
         "reports": ["sarif=typecheck.sarif"],
         "passthrough": True,
         "timeout": 30,
     },
     {
         "id": "format",
-        "args": ["format", "--check"],
+        "args": ["format"],
         "reports": [],
         "passthrough": True,
         "timeout": 30,
     },
     {
         "id": "generate",
-        "args": ["generate", "--check"],
+        "args": ["generate"],
         "reports": [],
         "passthrough": True,
         "timeout": 30,

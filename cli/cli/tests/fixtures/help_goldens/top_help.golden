@@ -26,16 +26,14 @@ Commands:
   update      update dependencies per set through qualified resolvers (check by default; --apply writes updates)
   bump        widen one declared requirement to a new version (check by default; --apply widens)
   add         declare one new requirement at an exact version (check by default; --apply adds)
-  migrate     rewrite breaking changes across releases (upgrade-only; check by default; --apply migrates)
   codegen     materialize declared generated source (check by default; --apply writes)
   env         collect the managed development environment (check by default; --apply writes managed state)
   init        start or adopt a dx workspace in this or a new directory (absent-only; check by default; --apply scaffolds)
   upgrade     pin the module version and refresh existing launchers and the AGENTS.md block (runs on skew; check by default; --apply upgrades)
   status      report workspace status; --verbose adds command capabilities; without .dx/version it exits 1 with status_pin_mismatch
-  version     report version and pin drift
   watch       watch for changes and rebuild (local only)
   completion  emit shell completions from the CLI grammar (bash|zsh|fish|powershell)
-  docs        build, check, and serve the mdBook documentation site (non-mutating; --check validates without rendering)
+  docs        build and serve the mdBook documentation site (non-mutating)
   rollback    restore the previous recorded pin (check by default; --apply restores)
   worktree    lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)
   explain     explain why actions missed the cache by diffing two execution logs from build/test --explain (non-mutating)

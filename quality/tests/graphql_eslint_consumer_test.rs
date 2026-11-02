@@ -217,7 +217,7 @@ fn lint_never_rewrites_and_format_stays_with_prettier() {
     assert_eq!(read(&query), UNKNOWN_FIELD);
 
     write(&query, UNFORMATTED);
-    let dirty = dx(&root, "format", &["--check"]);
+    let dirty = dx(&root, "format", &[]);
     assert_eq!(dirty.status.code(), Some(1), "{}", dirty.combined());
     assert_eq!(read(&query), UNFORMATTED);
     let applied = dx(&root, "format", &["--apply"]);

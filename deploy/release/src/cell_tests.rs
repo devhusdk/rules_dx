@@ -190,7 +190,7 @@ impl Runner for FakeRunner {
                 std::fs::write(cwd.join("MODULE.bazel.snippet"), snippet).expect("snippet");
             }
         }
-        let stdout = if args[0] == "version" {
+        let stdout = if args[0] == "--version" {
             self.version.clone()
         } else {
             "ok\n".to_owned()
@@ -1144,7 +1144,7 @@ fn version_main_asks_the_executable() {
         Ok("1.2.3".to_owned())
     );
     let mut runner = FakeRunner::new();
-    runner.fail = vec!["version"];
+    runner.fail = vec!["--version"];
     assert!(version_main(&exe, &runner)
         .expect_err("failed")
         .contains("version broke"));

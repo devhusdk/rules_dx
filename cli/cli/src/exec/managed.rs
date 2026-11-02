@@ -736,19 +736,6 @@ mod tests {
     }
 
     #[test]
-    fn managed_explicit_check_matches_default() {
-        for command in ["codegen", "env"] {
-            let default = Harness::new(&format!("managed-check-default-{command}"));
-            let (default_code, default_out, _) = default.run(&[command]);
-            let explicit = Harness::new(&format!("managed-check-explicit-{command}"));
-            let (explicit_code, explicit_out, _) = explicit.run(&[command, "--check"]);
-            assert_eq!(default_code, explicit_code, "{command}");
-            assert_eq!(default_out, explicit_out, "{command}");
-            assert_eq!(default_code, 1, "{command} drift: {default_out}");
-        }
-    }
-
-    #[test]
     fn managed_check_current_selection_succeeds_without_touching_state() {
         for command in ["codegen", "env"] {
             let name = format!("managed-check-current-{command}");

@@ -238,7 +238,7 @@ fn startup_file_and_workspace_failures_report_structured_json() {
         .join("no-such-dir")
         .to_string_lossy()
         .into_owned();
-    let (code, out, err) = run_dx(scratch.path(), &["version", "--workspace", &missing], &[]);
+    let (code, out, err) = run_dx(scratch.path(), &["status", "--workspace", &missing], &[]);
     assert_eq!(code, Some(2), "{err}");
     assert_startup_outcome(&out, "unresolved_workspace", 2);
     assert!(err.contains("cannot resolve workspace"), "{err}");

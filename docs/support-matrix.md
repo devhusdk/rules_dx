@@ -2,7 +2,7 @@
 
 This page lists, for each language and target, the platforms it does not support, and its lint, format, and typecheck tools.
 
-Everything builds and tests on every platform it supports. `none` means all five platforms are supported. Missing tests on a supported platform are gaps, tracked as issues and listed by `bazel run //tools/docs/support_matrix:gaps`.
+Everything builds and tests on every platform it supports. `none` means all five platforms are supported.
 
 `n/a` means the capability does not apply to that language or format.
 

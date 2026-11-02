@@ -255,9 +255,7 @@ NOT_LANGUAGES = [
     "tools",
 ]
 
-# A platform a row cannot support, with the reason. Marking it removes the
-# build and consumer gaps for that platform. Rows without an entry that are
-# missing a platform have a tracked gap (see GAP_ISSUES), not a reason.
+# A platform a row does not support, with the reason.
 PLATFORM_NOT_APPLICABLE = {
     "appimage": {
         "macos_arm64": "AppImage is a Linux format",
@@ -308,33 +306,6 @@ TOOL_NOT_APPLICABLE = {
         "windows_x86_64": "Ruby portable builds ship no Windows interpreter",
     },
 }
-
-GAP_ISSUES = {
-    "build:cuda:linux_arm64": 4541,
-    "build:cuda:windows_x86_64": 4541,
-    "build:d:windows_*": 4542,
-    "build:elixir:windows_*": 4544,
-    "build:erlang:*": 4545,
-    "build:haskell:*": 4547,
-    "build:julia:*": 4548,
-    "build:qt:windows_*": 4554,
-    "consumer:*": 4436,
-    "format:asciidoc": 4439,
-    "format:cloudformation": 4439,
-    "format:helm": 4439,
-    "format:rst": 4439,
-    "lint:julia": 4623,
-    "lint:pkl": 4623,
-    "lint:typst": 4623,
-    "support:*": 4441,
-    "typecheck:astro": 1767,
-    "typecheck:haskell": 4530,
-    "typecheck:mdx": 1768,
-    "typecheck:svelte": 1766,
-    "typecheck:vue": 4525,
-}
-
-GAP_ENFORCEMENT = True
 
 def _build_file(label):
     return label.split(":")[0] + ":BUILD.bazel"

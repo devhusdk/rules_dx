@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 
-use crate::gaps::tools;
 use crate::{Facts, Row, RowPlatforms, UPDATE_COMMAND};
 
 fn table(header: &[&str], rows: &[Vec<String>]) -> String {
@@ -62,10 +61,35 @@ fn build_table(
     table(&[heading, "Not supported on"], &rows)
 }
 
+/// Returns the quality tools of `capability` across `families`, sorted and unique.
+fn tools(facts: &Facts, families: &[String], capability: &str) -> Vec<String> {
+    let mut out: Vec<String> = families
+        .iter()
+        .filter_map(|family| facts.quality.get(family))
+        .filter_map(|caps| caps.get(capability))
+        .flatten()
+        .cloned()
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Reports whether `capability` never applies to a row: it has no tools and
+/// every one of its families is declared not applicable.
+fn not_applicable(facts: &Facts, families: &[String], capability: &str) -> bool {
+    let Some(declared) = facts.not_applicable.get(capability) else {
+        return false;
+    };
+    !families.is_empty()
+        && tools(facts, families, capability).is_empty()
+        && families.iter().all(|family| declared.contains_key(family))
+}
+
 fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
     let found = tools(facts, &row.families, capability);
     if found.is_empty() {
-        if crate::gaps::not_applicable(facts, &row.families, capability) {
+        if not_applicable(facts, &row.families, capability) {
             return "n/a".to_owned();
         }
         return "no".to_owned();
@@ -138,8 +162,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     );
     out.push_str(
         "Everything builds and tests on every platform it supports. \
-         `none` means all five platforms are supported. Missing tests on a supported platform are gaps, \
-         tracked as issues and listed by `bazel run //tools/docs/support_matrix:gaps`.\n\n",
+         `none` means all five platforms are supported.\n\n",
     );
     out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
     out.push_str(&format!("The platforms are {}.\n\n", ids.join(", ")));
@@ -204,8 +227,6 @@ mod tests {
       "deferred_families": [],
       "not_applicable": {"typecheck": {"yaml": "data format"}},
       "not_languages": [],
-      "gap_issues": {},
-      "gap_enforcement": false,
       "computed_constraints": {}
     }"#;
 

@@ -1,6 +1,5 @@
 //! Generates `docs/support-matrix.md` from CI workflows, test BUILD files and the quality registry.
 
-pub mod gaps;
 pub mod render;
 pub mod runfiles_source;
 pub mod starlark;
@@ -67,8 +66,6 @@ pub struct Facts {
     #[serde(default)]
     pub tool_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
     pub not_languages: Vec<String>,
-    pub gap_issues: BTreeMap<String, u64>,
-    pub gap_enforcement: bool,
     pub computed_constraints: BTreeMap<String, Vec<Vec<String>>>,
 }
 
@@ -82,13 +79,6 @@ pub trait Source {
 pub struct RowPlatforms {
     pub build: Vec<String>,
     pub consumer: Vec<String>,
-}
-
-/// The rendered page and the gaps it shows.
-#[derive(Clone, Debug)]
-pub struct Matrix {
-    pub markdown: String,
-    pub gaps: Vec<String>,
 }
 
 /// Parses the facts JSON.
@@ -281,17 +271,10 @@ pub fn row_platforms(
 }
 
 /// Generates the page from the facts and the workspace sources.
-pub fn generate(facts_json: &str, source: &dyn Source) -> Result<Matrix, String> {
+pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, String> {
     let facts = parse_facts(facts_json)?;
     let platforms = row_platforms(&facts, source)?;
-    let gaps = gaps::gaps(&facts, &platforms);
-    if facts.gap_enforcement {
-        gaps::check_ledger(&gaps, &facts.gap_issues)?;
-    }
-    Ok(Matrix {
-        markdown: render::render(&facts, &platforms),
-        gaps,
-    })
+    Ok(render::render(&facts, &platforms))
 }
 
 /// Returns a short line diff of `want` against `have`, or None when equal.

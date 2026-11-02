@@ -27,7 +27,6 @@ filegroup(
 rust_library(
     name = "support_matrix",
     srcs = [
-        "src/gaps.rs",
         "src/lib.rs",
         "src/render.rs",
         "src/runfiles_source.rs",
@@ -63,22 +62,10 @@ rust_binary(
     deps = [":support_matrix"],
 )
 
-# keep
-rust_binary(
-    name = "gaps",
-    srcs = ["src/main.rs"],
-    args = ["--gaps"],
-    crate_root = "src/main.rs",
-    data = [":inputs"],
-    edition = "2021",
-    deps = [":support_matrix"],
-)
-
 rustfmt_test(
     name = "support_matrix_fmt_test",
     size = "small",
     targets = [
-        ":gaps",
         ":support_matrix",
         ":update",
     ],
@@ -88,7 +75,6 @@ rust_clippy_test(
     name = "support_matrix_clippy_test",
     size = "small",
     targets = [
-        ":gaps",
         ":support_matrix",
         ":update",
     ],

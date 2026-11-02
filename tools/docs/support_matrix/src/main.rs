@@ -1,10 +1,10 @@
-//! Checks, writes, or lists the gaps of `docs/support-matrix.md`.
+//! Writes `docs/support-matrix.md`.
 
 use std::path::Path;
 use std::process::ExitCode;
 
 use support_matrix::runfiles_source::RunfilesSource;
-use support_matrix::{gaps, generate, parse_facts, Source, MATRIX_PATH, UPDATE_COMMAND};
+use support_matrix::{generate, parse_facts, Source, MATRIX_PATH, UPDATE_COMMAND};
 
 const FACTS: &str = "tools/docs/support_matrix/facts.json";
 
@@ -55,22 +55,10 @@ fn run() -> Result<ExitCode, String> {
                     "top-level dirs {unlisted:?} are neither rows nor NOT_LANGUAGES in tools/docs/support_matrix/languages.bzl"
                 ));
             }
-            write(workspace, &matrix.markdown)?;
+            write(workspace, &matrix)?;
             Ok(ExitCode::SUCCESS)
         }
-        "--gaps" => {
-            let ledger = parse_facts(&facts)?.gap_issues;
-            for gap in &matrix.gaps {
-                match gaps::issue_for(gap, &ledger) {
-                    Some(issue) => println!("{gap} #{issue}"),
-                    None => println!("{gap}"),
-                }
-            }
-            Ok(ExitCode::SUCCESS)
-        }
-        other => Err(format!(
-            "usage: support_matrix --write | --gaps (got {other:?})"
-        )),
+        other => Err(format!("usage: support_matrix --write (got {other:?})")),
     }
 }
 

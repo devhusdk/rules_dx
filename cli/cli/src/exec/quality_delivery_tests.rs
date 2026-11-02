@@ -133,7 +133,7 @@ fn a_failed_diff_never_returns_success() {
     for (kind, want) in KINDS {
         let h = harness("q-diff-fails", true);
         let mut sink = Sink::new(Fault::WriteFails(kind), 1);
-        let (code, _) = run(&h, &["format", "--output=diff"], &mut sink);
+        let (code, _) = run(&h, &["format", "--diff"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
         assert!(sink.bytes.is_empty());
         assert_eq!(source(&h), b"x = 1\n");
@@ -160,10 +160,10 @@ fn partial_writes_deliver_every_event_whole() {
 fn partial_writes_deliver_the_whole_diff() {
     let h = harness("q-partial-diff", true);
     let mut whole = Sink::new(Fault::None, 0);
-    let (want, _) = run(&h, &["format", "--output=diff"], &mut whole);
+    let (want, _) = run(&h, &["format", "--diff"], &mut whole);
     let h = harness("q-partial-diff-bytes", true);
     let mut sink = Sink::new(Fault::OneByteWrites, 0);
-    let (code, _) = run(&h, &["format", "--output=diff"], &mut sink);
+    let (code, _) = run(&h, &["format", "--diff"], &mut sink);
     assert_eq!(code, want);
     assert_eq!(sink.bytes, whole.bytes);
     assert!(!sink.bytes.is_empty());

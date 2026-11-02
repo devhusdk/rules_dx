@@ -3145,7 +3145,7 @@ mod tests {
     #[test]
     fn test_rejects_diff_output_at_parse() {
         let err = dx_plan::args::parse(
-            &["test", "--output=diff", "--report=junit=out.xml"]
+            &["test", "--diff", "--report=junit=out.xml"]
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
@@ -3155,7 +3155,7 @@ mod tests {
             err,
             dx_plan::args::ArgsError::UnsupportedOption {
                 command: "test",
-                option: "--output=diff".to_owned(),
+                option: "--diff".to_owned(),
             }
         );
     }

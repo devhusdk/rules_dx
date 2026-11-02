@@ -1,7 +1,7 @@
 # `dx worktree`
 
 ```text
-dx worktree add <branch> [--create=<ref>] [--force] [--output=path]
+dx worktree add <branch> [--create=<ref>] [--force] [--path-only]
 dx worktree release [<path>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
@@ -24,10 +24,10 @@ Flags: `--create=<ref>` (add only), `--force` (add and release), `--disk`
 Scopes: none. `dx worktree` takes a subcommand and its arguments.
 Reports: none.
 
-`--output text|json|path`. `path` works with `add` only. Text prints the lines
+`--output text|json`. `--path-only` works with `add` only. Text prints the lines
 above. `add` prints `dx worktree: <branch> is in slot <n> at <path>`. When
 `add` starts a new branch, it first prints
-`dx worktree: started <branch> from <base>`, on stderr with `--output=path`.
+`dx worktree: started <branch> from <base>`, on stderr with `--path-only`.
 `<base>` is the `--create` ref, else `origin/HEAD`, `origin/main`, or
 `origin/master`.
 `release` prints `dx worktree: released slot <n> at <path>`, or
@@ -156,7 +156,7 @@ keeps the output base of the slot it picked. It reuses a free slot before it cre
 matched by `.worktreeinclude` in the main checkout are copied in. `--create=<ref>`
 starts a new branch from `<ref>`. Without it, `add` uses the local `<branch>`,
 then `origin/<branch>`, and otherwise starts `<branch>` from the default branch
-(`origin/HEAD`, else `origin/main`, else `origin/master`). `--output=path` prints
+(`origin/HEAD`, else `origin/main`, else `origin/master`). `--path-only` prints
 only the path on stdout and writes the `dx worktree: ...` warning lines to
 stderr. Submodule checkouts and `--separate-git-dir` clones work too.
 
@@ -517,7 +517,7 @@ longer than two minutes. `worktree`, `version`, and `completion` always run.
 ```sh
 bazel run @rules_dx//:dx -- worktree add feature-x
 bazel run @rules_dx//:dx -- worktree add feature-x --create=origin/main
-bazel run @rules_dx//:dx -- worktree add feature-x --output=path
+bazel run @rules_dx//:dx -- worktree add feature-x --path-only
 bazel run @rules_dx//:dx -- worktree release
 bazel run @rules_dx//:dx -- worktree list --output=json
 bazel run @rules_dx//:dx -- worktree prune

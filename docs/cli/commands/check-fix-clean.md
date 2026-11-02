@@ -90,7 +90,7 @@ report complete. The run exits with the code of the phase that stopped it, or
 of the first failed phase, even when the report cannot be written. A
 failed phase that wrote nothing adds no `collection_failed` error.
 
-Output: `--output text|diff|json`. JSON keeps one `command_started` and one
+Output: `--output text|json`, or `--diff` for a patch. JSON keeps one `command_started` and one
 `command_finished` for the run. Each phase sits between a `phase_started` and
 a `phase_finished`, and its events carry `command`, `phase`, and a
 `correlation` such as `check/format`. `dx check --apply` verification phases use

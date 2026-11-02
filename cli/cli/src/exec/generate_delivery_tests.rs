@@ -111,7 +111,7 @@ fn a_failed_diff_never_returns_success() {
     for (kind, want) in KINDS {
         let h = generate_witness("abc\n", "g-diff-fails");
         let mut sink = Sink::new(Fault::WriteFails(kind), 1);
-        let code = run(&h, &["generate", "--apply", "--output=diff"], &mut sink);
+        let code = run(&h, &["generate", "--apply", "--diff"], &mut sink);
         assert_eq!(code, want, "{kind:?}");
         assert!(sink.bytes.is_empty());
     }
@@ -133,10 +133,10 @@ fn partial_writes_deliver_every_event_whole() {
 fn partial_writes_deliver_the_whole_diff() {
     let h = generate_witness("abc\n", "g-partial-diff");
     let mut whole = Sink::new(Fault::None, 0);
-    let want = run(&h, &["generate", "--apply", "--output=diff"], &mut whole);
+    let want = run(&h, &["generate", "--apply", "--diff"], &mut whole);
     let h = generate_witness("abc\n", "g-partial-diff-bytes");
     let mut sink = Sink::new(Fault::OneByteWrites, 0);
-    let code = run(&h, &["generate", "--apply", "--output=diff"], &mut sink);
+    let code = run(&h, &["generate", "--apply", "--diff"], &mut sink);
     assert_eq!(code, want);
     assert_eq!(sink.bytes, whole.bytes);
     assert!(!sink.bytes.is_empty());

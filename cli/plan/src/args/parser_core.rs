@@ -621,10 +621,10 @@ fn clean_rejects_scopes_and_quality_options() {
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
     assert_eq!(
-        parse(&strings(&["clean", "--output=diff"])),
+        parse(&strings(&["clean", "--diff"])),
         Err(ArgsError::UnsupportedOption {
             command: "clean",
-            option: "--output=diff".to_owned(),
+            option: "--diff".to_owned(),
         })
     );
     assert_eq!(
@@ -682,10 +682,10 @@ fn audit_update_parse_and_reject_unsupported_options() {
     assert_eq!(got.command, Command::Update);
     assert_eq!(got.output, OutputMode::Json);
     assert_eq!(
-        parse(&strings(&["update", "--output=diff"])),
+        parse(&strings(&["update", "--diff"])),
         Err(ArgsError::UnsupportedOption {
             command: "update",
-            option: "--output=diff".to_owned(),
+            option: "--diff".to_owned(),
         })
     );
     assert_eq!(

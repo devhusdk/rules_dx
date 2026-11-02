@@ -126,101 +126,34 @@ fn unsupported_defaults_fall_back_per_command() {
             }
         }
     }
-    let diff = file_with(None, Some("diff"), None, None, None);
-    let got = parse_with(&strings(&["build"]), &env_of(&[]), &diff).expect("file diff on build");
-    assert_eq!(got.output, OutputMode::Text { quiet: false });
-    let got = parse_with(
-        &strings(&["build"]),
-        &env_of(&[("DX_OUTPUT", "diff")]),
-        &empty,
-    )
-    .expect("env diff on build");
-    assert_eq!(got.output, OutputMode::Text { quiet: false });
-    let got = parse_with(&strings(&["test"]), &env_of(&[("CLAUDECODE", "1")]), &diff)
-        .expect("agent diff on test");
-    assert_eq!(got.output, OutputMode::Json);
     let got = parse_with(&strings(&["lint"]), &env_of(&[]), &file).expect("lint keeps defaults");
     assert_eq!(got.output, OutputMode::Json);
     assert_eq!(got.fail_on, Threshold::Error);
-    let path = file_with(None, Some("path"), None, None, None);
-    let path_env = env_of(&[("DX_OUTPUT", "path")]);
-    for words in [
-        &["build"][..],
-        &["clean"][..],
-        &["init"][..],
-        &["lint"][..],
-        &["completion", "bash"][..],
-    ] {
-        for (label, got) in [
-            ("file", parse_with(&strings(words), &env_of(&[]), &path)),
-            ("env", parse_with(&strings(words), &path_env, &empty)),
-        ] {
-            let got = got.unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
-            assert_eq!(
-                got.output,
-                OutputMode::Text { quiet: false },
-                "{words:?} {label}"
-            );
-            assert!(!got.path_only, "{words:?} {label}");
-        }
-        let got = parse_with(&strings(words), &env_of(&[("CLAUDECODE", "1")]), &path)
-            .unwrap_or_else(|error| panic!("{words:?} agent: {error:?}"));
-        let want = if got.command.supports_json() {
-            OutputMode::Json
-        } else {
-            OutputMode::Text { quiet: false }
-        };
-        assert_eq!(got.output, want, "{words:?} agent");
-    }
 }
 
 #[test]
-fn path_default_applies_to_worktree_add_only() {
-    let path = file_with(None, Some("path"), None, None, None);
-    let path_env = env_of(&[("DX_OUTPUT", "path")]);
+fn path_only_is_a_worktree_add_flag() {
     let empty = FileDefaults::default();
-    for (label, env, file) in [
-        (
-            "file",
-            &env_of(&[]) as &dyn Fn(&str) -> Option<String>,
-            &path,
-        ),
-        ("env", &path_env, &empty),
-    ] {
-        let got = parse_with(&strings(&["worktree", "add", "topic"]), env, file)
-            .unwrap_or_else(|error| panic!("add {label}: {error:?}"));
-        assert!(got.path_only, "add {label}");
-        assert_eq!(got.output, OutputMode::Text { quiet: false }, "add {label}");
-        for words in [
-            &["worktree"][..],
-            &["worktree", "list"][..],
-            &["worktree", "path", "topic"][..],
-        ] {
-            let got = parse_with(&strings(words), env, file)
-                .unwrap_or_else(|error| panic!("{words:?} {label}: {error:?}"));
-            assert!(!got.path_only, "{words:?} {label}");
-            assert_eq!(
-                got.output,
-                OutputMode::Text { quiet: false },
-                "{words:?} {label}"
-            );
-        }
-    }
-    let agent_path = env_of(&[("CLAUDECODE", "1"), ("DX_OUTPUT", "path")]);
-    let got = parse_with(&strings(&["worktree", "list"]), &agent_path, &empty)
-        .expect("agent worktree list");
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(!got.path_only);
-    let got = parse_with(&strings(&["worktree", "add", "topic"]), &agent_path, &empty)
-        .expect("agent worktree add");
-    assert!(got.path_only);
     let got = parse_with(
-        &strings(&["worktree", "list", "--output=path"]),
+        &strings(&["worktree", "add", "topic", "--path-only"]),
         &env_of(&[]),
         &empty,
     )
-    .expect("explicit path flag");
+    .expect("add path-only");
     assert!(got.path_only);
+    let got = parse_with(
+        &strings(&["worktree", "add", "topic"]),
+        &env_of(&[]),
+        &empty,
+    )
+    .expect("add");
+    assert!(!got.path_only);
+    assert!(parse_with(
+        &strings(&["worktree", "list", "--path-only"]),
+        &env_of(&[]),
+        &empty
+    )
+    .is_err());
 }
 
 #[test]
@@ -239,10 +172,10 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
         })
     );
     assert_eq!(
-        parse_with(&strings(&["build", "--output=diff"]), &env_of(&[]), &empty),
+        parse_with(&strings(&["build", "--diff"]), &env_of(&[]), &empty),
         Err(ArgsError::UnsupportedOption {
             command: "build",
-            option: "--output=diff".to_owned(),
+            option: "--diff".to_owned(),
         })
     );
     let never = file_with(None, None, None, None, Some("never"));
@@ -268,7 +201,7 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
 fn precedence_is_flag_over_env_over_file() {
     let file = file_with(
         Some("/file"),
-        Some("diff"),
+        Some("json"),
         Some(true),
         Some(false),
         Some("info"),

@@ -240,7 +240,7 @@ fn diff_missing_source_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("cannot render patch without verified source for src/missing.py"));
 }
@@ -264,7 +264,7 @@ fn diff_non_utf8_source_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("source for src/a.py is not UTF-8 text"));
 }
@@ -287,7 +287,7 @@ fn diff_unappliable_edit_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("cannot apply recorded edits for src/a.py"));
 }
@@ -310,7 +310,7 @@ fn diff_non_utf8_candidate_fails() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("cannot apply recorded edits for src/a.py"));
 }
@@ -333,7 +333,7 @@ fn diff_identical_candidate_fails_render() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![change]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, _, err) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert!(err.contains("dx: diff_failed: failed to render patch"));
 }
@@ -347,7 +347,7 @@ fn diff_stale_source_fails_render() {
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
     harness.write_source("src/a.py", "z = 2\n");
-    let (code, out, err) = harness.run(&["lint", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -366,7 +366,7 @@ fn diff_stale_source_fails_render_in_apply_mode() {
         harness.valid_result(vec![], vec![harness.replacement(b"y")]),
     );
     harness.write_source("src/a.py", "z = 2\n");
-    let (code, out, err) = harness.run(&["lint", "--apply", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--diff"]);
     assert_eq!(code, 1);
     assert_eq!(
         std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
@@ -585,7 +585,7 @@ fn write_failure(name: &str) -> (Harness, FailingWrites) {
 #[test]
 fn diff_apply_write_failure_prints_the_patch_and_fails() {
     let (harness, fs) = write_failure("diff-write-failed");
-    let (code, out, err) = harness.run_with_fs(&["format", "--apply", "--output=diff"], &fs);
+    let (code, out, err) = harness.run_with_fs(&["format", "--apply", "--diff"], &fs);
     assert_eq!(code, 1, "{out}{err}");
     assert!(out.contains("--- a/src/a.py"), "{out}");
     assert!(

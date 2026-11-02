@@ -292,7 +292,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
             "add",
             "issue-1",
             "--create=origin/main",
-            "--output=path",
+            "--path-only",
         ],
         &root,
         &env,
@@ -311,7 +311,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     };
     let taken = run_with(
         launcher,
-        &["worktree", "add", "issue-1", "--output=path"],
+        &["worktree", "add", "issue-1", "--path-only"],
         &root,
         &other,
         "",
@@ -390,7 +390,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
             "add",
             "issue-2",
             "--create=origin/main",
-            "--output=path",
+            "--path-only",
         ],
         &root,
         &other,

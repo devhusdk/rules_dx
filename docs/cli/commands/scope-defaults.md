@@ -188,7 +188,7 @@ exit `2`).
   `--output=json` lists every widened scope.
 - Before the queries run, dx prints
   `dx: affected: resolving changes since 1a2b3c4d5e6f` on stderr, then the
-  summary. `--quiet`, `--output=diff`, and `--output=json` print neither. An
+  summary. `--quiet`, `--diff`, and `--output=json` print neither. An
   empty selection prints no summary.
 - No changes, or no affected targets, prints `no affected targets` on stdout
   and exits `0`. `dx security` is the exception: when any file changed, it

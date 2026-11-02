@@ -171,7 +171,7 @@ fn json_mode_emits_lifecycle_with_counts() {
 #[test]
 fn diff_mode_emits_patch_only() {
     let harness = umbrella_findings("diff");
-    let (code, out, _) = harness.run(&["lint", "--output=diff"]);
+    let (code, out, _) = harness.run(&["lint", "--diff"]);
     assert_eq!(code, 1);
     assert!(out.contains("--- a/src/a.py"));
     assert!(out.contains("+++ b/src/a.py"));
@@ -457,7 +457,7 @@ fn diff_mode_lists_unapplied_changes_after_failed_bazel() {
             vec![harness.replacement(b"y")],
         ),
     );
-    let (code, out, err) = harness.run(&["lint", "--apply", "--output=diff"]);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--diff"]);
     assert_eq!(code, 1);
     assert!(out.contains("--- a/src/a.py"));
     assert!(err.contains("Not applied: src/a.py (incomplete_collection)"));
@@ -766,7 +766,7 @@ fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {
 
 #[test]
 fn apply_phase_reports_written_effects_in_every_output_mode() {
-    for output in ["--output=text", "--output=json", "--output=diff"] {
+    for output in ["--output=text", "--output=json", "--diff"] {
         let mut harness = Harness::new("phase-effects-written");
         harness.write_source("src/a.py", "x = 1\n");
         harness.results.insert(

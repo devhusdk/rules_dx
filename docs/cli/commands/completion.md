@@ -9,7 +9,7 @@ Prints the completion script for one shell: `bash`, `zsh`, `fish`, or
 
 - Takes exactly one shell and prints its script to stdout.
 - No shell, more than one shell, `--output=json`,
-  `--output=diff`, or `--` Bazel options is a usage error.
+  `--diff`, or `--` Bazel options is a usage error.
 - Unknown shells fail with `unknown-shell`.
 
 The script asks `dx` for candidates as you type, so keep `dx` on your `PATH`.
@@ -33,7 +33,7 @@ When dx runs without a console (started detached), completion that gives up
 also stops that server. The query's client and any wrapper such as Bazelisk
 stop when completion gives up. Completion prints no errors while you type.
 
-Output: text only. `--output=json` and `--output=diff` are usage errors.
+Output: text only. `--output=json` and `--diff` are usage errors.
 `DX_OUTPUT=json` and `output = "json"` in `dx.toml` fall back to text.
 
 Exit codes: `0` success, `2` usage errors (missing or unknown shell, rejected

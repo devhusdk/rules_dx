@@ -41,9 +41,9 @@ Only library actions start early. To turn pipelining off, set
 A bare `bazel build` with the quality aspect also needs `--@rules_rust//rust/settings:rustc_output_diagnostics=true` for the metadata (rmeta) diagnostics group to exist. `dx` sets it for you.
 
 ```text
-dx lint [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
-dx typecheck [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
-dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|diff|json] [--include-edits] [scope...] [-- bazel-options ...]
+dx lint [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|json] [--diff] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx typecheck [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|json] [--diff] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|json] [--diff] [--include-edits] [scope...] [-- bazel-options ...]
 ```
 
 - `--apply`: write validated fixes and refresh the configured baseline.
@@ -56,13 +56,14 @@ dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--outp
   at the workspace root; an absolute one writes as given. Colliding destinations
   fail before anything runs, parents must exist, and a failed write keeps the
   previous file bytes. Use `-` for stdout. Only one stdout report is allowed,
-  and only with text output: `--output json` or `--output diff` exits `2`. With
+  and only with text output: `--output json` or `--diff` exits `2`. With
   a stdout report, text findings and summaries go to stderr.
   SARIF results carry `partialFingerprints` (`dx/v1`), `ruleIndex`, and `fixes` for machine-applicable replacements.
   Runs set `columnKind` to `unicodeCodePoints`.
 - `dx lint` without `--apply` also fails with exit `1` when the checkout holds
   build output or a file over 1 MiB, as described for `dx check`.
-- `--output text|diff|json`: result shape. JSON `command_finished` carries
+- `--diff`: print a unified patch of the proposed fixes instead of findings.
+- `--output text|json`: result shape. JSON `command_finished` carries
   the Bazel `actions` counts of the probe and the build together, and text ends with a
   `dx: <total> actions, ...` line on stderr.
 - `--include-edits`: add `source_digest` and full `edits` to JSON `change`
@@ -74,7 +75,7 @@ Unicode characters in the checked file. A finding without a verified position
 prints `path:`; a finding without a file prints `(no file):`. Identical
 findings print once with `(xN)`. `--quiet` never hides findings or failures.
 
-`--output diff` prints a unified patch of the proposed fixes on stdout and no
+`--diff` prints a unified patch of the proposed fixes on stdout and no
 finding lines. `Not applied:`, `Conflict:` and `Baseline stale:` lines go to
 stderr.
 

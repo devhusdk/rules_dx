@@ -55,6 +55,8 @@ pub(crate) struct Flags {
     pub(crate) verbose: Option<bool>,
     pub(crate) color: Option<String>,
     pub(crate) output: Option<String>,
+    pub(crate) diff: bool,
+    pub(crate) path_only: bool,
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
     pub(crate) build_slots: Option<String>,
@@ -185,7 +187,7 @@ flag_group! {
 
 flag_group! {
     /// Set output format.
-    ReadOutputFlag, {
+    OutputFlag, {
         #[arg(
             long,
             short = 'o',
@@ -197,15 +199,18 @@ flag_group! {
 }
 
 flag_group! {
-    /// Set output format.
-    DiffOutputFlag, {
-        #[arg(
-            long,
-            short = 'o',
-            overrides_with = "output",
-            value_parser = clap::builder::PossibleValuesParser::new(["text", "diff", "json"])
-        )]
-        output: Option<String>,
+    /// Print the edits as a patch.
+    DiffFlag, {
+        #[arg(long, overrides_with = "diff")]
+        diff: bool,
+    }
+}
+
+flag_group! {
+    /// Print only the new worktree path.
+    PathOnlyFlag, {
+        #[arg(long = "path-only", overrides_with = "path_only")]
+        path_only: bool,
     }
 }
 
@@ -635,19 +640,6 @@ flag_group! {
     }
 }
 
-flag_group! {
-    /// Set output format (path works with add only).
-    WorktreeOutputFlag, {
-        #[arg(
-            long,
-            short = 'o',
-            overrides_with = "output",
-            value_parser = clap::builder::PossibleValuesParser::new(["text", "json", "path"])
-        )]
-        output: Option<String>,
-    }
-}
-
 composite_group! {
     /// The profile flags the workflow commands share.
     ProfileArgs, {
@@ -854,7 +846,7 @@ macro_rules! command_args {
 command_args! {
     /// The flags `dx security` accepts.
     Security => 0, NoPassthroughTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         fail_on: FailOnFlag,
@@ -864,7 +856,7 @@ command_args! {
     };
     /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         fail_on: FailOnFlag,
@@ -874,7 +866,8 @@ command_args! {
     };
     /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
-        output: DiffOutputFlag,
+        output: OutputFlag,
+        diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
@@ -884,7 +877,8 @@ command_args! {
     };
     /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
-        output: DiffOutputFlag,
+        output: OutputFlag,
+        diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
@@ -894,7 +888,8 @@ command_args! {
     };
     /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
-        output: DiffOutputFlag,
+        output: OutputFlag,
+        diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
@@ -903,13 +898,14 @@ command_args! {
     };
     /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
-        output: DiffOutputFlag,
+        output: OutputFlag,
+        diff: DiffFlag,
         apply: GenerateApplyFlag,
         here: HereFlag,
     };
     /// The flags `dx build` accepts.
     Build => 6, BazelTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         own: ProfileArgs,
         explain: ExplainFlag,
         report: ReportFlag,
@@ -918,7 +914,7 @@ command_args! {
     };
     /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         own: ProfileArgs,
         explain: ExplainFlag,
         report: ReportFlag,
@@ -927,7 +923,7 @@ command_args! {
     };
     /// The flags `dx coverage` accepts.
     Coverage => 8, BazelTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         min_coverage: MinCoverageFlag,
         min_changed_line_coverage: MinChangedLineCoverageFlag,
         explain: ExplainFlag,
@@ -937,7 +933,7 @@ command_args! {
     };
     /// The flags `dx run` accepts.
     Run => 9, AppTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         own: ProfileArgs,
         bazel_option: BazelOptionFlag,
     };
@@ -945,7 +941,8 @@ command_args! {
     Deploy => 10, AppTail, { own: ProfileArgs, apply: ApplyFlag, };
     /// The flags `dx check` accepts.
     Check => 11, BazelTail, {
-        output: DiffOutputFlag,
+        output: OutputFlag,
+        diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
@@ -955,31 +952,32 @@ command_args! {
         affected: AffectedFlag,
     };
     /// The flags `dx clean` accepts.
-    Clean => 12, NoScopeTail, { output: ReadOutputFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
+    Clean => 12, NoScopeTail, { output: OutputFlag, apply: CleanApplyFlag, prune_unobserved: PruneUnobservedFlag, };
     /// The flags `dx update` accepts.
     Update => 13, NoPassthroughTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         offline: OfflineFlag,
         frozen: FrozenFlag,
         apply: UpdateApplyFlag,
     };
     /// The flags `dx bump` accepts.
-    Bump => 14, NoPassthroughTail, { output: ReadOutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, floor: FloorArgs, };
+    Bump => 14, NoPassthroughTail, { output: OutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, floor: FloorArgs, };
     /// The flags `dx codegen` accepts.
-    Codegen => 15, BazelTail, { output: ReadOutputFlag, apply: CodegenApplyFlag, };
+    Codegen => 15, BazelTail, { output: OutputFlag, apply: CodegenApplyFlag, };
     /// The flags `dx env` accepts.
-    Env => 16, BazelTail, { output: ReadOutputFlag, apply: EnvApplyFlag, };
+    Env => 16, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 17, NoPassthroughTail, { output: ReadOutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
+    Init => 17, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 18, NoScopeTail, { output: ReadOutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
+    Upgrade => 18, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: MigrationArgs, };
     /// The flags `dx status` accepts.
     Status => 19, NoScopeTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
     };
     /// The flags `dx watch` accepts.
     Watch => 20, BazelTail, {
-        output: DiffOutputFlag,
+        output: OutputFlag,
+        diff: DiffFlag,
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
@@ -992,15 +990,16 @@ command_args! {
     Completion => 21, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
     Docs => 22, BazelTail, {
-        output: ReadOutputFlag,
+        output: OutputFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx rollback` accepts.
-    Rollback => 23, NoScopeTail, { output: ReadOutputFlag, apply: RollbackApplyFlag, };
+    Rollback => 23, NoScopeTail, { output: OutputFlag, apply: RollbackApplyFlag, };
     /// The flags `dx worktree` accepts.
     Worktree => 24, NoPassthroughTail, {
-        output: WorktreeOutputFlag,
+        output: OutputFlag,
+        path_only: PathOnlyFlag,
         apply: ApplyFlag,
         create: CreateFlag,
         force: ForceFlag,
@@ -1008,9 +1007,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 25, NoScopeTail, { output: ReadOutputFlag, own: LogPairArgs, };
+    Explain => 25, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 26, NoScopeTail, { output: ReadOutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 26, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]
@@ -1335,7 +1334,7 @@ mod tests {
         let accepts = |words: &[&str]| kind_of(words) == clap::error::ErrorKind::UnknownArgument;
         for words in [
             vec!["build", "-o", "json"],
-            vec!["lint", "--output=diff"],
+            vec!["lint", "--diff"],
             vec!["lint", "-ojson"],
             vec!["security", "--output", "text"],
         ] {
@@ -1343,12 +1342,12 @@ mod tests {
         }
         for (words, kind) in [
             (
-                vec!["build", "--output=diff"],
-                clap::error::ErrorKind::InvalidValue,
+                vec!["build", "--diff"],
+                clap::error::ErrorKind::UnknownArgument,
             ),
             (
-                vec!["security", "-o", "diff"],
-                clap::error::ErrorKind::InvalidValue,
+                vec!["security", "--diff"],
+                clap::error::ErrorKind::UnknownArgument,
             ),
             (
                 vec!["completion", "bash", "-o", "json"],

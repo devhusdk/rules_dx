@@ -205,14 +205,8 @@ see `dx <command> --help`."
 
 pub(crate) fn output_modes(command: Command) -> String {
     let mut modes = vec!["text"];
-    if command.supports_diff() {
-        modes.push("diff");
-    }
     if command.supports_json() {
         modes.push("json");
-    }
-    if command == Command::Worktree {
-        modes.push("path");
     }
     modes.join("|")
 }
@@ -574,7 +568,7 @@ mod tests {
                 .find(|line| line.starts_with("Output: "))
                 .unwrap_or_else(|| panic!("dx {} help has no Output line", command.name()));
             let mut modes = vec!["text"];
-            for mode in ["diff", "json"] {
+            for mode in ["json"] {
                 if accepts_output(command, mode) {
                     modes.push(mode);
                 }
@@ -585,9 +579,6 @@ mod tests {
             } else {
                 format!("--report {}=<destination> (repeatable).", reports.join("|"))
             };
-            if command == Command::Worktree {
-                modes.push("path");
-            }
             let want = if accepts_output(command, "text") {
                 format!("Output: --output {}; {report}", modes.join("|"))
             } else {

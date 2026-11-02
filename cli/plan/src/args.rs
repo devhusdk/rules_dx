@@ -33,8 +33,8 @@ pub enum ArgsError {
     /// A scope token is not a flag or a label.
     #[error("unknown option {option:?}")]
     UnknownOption { option: String },
-    /// The resolved --output value is not one of the three modes.
-    #[error("unknown --output {value:?}: want text|diff|json")]
+    /// The resolved --output value is not one of the two modes.
+    #[error("unknown --output {value:?}: want text|json")]
     BadOutput { value: String },
     /// The resolved --fail-on value is not a severity.
     #[error("unknown --fail-on {value:?}: want info|warning|error")]

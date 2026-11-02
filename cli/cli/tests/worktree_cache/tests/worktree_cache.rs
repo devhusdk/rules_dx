@@ -132,7 +132,7 @@ fn add(case: &Case, scratch: &Scratch, branch: &str) -> PathBuf {
         case,
         scratch,
         &scratch.repo,
-        &["worktree", "add", branch, "--create=main", "--output=path"],
+        &["worktree", "add", branch, "--create=main", "--path-only"],
     );
     ok(&added, &format!("worktree add {branch}"));
     PathBuf::from(added.stdout.trim())

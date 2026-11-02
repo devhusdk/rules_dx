@@ -887,10 +887,7 @@ mod tests {
             Command::Generate,
             Command::Check,
         ] {
-            assert!(
-                command.supports_diff(),
-                "{command:?} must support --output=diff"
-            );
+            assert!(command.supports_diff(), "{command:?} must support --diff");
         }
         assert!(!Command::Update.supports_diff());
         assert!(!Command::Bump.supports_diff());
@@ -980,7 +977,7 @@ mod tests {
         }
         .to_string();
         assert!(
-            bad_output.contains("text|diff|json"),
+            bad_output.contains("text|json"),
             "output value set drifted: {bad_output}"
         );
         let bad_fail = super::super::ArgsError::BadFailOn {

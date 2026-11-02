@@ -90,7 +90,7 @@ fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
     if value.is_empty() {
         return None;
     }
-    if matches!(value.as_str(), "text" | "diff" | "json") {
+    if matches!(value.as_str(), "text" | "json") {
         let command = args
             .iter()
             .filter_map(|word| word.as_ref().to_str())

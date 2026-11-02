@@ -173,7 +173,7 @@ fn misplaced_flag(invocation: &Invocation, sub: &str) -> Option<&'static str> {
         return Some("--apply");
     }
     if invocation.path_only && sub != "add" {
-        return Some("--output=path");
+        return Some("--path-only");
     }
     None
 }
@@ -1070,7 +1070,7 @@ mod tests {
         assert_eq!(slot["event"], "slot");
         assert!(slot.get("base").is_none(), "{text}");
         let mut out = Vec::new();
-        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        let invocation = parsed(&["worktree", "add", "x", "--path-only"]);
         add_output(&mut out, &mut err, &invocation, "x", &reused).expect("output");
         assert_eq!(String::from_utf8(out).expect("utf8"), "/cache/slots/3\n");
         assert_eq!(String::from_utf8(err).expect("utf8"), "");
@@ -1090,7 +1090,7 @@ mod tests {
 
     #[test]
     fn add_path_prints_the_path_and_warns_on_stderr() {
-        let (text, stderr) = render(&["worktree", "add", "x", "--output=path"]);
+        let (text, stderr) = render(&["worktree", "add", "x", "--path-only"]);
         assert_eq!(text, "/cache/slots/3\n");
         assert_eq!(
             stderr,
@@ -1101,7 +1101,7 @@ mod tests {
 
     #[test]
     fn add_path_writes_every_warning_to_stderr_in_order() {
-        let invocation = parsed(&["worktree", "add", "x", "--output=path"]);
+        let invocation = parsed(&["worktree", "add", "x", "--path-only"]);
         let mut added = added();
         added.warnings.push(Warning {
             code: "disk_low",

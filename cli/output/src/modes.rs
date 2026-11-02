@@ -24,7 +24,6 @@ impl OutputMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum OutputModeName {
     Text,
-    Diff,
     Json,
 }
 
@@ -39,7 +38,6 @@ impl OutputModeName {
     pub fn resolve(self, quiet: bool) -> OutputMode {
         match self {
             OutputModeName::Text => OutputMode::Text { quiet },
-            OutputModeName::Diff => OutputMode::Diff,
             OutputModeName::Json => OutputMode::Json,
         }
     }
@@ -93,10 +91,7 @@ mod tests {
             OutputMode::parse("text", true).expect("quiet"),
             OutputMode::Text { quiet: true }
         );
-        assert_eq!(
-            OutputMode::parse("diff", false).expect("diff"),
-            OutputMode::Diff
-        );
+        assert!(OutputMode::parse("diff", false).is_err());
         assert_eq!(
             OutputMode::parse("json", true).expect("json"),
             OutputMode::Json
@@ -111,10 +106,7 @@ mod tests {
             OutputModeName::parse("text").expect("text"),
             OutputModeName::Text
         );
-        assert_eq!(
-            OutputModeName::parse("diff").expect("diff"),
-            OutputModeName::Diff
-        );
+        assert!(OutputModeName::parse("diff").is_err());
         assert_eq!(
             OutputModeName::parse("json").expect("json"),
             OutputModeName::Json
@@ -132,12 +124,11 @@ mod tests {
             })
             .collect();
         values.sort_unstable();
-        assert_eq!(values, ["diff", "json", "text"]);
+        assert_eq!(values, ["json", "text"]);
         assert_eq!(
             OutputModeName::Text.resolve(true),
             OutputMode::Text { quiet: true }
         );
-        assert_eq!(OutputModeName::Diff.resolve(true), OutputMode::Diff);
         assert_eq!(OutputModeName::Json.resolve(false), OutputMode::Json);
     }
 

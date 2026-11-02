@@ -20,8 +20,9 @@ dx generate [--here] [--apply] [scope...] [-- bazel-options...]
 
 - `--apply`: write the updated BUILD files. Without it files stay untouched and stale files fail the run.
 - `--fail-on`, `--report`, `--affected`: rejected as usage errors (exit `2`).
-- `--output text|diff|json`: result shape. `diff` prints one unified patch per
-  stale file, or per file `--apply` wrote or did not apply.
+- `--output text|json`: result shape.
+- `--diff`: print one unified patch per stale file, or per file `--apply` wrote
+  or did not apply.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` stale files with
 the default, a file `--apply` did not write, incomplete results, a

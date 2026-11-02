@@ -489,7 +489,7 @@ fn create_trees(
         let added = dx_tool(
             workspace,
             binary,
-            &["worktree", "add", &name, &create, "--output=path"],
+            &["worktree", "add", &name, &create, "--path-only"],
         )
         .and_then(|path| {
             path.lines()

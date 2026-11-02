@@ -30,7 +30,7 @@ combined with explicit scopes (exit `2`).
 
 `--port`, `--host`, and `--open` need `--serve`.
 
-Output: `--output text|json`. `--output diff` is a usage error (exit `2`).
+Output: `--output text|json`. `--diff` is a usage error (exit `2`).
 Text prints `Running docs build for <scope> (mdBook render)`. With `--serve`
 it then prints `Serving docs at <url> (<dir>)`, and `Opening <url>` with
 `--open`. JSON starts with `command_started` (mode `default`),
@@ -48,7 +48,7 @@ preview server exits.
 Reports: none. `--report` is a usage error.
 
 Exit codes: `0` success, `2` usage errors, including `--here` with an
-explicit scope, `--output diff`, and `--report`, and scope errors
+explicit scope, `--diff`, and `--report`, and scope errors
 (`invalid_scope`, `no_owner`, `query_failed`). `1` a launch, signal, or
 preview failure, including `query_launch_failed` (the scope query cannot be
 launched), `launch_failed` (Bazel cannot be launched),

@@ -26,9 +26,6 @@ fn effect_of(command: Command) -> &'static str {
 
 fn output_names(command: Command) -> Vec<String> {
     let mut modes = vec!["text".to_owned()];
-    if command.supports_diff() {
-        modes.push("diff".to_owned());
-    }
     if command.supports_json() {
         modes.push("json".to_owned());
     }

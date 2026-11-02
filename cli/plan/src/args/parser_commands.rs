@@ -141,7 +141,7 @@ fn an_owned_option_is_accepted_only_by_its_owner() {
 #[test]
 fn include_edits_needs_json_output() {
     for command in ["lint", "typecheck", "format", "check"] {
-        for output in [None, Some("--output=text"), Some("--output=diff")] {
+        for output in [None, Some("--output=text"), Some("--diff")] {
             let mut words = vec![command, "--include-edits"];
             words.extend(output);
             match parse(&strings(&words)) {
@@ -207,7 +207,7 @@ fn a_global_gate_is_accepted_exactly_where_the_registry_declares() {
 
 const OUTPUT_MODES: [(&str, &str, fn(Command) -> bool); 2] = [
     ("--output=json", "json", Command::supports_json),
-    ("--output=diff", "diff", Command::supports_diff),
+    ("--diff", "diff", Command::supports_diff),
 ];
 
 #[test]
@@ -336,15 +336,10 @@ fn bump_needs_exactly_one_selector_plus_version() {
     assert_eq!(got.command, Command::Bump);
     assert_eq!(got.output, OutputMode::Json);
     assert_eq!(
-        parse(&strings(&[
-            "bump",
-            "cargo:anyhow",
-            "1.2.3",
-            "--output=diff"
-        ])),
+        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--diff"])),
         Err(ArgsError::UnsupportedOption {
             command: "bump",
-            option: "--output=diff".to_owned(),
+            option: "--diff".to_owned(),
         })
     );
     assert_eq!(
@@ -441,11 +436,11 @@ fn upgrade_needs_from_and_to_with_no_scopes() {
             "upgrade",
             "--from=1.2.3",
             "--to=2.0.0",
-            "--output=diff"
+            "--diff"
         ])),
         Err(ArgsError::UnsupportedOption {
             command: "upgrade",
-            option: "--output=diff".to_owned(),
+            option: "--diff".to_owned(),
         })
     );
     let json = parse(&strings(&[
@@ -464,10 +459,10 @@ fn run_rejects_machine_output_and_reports() {
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
     assert_eq!(
-        parse(&strings(&["run", "//app:bin", "--output=diff"])),
+        parse(&strings(&["run", "//app:bin", "--diff"])),
         Err(ArgsError::UnsupportedOption {
             command: "run",
-            option: "--output=diff".to_owned(),
+            option: "--diff".to_owned(),
         })
     );
     assert_eq!(
@@ -568,27 +563,27 @@ fn output_contract_has_no_silent_ignore() {
     for (words, want) in [
         (vec!["watch", "test", "--output=json"], OutputMode::Json),
         (vec!["watch", "build", "-o", "json"], OutputMode::Json),
-        (vec!["watch", "lint", "--output=diff"], OutputMode::Diff),
-        (vec!["watch", "check", "-o", "diff"], OutputMode::Diff),
-        (vec!["watch", "-o", "diff", "format"], OutputMode::Diff),
+        (vec!["watch", "lint", "--diff"], OutputMode::Diff),
+        (vec!["watch", "check", "--diff"], OutputMode::Diff),
+        (vec!["watch", "--diff", "format"], OutputMode::Diff),
     ] {
         let got = parse(&strings(&words)).expect("the wrapped command takes the mode");
         assert_eq!(got.command, Command::Watch, "{words:?}");
         assert_eq!(got.output, want, "{words:?}");
     }
     for command in ["lint", "typecheck", "format", "generate", "check"] {
-        let got = parse(&strings(&[command, "--output=diff"])).expect("diff capable");
+        let got = parse(&strings(&[command, "--diff"])).expect("diff capable");
         assert_eq!(got.output, OutputMode::Diff, "command: {command}");
         assert!(got.command.supports_diff(), "command: {command}");
     }
     for words in [
-        vec!["clean", "--output=diff"],
-        vec!["codegen", "--output=diff"],
-        vec!["env", "--output=diff"],
-        vec!["run", "//app:bin", "--output=diff"],
-        vec!["init", "proj", "--output=diff"],
-        vec!["watch", "build", "--output=diff"],
-        vec!["watch", "run", "//app:bin", "-o", "diff"],
+        vec!["clean", "--diff"],
+        vec!["codegen", "--diff"],
+        vec!["env", "--diff"],
+        vec!["run", "//app:bin", "--diff"],
+        vec!["init", "proj", "--diff"],
+        vec!["watch", "build", "--diff"],
+        vec!["watch", "run", "//app:bin", "--diff"],
         vec!["completion", "bash", "--output=json"],
     ] {
         assert!(
@@ -600,26 +595,26 @@ fn output_contract_has_no_silent_ignore() {
         );
     }
     for words in [
-        vec!["build", "//a:one", "--output=diff"],
-        vec!["test", "//a:one", "--output=diff"],
-        vec!["coverage", "--output=diff"],
-        vec!["run", "//a:one", "--output=diff"],
-        vec!["security", "--output=diff"],
-        vec!["license", "--output=diff"],
-        vec!["update", "--output=diff"],
-        vec!["status", "--output=diff"],
-        vec!["clean", "--output=diff"],
-        vec!["codegen", "--output=diff"],
-        vec!["env", "--output=diff"],
-        vec!["docs", "--output=diff"],
-        vec!["bump", "cargo:anyhow", "1.2.3", "--output=diff"],
-        vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--output=diff"],
+        vec!["build", "//a:one", "--diff"],
+        vec!["test", "//a:one", "--diff"],
+        vec!["coverage", "--diff"],
+        vec!["run", "//a:one", "--diff"],
+        vec!["security", "--diff"],
+        vec!["license", "--diff"],
+        vec!["update", "--diff"],
+        vec!["status", "--diff"],
+        vec!["clean", "--diff"],
+        vec!["codegen", "--diff"],
+        vec!["env", "--diff"],
+        vec!["docs", "--diff"],
+        vec!["bump", "cargo:anyhow", "1.2.3", "--diff"],
+        vec!["upgrade", "--from=1.2.3", "--to=2.0.0", "--diff"],
     ] {
         assert_eq!(
             parse(&strings(&words)),
             Err(ArgsError::UnsupportedOption {
                 command: words[0],
-                option: "--output=diff".to_owned(),
+                option: "--diff".to_owned(),
             }),
             "words: {words:?}"
         );
@@ -733,7 +728,7 @@ fn docs_check_serve_port_parse() {
         vec!["docs", "--fail-on=error"],
         vec!["docs", "--report=sarif=out.sarif"],
         vec!["docs", "--from=0.1.0"],
-        vec!["docs", "--output=diff"],
+        vec!["docs", "--diff"],
     ] {
         assert!(
             matches!(
@@ -1033,13 +1028,13 @@ fn a_refused_output_diff_is_named_before_any_other_flag_the_command_refuses() {
     ] {
         let words = owned_option_words(
             Command::parse(command).unwrap_or_else(|| panic!("registry names {command}")),
-            &["--output=diff", also_refused],
+            &["--diff", also_refused],
         );
         assert_eq!(
             parse(&words),
             Err(ArgsError::UnsupportedOption {
                 command,
-                option: "--output=diff".to_owned(),
+                option: "--diff".to_owned(),
             }),
             "words: {words:?}"
         );
@@ -1092,7 +1087,7 @@ fn worktree_subcommands_parse_with_their_flags() {
     assert_eq!(got.command, Command::Worktree);
     assert_eq!(got.targets, vec!["add", "topic"]);
     assert_eq!(got.create.as_deref(), Some("origin/main"));
-    let got = parse(&strings(&["worktree", "add", "topic", "--output=path"])).expect("path");
+    let got = parse(&strings(&["worktree", "add", "topic", "--path-only"])).expect("path");
     assert!(got.path_only);
     let got = parse(&strings(&["worktree", "release", "--force"])).expect("release");
     assert!(got.force);

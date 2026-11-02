@@ -1092,8 +1092,8 @@ mod tests {
             (vec!["watch", "build"], Progress::Stdout),
             (vec!["watch", "--quiet", "build"], Progress::Silent),
             (vec!["watch", "build", "--output=json"], Progress::Stderr),
-            (vec!["watch", "lint", "--output=diff"], Progress::Stderr),
-            (vec!["watch", "lint", "-o", "diff"], Progress::Stderr),
+            (vec!["watch", "lint", "--diff"], Progress::Stderr),
+            (vec!["watch", "lint", "--diff"], Progress::Stderr),
             (vec!["watch", "test", "--report=junit=-"], Progress::Stderr),
             (
                 vec!["watch", "test", "--report=junit=out.xml"],
@@ -1121,7 +1121,7 @@ mod tests {
         let mut err = Vec::new();
         let mut waits = 0;
         let code = watch(
-            &invocation(&["watch", "lint", "--output=diff"]),
+            &invocation(&["watch", "lint", "--diff"]),
             harness.env(&runner, &mut out, &mut err),
             None,
             &|| None,

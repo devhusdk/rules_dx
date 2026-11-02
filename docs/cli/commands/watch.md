@@ -34,10 +34,10 @@ killed. The replacement builds and launches only after the old app is gone.
 An app that exits on its own is relaunched on the next change. The app gets
 no stdin.
 
-Output: `--output text|diff|json`, when the wrapped command takes that mode.
+Output: `--output text|json` and `--diff`, when the wrapped command takes that mode.
 Each iteration writes the wrapped command's own output. Watch adds one line
 per iteration and one line per trigger, naming the first changed absolute path.
-`--quiet` drops these lines. With `--output json`, `--output diff`, or
+`--quiet` drops these lines. With `--output json`, `--diff`, or
 `--report <format>=-`, they go to stderr so stdout holds only the wrapped
 command's output: under JSON, one event stream per iteration, each ending in
 `command_finished`. For a restarted app, `command_finished` reports `143`.

@@ -119,20 +119,7 @@ fn output_spelling(word: &str, next: Option<&str>) -> Option<(Option<String>, bo
 fn output_supported(command: Command, name: &str) -> bool {
     match name {
         "json" => command.supports_json(),
-        "diff" => command.supports_diff(),
-        "path" => command == Command::Worktree,
         _ => true,
-    }
-}
-
-/// Whether a default output value applies to the command and worktree verb.
-///
-/// The path value is a default only for `worktree add`; the flag path keeps
-/// accepting it on every worktree verb.
-fn default_output_applies(command: Command, name: &str, worktree_verb: Option<&str>) -> bool {
-    match name {
-        "path" => command == Command::Worktree && worktree_verb == Some("add"),
-        _ => output_supported(command, name),
     }
 }
 
@@ -148,13 +135,12 @@ fn resolve_output_name(
     env: Option<String>,
     file: Option<&str>,
     agent: bool,
-    worktree_verb: Option<&str>,
 ) -> String {
     if let Some(flag) = flag {
         return flag.to_owned();
     }
     if let Some(value) = env.as_deref().or(file) {
-        if command.is_none_or(|command| default_output_applies(command, value, worktree_verb)) {
+        if command.is_none_or(|command| output_supported(command, value)) {
             return value.to_owned();
         }
     }
@@ -163,31 +149,6 @@ fn resolve_output_name(
     } else {
         "text".to_owned()
     }
-}
-
-/// The first positional after the command word, skipping value options.
-fn verb_after_command<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
-    let mut positionals = 0;
-    let mut index = 0;
-    while index < args.len() {
-        let word = args[index].as_ref().to_str()?;
-        if word == "--" {
-            return None;
-        }
-        if word.starts_with('-') {
-            let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
-            if super::grammar::consumes_next(word, next) {
-                index += 1;
-            }
-        } else {
-            positionals += 1;
-            if positionals == 2 {
-                return Some(word.to_owned());
-            }
-        }
-        index += 1;
-    }
-    None
 }
 
 /// Whether a startup failure may report structured JSON events on stdout.
@@ -207,15 +168,7 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
     let agent = !is_ci && dx_adopt::defaults::is_agent(env_get);
-    let verb = verb_after_command(args);
-    resolve_output_name(
-        command,
-        None,
-        env,
-        file.output.as_deref(),
-        agent,
-        verb.as_deref(),
-    ) == "json"
+    resolve_output_name(command, None, env, file.output.as_deref(), agent) == "json"
 }
 
 /// Whether the raw command line asks for help or the delivered version.
@@ -544,6 +497,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         verbose,
         color: color_name,
         output,
+        diff,
+        path_only,
         report,
         fail_on,
         build_slots,
@@ -619,18 +574,12 @@ fn parse_inner<S: AsRef<OsStr>>(
     let agent = invocation_defaults::is_agent(env_get);
     let output_from_flag = output.is_some();
     let fail_on_from_flag = fail_on.is_some();
-    let default_output = if agent && command.supports_json() {
-        "json"
-    } else {
-        "text"
-    };
-    let mut output_name = resolve_output_name(
+    let output_name = resolve_output_name(
         Some(command),
         output.as_deref(),
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
         file.output.as_deref(),
         agent,
-        targets.first().map(String::as_str),
     );
     let fail_on_name = invocation_defaults::resolve_string(
         fail_on,
@@ -775,21 +724,22 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
     }
 
-    let mut path_only = false;
     if command == Command::Worktree {
         validate_worktree(&targets)?;
-        if output_name == "path" {
-            if output_from_flag || targets.first().is_some_and(|verb| verb == "add") {
-                path_only = true;
-                output_name = "text".to_owned();
-            } else {
-                output_name = default_output.to_owned();
-            }
+        if path_only && targets.first().is_none_or(|verb| verb != "add") {
+            return Err(unsupported(command, "--path-only"));
         }
     }
-    let output = OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
-        value: output_name.clone(),
-    })?;
+    if diff && output_from_flag && output_name == "json" {
+        return Err(unsupported(command, "--diff"));
+    }
+    let output = if diff {
+        OutputMode::Diff
+    } else {
+        OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
+            value: output_name.clone(),
+        })?
+    };
     if command.is_adoption() {
         match command {
             Command::Status => {
@@ -1095,28 +1045,6 @@ mod startup_tests {
     }
 
     #[test]
-    fn json_intent_ignores_path_default_for_non_add_worktree_verbs() {
-        let file = crate::args::FileDefaults::default();
-        let env = |name: &str| match name {
-            "DX_OUTPUT" => Some("path".to_owned()),
-            "CLAUDECODE" => Some("1".to_owned()),
-            _ => None,
-        };
-        assert!(json_output_intent(
-            &strings(&["worktree", "list"]),
-            &env,
-            &file,
-            false
-        ));
-        assert!(!json_output_intent(
-            &strings(&["worktree", "add", "x"]),
-            &env,
-            &file,
-            false
-        ));
-    }
-
-    #[test]
     fn json_intent_follows_flag_environment_and_file_layers() {
         let file = crate::args::FileDefaults::default();
         let empty_env = |_: &str| None;
@@ -1217,21 +1145,6 @@ mod startup_tests {
                 "lint {label}"
             );
         }
-        let agent = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
-        let mut path_file = crate::args::FileDefaults::default();
-        path_file.output = Some("path".to_owned());
-        assert!(json_output_intent(
-            &strings(&["lint"]),
-            &agent,
-            &path_file,
-            false
-        ));
-        assert!(!json_output_intent(
-            &strings(&["completion"]),
-            &agent,
-            &path_file,
-            false
-        ));
         assert!(json_output_intent(
             &strings(&["completion", "--output=json"]),
             &empty_env,
@@ -1260,8 +1173,8 @@ mod startup_tests {
             &["worktree", "list"][..],
             &["status"][..],
         ] {
-            for env_output in [None, Some("json"), Some("text"), Some("path")] {
-                for file_output in [None, Some("json"), Some("path")] {
+            for env_output in [None, Some("json"), Some("text")] {
+                for file_output in [None, Some("json")] {
                     for agent in [false, true] {
                         let env = |name: &str| {
                             if name == dx_adopt::defaults::DX_OUTPUT_ENV {

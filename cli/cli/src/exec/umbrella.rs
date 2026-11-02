@@ -3047,7 +3047,7 @@ mod tests {
             "no SARIF-capable phase finished, no runs"
         );
 
-        let (code, _, err) = run("--output=diff");
+        let (code, _, err) = run("--diff");
         assert_eq!(code, 36);
         assert!(
             err.ends_with(
@@ -3160,7 +3160,7 @@ mod tests {
     #[test]
     fn umbrella_diff_renders_every_phase_patch() {
         let harness = umbrella_findings("umbrella-diff");
-        let (code, out, _) = harness.run(&["check", "--output=diff"]);
+        let (code, out, _) = harness.run(&["check", "--diff"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("src/a.py"), "{out}");
         assert_eq!(harness.seen_env.borrow().len(), 4, "every phase launches");

@@ -129,7 +129,7 @@ fn diff_file_report_notes_to_stderr() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    let (code, _, err) = harness.run(&["lint", "--output=diff", "--report=sarif=out.sarif"]);
+    let (code, _, err) = harness.run(&["lint", "--diff", "--report=sarif=out.sarif"]);
     assert_eq!(code, 0);
     assert!(err.contains("Wrote sarif report to out.sarif."));
     assert!(harness.workspace.join("out.sarif").exists());
@@ -232,7 +232,7 @@ fn json_check_and_default_emit_identical_change_with_byte_equality() {
 #[test]
 fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
     let check = umbrella_findings("diff-patch-check");
-    let (check_code, check_out, _) = check.run(&["lint", "--output=diff"]);
+    let (check_code, check_out, _) = check.run(&["lint", "--diff"]);
     assert_eq!(check_code, 1);
     assert_eq!(
         std::fs::read(check.workspace.join("src/a.py")).expect("source"),
@@ -244,7 +244,7 @@ fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
         "diff check must launch Bazel exactly once, no rerun"
     );
     let default = umbrella_findings("diff-patch-default");
-    let (default_code, default_out, _) = default.run(&["lint", "--output=diff"]);
+    let (default_code, default_out, _) = default.run(&["lint", "--diff"]);
     assert_eq!(default_code, 1);
     assert_eq!(
         std::fs::read(default.workspace.join("src/a.py")).expect("source"),

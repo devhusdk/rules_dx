@@ -703,7 +703,7 @@ mod tests {
     #[test]
     fn generate_diff_renders_validated_patch_only() {
         let harness = generate_witness("xyz\n", "generate-diff");
-        let (code, out, err) = harness.run(&["generate", "--apply", "--output=diff"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--diff"]);
         assert_eq!(code, 0, "{err}");
         assert!(
             out.contains("rust/tests/fixtures/hello/BUILD.bazel"),
@@ -725,7 +725,7 @@ mod tests {
             &intended_create("new/BUILD.bazel", b""),
             "",
         ));
-        let (code, out, err) = harness.run(&["generate", "--apply", "--output=diff"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--diff"]);
         assert_eq!(code, 1, "{out}{err}");
         assert_eq!(out, "", "{out}");
         assert!(
@@ -745,7 +745,7 @@ mod tests {
             &intended_create("new/BUILD.bazel", b"# created\n"),
             "",
         ));
-        let (code, out, err) = harness.run(&["generate", "--apply", "--output=diff"]);
+        let (code, out, err) = harness.run(&["generate", "--apply", "--diff"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
             out,

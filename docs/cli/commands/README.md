@@ -522,7 +522,7 @@ Other supported sections in the same file stay valid.
 Unsupported defaults are ignored per command. An `output` default that a
 command does not support falls back to the command's default output: `json` in
 an agent session for commands with JSON output, else `text`. For example, with
-`output = "diff"` an agent session runs `dx test` with `json`. An unsupported
+`output = "json"` `dx completion` prints text. An unsupported
 `fail-on` default falls back to `warning`. The same value as a flag is a usage
 error. An invalid value is always a usage error.
 

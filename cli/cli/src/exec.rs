@@ -170,7 +170,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
 fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.output != dx_output::OutputMode::Diff || invocation.command.supports_diff(),
-        "{} rejects --output=diff",
+        "{} rejects --diff",
         invocation.command.name()
     );
     if invocation.here {

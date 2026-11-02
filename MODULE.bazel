@@ -331,8 +331,8 @@ maven.install(
 )
 use_repo(maven, "maven")
 
-scalafix = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-scalafix.install(
+maven_tools = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven_tools.install(
     name = "dx_scalafix",
     artifacts = ["ch.epfl.scala:scalafix-cli_2.13.18:0.14.9"],
     fail_if_repin_required = True,
@@ -342,10 +342,7 @@ scalafix.install(
         "https://repo1.maven.org/maven2",
     ],
 )
-use_repo(scalafix, "dx_scalafix")
-
-dokka = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-dokka.install(
+maven_tools.install(
     name = "dx_dokka",
     artifacts = [
         "org.jetbrains.dokka:analysis-kotlin-symbols:2.2.0",
@@ -365,7 +362,7 @@ dokka.install(
         "https://repo1.maven.org/maven2",
     ],
 )
-use_repo(dokka, "dx_dokka")
+use_repo(maven_tools, "dx_dokka", "dx_scalafix")
 
 # floor: equals tested; not yet searched (#3747)
 bazel_dep(name = "rules_powershell", version = "0.3.1")

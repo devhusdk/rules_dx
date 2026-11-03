@@ -2,21 +2,17 @@
 //!
 //! rules_cuda reads `cuda.*` tags only from the root module, and toolchains_llvm's `llvm`
 //! extension is root-only too, so a consumer has to repeat the pins that rules_dx itself uses.
-//! The text mirrors the root `MODULE.bazel`, `modules/cuda.bzl` and `modules/versions.bzl`;
-//! the drift tests below compare against them.
+//! Versions come from `modules/versions.bzl`. The rest mirrors the root `MODULE.bazel` and
+//! `modules/cuda.bzl`; the tests below compare against them.
 //! The library components (cuBLAS, cuFFT, cuRAND) are declared for every consumer but Bazel
 //! fetches an archive only when a target uses it.
 //!
 //! When the host compiler stops being LLVM 22 only (issue 3316), delete the host-compiler part
 //! in `host_compiler_stanza`; nothing else depends on it.
 
-pub const RULES_CUDA_VERSION: &str = "0.3.0";
-
-pub const TOOLCHAINS_LLVM_VERSION: &str = "1.12.0";
-
-pub const CUDA_HOST_LLVM_VERSION: &str = "22.1.8";
-
-pub const CUDA_VERSION: &str = "13.4";
+use dx_versions::{
+    CUDA_HOST_LLVM_VERSION, CUDA_VERSION, RULES_CUDA_VERSION, TOOLCHAINS_LLVM_VERSION,
+};
 
 const CUDA_REDIST: &str = "https://developer.download.nvidia.com/compute/cuda/redist/";
 
@@ -157,29 +153,6 @@ mod tests {
         assert!(module.contains("label = \"@cuda_host_sysroot//sysroot\""));
         assert!(module.contains("targets = [\"linux-x86_64\"]"));
         assert!(module.contains("\"@@//cuda/toolchain:host_compiler_enabled\""));
-    }
-
-    #[test]
-    fn versions_match_the_toolchain_metadata() {
-        let versions = workspace_text("modules/versions.bzl");
-        for (key, value) in [
-            ("FLOOR_RULES_CUDA", RULES_CUDA_VERSION),
-            ("TOOLCHAINS_LLVM_VERSION", TOOLCHAINS_LLVM_VERSION),
-            ("CUDA_HOST_LLVM_VERSION", CUDA_HOST_LLVM_VERSION),
-            ("CUDA_VERSION", CUDA_VERSION),
-        ] {
-            assert!(
-                versions.contains(&format!("{key} = \"{value}\"")),
-                "{key} drifts from modules/versions.bzl"
-            );
-        }
-        let module = workspace_text("MODULE.bazel");
-        assert!(module.contains(&format!(
-            "bazel_dep(name = \"rules_cuda\", version = \"{RULES_CUDA_VERSION}\")"
-        )));
-        assert!(module.contains(&format!(
-            "bazel_dep(name = \"toolchains_llvm\", version = \"{TOOLCHAINS_LLVM_VERSION}\""
-        )));
     }
 
     #[test]

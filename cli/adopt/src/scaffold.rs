@@ -34,11 +34,11 @@ pub const ENVRC_CONTENT: &str = concat!(
     "watch_file .dx/bin\n",
 );
 
-pub const CONSUMER_RULES_CC_VERSION: &str = dx_versions::FLOOR_RULES_CC;
+pub const CONSUMER_RULES_CC_VERSION: &str = dx_versions::RULES_CC_VERSION;
 
-pub const CONSUMER_LLVM_VERSION: &str = dx_versions::FLOOR_LLVM;
+pub const CONSUMER_LLVM_VERSION: &str = dx_versions::LLVM_VERSION;
 
-pub const CONSUMER_RULES_RUST_VERSION: &str = dx_versions::FLOOR_RULES_RUST;
+pub const CONSUMER_RULES_RUST_VERSION: &str = dx_versions::RULES_RUST_VERSION;
 
 pub const CONSUMER_RUST_EDITION: &str = dx_versions::RUST_EDITION;
 

@@ -808,7 +808,6 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//.github:workflows/ghcr.yml",
-        "//deploy/install:src/lib.rs",
         "//deploy/release:cosign_pins.bzl",
         "//deploy/release:signing.bzl",
         "//deploy/release:src/lib.rs",
@@ -860,14 +859,10 @@ rust_test(
         "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
-        "//docs:github-ci.md",
         "//examples:consumer-ci/caller.yml",
         "//examples:docs-ci/caller.yml",
     ],
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:yaml_serde",
-    ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(
@@ -937,4 +932,3 @@ rust_test(
         "@crates//:serde_json",
     ],
 )
-

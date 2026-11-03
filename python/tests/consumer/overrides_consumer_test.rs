@@ -92,8 +92,11 @@ fn consumer() -> Case {
         &MODULE
             .replace("MAVEN_BLOCK", nested::CONSUMER_MAVEN)
             .replace("RULES_DX", &rules.display().to_string())
-            .replace("RULES_PYTHON", &pin(&versions, "FLOOR_RULES_PYTHON"))
-            .replace("ASPECT_RULES_PY", &pin(&versions, "FLOOR_ASPECT_RULES_PY")),
+            .replace("RULES_PYTHON", &pin(&versions, "RULES_PYTHON_VERSION"))
+            .replace(
+                "ASPECT_RULES_PY",
+                &pin(&versions, "ASPECT_RULES_PY_VERSION"),
+            ),
     );
     nested::seed_rules_dx_lock(&root, &rules);
     write(&root.join(".bazelrc"), &dx_testing::preset_rc(&rules));

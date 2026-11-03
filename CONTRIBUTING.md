@@ -37,12 +37,13 @@ Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+
 
 ## Dependency floors
 
-Every consumer-facing (non-dev) `bazel_dep` in the root `MODULE.bazel` has two
-versions, both recorded in `modules/versions.bzl`:
+Every consumer-facing (non-dev) `bazel_dep` in the root `MODULE.bazel` has its
+versions in `modules/versions.bzl`:
 
-- `FLOOR_<DEP>`, in the `bazel_dep`: the oldest version consumers may resolve.
-- `TESTED_<DEP>`, in a root-only `single_version_override` directly below it:
-  the version the root builds and tests with. Consumers never see it.
+- `<DEP>_VERSION` when the floor and the tested version are the same.
+- `FLOOR_<DEP>` and `TESTED_<DEP>` when they differ. The floor goes in the
+  `bazel_dep`, the tested version in the root-only `single_version_override`
+  directly below it. Consumers never see the tested version.
 
 A `# floor: <reason>` comment directly above each `bazel_dep` says why the floor
 is what it is. Tools parse that marker, so keep it as written. Use

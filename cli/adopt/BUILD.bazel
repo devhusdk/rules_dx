@@ -68,7 +68,6 @@ dx_rust_crate(
         "//:package.json",
         "//examples:consumer-ci/caller.yml",
         "//modules:cuda.bzl",
-        "//modules:versions.bzl",
     ],
     test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},
     visibility = VIS_CLI + ["//tools/docs/support_matrix:__pkg__"],

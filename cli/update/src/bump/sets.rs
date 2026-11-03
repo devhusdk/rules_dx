@@ -108,7 +108,7 @@ impl BumpSet {
                 "Bazel-pinned pnpm lockfile-only update (bazel run @pnpm//:pnpm -- --dir <workspace> update --lockfile-only)"
             }
             BumpSet::NuGet => {
-                "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"
+                "paket2bazel regeneration (bazel run @rules_dx//dotnet:paket2bazel -- ...)"
             }
         }
     }

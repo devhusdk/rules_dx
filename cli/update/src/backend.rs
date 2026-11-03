@@ -103,6 +103,24 @@ impl StagedRun {
         !(self.tool == StagedTool::Paket2Bazel && name.ends_with("_extension.bzl"))
     }
 
+    /// A generated file's bytes as the consumer should store them.
+    pub fn rewrite_generated(&self, bytes: Vec<u8>) -> Vec<u8> {
+        if self.tool != StagedTool::Paket2Bazel {
+            return bytes;
+        }
+        const FROM: &[u8] = b"load(\"@rules_dotnet//dotnet:defs.bzl\"";
+        const TO: &[u8] = b"load(\"@rules_dx//dotnet:defs.bzl\"";
+        let mut out = Vec::with_capacity(bytes.len());
+        let mut rest = bytes.as_slice();
+        while let Some(at) = rest.windows(FROM.len()).position(|w| w == FROM) {
+            out.extend_from_slice(&rest[..at]);
+            out.extend_from_slice(TO);
+            rest = &rest[at + FROM.len()..];
+        }
+        out.extend_from_slice(rest);
+        out
+    }
+
     /// The directory under `scratch` the inputs are copied into and the outputs are read from.
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
         match self.tool {
@@ -368,7 +386,7 @@ pub fn plan(
                 head,
                 "run",
                 &[
-                    "@rules_dotnet//tools/paket2bazel",
+                    "@rules_dx//dotnet:paket2bazel",
                     "--",
                     "--dependencies-file",
                     "third_party/dotnet/paket.dependencies",
@@ -1039,11 +1057,7 @@ fn nuget_staged(
         .collect();
     Ok(StagedRun {
         tool: StagedTool::Paket2Bazel,
-        argv_head: bazel(
-            &pin_head,
-            "run",
-            &["@rules_dotnet//tools/paket2bazel", "--"],
-        ),
+        argv_head: bazel(&pin_head, "run", &["@rules_dx//dotnet:paket2bazel", "--"]),
         env: Vec::new(),
         inputs,
         outputs,
@@ -1208,6 +1222,22 @@ mod tests {
     }
 
     #[test]
+    fn rewrite_generated_points_nuget_repo_at_rules_dx() {
+        let mut run = StagedRun {
+            tool: StagedTool::Paket2Bazel,
+            argv_head: Vec::new(),
+            env: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        };
+        let input = b"a\nload(\"@rules_dotnet//dotnet:defs.bzl\", \"nuget_repo\")\nb\n".to_vec();
+        let want = b"a\nload(\"@rules_dx//dotnet:defs.bzl\", \"nuget_repo\")\nb\n".to_vec();
+        assert_eq!(run.rewrite_generated(input.clone()), want);
+        run.tool = StagedTool::GoModDownload;
+        assert_eq!(run.rewrite_generated(input.clone()), input);
+    }
+
+    #[test]
     fn runs_bazel_marks_bazel_updaters() {
         let planned =
             |set: SetId| match plan(ws(), set, &SetRequest::Full, false, false, &no_head()) {
@@ -1312,7 +1342,7 @@ mod tests {
         match nuget {
             BackendPlan::Run { argv, env } => {
                 assert!(argv.starts_with(&bazel_head()));
-                assert!(argv.contains(&"@rules_dotnet//tools/paket2bazel".to_owned()));
+                assert!(argv.contains(&"@rules_dx//dotnet:paket2bazel".to_owned()));
                 assert!(argv.contains(&"third_party/dotnet/paket.dependencies".to_owned()));
                 assert!(argv.contains(&"third_party/dotnet/deps".to_owned()));
                 assert!(env.is_empty());
@@ -2167,7 +2197,7 @@ mod tests {
         let bazel_targets = [
             "@pnpm//:pnpm",
             "@maven//:pin",
-            "@rules_dotnet//tools/paket2bazel",
+            "@rules_dx//dotnet:paket2bazel",
             "//rust/tests/fixtures/hello:hello",
         ];
         let requests = SetId::ALL
@@ -3203,7 +3233,7 @@ mod tests {
                     ..head.clone()
                 }
                 .argv("run"),
-                strings(&["@rules_dotnet//tools/paket2bazel", "--"]),
+                strings(&["@rules_dx//dotnet:paket2bazel", "--"]),
             ]
             .concat(),
             env: Vec::new(),
@@ -3229,7 +3259,7 @@ mod tests {
         assert!(!expected
             .argv_head
             .iter()
-            .any(|arg| arg.contains("rules_dx")));
+            .any(|arg| arg.starts_with("--") && arg.contains("rules_dx")));
         let argv = expected.argv(Path::new("/scratch/1"));
         assert_eq!(
             argv[expected.argv_head.len()..],

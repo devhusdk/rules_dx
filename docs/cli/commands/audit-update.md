@@ -696,7 +696,7 @@ paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "mai
 
 dx copies `paket.dependencies` and `paket.lock` into a scratch directory outside
 the workspace and runs
-`bazel run @rules_dotnet//tools/paket2bazel -- --dependencies-file <scratch>/paket.dependencies --output-folder <scratch>/out`
+`bazel run @rules_dx//dotnet:paket2bazel -- --dependencies-file <scratch>/paket.dependencies --output-folder <scratch>/out`
 with the Bazel startup options but no rules_dx settings, then removes the scratch
 directory. `paket2bazel` never resolves: it renders `paket.lock`, which dx never
 writes. A check compares the generated files byte for byte with the declared

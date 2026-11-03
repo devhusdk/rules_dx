@@ -2121,7 +2121,7 @@ source = { registry = "https://pypi.org/simple" }
         head.extend(strings_of(&[
             "run",
             "--config=dx_dev",
-            "@rules_dotnet//tools/paket2bazel",
+            "@rules_dx//dotnet:paket2bazel",
             "--",
             "--dependencies-file",
         ]));

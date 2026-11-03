@@ -5,7 +5,7 @@
 # xunit.analyzers 2.0.0 companion from the 4.0.0 release notes (transitive
 # MTP/Microsoft.Extensions closure pins in paket.lock). The lock file
 # (paket.lock) is the pin; regenerate the hub with:
-#   bazel run @rules_dotnet//tools/paket2bazel -- --dependencies-file
+#   bazel run @rules_dx//dotnet:paket2bazel -- --dependencies-file
 #   $PWD/third_party/dotnet/paket.dependencies --output-folder
 #   $PWD/third_party/dotnet/deps
 source https://api.nuget.org/v3/index.json

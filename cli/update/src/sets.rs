@@ -147,7 +147,7 @@ impl SetId {
                 "Bazel-pinned pnpm lockfile-only install (bazel run @pnpm//:pnpm -- --dir <workspace>/quality/tools/javascript install --lockfile-only)"
             }
             SetId::NuGet => {
-                "paket2bazel regeneration (bazel run @rules_dotnet//tools/paket2bazel -- ...)"
+                "paket2bazel regeneration (bazel run @rules_dx//dotnet:paket2bazel -- ...)"
             }
             SetId::PowerShell => {
                 "pinned PSGallery.lock.json for the shared Gallery hub (regenerate by hand from exact requirements; builds never run Install-Module)"

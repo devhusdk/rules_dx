@@ -1,0 +1,5 @@
+alias(
+    name = "paket2bazel",
+    actual = "@rules_dotnet//tools/paket2bazel",
+    visibility = ["//visibility:public"],
+)

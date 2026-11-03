@@ -164,7 +164,7 @@ pub(super) fn run_staged_core(
                 }
                 match std::fs::read(entry.path()) {
                     Ok(bytes) => {
-                        generated.insert(name, bytes);
+                        generated.insert(name, run.rewrite_generated(bytes));
                     }
                     Err(error) => {
                         fail!("cannot read generated {name}: {error}");

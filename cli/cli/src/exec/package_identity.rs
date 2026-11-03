@@ -77,12 +77,12 @@ fn update_and_bump_refuse_a_shared_identity_the_same_way() {
             assert_eq!(
                 update.is_some(),
                 bump.is_some(),
-                "{name}:{package}: dx update and dx bump disagree"
+                "{name}:{package}: both dx update forms disagree"
             );
             if !bump_precheck(name, package) {
                 assert_eq!(
                     update, bump,
-                    "{name}:{package}: dx update and dx bump name the refusal differently"
+                    "{name}:{package}: both dx update forms name the refusal differently"
                 );
             }
         }

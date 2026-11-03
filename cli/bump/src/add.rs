@@ -1,4 +1,4 @@
-//! Declares a requirement `dx bump` found missing.
+//! Declares a requirement `dx update` found missing.
 
 use super::request::{BumpError, BumpRequest, DepTarget};
 use super::sets::BumpSet;
@@ -19,7 +19,7 @@ pub enum AddError {
         selector: String,
         hint: &'static str,
     },
-    #[error("{selector} is already declared in {manifest}; use `dx bump {selector} <version>` to change its version (nothing added)")]
+    #[error("{selector} is already declared in {manifest}; use `dx update {selector} <version>` to change its version (nothing added)")]
     Declared { selector: String, manifest: String },
     #[error("unsupported manifest shape in {manifest}: {reason} (nothing added)")]
     UnsupportedManifest { manifest: String, reason: String },
@@ -39,7 +39,7 @@ impl From<BumpError> for AddError {
 }
 
 const GITHUB_ACTIONS_HINT: &str =
-    "add the `uses:` step to the workflow, then pin it with `dx bump github-actions:<owner/repo> <tag-or-sha>`";
+    "add the `uses:` step to the workflow, then pin it with `dx update github-actions:<owner/repo> <tag-or-sha>`";
 
 impl AddRequest {
     /// The insert request for the package a bump request names.
@@ -72,7 +72,7 @@ impl AddRequest {
         self.target.target_manifest()
     }
 
-    /// The `dx bump` request for the same package and version.
+    /// The `dx update` request for the same package and version.
     pub fn as_bump(&self) -> BumpRequest {
         BumpRequest::for_target(
             &self.target,
@@ -82,7 +82,7 @@ impl AddRequest {
         )
     }
 
-    /// The manifest with the new requirement declared, in the shape `dx bump` widens.
+    /// The manifest with the new requirement declared, in the shape `dx update` widens.
     pub fn plan_insert(&self, content: &str) -> Result<String, AddError> {
         match self.as_bump().plan_edit(content) {
             Ok(_) | Err(BumpError::Ambiguous { .. }) => {

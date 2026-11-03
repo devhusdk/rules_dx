@@ -266,9 +266,9 @@ pub struct Invocation {
     pub offline: bool,
     /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
-    /// `dx bump --floor`: edit the bazel_dep floor instead of the tested override.
+    /// `dx update --floor`: edit the bazel_dep floor instead of the tested override.
     pub floor: bool,
-    /// `dx bump --reason`: why the floor is the oldest supported version.
+    /// `dx update --reason`: why the floor is the oldest supported version.
     pub reason: Option<String>,
     pub cases: bool,
     pub create: Option<String>,
@@ -308,6 +308,11 @@ pub const AGENT_QUIET_FLAGS: [&str; 6] = [
 ];
 
 impl Invocation {
+    /// Whether `dx update` names one `<set:package> <version>` to widen or add.
+    pub fn edits_version(&self) -> bool {
+        self.command == Command::Update && self.targets.len() == 2 && is_version(&self.targets[1])
+    }
+
     /// Bazel UI flags that silence progress output in agent JSON sessions.
     pub fn agent_quiet_flags(&self) -> Vec<String> {
         if self.agent && self.output == OutputMode::Json {
@@ -587,21 +592,26 @@ fn here_owner(invocation: &Invocation) -> (Command, usize) {
     (invocation.command, 0)
 }
 
+/// Whether a word reads as a version, like `1.2.3`, `v4` or a commit SHA.
+pub(crate) fn is_version(word: &str) -> bool {
+    let digits = word.strip_prefix('v').unwrap_or(word);
+    let sha = word.len() >= 7 && word.chars().all(|c| c.is_ascii_hexdigit());
+    (sha || digits.starts_with(|c: char| c.is_ascii_digit())) && !word.contains([':', '/', '@'])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn update_bump_and_add_heads_carry_startup_and_the_default_profile() {
-        for command in [Command::Update, Command::Bump] {
-            let mut invocation = invocation_for(command, &[]);
-            invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
-            let head = invocation.bazel_head();
-            assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
-            assert_eq!(head.options, vec!["--config=dx_dev".to_owned()]);
-            assert_eq!(head.settings, crate::plan::shared_settings("build"));
-            assert!(!head.settings.is_empty());
-        }
+    fn update_heads_carry_startup_and_the_default_profile() {
+        let mut invocation = invocation_for(Command::Update, &[]);
+        invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
+        let head = invocation.bazel_head();
+        assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
+        assert_eq!(head.options, vec!["--config=dx_dev".to_owned()]);
+        assert_eq!(head.settings, crate::plan::shared_settings("build"));
+        assert!(!head.settings.is_empty());
     }
 
     fn invocation_for(command: Command, targets: &[&str]) -> Invocation {

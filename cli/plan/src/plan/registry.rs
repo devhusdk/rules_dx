@@ -218,12 +218,6 @@ pub fn spec(command: Command) -> CommandSpec {
             probe: None,
             reports: &[],
         },
-        Command::Bump => CommandSpec {
-            command,
-            aspects: &[],
-            probe: None,
-            reports: &[],
-        },
         Command::Docs => CommandSpec {
             command,
             aspects: &[],
@@ -436,9 +430,6 @@ mod tests {
         let update = spec(Command::Update);
         assert!(update.aspects.is_empty());
         assert!(update.reports.is_empty());
-        let bump = spec(Command::Bump);
-        assert!(bump.aspects.is_empty());
-        assert!(bump.reports.is_empty());
     }
 
     #[test]

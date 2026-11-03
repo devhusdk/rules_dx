@@ -254,8 +254,8 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Clean => clean::execute_clean(invocation, env),
         Command::Env => managed::execute_managed(invocation, env),
         Command::Security | Command::License => audit::execute_audit(invocation, env),
+        Command::Update if invocation.edits_version() => bump::execute_bump(invocation, env),
         Command::Update => update::execute_update(invocation, env),
-        Command::Bump => bump::execute_bump(invocation, env),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
             quality::execute_quality(invocation, env)
@@ -325,14 +325,13 @@ mod tests {
         (Command::Check, &["check"]),
     ];
 
-    const NO_BAZEL_BUILD: [Command; 12] = [
+    const NO_BAZEL_BUILD: [Command; 11] = [
         Command::Init,
         Command::Install,
         Command::Security,
         Command::License,
         Command::Clean,
         Command::Update,
-        Command::Bump,
         Command::Upgrade,
         Command::Status,
         Command::Watch,
@@ -435,10 +434,14 @@ mod tests {
             vec!["security", "--dry-run"],
             vec!["license", "--dry-run=false"],
             vec!["update", "--dry-run"],
-            vec!["bump", "cargo:anyhow", "1.2.3", "--dry-run"],
+            vec!["update", "cargo:anyhow", "1.2.3", "--dry-run"],
             vec!["upgrade", "--to=2.0.0", "--dry-run"],
         ] {
-            let name = format!("exec-dispatch-{}", argv[0].trim_start_matches('-'));
+            let name = format!(
+                "exec-dispatch-{}-{}",
+                argv[0].trim_start_matches('-'),
+                argv.len()
+            );
             let harness = Harness::new(&name);
             let (code, _out, err) = harness.run(&argv);
             assert_ne!(code, 0, "{argv:?}");

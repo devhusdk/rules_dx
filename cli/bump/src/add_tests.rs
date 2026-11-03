@@ -9,7 +9,7 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
     request(selector, version).plan_insert(content)
 }
 
-/// `dx bump` reads what `dx add` wrote: the same version is current, a higher one widens.
+/// A widen reads what an add wrote: the same version is current, a higher one widens.
 fn assert_bump_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
     let same = BumpRequest::parse(selector, version).expect("bump request");
     assert_eq!(
@@ -39,7 +39,7 @@ fn assert_declared(selector: &str, content: &str, manifest: &str) {
     assert!(
         error
             .to_string()
-            .contains(&format!("use `dx bump {selector} <version>`")),
+            .contains(&format!("use `dx update {selector} <version>`")),
         "{error}"
     );
 }

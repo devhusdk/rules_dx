@@ -429,12 +429,9 @@ fn update_set_hints(current: &str) -> Vec<String> {
     let names: Vec<&str> = dx_update::sets::SetId::ALL
         .iter()
         .map(|id| id.name())
+        .chain(dx_bump::BumpSet::names())
         .collect();
     prefixed(&names, current)
-}
-
-fn bump_set_hints(current: &str) -> Vec<String> {
-    prefixed(&dx_bump::BumpSet::names(), current)
 }
 
 fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<String>, bool) {
@@ -443,7 +440,6 @@ fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<St
         match meta.first_slot {
             FirstSlot::None => Vec::new(),
             FirstSlot::UpdateSets => update_set_hints(current),
-            FirstSlot::BumpSets => bump_set_hints(current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
             FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
         }
@@ -667,21 +663,14 @@ mod tests {
                     let mut want: Vec<String> = dx_update::sets::SetId::ALL
                         .iter()
                         .map(|id| (*id).name().to_owned())
+                        .chain(dx_bump::BumpSet::names().into_iter().map(String::from))
                         .collect();
                     want.sort();
+                    want.dedup();
                     assert_eq!(fixed, want);
-                    assert!(labels);
-                }
-                Command::Bump => {
-                    let mut want: Vec<String> = dx_bump::BumpSet::names()
-                        .into_iter()
-                        .map(String::from)
-                        .collect();
-                    want.sort();
-                    assert_eq!(fixed, want, "bump must offer the bump sets");
-                    assert!(!fixed.contains(&String::from("uv")));
+                    assert!(fixed.contains(&String::from("uv")));
                     assert!(fixed.contains(&String::from("github-actions")));
-                    assert!(!labels);
+                    assert!(labels);
                 }
                 Command::Clean
                 | Command::Init
@@ -714,12 +703,7 @@ mod tests {
             (Vec::new(), true)
         );
         let one = vec![String::from("//a:one")];
-        for command in [
-            Command::Env,
-            Command::Bump,
-            Command::Completion,
-            Command::Deploy,
-        ] {
+        for command in [Command::Env, Command::Completion, Command::Deploy] {
             assert_eq!(
                 slot_candidates(command, &one, ""),
                 (Vec::new(), false),

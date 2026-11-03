@@ -3,7 +3,7 @@ use super::dep_edit;
 use dx_plan::args::Invocation;
 
 const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
-    command: "bump",
+    command: "update",
     noun: "add",
     notice_code: CODE_ADD_DECLARED,
     failure_code: CODE_BUMP_FAILED,
@@ -18,7 +18,7 @@ pub(super) struct Io<'a> {
     pub(super) err: &'a mut dyn std::io::Write,
 }
 
-/// Declares a package `dx bump` could not find; `missing` is the not-found failure.
+/// Declares a package `dx update` could not find; `missing` is the not-found failure.
 pub(super) fn add_missing(
     invocation: &Invocation,
     io: Io<'_>,
@@ -62,7 +62,7 @@ pub(super) fn add_missing(
     };
     if !applies {
         let message = format!(
-            "bump pending: {} {} is not declared in {manifest} (run `dx bump {} {} --apply`)",
+            "bump pending: {} {} is not declared in {manifest} (run `dx update {} {} --apply`)",
             request.selector,
             request.version.display(),
             request.selector,

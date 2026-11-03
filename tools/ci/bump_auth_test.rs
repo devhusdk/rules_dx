@@ -15,6 +15,8 @@ const DISCOVERY: &str = "Scheduled discovery (never widens)";
 
 const DISPATCHED: &str = "inputs.selector != '' && inputs.version != ''";
 
+const WIDEN: &str = "-- update \"$SELECTOR\" \"$VERSION\"";
+
 const GH_SUBCOMMANDS: [&str; 8] = [
     "api", "auth", "issue", "pr", "release", "repo", "run", "workflow",
 ];
@@ -68,7 +70,7 @@ fn invokes_gh_matches_only_gh_subcommands() {
     assert!(invokes_gh("gh pr create --title t"));
     assert!(!invokes_gh("if command -v gh >/dev/null 2>&1; then"));
     assert!(!invokes_gh("echo \"--- GitHub releases (gh) ---\""));
-    assert!(!invokes_gh("echo \"client (gh api); dx bump\""));
+    assert!(!invokes_gh("echo \"client (gh api); dx update\""));
     assert!(!invokes_gh("GH_TOKEN=x"));
 }
 
@@ -321,7 +323,7 @@ fn gh_errors_stay_visible() {
 }
 
 #[test]
-fn discovery_never_runs_dx_bump_on_dispatch() {
+fn discovery_never_widens_on_dispatch() {
     let steps = steps(WORKFLOW, "widen-one");
     let discovery = steps
         .iter()
@@ -335,27 +337,27 @@ fn discovery_never_runs_dx_bump_on_dispatch() {
         "{WORKFLOW} {DISCOVERY:?} must run only without a selector"
     );
     assert!(
-        !run_of(discovery).contains("-- bump"),
-        "{WORKFLOW} {DISCOVERY:?} must never run dx bump"
+        !run_of(discovery).contains(WIDEN),
+        "{WORKFLOW} {DISCOVERY:?} must never widen a selector"
     );
     let bumps: Vec<&serde_json::Value> = steps
         .iter()
-        .filter(|step| run_of(step).contains("-- bump \"$SELECTOR\""))
+        .filter(|step| run_of(step).contains(WIDEN))
         .collect();
     assert!(
         !bumps.is_empty(),
-        "{WORKFLOW} must carry a step that runs dx bump on the selector"
+        "{WORKFLOW} must carry a step that widens the selector"
     );
     for step in bumps {
         assert!(
             run_of(step).contains("--apply"),
-            "{WORKFLOW} step {:?} must run dx bump with --apply",
+            "{WORKFLOW} step {:?} must widen with --apply",
             name_of(step)
         );
         assert_eq!(
             step["if"].as_str().unwrap_or_default(),
             DISPATCHED,
-            "{WORKFLOW} step {:?} must run dx bump only on dispatch with selector and version",
+            "{WORKFLOW} step {:?} must widen only on dispatch with selector and version",
             name_of(step)
         );
     }

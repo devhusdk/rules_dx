@@ -1,4 +1,4 @@
-//! The write, refresh and report tail shared by the dependency verbs (`dx bump`).
+//! The write, refresh and report tail shared by the dependency verbs (`dx update`).
 
 use super::common::*;
 use dx_output::{
@@ -774,7 +774,7 @@ mod tests {
     use std::io;
 
     const VERB: EditVerb = EditVerb {
-        command: "bump",
+        command: "update",
         noun: "widen",
         notice_code: "bump_widened",
         failure_code: CODE_BUMP_FAILED,
@@ -795,7 +795,7 @@ mod tests {
 
     fn json_invocation() -> Invocation {
         dx_plan::args::parse(&dx_testing::cli::strings(&[
-            "bump",
+            "update",
             "cargo:anyhow",
             "1.2.3",
             "--output=json",

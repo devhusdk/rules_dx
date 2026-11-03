@@ -339,16 +339,8 @@ flag_group! {
 }
 
 flag_group! {
-    /// Write dependency updates.
+    /// Write dependency updates, or widen or add the named package.
     UpdateApplyFlag, {
-        #[arg(long, overrides_with = "apply")]
-        apply: bool,
-    }
-}
-
-flag_group! {
-    /// Widen the declared requirement.
-    BumpApplyFlag, {
         #[arg(long, overrides_with = "apply")]
         apply: bool,
     }
@@ -560,7 +552,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Edit the bazel_dep floor instead of the tested override (bump only; needs --reason).
+    /// Edit the bazel_dep floor instead of the tested override (needs a version and --reason).
     FloorFlag, {
         #[arg(long, overrides_with = "floor")]
         floor: bool,
@@ -576,7 +568,7 @@ flag_group! {
 }
 
 composite_group! {
-    /// The bump floor flags.
+    /// The floor flags.
     FloorArgs, {
         floor: FloorFlag,
         reason: ReasonFlag,
@@ -926,21 +918,20 @@ command_args! {
         offline: OfflineFlag,
         frozen: FrozenFlag,
         apply: UpdateApplyFlag,
+        floor: FloorArgs,
     };
-    /// The flags `dx bump` accepts.
-    Bump => 14, NoPassthroughTail, { output: OutputFlag, apply: BumpApplyFlag, own: OfflineFlag, frozen: FrozenFlag, floor: FloorArgs, };
     /// The flags `dx env` accepts.
-    Env => 15, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
+    Env => 14, BazelTail, { output: OutputFlag, apply: EnvApplyFlag, };
     /// The flags `dx init` accepts.
-    Init => 16, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
+    Init => 15, NoPassthroughTail, { output: OutputFlag, apply: ScaffoldApplyFlag, own: InitPartsArgs, };
     /// The flags `dx upgrade` accepts.
-    Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
+    Upgrade => 16, NoScopeTail, { output: OutputFlag, apply: UpgradeApplyFlag, own: ToFlag, };
     /// The flags `dx status` accepts.
-    Status => 18, NoScopeTail, {
+    Status => 17, NoScopeTail, {
         output: OutputFlag,
     };
     /// The flags `dx watch` accepts.
-    Watch => 19, BazelTail, {
+    Watch => 18, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
@@ -952,15 +943,15 @@ command_args! {
         own: ProfileArgs,
     };
     /// The flags `dx completion` accepts.
-    Completion => 20, NoPassthroughTail, {};
+    Completion => 19, NoPassthroughTail, {};
     /// The flags `dx docs` accepts.
-    Docs => 21, BazelTail, {
+    Docs => 20, BazelTail, {
         output: OutputFlag,
         here: HereFlag,
         own: ServeArgs,
     };
     /// The flags `dx worktree` accepts.
-    Worktree => 22, NoPassthroughTail, {
+    Worktree => 21, NoPassthroughTail, {
         output: OutputFlag,
         path_only: PathOnlyFlag,
         apply: ApplyFlag,
@@ -970,9 +961,9 @@ command_args! {
         bases: BasesFlag,
     };
     /// The flags `dx explain` accepts.
-    Explain => 23, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
+    Explain => 22, NoScopeTail, { output: OutputFlag, own: LogPairArgs, };
     /// The flags `dx install` accepts.
-    Install => 24, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
+    Install => 23, NoScopeTail, { output: OutputFlag, apply: InstallApplyFlag, own: InstallArgs, };
 }
 
 #[derive(Parser)]

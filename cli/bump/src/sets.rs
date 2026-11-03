@@ -101,7 +101,7 @@ impl BumpSet {
                 "file-only (edit workflow SHA-plus-tag pin via upstream GitHub releases client)"
             }
             BumpSet::Go => {
-                "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx bump` plus the pinned SDK tidy)"
+                "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx update` plus the pinned SDK tidy)"
             }
             BumpSet::Maven => "rules_jvm_external pin (REPIN=1 bazel run @maven//:pin)",
             BumpSet::Npm => {

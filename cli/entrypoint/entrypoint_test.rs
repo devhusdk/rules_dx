@@ -231,7 +231,7 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     let bump = read("DX_SETS_BUMP_PINNED");
     assert!(
         bump.contains(
-            "bump is not supported for ecosystem ruby set gems \
+            "update is not supported for ecosystem ruby set gems \
 (supported operations: audit; check and update report pinned)"
         ),
         "bump names the pinned operations: {bump}"

@@ -9,10 +9,9 @@ use dx_testing::cli::strings;
 #[test]
 fn command_option_ownership_rejects_every_unsupported_surface() {
     for command in [
-        "security", "license", "update", "bump", "upgrade", "docs", "status", "init",
+        "security", "license", "update", "upgrade", "docs", "status", "init",
     ] {
         let base = match command {
-            "bump" => vec![command, "cargo:demo", "1.0.0"],
             "upgrade" => vec![command, "--to=2.0.0"],
             _ => vec![command],
         };
@@ -83,7 +82,6 @@ const OWNED_OPTIONS: [(&str, &[&str], &[&str]); 11] = [
 
 fn required_words(name: &str) -> &'static [&'static str] {
     match name {
-        "bump" => &["cargo:demo", "1.0.0"],
         "upgrade" => &["--to=2.0.0"],
         "run" | "deploy" => &["//:demo"],
         "watch" => &["run", "//:demo"],
@@ -284,88 +282,29 @@ fn every_command_rejects_empty_and_relative_scopes() {
 }
 
 #[test]
-fn bump_needs_exactly_one_selector_plus_version() {
-    let bump = parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).expect("parse bump");
-    assert_eq!(bump.command, Command::Bump);
-    assert_eq!(bump.command.name(), "bump");
-    assert!(!bump.command.is_adoption());
-    assert!(!bump.command.is_managed());
-    assert_eq!(
-        bump.targets,
-        vec!["cargo:anyhow".to_owned(), "1.2.3".to_owned()]
-    );
-    assert_eq!(
-        parse(&strings(&["bump"])),
-        Err(ArgsError::MissingValue {
-            option: "<set:package> <version>".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["bump", "cargo:anyhow"])),
-        Err(ArgsError::MissingValue {
-            option: "<set:package> <version>".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "npm:react"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "npm:react".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "bump",
-            "cargo:anyhow",
-            "1.2.3",
-            "--fail-on=error"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--fail-on".to_owned(),
-        })
-    );
-    let got = parse(&strings(&[
-        "bump",
-        "cargo:anyhow",
-        "1.2.3",
-        "--output=json",
-    ]))
-    .expect("bump json");
-    assert_eq!(got.command, Command::Bump);
-    assert_eq!(got.output, OutputMode::Json);
-    assert_eq!(
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--diff"])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--diff".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "bump",
-            "cargo:anyhow",
-            "1.2.3",
-            "--report=sarif=out.sarif"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--report=sarif=out.sarif".to_owned(),
-        })
-    );
-    assert_eq!(
-        parse(&strings(&[
-            "bump",
-            "cargo:anyhow",
-            "1.2.3",
-            "--",
-            "--jobs=4"
-        ])),
-        Err(ArgsError::UnsupportedOption {
-            command: "bump",
-            option: "--".to_owned(),
-        })
-    );
+fn update_with_a_selector_and_a_version_edits_that_package() {
+    for (words, edits) in [
+        (vec!["update", "cargo:anyhow", "1.2.3"], true),
+        (
+            vec!["update", "github-actions:actions/checkout", "v4"],
+            true,
+        ),
+        (vec!["update", "maven:junit:junit", "4.13.3"], true),
+        (
+            vec!["update", "github-actions:actions/checkout", "deadbeefcafe"],
+            true,
+        ),
+        (vec!["update"], false),
+        (vec!["update", "cargo:anyhow"], false),
+        (vec!["update", "cargo", "npm"], false),
+        (vec!["update", "cargo:anyhow", "1.2.3", "npm:react"], false),
+        (vec!["update", "cargo:anyhow", "//a:b"], false),
+    ] {
+        let got = parse(&strings(&words)).expect("parse update");
+        assert_eq!(got.command, Command::Update);
+        assert_eq!(got.edits_version(), edits, "{words:?}");
+    }
+    assert!(parse(&strings(&["bump", "cargo:anyhow", "1.2.3"])).is_err());
 }
 
 #[test]
@@ -513,12 +452,12 @@ fn output_contract_has_no_silent_ignore() {
         assert!(got.command.supports_json(), "command: {command}");
     }
     let got = parse(&strings(&[
-        "bump",
+        "update",
         "cargo:anyhow",
         "1.2.3",
         "--output=json",
     ]))
-    .expect("bump json");
+    .expect("update version json");
     assert_eq!(got.output, OutputMode::Json);
     assert!(got.command.supports_json());
     let got = parse(&strings(&["upgrade", "--to=2.0.0", "--output=json"])).expect("upgrade json");
@@ -572,7 +511,7 @@ fn output_contract_has_no_silent_ignore() {
         vec!["clean", "--diff"],
         vec!["env", "--diff"],
         vec!["docs", "--diff"],
-        vec!["bump", "cargo:anyhow", "1.2.3", "--diff"],
+        vec!["update", "cargo:anyhow", "1.2.3", "--diff"],
         vec!["upgrade", "--to=2.0.0", "--diff"],
     ] {
         assert_eq!(
@@ -879,7 +818,7 @@ fn here_selects_cwd_scope_only_via_explicit_flag() {
     for words in [
         vec!["clean", "--here"],
         vec!["update", "--here"],
-        vec!["bump", "cargo:anyhow", "1.2.3", "--here"],
+        vec!["update", "cargo:anyhow", "1.2.3", "--here"],
         vec!["env", "--here"],
         vec!["run", "//app:bin", "--here"],
         vec!["deploy", "//app:bin", "--here"],
@@ -918,7 +857,7 @@ fn completion_takes_exactly_one_shell() {
 }
 
 #[test]
-fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
+fn offline_and_frozen_are_independent_policies_on_audit_and_update() {
     for command in ["security", "license", "update"] {
         let got = parse(&strings(&[command, "--offline"])).expect("offline parses");
         assert!(got.offline, "command: {command}");
@@ -932,12 +871,12 @@ fn offline_and_frozen_are_independent_policies_on_audit_update_bump() {
         assert!(!bare.offline, "command: {command}");
         assert!(!bare.frozen, "command: {command}");
     }
-    let bump =
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--offline"])).expect("bump offline");
+    let bump = parse(&strings(&["update", "cargo:anyhow", "1.2.3", "--offline"]))
+        .expect("version offline");
     assert!(bump.offline);
     assert!(!bump.frozen);
     let bump_frozen =
-        parse(&strings(&["bump", "cargo:anyhow", "1.2.3", "--frozen"])).expect("bump frozen");
+        parse(&strings(&["update", "cargo:anyhow", "1.2.3", "--frozen"])).expect("version frozen");
     assert!(bump_frozen.frozen);
     assert!(!bump_frozen.offline);
     for words in [
@@ -986,7 +925,6 @@ fn a_refused_output_diff_is_named_before_any_other_flag_the_command_refuses() {
     for (command, also_refused) in [
         ("clean", "--report=junit=one.xml"),
         ("update", "--report=junit=one.xml"),
-        ("bump", "--report=junit=one.xml"),
         ("upgrade", "--report=junit=one.xml"),
         ("env", "--report=junit=one.xml"),
         ("docs", "--port=1"),
@@ -1176,23 +1114,25 @@ fn explain_parses_its_log_pair_and_build_test_take_explain() {
 }
 
 #[test]
-fn floor_and_reason_parse_only_on_bump() {
+fn floor_and_reason_parse_only_on_an_update_with_a_version() {
     let got = parse(&strings(&[
-        "bump",
+        "update",
         "bazel:rules_cc",
         "0.2.0",
         "--floor",
         "--reason",
         "oldest passing",
     ]))
-    .expect("bump floor");
+    .expect("update floor");
     assert!(got.floor);
+    assert!(got.edits_version());
     assert_eq!(got.reason.as_deref(), Some("oldest passing"));
-    let bare = parse(&strings(&["bump", "bazel:rules_cc", "0.2.0"])).expect("bump");
+    let bare = parse(&strings(&["update", "bazel:rules_cc", "0.2.0"])).expect("update version");
     assert!(!bare.floor);
     assert_eq!(bare.reason, None);
     for words in [
         vec!["update", "--floor"],
+        vec!["update", "cargo:anyhow", "--floor"],
         vec!["build", "bazel:rules_cc", "0.2.0", "--floor"],
         vec!["update", "--reason", "x"],
         vec!["build", "//a:one", "--reason", "x"],

@@ -277,7 +277,7 @@ if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
   echo "security reported a configured cargo set as uncovered" >&2
   exit 1
 fi
-if "$$public" bump crates:serde 2.0.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
+if "$$public" update crates:serde 2.0.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
   echo "bump unexpectedly widened a configured cargo set" >&2
   exit 1
 fi
@@ -301,15 +301,15 @@ if grep -q "no advisory coverage" "$(location security_ruby_json.txt)"; then
   echo "security reported a configured ruby set as uncovered" >&2
   exit 1
 fi
-if "$$public" bump gems:rack 1.0 --workspace "$$ok" > "$(location bump_pinned.txt)" 2>&1; then
+if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location bump_pinned.txt)" 2>&1; then
   echo "bump unexpectedly widened a configured ruby set" >&2
   exit 1
 fi
-grep -q "bump is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location bump_pinned.txt)"
+grep -q "update is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location bump_pinned.txt)"
 cmp /tmp/consumer_sets_gemfile_lock.orig "$(location sets_ok/apps/rb/Gemfile.lock)"
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
-if "$$public" bump pypi-frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
+if "$$public" update pypi-frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
   echo "bump accepted a bare configured uv set" >&2
   exit 1
 fi

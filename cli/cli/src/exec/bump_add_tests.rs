@@ -70,7 +70,7 @@ fn apply_adds_one_requirement_per_set_and_chains_its_refresh() {
     for (selector, version, path, before, after, launches) in cases {
         let harness = Harness::new("bump-add-live");
         seed(&harness, path, before);
-        let (code, out, err) = harness.run(&["bump", selector, version, "--apply"]);
+        let (code, out, err) = harness.run(&["update", selector, version, "--apply"]);
         assert_eq!(code, 0, "{selector}: {out}{err}");
         assert!(
             out.contains(&format!("added {selector} at {version} to {path}")),
@@ -83,7 +83,7 @@ fn apply_adds_one_requirement_per_set_and_chains_its_refresh() {
             launches,
             "{selector}: refresh launches"
         );
-        let (code, _, err) = harness.run(&["bump", selector, version, "--apply"]);
+        let (code, _, err) = harness.run(&["update", selector, version, "--apply"]);
         assert_eq!(code, 0, "{selector}: second bump is a no-op: {err}");
         assert_eq!(
             read(&harness, path),
@@ -97,7 +97,7 @@ fn apply_adds_one_requirement_per_set_and_chains_its_refresh() {
 fn cargo_add_refresh_sets_repin() {
     let harness = Harness::new("bump-add-cargo-repin");
     seed(&harness, CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
-    let (code, out, err) = harness.run(&["bump", "cargo:serde", "1.0.200", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("and refreshed cargo via `dx update cargo` automatically"),
@@ -117,13 +117,16 @@ fn check_mode_reports_pending_add_without_writing() {
     let harness = Harness::new("bump-add-check");
     let before = "[dependencies]\nanyhow = \"1\"\n";
     seed(&harness, CARGO_PATH, before);
-    let (code, out, err) = harness.run(&["bump", "cargo:serde", "1.0.200"]);
+    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200"]);
     assert_eq!(code, 1, "{out}{err}");
     assert!(
         err.contains("bump pending: cargo:serde 1.0.200 is not declared in"),
         "{err}"
     );
-    assert!(err.contains("dx bump cargo:serde 1.0.200 --apply"), "{err}");
+    assert!(
+        err.contains("dx update cargo:serde 1.0.200 --apply"),
+        "{err}"
+    );
     assert_eq!(read(&harness, CARGO_PATH), before);
     assert!(harness.seen_env.borrow().is_empty());
 }
@@ -132,9 +135,10 @@ fn check_mode_reports_pending_add_without_writing() {
 fn unsupported_selectors_do_not_write() {
     let harness = Harness::new("bump-add-unsupported");
     harness.write_source(".bazelversion", "9.2.0\n");
-    let (code, _, err) = harness.run(&["bump", "github-actions:actions/checkout", "v4", "--apply"]);
+    let (code, _, err) =
+        harness.run(&["update", "github-actions:actions/checkout", "v4", "--apply"]);
     assert_eq!(code, 1, "{err}");
-    let (code, _, err) = harness.run(&["bump", "cargo", "1.2.3", "--apply"]);
+    let (code, _, err) = harness.run(&["update", "cargo", "1.2.3", "--apply"]);
     assert_eq!(code, 2, "{err}");
     assert!(err.contains("selects the set"), "{err}");
     assert_eq!(read(&harness, ".bazelversion"), "9.2.0\n");
@@ -159,7 +163,7 @@ fn frozen_and_offline_fail_before_any_write() {
         let before = "[dependencies]\nanyhow = \"1\"\n";
         seed(&harness, CARGO_PATH, before);
         let (code, out, err) = harness.run(&[
-            "bump",
+            "update",
             "cargo:serde",
             "1.0.200",
             flag,
@@ -182,7 +186,7 @@ fn offline_add_without_refresh_succeeds() {
     let harness = Harness::new("bump-add-offline-go");
     harness.write_source("third_party/go/go.mod", "module example.com/root\n");
     let (code, out, err) = harness.run(&[
-        "bump",
+        "update",
         "go:example.com/new",
         "1.3.0",
         "--offline",
@@ -198,7 +202,7 @@ fn refresh_failure_keeps_the_add() {
     let mut harness = Harness::new("bump-add-refresh-fail");
     harness.bazel_code = 1;
     seed(&harness, CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
-    let (code, out, err) = harness.run(&["bump", "cargo:serde", "1.0.200", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200", "--apply"]);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("update_failed"), "{err}");
     assert!(err.contains("add kept in"), "{err}");
@@ -210,13 +214,18 @@ fn refresh_failure_keeps_the_add() {
 fn json_apply_emits_declared_then_refresh_notice() {
     let harness = Harness::new("bump-add-json");
     seed(&harness, CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
-    let (code, out, err) =
-        harness.run(&["bump", "cargo:serde", "1.0.200", "--output=json", "--apply"]);
+    let (code, out, err) = harness.run(&[
+        "update",
+        "cargo:serde",
+        "1.0.200",
+        "--output=json",
+        "--apply",
+    ]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(err, "");
     let events = json_events(&out);
     assert_eq!(events[0]["event"], "command_started");
-    assert_eq!(events[0]["command"], "bump");
+    assert_eq!(events[0]["command"], "update");
     let notices = events_of_kind(&events, "notice");
     assert_eq!(notices.len(), 2, "{out}");
     assert_eq!(notices[0]["code"], "add_declared");
@@ -233,7 +242,7 @@ fn configured_uv_set_reports_unsupported_add() {
     );
     let pyproject = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n";
     harness.write_source("apps/frontend/pyproject.toml", pyproject);
-    let (code, _, err) = harness.run(&["bump", "pypi-frontend:anyio", "4.1.0", "--apply"]);
+    let (code, _, err) = harness.run(&["update", "pypi-frontend:anyio", "4.1.0", "--apply"]);
     assert_eq!(code, 1, "{err}");
     assert!(
         err.contains("no declared requirement for \"anyio\""),
@@ -264,7 +273,7 @@ fn json_add_exits_with_the_stdout_code_when_the_start_event_cannot_land() {
     let harness = Harness::new("bump-add-start-broken");
     seed(&harness, CARGO_PATH, "[dependencies]\nanyhow = \"1\"\n");
     let parsed = dx_plan::args::parse(&dx_testing::cli::strings(&[
-        "bump",
+        "update",
         "cargo:serde",
         "1.0.200",
         "--apply",
@@ -300,7 +309,7 @@ fn apply_refuses_a_manifest_linking_outside_the_workspace() {
     let at = harness.workspace.join(CARGO_PATH);
     std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
     std::os::unix::fs::symlink(&outside, &at).expect("link");
-    let (code, out, err) = harness.run(&["bump", "cargo:serde", "1.0.200", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200", "--apply"]);
     assert_ne!(code, 0, "{out}{err}");
     assert!(
         format!("{out}{err}").contains("leaves the workspace"),
@@ -318,7 +327,7 @@ fn apply_keeps_a_manifest_link_that_stays_inside_the_workspace() {
     let at = harness.workspace.join(CARGO_PATH);
     std::fs::create_dir_all(at.parent().expect("parent")).expect("dirs");
     std::os::unix::fs::symlink(harness.workspace.join("real/Cargo.toml"), &at).expect("link");
-    let (code, out, err) = harness.run(&["bump", "cargo:serde", "1.0.200", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "cargo:serde", "1.0.200", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(std::fs::symlink_metadata(&at)
         .expect("meta")
@@ -354,7 +363,7 @@ fn assert_unchanged(harness: &Harness, files: &[(&str, &str)]) {
 fn configured_cargo_set_adds_to_its_own_manifest_and_repins() {
     let harness = Harness::new("bump-add-consumer-cargo");
     seed_cargo_set(&harness);
-    let (code, out, err) = harness.run(&["bump", "crates:anyhow", "1.0.0"]);
+    let (code, out, err) = harness.run(&["update", "crates:anyhow", "1.0.0"]);
     assert_eq!(code, 1, "{out}{err}");
     assert!(
         err.contains("bump pending: crates:anyhow 1.0.0 is not declared in rs/a/Cargo.toml"),
@@ -365,7 +374,7 @@ fn configured_cargo_set_adds_to_its_own_manifest_and_repins() {
         &[("rs/a/Cargo.toml", CARGO_A), ("rs/b/Cargo.toml", CARGO_B)],
     );
     assert!(harness.build_argv.borrow().is_empty());
-    let (code, out, err) = harness.run(&["bump", "crates:anyhow", "1.0.0", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "crates:anyhow", "1.0.0", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("added crates:anyhow at 1.0.0 to rs/a/Cargo.toml"),
@@ -385,7 +394,7 @@ fn configured_cargo_set_adds_to_its_own_manifest_and_repins() {
         ],
     );
     assert_eq!(harness.build_argv.borrow().len(), 1);
-    let (code, _, err) = harness.run(&["bump", "crates:serde", "1.0.0", "--apply"]);
+    let (code, _, err) = harness.run(&["update", "crates:serde", "1.0.0", "--apply"]);
     assert_eq!(code, 0, "{err}");
 }
 
@@ -395,7 +404,7 @@ fn configured_cargo_set_add_refusals_write_nothing_and_launch_nothing() {
     seed_cargo_set(&harness);
     let files = [("rs/a/Cargo.toml", CARGO_A), ("rs/b/Cargo.toml", CARGO_B)];
     for flag in ["--offline", "--frozen"] {
-        let (code, _, err) = harness.run(&["bump", "crates:anyhow", "1.0.0", flag, "--apply"]);
+        let (code, _, err) = harness.run(&["update", "crates:anyhow", "1.0.0", flag, "--apply"]);
         assert_eq!(code, 1, "{err}");
         assert_unchanged(&harness, &files);
     }
@@ -410,7 +419,7 @@ fn configured_maven_set_adds_to_its_repository_install_only() {
     harness.write_source("MODULE.bazel", MAVEN_MODULE);
     harness.write_source("third_party/maven_install.json", "{}\n");
     let (code, out, err) =
-        harness.run(&["bump", "maven_tools:com.example:demo", "1.2.3", "--apply"]);
+        harness.run(&["update", "maven_tools:com.example:demo", "1.2.3", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(
         read(&harness, "MODULE.bazel"),
@@ -441,7 +450,8 @@ fn configured_nuget_set_adds_without_claiming_a_refresh() {
     harness.write_source("dotnet/paket.dependencies", PAKET_DEPS);
     harness.write_source("dotnet/paket.lock", "NUGET\n");
     harness.write_source("dotnet/deps/paket.main.bzl", "main\n");
-    let (code, out, err) = harness.run(&["bump", "nuget:Serilog", "3.0.0", "--offline", "--apply"]);
+    let (code, out, err) =
+        harness.run(&["update", "nuget:Serilog", "3.0.0", "--offline", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         out.contains("run `paket update` in dotnet, then `dx update nuget`"),
@@ -470,12 +480,12 @@ fn configured_npm_set_adds_to_its_own_package_json() {
         harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
         harness.write_source(&format!("{dir}/pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
     }
-    let (code, out, err) = harness.run(&["bump", "web:left-pad", "1.3.0"]);
+    let (code, out, err) = harness.run(&["update", "web:left-pad", "1.3.0"]);
     assert_eq!(code, 1, "{out}{err}");
     assert!(err.contains("bump pending"), "{err}");
     assert!(err.contains("web/package.json"), "{err}");
     assert_unchanged(&harness, &[("web/package.json", PACKAGE_JSON)]);
-    let (code, out, err) = harness.run(&["bump", "web:left-pad", "1.3.0", "--apply"]);
+    let (code, out, err) = harness.run(&["update", "web:left-pad", "1.3.0", "--apply"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(read(&harness, "web/package.json").contains("\"left-pad\": \"1.3.0\""));
     assert_unchanged(
@@ -511,7 +521,7 @@ fn configured_go_set_add_check_names_its_go_mod() {
         "MODULE.bazel",
         "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n",
     );
-    let (code, _, err) = harness.run(&["bump", "go:github.com/pkg/errors", "0.9.1"]);
+    let (code, _, err) = harness.run(&["update", "go:github.com/pkg/errors", "0.9.1"]);
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("bump pending"), "{err}");
     assert!(err.contains("third_party/go/go.mod"), "{err}");
@@ -526,8 +536,11 @@ fn configured_ruby_set_reports_unsupported_add() {
         "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"other\", gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
     );
     harness.write_source("Gemfile", "x\n");
-    let (code, _, err) = harness.run(&["bump", "other:thing", "1.0.0", "--apply"]);
+    let (code, _, err) = harness.run(&["update", "other:thing", "1.0.0", "--apply"]);
     assert_eq!(code, 1, "{err}");
-    assert!(err.contains("bump is not supported for ecosystem"), "{err}");
+    assert!(
+        err.contains("update is not supported for ecosystem"),
+        "{err}"
+    );
     assert_unchanged(&harness, &[("Gemfile", "x\n")]);
 }

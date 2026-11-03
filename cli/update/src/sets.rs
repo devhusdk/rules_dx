@@ -131,7 +131,7 @@ impl SetId {
                 "crate_universe repin (CARGO_BAZEL_REPIN=1 bazel build //rust/tests/fixtures/hello:hello)"
             }
             SetId::Go => {
-                "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx bump` plus the pinned SDK tidy)"
+                "pinned go_deps.from_file module lock (pins track Gazelle; explicit widen via `dx update <set:package> <version>` plus the pinned SDK tidy)"
             }
             SetId::Maven => "rules_jvm_external pin (REPIN=1 bazel run @maven//:pin)",
             SetId::Npm => {

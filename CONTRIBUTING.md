@@ -47,8 +47,8 @@ versions in `modules/versions.bzl`:
 
 A `# floor: <reason>` comment directly above each `bazel_dep` says why the floor
 is what it is. Tools parse that marker, so keep it as written. Use
-`dx bump bazel:<dep> <version>` to move the tested version, and
-`dx bump bazel:<dep> <version> --floor --reason "<why>"` to move the floor.
+`dx update bazel:<dep> <version>` to move the tested version, and
+`dx update bazel:<dep> <version> --floor --reason "<why>"` to move the floor.
 `//modules:consumer_deps_test` checks that the two files agree.
 
 ### Where floors are checked
@@ -80,7 +80,7 @@ Patched modules cannot be overridden. The procedure for a floor search is: list 
 the BCR, step down one release at a time, check that the `.bzl` files rules_dx
 loads from it still find the symbols they need, and keep the lowest version that
 passes the graph check and the consumer suites. Record why in the `# floor:`
-comment with `dx bump ... --floor --reason`. Skip dev-only and patched deps.
+comment with `dx update ... --floor --reason`. Skip dev-only and patched deps.
 
 To run the hermetic consumer suites at candidate versions, add
 `--test_env=DX_CONSUMER_OVERRIDES=<module>=<version>` to a `hermetic-consumer`

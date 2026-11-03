@@ -386,7 +386,7 @@ pub fn plan(
         (SetId::Go, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Go, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name().to_owned(),
-            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx bump go:<module> <version>`",
+            reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx update go:<module> <version>`",
         }),
         (SetId::Ruby, SetRequest::Full) => Ok(BackendPlan::Noop),
         (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
@@ -731,7 +731,7 @@ pub fn plan_configured(
         (Ecosystem::Bazel, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
+            reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Full) => Ok(BackendPlan::Noop),
         (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Packages(_)) => {
@@ -920,7 +920,7 @@ pub fn check_configured(
         (Ecosystem::Bazel, Selection::Full) => Ok(CheckPlan::Pinned),
         (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "bazel module pins change with `dx bump <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
+            reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Full) => Ok(CheckPlan::Pinned),
         (Ecosystem::Ruby | Ecosystem::PowerShell, Selection::Packages(_)) => {
@@ -1585,7 +1585,7 @@ mod tests {
             (
                 SetId::Go,
                 "github.com/google/go-cmp/cmp",
-                "dx bump go:<module> <version>",
+                "dx update go:<module> <version>",
             ),
             (SetId::Ruby, "rspec-core", "bundle lock"),
             (SetId::PowerShell, "Pester", "Install-Module"),
@@ -1997,7 +1997,7 @@ mod tests {
                     error,
                     BackendError::Unsupported { ref set, reason }
                         if set == "bazel-modules"
-                            && reason.contains("dx bump <set>:<module> <version>")
+                            && reason.contains("dx update <set>:<module> <version>")
                             && reason.contains("bazel mod deps")
                 ),
                 "{error:?}"

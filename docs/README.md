@@ -21,7 +21,7 @@ guides below.
 - [Generate](cli/commands/generate.md): refresh `BUILD` files.
 - [Docs](cli/commands/docs.md): build, check, and preview this site.
 - [Environment](cli/commands/env.md): managed tools and generated source.
-- [Audit and update](cli/commands/audit-update.md): security, license, update, bump, add.
+- [Audit and update](cli/commands/audit-update.md): security, license, update.
 - [Init](cli/commands/init.md): set up a workspace.
 - [Status](cli/commands/status.md): health report and the version pin.
 - [Completion](cli/commands/completion.md): shell completions.

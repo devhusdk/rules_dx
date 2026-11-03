@@ -102,7 +102,7 @@ pub enum BumpPlanOutcome {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum BumpError {
-    #[error("empty bump selector or version; expected `dx bump <set:package> <version>`")]
+    #[error("empty bump selector or version; expected `dx update <set:package> <version>`")]
     Empty,
     #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. cargo:anyhow, maven:junit:junit)", BumpSet::pipe_list())]
     UnknownSelector { selector: String },

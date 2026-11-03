@@ -14,7 +14,6 @@ pub enum Command {
     Check,
     Clean,
     Update,
-    Bump,
     Env,
     Init,
     Upgrade,
@@ -31,7 +30,6 @@ pub enum Command {
 pub enum FirstSlot {
     None,
     UpdateSets,
-    BumpSets,
     WatchTasks,
     CompletionShells,
 }
@@ -95,7 +93,7 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-pub static COMMANDS: [CommandMeta; 25] = [
+pub static COMMANDS: [CommandMeta; 24] = [
     CommandMeta {
         command: Command::Security,
         name: "security",
@@ -347,9 +345,9 @@ pub static COMMANDS: [CommandMeta; 25] = [
         command: Command::Update,
         name: "update",
         scope_policy: "selector-default-all",
-        describe: "update dependencies per set through qualified resolvers (check by default; --apply writes updates)",
-        usage: "Usage: dx update [--apply] [--offline] [--frozen] [selector ...]",
-        scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets.",
+        describe: "update dependencies per set, or widen or add one package to a version (check by default; --apply writes)",
+        usage: "Usage: dx update [--apply] [--offline] [--frozen] [selector ...] | <set:package> <version> [--floor --reason=<text>]",
+        scopes: "Scopes: dependency-set/package/target selectors (cargo|go|maven|npm|npm-adopt|npm-adopt-polyglot|npm-tools|nuget|powershell|ruby|uv|uv-adopt|uv-adopt-polyglot|uv-tools, set:package, labels/paths); bare run checks all sets. `<set:package> <version>` widens that one package, or adds it when missing (bazel|cargo|github-actions|go|maven|npm|nuget).",
         is_managed: false,
         is_adoption: false,
         supports_json: true,
@@ -361,25 +359,6 @@ pub static COMMANDS: [CommandMeta; 25] = [
         workflow_verb: None,
         first_slot: FirstSlot::UpdateSets,
         labels: LabelsPolicy::Always,
-    },
-    CommandMeta {
-        command: Command::Bump,
-        name: "bump",
-        scope_policy: "require-selector+version",
-        describe: "widen one declared requirement to a new version (check by default; --apply widens)",
-        usage: "Usage: dx bump [--apply] [--offline] [--frozen] [--floor] [--reason=<text>] <set:package> <version>",
-        scopes: "Scopes: exactly one `set:package` plus one new version (bazel|cargo|github-actions|go|maven|npm|nuget, or a configured bazel set as `<set>:<module>`); never batch.",
-        is_managed: false,
-        is_adoption: false,
-        supports_json: true,
-        supports_diff: false,
-        supports_here: false,
-        supports_fail_on: false,
-        default_release: false,
-        skew: SkewKind::Refuse,
-        workflow_verb: None,
-        first_slot: FirstSlot::BumpSets,
-        labels: LabelsPolicy::Never,
     },
     CommandMeta {
         command: Command::Env,
@@ -689,9 +668,9 @@ impl Command {
 pub(crate) mod owners {
     use super::Command::{self, *};
 
-    pub(crate) const APPLY_COMMANDS: [Command; 15] = [
-        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Bump, Env, Init, Upgrade,
-        Watch, Worktree, Install,
+    pub(crate) const APPLY_COMMANDS: [Command; 14] = [
+        Lint, Typecheck, Format, Generate, Deploy, Check, Clean, Update, Env, Init, Upgrade, Watch,
+        Worktree, Install,
     ];
     pub(crate) const PROFILE_OWNERS: [Command; 5] = [Build, Test, Run, Deploy, Watch];
     pub(crate) const AFFECTED_OWNERS: [Command; 9] = [
@@ -721,7 +700,6 @@ mod tests {
         assert_eq!(Command::Security.name(), "security");
         assert_eq!(Command::License.name(), "license");
         assert_eq!(Command::Update.name(), "update");
-        assert_eq!(Command::Bump.name(), "bump");
         assert_eq!(Command::Upgrade.name(), "upgrade");
         assert!(Command::Upgrade.is_adoption());
         assert!(Command::Upgrade.supports_json());
@@ -764,7 +742,6 @@ mod tests {
             Command::Check,
             Command::Clean,
             Command::Update,
-            Command::Bump,
             Command::Env,
             Command::Init,
             Command::Upgrade,
@@ -819,7 +796,6 @@ mod tests {
             Command::Env,
             Command::Clean,
             Command::Update,
-            Command::Bump,
             Command::Init,
             Command::Upgrade,
         ] {
@@ -844,7 +820,6 @@ mod tests {
             assert!(command.supports_diff(), "{command:?} must support --diff");
         }
         assert!(!Command::Update.supports_diff());
-        assert!(!Command::Bump.supports_diff());
     }
 
     #[test]
@@ -866,7 +841,7 @@ mod tests {
         }
         assert_eq!(
             list,
-            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|bump|env|init|upgrade|status|watch|completion|docs|worktree|explain|install",
+            "security|license|lint|typecheck|format|generate|build|test|coverage|run|deploy|check|clean|update|env|init|upgrade|status|watch|completion|docs|worktree|explain|install",
             "pipe_list order must match declaration order"
         );
     }
@@ -884,7 +859,6 @@ mod tests {
                     "require",
                     "require-file+label",
                     "require-label",
-                    "require-selector+version",
                     "selector-default-all",
                     "reject",
                     "optional-name",
@@ -919,7 +893,6 @@ mod tests {
         assert_eq!(Command::Run.scope_policy(), "require");
         assert_eq!(Command::Deploy.scope_policy(), "require-label");
         assert_eq!(Command::Clean.scope_policy(), "reject");
-        assert_eq!(Command::Bump.scope_policy(), "require-selector+version");
         assert_eq!(Command::Update.scope_policy(), "selector-default-all");
     }
 
@@ -1049,19 +1022,13 @@ mod tests {
         use clap::ValueEnum;
         let mut required: Vec<(&str, Option<&str>)> = Command::value_variants()
             .iter()
-            .filter(|command| {
-                matches!(
-                    command,
-                    Command::Bump | Command::Completion | Command::Watch
-                )
-            })
+            .filter(|command| matches!(command, Command::Completion | Command::Watch))
             .map(|command| (command.name(), command.required_slot()))
             .collect();
         required.sort_unstable();
         assert_eq!(
             required,
             vec![
-                ("bump", Some("<set:package> <version>")),
                 ("completion", Some("<shell>")),
                 (
                     "watch",

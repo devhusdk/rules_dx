@@ -163,7 +163,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
     let before = snapshot(&root);
     let run = dx_in(
         &root,
-        &["bump", "go:github.com/google/go-cmp", "v0.7.0", "--apply"],
+        &["update", "go:github.com/google/go-cmp", "v0.7.0", "--apply"],
     );
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     let after = snapshot(&root);

@@ -79,7 +79,6 @@ mod tests {
         Command::Typecheck,
         Command::Clean,
         Command::Update,
-        Command::Bump,
         Command::Env,
         Command::Init,
         Command::Watch,

@@ -179,7 +179,7 @@ jobs:
           set_name="${SELECTOR%%:*}"
           if [[ "$set_name" == "github-actions" ]]; then
             package="${SELECTOR#*:}"
-            echo "Resolving GHA ref $VERSION for $package via the upstream GitHub releases client (gh api); dx bump parses the snapshot, never shell regex."
+            echo "Resolving GHA ref $VERSION for $package via the upstream GitHub releases client (gh api); dx update parses the snapshot, never shell regex."
             commit_json="$(mktemp)"
             export DX_BUMP_GITHUB_COMMIT_JSON="$commit_json"
             if ! gh api "repos/$package/commits/$VERSION" >"$commit_json"; then
@@ -187,7 +187,7 @@ jobs:
               exit 1
             fi
           fi
-          bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" --apply -- "$@"
+          bazel run "$@" --noshow_progress //cli/cli:dx -- update "$SELECTOR" "$VERSION" --apply -- "$@"
           case "$set_name" in
             dx_crates|dx_npm|go|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
             *) echo "File-only set ($set_name): no resolver refresh; preset flag-diff review plus build below." ;;
@@ -289,4 +289,4 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### bump widen-one — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Loop: dx bump one requirement (never batch) then dx update for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 100 //... + dx lint/typecheck/format //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Loop: dx update one requirement (never batch) then dx update <set> for resolver-owned refresh, verified with regen + flag-diff + build + test (CI flaky/timeout flags) + dx coverage --min-coverage 100 //... + dx lint/typecheck/format //... + dx security/license //... dogfood gates (seed host; full matrix in CI); one dep per PR with automerge toggle only; concurrency + App token + human merge path (issue #260, verify parity issue #641)." >> "$GITHUB_STEP_SUMMARY"

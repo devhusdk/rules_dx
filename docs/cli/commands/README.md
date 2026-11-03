@@ -17,7 +17,7 @@ bazel run @rules_dx//:dx -- lint //... -- --jobs=4
 - [`dx check`, `dx clean`](check-fix-clean.md)
 - [`dx generate`](generate.md)
 - [`dx env`](env.md)
-- [`dx security`, `dx license`, `dx update`, `dx bump`](audit-update.md)
+- [`dx security`, `dx license`, `dx update`](audit-update.md)
 - [`dx docs`](docs.md)
 - [`dx explain`](explain.md)
 - [`dx init`](init.md)

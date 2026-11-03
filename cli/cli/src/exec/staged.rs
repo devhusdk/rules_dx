@@ -1,6 +1,6 @@
 //! Runs a staged generator (paket2bazel, go) on copies of a set's inputs in a scratch
 //! directory and reports which declared locks it would change. The caller decides what
-//! to do with the result, so `dx update` and `dx bump` share the same checks.
+//! to do with the result, so both `dx update` forms share the same checks.
 
 use dx_update::backend::StagedRun;
 use std::collections::BTreeMap;

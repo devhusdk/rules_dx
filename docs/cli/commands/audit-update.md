@@ -312,6 +312,7 @@ exports nothing.
 
 ```text
 dx update [--apply] [--offline] [--frozen] [selector ...]
+dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:package> <version>
 ```
 
 Updates dependencies per set through the qualified resolvers. The sets come
@@ -323,7 +324,7 @@ Checks by default; `--apply` writes updates. In `rules_dx` the sets are
 `npm_node_app`, and `nuget`. Selectors are `set`, `set:package`, or a
 label/path. `go` and `ruby` pins are manual: `update` reports them pinned and
 changes nothing. `ruby` pins come from `bundle lock` on the seed host, and `go`
-pins track Gazelle and widen through `dx bump` with a `go` selector.
+pins track Gazelle and widen through `dx update go:<module> <version>`.
 Without `--apply`, `dx update` validates the selected sets and writes nothing. A `uv` set runs a
 read-only lockfile check and reports current, and a stale lock reports failed.
 `go` and `ruby` sets report pinned. Every other resolvable set reports
@@ -392,17 +393,17 @@ bazel run @rules_dx//:dx -- update --apply dx_pypi-python dx_pypi-tooling
 bazel run @rules_dx//:dx -- update --apply dx_npm_tools
 ```
 
-## `dx bump`
+## Widen or add one package
 
 ```text
-dx bump [--apply] [--offline] [--frozen] [--floor] [--reason=<text>] <set:package> <version>
+dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:package> <version>
 ```
 
-Widens one requirement to a new version, or declares it when missing. Checks by default;
-`--apply` writes. Without `--apply`, bump exits `0` when the manifest already
-declares the version and exits `1` with `bump drift` when a widen is pending.
-Takes exactly one
-`set:package` plus one version. Sets: `bazel`, `cargo`, `github-actions`,
+`dx update` with exactly one `set:package` and one version widens that
+requirement to the version, or declares it when missing. A version starts with
+a digit, `v` plus a digit, or is a commit SHA. Checks by default; `--apply`
+writes. Without `--apply`, it exits `0` when the manifest already declares the
+version and exits `1` with `bump drift` when a widen is pending. Sets: `bazel`, `cargo`, `github-actions`,
 `go`, `maven`, `npm`, `nuget`. A package the manifest does not declare yet is
 added at that exact version. `github-actions`, `bazel:.bazelversion` and
 `uv` sets cannot add; the run fails without writing.
@@ -410,7 +411,7 @@ added at that exact version. `github-actions`, `bazel:.bazelversion` and
 A `bazel` module has two versions. The floor, in its `bazel_dep`, is the oldest
 version consumers may resolve. The tested version, in a root-only
 `single_version_override` next to it, is what the root builds with. By default
-a `bazel` bump edits the tested version. It rewrites the literal `version` of
+a `bazel` widen edits the tested version. It rewrites the literal `version` of
 the module's `single_version_override` and keeps its patches. When there is no
 override, or the override has no `version`, it rewrites the `bazel_dep`
 instead. `--floor --reason <text>` edits the floor: it rewrites the
@@ -424,8 +425,8 @@ is written:
 - A tested version below the floor.
 
 Duplicate declarations, a missing or computed version or name, and a
-`MODULE.bazel` that does not parse fail without writing. `maven` bumps and
-`dx update` never touch a `bazel_dep` floor or an override. A `cargo` bump rewrites the crate in every manifest of the
+`MODULE.bazel` that does not parse fail without writing. `maven` widens and
+a plain `dx update` never touch a `bazel_dep` floor or an override. A `cargo` widen rewrites the crate in every manifest of the
 `crate.from_cargo` hub in `MODULE.bazel` whose `cargo_lockfile` is
 `rust/tests/fixtures/hello/Cargo.lock`, if that manifest declares the crate.
 It fails without writing if no manifest declares it, or if any manifest
@@ -449,7 +450,7 @@ the widen stays, `go.sum` is untouched, and the report names
 `go mod tidy` followed by `dx update <set>`. Each
 refusal that `dx update` makes for the set (missing files, `--offline`,
 `--frozen`, host environment) happens before any write. `ruby` sets fail with
-`bump is not supported`. A selector whose set name is not a dependency set
+`update is not supported`. A selector whose set name is not a dependency set
 uses the built-in sets above.
 
 `cargo`, `go`, `maven`, `npm`, and `nuget` refresh automatically through
@@ -468,7 +469,7 @@ A missing package is inserted in the same manifest and shape the widen edits:
 a `bazel_dep` after the last one, a `[dependencies]` entry, a `require` line,
 a `maven.install` coordinate, a `dependencies` entry in `package.json`, or a
 `nuget` line in `paket.dependencies`. It then refreshes like a widen. Without
-`--apply`, bump exits `1` with `bump pending`.
+`--apply`, it exits `1` with `bump pending`.
 
 `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
@@ -478,15 +479,15 @@ Exit codes: 0 success, 2 usage or scope errors, 1 a pending widen without
 `--apply` or an operational failure.
 
 ```sh
-bazel run @rules_dx//:dx -- bump --apply dx_crates:anyhow 1.0.100
-bazel run @rules_dx//:dx -- bump --apply go:github.com/google/go-cmp 0.7.0
-bazel run @rules_dx//:dx -- bump --apply bazel-modules:rules_cc 0.3.0
-bazel run @rules_dx//:dx -- bump --apply npm:vue 3.5.42
+bazel run @rules_dx//:dx -- update --apply dx_crates:anyhow 1.0.100
+bazel run @rules_dx//:dx -- update --apply go:github.com/google/go-cmp 0.7.0
+bazel run @rules_dx//:dx -- update --apply bazel-modules:rules_cc 0.3.0
+bazel run @rules_dx//:dx -- update --apply npm:vue 3.5.42
 ```
 
 ## Dependency sets
 
-`update`, `security`, `license`, and `bump` read dependency sets from the hubs
+`update`, `security`, and `license` read dependency sets from the hubs
 in the root `MODULE.bazel` and the files it pulls in with `include`. Each hub
 is one set:
 
@@ -670,7 +671,7 @@ backstop for the former. A check with `--offline` adds
 `--repository_disable_download`, `--apply --offline` fails with
 `offline_required`, and `--apply --frozen` fails with `frozen_locked`.
 `maven` sets take no `set:package`: pins are exact in `MODULE.bazel`.
-`dx bump <set>:<group>:<artifact>` widens one coordinate; `dx security` matches the lock's `artifacts`
+`dx update <set>:<group>:<artifact> <version>` widens one coordinate; `dx security` matches the lock's `artifacts`
 against `.dx/advisory/maven.json`, failing the set with `failed to assess
 <name>` when the snapshot is missing, and `dx license` reads
 `[[inventory]]` entries with `set = "maven"`.
@@ -703,7 +704,7 @@ files that differ, and writes nothing when an undeclared or missing file turns u
 `offline_required` in both modes: Paket has no offline switch, so dx cannot prove
 it stays off the network. `nuget` sets take no `set:package`: pins are exact in
 `paket.lock`; edit `paket.dependencies`, run `paket update`, then `dx update
-<set>`. `dx bump <set>:<package>` edits `paket.dependencies` only; `dx security` matches `paket.lock` against
+<set>`. `dx update <set>:<package> <version>` edits `paket.dependencies` only; `dx security` matches `paket.lock` against
 `.dx/advisory/nuget.json`, failing the set with `failed to assess <name>` when the
 snapshot is missing, and `dx license` reads `[[inventory]]` entries with
 `set = "nuget"`.
@@ -739,7 +740,7 @@ both modes; `--apply --frozen` fails with `frozen_locked` because `go.sum` is a 
 write, while a check with `--frozen` runs. The `-C` flag needs a Go SDK of 1.20 or newer; an
 older SDK fails the set. `go` sets take no `set:package`: sums cover the whole module
 graph, so edit the `require` in `go.mod` and run `dx update <set>`, or let
-`dx bump <set>:<module> <version>` widen the `require` and refresh `go.sum`; `dx security` matches the requirements in `go.mod` against
+`dx update <set>:<module> <version>` widen the `require` and refresh `go.sum`; `dx security` matches the requirements in `go.mod` against
 `.dx/advisory/go.json`, failing the set with `failed to assess <name>` when the snapshot
 is missing.
 
@@ -793,7 +794,7 @@ an unparseable locked version. A missing lock fails the family. A stale,
 missing, or failed advisory snapshot fails the set with
 `failed to assess <name>`, and `--offline` fails with `offline_required` when
 the snapshot is missing. A `security.toml` exception uses `set = "<name>"` and a
-PEP 440 `versions` range. `dx bump` refuses `ruby` sets.
+PEP 440 `versions` range. `dx update <set:package> <version>` refuses `ruby` sets.
 
 ```sh
 bazel run @rules_dx//:dx -- update dx_pypi-tooling

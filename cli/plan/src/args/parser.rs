@@ -667,12 +667,13 @@ fn parse_inner<S: AsRef<OsStr>>(
             });
         }
     }
-    if matches!(command, Command::Bump) {
-        if targets.len() > 2 {
-            return Err(extra_positional(command, &targets[2]));
-        }
-        if targets.len() < 2 {
-            return Err(missing_positional(command));
+    if command == Command::Update && (floor || reason.is_some()) {
+        let versioned = targets.len() == 2 && super::invocation::is_version(&targets[1]);
+        if !versioned {
+            return Err(unsupported(
+                command,
+                if floor { "--floor" } else { "--reason" },
+            ));
         }
     }
     if matches!(command, Command::Upgrade) && to.is_none() {

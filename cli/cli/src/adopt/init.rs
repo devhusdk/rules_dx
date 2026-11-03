@@ -207,7 +207,13 @@ fn check_init(
             .filter(|path| ESSENTIAL.contains(&path.as_str())),
     );
     let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
-    let stale: Vec<String> = prefixed(&target.prefix, wiring.stale).collect();
+    let mut stale = wiring.stale;
+    if std::fs::read_to_string(workspace.join(".bazelignore"))
+        .is_ok_and(|text| !dx_adopt::bazelignore_covers_dx(&text))
+    {
+        stale.push(".bazelignore".to_owned());
+    }
+    let stale: Vec<String> = prefixed(&target.prefix, stale).collect();
     let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
@@ -519,6 +525,20 @@ mod tests {
         for rule in dx_worktree::setup::allow_rules() {
             assert!(err.contains(&rule), "{rule}: {err}");
         }
+    }
+
+    #[test]
+    fn init_check_reports_a_bazelignore_without_dx_as_stale() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-stale-");
+        let root = scratch.path().to_path_buf();
+        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
+        let check = invocation(&["init"]);
+        assert_eq!(run(&check, &root).0, 0);
+        std::fs::write(root.join(".bazelignore"), "node_modules\n").expect("edit");
+        let (code, _out, err) = run(&check, &root);
+        assert_eq!(code, 1);
+        assert!(err.contains("stale .bazelignore"), "{err}");
+        assert!(err.contains("run `dx init --apply`"), "{err}");
     }
 
     #[test]

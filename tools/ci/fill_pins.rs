@@ -30,6 +30,48 @@ pub fn fill(
     rewrite(pins_bzl, &pins)
 }
 
+/// Passes when `pins_bzl` is all empty, or when its hashes equal the verified manifest in `dir`.
+/// `fetch` runs only when there are pins to compare.
+pub fn check(
+    tag: &str,
+    dir: &Path,
+    pins_bzl: &str,
+    fetch: impl FnOnce() -> Result<(), String>,
+    verify: impl FnOnce(&Path, &Path) -> Result<(), String>,
+) -> Result<(), String> {
+    let values = current_values(pins_bzl)?;
+    let empty = values.iter().filter(|value| value.is_empty()).count();
+    if empty == values.len() {
+        return Ok(());
+    }
+    if empty != 0 {
+        return Err("pins.bzl mixes empty and filled pins".to_owned());
+    }
+    fetch()?;
+    let expected = fill(tag, dir, pins_bzl, verify)?;
+    if expected != pins_bzl {
+        return Err(format!(
+            "pins.bzl differs from the attested {MANIFEST} of {tag}"
+        ));
+    }
+    Ok(())
+}
+
+fn current_values(pins_bzl: &str) -> Result<Vec<String>, String> {
+    RELEASE_ASSETS
+        .iter()
+        .map(|asset| {
+            let prefix = format!("    \"{asset}\": \"");
+            pins_bzl
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .and_then(|rest| rest.strip_suffix("\","))
+                .map(str::to_owned)
+                .ok_or_else(|| format!("pins.bzl has no pin line for {asset}"))
+        })
+        .collect()
+}
+
 fn declared_version(pins_bzl: &str) -> Result<String, String> {
     pins_bzl
         .lines()

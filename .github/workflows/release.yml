@@ -358,3 +358,24 @@ jobs:
           (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)
           tar -xzf verify/dx-linux-x86_64.tar.gz -C verify dx
           verify/dx install --tag "$RELEASE_TAG" --archive verify/dx-linux-x86_64.tar.gz --output json
+
+  pins:
+    needs: upload
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Check pins.bzl against the attested manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          bazel run //tools/ci:fill_pins_bin -- "v$version" --check

@@ -86,3 +86,65 @@ fn refuses_when_verification_fails() {
         fill_pins::fill("v1.2.3", dir.path(), PINS, |_, _| Err("bad bundle".into())).unwrap_err();
     assert_eq!(error, "bad bundle");
 }
+
+fn filled() -> String {
+    let dir = release_dir(&manifest(), true);
+    fill_pins::fill("v1.2.3", dir.path(), PINS, ok).unwrap()
+}
+
+fn nothing() -> Result<(), String> {
+    Ok(())
+}
+
+#[test]
+fn check_passes_when_the_pins_equal_the_manifest() {
+    let dir = release_dir(&manifest(), true);
+    fill_pins::check("v1.2.3", dir.path(), &filled(), nothing, ok).unwrap();
+}
+
+#[test]
+fn check_passes_empty_pins_without_fetching_or_verifying() {
+    let dir = release_dir("", false);
+    let fetch = || Err("fetched".to_owned());
+    let verify = |_: &Path, _: &Path| Err("verified".to_owned());
+    fill_pins::check("v1.2.3", dir.path(), PINS, fetch, verify).unwrap();
+}
+
+#[test]
+fn check_fails_on_a_differing_pin() {
+    let dir = release_dir(&manifest(), true);
+    let asset = dx_adopt::RELEASE_ASSETS[0];
+    let pins = filled().replace(&hash(1), &hash(9));
+    let error = fill_pins::check("v1.2.3", dir.path(), &pins, nothing, ok).unwrap_err();
+    assert!(
+        error.contains("differs from the attested"),
+        "{asset} {error}"
+    );
+}
+
+#[test]
+fn check_fails_on_mixed_pins() {
+    let dir = release_dir(&manifest(), true);
+    let pins = PINS.replacen(
+        "\"dx-linux-arm64\": \"\"",
+        &format!("\"dx-linux-arm64\": \"{}\"", hash(1)),
+        1,
+    );
+    let error = fill_pins::check("v1.2.3", dir.path(), &pins, nothing, ok).unwrap_err();
+    assert!(error.contains("mixes"), "{error}");
+}
+
+#[test]
+fn check_fails_when_verification_fails() {
+    let dir = release_dir(&manifest(), true);
+    let verify = |_: &Path, _: &Path| Err("bad bundle".to_owned());
+    let error = fill_pins::check("v1.2.3", dir.path(), &filled(), nothing, verify).unwrap_err();
+    assert_eq!(error, "bad bundle");
+}
+
+#[test]
+fn check_fails_when_the_tag_differs_from_dx_version() {
+    let dir = release_dir(&manifest(), true);
+    let error = fill_pins::check("v1.2.4", dir.path(), &filled(), nothing, ok).unwrap_err();
+    assert!(error.contains("differs from DX_VERSION"), "{error}");
+}

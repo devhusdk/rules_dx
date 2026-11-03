@@ -10,6 +10,11 @@ BOOK_INTRO = (
     "Install Bazel via Bazelisk, then run `dx` through Bazel:"
 )
 
+BOOK_EXCLUDED_DOCS = [
+    "docs/AGENTS.md",
+    "docs/module-families.md",
+]
+
 INDEX_LINK_LIST = "```sh" + "\n" + "bazel run @rules_dx//:dx -- --help" + "\n" + "```"
 
 USER_BOOK = [
@@ -21,6 +26,8 @@ USER_BOOK = [
         "docs/adopting-existing-bazel.md",
         "//docs:adopting-existing-bazel.md",
     ),
+    mdbook_page("Tutorial", "docs/tutorial.md", "//docs:tutorial.md"),
+    mdbook_page("Proxy And CA Certificates", "docs/proxy-and-ca.md", "//docs:proxy-and-ca.md"),
     mdbook_section("Command Reference"),
     mdbook_page(
         "Command Reference",
@@ -88,6 +95,7 @@ USER_BOOK = [
     mdbook_section("CI"),
     mdbook_page("GitHub CI", "docs/github-ci.md", "//docs:github-ci.md"),
     mdbook_section("Support"),
+    mdbook_page("Licenses", "docs/licenses.md", "//docs:licenses.md"),
     mdbook_page("Support Matrix", "docs/support-matrix.md", "//docs:support-matrix.md"),
     mdbook_section("Examples"),
     mdbook_page("Examples", "examples/README.md", "//examples:README.md"),

@@ -4,7 +4,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:mdbook.bzl", _MDBOOK = "ARTIFACTS")
 load(":render.bzl", "mdbook_chapters_error", "mdbook_index", "mdbook_index_text", "mdbook_page", "mdbook_page_list", "mdbook_route_error", "mdbook_section", "mdbook_summary_text")
 load(":site.bzl", "site_api_name", "site_api_path", "site_guide_step_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")
-load(":user/book.bzl", "USER_BOOK")
+load(":user/book.bzl", "BOOK_EXCLUDED_DOCS", "USER_BOOK")
 
 def site_unit_tests(name):
     starlark_test(
@@ -305,4 +305,16 @@ def site_user_file_tests(name, summary, index):
             summary: "# Command Reference\n# API Reference\n",
             index: "# rules_dx\n- [API Reference](api.md)\n",
         },
+    )
+
+def docs_book_coverage_tests(name, pages):
+    """Fails when a docs page is neither in the user book nor excluded."""
+    routes = [chapter.route for chapter in USER_BOOK if chapter.kind == "page"]
+    missing = [page for page in pages if page not in routes and page not in BOOK_EXCLUDED_DOCS]
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [
+            expect_equal("every docs page is in the user book or excluded: %s" % missing, missing, []),
+        ],
     )

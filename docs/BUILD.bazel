@@ -1,5 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/licenses:licenses.bzl", "licenses_docs")
+load("//tools/docs/site:site_tests.bzl", "docs_book_coverage_tests")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -69,3 +70,8 @@ real_source_target(
 )
 
 licenses_docs(name = "update_licenses")
+
+docs_book_coverage_tests(
+    name = "book_coverage",
+    pages = ["docs/" + page for page in glob(["*.md"])],
+)

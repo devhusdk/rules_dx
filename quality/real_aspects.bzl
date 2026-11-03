@@ -970,7 +970,7 @@ def merge_inherited_sources(direct_sources, inherited, class_id):
             seen[f.path] = True
     added = []
     for f in inherited:
-        if not f.is_source or f.extension != "rs" or f.owner.workspace_name != "":
+        if not f.is_source or f.extension != "rs" or f.owner.repo_name != "":
             continue
         if f.path in seen:
             continue
@@ -1389,7 +1389,7 @@ def _real_resolved_stages(target, ctx, capability, what):
         fail(policy_error)
     if aspect_capability_blocked(ctx.rule.attr, capability):
         return ([], None, None)
-    if target.label.workspace_name != "":
+    if target.label.repo_name != "":
         return ([], None, None)
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources

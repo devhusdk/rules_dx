@@ -187,7 +187,7 @@ def _clang_syntax_impl(target, ctx):
             return []
         info = upstream[ClangSyntaxInfo]
         return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses), clang_tidy = depset(info.tidy_diagnostics))]
-    if target.label.workspace_name != "":
+    if target.label.repo_name != "":
         return []
 
     xcode_config = ctx.attr._xcode_config[XcodeVersionInfo]

@@ -279,7 +279,7 @@ def _forwarded(info):
     return [info, OutputGroupInfo(compile_check = depset(info.diagnostics + info.statuses))]
 
 def _compile_check_impl(target, ctx):
-    if target.label.workspace_name != "":
+    if target.label.repo_name != "":
         return []
     attrs = ctx.rule.attr
 

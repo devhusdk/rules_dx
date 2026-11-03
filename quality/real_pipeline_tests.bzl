@@ -8,8 +8,8 @@ load(":go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
 load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "rustc_diagnostics_group")
 
-def _f(path, is_source = True, extension = "rs", workspace = ""):
-    return struct(path = path, is_source = is_source, extension = extension, owner = struct(workspace_name = workspace))
+def _f(path, is_source = True, extension = "rs", repo_name = ""):
+    return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))
 
 def _merged(direct, inherited):
     out = merge_inherited_sources({k: depset(v) for k, v in direct.items()}, inherited, "rust")
@@ -130,7 +130,7 @@ def real_pipeline_unit_tests(name):
             ),
             expect_equal(
                 "merge_inherited_sources drops generated, non-rs and external files",
-                _merged({}, [_f("o/g.rs", is_source = False), _f("a/x.c", extension = "c"), _f("e/l.rs", workspace = "ext")]),
+                _merged({}, [_f("o/g.rs", is_source = False), _f("a/x.c", extension = "c"), _f("e/l.rs", repo_name = "ext")]),
                 {},
             ),
             expect_equal(

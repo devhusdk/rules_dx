@@ -188,7 +188,7 @@ def _erlang_test_coverage(ctx, upstream):
     objects_lists = {}
     for app in ctx.attr.apps + flat_deps(ctx.attr.apps):
         for f in app[ErlangAppInfo].srcs:
-            if f.path.endswith(".erl") and f.owner != None and f.owner.workspace_name == "":
+            if f.path.endswith(".erl") and f.owner != None and f.owner.repo_name == "":
                 seen[f] = True
         if ErlangNifInfo in app:
             for f in app[ErlangNifInfo].objects_lists.to_list():

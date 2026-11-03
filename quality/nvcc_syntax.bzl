@@ -135,7 +135,7 @@ def _nvcc_syntax_impl(target, ctx):
             return []
         info = upstream[NvccSyntaxInfo]
         return [info, OutputGroupInfo(nvcc_syntax = depset(info.diagnostics + info.statuses))]
-    if target.label.workspace_name != "":
+    if target.label.repo_name != "":
         return []
 
     # Declared headers are pruned from the compile action inputs, so a replay without

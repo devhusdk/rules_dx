@@ -13,7 +13,7 @@ _opt_transition = transition(
 def _owner_prefix(file):
     """Returns the short path prefix of the package that owns one file."""
     owner = file.owner
-    repo = ("../" + owner.workspace_name + "/") if owner.workspace_name else ""
+    repo = ("../" + owner.repo_name + "/") if owner.repo_name else ""
     package = (owner.package + "/") if owner.package else ""
     return repo + package
 

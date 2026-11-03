@@ -222,7 +222,7 @@ def _javascript_web_server_launcher_impl(ctx):
             "",
             "_SCRIPT_CANDIDATES = " + _web_py_list(_WEB_LAUNCHER_RUNFILES),
             "_INDEX_CANDIDATES = " + _web_py_list(_web_launcher_candidates(
-                ctx.attr.app.label.workspace_name,
+                ctx.attr.app.label.repo_name,
                 ctx.attr.app.label.package,
                 ctx.attr.app.label.name,
             )),

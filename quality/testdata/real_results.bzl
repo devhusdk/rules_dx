@@ -40,7 +40,7 @@ _results = rule(
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, typecheck_subject = False, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, typecheck_subject = False, target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
@@ -59,7 +59,7 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
         data = [":" + name + "_results"],
         size = "small",
         tags = ["no-coverage"],
-        target_compatible_with = compatible(
+        target_compatible_with = target_compatible_with or compatible(
             flags.get("macos_arm64", False),
             flags.get("windows_x86_64", False),
             flags.get("linux_arm64", False),

@@ -9,6 +9,40 @@ _DIALYZER = "//erlang/tools:dialyzer"
 
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
+_CC_POLICY = "//quality/testdata/clang_syntax:cc_syntax_policy"
+_OBJC_POLICY = "//quality/testdata/clang_syntax:objc_policy"
+_MACOS_ONLY = ["@platforms//os:macos"]
+
+def _cc_case(tool, capability, name, target, contains, absent):
+    return {
+        "name": "real_result_" + tool + "_cc_" + name,
+        "target": "//quality/testdata/clang_syntax:" + target,
+        "policy": _CC_POLICY,
+        "tool": tool,
+        "capability": capability,
+        "class": "c",
+        "contains": contains,
+        "absent": absent,
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    }
+
+def _objc_case(name, contains, absent):
+    return {
+        "name": "real_result_clang_syntax_objc_" + name,
+        "target": "//quality/testdata/clang_syntax:" + name + "_objc",
+        "policy": _OBJC_POLICY,
+        "tool": "clang_syntax",
+        "capability": "typecheck",
+        "class": "objc",
+        "contains": contains,
+        "absent": absent,
+        "target_compatible_with": _MACOS_ONLY,
+        "macos_arm64": True,
+    }
+
 def _nvcc_case(name, contains, absent):
     return {
         "name": "real_result_nvcc_syntax_" + name,
@@ -24,6 +58,10 @@ def _nvcc_case(name, contains, absent):
     }
 
 REAL_RESULT_CASES = [
+    _cc_case("clang_syntax", "typecheck", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["undeclared_name", "Fatal error"]),
+    _cc_case("clang_syntax", "typecheck", "dirty", "dirty", ["undeclared identifier 'undeclared_name'"], []),
+    _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
+    _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     {
         "name": "real_result_zanuda_clean",
         "target": "//quality/testdata/zanuda_owned:clean",
@@ -132,7 +170,6 @@ REAL_RESULT_CASES = [
         "target": "//quality/testdata/rust_owned:clean",
         "policy": _RUST_POLICY,
         "tool": "rustc",
-        "typecheck_subject": True,
         "capability": "typecheck",
         "class": "rust",
         "contains": ["quality/testdata/rust_owned/clean.rs"],
@@ -147,7 +184,6 @@ REAL_RESULT_CASES = [
         "target": "//quality/testdata/rust_owned:dirty",
         "policy": _RUST_POLICY,
         "tool": "rustc",
-        "typecheck_subject": True,
         "capability": "typecheck",
         "class": "rust",
         "contains": ["quality/testdata/rust_owned/dirty.rs", "unused variable"],
@@ -182,6 +218,7 @@ def real_result_cases():
             absent = case["absent"],
             tool_dialyzer = case.get("tool_dialyzer"),
             typecheck_subject = case.get("typecheck_subject", False),
+            target_compatible_with = case.get("target_compatible_with"),
             linux_arm64 = case.get("linux_arm64", False),
             macos_arm64 = case.get("macos_arm64", False),
             windows_x86_64 = case.get("windows_x86_64", False),

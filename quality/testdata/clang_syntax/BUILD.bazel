@@ -1,6 +1,40 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load(":report.bzl", "clang_syntax_report")
+load("//cc/rules:defs.bzl", "objc_library")
+load("//quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//quality/testdata:__pkg__"])
+
+quality_family(
+    name = "cc_syntax_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "cc",
+    typecheck = ["clang_syntax"],
+)
+
+workspace_policy(
+    name = "cc_syntax_policy",
+    families = [":cc_syntax_family"],
+)
+
+quality_family(
+    name = "objc_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "objc",
+    typecheck = ["clang_syntax"],
+)
+
+workspace_policy(
+    name = "objc_policy",
+    families = [":objc_family"],
+)
 
 cc_library(
     name = "dep",
@@ -24,36 +58,16 @@ cc_library(
     deps = [":dep"],
 )
 
-clang_syntax_report(
-    name = "clean_report",
-    target = ":clean",
+objc_library(
+    name = "clean_objc",
+    srcs = ["clean.m"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
 )
 
-clang_syntax_report(
-    name = "dirty_report",
-    target = ":dirty",
-)
-
-# The include path and the -D come from the target's own compile action, so the
-# clean source passes only when the replay carries the real context.
-sh_test(
-    name = "clean_test",
-    srcs = ["check.sh"],
-    args = [
-        "0",
-        "-",
-        "$(rootpaths :clean_report)",
-    ],
-    data = [":clean_report"],
-)
-
-sh_test(
-    name = "dirty_test",
-    srcs = ["check.sh"],
-    args = [
-        "1",
-        "dirty.c:3:",
-        "$(rootpaths :dirty_report)",
-    ],
-    data = [":dirty_report"],
+objc_library(
+    name = "dirty_objc",
+    srcs = ["dirty.m"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
 )

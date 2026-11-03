@@ -819,6 +819,7 @@ GO_GOTYPE_TYPECHECK_SUPPORT = {
     "transport": "batched",
 }
 
+# linux_arm64, linux_x86_64, windows_arm64, windows_x86_64: objc_library builds only with an Apple toolchain.
 OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -827,10 +828,11 @@ OBJC_CLANG_SYNTAX_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "objc",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "platforms": ["macos_arm64"],
     "state": "supported",
     "tool": "clang_syntax",
     "transport": "batched",
+    "unsupported": ["linux_arm64", "linux_x86_64", "windows_arm64", "windows_x86_64"],
 }
 
 RUST_RUSTC_TYPECHECK_SUPPORT = {

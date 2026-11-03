@@ -40,6 +40,8 @@ pub enum OutputError {
     UnexpectedReason { path: String },
     #[error("not an event: value is not an NDJSON event object")]
     NotAnEvent,
+    #[error("unregistered event {event:?}")]
+    UnregisteredEvent { event: String },
     #[error("unsupported schema {major}.{minor}: want major {want}", want = crate::lifecycle::SCHEMA_MAJOR)]
     UnsupportedSchema { major: u64, minor: u64 },
     #[error("I/O error: {message}")]

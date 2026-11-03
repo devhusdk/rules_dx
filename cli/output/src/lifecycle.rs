@@ -1151,15 +1151,17 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
 }
 
 pub fn write_event(writer: &mut dyn std::io::Write, event: &Value) -> Result<(), OutputError> {
-    match event {
-        Value::Object(map) => {
-            let is_event =
-                matches!(map.get("event"), Some(Value::String(_))) && map.contains_key("schema");
-            if !is_event {
-                return Err(OutputError::NotAnEvent);
-            }
-        }
+    let name = match event {
+        Value::Object(map) if map.contains_key("schema") => match map.get("event") {
+            Some(Value::String(name)) => name,
+            _ => return Err(OutputError::NotAnEvent),
+        },
         _ => return Err(OutputError::NotAnEvent),
+    };
+    if !EVENTS.contains(&name.as_str()) {
+        return Err(OutputError::UnregisteredEvent {
+            event: name.clone(),
+        });
     }
     let mut buf =
         serde_json::to_vec(event).map_err(|e| OutputError::from(std::io::Error::from(e)))?;
@@ -1405,6 +1407,33 @@ mod tests {
             write_event(&mut Vec::new(), &fake).expect_err("no schema"),
             OutputError::NotAnEvent
         );
+    }
+
+    #[test]
+    fn writer_rejects_unregistered_event() {
+        let event = serde_json::json!({
+            "schema": {"major": SCHEMA_MAJOR, "minor": SCHEMA_MINOR},
+            "event": "not_registered"
+        });
+        assert_eq!(
+            write_event(&mut Vec::new(), &event).expect_err("unregistered"),
+            OutputError::UnregisteredEvent {
+                event: "not_registered".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn writer_accepts_every_registered_event() {
+        for name in EVENTS {
+            let event = serde_json::json!({
+                "schema": {"major": SCHEMA_MAJOR, "minor": SCHEMA_MINOR},
+                "event": name
+            });
+            let mut buf = Vec::new();
+            write_event(&mut buf, &event).expect(name);
+            assert!(buf.ends_with(b"\n"));
+        }
     }
 
     #[test]

@@ -456,6 +456,16 @@ fn load_advisories(
     })
 }
 
+const NO_DEPENDENCY_SETS: &str = "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\"//:Cargo.toml\"],\n)";
+
+fn is_consumer_workspace(workspace: &Path) -> bool {
+    std::fs::read_to_string(workspace.join("MODULE.bazel")).is_ok_and(|text| {
+        !text
+            .lines()
+            .any(|line| line.trim_end_matches('\r') == "    name = \"rules_dx\",")
+    })
+}
+
 fn lock_texts_for_set(
     workspace: &Path,
     set: dx_update::sets::SetId,
@@ -1492,6 +1502,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let configured_sets;
     let targets: Vec<AuditTarget> = match &registry {
         None => {
+            if !effective.is_empty() && is_consumer_workspace(workspace) {
+                return pre_exec(invocation.output, out, err, NO_DEPENDENCY_SETS);
+            }
             builtin_sets = match resolve_audit_sets(&effective) {
                 Ok(sets) => sets,
                 Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),

@@ -1307,3 +1307,22 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
         );
     }
 }
+
+#[test]
+pub(super) fn audit_live_consumer_without_dependency_sets_gets_a_hub_example() {
+    let runner = AuditRunner::clean();
+    let harness = Harness::new("audit-live-no-sets");
+    std::fs::write(
+        harness.workspace.join("MODULE.bazel"),
+        "module(name = \"app\")\n",
+    )
+    .expect("write MODULE.bazel");
+    let invocation = dx_plan::args::parse(&["security".to_owned()]).expect("parse");
+    let (code, out, err) = harness.execute_with(&invocation, &runner);
+    assert_ne!(code, 0, "{out}{err}");
+    let text = format!("{out}{err}");
+    assert!(text.contains("no dependency sets"), "{text}");
+    assert!(text.contains("crate.from_cargo"), "{text}");
+    assert!(!text.contains("rust/tests/fixtures"), "{text}");
+    assert!(runner.calls.borrow().is_empty());
+}

@@ -507,7 +507,8 @@ A `uv.project` whose `pyproject` is at the workspace root is named
 locks, except `MODULE.bazel`. A path or label that names a manifest or lock,
 such as `//:cargo-bazel-lock.json`, selects only the set that owns it. A
 workspace with none of these hubs makes `dx update` exit `2` with
-`no dependency sets`. Hub arguments must be
+`no dependency sets`. `dx security` in a workspace other than rules_dx exits
+non-zero with the same message and an example hub. Hub arguments must be
 literal; a computed one, two sets with one name, and two sets that own one
 manifest or lock fail with exit `2` before anything runs.
 

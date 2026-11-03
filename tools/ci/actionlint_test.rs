@@ -19,7 +19,7 @@ const FIXTURE_DIR: &str = "tools/ci/actionlint_fixtures";
 
 const FIXTURE_WORKFLOWS: [&str; 2] = ["invalid.yml", "reusable.yml"];
 
-const PLATFORM_RUNNERS: &str = "tools/ci/input_validation.py";
+const PLATFORM_RUNNERS: &str = "tools/ci/input_validation.rs";
 
 const SUPPORTED_PLATFORMS: usize = 5;
 
@@ -184,24 +184,21 @@ fn configured_runners() -> Vec<String> {
     runners
 }
 
-/// Returns the platform table, platform to runner label, that `input_validation.py` declares.
+/// Returns the platform table, platform to runner label, that `input_validation.rs` declares.
 fn platform_table() -> BTreeMap<String, String> {
     let text = read_runfiles(PLATFORM_RUNNERS);
     let start = text
-        .find("PLATFORMS = {")
+        .find("PLATFORMS: [")
         .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} declares no PLATFORMS table"));
     let table = &text[start..];
     let end = table
-        .find("\n}")
+        .find("\n];")
         .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} leaves the PLATFORMS table open"));
     table[..end]
         .lines()
         .filter_map(|line| {
-            let (key, value) = line.split_once("\": ")?;
-            Some((
-                key.trim().trim_matches('"').to_owned(),
-                value.trim_end_matches(',').trim_matches('"').to_owned(),
-            ))
+            let (key, value) = line.trim().strip_prefix("(\"")?.split_once("\", \"")?;
+            Some((key.to_owned(), value.trim_end_matches("\"),").to_owned()))
         })
         .collect()
 }

@@ -1,21 +1,17 @@
-"""Behavioral fixtures for the workflow and evidence input validators and both aggregates."""
+"""Behavioral fixtures for the evidence input validator and both aggregates."""
 
-import importlib.util
 import json
 import os
-import re
 import subprocess
 import sys
 
 from workflow_testing import ROOT, embedded_script
 
-FIXTURE_DIR = "tools/ci/input_validation_fixtures"
 AGGREGATE_FIXTURE_DIR = "tools/ci/aggregate_fixtures"
 CI_GATE_FIXTURE_DIR = "tools/ci/ci_gate_fixtures"
 WORKFLOW = ".github/workflows/reusable-consumer.yml"
 CI_WORKFLOW = ".github/workflows/ci.yml"
 EVIDENCE_WORKFLOW = ".github/workflows/evidence.yml"
-VALIDATOR = "tools/ci/input_validation.py"
 AGGREGATE_HEREDOC = "python3 - <<'EOF'"
 AGGREGATE_MARKER = "EOF"
 CI_AGGREGATE_HEREDOC = "python3 - <<'DX_AGGREGATE'"
@@ -28,17 +24,6 @@ INPUTS = (
     "DX_MIN_COVERAGE",
     "DX_MIN_CHANGED_LINE_COVERAGE",
     "DX_INVOCATION_ID",
-)
-CHECKS = (
-    "lint",
-    "typecheck",
-    "format",
-    "generate",
-    "security-audit",
-    "license-audit",
-    "test",
-    "build",
-    "coverage",
 )
 GATE_JOBS = (
     "dogfood",
@@ -56,16 +41,7 @@ CONSUMER_JOBS = (
     "advisory-snapshots",
     "coverage",
 )
-REPORT_TOKEN = re.compile(r"[a-z]+=[A-Za-z0-9_.-]+")
 RESULTS = ("success", "failure", "skipped", "cancelled")
-PLAIN_OUTPUTS = (
-    "artifact_suffix",
-    "cache_saver",
-    "disabled",
-    "min_changed_line_coverage",
-    "min_coverage",
-    "snapshot_artifact",
-)
 
 
 def embedded_aggregate():
@@ -103,17 +79,6 @@ def expectation(directory, case):
     return inputs, status, says, outputs
 
 
-def read_outputs(path):
-    """Returns the job outputs one validator run appended, as a dict."""
-    if not path.exists():
-        return {}
-    out = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        key, _, value = line.partition("=")
-        out[key] = value if key in PLAIN_OUTPUTS else json.loads(value)
-    return out
-
-
 def run_script(tmp_path, name, script, inputs):
     """Runs one workflow script under the fixture inputs and returns status and text."""
     path = tmp_path / name
@@ -130,78 +95,6 @@ def run_script(tmp_path, name, script, inputs):
         encoding="utf-8",
         env=env,
     )
-
-
-def run_validator(tmp_path, case, inputs):
-    """Runs the validator over one fixture and returns status, text and outputs."""
-    unknown = sorted(set(inputs) - set(INPUTS))
-    assert not unknown, f"{case} passes {unknown}, which the validator never reads"
-    outputs = tmp_path / f"{case}.outputs"
-    done = run_script(
-        tmp_path,
-        "input_validation.py",
-        (ROOT / VALIDATOR).read_text(encoding="utf-8"),
-        dict(inputs, GITHUB_OUTPUT=str(outputs)),
-    )
-    return done.returncode, done.stdout + done.stderr, read_outputs(outputs)
-
-
-def test_every_fixture_states_one_expected_outcome():
-    names = fixture_names(FIXTURE_DIR)
-    assert len(names) > 0, f"{FIXTURE_DIR} holds no fixture"
-    for case in names:
-        _, status, says, outputs = expectation(FIXTURE_DIR, case)
-        assert status in (0, 1), f"{case} declares no exit status"
-        assert len(says) > 0, f"{case} expects no validator text"
-        assert set(outputs) <= {
-            "platforms",
-            "runners",
-            "disabled",
-            "cache_saver",
-            "min_coverage",
-            "min_changed_line_coverage",
-            "snapshot_artifact",
-            "artifact_suffix",
-            "checks",
-        }, f"{case} expects an unknown output {sorted(outputs)}"
-        assert (status == 0) == bool(outputs), (
-            f"{case} pairs status {status} with {outputs}"
-        )
-
-
-def test_fixtures_report_the_expected_diagnostic(tmp_path):
-    for case in fixture_names(FIXTURE_DIR):
-        inputs, status, says, _ = expectation(FIXTURE_DIR, case)
-        code, output, _ = run_validator(tmp_path, case, inputs)
-        assert code == status, f"{case} exited {code}, expected {status}: {output}"
-        for text in says:
-            assert text in output, f"{case} never reported [{text}]: {output}"
-
-
-def test_fixtures_write_the_validated_outputs(tmp_path):
-    for case in fixture_names(FIXTURE_DIR):
-        inputs, status, _, outputs = expectation(FIXTURE_DIR, case)
-        _, output, written = run_validator(tmp_path, case, inputs)
-        if status == 0:
-            assert written == outputs, (
-                f"{case} wrote {written}, expected {outputs}: {output}"
-            )
-        else:
-            assert written == {}, (
-                f"{case} wrote {written} beside its rejection: {output}"
-            )
-
-
-def test_every_input_has_a_rejected_case():
-    rejected = {}
-    for case in fixture_names(FIXTURE_DIR):
-        inputs, status, _, _ = expectation(FIXTURE_DIR, case)
-        if status != 1:
-            continue
-        for name in inputs:
-            rejected.setdefault(name, []).append(case)
-    missing = [name for name in INPUTS if name not in rejected]
-    assert not missing, f"no fixture rejects {missing}"
 
 
 def test_every_aggregate_fixture_states_one_expected_outcome():
@@ -451,183 +344,3 @@ def test_evidence_rejects_bad_test_timeout(tmp_path):
             tmp_path, "//a/...", test_timeout=test_timeout
         )
         assert_rejected(test_timeout, status, output, written, "whole seconds")
-
-
-def validator_module():
-    """Returns input_validation.py loaded as a module, without running its main."""
-    spec = importlib.util.spec_from_file_location("input_validation", ROOT / VALIDATOR)
-    assert spec is not None and spec.loader is not None, f"{VALIDATOR} does not load"
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def validator_platforms():
-    """Returns the PLATFORMS table input_validation.py declares."""
-    return validator_module().PLATFORMS
-
-
-def test_matrix_checks_are_gated_ids():
-    """Every matrix row is a unique gated check with well-formed reports and timeout."""
-    rows = validator_module().MATRIX_CHECKS
-    ids = [row["id"] for row in rows]
-    assert len(ids) == len(set(ids)), f"MATRIX_CHECKS repeats an id: {ids}"
-    assert set(ids) <= set(CHECKS), f"MATRIX_CHECKS names ungated ids: {ids}"
-    assert not {"security-audit", "coverage"} & set(ids), ids
-    for row in rows:
-        assert sorted(row) == ["args", "id", "passthrough", "reports", "timeout"], row
-        assert row["args"] and all(" " not in arg for arg in row["args"]), row
-        assert all(REPORT_TOKEN.fullmatch(token) for token in row["reports"]), row
-        assert isinstance(row["passthrough"], bool), row
-        assert isinstance(row["timeout"], int) and row["timeout"] > 0, row
-
-
-def test_evidence_runners_match_the_validator_platforms(tmp_path):
-    """evidence.yml keeps its own platform table; it must map every platform like the validator."""
-    status, output, written = run_evidence(tmp_path, "//a/...")
-    assert status == 0, f"evidence exited {status}: {output}"
-    assert written is not None, "evidence wrote no outputs"
-    runners = [line for line in written.splitlines() if line.startswith("runners=")]
-    assert len(runners) == 1, (
-        f"evidence wrote {len(runners)} runners lines: {written!r}"
-    )
-    expected = validator_platforms()
-    assert expected, f"{VALIDATOR} declares an empty PLATFORMS table"
-    assert json.loads(runners[0].partition("=")[2]) == expected, (
-        f"{EVIDENCE_WORKFLOW} PLATFORMS drifted from {VALIDATOR}"
-    )
-
-
-RELEASE_WORKFLOW = ".github/workflows/release-cells.yml"
-ACTIONLINT_CONFIG = ".github/actionlint.yaml"
-
-
-def preflight_pairs(text):
-    """Returns the ordered (platform, runner) pairs of the ci.yml preflight matrix."""
-    return re.findall(
-        r"^\s*- platform: (\S+)\n\s*runner: (\S+)\s*$", text, flags=re.MULTILINE
-    )
-
-
-def dogfood_platforms(text):
-    """Returns the ordered platforms the ci.yml dogfood job requests."""
-    found = re.findall(r"^\s*platforms: '(\[.*\])'\s*$", text, flags=re.MULTILINE)
-    return json.loads(found[0]) if len(found) == 1 else []
-
-
-def release_runners(text):
-    """Returns the set of runners in the release-cells.yml matrix."""
-    return set(re.findall(r"^\s*runner: (\S+)\s*$", text, flags=re.MULTILINE))
-
-
-def actionlint_labels(text):
-    """Returns the set of runner labels .github/actionlint.yaml declares."""
-    return set(re.findall(r"^\s*- (\S+)\s*$", text, flags=re.MULTILINE))
-
-
-def platform_drift(table, ci, release, actionlint):
-    """Returns one message per copy of the platform table that drifted from table."""
-    problems = []
-    if preflight_pairs(ci) != list(table.items()):
-        problems.append(f"{CI_WORKFLOW} preflight matrix drifted from {VALIDATOR}")
-    if dogfood_platforms(ci) != list(table):
-        problems.append(f"{CI_WORKFLOW} dogfood platforms drifted from {VALIDATOR}")
-    if release_runners(release) != set(table.values()):
-        problems.append(f"{RELEASE_WORKFLOW} runners drifted from {VALIDATOR}")
-    if not set(table.values()) <= actionlint_labels(actionlint):
-        problems.append(f"{ACTIONLINT_CONFIG} labels miss a runner from {VALIDATOR}")
-    return problems
-
-
-def read_copies():
-    """Returns the ci.yml, release.yml and actionlint.yaml texts."""
-    return tuple(
-        (ROOT / path).read_text(encoding="utf-8")
-        for path in (CI_WORKFLOW, RELEASE_WORKFLOW, ACTIONLINT_CONFIG)
-    )
-
-
-def test_platform_copies_match_the_validator_table():
-    """Every workflow copy of the platform table equals PLATFORMS, in order where order matters."""
-    ci, release, actionlint = read_copies()
-    assert platform_drift(validator_platforms(), ci, release, actionlint) == []
-
-
-def test_platform_parity_catches_a_drifted_copy():
-    """A dropped cell or swapped runner in any copy fails with a message naming the file."""
-    table = validator_platforms()
-    ci, release, actionlint = read_copies()
-    drifts = {
-        CI_WORKFLOW: (
-            ci.replace(
-                "          - platform: windows_arm64\n            runner: windows-11-arm\n",
-                "",
-            ),
-            release,
-            actionlint,
-        ),
-        RELEASE_WORKFLOW: (ci, release.replace("macos-15", "macos-14"), actionlint),
-        ACTIONLINT_CONFIG: (ci, release, actionlint.replace("windows-11-arm", "x")),
-    }
-    for name, (ci_text, release_text, lint_text) in drifts.items():
-        problems = platform_drift(table, ci_text, release_text, lint_text)
-        assert problems, f"{name} drift went unnoticed"
-        assert any(name in problem for problem in problems), (name, problems)
-    swapped = ci.replace("runner: macos-15", "runner: macos-14")
-    assert any(
-        "preflight" in problem
-        for problem in platform_drift(table, swapped, release, actionlint)
-    )
-    dogfood = ci.replace('"windows_x86_64", ', "")
-    assert any(
-        "dogfood" in problem
-        for problem in platform_drift(table, dogfood, release, actionlint)
-    )
-
-
-DOCS = "docs/github-ci.md"
-PLATFORM_CALLERS = ("examples/consumer-ci/caller.yml", CI_WORKFLOW)
-
-
-def test_docs_name_every_platform_and_gated_check():
-    """docs/github-ci.md names each platform label and each gated check id the validator maps."""
-    module = validator_module()
-    assert len(module.PLATFORMS) == 5, (
-        f"consumer workflow maps five platforms: {module.PLATFORMS}"
-    )
-    assert len(module.CHECKS) == 9, (
-        f"consumer workflow gates nine checks: {module.CHECKS}"
-    )
-    page = (ROOT / DOCS).read_text(encoding="utf-8")
-    missing = [
-        name for name in (*module.PLATFORMS, *module.CHECKS) if f"`{name}`" not in page
-    ]
-    assert not missing, f"{DOCS} never names {missing}"
-
-
-def requested_platforms(caller):
-    """Returns the JSON platform list a caller passes in its platforms: input."""
-    text = (ROOT / caller).read_text(encoding="utf-8")
-    values = [
-        line.strip().removeprefix("platforms:").strip()
-        for line in text.splitlines()
-        if line.strip().startswith("platforms:")
-    ]
-    assert len(values) == 1, f"{caller} sets platforms {len(values)} times: {values}"
-    value = values[0]
-    assert value.startswith("'[") and value.endswith("]'"), (
-        f"{caller} platforms must be a quoted JSON array, got {value}"
-    )
-    return json.loads(value[1:-1])
-
-
-def test_callers_request_only_mapped_platforms():
-    """Every caller requests at least one platform, and only platforms the validator maps."""
-    labels = validator_platforms()
-    for caller in PLATFORM_CALLERS:
-        requested = requested_platforms(caller)
-        assert requested, f"{caller} requests no platforms"
-        unknown = [label for label in requested if label not in labels]
-        assert not unknown, (
-            f"{caller} platforms {unknown} are not in the {VALIDATOR} table"
-        )

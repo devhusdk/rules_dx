@@ -14,7 +14,7 @@ const PIN_ENV: &str = "RULES_DX_PIN";
 const PIN_RUN: &str = "bazel run \"$@\" @rules_dx//tools/ci:module_pin_bin";
 
 const SCRIPTS: [(&str, &[&str]); 3] = [
-    ("tools/ci/input_validation.py", &["reusable-consumer.yml"]),
+    ("tools/ci/input_validation.rs", &["reusable-consumer.yml"]),
     (
         "tools/ci/module_pin.rs",
         &["reusable-consumer.yml", "reusable-docs.yml"],
@@ -304,7 +304,6 @@ fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
         assert!(!summary.is_empty(), "{script} has no docstring summary");
         let name = script
             .trim_start_matches("tools/ci/")
-            .trim_end_matches(".py")
             .trim_end_matches(".rs");
         let target = format!("@rules_dx//tools/ci:{name}_bin");
         for workflow in REUSABLE {

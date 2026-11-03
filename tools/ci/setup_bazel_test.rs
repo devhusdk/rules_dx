@@ -152,20 +152,29 @@ fn job_platforms(body: &serde_json::Value) -> Option<Vec<&'static str>> {
         .collect()
 }
 
-const VALIDATE_SOURCE: &str = "tools/ci/input_validation.py";
+const VALIDATE_SOURCE: &str = "tools/ci/input_validation.rs";
 const VALIDATE_RUNNERS: &str = "fromJSON(needs.validate.outputs.runners)";
 
-/// Runner labels in each `PLATFORMS = { "<key>": "<label>", }` map.
+/// Runner labels in each `PLATFORMS` table, in Python dict or Rust array form.
 fn platforms_map_labels(text: &str) -> Vec<String> {
     let mut labels = Vec::new();
     let mut inside = false;
     for line in text.lines().map(str::trim) {
-        if line == "PLATFORMS = {" {
+        if line == "PLATFORMS = {" || line.contains("PLATFORMS: [") {
             inside = true;
-        } else if line == "}" {
+        } else if line == "}" || line == "];" {
             inside = false;
         } else if inside {
-            if let Some((_, label)) = line.trim_end_matches(',').split_once(": ") {
+            let label = if let Some(pair) = line.strip_prefix("(\"") {
+                pair.trim_end_matches("),")
+                    .split_once(", ")
+                    .map(|(_, label)| label)
+            } else {
+                line.trim_end_matches(',')
+                    .split_once(": ")
+                    .map(|(_, label)| label)
+            };
+            if let Some(label) = label {
                 labels.push(label.trim_matches('"').to_owned());
             }
         }
@@ -174,7 +183,7 @@ fn platforms_map_labels(text: &str) -> Vec<String> {
 }
 
 /// Every `runner.os`-`runner.arch` platform the validate jobs can hand out,
-/// from the PLATFORMS maps in `tools/ci/input_validation.py` and the workflows.
+/// from the PLATFORMS maps in `tools/ci/input_validation.rs` and the workflows.
 fn validate_platforms(workflow_texts: &[(String, String)]) -> Vec<&'static str> {
     let mut labels = platforms_map_labels(&read_runfiles(VALIDATE_SOURCE));
     for (_, text) in workflow_texts {

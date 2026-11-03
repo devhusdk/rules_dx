@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
+load("//python/rules:defs.bzl", "python_library", "python_test")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
@@ -61,44 +61,61 @@ python_test(
 )
 
 # keep
-python_library(
-    name = "input_validation",
-    srcs = ["input_validation.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
-)
-
-# keep
-python_binary(
-    name = "input_validation_bin",
-    main = "input_validation.py",
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":input_validation"],
-)
-
-# keep
 python_test(
-    name = "input_validation_test",
+    name = "aggregate_scripts_test",
     size = "small",
-    srcs = ["input_validation_test.py"],
+    srcs = ["aggregate_scripts_test.py"],
     aspect_hints = ["//:ruff_config"],
     data = [
-        "input_validation.py",
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
-        ":input_validation_fixtures",
-        "//.github:actionlint.yaml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/evidence.yml",
-        "//.github:workflows/release-cells.yml",
         "//.github:workflows/reusable-consumer.yml",
-        "//docs:github-ci.md",
-        "//examples:consumer-ci/caller.yml",
     ],
     dep_group = "hello",
     deps = [
         ":workflow_testing",
         "@pypi//pytest",
+    ],
+)
+
+# keep
+rust_library(
+    name = "input_validation",
+    srcs = ["input_validation.rs"],
+    crate_name = "input_validation",
+)
+
+# keep
+rust_binary(
+    name = "input_validation_bin",
+    srcs = ["input_validation_main.rs"],
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":input_validation"],
+)
+
+# keep
+rust_test(
+    name = "input_validation_test",
+    size = "small",
+    srcs = ["input_validation_test.rs"],
+    data = [
+        ":input_validation_bin",
+        ":input_validation_fixtures",
+        "//.github:actionlint.yaml",
+        "//.github:workflows/ci.yml",
+        "//.github:workflows/evidence.yml",
+        "//.github:workflows/release-cells.yml",
+        "//docs:github-ci.md",
+        "//examples:consumer-ci/caller.yml",
+    ],
+    env = {"DX_INPUT_VALIDATION": "$(rootpath :input_validation_bin)"},
+    deps = [
+        ":input_validation",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 
@@ -240,7 +257,7 @@ rust_test(
     size = "small",
     srcs = ["actionlint_test.rs"],
     data = [
-        "input_validation.py",
+        "input_validation.rs",
         ":actionlint_fixtures",
         "//.github:actionlint.yaml",
         "//.github:workflows",
@@ -425,7 +442,7 @@ rust_test(
     size = "small",
     srcs = ["setup_bazel_test.rs"],
     data = [
-        ":input_validation.py",
+        ":input_validation.rs",
         "//.github:workflows",
         "//ci/gitlab:dx.gitlab-ci.yml",
         "//tools/bazelisk:pin.env",
@@ -884,7 +901,7 @@ rust_test(
     srcs = ["workflow_pins_test.rs"],
     data = [
         "docs_scope.rs",
-        "input_validation.py",
+        "input_validation.rs",
         "module_pin.rs",
         "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",

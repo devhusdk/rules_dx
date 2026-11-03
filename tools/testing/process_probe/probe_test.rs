@@ -559,3 +559,38 @@ fn a_detached_descendant_holds_its_lock_before_the_parent_exits() {
     release.fire();
     dx_testing::assert_alive_lock_released(&lock);
 }
+
+#[test]
+fn a_fake_bazel_run_records_its_launch_and_holds_an_app() {
+    let scratch_tmp = dx_test_scratch::scratch("probe-fake-bazel");
+    let dir = scratch_tmp.path().to_path_buf();
+    let dir_text = dir.to_string_lossy().into_owned();
+    let envs = [("PROCESS_PROBE_BAZEL_DIR", dir_text.as_str())];
+    assert_eq!(
+        dx_testing::run(&probe(), &["info"], &envs)
+            .expect("probe must execute")
+            .status
+            .code(),
+        Some(0)
+    );
+    assert_eq!(
+        dx_testing::run(&probe(), &["build", "//app:bin"], &envs)
+            .expect("probe must execute")
+            .status
+            .code(),
+        Some(0)
+    );
+    std::fs::write(dir.join("stop"), "").expect("stop file");
+    let run = dx_testing::run(&probe(), &["run", "//app:bin"], &envs).expect("probe must execute");
+    assert_eq!(run.status.code(), Some(0), "{}", run.stderr);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("start-1")).expect("first launch"),
+        "build //app:bin"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("start-2")).expect("second launch"),
+        "run //app:bin"
+    );
+    assert!(dir.join("alive-2").exists());
+    assert!(!dir.join("start-3").exists());
+}

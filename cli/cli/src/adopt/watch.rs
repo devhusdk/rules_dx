@@ -1559,3 +1559,7 @@ mod tests {
 #[cfg(unix)]
 #[path = "watch_probe_tests.rs"]
 mod probe_tests;
+
+#[cfg(test)]
+#[path = "watch_relaunch_tests.rs"]
+mod relaunch_tests;

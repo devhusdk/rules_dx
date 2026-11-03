@@ -184,6 +184,7 @@ rust_test(
         "src/adopt/upgrade.rs",
         "src/adopt/watch.rs",
         "src/adopt/watch_probe_tests.rs",
+        "src/adopt/watch_relaunch_tests.rs",
         "src/adopt/wiring.rs",
         "src/bazel_restart.rs",
         "src/exec.rs",

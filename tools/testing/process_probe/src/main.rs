@@ -54,6 +54,10 @@ Usage: process_probe [options]
   --require-foreground          exit 3 unless this probe's group holds the terminal (unix only)
   --help                        write this text and exit 0
 
+With PROCESS_PROBE_BAZEL_DIR set, the probe acts as a fake bazel: for build and
+run it writes start-N (its arguments) in that directory; run also keeps an app
+child alive holding alive-N until the stop file appears, and waits for it.
+
 With PROCESS_PROBE_SHIM_LOG set, the probe ignores its arguments, writes the
 working directory and then each argument to that file one per line, writes
 PROCESS_PROBE_SHIM_STDOUT to stdout, and exits with PROCESS_PROBE_SHIM_EXIT.
@@ -65,6 +69,8 @@ const SHIM_LOG: &str = "PROCESS_PROBE_SHIM_LOG";
 const SHIM_STDOUT: &str = "PROCESS_PROBE_SHIM_STDOUT";
 /// The exit status a shim run reports.
 const SHIM_EXIT: &str = "PROCESS_PROBE_SHIM_EXIT";
+/// The directory a fake bazel run records its launches and app locks into.
+const BAZEL_DIR: &str = "PROCESS_PROBE_BAZEL_DIR";
 
 /// A malformed invocation.
 const EXIT_USAGE: i32 = 64;
@@ -569,7 +575,53 @@ fn env_value_or_empty(name: &str) -> String {
         .unwrap_or_default()
 }
 
+fn run_fake_bazel(dir: &std::path::Path) -> ! {
+    let args: Vec<String> = env::args().skip(1).collect();
+    let verb = args.iter().find(|arg| *arg == "build" || *arg == "run");
+    let Some(verb) = verb else {
+        std::process::exit(0);
+    };
+    let launched = fake_bazel_launch(dir, verb == "run", &args.join(" "));
+    match launched {
+        Ok(code) => std::process::exit(code),
+        Err(message) => fail(EXIT_OUTPUT, &message),
+    }
+}
+
+fn fake_bazel_launch(dir: &std::path::Path, app: bool, args: &str) -> Result<i32, String> {
+    let launches = std::fs::read_dir(dir)
+        .map_err(|err| format!("cannot read {}: {err}", dir.display()))?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().starts_with("start-"))
+        .count();
+    let n = launches + 1;
+    std::fs::write(dir.join(format!("start-{n}")), args)
+        .map_err(|err| format!("cannot record the launch: {err}"))?;
+    if !app {
+        return Ok(0);
+    }
+    let exe = env::current_exe().map_err(|err| format!("cannot name the probe: {err}"))?;
+    let lock = dir.join(format!("alive-{n}"));
+    let mut child = Command::new(exe)
+        .env_remove(BAZEL_DIR)
+        .arg("--sleep-ms=120000")
+        .arg(format!("--gate={}", dir.join("stop").display()))
+        .arg(format!("--alive-lock={}", lock.display()))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|err| format!("cannot start the app: {err}"))?;
+    let status = child
+        .wait()
+        .map_err(|err| format!("cannot wait for the app: {err}"))?;
+    Ok(status.code().unwrap_or(EXIT_USAGE))
+}
+
 fn main() {
+    if let Some(dir) = env::var_os(BAZEL_DIR).filter(|dir| !dir.is_empty()) {
+        run_fake_bazel(std::path::Path::new(&dir));
+    }
     if let Some(log) = env::var_os(SHIM_LOG).filter(|log| !log.is_empty()) {
         run_shim(&log);
     }

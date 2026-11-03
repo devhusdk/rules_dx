@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -31,6 +31,42 @@ rust_binary(
         package_name = "deploy/dx_symbols",
         normal = True,
     ) + [":dx_symbols"],
+)
+
+rust_test(
+    name = "symbols_test",
+    size = "small",
+    srcs = ["symbols_test.rs"],
+    data = [
+        ":split",
+        "//deploy/symbols/fixture:known",
+        "//deploy/symbols/fixture:known.c",
+        "//deploy/symbols/fixture:known_split",
+        "//deploy/symbols/fixture:known_symbols",
+        "//deploy/symbols/fixture:no_build_id",
+        "//deploy/symbols/fixture:other_symbols",
+        "@llvm//tools:llvm-nm",
+        "@llvm//tools:llvm-objcopy",
+        "@llvm//tools:llvm-symbolizer",
+    ],
+    env = {
+        "DX_KNOWN_BINARY": "$(rootpath //deploy/symbols/fixture:known)",
+        "DX_KNOWN_SYMBOLS": "$(rootpaths //deploy/symbols/fixture:known_symbols)",
+        "DX_KNOWN_SOURCE": "$(rootpath //deploy/symbols/fixture:known.c)",
+        "DX_KNOWN_STRIPPED": "$(rootpath //deploy/symbols/fixture:known_split)",
+        "DX_LLVM_NM": "$(rootpath @llvm//tools:llvm-nm)",
+        "DX_LLVM_OBJCOPY": "$(rootpath @llvm//tools:llvm-objcopy)",
+        "DX_LLVM_SYMBOLIZER": "$(rootpath @llvm//tools:llvm-symbolizer)",
+        "DX_NO_BUILD_ID": "$(rootpath //deploy/symbols/fixture:no_build_id)",
+        "DX_OTHER_SYMBOLS": "$(rootpaths //deploy/symbols/fixture:other_symbols)",
+        "DX_SPLIT": "$(rootpath :split)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        ":dx_symbols",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

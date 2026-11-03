@@ -654,6 +654,40 @@ Exit codes:
 - `1`: invalid file names or mismatched sdist, a refused live run, or a
   failed `twine` upload.
 
+# dx_split_debug_info
+
+Splits the debug info out of a Linux `cc_binary`.
+
+```
+load("@rules_dx//deploy/rules:debug_info.bzl", "dx_split_debug_info")
+
+dx_split_debug_info(
+    name = "app_split",
+    binary = ":app",
+)
+```
+
+Build it to get the stripped binary. The debug file and the manifest are in the
+`symbols` output group.
+
+```
+bazel build --output_groups=symbols //pkg:app_split
+```
+
+This writes `app_split.debug` and `app_split.symbols.json`. The manifest has
+the build-id, arch, sha256 of the stripped binary, debug file name and
+`llvm-objcopy` version. The target is Linux only.
+
+Compile with `-g` and do not strip at link time. Look up an address with
+`llvm-symbolizer`:
+
+```
+llvm-symbolizer --obj=app_split.debug 0x401136
+```
+
+The build fails if the stripped binary and the debug file differ in build-id
+or arch.
+
 # Common behavior
 
 Except for `cloudflare_pages_deploy`, a default run writes into the

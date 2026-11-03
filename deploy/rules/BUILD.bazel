@@ -46,6 +46,7 @@ exports_files([
     "crates.bzl",
     "crates_tests.bzl",
     "defs.bzl",
+    "debug_info.bzl",
     "deploy_tests.bzl",
     "github.bzl",
     "github_tests.bzl",

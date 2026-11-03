@@ -102,6 +102,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude deploy/tests/cross
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
+# gazelle:exclude deploy/symbols/fixture
 # gazelle:exclude lua/runtime
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude gazelle/dart/testdata

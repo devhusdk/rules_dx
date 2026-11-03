@@ -119,7 +119,7 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
         "@platforms//os:linux": ["-Wl,--build-id=sha1"],
         "//conditions:default": [],
     })
-    dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = linkopts + build_id, **kwargs)
+    dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = build_id + linkopts, **kwargs)
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test."""

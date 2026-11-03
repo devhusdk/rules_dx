@@ -1,0 +1,18 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//thrift/rules:defs.bzl", "thrift_library")
+
+package(default_visibility = ["//thrift/tests:__subpackages__"])
+
+thrift_library(
+    name = "api",
+    srcs = ["shape.thrift"],
+    deps = ["//thrift/tests/base"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -289,7 +289,11 @@ fn yarn_entry_text(stanza: &str) -> String {
 
 fn yarn_is_local_protocol(value: &str) -> bool {
     let value = value.trim();
-    value.starts_with("file:") || value.starts_with("link:") || value.starts_with("portal:")
+    value.starts_with("file:")
+        || value.starts_with("link:")
+        || value.starts_with("portal:")
+        || value.starts_with("workspace:")
+        || value.contains("@workspace:")
 }
 
 fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> {
@@ -299,7 +303,11 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
     if name.is_empty() || version.is_empty() {
         return None;
     }
-    if yarn_is_local_protocol(version) || yarn_is_local_protocol(resolved) {
+    let is_workspace = entry
+        .descriptors
+        .iter()
+        .any(|(_, range)| range.trim().starts_with("workspace:"));
+    if yarn_is_local_protocol(version) || yarn_is_local_protocol(resolved) || is_workspace {
         return None;
     }
     let is_git = entry
@@ -317,7 +325,8 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
 pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
     let mut out = Vec::new();
     for stanza in yarn_stanzas(text) {
-        if stanza.trim_end().trim_end_matches(':').trim() == "__metadata" {
+        let head = stanza.lines().next().unwrap_or_default();
+        if head.trim_end().trim_end_matches(':').trim() == "__metadata" {
             continue;
         }
         let entry_text = yarn_entry_text(&stanza);

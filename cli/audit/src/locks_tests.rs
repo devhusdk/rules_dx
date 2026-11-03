@@ -573,6 +573,16 @@ fn yarn_lock_dependency_fields_do_not_override_the_entry_version() {
 }
 
 #[test]
+fn yarn_berry_workspace_entries_are_skipped() {
+    let text = "__metadata:\n  version: 6\n  cacheKey: 8\n\n\"a@workspace:packages/a\":\n  version: 0.0.0-use.local\n  resolution: \"a@workspace:packages/a\"\n  languageName: unknown\n  linkType: soft\n\n\"root@workspace:.\":\n  version: 0.0.0-use.local\n  resolution: \"root@workspace:.\"\n  languageName: unknown\n  linkType: soft\n\n\"react@npm:^18.0.0\":\n  version: 18.2.0\n  resolution: \"react@npm:18.2.0\"\n  checksum: abc\n  languageName: node\n  linkType: hard\n";
+    let packages = parse_yarn_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].name, "react");
+    assert_eq!(packages[0].version, "18.2.0");
+    assert!(!packages[0].is_git);
+}
+
+#[test]
 fn npm_private_packages_are_incomplete_never_clean() {
     let pkgs = vec![
         LockedPackage {

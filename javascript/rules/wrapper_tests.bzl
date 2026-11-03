@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
-load(":defs.bzl", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_test_rejection")
+load(":defs.bzl", "JAVASCRIPT_WINDOWS_JEST_CONFIG", "javascript_binary_upstream_data", "javascript_js_test_rejection", "javascript_needs_default_jest_config", "javascript_test_rejection")
 load(":node_test.bzl", "node_test_env", "node_test_upstream_data")
 
 def javascript_wrapper_contract_tests(name):
@@ -72,6 +72,21 @@ def javascript_wrapper_contract_tests(name):
                 "plain runner with empty kwargs is clean",
                 javascript_js_test_rejection({}),
                 None,
+            ),
+            expect_equal(
+                "jest without a config gets the Windows default",
+                javascript_needs_default_jest_config({}),
+                True,
+            ),
+            expect_equal(
+                "a user-set jest config wins",
+                javascript_needs_default_jest_config({"config": "jest.config.cjs"}),
+                False,
+            ),
+            expect_equal(
+                "the Windows default config sets v8",
+                JAVASCRIPT_WINDOWS_JEST_CONFIG,
+                '{"coverageProvider": "v8"}\n',
             ),
             expect_equal(
                 "unset package_json adds no manifest",

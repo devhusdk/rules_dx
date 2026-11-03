@@ -3,6 +3,7 @@
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -158,11 +159,29 @@ def javascript_js_test_rejection(kwargs):
     """Returns the rejection for forbidden javascript_js_test kwargs, or None."""
     return node_test_plain_rejection("javascript_test", "javascript_js_test", kwargs)
 
+JAVASCRIPT_WINDOWS_JEST_CONFIG = '{"coverageProvider": "v8"}\n'
+
+def javascript_needs_default_jest_config(kwargs):
+    """Returns True when no Jest config was set, so the Windows default applies."""
+    return not kwargs.get("config")
+
 def javascript_test(name, srcs, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test."""
     rejection = javascript_test_rejection(kwargs)
     if rejection != None:
         fail(rejection)
+    if javascript_needs_default_jest_config(kwargs):
+        config_name = name + "_windows_jest_config"
+        write_file(
+            name = config_name,
+            out = config_name + ".json",
+            content = [JAVASCRIPT_WINDOWS_JEST_CONFIG],
+            tags = ["manual"],
+        )
+        kwargs["config"] = select({
+            "@platforms//os:windows": ":" + config_name + ".json",
+            "//conditions:default": None,
+        })
     node_wrap_test(name, _jest_test, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, {"node_modules": node_modules}, env_inherit, visibility, kwargs)
 
 def javascript_js_test(name, srcs, entry_point, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):

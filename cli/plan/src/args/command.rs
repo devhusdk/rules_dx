@@ -383,7 +383,7 @@ pub static COMMANDS: [CommandMeta; 24] = [
         command: Command::Init,
         name: "init",
         scope_policy: "optional-name",
-        describe: "start or adopt a dx workspace in this or a new directory (absent-only; check by default; --apply scaffolds)",
+        describe: "start or adopt a dx workspace in this or a new directory (check by default; --apply scaffolds and is safe to re-run)",
         usage: "Usage: dx init [--apply] [--rust-target-triple=<triples>] [dir]",
         scopes: "Scopes: optional single directory, created by --apply when missing (defaults to the current directory); the module name is the directory name, or my_project for the current directory; Bazel labels/patterns are not scopes; extra positionals are usage failures.",
         is_managed: false,

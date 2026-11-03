@@ -475,8 +475,8 @@ shape: `.codex/hooks.json` with event `PreToolUse` and matcher `Bash`, and
 `dx init --apply` writes each file when it is absent and never overwrites it. If
 one exists, it prints the hook entries that file lacks, and the missing
 `permissions.allow` entries of `.claude/settings.json`. It also writes
-the launcher and the agent commands block in `AGENTS.md`; see
-[`dx init`](init.md). `dx status` reports the `agents` check as `warn` when a
+the launcher and the agent commands block in `AGENTS.md`; see the
+[fixed file set](init.md#fixed-file-set). `dx status` reports the `agents` check as `warn` when a
 hook is missing from `.claude/settings.json`, or from `.codex/hooks.json` or
 `.gemini/settings.json` when they exist, or `CLAUDE.md` does not import
 `AGENTS.md`.

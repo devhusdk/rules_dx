@@ -29,14 +29,9 @@ The module name is the directory name, lowercased, with every run of other
 characters folded to `_`, or `my_project` for the current directory. An
 absolute path, a `..` segment, or a name with no `[a-z0-9]` character fails
 before any file is written.
-Writes each file only when it is missing. The exceptions are the marked
-block in `AGENTS.md`, stale launchers and stale Bazel preset layers (see below).
 
-It writes `.dx/version`, `.gitignore`, `.bazelignore`, `MODULE.bazel.snippet`,
-`.envrc`, `.devcontainer/devcontainer.json`, `.vscode/settings.json`,
-`.vscode/extensions.json`, `.github/workflows/ci.yml`, the launcher (`tools/dx`
-and `tools/dx.cmd`), the [rules_dx overrides](#rules_dx-overrides), the
-[Bazel preset](#bazel-preset) and the agent files below.
+It writes every path in the [fixed file set](#fixed-file-set). Re-running
+`dx init --apply` is safe: it keeps your edits outside the rows owned by `dx`.
 
 `--rust-target-triple=<triples>` (comma-separated, repeatable) adds
 `extra_target_triples` to the Rust toolchain in `MODULE.bazel.snippet`, for
@@ -54,7 +49,7 @@ Init writes the `dx worktree` hooks for each agent:
 
 See [Hooks](worktree.md#hooks). The hooks run `tools/dx`, which also runs in a Git Bash or MSYS2 shell on Windows. It also writes a marked block to `AGENTS.md`,
 creating the file when it is missing (see below). It writes `CLAUDE.md` with an
-`@AGENTS.md` import when the import is missing, so Claude Code reads the block.
+`@AGENTS.md` import when the import is missing.
 The new `.claude/settings.json` also carries a `permissions.allow` list for the
 read-only commands `tools/dx check *`, `test *`, `build *`,
 `status *` and `version *`. If a hooks file
@@ -65,8 +60,7 @@ The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. When the tree has `.cu` or `.cuh` files, the snippet also carries the pinned CUDA toolkit and host-compiler stanza and the opt-in `cuda-eula` license line. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
 `__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
-`/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`, so Bazel skips
-the IDE output bases. When a `.bazelignore` already exists it is left alone, and
+`/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
 to stderr if it does not list `.dx`. The editor settings point at the managed
 interpreter and tools with host-native names. For Rust they set up
@@ -106,6 +100,33 @@ Output: `--output text|json`. JSON covers the check only; see Init plan below.
 Exit codes: `0` check passed or apply succeeded, `2` usage error, including
 extra positionals, an unknown flag, or an invalid directory, `1` check found drift or apply
 failed, `141` apply wrote every file but stdout closed early.
+
+## Fixed file set
+
+`dx init --apply` writes these paths. Owner `you` means you edit the file and
+dx adds only the lines named here. Owner `dx` means dx rewrites the file to
+match the running dx.
+
+| Path | Owner | What `dx init --apply` updates |
+| --- | --- | --- |
+| `.dx/version` | dx | Written when missing. `dx upgrade --apply` rewrites it. |
+| `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when `VERSION` differs from `.dx/version`. A launcher dx did not write is kept. |
+| `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
+| `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
+| `.bazelrc` | you | Created when missing. Three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |
+| `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
+| `.bazelversion` | you | Written in a fresh directory only. |
+| `MODULE.bazel.snippet` | you | Written when missing. Never rewritten. |
+| `.gitignore`, `.bazelignore`, `.envrc`, `.devcontainer/devcontainer.json`, `.vscode/settings.json`, `.vscode/extensions.json`, `.github/workflows/ci.yml` | you | Written when missing. Never rewritten. |
+| `AGENTS.md` | you, and dx for the marked block | Created when missing. Only the text between `<!-- dx:begin -->` and `<!-- dx:end -->` is rewritten. |
+| `CLAUDE.md` | you | Created when missing. `@AGENTS.md` is added when the import is missing. |
+| `.claude/settings.json` | you | Written when missing. When it exists, dx prints the hooks and `permissions.allow` entries to add. |
+| `.codex/hooks.json`, `.gemini/settings.json` | you | Written when missing. When they exist, dx prints the guard hook to add if it is missing. |
+
+Check reports a missing or stale path as drift. Deleting `.codex/hooks.json`
+or `.gemini/settings.json` stops check from reporting it, but `dx init --apply`
+writes it again. To opt out of a preset layer, comment out its import (see
+[Bazel preset](#bazel-preset)).
 
 ## Init plan
 

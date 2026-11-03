@@ -35,11 +35,11 @@ nested_bazel_test(
     data = [
         "//:module_srcs",
         "//cli/cli:dx",
-        "@rust_analyzer_1.98.1_tools//:rust_analyzer",
+        "@rust_analyzer",
     ],
     env = {
         "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "DX_RUST_ANALYZER": "$(rootpath @rust_analyzer_1.98.1_tools//:rust_analyzer)",
+        "DX_RUST_ANALYZER": "$(rootpath @rust_analyzer//:rust_analyzer)",
     },
     env_inherit = [
         "HOME",

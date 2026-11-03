@@ -87,8 +87,6 @@ def versions_contract_tests(name):
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//quality/tools/javascript:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",
-            "//cc/context:BUILD.bazel": "@rust_analyzer_" + _RUST_VERSION + "_tools//:rust_analyzer",
-            "//rust/ide:BUILD.bazel": "@rust_analyzer_" + _RUST_VERSION + "_tools//:rust_analyzer",
             "//examples:consumer-ci/README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//rust/rules:README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",

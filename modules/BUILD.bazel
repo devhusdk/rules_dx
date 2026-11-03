@@ -1,7 +1,8 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_CI_NETWORK_TAGS", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 load(":consumer_deps.bzl", "consumer_deps_json")
+load(":versions_rs.bzl", "versions_rs")
 load(":versions_tests.bzl", "versions_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -9,6 +10,16 @@ package(default_visibility = ["//visibility:public"])
 versions_contract_tests(name = "versions_contract")
 
 consumer_deps_json(name = "consumer_deps_json")
+
+versions_rs(name = "versions_rs")
+
+rust_library(
+    name = "dx_versions",
+    srcs = [":versions_rs"],
+    crate_name = "dx_versions",
+    crate_root = ":versions_rs",
+    edition = "2021",
+)
 
 # keep
 rust_test(
@@ -192,6 +203,7 @@ real_source_target(
         "toolchains.bzl",
         "ruby.bzl",
         "versions.bzl",
+        "versions_rs.bzl",
         "versions_tests.bzl",
     ],
     tags = ["corpus"],

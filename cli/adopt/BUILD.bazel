@@ -53,6 +53,7 @@ dx_rust_crate(
         "//cli/path:dx_path",
         "//libs/gomod:dx_gomod",
         "//libs/module_bazel:dx_module_bazel",
+        "//modules:dx_versions",
         "//tools/bazelrc:dx_preset",
     ],
     extra_test_deps = [
@@ -66,7 +67,6 @@ dx_rust_crate(
         "//:package.json",
         "//examples:consumer-ci/caller.yml",
         "//modules:cuda.bzl",
-        "//modules:ruby.bzl",
         "//modules:versions.bzl",
     ],
     test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},

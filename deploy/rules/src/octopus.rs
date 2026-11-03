@@ -164,6 +164,14 @@ fn octo_run(octo: &Path, args: &[OsString], api_key: &str, step: &str) -> bool {
     }
 }
 
+/// Names the package and the next step when the push fails.
+fn push_failed_hint(name: &str, spec: &OctopusDrop<'_>) -> String {
+    format!(
+        "octopus_deploy: could not push package {name} ({} {}); if this version already exists in Octopus, publish a new version or delete it in Octopus first (FailIfExists)",
+        spec.project, spec.version
+    )
+}
+
 /// Pushes the package, then creates the release and queues each deployment.
 pub fn octopus_live_publish(
     octo: &Path,
@@ -176,6 +184,7 @@ pub fn octopus_live_publish(
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     if !octo_run(octo, &octopus_push_args(package, spec), api_key, "push") {
+        eprintln!("{}", push_failed_hint(&name, spec));
         return 1;
     }
     if !octo_run(octo, &octopus_release_args(spec), api_key, "create-release") {
@@ -511,14 +520,16 @@ mod tests {
     fn octopus_live_publish_stops_after_failed_push() {
         let scratch = scratch_dir();
         let octo = fake_octo(scratch.path(), "push");
-        let code = octopus_live_publish(
-            &octo,
-            Path::new("p.tar.gz"),
-            &octo_spec(&["Production".to_owned()], ""),
-            "sekret",
-        );
+        let envs = ["Production".to_owned()];
+        let spec = octo_spec(&envs, "");
+        let code = octopus_live_publish(&octo, Path::new("p.tar.gz"), &spec, "sekret");
         assert_eq!(code, 1);
         assert_eq!(octo_calls(scratch.path()).len(), 1);
+        let hint = push_failed_hint("p.tar.gz", &spec);
+        assert!(hint.contains("p.tar.gz"), "{hint}");
+        assert!(hint.contains("p 1.0.0"), "{hint}");
+        assert!(hint.contains("publish a new version"), "{hint}");
+        assert!(hint.contains("FailIfExists"), "{hint}");
     }
 
     #[cfg(unix)]

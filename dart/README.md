@@ -153,17 +153,7 @@ Bind it with `aspect_hints = [":analysis_options"]`. Format ignores `deps`.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
-| `macos_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
-| `windows_arm64` | Unsupported |
-
-rules_dart 0.8.1 ships no Windows arm64 SDK, because its version table has no
-`windows-arm64` entry. The wrappers mark their targets incompatible there, so a
-build fails instead of resolving a missing toolchain.
+Supported on linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is unsupported: rules_dart ships no SDK for it, so its targets are incompatible there.
 
 ## Cross-compiling
 

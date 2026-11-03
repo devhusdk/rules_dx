@@ -1,6 +1,6 @@
 """Thin Dart wrappers over rules_dart."""
 
-load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_library = "dart_library", _dart_package_metadata = "dart_package_metadata", _dart_test = "dart_test")
+load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_codegen = "dart_codegen", _dart_library = "dart_library", _dart_package_metadata = "dart_package_metadata", _dart_test = "dart_test")
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartCompileInfo", "DartInfo")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
@@ -55,6 +55,8 @@ _dart_forward_test = dx_executable_forward_rule(
 )
 
 dart_package_metadata = _dart_package_metadata
+
+dart_codegen = _dart_codegen
 
 def dart_entry_sources(main, srcs):
     """Returns the sources a Dart executable owns: its entrypoint, then its srcs."""

@@ -41,6 +41,7 @@ dart_test(
 | `dart_library` | A package from `.dart` files, importable as `package:<name>` |
 | `dart_binary` | A compiled executable that runs with `bazel run` |
 | `dart_test` | Runs one test file with the package:test runner |
+| `dart_codegen` | Runs a generator script over one `.dart` file and makes the output files |
 
 - The generated upstream target is `manual`, so `//...` builds only the
   public wrapper.
@@ -50,7 +51,9 @@ dart_test(
 - Read data files through `@rules_dart//dart/runfiles`.
 - `DartInfo`, `DartAnalyzableInfo` and `DartCompileInfo` pass through
   unchanged.
-- `dart_codegen` and the web binaries are not wrapped yet.
+- `dart_codegen` is the upstream rule, unchanged. Its outputs can be `srcs` of a
+  `dart_library`.
+- The web binaries are not wrapped yet.
 
 ## Gazelle
 

@@ -1,0 +1,36 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH", "dart_codegen", "dart_library", "dart_test")
+
+dart_codegen(
+    name = "model_gen",
+    package_name = "codegen",
+    src = "lib/model.dart",
+    generator = "generator.dart",
+    output_suffixes = [".g.dart"],
+    target_compatible_with = DART_COMPATIBLE_WITH,
+)
+
+# keep
+dart_library(
+    name = "codegen",
+    package_name = "codegen",
+    srcs = [":model_gen"],
+)
+
+dart_test(
+    name = "codegen_test",
+    size = "small",
+    main = "test/codegen_test.dart",
+    deps = [
+        ":codegen",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

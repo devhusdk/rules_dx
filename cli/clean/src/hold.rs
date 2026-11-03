@@ -12,8 +12,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use dx_atomic_fs::commit::{acquire_commit_lock, ManagedRoot};
 use dx_atomic_fs::lease::{self, GenerationUse, SharedLease};
-use dx_env::{acquire_lock, DX_DIR_NAME};
+use dx_env::DX_DIR_NAME;
 use dx_setup::{read_current_pair, SetupPair};
 
 use super::apply::map_lock_error;
@@ -89,7 +90,8 @@ pub fn hold_current(
     if !dx_dir.is_dir() {
         return Ok(None);
     }
-    let _lock = acquire_lock(&dx_dir, timeout).map_err(map_lock_error)?;
+    let _lock =
+        acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), timeout).map_err(map_lock_error)?;
     let pair = read_current_pair(workspace_root).map_err(|e| CleanError::CurrentInvalid {
         reason: e.to_string(),
     })?;

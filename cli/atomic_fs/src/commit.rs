@@ -13,14 +13,29 @@ pub const DX_DIR_NAME: &str = ".dx";
 /// Lock file inside a managed root that serializes generation commits.
 pub const COMMIT_LOCK_FILE_NAME: &str = ".commit.lock";
 
+/// File beside the lock naming the command that last took it.
+pub const COMMIT_HOLDER_FILE_NAME: &str = ".commit.lock.holder";
+
+/// Text for a busy workspace; names the holder when known.
+pub fn busy_message(path: &Path, holder: Option<&str>) -> String {
+    format!(
+        "workspace busy: {} holds {}; wait for it to finish, then retry",
+        holder.unwrap_or("another dx command"),
+        path.display()
+    )
+}
+
 /// Deadline every domain waits for the commit lock before reporting busy.
 pub const DEFAULT_COMMIT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Lock acquisition failure, without any domain policy attached.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LockError {
-    #[error("another commit holds {path:?}; giving up after the lock deadline", path = path.display())]
-    Busy { path: PathBuf },
+    #[error("{}", busy_message(path, holder.as_deref()))]
+    Busy {
+        path: PathBuf,
+        holder: Option<String>,
+    },
     #[error("cannot lock {path:?}: {reason}", path = path.display())]
     LockFailed { path: PathBuf, reason: String },
 }
@@ -91,8 +106,14 @@ pub fn acquire_commit_lock(root: &ManagedRoot, timeout: Duration) -> Result<Comm
             reason: format!("cannot open commit lock: {e}"),
         })?;
     match super::lock_exclusive(&file, timeout) {
-        Ok(()) => Ok(CommitLock { file }),
-        Err(std::fs::TryLockError::WouldBlock) => Err(LockError::Busy { path: path.clone() }),
+        Ok(()) => {
+            write_holder(root);
+            Ok(CommitLock { file })
+        }
+        Err(std::fs::TryLockError::WouldBlock) => Err(LockError::Busy {
+            path: path.clone(),
+            holder: read_holder(root),
+        }),
         // LCOV_EXCL_START - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
         Err(e) => Err(LockError::LockFailed {
             path: path.clone(),
@@ -100,6 +121,20 @@ pub fn acquire_commit_lock(root: &ManagedRoot, timeout: Duration) -> Result<Comm
         }),
         // LCOV_EXCL_STOP - reason: end non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     }
+}
+
+fn write_holder(root: &ManagedRoot) {
+    let command = std::env::args().nth(1).unwrap_or_default();
+    let text = format!("dx {command} (pid {})", std::process::id());
+    let _ = std::fs::write(root.dir().join(COMMIT_HOLDER_FILE_NAME), text);
+}
+
+fn read_holder(root: &ManagedRoot) -> Option<String> {
+    let mut bytes = std::fs::read(root.dir().join(COMMIT_HOLDER_FILE_NAME)).ok()?;
+    bytes.truncate(200);
+    let text = String::from_utf8(bytes).ok()?;
+    let line = text.lines().next()?.trim();
+    (!line.is_empty()).then(|| line.to_string())
 }
 
 /// One staged pointer publication: `stage` names `target`, then replaces `current`.
@@ -173,19 +208,31 @@ mod tests {
         );
         let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold commit lock");
         let busy = acquire_commit_lock(&root, Duration::ZERO).expect_err("locked root is busy");
-        assert_eq!(
-            busy,
-            LockError::Busy {
-                path: root.lock_path()
+        match &busy {
+            LockError::Busy { path, holder } => {
+                assert_eq!(path, &root.lock_path());
+                let pid = format!("pid {}", std::process::id());
+                assert!(holder.as_deref().expect("holder").contains(&pid));
             }
-        );
-        assert!(!LockError::Busy {
-            path: root.lock_path()
+            other => panic!("expected busy: {other:?}"),
         }
-        .to_string()
-        .is_empty());
+        assert!(busy
+            .to_string()
+            .ends_with("wait for it to finish, then retry"));
         drop(_held);
         acquire_commit_lock(&root, Duration::ZERO).expect("released lock acquires");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn busy_without_a_holder_file_names_another_dx_command() {
+        let scratch = dx_test_scratch::scratch("dx-commit-no-holder-");
+        let root = root_at(&scratch.path().join(DX_DIR_NAME));
+        root.ensure_dir().expect("root");
+        let _held = acquire_commit_lock(&root, Duration::from_secs(10)).expect("hold");
+        std::fs::remove_file(root.dir().join(COMMIT_HOLDER_FILE_NAME)).expect("remove holder");
+        let busy = acquire_commit_lock(&root, Duration::ZERO).expect_err("busy");
+        assert!(busy.to_string().contains("another dx command"));
         scratch.close().expect("cleanup");
     }
 
@@ -230,12 +277,10 @@ mod tests {
         root.ensure_dir().expect("root");
         let lock = acquire_commit_lock(&root, Duration::from_secs(10)).expect("acquire");
         let file = lock.into_file();
-        assert_eq!(
+        assert!(matches!(
             acquire_commit_lock(&root, Duration::ZERO).expect_err("handle stays locked"),
-            LockError::Busy {
-                path: root.lock_path()
-            }
-        );
+            LockError::Busy { .. }
+        ));
         drop(file);
         acquire_commit_lock(&root, Duration::ZERO).expect("dropped handle releases");
         scratch.close().expect("cleanup");
@@ -464,6 +509,7 @@ mod tests {
         }
         let busy = LockError::Busy {
             path: PathBuf::from("/ws/.dx/.commit.lock"),
+            holder: None,
         };
         assert!(!format!("{busy}").is_empty());
     }

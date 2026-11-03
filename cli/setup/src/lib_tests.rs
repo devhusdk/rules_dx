@@ -49,7 +49,10 @@ fn malformed_records_and_foreign_parent_files_fail_closed() {
         }
     );
     assert!(matches!(
-        map_lock_error(LockError::Busy { path: file.clone() }),
+        map_lock_error(LockError::Busy {
+            path: file.clone(),
+            holder: None
+        }),
         CommitError::Busy { .. }
     ));
     let sides = || PreparedSides {
@@ -593,6 +596,13 @@ fn busy_lock_fails_after_deadline() {
     let error = commit_pair_with_timeout(&workspace, &pair('1', '2'), Duration::from_millis(1))
         .unwrap_err();
     assert!(matches!(error, CommitError::Busy { .. }));
+    let pid = format!("pid {}", std::process::id());
+    let text = error.to_string();
+    assert!(text.contains(&pid), "{text}");
+    assert!(
+        text.ends_with("wait for it to finish, then retry"),
+        "{text}"
+    );
     drop(_held);
     let _ = fs::remove_dir_all(&root);
 }
@@ -703,6 +713,7 @@ fn commit_errors_display() {
         },
         CommitError::Busy {
             path: PathBuf::from("/ws/.dx/.commit.lock"),
+            holder: None,
         },
         CommitError::LockFailed {
             path: PathBuf::from("/ws/.dx/.commit.lock"),

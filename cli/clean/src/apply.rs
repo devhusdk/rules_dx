@@ -3,8 +3,9 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 
+use dx_atomic_fs::commit::{acquire_commit_lock, LockError, ManagedRoot};
 use dx_atomic_fs::lease::{self, GenerationUse};
-use dx_env::{acquire_lock, LockError, DX_DIR_NAME};
+use dx_env::DX_DIR_NAME;
 use dx_setup::{read_current_pair, GenerationId, SETUPS_DIR_NAME};
 
 use super::inventory::collect_inventory;
@@ -15,7 +16,7 @@ pub const CLEAN_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(crate) fn map_lock_error(error: LockError) -> CleanError {
     match error {
-        LockError::Busy { path } => CleanError::Busy { path },
+        LockError::Busy { path, holder } => CleanError::Busy { path, holder },
         LockError::LockFailed { path, reason } => CleanError::LockFailed { path, reason },
     }
 }
@@ -45,7 +46,8 @@ pub fn apply_plan_with_timeout(
     fs::create_dir_all(&dx_dir).map_err(|e| CleanError::Install {
         reason: format!("cannot create {}: {e}", dx_dir.display()),
     })?;
-    let _lock = acquire_lock(&dx_dir, timeout).map_err(map_lock_error)?;
+    let _lock =
+        acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), timeout).map_err(map_lock_error)?;
     let live = collect_inventory(workspace_root, &[], &[])?;
     let live_current = live.current_hex;
     let live_pair = match read_current_pair(workspace_root) {
@@ -415,7 +417,8 @@ mod tests {
         let workspace = workspace_of(&root);
         let dx_dir = workspace.join(".dx");
         fs::create_dir_all(&dx_dir).expect("dx dir");
-        let _held = acquire_lock(&dx_dir, Duration::from_secs(10)).expect("hold commit lock");
+        let _held = acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), Duration::from_secs(10))
+            .expect("hold commit lock");
         let plan = CleanPlan {
             prune_setup_records: Vec::new(),
             prune_generations: Vec::new(),
@@ -428,6 +431,13 @@ mod tests {
         let error =
             apply_plan_with_timeout(&workspace, &plan, Duration::from_millis(1)).unwrap_err();
         assert!(matches!(error, CleanError::Busy { .. }));
+        let pid = format!("pid {}", std::process::id());
+        let text = error.to_string();
+        assert!(text.contains(&pid), "{text}");
+        assert!(
+            text.ends_with("wait for it to finish, then retry"),
+            "{text}"
+        );
         drop(_held);
         let _ = fs::remove_dir_all(&root);
     }
@@ -469,6 +479,7 @@ mod tests {
             },
             CleanError::Busy {
                 path: PathBuf::from("/ws/.dx/.commit.lock"),
+                holder: None,
             },
             CleanError::LockFailed {
                 path: PathBuf::from("/ws/.dx/.commit.lock"),

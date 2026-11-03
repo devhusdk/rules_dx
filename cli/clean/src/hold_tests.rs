@@ -129,7 +129,11 @@ fn hold_current_waits_for_commit_lock_then_reads_new_current() {
     let second_target = fs::read_link(&current).expect("read current");
     select(&workspace, &first);
     let dx_dir = workspace.join(DX_DIR_NAME);
-    let lock = acquire_lock(&dx_dir, WAIT).expect("hold the commit lock");
+    let lock = dx_atomic_fs::commit::acquire_commit_lock(
+        &dx_atomic_fs::commit::ManagedRoot::new(dx_dir),
+        WAIT,
+    )
+    .expect("hold the commit lock");
     let reader_workspace = workspace.clone();
     let reader = std::thread::spawn(move || {
         hold_current(&reader_workspace, WAIT)

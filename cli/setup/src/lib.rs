@@ -147,8 +147,11 @@ pub enum CommitOutcome {
 pub enum CommitError {
     #[error("invalid workspace root {path:?}: missing or not a directory", path = path.display())]
     WorkspaceRoot { path: PathBuf },
-    #[error("workspace busy at {path:?}: another command holds the commit lock", path = path.display())]
-    Busy { path: PathBuf },
+    #[error("{}", dx_atomic_fs::commit::busy_message(path, holder.as_deref()))]
+    Busy {
+        path: PathBuf,
+        holder: Option<String>,
+    },
     #[error("cannot lock {path:?}: {reason}", path = path.display())]
     LockFailed { path: PathBuf, reason: String },
     #[error("invalid current selection: {reason}")]
@@ -198,7 +201,7 @@ fn expected_generated_target(pair: &SetupPair) -> String {
 
 fn map_lock_error(error: LockError) -> CommitError {
     match error {
-        LockError::Busy { path } => CommitError::Busy { path },
+        LockError::Busy { path, holder } => CommitError::Busy { path, holder },
         LockError::LockFailed { path, reason } => CommitError::LockFailed { path, reason },
     }
 }

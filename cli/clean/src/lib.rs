@@ -35,8 +35,11 @@ pub use records::{validate_record, RecordProblem, SetupRecordView};
 pub enum CleanError {
     #[error("invalid workspace root {path:?}: missing or not a directory", path = path.display())]
     WorkspaceRoot { path: PathBuf },
-    #[error("workspace busy at {path:?}: another command holds the commit lock", path = path.display())]
-    Busy { path: PathBuf },
+    #[error("{}", dx_atomic_fs::commit::busy_message(path, holder.as_deref()))]
+    Busy {
+        path: PathBuf,
+        holder: Option<String>,
+    },
     #[error("cannot lock {path:?}: {reason}", path = path.display())]
     LockFailed { path: PathBuf, reason: String },
     #[error("invalid current selection: {reason}")]

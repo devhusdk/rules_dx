@@ -1,4 +1,5 @@
 use super::*;
+use dx_atomic_fs::commit::LockError;
 
 #[cfg(windows)]
 fn test_symlink(target: &Path, link: &Path) -> io::Result<()> {
@@ -349,7 +350,10 @@ fn error_display_names_every_variant() {
         Error::MarkerInvalid {
             reason: "r".to_string(),
         },
-        Error::Busy { path: dir.clone() },
+        Error::Busy {
+            path: dir.clone(),
+            holder: None,
+        },
         Error::LockFailed {
             path: dir.clone(),
             reason: "r".to_string(),
@@ -372,17 +376,18 @@ fn error_display_names_every_variant() {
         &errors[5],
         Error::UnsupportedMarkerSchema { found } if *found == 3
     ));
-    assert!(matches!(&errors[7], Error::Busy { path } if path == &dir));
+    assert!(matches!(&errors[7], Error::Busy { path, .. } if path == &dir));
 }
 
 #[test]
-fn acquire_lock_reports_only_the_two_lock_failures() {
+fn lock_errors_convert_to_env_errors() {
     let dir = PathBuf::from("/ws/.dx");
     let busy = LockError::Busy {
-        path: dir.join(LOCK_FILE_NAME),
+        path: dir.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME),
+        holder: None,
     };
     let failed = LockError::LockFailed {
-        path: dir.join(LOCK_FILE_NAME),
+        path: dir.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME),
         reason: "r".to_string(),
     };
     for error in [&busy, &failed] {
@@ -391,7 +396,7 @@ fn acquire_lock_reports_only_the_two_lock_failures() {
     }
     assert!(matches!(
         Error::from(busy),
-        Error::Busy { path } if path == PathBuf::from("/ws/.dx/.commit.lock")
+        Error::Busy { path, .. } if path == PathBuf::from("/ws/.dx/.commit.lock")
     ));
     assert!(matches!(
         Error::from(failed),
@@ -718,7 +723,7 @@ fn stale_stage_undeletable_reports_install() {
     let opts = options(&root, staged_bin, metadata);
     let dx = root.join("ws").join(".dx");
     fs::create_dir_all(&dx).expect("dx dir");
-    fs::write(dx.join(LOCK_FILE_NAME), b"").expect("lock file");
+    fs::write(dx.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME), b"").expect("lock file");
     fs::create_dir_all(dx.join(STAGE_DIR_NAME)).expect("stale stage");
     fs::set_permissions(&dx, fs::Permissions::from_mode(0o555)).expect("read-only dx");
     let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
@@ -830,7 +835,11 @@ fn busy_lock_fails_after_deadline() {
     let root = scratch.path().to_path_buf();
     let dx = root.join("ws").join(".dx");
     fs::create_dir_all(&dx).expect("dx dir");
-    let _held = acquire_lock(&dx, Duration::from_secs(10)).expect("setup lock");
+    let _held = dx_atomic_fs::commit::acquire_commit_lock(
+        &dx_atomic_fs::commit::ManagedRoot::new(dx.clone()),
+        Duration::from_secs(10),
+    )
+    .expect("setup lock");
     let (staged_bin, metadata, _) = write_staged(&root, &[("a", "//o:a", &["a"])]);
     let mut opts = options(&root, staged_bin, metadata);
     opts.lock_timeout = Duration::from_millis(1);
@@ -841,6 +850,13 @@ fn busy_lock_fails_after_deadline() {
     };
     let error = refresh(&opts, &counting).unwrap_err();
     assert!(matches!(error, Error::Busy { .. }));
+    let pid = format!("pid {}", std::process::id());
+    let text = error.to_string();
+    assert!(text.contains(&pid), "{text}");
+    assert!(
+        text.ends_with("wait for it to finish, then retry"),
+        "{text}"
+    );
     assert_eq!(calls.get(), 0);
     drop(_held);
     let _ = fs::remove_dir_all(&root);
@@ -854,7 +870,8 @@ fn lock_open_failure_aborts() {
     let opts = options(&root, staged_bin, metadata);
     let dx = root.join("ws").join(".dx");
     fs::create_dir_all(&dx).expect("dx dir");
-    fs::create_dir_all(dx.join(LOCK_FILE_NAME)).expect("lock is a directory");
+    fs::create_dir_all(dx.join(dx_atomic_fs::commit::COMMIT_LOCK_FILE_NAME))
+        .expect("lock is a directory");
     assert!(matches!(
         refresh(&opts, &probe_symlink),
         Err(Error::LockFailed { .. })
@@ -909,8 +926,11 @@ fn probe_failure_reports_before_mutation() {
         Error::SymlinkUnsupported { detail } if detail.contains("no changes were made")
     ));
     assert!(!root.join("ws").join(".dx").join("bin").exists());
-    acquire_lock(&root.join("ws").join(".dx"), Duration::from_millis(1))
-        .expect("lock released after probe failure");
+    dx_atomic_fs::commit::acquire_commit_lock(
+        &dx_atomic_fs::commit::ManagedRoot::new(root.join("ws").join(".dx")),
+        Duration::from_millis(1),
+    )
+    .expect("lock released after probe failure");
     let _ = fs::remove_dir_all(&root);
 }
 

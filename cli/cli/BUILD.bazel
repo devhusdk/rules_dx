@@ -69,6 +69,7 @@ rust_library(
         "src/exec/workflow.rs",
         "src/exec/worktree.rs",
         "src/lib.rs",
+        "src/startup.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_cli",
@@ -265,6 +266,7 @@ rust_test(
         "src/exec/workflow_delivery_tests.rs",
         "src/exec/worktree.rs",
         "src/lib.rs",
+        "src/startup.rs",
         "src/test_support.rs",
     ],
     aliases = aliases(

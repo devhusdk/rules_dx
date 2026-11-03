@@ -235,7 +235,7 @@ fn run() -> i32 {
     let cwd = match dx_process::current_directory() {
         Ok(cwd) => cwd,
         Err(error) => {
-            let message = format!("cannot read working directory: {error}");
+            let message = dx_cli::startup::working_dir_failure(&error);
             return startup_failure(
                 &format!("dx: {message}"),
                 "unreadable_working_directory",
@@ -314,7 +314,7 @@ fn run() -> i32 {
             run
         }
         Err(error) => {
-            let message = format!("cannot create temporary directory: {error}");
+            let message = dx_cli::startup::temp_dir_failure(&temp_base, &error);
             return startup_failure(
                 &format!("dx: {message}"),
                 "unwritable_temporary_directory",

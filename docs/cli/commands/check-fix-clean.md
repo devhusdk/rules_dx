@@ -11,6 +11,8 @@ bazel run @rules_dx//:dx -- clean
 dx check [--here] [--affected] [--apply] [--explain] [--fail-on info|warning|error] [--baseline <file>] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
+With no scope, `dx check` runs `--affected`. Pass `//...` to check everything.
+
 Before any phase, `dx check` fails when your change adds build
 output: a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`,
 `.gradle/`, or a `build/` directory outside a source tree, or a file over

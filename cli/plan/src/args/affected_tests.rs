@@ -55,3 +55,14 @@ fn the_grammar_accepts_affected_exactly_for_the_affected_owners() {
         );
     }
 }
+
+#[test]
+fn test_and_check_default_to_affected_without_a_scope() {
+    for command in [Command::Test, Command::Check] {
+        let name = command.name();
+        assert!(parse(&strings(&[name])).expect("bare").affected, "{name}");
+        assert!(!parse(&strings(&[name, "//..."])).expect("scoped").affected);
+        assert!(!parse(&strings(&[name, "--here"])).expect("here").affected);
+    }
+    assert!(!parse(&strings(&["lint"])).expect("lint").affected);
+}

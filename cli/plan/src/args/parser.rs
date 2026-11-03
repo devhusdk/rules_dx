@@ -421,6 +421,8 @@ fn parse_inner<S: AsRef<OsStr>>(
         }
     }
     let reports = report;
+    let affected = affected
+        || (matches!(command, Command::Test | Command::Check) && targets.is_empty() && !here);
     if here && !targets.is_empty() {
         return Err(ArgsError::ConflictingHere);
     }

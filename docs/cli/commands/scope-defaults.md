@@ -5,8 +5,13 @@ with a scope.
 
 ## No Scope Means `//...`
 
-- `dx build`, `dx test`, `dx coverage`, `dx lint`, `dx typecheck`,
-  `dx format`, `dx check`, `dx security`, `dx license`
+- `dx build`, `dx coverage`, `dx lint`, `dx typecheck`, `dx format`,
+  `dx security`, `dx license`
+
+## No Scope Means `--affected`
+
+- `dx test`, `dx check`: pass `//...` to run everything. `--here` still
+  selects the current directory tree.
 
 ## No Scope Means The Repository
 

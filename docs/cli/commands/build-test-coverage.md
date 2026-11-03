@@ -6,7 +6,7 @@ bazel run @rules_dx//:dx -- test //...
 bazel run @rules_dx//:dx -- coverage //...
 ```
 
-No scope means `//...`. Pass a label, pattern, file, or dir to narrow it.
+No scope means `//...`, except `dx test`, which runs `--affected`. Pass `//...` to test everything. Pass a label, pattern, file, or dir to narrow it.
 Use `--here` for the current dir tree, or `--affected` for the targets your
 git changes reach (see [Scope Defaults](scope-defaults.md)). File scopes
 resolve to the owning targets. For `dx test` and `dx coverage`, a file runs

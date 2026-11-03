@@ -633,9 +633,8 @@ codes: `0` staged or published, `1` any failure or refusal.
 
 Every deploy target, `npm_deploy` included, rejects arguments beyond that output
 directory. Deploy targets run through `bazel run` or `dx deploy`, which set
-`DX_DEPLOY_CONFIG`. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `docker`,
-`octo`, `npm`) run with a cleared environment plus a per-tool keep-list.
-Secrets reach them only through that environment, stdin or an owner-only temp
-file, never argv. The exceptions are the promotion `PROMOTION_HEALTH_CMD`, the
-`docker context inspect` endpoint probe, and `wrangler`, which has its own
-narrower list.
+`DX_DEPLOY_CONFIG`. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `octo`,
+`npm`) run with a cleared environment plus a per-tool keep-list. Secrets reach
+them only through that environment, stdin or an owner-only temp file, never
+argv. The exceptions are the promotion `PROMOTION_HEALTH_CMD` and `wrangler`,
+which has its own narrower list.

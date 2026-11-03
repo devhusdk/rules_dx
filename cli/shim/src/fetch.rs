@@ -43,15 +43,15 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
         ))
     };
     std::fs::create_dir_all(dir).map_err(|e| not_writable(&e))?;
-    let part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
     let agent = agent(request.url);
-    let got = download(&agent, request, &part)?;
     let want = match request.checksum {
         ChecksumSource::Sidecar => sidecar(&agent, request)?,
         ChecksumSource::Pinned(hash) => parse_hash(hash).ok_or_else(|| {
             ShimError::failure(format!("bad pinned sha256 for {}: '{hash}'", request.url))
         })?,
     };
+    let part = PartFile::create(dir, request.asset).map_err(|e| not_writable(&e))?;
+    let got = download(&agent, request, &part)?;
     if got != want {
         return Err(ShimError::failure(format!(
             "sha256 mismatch for {}: want '{want}', got {got}; refusing to run it",
@@ -147,12 +147,7 @@ fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimErr
         .read_to_string(&mut text)
         .map_err(|e| ShimError::failure(format!("download failed: {url}: {e}")))?;
     let first = text.split_whitespace().next().unwrap_or("");
-    parse_hash(first).ok_or_else(|| {
-        ShimError::failure(format!(
-            "sha256 mismatch for {}: want '{first}', the sidecar holds no sha256; refusing to run it",
-            request.url
-        ))
-    })
+    parse_hash(first).ok_or_else(|| ShimError::failure(format!("{url} holds no sha256")))
 }
 
 pub fn parse_hash(text: &str) -> Option<String> {

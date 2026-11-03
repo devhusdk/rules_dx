@@ -95,7 +95,10 @@ fn garbage_sidecar_is_refused() {
     );
     let cache = tempfile::tempdir().expect("tempdir");
     let dest = dest(&cache);
-    install(&server.url(VERSION, ASSET), &dest, &ChecksumSource::Sidecar).expect_err("refused");
+    let url = server.url(VERSION, ASSET);
+    let err = install(&url, &dest, &ChecksumSource::Sidecar).expect_err("refused");
+    assert_eq!(err, format!("dx: {url}.sha256 holds no sha256"));
+    assert_eq!(server.hits(), 1, "binary must not be requested");
     assert!(!dest.exists());
 }
 
@@ -123,7 +126,9 @@ fn pinned_hash_is_used_without_the_sidecar() {
     let other = tempfile::tempdir().expect("tempdir");
     let wrong = ChecksumSource::Pinned(support::sha256_hex(b"nope"));
     install(&url, &dest(&other), &wrong).expect_err("pinned mismatch");
+    let hits = server.hits();
     install(&url, &dest(&other), &ChecksumSource::Pinned("short".into())).expect_err("bad pin");
+    assert_eq!(server.hits(), hits, "bad pin must not request the binary");
     assert!(!dest(&other).exists());
 }
 
@@ -169,7 +174,7 @@ fn not_found_names_version_and_url() {
     let err = install(&url, &dest(&cache), &ChecksumSource::Sidecar).expect_err("404");
     assert_eq!(
         err,
-        format!("dx: dx {VERSION} has no release asset {ASSET} (HTTP 404): {url}")
+        format!("dx: dx {VERSION} has no release asset {ASSET} (HTTP 404): {url}.sha256")
     );
 }
 
@@ -179,7 +184,7 @@ fn network_failure_names_the_url() {
     let url = format!("{}/v{VERSION}/{ASSET}", support::dead_base());
     let err = ensure(&url, &dest(&cache)).expect_err("refused");
     assert!(
-        err.starts_with(&format!("dx: download failed: {url}: ")),
+        err.starts_with(&format!("dx: download failed: {url}.sha256: ")),
         "{err}"
     );
 }

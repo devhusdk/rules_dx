@@ -6,6 +6,8 @@ sha256 is the hash of the zip, the same value as the `zh:` lock file entry.
 Nothing resolves over the network except the pinned download.
 """
 
+load("//libs/starlark:repo.bzl", "hub_repo")
+
 TARGETS = {
     "darwin_arm64": ("@platforms//os:macos", "@platforms//cpu:arm64"),
     "linux_amd64": ("@platforms//os:linux", "@platforms//cpu:x86_64"),
@@ -89,8 +91,8 @@ _provider_repo = repository_rule(
     },
 )
 
-def _hub_impl(ctx):
-    providers = json.decode(ctx.attr.providers)
+def hub_build(providers):
+    """Returns the hub BUILD file aliasing each provider to its platform repository."""
     lines = ['load("@rules_dx//terraform/rules:providers.bzl", "terraform_provider")', "", 'package(default_visibility = ["//visibility:public"])', ""]
     for target, (os, cpu) in sorted(TARGETS.items()):
         lines.append('config_setting(name = "%s", constraint_values = ["%s", "%s"])' % (target, os, cpu))
@@ -98,13 +100,7 @@ def _hub_impl(ctx):
     for name, entry in sorted(providers.items()):
         branches = ["        \":%s\": \"@%s//:provider\"," % (t, repo) for t, repo in sorted(entry["repos"].items())]
         lines.append("alias(\n    name = \"%s\",\n    actual = select({\n%s\n    }, no_match_error = \"provider %s has no artifact for this execution platform\"),\n)\n" % (name, "\n".join(branches), entry["source"]))
-    ctx.file("BUILD.bazel", "\n".join(lines))
-    return ctx.repo_metadata(reproducible = True)
-
-_hub_repo = repository_rule(
-    implementation = _hub_impl,
-    attrs = {"providers": attr.string(mandatory = True)},
-)
+    return "\n".join(lines)
 
 def _extension_impl(ctx):
     decls = {}
@@ -132,7 +128,7 @@ def _extension_impl(ctx):
             )
             repos[target] = repo
         hub[name] = {"repos": repos, "source": source}
-    _hub_repo(name = "dx_terraform_providers", providers = json.encode(hub))
+    hub_repo(name = "dx_terraform_providers", files = {"BUILD.bazel": hub_build(hub)})
 
 _provider = tag_class(attrs = {
     "name": attr.string(mandatory = True, doc = "Target name in @dx_terraform_providers."),

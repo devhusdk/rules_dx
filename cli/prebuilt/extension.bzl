@@ -4,17 +4,9 @@ A consumer platform whose release asset has no pinned sha256 falls back to the s
 """
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+load("//libs/starlark:repo.bzl", "hub_repo")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "valid_sha256")
 load(":pins.bzl", "DX_VERSION", "SHA256", "URL_TEMPLATE")
-
-def _hub_impl(rctx):
-    rctx.file("BUILD.bazel", rctx.attr.build)
-
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Writes the hub BUILD file the extension rendered.",
-    attrs = {"build": attr.string(doc = "The BUILD file content.", mandatory = True)},
-)
 
 _asset = tag_class(
     doc = "Adds or replaces one dx binary; honoured only in the root module.",
@@ -50,7 +42,7 @@ def _dx_prebuilt_impl(module_ctx):
                 fail("dx_prebuilt.asset(name = \"{}\"): sha256 must be 64 lowercase hex digits".format(tag.name))
             overrides[tag.name] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
     if rules_dx_is_root or from_source:
-        _hub(name = "dx_prebuilt", build = alias_build(SOURCE_LABEL))
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": alias_build(SOURCE_LABEL)})
     else:
         assets = plan_assets(DX_VERSION, SHA256, URL_TEMPLATE, overrides)
         for asset in assets:
@@ -62,7 +54,7 @@ def _dx_prebuilt_impl(module_ctx):
                     sha256 = asset.sha256,
                     urls = [asset.url],
                 )
-        _hub(name = "dx_prebuilt", build = consumer_build(assets))
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": consumer_build(assets)})
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],

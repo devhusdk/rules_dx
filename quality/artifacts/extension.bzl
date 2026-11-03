@@ -1,6 +1,7 @@
 """Standalone tool acquisition."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("//libs/starlark:repo.bzl", "hub_repo")
 load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
 load("//quality/artifacts:actionlint.bzl", _actionlint = "ARTIFACTS")
 load("//quality/artifacts:bicep.bzl", _bicep = "ARTIFACTS")
@@ -19,7 +20,7 @@ load("//quality/artifacts:google_java_format.bzl", _google_java_format = "SOURCE
 load("//quality/artifacts:hadolint.bzl", _hadolint = "ARTIFACTS")
 load("//quality/artifacts:helm.bzl", _helm = "ARTIFACTS")
 load("//quality/artifacts:hlint.bzl", _hlint = "ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "decode_artifacts", "encode_artifacts", "hub_build")
+load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "hub_build")
 load("//quality/artifacts:jsonnet_lint.bzl", _jsonnet_lint = "ARTIFACTS")
 load("//quality/artifacts:jsonnetfmt.bzl", _jsonnetfmt = "ARTIFACTS")
 load("//quality/artifacts:keep_sorted.bzl", _keep_sorted = "ARTIFACTS")
@@ -153,52 +154,6 @@ def _source_repo(source):
     else:
         fail("dx_tools: unsupported source kind for '%s': %s" % (source["repo"], kind))
 
-def _hub_repo_impl(ctx):
-    decoded = decode_artifacts(ctx.attr.artifacts)
-    if decoded.error != "":
-        fail("dx_tools hub: " + decoded.error)
-    errors = artifact_map_errors(decoded.artifacts)
-    if len(errors) > 0:
-        fail("dx_tools hub: " + "; ".join(errors))
-    ctx.file("BUILD.bazel", hub_build(decoded.artifacts, {
-        "cpu_arm64": ctx.attr.cpu_arm64,
-        "cpu_x86_64": ctx.attr.cpu_x86_64,
-        "os_linux": ctx.attr.os_linux,
-        "os_macos": ctx.attr.os_macos,
-        "os_windows": ctx.attr.os_windows,
-    }))
-    return ctx.repo_metadata(reproducible = True)
-
-_hub_repo = repository_rule(
-    implementation = _hub_repo_impl,
-    attrs = {
-        "artifacts": attr.string(
-            doc = "JSON map from tool name to platform repository names.",
-            mandatory = True,
-        ),
-        "cpu_arm64": attr.string(
-            doc = "Constraint value selecting arm64 CPUs for dx tools.",
-            mandatory = True,
-        ),
-        "cpu_x86_64": attr.string(
-            doc = "Constraint value selecting x86_64 CPUs for dx tools.",
-            mandatory = True,
-        ),
-        "os_linux": attr.string(
-            doc = "Constraint value selecting Linux for dx tools.",
-            mandatory = True,
-        ),
-        "os_macos": attr.string(
-            doc = "Constraint value selecting macOS for dx tools.",
-            mandatory = True,
-        ),
-        "os_windows": attr.string(
-            doc = "Constraint value selecting Windows for dx tools.",
-            mandatory = True,
-        ),
-    },
-)
-
 def _dx_tools_impl(ctx):
     os_linux, os_macos, os_windows, cpu_x86_64, cpu_arm64 = None, None, None, None, None
     for module in ctx.modules:
@@ -229,14 +184,18 @@ def _dx_tools_impl(ctx):
         )
         platform = artifact_platform_key(artifact)
         by_tool.setdefault(artifact["tool"], {})[platform] = name
-    _hub_repo(
+    errors = artifact_map_errors(by_tool)
+    if len(errors) > 0:
+        fail("dx_tools hub: " + "; ".join(errors))
+    hub_repo(
         name = "dx_tools",
-        artifacts = encode_artifacts(by_tool),
-        os_linux = os_linux,
-        os_macos = os_macos,
-        os_windows = os_windows,
-        cpu_x86_64 = cpu_x86_64,
-        cpu_arm64 = cpu_arm64,
+        files = {"BUILD.bazel": hub_build(by_tool, {
+            "cpu_arm64": cpu_arm64,
+            "cpu_x86_64": cpu_x86_64,
+            "os_linux": os_linux,
+            "os_macos": os_macos,
+            "os_windows": os_windows,
+        })},
     )
     for source in TOOL_SOURCES:
         _source_repo(source)

@@ -1,6 +1,7 @@
 """Pinned nightly rustdoc toolchains for the Rust API reference."""
 
 load("@rules_rust//rust/private:repositories.bzl", "rust_repository_set")
+load("//libs/starlark:repo.bzl", "hub_repo")
 
 RUSTDOC_NIGHTLY = "nightly/2026-08-20"
 
@@ -35,18 +36,6 @@ def hub_build(details):
         lines.append("")
     return "\n".join(lines)
 
-def _hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", ctx.attr.build)
-    return ctx.repo_metadata(reproducible = True)
-
-_hub_repo = repository_rule(
-    implementation = _hub_repo_impl,
-    attrs = {"build": attr.string(
-        doc = "BUILD file content written to the hub repository root.",
-        mandatory = True,
-    )},
-)
-
 def _dx_rustdoc_impl(module_ctx):
     details = {}
     for triple in _EXEC_TRIPLES:
@@ -56,7 +45,7 @@ def _dx_rustdoc_impl(module_ctx):
             exec_triple = triple,
             versions = [RUSTDOC_NIGHTLY],
         ))
-    _hub_repo(name = _HUB_NAME, build = hub_build(details))
+    hub_repo(name = _HUB_NAME, files = {"BUILD.bazel": hub_build(details)})
     return module_ctx.extension_metadata(reproducible = True)
 
 dx_rustdoc = module_extension(

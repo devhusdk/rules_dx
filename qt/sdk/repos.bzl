@@ -1,5 +1,6 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
+load("//libs/starlark:repo.bzl", "hub_repo")
 load("//libs/starlark:seven_zip.bzl", "seven_zip_host")
 load(
     ":pins.bzl",
@@ -866,15 +867,6 @@ def _qt_cell_repo_impl(ctx):
     ))
     return ctx.repo_metadata(reproducible = True)
 
-def _qt_hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", hub_build(
-        json.decode(ctx.attr.cells),
-        str(Label("//qt/rules:defs.bzl")),
-        ctx.attr.constraints,
-        ctx.attr.no_match,
-    ))
-    return ctx.repo_metadata(reproducible = True)
-
 _qt_cell_repo = repository_rule(
     implementation = _qt_cell_repo_impl,
     attrs = {
@@ -899,24 +891,6 @@ _qt_cell_repo = repository_rule(
             default = "",
         ),
         "_launcher": attr.label(default = "//qt/sdk:launcher.c"),
-    },
-)
-
-_qt_hub_repo = repository_rule(
-    implementation = _qt_hub_repo_impl,
-    attrs = {
-        "cells": attr.string(
-            doc = "JSON map from cell names to their acquired repository names.",
-            mandatory = True,
-        ),
-        "constraints": attr.string_list_dict(
-            doc = "Platform constraints of each cell.",
-            mandatory = True,
-        ),
-        "no_match": attr.string(
-            doc = "Diagnostic for a platform no cell matches.",
-            mandatory = True,
-        ),
     },
 )
 
@@ -972,11 +946,14 @@ def _qt_sdk_impl(module_ctx):
             modules = resolve_modules(request.modules),
             runtime_mirror = request.runtime_mirror,
         )
-    _qt_hub_repo(
+    hub_repo(
         name = HUB_NAME,
-        cells = json.encode(cells),
-        constraints = {cell: table[cell].constraints for cell in cells},
-        no_match = no_match_error(table),
+        files = {"BUILD.bazel": hub_build(
+            cells,
+            str(Label("//qt/rules:defs.bzl")),
+            {cell: table[cell].constraints for cell in cells},
+            no_match_error(table),
+        )},
     )
 
 qt_sdk = module_extension(

@@ -83,17 +83,6 @@ _ARTIFACT_KEYS = [
 
 _MESSAGE_COLUMNS = 68
 
-def encode_artifacts(by_tool):
-    """Encodes one platform-keyed repository map as deterministic JSON."""
-    return json.encode(by_tool)
-
-def decode_artifacts(raw):
-    """Decodes one JSON repository map into artifacts and a diagnostic."""
-    artifacts = json.decode(raw)
-    if type(artifacts) != "dict":
-        return struct(artifacts = {}, error = "artifacts must be a JSON object keyed by tool, got " + type(artifacts))
-    return struct(artifacts = artifacts, error = "")
-
 def ordered_platforms(entries):
     """Returns the platform keys one tool map holds, in platform order."""
     return [platform for platform in ARTIFACT_PLATFORMS if platform in entries]

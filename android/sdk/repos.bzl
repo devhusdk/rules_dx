@@ -1,6 +1,7 @@
 """Opt-in Android NDK and build-tools acquisition."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+load("//libs/starlark:repo.bzl", "hub_repo")
 
 ANDROID_NDK_REVISION = "27.0.12077973"
 
@@ -535,17 +536,6 @@ def acquire_emulator(ctx):
     """Downloads, verifies, and extracts one pinned emulator archive."""
     return _acquire(ctx, artifact_errors(EMULATOR_ARTIFACTS, ""), emulator_build)
 
-def _android_sdk_hub_repo_impl(ctx):
-    ctx.file("BUILD.bazel", hub_build(
-        json.decode(ctx.attr.ndk_repos),
-        json.decode(ctx.attr.build_tools_repos),
-        ctx.attr.bundletool_repo,
-        platform_repo = ctx.attr.platform_repo,
-        platform_tools_repos = json.decode(ctx.attr.platform_tools_repos),
-        emulator_repos = json.decode(ctx.attr.emulator_repos),
-    ))
-    return ctx.repo_metadata(reproducible = True)
-
 def _require_local(ctx, package, path, required):
     """Fails naming the missing path when a requested package is absent from a local SDK."""
     full = ctx.attr.local_path + "/" + path
@@ -664,36 +654,6 @@ _android_emulator_repo = repository_rule(
     attrs = NDK_REPOSITORY_ATTRS,
 )
 
-_android_sdk_hub_repo = repository_rule(
-    implementation = _android_sdk_hub_repo_impl,
-    attrs = {
-        "build_tools_repos": attr.string(
-            doc = "JSON map of build-tools repository names by platform.",
-            mandatory = True,
-        ),
-        "bundletool_repo": attr.string(
-            doc = "Repository name that provides the bundletool jar.",
-            mandatory = True,
-        ),
-        "emulator_repos": attr.string(
-            doc = "JSON map of emulator repository names by host.",
-            default = "{}",
-        ),
-        "ndk_repos": attr.string(
-            doc = "JSON map of NDK repository names by platform.",
-            mandatory = True,
-        ),
-        "platform_repo": attr.string(
-            doc = "Repository name of the default platform package.",
-            default = "",
-        ),
-        "platform_tools_repos": attr.string(
-            doc = "JSON map of platform-tools repository names by host.",
-            default = "{}",
-        ),
-    },
-)
-
 _android_sdk_local_repo = repository_rule(
     implementation = _android_sdk_local_repo_impl,
     attrs = {
@@ -787,14 +747,16 @@ def _android_sdk_impl(module_ctx):
             for host in sorted(repos.get("emulator", {}).keys()):
                 _declare(_android_emulator_repo, repos["emulator"][host], EMULATOR_ARTIFACTS[host], "emulator", mirror)
     platform_repos = repos.get("platform", {})
-    _android_sdk_hub_repo(
+    hub_repo(
         name = HUB_NAME,
-        build_tools_repos = json.encode(repos.get("build_tools", {})),
-        bundletool_repo = BUNDLETOOL_REPOSITORY,
-        emulator_repos = json.encode(repos.get("emulator", {})),
-        ndk_repos = json.encode(repos.get("ndk", {})),
-        platform_repo = platform_repos[sorted(platform_repos.keys())[0]] if len(platform_repos) > 0 else "",
-        platform_tools_repos = json.encode(repos.get("platform_tools", {})),
+        files = {"BUILD.bazel": hub_build(
+            repos.get("ndk", {}),
+            repos.get("build_tools", {}),
+            BUNDLETOOL_REPOSITORY,
+            platform_repo = platform_repos[sorted(platform_repos.keys())[0]] if len(platform_repos) > 0 else "",
+            platform_tools_repos = repos.get("platform_tools", {}),
+            emulator_repos = repos.get("emulator", {}),
+        )},
     )
 
 android_sdk = module_extension(

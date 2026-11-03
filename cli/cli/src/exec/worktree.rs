@@ -205,7 +205,7 @@ fn add(
     err: &mut dyn Write,
 ) -> Result<i32, Failed> {
     let pool = open_pool(workspace)?;
-    ops::claim(&pool, who, workspace)?;
+    ops::claim(&pool, host, who, workspace)?;
     let added = ops::add(
         &pool,
         host,
@@ -305,7 +305,7 @@ fn release(
     let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
     let target = release_target(path, workspace, &cwd);
     let pool = open_pool(workspace)?;
-    ops::claim(&pool, who, workspace)?;
+    ops::claim(&pool, host, who, workspace)?;
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
     release_output(out, invocation, &released)?;
     Ok(0)

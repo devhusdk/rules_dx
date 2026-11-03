@@ -284,8 +284,20 @@ pub(crate) fn holder_alive(host: &dyn Host, record: &Record) -> bool {
 }
 
 /// Whether the holder's process runs and its agent has not stopped.
-fn holder_running(host: &dyn Host, record: &Record) -> bool {
-    !record.gone && record.pid.is_some_and(|pid| host.process_alive(pid))
+pub(crate) fn holder_running(host: &dyn Host, record: &Record) -> bool {
+    let Some(pid) = record.pid.filter(|pid| host.process_alive(*pid)) else {
+        return false;
+    };
+    let differs = |recorded: &Option<String>, current: Option<String>| matches!((recorded, current), (Some(old), Some(new)) if *old != new);
+    !record.gone
+        && !differs(&record.boot_id, host.boot_id())
+        && !differs(&record.pid_start, host.process_start(pid))
+}
+
+/// Records the holder's start time and the boot id next to its pid.
+fn stamp(host: &dyn Host, record: &mut Record) {
+    record.pid_start = record.pid.and_then(|pid| host.process_start(pid));
+    record.boot_id = host.boot_id();
 }
 
 /// Whether the lease saw activity within the quiet period.
@@ -426,6 +438,7 @@ fn renew(
     }
     let mut renewed = record.clone();
     renewed.pid = Some(who.pid);
+    stamp(host, &mut renewed);
     renewed.gone = false;
     renewed.last_used = now;
     pool.write(&renewed)?;
@@ -560,6 +573,7 @@ pub(crate) fn lease_locked(
             }
             let mut adopted = record.clone();
             adopted.lease_to(who);
+            stamp(host, &mut adopted);
             adopted.last_used = now;
             pool.write(&adopted)?;
             return Ok(Added {
@@ -674,7 +688,7 @@ pub(crate) fn lease_locked(
             ),
         });
     }
-    let placeholder = Record {
+    let mut placeholder = Record {
         slot,
         held: true,
         branch: Some(branch.to_owned()),
@@ -682,6 +696,8 @@ pub(crate) fn lease_locked(
         session: who.session.clone(),
         agent: who.agent.clone(),
         pid: Some(who.pid),
+        pid_start: None,
+        boot_id: None,
         gone: false,
         stopped_at: None,
         unclaimed: request.unclaimed,
@@ -690,6 +706,7 @@ pub(crate) fn lease_locked(
         last_used: now,
         lock_digest: chosen.and_then(|record| record.lock_digest.clone()),
     };
+    stamp(host, &mut placeholder);
     stop_check(host)?;
     if fresh {
         std::fs::create_dir_all(pool.slot_path(slot)).map_err(WorktreeError::io)?;
@@ -881,7 +898,12 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
 }
 
 /// Gives `who` the unclaimed lease of the slot it works in.
-pub fn claim(pool: &Pool, who: &Who, workspace: &Path) -> Result<Option<u32>, WorktreeError> {
+pub fn claim(
+    pool: &Pool,
+    host: &dyn Host,
+    who: &Who,
+    workspace: &Path,
+) -> Result<Option<u32>, WorktreeError> {
     let Some(slot) = pool.slot_of(workspace) else {
         return Ok(None);
     };
@@ -896,6 +918,7 @@ pub fn claim(pool: &Pool, who: &Who, workspace: &Path) -> Result<Option<u32>, Wo
         return Ok(None);
     };
     record.lease_to(who);
+    stamp(host, &mut record);
     pool.write(&record)?;
     Ok(Some(slot))
 }

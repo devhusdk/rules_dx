@@ -21,6 +21,8 @@ const OK: DiskSpace = DiskSpace {
 struct FakeHost {
     clock: AtomicU64,
     alive: Mutex<BTreeSet<u32>>,
+    starts: Mutex<BTreeMap<u32, String>>,
+    boot: Mutex<Option<String>>,
     shutdowns: Mutex<Vec<PathBuf>>,
     space: Mutex<Vec<DiskSpace>>,
     disks: Mutex<Vec<(PathBuf, DiskSpace)>>,
@@ -45,6 +47,8 @@ impl FakeHost {
         FakeHost {
             clock: AtomicU64::new(1_000_000),
             alive: Mutex::new(BTreeSet::new()),
+            starts: Mutex::new(BTreeMap::new()),
+            boot: Mutex::new(None),
             shutdowns: Mutex::new(Vec::new()),
             space: Mutex::new(Vec::new()),
             disks: Mutex::new(Vec::new()),
@@ -152,6 +156,14 @@ impl Host for FakeHost {
 
     fn process_alive(&self, pid: u32) -> bool {
         self.alive.lock().expect("alive").contains(&pid)
+    }
+
+    fn process_start(&self, pid: u32) -> Option<String> {
+        self.starts.lock().expect("starts").get(&pid).cloned()
+    }
+
+    fn boot_id(&self) -> Option<String> {
+        self.boot.lock().expect("boot").clone()
     }
 
     fn disk_space(&self, path: &Path) -> Option<DiskSpace> {
@@ -2680,6 +2692,59 @@ mod hooks {
         hook::guard(input, &who("s1", 1), &|_| None)
     }
 
+    fn stamped_holder(host: &FakeHost) -> Record {
+        host.live(7);
+        host.starts
+            .lock()
+            .expect("starts")
+            .insert(7, "100".to_owned());
+        *host.boot.lock().expect("boot") = Some("boot-a".to_owned());
+        let mut record = lease_record(None);
+        record.pid_start = Some("100".to_owned());
+        record.boot_id = Some("boot-a".to_owned());
+        record
+    }
+
+    #[test]
+    fn a_holder_with_the_same_start_and_boot_is_running() {
+        let host = FakeHost::new();
+        let record = stamped_holder(&host);
+        assert!(ops::holder_running(&host, &record));
+    }
+
+    #[test]
+    fn a_reused_pid_with_another_start_time_is_not_running() {
+        let host = FakeHost::new();
+        let record = stamped_holder(&host);
+        host.starts
+            .lock()
+            .expect("starts")
+            .insert(7, "200".to_owned());
+        assert!(!ops::holder_running(&host, &record));
+    }
+
+    #[test]
+    fn a_changed_boot_id_is_not_running() {
+        let host = FakeHost::new();
+        let record = stamped_holder(&host);
+        *host.boot.lock().expect("boot") = Some("boot-b".to_owned());
+        assert!(!ops::holder_running(&host, &record));
+    }
+
+    #[test]
+    fn an_old_record_without_the_fields_uses_the_pid_check() {
+        let host = FakeHost::new();
+        host.live(7);
+        host.starts
+            .lock()
+            .expect("starts")
+            .insert(7, "200".to_owned());
+        let record = lease_record(None);
+        assert_eq!(record.pid_start, None);
+        assert_eq!(record.boot_id, None);
+        assert!(ops::holder_running(&host, &record));
+    }
+
     fn lease_record(agent: Option<&str>) -> Record {
         serde_json::from_value(serde_json::json!({
             "slot": 1, "held": true, "session": "s1", "agent": agent, "pid": 7, "leased_at": 0, "last_used": 0, "lock_digest": null,
@@ -3322,7 +3387,7 @@ mod hooks {
         let first = agent("s1", "a1", 10);
         let sibling = agent("s1", "a2", 10);
         assert_eq!(
-            ops::claim(&pool, &sibling, &fixture.main).expect("claim"),
+            ops::claim(&pool, &host, &sibling, &fixture.main).expect("claim"),
             None
         );
         let refused = ops::release(&pool, &host, &sibling, &path, false).expect_err("not claimed");
@@ -3330,12 +3395,15 @@ mod hooks {
         let inside = path.join("sub");
         std::fs::create_dir_all(&inside).expect("mkdir");
         assert_eq!(
-            ops::claim(&pool, &first, &inside).expect("claim"),
+            ops::claim(&pool, &host, &first, &inside).expect("claim"),
             Some(slot)
         );
-        assert_eq!(ops::claim(&pool, &sibling, &path).expect("claim"), None);
         assert_eq!(
-            ops::claim(&pool, &agent("s2", "a1", 20), &path).expect("claim"),
+            ops::claim(&pool, &host, &sibling, &path).expect("claim"),
+            None
+        );
+        assert_eq!(
+            ops::claim(&pool, &host, &agent("s2", "a1", 20), &path).expect("claim"),
             None
         );
         let record = pool.record(slot).expect("record");
@@ -3374,7 +3442,10 @@ mod hooks {
             .path;
         let slot = pool.slot_of(&path).expect("slot");
         assert!(ops::release(&pool, &host, &me, &path, false).is_err());
-        assert_eq!(ops::claim(&pool, &me, &path).expect("claim"), Some(slot));
+        assert_eq!(
+            ops::claim(&pool, &host, &me, &path).expect("claim"),
+            Some(slot)
+        );
         assert!(pool.record(slot).expect("record").held_by(&me));
         let released = ops::release(&pool, &host, &me, &path, false).expect("release");
         assert_eq!(released.slot, Some(slot));
@@ -3700,7 +3771,10 @@ mod hooks {
         }
         let a1 = agent("s1", "a1", 10);
         let slot = pool.slot_of(&one).expect("slot");
-        assert_eq!(ops::claim(&pool, &a1, &one).expect("claim"), Some(slot));
+        assert_eq!(
+            ops::claim(&pool, &host, &a1, &one).expect("claim"),
+            Some(slot)
+        );
         let stop = serde_json::json!({"agent_id": "a1"});
         assert_eq!(
             hook::stop(&pool, &host, &a1, &stop).expect("stop"),
@@ -3730,7 +3804,10 @@ mod hooks {
         let one = hook::create(&pool, &host, &me, &first).expect("one").path;
         let slot = pool.slot_of(&one).expect("slot");
         let a1 = agent("s1", "a1", 10);
-        assert_eq!(ops::claim(&pool, &a1, &one).expect("claim"), Some(slot));
+        assert_eq!(
+            ops::claim(&pool, &host, &a1, &one).expect("claim"),
+            Some(slot)
+        );
         host.advance(86400);
         let second = serde_json::json!({"name": "two", "cwd": fixture.main});
         let two = hook::create(&pool, &host, &me, &second).expect("two").path;
@@ -3758,7 +3835,10 @@ mod hooks {
         let first = serde_json::json!({"name": "main", "cwd": fixture.main});
         let one = hook::create(&pool, &host, &me, &first).expect("one").path;
         let slot = pool.slot_of(&one).expect("slot");
-        assert_eq!(ops::claim(&pool, &me, &one).expect("claim"), Some(slot));
+        assert_eq!(
+            ops::claim(&pool, &host, &me, &one).expect("claim"),
+            Some(slot)
+        );
         host.advance(86400);
         let second = serde_json::json!({"name": "two", "cwd": fixture.main});
         let two = hook::create(&pool, &host, &me, &second).expect("two").path;

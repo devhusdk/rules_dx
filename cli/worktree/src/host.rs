@@ -28,6 +28,12 @@ pub(crate) use dx_process::DiskSpace;
 pub trait Host {
     fn now(&self) -> u64;
     fn process_alive(&self, pid: u32) -> bool;
+
+    /// The start time of `pid`, when the OS gives one.
+    fn process_start(&self, pid: u32) -> Option<String>;
+
+    /// The id of the current boot, when the OS gives one.
+    fn boot_id(&self) -> Option<String>;
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
     /// The output roots that need no server scan: the defaults and the custom roots the rc files name.
@@ -509,6 +515,14 @@ impl Host for SystemHost {
 
     fn process_alive(&self, pid: u32) -> bool {
         dx_process::procs::pid_alive(pid)
+    }
+
+    fn process_start(&self, pid: u32) -> Option<String> {
+        dx_process::procs::start_time(pid)
+    }
+
+    fn boot_id(&self) -> Option<String> {
+        dx_process::procs::boot_id()
     }
 
     fn disk_space(&self, path: &Path) -> Option<DiskSpace> {

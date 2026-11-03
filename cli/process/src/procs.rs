@@ -11,6 +11,37 @@ pub fn pid_alive(pid: u32) -> bool {
     rc == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
+/// The start time of `pid` as an opaque string, or `None` when it cannot be read.
+#[cfg(target_os = "linux")]
+pub fn start_time(pid: u32) -> Option<String> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let rest = stat.rsplit_once(')')?.1;
+    rest.split_whitespace().nth(19).map(str::to_owned)
+}
+
+/// The start time of `pid` as an opaque string, or `None` when it cannot be read.
+#[cfg(all(unix, not(target_os = "linux")))]
+pub fn start_time(pid: u32) -> Option<String> {
+    let text = crate::probe("ps", ["-o", "lstart=", "-p", &pid.to_string()])?;
+    let text = text.split_whitespace().collect::<Vec<_>>().join("_");
+    (!text.is_empty()).then_some(text)
+}
+
+/// The id of the current boot, or `None` when the OS does not give one.
+#[cfg(target_os = "linux")]
+pub fn boot_id() -> Option<String> {
+    std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
+        .ok()
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty())
+}
+
+/// The id of the current boot, or `None` when the OS does not give one.
+#[cfg(all(unix, not(target_os = "linux")))]
+pub fn boot_id() -> Option<String> {
+    None
+}
+
 /// A running process with its command line and resident memory.
 #[cfg(windows)]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,6 +97,13 @@ mod win {
         peak_pagefile_usage: usize,
     }
 
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    struct FileTime {
+        low: u32,
+        high: u32,
+    }
+
     type NtQuery = unsafe extern "system" fn(Handle, u32, *mut c_void, u32, *mut u32) -> i32;
 
     extern "system" {
@@ -75,6 +113,13 @@ mod win {
         fn CloseHandle(handle: Handle) -> i32;
         fn OpenProcess(access: u32, inherit: i32, pid: u32) -> Handle;
         fn WaitForSingleObject(handle: Handle, millis: u32) -> u32;
+        fn GetProcessTimes(
+            process: Handle,
+            creation: *mut FileTime,
+            exit: *mut FileTime,
+            kernel: *mut FileTime,
+            user: *mut FileTime,
+        ) -> i32;
         fn K32GetProcessMemoryInfo(
             process: Handle,
             counters: *mut MemoryCounters,
@@ -115,6 +160,19 @@ mod win {
             }
             Err(code) => code == ERROR_ACCESS_DENIED,
         }
+    }
+
+    pub fn start_time(pid: u32) -> Option<String> {
+        let handle = open(PROCESS_QUERY_LIMITED_INFORMATION, pid).ok()?;
+        let mut times = [FileTime::default(); 4];
+        let [creation, exit, kernel, user] = &mut times;
+        // SAFETY: the handle is valid and every pointer names a writable FileTime.
+        let ok = unsafe { GetProcessTimes(handle.0, creation, exit, kernel, user) };
+        (ok != 0).then(|| ((u64::from(times[0].high) << 32) | u64::from(times[0].low)).to_string())
+    }
+
+    pub fn boot_id() -> Option<String> {
+        None
     }
 
     fn snapshot() -> Vec<ProcessEntry> {
@@ -257,7 +315,7 @@ mod win {
 }
 
 #[cfg(windows)]
-pub use win::{command_lines, pid_alive, process_table};
+pub use win::{boot_id, command_lines, pid_alive, process_table, start_time};
 
 #[cfg(test)]
 #[path = "procs_tests.rs"]

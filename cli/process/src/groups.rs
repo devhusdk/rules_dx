@@ -112,18 +112,8 @@ mod sys {
         unsafe { vec![getpgrp(), getsid(0), getpgid(getppid())] }
     }
 
-    #[cfg(target_os = "linux")]
     pub fn boot_id() -> String {
-        std::fs::read_to_string("/proc/sys/kernel/random/boot_id")
-            .ok()
-            .map(|text| text.trim().to_owned())
-            .filter(|text| !text.is_empty())
-            .unwrap_or_else(|| "-".to_owned())
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    pub fn boot_id() -> String {
-        "-".to_owned()
+        crate::procs::boot_id().unwrap_or_else(|| "-".to_owned())
     }
 
     #[cfg(target_os = "linux")]
@@ -171,18 +161,8 @@ mod sys {
         "-".to_owned()
     }
 
-    #[cfg(target_os = "linux")]
     pub fn start_time(pid: i32) -> Option<String> {
-        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-        let rest = stat.rsplit_once(')')?.1;
-        rest.split_whitespace().nth(19).map(str::to_owned)
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    pub fn start_time(pid: i32) -> Option<String> {
-        let text = crate::probe("ps", ["-o", "lstart=", "-p", &pid.to_string()])?;
-        let text = text.split_whitespace().collect::<Vec<_>>().join("_");
-        (!text.is_empty()).then_some(text)
+        crate::procs::start_time(u32::try_from(pid).ok()?)
     }
 }
 

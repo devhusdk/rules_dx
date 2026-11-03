@@ -74,3 +74,10 @@ fn command_lines_see_a_child_with_a_marker_and_memory() {
     assert!(info.command_line.contains("dx-procs-marker"));
     assert!(info.rss_bytes > 0);
 }
+
+#[test]
+fn this_process_has_a_stable_start_time() {
+    let first = start_time(std::process::id());
+    assert!(first.is_some());
+    assert_eq!(first, start_time(std::process::id()));
+}

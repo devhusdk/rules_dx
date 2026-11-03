@@ -167,6 +167,12 @@ pub struct Record {
     #[serde(default)]
     pub agent: Option<String>,
     pub pid: Option<u32>,
+    /// The holder's start time, to tell it from a process that reused the pid.
+    #[serde(default)]
+    pub pid_start: Option<String>,
+    /// The boot the pid belongs to.
+    #[serde(default)]
+    pub boot_id: Option<String>,
     #[serde(default)]
     pub gone: bool,
     /// When the holder's agent last stopped. A stop ends a turn, so the agent may come back.
@@ -235,6 +241,8 @@ impl Record {
         self.session = None;
         self.agent = None;
         self.pid = None;
+        self.pid_start = None;
+        self.boot_id = None;
         self.gone = false;
         self.stopped_at = None;
         self.unclaimed = false;
@@ -729,6 +737,8 @@ mod tests {
             session: Some("s1".to_owned()),
             agent: None,
             pid: Some(7),
+            pid_start: None,
+            boot_id: None,
             gone: false,
             stopped_at: None,
             unclaimed: false,

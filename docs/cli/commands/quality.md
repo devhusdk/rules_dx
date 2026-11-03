@@ -2142,7 +2142,7 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_stylua=//tools:st
 ### Terraform
 
 `terraform fmt` runs from the managed pin for format. Select it in a
-`terraform` family. It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. It never runs `init`, reads state
+`terraform` family. It runs on Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and arm64. It never runs `init`, reads state
 or contacts a backend.
 
 The managed `terraform` pin is licensed under BUSL-1.1, which restricts some
@@ -2180,7 +2180,8 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_terraform=@tofu//
 #### Terraform lint with tflint
 
 `tflint` lints Terraform and runs from the managed pin (v0.65.0) on Linux
-x86_64 and arm64, macOS arm64 and Windows x86_64. It is opt-in and check only:
+x86_64 and arm64, macOS arm64, and Windows x86_64 and arm64. Windows arm64 runs
+the x86_64 build emulated. It is opt-in and check only:
 select it with `lint = ["tflint"]` in the `terraform` family. Nothing selects it
 by default, because the recommended preset reports a missing `required_version`
 and missing `required_providers` in existing modules.

@@ -297,7 +297,7 @@ def support_unit_tests(name):
                 [["supported", "owned"], ["supported", "owned"], ["supported", "owned"], ["check_only", "owned"], ["supported", "owned"]],
             ),
             expect_equal(
-                "terraform format record covers four platforms",
+                "terraform format record covers five platforms",
                 with_platforms(TERRAFORM_FORMAT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),

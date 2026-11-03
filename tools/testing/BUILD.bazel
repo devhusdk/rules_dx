@@ -48,6 +48,7 @@ rust_library(
     ) + [
         "//cli/binfmt:dx_binfmt",
         "//cli/path:dx_path",
+        "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
     ],
 )
@@ -77,23 +78,6 @@ rust_test(
     ),
 )
 
-rust_library(
-    name = "dx_nested",
-    srcs = ["src/nested.rs"],
-    crate_name = "dx_nested",
-    crate_root = "src/nested.rs",
-    edition = "2021",
-    deps = [
-        ":dx_testing",
-        "//cli/path:dx_path",
-        "//cli/process:dx_process",
-        "//cli/test_scratch:dx_test_scratch",
-    ] + crate_deps(
-        ["serde_json"],
-        package_name = "tools/dx_testing",
-    ),
-)
-
 rust_test(
     name = "dx_nested_test",
     size = "small",
@@ -110,24 +94,6 @@ rust_test(
         ["tempfile"],
         package_name = "tools/dx_testing",
     ),
-)
-
-rust_library(
-    name = "dx_lsp",
-    srcs = ["src/lsp.rs"],
-    crate_name = "dx_lsp",
-    crate_root = "src/lsp.rs",
-    edition = "2021",
-    deps = crate_deps(
-        ["serde_json"],
-        package_name = "tools/dx_testing",
-    ),
-)
-
-rust_test(
-    name = "dx_lsp_test",
-    size = "small",
-    crate = ":dx_lsp",
 )
 
 child_runfiles(
@@ -407,7 +373,6 @@ real_source_target(
         "child_runfiles.bzl",
         "hello_output.bzl",
         "nested_bazel.bzl",
-        "bazel_pins.bzl",
         "repos.bzl",
     ],
     tags = ["corpus"],

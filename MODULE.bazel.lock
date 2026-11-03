@@ -11586,6 +11586,15 @@
     }
   },
   "facts": {
+    "//tools/testing:repos.bzl%nested_bazel": {
+      "9.2.0": {
+        "darwin-arm64": "dd466352a3e4d3581b8898740ee1ff208866ccbe25f8d367c5dcb950219587e6",
+        "darwin-x86_64": "14c9bcb01303b38192e0e2895051c1bcf19bf89d7e416f5aeeeb48b6b624cfbf",
+        "linux-arm64": "049dd21f40ad979db11c3ee68c96a42ce75f1185e69ac61ab20de1501427a410",
+        "linux-x86_64": "7668a95db1250f12c40407251e4e203b4ec8bf39bc495d2f485b2d8c99048694",
+        "windows-x86_64": "5fc2f2805b8c697a54732558576938d06bab63aa0f9b6610cc01d2cae0388705"
+      }
+    },
     "@@aspect_rules_py+//py:extensions.bzl%python_interpreters": {
       "release_index_v2_20260303_https://github.com/astral-sh/python-build-standalone/releases/download_install_only": {
         "3.10/aarch64-apple-darwin/default": {

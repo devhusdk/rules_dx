@@ -328,7 +328,7 @@ fn symlink_entry(target: &Path, link: &Path) -> io::Result<()> {
 
 fn symlink_guidance(os: &str) -> &'static str {
     if os == "windows" {
-        return "enable Developer Mode or grant SeBackupPrivilege so symlink creation works, then retry; no changes were made";
+        return "enable Developer Mode or grant SeCreateSymbolicLinkPrivilege (Create symbolic links) so symlink creation works, then retry; no changes were made";
     }
     "symlink creation failed: check the filesystem and permissions, then retry; no changes were made"
 }

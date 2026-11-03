@@ -23,6 +23,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//env:marker_proto_rs",
+        "@crates//:serde",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -83,6 +84,7 @@ rust_test(
         "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
         "//env:marker_proto_rs",
+        "@crates//:serde",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )

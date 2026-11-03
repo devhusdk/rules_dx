@@ -893,6 +893,11 @@ fn probe_failure_reports_before_mutation() {
     let error = refresh(&opts, &failing).unwrap_err();
     assert!(matches!(error, Error::SymlinkUnsupported { .. }));
     assert!(matches!(
+        &error,
+        Error::SymlinkUnsupported { detail }
+            if detail.contains("SeCreateSymbolicLinkPrivilege") && !detail.contains("SeBackupPrivilege")
+    ));
+    assert!(matches!(
         error,
         Error::SymlinkUnsupported { detail } if detail.contains("Developer Mode")
     ));

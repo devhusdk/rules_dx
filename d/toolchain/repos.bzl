@@ -243,7 +243,7 @@ _TOOLCHAIN = """toolchain(
     exec_compatible_with = {constraints},
     target_compatible_with = {constraints},
     toolchain = "@{repo}//:d_toolchain",
-    toolchain_type = "@rules_d//d:toolchain_type",
+    toolchain_type = "{toolchain_type}",
 )
 """
 
@@ -337,6 +337,7 @@ def hub_build():
             cell = cell,
             constraints = repr(LDC_CELLS[cell].exec_compatible_with),
             repo = ldc_repository_name(cell),
+            toolchain_type = str(Label("//d/toolchain/type:toolchain_type")),
         ))
     return "\n".join(content)
 
@@ -351,7 +352,10 @@ def _d_impl(mctx):
         name = "rules_d",
         dropped = DROPPED_PATHS,
         files = {"BUILD.bazel": _ROOT_BUILD},
-        patches = [Label("//patches/rules_d:pic_link.patch")],
+        patches = [
+            Label("//patches/rules_d:pic_link.patch"),
+            Label("//patches/rules_d:toolchain_type_alias.patch"),
+        ],
         sha256 = RULES_D_SHA256,
         strip_prefix = "rules_d-" + RULES_D_VERSION,
         urls = [RULES_D_URL],

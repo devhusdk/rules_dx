@@ -17,6 +17,7 @@ def _avro_library_impl(ctx):
     direct = ctx.files.srcs
     transitive = depset(
         direct,
+        order = "topological",
         transitive = [dep[AvroInfo].transitive_srcs for dep in ctx.attr.deps],
     )
     return [

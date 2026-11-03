@@ -230,3 +230,13 @@ generated types. `avrogencpp` cannot resolve a reference to a type in another
 `avro_codegen_shard` with `language = "cpp"` to the library; each entry's
 `EXEC_PATH` is the header of one `.avsc`. Headers made from `.avdl` files are built
 but not listed in the shard. Avro Rust codegen is not offered.
+
+The avro/java pair comes from `avro_java_library(name, deps)` in
+`@rules_dx//avro/rules:codegen.bzl`. It runs the pinned `avro-tools` on the
+`.avsc` and `.avdl` schemas of the `avro_library` deps and their imports, packs
+the output into `<name>.srcjar` and compiles it. Dependents get the Avro
+runtime. Reading a generated class with `SpecificDatumReader` needs
+`-Dorg.apache.avro.SERIALIZABLE_PACKAGES=<your.package>`. A schema reachable
+from two `avro_java_library` targets is generated in both. Bind
+`avro_codegen_shard` with `language = "java"` to the `avro_java_library`; its
+one entry's `EXEC_PATH` is the srcjar.

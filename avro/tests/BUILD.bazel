@@ -1,9 +1,10 @@
 # gazelle:dx_ignore_import cc avro/tests/point.hh
 # gazelle:dx_ignore_import cc Segment.hh
-load("//avro/rules:codegen.bzl", "avro_cc_library", "avro_codegen_shard")
+load("//avro/rules:codegen.bzl", "avro_cc_library", "avro_codegen_shard", "avro_java_library")
 load("//avro/rules:defs.bzl", "avro_library")
 load("//cc/rules:defs.bzl", "cc_test")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//java/rules:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:private"])
@@ -60,6 +61,64 @@ codegen_shard_argv_test(
     ],
     output = "avro/tests/point_cc_shard.dxcodegen.pb",
     target_under_test = ":point_cc_shard",
+)
+
+avro_library(
+    name = "base",
+    srcs = ["base.avsc"],
+)
+
+avro_library(
+    name = "shape_avsc",
+    srcs = ["shape.avsc"],
+    deps = [":base"],
+)
+
+avro_library(
+    name = "ping",
+    srcs = ["ping.avdl"],
+)
+
+avro_java_library(
+    name = "shapes_java",
+    deps = [
+        ":ping",
+        ":shape_avsc",
+    ],
+)
+
+java_test(
+    name = "RoundtripTest",
+    size = "small",
+    srcs = ["RoundtripTest.java"],
+    jvm_flags = ["-Dorg.apache.avro.SERIALIZABLE_PACKAGES=dx.test"],
+    main_class = "RoundtripTest",
+    tags = ["no-lint"],
+    test_class = "RoundtripTest",
+    use_testrunner = False,
+    deps = [":shapes_java"],
+)
+
+avro_codegen_shard(
+    name = "shapes_java_shard",
+    entries = ["gen/shapes.srcjar|gen|dx.test|avro/tests/shapes_java.srcjar"],
+    language = "java",
+    library = ":shapes_java",
+)
+
+codegen_shard_argv_test(
+    name = "shapes_java_shard_argv_test",
+    expected = [
+        "--producer",
+        "//avro/tests:shapes_java_shard",
+        "--language",
+        "java",
+        "--entry",
+        "gen/shapes.srcjar|gen|dx.test|avro/tests/shapes_java.srcjar",
+        "--output",
+    ],
+    output = "avro/tests/shapes_java_shard.dxcodegen.pb",
+    target_under_test = ":shapes_java_shard",
 )
 
 real_source_target(

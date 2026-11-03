@@ -1,0 +1,1 @@
+{"type": "record", "name": "Shape", "namespace": "dx.test", "fields": [{"name": "name", "type": "string"}, {"name": "base", "type": "Base"}]}

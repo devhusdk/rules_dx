@@ -1,0 +1,6 @@
+@namespace("dx.test")
+protocol Ping {
+  record Ping {
+    string note;
+  }
+}

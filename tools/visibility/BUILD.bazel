@@ -7,51 +7,51 @@ package(default_visibility = [":tools_repo"])
 package_group(
     name = "tools_repo",
     packages = [
-        "//...",
         "-//cli/...",
         "-//dx/...",
+        "//...",
     ],
 )
 
 package_group(
     name = "tools_public",
     packages = [
-        "public",
         "-//cli/...",
         "-//dx/...",
+        "public",
     ],
 )
 
 package_group(
     name = "tools_cli_test",
     packages = [
-        "//...",
         "-//dx/...",
+        "//...",
     ],
 )
 
 package_group(
     name = "dx_roots",
     packages = [
-        "public",
         "-//env/...",
         "-//gazelle/...",
         "-//generation/...",
         "-//quality/...",
         "-//tools/...",
+        "public",
     ],
 )
 
 package_group(
     name = "dx_commands",
     packages = [
-        "public",
         "-//cli/...",
         "-//env/...",
         "-//gazelle/...",
         "-//generation/...",
         "-//quality/...",
         "-//tools/...",
+        "public",
     ],
 )
 

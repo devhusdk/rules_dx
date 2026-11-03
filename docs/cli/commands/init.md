@@ -195,7 +195,7 @@ When `MODULE.bazel` has `bazel_dep(name = "rules_dx")`, apply adds
 `MODULE.bazel` already overrides one of the modules, the line is left out and
 stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
 `rules_dx` repository nothing is written. See
-[patches/README.md](../../../patches/README.md).
+[patches/README.md](https://github.com/devhusdk/rules_dx/blob/main/patches/README.md).
 
 ## Agent commands block
 

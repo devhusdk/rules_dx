@@ -295,7 +295,7 @@ error prints the command list and a `see dx <command> --help` hint.
 ## JSON Output
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
-`event` name and a `schema` with `major` and `minor`. The schema is `3.6`.
+`event` name and a `schema` with `major` and `minor`. The schema is `3.7`.
 Readers accept any `3.x` and reject other majors. The JSON Schema for every event is
 [`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json). The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
@@ -395,7 +395,8 @@ configurations appear once, with a `count`.
 - `selection`: the resolved environment, as `setup_id`, `environment_id`, and
   `codegen_id` digests.
 - `init_plan`: one finding of the `dx init` plan, with `kind`, `subject`, `before`,
-  `after`, `file`, `hint`, `severity` (`hard` or `advisory`), and the `line` when known.
+  `after`, `path`, `hint`, `severity` (`hard` or `advisory`), and the `line` when known.
+  `file` is a deprecated alias of `path` and goes away in the next major.
 - `status`: one check, with `name`, `status`, `detail`, and `hint`.
 - `slot`: one worktree slot, with `action`, `path`, `state`, and `server`,
   plus optional `slot`, `branch`, `holder`, `reason`, `base`, and

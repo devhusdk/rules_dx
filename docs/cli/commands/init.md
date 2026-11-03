@@ -197,8 +197,8 @@ advisory findings, and an unavailable lock, never change the exit code.
 
 With `--output=json`, the plan is one `init_plan` event per finding instead of text, with
 `kind` (`version_raise`, `override_conflict`, `toolchain_conflict`, `bazelrc_conflict`),
-`subject`, `before`, `after`, `file`, `line` (left out when unknown), `hint`, and `severity`
-(`hard` or `advisory`). Plan notes, such as the lock being unavailable, are `notice` events
+`subject`, `before`, `after`, `path`, `file`, `line` (left out when unknown), `hint`, and `severity`
+(`hard` or `advisory`). `file` is a deprecated alias of `path` and goes away in the next major. Plan notes, such as the lock being unavailable, are `notice` events
 with code `init_plan_partial`. `--apply` refuses `--output=json`.
 
 ## rules_dx overrides

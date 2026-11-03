@@ -75,7 +75,7 @@
           "const": 3
         },
         "minor": {
-          "const": 6
+          "const": 7
         }
       },
       "required": [
@@ -1161,6 +1161,9 @@
         "after": {
           "type": "string"
         },
+        "path": {
+          "type": "string"
+        },
         "file": {
           "type": "string"
         },
@@ -1185,6 +1188,7 @@
         "subject",
         "before",
         "after",
+        "path",
         "file",
         "hint",
         "severity"

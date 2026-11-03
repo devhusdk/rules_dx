@@ -2,7 +2,7 @@ use crate::validation::{check_correlation, check_path, parse_digest, OutputError
 use serde_json::{json, Value};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 6;
+pub const SCHEMA_MINOR: u64 = 7;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -241,6 +241,7 @@ pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError>
         ("subject", &finding.subject),
         ("before", &finding.before),
         ("after", &finding.after),
+        ("path", &finding.file),
         ("file", &finding.file),
         ("hint", &finding.hint),
         ("severity", &finding.severity),
@@ -1519,7 +1520,7 @@ mod tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 6},
+                "schema": {"major": 3, "minor": 7},
                 "event": "cache_miss",
                 "mnemonic": "Rustc",
                 "target": "//cli/digest:dx_digest",
@@ -1648,6 +1649,8 @@ mod tests {
         assert_eq!(event["schema"], schema());
         assert_eq!(event["line"], 3);
         assert_eq!(event["severity"], "advisory");
+        assert_eq!(event["path"], "MODULE.bazel");
+        assert_eq!(event["file"], "MODULE.bazel");
         finding.line = 0;
         assert!(init_plan_event(&finding)
             .expect("event")
@@ -1722,8 +1725,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 6);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 6}));
+        assert_eq!(SCHEMA_MINOR, 7);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 7}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -2214,7 +2217,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 6},
+                "schema": {"major": 3, "minor": 7},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2253,7 +2256,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 6},
+                "schema": {"major": 3, "minor": 7},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

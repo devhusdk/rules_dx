@@ -1,5 +1,8 @@
 use super::{execute_adoption, AdoptEnv, Invocation};
 use dx_plan::resolve::{QueryResult, QueryRunner};
+use dx_process::{ChildStatus, Runner};
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -19,6 +22,40 @@ impl QueryRunner for NullQuery {
     }
 }
 
+/// A runner that succeeds without running anything.
+pub(crate) struct NoRunner;
+
+impl Runner for NoRunner {
+    fn run(&self, _argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        Ok(ChildStatus::exited(0))
+    }
+}
+
+/// A runner that records every argv and answers with scripted exit codes, then 0.
+#[derive(Default)]
+pub(crate) struct Recorder {
+    pub(crate) calls: RefCell<Vec<Vec<String>>>,
+    pub(crate) codes: RefCell<VecDeque<i32>>,
+}
+
+impl Recorder {
+    /// Answers the first calls with `codes`.
+    pub(crate) fn scripted(codes: &[i32]) -> Self {
+        Self {
+            calls: RefCell::default(),
+            codes: RefCell::new(codes.iter().copied().collect()),
+        }
+    }
+}
+
+impl Runner for Recorder {
+    fn run(&self, argv: &[String], _cwd: &Path, _env: &[(&str, &str)]) -> io::Result<ChildStatus> {
+        self.calls.borrow_mut().push(argv.to_vec());
+        let code = self.codes.borrow_mut().pop_front().unwrap_or(0);
+        Ok(ChildStatus::exited(code))
+    }
+}
+
 /// The adoption environment wired to the null query runner.
 pub(crate) fn env<'a>(
     root: &'a Path,
@@ -27,6 +64,7 @@ pub(crate) fn env<'a>(
 ) -> AdoptEnv<'a> {
     AdoptEnv {
         workspace: root,
+        runner: &NoRunner,
         query_runner: None,
         out,
         err,
@@ -35,9 +73,24 @@ pub(crate) fn env<'a>(
 
 /// Runs one adoption against the null runners and reports code, stdout and stderr.
 pub(crate) fn run(inv: &Invocation, root: &Path) -> (i32, String, String) {
+    run_with(inv, root, &NoRunner)
+}
+
+/// Runs one adoption with `runner` and reports code, stdout and stderr.
+pub(crate) fn run_with(
+    inv: &Invocation,
+    root: &Path,
+    runner: &dyn Runner,
+) -> (i32, String, String) {
     let mut out = Vec::new();
     let mut err = Vec::new();
-    let code = execute_adoption(inv, env(root, &mut out, &mut err));
+    let code = execute_adoption(
+        inv,
+        AdoptEnv {
+            runner,
+            ..env(root, &mut out, &mut err)
+        },
+    );
     spoken(code, out, err)
 }
 

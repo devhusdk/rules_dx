@@ -234,6 +234,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Init | Command::Upgrade | Command::Status | Command::Completion => {
             let Env {
                 workspace,
+                runner,
                 query_runner,
                 out,
                 err,
@@ -243,6 +244,7 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
                 invocation,
                 crate::adopt::AdoptEnv {
                     workspace,
+                    runner,
                     query_runner: Some(query_runner),
                     out,
                     err,

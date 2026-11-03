@@ -9,11 +9,9 @@ bazel run @rules_dx//:dx -- upgrade --to 2.0.0 --apply
 dx upgrade [--apply] --to <version>
 ```
 
-Moves the pin in `.dx/version` to `--to`. It reads the current pin from
-`.dx/version`. `--to` may be newer or older than the pin, so the same command
-upgrades and rolls back. Checks by default; `--apply` moves the pin.
-`--to` must be the version of this `dx`: change `rules_dx` in `MODULE.bazel`
-first, then run `bazel run @rules_dx//:dx -- upgrade --to <version>`.
+Moves `rules_dx` and the pin in `.dx/version` to `--to`. It reads the current
+pin from `.dx/version`. `--to` may be newer or older than the pin, so the same
+command upgrades and rolls back. Checks by default; `--apply` makes the move.
 `dx upgrade` runs even when the pin and `MODULE.bazel` disagree, so it is the
 fix that version skew names.
 Flags: `--to <version>` (required), `--apply`.
@@ -21,24 +19,46 @@ Scopes: none.
 
 `--apply` writes, in order:
 
-1. `.dx/version` with `--to` and its sha256 lines.
-2. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
+1. The `bazel_dep(name = "rules_dx", ...)` version in `MODULE.bazel` (or the
+   file it `include()`s that holds it), set to `--to`.
+2. `MODULE.bazel.lock`, refreshed with
+   `bazel mod deps --lockfile_mode=update`. Skipped when the file is absent.
+3. When `--to` is not the version of this `dx`, the `--to` binary takes over
+   with `bazel run @rules_dx//:dx -- upgrade --to <to> --apply` and writes
+   the rest. This `dx` stops there and returns its exit code.
+4. `.dx/version` with `--to` and its sha256 lines.
+5. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
    differs from the current text. It never creates a launcher.
-3. The dx block of an existing `AGENTS.md`. It never creates the file.
+6. The dx block of an existing `AGENTS.md`. It never creates the file.
 
-It refuses with `upgrade_failed` and writes nothing when `--to` is not the
-version of this `dx`, when `.dx/version` is missing or empty (run
-`dx init --apply`), or when a launcher could not be refreshed. A pin already
-at `--to` is a rerun: it refreshes the launchers and the block.
+Steps 1 and 2 are skipped when `rules_dx` is already at `--to`.
+
+It refuses with `upgrade_failed` and writes nothing when `.dx/version` is
+missing or empty (run `dx init --apply`), when `MODULE.bazel` has no single
+`bazel_dep(name = "rules_dx", ...)` with a literal version, or when a launcher
+could not be refreshed. If the lockfile refresh fails, `MODULE.bazel` and
+`MODULE.bazel.lock` are put back as they were and nothing else is written. If
+the `--to` binary cannot start, the error names
+`bazel run @rules_dx//:dx -- upgrade --to <to> --apply` to finish by hand. A
+pin already at `--to` is a rerun: it refreshes the launchers and the block.
 
 The check prints `upgrade current: <to>` and exits `0` when the pin is
-already `--to`. Otherwise it changes nothing and exits `1`:
+already `--to` and `rules_dx` in `MODULE.bazel` is at `--to`. Otherwise it
+changes nothing and exits `1`. When `MODULE.bazel` changes it first prints:
+
+```text
+MODULE.bazel: rules_dx <old> -> <to>
+then: bazel mod deps --lockfile_mode=update
+```
+
+Then it prints:
 
 ```text
 dx: status_pin_mismatch: pin <pin> can move to <to> (run `dx upgrade --to <to> --apply`)
 ```
 
-`--apply` prints `pinned <to> (upgrade from <pin>)`, or
+When `--to` is another version, `--apply` prints `wrote <path>` for the files
+it changed before the handoff. Otherwise it prints `pinned <to> (upgrade from <pin>)`, or
 `pinned <to> (upgrade current)` on a rerun, then `wrote <path>` for each
 file it changed. A failure after the pin lands keeps the pin and prints the
 recovery:

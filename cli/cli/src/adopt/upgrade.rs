@@ -5,6 +5,7 @@ use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_start
 use dx_output::{command_finished, command_started, status_event, FinishedCounts, StatusEvent};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::QueryRunner;
+use dx_process::Runner;
 
 use dx_output::OutputMode;
 
@@ -52,11 +53,105 @@ fn fail(
     operational(invocation, out, err, code, message)
 }
 
+const LOCKFILE: &str = "MODULE.bazel.lock";
+
+fn planned_lines(edit: &dx_adopt::ModuleEdit, to: &str) -> Vec<String> {
+    vec![
+        format!(
+            "{}: rules_dx {} -> {to}",
+            edit.path,
+            current_version(&edit.old)
+        ),
+        format!("then: {REFRESH}"),
+    ]
+}
+
+const REFRESH: &str = "bazel mod deps --lockfile_mode=update";
+
+/// Finds the version in the old text of the rules_dx `bazel_dep` file.
+fn current_version(text: &str) -> String {
+    dx_module_bazel::ModuleFile::parse(text)
+        .ok()
+        .and_then(|file| {
+            file.calls()
+                .iter()
+                .find(|call| call.name == "bazel_dep" && call.str("name") == Some("rules_dx"))
+                .and_then(|call| call.str("version").map(str::to_owned))
+        })
+        .unwrap_or_else(|| "?".to_owned())
+}
+
+/// Writes the edit, then refreshes the lockfile; puts both files back if the refresh fails.
+fn write_module(
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn Runner,
+    edit: &dx_adopt::ModuleEdit,
+) -> Result<(), String> {
+    let lock = workspace.join(LOCKFILE);
+    let lock_before = std::fs::read(&lock).ok();
+    dx_adopt::write_module_edit(workspace, edit).map_err(|error| error.to_string())?;
+    let Some(lock_bytes) = lock_before else {
+        return Ok(());
+    };
+    let mut argv = invocation.bazel_head().argv("mod");
+    argv.extend(["deps".to_owned(), "--lockfile_mode=update".to_owned()]);
+    let detail = match runner.run(&argv, workspace, &[]) {
+        Ok(status) if status.code == Some(0) => return Ok(()),
+        Ok(status) => match status.code {
+            Some(code) => format!("exit {code}"),
+            None => "killed by a signal".to_owned(),
+        },
+        Err(error) => error.to_string(),
+    };
+    let _ = std::fs::write(workspace.join(&edit.path), &edit.old);
+    let _ = std::fs::write(&lock, lock_bytes);
+    Err(format!(
+        "refreshing {LOCKFILE} failed ({detail}); {} restored",
+        edit.path
+    ))
+}
+
+/// Runs the `--to` binary through Bazel so it writes its own pin, launchers and AGENTS block.
+fn hand_off(
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn Runner,
+    to: &str,
+    wrote: &[String],
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
+    let is_json = invocation.output == OutputMode::Json;
+    if !is_json && !summaries_suppressed(invocation) {
+        for rel in wrote {
+            if let Err(exit) = check_stdout_write(writeln!(out, "wrote {rel}")) {
+                return exit;
+            }
+        }
+    }
+    let mut argv = invocation.bazel_head().argv("run");
+    argv.extend(["@rules_dx//:dx", "--", "upgrade", "--to", to, "--apply"].map(str::to_owned));
+    if is_json {
+        argv.push("--output=json".to_owned());
+    }
+    match runner.run(&argv, workspace, &[]) {
+        Ok(status) => status.code.unwrap_or(1),
+        Err(error) => {
+            let message = format!(
+                "upgrade refused: cannot start rules_dx {to} ({error}); rules_dx is at {to}; finish with bazel run @rules_dx//:dx -- upgrade --to {to} --apply"
+            );
+            fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
+        }
+    }
+}
+
 /// Moves the `.dx/version` pin to `--to`, newer or older, then refreshes existing
 /// launchers and an existing AGENTS.md block. Every refusal runs before the first write.
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
     workspace: &Path,
+    runner: &dyn Runner,
     query_runner: Option<&dyn QueryRunner>,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -77,13 +172,6 @@ pub(crate) fn execute_upgrade(
             &format!("upgrade refused: {message} (nothing was written)"),
         )
     };
-    if !dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
-        let message = format!(
-            "this dx is {}, not {to}; run the {to} binary: `bazel run @rules_dx//:dx -- upgrade --to {to} --apply`",
-            dx_adopt::MODULE_VERSION,
-        );
-        return refuse(out, err, &message);
-    }
     let pin = match dx_adopt::read_version_pin(workspace) {
         Ok(pin) if !pin.is_empty() => pin,
         Ok(_) => return refuse(out, err, ".dx/version is empty; run `dx init --apply`"),
@@ -94,8 +182,13 @@ pub(crate) fn execute_upgrade(
     };
     let rerun = dx_adopt::version_pin_matches_module(&pin, to);
     let is_json = invocation.output == OutputMode::Json;
+    let edit = match dx_adopt::plan_rules_dx_version(workspace, to) {
+        Ok(edit) => edit,
+        Err(error) => return refuse(out, err, &error.to_string()),
+    };
+    let edits_module = edit.old != edit.new;
     if !invocation.applies() {
-        if rerun {
+        if rerun && !edits_module {
             if is_json {
                 return json_pin(invocation, out, "check", to, None)
                     .map_or_else(|exit| exit, |()| 0);
@@ -114,7 +207,19 @@ pub(crate) fn execute_upgrade(
                 ..intent
             },
         );
-        let message = format!("pin {pin} can move to {to} (run `{retry}`)");
+        let mut message = if rerun {
+            format!("rules_dx in {} can move to {to} (run `{retry}`)", edit.path)
+        } else {
+            format!("pin {pin} can move to {to} (run `{retry}`)")
+        };
+        if edits_module {
+            let plan = planned_lines(&edit, to);
+            if is_json {
+                message = format!("{message}; {}", plan.join("; "));
+            } else if let Err(exit) = check_stdout_write(writeln!(out, "{}", plan.join("\n"))) {
+                return exit;
+            }
+        }
         return fail(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
     }
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
@@ -125,15 +230,28 @@ pub(crate) fn execute_upgrade(
         let message = format!("pinned {to} but {what}; {recovery}");
         fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
     };
+    let mut wrote = Vec::new();
+    if edits_module {
+        if let Err(error) = write_module(invocation, workspace, runner, &edit) {
+            return refuse(out, err, &error);
+        }
+        wrote.push(edit.path.clone());
+        if workspace.join(LOCKFILE).is_file() {
+            wrote.push(LOCKFILE.to_owned());
+        }
+    }
+    if !dx_adopt::version_pin_matches_module(to, dx_adopt::MODULE_VERSION) {
+        return hand_off(invocation, workspace, runner, to, &wrote, out, err);
+    }
     if !rerun {
         if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
             return refuse(out, err, &error.to_string());
         }
     }
-    let mut wrote = match dx_adopt::refresh_launcher_files(workspace) {
-        Ok(wrote) => wrote,
+    match dx_adopt::refresh_launcher_files(workspace) {
+        Ok(files) => wrote.extend(files),
         Err(error) => return landed(out, err, &format!("launchers not refreshed: {error}")),
-    };
+    }
     match agents::write(workspace, false) {
         Ok(true) => wrote.push("AGENTS.md".to_owned()),
         Ok(false) => {}
@@ -174,7 +292,9 @@ pub(crate) fn execute_upgrade(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adopt::test_support::{event, event_kinds, invocation, json_events, run};
+    use crate::adopt::test_support::{
+        event, event_kinds, invocation, json_events, run, run_with, Recorder,
+    };
     use dx_plan::skew::{disposition, is_skewed, SkewDisposition};
     use std::path::PathBuf;
 
@@ -189,7 +309,17 @@ mod tests {
         let scratch = dx_test_scratch::scratch(prefix);
         let root = scratch.path().to_path_buf();
         dx_adopt::write_version_pin(&root, pin).expect("pin");
+        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
+        std::fs::write(root.join("MODULE.bazel.lock"), "{}\n").expect("lock");
         (scratch, root)
+    }
+
+    fn dep(version: &str) -> String {
+        format!("bazel_dep(name = \"rules_dx\", version = \"{version}\")\n")
+    }
+
+    fn module_text(root: &Path) -> String {
+        std::fs::read_to_string(root.join("MODULE.bazel")).expect("module")
     }
 
     fn legacy_launcher(root: &Path, version: &str) {
@@ -348,18 +478,140 @@ mod tests {
     }
 
     #[test]
-    fn a_to_other_than_this_binary_is_refused() {
+    fn another_version_edits_the_dep_refreshes_and_hands_off() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-to-", "1.2.3");
-        let before = snapshot(&root);
+        let runner = Recorder::default();
         let inv = invocation(&["upgrade", "--apply", "--to=2.0.0"]);
-        let (code, _out, err) = run(&inv, &root);
+        let (code, out, err) = run_with(&inv, &root, &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(module_text(&root), dep("2.0.0"));
+        assert_eq!(out, "wrote MODULE.bazel\nwrote MODULE.bazel.lock\n");
+        assert_eq!(read_pin(&root), "1.2.3");
+        let calls = runner.calls.borrow();
+        assert_eq!(calls.len(), 2, "{calls:?}");
+        assert!(calls[0].contains(&"mod".to_owned()), "{calls:?}");
+        assert!(calls[0].ends_with(&["deps".to_owned(), "--lockfile_mode=update".to_owned()]));
+        assert!(calls[1].contains(&"run".to_owned()), "{calls:?}");
+        assert!(calls[1].ends_with(
+            &[
+                "@rules_dx//:dx",
+                "--",
+                "upgrade",
+                "--to",
+                "2.0.0",
+                "--apply"
+            ]
+            .map(str::to_owned)
+        ));
+    }
+
+    #[test]
+    fn a_json_handoff_writes_nothing_first_and_returns_its_code() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-hand-json-", "1.2.3");
+        let runner = Recorder::scripted(&[0, 7]);
+        let inv = invocation(&["upgrade", "--apply", "--to=2.0.0", "--output=json"]);
+        let (code, out, _err) = run_with(&inv, &root, &runner);
+        assert_eq!(code, 7);
+        assert_eq!(out, "");
+        let calls = runner.calls.borrow();
+        assert_eq!(calls[1].last().map(String::as_str), Some("--output=json"));
+    }
+
+    #[test]
+    fn this_dx_with_an_older_dep_edits_refreshes_and_moves_the_pin() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-older-dep-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep("0.0.1")).expect("module");
+        let runner = Recorder::default();
+        let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(module_text(&root), dep(module()));
+        assert_eq!(read_pin(&root), module());
+        assert_eq!(runner.calls.borrow().len(), 1);
+        assert!(out.contains("wrote MODULE.bazel.lock"), "{out}");
+    }
+
+    #[test]
+    fn a_failed_refresh_puts_every_file_back() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-refresh-fails-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
+        let before = snapshot(&root);
+        let runner = Recorder::scripted(&[1]);
+        let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
         assert!(
-            err.contains("bazel run @rules_dx//:dx -- upgrade --to 2.0.0 --apply"),
+            err.contains("refreshing MODULE.bazel.lock failed (exit 1)"),
             "{err}"
         );
         assert_eq!(snapshot(&root), before);
+        assert_eq!(runner.calls.borrow().len(), 1);
+    }
+
+    #[test]
+    fn a_dep_in_an_included_file_is_edited_there() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-include-", OLD);
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "include(\"//:deps.MODULE.bazel\")\n",
+        )
+        .expect("module");
+        std::fs::write(root.join("deps.MODULE.bazel"), dep(OLD)).expect("include");
+        let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &Recorder::default());
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("wrote deps.MODULE.bazel\n"), "{out}");
+        let text = std::fs::read_to_string(root.join("deps.MODULE.bazel")).expect("include");
+        assert_eq!(text, dep(module()));
+    }
+
+    #[test]
+    fn no_rules_dx_dep_is_refused_without_a_runner_call() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-no-dep-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), "module(name = \"x\")\n").expect("module");
+        let before = snapshot(&root);
+        let runner = Recorder::default();
+        let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains(CODE_UPGRADE_FAILED), "{err}");
+        assert!(err.contains("bazel_dep"), "{err}");
+        assert_eq!(snapshot(&root), before);
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn check_mode_names_the_planned_module_change_and_runs_nothing() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-plan-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
+        let before = snapshot(&root);
+        let runner = Recorder::default();
+        let (code, out, err) = run_with(&upgrade(&[]), &root, &runner);
+        assert_eq!(code, 1, "{err}");
+        assert_eq!(
+            out,
+            format!(
+                "MODULE.bazel: rules_dx {OLD} -> {}\nthen: bazel mod deps --lockfile_mode=update\n",
+                module()
+            )
+        );
+        assert_eq!(snapshot(&root), before);
+        assert!(runner.calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn no_lockfile_or_a_current_dep_skips_the_refresh() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-no-lock-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
+        std::fs::remove_file(root.join("MODULE.bazel.lock")).expect("lock");
+        let runner = Recorder::default();
+        let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(module_text(&root), dep(module()));
+        assert!(runner.calls.borrow().is_empty());
+        let (_scratch, root) = pinned("dx-adopt-upgrade-dep-current-", OLD);
+        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
+        let runner = Recorder::default();
+        let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(runner.calls.borrow().is_empty());
     }
 
     #[test]
@@ -384,7 +636,8 @@ mod tests {
         );
         assert_eq!(events[1]["name"], "pin");
         let (_scratch, root) = pinned("dx-adopt-upgrade-json-refused-", OLD);
-        let inv = invocation(&["upgrade", "--apply", "--to=2.0.0", "--output=json"]);
+        std::fs::remove_file(root.join("MODULE.bazel")).expect("module");
+        let inv = upgrade(&["--apply", "--output=json"]);
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 1);
         let events = json_events(&out);

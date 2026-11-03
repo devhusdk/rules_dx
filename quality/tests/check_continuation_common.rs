@@ -75,19 +75,6 @@ pub fn package(names: &[&str]) -> String {
 
 pub const TYPE_ERROR: &str = "def total() -> int:\n    return \"x\"\n";
 
-pub const DX_BUILD: &str = r#"alias(
-    name = "generate",
-    actual = "@rules_dx//dx:generate",
-    visibility = ["//visibility:public"],
-)
-
-alias(
-    name = "generate_check",
-    actual = "@rules_dx//dx:generate_check",
-    visibility = ["//visibility:public"],
-)
-"#;
-
 pub struct Sources {
     pub app: &'static str,
     pub fmt: &'static str,
@@ -136,7 +123,6 @@ pub fn consumer(sources: &Sources) -> Case {
     write(&root.join("app/lint.py"), sources.lint);
     write(&root.join("app/typed.py"), sources.typed);
     write(&root.join("gen/mod.py"), CLEAN);
-    write(&root.join("dx/BUILD.bazel"), DX_BUILD);
     let generated = dx(&root, "generate", "//...", &["--apply"]);
     assert_eq!(generated.status.code(), Some(0), "{}", generated.combined());
     if sources.drift {

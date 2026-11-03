@@ -39,19 +39,6 @@ workspace_policy(
 )
 "#;
 
-const DX_BUILD: &str = r#"alias(
-    name = "generate",
-    actual = "@my_dx//dx:generate",
-    visibility = ["//visibility:public"],
-)
-
-alias(
-    name = "generate_check",
-    actual = "@my_dx//dx:generate_check",
-    visibility = ["//visibility:public"],
-)
-"#;
-
 fn write(path: &Path, bytes: &[u8]) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| panic!("mkdir {parent:?}: {error}"));
@@ -188,7 +175,6 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     write(&root.join("BUILD.bazel"), BUILD.as_bytes());
     write(&root.join("main.rs"), b"fn main() {}\n");
     write(&root.join("app_test.rs"), b"#[test]\nfn passes() {}\n");
-    write(&root.join("dx/BUILD.bazel"), DX_BUILD.as_bytes());
     case
 }
 

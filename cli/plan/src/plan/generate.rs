@@ -1,10 +1,17 @@
 use dx_process::{describe_scope, ForwardError};
 
-use super::{bazel_argv, exec_log_guards, exec_log_options, workflow_scope_labels, BuildPlan};
+use super::{
+    bazel_argv, exec_log_guards, exec_log_options, rules_dx_label, workflow_scope_labels, BuildPlan,
+};
 use crate::resolve::ResolvedScope;
 
-pub const GENERATE_TARGET: &str = "//dx:generate";
-pub const GENERATE_CHECK_TARGET: &str = "//dx:generate_check";
+pub fn generate_target(check: bool) -> String {
+    rules_dx_label(if check {
+        "dx:generate_check"
+    } else {
+        "dx:generate"
+    })
+}
 
 pub const GENERATE_ENV_INTENDED: &str = "DX_GENERATE_INTENDED";
 pub const GENERATE_ENV_SCOPE: &str = "DX_GENERATE_SCOPE";
@@ -135,17 +142,12 @@ pub fn plan_generate_logged(
     } else {
         Vec::new()
     };
-    let target = if check {
-        GENERATE_CHECK_TARGET
-    } else {
-        GENERATE_TARGET
-    };
     let mut argv = bazel_argv(
         "run",
         bazel_options,
         &required,
         &protected,
-        &[target.to_owned()],
+        &[generate_target(check)],
         startup_options,
     )?;
     let dirs = generate_traversal_dirs(resolved);
@@ -184,8 +186,8 @@ mod tests {
 
     #[test]
     fn generate_plan_runs_canonical_runner_repo_wide() {
-        assert_eq!(GENERATE_TARGET, "//dx:generate");
-        assert_eq!(GENERATE_CHECK_TARGET, "//dx:generate_check");
+        assert_eq!(generate_target(false), "@rules_dx//dx:generate");
+        assert_eq!(generate_target(true), "@rules_dx//dx:generate_check");
         let plan =
             plan_generate(&resolved(&[]), &strings(&["--jobs=4"]), false, &[], None).expect("plan");
         assert_eq!(
@@ -198,16 +200,12 @@ mod tests {
                 "--jobs=4",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "//dx:generate",
+                "@rules_dx//dx:generate",
             ])
         );
         assert_eq!(plan.summary, "Running generate for //...");
         let bare = plan_generate(&resolved(&[]), &[], false, &[], None).expect("plan");
-        assert_eq!(
-            bare.argv.last(),
-            Some(&GENERATE_TARGET.to_owned()),
-            "{bare:?}"
-        );
+        assert_eq!(bare.argv.last(), Some(&generate_target(false)), "{bare:?}");
     }
 
     #[test]
@@ -222,7 +220,7 @@ mod tests {
                 "run",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "//dx:generate_check",
+                "@rules_dx//dx:generate_check",
             ])
         );
         assert_eq!(plan.summary, "Running generate for //...");
@@ -232,10 +230,7 @@ mod tests {
             Some(&"a".to_owned()),
             "check keeps scoped traversal: {scoped:?}"
         );
-        assert!(
-            scoped.argv.contains(&GENERATE_CHECK_TARGET.to_owned()),
-            "{scoped:?}"
-        );
+        assert!(scoped.argv.contains(&generate_target(true)), "{scoped:?}");
     }
 
     #[test]
@@ -288,7 +283,7 @@ mod tests {
                 "run",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "//dx:generate",
+                "@rules_dx//dx:generate",
                 "--",
                 "a",
                 "b",

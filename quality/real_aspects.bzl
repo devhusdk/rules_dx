@@ -1085,6 +1085,8 @@ QmlContextInfo = provider(
 )
 
 def _qml_context_impl(target, ctx):
+    if target.label.repo_name != "":
+        return [QmlContextInfo(files = depset())]
     direct = [
         f
         for f in target[DefaultInfo].files.to_list()

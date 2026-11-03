@@ -76,6 +76,14 @@ def codegen_defs_unit_tests(name):
                 [True, True, True, False],
             ),
             expect_equal(
+                "codegen admits the avro cpp pair and defers rust",
+                [
+                    codegen_pair_error("avro", "cpp") == "",
+                    codegen_pair_error("avro", "rust") == "",
+                ],
+                [True, False],
+            ),
+            expect_equal(
                 "codegen_path_error accepts relative paths",
                 [codegen_path_error("src/a.rs"), codegen_path_error("a")],
                 ["", ""],

@@ -1,0 +1,71 @@
+# gazelle:dx_ignore_import cc avro/tests/point.hh
+# gazelle:dx_ignore_import cc Segment.hh
+load("//avro/rules:codegen.bzl", "avro_cc_library", "avro_codegen_shard")
+load("//avro/rules:defs.bzl", "avro_library")
+load("//cc/rules:defs.bzl", "cc_test")
+load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:private"])
+
+avro_library(
+    name = "point",
+    srcs = ["point.avsc"],
+)
+
+avro_library(
+    name = "shape",
+    srcs = ["shape.avdl"],
+    deps = [":point"],
+)
+
+avro_cc_library(
+    name = "shapes_cc",
+    namespace = "dx_avro",
+    deps = [":shape"],
+)
+
+# keep
+cc_test(
+    name = "cc_roundtrip_test",
+    size = "small",
+    srcs = ["cc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    deps = [":shapes_cc"],
+)
+
+avro_cc_library(
+    name = "point_cc",
+    namespace = "dx_avro",
+    deps = [":point"],
+)
+
+avro_codegen_shard(
+    name = "point_cc_shard",
+    entries = ["gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point.hh"],
+    language = "cpp",
+    library = ":point_cc",
+)
+
+codegen_shard_argv_test(
+    name = "point_cc_shard_argv_test",
+    expected = [
+        "--producer",
+        "//avro/tests:point_cc_shard",
+        "--language",
+        "cpp",
+        "--entry",
+        "gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point.hh",
+        "--output",
+    ],
+    output = "avro/tests/point_cc_shard.dxcodegen.pb",
+    target_under_test = ":point_cc_shard",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -112,7 +112,7 @@ bazel run @rules_dx//:dx -- env --output json
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")` and `("openapi", "typescript")`.
+`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")`, `("avro", "cpp")` and `("openapi", "typescript")`.
 
 The protobuf/rust pair comes from `prost_codegen_shard` in
 `@rules_dx//generation:codegen.bzl`. Point `proto_rs` at a `rust_prost_library`
@@ -220,3 +220,13 @@ same archive. Every schema needs the `$Java.package` annotation from
 `capnpc-java` fails with `no Java package name found`. Bind `capnp_codegen_shard`
 with `language = "java"` to the `capnp_java_library`; each entry's `EXEC_PATH` is
 the srcjar of one direct dep. Both pairs are built for Linux x86_64 only.
+
+The avro/cpp pair comes from `avro_cc_library(name, deps, namespace)` in
+`@rules_dx//avro/rules:codegen.bzl`. It runs `avrogencpp` once per `.avsc` in the
+`avro_library` closure and links the `avro-cpp` runtime. For an `.avdl`, it first
+runs the pinned avro-tools `idl2schemata`. `namespace` is the C++ namespace of the
+generated types. `avrogencpp` cannot resolve a reference to a type in another
+`.avsc` file, so keep each type in one file or use an `.avdl`. Bind
+`avro_codegen_shard` with `language = "cpp"` to the library; each entry's
+`EXEC_PATH` is the header of one `.avsc`. Headers made from `.avdl` files are built
+but not listed in the shard. Avro Rust codegen is not offered.

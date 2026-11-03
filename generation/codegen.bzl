@@ -43,6 +43,7 @@ DX_CODEGEN_ADMITTED_PAIRS = (
     ("capnp", "cpp"),
     ("capnp", "rust"),
     ("capnp", "java"),
+    ("avro", "cpp"),
 )
 
 def codegen_path_error(path):

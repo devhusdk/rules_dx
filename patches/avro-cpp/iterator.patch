@@ -1,0 +1,13 @@
+--- a/include/avro/Config.hh
++++ b/include/avro/Config.hh
+@@ -19,6 +19,10 @@
+ #ifndef avro_Config_hh
+ #define avro_Config_hh
+ 
++#include <iterator>
++#include <memory>
++#include <vector>
++
+ // Windows DLL support
+ 
+ #ifdef _WIN32

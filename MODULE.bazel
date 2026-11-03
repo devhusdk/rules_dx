@@ -31,6 +31,21 @@ single_version_override(
     version = "0.2.27",
 )
 
+# floor: equals tested; avrogencpp and the C++ runtime come from the BCR source build
+bazel_dep(name = "avro-cpp", version = "1.12.0.bcr.1")
+single_version_override(
+    module_name = "avro-cpp",
+    patch_strip = 1,
+    patches = ["//patches/avro-cpp:iterator.patch"],
+    version = "1.12.0.bcr.1",
+)
+single_version_override(
+    module_name = "fmt",
+    patch_strip = 1,
+    patches = ["//patches/fmt:cstdlib.patch"],
+    version = "11.1.4",
+)
+
 # xmllint comes from the BCR source build; the overlay carries its own cc_binary (#4618)
 bazel_dep(name = "libxml2", version = "2.15.3")
 

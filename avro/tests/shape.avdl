@@ -1,0 +1,7 @@
+@namespace("dx.avro")
+protocol Shapes {
+  record Segment {
+    int length;
+    string label;
+  }
+}

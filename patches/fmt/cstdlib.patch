@@ -1,0 +1,10 @@
+--- a/include/fmt/format.h
++++ b/include/fmt/format.h
+@@ -43,6 +43,7 @@
+ #ifndef FMT_MODULE
+ #  include <cmath>    // std::signbit
+ #  include <cstddef>  // std::byte
++#  include <cstdlib>  // malloc, free
+ #  include <cstdint>  // uint32_t
+ #  include <cstring>  // std::memcpy
+ #  include <limits>   // std::numeric_limits

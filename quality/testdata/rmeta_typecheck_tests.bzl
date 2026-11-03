@@ -1,6 +1,7 @@
 """Analysis test that a pipelined rust_library exposes its rmeta rustc output."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect")
 
 def _rmeta_impl(ctx):
     """Checks the rustc_rmeta_output group holds one .rmeta.rustc-output file."""
@@ -18,4 +19,24 @@ rmeta_typecheck_test = analysistest.make(
         str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
         str(Label("@rules_rust//rust/settings:rustc_output_diagnostics")): True,
     },
+)
+
+def _clippy_rmeta_impl(ctx):
+    """Checks the Clippy action reads dependency .rmeta files and no library .rlib file."""
+    env = analysistest.begin(ctx)
+    clippy = [a for a in analysistest.target_under_test(env).actions if a.mnemonic == "Clippy"]
+    asserts.equals(env, 1, len(clippy), "want one Clippy action")
+    if len(clippy) == 1:
+        names = [f.basename for f in clippy[0].inputs.to_list()]
+        asserts.true(env, any([n.startswith("libfixture_upstream_rust-") and n.endswith(".rmeta") for n in names]), "no library .rmeta input")
+        asserts.false(env, any([n.startswith("libfixture_upstream_rust-") and n.endswith(".rlib") for n in names]), "unexpected library .rlib input")
+    return analysistest.end(env)
+
+clippy_rmeta_inputs_test = analysistest.make(
+    _clippy_rmeta_impl,
+    config_settings = {
+        str(Label("@rules_rust//rust/settings:pipelined_compilation")): True,
+        str(Label("@rules_rust//rust/settings:rustc_output_diagnostics")): True,
+    },
+    extra_target_under_test_aspects = [rust_clippy_aspect],
 )

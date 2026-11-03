@@ -35,8 +35,8 @@ PowerShell or Ruby tools. If the probe fails for any reason, dx applies every
 check, as it would without the probe.
 With `--@rules_rust//rust/settings:pipelined_compilation=true` in your `.bazelrc`,
 `dx typecheck` reads library diagnostics from the metadata build and skips their codegen.
-Rust binary, test and clippy actions wait for each dependency's full rlib, not its `.rmeta`.
-Only library actions start early. To turn pipelining off, set
+Clippy reads each dependency's `.rmeta`.
+Rust binary and test compiles still wait for each dependency's full rlib. To turn pipelining off, set
 `--@rules_rust//rust/settings:pipelined_compilation=false` in your `.bazelrc`.
 A bare `bazel build` with the quality aspect also needs `--@rules_rust//rust/settings:rustc_output_diagnostics=true` for the metadata (rmeta) diagnostics group to exist. `dx` sets it for you.
 

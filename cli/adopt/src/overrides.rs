@@ -51,6 +51,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "msvc_stdlib_linkflags.patch",
                 content: include_str!("../../../patches/rules_rust/msvc_stdlib_linkflags.patch"),
             },
+            OverridePatch {
+                file: "clippy_metadata_inputs.patch",
+                content: include_str!("../../../patches/rules_rust/clippy_metadata_inputs.patch"),
+            },
         ],
     },
     Override {
@@ -510,7 +514,7 @@ mod tests {
             "\nsingle_version_override(\n    module_name = \"aspect_rules_ts\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx:aspect_rules_ts.typecheck_root_dir.patch\"],\n    version = \"3.10.1\",\n)\n"
         ));
         assert!(rendered.contains(
-            "    patches = [\n        \"//third_party/rules_dx:rules_rust.lld_link.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_stdlib_linkflags.patch\",\n    ],\n"
+            "    patches = [\n        \"//third_party/rules_dx:rules_rust.lld_link.patch\",\n        \"//third_party/rules_dx:rules_rust.msvc_stdlib_linkflags.patch\",\n        \"//third_party/rules_dx:rules_rust.clippy_metadata_inputs.patch\",\n    ],\n"
         ));
         assert!(rendered.contains(
             "\nsingle_version_override(\n    module_name = \"rules_dart\",\n    patch_strip = 1,\n    patches = [\"//third_party/rules_dx:rules_dart.hermetic_tar.patch\"],\n    version = \"0.8.0\",\n)\n"

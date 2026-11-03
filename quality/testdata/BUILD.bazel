@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", upstream_cc_library = "cc_library")
-load("@rules_rust//rust:defs.bzl", upstream_rust_library = "rust_library")
+load("@rules_rust//rust:defs.bzl", upstream_rust_binary = "rust_binary", upstream_rust_library = "rust_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
 load("//java/rules:defs.bzl", "java_library")
@@ -16,7 +16,7 @@ load(":real_aspect_subject.bzl", "real_aspect_subject", "real_shard_probe_subjec
 load(":real_aspect_tests.bzl", "real_aspect_fixture_tests", "real_shard_probe_tests")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
-load(":rmeta_typecheck_tests.bzl", "rmeta_typecheck_test")
+load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "rmeta_typecheck_test")
 load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(
@@ -1962,4 +1962,18 @@ rmeta_typecheck_test(
     name = "fixture_upstream_rust_rmeta_typecheck_test",
     size = "small",
     target_under_test = ":fixture_upstream_rust",
+)
+
+upstream_rust_binary(
+    name = "fixture_upstream_rust_bin",
+    srcs = ["fake_format_main.rs"],
+    crate_name = "fixture_upstream_rust_bin",
+    edition = "2021",
+    deps = [":fixture_upstream_rust"],
+)
+
+clippy_rmeta_inputs_test(
+    name = "fixture_upstream_rust_clippy_rmeta_inputs_test",
+    size = "small",
+    target_under_test = ":fixture_upstream_rust_bin",
 )

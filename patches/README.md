@@ -28,7 +28,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 
 | Module | Version | Patches | Why |
 | --- | --- | --- | --- |
-| `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch` | Rust on Windows (lld-link, MSVC stdlib link flags) |
+| `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch`, `clippy_metadata_inputs.patch` | Rust on Windows (lld-link, MSVC stdlib link flags); clippy reads dependency `.rmeta` |
 | `rules_cuda` | 0.3.0 | `dlink_includes.patch` | CUDA device link (`rdc`) in the sandbox |
 | `rules_dotnet` | 0.22.2 | `reproducible.patch`, `fsharp_signature.patch`, `sdk_versions.patch` | .NET SDK from the repository cache; F# `.fsi` in `srcs`; .NET SDK 10.0.403 (security) until a rules_dotnet release |
 | `rules_dart` | 0.8.0 | `hermetic_tar.patch` | Dart pub packages extracted with a pinned bsdtar (tar.bzl), not the host `tar` |

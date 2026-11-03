@@ -16,6 +16,7 @@ load(
     "normalize_os",
     "platform_key",
     "platform_key_error",
+    "platform_repeat_message",
     "target_identity",
 )
 
@@ -26,6 +27,7 @@ def platforms_tests(name):
         expect_equal("rust arch tokens normalize to canonical cpus", [normalize_cpu("aarch64"), normalize_cpu("arm64"), normalize_cpu("x86_64"), normalize_cpu("amd64"), normalize_cpu("x64")], ["arm64", "arm64", "x86_64", "x86_64", "x86_64"]),
         expect_equal("os tokens normalize across upstream spellings", [normalize_os("linux"), normalize_os("darwin"), normalize_os("macos"), normalize_os("windows"), normalize_os("win32")], ["linux", "macos", "macos", "windows", "windows"]),
         expect_equal("normalization accepts mixed case at the input boundary", [normalize_os("Linux"), normalize_os("Darwin"), normalize_cpu("AArch64"), normalize_cpu("AMD64")], ["linux", "macos", "arm64", "x86_64"]),
+        expect_equal("repeat platform tag names both modules", ["a 1" in platform_repeat_message("a 1", "b 2"), "b 2" in platform_repeat_message("a 1", "b 2")], [True, True]),
         expect_equal("unknown tokens normalize to empty", [normalize_os("solaris"), normalize_cpu("sparc"), normalize_os(""), normalize_cpu("")], ["", "", "", ""]),
         expect_equal("raw rust pairs form canonical keys", [platform_key("linux", "x86_64"), platform_key("linux", "aarch64"), platform_key("macos", "aarch64"), platform_key("windows", "x86_64")], ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
         expect_equal("upstream spellings form the same keys", [platform_key("Linux", "AARCH64"), platform_key("darwin", "arm64"), platform_key("windows", "amd64")], ["linux_arm64", "macos_arm64", "windows_x86_64"]),

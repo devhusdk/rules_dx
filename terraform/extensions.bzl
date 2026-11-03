@@ -57,6 +57,19 @@ def provider_errors(source, version, sha256, urls):
             errors.append("%s: url for %s has no sha256" % (source, target))
     return errors
 
+def provider_conflict_message(name, first, second):
+    """Returns the error for two differing declarations of one provider.
+
+    Args:
+      name: Provider name.
+      first: Tuple of module label, source and version for the earlier declaration.
+      second: Same tuple for the later declaration.
+
+    Returns:
+      The error string naming both modules and their values.
+    """
+    return "dx_terraform: conflicting declarations of provider %r: %s declares %s %s, %s declares %s %s" % (name, first[0], first[1], first[2], second[0], second[1], second[2])
+
 def default_url(source, version, target):
     kind = source.split("/")[-1]
     return "https://releases.hashicorp.com/terraform-provider-{k}/{v}/terraform-provider-{k}_{v}_{t}.zip".format(k = kind, v = version, t = target)
@@ -110,11 +123,13 @@ def _extension_impl(ctx):
             if errors:
                 fail("dx_terraform: " + "; ".join(errors))
             decl = (tag.source, tag.version, tag.sha256, tag.urls)
-            if tag.name in decls and decls[tag.name] != decl:
-                fail("dx_terraform: conflicting declarations of provider %r" % tag.name)
-            decls[tag.name] = decl
+            who = "%s %s" % (module.name, module.version)
+            if tag.name in decls and decls[tag.name][0] != decl:
+                fail(provider_conflict_message(tag.name, (decls[tag.name][1], decls[tag.name][0][0], decls[tag.name][0][1]), (who, tag.source, tag.version)))
+            if tag.name not in decls:
+                decls[tag.name] = (decl, who)
     hub = {}
-    for name, (source, version, sha256, urls) in sorted(decls.items()):
+    for name, ((source, version, sha256, urls), _) in sorted(decls.items()):
         repos = {}
         for target, digest in sorted(sha256.items()):
             repo = "dx_terraform_%s_%s" % (name, target)

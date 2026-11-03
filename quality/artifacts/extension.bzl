@@ -33,7 +33,7 @@ load("//quality/artifacts:nixfmt.bzl", _nixfmt = "ARTIFACTS")
 load("//quality/artifacts:opa.bzl", _opa = "ARTIFACTS")
 load("//quality/artifacts:ormolu.bzl", _ormolu = "ARTIFACTS")
 load("//quality/artifacts:pkl.bzl", _pkl = "ARTIFACTS")
-load("//quality/artifacts:platforms.bzl", "artifact_platform_key")
+load("//quality/artifacts:platforms.bzl", "artifact_platform_key", "platform_repeat_message")
 load("//quality/artifacts:pmd.bzl", _pmd = "SOURCE")
 load("//quality/artifacts:regal.bzl", _regal = "ARTIFACTS")
 load("//quality/artifacts:ruff.bzl", _ruff = "ARTIFACTS")
@@ -156,10 +156,12 @@ def _source_repo(source):
 
 def _dx_tools_impl(ctx):
     os_linux, os_macos, os_windows, cpu_x86_64, cpu_arm64 = None, None, None, None, None
+    declarer = None
     for module in ctx.modules:
         for tag in module.tags.platform:
             if os_linux != None:
-                fail("dx_tools.platform may be declared at most once")
+                fail(platform_repeat_message(declarer, "%s %s" % (module.name, module.version)))
+            declarer = "%s %s" % (module.name, module.version)
             os_linux = str(tag.os_linux)
             os_macos = str(tag.os_macos)
             os_windows = str(tag.os_windows)

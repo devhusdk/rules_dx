@@ -96,3 +96,7 @@ def artifact_platform_key(artifact):
     if key == "":
         return str(artifact["os"]) + "_" + str(artifact["cpu"])
     return key
+
+def platform_repeat_message(first, second):
+    """Returns the error for a second dx_tools.platform tag, naming both modules."""
+    return "dx_tools.platform may be declared at most once; declared by %s, then again by %s" % (first, second)

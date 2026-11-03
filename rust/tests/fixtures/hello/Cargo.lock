@@ -1481,18 +1481,6 @@ name = "dx_bootstrap"
 version = "0.0.0"
 
 [[package]]
-name = "dx_bump"
-version = "0.0.0"
-dependencies = [
- "saphyr-parser",
- "semver",
- "serde_json",
- "thiserror 2.0.20",
- "toml",
- "toml_edit",
-]
-
-[[package]]
 name = "dx_clean"
 version = "0.0.0"
 dependencies = [
@@ -1815,7 +1803,12 @@ dependencies = [
 name = "dx_update"
 version = "0.0.0"
 dependencies = [
+ "saphyr-parser",
+ "semver",
+ "serde_json",
  "thiserror 2.0.20",
+ "toml",
+ "toml_edit",
 ]
 
 [[package]]

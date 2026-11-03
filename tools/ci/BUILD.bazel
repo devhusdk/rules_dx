@@ -382,7 +382,7 @@ rust_test(
     srcs = ["bump_auth_test.rs"],
     data = [
         ":bump_auth_fixtures",
-        "//.github:workflows/bump.yml",
+        "//.github:workflows/update.yml",
     ],
     deps = [
         ":ci_workflow",

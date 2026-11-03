@@ -1,7 +1,7 @@
 //! Notice codes shared across commands.
 
-pub(crate) const CODE_BUMP_WIDENED: &str = "bump_widened";
-pub(crate) const CODE_BUMP_NO_CHANGE: &str = "bump_no_change";
+pub(crate) const CODE_UPDATE_WIDENED: &str = "update_widened";
+pub(crate) const CODE_UPDATE_NO_CHANGE: &str = "update_no_change";
 pub(crate) const CODE_ADD_DECLARED: &str = "add_declared";
 pub(crate) const CODE_UPDATE_SET_SUCCESS: &str = "update_set_success";
 pub(crate) const CODE_UPDATE_SET_CURRENT: &str = "update_set_current";

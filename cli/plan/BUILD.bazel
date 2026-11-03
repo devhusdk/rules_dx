@@ -67,7 +67,6 @@ dx_rust_crate(
         "//cli/adopt:dx_adopt",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
-        "//cli/bump:dx_bump",
         "//cli/codegen:dx_codegen",
         "//cli/diff:dx_diff",
         "//cli/digest:dx_digest",

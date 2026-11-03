@@ -1,5 +1,5 @@
 use super::*;
-use crate::request::{BumpPlanOutcome, ConfiguredKind};
+use crate::bump::request::{BumpPlanOutcome, ConfiguredKind};
 
 fn request(selector: &str, version: &str) -> AddRequest {
     AddRequest::from_bump(&BumpRequest::parse(selector, version).expect("bump request"))

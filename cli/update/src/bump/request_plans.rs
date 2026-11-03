@@ -604,15 +604,15 @@ pub(super) fn plan_github_workflow(
                 manifest: WORKFLOW_DIR.to_owned(),
                 reason,
             };
-            let parsed = crate::gha::parse_workflow_pins(content)
+            let parsed = crate::bump::gha::parse_workflow_pins(content)
                 .map_err(|error| unsupported(error.to_string()))?;
             let targets_package =
-                |kind, value: &str| crate::gha::pin_targets_package(kind, value, package);
+                |kind, value: &str| crate::bump::gha::pin_targets_package(kind, value, package);
             if parsed.indirect
                 && parsed
                     .loose
                     .iter()
-                    .any(|value| targets_package(crate::gha::UsesKind::Step, value))
+                    .any(|value| targets_package(crate::bump::gha::UsesKind::Step, value))
             {
                 return Err(unsupported(format!(
                     "{package:?} sits in a workflow with aliases or merge keys"
@@ -633,11 +633,11 @@ pub(super) fn plan_github_workflow(
                 [index] => {
                     let pin = &parsed.pins[*index];
                     let no_pin = || unsupported(format!("{package:?} has no replaceable @SHA pin"));
-                    let out =
-                        crate::gha::replace_pin_reference(content, pin, sha).ok_or_else(no_pin)?;
-                    let reparsed = crate::gha::parse_workflow_pins(&out)
+                    let out = crate::bump::gha::replace_pin_reference(content, pin, sha)
+                        .ok_or_else(no_pin)?;
+                    let reparsed = crate::bump::gha::parse_workflow_pins(&out)
                         .map_err(|error| unsupported(error.to_string()))?;
-                    let (action, _) = crate::gha::split_pin(&pin.value).ok_or_else(no_pin)?;
+                    let (action, _) = crate::bump::gha::split_pin(&pin.value).ok_or_else(no_pin)?;
                     let expected = format!("{action}@{sha}");
                     let kept = reparsed.pins.len() == parsed.pins.len()
                         && reparsed.pins.iter().zip(&parsed.pins).enumerate().all(

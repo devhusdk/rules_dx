@@ -6,7 +6,7 @@ const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
     command: "update",
     noun: "add",
     notice_code: CODE_ADD_DECLARED,
-    failure_code: CODE_BUMP_FAILED,
+    failure_code: CODE_UPDATE_WIDEN_FAILED,
     noop_note: "pinned module lock; no-op success; go.sum is not refreshed",
 };
 
@@ -22,7 +22,7 @@ pub(super) struct Io<'a> {
 pub(super) fn add_missing(
     invocation: &Invocation,
     io: Io<'_>,
-    bump: &dx_bump::BumpRequest,
+    bump: &dx_update::bump::BumpRequest,
     missing: &str,
 ) -> i32 {
     let Io {
@@ -32,14 +32,14 @@ pub(super) fn add_missing(
         out,
         err,
     } = io;
-    let unsupported = bump.set == dx_bump::BumpSet::GithubActions
+    let unsupported = bump.set == dx_update::bump::BumpSet::GithubActions
         || bump
             .configured_kind()
-            .is_some_and(|kind| kind == dx_bump::ConfiguredKind::Uv);
+            .is_some_and(|kind| kind == dx_update::bump::ConfiguredKind::Uv);
     if unsupported {
-        return operational(invocation, out, err, CODE_BUMP_FAILED, missing);
+        return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, missing);
     }
-    let request = dx_bump::AddRequest::from_bump(bump);
+    let request = dx_update::bump::AddRequest::from_bump(bump);
     let applies = invocation.applies();
     let verbose = invocation.chatty();
     if applies {
@@ -58,7 +58,9 @@ pub(super) fn add_missing(
     let manifest = request.target_manifest().to_owned();
     let inserted = match plan_insert(&request, workspace, &manifest) {
         Ok(inserted) => inserted,
-        Err(message) => return operational(invocation, out, err, CODE_BUMP_FAILED, &message),
+        Err(message) => {
+            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message)
+        }
     };
     if !applies {
         let message = format!(
@@ -68,7 +70,7 @@ pub(super) fn add_missing(
             request.selector,
             request.version.display(),
         );
-        return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
+        return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
     }
     let refresh = if request.target.configured.is_some() {
         request.target.refresh_command()
@@ -97,7 +99,7 @@ pub(super) fn add_missing(
 }
 
 fn plan_insert(
-    request: &dx_bump::AddRequest,
+    request: &dx_update::bump::AddRequest,
     workspace: &std::path::Path,
     manifest: &str,
 ) -> Result<String, String> {
@@ -120,7 +122,7 @@ fn plan_insert(
         )
     })?;
     request.plan_insert(&text).map_err(|error| match error {
-        declared @ dx_bump::AddError::Declared { .. } => declared.to_string(),
+        declared @ dx_update::bump::AddError::Declared { .. } => declared.to_string(),
         other => format!("failed to add {}: {other}", request.selector),
     })
 }

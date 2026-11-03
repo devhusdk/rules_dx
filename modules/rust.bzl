@@ -33,7 +33,6 @@ RUST_CRATE_MANIFESTS = [
     "//cli/test_scratch:Cargo.toml",
     "//cli/roots:Cargo.toml",
     "//cli/update:Cargo.toml",
-    "//cli/bump:Cargo.toml",
     "//cli/binfmt:Cargo.toml",
     "//cli/plan:Cargo.toml",
     "//cli/worktree:Cargo.toml",

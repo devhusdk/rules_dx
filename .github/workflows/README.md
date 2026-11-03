@@ -7,7 +7,7 @@
 - `evidence.yml`: native evidence on hosted runners, dispatched per run. The `evidence-<platform>` artifact holds `evidence.log` and each test's log, XML and undeclared outputs.
 - `android.yml`: runs the Rust Android APK on a hosted x86_64 emulator, dispatched per run.
 - `apple.yml`: Apple toolchain tests on a hosted macOS runner.
-- `bump.yml`: `widen-one-requirement loop` for one dependency per run.
+- `update.yml`: `widen-one-requirement loop` for one dependency per run.
 - `ghcr.yml`: prebuilt devcontainer images.
 - `release-cells.yml`: reusable, read-only. Builds, independently rebuilds and qualifies one archive per `//deploy/release:release_matrix` cell on its native runner (a consumer Bazel build included), then verifies all records. Artifacts: `release-cell-<name>` per cell and the combined `release-cells`; outputs: `version`, `sha`, `workflow_ref`. It fails when any cell is rejected, and a rejected cell never stops the others.
 - `release.yml`: calls `release-cells.yml` for the five platform archives, builds the `rules_dx-<version>.tar.gz` source archive (after `release_driver` checks the tag against the candidate commit), then uploads them with the raw binaries, `.sha256` files, a `dx-sha256sums.txt` manifest, and `source.json` to the release. The `dry_run` dispatch input builds and qualifies everything and uploads nothing. No asset is ever replaced once uploaded: a rerun skips identical assets and fails on a different one.

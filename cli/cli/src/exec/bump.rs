@@ -1,12 +1,12 @@
 use super::bump_add;
 use super::common::*;
 use super::dep_edit;
-pub use dx_bump::gha::COMMIT_JSON_ENV;
 use dx_output::{
     command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
 use dx_plan::args::Invocation;
 use dx_plan::reports::plan_reports;
+pub use dx_update::bump::gha::COMMIT_JSON_ENV;
 
 pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(invocation.edits_version(), "bump dispatch guards commands");
@@ -39,24 +39,29 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match configured_request(invocation, out, err, workspace) {
         Ok(Some(request)) => request,
         Ok(None) => {
-            match dx_bump::BumpRequest::parse(&invocation.targets[0], &invocation.targets[1]) {
+            match dx_update::bump::BumpRequest::parse(
+                &invocation.targets[0],
+                &invocation.targets[1],
+            ) {
                 Ok(request) => request,
                 Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
             }
         }
         Err(exit) => return exit,
     };
-    let request =
-        match dx_bump::DepVersion::from_flags(invocation.floor, invocation.reason.as_deref())
-            .and_then(|target| request.with_dep_version(target))
-        {
-            Ok(request) => request,
-            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-        };
+    let request = match dx_update::bump::DepVersion::from_flags(
+        invocation.floor,
+        invocation.reason.as_deref(),
+    )
+    .and_then(|target| request.with_dep_version(target))
+    {
+        Ok(request) => request,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
     let request = match resolve_gha_tag_request(&request, bump_commit_json) {
         Ok(request) => request,
         Err(message) => {
-            return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
+            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
         }
     };
     let summary = frozen_summary(
@@ -103,11 +108,11 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             return bump_add::add_missing(invocation, io, &request, &message);
         }
         Err(WidenFailure::Failed(message)) => {
-            return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
+            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
         }
     };
     if planned.iter().all(|(_, _, changed)| !changed) {
-        return emit_bump_no_change(invocation, out, &request, &planned, verbose);
+        return emit_update_no_change(invocation, out, &request, &planned, verbose);
     }
     let target = request.target();
     if let Err(exit) = dep_edit::preflight(
@@ -155,8 +160,8 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
 const BUMP_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
     command: "update",
     noun: "widen",
-    notice_code: CODE_BUMP_WIDENED,
-    failure_code: CODE_BUMP_FAILED,
+    notice_code: CODE_UPDATE_WIDENED,
+    failure_code: CODE_UPDATE_WIDEN_FAILED,
     noop_note: "pinned module lock; no-op success",
 };
 
@@ -165,13 +170,13 @@ fn configured_request(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
-) -> Result<Option<dx_bump::BumpRequest>, i32> {
+) -> Result<Option<dx_update::bump::BumpRequest>, i32> {
     let Some(configured) =
         dep_edit::configured_set(&BUMP_VERB, invocation, out, err, workspace, true)?
     else {
         return Ok(None);
     };
-    dx_bump::BumpRequest::parse_configured_set(
+    dx_update::bump::BumpRequest::parse_configured_set(
         configured.kind,
         &configured.name,
         &configured.manifests,
@@ -186,7 +191,7 @@ fn configured_request(
 fn check_bump(
     invocation: &Invocation,
     io: bump_add::Io<'_>,
-    request: &dx_bump::BumpRequest,
+    request: &dx_update::bump::BumpRequest,
     verbose: bool,
 ) -> i32 {
     let bump_add::Io {
@@ -217,7 +222,7 @@ fn check_bump(
             return bump_add::add_missing(invocation, io, request, &message);
         }
         Err(WidenFailure::Failed(message)) => {
-            return operational(invocation, out, err, CODE_BUMP_FAILED, &message);
+            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
         }
     };
     let mut drifted: Vec<String> = Vec::new();
@@ -248,7 +253,7 @@ fn check_bump(
                     related_command: Some("update".to_owned()),
                     scope: Some(vec![request.selector.clone()]),
                     path: Some(manifest.clone()),
-                    ..NoticeEvent::info(CODE_BUMP_WIDENED, message.clone())
+                    ..NoticeEvent::info(CODE_UPDATE_WIDENED, message.clone())
                 }),
             ) {
                 return exit;
@@ -280,43 +285,43 @@ fn check_bump(
         request.selector,
         request.version.display()
     );
-    operational(invocation, out, err, CODE_BUMP_FAILED, &message)
+    operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message)
 }
 
 fn widen_targets(
-    request: &dx_bump::BumpRequest,
+    request: &dx_update::bump::BumpRequest,
     workspace: &std::path::Path,
 ) -> Result<Vec<String>, String> {
     if let Some(manifests) = request.configured_manifests() {
         return Ok(manifests.to_vec());
     }
     match request.set {
-        dx_bump::BumpSet::GithubActions => {}
-        dx_bump::BumpSet::Cargo => {
+        dx_update::bump::BumpSet::GithubActions => {}
+        dx_update::bump::BumpSet::Cargo => {
             let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).map_err(|_| {
                 format!(
                     "failed to widen {}: cannot read MODULE.bazel",
                     request.selector
                 )
             })?;
-            return dx_bump::cargo_manifests(&module)
+            return dx_update::bump::cargo_manifests(&module)
                 .map_err(|error| format!("failed to widen {}: {error}", request.selector));
         }
         _ => return Ok(vec![request.target_manifest().to_owned()]),
     }
-    let dir = workspace.join(dx_bump::gha::WORKFLOW_DIR);
+    let dir = workspace.join(dx_update::bump::gha::WORKFLOW_DIR);
     let entries = std::fs::read_dir(&dir).map_err(|_| {
         format!(
             "failed to widen {}: cannot list {}",
             request.selector,
-            dx_bump::gha::WORKFLOW_DIR
+            dx_update::bump::gha::WORKFLOW_DIR
         )
     })?;
     let mut manifests: Vec<String> = entries
         .filter_map(|entry| {
             let name = entry.ok()?.file_name().to_string_lossy().into_owned();
-            dx_bump::gha::workflow_file(&name)
-                .then(|| format!("{}/{name}", dx_bump::gha::WORKFLOW_DIR))
+            dx_update::bump::gha::workflow_file(&name)
+                .then(|| format!("{}/{name}", dx_update::bump::gha::WORKFLOW_DIR))
         })
         .collect();
     manifests.sort();
@@ -337,7 +342,7 @@ impl From<String> for WidenFailure {
 }
 
 fn plan_widens(
-    request: &dx_bump::BumpRequest,
+    request: &dx_update::bump::BumpRequest,
     workspace: &std::path::Path,
 ) -> Result<Vec<(String, String, bool)>, WidenFailure> {
     let mut planned = Vec::new();
@@ -366,14 +371,14 @@ fn plan_widens(
             )
         })?;
         match request.plan_edit_outcome(&manifest, &text) {
-            Ok(dx_bump::BumpPlanOutcome::Changed(widened)) => {
+            Ok(dx_update::bump::BumpPlanOutcome::Changed(widened)) => {
                 planned.push((manifest, widened, true));
             }
-            Ok(dx_bump::BumpPlanOutcome::Unchanged) => {
+            Ok(dx_update::bump::BumpPlanOutcome::Unchanged) => {
                 planned.push((manifest, text, false));
             }
-            Err(dx_bump::BumpError::NotFound { .. }) if request.set.spans_manifests() => {}
-            Err(error @ dx_bump::BumpError::NotFound { .. }) => {
+            Err(dx_update::bump::BumpError::NotFound { .. }) if request.set.spans_manifests() => {}
+            Err(error @ dx_update::bump::BumpError::NotFound { .. }) => {
                 return Err(WidenFailure::Missing(format!(
                     "failed to widen {}: {error}",
                     request.selector
@@ -392,12 +397,12 @@ fn plan_widens(
     }
     if planned.is_empty() {
         let manifest = if let Some(name) = request.configured_name() {
-            if request.set == dx_bump::BumpSet::Cargo {
+            if request.set == dx_update::bump::BumpSet::Cargo {
                 format!("any manifest of set {name}")
             } else {
                 request.target_manifest().to_owned()
             }
-        } else if request.set == dx_bump::BumpSet::Cargo {
+        } else if request.set == dx_update::bump::BumpSet::Cargo {
             format!(
                 "any of the {} manifests of the crate.from_cargo hub in MODULE.bazel",
                 targets.len()
@@ -408,7 +413,7 @@ fn plan_widens(
         return Err(WidenFailure::Missing(format!(
             "failed to widen {}: {}",
             request.selector,
-            dx_bump::BumpError::NotFound {
+            dx_update::bump::BumpError::NotFound {
                 manifest,
                 package: request.package.clone(),
             }
@@ -418,11 +423,11 @@ fn plan_widens(
 }
 
 fn resolve_gha_tag_request(
-    request: &dx_bump::BumpRequest,
+    request: &dx_update::bump::BumpRequest,
     commit_json: Option<&str>,
-) -> Result<dx_bump::BumpRequest, String> {
-    let is_gha_tag = matches!(&request.version, dx_bump::WidenVersion::GitTag(_))
-        && request.set == dx_bump::BumpSet::GithubActions;
+) -> Result<dx_update::bump::BumpRequest, String> {
+    let is_gha_tag = matches!(&request.version, dx_update::bump::WidenVersion::GitTag(_))
+        && request.set == dx_update::bump::BumpSet::GithubActions;
     if !is_gha_tag {
         return Ok(request.clone());
     }
@@ -435,16 +440,16 @@ fn resolve_gha_tag_request(
             request.selector
         )
     })?;
-    let sha = dx_bump::gha::resolve_sha_from_commit_response(&text)
+    let sha = dx_update::bump::gha::resolve_sha_from_commit_response(&text)
         .map_err(|error| format!("failed to widen {}: {error}", request.selector))?;
-    dx_bump::BumpRequest::parse(&request.selector, &sha)
+    dx_update::bump::BumpRequest::parse(&request.selector, &sha)
         .map_err(|error| format!("failed to widen {}: {error}", request.selector))
 }
 
-fn emit_bump_no_change(
+fn emit_update_no_change(
     invocation: &Invocation,
     out: &mut dyn std::io::Write,
-    request: &dx_bump::BumpRequest,
+    request: &dx_update::bump::BumpRequest,
     planned: &[(String, String, bool)],
     verbose: bool,
 ) -> i32 {
@@ -465,7 +470,7 @@ fn emit_bump_no_change(
                 related_command: Some("update".to_owned()),
                 scope: Some(vec![request.selector.clone()]),
                 path: Some(manifest),
-                ..NoticeEvent::info(CODE_BUMP_NO_CHANGE, message.clone())
+                ..NoticeEvent::info(CODE_UPDATE_NO_CHANGE, message.clone())
             }),
         ) {
             return exit;
@@ -1148,7 +1153,7 @@ dependencies = ["anyio>=4"]
                         .lines()
                         .map(|line| serde_json::from_str(line).expect("event"))
                         .collect();
-                    assert_eq!(events[1]["code"], super::CODE_BUMP_FAILED);
+                    assert_eq!(events[1]["code"], super::CODE_UPDATE_WIDEN_FAILED);
                     assert_eq!(events.last().expect("finished")["exit_code"], 1);
                 }
             }
@@ -1201,7 +1206,7 @@ dependencies = ["anyio>=4"]
                 .map(|line| serde_json::from_str(line).expect("event"))
                 .collect();
             assert_eq!(events[0]["event"], "command_started");
-            assert!(events.iter().any(|event| event["code"] == "bump_widened"));
+            assert!(events.iter().any(|event| event["code"] == "update_widened"));
             assert_eq!(events.last().expect("finished")["exit_code"], 0);
         }
     }
@@ -1325,7 +1330,7 @@ dependencies = ["anyio>=4"]
             harness.run(&["update", "cargo:demo", "2.0.0", "--output=json", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("signal"));
-        assert!(out.contains("bump_widened"));
+        assert!(out.contains("update_widened"));
         assert!(std::fs::read_to_string(harness.workspace.join(HELLO_CARGO))
             .expect("manifest")
             .contains("2.0.0"));
@@ -1572,7 +1577,7 @@ dependencies = ["anyio>=4"]
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
         let notices = events_of_kind(&events, "notice");
         assert_eq!(notices.len(), 2, "{out}");
-        assert_eq!(notices[0]["code"], serde_json::json!("bump_widened"));
+        assert_eq!(notices[0]["code"], serde_json::json!("update_widened"));
         assert_eq!(notices[1]["code"], serde_json::json!("update_set_success"));
         assert_eq!(
             events.last().expect("finished")["exit_code"],
@@ -1757,7 +1762,7 @@ dependencies = ["anyio>=4"]
         let (code, _, err) =
             harness.run(&["update", "github-actions:actions/checkout", "v5", "--apply"]);
         assert_eq!(code, 1, "{err}");
-        assert!(err.contains("bump_failed"), "{err}");
+        assert!(err.contains("update_widen_failed"), "{err}");
         assert!(err.contains("needs SHA resolution"), "{err}");
 
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -1807,7 +1812,7 @@ dependencies = ["anyio>=4"]
         assert!(untouched.contains("actions/cache@bbbb"), "{untouched}");
         let events = json_events(&out);
         assert!(
-            events.iter().any(|event| event["code"] == "bump_widened"),
+            events.iter().any(|event| event["code"] == "update_widened"),
             "{out}"
         );
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
@@ -1836,7 +1841,9 @@ dependencies = ["anyio>=4"]
         );
         let events = json_events(&out);
         assert!(
-            events.iter().any(|event| event["code"] == "bump_no_change"),
+            events
+                .iter()
+                .any(|event| event["code"] == "update_no_change"),
             "{out}"
         );
         assert_eq!(events.last().expect("finished")["exit_code"], 0);
@@ -1873,7 +1880,7 @@ dependencies = ["anyio>=4"]
             let (code, out, err) =
                 harness.run(&["update", "github-actions:actions/checkout", "v5", "--apply"]);
             assert_eq!(code, 1, "{name}: {out}{err}");
-            assert!(err.contains("bump_failed"), "{name}: {err}");
+            assert!(err.contains("update_widen_failed"), "{name}: {err}");
             assert_eq!(
                 std::fs::read_to_string(harness.workspace.join(".github/workflows/ci.yml"))
                     .expect("workflow"),
@@ -1894,7 +1901,7 @@ dependencies = ["anyio>=4"]
             );
         }
         harness.write_source(
-            ".github/workflows/bump.yml",
+            ".github/workflows/update.yml",
             "jobs:\n  b:\n    steps:\n      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # v0.19.0\n",
         );
         harness.write_source(".github/workflows/README.md", "not a workflow\n");
@@ -1921,7 +1928,7 @@ dependencies = ["anyio>=4"]
             assert!(widened.contains("actions/cache@bbbb"), "{widened}");
         }
         let untouched =
-            std::fs::read_to_string(harness.workspace.join(".github/workflows/bump.yml"))
+            std::fs::read_to_string(harness.workspace.join(".github/workflows/update.yml"))
                 .expect("workflow");
         assert!(untouched.contains("setup-bazel"), "{untouched}");
     }
@@ -1944,7 +1951,7 @@ dependencies = ["anyio>=4"]
             let (code, _, err) =
                 harness.run(&["update", "github-actions:actions/checkout", sha, "--apply"]);
             assert_eq!(code, 1, "{name}: {err}");
-            assert!(err.contains("bump_failed"), "{name}: {err}");
+            assert!(err.contains("update_widen_failed"), "{name}: {err}");
             assert!(err.contains(expected), "{name}: {err}");
             assert!(err.contains(".github/workflows"), "{name}: {err}");
             for (file, lines) in &workflows {
@@ -2044,7 +2051,7 @@ dependencies = ["anyio>=4"]
         seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
         let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3"]);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("bump_failed"), "{err}");
+        assert!(err.contains("update_widen_failed"), "{err}");
         assert!(err.contains("bump drift"), "{err}");
         assert!(err.contains("--apply"), "{err}");
         assert_eq!(
@@ -2131,7 +2138,11 @@ dependencies = ["anyio>=4"]
                 harness.run(&["update", selector, version, "--output=json", "--apply"]);
             assert_eq!(code, 0, "{selector}: {out}{err}");
             let events = json_events(&out);
-            assert_eq!(event(&events, "notice")["code"], "bump_no_change", "{out}");
+            assert_eq!(
+                event(&events, "notice")["code"],
+                "update_no_change",
+                "{out}"
+            );
             assert_eq!(events.last().expect("finished")["exit_code"], 0);
             assert_eq!(
                 std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
@@ -2161,7 +2172,11 @@ dependencies = ["anyio>=4"]
                 ]);
                 assert_eq!(code, 0, "{selector} {flag}: {out}{err}");
                 let events = json_events(&out);
-                assert_eq!(event(&events, "notice")["code"], "bump_no_change", "{out}");
+                assert_eq!(
+                    event(&events, "notice")["code"],
+                    "update_no_change",
+                    "{out}"
+                );
                 assert_eq!(
                     std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
                     text
@@ -2325,14 +2340,17 @@ dependencies = ["anyio>=4"]
         let (code, out, err) =
             harness.run(&["update", "bazel:.bazelversion", "9.3.0", "--output=json"]);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("bump_failed"), "{err}");
+        assert!(err.contains("update_widen_failed"), "{err}");
         assert_eq!(
             std::fs::read_to_string(harness.workspace.join(".bazelversion")).expect("read"),
             "9.2.0\n",
             "check must not write"
         );
         let events = json_events(&out);
-        assert_eq!(event(&events, "error")["code"], super::CODE_BUMP_FAILED);
+        assert_eq!(
+            event(&events, "error")["code"],
+            super::CODE_UPDATE_WIDEN_FAILED
+        );
         assert_eq!(
             events.last().expect("finished")["exit_code"],
             serde_json::json!(1)

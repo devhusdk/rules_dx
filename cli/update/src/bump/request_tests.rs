@@ -387,11 +387,11 @@ fn workflow_widen_reports_unsupported_yaml_without_edits() {
 
 #[test]
 fn only_yaml_and_yml_are_workflow_files() {
-    assert!(crate::gha::workflow_file("ci.yml"));
-    assert!(crate::gha::workflow_file("reusable.yaml"));
-    assert!(!crate::gha::workflow_file("README.md"));
-    assert!(!crate::gha::workflow_file("ci.yml.bak"));
-    assert!(!crate::gha::workflow_file("yml"));
+    assert!(crate::bump::gha::workflow_file("ci.yml"));
+    assert!(crate::bump::gha::workflow_file("reusable.yaml"));
+    assert!(!crate::bump::gha::workflow_file("README.md"));
+    assert!(!crate::bump::gha::workflow_file("ci.yml.bak"));
+    assert!(!crate::bump::gha::workflow_file("yml"));
 }
 
 #[test]
@@ -1015,7 +1015,7 @@ fn npm_rejects_ambiguous_malformed_and_unselected_shapes() {
 #[test]
 fn pin_parser_reads_structural_uses_only() {
     let source = "jobs:\n  call:\n    uses: o/r/.github/workflows/x.yml@v1\n  b:\n    steps:\n      - uses: a/b@v1\n      - run: |\n          uses: z/y@v1\n";
-    let parsed = crate::gha::parse_workflow_pins(source).expect("parse");
+    let parsed = crate::bump::gha::parse_workflow_pins(source).expect("parse");
     let pins: Vec<_> = parsed
         .pins
         .iter()
@@ -1024,16 +1024,19 @@ fn pin_parser_reads_structural_uses_only() {
     assert_eq!(
         pins,
         vec![
-            (crate::gha::UsesKind::Job, "o/r/.github/workflows/x.yml@v1"),
-            (crate::gha::UsesKind::Step, "a/b@v1"),
+            (
+                crate::bump::gha::UsesKind::Job,
+                "o/r/.github/workflows/x.yml@v1"
+            ),
+            (crate::bump::gha::UsesKind::Step, "a/b@v1"),
         ]
     );
     assert!(!parsed.indirect);
-    assert!(crate::gha::parse_workflow_pins("a: [").is_err());
-    assert_eq!(crate::gha::split_pin("a/b@v1"), Some(("a/b", "v1")));
-    assert_eq!(crate::gha::split_pin("a/b@"), Some(("a/b", "")));
-    assert_eq!(crate::gha::split_pin("a/b"), None);
-    assert_eq!(crate::gha::split_pin("bad action@v1"), None);
+    assert!(crate::bump::gha::parse_workflow_pins("a: [").is_err());
+    assert_eq!(crate::bump::gha::split_pin("a/b@v1"), Some(("a/b", "v1")));
+    assert_eq!(crate::bump::gha::split_pin("a/b@"), Some(("a/b", "")));
+    assert_eq!(crate::bump::gha::split_pin("a/b"), None);
+    assert_eq!(crate::bump::gha::split_pin("bad action@v1"), None);
 }
 
 #[test]
@@ -1041,46 +1044,46 @@ fn commit_response_resolves_sha_or_fails_closed() {
     let sha40 = "3d3c42e5aac5ba805825da76410c181273ba90b1";
     let sha64 = "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08";
     assert_eq!(
-        crate::gha::resolve_sha_from_commit_response(&format!(
+        crate::bump::gha::resolve_sha_from_commit_response(&format!(
             "{{\"sha\": \"{sha40}\", \"commit\": {{}}}}"
         ))
         .expect("sha40"),
         sha40
     );
     assert_eq!(
-        crate::gha::resolve_sha_from_commit_response(&format!("{{\"sha\": \"{sha64}\"}}"))
+        crate::bump::gha::resolve_sha_from_commit_response(&format!("{{\"sha\": \"{sha64}\"}}"))
             .expect("sha64"),
         sha64
     );
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response(""),
-        Err(crate::gha::GhaResolveError::Empty)
+        crate::bump::gha::resolve_sha_from_commit_response(""),
+        Err(crate::bump::gha::GhaResolveError::Empty)
     ));
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response("not json"),
-        Err(crate::gha::GhaResolveError::InvalidJson)
+        crate::bump::gha::resolve_sha_from_commit_response("not json"),
+        Err(crate::bump::gha::GhaResolveError::InvalidJson)
     ));
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response("[1, 2]"),
-        Err(crate::gha::GhaResolveError::InvalidJson)
+        crate::bump::gha::resolve_sha_from_commit_response("[1, 2]"),
+        Err(crate::bump::gha::GhaResolveError::InvalidJson)
     ));
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response("{\"commit\": {}}"),
-        Err(crate::gha::GhaResolveError::MissingSha)
+        crate::bump::gha::resolve_sha_from_commit_response("{\"commit\": {}}"),
+        Err(crate::bump::gha::GhaResolveError::MissingSha)
     ));
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response(
+        crate::bump::gha::resolve_sha_from_commit_response(
             "{\"message\": \"Not Found\", \"documentation_url\": \"https://example.com\"}"
         ),
-        Err(crate::gha::GhaResolveError::Upstream { .. })
+        Err(crate::bump::gha::GhaResolveError::Upstream { .. })
     ));
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response("{\"sha\": \"v5\"}"),
-        Err(crate::gha::GhaResolveError::InvalidSha { .. })
+        crate::bump::gha::resolve_sha_from_commit_response("{\"sha\": \"v5\"}"),
+        Err(crate::bump::gha::GhaResolveError::InvalidSha { .. })
     ));
     assert!(matches!(
-        crate::gha::resolve_sha_from_commit_response("{\"sha\": null}"),
-        Err(crate::gha::GhaResolveError::MissingSha)
+        crate::bump::gha::resolve_sha_from_commit_response("{\"sha\": null}"),
+        Err(crate::bump::gha::GhaResolveError::MissingSha)
     ));
 }
 
@@ -1295,7 +1298,7 @@ fn cargo_manifests_select_the_hub_of_the_cargo_lock() {
         "crate.from_cargo(name = \"other\", cargo_lockfile = \"//other:Cargo.lock\", manifests = [\"//other:Cargo.toml\"])\ncrate.from_cargo(\n    name = \"dx_crates\",\n    cargo_lockfile = \"//rust/tests/fixtures/hello:Cargo.lock\",\n    manifests = [\"//cli/zeta:Cargo.toml\", \"//cli/bump:Cargo.toml\", \"//cli/zeta:Cargo.toml\"],\n)\n",
     );
     assert_eq!(
-        crate::cargo_manifests(&module),
+        crate::bump::cargo_manifests(&module),
         Ok(vec![
             "cli/bump/Cargo.toml".to_owned(),
             "cli/zeta/Cargo.toml".to_owned()
@@ -1332,7 +1335,7 @@ fn cargo_manifests_fail_closed_on_unclear_hubs() {
             "needs literal name",
         ),
     ] {
-        match crate::cargo_manifests(&cargo_module(&hubs)) {
+        match crate::bump::cargo_manifests(&cargo_module(&hubs)) {
             Err(BumpError::UnsupportedManifest { manifest, reason: got }) => {
                 assert_eq!(manifest, "MODULE.bazel");
                 assert!(got.contains(reason), "{got} for {hubs}");

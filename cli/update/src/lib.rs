@@ -9,6 +9,7 @@
 )]
 
 pub mod backend;
+pub mod bump;
 pub mod outcome;
 pub mod recovery;
 pub mod report;

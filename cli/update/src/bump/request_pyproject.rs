@@ -1,7 +1,7 @@
 //! Widening one PEP 508 requirement in a `pyproject.toml`.
 
 use super::BumpError;
-use crate::version::WidenVersion;
+use crate::bump::version::WidenVersion;
 use toml_edit::{Array, DocumentMut, Item, Value};
 
 const MANIFEST: &str = "pyproject.toml";

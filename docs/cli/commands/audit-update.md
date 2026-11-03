@@ -458,7 +458,7 @@ uses the built-in sets above.
 and `github-actions` are file-only and refresh nothing. Review the pin diff
 and run `bazel build //...`.
 
-A version that is already declared reports `bump_no_change`, writes and
+A version that is already declared reports `update_no_change`, writes and
 refreshes nothing, and exits `0`, also under `--frozen` or `--offline`. Only
 manifests whose pin changes are written. When a widen is pending, a set that
 needs a refresh under `--offline` fails before widening with
@@ -473,7 +473,7 @@ a `maven.install` coordinate, a `dependencies` entry in `package.json`, or a
 
 `--fail-on`, `--report`, and Bazel options do not apply.
 `--bazel-startup-option` applies to the Bazel run that refreshes the lock.
-Output: `--output text|json`. JSON emits an `add_declared` notice for an insert, a `bump_widened` notice for each
+Output: `--output text|json`. JSON emits an `add_declared` notice for an insert, a `update_widened` notice for each
 written manifest and an `update_set_success` notice after the lock refresh.
 Exit codes: 0 success, 2 usage or scope errors, 1 a pending widen without
 `--apply` or an operational failure.

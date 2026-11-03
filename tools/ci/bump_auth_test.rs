@@ -1,7 +1,7 @@
 use ci_workflow::steps;
 use dx_testing::read_runfiles;
 
-const WORKFLOW: &str = ".github/workflows/bump.yml";
+const WORKFLOW: &str = ".github/workflows/update.yml";
 
 const ALLOWED: &str = "tools/ci/bump_auth_fixtures/allowed.txt";
 

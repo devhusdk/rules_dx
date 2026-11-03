@@ -1,4 +1,4 @@
-use dx_bump::{BumpError, BumpRequest, BumpSet};
+use dx_update::bump::{BumpError, BumpRequest, BumpSet};
 use dx_update::selector::{parse_selector, SelectorError};
 use dx_update::sets::SetId;
 

@@ -1,4 +1,4 @@
-name: bump
+name: update
 
 on:
   schedule:
@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bump-widen-one-${{ github.ref }}
+  group: update-widen-one-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -83,7 +83,7 @@ jobs:
           set -euo pipefail
           echo "Scheduled discovery (issue #639): enumerating outdated via upstream registry clients (stable only, never custom HTTP)."
           echo "Discovery policy: stable only; prerelease follows upstream resolver/project config, never a private policy; transitives stay resolver-governed."
-          echo "Registry clients: BCR / crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases (planned in dx_bump::discovery; manual selector only rejected)."
+          echo "Registry clients: BCR / crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases (planned in dx_update::discovery; manual selector only rejected)."
           echo ""
           echo "Declared requirements (manifest scan, no fetch):"
           if [[ -f MODULE.bazel ]]; then

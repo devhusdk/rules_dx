@@ -851,25 +851,35 @@ jobs:
     steps:
       - name: Aggregate job results
         env:
-          NEEDS: ${{ toJson(needs) }}
+          NEEDS_COVERAGE_CELLS: ${{ needs.coverage-cells.result }}
+          NEEDS_DOGFOOD: ${{ needs.dogfood.result }}
+          NEEDS_DOCS: ${{ needs.docs.result }}
+          NEEDS_DEVCONTAINER_CHECK: ${{ needs.devcontainer-check.result }}
+          NEEDS_GATE: ${{ needs.gate.result }}
+          NEEDS_HERMETIC: ${{ needs.hermetic.result }}
+          NEEDS_HERMETIC_ARM64: ${{ needs.hermetic-arm64.result }}
+          NEEDS_MSIX_INSTALL: ${{ needs.msix-install.result }}
+          NEEDS_NETWORK: ${{ needs.network.result }}
+          NEEDS_PREFLIGHT: ${{ needs.preflight.result }}
+          NEEDS_PYTHON_DOCS_CONSUMER: ${{ needs.python-docs-consumer.result }}
+          NEEDS_STARTER_CONSUMER: ${{ needs.starter-consumer.result }}
+          NEEDS_WORKFLOW_CHECK: ${{ needs.workflow-check.result }}
         run: |
-          python3 --version
-          python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
-          python3 - <<'DX_AGGREGATE'
-          import json
-          import os
-          import sys
-
-          required = ["coverage-cells", "dogfood", "docs", "devcontainer-check", "gate", "hermetic", "hermetic-arm64", "msix-install", "network", "preflight", "python-docs-consumer", "starter-consumer", "workflow-check"]
-          needs = json.loads(os.environ.get("NEEDS") or "{}")
-          failing = sorted(
-              name
-              for name in required
-              if needs.get(name, {}).get("result") != "success"
-          )
-          print(json.dumps({"aggregate": "ci", "failing checks": failing}))
-          sys.exit(1 if failing else 0)
-          DX_AGGREGATE
+          set -eu
+          export LC_ALL=C
+          required=(coverage-cells dogfood docs devcontainer-check gate hermetic hermetic-arm64 msix-install network preflight python-docs-consumer starter-consumer workflow-check)
+          failing=()
+          for name in "${required[@]}"; do
+            var="NEEDS_${name^^}"
+            var=${var//-/_}
+            [ "${!var:-}" = success ] || failing+=("$name")
+          done
+          list=""
+          for name in $(printf '%s\n' "${failing[@]}" | sort); do
+            list="$list${list:+,}\"$name\""
+          done
+          echo "{\"aggregate\":\"ci\",\"failing checks\":[$list]}"
+          [ ${#failing[@]} -eq 0 ]
       - name: Write job summary
         if: always()
         env:

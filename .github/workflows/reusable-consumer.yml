@@ -565,47 +565,74 @@ jobs:
       contents: read
     steps:
       - name: Aggregate selected check results
-        run: |
-          python3 --version
-          python3 -c 'import sys; assert sys.version_info >= (3, 9), sys.version'
-          python3 - <<'EOF'
-          import json, os, sys
-          required = ["checks", "security-audit", "advisory-snapshots"]
-          needs = json.loads(os.environ["NEEDS"])
-          disabled = {name for name in os.environ["DISABLED"].split(",") if name}
-          if "security-audit" in disabled:
-              disabled.add("advisory-snapshots")
-          results = {name: info.get("result") for name, info in needs.items()}
-          print(json.dumps({"aggregate": "dx-ci", "disabled": sorted(disabled), "needs": results}))
-          if results.get("validate") != "success":
-              print("dx-ci: input validation failed; see the validate job")
-              sys.exit(1)
-          listed = os.environ["CHECKS"]
-          if listed == "":
-              print("dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit")
-              sys.exit(1)
-          if listed == "[]" and "coverage" in disabled:
-              disabled.add("checks")
-          checks = {name: result for name, result in results.items() if name != "validate"}
-          missing = sorted(name for name in required if name not in results)
-          bad = sorted(
-              name for name, result in checks.items()
-              if result not in ("success", "skipped")
-          )
-          lost = sorted(
-              name for name, result in checks.items()
-              if result == "skipped" and name not in disabled
-          )
-          if lost:
-              print(f"dx-ci: skipped without disabled_checks: {', '.join(lost)}")
-          if bad:
-              print(f"dx-ci: failing checks: {', '.join(bad)}")
-          if missing:
-              print(f"dx-ci: missing checks: {', '.join(missing)}")
-          if bad or lost or missing:
-              sys.exit(1)
-          EOF
         env:
-          NEEDS: ${{ toJSON(needs) }}
+          NEEDS_VALIDATE: ${{ needs.validate.result }}
+          NEEDS_CHECKS: ${{ needs.checks.result }}
+          NEEDS_SECURITY_AUDIT: ${{ needs.security-audit.result }}
+          NEEDS_ADVISORY_SNAPSHOTS: ${{ needs.advisory-snapshots.result }}
           DISABLED: ${{ needs.validate.outputs.disabled }}
           CHECKS: ${{ needs.validate.outputs.checks }}
+        run: |
+          set -eu
+          export LC_ALL=C
+          required=(checks security-audit advisory-snapshots)
+          disabled=()
+          result() {
+            local name="NEEDS_${1^^}"
+            echo "${!name:-}"
+          }
+          is_disabled() {
+            case " ${disabled[*]} " in
+              *" $1 "*) return 0 ;;
+            esac
+            return 1
+          }
+          add_disabled() { is_disabled "$1" || disabled+=("$1"); }
+          sorted() { printf '%s\n' "$@" | sort; }
+          json_list() {
+            local out="" item
+            for item in $(sorted "$@"); do out="$out${out:+,}\"$item\""; done
+            echo "[$out]"
+          }
+          say() {
+            local label=$1
+            shift
+            [ $# -eq 0 ] || echo "dx-ci: $label: $(sorted "$@" | paste -sd, - | sed 's/,/, /g')"
+          }
+          IFS=, read -ra given <<<"$DISABLED"
+          for name in "${given[@]}"; do
+            [ -z "$name" ] || add_disabled "$name"
+          done
+          case ",$DISABLED," in
+            *,security-audit,*) add_disabled advisory-snapshots ;;
+          esac
+          needs=""
+          for name in validate "${required[@]}"; do
+            value=$(result "${name//-/_}")
+            [ -z "$value" ] || needs="$needs${needs:+,}\"$name\":\"$value\""
+          done
+          echo "{\"aggregate\":\"dx-ci\",\"disabled\":$(json_list "${disabled[@]}"),\"needs\":{$needs}}"
+          if [ "$(result VALIDATE)" != success ]; then
+            echo "dx-ci: input validation failed; see the validate job"
+            exit 1
+          fi
+          if [ -z "${CHECKS:-}" ]; then
+            echo "dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit"
+            exit 1
+          fi
+          if [ "$CHECKS" = "[]" ] && is_disabled coverage; then
+            add_disabled checks
+          fi
+          lost=() bad=() missing=()
+          for name in "${required[@]}"; do
+            case $(result "${name//-/_}") in
+              "") missing+=("$name") ;;
+              success) ;;
+              skipped) is_disabled "$name" || lost+=("$name") ;;
+              *) bad+=("$name") ;;
+            esac
+          done
+          say "skipped without disabled_checks" "${lost[@]}"
+          say "failing checks" "${bad[@]}"
+          say "missing checks" "${missing[@]}"
+          [ $((${#lost[@]} + ${#bad[@]} + ${#missing[@]})) -eq 0 ]

@@ -29,14 +29,27 @@ fn aggregate_script(workflow: &str, job: &str) -> String {
 fn required_of(script: &str) -> Vec<String> {
     let line = script
         .lines()
-        .find(|line| line.trim_start().starts_with("required = ["))
+        .find(|line| line.trim_start().starts_with("required=("))
         .unwrap_or_else(|| panic!("aggregate script declares no required list: {script}"));
-    let raw = line
-        .trim_start()
-        .trim_start_matches("required = ")
-        .trim_end();
-    serde_json::from_str(raw)
-        .unwrap_or_else(|error| panic!("required list {raw:?} is not a JSON array: {error}"))
+    line.trim_start()
+        .trim_start_matches("required=(")
+        .trim_end_matches(')')
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Asserts the job passes each required result to its script as NEEDS_<NAME>.
+fn assert_results_passed(workflow: &str, job: &str, names: &[String]) {
+    let env = &document(workflow)["jobs"][job]["steps"][0]["env"];
+    for name in names {
+        let var = format!("NEEDS_{}", name.to_uppercase().replace('-', "_"));
+        assert_eq!(
+            env[&var],
+            json!(format!("${{{{ needs.{name}.result }}}}")),
+            "{workflow} job {job} must pass {name} as {var}"
+        );
+    }
 }
 
 /// Returns the declared needs of one job as names.
@@ -82,16 +95,17 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "{CI_WORKFLOW} job {GATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
     );
     let script = aggregate_script(CI_WORKFLOW, GATE);
+    assert_results_passed(CI_WORKFLOW, GATE, &required_of(&script));
     assert_eq!(
         json!(required_of(&script)),
         wanted,
         "{CI_WORKFLOW} job {GATE} must gate every name it needs"
     );
     for needle in [
-        "!= \"success\"",
-        "\"aggregate\": \"ci\"",
-        "\"failing checks\"",
-        "sys.exit(1 if failing else 0)",
+        "= success ]",
+        "\\\"aggregate\\\":\\\"ci\\\"",
+        "failing checks",
+        "[ ${#failing[@]} -eq 0 ]",
     ] {
         assert!(
             script.contains(needle),
@@ -126,19 +140,19 @@ fn the_consumer_gate_requires_every_declared_check() {
         .collect();
     assert_eq!(wanted.len(), 3, "{CONSUMER_WORKFLOW} declares the checks");
     let script = aggregate_script(CONSUMER_WORKFLOW, AGGREGATE);
+    assert_results_passed(CONSUMER_WORKFLOW, AGGREGATE, &wanted);
     assert_eq!(
         json!(required_of(&script)),
         json!(wanted),
         "{CONSUMER_WORKFLOW} job {AGGREGATE} must gate every check it needs"
     );
     for needle in [
-        "results.get(\"validate\") != \"success\"",
-        "result == \"skipped\" and name not in disabled",
+        "!= success ]",
         "skipped without disabled_checks",
         "missing checks",
-        "if bad or lost or missing:",
-        "\"aggregate\": \"dx-ci\"",
-        "os.environ[\"CHECKS\"]",
+        "-eq 0 ]",
+        "\\\"aggregate\\\":\\\"dx-ci\\\"",
+        "-z \"${CHECKS:-}\"",
     ] {
         assert!(
             script.contains(needle),
@@ -164,12 +178,12 @@ fn job_needs(workflow: &str, id: &str, job: &Value) -> Vec<String> {
     }
 }
 
-/// Returns true when a job reads `toJSON(needs)`, so it aggregates its dependencies.
+/// Returns true when a job reads `NEEDS_*` results, so it aggregates its dependencies.
 fn aggregates_needs(job: &Value) -> bool {
     serde_json::to_string(job)
         .expect("serialize job")
         .to_lowercase()
-        .contains("tojson(needs)")
+        .contains("\"needs_")
 }
 
 #[test]

@@ -1,5 +1,4 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//python/rules:defs.bzl", "python_test")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
@@ -39,21 +38,21 @@ filegroup(
 )
 
 # keep
-python_test(
+rust_test(
     name = "aggregate_scripts_test",
     size = "small",
-    srcs = ["aggregate_scripts_test.py"],
-    aspect_hints = ["//:ruff_config"],
+    srcs = ["aggregate_scripts_test.rs"],
     data = [
         ":aggregate_fixtures",
         ":ci_gate_fixtures",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/evidence.yml",
-        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows",
     ],
-    dep_group = "hello",
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
-        "@pypi//pytest",
+        ":ci_workflow",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 
@@ -94,6 +93,29 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
+)
+
+# keep
+rust_library(
+    name = "evidence_inputs",
+    srcs = ["evidence_inputs.rs"],
+    crate_name = "evidence_inputs",
+    deps = ["@crates//:serde_json"],
+)
+
+# keep
+rust_binary(
+    name = "evidence_inputs_bin",
+    srcs = ["evidence_inputs_main.rs"],
+    deps = [":evidence_inputs"],
+)
+
+# keep
+rust_test(
+    name = "evidence_inputs_test",
+    size = "small",
+    srcs = ["evidence_inputs_test.rs"],
+    deps = [":evidence_inputs"],
 )
 
 # keep
@@ -964,6 +986,7 @@ rustfmt_test(
         ":advisory_launch_test",
         ":advisory_snapshots_test",
         ":aggregate_gates_test",
+        ":aggregate_scripts_test",
         ":artifact_writes_test",
         ":bcr_outdated_test",
         ":bump_auth_test",
@@ -974,6 +997,7 @@ rustfmt_test(
         ":consumer_reports_test",
         ":crate_platform_pins_test",
         ":docs_deploy_test",
+        ":evidence_inputs_test",
         ":gitlab_example_test",
         ":junit_summary_test",
         ":release_assets_test",

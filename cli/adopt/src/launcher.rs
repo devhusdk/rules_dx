@@ -108,12 +108,50 @@ impl LauncherPins {
     }
 }
 
-/// The sha256 pins for dx `version`'s release assets.
+/// The sha256 pins for dx `version`'s release assets, read from `cli/prebuilt/pins.bzl`.
 ///
-/// Always unreleased (empty) for now: no dx release exists yet. Delivering
-/// real pins through the release source archive is the follow-up to #2294.
-pub fn release_pins(_version: &str) -> Result<LauncherPins, AdoptError> {
-    Ok(LauncherPins::unreleased())
+/// Unreleased (empty) when `version` is not the pinned release or a pin is empty.
+pub fn release_pins(version: &str) -> Result<LauncherPins, AdoptError> {
+    pins_from_bzl(include_str!("../../prebuilt/pins.bzl"), version)
+}
+
+fn pins_from_bzl(text: &str, version: &str) -> Result<LauncherPins, AdoptError> {
+    let mut pinned_version = None;
+    let mut pins = LauncherPins::default();
+    let mut in_sha256 = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("DX_VERSION") {
+            pinned_version = quoted(rest.trim_start().strip_prefix('=').unwrap_or(""));
+        } else if line.starts_with("SHA256") {
+            in_sha256 = true;
+        } else if in_sha256 && line.starts_with('}') {
+            in_sha256 = false;
+        } else if in_sha256 {
+            let Some((asset, hash)) = line.split_once(':') else {
+                continue;
+            };
+            let (Some(asset), Some(hash)) = (quoted(asset), quoted(hash.trim_end_matches(',')))
+            else {
+                return Err(pins_error(format!("bad pins.bzl line {line:?}")));
+            };
+            let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
+                return Err(pins_error(format!("unknown asset {asset:?}")));
+            };
+            if !valid_pin(hash) {
+                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
+            }
+            pins.sha256[i] = hash.to_owned();
+        }
+    }
+    if pinned_version != Some(version) || pins.sha256.iter().any(String::is_empty) {
+        return Ok(LauncherPins::unreleased());
+    }
+    Ok(pins)
+}
+
+fn quoted(text: &str) -> Option<&str> {
+    text.trim().strip_prefix('"')?.strip_suffix('"')
 }
 
 /// The archive asset name for a raw release asset: `.zip` on Windows, `.tar.gz` elsewhere.
@@ -707,6 +745,44 @@ mod tests {
                 "{text:?}"
             );
         }
+    }
+
+    fn bzl(version: &str, hash: &str) -> String {
+        let rows: String = RELEASE_ASSETS
+            .iter()
+            .map(|asset| format!("    \"{asset}\": \"{hash}\",\n"))
+            .collect();
+        format!("DX_VERSION = \"{version}\"\n\nSHA256 = {{\n{rows}}}\n")
+    }
+
+    #[test]
+    fn pins_from_bzl_returns_pins_for_the_pinned_version() {
+        let hash = "a".repeat(64);
+        let pins = pins_from_bzl(&bzl("1.2.3", &hash), "1.2.3").expect("pins");
+        for asset in RELEASE_ASSETS {
+            assert_eq!(pins.get(asset), Some(hash.as_str()));
+        }
+    }
+
+    #[test]
+    fn pins_from_bzl_is_unreleased_for_other_versions_and_empty_values() {
+        let hash = "a".repeat(64);
+        assert_eq!(
+            pins_from_bzl(&bzl("1.2.3", &hash), "1.2.4").expect("pins"),
+            LauncherPins::unreleased()
+        );
+        assert_eq!(
+            pins_from_bzl(&bzl("1.2.3", ""), "1.2.3").expect("pins"),
+            LauncherPins::unreleased()
+        );
+    }
+
+    #[test]
+    fn pins_from_bzl_rejects_malformed_values() {
+        assert!(matches!(
+            pins_from_bzl(&bzl("1.2.3", "XYZ"), "1.2.3"),
+            Err(AdoptError::LauncherPins { .. })
+        ));
     }
 
     #[test]

@@ -219,11 +219,11 @@ fn only_selector_scoped_manifests_stage() {
     );
     for arm in [
         "bazel)",
-        "cargo)",
+        "dx_crates)",
+        "dx_npm)",
         "github-actions)",
         "go)",
         "maven)",
-        "npm)",
         "nuget)",
     ] {
         assert!(

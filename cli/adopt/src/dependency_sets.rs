@@ -1,10 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-pub const DX_TOML_REL: &str = "dx.toml";
-
-pub const SCHEMA_VERSION: u32 = 1;
-
 pub const ECOSYSTEM_UV: &str = "uv";
 
 pub const ECOSYSTEM_NPM: &str = "npm";
@@ -193,7 +189,6 @@ pub struct DependencySet {
     pub manifests: Vec<String>,
     pub locks: Vec<String>,
     pub scopes: Vec<String>,
-    pub writable: bool,
     pub repository: Option<String>,
 }
 
@@ -229,7 +224,6 @@ pub struct ResolvedSet {
     pub dir: String,
     pub manifests: Vec<String>,
     pub locks: Vec<String>,
-    pub writable: bool,
     pub repository: Option<String>,
 }
 
@@ -241,7 +235,6 @@ impl ResolvedSet {
             dir: manifest_dir(&set.manifests),
             manifests: set.manifests.clone(),
             locks: set.locks.clone(),
-            writable: set.writable,
             repository: set.repository.clone(),
         }
     }
@@ -255,68 +248,27 @@ pub enum DependencySetsError {
     NotUtf8 { rel: String },
     #[error("invalid {rel}: {detail}")]
     InvalidToml { rel: String, detail: String },
-    #[error("invalid {rel}: missing schema_version (want {SCHEMA_VERSION})")]
-    MissingSchema { rel: String },
-    #[error("invalid {rel}: unsupported schema_version {version} (want {SCHEMA_VERSION})")]
-    UnsupportedSchema { rel: String, version: u32 },
-    #[error("invalid {rel}: declares no dependency_set records")]
-    NoSets { rel: String },
-    #[error("invalid {rel}: dependency set {index} is missing name")]
-    MissingName { rel: String, index: usize },
-    #[error("invalid {rel}: dependency set name {name:?} is empty or has surrounding whitespace")]
-    EmptyName { rel: String, name: String },
+    #[error("cannot read dependency sets from {MODULE_BAZEL}: {detail}")]
+    Module { detail: String },
     #[error(
-        "invalid {rel}: dependency set name {name:?} must start alphanumerically and use [A-Za-z0-9_.-] only"
+        "invalid {MODULE_BAZEL}: dependency set name {name:?} must start alphanumerically and use [A-Za-z0-9_.-] only"
     )]
-    InvalidName { rel: String, name: String },
-    #[error("invalid {rel}: dependency set {name:?} is missing ecosystem")]
-    MissingEcosystem { rel: String, name: String },
+    InvalidName { name: String },
     #[error(
-        "invalid {rel}: dependency set {name:?} has unknown ecosystem {kind:?} (want {SUPPORTED_ECOSYSTEMS})"
+        "invalid {MODULE_BAZEL}: dependency set {name:?} owns path {path:?} which escapes the workspace"
     )]
-    UnknownEcosystem {
-        rel: String,
-        name: String,
-        kind: String,
-    },
-    #[error("invalid {rel}: dependency set {name:?} owns no manifests")]
-    MissingManifests { rel: String, name: String },
-    #[error("invalid {rel}: dependency set {name:?} owns no locks")]
-    MissingLocks { rel: String, name: String },
-    #[error("invalid {rel}: dependency set {name:?} owns no scopes")]
-    MissingScopes { rel: String, name: String },
-    #[error(
-        "invalid {rel}: dependency set {name:?} owns path {path:?} which escapes the workspace (workspace-relative paths only, no absolute paths or '..')"
-    )]
-    EscapingPath {
-        rel: String,
-        name: String,
-        path: String,
-    },
-    #[error("invalid {rel}: dependency set {name:?} manifest {path:?} must be named {want} for ecosystem {ecosystem}")]
+    EscapingPath { name: String, path: String },
+    #[error("invalid {MODULE_BAZEL}: dependency set {name:?} manifest {path:?} must be named {want} for ecosystem {ecosystem}")]
     InvalidManifest {
-        rel: String,
         name: String,
         path: String,
         want: &'static str,
         ecosystem: &'static str,
     },
-    #[error("invalid {rel}: dependency set {name:?} owns empty path")]
-    EmptyPath { rel: String, name: String },
-    #[error(
-        "invalid {rel}: dependency set {name:?} spreads manifests across directories (keep one directory per set)"
-    )]
-    ScatteredManifests { rel: String, name: String },
-    #[error("invalid {rel}: duplicate dependency set name {name:?}")]
-    DuplicateName { rel: String, name: String },
-    #[error(
-        "invalid {rel}: {path:?} is owned writable by dependency sets {names} (mark all but one writable = false for shared read-only ownership)"
-    )]
-    ConflictingOwnership {
-        rel: String,
-        path: String,
-        names: String,
-    },
+    #[error("invalid {MODULE_BAZEL}: duplicate dependency set name {name:?}")]
+    DuplicateName { name: String },
+    #[error("invalid {MODULE_BAZEL}: {path:?} is owned by dependency sets {names}")]
+    ConflictingOwnership { path: String, names: String },
     #[error("unknown dependency set or scope {selector:?}; expected {names}, set:package, or a workspace path")]
     UnknownSelector { selector: String, names: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
@@ -327,8 +279,6 @@ pub enum DependencySetsError {
     },
     #[error("no owning dependency set for {scope:?} (non-dependency paths are out of dependency-set scope; sets: {names})")]
     NoOwningSet { scope: String, names: String },
-    #[error("dependency set {name:?} is read-only (writable = false); refusing to update")]
-    ReadOnlyUpdate { name: String },
     #[error("dependency set {name:?} is missing {path} (declared in {rel})")]
     MissingFile {
         name: String,
@@ -355,8 +305,6 @@ pub enum DependencySetsError {
         path: String,
         ecosystem: &'static str,
     },
-    #[error("invalid {rel}: dependency set {name:?} must list exactly MODULE.bazel as its manifest (maven resolves through the root module)")]
-    MavenManifest { rel: String, name: String },
     #[error("dependency set {name:?} cannot resolve maven hub {repository:?}: {detail}")]
     UnsupportedMavenHub {
         name: String,
@@ -373,31 +321,8 @@ pub enum DependencySetsError {
     UnsupportedNugetLayout { name: String, detail: String },
     #[error("dependency set {name:?} cannot run go mod download: {detail}")]
     UnsupportedGoLayout { name: String, detail: String },
-    #[error("invalid {rel}: dependency set {name:?} is missing repository (the Bazel repository name ecosystem {ecosystem} resolves through)")]
-    MissingRepository {
-        rel: String,
-        name: String,
-        ecosystem: &'static str,
-    },
-    #[error("invalid {rel}: dependency set {name:?} sets repository, which ecosystem {ecosystem} does not use")]
-    UnexpectedRepository {
-        rel: String,
-        name: String,
-        ecosystem: &'static str,
-    },
-    #[error("invalid {rel}: dependency set {name:?} repository {repository:?} must start with a letter and use [A-Za-z0-9_.-] only")]
-    InvalidRepository {
-        rel: String,
-        name: String,
-        repository: String,
-    },
-    #[error("invalid {rel}: dependency sets {names} share {ecosystem} repository {repository:?} (one resolve would write both sets' locks)")]
-    DuplicateRepository {
-        rel: String,
-        names: String,
-        ecosystem: &'static str,
-        repository: String,
-    },
+    #[error("invalid {MODULE_BAZEL}: dependency set {name:?} repository {repository:?} must start with a letter and use [A-Za-z0-9_.-] only")]
+    InvalidRepository { name: String, repository: String },
 }
 
 const UV_PROJECT_KEYS: &[&str] = &[
@@ -412,247 +337,233 @@ const UV_PROJECT_KEYS: &[&str] = &[
     "workspace",
 ];
 
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DxToml {
-    schema_version: Option<u32>,
-    #[serde(default)]
-    dependency_set: Vec<RawSet>,
-    #[serde(default)]
-    dx: Option<toml::Value>,
-    #[serde(default)]
-    quality: Option<QualityTable>,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct QualityTable {
-    #[serde(default)]
-    #[allow(dead_code)]
-    baseline: Option<String>,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawSet {
-    name: Option<String>,
-    ecosystem: Option<String>,
-    #[serde(default)]
-    manifests: Vec<String>,
-    #[serde(default)]
-    locks: Vec<String>,
-    #[serde(default)]
-    scopes: Vec<String>,
-    #[serde(default = "default_writable")]
-    writable: bool,
-    #[serde(default)]
-    repository: Option<String>,
-}
-
-fn default_writable() -> bool {
-    true
-}
-
+/// Reads the dependency sets from the hubs in the root MODULE.bazel and its includes.
 pub fn load(workspace: &Path) -> Result<Option<Registry>, DependencySetsError> {
-    let rel = DX_TOML_REL.to_owned();
-    let bytes = match std::fs::read(workspace.join(DX_TOML_REL)) {
+    let root = match std::fs::read_to_string(workspace.join(MODULE_BAZEL)) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
             return Err(DependencySetsError::Read {
-                rel,
+                rel: MODULE_BAZEL.to_owned(),
                 detail: error.to_string(),
             });
         }
-        Ok(bytes) => bytes,
+        Ok(text) => text,
     };
-    let text =
-        String::from_utf8(bytes).map_err(|_| DependencySetsError::NotUtf8 { rel: rel.clone() })?;
-    parse(&text, &rel)
+    discover(&root, &|rel: &str| {
+        std::fs::read_to_string(workspace.join(rel)).map_err(|error| format!("{rel}: {error}"))
+    })
 }
 
-pub fn parse(text: &str, rel: &str) -> Result<Option<Registry>, DependencySetsError> {
-    let document: DxToml =
-        toml::from_str(text).map_err(|error| DependencySetsError::InvalidToml {
-            rel: rel.to_owned(),
-            detail: error.to_string(),
-        })?;
-    let has_defaults = document.dx.is_some() || document.quality.is_some();
-    match document.schema_version {
-        None if document.dependency_set.is_empty() && has_defaults => return Ok(None),
-        None => {
-            return Err(DependencySetsError::MissingSchema {
-                rel: rel.to_owned(),
-            });
+/// The dependency sets of the hubs in `root`; `read` returns a workspace file by its path.
+pub fn discover(
+    root: &str,
+    read: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<Option<Registry>, DependencySetsError> {
+    let module_error = |detail: String| DependencySetsError::Module { detail };
+    let read_include = |label: &str| read(&dx_module_bazel::include_rel("", label)?);
+    let modules = dx_module_bazel::load_with_includes(root, &read_include).map_err(module_error)?;
+    let path = |label: &str| dx_module_bazel::label_path(label).map_err(module_error);
+    let hub = |error: dx_module_bazel::ModuleError| module_error(error.to_string());
+    let mut sets = Vec::new();
+    for module in &modules {
+        for cargo in module.cargo_hubs().map_err(hub)? {
+            let Some(cargo_lock) = cargo.cargo_lockfile else {
+                continue;
+            };
+            let cargo_lock = path(cargo_lock)?;
+            let lock_dir = manifest_dir(std::slice::from_ref(&cargo_lock));
+            let mut manifests = cargo
+                .manifests
+                .iter()
+                .map(|manifest| path(&manifest.value))
+                .collect::<Result<Vec<_>, _>>()?;
+            if let Some(at) = manifests
+                .iter()
+                .position(|manifest| manifest_dir(std::slice::from_ref(manifest)) == lock_dir)
+            {
+                let first = manifests.remove(at);
+                manifests.insert(0, first);
+            }
+            let mut locks = vec![cargo_lock];
+            if let Some(lockfile) = cargo.lockfile {
+                locks.push(path(lockfile)?);
+            }
+            sets.push(hub_set(cargo.name, Ecosystem::Cargo, manifests, locks)?);
         }
-        Some(version) if version != SCHEMA_VERSION => {
-            return Err(DependencySetsError::UnsupportedSchema {
-                rel: rel.to_owned(),
-                version,
-            });
+        for install in module.maven_installs().map_err(hub)? {
+            let Some(lock) = install.lock_file else {
+                continue;
+            };
+            sets.push(hub_set(
+                install.name,
+                Ecosystem::Maven,
+                vec![MODULE_BAZEL.to_owned()],
+                vec![path(lock)?],
+            )?);
         }
-        Some(_) => {}
-    }
-    if document.dependency_set.is_empty() {
-        if has_defaults {
-            return Ok(None);
+        for npm in module.npm_translate_locks().map_err(hub)? {
+            let Some(lock) = npm.pnpm_lock else {
+                continue;
+            };
+            let lock = path(lock)?;
+            let manifest = beside(&lock, "package.json");
+            sets.push(hub_set(
+                npm.name,
+                Ecosystem::Npm,
+                vec![manifest],
+                vec![lock],
+            )?);
         }
-        return Err(DependencySetsError::NoSets {
-            rel: rel.to_owned(),
-        });
+        for project in module.uv_projects().map_err(hub)? {
+            let manifest = path(project.pyproject)?;
+            let dir = manifest_dir(std::slice::from_ref(&manifest));
+            let name = match dir.rsplit('/').next() {
+                Some(".") | None => project.hub_name.to_owned(),
+                Some(base) => format!("{}-{base}", project.hub_name),
+            };
+            sets.push(hub_set(
+                &name,
+                Ecosystem::Uv,
+                vec![manifest],
+                vec![path(project.lock)?],
+            )?);
+        }
+        for go in module.go_deps_files().map_err(hub)? {
+            let manifest = path(go.go_mod)?;
+            let lock = beside(&manifest, GO_SUM);
+            sets.push(hub_set("go", Ecosystem::Go, vec![manifest], vec![lock])?);
+        }
+        for bundle in module.bundle_fetches().map_err(hub)? {
+            sets.push(hub_set(
+                bundle.name,
+                Ecosystem::Ruby,
+                vec![path(bundle.gemfile)?],
+                vec![path(bundle.gemfile_lock)?],
+            )?);
+        }
+        let mut groups = BTreeSet::new();
+        for label in module.paket_extensions() {
+            groups.extend(paket_groups(label, read)?);
+        }
+        if let Some(first) = groups.first() {
+            let folder = manifest_dir(std::slice::from_ref(first));
+            let parent = manifest_dir(std::slice::from_ref(&folder));
+            let mut locks = vec![in_dir(&parent, PAKET_LOCK)];
+            locks.extend(groups);
+            sets.push(hub_set(
+                "nuget",
+                Ecosystem::Nuget,
+                vec![in_dir(&parent, "paket.dependencies")],
+                locks,
+            )?);
+        }
     }
-    let mut sets = Vec::with_capacity(document.dependency_set.len());
-    for (index, raw) in document.dependency_set.iter().enumerate() {
-        sets.push(validate_set(raw, index, rel)?);
+    if sets.is_empty() {
+        return Ok(None);
     }
-    check_conflicts(&sets, rel)?;
+    check_conflicts(&sets)?;
     sets.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(Some(Registry { sets }))
 }
 
-fn validate_set(
-    raw: &RawSet,
-    index: usize,
-    rel: &str,
-) -> Result<DependencySet, DependencySetsError> {
-    let name = match &raw.name {
-        None => {
-            return Err(DependencySetsError::MissingName {
-                rel: rel.to_owned(),
-                index,
-            });
-        }
-        Some(name) => name.clone(),
-    };
-    if name.is_empty() || name.trim() != name {
-        return Err(DependencySetsError::EmptyName {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    if !valid_name(&name) {
-        return Err(DependencySetsError::InvalidName {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    let ecosystem = match &raw.ecosystem {
-        None => {
-            return Err(DependencySetsError::MissingEcosystem {
-                rel: rel.to_owned(),
-                name,
-            });
-        }
-        Some(kind) => match Ecosystem::parse(kind) {
-            None => {
-                return Err(DependencySetsError::UnknownEcosystem {
-                    rel: rel.to_owned(),
-                    name,
-                    kind: kind.clone(),
-                });
-            }
-            Some(ecosystem) => ecosystem,
-        },
-    };
-    if raw.manifests.is_empty() {
-        return Err(DependencySetsError::MissingManifests {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    if raw.locks.is_empty() {
-        return Err(DependencySetsError::MissingLocks {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    if raw.scopes.is_empty() {
-        return Err(DependencySetsError::MissingScopes {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    for path in raw
-        .manifests
-        .iter()
-        .chain(raw.locks.iter())
-        .chain(raw.scopes.iter())
+/// The generated `paket.<group>.bzl` files a paket extension label loads.
+fn paket_groups(
+    label: &str,
+    read: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<Vec<String>, DependencySetsError> {
+    let module_error = |detail: String| DependencySetsError::Module { detail };
+    let bzl = dx_module_bazel::label_path(label).map_err(module_error)?;
+    let package = manifest_dir(std::slice::from_ref(&bzl));
+    let file = bzl.rsplit('/').next().unwrap_or(&bzl);
+    if let Some(group) = file
+        .strip_prefix("paket.")
+        .and_then(|rest| rest.strip_suffix("_extension.bzl"))
     {
-        if path.is_empty() {
-            return Err(DependencySetsError::EmptyPath {
-                rel: rel.to_owned(),
-                name: name.clone(),
-            });
+        return Ok(vec![in_dir(&package, &format!("paket.{group}.bzl"))]);
+    }
+    let text = read(&bzl).map_err(module_error)?;
+    let loads =
+        dx_module_bazel::load_labels(&text).map_err(|error| module_error(error.to_string()))?;
+    let mut groups = Vec::new();
+    for load in loads {
+        let target = match load.strip_prefix(':') {
+            Some(name) => in_dir(&package, name),
+            None if load.starts_with("//") => {
+                dx_module_bazel::label_path(&load).map_err(module_error)?
+            }
+            None => continue,
+        };
+        let name = target.rsplit('/').next().unwrap_or(&target);
+        if name.starts_with("paket.") && name.ends_with(".bzl") && !name.ends_with("_extension.bzl")
+        {
+            groups.push(target);
         }
-        if escapes_workspace(path) {
+    }
+    Ok(groups)
+}
+
+fn beside(file: &str, name: &str) -> String {
+    in_dir(&manifest_dir(&[file.to_owned()]), name)
+}
+
+/// One set for a hub: scopes are the directories of its files.
+fn hub_set(
+    name: &str,
+    ecosystem: Ecosystem,
+    manifests: Vec<String>,
+    locks: Vec<String>,
+) -> Result<DependencySet, DependencySetsError> {
+    let mut scopes = BTreeSet::new();
+    for file in manifests.iter().chain(&locks) {
+        if file != MODULE_BAZEL {
+            scopes.insert(manifest_dir(std::slice::from_ref(file)));
+        }
+    }
+    let set = DependencySet {
+        name: name.to_owned(),
+        ecosystem,
+        manifests,
+        locks,
+        scopes: scopes.into_iter().collect(),
+        repository: ecosystem.uses_repository().then(|| name.to_owned()),
+    };
+    validate_set(&set)?;
+    Ok(set)
+}
+
+fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
+    let name = &set.name;
+    if !valid_name(name) {
+        return Err(DependencySetsError::InvalidName { name: name.clone() });
+    }
+    for path in set.manifests.iter().chain(&set.locks) {
+        if path.is_empty() || escapes_workspace(path) {
             return Err(DependencySetsError::EscapingPath {
-                rel: rel.to_owned(),
                 name: name.clone(),
                 path: path.clone(),
             });
         }
     }
-    for manifest in &raw.manifests {
+    for manifest in &set.manifests {
         let file = manifest.rsplit('/').next().unwrap_or(manifest);
-        if file != ecosystem.manifest_name() {
+        if file != set.ecosystem.manifest_name() {
             return Err(DependencySetsError::InvalidManifest {
-                rel: rel.to_owned(),
-                name,
+                name: name.clone(),
                 path: manifest.clone(),
-                want: ecosystem.manifest_name(),
-                ecosystem: ecosystem.name(),
+                want: set.ecosystem.manifest_name(),
+                ecosystem: set.ecosystem.name(),
             });
         }
     }
-    if ecosystem == Ecosystem::Maven && raw.manifests != [MODULE_BAZEL] {
-        return Err(DependencySetsError::MavenManifest {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    let mut dirs = BTreeSet::new();
-    for manifest in &raw.manifests {
-        dirs.insert(manifest_dir(std::slice::from_ref(manifest)));
-    }
-    // A crate_universe hub reads manifests from many directories; the first sits beside the lock.
-    if dirs.len() != 1 && ecosystem != Ecosystem::Cargo {
-        return Err(DependencySetsError::ScatteredManifests {
-            rel: rel.to_owned(),
-            name,
-        });
-    }
-    match (&raw.repository, ecosystem.uses_repository()) {
-        (None, true) => {
-            return Err(DependencySetsError::MissingRepository {
-                rel: rel.to_owned(),
-                name,
-                ecosystem: ecosystem.name(),
-            });
-        }
-        (Some(_), false) => {
-            return Err(DependencySetsError::UnexpectedRepository {
-                rel: rel.to_owned(),
-                name,
-                ecosystem: ecosystem.name(),
-            });
-        }
-        (Some(repository), true) if !valid_repository(repository) => {
+    if let Some(repository) = &set.repository {
+        if !valid_repository(repository) {
             return Err(DependencySetsError::InvalidRepository {
-                rel: rel.to_owned(),
-                name,
+                name: name.clone(),
                 repository: repository.clone(),
             });
         }
-        _ => {}
     }
-    Ok(DependencySet {
-        name,
-        ecosystem,
-        manifests: raw.manifests.clone(),
-        locks: raw.locks.clone(),
-        scopes: raw.scopes.clone(),
-        writable: raw.writable,
-        repository: raw.repository.clone(),
-    })
+    Ok(())
 }
 
 /// Accepts a Bazel apparent repository name; it flows into argv and env, so no '@', ',' or '/'.
@@ -720,42 +631,17 @@ pub fn manifest_dir(manifests: &[String]) -> String {
     }
 }
 
-fn check_conflicts(sets: &[DependencySet], rel: &str) -> Result<(), DependencySetsError> {
+fn check_conflicts(sets: &[DependencySet]) -> Result<(), DependencySetsError> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     for set in sets {
         if !seen.insert(set.name.as_str()) {
             return Err(DependencySetsError::DuplicateName {
-                rel: rel.to_owned(),
                 name: set.name.clone(),
-            });
-        }
-    }
-    let mut repositories: BTreeMap<(Ecosystem, &str), Vec<&str>> = BTreeMap::new();
-    for set in sets {
-        if let Some(repository) = &set.repository {
-            repositories
-                .entry((set.ecosystem, repository.as_str()))
-                .or_default()
-                .push(set.name.as_str());
-        }
-    }
-    for ((ecosystem, repository), mut names) in repositories {
-        if names.len() > 1 {
-            names.sort();
-            return Err(DependencySetsError::DuplicateRepository {
-                rel: rel.to_owned(),
-                names: names.join(", "),
-                ecosystem: ecosystem.name(),
-                repository: repository.to_owned(),
             });
         }
     }
     let mut writers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for set in sets {
-        if !set.writable {
-            continue;
-        }
-        // Maven hubs share the root MODULE.bazel; each set still owns its locks.
         let manifests: &[String] = if set.ecosystem == Ecosystem::Maven {
             &[]
         } else {
@@ -773,7 +659,6 @@ fn check_conflicts(sets: &[DependencySet], rel: &str) -> Result<(), DependencySe
         names.dedup();
         if names.len() > 1 {
             return Err(DependencySetsError::ConflictingOwnership {
-                rel: rel.to_owned(),
                 path: path.to_owned(),
                 names: names.join(", "),
             });
@@ -1151,12 +1036,12 @@ pub fn check_files(
     let missing = |path: &String| DependencySetsError::MissingFile {
         name: set.name.clone(),
         path: path.clone(),
-        rel: DX_TOML_REL.to_owned(),
+        rel: MODULE_BAZEL.to_owned(),
     };
     let outside = |path: &String| DependencySetsError::OutsideWorkspace {
         name: set.name.clone(),
         path: path.clone(),
-        rel: DX_TOML_REL.to_owned(),
+        rel: MODULE_BAZEL.to_owned(),
     };
     for path in &set.manifests {
         resolve_existing(workspace, path, &missing, &outside)?;
@@ -1760,7 +1645,7 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
                     DependencySetsError::OutsideWorkspace {
                         name: set.name.clone(),
                         path: manifest.clone(),
-                        rel: DX_TOML_REL.to_owned(),
+                        rel: MODULE_BAZEL.to_owned(),
                     }
                 } else {
                     DependencySetsError::Read {
@@ -1802,301 +1687,310 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
     Ok(())
 }
 
-pub fn check_writable(set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    if set.writable {
-        return Ok(());
-    }
-    Err(DependencySetsError::ReadOnlyUpdate {
-        name: set.name.clone(),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const TWO_UV_SETS: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-
-[[dependency_set]]
-name = "worker"
-ecosystem = "uv"
-manifests = ["services/worker/pyproject.toml"]
-locks = ["services/worker/uv.lock"]
-scopes = ["services/worker"]
-"#;
-
-    fn load_text(text: &str) -> Registry {
-        parse(text, DX_TOML_REL)
-            .expect("valid registry")
-            .expect("registry present")
-    }
+    type Spec<'a> = (&'a str, Ecosystem, &'a [&'a str], &'a [&'a str]);
 
     fn strings(words: &[&str]) -> Vec<String> {
         words.iter().map(|word| (*word).to_owned()).collect()
     }
 
+    fn try_registry(specs: &[Spec<'_>]) -> Result<Registry, DependencySetsError> {
+        let mut sets = Vec::new();
+        for (name, ecosystem, manifests, locks) in specs {
+            sets.push(hub_set(
+                name,
+                *ecosystem,
+                strings(manifests),
+                strings(locks),
+            )?);
+        }
+        check_conflicts(&sets)?;
+        sets.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(Registry { sets })
+    }
+
+    fn registry(specs: &[Spec<'_>]) -> Registry {
+        try_registry(specs).expect("valid registry")
+    }
+
+    fn two_uv() -> Registry {
+        registry(&[
+            (
+                "frontend",
+                Ecosystem::Uv,
+                &["apps/frontend/pyproject.toml"],
+                &["apps/frontend/uv.lock"],
+            ),
+            (
+                "worker",
+                Ecosystem::Uv,
+                &["services/worker/pyproject.toml"],
+                &["services/worker/uv.lock"],
+            ),
+        ])
+    }
+
+    fn discovered(
+        root: &str,
+        files: &[(&str, &str)],
+    ) -> Result<Option<Registry>, DependencySetsError> {
+        let files: BTreeMap<String, String> = files
+            .iter()
+            .map(|(path, text)| ((*path).to_owned(), (*text).to_owned()))
+            .collect();
+        discover(root, &|rel: &str| {
+            files
+                .get(rel)
+                .cloned()
+                .ok_or_else(|| format!("{rel}: missing"))
+        })
+    }
+
+    fn found(root: &str, files: &[(&str, &str)]) -> Registry {
+        discovered(root, files)
+            .expect("valid hubs")
+            .expect("hubs present")
+    }
+
+    const CRATE_EXT: &str =
+        "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n";
+    const MAVEN_EXT: &str =
+        "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n";
+    const NPM_EXT: &str =
+        "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n";
+    const UV_EXT: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\n";
+
     #[test]
-    fn two_same_ecosystem_sets_load_sorted_by_name() {
-        let registry = load_text(TWO_UV_SETS);
+    fn cargo_hubs_become_sets_with_the_lock_dir_manifest_first() {
+        let module = format!(
+            "{CRATE_EXT}crate.from_cargo(name = \"dx_crates\", cargo_lockfile = \"//b:Cargo.lock\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//a:Cargo.toml\", \"//b:Cargo.toml\"])\ncrate.from_cargo(name = \"nolock\", manifests = [\"//c:Cargo.toml\"])\n"
+        );
+        let registry = found(&module, &[]);
+        assert_eq!(registry.names(), vec!["dx_crates"]);
+        let set = registry.find("dx_crates").expect("set");
+        assert_eq!(set.ecosystem, Ecosystem::Cargo);
+        assert_eq!(set.manifests, ["b/Cargo.toml", "a/Cargo.toml"]);
+        assert_eq!(set.locks, ["b/Cargo.lock", "cargo-bazel-lock.json"]);
+        assert_eq!(set.scopes, [".", "a", "b"]);
+        assert_eq!(set.repository.as_deref(), Some("dx_crates"));
+        assert_eq!(ResolvedSet::of(set).dir, "b");
+    }
+
+    #[test]
+    fn maven_installs_with_a_lock_file_become_sets() {
+        let module = format!(
+            "{MAVEN_EXT}maven.install(lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"nolock\")\n"
+        );
+        let registry = found(&module, &[]);
+        assert_eq!(registry.names(), vec!["maven"]);
+        let set = registry.find("maven").expect("maven");
+        assert_eq!(set.ecosystem, Ecosystem::Maven);
+        assert_eq!(set.manifests, [MODULE_BAZEL]);
+        assert_eq!(set.locks, ["third_party/maven_install.json"]);
+        assert_eq!(set.scopes, ["third_party"]);
+        assert_eq!(set.repository.as_deref(), Some("maven"));
+    }
+
+    #[test]
+    fn npm_translate_locks_become_sets() {
+        let module = format!(
+            "{NPM_EXT}npm.npm_translate_lock(name = \"web\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"bare\")\n"
+        );
+        let registry = found(&module, &[]);
+        assert_eq!(registry.names(), vec!["web"]);
+        let set = registry.find("web").expect("web");
+        assert_eq!(set.ecosystem, Ecosystem::Npm);
+        assert_eq!(set.manifests, ["apps/web/package.json"]);
+        assert_eq!(set.locks, ["apps/web/pnpm-lock.yaml"]);
+        assert_eq!(set.repository, None);
+    }
+
+    #[test]
+    fn uv_projects_are_named_by_hub_and_directory() {
+        let module = format!(
+            "{UV_EXT}uv.project(hub_name = \"pypi\", lock = \"//apps/api:uv.lock\", pyproject = \"//apps/api:pyproject.toml\")\nuv.project(hub_name = \"pypi\", lock = \"//:uv.lock\", pyproject = \"//:pyproject.toml\")\n"
+        );
+        let registry = found(&module, &[]);
+        assert_eq!(registry.names(), vec!["pypi", "pypi-api"]);
+        let api = registry.find("pypi-api").expect("api");
+        assert_eq!(api.ecosystem, Ecosystem::Uv);
+        assert_eq!(api.manifests, ["apps/api/pyproject.toml"]);
+        assert_eq!(api.locks, ["apps/api/uv.lock"]);
+        assert_eq!(registry.find("pypi").expect("root").scopes, ["."]);
+    }
+
+    #[test]
+    fn go_deps_files_become_the_go_set() {
+        let module = "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n";
+        let registry = found(module, &[]);
+        let set = registry.find("go").expect("go");
+        assert_eq!(set.ecosystem, Ecosystem::Go);
+        assert_eq!(set.manifests, ["third_party/go/go.mod"]);
+        assert_eq!(set.locks, ["third_party/go/go.sum"]);
+    }
+
+    #[test]
+    fn bundle_fetches_become_ruby_sets() {
+        let module = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
+        let registry = found(module, &[]);
+        let set = registry.find("bundle").expect("bundle");
+        assert_eq!(set.ecosystem, Ecosystem::Ruby);
+        assert_eq!(set.manifests, ["r/Gemfile"]);
+        assert_eq!(set.locks, ["r/Gemfile.lock"]);
+    }
+
+    #[test]
+    fn paket_extensions_become_the_nuget_set() {
+        let module = "paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\n";
+        let bzl = "load(\"//third_party/dotnet/deps:paket.main.bzl\", \"main\")\nload(\":framework.bzl\", \"framework\")\nload(\"//third_party/dotnet/deps:paket.docs.bzl\", \"docs\")\n";
+        let registry = found(module, &[("third_party/dotnet/extension.bzl", bzl)]);
+        let set = registry.find("nuget").expect("nuget");
+        assert_eq!(set.ecosystem, Ecosystem::Nuget);
+        assert_eq!(set.manifests, ["third_party/dotnet/paket.dependencies"]);
+        assert_eq!(
+            set.locks,
+            [
+                "third_party/dotnet/paket.lock",
+                "third_party/dotnet/deps/paket.docs.bzl",
+                "third_party/dotnet/deps/paket.main.bzl",
+            ]
+        );
+        let generated =
+            "main = use_extension(\"//x/deps:paket.main_extension.bzl\", \"main_extension\")\n";
+        let registry = found(generated, &[]);
+        let set = registry.find("nuget").expect("nuget");
+        assert_eq!(set.manifests, ["x/paket.dependencies"]);
+        assert_eq!(set.locks, ["x/paket.lock", "x/deps/paket.main.bzl"]);
+    }
+
+    #[test]
+    fn included_module_files_are_followed() {
+        let module = "include(\"//tools:deps.MODULE.bazel\")\n";
+        let included = format!(
+            "{NPM_EXT}npm.npm_translate_lock(name = \"tools\", pnpm_lock = \"//tools:pnpm-lock.yaml\")\n"
+        );
+        let registry = found(module, &[("tools/deps.MODULE.bazel", &included)]);
+        assert_eq!(registry.names(), vec!["tools"]);
+    }
+
+    #[test]
+    fn a_module_without_hubs_is_not_a_registry() {
+        assert_eq!(discovered("module(name = \"x\")\n", &[]), Ok(None));
+    }
+
+    #[test]
+    fn hub_problems_fail_closed() {
+        let duplicate = format!(
+            "{UV_EXT}uv.project(hub_name = \"pypi\", lock = \"//a/api:uv.lock\", pyproject = \"//a/api:pyproject.toml\")\nuv.project(hub_name = \"pypi\", lock = \"//b/api:uv.lock\", pyproject = \"//b/api:pyproject.toml\")\n"
+        );
+        assert_eq!(
+            discovered(&duplicate, &[]),
+            Err(DependencySetsError::DuplicateName {
+                name: "pypi-api".to_owned()
+            })
+        );
+        let shared = format!(
+            "{NPM_EXT}npm.npm_translate_lock(name = \"a\", pnpm_lock = \"//:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"b\", pnpm_lock = \"//:pnpm-lock.yaml\")\n"
+        );
+        assert!(matches!(
+            discovered(&shared, &[]),
+            Err(DependencySetsError::ConflictingOwnership { .. })
+        ));
+        let computed = format!("{NPM_EXT}npm.npm_translate_lock(name = NAME)\n");
+        assert!(matches!(
+            discovered(&computed, &[]),
+            Err(DependencySetsError::Module { .. })
+        ));
+        assert!(matches!(
+            discovered(
+                "paket = use_extension(\"//d:extension.bzl\", \"paket\")\n",
+                &[]
+            ),
+            Err(DependencySetsError::Module { .. })
+        ));
+    }
+
+    #[test]
+    fn load_reads_the_workspace_module() {
+        let scratch = dx_test_scratch::scratch("dx-dependency-sets-absent-");
+        assert_eq!(load(&scratch.path().join("absent")).expect("absent"), None);
+        std::fs::write(
+            scratch.path().join(MODULE_BAZEL),
+            "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:go.mod\")\n",
+        )
+        .expect("module");
+        let registry = load(scratch.path()).expect("loads").expect("registry");
+        assert_eq!(registry.names(), vec!["go"]);
+    }
+
+    #[test]
+    fn names_and_repositories_must_be_plain() {
+        for bad in ["", "a:b", "_a", "a b", "@a"] {
+            assert_eq!(
+                hub_set(
+                    bad,
+                    Ecosystem::Uv,
+                    strings(&["a/pyproject.toml"]),
+                    strings(&["a/uv.lock"])
+                ),
+                Err(DependencySetsError::InvalidName {
+                    name: bad.to_owned()
+                }),
+                "{bad}"
+            );
+        }
+        assert_eq!(
+            hub_set(
+                "1crates",
+                Ecosystem::Cargo,
+                strings(&["a/Cargo.toml"]),
+                strings(&["a/Cargo.lock"])
+            ),
+            Err(DependencySetsError::InvalidRepository {
+                name: "1crates".to_owned(),
+                repository: "1crates".to_owned(),
+            })
+        );
+        assert!(hub_set(
+            "Crate_index.v2-x",
+            Ecosystem::Cargo,
+            strings(&["a/Cargo.toml"]),
+            strings(&["a/Cargo.lock"])
+        )
+        .is_ok());
+        for bad in [
+            "../up/pyproject.toml",
+            "a/../../pyproject.toml",
+            "/abs/pyproject.toml",
+        ] {
+            assert!(
+                matches!(
+                    hub_set("a", Ecosystem::Uv, strings(&[bad]), strings(&["a/uv.lock"])),
+                    Err(DependencySetsError::EscapingPath { .. })
+                ),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn two_same_ecosystem_sets_sort_by_name() {
+        let registry = two_uv();
         assert_eq!(registry.names(), vec!["frontend", "worker"]);
         let frontend = registry.find("frontend").expect("frontend");
         assert_eq!(frontend.ecosystem, Ecosystem::Uv);
         assert_eq!(frontend.manifests, vec!["apps/frontend/pyproject.toml"]);
         assert_eq!(frontend.locks, vec!["apps/frontend/uv.lock"]);
         assert_eq!(frontend.scopes, vec!["apps/frontend"]);
-        assert!(frontend.writable);
         assert_eq!(ResolvedSet::of(frontend).dir, "apps/frontend");
     }
 
     #[test]
-    fn missing_file_is_not_a_registry() {
-        let scratch = dx_test_scratch::scratch("dx-dependency-sets-absent-");
-        let workspace = scratch.path().join("absent");
-        assert_eq!(load(&workspace).expect("absent"), None);
-    }
-
-    #[test]
-    fn invocation_defaults_alone_are_not_a_registry() {
-        let rel = DX_TOML_REL;
-        let registry = parse("schema_version = 1\n[dx]\noutput = \"json\"\n", rel)
-            .expect("defaults-only parses")
-            .is_none();
-        assert!(registry, "defaults without sets mean no registry");
-    }
-
-    #[test]
-    fn shared_sections_coexist_with_sets_in_any_order() {
-        let rel = DX_TOML_REL;
-        let set = "[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
-        let quality = "[quality]\nbaseline = \"q.json\"\n";
-        let defaults = "[dx]\noutput = \"json\"\n";
-        for text in [
-            format!("schema_version = 1\n{set}{quality}{defaults}"),
-            format!("schema_version = 1\n{defaults}{set}{quality}"),
-        ] {
-            assert!(parse(&text, rel).expect("parses").is_some());
-        }
-        assert!(parse(&format!("{quality}{defaults}"), rel)
-            .expect("defaults only")
-            .is_none());
-        assert!(parse(
-            "schema_version = 1\n[quality]\nbaseline = \"q.json\"\n",
-            rel
-        )
-        .expect("quality only")
-        .is_none());
-        assert!(matches!(
-            parse(&format!("{quality}{set}"), rel),
-            Err(DependencySetsError::MissingSchema { .. })
-        ));
-        assert!(matches!(
-            parse(
-                "schema_version = 2\n[quality]\nbaseline = \"q.json\"\n",
-                rel
-            ),
-            Err(DependencySetsError::UnsupportedSchema { version: 2, .. })
-        ));
-        assert!(matches!(
-            parse("[quality]\nbaselnie = \"q.json\"\n", rel),
-            Err(DependencySetsError::InvalidToml { .. })
-        ));
-    }
-
-    #[test]
-    fn missing_schema_version_names_the_want() {
-        let error = parse("[[dependency_set]]\nname = \"a\"\n", DX_TOML_REL).expect_err("schema");
-        assert_eq!(
-            error.to_string(),
-            format!("invalid {}: missing schema_version (want 1)", DX_TOML_REL)
-        );
-    }
-
-    #[test]
-    fn schema_problems_fail_closed() {
-        let rel = DX_TOML_REL;
-        assert!(matches!(
-            parse("[[dependency_set]]\nname = \"a\"\n", rel),
-            Err(DependencySetsError::MissingSchema { .. })
-        ));
-        assert!(matches!(
-            parse("schema_version = 2\n", rel),
-            Err(DependencySetsError::UnsupportedSchema { version: 2, .. })
-        ));
-        assert!(matches!(
-            parse("schema_version = 1\n", rel),
-            Err(DependencySetsError::NoSets { .. })
-        ));
-        assert!(matches!(
-            parse("schema_version = 1\nunknown_key = true\n", rel),
-            Err(DependencySetsError::InvalidToml { .. })
-        ));
-        assert!(matches!(
-            parse(
-                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\nunknown = 1\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n",
-                rel
-            ),
-            Err(DependencySetsError::InvalidToml { .. })
-        ));
-    }
-
-    #[test]
-    fn record_problems_fail_closed() {
-        let rel = DX_TOML_REL;
-        let base = |body: &str| format!("schema_version = 1\n[[dependency_set]]\n{body}");
-        assert!(matches!(
-            parse(&base("ecosystem = \"uv\"\n"), rel),
-            Err(DependencySetsError::MissingName { index: 0, .. })
-        ));
-        assert!(matches!(
-            parse(&base("name = \"\"\necosystem = \"uv\"\n"), rel),
-            Err(DependencySetsError::EmptyName { .. })
-        ));
-        assert!(matches!(
-            parse(&base("name = \"a:b\"\necosystem = \"uv\"\n"), rel),
-            Err(DependencySetsError::InvalidName { .. })
-        ));
-        assert!(matches!(
-            parse(&base("name = \"a\"\n"), rel),
-            Err(DependencySetsError::MissingEcosystem { .. })
-        ));
-        assert!(matches!(
-            parse(&base("name = \"a\"\necosystem = \"pip\"\n"), rel),
-            Err(DependencySetsError::UnknownEcosystem { .. })
-        ));
-        assert!(matches!(
-            parse(
-                &base(
-                    "name = \"a\"\necosystem = \"uv\"\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n"
-                ),
-                rel
-            ),
-            Err(DependencySetsError::MissingManifests { .. })
-        ));
-        assert!(matches!(
-            parse(
-                &base("name = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nscopes = [\"a\"]\n"),
-                rel
-            ),
-            Err(DependencySetsError::MissingLocks { .. })
-        ));
-        assert!(matches!(
-            parse(
-                &base("name = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\n"),
-                rel
-            ),
-            Err(DependencySetsError::MissingScopes { .. })
-        ));
-        for bad in [
-            "/abs/pyproject.toml",
-            "C:/abs/pyproject.toml",
-            "C:rel.toml",
-            "../up/pyproject.toml",
-            "a/../../up.toml",
-        ] {
-            assert!(
-                matches!(
-                    parse(
-                        &base(&format!(
-                            "name = \"a\"\necosystem = \"uv\"\nmanifests = [\"{bad}\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n"
-                        )),
-                        rel
-                    ),
-                    Err(DependencySetsError::EscapingPath { .. })
-                ),
-                "{bad} must not escape"
-            );
-        }
-        assert!(
-            matches!(
-                parse(
-                    &base("name = \"a\"\necosystem = \"uv\"\nmanifests = ['a\\b.toml']\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n"),
-                    rel
-                ),
-                Err(DependencySetsError::EscapingPath { .. })
-            ),
-            "a literal backslash must not escape"
-        );
-        assert!(matches!(
-            parse(
-                &base("name = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\", \"b/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n"),
-                rel
-            ),
-            Err(DependencySetsError::ScatteredManifests { .. })
-        ));
-    }
-
-    #[test]
-    fn duplicate_names_and_shared_writable_ownership_fail_closed() {
-        let rel = DX_TOML_REL;
-        let dup = format!("{TWO_UV_SETS}\n[[dependency_set]]\nname = \"frontend\"\necosystem = \"uv\"\nmanifests = [\"other/pyproject.toml\"]\nlocks = [\"other/uv.lock\"]\nscopes = [\"other\"]\n");
-        assert!(matches!(
-            parse(&dup, rel),
-            Err(DependencySetsError::DuplicateName { .. })
-        ));
-        let shared = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "first"
-ecosystem = "uv"
-manifests = ["apps/shared/pyproject.toml"]
-locks = ["apps/shared/uv.lock"]
-scopes = ["apps/first"]
-
-[[dependency_set]]
-name = "second"
-ecosystem = "uv"
-manifests = ["apps/shared/pyproject.toml"]
-locks = ["apps/second/uv.lock"]
-scopes = ["apps/second"]
-"#;
-        assert!(matches!(
-            parse(shared, rel),
-            Err(DependencySetsError::ConflictingOwnership { .. })
-        ));
-    }
-
-    #[test]
-    fn shared_read_only_ownership_is_allowed() {
-        let text = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "first"
-ecosystem = "uv"
-manifests = ["apps/shared/pyproject.toml"]
-locks = ["apps/shared/uv.lock"]
-scopes = ["apps/first"]
-writable = false
-
-[[dependency_set]]
-name = "second"
-ecosystem = "uv"
-manifests = ["apps/shared/pyproject.toml"]
-locks = ["apps/second/uv.lock"]
-scopes = ["apps/second"]
-"#;
-        let registry = load_text(text);
-        assert!(!registry.find("first").expect("first").writable);
-        assert!(registry.find("second").expect("second").writable);
-        assert!(matches!(
-            check_writable(&ResolvedSet::of(registry.find("first").expect("first"))),
-            Err(DependencySetsError::ReadOnlyUpdate { .. })
-        ));
-        assert!(check_writable(&ResolvedSet::of(registry.find("second").expect("second"))).is_ok());
-    }
-
-    #[test]
     fn bare_selection_resolves_every_configured_set_full() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let resolved = resolve(&registry, &[]).expect("bare");
         assert_eq!(resolved.len(), 2);
         assert_eq!(resolved[0].set.name, "frontend");
@@ -2104,10 +1998,9 @@ scopes = ["apps/second"]
         assert_eq!(resolved[1].set.name, "worker");
         assert_eq!(resolved[1].request, Selection::Full);
     }
-
     #[test]
     fn names_scopes_and_packages_resolve() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let resolved = resolve(&registry, &strings(&["frontend"])).expect("name");
         assert_eq!(resolved.len(), 1);
         assert_eq!(resolved[0].set.name, "frontend");
@@ -2134,7 +2027,7 @@ scopes = ["apps/second"]
 
     #[test]
     fn unknown_selectors_and_scopes_fail_closed() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         assert!(matches!(
             resolve(&registry, &strings(&["cargo"])),
             Err(DependencySetsError::UnknownSelector { .. })
@@ -2155,24 +2048,18 @@ scopes = ["apps/second"]
 
     #[test]
     fn root_scope_owns_only_root_package_labels() {
-        let text = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "root"
-ecosystem = "npm"
-manifests = ["package.json"]
-locks = ["pnpm-lock.yaml"]
-scopes = ["."]
-
-[[dependency_set]]
-name = "leaf"
-ecosystem = "uv"
-manifests = ["apps/leaf/pyproject.toml"]
-locks = ["apps/leaf/uv.lock"]
-scopes = ["apps/leaf"]
-"#;
-        let registry = load_text(text);
+        let specs = |root: &'static [&'static str], lock: &'static [&'static str]| {
+            registry(&[
+                ("root", Ecosystem::Npm, root, lock),
+                (
+                    "leaf",
+                    Ecosystem::Uv,
+                    &["apps/leaf/pyproject.toml"],
+                    &["apps/leaf/uv.lock"],
+                ),
+            ])
+        };
+        let registry = specs(&["package.json"], &["pnpm-lock.yaml"]);
         for target in ["//:node_modules", "//:", "."] {
             assert_eq!(owning_sets(&registry, target), vec!["root"], "{target}");
         }
@@ -2181,46 +2068,33 @@ scopes = ["apps/leaf"]
         assert_eq!(owning_sets(&registry, "//foo/..."), Vec::<&str>::new());
         assert_eq!(owning_sets(&registry, "//...").len(), 2);
         assert_eq!(owning_sets(&registry, "//:MODULE.bazel").len(), 2);
-        let bare = load_text(&text.replace("\".\"", "\"apps/root\""));
+        let bare = specs(&["apps/root/package.json"], &["apps/root/pnpm-lock.yaml"]);
         assert_eq!(owning_sets(&bare, "//:x"), Vec::<&str>::new());
     }
 
     #[test]
     fn declared_manifests_and_locks_select_their_own_set() {
-        let text = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "cargo"
-ecosystem = "cargo"
-repository = "hub"
-manifests = ["rust/Cargo.toml"]
-locks = ["rust/Cargo.lock", "cargo-bazel-lock.json"]
-scopes = ["rust"]
-
-[[dependency_set]]
-name = "maven"
-ecosystem = "maven"
-repository = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["third_party/jvm/maven_install.json"]
-scopes = ["java"]
-
-[[dependency_set]]
-name = "npm"
-ecosystem = "npm"
-manifests = ["package.json"]
-locks = ["pnpm-lock.yaml"]
-scopes = ["javascript"]
-
-[[dependency_set]]
-name = "root"
-ecosystem = "uv"
-manifests = ["pyproject.toml"]
-locks = ["uv.lock"]
-scopes = ["."]
-"#;
-        let registry = load_text(text);
+        let registry = registry(&[
+            (
+                "cargo",
+                Ecosystem::Cargo,
+                &["rust/Cargo.toml"],
+                &["rust/Cargo.lock", "cargo-bazel-lock.json"],
+            ),
+            (
+                "maven",
+                Ecosystem::Maven,
+                &["MODULE.bazel"],
+                &["third_party/jvm/maven_install.json"],
+            ),
+            (
+                "npm",
+                Ecosystem::Npm,
+                &["web/package.json"],
+                &["web/pnpm-lock.yaml"],
+            ),
+            ("root", Ecosystem::Uv, &["pyproject.toml"], &["uv.lock"]),
+        ]);
         assert_eq!(
             owning_sets(&registry, "//:cargo-bazel-lock.json"),
             vec!["cargo"]
@@ -2233,30 +2107,26 @@ scopes = ["."]
             owning_sets(&registry, "//third_party/jvm:maven_install.json"),
             vec!["maven"]
         );
-        assert_eq!(owning_sets(&registry, "//:pnpm-lock.yaml"), vec!["npm"]);
-        assert_eq!(owning_sets(&registry, "//:other"), vec!["root"]);
+        assert_eq!(owning_sets(&registry, "//web:pnpm-lock.yaml"), vec!["npm"]);
+        assert_eq!(owning_sets(&registry, "//:other"), vec!["cargo", "root"]);
     }
 
     #[test]
     fn overlapping_scopes_resolve_to_every_owner() {
-        let text = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "mono"
-ecosystem = "uv"
-manifests = ["apps/mono/pyproject.toml"]
-locks = ["apps/mono/uv.lock"]
-scopes = ["apps"]
-
-[[dependency_set]]
-name = "leaf"
-ecosystem = "uv"
-manifests = ["apps/leaf/pyproject.toml"]
-locks = ["apps/leaf/uv.lock"]
-scopes = ["apps/leaf"]
-"#;
-        let registry = load_text(text);
+        let registry = registry(&[
+            (
+                "mono",
+                Ecosystem::Uv,
+                &["apps/pyproject.toml"],
+                &["apps/uv.lock"],
+            ),
+            (
+                "leaf",
+                Ecosystem::Uv,
+                &["apps/leaf/pyproject.toml"],
+                &["apps/leaf/uv.lock"],
+            ),
+        ]);
         let resolved = resolve(&registry, &strings(&["apps/leaf/app"])).expect("overlap");
         assert_eq!(resolved.len(), 2);
         let resolved = resolve(&registry, &strings(&["//apps/..."])).expect("recursive");
@@ -2285,7 +2155,7 @@ scopes = ["apps/leaf"]
 
     #[test]
     fn uv_settings_allow_project_metadata_only() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let metadata = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n\n[tool.uv]\npackage = false\ndev-dependencies = []\n\n[tool.uv.sources]\nlocal = { path = \"../local\" }\n\n[tool.ruff]\nline-length = 100\n";
         let scratch = settings_workspace("ok", metadata, None);
@@ -2310,7 +2180,7 @@ scopes = ["apps/leaf"]
 
     #[test]
     fn uv_config_files_in_the_set_or_its_parents_are_unsupported() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let plain = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n";
         for (config, shown) in [
@@ -2340,7 +2210,7 @@ scopes = ["apps/leaf"]
 
     #[test]
     fn parent_uv_workspaces_are_unsupported() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let plain = "[project]\nname = \"frontend\"\nversion = \"0.1.0\"\n";
         for (parent, shown) in [
@@ -2374,7 +2244,7 @@ scopes = ["apps/leaf"]
 
     #[test]
     fn missing_files_fail_closed_with_paths() {
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let scratch = dx_test_scratch::scratch("dx-dependency-sets-missing-");
         let workspace = scratch.path().join("absent");
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
@@ -2392,7 +2262,7 @@ scopes = ["apps/leaf"]
             let outer = dx_test_scratch::scratch("dx-linkconf-");
             let workspace = outer.path().join("ws");
             std::fs::create_dir_all(&workspace).expect("ws");
-            let registry = load_text(TWO_UV_SETS);
+            let registry = two_uv();
             let set = ResolvedSet::of(registry.find("frontend").expect("frontend"));
             (outer, workspace, set)
         }
@@ -2461,27 +2331,26 @@ scopes = ["apps/leaf"]
         }
     }
 
-    const TWO_NPM_SETS: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "npm"
-manifests = ["apps/web/package.json"]
-locks = ["apps/web/pnpm-lock.yaml"]
-scopes = ["apps/web"]
-
-[[dependency_set]]
-name = "worker"
-ecosystem = "npm"
-manifests = ["services/worker/package.json"]
-locks = ["services/worker/pnpm-lock.yaml"]
-scopes = ["services/worker"]
-"#;
+    fn two_npm() -> Registry {
+        registry(&[
+            (
+                "frontend",
+                Ecosystem::Npm,
+                &["apps/web/package.json"],
+                &["apps/web/pnpm-lock.yaml"],
+            ),
+            (
+                "worker",
+                Ecosystem::Npm,
+                &["services/worker/package.json"],
+                &["services/worker/pnpm-lock.yaml"],
+            ),
+        ])
+    }
 
     #[test]
     fn npm_sets_load_under_their_own_names() {
-        let registry = load_text(TWO_NPM_SETS);
+        let registry = two_npm();
         assert_eq!(registry.names(), vec!["frontend", "worker"]);
         let frontend = registry.find("frontend").expect("frontend");
         assert_eq!(frontend.ecosystem, Ecosystem::Npm);
@@ -2506,7 +2375,7 @@ scopes = ["services/worker"]
         assert_eq!(Ecosystem::Bazel.advisory_family(), None);
         assert_eq!(Ecosystem::Ruby.advisory_family(), Some("rubygems"));
         assert_eq!(Ecosystem::PowerShell.advisory_family(), None);
-        let registry = load_text(TWO_NPM_SETS);
+        let registry = two_npm();
         for set in &registry.sets {
             assert_eq!(set.ecosystem.advisory_family(), Some("npm"), "{}", set.name);
         }
@@ -2514,7 +2383,6 @@ scopes = ["services/worker"]
 
     #[test]
     fn manifests_must_carry_the_ecosystem_file_name() {
-        let rel = DX_TOML_REL;
         for (ecosystem, manifest, want) in [
             ("uv", "a/package.json", "pyproject.toml"),
             ("uv", "a/pyproject.toml.bak", "pyproject.toml"),
@@ -2532,14 +2400,12 @@ scopes = ["services/worker"]
                 "PSGallery.requirements.psd1",
             ),
         ] {
-            let text = format!(
-                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"{ecosystem}\"\nmanifests = [\"{manifest}\"]\nlocks = [\"a/lock\"]\nscopes = [\"a\"]\n"
-            );
-            let error = parse(&text, rel).expect_err("wrong manifest name");
+            let kind = Ecosystem::parse(ecosystem).expect("known");
+            let error = hub_set("a", kind, strings(&[manifest]), strings(&["a/lock"]))
+                .expect_err("wrong manifest name");
             assert_eq!(
                 error,
                 DependencySetsError::InvalidManifest {
-                    rel: rel.to_owned(),
                     name: "a".to_owned(),
                     path: manifest.to_owned(),
                     want,
@@ -2549,17 +2415,18 @@ scopes = ["services/worker"]
             );
             assert!(error.to_string().contains(want), "{error}");
         }
-        assert!(parse(
-            "schema_version = 1\n[[dependency_set]]\nname = \"root\"\necosystem = \"npm\"\nmanifests = [\"package.json\"]\nlocks = [\"pnpm-lock.yaml\"]\nscopes = [\".\"]\n",
-            rel
+        assert!(hub_set(
+            "root",
+            Ecosystem::Npm,
+            strings(&["package.json"]),
+            strings(&["pnpm-lock.yaml"])
         )
-        .expect("root npm set")
-        .is_some());
+        .is_ok());
     }
 
     #[test]
     fn npm_packages_allow_one_scope_and_lowercase_names() {
-        let registry = load_text(TWO_NPM_SETS);
+        let registry = two_npm();
         for package in [
             "react",
             "@types/node",
@@ -2610,7 +2477,7 @@ scopes = ["services/worker"]
 
     #[test]
     fn npm_sets_need_their_own_pnpm_lock_and_no_parent_pnpm_workspace() {
-        let registry = load_text(TWO_NPM_SETS);
+        let registry = two_npm();
         let frontend = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         let scratch = npm_workspace("plain");
         let workspace = scratch.path().to_path_buf();
@@ -2682,27 +2549,26 @@ scopes = ["services/worker"]
         }
     }
 
-    const PINNED_SETS: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "gems"
-ecosystem = "ruby"
-manifests = ["apps/rb/Gemfile"]
-locks = ["apps/rb/Gemfile.lock"]
-scopes = ["apps/rb"]
-
-[[dependency_set]]
-name = "modules"
-ecosystem = "powershell"
-manifests = ["tools/ps/PSGallery.requirements.psd1"]
-locks = ["tools/ps/PSGallery.lock.json"]
-scopes = ["tools/ps"]
-"#;
+    fn pinned() -> Registry {
+        registry(&[
+            (
+                "gems",
+                Ecosystem::Ruby,
+                &["apps/rb/Gemfile"],
+                &["apps/rb/Gemfile.lock"],
+            ),
+            (
+                "modules",
+                Ecosystem::PowerShell,
+                &["tools/ps/PSGallery.requirements.psd1"],
+                &["tools/ps/PSGallery.lock.json"],
+            ),
+        ])
+    }
 
     #[test]
     fn ruby_and_powershell_sets_load_as_pinned_ecosystems() {
-        let registry = load_text(PINNED_SETS);
+        let registry = pinned();
         assert_eq!(registry.names(), vec!["gems", "modules"]);
         let gems = registry.find("gems").expect("gems");
         assert_eq!(gems.ecosystem, Ecosystem::Ruby);
@@ -2739,7 +2605,7 @@ scopes = ["tools/ps"]
 
     #[test]
     fn pinned_sets_must_declare_the_lock_beside_their_manifest() {
-        let registry = load_text(PINNED_SETS);
+        let registry = pinned();
         let scratch = dx_test_scratch::scratch("dx-dependency-sets-pinned-");
         let workspace = scratch.path().to_path_buf();
         for name in ["gems", "modules"] {
@@ -2761,11 +2627,10 @@ scopes = ["tools/ps"]
                 "tools/ps/PSGallery.lock.json",
             ),
         ] {
-            let text = format!(
-                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"{ecosystem}\"\nmanifests = [\"{manifest}\"]\nlocks = [\"{lock}\"]\nscopes = [\".\"]\n"
+            let kind = Ecosystem::parse(ecosystem).expect("known");
+            let set = ResolvedSet::of(
+                &hub_set("a", kind, strings(&[manifest]), strings(&[lock])).expect("valid"),
             );
-            let registry = parse(&text, DX_TOML_REL).expect("valid").expect("registry");
-            let set = ResolvedSet::of(registry.find("a").expect("a"));
             let error = check_backend_settings(&workspace, &set).expect_err("missing lock");
             assert_eq!(
                 error,
@@ -2782,7 +2647,7 @@ scopes = ["tools/ps"]
 
     #[test]
     fn pinned_packages_use_the_plain_charset() {
-        let registry = load_text(PINNED_SETS);
+        let registry = pinned();
         for (set, package) in [
             ("gems", "rspec-core"),
             ("gems", "nokogiri"),
@@ -2816,25 +2681,22 @@ scopes = ["tools/ps"]
         }
     }
 
-    const CARGO_SETS: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "crates"
-ecosystem = "cargo"
-manifests = ["apps/rs/Cargo.toml"]
-locks = ["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"]
-scopes = ["apps/rs"]
-repository = "crates"
-
-[[dependency_set]]
-name = "tools"
-ecosystem = "cargo"
-manifests = ["tools/rs/Cargo.toml"]
-locks = ["tools/rs/Cargo.lock"]
-scopes = ["tools/rs"]
-repository = "tool_crates"
-"#;
+    fn cargo_sets() -> Registry {
+        registry(&[
+            (
+                "crates",
+                Ecosystem::Cargo,
+                &["apps/rs/Cargo.toml"],
+                &["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"],
+            ),
+            (
+                "tool_crates",
+                Ecosystem::Cargo,
+                &["tools/rs/Cargo.toml"],
+                &["tools/rs/Cargo.lock"],
+            ),
+        ])
+    }
 
     const CARGO_EXT: &str =
         "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n";
@@ -2852,7 +2714,7 @@ repository = "tool_crates"
 
     #[test]
     fn cargo_hubs_resolve_by_their_visible_name_and_refuse_everything_else() {
-        let registry = load_text(CARGO_SETS);
+        let registry = cargo_sets();
         let crates = ResolvedSet::of(registry.find("crates").expect("crates"));
         let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-visible-");
         let hub = |import: &str| {
@@ -2893,32 +2755,22 @@ repository = "tool_crates"
     }
 
     #[test]
-    fn cargo_sets_may_span_directories_but_uv_sets_may_not() {
-        let multi = cargo_record("repository = \"crates\"\n").replace(
-            "manifests = [\"a/Cargo.toml\"]",
-            "manifests = [\"a/Cargo.toml\", \"b/Cargo.toml\"]",
-        );
-        let registry = parse(&multi, DX_TOML_REL)
-            .expect("valid")
-            .expect("registry");
-        assert_eq!(registry.find("a").expect("a").manifests.len(), 2);
-        let uv = "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\", \"b/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\n";
-        assert!(matches!(
-            parse(uv, DX_TOML_REL),
-            Err(DependencySetsError::ScatteredManifests { .. })
-        ));
-    }
-
-    fn cargo_record(extra: &str) -> String {
-        format!(
-            "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"cargo\"\nmanifests = [\"a/Cargo.toml\"]\nlocks = [\"a/Cargo.lock\"]\nscopes = [\"a\"]\n{extra}"
+    fn cargo_sets_may_span_directories() {
+        let set = hub_set(
+            "a",
+            Ecosystem::Cargo,
+            strings(&["a/Cargo.toml", "b/Cargo.toml"]),
+            strings(&["a/Cargo.lock"]),
         )
+        .expect("valid");
+        assert_eq!(set.manifests.len(), 2);
+        assert_eq!(set.scopes, ["a", "b"]);
     }
 
     #[test]
     fn cargo_sets_load_with_their_repository() {
-        let registry = load_text(CARGO_SETS);
-        assert_eq!(registry.names(), vec!["crates", "tools"]);
+        let registry = cargo_sets();
+        assert_eq!(registry.names(), vec!["crates", "tool_crates"]);
         let crates = registry.find("crates").expect("crates");
         assert_eq!(crates.ecosystem, Ecosystem::Cargo);
         assert_eq!(crates.repository.as_deref(), Some("crates"));
@@ -2945,90 +2797,29 @@ repository = "tool_crates"
         ] {
             assert!(!other.uses_repository(), "{}", other.name());
         }
-        let uv = load_text(TWO_UV_SETS);
+        let uv = two_uv();
         assert_eq!(uv.find("frontend").expect("frontend").repository, None);
     }
 
     #[test]
-    fn cargo_repository_is_required_valid_and_cargo_only() {
-        let rel = DX_TOML_REL;
-        assert_eq!(
-            parse(&cargo_record(""), rel),
-            Err(DependencySetsError::MissingRepository {
-                rel: rel.to_owned(),
-                name: "a".to_owned(),
-                ecosystem: "cargo",
-            })
-        );
-        for bad in [
-            "",
-            "@crates",
-            "crates,other",
-            "a/b",
-            "1crates",
-            "_crates",
-            "cr ates",
-            "crates//:x",
-        ] {
-            assert_eq!(
-                parse(&cargo_record(&format!("repository = \"{bad}\"\n")), rel),
-                Err(DependencySetsError::InvalidRepository {
-                    rel: rel.to_owned(),
-                    name: "a".to_owned(),
-                    repository: bad.to_owned(),
-                }),
-                "{bad}"
-            );
-        }
-        for good in ["crates", "Crate_index.v2-x"] {
-            assert!(
-                parse(&cargo_record(&format!("repository = \"{good}\"\n")), rel).is_ok(),
-                "{good}"
-            );
-        }
-        assert_eq!(
-            parse(
-                "schema_version = 1\n[[dependency_set]]\nname = \"a\"\necosystem = \"uv\"\nmanifests = [\"a/pyproject.toml\"]\nlocks = [\"a/uv.lock\"]\nscopes = [\"a\"]\nrepository = \"x\"\n",
-                rel
-            ),
-            Err(DependencySetsError::UnexpectedRepository {
-                rel: rel.to_owned(),
-                name: "a".to_owned(),
-                ecosystem: "uv",
-            })
-        );
-    }
-
-    #[test]
-    fn cargo_sets_sharing_a_repository_fail_closed() {
-        let text = CARGO_SETS.replace("\"tool_crates\"", "\"crates\"");
-        assert_eq!(
-            parse(&text, DX_TOML_REL),
-            Err(DependencySetsError::DuplicateRepository {
-                rel: DX_TOML_REL.to_owned(),
-                names: "crates, tools".to_owned(),
-                ecosystem: "cargo",
-                repository: "crates".to_owned(),
-            })
-        );
-    }
-
-    #[test]
     fn cargo_sets_must_declare_cargo_lock_beside_the_manifest() {
-        let registry = load_text(CARGO_SETS);
+        let registry = cargo_sets();
         let scratch = dx_test_scratch::scratch("dx-dependency-sets-cargo-");
         let workspace = scratch.path().to_path_buf();
         std::fs::write(workspace.join(MODULE_BAZEL), CARGO_HUBS).expect("module");
-        for name in ["crates", "tools"] {
+        for name in ["crates", "tool_crates"] {
             let set = ResolvedSet::of(registry.find(name).expect("set"));
             assert_eq!(check_backend_settings(&workspace, &set), Ok(()), "{name}");
         }
-        let text = cargo_record("repository = \"crates\"\n").replace(
-            "locks = [\"a/Cargo.lock\"]",
-            "locks = [\"a/cargo-bazel-lock.json\"]",
+        let set = ResolvedSet::of(
+            &hub_set(
+                "a",
+                Ecosystem::Cargo,
+                strings(&["a/Cargo.toml"]),
+                strings(&["a/cargo-bazel-lock.json"]),
+            )
+            .expect("valid"),
         );
-        let registry = parse(&text, DX_TOML_REL).expect("valid").expect("registry");
-        let set = ResolvedSet::of(registry.find("a").expect("a"));
         assert_eq!(
             check_backend_settings(&workspace, &set),
             Err(DependencySetsError::MissingPinnedLock {
@@ -3041,7 +2832,7 @@ repository = "tool_crates"
 
     #[test]
     fn cargo_packages_use_the_crate_charset() {
-        let registry = load_text(CARGO_SETS);
+        let registry = cargo_sets();
         for package in ["serde", "serde_json", "tokio-util", "Inflector"] {
             let resolved = resolve(&registry, &[format!("crates:{package}")])
                 .unwrap_or_else(|error| panic!("{package}: {error}"));
@@ -3064,31 +2855,28 @@ repository = "tool_crates"
     }
     const MAVEN_MODULE_TEXT: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"tool_maven\", lock_file = \"//tools:tool_install.json\")\nuse_repo(maven, \"maven\", \"tool_maven\")\n";
 
-    const MAVEN_SETS: &str = r#"
-schema_version = 1
-[[dependency_set]]
-name = "jvm"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["third_party/maven_install.json"]
-scopes = ["third_party"]
-repository = "maven"
-
-[[dependency_set]]
-name = "tools"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["tools/tool_install.json"]
-scopes = ["tools"]
-repository = "tool_maven"
-
-[[dependency_set]]
-name = "root"
-ecosystem = "bazel"
-manifests = ["MODULE.bazel"]
-locks = ["MODULE.bazel.lock"]
-scopes = ["MODULE.bazel"]
-"#;
+    fn maven_sets() -> Registry {
+        registry(&[
+            (
+                "maven",
+                Ecosystem::Maven,
+                &["MODULE.bazel"],
+                &["third_party/maven_install.json"],
+            ),
+            (
+                "tool_maven",
+                Ecosystem::Maven,
+                &["MODULE.bazel"],
+                &["tools/tool_install.json"],
+            ),
+            (
+                "root",
+                Ecosystem::Bazel,
+                &["MODULE.bazel"],
+                &["MODULE.bazel.lock"],
+            ),
+        ])
+    }
 
     const SIGNED_LOCK: &str = "{\"__AUTOGENERATED_FILE_DO_NOT_MODIFY_THIS_FILE_MANUALLY\":\"x\",\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2}";
 
@@ -3098,8 +2886,8 @@ scopes = ["MODULE.bazel"]
         std::fs::write(root.join("MODULE.bazel"), module).expect("module");
         std::fs::create_dir_all(root.join("third_party")).expect("dir");
         std::fs::write(root.join("third_party/maven_install.json"), lock).expect("lock");
-        let registry = load_text(MAVEN_SETS);
-        let set = ResolvedSet::of(registry.find("jvm").expect("jvm"));
+        let registry = maven_sets();
+        let set = ResolvedSet::of(registry.find("maven").expect("maven"));
         (scratch, set)
     }
 
@@ -3112,9 +2900,9 @@ scopes = ["MODULE.bazel"]
 
     #[test]
     fn maven_sets_share_the_root_module_but_own_their_locks() {
-        let registry = load_text(MAVEN_SETS);
-        assert_eq!(registry.names(), vec!["jvm", "root", "tools"]);
-        let jvm = registry.find("jvm").expect("jvm");
+        let registry = maven_sets();
+        assert_eq!(registry.names(), vec!["maven", "root", "tool_maven"]);
+        let jvm = registry.find("maven").expect("maven");
         assert_eq!(jvm.ecosystem, Ecosystem::Maven);
         assert_eq!(jvm.repository.as_deref(), Some("maven"));
         assert_eq!(Ecosystem::parse("maven"), Some(Ecosystem::Maven));
@@ -3125,48 +2913,36 @@ scopes = ["MODULE.bazel"]
         );
         assert_eq!(Ecosystem::Maven.advisory_family(), Some("maven"));
         assert!(Ecosystem::Maven.uses_repository());
-        let shared_lock =
-            MAVEN_SETS.replace("tools/tool_install.json", "third_party/maven_install.json");
         assert!(matches!(
-            parse(&shared_lock, DX_TOML_REL),
+            try_registry(&[
+                (
+                    "a",
+                    Ecosystem::Maven,
+                    &["MODULE.bazel"],
+                    &["third_party/maven_install.json"],
+                ),
+                (
+                    "b",
+                    Ecosystem::Maven,
+                    &["MODULE.bazel"],
+                    &["third_party/maven_install.json"],
+                ),
+            ]),
             Err(DependencySetsError::ConflictingOwnership { .. })
         ));
-        let two_uv = load_text(TWO_UV_SETS);
+        let two_uv = two_uv();
         assert!(two_uv.find("frontend").is_some());
     }
 
     #[test]
-    fn maven_manifest_must_be_the_root_module() {
-        let nested = MAVEN_SETS.replacen(
-            "manifests = [\"MODULE.bazel\"]",
-            "manifests = [\"sub/MODULE.bazel\"]",
-            1,
-        );
-        assert!(matches!(
-            parse(&nested, DX_TOML_REL),
-            Err(DependencySetsError::MavenManifest { .. })
-        ));
-        let repo_missing = MAVEN_SETS.replacen("repository = \"maven\"\n", "", 1);
-        assert!(matches!(
-            parse(&repo_missing, DX_TOML_REL),
-            Err(DependencySetsError::MissingRepository { .. })
-        ));
-        let duplicate = MAVEN_SETS.replace("tool_maven", "maven");
-        assert!(matches!(
-            parse(&duplicate, DX_TOML_REL),
-            Err(DependencySetsError::DuplicateRepository { .. })
-        ));
-    }
-
-    #[test]
     fn maven_packages_are_group_and_artifact() {
-        let registry = load_text(MAVEN_SETS);
-        assert!(resolve(&registry, &["jvm:com.google.guava:guava".to_owned()]).is_ok());
+        let registry = maven_sets();
+        assert!(resolve(&registry, &["maven:com.google.guava:guava".to_owned()]).is_ok());
         for package in ["guava", "a:", ":b", "a:b:1.0", "a b:c", "a;x:b"] {
             assert_eq!(
-                resolve(&registry, &[format!("jvm:{package}")]),
+                resolve(&registry, &[format!("maven:{package}")]),
                 Err(DependencySetsError::InvalidPackage {
-                    set: "jvm".to_owned(),
+                    set: "maven".to_owned(),
                     package: package.to_owned(),
                     reason: MAVEN_PACKAGE_CHARSET,
                 }),
@@ -3254,28 +3030,30 @@ scopes = ["MODULE.bazel"]
         );
         std::fs::write(root.join("MODULE.bazel"), module).expect("module");
         assert_eq!(check_lock_ready(root, &set), Ok(()));
-        let registry = load_text(TWO_UV_SETS);
+        let registry = two_uv();
         let uv = ResolvedSet::of(registry.find("frontend").expect("frontend"));
         assert_eq!(check_lock_ready(root, &uv), Ok(()));
     }
 
-    const NUGET_SETS: &str = r#"
-schema_version = 1
-[[dependency_set]]
-name = "dotnet"
-ecosystem = "nuget"
-manifests = ["third_party/dotnet/paket.dependencies"]
-locks = [
-  "third_party/dotnet/paket.lock",
-  "third_party/dotnet/deps/paket.main.bzl",
-]
-scopes = ["third_party/dotnet"]
-"#;
+    const NUGET_LOCKS: [&str; 2] = [
+        "third_party/dotnet/paket.lock",
+        "third_party/dotnet/deps/paket.main.bzl",
+    ];
+
+    fn nuget_set(locks: &[&str]) -> DependencySet {
+        hub_set(
+            "dotnet",
+            Ecosystem::Nuget,
+            strings(&["third_party/dotnet/paket.dependencies"]),
+            strings(locks),
+        )
+        .expect("valid")
+    }
 
     const NUGET_MODULE: &str = "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\n";
 
     fn nuget_workspace(
-        sets: &str,
+        locks: &[&str],
         module: &str,
         dependencies: &str,
     ) -> (dx_test_scratch::TempDir, ResolvedSet) {
@@ -3288,9 +3066,7 @@ scopes = ["third_party/dotnet"]
             dependencies,
         )
         .expect("dependencies");
-        let registry = load_text(sets);
-        let set = ResolvedSet::of(registry.find("dotnet").expect("dotnet"));
-        (scratch, set)
+        (scratch, ResolvedSet::of(&nuget_set(locks)))
     }
 
     fn nuget_detail(result: Result<(), DependencySetsError>) -> String {
@@ -3302,8 +3078,11 @@ scopes = ["third_party/dotnet"]
 
     #[test]
     fn nuget_sets_load_with_paket_manifests() {
-        let registry = load_text(NUGET_SETS);
-        let dotnet = registry.find("dotnet").expect("dotnet");
+        let set = nuget_set(&NUGET_LOCKS);
+        let registry = Registry {
+            sets: vec![set.clone()],
+        };
+        let dotnet = &set;
         assert_eq!(dotnet.ecosystem, Ecosystem::Nuget);
         assert_eq!(Ecosystem::parse("nuget"), Some(Ecosystem::Nuget));
         assert_eq!(Ecosystem::Nuget.manifest_name(), "paket.dependencies");
@@ -3313,9 +3092,13 @@ scopes = ["third_party/dotnet"]
         );
         assert_eq!(Ecosystem::Nuget.advisory_family(), Some("nuget"));
         assert!(!Ecosystem::Nuget.uses_repository());
-        let wrong = NUGET_SETS.replace("paket.dependencies", "packages.config");
         assert!(matches!(
-            parse(&wrong, DX_TOML_REL),
+            hub_set(
+                "dotnet",
+                Ecosystem::Nuget,
+                strings(&["third_party/dotnet/packages.config"]),
+                strings(&NUGET_LOCKS),
+            ),
             Err(DependencySetsError::InvalidManifest { .. })
         ));
         assert!(resolve(&registry, &["dotnet:Newtonsoft.Json".to_owned()]).is_ok());
@@ -3335,7 +3118,7 @@ scopes = ["third_party/dotnet"]
     #[test]
     fn nuget_layout_accepts_one_folder_of_groups() {
         let (scratch, set) = nuget_workspace(
-            NUGET_SETS,
+            &NUGET_LOCKS,
             NUGET_MODULE,
             "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json\n",
         );
@@ -3345,75 +3128,60 @@ scopes = ["third_party/dotnet"]
     #[test]
     fn nuget_layout_refuses_what_staging_cannot_reproduce() {
         let dependencies = "source https://api.nuget.org/v3/index.json\n";
-        let cases = [
+        let main = "third_party/dotnet/deps/paket.main.bzl";
+        let lock = "third_party/dotnet/paket.lock";
+        let notes: &[&str] = &[lock, "third_party/dotnet/deps/notes.txt"];
+        let other: &[&str] = &[lock, main, "third_party/dotnet/other/paket.docs.bzl"];
+        let extension: &[&str] = &[
+            lock,
+            main,
+            "third_party/dotnet/deps/paket.main_extension.bzl",
+        ];
+        let cases: [(&[&str], &str, &str, &str); 6] = [
+            (notes, NUGET_MODULE, dependencies, "neither paket.lock"),
+            (other, NUGET_MODULE, dependencies, "share one folder"),
             (
-                NUGET_SETS.replace("paket.main.bzl", "notes.txt"),
-                NUGET_MODULE,
-                dependencies,
-                "neither paket.lock",
-            ),
-            (
-                NUGET_SETS.replace(
-                    "deps/paket.main.bzl\",",
-                    "deps/paket.main.bzl\", \"third_party/dotnet/other/paket.docs.bzl\",",
-                ),
-                NUGET_MODULE,
-                dependencies,
-                "share one folder",
-            ),
-            (
-                NUGET_SETS.replace(
-                    "deps/paket.main.bzl\",",
-                    "deps/paket.main.bzl\", \"third_party/dotnet/deps/paket.main_extension.bzl\",",
-                ),
+                extension,
                 NUGET_MODULE,
                 dependencies,
                 "paket2bazel extension",
             ),
             (
-                NUGET_SETS.to_owned(),
+                &NUGET_LOCKS,
                 "bazel_dep(name = \"other\", version = \"1\")\n",
                 dependencies,
                 "rules_dotnet",
             ),
             (
-                NUGET_SETS.to_owned(),
+                &NUGET_LOCKS,
                 "bazel_dep(name = \"rules_dotnet\", version = \"1\", repo_name = \"dn\")\n",
                 dependencies,
                 "repo_name",
             ),
             (
-                NUGET_SETS.to_owned(),
+                &NUGET_LOCKS,
                 NUGET_MODULE,
                 "source ../local-feed\n",
                 "not http(s)",
             ),
         ];
-        let (scratch, set) = nuget_workspace(
-            &NUGET_SETS.replace("  \"third_party/dotnet/paket.lock\",\n", ""),
-            NUGET_MODULE,
-            dependencies,
-        );
+        let (scratch, set) = nuget_workspace(&[main], NUGET_MODULE, dependencies);
         assert!(matches!(
             check_backend_settings(scratch.path(), &set),
             Err(DependencySetsError::MissingPinnedLock { .. })
         ));
-        for (sets, module, dependencies, want) in cases {
-            let (scratch, set) = nuget_workspace(&sets, module, dependencies);
+        for (locks, module, dependencies, want) in cases {
+            let (scratch, set) = nuget_workspace(locks, module, dependencies);
             let detail = nuget_detail(check_backend_settings(scratch.path(), &set));
             assert!(detail.contains(want), "{want}: {detail}");
         }
     }
 
-    const GO_SETS: &str = r#"
-schema_version = 1
-[[dependency_set]]
-name = "go"
-ecosystem = "go"
-manifests = ["third_party/go/go.mod"]
-locks = ["third_party/go/go.sum"]
-scopes = ["third_party/go"]
-"#;
+    const GO_SUM: [&str; 1] = ["third_party/go/go.sum"];
+
+    fn go_set(manifest: &str, locks: &[&str]) -> Result<DependencySet, DependencySetsError> {
+        hub_set("go", Ecosystem::Go, strings(&[manifest]), strings(locks))
+    }
 
     const GO_MODULE: &str = "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n";
 
@@ -3421,7 +3189,7 @@ scopes = ["third_party/go"]
         "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.7.0\n";
 
     fn go_workspace(
-        sets: &str,
+        locks: &[&str],
         module: &str,
         go_mod: &str,
     ) -> (dx_test_scratch::TempDir, ResolvedSet) {
@@ -3430,9 +3198,8 @@ scopes = ["third_party/go"]
         std::fs::write(root.join("MODULE.bazel"), module).expect("module");
         std::fs::create_dir_all(root.join("third_party/go")).expect("dir");
         std::fs::write(root.join("third_party/go/go.mod"), go_mod).expect("go.mod");
-        let registry = load_text(sets);
-        let set = ResolvedSet::of(registry.find("go").expect("go"));
-        (scratch, set)
+        let set = go_set("third_party/go/go.mod", locks).expect("valid");
+        (scratch, ResolvedSet::of(&set))
     }
 
     fn go_detail(result: Result<(), DependencySetsError>) -> String {
@@ -3444,7 +3211,9 @@ scopes = ["third_party/go"]
 
     #[test]
     fn go_sets_load_with_go_mod_manifests() {
-        let registry = load_text(GO_SETS);
+        let registry = Registry {
+            sets: vec![go_set("third_party/go/go.mod", &GO_SUM).expect("valid")],
+        };
         let set = registry.find("go").expect("go");
         assert_eq!(set.ecosystem, Ecosystem::Go);
         assert_eq!(Ecosystem::parse("go"), Some(Ecosystem::Go));
@@ -3452,9 +3221,8 @@ scopes = ["third_party/go"]
         assert_eq!(Ecosystem::Go.supported_operations(), "check, update, audit");
         assert_eq!(Ecosystem::Go.advisory_family(), Some("go"));
         assert!(!Ecosystem::Go.uses_repository());
-        let wrong = GO_SETS.replace("go.mod", "go.work");
         assert!(matches!(
-            parse(&wrong, DX_TOML_REL),
+            go_set("third_party/go/go.work", &GO_SUM),
             Err(DependencySetsError::InvalidManifest { .. })
         ));
         assert!(resolve(&registry, &["go:github.com/google/go-cmp".to_owned()]).is_ok());
@@ -3466,43 +3234,33 @@ scopes = ["third_party/go"]
 
     #[test]
     fn go_layout_accepts_one_go_mod_with_go_sum() {
-        let (scratch, set) = go_workspace(GO_SETS, GO_MODULE, GO_MOD_TEXT);
+        let (scratch, set) = go_workspace(&GO_SUM, GO_MODULE, GO_MOD_TEXT);
         assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
     }
 
     #[test]
     fn go_layout_refuses_what_staging_cannot_reproduce() {
-        let (scratch, set) = go_workspace(
-            &GO_SETS.replace(
-                "locks = [\"third_party/go/go.sum\"]",
-                "locks = [\"third_party/go/go.work.sum\"]",
-            ),
-            GO_MODULE,
-            GO_MOD_TEXT,
-        );
+        let (scratch, set) = go_workspace(&["third_party/go/go.work.sum"], GO_MODULE, GO_MOD_TEXT);
         assert!(matches!(
             check_backend_settings(scratch.path(), &set),
             Err(DependencySetsError::MissingPinnedLock { .. })
         ));
-        let extra = GO_SETS.replace(
-            "locks = [\"third_party/go/go.sum\"]",
-            "locks = [\"third_party/go/go.sum\", \"third_party/go/go.work.sum\"]",
-        );
+        let extra: &[&str] = &["third_party/go/go.sum", "third_party/go/go.work.sum"];
         let replaced = format!("{GO_MOD_TEXT}\nreplace example.com/x => ../x\n");
         let renamed = "bazel_dep(name = \"rules_go\", version = \"0.50.1\", repo_name = \"io_bazel_rules_go\")\n";
         let with_env = format!(
             "{GO_MODULE}\ngo_deps.config(go_env = {{\"GOPRIVATE\": \"corp.example.com\"}})\n"
         );
-        let cases = [
-            (GO_SETS, with_env.as_str(), GO_MOD_TEXT, "go_env"),
-            (extra.as_str(), GO_MODULE, GO_MOD_TEXT, "exactly"),
-            (GO_SETS, GO_MODULE, replaced.as_str(), "local path"),
-            (GO_SETS, GO_MODULE, "not a go.mod {", "cannot parse"),
-            (GO_SETS, "", GO_MOD_TEXT, "bazel_dep(name = \"rules_go\")"),
-            (GO_SETS, renamed, GO_MOD_TEXT, "repo_name"),
+        let cases: [(&[&str], &str, &str, &str); 6] = [
+            (&GO_SUM, with_env.as_str(), GO_MOD_TEXT, "go_env"),
+            (extra, GO_MODULE, GO_MOD_TEXT, "exactly"),
+            (&GO_SUM, GO_MODULE, replaced.as_str(), "local path"),
+            (&GO_SUM, GO_MODULE, "not a go.mod {", "cannot parse"),
+            (&GO_SUM, "", GO_MOD_TEXT, "bazel_dep(name = \"rules_go\")"),
+            (&GO_SUM, renamed, GO_MOD_TEXT, "repo_name"),
         ];
-        for (sets, module, go_mod, want) in cases {
-            let (scratch, set) = go_workspace(sets, module, go_mod);
+        for (locks, module, go_mod, want) in cases {
+            let (scratch, set) = go_workspace(locks, module, go_mod);
             let detail = go_detail(check_backend_settings(scratch.path(), &set));
             assert!(detail.contains(want), "{want}: {detail}");
         }

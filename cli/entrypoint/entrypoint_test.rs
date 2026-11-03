@@ -191,11 +191,11 @@ fn consumer_status_detects_missing_and_corrupt_tools() {
 fn consumer_dependency_sets_audit_and_reject_bump() {
     let security = read("DX_SETS_SECURITY");
     assert!(
-        security.contains("failed to assess frontend")
+        security.contains("failed to assess pypi-frontend")
             && security.contains(".dx/advisory/pypi.json"),
         "audit checks configured uv sets against the PyPI snapshot: {security}"
     );
-    for covered in ["frontend", "gems", "web", "worker"] {
+    for covered in ["pypi-frontend", "gems", "web", "pypi-worker"] {
         assert!(
             !security
                 .split("no advisory coverage for ")
@@ -216,8 +216,8 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     );
     let pinned = read("DX_SETS_UPDATE_PINNED");
     assert!(
-        pinned.contains("gems pins are manual") && pinned.contains("modules pins are manual"),
-        "configured ruby and powershell sets check as pinned: {pinned}"
+        pinned.contains("gems pins are manual"),
+        "configured ruby sets check as pinned: {pinned}"
     );
     let ruby = read("DX_SETS_SECURITY_RUBY");
     assert!(
@@ -238,7 +238,7 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     );
     let cargo = read("DX_SETS_SECURITY_CARGO");
     assert!(
-        cargo.contains("failed to assess rs") && cargo.contains(".dx/advisory/cargo.json"),
+        cargo.contains("failed to assess crates") && cargo.contains(".dx/advisory/cargo.json"),
         "audit checks configured cargo sets against the cargo snapshot: {cargo}"
     );
     assert!(
@@ -247,12 +247,12 @@ fn consumer_dependency_sets_audit_and_reject_bump() {
     );
     let bump = read("DX_SETS_BUMP_CARGO");
     assert!(
-        bump.contains("bump pending: rs:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),
+        bump.contains("bump pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml"),
         "bump plans an undeclared cargo package without writing: {bump}"
     );
     assert!(
         bump.contains("cannot resolve cargo hub \"crates\""),
-        "update refuses a cargo set without its crate_universe hub: {bump}"
+        "update refuses a cargo hub missing from use_repo: {bump}"
     );
 }
 
@@ -404,12 +404,12 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
 fn consumer_dependency_set_fixtures_fail_closed() {
     let bad = read("DX_SETS_BAD_KIND");
     assert!(
-        bad.contains("unknown ecosystem"),
-        "an unknown backend kind fails closed: {bad}"
+        bad.contains("needs literal arguments"),
+        "a computed hub fails closed: {bad}"
     );
     let nolock = read("DX_SETS_NOLOCK");
     assert!(
-        nolock.contains("failed to assess frontend"),
+        nolock.contains("failed to assess pypi-frontend"),
         "a missing lock fails the license audit: {nolock}"
     );
     assert!(

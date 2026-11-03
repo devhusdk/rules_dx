@@ -1,0 +1,98 @@
+//! Keeps the dependency sets rules_dx finds in its own MODULE.bazel stable.
+
+use dx_adopt::dependency_sets::{discover, DependencySet, Ecosystem};
+
+const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
+const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
+const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
+
+const EXPECTED_NAMES: [&str; 16] = [
+    "bundle",
+    "dx_crates",
+    "dx_dokka",
+    "dx_npm",
+    "dx_npm_tools",
+    "dx_pypi-hello",
+    "dx_pypi-python",
+    "dx_pypi-python-service",
+    "dx_pypi-sqlfluff",
+    "dx_pypi-tooling",
+    "dx_quality_crates",
+    "dx_scalafix",
+    "go",
+    "maven",
+    "npm_node_app",
+    "nuget",
+];
+
+fn sets() -> Vec<DependencySet> {
+    let read = |rel: &str| match rel {
+        "third_party/dotnet/extension.bzl" => Ok(PAKET_EXTENSION.to_owned()),
+        other => Err(format!("{other} is not a test input")),
+    };
+    discover(MODULE_BAZEL, &read)
+        .expect("root MODULE.bazel hubs load")
+        .expect("root MODULE.bazel declares hubs")
+        .sets
+}
+
+fn set(name: &str) -> DependencySet {
+    sets()
+        .into_iter()
+        .find(|set| set.name == name)
+        .unwrap_or_else(|| panic!("set {name} is missing"))
+}
+
+#[test]
+fn root_module_declares_exactly_the_expected_sets() {
+    let names: Vec<String> = sets().into_iter().map(|set| set.name).collect();
+    assert_eq!(names, EXPECTED_NAMES);
+}
+
+#[test]
+fn dx_crates_starts_with_the_manifest_beside_its_cargo_lock() {
+    let cargo = set("dx_crates");
+    assert_eq!(cargo.ecosystem, Ecosystem::Cargo);
+    assert_eq!(cargo.repository.as_deref(), Some("dx_crates"));
+    assert_eq!(cargo.manifests[0], "rust/tests/fixtures/hello/Cargo.toml");
+    assert_eq!(
+        cargo.locks,
+        [
+            "rust/tests/fixtures/hello/Cargo.lock",
+            "cargo-bazel-lock.json"
+        ]
+    );
+}
+
+#[test]
+fn nuget_locks_cover_every_paket_group() {
+    let mut groups = vec!["main".to_owned()];
+    for line in PAKET_DEPENDENCIES.lines() {
+        if let Some(group) = line.trim().strip_prefix("group ") {
+            groups.push(group.trim().to_owned());
+        }
+    }
+    let mut want = vec!["third_party/dotnet/paket.lock".to_owned()];
+    for group in &groups {
+        want.push(format!("third_party/dotnet/deps/paket.{group}.bzl"));
+    }
+    let nuget = set("nuget");
+    assert_eq!(nuget.manifests, ["third_party/dotnet/paket.dependencies"]);
+    let mut got = nuget.locks;
+    got.sort();
+    want.sort();
+    assert_eq!(got, want);
+}
+
+#[test]
+fn go_maven_and_uv_have_their_declared_shape() {
+    assert_eq!(set("go").locks, ["third_party/go/go.sum"]);
+    assert_eq!(set("go").manifests, ["third_party/go/go.mod"]);
+    let maven = set("maven");
+    assert_eq!(maven.repository.as_deref(), Some("maven"));
+    assert_eq!(maven.manifests, ["MODULE.bazel"]);
+    assert_eq!(maven.locks, ["third_party/jvm/maven_install.json"]);
+    let tools = set("dx_pypi-python");
+    assert_eq!(tools.manifests, ["quality/tools/python/pyproject.toml"]);
+    assert_eq!(tools.locks, ["quality/tools/python/uv.lock"]);
+}

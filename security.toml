@@ -1,14 +1,9 @@
 schema_version = 1
 
-[[uncovered]]
-set = "powershell"
-reason = "PowerShell Gallery publishes no advisories. Pester and PSScriptAnalyzer are pinned by sha256."
-expires = "2027-04-24"
-
 [[exception]]
 advisory = "RUSTSEC-2023-0089"
 package = "atomic-polyfill"
-set = "cargo"
+set = "dx_crates"
 versions = "=1.0.3"
 reason = "Unmaintained; pulled by heapless 0.7 through starlark_syntax 0.14.2, which has no release without it."
 expires = "2027-01-24"
@@ -16,7 +11,7 @@ expires = "2027-01-24"
 [[exception]]
 advisory = "RUSTSEC-2024-0388"
 package = "derivative"
-set = "cargo"
+set = "dx_crates"
 versions = "=2.2.0"
 reason = "Unmaintained; pulled by starlark_syntax 0.14.2, which has no release without it."
 expires = "2027-01-24"
@@ -24,7 +19,7 @@ expires = "2027-01-24"
 [[exception]]
 advisory = "RUSTSEC-2025-0057"
 package = "fxhash"
-set = "cargo"
+set = "dx_crates"
 versions = "=0.2.1"
 reason = "Unmaintained; pulled by starlark_map 0.14.2 through starlark_syntax, which has no release without it."
 expires = "2027-01-24"
@@ -32,7 +27,7 @@ expires = "2027-01-24"
 [[exception]]
 advisory = "RUSTSEC-2023-0071"
 package = "rsa"
-set = "cargo"
+set = "dx_crates"
 versions = "=0.9.10"
 reason = "Marvin timing attack; the RustCrypto rsa crate has no fixed release. Pulled by pgp 0.21.0."
 expires = "2027-01-24"
@@ -40,7 +35,7 @@ expires = "2027-01-24"
 [[exception]]
 advisory = "RUSTSEC-2026-0387"
 package = "crypto-bigint"
-set = "cargo"
+set = "dx_crates"
 versions = "=0.5.5"
 reason = "Pulled by elliptic-curve 0.13.8 and cx448 0.1.1, which need crypto-bigint 0.5; the fix needs 0.7."
 expires = "2027-01-24"
@@ -48,7 +43,7 @@ expires = "2027-01-24"
 [[exception]]
 advisory = "GHSA-7mx3-vvmw-hjmv"
 package = "@graphql-tools/utils"
-set = "npm"
+set = "dx_npm"
 versions = "=10.11.0"
 reason = "Pulled only by @graphql-eslint/eslint-plugin 4.4.2, the latest release, which requires ^10; lint-time tool over repo-owned schemas, not shipped; the fix exists only in 12.x."
 expires = "2027-01-28"
@@ -56,79 +51,15 @@ expires = "2027-01-28"
 [[exception]]
 advisory = "GHSA-c4qx-w738-7hr3"
 package = "@graphql-tools/utils"
-set = "npm"
+set = "dx_npm"
 versions = "=10.11.0"
 reason = "Pulled only by @graphql-eslint/eslint-plugin 4.4.2, the latest release, which requires ^10; lint-time tool over repo-owned schemas, not shipped; the fix exists only in 12.x."
 expires = "2027-01-28"
 
 [[exception]]
-advisory = "GHSA-6q48-6c7w-9gw2"
-package = "certifi"
-set = "uv-adopt"
-versions = "=2026.7.22"
-reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; refresh it with `dx update --apply` once the fixture can move."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "GHSA-6q48-6c7w-9gw2"
-package = "certifi"
-set = "uv-adopt-polyglot"
-versions = "=2026.7.22"
-reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; refresh it with `dx update --apply` once the fixture can move."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "PYSEC-2026-4320"
-package = "certifi"
-set = "uv-adopt"
-versions = "=2026.7.22"
-reason = "Same finding as GHSA-6q48-6c7w-9gw2; the lock is a consumer fixture that is not shipped."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "PYSEC-2026-4320"
-package = "certifi"
-set = "uv-adopt-polyglot"
-versions = "=2026.7.22"
-reason = "Same finding as GHSA-6q48-6c7w-9gw2; the lock is a consumer fixture that is not shipped."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "GHSA-6w46-j5rx-g56g"
-package = "pytest"
-set = "uv-adopt"
-versions = "=8.3.4"
-reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; the fix needs pytest 9."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "GHSA-6w46-j5rx-g56g"
-package = "pytest"
-set = "uv-adopt-polyglot"
-versions = "=8.3.4"
-reason = "Pinned only in the consumer fixture lock of this set, which is not shipped; the fix needs pytest 9."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "PYSEC-2026-1845"
-package = "pytest"
-set = "uv-adopt"
-versions = "=8.3.4"
-reason = "Same finding as GHSA-6w46-j5rx-g56g; the lock is a consumer fixture that is not shipped."
-expires = "2027-01-28"
-
-[[exception]]
-advisory = "PYSEC-2026-1845"
-package = "pytest"
-set = "uv-adopt-polyglot"
-versions = "=8.3.4"
-reason = "Same finding as GHSA-6w46-j5rx-g56g; the lock is a consumer fixture that is not shipped."
-expires = "2027-01-28"
-
-[[exception]]
 advisory = "GHSA-g6cj-pr64-35w5"
 package = "cryptography"
-set = "uv-tools"
+set = "dx_pypi-python"
 versions = "=49.0.0"
 reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix needs cryptography 50."
 expires = "2027-01-28"
@@ -136,7 +67,7 @@ expires = "2027-01-28"
 [[exception]]
 advisory = "PYSEC-2026-3552"
 package = "cryptography"
-set = "uv-tools"
+set = "dx_pypi-python"
 versions = "=49.0.0"
 reason = "Same finding as GHSA-g6cj-pr64-35w5; quality/tools/python/uv.lock is a lint-time tool environment that is not shipped."
 expires = "2027-01-28"
@@ -144,7 +75,7 @@ expires = "2027-01-28"
 [[exception]]
 advisory = "GHSA-22qq-2fwx-7p67"
 package = "pylint"
-set = "uv-tools"
+set = "dx_pypi-python"
 versions = "=4.0.8"
 reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix is pylint 4.0.9."
 expires = "2027-01-28"

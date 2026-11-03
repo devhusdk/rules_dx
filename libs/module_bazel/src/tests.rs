@@ -1053,3 +1053,89 @@ fn extension_bindings_and_use_repos_follow_the_binding() {
     assert_eq!(module.use_repos("other"), [("c", 5)]);
     assert!(module.use_repos("missing").is_empty());
 }
+
+#[test]
+fn npm_translate_locks_follow_the_aspect_rules_js_extension() {
+    let file = parse("npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"bare\")\nfake = use_extension(\"@fake//npm:extensions.bzl\", \"npm\")\nfake.npm_translate_lock(name = \"no\")\n");
+    assert_eq!(
+        file.npm_translate_locks().expect("locks"),
+        [
+            NpmLock {
+                name: "web",
+                pnpm_lock: Some("//apps/web:pnpm-lock.yaml"),
+                line: 2,
+            },
+            NpmLock {
+                name: "bare",
+                pnpm_lock: None,
+                line: 3,
+            },
+        ]
+    );
+    let computed = parse("npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = NAME)\n");
+    assert_eq!(
+        computed.npm_translate_locks(),
+        Err(ModuleError::ComputedHub {
+            tag: "npm.npm_translate_lock",
+            line: 2
+        })
+    );
+}
+
+#[test]
+fn uv_projects_follow_the_aspect_rules_py_extension() {
+    let file = parse("uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.declare_hub(hub_name = \"pypi\")\nuv.project(hub_name = \"pypi\", lock = \"//a:uv.lock\", pyproject = \"//a:pyproject.toml\")\n");
+    assert_eq!(
+        file.uv_projects().expect("projects"),
+        [UvProject {
+            hub_name: "pypi",
+            pyproject: "//a:pyproject.toml",
+            lock: "//a:uv.lock",
+            line: 3,
+        }]
+    );
+    let missing = parse("uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//a:pyproject.toml\")\n");
+    assert!(missing.uv_projects().is_err());
+}
+
+#[test]
+fn go_deps_files_follow_the_gazelle_extension() {
+    let file = parse("go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\ngo_deps.from_file(go_work = \"//:go.work\")\n");
+    assert_eq!(
+        file.go_deps_files().expect("files"),
+        [GoModFile {
+            go_mod: "//third_party/go:go.mod",
+            line: 2,
+        }]
+    );
+}
+
+#[test]
+fn bundle_fetches_follow_the_rules_ruby_extension() {
+    let file = parse("ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(name = \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//g:Gemfile\", gemfile_lock = \"//g:Gemfile.lock\")\n");
+    let names: Vec<_> = file
+        .bundle_fetches()
+        .expect("fetches")
+        .iter()
+        .map(|fetch| (fetch.name, fetch.gemfile, fetch.gemfile_lock))
+        .collect();
+    assert_eq!(
+        names,
+        [
+            ("bundle", "//r:Gemfile", "//r:Gemfile.lock"),
+            ("gems", "//g:Gemfile", "//g:Gemfile.lock"),
+        ]
+    );
+}
+
+#[test]
+fn paket_extensions_are_main_repository_paket_loaders() {
+    let file = parse("paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n");
+    assert_eq!(
+        file.paket_extensions(),
+        [
+            "//third_party/dotnet:extension.bzl",
+            "//deps:paket.main_extension.bzl"
+        ]
+    );
+}

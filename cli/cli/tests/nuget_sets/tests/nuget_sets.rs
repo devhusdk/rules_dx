@@ -11,19 +11,8 @@ bazel_dep(name = "rules_dotnet", version = "0.22.2")
 dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
-"#;
 
-const DX_TOML: &str = r#"schema_version = 1
-
-[[dependency_set]]
-name = "dotnet"
-ecosystem = "nuget"
-manifests = ["third_party/dotnet/paket.dependencies"]
-locks = [
-  "third_party/dotnet/paket.lock",
-  "third_party/dotnet/deps/paket.main.bzl",
-]
-scopes = ["third_party/dotnet"]
+paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
 "#;
 
 const DEPENDENCIES: &str = "source https://api.nuget.org/v3/index.json\nframework: net10.0\n\nnuget Newtonsoft.Json 13.0.3\n";
@@ -63,7 +52,6 @@ fn consumer() -> Case {
         "build:dx_dev --compilation_mode=fastbuild\n",
     );
     write(&root.join(".dx/version"), "0.0.0\n");
-    write(&root.join("dx.toml"), DX_TOML);
     write(
         &root.join("third_party/dotnet/paket.dependencies"),
         DEPENDENCIES,
@@ -158,7 +146,7 @@ fn nuget_set_regenerates_only_its_declared_bzl_files() {
     let run = dx_in(&root, &["update"]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
-        run.stdout.contains("dotnet lockfile current"),
+        run.stdout.contains("nuget lockfile current"),
         "{}",
         report(&run)
     );

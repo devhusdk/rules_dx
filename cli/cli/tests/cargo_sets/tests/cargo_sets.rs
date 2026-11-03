@@ -23,25 +23,6 @@ crate.from_cargo(
 use_repo(crate, "crates", "tool_crates")
 "#;
 
-const DX_TOML: &str = r#"schema_version = 1
-
-[[dependency_set]]
-name = "crates"
-ecosystem = "cargo"
-manifests = ["apps/rs/Cargo.toml"]
-locks = ["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"]
-scopes = ["apps/rs"]
-repository = "crates"
-
-[[dependency_set]]
-name = "tools"
-ecosystem = "cargo"
-manifests = ["tools/rs/Cargo.toml"]
-locks = ["tools/rs/Cargo.lock", "tools/rs/cargo-bazel-lock.json"]
-scopes = ["tools/rs"]
-repository = "tool_crates"
-"#;
-
 const SET_BUILD: &str =
     "exports_files([\"Cargo.toml\", \"Cargo.lock\", \"cargo-bazel-lock.json\"])\n";
 
@@ -97,7 +78,6 @@ fn consumer() -> Case {
         "build:dx_dev --compilation_mode=fastbuild\n",
     );
     write(&root.join(".dx/version"), "0.0.0\n");
-    write(&root.join("dx.toml"), DX_TOML);
     for (dir, name, dep) in [
         ("apps/rs", "app", ("itoa", "1.0.11")),
         ("tools/rs", "tool", ("itoa", "1.0.11")),
@@ -165,7 +145,7 @@ fn cargo_sets_check_and_repin_one_crate_universe_hub_at_a_time() {
         report(&run)
     );
     assert!(
-        run.stdout.contains("tools lockfile current"),
+        run.stdout.contains("tool_crates lockfile current"),
         "{}",
         report(&run)
     );

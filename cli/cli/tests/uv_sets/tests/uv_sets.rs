@@ -4,21 +4,13 @@ use dx_test_scratch::{scratch, TempDir};
 use dx_testing::http::{requests, serve, Reply, RequestLog};
 use dx_testing::{resolve_runfiles, run, Run};
 
-const DX_TOML: &str = r#"schema_version = 1
+const MODULE: &str = r#"module(name = "consumer")
 
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
+bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
 
-[[dependency_set]]
-name = "worker"
-ecosystem = "uv"
-manifests = ["services/worker/pyproject.toml"]
-locks = ["services/worker/uv.lock"]
-scopes = ["services/worker"]
+uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv.project(hub_name = "pypi", lock = "//apps/frontend:uv.lock", pyproject = "//apps/frontend:pyproject.toml")
+uv.project(hub_name = "pypi", lock = "//services/worker:uv.lock", pyproject = "//services/worker:pyproject.toml")
 "#;
 
 const HOSTILE_CONFIG: &str = "exclude-newer = \"2020-01-01T00:00:00Z\"\n";
@@ -147,8 +139,7 @@ impl Consumer {
             })
             .collect();
         let index = Index::start(wheels);
-        write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
-        write(&root.join("dx.toml"), DX_TOML);
+        write(&root.join("MODULE.bazel"), MODULE);
         write(
             &root.join(FRONTEND).join("pyproject.toml"),
             &pyproject("frontend", ">=3.9", Some(&index.url)),
@@ -252,12 +243,12 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
     );
     assert_eq!(consumer.lock(FRONTEND), None);
 
-    let applied = consumer.dx(&["update", "--apply", "frontend"], None);
+    let applied = consumer.dx(&["update", "--apply", "pypi-frontend"], None);
     assert_code(&applied, 0);
     assert!(
         applied
             .stdout
-            .contains("updated frontend (apps/frontend/uv.lock)"),
+            .contains("updated pypi-frontend (apps/frontend/uv.lock)"),
         "{}",
         applied.combined()
     );
@@ -278,7 +269,7 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
         "ambient config leaked: {text}"
     );
 
-    let applied = consumer.dx(&["update", "--apply", "worker"], None);
+    let applied = consumer.dx(&["update", "--apply", "pypi-worker"], None);
     assert_code(&applied, 0);
     let worker = consumer.lock(WORKER).expect("worker lock");
     assert_eq!(consumer.lock(FRONTEND), Some(frontend.clone()));
@@ -289,14 +280,14 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
         assert!(
             checked
                 .stdout
-                .contains("frontend lockfile current (apps/frontend/uv.lock)"),
+                .contains("pypi-frontend lockfile current (apps/frontend/uv.lock)"),
             "{}",
             checked.combined()
         );
         assert!(
             checked
                 .stdout
-                .contains("worker lockfile current (services/worker/uv.lock)"),
+                .contains("pypi-worker lockfile current (services/worker/uv.lock)"),
             "{}",
             checked.combined()
         );
@@ -313,14 +304,14 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
     assert!(
         stale
             .stderr
-            .contains("failed to check frontend: updater exited 1"),
+            .contains("failed to check pypi-frontend: updater exited 1"),
         "{}",
         stale.combined()
     );
     assert!(
         stale
             .stdout
-            .contains("worker lockfile current (services/worker/uv.lock)"),
+            .contains("pypi-worker lockfile current (services/worker/uv.lock)"),
         "{}",
         stale.combined()
     );
@@ -342,7 +333,7 @@ fn pinned_uv_checks_and_applies_only_the_selected_set() {
         assert_eq!(consumer.lock(FRONTEND), Some(frontend.clone()));
     }
 
-    let applied = consumer.dx(&["update", "--apply", "frontend"], None);
+    let applied = consumer.dx(&["update", "--apply", "pypi-frontend"], None);
     assert_code(&applied, 0);
     let refreshed = consumer.lock(FRONTEND).expect("frontend lock");
     assert_ne!(refreshed, frontend);
@@ -388,7 +379,7 @@ fn uv_config_in_the_set_is_unsupported() {
     assert_code(&applied, 0);
     let before = consumer.lock(WORKER).expect("worker lock");
     write(&consumer.root.join(WORKER).join("uv.toml"), HOSTILE_CONFIG);
-    let refused = consumer.dx(&["update", "--apply", "worker"], None);
+    let refused = consumer.dx(&["update", "--apply", "pypi-worker"], None);
     assert_code(&refused, 1);
     assert!(
         refused.stderr.contains("update_set_unsupported"),
@@ -414,7 +405,7 @@ fn offline_check_without_the_needed_inputs_is_never_clean() {
     assert!(
         online
             .stdout
-            .contains("frontend lockfile current (apps/frontend/uv.lock)"),
+            .contains("pypi-frontend lockfile current (apps/frontend/uv.lock)"),
         "{}",
         online.combined()
     );
@@ -446,14 +437,14 @@ fn offline_check_without_the_needed_inputs_is_never_clean() {
         checked.combined()
     );
     assert!(
-        !checked.stdout.contains("frontend lockfile current"),
+        !checked.stdout.contains("pypi-frontend lockfile current"),
         "{}",
         checked.combined()
     );
     assert!(
         checked
             .stdout
-            .contains("worker lockfile current (services/worker/uv.lock)"),
+            .contains("pypi-worker lockfile current (services/worker/uv.lock)"),
         "{}",
         checked.combined()
     );

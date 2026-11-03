@@ -545,17 +545,17 @@ mod tests {
 
     #[test]
     fn root_package_labels_are_audited_only_when_a_root_scoped_set_exists() {
-        let set = |scope: &str| {
+        let set = |package: &str| {
             format!(
-                "schema_version = 1\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"package.json\"]\nlocks = [\"pnpm-lock.yaml\"]\nscopes = [\"{scope}\"]\n"
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//{package}:pnpm-lock.yaml\")\n"
             )
         };
         let root = dx_test_scratch::scratch("dx-affected-root-scope-");
-        write(root.path(), "dx.toml", &set("."));
+        write(root.path(), "MODULE.bazel", &set(""));
         assert!(audit_owned(root.path(), "//:node_modules"));
         assert!(!audit_owned(root.path(), "//foo:bar"));
         let other = dx_test_scratch::scratch("dx-affected-other-scope-");
-        write(other.path(), "dx.toml", &set("apps/web"));
+        write(other.path(), "MODULE.bazel", &set("apps/web"));
         assert!(!audit_owned(other.path(), "//:node_modules"));
     }
 

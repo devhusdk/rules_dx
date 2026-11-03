@@ -12,8 +12,6 @@ pub(crate) struct EditVerb {
     pub(crate) command: &'static str,
     /// The noun for one edit, as in "(no widen performed)".
     pub(crate) noun: &'static str,
-    /// What the verb does to a set, as in "cannot widen read-only set".
-    pub(crate) set_action: &'static str,
     /// The notice code for a written manifest edit.
     pub(crate) notice_code: &'static str,
     /// The error code for a failed edit.
@@ -86,18 +84,6 @@ pub(crate) fn configured_set(
     };
     match (set.ecosystem, kind) {
         (_, Some(kind)) => {
-            if !set.writable {
-                return Err(operational(
-                    invocation,
-                    out,
-                    err,
-                    verb.failure_code,
-                    &format!(
-                        "{} cannot {} read-only set {} (writable = false)",
-                        verb.command, verb.set_action, set.name
-                    ),
-                ));
-            }
             let arity_ok = if kind == dx_bump::ConfiguredKind::Cargo {
                 !set.manifests.is_empty()
             } else {
@@ -685,7 +671,7 @@ fn refresh_plan(
     let name = configured.name.clone();
     let gone = || dx_update::backend::BackendError::Unsupported {
         set: name.clone(),
-        reason: "the dx.toml dependency set is no longer configured",
+        reason: "the dependency set is no longer in MODULE.bazel",
     };
     let resolved = match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => {
@@ -790,7 +776,6 @@ mod tests {
     const VERB: EditVerb = EditVerb {
         command: "bump",
         noun: "widen",
-        set_action: "widen",
         notice_code: "bump_widened",
         failure_code: CODE_BUMP_FAILED,
         noop_note: "pinned module lock; no-op success",

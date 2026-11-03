@@ -130,16 +130,6 @@ fn run_configured_target(
     let set = &target.set;
     let verb = mode.verb();
     if mode == RunMode::Update {
-        if let Err(error) = dependency_sets::check_writable(set) {
-            record_named(
-                attempted,
-                details,
-                &set.name,
-                dx_update::outcome::SetStatus::Unsupported,
-                format!("cannot update {}: {error}", set.name),
-            );
-            return Ok(());
-        }
         if let Err(error) = dependency_sets::check_files(workspace, set, false) {
             record_named(
                 attempted,
@@ -651,23 +641,7 @@ mod tests {
         argv
     }
 
-    const DX_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-
-[[dependency_set]]
-name = "worker"
-ecosystem = "uv"
-manifests = ["services/worker/pyproject.toml"]
-locks = ["services/worker/uv.lock"]
-scopes = ["services/worker"]
-"#;
+    const UV_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"deps\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
 
     const PYPROJECT: &str = r#"
 [project]
@@ -687,12 +661,12 @@ version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 "#;
 
-    fn consumer_harness(name: &str, dx_toml: &str, with_locks: bool) -> Harness {
+    fn consumer_harness(name: &str, module: &str, with_locks: bool) -> Harness {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let harness = Harness::new(&format!("update-consumer-{name}-{id}"));
-        harness.write_source("dx.toml", dx_toml);
+        harness.write_source("MODULE.bazel", module);
         harness.write_source("apps/frontend/pyproject.toml", PYPROJECT);
         harness.write_source("services/worker/pyproject.toml", PYPROJECT);
         if with_locks {
@@ -709,7 +683,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn run_consumer(argv: &[&str], runner: &ScriptRunner) -> (i32, String, String, Harness) {
-        let harness = consumer_harness("sets", DX_TOML, true);
+        let harness = consumer_harness("sets", UV_MODULE, true);
         let (code, out, err) = run_with(argv, runner, &harness);
         (code, out, err, harness)
     }
@@ -720,15 +694,15 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err, _) = run_consumer(&["update"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
-            out.contains("Running update --check for frontend, worker"),
+            out.contains("Running update --check for deps-frontend, deps-worker"),
             "{out}"
         );
         assert!(
-            out.contains("frontend lockfile current (apps/frontend/uv.lock)"),
+            out.contains("deps-frontend lockfile current (apps/frontend/uv.lock)"),
             "{out}"
         );
         assert!(
-            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            out.contains("deps-worker lockfile current (services/worker/uv.lock)"),
             "{out}"
         );
         for phantom in [
@@ -773,10 +747,10 @@ source = { registry = "https://pypi.org/simple" }
         assert!(runner.calls.borrow().is_empty());
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
-        let (code, out, err, _) = run_consumer(&["update", "--apply", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--apply", "deps-worker"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("backend_unavailable"), "{err}");
-        assert!(!out.contains("updated worker"), "{out}");
+        assert!(!out.contains("updated deps-worker"), "{out}");
         assert!(runner.calls.borrow().is_empty());
     }
 
@@ -802,7 +776,7 @@ source = { registry = "https://pypi.org/simple" }
         let base = super::super::super::test_support::temp_dir("uv-fallback");
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
-        let harness = consumer_harness("fallback", DX_TOML, true);
+        let harness = consumer_harness("fallback", UV_MODULE, true);
         script_resolution(&harness, base.path(), "external/x/uv");
         script_resolution(&harness, base.path(), "external/x/python3");
         let (code, out, err) = run_with(&["update"], &runner, &harness);
@@ -825,7 +799,7 @@ source = { registry = "https://pypi.org/simple" }
         let base = super::super::super::test_support::temp_dir("uv-offline");
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
-        let harness = consumer_harness("offline", DX_TOML, true);
+        let harness = consumer_harness("offline", UV_MODULE, true);
         script_resolution(&harness, base.path(), "external/x/uv");
         script_resolution(&harness, base.path(), "external/x/python3");
         let (code, out, err) = run_with(&["update", "--offline"], &runner, &harness);
@@ -845,7 +819,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_failed_resolution_is_unavailable_with_the_detail_and_queried_once() {
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
-        let harness = consumer_harness("resolve-fails", DX_TOML, true);
+        let harness = consumer_harness("resolve-fails", UV_MODULE, true);
         harness
             .query
             .script_failure(1, "ERROR: no such repository '@dx_tools'\n");
@@ -865,7 +839,7 @@ source = { registry = "https://pypi.org/simple" }
         let mut runner = ScriptRunner::new(&[]);
         runner.pinned = false;
         runner.version = Some("uv 0.1.0".to_owned());
-        let harness = consumer_harness("wrong-version", DX_TOML, true);
+        let harness = consumer_harness("wrong-version", UV_MODULE, true);
         script_resolution(&harness, base.path(), "external/x/uv");
         let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
@@ -878,8 +852,12 @@ source = { registry = "https://pypi.org/simple" }
         for flag in ["--offline", "--frozen"] {
             let mut runner = ScriptRunner::new(&[]);
             runner.pinned = false;
-            let harness = consumer_harness("rejected", DX_TOML, true);
-            let (_, out, err) = run_with(&["update", "--apply", flag, "worker"], &runner, &harness);
+            let harness = consumer_harness("rejected", UV_MODULE, true);
+            let (_, out, err) = run_with(
+                &["update", "--apply", flag, "deps-worker"],
+                &runner,
+                &harness,
+            );
             assert!(
                 harness.query.calls.borrow().is_empty(),
                 "{flag}: {out}{err}"
@@ -896,7 +874,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("\"code\":\"backend_unavailable\""), "{out}");
         assert!(!out.contains("\"code\":\"update_failed\""), "{out}");
-        for args in [&["update"][..], &["update", "--apply", "worker"][..]] {
+        for args in [&["update"][..], &["update", "--apply", "deps-worker"][..]] {
             let mut runner = ScriptRunner::new(&[]);
             runner.pinned = false;
             let (code, out, err, _) = run_consumer(args, &runner);
@@ -926,32 +904,32 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err, _) = run_consumer(&["update"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains("failed to check frontend: updater exited 1"),
+            err.contains("failed to check deps-frontend: updater exited 1"),
             "{err}"
         );
         assert!(
-            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            out.contains("deps-worker lockfile current (services/worker/uv.lock)"),
             "{out}"
         );
-        assert!(!out.contains("frontend lockfile current"), "{out}");
+        assert!(!out.contains("deps-frontend lockfile current"), "{out}");
         assert_eq!(runner.calls.borrow().len(), 2);
         let runner = ScriptRunner::new(&[("consumer-uv:services/worker", None)]);
-        let (code, out, err, _) = run_consumer(&["update", "--apply", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--apply", "deps-worker"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains("failed to update worker: updater terminated by signal"),
+            err.contains("failed to update deps-worker: updater terminated by signal"),
             "{err}"
         );
         let mut runner = ScriptRunner::new(&[]);
         runner.io_error = true;
-        let (code, out, err, _) = run_consumer(&["update", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "deps-worker"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("failed to launch updater"), "{err}");
     }
 
     #[test]
     fn consumer_uv_settings_outside_the_closure_are_unsupported() {
-        let harness = consumer_harness("settings", DX_TOML, true);
+        let harness = consumer_harness("settings", UV_MODULE, true);
         harness.write_source(
             "apps/frontend/uv.toml",
             "exclude-newer = \"2020-01-01T00:00:00Z\"\n",
@@ -961,20 +939,20 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("apps/frontend/uv.toml exists"), "{err}");
         assert!(
-            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            out.contains("deps-worker lockfile current (services/worker/uv.lock)"),
             "{out}"
         );
         assert_eq!(
             *runner.calls.borrow(),
             vec![uv_call(true, "services/worker")]
         );
-        let harness = consumer_harness("tool-uv", DX_TOML, true);
+        let harness = consumer_harness("tool-uv", UV_MODULE, true);
         harness.write_source(
             "services/worker/pyproject.toml",
             &format!("{PYPROJECT}\n[tool.uv]\nindex-url = \"https://example.invalid/simple\"\n"),
         );
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "--apply", "worker"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--apply", "deps-worker"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
         assert!(err.contains("[tool.uv] index-url"), "{err}");
@@ -987,7 +965,7 @@ source = { registry = "https://pypi.org/simple" }
         let (code, out, err, _) = run_consumer(&["update", "--apply"], &runner);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("update_recovery"), "{err}");
-        assert!(err.contains("dx update --apply worker"), "{err}");
+        assert!(err.contains("dx update --apply deps-worker"), "{err}");
         assert!(
             err.contains("git checkout -- apps/frontend/uv.lock"),
             "{err}"
@@ -996,33 +974,16 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     #[test]
-    fn consumer_set_named_like_builtin_restores_dx_toml_locks() {
-        let toml = DX_TOML
-            .replace("name = \"frontend\"", "name = \"uv\"")
-            .replace("name = \"worker\"", "name = \"cargo\"");
-        let harness = consumer_harness("builtin-names", &toml, true);
-        let runner = ScriptRunner::new(&[("consumer-uv:services/worker", Some(1))]);
-        let (code, out, err) = run_with(&["update", "--apply"], &runner, &harness);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(
-            err.contains("git checkout -- apps/frontend/uv.lock"),
-            "{err}"
-        );
-        assert!(!err.contains("python/tests/fixtures"), "{err}");
-        assert!(!err.contains("Cargo.lock"), "{err}");
-    }
-
-    #[test]
     fn consumer_selective_update_runs_one_directory() {
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "--apply", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--apply", "deps-worker"], &runner);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("Running update for worker"), "{out}");
+        assert!(out.contains("Running update for deps-worker"), "{out}");
         assert!(
-            out.contains("updated worker (services/worker/uv.lock)"),
+            out.contains("updated deps-worker (services/worker/uv.lock)"),
             "{out}"
         );
-        assert!(!out.contains("frontend"), "{out}");
+        assert!(!out.contains("deps-frontend"), "{out}");
         assert_eq!(err, "", "{err}");
         assert_eq!(
             *runner.calls.borrow(),
@@ -1064,48 +1025,23 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_selective_package_is_unsupported_without_launch() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "--apply", "frontend:anyio"], &runner);
+        let (code, _, err, _) =
+            run_consumer(&["update", "--apply", "deps-frontend:anyio"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
-        assert!(err.contains("frontend"), "{err}");
+        assert!(err.contains("deps-frontend"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
     }
 
     #[test]
     fn consumer_missing_lock_fails_check_without_launch() {
-        let harness = consumer_harness("missing-lock", DX_TOML, false);
+        let harness = consumer_harness("missing-lock", UV_MODULE, false);
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "worker"], &runner, &harness);
+        let (code, _, err) = run_with(&["update", "deps-worker"], &runner, &harness);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("services/worker/uv.lock"), "{err}");
         assert!(err.contains("is missing"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
-    }
-
-    #[test]
-    fn consumer_read_only_set_refuses_update_but_checks() {
-        const READONLY: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-writable = false
-"#;
-        let harness = consumer_harness("read-only", READONLY, true);
-        let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update", "--apply", "frontend"], &runner, &harness);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("update_set_unsupported"), "{err}");
-        assert!(err.contains("read-only"), "{err}");
-        assert_eq!(runner.calls.borrow().len(), 0);
-        let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "frontend"], &runner, &harness);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(runner.calls.borrow().len(), 1);
     }
 
     #[test]
@@ -1123,8 +1059,8 @@ writable = false
             PYPROJECT.as_bytes()
         );
         assert_eq!(
-            std::fs::read(harness.workspace.join("dx.toml")).expect("config"),
-            DX_TOML.as_bytes()
+            std::fs::read(harness.workspace.join("MODULE.bazel")).expect("module"),
+            UV_MODULE.as_bytes()
         );
     }
 
@@ -1132,7 +1068,7 @@ writable = false
     fn consumer_offline_update_needs_network() {
         let runner = ScriptRunner::new(&[]);
         let (code, _, err, _) =
-            run_consumer(&["update", "--apply", "--offline", "worker"], &runner);
+            run_consumer(&["update", "--apply", "--offline", "deps-worker"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
@@ -1141,27 +1077,28 @@ writable = false
     #[test]
     fn consumer_frozen_update_locks_resolution() {
         let runner = ScriptRunner::new(&[]);
-        let (code, _, err, _) = run_consumer(&["update", "--apply", "--frozen", "worker"], &runner);
+        let (code, _, err, _) =
+            run_consumer(&["update", "--apply", "--frozen", "deps-worker"], &runner);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("frozen_locked"), "{err}");
         assert!(!err.contains("offline_required"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err, _) = run_consumer(&["update", "--frozen", "worker"], &runner);
+        let (code, out, err, _) = run_consumer(&["update", "--frozen", "deps-worker"], &runner);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
-            out.contains("worker lockfile current (services/worker/uv.lock)"),
+            out.contains("deps-worker lockfile current (services/worker/uv.lock)"),
             "{out}{err}"
         );
     }
 
     #[test]
     fn consumer_invalid_config_fails_before_any_backend() {
-        let harness = consumer_harness("invalid", "schema_version = 1\n", true);
+        let harness = consumer_harness("invalid", "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\")\n", true);
         let runner = ScriptRunner::new(&[]);
         let (code, _, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
-        assert!(err.contains("dx.toml"), "{err}");
+        assert!(err.contains("uv.project"), "{err}");
         assert_eq!(runner.calls.borrow().len(), 0);
     }
 
@@ -1174,42 +1111,25 @@ writable = false
         let kinds = event_kinds(&events);
         assert_eq!(kinds[0], "command_started");
         assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(out.contains("\"correlation\":\"update:frontend\""), "{out}");
-        assert!(out.contains("\"correlation\":\"update:worker\""), "{out}");
+        assert!(
+            out.contains("\"correlation\":\"update:deps-frontend\""),
+            "{out}"
+        );
+        assert!(
+            out.contains("\"correlation\":\"update:deps-worker\""),
+            "{out}"
+        );
         let _ = event(&events, "command_started");
     }
 
-    const MIXED_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-
-[[dependency_set]]
-name = "jobs"
-ecosystem = "npm"
-manifests = ["consumer-npm/jobs/package.json"]
-locks = ["consumer-npm/jobs/pnpm-lock.yaml"]
-scopes = ["consumer-npm/jobs"]
-
-[[dependency_set]]
-name = "web"
-ecosystem = "npm"
-manifests = ["consumer-npm/web/package.json"]
-locks = ["consumer-npm/web/pnpm-lock.yaml"]
-scopes = ["consumer-npm/web"]
-"#;
+    const MIXED_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"jobs\", pnpm_lock = \"//consumer-npm/jobs:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//consumer-npm/web:pnpm-lock.yaml\")\n";
 
     const PACKAGE_JSON: &str = "{\n  \"name\": \"app\",\n  \"version\": \"1.0.0\"\n}\n";
 
     const PNPM_LOCK: &str = "lockfileVersion: '9.0'\n\nimporters:\n\n  .: {}\n";
 
     fn mixed_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, MIXED_TOML, true);
+        let harness = consumer_harness(name, MIXED_MODULE, true);
         for dir in ["consumer-npm/jobs", "consumer-npm/web"] {
             harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
             harness.write_source(&format!("{dir}/pnpm-lock.yaml"), PNPM_LOCK);
@@ -1446,7 +1366,7 @@ scopes = ["consumer-npm/web"]
             "{out}"
         );
         assert!(
-            out.contains("frontend lockfile current (apps/frontend/uv.lock)"),
+            out.contains("deps-frontend lockfile current (apps/frontend/uv.lock)"),
             "{out}"
         );
         assert_eq!(runner.calls.borrow().len(), 3);
@@ -1508,32 +1428,9 @@ scopes = ["consumer-npm/web"]
         assert!(runner.calls.borrow().is_empty());
     }
 
-    const PINNED_TOML: &str = r#"
-schema_version = 1
+    const PINNED_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-
-[[dependency_set]]
-name = "gems"
-ecosystem = "ruby"
-manifests = ["apps/rb/Gemfile"]
-locks = ["apps/rb/Gemfile.lock"]
-scopes = ["apps/rb"]
-
-[[dependency_set]]
-name = "modules"
-ecosystem = "powershell"
-manifests = ["tools/ps/PSGallery.requirements.psd1"]
-locks = ["tools/ps/PSGallery.lock.json"]
-scopes = ["tools/ps"]
-"#;
-
-    const PINNED_FILES: [(&str, &str); 4] = [
+    const PINNED_FILES: [(&str, &str); 2] = [
         (
             "apps/rb/Gemfile",
             "source \"https://rubygems.org\"\ngem \"rspec-core\"\n",
@@ -1542,15 +1439,10 @@ scopes = ["tools/ps"]
             "apps/rb/Gemfile.lock",
             "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
         ),
-        (
-            "tools/ps/PSGallery.requirements.psd1",
-            "@{ Pester = '5.5.0' }\n",
-        ),
-        ("tools/ps/PSGallery.lock.json", "{}\n"),
     ];
 
     fn pinned_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, PINNED_TOML, true);
+        let harness = consumer_harness(name, PINNED_MODULE, true);
         for (rel, text) in PINNED_FILES {
             harness.write_source(rel, text);
         }
@@ -1564,7 +1456,7 @@ scopes = ["tools/ps"]
     }
 
     #[test]
-    fn consumer_ruby_and_powershell_sets_report_pinned_and_launch_nothing() {
+    fn consumer_ruby_set_reports_pinned_and_launches_nothing() {
         for (argv, uv) in [
             (vec!["update"], uv_call(true, "apps/frontend")),
             (
@@ -1593,15 +1485,13 @@ scopes = ["tools/ps"]
                 assert_eq!(launches, vec![uv.clone()], "{argv:?}");
             }
             let events = json_events(&out);
-            for set in ["gems", "modules"] {
-                assert!(
-                    events
-                        .iter()
-                        .any(|event| event["code"] == "update_set_pinned"
-                            && event["correlation"] == format!("update:{set}")),
-                    "{argv:?} {set}: {out}"
-                );
-            }
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event["code"] == "update_set_pinned"
+                        && event["correlation"] == "update:gems"),
+                "{argv:?}: {out}"
+            );
             assert!(!out.contains("gems lockfile current"), "{out}");
             assert!(!out.contains("updated gems"), "{out}");
             assert_pinned_files_unchanged(&harness);
@@ -1614,29 +1504,21 @@ scopes = ["tools/ps"]
             out.contains("gems pins are manual; nothing to resolve"),
             "{out}"
         );
-        assert!(
-            out.contains("modules pins are manual; nothing to resolve"),
-            "{out}"
-        );
     }
 
     #[test]
     fn consumer_pinned_package_selection_is_unsupported_without_fallback() {
-        for (selector, regenerate) in [
-            ("gems:rspec-core", "bundle lock"),
-            ("modules:Pester", "PSGallery.lock.json by hand"),
-        ] {
-            for mode in ["--apply", "--output=text"] {
-                let harness = pinned_harness("pinned-selective");
-                let runner = ScriptRunner::new(&[]);
-                let (code, out, err) = run_with(&["update", mode, selector], &runner, &harness);
-                assert_ne!(code, 0, "{selector} {mode}: {out}{err}");
-                assert!(err.contains("update_set_unsupported"), "{err}");
-                assert!(err.contains(regenerate), "{err}");
-                assert!(!out.contains("pins are manual"), "{out}");
-                assert!(runner.launches.borrow().is_empty());
-                assert_pinned_files_unchanged(&harness);
-            }
+        for mode in ["--apply", "--output=text"] {
+            let harness = pinned_harness("pinned-selective");
+            let runner = ScriptRunner::new(&[]);
+            let (code, out, err) =
+                run_with(&["update", mode, "gems:rspec-core"], &runner, &harness);
+            assert_ne!(code, 0, "{mode}: {out}{err}");
+            assert!(err.contains("update_set_unsupported"), "{err}");
+            assert!(err.contains("bundle lock"), "{err}");
+            assert!(!out.contains("pins are manual"), "{out}");
+            assert!(runner.launches.borrow().is_empty());
+            assert_pinned_files_unchanged(&harness);
         }
     }
 
@@ -1644,7 +1526,7 @@ scopes = ["tools/ps"]
     fn consumer_pinned_set_without_its_lock_declared_is_unsupported() {
         let harness = consumer_harness(
             "pinned-lock",
-            "schema_version = 1\n[[dependency_set]]\nname = \"gems\"\necosystem = \"ruby\"\nmanifests = [\"apps/rb/Gemfile\"]\nlocks = [\"apps/rb/gems.locked\"]\nscopes = [\"apps/rb\"]\n",
+            "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:gems.locked\")\n",
             true,
         );
         harness.write_source("apps/rb/Gemfile", PINNED_FILES[0].1);
@@ -1656,38 +1538,6 @@ scopes = ["tools/ps"]
         assert!(!out.contains("pins are manual"), "{out}");
         assert!(runner.launches.borrow().is_empty());
     }
-
-    #[test]
-    fn consumer_npm_wrong_manifest_name_exits_two() {
-        let harness = consumer_harness(
-            "npm-manifest",
-            "schema_version = 1\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"web/pyproject.toml\"]\nlocks = [\"web/pnpm-lock.yaml\"]\nscopes = [\"web\"]\n",
-            true,
-        );
-        let runner = ScriptRunner::new(&[]);
-        let (code, _, err) = run_with(&["update"], &runner, &harness);
-        assert_eq!(code, 2, "{err}");
-        assert!(err.contains("must be named package.json"), "{err}");
-        assert!(runner.calls.borrow().is_empty());
-    }
-
-    const CARGO_TOML_SETS: &str = r#"
-[[dependency_set]]
-name = "crates"
-ecosystem = "cargo"
-manifests = ["consumer-rs/crates/Cargo.toml"]
-locks = ["consumer-rs/crates/Cargo.lock", "consumer-rs/crates/cargo-bazel-lock.json"]
-scopes = ["consumer-rs/crates"]
-repository = "crates"
-
-[[dependency_set]]
-name = "tools"
-ecosystem = "cargo"
-manifests = ["consumer-rs/tools/Cargo.toml"]
-locks = ["consumer-rs/tools/Cargo.lock", "consumer-rs/tools/cargo-bazel-lock.json"]
-scopes = ["consumer-rs/tools"]
-repository = "tool_crates"
-"#;
 
     const CARGO_MANIFEST: &str =
         "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nserde = \"1\"\n";
@@ -1703,16 +1553,14 @@ repository = "tool_crates"
         "consumer-rs/tools/cargo-bazel-lock.json",
     ];
 
-    /// The crate_universe hubs behind `CARGO_TOML_SETS`; dx refuses a cargo set without its hub.
     const CARGO_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//consumer-rs/crates:Cargo.lock\", lockfile = \"//consumer-rs/crates:cargo-bazel-lock.json\", manifests = [\"//consumer-rs/crates:Cargo.toml\"])\ncrate.from_cargo(name = \"tool_crates\", cargo_lockfile = \"//consumer-rs/tools:Cargo.lock\", lockfile = \"//consumer-rs/tools:cargo-bazel-lock.json\", manifests = [\"//consumer-rs/tools:Cargo.toml\"])\nuse_repo(crate, \"crates\", \"tool_crates\")\n";
 
     fn cargo_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, &format!("{MIXED_TOML}{CARGO_TOML_SETS}"), true);
+        let harness = consumer_harness(name, &format!("{MIXED_MODULE}{CARGO_MODULE}"), true);
         for dir in ["consumer-npm/jobs", "consumer-npm/web"] {
             harness.write_source(&format!("{dir}/package.json"), PACKAGE_JSON);
             harness.write_source(&format!("{dir}/pnpm-lock.yaml"), PNPM_LOCK);
         }
-        harness.write_source("MODULE.bazel", CARGO_MODULE);
         for dir in ["consumer-rs/crates", "consumer-rs/tools"] {
             harness.write_source(&format!("{dir}/Cargo.toml"), CARGO_MANIFEST);
             harness.write_source(&format!("{dir}/Cargo.lock"), CARGO_LOCK);
@@ -1858,7 +1706,7 @@ repository = "tool_crates"
         let harness = cargo_harness("cargo-package-and-full");
         let runner = ScriptRunner::new(&[]);
         let (code, out, err) = run_with(
-            &["update", "--apply", "crates:serde", "tools"],
+            &["update", "--apply", "crates:serde", "tool_crates"],
             &runner,
             &harness,
         );
@@ -1876,13 +1724,13 @@ repository = "tool_crates"
         let harness = cargo_harness("cargo-package-fail");
         let runner = ScriptRunner::new(&[("consumer-cargo:crates", Some(1))]);
         let (code, out, err) = run_with(
-            &["update", "--apply", "crates:serde", "tools"],
+            &["update", "--apply", "crates:serde", "tool_crates"],
             &runner,
             &harness,
         );
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("updater exited 1"), "{err}");
-        assert!(out.contains("updated tools"), "{out}");
+        assert!(out.contains("updated tool_crates"), "{out}");
         assert_eq!(runner.calls.borrow().len(), 2);
     }
 
@@ -1893,10 +1741,10 @@ repository = "tool_crates"
         let (code, out, err) = run_with(&["update"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains("failed to check tools: updater exited 1"),
+            err.contains("failed to check tool_crates: updater exited 1"),
             "{err}"
         );
-        assert!(!out.contains("tools lockfile current"), "{out}");
+        assert!(!out.contains("tool_crates lockfile current"), "{out}");
         assert!(out.contains("crates lockfile current"), "{out}");
         assert!(out.contains("web lockfile current"), "{out}");
         assert_eq!(runner.calls.borrow().len(), 5);
@@ -1987,22 +1835,6 @@ repository = "tool_crates"
     }
 
     #[test]
-    fn consumer_cargo_without_cargo_lock_declared_is_unsupported() {
-        let harness = consumer_harness(
-            "cargo-lock",
-            "schema_version = 1\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nmanifests = [\"rs/Cargo.toml\"]\nlocks = [\"rs/cargo-bazel-lock.json\"]\nscopes = [\"rs\"]\nrepository = \"crates\"\n",
-            true,
-        );
-        harness.write_source("rs/Cargo.toml", CARGO_MANIFEST);
-        harness.write_source("rs/cargo-bazel-lock.json", "{}\n");
-        let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update"], &runner, &harness);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("rs/Cargo.lock"), "{err}");
-        assert!(runner.launches.borrow().is_empty());
-    }
-
-    #[test]
     fn consumer_bazel_check_that_writes_fails_and_is_restored() {
         let harness = cargo_harness("cargo-guard");
         let before = cargo_bytes(&harness);
@@ -2039,24 +1871,6 @@ repository = "tool_crates"
         );
     }
 
-    const MAVEN_TOML_SETS: &str = r#"
-[[dependency_set]]
-name = "jvm"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["third_party/maven_install.json"]
-scopes = ["third_party"]
-repository = "maven"
-
-[[dependency_set]]
-name = "jvm_tools"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["tools/jvm/tool_install.json"]
-scopes = ["tools/jvm"]
-repository = "tool_maven"
-"#;
-
     const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party:maven_install.json\")\nmaven.install(name = \"tool_maven\", lock_file = \"//tools/jvm:tool_install.json\")\nuse_repo(maven, \"maven\", \"tool_maven\")\n";
 
     const MAVEN_LOCK: &str = "{\"__AUTOGENERATED_FILE_DO_NOT_MODIFY_THIS_FILE_MANUALLY\":\"x\",\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2,\"artifacts\":{}}\n";
@@ -2068,8 +1882,7 @@ repository = "tool_maven"
     ];
 
     fn maven_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, &format!("{DX_TOML}{MAVEN_TOML_SETS}"), true);
-        harness.write_source("MODULE.bazel", MAVEN_MODULE);
+        let harness = consumer_harness(name, &format!("{UV_MODULE}{MAVEN_MODULE}"), true);
         harness.write_source("third_party/maven_install.json", MAVEN_LOCK);
         harness.write_source("tools/jvm/tool_install.json", MAVEN_LOCK);
         harness
@@ -2095,10 +1908,10 @@ repository = "tool_maven"
     fn consumer_maven_check_fetches_each_hub_without_repin_env() {
         let harness = maven_harness("maven-check");
         let runner = ScriptRunner::new(&[]);
-        let (code, out, err) = run_with(&["update", "jvm", "jvm_tools"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "maven", "tool_maven"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
-            out.contains("jvm lockfile current (third_party/maven_install.json)"),
+            out.contains("maven lockfile current (third_party/maven_install.json)"),
             "{out}"
         );
         let launches = runner.launches.borrow();
@@ -2130,9 +1943,9 @@ repository = "tool_maven"
             harness.workspace.join("third_party/maven_install.json"),
             b"{\"pinned\":true}\n".to_vec(),
         ));
-        let (code, out, err) = run_with(&["update", "--apply", "jvm"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--apply", "maven"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("updated jvm"), "{out}");
+        assert!(out.contains("updated maven"), "{out}");
         assert_eq!(
             *runner.launches.borrow(),
             vec![Launch {
@@ -2152,9 +1965,9 @@ repository = "tool_maven"
     fn consumer_maven_refusals_never_launch_bazel() {
         let harness = maven_harness("maven-refusals");
         for argv in [
-            vec!["update", "--apply", "jvm:com.google.guava:guava"],
-            vec!["update", "--apply", "--offline", "jvm"],
-            vec!["update", "jvm:com.google.guava:guava"],
+            vec!["update", "--apply", "maven:com.google.guava:guava"],
+            vec!["update", "--apply", "--offline", "maven"],
+            vec!["update", "maven:com.google.guava:guava"],
         ] {
             let runner = ScriptRunner::new(&[]);
             let (code, out, err) = run_with(&argv, &runner, &harness);
@@ -2163,7 +1976,7 @@ repository = "tool_maven"
         }
         let runner = ScriptRunner::new(&[]);
         let (_, out, err) = run_with(
-            &["update", "--apply", "jvm:com.google.guava:guava"],
+            &["update", "--apply", "maven:com.google.guava:guava"],
             &runner,
             &harness,
         );
@@ -2176,10 +1989,6 @@ repository = "tool_maven"
     #[test]
     fn consumer_maven_check_needs_the_hub_and_a_signed_lock() {
         for (name, rewrite) in [
-            (
-                "hub",
-                ("MODULE.bazel", "bazel_dep(name = \"x\", version = \"1\")\n"),
-            ),
             ("empty", ("third_party/maven_install.json", "")),
             (
                 "v1",
@@ -2189,12 +1998,12 @@ repository = "tool_maven"
             let harness = maven_harness(&format!("maven-unready-{name}"));
             harness.write_source(rewrite.0, rewrite.1);
             let runner = ScriptRunner::new(&[]);
-            let (code, out, err) = run_with(&["update", "jvm"], &runner, &harness);
+            let (code, out, err) = run_with(&["update", "maven"], &runner, &harness);
             assert_ne!(code, 0, "{name}: {out}{err}");
             assert!(runner.launches.borrow().is_empty(), "{name}");
             assert!(!out.contains("lockfile current"), "{name}: {out}");
             assert!(
-                format!("{out}{err}").contains("cannot check jvm"),
+                format!("{out}{err}").contains("cannot check maven"),
                 "{name}: {out}{err}"
             );
         }
@@ -2209,7 +2018,7 @@ repository = "tool_maven"
             harness.workspace.join("third_party/maven_install.json"),
             b"rewritten\n".to_vec(),
         ));
-        let (code, out, err) = run_with(&["update", "jvm"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "maven"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("check_wrote: third_party/maven_install.json (restored)"),
@@ -2224,40 +2033,18 @@ repository = "tool_maven"
         let key = ScriptRunner::key_for(&maven_pin_call("maven"));
         let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
         let (code, out, err) = run_with(
-            &["update", "--apply", "jvm", "jvm_tools"],
+            &["update", "--apply", "maven", "tool_maven"],
             &runner,
             &harness,
         );
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            format!("{out}{err}").contains("failed to update jvm"),
+            format!("{out}{err}").contains("failed to update maven"),
             "{out}{err}"
         );
-        assert!(out.contains("updated jvm_tools"), "{out}{err}");
+        assert!(out.contains("updated tool_maven"), "{out}{err}");
         assert_eq!(runner.launches.borrow().len(), 2);
     }
-
-    const NUGET_TOML_SETS: &str = r#"
-[[dependency_set]]
-name = "dotnet"
-ecosystem = "nuget"
-manifests = ["third_party/dotnet/paket.dependencies"]
-locks = [
-  "third_party/dotnet/paket.lock",
-  "third_party/dotnet/deps/paket.main.bzl",
-]
-scopes = ["third_party/dotnet"]
-
-[[dependency_set]]
-name = "dotnet_tools"
-ecosystem = "nuget"
-manifests = ["third_party/dotnet_tools/paket.dependencies"]
-locks = [
-  "third_party/dotnet_tools/paket.lock",
-  "third_party/dotnet_tools/deps/paket.tools.bzl",
-]
-scopes = ["third_party/dotnet_tools"]
-"#;
 
     const NUGET_FILES: [&str; 6] = [
         "MODULE.bazel",
@@ -2269,10 +2056,10 @@ scopes = ["third_party/dotnet_tools"]
     ];
 
     fn nuget_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, &format!("{DX_TOML}{NUGET_TOML_SETS}"), true);
-        harness.write_source(
-            "MODULE.bazel",
-            "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\n",
+        let harness = consumer_harness(
+            name,
+            &format!("{UV_MODULE}bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\npaket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n"),
+            true,
         );
         for dir in ["dotnet", "dotnet_tools"] {
             harness.write_source(
@@ -2324,9 +2111,9 @@ scopes = ["third_party/dotnet_tools"]
                 ("paket.main_extension.bzl", "ext\n"),
             ],
         );
-        let (code, out, err) = run_with(&["update", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "nuget"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("dotnet lockfile current"), "{out}");
+        assert!(out.contains("nuget lockfile current"), "{out}");
         let launches = runner.launches.borrow();
         assert_eq!(launches.len(), 1);
         let argv = &launches[0].argv;
@@ -2366,7 +2153,7 @@ scopes = ["third_party/dotnet_tools"]
                 ("paket.main_extension.bzl", "ext\n"),
             ],
         );
-        let (code, out, err) = run_with(&["update", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "nuget"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("stale generated locks: third_party/dotnet/deps/paket.main.bzl;"),
@@ -2389,9 +2176,9 @@ scopes = ["third_party/dotnet_tools"]
                 ("paket.main_extension.bzl", "ext\n"),
             ],
         );
-        let (code, out, err) = run_with(&["update", "--apply", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--apply", "nuget"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("updated dotnet"), "{out}");
+        assert!(out.contains("updated nuget"), "{out}");
         let after = nuget_bytes(&harness);
         for (index, rel) in NUGET_FILES.iter().enumerate() {
             if *rel == "third_party/dotnet/deps/paket.main.bzl" {
@@ -2429,7 +2216,7 @@ scopes = ["third_party/dotnet_tools"]
             let before = nuget_bytes(&harness);
             let runner = ScriptRunner::new(&[]);
             stage(&runner, &files);
-            let (code, out, err) = run_with(&["update", "--apply", "dotnet"], &runner, &harness);
+            let (code, out, err) = run_with(&["update", "--apply", "nuget"], &runner, &harness);
             assert_eq!(code, 1, "{name}: {out}{err}");
             assert!(err.contains(want), "{name}: {err}");
             assert_eq!(nuget_bytes(&harness), before, "{name}");
@@ -2449,10 +2236,10 @@ scopes = ["third_party/dotnet_tools"]
                 ("paket.main_extension.bzl", "ext\n"),
             ],
         );
-        let (code, out, err) = run_with(&["update", "--apply", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--apply", "nuget"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            format!("{out}{err}").contains("failed to update dotnet"),
+            format!("{out}{err}").contains("failed to update nuget"),
             "{out}{err}"
         );
         assert_eq!(nuget_bytes(&harness), before);
@@ -2462,9 +2249,9 @@ scopes = ["third_party/dotnet_tools"]
     fn consumer_nuget_offline_is_required_and_frozen_apply_runs() {
         let harness = nuget_harness("nuget-offline");
         for argv in [
-            vec!["update", "--offline", "dotnet"],
-            vec!["update", "--apply", "--offline", "dotnet"],
-            vec!["update", "--apply", "dotnet:Newtonsoft.Json"],
+            vec!["update", "--offline", "nuget"],
+            vec!["update", "--apply", "--offline", "nuget"],
+            vec!["update", "--apply", "nuget:Newtonsoft.Json"],
         ] {
             let runner = ScriptRunner::new(&[]);
             let (code, out, err) = run_with(&argv, &runner, &harness);
@@ -2476,7 +2263,7 @@ scopes = ["third_party/dotnet_tools"]
             );
         }
         let runner = ScriptRunner::new(&[]);
-        let (_, out, err) = run_with(&["update", "--offline", "dotnet"], &runner, &harness);
+        let (_, out, err) = run_with(&["update", "--offline", "nuget"], &runner, &harness);
         assert!(
             format!("{out}{err}").contains("offline_required"),
             "{out}{err}"
@@ -2490,7 +2277,7 @@ scopes = ["third_party/dotnet_tools"]
             ],
         );
         let (code, out, err) = run_with(
-            &["update", "--apply", "--frozen", "dotnet"],
+            &["update", "--apply", "--frozen", "nuget"],
             &runner,
             &harness,
         );
@@ -2501,27 +2288,15 @@ scopes = ["third_party/dotnet_tools"]
     #[test]
     fn consumer_nuget_layout_refusal_never_launches() {
         let harness = nuget_harness("nuget-layout");
-        harness.write_source(
-            "MODULE.bazel",
-            "bazel_dep(name = \"other\", version = \"1\")\n",
-        );
+        harness.write_source("MODULE.bazel", "paket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n");
         for mode in ["--output=text", "--apply"] {
             let runner = ScriptRunner::new(&[]);
-            let (code, out, err) = run_with(&["update", mode, "dotnet"], &runner, &harness);
+            let (code, out, err) = run_with(&["update", mode, "nuget"], &runner, &harness);
             assert_ne!(code, 0, "{out}{err}");
             assert!(runner.launches.borrow().is_empty());
             assert!(format!("{out}{err}").contains("rules_dotnet"), "{out}{err}");
         }
     }
-
-    const GO_TOML_SETS: &str = r#"
-[[dependency_set]]
-name = "gomods"
-ecosystem = "go"
-manifests = ["third_party/go/go.mod"]
-locks = ["third_party/go/go.sum"]
-scopes = ["third_party/go"]
-"#;
 
     const GO_FILES: [&str; 3] = [
         "MODULE.bazel",
@@ -2533,10 +2308,10 @@ scopes = ["third_party/go"]
         "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.7.0\n";
 
     fn go_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, &format!("{DX_TOML}{GO_TOML_SETS}"), true);
-        harness.write_source(
-            "MODULE.bazel",
-            "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n",
+        let harness = consumer_harness(
+            name,
+            &format!("{UV_MODULE}bazel_dep(name = \"rules_go\", version = \"0.50.1\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n"),
+            true,
         );
         harness.write_source("third_party/go/go.mod", GO_MOD);
         harness.write_source("third_party/go/go.sum", "old\n");
@@ -2564,9 +2339,9 @@ scopes = ["third_party/go"]
         let before = go_bytes(&harness);
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "go"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("gomods lockfile current"), "{out}");
+        assert!(out.contains("go lockfile current"), "{out}");
         let launches = runner.launches.borrow();
         assert_eq!(launches.len(), 1);
         let argv = &launches[0].argv;
@@ -2616,7 +2391,7 @@ scopes = ["third_party/go"]
         let before = go_bytes(&harness);
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "go"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
             err.contains("stale generated locks: third_party/go/go.sum;"),
@@ -2632,9 +2407,9 @@ scopes = ["third_party/go"]
         let before = go_bytes(&harness);
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "--apply", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--apply", "go"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("updated gomods"), "{out}");
+        assert!(out.contains("updated go"), "{out}");
         let after = go_bytes(&harness);
         assert_eq!(after[0], before[0]);
         assert_eq!(after[1], before[1]);
@@ -2653,7 +2428,7 @@ scopes = ["third_party/go"]
             let before = go_bytes(&harness);
             let runner = ScriptRunner::new(&[]);
             stage(&runner, &files);
-            let (code, out, err) = run_with(&["update", "--apply", "gomods"], &runner, &harness);
+            let (code, out, err) = run_with(&["update", "--apply", "go"], &runner, &harness);
             assert_eq!(code, 1, "{name}: {out}{err}");
             assert!(err.contains(want), "{name}: {err}");
             assert_eq!(go_bytes(&harness), before, "{name}");
@@ -2667,10 +2442,10 @@ scopes = ["third_party/go"]
         let key = ScriptRunner::key_for(&strings_of(&["@rules_go//go"]));
         let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
         stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "--apply", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--apply", "go"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            format!("{out}{err}").contains("failed to update gomods"),
+            format!("{out}{err}").contains("failed to update go"),
             "{out}{err}"
         );
         assert_eq!(go_bytes(&harness), before);
@@ -2680,17 +2455,14 @@ scopes = ["third_party/go"]
     fn consumer_go_offline_and_frozen_apply_never_launch() {
         let harness = go_harness("go-offline");
         for (argv, want) in [
-            (vec!["update", "--offline", "gomods"], "offline_required"),
+            (vec!["update", "--offline", "go"], "offline_required"),
             (
-                vec!["update", "--apply", "--offline", "gomods"],
+                vec!["update", "--apply", "--offline", "go"],
                 "offline_required",
             ),
+            (vec!["update", "--apply", "--frozen", "go"], "frozen_locked"),
             (
-                vec!["update", "--apply", "--frozen", "gomods"],
-                "frozen_locked",
-            ),
-            (
-                vec!["update", "--apply", "gomods:github.com/google/go-cmp"],
+                vec!["update", "--apply", "go:github.com/google/go-cmp"],
                 "whole module graph",
             ),
         ] {
@@ -2705,7 +2477,7 @@ scopes = ["third_party/go"]
         // A frozen check only compares, so it still runs.
         let runner = ScriptRunner::new(&[]);
         stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
-        let (code, out, err) = run_with(&["update", "--frozen", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["update", "--frozen", "go"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(runner.launches.borrow().len(), 1);
     }
@@ -2719,7 +2491,7 @@ scopes = ["third_party/go"]
         );
         for mode in ["--output=text", "--apply"] {
             let runner = ScriptRunner::new(&[]);
-            let (code, out, err) = run_with(&["update", mode, "gomods"], &runner, &harness);
+            let (code, out, err) = run_with(&["update", mode, "go"], &runner, &harness);
             assert_ne!(code, 0, "{out}{err}");
             assert!(runner.launches.borrow().is_empty());
             assert!(format!("{out}{err}").contains("local path"), "{out}{err}");
@@ -2794,24 +2566,16 @@ scopes = ["third_party/go"]
     }
 
     #[test]
-    fn consumer_cargo_wrong_manifest_name_or_missing_repository_exits_two() {
-        for (record, want) in [
-            (
-                "manifests = [\"rs/cargo.toml\"]\nrepository = \"crates\"\n",
-                "must be named Cargo.toml",
-            ),
-            ("manifests = [\"rs/Cargo.toml\"]\n", "is missing repository"),
-        ] {
-            let harness = consumer_harness(
-                "cargo-manifest",
-                &format!("schema_version = 1\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nlocks = [\"rs/Cargo.lock\"]\nscopes = [\"rs\"]\n{record}"),
-                true,
-            );
-            let runner = ScriptRunner::new(&[]);
-            let (code, _, err) = run_with(&["update"], &runner, &harness);
-            assert_eq!(code, 2, "{err}");
-            assert!(err.contains(want), "{err}");
-            assert!(runner.calls.borrow().is_empty());
-        }
+    fn consumer_cargo_wrong_manifest_name_exits_two() {
+        let harness = consumer_harness(
+            "cargo-manifest",
+            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//rs:Cargo.lock\", manifests = [\"//rs:cargo.toml\"])\n",
+            true,
+        );
+        let runner = ScriptRunner::new(&[]);
+        let (code, _, err) = run_with(&["update"], &runner, &harness);
+        assert_eq!(code, 2, "{err}");
+        assert!(err.contains("must be named Cargo.toml"), "{err}");
+        assert!(runner.calls.borrow().is_empty());
     }
 }

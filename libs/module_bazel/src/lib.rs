@@ -106,6 +106,8 @@ pub enum ModuleError {
     ComputedCargoHub { line: usize },
     #[error("maven.install at line {line} needs a literal name and lock_file")]
     ComputedMavenHub { line: usize },
+    #[error("{tag} at line {line} needs literal arguments")]
+    ComputedHub { tag: &'static str, line: usize },
     #[error("{value:?} cannot be written into a Starlark string literal")]
     UnsafeString { value: String },
     #[error("{name:?} is already declared in MODULE.bazel")]
@@ -159,6 +161,39 @@ pub struct MavenInstall<'a> {
     pub line: usize,
 }
 
+/// One aspect_rules_js `npm.npm_translate_lock` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NpmLock<'a> {
+    pub name: &'a str,
+    pub pnpm_lock: Option<&'a str>,
+    pub line: usize,
+}
+
+/// One aspect_rules_py `uv.project` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UvProject<'a> {
+    pub hub_name: &'a str,
+    pub pyproject: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
+/// One gazelle `go_deps.from_file` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GoModFile<'a> {
+    pub go_mod: &'a str,
+    pub line: usize,
+}
+
+/// One rules_ruby `ruby.bundle_fetch` tag.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BundleFetch<'a> {
+    pub name: &'a str,
+    pub gemfile: &'a str,
+    pub gemfile_lock: &'a str,
+    pub line: usize,
+}
+
 /// A parsed MODULE.bazel with its top-level calls in source order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleFile {
@@ -168,6 +203,10 @@ pub struct ModuleFile {
 
 const MAVEN_MODULE: &str = "rules_jvm_external";
 const RUST_MODULE: &str = "rules_rust";
+const JS_MODULE: &str = "aspect_rules_js";
+const PY_MODULE: &str = "aspect_rules_py";
+const GAZELLE_MODULE: &str = "gazelle";
+const RUBY_MODULE: &str = "rules_ruby";
 
 fn dialect() -> Dialect {
     Dialect {
@@ -613,6 +652,103 @@ impl ModuleFile {
         Ok(installs)
     }
 
+    /// Every aspect_rules_js `npm.npm_translate_lock` tag in source order.
+    pub fn npm_translate_locks(&self) -> Result<Vec<NpmLock<'_>>, ModuleError> {
+        const TAG: &str = "npm.npm_translate_lock";
+        self.tags(JS_MODULE, "npm:extensions.bzl", "npm", "npm_translate_lock")
+            .map(|call| {
+                Ok(NpmLock {
+                    name: required(call, TAG, "name")?,
+                    pnpm_lock: literal(call, TAG, "pnpm_lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every aspect_rules_py `uv.project` tag in source order.
+    pub fn uv_projects(&self) -> Result<Vec<UvProject<'_>>, ModuleError> {
+        const TAG: &str = "uv.project";
+        self.tags(PY_MODULE, "uv:extensions.bzl", "uv", "project")
+            .map(|call| {
+                Ok(UvProject {
+                    hub_name: required(call, TAG, "hub_name")?,
+                    pyproject: required(call, TAG, "pyproject")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every gazelle `go_deps.from_file` tag that names a `go_mod`, in source order.
+    pub fn go_deps_files(&self) -> Result<Vec<GoModFile<'_>>, ModuleError> {
+        const TAG: &str = "go_deps.from_file";
+        let mut out = Vec::new();
+        for call in self.tags(GAZELLE_MODULE, ":extensions.bzl", "go_deps", "from_file") {
+            if let Some(go_mod) = literal(call, TAG, "go_mod")? {
+                out.push(GoModFile {
+                    go_mod,
+                    line: call.line,
+                });
+            }
+        }
+        Ok(out)
+    }
+
+    /// Every rules_ruby `ruby.bundle_fetch` tag in source order. The name defaults to `bundle`.
+    pub fn bundle_fetches(&self) -> Result<Vec<BundleFetch<'_>>, ModuleError> {
+        const TAG: &str = "ruby.bundle_fetch";
+        self.tags(RUBY_MODULE, "ruby:extensions.bzl", "ruby", "bundle_fetch")
+            .map(|call| {
+                Ok(BundleFetch {
+                    name: literal(call, TAG, "name")?.unwrap_or("bundle"),
+                    gemfile: required(call, TAG, "gemfile")?,
+                    gemfile_lock: required(call, TAG, "gemfile_lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// The main-repository .bzl labels of `use_extension` calls that load paket groups:
+    /// an extension named `paket`, or a generated `paket.<group>_extension.bzl` file.
+    pub fn paket_extensions(&self) -> Vec<&str> {
+        self.extensions()
+            .into_iter()
+            .filter(|(label, name)| {
+                let file = label.rsplit([':', '/']).next().unwrap_or(label);
+                label.starts_with("//")
+                    && (*name == "paket"
+                        || (file.starts_with("paket.") && file.ends_with("_extension.bzl")))
+            })
+            .map(|(label, _)| label)
+            .collect()
+    }
+
+    /// The calls of `tag` on every binding of the extension `name` in `@<module>//<file>`.
+    fn tags<'a>(
+        &'a self,
+        module: &str,
+        file: &str,
+        name: &str,
+        tag: &'a str,
+    ) -> impl Iterator<Item = &'a Call> + 'a {
+        let repo = self.repo_name(module).unwrap_or(module);
+        let label = format!("@{repo}//{file}");
+        let proxies: Vec<&str> = self
+            .calls_named("use_extension")
+            .filter(|call| {
+                extension_arg(call, 0, "extension_bzl_file") == Some(label.as_str())
+                    && extension_arg(call, 1, "extension_name") == Some(name)
+            })
+            .filter_map(|call| call.binding.as_deref())
+            .collect();
+        self.calls.iter().filter(move |call| {
+            matches!(call.name.rsplit_once('.'), Some((proxy, t)) if t == tag && proxies.contains(&proxy))
+        })
+    }
+
     /// The source with `bazel_dep(name = name, version = version)` added after the
     /// last top-level `bazel_dep`, or after `module()`, keeping every other byte.
     pub fn insert_bazel_dep(&self, name: &str, version: &str) -> Result<String, ModuleError> {
@@ -1030,6 +1166,28 @@ pub fn load_labels(source: &str) -> Result<Vec<String>, ModuleError> {
         .into_iter()
         .map(|load| load.module_id.to_owned())
         .collect())
+}
+
+fn literal<'a>(
+    call: &'a Call,
+    tag: &'static str,
+    key: &str,
+) -> Result<Option<&'a str>, ModuleError> {
+    match call.arg(key) {
+        None if !call.unpacked => Ok(None),
+        Some(Value::Str(literal)) => Ok(Some(literal.value.as_str())),
+        _ => Err(ModuleError::ComputedHub {
+            tag,
+            line: call.line,
+        }),
+    }
+}
+
+fn required<'a>(call: &'a Call, tag: &'static str, key: &str) -> Result<&'a str, ModuleError> {
+    literal(call, tag, key)?.ok_or(ModuleError::ComputedHub {
+        tag,
+        line: call.line,
+    })
 }
 
 fn extension_arg<'a>(call: &'a Call, index: usize, key: &str) -> Option<&'a str> {

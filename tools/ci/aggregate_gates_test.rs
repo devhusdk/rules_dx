@@ -7,7 +7,6 @@ const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
-
 const RULESET: &str = ".github/rulesets/main.json";
 
 const GATE: &str = "ci";

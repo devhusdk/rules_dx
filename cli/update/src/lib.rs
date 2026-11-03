@@ -13,7 +13,7 @@ pub mod outcome;
 pub mod recovery;
 pub mod report;
 #[cfg(test)]
-mod root_dx_toml_tests;
+mod root_sets_tests;
 pub mod selector;
 pub mod sets;
 

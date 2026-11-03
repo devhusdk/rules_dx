@@ -511,8 +511,8 @@ fn configured_sets_add_their_advisory_family_once() {
     let workspace = workspace();
     for (rel, text) in [
         (
-            "dx.toml",
-            "schema_version = 1\n\n[[dependency_set]]\nname = \"api\"\necosystem = \"uv\"\nmanifests = [\"api/pyproject.toml\"]\nlocks = [\"api/uv.lock\"]\nscopes = [\"api\"]\n\n[[dependency_set]]\nname = \"web\"\necosystem = \"npm\"\nmanifests = [\"web/package.json\"]\nlocks = [\"web/pnpm-lock.yaml\"]\nscopes = [\"web\"]\n\n[[dependency_set]]\nname = \"docs\"\necosystem = \"npm\"\nmanifests = [\"docs/package.json\"]\nlocks = [\"docs/pnpm-lock.yaml\"]\nscopes = [\"docs\"]\n",
+            "MODULE.bazel",
+            "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//api:uv.lock\", pyproject = \"//api:pyproject.toml\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"docs\", pnpm_lock = \"//docs:pnpm-lock.yaml\")\n",
         ),
         ("api/pyproject.toml", "[project]\nname = \"api\"\n"),
         ("api/uv.lock", "version = 1\n"),
@@ -547,36 +547,21 @@ fn planned_families(files: &[(&str, &str)]) -> Vec<&'static str> {
         .collect()
 }
 
-const RUBY_SET: &str = "[[dependency_set]]\nname = \"gems\"\necosystem = \"ruby\"\nmanifests = [\"rb/Gemfile\"]\nlocks = [\"rb/Gemfile.lock\"]\nscopes = [\"rb\"]\n";
-
-const POWERSHELL_SET: &str = "[[dependency_set]]\nname = \"modules\"\necosystem = \"powershell\"\nmanifests = [\"ps/PSGallery.requirements.psd1\"]\nlocks = [\"ps/PSGallery.lock.json\"]\nscopes = [\"ps\"]\n";
+const RUBY_MODULE: &str = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//rb:Gemfile\", gemfile_lock = \"//rb:Gemfile.lock\")\n";
 
 #[test]
-fn configured_ruby_sets_plan_rubygems_and_powershell_sets_plan_nothing() {
-    let both = format!("schema_version = 1\n\n{RUBY_SET}\n{POWERSHELL_SET}");
+fn configured_ruby_sets_plan_rubygems() {
     assert_eq!(
         planned_families(&[
-            ("dx.toml", &both),
+            ("MODULE.bazel", RUBY_MODULE),
             ("rb/Gemfile", "source \"https://rubygems.org\"\n"),
             ("rb/Gemfile.lock", "GEM\n  specs:\n"),
-            ("ps/PSGallery.requirements.psd1", "@{}\n"),
-            ("ps/PSGallery.lock.json", "{}\n"),
         ]),
         ["cargo", "rubygems"]
     );
-    let powershell_only = format!("schema_version = 1\n\n{POWERSHELL_SET}");
     assert_eq!(
         planned_families(&[
-            ("dx.toml", &powershell_only),
-            ("ps/PSGallery.requirements.psd1", "@{}\n"),
-            ("ps/PSGallery.lock.json", "{}\n"),
-        ]),
-        ["cargo"]
-    );
-    let ruby_without_lock = format!("schema_version = 1\n\n{RUBY_SET}");
-    assert_eq!(
-        planned_families(&[
-            ("dx.toml", &ruby_without_lock),
+            ("MODULE.bazel", RUBY_MODULE),
             ("rb/Gemfile", "source \"https://rubygems.org\"\n"),
         ]),
         ["cargo"]
@@ -585,10 +570,12 @@ fn configured_ruby_sets_plan_rubygems_and_powershell_sets_plan_nothing() {
 
 #[test]
 fn configured_cargo_sets_plan_the_cargo_family_once() {
-    let text = "schema_version = 1\n\n[[dependency_set]]\nname = \"crates\"\necosystem = \"cargo\"\nmanifests = [\"rs/Cargo.toml\"]\nlocks = [\"rs/Cargo.lock\"]\nscopes = [\"rs\"]\nrepository = \"crates\"\n";
     assert_eq!(
         planned_families(&[
-            ("dx.toml", text),
+            (
+                "MODULE.bazel",
+                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//rs:Cargo.lock\", manifests = [\"//rs:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
+            ),
             ("rs/Cargo.toml", "[package]\nname = \"a\"\n"),
             ("rs/Cargo.lock", "version = 4\n"),
         ]),
@@ -598,18 +585,12 @@ fn configured_cargo_sets_plan_the_cargo_family_once() {
 
 #[test]
 fn configured_maven_sets_plan_the_maven_family_once() {
-    let set = |name: &str, lock: &str, repository: &str| {
-        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"maven\"\nmanifests = [\"MODULE.bazel\"]\nlocks = [\"{lock}\"]\nscopes = [\"{lock}\"]\nrepository = \"{repository}\"\n")
-    };
-    let text = format!(
-        "schema_version = 1\n\n{}\n{}",
-        set("jvm", "jvm/maven_install.json", "maven"),
-        set("tools", "tools/tool_install.json", "tool_maven")
-    );
     assert_eq!(
         planned_families(&[
-            ("dx.toml", &text),
-            ("MODULE.bazel", "module(name = \"a\")\n"),
+            (
+                "MODULE.bazel",
+                "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//jvm:maven_install.json\")\nmaven.install(name = \"tool_maven\", lock_file = \"//tools:tool_install.json\")\nuse_repo(maven, \"maven\", \"tool_maven\")\n",
+            ),
             ("jvm/maven_install.json", "{}\n"),
             ("tools/tool_install.json", "{}\n"),
         ]),
@@ -619,20 +600,13 @@ fn configured_maven_sets_plan_the_maven_family_once() {
 
 #[test]
 fn configured_nuget_sets_plan_the_nuget_family_once() {
-    let set = |name: &str, dir: &str| {
-        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"nuget\"\nmanifests = [\"{dir}/paket.dependencies\"]\nlocks = [\"{dir}/paket.lock\", \"{dir}/paket.a.bzl\"]\nscopes = [\"{dir}\"]\n")
-    };
-    let text = format!(
-        "schema_version = 1\n\n{}\n{}",
-        set("one", "one"),
-        set("two", "two")
-    );
     let families = planned_families(&[
-        ("dx.toml", &text),
-        ("one/paket.dependencies", "source https://x\n"),
-        ("one/paket.lock", "NUGET\n"),
-        ("two/paket.dependencies", "source https://x\n"),
-        ("two/paket.lock", "NUGET\n"),
+        (
+            "MODULE.bazel",
+            "main_extension = use_extension(\"//dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n",
+        ),
+        ("dotnet/paket.dependencies", "source https://x\n"),
+        ("dotnet/paket.lock", "NUGET\n"),
     ]);
     assert_eq!(
         families.iter().filter(|family| **family == "nuget").count(),
@@ -642,9 +616,11 @@ fn configured_nuget_sets_plan_the_nuget_family_once() {
 
 #[test]
 fn configured_go_sets_plan_the_go_family_once() {
-    let text = "schema_version = 1\n\n[[dependency_set]]\nname = \"gomods\"\necosystem = \"go\"\nmanifests = [\"g/go.mod\"]\nlocks = [\"g/go.sum\"]\nscopes = [\"g\"]\n";
     let families = planned_families(&[
-        ("dx.toml", text),
+        (
+            "MODULE.bazel",
+            "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//g:go.mod\")\n",
+        ),
         ("g/go.mod", "module example.com/m\n"),
         ("g/go.sum", ""),
     ]);

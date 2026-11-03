@@ -7,19 +7,13 @@ use dx_testing::{resolve_runfiles, Run};
 const MODULE: &str = r#"module(name = "consumer")
 
 bazel_dep(name = "rules_go", version = "0.64.2")
+bazel_dep(name = "gazelle", version = "0.54.0")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(version = "1.24.0")
-"#;
 
-const DX_TOML: &str = r#"schema_version = 1
-
-[[dependency_set]]
-name = "gomods"
-ecosystem = "go"
-manifests = ["third_party/go/go.mod"]
-locks = ["third_party/go/go.sum"]
-scopes = ["third_party/go"]
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//third_party/go:go.mod")
 "#;
 
 const GO_MOD: &str =
@@ -64,7 +58,6 @@ fn consumer() -> Case {
         "build:dx_dev --compilation_mode=fastbuild\n",
     );
     write(&root.join(".dx/version"), "0.0.0\n");
-    write(&root.join("dx.toml"), DX_TOML);
     write(&root.join("third_party/go/go.mod"), GO_MOD);
     write(&root.join("third_party/go/go.sum"), STALE_SUM);
     root
@@ -117,7 +110,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
     let root = consumer();
     let before = snapshot(&root);
 
-    let run = dx_in(&root, &["update", "gomods"]);
+    let run = dx_in(&root, &["update", "go"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(!run.stdout.contains("lockfile current"), "{}", report(&run));
     assert!(
@@ -127,7 +120,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
     );
     assert_eq!(snapshot(&root), before, "--check wrote");
 
-    let run = dx_in(&root, &["update", "--apply", "gomods"]);
+    let run = dx_in(&root, &["update", "--apply", "go"]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     let after = snapshot(&root);
     let changed: Vec<&PathBuf> = after
@@ -145,15 +138,15 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
         after.keys().collect::<Vec<_>>()
     );
 
-    let run = dx_in(&root, &["update", "gomods"]);
+    let run = dx_in(&root, &["update", "go"]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
-        run.stdout.contains("gomods lockfile current"),
+        run.stdout.contains("go lockfile current"),
         "{}",
         report(&run)
     );
 
-    let run = dx_in(&root, &["update", "--offline", "gomods"]);
+    let run = dx_in(&root, &["update", "--offline", "go"]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
         format!("{}{}", run.stdout, run.stderr).contains("offline_required"),
@@ -170,12 +163,7 @@ fn go_set_adds_only_the_missing_go_sum_lines() {
     let before = snapshot(&root);
     let run = dx_in(
         &root,
-        &[
-            "bump",
-            "gomods:github.com/google/go-cmp",
-            "v0.7.0",
-            "--apply",
-        ],
+        &["bump", "go:github.com/google/go-cmp", "v0.7.0", "--apply"],
     );
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     let after = snapshot(&root);

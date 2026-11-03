@@ -146,7 +146,6 @@ _SETS_BUILD_BAZEL = '''genrule(
         "security_npm_json.txt",
         "security_ruby_json.txt",
         "update_pinned.txt",
-        "sets_ok/dx.toml",
         "sets_ok/MODULE.bazel",
         "sets_ok/.dx/version",
         "sets_ok/apps/frontend/pyproject.toml",
@@ -157,21 +156,10 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/web/pnpm-lock.yaml",
         "sets_ok/apps/rb/Gemfile",
         "sets_ok/apps/rb/Gemfile.lock",
-        "sets_ok/tools/ps/PSGallery.requirements.psd1",
-        "sets_ok/tools/ps/PSGallery.lock.json",
         "sets_ok/apps/rs/Cargo.toml",
         "sets_ok/apps/rs/Cargo.lock",
-        "sets_overlap/dx.toml",
-        "sets_overlap/MODULE.bazel",
-        "sets_overlap/.dx/version",
-        "sets_overlap/apps/left/pyproject.toml",
-        "sets_overlap/apps/left/uv.lock",
-        "sets_overlap/apps/right/pyproject.toml",
-        "sets_overlap/apps/right/uv.lock",
-        "sets_bad/dx.toml",
         "sets_bad/MODULE.bazel",
         "sets_bad/.dx/version",
-        "sets_nolock/dx.toml",
         "sets_nolock/MODULE.bazel",
         "sets_nolock/.dx/version",
         "sets_nolock/apps/frontend/pyproject.toml",
@@ -180,53 +168,23 @@ _SETS_BUILD_BAZEL = '''genrule(
 set -eu
 public="$(location @rules_dx//:dx)"
 ok="$$(dirname "$(location sets_ok/MODULE.bazel)")"
-overlap="$$(dirname "$(location sets_overlap/MODULE.bazel)")"
 bad="$$(dirname "$(location sets_bad/MODULE.bazel)")"
 nolock="$$(dirname "$(location sets_nolock/MODULE.bazel)")"
-for ws in "$$ok" "$$overlap" "$$bad" "$$nolock"; do
+for ws in "$$ok" "$$bad" "$$nolock"; do
   echo 'module(name = "consumer_sets", version = "0.0.0")' > "$$ws/MODULE.bazel"
   mkdir -p "$$ws/.dx"
   echo '0.0.0' > "$$ws/.dx/version"
 done
-cat > "$(location sets_ok/dx.toml)" <<'EOF'
-schema_version = 1
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-[[dependency_set]]
-name = "worker"
-ecosystem = "uv"
-manifests = ["services/worker/pyproject.toml"]
-locks = ["services/worker/uv.lock"]
-scopes = ["services/worker"]
-[[dependency_set]]
-name = "web"
-ecosystem = "npm"
-manifests = ["apps/web/package.json"]
-locks = ["apps/web/pnpm-lock.yaml"]
-scopes = ["apps/web"]
-[[dependency_set]]
-name = "gems"
-ecosystem = "ruby"
-manifests = ["apps/rb/Gemfile"]
-locks = ["apps/rb/Gemfile.lock"]
-scopes = ["apps/rb"]
-[[dependency_set]]
-name = "modules"
-ecosystem = "powershell"
-manifests = ["tools/ps/PSGallery.requirements.psd1"]
-locks = ["tools/ps/PSGallery.lock.json"]
-scopes = ["tools/ps"]
-[[dependency_set]]
-name = "rs"
-ecosystem = "cargo"
-manifests = ["apps/rs/Cargo.toml"]
-locks = ["apps/rs/Cargo.lock"]
-scopes = ["apps/rs"]
-repository = "crates"
+cat >> "$(location sets_ok/MODULE.bazel)" <<'EOF'
+uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv.project(hub_name = "pypi", lock = "//apps/frontend:uv.lock", pyproject = "//apps/frontend:pyproject.toml")
+uv.project(hub_name = "pypi", lock = "//services/worker:uv.lock", pyproject = "//services/worker:pyproject.toml")
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(name = "web", pnpm_lock = "//apps/web:pnpm-lock.yaml")
+ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
+ruby.bundle_fetch(name = "gems", gemfile = "//apps/rb:Gemfile", gemfile_lock = "//apps/rb:Gemfile.lock")
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.from_cargo(name = "crates", cargo_lockfile = "//apps/rs:Cargo.lock", manifests = ["//apps/rs:Cargo.toml"])
 EOF
 cat > "$(location sets_ok/apps/rs/Cargo.toml)" <<'EOF'
 [package]
@@ -250,8 +208,6 @@ GEM
 PLATFORMS
   ruby
 EOF
-echo '@{}' > "$(location sets_ok/tools/ps/PSGallery.requirements.psd1)"
-echo '{"modules": {}}' > "$(location sets_ok/tools/ps/PSGallery.lock.json)"
 cp "$(location sets_ok/apps/rb/Gemfile.lock)" /tmp/consumer_sets_gemfile_lock.orig
 echo '{"name": "web", "version": "1.0.0", "private": true}' > "$(location sets_ok/apps/web/package.json)"
 cat > "$(location sets_ok/apps/web/pnpm-lock.yaml)" <<'EOF'
@@ -261,40 +217,15 @@ importers:
 
   .: {}
 EOF
-cat > "$(location sets_overlap/dx.toml)" <<'EOF'
-schema_version = 1
-[[dependency_set]]
-name = "left"
-ecosystem = "uv"
-manifests = ["apps/left/pyproject.toml"]
-locks = ["apps/left/uv.lock"]
-scopes = ["apps/shared"]
-[[dependency_set]]
-name = "right"
-ecosystem = "uv"
-manifests = ["apps/right/pyproject.toml"]
-locks = ["apps/right/uv.lock"]
-scopes = ["apps/shared"]
+cat >> "$(location sets_bad/MODULE.bazel)" <<'EOF'
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(**HUB)
 EOF
-cat > "$(location sets_bad/dx.toml)" <<'EOF'
-schema_version = 1
-[[dependency_set]]
-name = "frontend"
-ecosystem = "pip"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
+cat >> "$(location sets_nolock/MODULE.bazel)" <<'EOF'
+uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
+uv.project(hub_name = "pypi", lock = "//apps/frontend:uv.lock", pyproject = "//apps/frontend:pyproject.toml")
 EOF
-cat > "$(location sets_nolock/dx.toml)" <<'EOF'
-schema_version = 1
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-EOF
-for project in "$(location sets_ok/apps/frontend/pyproject.toml)" "$(location sets_ok/services/worker/pyproject.toml)" "$(location sets_overlap/apps/left/pyproject.toml)" "$(location sets_overlap/apps/right/pyproject.toml)" "$(location sets_nolock/apps/frontend/pyproject.toml)"; do
+for project in "$(location sets_ok/apps/frontend/pyproject.toml)" "$(location sets_ok/services/worker/pyproject.toml)" "$(location sets_nolock/apps/frontend/pyproject.toml)"; do
   cat > "$$project" <<'EOF'
 [project]
 name = "project"
@@ -303,7 +234,7 @@ requires-python = ">=3.9"
 dependencies = ["anyio>=4"]
 EOF
 done
-for lock in "$(location sets_ok/apps/frontend/uv.lock)" "$(location sets_ok/services/worker/uv.lock)" "$(location sets_overlap/apps/left/uv.lock)" "$(location sets_overlap/apps/right/uv.lock)"; do
+for lock in "$(location sets_ok/apps/frontend/uv.lock)" "$(location sets_ok/services/worker/uv.lock)"; do
   cat > "$$lock" <<'EOF'
 version = 1
 requires-python = ">=3.9"
@@ -320,9 +251,9 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   echo "security passed without a PyPI advisory snapshot" >&2
   exit 1
 fi
-grep -q "failed to assess frontend" "$(location security_json.txt)"
+grep -q "failed to assess pypi-frontend" "$(location security_json.txt)"
 grep -q ".dx/advisory/pypi.json" "$(location security_json.txt)"
-if grep -Eq 'no advisory coverage for [^"]*(frontend|gems|rs|web|worker)' "$(location security_json.txt)"; then
+if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|web|pypi-worker)' "$(location security_json.txt)"; then
   echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
 fi
@@ -336,31 +267,30 @@ if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
   echo "security reported a configured npm set as uncovered" >&2
   exit 1
 fi
-if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" rs > "$(location security_cargo_json.txt)" 2>/dev/null; then
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" crates > "$(location security_cargo_json.txt)" 2>/dev/null; then
   echo "security passed without a cargo advisory snapshot" >&2
   exit 1
 fi
-grep -q "failed to assess rs" "$(location security_cargo_json.txt)"
+grep -q "failed to assess crates" "$(location security_cargo_json.txt)"
 grep -q ".dx/advisory/cargo.json" "$(location security_cargo_json.txt)"
 if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
   echo "security reported a configured cargo set as uncovered" >&2
   exit 1
 fi
-if "$$public" bump rs:serde 2.0.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
+if "$$public" bump crates:serde 2.0.0 --workspace "$$ok" > "$(location bump_cargo.txt)" 2>&1; then
   echo "bump unexpectedly widened a configured cargo set" >&2
   exit 1
 fi
-grep -q 'bump pending: rs:serde 2.0.0 is not declared in apps/rs/Cargo.toml' "$(location bump_cargo.txt)"
-# The set names a crate_universe hub MODULE.bazel does not declare: dx refuses to run it.
-if "$$public" update --workspace "$$ok" rs >> "$(location bump_cargo.txt)" 2>&1; then
+grep -q 'bump pending: crates:serde 2.0.0 is not declared in apps/rs/Cargo.toml' "$(location bump_cargo.txt)"
+# The crate_universe hub is not in use_repo: dx refuses to run it.
+if "$$public" update --workspace "$$ok" crates >> "$(location bump_cargo.txt)" 2>&1; then
   echo "update checked a cargo set without its crate_universe hub" >&2
   exit 1
 fi
-grep -q 'cannot resolve cargo hub "crates": no crate.from_cargo(name = "crates") tag in MODULE.bazel' "$(location bump_cargo.txt)"
+grep -q 'cannot resolve cargo hub "crates": MODULE.bazel must list "crates" in use_repo' "$(location bump_cargo.txt)"
 cmp /tmp/consumer_sets_cargo_lock.orig "$(location sets_ok/apps/rs/Cargo.lock)"
-"$$public" update --workspace "$$ok" gems modules > "$(location update_pinned.txt)" 2>&1
+"$$public" update --workspace "$$ok" gems > "$(location update_pinned.txt)" 2>&1
 grep -q "gems pins are manual" "$(location update_pinned.txt)"
-grep -q "modules pins are manual" "$(location update_pinned.txt)"
 if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" gems > "$(location security_ruby_json.txt)" 2>/dev/null; then
   echo "security passed without a RubyGems advisory snapshot" >&2
   exit 1
@@ -379,21 +309,21 @@ grep -q "bump is not supported for ecosystem ruby set gems (supported operations
 cmp /tmp/consumer_sets_gemfile_lock.orig "$(location sets_ok/apps/rb/Gemfile.lock)"
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
-if "$$public" bump frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
+if "$$public" bump pypi-frontend 4.1.0 --workspace "$$ok" > "$(location bump_unsupported.txt)" 2>&1; then
   echo "bump accepted a bare configured uv set" >&2
   exit 1
 fi
 grep -q "bump needs one package, not a whole set" "$(location bump_unsupported.txt)"
 if "$$public" update --workspace "$$bad" > "$(location bad_kind.txt)" 2>&1; then
-  echo "update accepted an unknown ecosystem" >&2
+  echo "update accepted a computed hub" >&2
   exit 1
 fi
-grep -q "unknown ecosystem" "$(location bad_kind.txt)"
+grep -q "needs literal arguments" "$(location bad_kind.txt)"
 if "$$public" license --output=json --workspace "$$nolock" > "$(location nolock_license.txt)" 2>&1; then
   echo "license passed with a missing lockfile" >&2
   exit 1
 fi
-grep -q "failed to assess frontend" "$(location nolock_license.txt)"
+grep -q "failed to assess pypi-frontend" "$(location nolock_license.txt)"
 grep -q "apps/frontend/uv.lock" "$(location nolock_license.txt)"
 cmp /tmp/consumer_sets_frontend_uv_lock.orig "$(location sets_ok/apps/frontend/uv.lock)"
 cmp /tmp/consumer_sets_worker_uv_lock.orig "$(location sets_ok/services/worker/uv.lock)"

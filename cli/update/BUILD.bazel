@@ -17,14 +17,14 @@ dx_rust_crate(
         "src/outcome.rs",
         "src/recovery.rs",
         "src/report.rs",
-        "src/root_dx_toml_tests.rs",
+        "src/root_sets_tests.rs",
         "src/selector.rs",
         "src/sets.rs",
     ],
-    # Root files read through `include_str!` by src/root_dx_toml_tests.rs.
+    # Root files read through `include_str!` by src/root_sets_tests.rs.
     compile_data = [
         "//:MODULE.bazel",
-        "//:dx.toml",
+        "//third_party/dotnet:extension.bzl",
         "//third_party/dotnet:paket.dependencies",
     ],
     extra_deps = [

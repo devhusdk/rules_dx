@@ -4,23 +4,7 @@ mod tests {
     use super::super::super::test_support::{event_kinds, json_events};
     use super::super::audit_live::{write_advisory, AuditRunner};
 
-    const DX_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "uv"
-manifests = ["apps/frontend/pyproject.toml"]
-locks = ["apps/frontend/uv.lock"]
-scopes = ["apps/frontend"]
-
-[[dependency_set]]
-name = "worker"
-ecosystem = "uv"
-manifests = ["services/worker/pyproject.toml"]
-locks = ["services/worker/uv.lock"]
-scopes = ["services/worker"]
-"#;
+    const UV_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nuv.project(hub_name = \"pypi\", pyproject = \"//services/worker:pyproject.toml\", lock = \"//services/worker:uv.lock\")\n";
 
     const PYPROJECT: &str = r#"
 [project]
@@ -40,12 +24,12 @@ version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 "#;
 
-    fn consumer_harness(name: &str, dx_toml: &str, with_locks: bool) -> Harness {
+    fn consumer_harness(name: &str, module: &str, with_locks: bool) -> Harness {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let harness = Harness::new(&format!("audit-consumer-{name}-{id}"));
-        harness.write_source("dx.toml", dx_toml);
+        harness.write_source("MODULE.bazel", module);
         harness.write_source("apps/frontend/pyproject.toml", PYPROJECT);
         harness.write_source("services/worker/pyproject.toml", PYPROJECT);
         if with_locks {
@@ -106,13 +90,13 @@ source = { registry = "https://pypi.org/simple" }
         advisories: Option<&str>,
         extra: &[&str],
     ) -> (i32, String, String) {
-        let harness = consumer_harness(name, DX_TOML, true);
+        let harness = consumer_harness(name, UV_MODULE, true);
         harness.write_source("apps/frontend/uv.lock", lock);
         if let Some(json) = advisories {
             write_advisory(&harness, "pypi", json);
         }
         let runner = clean_runner();
-        let mut argv = vec!["security", "--output=json", "frontend"];
+        let mut argv = vec!["security", "--output=json", "pypi-frontend"];
         argv.extend_from_slice(extra);
         argv.extend_from_slice(&["--report", "sarif=audit.sarif"]);
         let (code, out, err) = run_with(&argv, &runner, &harness);
@@ -123,7 +107,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_security_with_current_advisories_is_clean_with_no_coverage_gap() {
-        let harness = consumer_harness("bare", DX_TOML, true);
+        let harness = consumer_harness("bare", UV_MODULE, true);
         write_advisory(&harness, "pypi", NO_ADVISORIES);
         let runner = clean_runner();
         let (code, out, err) = run_with(&["security", "--output=json"], &runner, &harness);
@@ -199,7 +183,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_stale_advisories_are_a_backend_failure_not_clean_or_a_finding() {
-        let harness = consumer_harness("stale", DX_TOML, true);
+        let harness = consumer_harness("stale", UV_MODULE, true);
         let lock = lock_with(&registry_package("django", "3.2.0"));
         harness.write_source("apps/frontend/uv.lock", &lock);
         write_advisory(&harness, "pypi", DJANGO_ADVISORY);
@@ -210,13 +194,13 @@ source = { registry = "https://pypi.org/simple" }
         harness.write_source(meta_rel, &value.to_string());
         let runner = clean_runner();
         let (code, out, err) = run_with(
-            &["security", "--output=json", "frontend"],
+            &["security", "--output=json", "pypi-frontend"],
             &runner,
             &harness,
         );
         let all = format!("{out}{err}");
         assert_ne!(code, 0, "{all}");
-        assert!(all.contains("failed to assess frontend"), "{all}");
+        assert!(all.contains("failed to assess pypi-frontend"), "{all}");
         assert!(all.contains("advisory_refresh_failed"), "{all}");
         assert!(!all.contains("audit_security_clean"), "{all}");
         assert!(!all.contains("vulnerable to"), "{all}");
@@ -237,7 +221,7 @@ source = { registry = "https://pypi.org/simple" }
         let lock = lock_with(&registry_package("django", "3.2.5"));
         let (code, out, err) = audited("missing", &lock, None, &["--offline"]);
         assert_ne!(code, 0, "{out}{err}");
-        assert!(out.contains("failed to assess frontend"), "{out}{err}");
+        assert!(out.contains("failed to assess pypi-frontend"), "{out}{err}");
         assert!(out.contains("offline_required"), "{out}{err}");
         assert!(out.contains(".dx/advisory/pypi.json"), "{out}{err}");
     }
@@ -290,7 +274,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_security_toml_exception_exempts_a_configured_set_finding() {
-        let harness = consumer_harness("exception", DX_TOML, true);
+        let harness = consumer_harness("exception", UV_MODULE, true);
         harness.write_source(
             "apps/frontend/uv.lock",
             &lock_with(&registry_package("django", "3.2.0")),
@@ -299,12 +283,12 @@ source = { registry = "https://pypi.org/simple" }
         harness.write_source(
             "security.toml",
             "schema_version = 1\n[[exception]]\nadvisory = \"PYSEC-2021-0001\"\n\
-             package = \"Django\"\nset = \"frontend\"\nversions = \">=3.2, <3.2.5\"\n\
+             package = \"Django\"\nset = \"pypi-frontend\"\nversions = \">=3.2, <3.2.5\"\n\
              reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
         );
         let runner = clean_runner();
         let (code, out, err) = run_with(
-            &["security", "--output=json", "frontend"],
+            &["security", "--output=json", "pypi-frontend"],
             &runner,
             &harness,
         );
@@ -314,7 +298,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_name_and_scope_select_the_same_set() {
-        let harness = consumer_harness("select", DX_TOML, true);
+        let harness = consumer_harness("select", UV_MODULE, true);
         write_advisory(&harness, "pypi", NO_ADVISORIES);
         harness.write_source(
             "services/worker/uv.lock",
@@ -323,7 +307,7 @@ source = { registry = "https://pypi.org/simple" }
         write_advisory(&harness, "pypi", DJANGO_ADVISORY);
         let runner = clean_runner();
         let (code, out, err) = run_with(
-            &["security", "--output=json", "frontend"],
+            &["security", "--output=json", "pypi-frontend"],
             &runner,
             &harness,
         );
@@ -349,7 +333,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_unknown_and_unowned_scopes_fail_closed() {
-        let harness = consumer_harness("unknown", DX_TOML, true);
+        let harness = consumer_harness("unknown", UV_MODULE, true);
         let runner = clean_runner();
         let (code, _, err) = run_with(&["security", "cargo"], &runner, &harness);
         assert_eq!(code, 2, "{err}");
@@ -362,38 +346,38 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_missing_lock_is_incomplete_in_both_families() {
-        let harness = consumer_harness("missing-lock", DX_TOML, false);
+        let harness = consumer_harness("missing-lock", UV_MODULE, false);
         let runner = clean_runner();
         let (code, out, err) = run_with(&["security", "--output=json"], &runner, &harness);
         assert_ne!(code, 0, "{out}{err}");
-        assert!(err.contains("failed to assess frontend"), "{err}");
+        assert!(err.contains("failed to assess pypi-frontend"), "{err}");
         assert!(err.contains("apps/frontend/uv.lock"), "{err}");
         let runner = clean_runner();
-        let (code, _, err) = run_with(&["license", "worker"], &runner, &harness);
+        let (code, _, err) = run_with(&["license", "pypi-worker"], &runner, &harness);
         assert_ne!(code, 0, "{err}");
-        assert!(err.contains("failed to assess worker"), "{err}");
+        assert!(err.contains("failed to assess pypi-worker"), "{err}");
         assert!(err.contains("services/worker/uv.lock"), "{err}");
     }
 
     #[cfg(unix)]
     #[test]
     fn consumer_symlinked_lock_leaving_the_workspace_fails_in_both_families() {
-        let harness = consumer_harness("escaping-lock", DX_TOML, false);
+        let harness = consumer_harness("escaping-lock", UV_MODULE, false);
         let outside = harness.temp.join("uv.lock");
         std::fs::write(&outside, UV_LOCK).unwrap();
         for rel in ["apps/frontend/uv.lock", "services/worker/uv.lock"] {
             std::os::unix::fs::symlink(&outside, harness.workspace.join(rel)).unwrap();
         }
         let runner = clean_runner();
-        let (code, out, err) = run_with(&["security", "frontend"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "pypi-frontend"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("failed to assess frontend"), "{err}");
+        assert!(err.contains("failed to assess pypi-frontend"), "{err}");
         assert!(err.contains("apps/frontend/uv.lock"), "{err}");
         assert!(err.contains("leaves the workspace"), "{err}");
         let runner = clean_runner();
-        let (code, out, err) = run_with(&["license", "worker"], &runner, &harness);
+        let (code, out, err) = run_with(&["license", "pypi-worker"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("failed to assess worker"), "{err}");
+        assert!(err.contains("failed to assess pypi-worker"), "{err}");
         assert!(err.contains("services/worker/uv.lock"), "{err}");
         assert!(err.contains("leaves the workspace"), "{err}");
     }
@@ -401,7 +385,7 @@ source = { registry = "https://pypi.org/simple" }
     #[cfg(unix)]
     #[test]
     fn consumer_symlinked_lock_inside_the_workspace_is_read() {
-        let harness = consumer_harness("inside-lock", DX_TOML, false);
+        let harness = consumer_harness("inside-lock", UV_MODULE, false);
         harness.write_source("locks/uv.lock", UV_LOCK);
         for rel in ["apps/frontend/uv.lock", "services/worker/uv.lock"] {
             std::os::unix::fs::symlink(
@@ -418,7 +402,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_license_reports_no_packages_and_exits_zero() {
-        let harness = consumer_harness("license", DX_TOML, true);
+        let harness = consumer_harness("license", UV_MODULE, true);
         let runner = clean_runner();
         let (code, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
@@ -430,12 +414,12 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn configured_and_builtin_selection_agree_on_names_and_scopes() {
-        let registry = dx_adopt::dependency_sets::parse(DX_TOML, "dx.toml")
+        let registry = dx_adopt::dependency_sets::discover(UV_MODULE, &|rel| Err(rel.to_owned()))
             .expect("registry")
             .expect("present");
         for selector in [
-            "frontend",
-            "worker",
+            "pypi-frontend",
+            "pypi-worker",
             "apps/frontend/app",
             "//...",
             "services/worker/...",
@@ -456,16 +440,7 @@ source = { registry = "https://pypi.org/simple" }
         }
     }
 
-    const NPM_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "npm"
-manifests = ["apps/web/package.json"]
-locks = ["apps/web/pnpm-lock.yaml"]
-scopes = ["apps/web"]
-"#;
+    const NPM_MODULE: &str = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"frontend\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\n";
 
     const REACT_LOCK: &str =
         "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
@@ -480,7 +455,7 @@ scopes = ["apps/web"]
     }]"#;
 
     fn npm_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, NPM_TOML, false);
+        let harness = consumer_harness(name, NPM_MODULE, false);
         harness.write_source("apps/web/package.json", "{}\n");
         harness.write_source("apps/web/pnpm-lock.yaml", REACT_LOCK);
         harness
@@ -553,28 +528,9 @@ scopes = ["apps/web"]
         assert!(!out.contains("UNKNOWN"), "{out}");
     }
 
-    const PINNED_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "gems"
-ecosystem = "ruby"
-manifests = ["apps/rb/Gemfile"]
-locks = ["apps/rb/Gemfile.lock"]
-scopes = ["apps/rb"]
-
-[[dependency_set]]
-name = "modules"
-ecosystem = "powershell"
-manifests = ["tools/ps/PSGallery.requirements.psd1"]
-locks = ["tools/ps/PSGallery.lock.json"]
-scopes = ["tools/ps"]
-"#;
+    const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";
-
-    const PSGALLERY_LOCK: &str =
-        "{\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\"\n    }\n  }\n}\n";
 
     const RACK_ADVISORY: &str = r#"[{
         "id": "GHSA-rack-0001",
@@ -586,17 +542,12 @@ scopes = ["tools/ps"]
     }]"#;
 
     fn pinned_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, PINNED_TOML, false);
+        let harness = consumer_harness(name, PINNED_MODULE, false);
         harness.write_source(
             "apps/rb/Gemfile",
             "source \"https://rubygems.org\"\ngem \"rack\"\n",
         );
         harness.write_source("apps/rb/Gemfile.lock", GEMFILE_LOCK);
-        harness.write_source(
-            "tools/ps/PSGallery.requirements.psd1",
-            "@{ Pester = '5.7.1' }\n",
-        );
-        harness.write_source("tools/ps/PSGallery.lock.json", PSGALLERY_LOCK);
         harness
     }
 
@@ -643,59 +594,25 @@ scopes = ["tools/ps"]
     }
 
     #[test]
-    fn consumer_powershell_set_with_modules_needs_an_uncovered_acceptance() {
-        let harness = pinned_harness("powershell-uncovered");
-        let runner = clean_runner();
-        let (code, out, err) =
-            run_with(&["security", "--output=json", "modules"], &runner, &harness);
-        assert_ne!(code, 0, "{out}{err}");
-        assert!(out.contains("failed to assess modules"), "{out}{err}");
-        assert!(out.contains("no advisory backend"), "{out}{err}");
-        assert!(!out.contains("audit_security_clean"), "{out}");
-        harness.write_source(
-            "security.toml",
-            "schema_version = 1\n\n[[uncovered]]\nset = \"modules\"\n\
-             reason = \"No Gallery advisory source.\"\nexpires = \"2999-01-01\"\n",
-        );
-        let (code, out, err) =
-            run_with(&["security", "--output=json", "modules"], &runner, &harness);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(!out.contains("failed to assess modules"), "{out}");
-    }
-
-    #[test]
     fn consumer_pinned_license_uses_the_ecosystem_inventory_keys() {
         let harness = pinned_harness("pinned-license");
         let runner = clean_runner();
         let (_, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
         assert!(out.contains("rack"), "{out}{err}");
-        assert!(out.contains("Pester"), "{out}{err}");
         assert!(out.contains("UNKNOWN"), "{out}");
         assert!(!out.contains("failed to assess"), "{out}");
         harness.write_source(
             "licenses.toml",
             "[policy.distributed]\nallow = [\"MIT\", \"Apache-2.0\"]\nreview = []\ndeny = []\n\n\
              [[inventory]]\npackage = \"rack\"\nset = \"ruby\"\nlicense = \"MIT\"\n\
-             versions = \"2.2.0\"\ntext_present = true\n\n\
-             [[inventory]]\npackage = \"Pester\"\nset = \"powershell\"\nlicense = \"Apache-2.0\"\n\
-             versions = \"5.7.1\"\ntext_present = true\n",
+             versions = \"2.2.0\"\ntext_present = true\n",
         );
         let (code, out, err) = run_with(&["license", "--output=json"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("UNKNOWN"), "{out}");
     }
 
-    const CARGO_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "crates"
-ecosystem = "cargo"
-manifests = ["apps/rs/Cargo.toml"]
-locks = ["apps/rs/Cargo.lock", "apps/rs/cargo-bazel-lock.json"]
-scopes = ["apps/rs"]
-repository = "crates"
-"#;
+    const CARGO_MODULE: &str = "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:Cargo.lock\", lockfile = \"//apps/rs:cargo-bazel-lock.json\", manifests = [\"//apps/rs:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n";
 
     const SMALLVEC_LOCK: &str = "version = 4\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\ndependencies = [\"smallvec\"]\n\n[[package]]\nname = \"smallvec\"\nversion = \"1.6.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e\"\n";
 
@@ -709,7 +626,7 @@ repository = "crates"
     }]"#;
 
     fn cargo_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, CARGO_TOML, false);
+        let harness = consumer_harness(name, CARGO_MODULE, false);
         harness.write_source(
             "apps/rs/Cargo.toml",
             "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",
@@ -777,17 +694,7 @@ repository = "crates"
         assert!(!out.contains("UNKNOWN"), "{out}");
         assert!(!out.contains("failed to assess"), "{out}");
     }
-    const MAVEN_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "jvm"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["third_party/maven_install.json"]
-scopes = ["third_party"]
-repository = "maven"
-"#;
+    const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = \"//third_party:maven_install.json\")\nuse_repo(maven, \"maven\")\n";
 
     const MAVEN_ADVISORY: &str = r#"[{
         "id": "GHSA-maven-0001",
@@ -799,8 +706,7 @@ repository = "maven"
     }]"#;
 
     fn maven_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, MAVEN_TOML, false);
-        harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
+        let harness = consumer_harness(name, MAVEN_MODULE, false);
         harness.write_source(
             "third_party/maven_install.json",
             "{\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2,\"artifacts\":{\"com.example:lib\":{\"shasums\":{\"jar\":\"x\"},\"version\":\"1.1\"}}}\n",
@@ -813,17 +719,17 @@ repository = "maven"
         let harness = maven_harness("maven-vuln");
         write_advisory(&harness, "maven", MAVEN_ADVISORY);
         let runner = clean_runner();
-        let (code, out, err) = run_with(&["security", "--output=json", "jvm"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "--output=json", "maven"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("GHSA-maven-0001"), "{out}");
         assert!(out.contains("third_party/maven_install.json"), "{out}");
         harness.write_source(
             "security.toml",
             "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-maven-0001\"\n\
-             package = \"com.example:lib\"\nset = \"jvm\"\nversions = \"1.1\"\n\
+             package = \"com.example:lib\"\nset = \"maven\"\nversions = \"1.1\"\n\
              reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
         );
-        let (code, out, err) = run_with(&["security", "--output=json", "jvm"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "--output=json", "maven"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
@@ -836,10 +742,10 @@ repository = "maven"
             let runner = clean_runner();
             let mut argv = vec!["security", "--output=json"];
             argv.extend(extra);
-            argv.push("jvm");
+            argv.push("maven");
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
-            assert!(out.contains("failed to assess jvm"), "{out}{err}");
+            assert!(out.contains("failed to assess maven"), "{out}{err}");
             assert!(out.contains(".dx/advisory/maven.json"), "{out}{err}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {
@@ -848,16 +754,7 @@ repository = "maven"
         }
     }
 
-    const NUGET_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "dotnet"
-ecosystem = "nuget"
-manifests = ["dn/paket.dependencies"]
-locks = ["dn/paket.lock", "dn/paket.main.bzl"]
-scopes = ["dn"]
-"#;
+    const NUGET_MODULE: &str = "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\npaket = use_extension(\"//dn/deps:paket.main_extension.bzl\", \"main_extension\")\n";
 
     const NUGET_ADVISORY: &str = r#"[{
         "id": "GHSA-nuget-0001",
@@ -869,7 +766,7 @@ scopes = ["dn"]
     }]"#;
 
     fn nuget_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, NUGET_TOML, false);
+        let harness = consumer_harness(name, NUGET_MODULE, false);
         harness.write_source(
             "dn/paket.dependencies",
             "source https://api.nuget.org/v3/index.json\nnuget Example.Lib\n",
@@ -878,7 +775,7 @@ scopes = ["dn"]
             "dn/paket.lock",
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Example.Lib (1.1)\n",
         );
-        harness.write_source("dn/paket.main.bzl", "main\n");
+        harness.write_source("dn/deps/paket.main.bzl", "main\n");
         harness
     }
 
@@ -887,8 +784,7 @@ scopes = ["dn"]
         let harness = nuget_harness("nuget-vuln");
         write_advisory(&harness, "nuget", NUGET_ADVISORY);
         let runner = clean_runner();
-        let (code, out, err) =
-            run_with(&["security", "--output=json", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "--output=json", "nuget"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("GHSA-nuget-0001"), "{out}");
         assert!(out.contains("dn/paket.lock"), "{out}");
@@ -899,24 +795,14 @@ scopes = ["dn"]
         let harness = nuget_harness("nuget-missing");
         write_advisory(&harness, "pypi", NO_ADVISORIES);
         let runner = clean_runner();
-        let (code, out, err) =
-            run_with(&["security", "--output=json", "dotnet"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "--output=json", "nuget"], &runner, &harness);
         assert_ne!(code, 0, "{out}{err}");
-        assert!(out.contains("failed to assess dotnet"), "{out}{err}");
+        assert!(out.contains("failed to assess nuget"), "{out}{err}");
         assert!(out.contains(".dx/advisory/nuget.json"), "{out}{err}");
         assert!(!out.contains("audit_security_clean"), "{out}");
     }
 
-    const GO_TOML: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "gomods"
-ecosystem = "go"
-manifests = ["g/go.mod"]
-locks = ["g/go.sum"]
-scopes = ["g"]
-"#;
+    const GO_MODULE: &str = "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//g:go.mod\")\n";
 
     const GO_ADVISORY: &str = r#"[{
         "id": "GHSA-go-0001",
@@ -928,7 +814,7 @@ scopes = ["g"]
     }]"#;
 
     fn go_harness(name: &str) -> Harness {
-        let harness = consumer_harness(name, GO_TOML, false);
+        let harness = consumer_harness(name, GO_MODULE, false);
         harness.write_source(
             "g/go.mod",
             "module example.com/m\n\ngo 1.22\n\nrequire github.com/example/lib v1.1.0\n",
@@ -942,19 +828,17 @@ scopes = ["g"]
         let harness = go_harness("go-vuln");
         write_advisory(&harness, "go", GO_ADVISORY);
         let runner = clean_runner();
-        let (code, out, err) =
-            run_with(&["security", "--output=json", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "--output=json", "go"], &runner, &harness);
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("GHSA-go-0001"), "{out}");
         assert!(out.contains("g/go.mod"), "{out}");
         harness.write_source(
             "security.toml",
             "schema_version = 1\n[[exception]]\nadvisory = \"GHSA-go-0001\"\n\
-             package = \"github.com/example/lib\"\nset = \"gomods\"\nversions = \"1.1.0\"\n\
+             package = \"github.com/example/lib\"\nset = \"go\"\nversions = \"1.1.0\"\n\
              reason = \"reviewed\"\nexpires = \"2999-01-01\"\n",
         );
-        let (code, out, err) =
-            run_with(&["security", "--output=json", "gomods"], &runner, &harness);
+        let (code, out, err) = run_with(&["security", "--output=json", "go"], &runner, &harness);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
@@ -967,10 +851,10 @@ scopes = ["g"]
             let runner = clean_runner();
             let mut argv = vec!["security", "--output=json"];
             argv.extend(extra);
-            argv.push("gomods");
+            argv.push("go");
             let (code, out, err) = run_with(&argv, &runner, &harness);
             assert_ne!(code, 0, "{extra:?} {out}{err}");
-            assert!(out.contains("failed to assess gomods"), "{out}{err}");
+            assert!(out.contains("failed to assess go"), "{out}{err}");
             assert!(out.contains(".dx/advisory/go.json"), "{out}{err}");
             assert!(!out.contains("audit_security_clean"), "{out}");
             if extra.is_some() {

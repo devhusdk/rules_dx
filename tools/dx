@@ -228,7 +228,7 @@ if stale; then
     hint=1
   fi
   if [ -z "$built" ]; then
-    [ -z "$hint" ] || echo "dx: if a Cargo.toml dependency changed, run tools/dx update --apply cargo to repin" >&2
+    [ -z "$hint" ] || echo "dx: if a Cargo.toml dependency changed, run tools/dx update --apply dx_crates to repin" >&2
     if [ -x "$state/dx$exe" ]; then
       rm -f "$state/built.$$"
       echo "dx: //:dx does not build; running the previous dx" >&2

@@ -188,7 +188,6 @@ rust_test(
         "src/exec.rs",
         "src/exec/affected.rs",
         "src/exec/audit.rs",
-        "src/exec/audit_bazel_consumer.rs",
         "src/exec/audit_consumer.rs",
         "src/exec/audit_license.rs",
         "src/exec/audit_live.rs",

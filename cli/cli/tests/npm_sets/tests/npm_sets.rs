@@ -9,23 +9,10 @@ bazel_dep(name = "aspect_rules_js", version = "3.5.2")
 
 pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
 use_repo(pnpm, "pnpm")
-"#;
 
-const DX_TOML: &str = r#"schema_version = 1
-
-[[dependency_set]]
-name = "frontend"
-ecosystem = "npm"
-manifests = ["apps/web/package.json"]
-locks = ["apps/web/pnpm-lock.yaml"]
-scopes = ["apps/web"]
-
-[[dependency_set]]
-name = "worker"
-ecosystem = "npm"
-manifests = ["services/worker/package.json"]
-locks = ["services/worker/pnpm-lock.yaml"]
-scopes = ["services/worker"]
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(name = "frontend", pnpm_lock = "//apps/web:pnpm-lock.yaml")
+npm.npm_translate_lock(name = "worker", pnpm_lock = "//services/worker:pnpm-lock.yaml")
 "#;
 
 const LIB: &str = "{\n  \"name\": \"shared-lib\",\n  \"version\": \"1.0.0\"\n}\n";
@@ -80,7 +67,6 @@ fn consumer() -> Case {
         "build:dx_dev --compilation_mode=fastbuild\n",
     );
     write(&root.join(".dx/version"), "0.0.0\n");
-    write(&root.join("dx.toml"), DX_TOML);
     write(&root.join("libs/shared/package.json"), LIB);
     write(&root.join("libs/other/package.json"), OTHER);
     write(

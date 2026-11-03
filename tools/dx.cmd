@@ -93,7 +93,7 @@ endlocal & set "DX_FAIL=%errorlevel%"
 :dxbuilt
 if not "%DX_FAIL%"=="0" (
   popd
-  if not defined DX_REPIN echo dx: if a Cargo.toml dependency changed, run tools\dx update --apply cargo to repin 1>&2
+  if not defined DX_REPIN echo dx: if a Cargo.toml dependency changed, run tools\dx update --apply dx_crates to repin 1>&2
   if exist "%DX_STATE%\dx.exe" (
     echo dx: //:dx does not build; running the previous dx 1>&2
     del /q "%DX_STATE%\*.%DX_TAG%" 2>nul

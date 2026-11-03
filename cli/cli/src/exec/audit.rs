@@ -1751,9 +1751,6 @@ mod audit_license;
 use audit_license::*;
 
 #[cfg(test)]
-#[path = "audit_bazel_consumer.rs"]
-mod audit_bazel_consumer;
-#[cfg(test)]
 #[path = "audit_consumer.rs"]
 mod audit_consumer;
 #[cfg(test)]

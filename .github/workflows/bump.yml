@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       selector:
-        description: "Single widen selector (set:package, e.g. cargo:anyhow). One dep per run, never batch."
+        description: "Single widen selector (set:package, e.g. dx_crates:anyhow). One dep per run, never batch."
         required: false
         default: ""
       version:
@@ -118,7 +118,7 @@ jobs:
               crate="$(echo "$line" | sed -E 's/^([A-Za-z0-9_-]+) *=.*/\1/; s/^[[:space:]]+//')"
               if [[ -n "$crate" ]]; then
                 latest="$(cargo search "$crate" --limit 1 2>/dev/null | head -n 1 || true)"
-                if [[ -n "$latest" ]]; then echo "cargo:$crate $latest"; else echo "cargo:$crate (declared only; crates.io unreachable)"; fi
+                if [[ -n "$latest" ]]; then echo "dx_crates:$crate $latest"; else echo "dx_crates:$crate (declared only; crates.io unreachable)"; fi
               fi
             done < <(grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml || true)
           else
@@ -129,7 +129,7 @@ jobs:
             for pkg in $(grep -E -o -e '"[A-Za-z0-9_.-]+" *:' package.json 2>/dev/null | tr -d '": ' | head -n 10 || true); do
               if [[ -n "$pkg" && "$pkg" != "name" && "$pkg" != "version" && "$pkg" != "dependencies" && "$pkg" != "devDependencies" ]]; then
                 latest="$(npm view "$pkg" version 2>/dev/null || true)"
-                if [[ -n "$latest" ]]; then echo "npm:$pkg $latest (stable only)"; else echo "npm:$pkg (declared only; npm registry unreachable)"; fi
+                if [[ -n "$latest" ]]; then echo "dx_npm:$pkg $latest (stable only)"; else echo "dx_npm:$pkg (declared only; npm registry unreachable)"; fi
               fi
             done
           else
@@ -164,7 +164,7 @@ jobs:
           echo "--- BCR / Maven Central / NuGet ---"
           echo "(BCR, Maven Central, and NuGet enumerate through their upstream clients on runs with those backends; this run lists declared MODULE.bazel plus paket.dependencies above without custom HTTP.)"
           echo ""
-          echo "Next step: dispatch this workflow with selector plus version for the first outdated candidate above (one dep per run, never batch; e.g. cargo:anyhow 1.2.3). Manual selector only is rejected as the sole discovery route: scheduled runs must enumerate above."
+          echo "Next step: dispatch this workflow with selector plus version for the first outdated candidate above (one dep per run, never batch; e.g. dx_crates:anyhow 1.2.3). Manual selector only is rejected as the sole discovery route: scheduled runs must enumerate above."
           echo "This run plans the loop without widening."
       - name: Widen one requirement plus resolver-owned refresh
         if: inputs.selector != '' && inputs.version != ''
@@ -189,7 +189,7 @@ jobs:
           fi
           bazel run "$@" --noshow_progress //cli/cli:dx -- bump "$SELECTOR" "$VERSION" --apply -- "$@"
           case "$set_name" in
-            cargo|npm|go|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
+            dx_crates|dx_npm|go|maven|nuget) bazel run "$@" --noshow_progress //cli/cli:dx -- update "$set_name" -- "$@" || exit 1 ;;
             *) echo "File-only set ($set_name): no resolver refresh; preset flag-diff review plus build below." ;;
           esac
       - name: Bump-PR verification (regen, flag-diff, build, test, coverage, dogfood)
@@ -225,11 +225,11 @@ jobs:
           set_name="${SELECTOR%%:*}"
           case "$set_name" in
             bazel) allowed=(.bazelversion MODULE.bazel MODULE.bazel.lock) ;;
-            cargo) allowed=(rust/tests/fixtures/hello/Cargo.toml rust/tests/fixtures/hello/Cargo.lock cargo-bazel-lock.json) ;;
+            dx_crates) allowed=(rust/tests/fixtures/hello/Cargo.toml rust/tests/fixtures/hello/Cargo.lock cargo-bazel-lock.json) ;;
             github-actions) allowed=(.github/workflows) ;;
             go) allowed=(third_party/go/go.mod third_party/go/go.sum) ;;
             maven) allowed=(MODULE.bazel third_party/jvm/maven_install.json MODULE.bazel.lock) ;;
-            npm) allowed=(package.json pnpm-lock.yaml) ;;
+            dx_npm) allowed=(package.json pnpm-lock.yaml) ;;
             nuget) allowed=(third_party/dotnet/paket.dependencies third_party/dotnet/paket.lock third_party/dotnet/deps) ;;
             *)
               echo "bump_scope_unknown: unknown selector set ${set_name:-empty} (nothing staged, nothing pushed)."

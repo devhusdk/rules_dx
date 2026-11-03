@@ -23,25 +23,6 @@ maven.install(
 use_repo(maven, "maven", "tool_maven")
 "#;
 
-const DX_TOML: &str = r#"schema_version = 1
-
-[[dependency_set]]
-name = "jvm"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["third_party/maven_install.json"]
-scopes = ["third_party"]
-repository = "maven"
-
-[[dependency_set]]
-name = "tools"
-ecosystem = "maven"
-manifests = ["MODULE.bazel"]
-locks = ["tools/jvm/tool_install.json"]
-scopes = ["tools/jvm"]
-repository = "tool_maven"
-"#;
-
 fn dx() -> PathBuf {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     resolve_runfiles(&rel)
@@ -79,7 +60,6 @@ fn consumer() -> Case {
         "build:dx_dev --compilation_mode=fastbuild\n",
     );
     write(&root.join(".dx/version"), "0.0.0\n");
-    write(&root.join("dx.toml"), DX_TOML);
     for (dir, lock) in [
         ("third_party", "maven_install.json"),
         ("tools/jvm", "tool_install.json"),
@@ -126,12 +106,12 @@ fn maven_sets_pin_and_check_one_hub_at_a_time() {
     let run = dx_in(&root, &["update"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
-        run.stdout.contains("jvm lockfile current"),
+        run.stdout.contains("maven lockfile current"),
         "{}",
         report(&run)
     );
     assert!(
-        run.stdout.contains("tools lockfile current"),
+        run.stdout.contains("tool_maven lockfile current"),
         "{}",
         report(&run)
     );
@@ -161,13 +141,13 @@ fn maven_sets_pin_and_check_one_hub_at_a_time() {
     let run = dx_in(&root, &["update"], &[]);
     assert_ne!(run.status.code(), Some(0), "{}", report(&run));
     assert!(
-        !run.stdout.contains("jvm lockfile current"),
+        !run.stdout.contains("maven lockfile current"),
         "{}",
         report(&run)
     );
     assert_eq!((read(&app_lock), read(&tool_lock)), before, "--check wrote");
 
-    let run = dx_in(&root, &["update", "--apply", "jvm"], &[]);
+    let run = dx_in(&root, &["update", "--apply", "maven"], &[]);
     assert_eq!(run.status.code(), Some(0), "{}", report(&run));
     let app_text = String::from_utf8(read(&app_lock)).expect("utf-8 lock");
     assert!(app_text.contains("commons-lang3"), "{app_text}");

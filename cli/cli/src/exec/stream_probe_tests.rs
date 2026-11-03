@@ -1187,22 +1187,9 @@ fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
     (child, stdout, stderr)
 }
 
-const DEPENDENCY_SETS: &str = r#"
-schema_version = 1
-
-[[dependency_set]]
-name = "crates"
-ecosystem = "cargo"
-manifests = ["app/Cargo.toml"]
-locks = ["app/Cargo.lock", "app/cargo-bazel-lock.json"]
-scopes = ["app"]
-repository = "crates"
-"#;
-
 fn write_dependency_sets(base: &Path) {
     let workspace = base.join("ws");
     fs::create_dir_all(workspace.join("app")).expect("app dir");
-    fs::write(workspace.join("dx.toml"), DEPENDENCY_SETS).expect("dx.toml");
     fs::write(
         workspace.join("app/Cargo.toml"),
         "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",
@@ -1210,7 +1197,6 @@ fn write_dependency_sets(base: &Path) {
     .expect("manifest");
     fs::write(workspace.join("app/Cargo.lock"), "version = 4\n").expect("lock");
     fs::write(workspace.join("app/cargo-bazel-lock.json"), "{}\n").expect("bazel lock");
-    // dx refuses a cargo set whose crate_universe hub is not declared.
     fs::write(
         workspace.join("MODULE.bazel"),
         MODULE.to_owned()

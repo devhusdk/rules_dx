@@ -572,14 +572,14 @@ fn set_repository<'a>(set: &'a ResolvedSet, reason: &'static str) -> Result<&'a 
 fn cargo_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
     set_repository(
         set,
-        "cargo sets must name their crate_universe repository in dx.toml",
+        "cargo sets must name their crate_universe repository hub in MODULE.bazel",
     )
 }
 
 fn maven_repository(set: &ResolvedSet) -> Result<&str, BackendError> {
     set_repository(
         set,
-        "maven sets must name their rules_jvm_external repository in dx.toml",
+        "maven sets must name their rules_jvm_external repository hub in MODULE.bazel",
     )
 }
 
@@ -1756,7 +1756,6 @@ mod tests {
             dir: dir.to_owned(),
             manifests: vec![format!("{dir}/pyproject.toml")],
             locks: vec![format!("{dir}/uv.lock")],
-            writable: true,
             repository: None,
         }
     }
@@ -1973,7 +1972,6 @@ mod tests {
             dir: dir.to_owned(),
             manifests: vec![format!("{dir}/MODULE.bazel")],
             locks: vec![lock.to_owned()],
-            writable: true,
             repository: None,
         }
     }
@@ -1986,7 +1984,6 @@ mod tests {
             dir: "tools".to_owned(),
             manifests: vec!["tools/MODULE.bazel".to_owned()],
             locks: vec!["tools/MODULE.bazel.lock".to_owned()],
-            writable: true,
             repository: None,
         };
         let request = Selection::Packages(vec!["rules_cc".to_owned()]);
@@ -2017,7 +2014,6 @@ mod tests {
                     dir: "apps/rb".to_owned(),
                     manifests: vec!["apps/rb/Gemfile".to_owned()],
                     locks: vec!["apps/rb/Gemfile.lock".to_owned()],
-                    writable: true,
                     repository: None,
                 },
                 "rspec-core",
@@ -2030,7 +2026,6 @@ mod tests {
                     dir: "tools/ps".to_owned(),
                     manifests: vec!["tools/ps/PSGallery.requirements.psd1".to_owned()],
                     locks: vec!["tools/ps/PSGallery.lock.json".to_owned()],
-                    writable: true,
                     repository: None,
                 },
                 "Pester",
@@ -2526,7 +2521,6 @@ mod tests {
             dir: dir.to_owned(),
             manifests: vec![format!("{dir}/package.json")],
             locks: vec![format!("{dir}/pnpm-lock.yaml")],
-            writable: true,
             repository: None,
         }
     }
@@ -2942,7 +2936,6 @@ mod tests {
             dir: dir.to_owned(),
             manifests: vec![at("Cargo.toml")],
             locks: vec![at("Cargo.lock"), at("cargo-bazel-lock.json")],
-            writable: true,
             repository: Some(repository.to_owned()),
         }
     }
@@ -3190,7 +3183,6 @@ mod tests {
                 "third_party/dotnet/paket.lock".to_owned(),
                 "third_party/dotnet/deps/paket.main.bzl".to_owned(),
             ],
-            writable: true,
             repository: None,
         }
     }
@@ -3295,7 +3287,6 @@ mod tests {
             dir: "third_party/go".to_owned(),
             manifests: vec!["third_party/go/go.mod".to_owned()],
             locks: vec!["third_party/go/go.sum".to_owned()],
-            writable: true,
             repository: None,
         }
     }
@@ -3432,7 +3423,6 @@ mod tests {
             dir: ".".to_owned(),
             manifests: vec!["MODULE.bazel".to_owned()],
             locks: vec![format!("{repository}_install.json")],
-            writable: true,
             repository: Some(repository.to_owned()),
         }
     }

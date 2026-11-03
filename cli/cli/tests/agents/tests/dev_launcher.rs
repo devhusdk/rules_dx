@@ -696,7 +696,7 @@ mod sh {
             assert_eq!(code, Some(1), "{args:?} {err}");
             assert_eq!((repo.builds(), repo.repins()), (1, 0), "{args:?}");
             assert!(
-                err.contains("run tools/dx update --apply cargo to repin"),
+                err.contains("run tools/dx update --apply dx_crates to repin"),
                 "{err}"
             );
         }

@@ -104,38 +104,6 @@ python_test(
 
 # keep
 python_library(
-    name = "resource_peaks",
-    srcs = ["resource_peaks.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
-)
-
-# keep
-python_binary(
-    name = "resource_peaks_bin",
-    main = "resource_peaks.py",
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":resource_peaks"],
-)
-
-# keep
-python_test(
-    name = "resource_peaks_test",
-    size = "small",
-    srcs = ["resource_peaks_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    data = [
-        "resource_peaks.py",
-    ],
-    dep_group = "hello",
-    deps = [
-        ":workflow_testing",
-        "@pypi//pytest",
-    ],
-)
-
-# keep
-python_library(
     name = "docs_scope",
     srcs = ["docs_scope.py"],
     aspect_hints = ["//:ruff_config"],
@@ -970,43 +938,3 @@ rust_test(
     ],
 )
 
-filegroup(
-    name = "first_build_fixtures",
-    srcs = glob(["first_build_fixtures/**"]),
-)
-
-# keep
-python_library(
-    name = "first_build",
-    srcs = ["first_build.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
-)
-
-# keep
-python_binary(
-    name = "first_build_bin",
-    main = "first_build.py",
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":first_build"],
-)
-
-# keep
-python_test(
-    name = "first_build_test",
-    size = "small",
-    srcs = ["first_build_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    data = [
-        "first_build.py",
-        ":first_build_fixtures",
-        "//docs:first_build_data",
-        "//tools/testing/starters/fixtures:all",
-    ],
-    dep_group = "hello",
-    deps = [
-        ":first_build",
-        ":workflow_testing",
-        "@pypi//pytest",
-    ],
-)

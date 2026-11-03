@@ -387,3 +387,14 @@ func TestPubLockMalformed(t *testing.T) {
 		}
 	}
 }
+
+func TestPubLockBadEntriesSorted(t *testing.T) {
+	content := "packages:\n  c:\n    dependency: \"direct main\"\n  a:\n    version: \"1.0.0\"\n  b:\n    source: hosted\n"
+	const want = "packages lack dependency or source: a, b, c"
+	for i := 0; i < 20; i++ {
+		_, err := parsePubLockManifest([]byte(content), "pubspec.lock")
+		if err == nil || err.Error() != want {
+			t.Fatalf("run %d: got %v, want %q", i, err, want)
+		}
+	}
+}

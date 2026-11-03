@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
@@ -72,10 +73,15 @@ func parsePubLockManifest(content []byte, _ string) (externalManifest, error) {
 	if !seenPackages {
 		return nil, fmt.Errorf("no packages: section")
 	}
+	var bad []string
 	for name, pkg := range m.packages {
 		if pkg.dependency == "" || pkg.source == "" {
-			return nil, fmt.Errorf("package %s lacks dependency or source", name)
+			bad = append(bad, name)
 		}
+	}
+	if len(bad) > 0 {
+		sort.Strings(bad)
+		return nil, fmt.Errorf("packages lack dependency or source: %s", strings.Join(bad, ", "))
 	}
 	return m, nil
 }

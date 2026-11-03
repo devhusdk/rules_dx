@@ -598,13 +598,18 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           tools/docs/site/public_rust_crates_guard.sh "$@"
+      - name: Fail when a nested Bazel test is missing from nested_smoke.txt
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          tools/testing/nested_smoke_guard.sh "$@"
       - name: Write job summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### workflow-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library." >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library; nested_smoke.txt lists every nested Bazel test." >> "$GITHUB_STEP_SUMMARY"
   gate:
     name: gate
     timeout-minutes: 120

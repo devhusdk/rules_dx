@@ -47,7 +47,9 @@
       "Bash(tools/dx check *)",
       "Bash(tools/dx test *)",
       "Bash(tools/dx build *)",
-      "Bash(tools/dx status *)"
+      "Bash(tools/dx status *)",
+      "Bash(export DX_WORKTREE_SESSION=*)",
+      "Bash(export DX_WORKTREE_HOLDER=*)"
     ]
   }
 }

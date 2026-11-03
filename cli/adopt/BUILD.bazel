@@ -55,6 +55,7 @@ dx_rust_crate(
     ],
     extra_test_deps = [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
     ],
     test_data = [
         ":python_files",
@@ -64,8 +65,12 @@ dx_rust_crate(
         "//:package.json",
         "//examples:consumer-ci/caller.yml",
         "//modules:cuda.bzl",
+        "@dx_tools//:shellcheck",
     ],
-    test_env = {"DX_PYTHON": "$(rootpath :python_interpreter)"},
+    test_env = {
+        "DX_PYTHON": "$(rootpath :python_interpreter)",
+        "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
+    },
     visibility = VIS_CLI + [
         "//tools/ci:__pkg__",
         "//tools/docs/support_matrix:__pkg__",

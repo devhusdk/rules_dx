@@ -187,7 +187,7 @@ fail() {
   echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- $args" >&2
   exit 1
 }
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH="" cd -- "$(dirname -- "$0")/.." && pwd)
 os=
 exe=
 case "$(uname -s)" in
@@ -215,7 +215,7 @@ if [ "${1:-}" != worktree ] || [ "${2:-}" != hook ]; then
       here=$(dirname -- "$here")
     fi
   done
-  me=$(CDPATH= cd -P -- "$root" && pwd -P) || me=
+  me=$(CDPATH="" cd -P -- "$root" && pwd -P) || me=
   if [ -n "$here" ] && [ "$here" != "$me" ] && command -v git > /dev/null 2>&1; then
     gcd() {
       (
@@ -560,6 +560,26 @@ mod tests {
 
     fn sh() -> String {
         render_launcher_sh()
+    }
+
+    #[test]
+    fn rendered_sh_launcher_passes_shellcheck() {
+        let shellcheck = dx_testing::resolve_runfiles(
+            &std::env::var("DX_SHELLCHECK").expect("DX_SHELLCHECK names the pinned shellcheck"),
+        );
+        let dir = dx_test_scratch::scratch("launcher-shellcheck");
+        let script = dir.path().join("dx");
+        std::fs::write(&script, sh()).expect("write launcher");
+        let run = std::process::Command::new(shellcheck)
+            .args(["--norc", "--shell=sh", "--severity=style"])
+            .arg(&script)
+            .output()
+            .expect("shellcheck runs");
+        assert!(
+            run.status.success(),
+            "{}",
+            String::from_utf8_lossy(&run.stdout)
+        );
     }
 
     fn cmd() -> String {

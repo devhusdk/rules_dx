@@ -18,6 +18,7 @@ enum Kind {
 enum Arity {
     Exactly(usize),
     AtLeast(usize),
+    Between(usize, usize),
 }
 
 impl Arity {
@@ -25,6 +26,7 @@ impl Arity {
         match self {
             Self::Exactly(n) => count == n,
             Self::AtLeast(n) => count >= n,
+            Self::Between(low, high) => (low..=high).contains(&count),
         }
     }
 }
@@ -40,8 +42,8 @@ const KINDS: &[KindSpec] = &[
     KindSpec {
         kind: Kind::Spdx,
         name: "spdx",
-        usage: "<artifact> <out> <package> <supplier>",
-        arity: Arity::Exactly(4),
+        usage: "<artifact> <out> <package> <supplier> [inventory]",
+        arity: Arity::Between(4, 5),
     },
     KindSpec {
         kind: Kind::Provenance,
@@ -76,6 +78,7 @@ enum Invocation {
         dst: PathBuf,
         package: String,
         supplier: String,
+        inventory: Option<PathBuf>,
     },
     Provenance {
         src: PathBuf,
@@ -147,6 +150,7 @@ fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
             dst: PathBuf::from(&args[1]),
             package: args[2].clone(),
             supplier: args[3].clone(),
+            inventory: args.get(4).map(PathBuf::from),
         },
         Kind::Provenance => Invocation::Provenance {
             src: PathBuf::from(&args[0]),
@@ -206,7 +210,8 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             dst,
             package,
             supplier,
-        } => crate::write_spdx(src, dst, package, supplier),
+            inventory,
+        } => crate::write_spdx_with_inventory(src, dst, package, supplier, inventory.as_deref()),
         Invocation::Provenance { src, dst, builder } => crate::write_provenance(src, dst, builder),
         Invocation::BcrSource {
             dst,
@@ -263,7 +268,6 @@ mod tests {
     #[test]
     fn arity_is_checked_per_kind() {
         for (name, exact, unbounded) in [
-            ("spdx", 4, false),
             ("provenance", 3, false),
             ("bcr-source", 3, false),
             ("notice", 4, true),
@@ -293,6 +297,10 @@ mod tests {
             );
         }
         assert!(parse(&argv_for("notice", 9)).is_ok());
+        assert!(parse(&argv_for("spdx", 4)).is_ok());
+        assert!(parse(&argv_for("spdx", 5)).is_ok());
+        assert!(parse(&argv_for("spdx", 3)).is_err());
+        assert!(parse(&argv_for("spdx", 6)).is_err());
     }
 
     #[test]
@@ -314,6 +322,7 @@ mod tests {
                 dst: PathBuf::from("out"),
                 package: "dx".to_owned(),
                 supplier: "rules_dx".to_owned(),
+                inventory: None,
             })
         );
     }

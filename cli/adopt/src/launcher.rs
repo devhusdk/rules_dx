@@ -49,7 +49,12 @@ impl LauncherPins {
             let archive = RELEASE_ASSETS
                 .iter()
                 .any(|known| asset == archive_name(known));
-            if archive {
+            let sbom = asset.strip_suffix(".spdx.json").is_some_and(|base| {
+                RELEASE_ASSETS
+                    .iter()
+                    .any(|known| base == archive_name(known))
+            });
+            if archive || sbom {
                 if !seen_archives.insert(asset.to_owned()) {
                     return Err(pins_error(format!("{asset} is listed twice")));
                 }
@@ -714,6 +719,20 @@ mod tests {
             assert!(LauncherPins::from_sha256sums(&text).is_err(), "{extra:?}");
         }
         let unknown = format!("{MANIFEST}{a}  dx-foo.tar.gz\n");
+        assert!(LauncherPins::from_sha256sums(&unknown).is_err());
+    }
+
+    #[test]
+    fn from_sha256sums_skips_sbom_lines() {
+        let a = "a".repeat(64);
+        let sbom = format!("{a}  dx-linux-x86_64.tar.gz.spdx.json\n");
+        let combined = format!("{MANIFEST}{sbom}");
+        assert_eq!(
+            LauncherPins::from_sha256sums(&combined).expect("combined"),
+            LauncherPins::from_sha256sums(MANIFEST).expect("manifest")
+        );
+        assert!(LauncherPins::from_sha256sums(&format!("{combined}{sbom}")).is_err());
+        let unknown = format!("{MANIFEST}{a}  dx-foo.tar.gz.spdx.json\n");
         assert!(LauncherPins::from_sha256sums(&unknown).is_err());
     }
 

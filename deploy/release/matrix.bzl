@@ -2,6 +2,7 @@
 
 load("//deploy/rules:archive.bzl", "archive_filenames", "consumer_archive")
 load(":inventory.bzl", "shipped_inventory")
+load(":sbom.bzl", "sbom_release")
 load(":notice.bzl", "notice_bundle")
 
 RELEASE_MATRIX_SCHEMA = "release-matrix/v1"
@@ -110,6 +111,12 @@ def release_cells(name):
             runtime = cell["runtime"],
             target_compatible_with = constraints,
         )
+        sbom_release(
+            name = cell_name + "_sbom",
+            artifact = ":" + cell_name + "_archive",
+            inventory = ":" + cell_name + "_inventory",
+            target_compatible_with = constraints,
+        )
         native.config_setting(
             name = cell_name + "_host",
             constraint_values = constraints,
@@ -122,6 +129,13 @@ def release_cells(name):
         name = name,
         actual = select(dict(
             [(":" + cell["name"] + "_host", ":" + cell["name"] + "_archive") for cell in RELEASE_MATRIX],
+            **{"//conditions:default": ":" + name + "_unsupported"}
+        )),
+    )
+    native.alias(
+        name = name + "_sbom",
+        actual = select(dict(
+            [(":" + cell["name"] + "_host", ":" + cell["name"] + "_sbom_spdx") for cell in RELEASE_MATRIX],
             **{"//conditions:default": ":" + name + "_unsupported"}
         )),
     )

@@ -120,8 +120,8 @@ pub fn validate_tag(tag: &str) -> Result<&str, String> {
     Ok(version)
 }
 
-/// Parses `<64 lowercase hex>  <asset>` lines; only known archive or raw binary names, no
-/// duplicates. Raw binary lines are accepted but not returned: install uses archives only.
+/// Parses `<64 lowercase hex>  <asset>` lines; only known archive, raw binary or archive SBOM names,
+/// no duplicates. Raw binary and SBOM lines are accepted but not returned: install uses archives only.
 pub fn parse_sha256sums(text: &str) -> Result<BTreeMap<String, String>, String> {
     let known: Vec<String> = CELLS.iter().map(Cell::archive_name).collect();
     let mut sums = BTreeMap::new();
@@ -143,10 +143,13 @@ pub fn parse_sha256sums(text: &str) -> Result<BTreeMap<String, String>, String> 
             ));
         }
         let raw = CELLS.iter().any(|cell| cell.name == name);
-        if !raw && !known.iter().any(|known| known == name) {
+        let sbom = name
+            .strip_suffix(".spdx.json")
+            .is_some_and(|archive| known.iter().any(|known| known == archive));
+        if !raw && !sbom && !known.iter().any(|known| known == name) {
             return Err(format!("{MANIFEST_NAME} line {at}: unknown asset {name:?}"));
         }
-        if raw {
+        if raw || sbom {
             if !seen_raw.insert(name.to_owned()) {
                 return Err(format!(
                     "{MANIFEST_NAME} line {at}: duplicate asset {name:?}"
@@ -282,6 +285,20 @@ mod tests {
             line("dx-linux-x86_64.zip"),
             line("dx-windows-x86_64.tar.gz"),
             line("dx-macos-x86_64"),
+        ] {
+            assert!(parse_sha256sums(&text).is_err(), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn manifest_accepts_archive_sbom_lines_once() {
+        let archive = line("dx-linux-x86_64.tar.gz");
+        let sbom = line("dx-linux-x86_64.tar.gz.spdx.json");
+        let sums = parse_sha256sums(&format!("{archive}\n{sbom}\n")).expect("parse");
+        assert_eq!(sums.len(), 1);
+        for text in [
+            format!("{archive}\n{sbom}\n{sbom}"),
+            format!("{archive}\n{}", line("dx-foo.tar.gz.spdx.json")),
         ] {
             assert!(parse_sha256sums(&text).is_err(), "{text:?}");
         }

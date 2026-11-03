@@ -1090,6 +1090,23 @@ fn verify_each_accepts_a_clean_release() {
 }
 
 #[test]
+fn verify_each_ignores_sbom_files_in_the_records_dir() {
+    let release = release();
+    std::fs::write(
+        release.records().join("dx-linux-x86_64.tar.gz.spdx.json"),
+        "{}",
+    )
+    .expect("write sbom");
+    let verification = verify_each(
+        &release.matrix,
+        &release.records(),
+        &release.archives(),
+        &release.expected,
+    );
+    assert!(verification.ok(), "{:?}", verification.stray);
+}
+
+#[test]
 fn render_verification_lists_every_cell_in_matrix_order() {
     let broken = release();
     broken.edit(TAR, |value| value["version"] = "9.9.9".into());

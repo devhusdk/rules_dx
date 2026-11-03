@@ -484,6 +484,12 @@ sbom_file_tests(
     want = "Organization: Acme \\\"Labs\\\" $HOME `id` O'Neil",
 )
 
+sbom_file_tests(
+    name = "dx_host_cell_sbom_names_archive",
+    spdx = ":dx_host_cell_sbom",
+    want = "dx-",
+)
+
 notice_bundle(
     name = "notice_demo",
     inventory = ":notice_demo_inventory.txt",

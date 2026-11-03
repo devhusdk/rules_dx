@@ -142,7 +142,9 @@ fn the_upload_never_overwrites() {
     let put = upload.find("gh release upload").expect("upload");
     assert!(guard < put);
     assert!(upload.contains("for file in $files \"$src\" \"$src.sha256\" source.json; do"));
-    assert!(upload.contains("files=\"$files $asset $asset.sha256 $archive $archive.sha256\""));
+    assert!(upload.contains(
+        "files=\"$files $asset $asset.sha256 $archive $archive.sha256 $archive.spdx.json\""
+    ));
     assert!(upload.contains("files=\"dx-sha256sums.txt dx-sha256sums.txt.sigstore.json\""));
 }
 
@@ -151,7 +153,9 @@ fn the_upload_fails_on_assets_outside_the_manifest() {
     let text = workflow();
     let upload = &text[text.find("\n  upload:\n").expect("upload job")..];
     let loop_end = upload.find("gh release upload").expect("upload");
-    let check = upload.find("holds assets outside the manifest").expect("extra check");
+    let check = upload
+        .find("holds assets outside the manifest")
+        .expect("extra check");
     let verify = upload.find("mkdir -p verify").expect("verify step");
     assert!(loop_end < check && check < verify);
     assert!(upload.contains("printf '%s\\n' $files \"$src\" \"$src.sha256\" source.json"));
@@ -170,8 +174,10 @@ fn the_checksum_manifest_is_built_checked_and_uploaded() {
     let text = workflow();
     for needle in [
         "cat \"out/$asset.sha256\" \"out/$archive.sha256\" >> sums.tmp",
+        "\"$archive.spdx.json\" >> sums.tmp",
+        "for file in \"$archive\" \"$archive.sha256\" \"$archive.spdx.json\"; do",
         "LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt",
-        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 10",
+        "test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 15",
         "(cd out && sha256sum -c dx-sha256sums.txt)",
         "--pattern 'dx-*' --dir verify",
         "sha256sum -c dx-sha256sums.txt)",

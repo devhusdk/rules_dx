@@ -161,9 +161,7 @@ fn cell_error(cell: &Cell) -> Option<String> {
     if cell.name.is_empty() || cell.arch.is_empty() {
         return Some("name and arch must be non-empty".to_owned());
     }
-    let mut members: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt"]
-        .into_iter()
-        .collect();
+    let mut members: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt"].into_iter().collect();
     for member in std::iter::once(&cell.exe).chain(&cell.runtime) {
         if member.contains('/') {
             return Some(format!("member {member:?} must be a top-level name"));
@@ -867,6 +865,7 @@ pub fn verify_each(
         Ok(entries) => entries
             .filter_map(|entry| entry.ok().map(|entry| entry.path()))
             .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+            .filter(|path| !path.to_string_lossy().ends_with(".spdx.json"))
             .collect(),
         Err(error) => {
             stray.push(format!(

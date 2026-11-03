@@ -73,6 +73,16 @@ pub fn bin_error(diagnostic: impl std::fmt::Display) -> i32 {
 }
 
 pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> String {
+    render_spdx_with_crates(base, digest, package, supplier, &[])
+}
+
+pub fn render_spdx_with_crates(
+    base: &str,
+    digest: &str,
+    package: &str,
+    supplier: &str,
+    crates: &[NoticeEntry],
+) -> String {
     let mut document = spdx::Document::new(
         &format!("{package}-{base}"),
         &format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
@@ -102,6 +112,28 @@ pub fn render_spdx(base: &str, digest: &str, package: &str, supplier: &str) -> S
         ..spdx::SpdxPackage::default()
     }];
     document.relationships = vec![spdx::describes("SPDXRef-Package")];
+    let mut sorted: Vec<&NoticeEntry> = crates.iter().collect();
+    sorted.sort_by(|a, b| (&a.package, &a.version).cmp(&(&b.package, &b.version)));
+    for entry in sorted {
+        let id = crate_spdx_id(&entry.package, &entry.version);
+        let ecosystem = if entry.set == "npm" { "npm" } else { "cargo" };
+        document
+            .relationships
+            .push(spdx::contains("SPDXRef-Package", &id));
+        document.packages.push(spdx::SpdxPackage {
+            id,
+            name: entry.package.clone(),
+            version: entry.version.clone(),
+            license_declared: entry.license.clone(),
+            download_location: spdx::NOASSERTION.to_owned(),
+            external_refs: vec![spdx::SpdxExternalRef {
+                category: "PACKAGE-MANAGER".to_owned(),
+                ref_type: "purl".to_owned(),
+                locator: format!("pkg:{ecosystem}/{}@{}", entry.package, entry.version),
+            }],
+            ..spdx::SpdxPackage::default()
+        });
+    }
     let value = serde_json::to_value(&document).unwrap_or(serde_json::Value::Null);
     render_pretty(&value)
 }
@@ -132,12 +164,42 @@ pub fn render_bcr_source(module: &str, version: &str) -> String {
     }))
 }
 
+fn crate_spdx_id(name: &str, version: &str) -> String {
+    let clean: String = format!("{name}-{version}")
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    format!("SPDXRef-Crate-{clean}")
+}
+
 pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> io::Result<()> {
+    write_spdx_with_inventory(src, dst, package, supplier, None)
+}
+
+pub fn write_spdx_with_inventory(
+    src: &Path,
+    dst: &Path,
+    package: &str,
+    supplier: &str,
+    inventory: Option<&Path>,
+) -> io::Result<()> {
     let digest = dx_digest::sha256_file_hex(src)?;
     let base = basename(src)?;
+    let crates = match inventory {
+        Some(path) => {
+            parse_notice_manifest(&std::fs::read_to_string(path)?).map_err(io::Error::other)?
+        }
+        None => Vec::new(),
+    };
     std::fs::write(
         dst,
-        render_spdx(&base, &digest, package, supplier).as_bytes(),
+        render_spdx_with_crates(&base, &digest, package, supplier, &crates).as_bytes(),
     )?;
     Ok(())
 }
@@ -1048,6 +1110,38 @@ mod tests {
                 "spdxElementId": "SPDXRef-DOCUMENT",
             }])
         );
+    }
+
+    #[test]
+    fn spdx_lists_inventory_crates() {
+        let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
+        let manifest = "zed|cargo|2.0.0|MIT||\nalpha|cargo|1.0.0|MIT OR Apache-2.0||\n";
+        let crates = parse_notice_manifest(manifest).expect("manifest");
+        let text = render_spdx_with_crates("artifact.bin", digest, "dx", "rules_dx", &crates);
+        let value: serde_json::Value = serde_json::from_str(&text).expect("json");
+        let packages = value["packages"].as_array().expect("packages");
+        let ids: Vec<&str> = packages
+            .iter()
+            .map(|p| p["SPDXID"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            ids,
+            [
+                "SPDXRef-Package",
+                "SPDXRef-Crate-alpha-1.0.0",
+                "SPDXRef-Crate-zed-2.0.0"
+            ]
+        );
+        assert_eq!(packages[1]["licenseDeclared"], "MIT OR Apache-2.0");
+        assert_eq!(
+            packages[2]["externalRefs"][0]["referenceLocator"],
+            "pkg:cargo/zed@2.0.0"
+        );
+        let rels = value["relationships"].as_array().expect("relationships");
+        assert_eq!(rels.len(), 3);
+        assert_eq!(rels[1]["relationshipType"], "CONTAINS");
+        assert_eq!(rels[2]["relatedSpdxElement"], "SPDXRef-Crate-zed-2.0.0");
+        assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
     }
 
     #[test]

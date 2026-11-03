@@ -78,7 +78,7 @@ jobs:
           out="$RUNNER_TEMP/cell-out"
           rm -rf "$out"
           mkdir -p "$out"
-          bazel build --config=dx_release //cli/cli:dx //deploy/release:release_cell //deploy/release:release_matrix //deploy/release:dx_host_cell
+          bazel build --config=dx_release //cli/cli:dx //deploy/release:release_cell //deploy/release:release_matrix //deploy/release:dx_host_cell //deploy/release:dx_host_cell_sbom
           root="$(bazel info --config=dx_release execution_root)"
           dx="$root/$(bazel cquery --config=dx_release --output=files //cli/cli:dx)"
           tool="$root/$(bazel cquery --config=dx_release --output=files //deploy/release:release_cell)"
@@ -87,6 +87,8 @@ jobs:
           version="$("$tool" version --exe "$dx")"
           archive_name="$(basename "$built")"
           cp "$built" "$out/$archive_name"
+          sbom="$root/$(bazel cquery --config=dx_release --output=files //deploy/release:dx_host_cell_sbom)"
+          cp "$sbom" "$out/$archive_name.spdx.json"
           if command -v sha256sum >/dev/null 2>&1; then
             digest="$(sha256sum "$out/$archive_name" | cut -d' ' -f1)"
           else

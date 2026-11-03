@@ -1,7 +1,7 @@
 //! Binds a release SPDX document to the artifact it describes; the model lives in dx_sbom.
 
 pub use dx_sbom::{
-    describes, license_error, purl_name, purl_version, sha256_of, Document, SpdxChecksum,
+    contains, describes, license_error, purl_name, purl_version, sha256_of, Document, SpdxChecksum,
     SpdxDocument, SpdxExternalRef, SpdxFile, SpdxPackage, DOCUMENT_ID, NOASSERTION, SHA256,
     SPDX_VERSION,
 };

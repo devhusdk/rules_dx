@@ -186,6 +186,7 @@ fn backend_error_status(
         ),
         dx_update::backend::BackendError::OfflineRequired { .. }
         | dx_update::backend::BackendError::FrozenLocked { .. }
+        | dx_update::backend::BackendError::NonUtf8Path { .. }
         | dx_update::backend::BackendError::BackendUnavailable { .. } => (
             dx_update::outcome::SetStatus::Failed,
             format!("failed to {verb} {name}: {error}"),

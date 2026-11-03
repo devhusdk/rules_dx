@@ -153,6 +153,8 @@ pub enum BackendError {
     OfflineRequired { set: String },
     #[error("frozen_locked: cannot change {set} resolution while frozen (re-run without --frozen to allow resolver changes)")]
     FrozenLocked { set: String },
+    #[error("invalid_path: cannot update {set}: {path} is not valid UTF-8")]
+    NonUtf8Path { set: String, path: String },
     #[error("backend_unavailable: cannot run {tool} for {set}: set {var} to the absolute path of {what}; PATH is never searched{}", resolution_suffix(.detail))]
     BackendUnavailable {
         set: String,
@@ -179,6 +181,7 @@ impl BackendError {
             BackendError::Unsupported { .. } => "unsupported",
             BackendError::OfflineRequired { .. } => "offline_required",
             BackendError::FrozenLocked { .. } => "frozen_locked",
+            BackendError::NonUtf8Path { .. } => "invalid_path",
             BackendError::BackendUnavailable { .. } => "backend_unavailable",
         }
     }
@@ -241,6 +244,21 @@ fn node_tool(
     }
 }
 
+/// The set directory as UTF-8, or an error naming the path.
+fn set_dir(workspace: &Path, set: &ResolvedSet) -> Result<String, BackendError> {
+    let path = match set.dir.as_str() {
+        "." => workspace.to_path_buf(),
+        dir => workspace.join(dir),
+    };
+    match path.to_str() {
+        Some(dir) => Ok(dir.to_owned()),
+        None => Err(BackendError::NonUtf8Path {
+            set: set.name.clone(),
+            path: path.display().to_string(),
+        }),
+    }
+}
+
 /// Builds the yarn or npm argv for a configured npm set; `None` means pnpm.
 fn configured_node_argv(
     workspace: &Path,
@@ -248,10 +266,7 @@ fn configured_node_argv(
     closure: &UvClosure,
     command: &[String],
 ) -> Result<Option<Vec<String>>, BackendError> {
-    let dir = match set.dir.as_str() {
-        "." => workspace.to_string_lossy().into_owned(),
-        dir => workspace.join(dir).to_string_lossy().into_owned(),
-    };
+    let dir = set_dir(workspace, set)?;
     match dependency_sets::npm_backend(set) {
         Some(dependency_sets::NpmBackend::Yarn) => {
             let yarn = node_tool(
@@ -456,7 +471,8 @@ fn configured_pnpm_argv(
     set: &ResolvedSet,
     offline: bool,
     command: &[String],
-) -> Vec<String> {
+) -> Result<Vec<String>, BackendError> {
+    let dir = set_dir(workspace, set)?;
     let mut run = Vec::new();
     if offline {
         run.push("--repository_disable_download");
@@ -467,16 +483,13 @@ fn configured_pnpm_argv(
     } else {
         Vec::new()
     };
-    [
+    Ok([
         bazel(head, "run", &run),
-        vec![match set.dir.as_str() {
-            "." => workspace.to_string_lossy().into_owned(),
-            dir => workspace.join(dir).to_string_lossy().into_owned(),
-        }],
+        vec![dir],
         ignore,
         command.to_vec(),
     ]
-    .concat()
+    .concat())
 }
 
 /// Refuses a package update in a pinned set; dx never rewrites its lock.
@@ -638,7 +651,7 @@ pub fn plan_configured(
             };
             let argv = match configured_node_argv(workspace, set, closure, &command)? {
                 Some(argv) => argv,
-                None => configured_pnpm_argv(workspace, head, set, false, &command),
+                None => configured_pnpm_argv(workspace, head, set, false, &command)?,
             };
             Ok(BackendPlan::Run {
                 argv,
@@ -788,7 +801,7 @@ pub fn check_configured(
             }
             let argv = match configured_node_argv(workspace, set, closure, &command)? {
                 Some(argv) => argv,
-                None => configured_pnpm_argv(workspace, head, set, offline, &command),
+                None => configured_pnpm_argv(workspace, head, set, offline, &command)?,
             };
             Ok(CheckPlan::Run {
                 argv,
@@ -1542,6 +1555,26 @@ mod tests {
             strings(command),
         ]
         .concat()
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_set_directory_is_refused_before_any_tool_runs() {
+        use std::os::unix::ffi::OsStrExt;
+        let workspace = Path::new(std::ffi::OsStr::from_bytes(b"/ws\xff"));
+        let set = npm_set("frontend", "apps/web");
+        let err = plan_configured(
+            workspace,
+            &set,
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect_err("non-UTF-8 dir");
+        assert_eq!(err.code(), "invalid_path");
+        assert!(err.to_string().contains("/ws\u{fffd}/apps/web"), "{err}");
     }
 
     #[test]

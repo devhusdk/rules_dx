@@ -405,7 +405,8 @@ pub(crate) fn write_and_refresh(
                     },
                 );
             }
-            unavailable @ dx_update::backend::BackendError::BackendUnavailable { .. } => {
+            unavailable @ (dx_update::backend::BackendError::BackendUnavailable { .. }
+            | dx_update::backend::BackendError::NonUtf8Path { .. }) => {
                 return refresh_failed(
                     edit,
                     invocation,

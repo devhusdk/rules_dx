@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":corpus_tests.bzl", "corpus_coverage_test")
@@ -7,20 +7,30 @@ load(":platforms_tests.bzl", "platforms_tests")
 
 package(default_visibility = VIS_QUALITY)
 
-py_binary(
+python_library(
+    name = "update_lib",
+    srcs = ["update.py"],
+    aspect_hints = ["//:ruff_config"],
+)
+
+python_binary(
     name = "update",
     srcs = ["update.py"],
+    aspect_hints = ["//:ruff_config"],
     main = "update.py",
 )
 
-py_test(
+python_test(
     name = "update_unit_test",
     size = "small",
-    srcs = [
-        "update.py",
-        "update_test.py",
+    srcs = ["update_test.py"],
+    aspect_hints = ["//:ruff_config"],
+    dep_group = "hello",
+    imports = ["."],
+    deps = [
+        ":update_lib",
+        "@pypi//pytest",
     ],
-    main = "update_test.py",
 )
 
 exports_files(glob(

@@ -33,10 +33,9 @@ fn header(files: &[&str], line: &str) -> Option<Header> {
     let (head, message) = tail.split_once(" : ")?;
     let (domain, severity) = if let Some(domain) = head.strip_suffix(" error") {
         (domain, ToolSeverity::Error)
-    } else if let Some(domain) = head.strip_suffix(" warning") {
-        (domain, ToolSeverity::Warning)
     } else {
-        return None;
+        let domain = head.strip_suffix(" warning")?;
+        (domain, ToolSeverity::Warning)
     };
     if domain.is_empty() {
         return None;

@@ -37,3 +37,6 @@ build:windows --nobuild_runfile_links
 
 # On Windows, give tests a runfiles directory instead of only a manifest.
 build:windows --enable_runfiles
+
+# Opt out of aspect_tools_telemetry usage reports.
+common --repo_env=DO_NOT_TRACK=1

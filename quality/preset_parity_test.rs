@@ -51,6 +51,7 @@ fn preset_parity() {
             "build:dx_dev_remote --compilation_mode=fastbuild",
             "build:dx_toolchain --compilation_mode=fastbuild",
             "build:windows --enable_runfiles",
+            "common --repo_env=DO_NOT_TRACK=1",
             "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
             "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
             "startup --host_jvm_args=-XX:MaxRAMPercentage=25",

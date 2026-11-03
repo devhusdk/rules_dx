@@ -116,6 +116,11 @@ const WINDOWS_FLAGS: [Flag; 1] = [(
     "On Windows, give tests a runfiles directory instead of only a manifest.",
 )];
 
+const TELEMETRY_FLAGS: [Flag; 1] = [(
+    "common --repo_env=DO_NOT_TRACK=1",
+    "Opt out of aspect_tools_telemetry usage reports.",
+)];
+
 const RESOURCE_FLAGS: [Flag; 12] = [
     (
         "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
@@ -215,6 +220,7 @@ impl Layer {
                 &COVERAGE_FLAGS,
                 &RUNFILES_FLAGS,
                 &WINDOWS_FLAGS,
+                &TELEMETRY_FLAGS,
             ],
             Layer::Performance => &[&BUILD_PROFILES],
             Layer::Resources => &[&RESOURCE_FLAGS],
@@ -634,6 +640,7 @@ mod tests {
                 "common --nolegacy_external_runfiles",
                 "build:windows --nobuild_runfile_links",
                 "build:windows --enable_runfiles",
+                "common --repo_env=DO_NOT_TRACK=1",
             ]
         );
         assert_eq!(
@@ -730,8 +737,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 31);
-        assert_eq!(rendered_flag_lines(&render_all()).len(), 31);
+        assert_eq!(total, 32);
+        assert_eq!(rendered_flag_lines(&render_all()).len(), 32);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -825,7 +832,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 31);
+        assert_eq!(flags.len(), 32);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

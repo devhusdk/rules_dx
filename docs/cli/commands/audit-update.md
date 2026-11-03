@@ -338,7 +338,7 @@ whose updaters run Bazel. `update` never touches the Bazel preset. The preset
 is three generated files under `tools/bazelrc/`, imported in this order at the
 top of the root `.bazelrc`, so later lines in `.bazelrc` override them:
 
-- `correctness.bazelrc`: Bzlmod, failure output, coverage, and runfiles flags.
+- `correctness.bazelrc`: Bzlmod, failure output, coverage, runfiles, and telemetry opt-out flags.
 - `performance.bazelrc`: the host compilation mode and the `dx_*` compilation configs.
 - `resources.bazelrc`: the memory, CPU, and cache limits listed below.
 

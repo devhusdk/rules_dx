@@ -4891,6 +4891,31 @@ fn git_run_until_reports_a_stop_and_otherwise_matches_run() {
     assert_eq!(read, crate::git::run(&fixture.main, &args).expect("run"));
 }
 
+#[cfg(unix)]
+#[test]
+fn git_run_removes_a_worktree_whose_dir_name_is_not_utf8() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt as _;
+    let fixture = Fixture::new();
+    let dir = fixture.main.join(OsStr::from_bytes(b"wt-\xff"));
+    let add = [
+        OsStr::new("worktree"),
+        OsStr::new("add"),
+        OsStr::new("--detach"),
+        OsStr::new("--quiet"),
+        dir.as_os_str(),
+    ];
+    crate::git::run(&fixture.main, &add).expect("add");
+    let remove = [
+        OsStr::new("worktree"),
+        OsStr::new("remove"),
+        OsStr::new("--force"),
+        dir.as_os_str(),
+    ];
+    crate::git::run(&fixture.main, &remove).expect("remove");
+    assert!(!dir.exists());
+}
+
 fn set_time(path: &Path, secs: u64) {
     std::fs::File::options()
         .write(true)

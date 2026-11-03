@@ -91,8 +91,10 @@ impl WorktreeError {
         }
     }
 
-    pub(crate) fn git(args: &[&str], stderr: &str) -> WorktreeError {
-        let command = args.first().copied().unwrap_or("git");
+    pub(crate) fn git<S: AsRef<std::ffi::OsStr>>(args: &[S], stderr: &str) -> WorktreeError {
+        let command = args
+            .first()
+            .map_or("git".into(), |arg| arg.as_ref().to_string_lossy());
         WorktreeError::refused("git_failed", &format!("git {command} failed: {stderr}"))
     }
 

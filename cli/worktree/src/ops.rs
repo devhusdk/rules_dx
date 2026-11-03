@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -270,10 +271,6 @@ impl PrunePlan {
 
 /// How long a stopped or dead holder keeps its slot before another agent may reclaim it (#3044).
 pub const STOP_GRACE_SECS: u64 = 30 * 60;
-
-fn path_text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
-}
 
 /// Whether the lease holder still runs.
 ///
@@ -729,7 +726,12 @@ pub(crate) fn lease_locked(
             pool.remove(slot);
             let _ = git::run(
                 &pool.main,
-                &["worktree", "remove", "--force", &path_text(&path)],
+                &[
+                    OsStr::new("worktree"),
+                    OsStr::new("remove"),
+                    OsStr::new("--force"),
+                    path.as_os_str(),
+                ],
             );
             // Best-effort cleanup of the slot this call failed to set up.
             let _ = host.remove_tree(&path);
@@ -741,11 +743,11 @@ pub(crate) fn lease_locked(
             let _ = git::run(
                 &pool.main,
                 &[
-                    "worktree",
-                    "lock",
-                    "--reason",
-                    FREE_LOCK_REASON,
-                    &path_text(&path),
+                    OsStr::new("worktree"),
+                    OsStr::new("lock"),
+                    OsStr::new("--reason"),
+                    OsStr::new(FREE_LOCK_REASON),
+                    path.as_os_str(),
                 ],
             );
         }
@@ -822,20 +824,33 @@ fn switch_slot(
     target: &str,
 ) -> Result<(), WorktreeError> {
     let path = pool.slot_path(slot);
-    let path_arg = path_text(&path);
     stop_check(host)?;
     if fresh {
         std::fs::create_dir_all(&pool.base).map_err(WorktreeError::io)?;
         git::run(
             &pool.main,
-            &["worktree", "add", "--detach", "--quiet", &path_arg, target],
+            &[
+                OsStr::new("worktree"),
+                OsStr::new("add"),
+                OsStr::new("--detach"),
+                OsStr::new("--quiet"),
+                path.as_os_str(),
+                OsStr::new(target),
+            ],
         )?;
     } else {
         if reclaimed {
             stop_server(host, &path);
             stop_check(host)?;
         }
-        let _ = git::run(&pool.main, &["worktree", "unlock", &path_arg]);
+        let _ = git::run(
+            &pool.main,
+            &[
+                OsStr::new("worktree"),
+                OsStr::new("unlock"),
+                path.as_os_str(),
+            ],
+        );
         git::run(&path, &["reset", "--hard", "--quiet"])?;
         git::run(&path, &["clean", "-ffdxq", "-e", "/bazel-*"])?;
     }
@@ -1037,11 +1052,11 @@ fn release_locked(
     let _ = git::run(
         &pool.main,
         &[
-            "worktree",
-            "lock",
-            "--reason",
-            FREE_LOCK_REASON,
-            &path_text(&slot_path),
+            OsStr::new("worktree"),
+            OsStr::new("lock"),
+            OsStr::new("--reason"),
+            OsStr::new(FREE_LOCK_REASON),
+            slot_path.as_os_str(),
         ],
     );
     let mut freed = record.clone();
@@ -1085,9 +1100,20 @@ fn teardown(
     stop_server(host, path);
     // The commit point: a stop before it leaves the checkout untouched, after it teardown runs to the end.
     stop_check(host)?;
-    let arg = path_text(path);
-    let _ = git::run(&pool.main, &["worktree", "unlock", &arg]);
-    let _ = git::run(&pool.main, &["worktree", "remove", "--force", &arg]);
+    let arg = path.as_os_str();
+    let _ = git::run(
+        &pool.main,
+        &[OsStr::new("worktree"), OsStr::new("unlock"), arg],
+    );
+    let _ = git::run(
+        &pool.main,
+        &[
+            OsStr::new("worktree"),
+            OsStr::new("remove"),
+            OsStr::new("--force"),
+            arg,
+        ],
+    );
     let gone = host.remove_tree(path);
     let _ = git::run(&pool.main, &["worktree", "prune"]);
     let stuck = owned

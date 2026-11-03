@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -35,7 +36,7 @@ fn command(cwd: &Path) -> Command {
 }
 
 /// Runs git and returns stdout, or the failure with its stderr.
-pub(super) fn run(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
+pub(super) fn run<S: AsRef<OsStr>>(cwd: &Path, args: &[S]) -> Result<String, WorktreeError> {
     let output = command(cwd)
         .args(args)
         .output()
@@ -52,9 +53,9 @@ pub(super) fn run(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
 /// Like `run`, for reads only: stops the child once `stop` returns a signal
 /// and bounds it by `timeout`. A stop is `WorktreeError::stopped`; a timeout
 /// is a git failure, never a result.
-pub(super) fn run_until(
+pub(super) fn run_until<S: AsRef<OsStr>>(
     cwd: &Path,
-    args: &[&str],
+    args: &[S],
     timeout: Duration,
     stop: &dyn Fn() -> Option<i32>,
 ) -> Result<String, WorktreeError> {

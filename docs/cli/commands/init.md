@@ -1,5 +1,22 @@
 # `dx init`
 
+Empty directory, with Bazel. Create `MODULE.bazel` with
+`bazel_dep(name = "rules_dx", version = "<release>")` and a `.bazelversion`, then:
+
+```sh
+bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//:dx -- test //...
+```
+
+Empty directory, with the global shim (coming):
+
+```sh
+DX_VERSION=<release> dx init --apply
+dx test //...
+```
+
+Existing tree:
+
 ```sh
 bazel run @rules_dx//:dx -- init
 bazel run @rules_dx//:dx -- init --apply

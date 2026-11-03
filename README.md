@@ -19,12 +19,40 @@ with [`dx install`](docs/cli/commands/install.md).
 
 ## Quickstart
 
-`dx` runs through Bazel.
+In an empty directory, create two files.
+
+`MODULE.bazel`:
+
+```starlark
+bazel_dep(name = "rules_dx", version = "<release>")
+```
+
+`.bazelversion`:
+
+```text
+9.2.0
+```
+
+Then:
+
+```sh
+bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//:dx -- test //...
+```
+
+With the global shim (coming; needs [#1655](https://github.com/devhusdk/rules_dx/issues/1655)),
+you can skip both files:
+
+```sh
+DX_VERSION=<release> dx init --apply
+dx test //...
+```
+
+After that, `dx` runs through Bazel:
 
 ```sh
 bazel run @rules_dx//:dx -- --help
 bazel run @rules_dx//:dx -- build //...
-bazel run @rules_dx//:dx -- test //...
 ```
 
 In your module, `@rules_dx//:dx` will run the released `dx` binary for the

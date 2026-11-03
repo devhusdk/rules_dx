@@ -70,7 +70,8 @@ failed build or tool, a target that does not converge, incomplete results, or
 a report that cannot be written does not stop the next phase, so one run
 reports every phase. The run still exits nonzero, and a later clean phase
 never clears it. The run stops, and marks the remaining phases skipped, only
-on a bad scope or configuration, when Bazel cannot run (it fails to launch, is
+on a bad scope or configuration, when `generate` fails (generation errors,
+incomplete results, or a failed Bazel run; drift alone does not stop it), when Bazel cannot run (it fails to launch, is
 killed by a signal, or the disk is full), or on a cancel. A phase whose only
 failures are compile errors does not stop `dx check`, but it stops `dx check --apply`:
 the remaining phases are skipped (after `check --apply` applied changes, `generate` still reruns once) with

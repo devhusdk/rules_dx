@@ -187,7 +187,7 @@ fn run_generate_request(
             *kind = if bazel_code == 0 {
                 PhaseKind::Incomplete
             } else {
-                PhaseKind::from_bazel_exit(bazel_code, false)
+                failed_generate(PhaseKind::from_bazel_exit(bazel_code, false))
             };
             return finish_incomplete_generate(request.common.output, env.out, env.err, bazel_code);
         }
@@ -292,11 +292,18 @@ fn run_generate_request(
     code
 }
 
+fn failed_generate(kind: PhaseKind) -> PhaseKind {
+    match kind {
+        PhaseKind::Incomplete | PhaseKind::Tool => PhaseKind::GenerateFailed,
+        other => other,
+    }
+}
+
 fn generate_kind(code: i32, gazelle: GazelleStatus, results_complete: bool) -> PhaseKind {
     if let GazelleStatus::Failed(failed) = gazelle {
-        PhaseKind::from_bazel_exit(failed, false)
+        failed_generate(PhaseKind::from_bazel_exit(failed, false))
     } else if !results_complete {
-        PhaseKind::Incomplete
+        PhaseKind::GenerateFailed
     } else if code != 0 {
         PhaseKind::Findings
     } else {
@@ -530,12 +537,21 @@ mod tests {
     fn generate_kind_follows_the_gazelle_status() {
         use super::GazelleStatus::{Completed, Failed};
         assert_eq!(generate_kind(1, Completed, true), PhaseKind::Findings);
-        assert_eq!(generate_kind(1, Completed, false), PhaseKind::Incomplete);
-        assert_eq!(generate_kind(1, Failed(1), true), PhaseKind::Incomplete);
-        assert_eq!(generate_kind(1, Failed(1), false), PhaseKind::Incomplete);
+        assert_eq!(
+            generate_kind(1, Completed, false),
+            PhaseKind::GenerateFailed
+        );
+        assert_eq!(generate_kind(1, Failed(1), true), PhaseKind::GenerateFailed);
+        assert_eq!(
+            generate_kind(1, Failed(1), false),
+            PhaseKind::GenerateFailed
+        );
         assert_eq!(generate_kind(2, Failed(2), true), PhaseKind::Selection);
         assert_eq!(generate_kind(8, Failed(8), true), PhaseKind::Cancelled);
-        assert_eq!(generate_kind(36, Failed(36), true), PhaseKind::Tool);
+        assert_eq!(
+            generate_kind(36, Failed(36), true),
+            PhaseKind::GenerateFailed
+        );
         assert_eq!(generate_kind(0, Completed, true), PhaseKind::Clean);
     }
 

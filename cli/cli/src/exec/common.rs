@@ -260,6 +260,8 @@ pub(crate) enum PhaseKind {
     /// Bazel could not start, was signalled, or the disk is full.
     Host,
     Cancelled,
+    /// Generation failed, so later phases would run on stale files.
+    GenerateFailed,
 }
 
 /// Bazel exit codes shared by every Bazel-backed phase.
@@ -285,7 +287,10 @@ impl PhaseKind {
     /// Reports whether later phases still run after a phase of this kind.
     pub(crate) fn continues(self, apply: bool) -> bool {
         match self {
-            PhaseKind::Selection | PhaseKind::Host | PhaseKind::Cancelled => false,
+            PhaseKind::Selection
+            | PhaseKind::Host
+            | PhaseKind::Cancelled
+            | PhaseKind::GenerateFailed => false,
             PhaseKind::Compile => !apply,
             _ => true,
         }
@@ -303,6 +308,7 @@ impl PhaseKind {
             PhaseKind::Compile => "failed to compile",
             PhaseKind::Host => "failed to run its tools",
             PhaseKind::Cancelled => "was cancelled",
+            PhaseKind::GenerateFailed => "failed",
         }
     }
 }

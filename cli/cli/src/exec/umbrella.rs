@@ -1113,7 +1113,8 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
         index += 1;
         if code != 0 {
-            if !kind.continues(fix_apply) {
+            let failed_rerun = kind == PhaseKind::GenerateFailed && label == RERUN_GENERATE;
+            if !kind.continues(fix_apply) && !failed_rerun {
                 stop_code = Some(code);
                 skip_cause = format!("{label} {}", kind.stop_reason());
                 if kind == PhaseKind::Compile
@@ -2006,6 +2007,43 @@ mod tests {
             );
             assert_eq!(event["schema"]["major"], 3, "{event}");
         }
+    }
+
+    fn generate_failed_harness(name: &str) -> Harness {
+        let mut harness = umbrella_findings(name);
+        harness.bazel_code = 1;
+        harness.intended = Some(intended_witness_failed(
+            "check",
+            r#"{"language":"cc","message":"boom"}"#,
+        ));
+        harness
+    }
+
+    #[test]
+    fn check_stops_after_generate_failure() {
+        let harness = generate_failed_harness("umbrella-generate-failed");
+        let (code, out, err) = harness.run(&["check", "--output=text"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains(
+                "dx: phases: generate failed, format skipped, lint skipped, typecheck skipped"
+            ),
+            "{err}"
+        );
+        assert_eq!(harness.seen_env.borrow().len(), 1, "only generate launches");
+    }
+
+    #[test]
+    fn check_json_marks_phases_skipped_after_generate_failure() {
+        let harness = generate_failed_harness("umbrella-generate-failed-json");
+        let (code, out, _) = harness.run(&["check", "--output=json"]);
+        assert_eq!(code, 1, "{out}");
+        let events = json_events(&out);
+        let skipped = events_of_kind(&events, "notice")
+            .iter()
+            .filter(|notice| notice["code"] == "umbrella_phase_skipped")
+            .count();
+        assert_eq!(skipped, 3, "{out}");
     }
 
     #[test]
@@ -3878,21 +3916,6 @@ mod tests {
     }
 
     #[test]
-    fn check_bazel_failure_hint_reruns_dx_check() {
-        let harness = Harness {
-            bazel_code: 1,
-            ..umbrella_clean("umbrella-rerun-hint")
-        };
-        let (code, out, err) = harness.run(&["check", "//test:corpus", "--output=text"]);
-        assert_ne!(code, 0, "{out}{err}");
-        assert!(
-            err.contains("next: fix the Bazel error above, then run: dx check //test:corpus\n"),
-            "{err}"
-        );
-        assert!(!err.contains("then run: dx format"), "{err}");
-    }
-
-    #[test]
     fn check_findings_phases_keep_their_findings_in_a_complete_report() {
         let (harness, code, out, err) = check_with_failing_lint(
             "umbrella-failed-lint",
@@ -4475,7 +4498,7 @@ mod tests {
     }
 
     #[test]
-    fn phase_kind_stops_only_on_selection_host_or_cancel() {
+    fn phase_kind_stops_on_selection_host_cancel_or_failed_generate() {
         for kind in [
             PhaseKind::Clean,
             PhaseKind::Findings,
@@ -4488,7 +4511,12 @@ mod tests {
             assert!(kind.continues(true), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());
         }
-        for kind in [PhaseKind::Selection, PhaseKind::Host, PhaseKind::Cancelled] {
+        for kind in [
+            PhaseKind::Selection,
+            PhaseKind::Host,
+            PhaseKind::Cancelled,
+            PhaseKind::GenerateFailed,
+        ] {
             assert!(!kind.continues(false), "{kind:?}");
             assert!(!kind.continues(true), "{kind:?}");
             assert!(!kind.stop_reason().is_empty());

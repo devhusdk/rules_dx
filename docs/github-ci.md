@@ -117,6 +117,8 @@ the pull request targets. `push` and `merge_group` events keep `//...`.
 - `coverage` falls back to `//...` when `min_coverage` or
   `min_changed_line_coverage` is set, because those gates need whole-workspace
   results.
+- When the checkout is not a merge commit, a scoped job warns
+  `checkout is not a merge commit; falling back to //...` and runs `//...`.
 - `generate`, `security-audit` and `license-audit` always use `//...`.
 - An edit to `MODULE.bazel` or another workspace-wide input selects every target.
 - When nothing is affected, the job passes and uploads no report files.

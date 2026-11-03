@@ -160,11 +160,12 @@ generated, and `main` fails the run.
 `# gazelle:dx_external <ecosystem> <path|off> [<repo>]` names the manifest or
 lockfile that third-party imports resolve through, for this directory and
 below. The path is relative to the repository root. Ecosystems: `go` (a
-`go.mod`, no repo) and `maven` (a rules_jvm_external `maven_install.json`,
-repo `maven` by default). Repeat the line to feed one ecosystem from several
+`go.mod`, no repo), `maven` (a rules_jvm_external `maven_install.json`,
+repo `maven` by default), `python` (`uv.lock`, repo `pypi`), `pub`
+(`pubspec.lock`, repo `pub_deps`) and `npm` (`package.json`, repo root only). Repeat the line to feed one ecosystem from several
 files. The lines in one `BUILD` file replace what the directory inherited, and
-`off` drops it. Without a directive, a `go.mod` or `maven_install.json` in a
-directory applies to that directory and below. `dx generate` fails on a
+`off` drops it. Without a directive, a `go.mod`, `maven_install.json`, `uv.lock`,
+`pubspec.lock` or root `package.json` in a directory applies to that directory and below. `dx generate` fails on a
 malformed line, an unknown ecosystem, a repo for `go`, or a file that is
 missing or does not parse.
 

@@ -126,6 +126,7 @@ TypeDoc over one TypeScript project and produces a docs IR shard with language
 pipeline renders the pages. Symbol ids have the form `typescript:<package>:<name>`.
 
 ```starlark
+load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
 load("@rules_dx//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 
 typescript_doc_shard(
@@ -135,12 +136,18 @@ typescript_doc_shard(
     package = "mylib",
     tsconfig = "tsconfig.json",
 )
+
+docs_site(
+    name = "site",
+    book_toml = "book.toml",
+    shards = [":api_docs"],
+)
 ```
 
-Build the shard's site with the scope of the target:
+`dx docs` needs one built site tree with an `index.html`, so pass the site, not the shard:
 
 ```sh
-bazel run @rules_dx//:dx -- docs //lib:api_docs
+bazel run @rules_dx//:dx -- docs //lib:site
 ```
 
 Exit codes: `0` success, `2` usage or scope errors, `1` a launch, signal or preview

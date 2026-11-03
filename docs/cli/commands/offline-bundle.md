@@ -69,7 +69,7 @@ bootstrap_offline --bundle DIR [--install-dir DIR] [--workspace DIR]
 The tool checks every `SHA256SUMS`, installs the launcher for the host, copies
 each snapshot to `.dx/advisory/<set>.json`, and writes
 `.dx/advisory/<set>.meta.json` with the set, the `file://` URL of the snapshot
-in the bundle, its sha256, the retrieval date and the workspace path. The URL
+in the bundle, its sha256, the retrieval date and the relative `path` `.dx/advisory/<set>.json`. The URL
 is percent-encoded, so any path the host allows is recorded faithfully.
 
 The retrieval date is the `retrieved_at` the bundle records in

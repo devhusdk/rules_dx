@@ -203,16 +203,17 @@ exit `2`).
 - `--affected` takes no value. It never combines with explicit scopes or
   `--here`: both are usage errors with exit `2`.
 - `--output=json` adds `affected` to the `command_started` event:
-  `{"base": "<sha>", "changed_files": [...], "targets": [...], "tests": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
+  `{"base": "<sha>", "changed_files": [...], "targets": [...], "widened": [{"scope": "//...", "reason": "..."}]}`.
   `base` is the merge-base commit, `targets` is the selection, and `widened`
-  is empty when nothing widened. A changed `.bzl` file adds one `//pkg:all`
+  is empty when nothing widened. `skipped_external` lists external targets
+  that were skipped; it is present only when there were any. A changed `.bzl` file adds one `//pkg:all`
   entry per loading package. A lock file change adds one entry per lock with
   `repos`, the changed crates:
   `{"scope": "rdeps(//..., @crates//:serde)", "reason": "changed crates in Cargo.lock", "repos": ["@crates//:serde"]}`.
   With more than five crates the scope reads `rdeps(//..., <n> repos)`.
   A `bazel_dep` bump adds one entry with the changed modules:
   `{"scope": "rdeps(//..., @leaf, @user)", "reason": "changed modules in MODULE.bazel", "repos": ["@leaf", "@user"]}`.
-  `tests` appears only for `dx check --affected`. It lists the tests the
+  `tests` is added only for `dx check --affected`. It lists the tests the
   last phase runs: `//...` when widened, empty when no test is affected. dx
   writes `command_started` only after planning finishes.
 - A checkout without a default branch exits `2` with

@@ -304,7 +304,8 @@ build used since the check is kept without a line and is not counted in
 ### Nested-Bazel tests
 
 Tests that run Bazel inside Bazel keep their servers under the nested-Bazel
-root: `DX_NESTED_BAZEL_ROOT` when you export it, else `/tmp/dxnb-<uid>`. Each
+root: `DX_NESTED_BAZEL_ROOT` when you export it, else `/tmp/dxnb-<uid>`. On
+Windows it is `%USERPROFILE%\.dxnb`, else `dxnb` in the temp directory. Each
 slot there has a `lock` file the test holds while it runs, an output user root
 `u`, and one workspace per test case under `w`.
 

@@ -1032,7 +1032,7 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
         }
         let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
         let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
-        if bzl.contains("rules_ruby") && name == "ruby" {
+        if bzl.contains("rules_dx") && name == "ruby" {
             if let Some(binding) = &call.binding {
                 bindings.insert(binding);
             }
@@ -1303,7 +1303,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn gem_hubs_and_changed_gems() {
-        let module = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:Gemfile.lock\")\n";
+        let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"bundle\", gemfile_lock = \"//third_party/ruby:Gemfile.lock\")\n";
         let hubs = gem_hubs(module).expect("hubs");
         assert_eq!(
             classify("third_party/ruby/Gemfile.lock", &hubs),

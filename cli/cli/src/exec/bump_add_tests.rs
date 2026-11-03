@@ -533,7 +533,7 @@ fn configured_ruby_set_reports_unsupported_add() {
     let harness = Harness::new("bump-add-consumer-unsupported");
     harness.write_source(
         "MODULE.bazel",
-        "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"other\", gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
+        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"other\", gemfile = \"//:Gemfile\", gemfile_lock = \"//:Gemfile.lock\")\n",
     );
     harness.write_source("Gemfile", "x\n");
     let (code, _, err) = harness.run(&["update", "other:thing", "1.0.0", "--apply"]);

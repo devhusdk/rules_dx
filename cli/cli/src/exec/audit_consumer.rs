@@ -528,7 +528,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("UNKNOWN"), "{out}");
     }
 
-    const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
+    const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";
 

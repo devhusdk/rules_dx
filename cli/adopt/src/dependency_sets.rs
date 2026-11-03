@@ -1834,7 +1834,7 @@ mod tests {
 
     #[test]
     fn bundle_fetches_become_ruby_sets() {
-        let module = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
+        let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
         let registry = found(module, &[]);
         let set = registry.find("bundle").expect("bundle");
         assert_eq!(set.ecosystem, Ecosystem::Ruby);

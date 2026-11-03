@@ -563,7 +563,7 @@ Each `ruby.bundle_fetch` tag is one set, named by the tag's `name` (default
 `bundle`):
 
 ```starlark
-ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
+ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
 ruby.bundle_fetch(
     name = "gems",
     gemfile = "//apps/rb:Gemfile",

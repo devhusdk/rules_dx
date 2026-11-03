@@ -3450,32 +3450,22 @@ are errors.
 ### Ruby formatting and lint
 
 `standardrb` formats and `rubocop` lints. Both run from the gems of a
-`rules_ruby` bundle you declare, never from ambient gems or Bundler. Linux x86_64
+bundle you declare, never from ambient gems or Bundler. Linux x86_64
 only. Select them in a `ruby` family. Only `standardrb` formats.
 
-Declare your own Ruby toolchain. Copy `third_party/ruby/Gemfile`, `Gemfile.lock`
+rules_dx registers the Ruby 3.4.12 toolchain. Copy `third_party/ruby/Gemfile`, `Gemfile.lock`
 and its `gem_checksums` into your module, then point the tools at the bundle in
 `.bazelrc`.
 
 ```python
-bazel_dep(name = "rules_ruby", version = "0.29.0")
-
-ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
-ruby.toolchain(
-    name = "ruby",
-    portable_ruby = True,
-    portable_ruby_checksums = {...},
-    version = "3.4.12",
-)
+ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
 ruby.bundle_fetch(
     name = "dx_bundle",
     gem_checksums = {...},
     gemfile = "//:Gemfile",
     gemfile_lock = "//:Gemfile.lock",
 )
-use_repo(ruby, "dx_bundle", "ruby_toolchains")
-
-register_toolchains("@ruby_toolchains//:all")
+use_repo(ruby, "dx_bundle")
 ```
 
 ```text

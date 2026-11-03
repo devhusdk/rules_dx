@@ -1428,7 +1428,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(runner.calls.borrow().is_empty());
     }
 
-    const PINNED_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
+    const PINNED_MODULE: &str = "uv = use_extension(\"@aspect_rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     const PINNED_FILES: [(&str, &str); 2] = [
         (
@@ -1526,7 +1526,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_pinned_set_without_its_lock_declared_is_unsupported() {
         let harness = consumer_harness(
             "pinned-lock",
-            "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:gems.locked\")\n",
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:gems.locked\")\n",
             true,
         );
         harness.write_source("apps/rb/Gemfile", PINNED_FILES[0].1);

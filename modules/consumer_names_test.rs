@@ -5,7 +5,6 @@ use dx_testing::{read_text as read, rules_dx_source, write_text as write};
 
 const COMMON_NAMES: &[(&str, &str)] = &[
     ("npm", "@npm//:all"),
-    ("ruby", "@ruby_toolchains//:all"),
     ("bundle", "@bundle//:all"),
 ];
 
@@ -15,7 +14,6 @@ bazel_dep(name = "rules_dx", version = "0.0.0")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
 bazel_dep(name = "aspect_rules_js", version = "3.5.2")
-bazel_dep(name = "rules_ruby", version = "0.29.0")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
@@ -26,21 +24,14 @@ npm.npm_translate_lock(
 )
 use_repo(npm, "npm")
 
-ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
-ruby.toolchain(
-    name = "ruby",
-    portable_ruby = True,
-    version = "3.3.6",
-)
+ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
 ruby.bundle_fetch(
     name = "bundle",
     GEM_CHECKSUMS
     gemfile = "//:Gemfile",
     gemfile_lock = "//:Gemfile.lock",
 )
-use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
-
-register_toolchains("@ruby_toolchains//:all")
+use_repo(ruby, "bundle")
 "#;
 
 const PNPM_LOCK: &str = "lockfileVersion: '9.0'\n\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n\nimporters:\n\n  .: {}\n";

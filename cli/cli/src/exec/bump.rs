@@ -581,7 +581,7 @@ dependencies = ["anyio>=4"]
         );
     }
 
-    const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
+    const PINNED_MODULE: &str = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//apps/rb:Gemfile\", gemfile_lock = \"//apps/rb:Gemfile.lock\")\n";
 
     #[test]
     fn consumer_pinned_set_refuses_bump_without_mutation() {

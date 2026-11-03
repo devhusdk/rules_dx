@@ -50,10 +50,10 @@ ruby_test(
 
 ## Gems
 
-Declare your own bundle with rules_ruby in `MODULE.bazel`:
+Declare your own bundle in `MODULE.bazel`:
 
 ```python
-ruby = use_extension("@rules_ruby//ruby:extensions.bzl", "ruby")
+ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
 ruby.bundle_fetch(
     name = "gems",
     gem_checksums = {...},

@@ -185,7 +185,7 @@ pub struct GoModFile<'a> {
     pub line: usize,
 }
 
-/// One rules_ruby `ruby.bundle_fetch` tag.
+/// One `ruby.bundle_fetch` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BundleFetch<'a> {
     pub name: &'a str,
@@ -206,7 +206,7 @@ const RUST_MODULE: &str = "rules_rust";
 const JS_MODULE: &str = "aspect_rules_js";
 const PY_MODULE: &str = "aspect_rules_py";
 const GAZELLE_MODULE: &str = "gazelle";
-const RUBY_MODULE: &str = "rules_ruby";
+const RUBY_MODULE: &str = "rules_dx";
 
 fn dialect() -> Dialect {
     Dialect {
@@ -696,7 +696,7 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// Every rules_ruby `ruby.bundle_fetch` tag in source order. The name defaults to `bundle`.
+    /// Every `ruby.bundle_fetch` tag in source order. The name defaults to `bundle`.
     pub fn bundle_fetches(&self) -> Result<Vec<BundleFetch<'_>>, ModuleError> {
         const TAG: &str = "ruby.bundle_fetch";
         self.tags(RUBY_MODULE, "ruby:extensions.bzl", "ruby", "bundle_fetch")

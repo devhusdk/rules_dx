@@ -1112,7 +1112,7 @@ fn go_deps_files_follow_the_gazelle_extension() {
 
 #[test]
 fn bundle_fetches_follow_the_rules_ruby_extension() {
-    let file = parse("ruby = use_extension(\"@rules_ruby//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(name = \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//g:Gemfile\", gemfile_lock = \"//g:Gemfile.lock\")\n");
+    let file = parse("ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(name = \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//g:Gemfile\", gemfile_lock = \"//g:Gemfile.lock\")\n");
     let names: Vec<_> = file
         .bundle_fetches()
         .expect("fetches")

@@ -318,6 +318,56 @@ dx run that is gone.
 bazel run @rules_dx//:dx -- lint //... --output=json
 ```
 
+### Error codes
+
+Every `error` event has a `code`, a `message`, and a `cause`. Exit `1` is a failed
+command, `2` is a usage or setup error, and "Bazel" means the exit status Bazel
+returned.
+
+| Code | Cause | Exit |
+| --- | --- | --- |
+| `invalid_arguments` | `input` | 2 |
+| `invalid_scope` | `input` | 2 |
+| `scope_error` | `input` | 2 |
+| `no_owner` | `input` | 2 |
+| `no_tests` | `input` | 1 |
+| `no_runnable` | `input` | 1 |
+| `ambiguous_runnable` | `input` | 1 |
+| `not_deployable` | `input` | 2 |
+| `completion_failed` | `input` | 2 |
+| `unresolved_workspace` | `input` | 2 |
+| `unreadable_working_directory` | `input` | 2 |
+| `invalid_defaults` | `defaults` | 2 |
+| `query_launch_failed` | `query_launch` | 1 |
+| `query_failed` | `query` | 2 |
+| `analysis_failed` | `analysis` | Bazel |
+| `bazel_failed` | `bazel` | Bazel |
+| `tests_failed` | `test` | Bazel |
+| `application_failed` | `application` | Bazel |
+| `launch_failed` | `tool_unavailable` | 1 |
+| `unsupported_platform` | `tool_unavailable` | 2 |
+| `unreadable_bep` | `collection` | 1 |
+| `invalid_bep` | `collection` | 1 |
+| `collection_failed` | `collection` | 1 |
+| `invalid_result` | `collection` | 1 |
+| `report_failed` | `report` | 1 |
+| `disk_full` | `host` | Bazel |
+| `server_crashed` | `host` | Bazel |
+| `bazel_signalled` | `unknown` | Bazel |
+| `cancelled` | `operational` | 128 plus the signal number |
+| `internal_error` | `operational` | 101 |
+
+These codes have cause `operational` and exit `1` unless noted: `diff_failed`,
+`verification_failed`, `not_converged`, `coverage_below_minimum`,
+`no_coverage_collector`, `coverage_sources_incomplete`, `coverage_sources`,
+`changed_line_coverage_below_minimum`, `changed_line_coverage_incomplete`,
+`changed_line_coverage_unavailable`, `clean_failed`, `generation_failed`,
+`managed_commit_failed`, `no_capability`, `audit_failed`,
+`advisory_refresh_failed`, `update_failed`, `update_widen_failed`,
+`offline_required`, `frozen_locked`, `init_failed`, `upgrade_failed`,
+`status_pin_mismatch`, `status_check_failed`, `explain_log`,
+`explain_log_unwritable`, `serve_failed`, `install-refused`.
+
 ### Agent sessions
 
 When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or

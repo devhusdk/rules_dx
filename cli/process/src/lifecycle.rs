@@ -1259,15 +1259,15 @@ mod backend {
             _job: Option<Job>,
         }
 
-        /// Spawns a streamed child; with held handles the child runs in a
-        /// kill-on-close job so the tree never outlives the handles' locks.
+        /// Spawns a streamed child; an owned or lock-holding child runs in a
+        /// kill-on-close job so its tree never outlives the run.
         pub fn spawn_streamed(
             command: &mut Command,
-            _group: super::Group,
+            group: super::Group,
             held: &[std::fs::File],
         ) -> io::Result<(std::process::Child, StreamTree)> {
             use std::os::windows::process::CommandExt;
-            if held.is_empty() {
+            if held.is_empty() && !matches!(group, super::Group::Owned) {
                 return Ok((command.spawn()?, StreamTree { _job: None }));
             }
             let job = Job::create(Descendants::Owned)?;

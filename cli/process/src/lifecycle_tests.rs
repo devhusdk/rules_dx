@@ -504,7 +504,7 @@ fn stop_after(delay: Duration, signal: i32) -> impl Fn() -> Option<i32> {
     move || (start.elapsed() >= delay).then_some(signal)
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn stop_after_armed(
     lock: &std::path::Path,
     delay: Duration,
@@ -515,7 +515,7 @@ fn stop_after_armed(
     move || (start.elapsed() >= delay && lock.exists()).then_some(signal)
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 fn withdraw_after_armed(lock: &std::path::Path, delay: Duration) -> impl Fn() -> bool {
     let lock = lock.to_path_buf();
     let start = Instant::now();
@@ -629,7 +629,7 @@ fn streamed_empty_argv_is_rejected() {
     assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn streamed_stop_kills_an_owned_tree_that_ignores_it() {
     let scratch = dx_test_scratch::scratch("dx-stream-blocked");
@@ -1035,7 +1035,7 @@ fn streamed_self_exit_leaves_a_detached_server_running() {
     assert_still_held(&lock);
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[test]
 fn streamed_withdraw_terminates_the_owned_tree() {
     let scratch = dx_test_scratch::scratch("dx-stream-withdraw");

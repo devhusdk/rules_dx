@@ -239,6 +239,15 @@ pub(crate) fn execute_docs(invocation: &Invocation, env: Env<'_>) -> i32 {
     ];
     let serve_status = match runner.run(&serve_argv, workspace, &[]) {
         Ok(status) => status,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return operational(
+                invocation,
+                out,
+                err,
+                CODE_SERVE_FAILED,
+                "python3 not found; install Python 3 to use --serve",
+            );
+        }
         Err(error) => {
             return operational(
                 invocation,
@@ -541,6 +550,37 @@ mod tests {
         assert!(!err_text.contains("launch_failed"), "{err_text}");
         let text = String::from_utf8(out).expect("out");
         assert!(text.contains("serve_failed"), "{text}");
+    }
+
+    #[test]
+    fn docs_serve_missing_python3_names_python3() {
+        use std::io;
+        struct NoPython3;
+        impl dx_process::Runner for NoPython3 {
+            fn run(
+                &self,
+                argv: &[String],
+                _cwd: &std::path::Path,
+                _env: &[(&str, &str)],
+            ) -> io::Result<dx_process::ChildStatus> {
+                if argv.first().is_some_and(|first| first == "bazel") {
+                    Ok(dx_process::ChildStatus::exited(0))
+                } else {
+                    Err(io::Error::from(io::ErrorKind::NotFound))
+                }
+            }
+        }
+        let harness = Harness::new("docs-serve-no-python3");
+        script_site_tree(&harness, "bazel-bin/tools/docs/site/user_site");
+        let inv = invocation(&["docs", "--serve", "--port=8080"]);
+        let runner = NoPython3;
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let code = super::execute_docs(&inv, harness.env(&runner, &mut out, &mut err));
+        assert_eq!(code, 1, "missing python3 is operational");
+        let err_text = String::from_utf8(err).expect("stderr");
+        assert!(err_text.contains("python3 not found"), "{err_text}");
+        assert!(!err_text.contains("port"), "{err_text}");
     }
 
     #[test]

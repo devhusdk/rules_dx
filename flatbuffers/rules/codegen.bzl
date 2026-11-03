@@ -66,6 +66,7 @@ def _cc_aspect_impl(target, ctx):
         out = ctx.actions.declare_file(subdir + "/" + src.short_path[:-len("." + src.extension)] + "_generated.h")
         ctx.actions.run(
             executable = ctx.executable._flatc,
+            toolchain = None,
             inputs = info.transitive_srcs,
             outputs = [out],
             arguments = _flatc_args(["--cpp", "--keep-prefix"], ctx.attr.gen_object_api, out.dirname, src),
@@ -140,6 +141,7 @@ def _java_aspect_impl(target, ctx):
     tree = ctx.actions.declare_directory("_fbs_java/" + name + "_src")
     ctx.actions.run(
         executable = ctx.executable._flatc,
+        toolchain = None,
         inputs = info.transitive_srcs,
         outputs = [tree],
         arguments = ["--java", "-I", ".", "-o", tree.path] + [src.path for src in info.direct_srcs],
@@ -153,6 +155,7 @@ def _java_aspect_impl(target, ctx):
     zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
     ctx.actions.run(
         executable = ctx.executable._zipper,
+        toolchain = None,
         inputs = [tree],
         outputs = [srcjar],
         arguments = [zip_args],
@@ -217,6 +220,7 @@ def _rust_srcs_impl(ctx):
     generated = ctx.actions.declare_file(ctx.label.name + "_fbs_rs/" + base + "_generated.rs")
     ctx.actions.run(
         executable = ctx.executable._flatc,
+        toolchain = None,
         inputs = info.transitive_srcs,
         outputs = [generated],
         arguments = _flatc_args(["--rust", "--gen-all"], False, generated.dirname, root),

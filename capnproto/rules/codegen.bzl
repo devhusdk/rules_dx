@@ -118,6 +118,7 @@ def _cc_aspect_impl(target, ctx):
     if sources:
         ctx.actions.run(
             executable = ctx.executable._capnp,
+            toolchain = None,
             tools = [ctx.executable._capnpc_cxx],
             inputs = stage.files,
             outputs = headers + sources,
@@ -243,6 +244,7 @@ def _java_aspect_impl(target, ctx):
         args.add(stage.staged[src.short_path].path)
     ctx.actions.run(
         executable = ctx.executable._capnp,
+        toolchain = None,
         tools = [ctx.executable._capnpc_java],
         inputs = stage.files,
         outputs = [tree],
@@ -257,6 +259,7 @@ def _java_aspect_impl(target, ctx):
     zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
     ctx.actions.run(
         executable = ctx.executable._zipper,
+        toolchain = None,
         inputs = [tree],
         outputs = [srcjar],
         arguments = [zip_args],
@@ -369,6 +372,7 @@ def _rust_srcs_impl(ctx):
             args.add("--provide", path + "=" + dep.crate_name)
     ctx.actions.run(
         executable = ctx.executable._capnpc_rust_dx,
+        toolchain = None,
         tools = [ctx.executable._capnp],
         inputs = stage.files,
         outputs = generated + [lib],

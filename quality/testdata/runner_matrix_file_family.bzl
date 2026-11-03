@@ -722,6 +722,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["opa"],
         "tool_binaries": ["@dx_tools//:opa"],
         "expected_file": ":matrix/matrix_rego_format_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_format_fail",
@@ -733,6 +737,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["opa"],
         "tool_binaries": ["@dx_tools//:opa"],
         "expected_file": ":matrix/matrix_rego_format_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_format_syntax_error",
@@ -744,6 +752,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["opa"],
         "tool_binaries": ["@dx_tools//:opa"],
         "expected_file": ":matrix/matrix_rego_format_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_cue_typecheck_pass",
@@ -821,6 +833,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["opa"],
         "tool_binaries": ["@dx_tools//:opa"],
         "expected_file": ":matrix/matrix_rego_typecheck_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_typecheck_fail",
@@ -833,6 +849,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["opa"],
         "tool_binaries": ["@dx_tools//:opa"],
         "expected_file": ":matrix/matrix_rego_typecheck_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_typecheck_syntax_error",
@@ -844,6 +864,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["opa"],
         "tool_binaries": ["@dx_tools//:opa"],
         "expected_file": ":matrix/matrix_rego_typecheck_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_lint_pass",
@@ -855,6 +879,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["regal"],
         "tool_binaries": ["@dx_tools//:regal"],
         "expected_file": ":matrix/matrix_rego_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_lint_fail",
@@ -866,6 +894,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["regal"],
         "tool_binaries": ["@dx_tools//:regal"],
         "expected_file": ":matrix/matrix_rego_lint_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_lint_warning",
@@ -881,6 +913,10 @@ FILE_FAMILY_CASES = [
         "config_tools": ["regal"],
         "config_files": [":regal_warning_cfg/config.yaml"],
         "expected_file": ":matrix/matrix_rego_lint_warning.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_lint_config",
@@ -896,6 +932,10 @@ FILE_FAMILY_CASES = [
         "config_tools": ["regal"],
         "config_files": [":regal_off_cfg/config.yaml"],
         "expected_file": ":matrix/matrix_rego_lint_config.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_lint_multi_file",
@@ -908,6 +948,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["regal"],
         "tool_binaries": ["@dx_tools//:regal"],
         "expected_file": ":matrix/matrix_rego_lint_multi_file.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_rego_lint_package_mismatch",
@@ -919,6 +963,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["regal"],
         "tool_binaries": ["@dx_tools//:regal"],
         "expected_file": ":matrix/matrix_rego_lint_package_mismatch.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_pkl_format_pass",
@@ -2833,6 +2881,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["statix"],
         "tool_binaries": ["//quality/tools/rust:statix"],
         "expected_file": ":matrix/matrix_nix_statix_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         # An ambient statix.toml never reaches statix: the scratch default is passed explicitly.
@@ -2846,6 +2898,10 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//quality/tools/rust:statix"],
         "ambient_files": {"statix.toml": "disabled = [\"empty_let_in\"]\n"},
         "expected_file": ":matrix/matrix_nix_statix_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         # A bound statix_config applies: the disabled lint is not reported.
@@ -2862,6 +2918,10 @@ FILE_FAMILY_CASES = [
         "config_tools": ["statix"],
         "config_files": [":statix_cfg/statix.toml"],
         "expected_file": ":matrix/matrix_nix_statix_config.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         # A parse failure is an error finding, never a clean run.
@@ -2874,6 +2934,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["statix"],
         "tool_binaries": ["//quality/tools/rust:statix"],
         "expected_file": ":matrix/matrix_nix_statix_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_nix_deadnix_pass",
@@ -2885,6 +2949,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["deadnix"],
         "tool_binaries": ["//quality/tools/rust:deadnix"],
         "expected_file": ":matrix/matrix_nix_deadnix_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_nix_deadnix_fail",
@@ -2896,6 +2964,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["deadnix"],
         "tool_binaries": ["//quality/tools/rust:deadnix"],
         "expected_file": ":matrix/matrix_nix_deadnix_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         # deadnix exits 0 on a parse failure; it is still an error finding.
@@ -2908,6 +2980,10 @@ FILE_FAMILY_CASES = [
         "tool_names": ["deadnix"],
         "tool_binaries": ["//quality/tools/rust:deadnix"],
         "expected_file": ":matrix/matrix_nix_deadnix_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_nix_format_pass",

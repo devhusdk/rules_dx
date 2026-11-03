@@ -45,6 +45,7 @@ EMULATED_TOOLS = {
         "opa",
         "ormolu",
         "pkl",
+        "regal",
         "scalafmt",
         "shellcheck",
         "shfmt",

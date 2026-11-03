@@ -9,6 +9,7 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
+load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
 load(":real_aspects.bzl", "real_wired_capabilities")
 load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "BICEP_BICEP_FORMAT_SUPPORT", "BICEP_BICEP_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CC_CPPCHECK_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "PYTHON_FLAKE8_LINT_SUPPORT", "PYTHON_PYDOCLINT_LINT_SUPPORT", "PYTHON_PYLINT_LINT_SUPPORT", "PYTHON_RUFF_FORMAT_SUPPORT", "PYTHON_RUFF_LINT_SUPPORT", "PYTHON_TY_TYPECHECK_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "TERRAFORM_TYPECHECK_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools", "with_platforms")
@@ -206,7 +207,7 @@ def _toolchain_platforms():
     }
 
 # Records that must name every platform as either supported or unsupported with a reason comment.
-_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "dfmt", "dscanner", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "rubocop", "rustfmt", "standardrb", "zig_fmt"]
+_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "dscanner", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "standardrb", "statix", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
@@ -295,6 +296,11 @@ def support_unit_tests(name):
                 "clang_format, cppcheck and rustfmt records fix and context",
                 [[r["fix"], r["context"]] for r in [CC_CLANG_FORMAT_SUPPORT, CUDA_CLANG_FORMAT_SUPPORT, OBJC_CLANG_FORMAT_SUPPORT, CC_CPPCHECK_LINT_SUPPORT, RUST_RUSTFMT_FORMAT_SUPPORT]],
                 [["supported", "owned"], ["supported", "owned"], ["supported", "owned"], ["check_only", "owned"], ["supported", "owned"]],
+            ),
+            expect_equal(
+                "nix and rego claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["deadnix", "nixfmt", "opa", "regal", "statix"]], RUNNER_MATRIX_CASES),
+                [],
             ),
             expect_equal(
                 "terraform format record covers five platforms",

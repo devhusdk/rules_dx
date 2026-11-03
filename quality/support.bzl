@@ -503,12 +503,16 @@ NIX_STATIX_SUPPORT = {
     "execution": "direct",
     "family": "nix",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "statix",
     "transport": "single",
 }
 
+# linux_arm64: nixfmt ships only a linux x86_64 binary
+# macos_arm64: nixfmt ships only a linux x86_64 binary
+# windows_arm64: nixfmt ships only a linux x86_64 binary
+# windows_x86_64: nixfmt ships only a linux x86_64 binary
 NIX_NIXFMT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -520,7 +524,7 @@ NIX_NIXFMT_SUPPORT = {
     "state": "supported",
     "tool": "nixfmt",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
 OCAML_TOPIARY_FORMAT_SUPPORT = {
@@ -560,7 +564,7 @@ NIX_DEADNIX_SUPPORT = {
     "execution": "direct",
     "family": "nix",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "deadnix",
     "transport": "batched",
@@ -1793,7 +1797,6 @@ REGO_OPA_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "rego",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
     "state": "qualified",
     "tool": "opa",
     "transport": "single",
@@ -1807,7 +1810,6 @@ REGO_OPA_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "rego",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
     "state": "qualified",
     "tool": "opa",
     "transport": "batched",
@@ -1821,7 +1823,6 @@ REGO_REGAL_LINT_SUPPORT = {
     "execution": "direct",
     "family": "rego",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
     "state": "qualified",
     "tool": "regal",
     "transport": "batched",

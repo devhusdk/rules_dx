@@ -63,6 +63,25 @@ fn on_path(names: &[&str], path: Option<std::ffi::OsString>) -> Option<String> {
     None
 }
 
+fn parse_version(text: &str) -> Option<Vec<u64>> {
+    text.trim()
+        .split('.')
+        .map(|part| part.parse().ok())
+        .collect()
+}
+
+/// Returns the warning when `pin` is a version older than the Bazel the preset targets.
+pub(crate) fn old_pin_note(pin: &str) -> Option<String> {
+    let preset = dx_preset::PRESET_BAZEL_VERSION;
+    let (pinned, target) = (parse_version(pin)?, parse_version(preset)?);
+    (pinned < target).then(|| {
+        format!(
+            "bazel {} is older than {preset}, which the dx preset targets; raise .bazelversion",
+            pin.trim()
+        )
+    })
+}
+
 fn bazel_check(root: &Path, path: Option<std::ffi::OsString>) -> StatusCheck {
     let launcher = on_path(&["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"], path);
     let pinned = std::fs::read_to_string(root.join(".bazelversion"));
@@ -72,6 +91,12 @@ fn bazel_check(root: &Path, path: Option<std::ffi::OsString>) -> StatusCheck {
             "error",
             "unavailable: .bazelversion is empty".to_owned(),
             "write the Bazel version to .bazelversion",
+        ),
+        (Ok(text), _) if old_pin_note(&text).is_some() => check(
+            "bazel",
+            "warn",
+            old_pin_note(&text).unwrap_or_default(),
+            "raise .bazelversion",
         ),
         (Ok(text), Some(launcher)) => check(
             "bazel",
@@ -611,6 +636,15 @@ mod tests {
         std::fs::write(bin.join("bazelisk"), "").expect("launcher");
         let path = Some(std::env::join_paths([&bin]).expect("path"));
         std::fs::write(dir.join(".bazelversion"), "8.0.0\n").expect("pin");
+        let old = super::bazel_check(&dir, path.clone());
+        assert_eq!(old.status, "warn", "{}", old.detail);
+        assert!(old.detail.contains("8.0.0"), "{}", old.detail);
+        assert!(
+            old.detail.contains(dx_preset::PRESET_BAZEL_VERSION),
+            "{}",
+            old.detail
+        );
+        std::fs::write(dir.join(".bazelversion"), "latest\n").expect("pin");
         let ok = super::bazel_check(&dir, path.clone());
         assert_eq!(ok.status, "ok", "{}", ok.detail);
         assert!(ok.detail.starts_with("available:"), "{}", ok.detail);

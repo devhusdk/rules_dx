@@ -304,6 +304,10 @@ pub fn write_preset(
         return Ok(());
     }
     notes.extend(state.notes());
+    if !state.to_write().is_empty() {
+        let pin = std::fs::read_to_string(root.join(".bazelversion")).unwrap_or_default();
+        notes.extend(crate::status::old_pin_note(&pin));
+    }
     for (layer, _) in state.to_write() {
         let rel = layer_rel(layer);
         write(root, &rel, &render_layer(layer))?;

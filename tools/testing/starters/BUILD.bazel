@@ -135,6 +135,10 @@ starter_consumer_test(
 )
 
 starter_consumer_test(
+    name = "scala",
+)
+
+starter_consumer_test(
     name = "svelte",
 )
 

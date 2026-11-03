@@ -1,0 +1,24 @@
+load("@rules_dx//scala/rules:defs.bzl", "scala_binary", "scala_library", "scala_test")
+
+scala_library(
+    name = "demo-app",
+    srcs = ["Hello.scala"],
+)
+
+scala_binary(
+    name = "demo-app_bin",
+    srcs = ["Main.scala"],
+    main_class = "hello.Main",
+    deps = [":demo-app"],
+)
+
+scala_test(
+    name = "demo-app_test",
+    srcs = ["HelloTest.scala"],
+    deps = [
+        ":demo-app",
+        "@maven//:org_scalactic_scalactic_2_13",
+        "@maven//:org_scalatest_scalatest_2_13",
+        "@maven//:org_scalatest_scalatest_flatspec_2_13",
+    ],
+)

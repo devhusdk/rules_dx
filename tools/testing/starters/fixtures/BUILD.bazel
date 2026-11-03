@@ -159,6 +159,12 @@ filegroup(
 )
 
 filegroup(
+    name = "scala",
+    srcs = glob(["scala/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "svelte",
     srcs = glob(["svelte/**"]),
     visibility = ["//visibility:public"],

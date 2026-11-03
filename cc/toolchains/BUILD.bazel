@@ -12,7 +12,10 @@ cc_toolchain_identity_tests(name = "identity")
 
 test_suite(
     name = "all",
-    tests = [":identity"],
+    tests = [
+        ":identity",
+        ":identity_contract",
+    ],
 )
 
 real_source_target(

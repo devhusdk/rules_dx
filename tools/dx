@@ -4,21 +4,21 @@ die() {
   echo "dx: $1" >&2
   exit 1
 }
-root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 os=
 exe=
 case "$(uname -s)" in
-  Linux) os=linux ;;
-  Darwin) os=macos ;;
-  MINGW* | MSYS* | CYGWIN*)
-    os=windows
-    exe=.exe
-    MSYS2_ARG_CONV_EXCL='*'
-    export MSYS2_ARG_CONV_EXCL
-    ;;
+Linux) os=linux ;;
+Darwin) os=macos ;;
+MINGW* | MSYS* | CYGWIN*)
+  os=windows
+  exe=.exe
+  MSYS2_ARG_CONV_EXCL='*'
+  export MSYS2_ARG_CONV_EXCL
+  ;;
 esac
 source_checkout() {
-  [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2> /dev/null
+  [ -f "$1/cli/cli/BUILD.bazel" ] && grep -q '^    name = "rules_dx",' "$1/MODULE.bazel" 2>/dev/null
 }
 execroot_marker() {
   _p=${1%/*}
@@ -37,9 +37,9 @@ while [ "$here" != / ]; do
     # Inside a Bazel execroot (reached through bazel-bin): follow Bazel's own
     # marker back to the real checkout, once.
     v=
-    IFS= read -r v < "${here%/*}/DO_NOT_BUILD_HERE" || true
+    IFS= read -r v <"${here%/*}/DO_NOT_BUILD_HERE" || true
     v=${v%"$(printf '\r')"}
-    if [ -n "$v" ]; then v=$(CDPATH= cd -P -- "$v" 2> /dev/null && pwd -P) || v=; fi
+    if [ -n "$v" ]; then v=$(CDPATH='' cd -P -- "$v" 2>/dev/null && pwd -P) || v=; fi
     if [ -n "$v" ] && source_checkout "$v" && ! execroot_marker "$v"; then
       here=$v
       break
@@ -55,45 +55,46 @@ fi
 # Keep this list in sync with tools/dx.cmd.
 if [ "${1:-}" = worktree ]; then
   case "${2:-}" in
-    add | release)
-      [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
-      [ -x "$bin" ] && exec "$bin" "$@"
-      ;;
+  add | release)
+    [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
+    [ -x "$bin" ] && exec "$bin" "$@"
+    ;;
   esac
 fi
 tag_state() {
-  { printf '%s\n%s\n' 'Signature: 8a477f597d28d172789f06886806bc55' '# Rebuildable copy of dx kept by tools/dx; see https://bford.info/cachedir/' > "$state/CACHEDIR.TAG.$$" && mv -f "$state/CACHEDIR.TAG.$$" "$state/CACHEDIR.TAG"; } 2> /dev/null || rm -f "$state/CACHEDIR.TAG.$$"
+  { printf '%s\n%s\n' 'Signature: 8a477f597d28d172789f06886806bc55' '# Rebuildable copy of dx kept by tools/dx; see https://bford.info/cachedir/' >"$state/CACHEDIR.TAG.$$" && mv -f "$state/CACHEDIR.TAG.$$" "$state/CACHEDIR.TAG"; } 2>/dev/null || rm -f "$state/CACHEDIR.TAG.$$"
 }
 if [ -d "$state" ] && [ ! -f "$state/CACHEDIR.TAG" ]; then
   tag_state
 fi
 stale() {
   [ -x "$bin" ] && [ -s "$state/inputs" ] && [ -f "$state/built" ] || return 0
+  # shellcheck disable=SC2016 # the sh -c script takes its arguments from xargs
   newer=$(cd "$root" && {
     sed -e 's|^//||' -e 's|^:||' -e 's|:|/|' "$state/inputs"
     printf '%s\n' .bazelrc .bazelversion user.bazelrc tools/bazelrc/correctness.bazelrc tools/bazelrc/performance.bazelrc tools/bazelrc/resources.bazelrc MODULE.bazel MODULE.bazel.lock cargo-bazel-lock.json
-  } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print' "$state/built" 2> /dev/null) || true
+  } | tr '\n' '\0' | xargs -0 sh -c 'find "$@" -newer "$0" -print' "$state/built" 2>/dev/null) || true
   [ -n "$newer" ]
 }
 # Keep in sync with DX_SYNC in tools/dx.cmd: a copy is current when size and mtime match bin's, and cp -p keeps the
 # mtime, so a copy made by either launcher counts for the other. The copy is never written in place; on Windows the
 # running copy is renamed aside first because a running exe cannot be replaced.
 copy_current() {
-  [ -f "$state/dx$exe" ] && [ -f "$bin" ] && [ "$(wc -c < "$state/dx$exe")" = "$(wc -c < "$bin")" ] &&
+  [ -f "$state/dx$exe" ] && [ -f "$bin" ] && [ "$(wc -c <"$state/dx$exe")" = "$(wc -c <"$bin")" ] &&
     ! [ "$state/dx$exe" -nt "$bin" ] && ! [ "$state/dx$exe" -ot "$bin" ]
 }
 sync_copy() {
-  rm -f "$state/dx$exe".old.* 2> /dev/null || true
+  rm -f "$state/dx$exe".old.* 2>/dev/null || true
   if ! copy_current; then
     [ -f "$bin" ] || return 1
-    if cp -p "$bin" "$state/dx$exe.$$" 2> /dev/null && ! copy_current; then
+    if cp -p "$bin" "$state/dx$exe.$$" 2>/dev/null && ! copy_current; then
       if [ "$os" = windows ] && [ -e "$state/dx$exe" ]; then
-        mv "$state/dx$exe" "$state/dx$exe.old.$$" 2> /dev/null || true
+        mv "$state/dx$exe" "$state/dx$exe.old.$$" 2>/dev/null || true
       fi
-      mv -f "$state/dx$exe.$$" "$state/dx$exe" 2> /dev/null || true
+      mv -f "$state/dx$exe.$$" "$state/dx$exe" 2>/dev/null || true
     fi
-    rm -f "$state/dx$exe.$$" 2> /dev/null || true
-    rm -f "$state/dx$exe".old.* 2> /dev/null || true
+    rm -f "$state/dx$exe.$$" 2>/dev/null || true
+    rm -f "$state/dx$exe".old.* 2>/dev/null || true
     tag_state
   fi
   copy_current
@@ -109,9 +110,11 @@ retry_crash() {
   "$@" && return 0 || return $?
 }
 build_dx() {
+  # shellcheck disable=SC2086 # rc and gc are option lists that must split
   (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2)
 }
 query_inputs() {
+  # shellcheck disable=SC2086 # rc is an option list that must split
   (cd "$root" && bazel $rc query --noshow_progress --ui_event_filters=-info 'kind("source file", deps(//:dx)) + buildfiles(deps(//:dx))')
 }
 # True for `update --apply [cargo]` without --frozen or --offline: the only launches that may repin.
@@ -122,11 +125,11 @@ wants_cargo_repin() {
   w_sel=0
   for w_arg in "$@"; do
     case $w_arg in
-      --apply) w_apply=1 ;;
-      --frozen | --offline) return 1 ;;
-      -*) ;;
-      cargo) w_sel=$((w_sel + 1)) ;;
-      *) return 1 ;;
+    --apply) w_apply=1 ;;
+    --frozen | --offline) return 1 ;;
+    -*) ;;
+    cargo) w_sel=$((w_sel + 1)) ;;
+    *) return 1 ;;
     esac
   done
   [ -n "$w_apply" ] && [ "$w_sel" -le 1 ]
@@ -147,10 +150,10 @@ guard_temps() {
   trap 'on_signal HUP' HUP
 }
 if stale; then
-  command -v bazel > /dev/null 2>&1 || die "bazel is not on PATH"
+  command -v bazel >/dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
   guard_temps
-  : > "$state/built.$$"
+  : >"$state/built.$$"
   rc="--nohome_rc --nosystem_rc"
   [ "${CI:-}" = true ] || [ -n "${BAZEL_TEST:-}" ] || rc=
   dc=
@@ -206,7 +209,7 @@ if stale; then
       for (i = 1; i < ARGC; i++) if (scan(ARGV[i], 0)) { print "cache"; exit }
       print (gc ? "gc" : "none")
     }
-  ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2> /dev/null) || found=
+  ' "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2>/dev/null) || found=
   if [ -z "$rc" ] && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
     dc="--disk_cache=$cache/dx/disk-cache"
     [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
@@ -221,6 +224,7 @@ if stale; then
   elif wants_cargo_repin "$@"; then
     echo "dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
     # Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
+    # shellcheck disable=SC2086 # rc and gc are option lists that must split
     if (cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
       built=1
     fi
@@ -238,7 +242,7 @@ if stale; then
   fi
   sync_copy || true
   if q=$(retry_crash query_inputs); then
-    printf '%s\n' "$q" | tr -d '\r' | grep '^//' > "$state/inputs.$$" || true
+    printf '%s\n' "$q" | tr -d '\r' | grep '^//' >"$state/inputs.$$" || true
     mv "$state/inputs.$$" "$state/inputs"
     mv "$state/built.$$" "$state/built"
   else

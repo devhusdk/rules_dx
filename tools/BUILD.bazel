@@ -19,3 +19,16 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+genrule(
+    name = "dx_sh",
+    srcs = ["dx"],
+    outs = ["dx.sh"],
+    cmd = "cp $(SRCS) $@",
+)
+
+real_source_target(
+    name = "corpus_shell",
+    shell_srcs = [":dx.sh"],
+    tags = ["corpus", "no-format"],
+)

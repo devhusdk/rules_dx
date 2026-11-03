@@ -1116,18 +1116,18 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["modfmt;go_module;matrix/modfmt_clean.mod"],
         "tool_names": ["modfmt"],
-        "tool_binaries": ["//quality/testdata:fake_modfmt"],
+        "tool_binaries": ["//go/tools/modfmt:dx_modfmt"],
         "expected_file": ":matrix/matrix_go_module_format_pass.expected.txt",
     },
     {
         "name": "matrix_go_module_format_fail",
         "generated": {
-            "matrix/modfmt_dirty.mod": "module example.com/sampleBADFMT\n",
+            "matrix/modfmt_dirty.mod": "module   example.com/sample\n\ngo   1.24\n",
         },
         "capability": "format",
         "stages": ["modfmt;go_module;matrix/modfmt_dirty.mod"],
         "tool_names": ["modfmt"],
-        "tool_binaries": ["//quality/testdata:fake_modfmt"],
+        "tool_binaries": ["//go/tools/modfmt:dx_modfmt"],
         "expected_file": ":matrix/matrix_go_module_format_fail.expected.txt",
     },
     {

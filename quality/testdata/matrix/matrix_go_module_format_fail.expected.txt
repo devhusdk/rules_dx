@@ -8,4 +8,4 @@ initial 1
 initial WARNING modfmt - matrix/modfmt_dirty.mod 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/modfmt_dirty.mod 25 31 "fixed"
+replacement matrix/modfmt_dirty.mod 7 33 "example.com/sample\n\ngo"

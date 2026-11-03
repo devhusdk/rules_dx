@@ -1,10 +1,9 @@
-//! Collects LLVM coverage for tests whose profraw files come from more than one LLVM version.
+//! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
 mod collect;
 
 use std::env;
 use std::fs;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command, Stdio};
 
@@ -14,41 +13,6 @@ macro_rules! debug_log {
             eprintln!($($arg)*);
         }
     };
-}
-
-enum Objects {
-    TestBinary,
-    Manifest,
-}
-
-struct PairSpec {
-    name: &'static str,
-    profdata_env: &'static str,
-    cov_env: &'static str,
-    objects: Objects,
-}
-
-const PAIRS: &[PairSpec] = &[
-    PairSpec {
-        name: "rust",
-        profdata_env: "RUST_LLVM_PROFDATA",
-        cov_env: "RUST_LLVM_COV",
-        objects: Objects::TestBinary,
-    },
-    PairSpec {
-        name: "clang",
-        profdata_env: "LLVM_PROFDATA",
-        cov_env: "LLVM_COV",
-        objects: Objects::Manifest,
-    },
-];
-
-struct Pair {
-    name: &'static str,
-    profdata: PathBuf,
-    cov: PathBuf,
-    objects: Vec<PathBuf>,
-    accepted: Vec<PathBuf>,
 }
 
 struct Context {
@@ -142,16 +106,6 @@ fn read_text(path: &Path) -> String {
         .unwrap_or_else(|e| fail(&format!("cannot read {}: {e}", path.display())))
 }
 
-fn profraw_version(path: &Path) -> u32 {
-    let mut header = [0u8; 16];
-    let read = fs::File::open(path).and_then(|mut f| f.read_exact(&mut header));
-    if let Err(e) = read {
-        fail(&format!("cannot read {}: {e}", path.display()));
-    }
-    collect::raw_profile_version(&header)
-        .unwrap_or_else(|| fail(&format!("{} is not an LLVM raw profile", path.display())))
-}
-
 fn merge(profdata: &Path, inputs: &[PathBuf], output: &Path) -> Result<(), String> {
     let mut cmd = Command::new(profdata);
     cmd.arg("merge")
@@ -170,25 +124,25 @@ fn merge(profdata: &Path, inputs: &[PathBuf], output: &Path) -> Result<(), Strin
     }
 }
 
-fn export(ctx: &Context, pair: &Pair, profile: &Path) -> String {
-    let mut cmd = Command::new(&pair.cov);
-    cmd.args(collect::export_args(profile, &ctx.execroot, &pair.objects))
+fn export(ctx: &Context, cov: &Path, objects: &[PathBuf], profile: &Path) -> String {
+    let mut cmd = Command::new(cov);
+    cmd.args(collect::export_args(profile, &ctx.execroot, objects))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     debug_log!("Spawning {:#?}", cmd);
     let out = cmd
         .output()
-        .unwrap_or_else(|e| fail(&format!("cannot run {}: {e}", pair.cov.display())));
+        .unwrap_or_else(|e| fail(&format!("cannot run {}: {e}", cov.display())));
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
         if stderr.contains("no coverage data found") {
-            debug_log!("No {} coverage data found", pair.name);
+            debug_log!("No coverage data found");
             return String::new();
         }
-        fail(&format!("{} llvm-cov export failed:\n{stderr}", pair.name));
+        fail(&format!("llvm-cov export failed:\n{stderr}"));
     }
-    let report = String::from_utf8(out.stdout)
-        .unwrap_or_else(|_| fail(&format!("{} llvm-cov export wrote non-UTF-8", pair.name)));
+    let report =
+        String::from_utf8(out.stdout).unwrap_or_else(|_| fail("llvm-cov export wrote non-UTF-8"));
     collect::rewrite_paths(&report, &ctx.execroot)
 }
 
@@ -236,101 +190,34 @@ fn main() {
         return;
     }
 
-    let groups = collect::group_by_version(
-        profraw
-            .into_iter()
-            .map(|path| {
-                let version = profraw_version(&path);
-                (path, version)
-            })
-            .collect(),
-    );
-
-    let mut pairs: Vec<Pair> = PAIRS
-        .iter()
-        .filter_map(|spec| {
-            let profdata = env::var(spec.profdata_env).ok()?;
-            let cov = env::var(spec.cov_env).ok()?;
-            let objects = match spec.objects {
-                Objects::TestBinary => vec![ctx.test_binary()],
-                Objects::Manifest => {
-                    let objects = ctx.manifest_objects();
-                    if objects.is_empty()
-                        && env::var("DX_COVERAGE_CLANG_OBJECTS").as_deref() == Ok("test_binary")
-                    {
-                        vec![ctx.test_binary()]
-                    } else {
-                        objects
-                    }
-                }
-            };
-            Some(Pair {
-                name: spec.name,
-                profdata: ctx.tool(&profdata),
-                cov: ctx.tool(&cov),
-                objects,
-                accepted: Vec::new(),
-            })
-        })
-        .collect();
-    if pairs.is_empty() {
-        fail("no llvm-profdata/llvm-cov pair is set");
-    }
-
-    let mut intermediates: Vec<PathBuf> = Vec::new();
-    for (version, files) in &groups {
-        let mut errors: Vec<String> = Vec::new();
-        for pair in pairs.iter_mut() {
-            let out = ctx
-                .coverage_dir
-                .join(format!("_dx_{}_v{version}.profdata", pair.name));
-            match merge(&pair.profdata, files, &out) {
-                Ok(()) => {
-                    intermediates.push(out.clone());
-                    pair.accepted.push(out);
-                }
-                Err(stderr) => errors.push(format!(
-                    "{} ({}):\n{stderr}",
-                    pair.name,
-                    pair.profdata.display()
-                )),
-            }
-        }
-        if errors.len() == pairs.len() {
-            let names: Vec<String> = files.iter().map(|f| f.display().to_string()).collect();
-            fail(&format!(
-                "no llvm-profdata accepts raw profile version {version} in {}\n{}",
-                names.join(", "),
-                errors.join("\n")
-            ));
+    let profdata = ctx.tool(&required("LLVM_PROFDATA"));
+    let cov = ctx.tool(&required("LLVM_COV"));
+    let mut objects = ctx.manifest_objects();
+    if env::var("RUST_LLVM_COV").is_ok()
+        || env::var("DX_COVERAGE_CLANG_OBJECTS").as_deref() == Ok("test_binary")
+    {
+        let binary = ctx.test_binary();
+        if !objects.contains(&binary) {
+            objects.push(binary);
         }
     }
 
-    let mut report = String::new();
-    for pair in &pairs {
-        if pair.accepted.is_empty() {
-            continue;
-        }
-        if pair.objects.is_empty() {
-            debug_log!("No {} objects to export", pair.name);
-            continue;
-        }
-        let profile = if pair.accepted.len() == 1 {
-            pair.accepted[0].clone()
-        } else {
-            let combined = ctx.coverage_dir.join(format!("_dx_{}.profdata", pair.name));
-            merge(&pair.profdata, &pair.accepted, &combined)
-                .unwrap_or_else(|stderr| fail(&format!("{} merge failed:\n{stderr}", pair.name)));
-            intermediates.push(combined.clone());
-            combined
-        };
-        report.push_str(&export(&ctx, pair, &profile));
-    }
+    let merged = ctx.coverage_dir.join("_dx_merged.profdata");
+    merge(&profdata, &profraw, &merged).unwrap_or_else(|stderr| {
+        fail(&format!(
+            "llvm-profdata merge failed ({}):\n{stderr}",
+            profdata.display()
+        ))
+    });
+    let report = if objects.is_empty() {
+        debug_log!("No objects to export");
+        String::new()
+    } else {
+        export(&ctx, &cov, &objects, &merged)
+    };
 
     debug_log!("Writing output to {}", output.display());
     fs::write(&output, report).unwrap_or_else(|e| fail(&format!("cannot write report: {e}")));
-    for file in intermediates {
-        fs::remove_file(&file).ok();
-    }
+    fs::remove_file(&merged).ok();
 }
 // LCOV_EXCL_STOP

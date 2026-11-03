@@ -32,8 +32,8 @@ use_repo(python, "python_3_12")
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
-    rustfmt_version = "1.98.1",
-    versions = ["1.98.1"],
+    rustfmt_version = "1.99.1",
+    versions = ["1.99.1"],
 )
 
 MAVEN_BLOCK

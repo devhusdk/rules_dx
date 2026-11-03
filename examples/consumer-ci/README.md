@@ -34,8 +34,8 @@ bazel_dep(name = "rules_rust", version = "0.75.0")
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2021",
-    rustfmt_version = "1.98.1",
-    versions = ["1.98.1"],
+    rustfmt_version = "1.99.1",
+    versions = ["1.99.1"],
 )
 use_repo(rust, "rust_toolchains")
 

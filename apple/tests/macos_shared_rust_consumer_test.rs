@@ -24,7 +24,7 @@ rust.toolchain(
         "aarch64-apple-ios",
         "aarch64-apple-ios-sim",
     ],
-    versions = ["1.98.1"],
+    versions = ["1.99.1"],
 )
 use_repo(rust, "rust_toolchains")
 
@@ -42,7 +42,7 @@ register_toolchains("@local_config_apple_cc_toolchains//:all")
 
 const BAZELRC: &str = "build --ios_multi_cpus=sim_arm64\nbuild:release --compilation_mode=opt\n";
 
-const RUSTC: &str = "rustc 1.98.1";
+const RUSTC: &str = "rustc 1.99.1";
 
 const POCKET_ID: &str = "com.example.pocket";
 

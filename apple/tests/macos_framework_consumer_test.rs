@@ -27,7 +27,7 @@ rust.toolchain(
         "aarch64-apple-ios-sim",
         "x86_64-apple-ios",
     ],
-    versions = ["1.98.1"],
+    versions = ["1.99.1"],
 )
 use_repo(rust, "rust_toolchains")
 

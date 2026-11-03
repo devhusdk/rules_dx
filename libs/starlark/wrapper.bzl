@@ -209,7 +209,7 @@ def dx_native_coverage_toolchains():
     """Returns the toolchains native coverage needs to find llvm tools in the cc toolchain."""
     return use_cc_toolchain(mandatory = False)
 
-def _dx_toolchain_tool(cc_toolchain, basename):
+def dx_toolchain_tool(cc_toolchain, basename):
     """Returns the cc toolchain file named basename (with optional .exe), or None."""
     if cc_toolchain == None:
         return None
@@ -245,8 +245,8 @@ def dx_native_test_coverage(ctx, upstream):
     """Returns coverage providers that collect native LLVM coverage."""
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
-    llvm_cov = _dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
-    llvm_profdata = _dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
+    llvm_cov = dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
+    llvm_profdata = dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
     metadata = [collector, llvm_cov, llvm_profdata]
     transitive = []
     if DxDataCoverageInfo in upstream:

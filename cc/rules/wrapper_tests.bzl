@@ -71,3 +71,21 @@ _objc_library_test = analysistest.make(_objc_library_impl)
 def objc_library_tests(name, target, **kwargs):
     """Asserts objc_library is the plain upstream rule: ObjcInfo and CcInfo, no forwarder provider."""
     _objc_library_test(name = name, size = "small", target_under_test = target, **kwargs)
+
+def _build_id_impl(ctx):
+    env = analysistest.begin(ctx)
+    links = [a for a in analysistest.target_actions(env) if a.mnemonic == "CppLink"]
+    asserts.equals(env, 1, len(links))
+    asserts.true(env, "-Wl,--build-id=sha1" in links[0].argv, "link argv: " + " ".join(links[0].argv))
+    return analysistest.end(env)
+
+_build_id_test = analysistest.make(_build_id_impl)
+
+def cc_build_id_test(name, target):
+    """Asserts a cc_binary link action asks for a sha1 build-id on Linux."""
+    _build_id_test(
+        name = name,
+        size = "small",
+        target_under_test = target,
+        target_compatible_with = ["@platforms//os:linux"],
+    )

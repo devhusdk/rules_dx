@@ -96,8 +96,13 @@ def objc_library(name, visibility = None, **kwargs):
     _objc_library(name = name, visibility = visibility, **kwargs)
 
 def cc_binary(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over cc_binary."""
-    dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, **kwargs)
+    """Minimal wrapper over cc_binary that links Linux binaries with a build-id."""
+    linkopts = kwargs.pop("linkopts", [])
+    build_id = select({
+        "@platforms//os:linux": ["-Wl,--build-id=sha1"],
+        "//conditions:default": [],
+    })
+    dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = linkopts + build_id, **kwargs)
 
 def cc_test(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test."""

@@ -342,6 +342,33 @@ pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
 
 /// Extracts every regular member of a tar.gz or zip into a new dir and lists name, mode and sha256.
 pub fn archive_extract(path: &Path, dir: &Path) -> io::Result<Vec<(String, u32, String)>> {
+    archive_extract_capped(path, dir, 512 << 20, 1 << 30)
+}
+
+struct HashingFile {
+    file: std::fs::File,
+    hash: dx_digest::Sha256Writer,
+}
+
+impl Write for HashingFile {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.file.write_all(buf)?;
+        self.hash.write_all(buf)?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+}
+
+fn archive_extract_capped(
+    path: &Path,
+    dir: &Path,
+    max_entry_bytes: u64,
+    max_total_bytes: u64,
+) -> io::Result<Vec<(String, u32, String)>> {
+    let mut total = 0u64;
     std::fs::create_dir_all(dir.parent().unwrap_or(dir))?;
     std::fs::create_dir(dir)?;
     archive_entries(path, |name, mode, body| {
@@ -355,16 +382,27 @@ pub fn archive_extract(path: &Path, dir: &Path) -> io::Result<Vec<(String, u32, 
         }
         let target = dir.join(&name);
         std::fs::create_dir_all(target.parent().unwrap_or(dir))?;
-        let mut data = Vec::new();
-        body.read_to_end(&mut data)?;
-        let mut file = std::fs::OpenOptions::new()
+        let file = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&target)?;
-        file.write_all(&data)?;
+        let mut out = HashingFile {
+            file,
+            hash: dx_digest::Sha256Writer::new(),
+        };
+        let cap = max_entry_bytes.min(max_total_bytes - total);
+        let written = io::copy(&mut body.take(cap + 1), &mut out)?;
+        if written > cap {
+            return Err(listing_error(format!(
+                "archive extract: member {name:?} exceeds the size cap"
+            )));
+        }
+        out.flush()?;
+        total += written;
+        let HashingFile { file, hash } = out;
         drop(file);
         set_member_mode(&target, mode)?;
-        Ok(Some((name, mode, dx_digest::sha256_hex(&data))))
+        Ok(Some((name, mode, hash.finish_hex())))
     })
 }
 
@@ -1294,6 +1332,23 @@ mod tests {
             }
             let error = archive_extract(&out, &dir).expect_err("dir exists");
             assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        }
+    }
+
+    #[test]
+    fn archive_extract_fails_over_member_and_total_caps() {
+        for suffix in ["tar.gz", "zip"] {
+            let scratch = scratch_dir();
+            let out = scratch.path().join(format!("cell.{suffix}"));
+            archive_tree(&[("a", b"12345", 0o644), ("b", b"12345", 0o644)], &out).expect("archive");
+            let ok = archive_extract_capped(&out, &scratch.path().join("ok"), 5, 10);
+            assert!(ok.is_ok(), "{suffix}");
+            let member = archive_extract_capped(&out, &scratch.path().join("m"), 4, 100)
+                .expect_err("member cap");
+            assert!(member.to_string().contains("size cap"), "{suffix}");
+            let total = archive_extract_capped(&out, &scratch.path().join("t"), 5, 9)
+                .expect_err("total cap");
+            assert!(total.to_string().contains("size cap"), "{suffix}");
         }
     }
 

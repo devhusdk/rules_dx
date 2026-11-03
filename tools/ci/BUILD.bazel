@@ -174,7 +174,7 @@ python_test(
     size = "small",
     srcs = ["gate_base_test.py"],
     aspect_hints = ["//:ruff_config"],
-    data = ["//.github:workflows/gate.yml"],
+    data = ["//.github:workflows/ci.yml"],
     dep_group = "hello",
     imports = ["."],
     deps = [

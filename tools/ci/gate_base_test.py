@@ -1,4 +1,4 @@
-"""Behavioral cases for the base pin in gate.yml."""
+"""Behavioral cases for the base pin in ci.yml."""
 
 import os
 import subprocess
@@ -7,7 +7,7 @@ import sys
 import pytest
 from workflow_testing import embedded_script
 
-WORKFLOW = ".github/workflows/gate.yml"
+WORKFLOW = ".github/workflows/ci.yml"
 HEREDOC = "python3 - <<'DX_GATE_BASE'"
 MARKER = "DX_GATE_BASE"
 ZEROS = "0" * 40

@@ -7,7 +7,6 @@ const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
-const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
 
 const RULESET: &str = ".github/rulesets/main.json";
 
@@ -59,6 +58,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "dogfood",
         "docs",
         "devcontainer-check",
+        "gate",
         "hermetic",
         "hermetic-arm64",
         "network",
@@ -245,7 +245,6 @@ fn the_native_matrix_keeps_all_five_platforms() {
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
     for workflow in [
         CI_WORKFLOW,
-        GATE_WORKFLOW,
         "examples/consumer-ci/caller.yml",
         "examples/docs-ci/caller.yml",
     ] {
@@ -368,7 +367,7 @@ fn pages_publication_stays_on_main_push_only() {
 
 #[test]
 fn the_gate_job_can_never_be_skipped() {
-    let document = document(GATE_WORKFLOW);
+    let document = document(CI_WORKFLOW);
     let job = &document["jobs"]["gate"];
     assert_eq!(job["name"], json!("gate"));
     assert!(job.get("if").is_none(), "gate must not have an if: {job}");
@@ -376,12 +375,11 @@ fn the_gate_job_can_never_be_skipped() {
         job.get("needs").is_none(),
         "gate must not have needs: {job}"
     );
-    assert_eq!(document["jobs"].as_object().map(|jobs| jobs.len()), Some(1));
 }
 
 #[test]
 fn the_gate_fails_when_dx_check_fails() {
-    let document = document(GATE_WORKFLOW);
+    let document = document(CI_WORKFLOW);
     let steps = document["jobs"]["gate"]["steps"]
         .as_array()
         .expect("gate steps");
@@ -407,27 +405,9 @@ fn the_gate_fails_when_dx_check_fails() {
 }
 
 #[test]
-fn the_gate_runs_on_every_landing_event_in_its_own_group() {
-    let on = triggers(GATE_WORKFLOW);
-    assert_eq!(on["push"]["branches"], json!(["main"]));
-    assert!(on.get("pull_request").is_some(), "{on}");
-    assert!(on.get("workflow_dispatch").is_some(), "{on}");
-    let document = document(GATE_WORKFLOW);
-    assert_eq!(
-        document["concurrency"]["group"],
-        json!("gate-${{ github.event.pull_request.number || github.ref }}"),
-        "gate concurrency is per pull request or ref, never per SHA and never the ci.yml group"
-    );
-    assert_eq!(
-        document["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' }}")
-    );
-}
-
-#[test]
 fn the_ruleset_requires_the_gate_job_name() {
     let ruleset = document(RULESET);
-    let name = document(GATE_WORKFLOW)["jobs"]["gate"]["name"].clone();
+    let name = document(CI_WORKFLOW)["jobs"]["gate"]["name"].clone();
     assert_eq!(ruleset["enforcement"], json!("active"));
     assert_eq!(ruleset["bypass_actors"], json!([]));
     assert_eq!(ruleset["target"], json!("branch"));
@@ -459,7 +439,7 @@ fn no_other_workflow_job_reports_the_gate_context() {
     names.push("examples/consumer-ci/caller.yml".to_string());
     names.push("examples/docs-ci/caller.yml".to_string());
     for name in names {
-        if name.ends_with("/gate.yml") || name == GATE_WORKFLOW {
+        if name == CI_WORKFLOW {
             continue;
         }
         let document = document(&name);

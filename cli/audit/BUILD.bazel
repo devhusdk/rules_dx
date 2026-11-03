@@ -39,7 +39,6 @@ dx_rust_crate(
         "src/notice_manifest.rs",
         "src/outcome.rs",
         "src/secrets.rs",
-        "src/spdx.rs",
         "src/vuln.rs",
         "src/vuln_go.rs",
         "src/vuln_match.rs",

@@ -10,7 +10,7 @@ Usage: dx [COMMAND]
 
 Commands:
   security    run security audit over resolved scopes (non-mutating; live Gitleaks plus advisory/vuln backends)
-  license     run license audit over resolved scopes (non-mutating; live license-policy plus SPDX backend)
+  license     run license audit over resolved scopes (non-mutating)
   lint        run lint analysis over resolved scopes (check by default; --apply writes fixes)
   typecheck   run typecheck analysis over resolved scopes (check by default; --apply writes fixes)
   format      check or rewrite formatting over resolved scopes (check by default; --apply writes fixes)

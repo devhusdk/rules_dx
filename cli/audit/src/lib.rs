@@ -20,7 +20,6 @@ pub mod locks;
 pub mod notice_manifest;
 pub mod outcome;
 pub mod secrets;
-pub mod spdx;
 pub mod vuln;
 
 pub const SECURITY_FAMILY: &str = "security";

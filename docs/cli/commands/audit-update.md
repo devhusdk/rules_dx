@@ -4,7 +4,7 @@
 
 ```text
 dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
-dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>|spdx=<dest>|notice=<dest>] [scope...]
+dx license [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...]
 ```
 
 `dx security` checks secrets plus dependency vulnerabilities. `dx license`
@@ -225,20 +225,8 @@ versions, empty when none exists. A license finding has tool `license`, rule
 with code `audit_security_clean` or `audit_license_clean`. A failed family emits an `error` event. Its code is `advisory_refresh_failed` for a
 missing, stale, or corrupt advisory snapshot, `offline_required` when
 `--offline` blocks a refresh, and `audit_failed` for findings or any other
-incomplete assessment. Reports: `dx security` writes
-`--report sarif=<dest>`. `dx license` writes `--report sarif=<dest>`,
-`--report spdx=<dest>`, or `--report notice=<dest>`. Repeat the flag for more files. Use `-` for stdout.
-The notice report is the six-field `package|set|version|license|text|sha256`
-manifest that `notice_bundle` reads. It has one row per package with a recorded
-`text` (read from the workspace, sha256 of the words), plus an empty-text row for
-every package whose notice check fails, so the bundle fails closed. An unreadable
-or empty text file makes the license family incomplete. Pass the same files to
-`notice_bundle` as `texts`.
-The SPDX report is an SPDX 2.3 JSON document with `creationInfo` naming
-`Tool: dx`. Each audited scope label is a package `SPDXRef-Root-<n>`, numbered
-over the sorted labels, and the document has one
-`SPDXRef-DOCUMENT DESCRIBES SPDXRef-Root-<n>` relationship per label. Every
-package sets `downloadLocation` to `NOASSERTION`.
+incomplete assessment. Reports: `dx security` and `dx license` write
+`--report sarif=<dest>`. Repeat the flag for more files. Use `-` for stdout.
 A relative destination anchors at the workspace root; an absolute one writes as
 given. Colliding destinations fail before anything runs, parents must exist, and
 a failed write keeps the previous file bytes.
@@ -585,9 +573,8 @@ malformed `sha256` or `integrity` on an extension repo, and two extensions
 that generate one repo at the same version from different URLs fail the set with `failed to assess <name>` and exit `1`.
 
 `dx license` reports `UNKNOWN` for every input unless `licenses.toml`
-declares it with `[[inventory]]` and `set = "bazel"`. The SPDX report carries
-each input's origin as an external reference. A module that two `bazel`
-sets share is listed once with every origin.
+declares it with `[[inventory]]` and `set = "bazel"`. A module that two `bazel`
+sets share is listed once.
 
 ```toml
 [[inventory]]

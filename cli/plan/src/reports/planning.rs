@@ -12,10 +12,8 @@ pub enum StandardFormat {
     Junit,
     Lcov,
     Sources,
-    Spdx,
     Failures,
     Results,
-    Notice,
 }
 
 impl StandardFormat {
@@ -25,10 +23,8 @@ impl StandardFormat {
             StandardFormat::Junit => "junit",
             StandardFormat::Lcov => "lcov",
             StandardFormat::Sources => "sources",
-            StandardFormat::Spdx => "spdx",
             StandardFormat::Failures => "failures",
             StandardFormat::Results => "results",
-            StandardFormat::Notice => "notice",
         }
     }
 
@@ -38,10 +34,8 @@ impl StandardFormat {
             "junit" => Some(StandardFormat::Junit),
             "lcov" => Some(StandardFormat::Lcov),
             "sources" => Some(StandardFormat::Sources),
-            "spdx" => Some(StandardFormat::Spdx),
             "failures" => Some(StandardFormat::Failures),
             "results" => Some(StandardFormat::Results),
-            "notice" => Some(StandardFormat::Notice),
             _ => None,
         }
     }
@@ -419,8 +413,8 @@ mod tests {
         assert!(format!(
             "{}",
             ReportError::ConflictingReports {
-                first: "sarif=out.json".to_owned(),
-                second: "spdx=out.json".to_owned(),
+                first: "failures=out.json".to_owned(),
+                second: "junit=out.json".to_owned(),
                 destination: "out.json".to_owned(),
             }
         )
@@ -552,8 +546,6 @@ mod tests {
             (Command::Coverage, "sources"),
             (Command::Security, "sarif"),
             (Command::License, "sarif"),
-            (Command::License, "spdx"),
-            (Command::License, "notice"),
         ] {
             plan_reports(
                 workspace.path(),
@@ -573,8 +565,6 @@ mod tests {
             (Command::Generate, "sarif"),
             (Command::Update, "sarif"),
             (Command::Run, "junit"),
-            (Command::Security, "spdx"),
-            (Command::Security, "notice"),
         ] {
             let err = plan_reports(
                 workspace.path(),
@@ -602,16 +592,16 @@ mod tests {
         let workspace = workspace();
         let err = plan_reports(
             workspace.path(),
-            Command::License,
-            &requests(&[("sarif", "out.json"), ("spdx", "out.json")]),
+            Command::Test,
+            &requests(&[("failures", "out.json"), ("junit", "out.json")]),
             &text_mode(),
         )
         .expect_err("cross-format collision");
         assert_eq!(
             err,
             ReportError::ConflictingReports {
-                first: "sarif=out.json".to_owned(),
-                second: "spdx=out.json".to_owned(),
+                first: "failures=out.json".to_owned(),
+                second: "junit=out.json".to_owned(),
                 destination: workspace.path().join("out.json").display().to_string(),
             }
         );
@@ -667,8 +657,8 @@ mod tests {
         let workspace = workspace();
         let got = plan_reports(
             workspace.path(),
-            Command::License,
-            &requests(&[("sarif", "a.sarif"), ("spdx", "b.json")]),
+            Command::Test,
+            &requests(&[("junit", "a.json"), ("failures", "b.json")]),
             &text_mode(),
         )
         .expect("distinct files plan");
@@ -677,7 +667,7 @@ mod tests {
                 .map(|report| report.path.clone().expect("resolved"))
                 .collect::<Vec<_>>(),
             vec![
-                workspace.path().join("a.sarif"),
+                workspace.path().join("a.json"),
                 workspace.path().join("b.json"),
             ]
         );

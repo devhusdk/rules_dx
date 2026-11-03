@@ -13,8 +13,6 @@ pub(super) fn run_license(
         Err(error) => {
             return LicenseResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
-                packages: Vec::new(),
-                notice: Vec::new(),
                 diagnostics: Vec::new(),
                 detail: error.to_string(),
                 code: CODE_AUDIT_FAILED,
@@ -26,8 +24,6 @@ pub(super) fn run_license(
         let detail = format!("invalid license policy: {error}");
         return LicenseResult {
             status: dx_audit::outcome::FamilyStatus::Incomplete,
-            packages: Vec::new(),
-            notice: Vec::new(),
             diagnostics: Vec::new(),
             detail: detail.clone(),
             code: CODE_AUDIT_FAILED,
@@ -38,8 +34,6 @@ pub(super) fn run_license(
             let detail = format!("invalid license policy: {error}");
             return LicenseResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
-                packages: Vec::new(),
-                notice: Vec::new(),
                 diagnostics: Vec::new(),
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
@@ -51,8 +45,6 @@ pub(super) fn run_license(
             let detail = format!("invalid license policy: {error}");
             return LicenseResult {
                 status: dx_audit::outcome::FamilyStatus::Incomplete,
-                packages: Vec::new(),
-                notice: Vec::new(),
                 diagnostics: Vec::new(),
                 detail: detail.clone(),
                 code: CODE_AUDIT_FAILED,
@@ -62,15 +54,11 @@ pub(super) fn run_license(
     let tier = tier_for_roots(&policy, roots);
     let mut finding_count: usize = 0;
     let mut diagnostics: Vec<DiagnosticEvent> = Vec::new();
-    let mut packages_all: Vec<dx_audit::spdx::SpdxPackage> = Vec::new();
     let mut incomplete: Option<String> = None;
     let mut licensed_all: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut lock_paths: BTreeMap<String, LockPaths> = BTreeMap::new();
     let mut notice_present: std::collections::BTreeMap<(String, String, String), bool> =
         std::collections::BTreeMap::new();
-    let mut notice_candidates: Vec<dx_audit::license_notice::NoticeCandidate> = Vec::new();
-    let mut provenance: BTreeMap<(String, String), std::collections::BTreeSet<String>> =
-        BTreeMap::new();
     let mut bazel_seen: std::collections::BTreeSet<(String, String)> =
         std::collections::BTreeSet::new();
     let mut bazel_lock_of: BTreeMap<(String, String), String> = BTreeMap::new();
@@ -102,16 +90,12 @@ pub(super) fn run_license(
                             dx_audit::locks::BAZEL_SET,
                         );
                         let mut fresh: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
-                        for ((input, probe), entry) in inputs.iter().zip(&locked).zip(&licensed) {
+                        for (probe, entry) in locked.iter().zip(&licensed) {
                             notice_present.insert(
                                 (entry.set.clone(), entry.name.clone(), entry.version.clone()),
                                 dx_audit::locks::inventory_text_present(probe, &policy.inventory),
                             );
                             let key = (entry.name.clone(), entry.version.clone());
-                            provenance
-                                .entry(key.clone())
-                                .or_default()
-                                .insert(input.provenance());
                             if bazel_seen.insert(key.clone()) {
                                 bazel_lock_of.insert(key, lock_rel.clone());
                                 fresh.push(entry.clone());
@@ -274,7 +258,6 @@ pub(super) fn run_license(
         );
     }
     licensed_all.sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
-    let mut spdx_index = 1usize;
     for licensed in &licensed_all {
         let expr = dx_audit::license_expr::parse_license(&licensed.license);
         let lookup = |id: &str| -> dx_audit::license_expr::IdClass {
@@ -334,15 +317,6 @@ pub(super) fn run_license(
             ))
             .copied()
             .unwrap_or(false);
-        let recorded_text = dx_audit::locks::inventory_text(
-            &dx_audit::vuln::LockedPackage::new(
-                licensed.set.clone(),
-                licensed.name.clone(),
-                licensed.version.clone(),
-            ),
-            &policy.inventory,
-        )
-        .map(str::to_owned);
         let notice_input = dx_audit::license_notice::NoticeInput {
             package: licensed.name.clone(),
             license: licensed.license.clone(),
@@ -351,41 +325,6 @@ pub(super) fn run_license(
         let notice_outcome =
             dx_audit::license_notice::evaluate_notice(&notice_input, tier, &approved);
         let notice_fails = dx_audit::license_notice::notice_fails(notice_outcome, tier);
-        notice_candidates.push(dx_audit::license_notice::NoticeCandidate {
-            package: licensed.name.clone(),
-            set: licensed.set.clone(),
-            version: licensed.version.clone(),
-            license: licensed.license.clone(),
-            text: recorded_text,
-            notice_fails,
-        });
-        let spdx_license = if licensed.license.trim().is_empty() {
-            "NOASSERTION".to_owned()
-        } else {
-            licensed.license.clone()
-        };
-        let mut spdx = dx_audit::spdx::spdx_package(
-            &licensed.set,
-            &licensed.name,
-            &licensed.version,
-            &spdx_license,
-            spdx_index,
-        );
-        if licensed.set == dx_audit::locks::BAZEL_SET {
-            if let Some(origins) =
-                provenance.get(&(licensed.name.clone(), licensed.version.clone()))
-            {
-                for origin in origins {
-                    spdx.external_refs.push(dx_audit::spdx::SpdxExternalRef {
-                        category: "OTHER".to_owned(),
-                        ref_type: "bazel-origin".to_owned(),
-                        locator: origin.clone(),
-                    });
-                }
-            }
-        }
-        packages_all.push(spdx);
-        spdx_index += 1;
         if fails && meets_audit_threshold(level, fail_on) {
             let lock_path = lock_paths
                 .get(&licensed.set)
@@ -495,15 +434,6 @@ pub(super) fn run_license(
             }
         }
     }
-    let (notice, notice_problems) =
-        dx_audit::license_notice::notice_manifest_rows(&notice_candidates, &|rel: &str| {
-            std::fs::read(workspace.join(rel))
-                .map_err(|error| error.to_string())
-                .and_then(|bytes| String::from_utf8(bytes).map_err(|_| "not UTF-8".to_owned()))
-        });
-    if incomplete.is_none() {
-        incomplete = notice_problems.into_iter().next();
-    }
     let has_incomplete = incomplete.is_some();
     let status = if has_incomplete {
         dx_audit::outcome::FamilyStatus::Incomplete
@@ -524,8 +454,6 @@ pub(super) fn run_license(
     let detail = coverage_detail(base_detail, &uncovered);
     LicenseResult {
         status,
-        packages: packages_all,
-        notice,
         diagnostics,
         detail,
         code: CODE_AUDIT_FAILED,

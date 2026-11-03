@@ -47,6 +47,23 @@ const GO_HOST_ENV: [&str; 9] = [
     "GOAUTH",
 ];
 
+/// Host variables that change which packages uv resolves or from where; dx cannot override them.
+const UV_HOST_ENV: [&str; 11] = [
+    "UV_INDEX_URL",
+    "UV_EXTRA_INDEX_URL",
+    "UV_DEFAULT_INDEX",
+    "UV_INDEX",
+    "UV_FIND_LINKS",
+    "UV_NO_INDEX",
+    "UV_INDEX_STRATEGY",
+    "UV_CONFIG_FILE",
+    "UV_EXCLUDE_NEWER",
+    "UV_INSECURE_HOST",
+    "UV_NO_BUILD_ISOLATION",
+];
+
+const UV_HOST_ENV_REASON: &str = "unset UV_INDEX_URL, UV_EXTRA_INDEX_URL, UV_DEFAULT_INDEX, UV_INDEX, UV_FIND_LINKS, UV_NO_INDEX, UV_INDEX_STRATEGY, UV_CONFIG_FILE, UV_EXCLUDE_NEWER, UV_INSECURE_HOST and UV_NO_BUILD_ISOLATION: uv reads them from the environment even with --no-config, and they change which packages resolve";
+
 impl StagedRun {
     /// The full command for a scratch directory (an absolute path).
     pub fn argv(&self, scratch: &Path) -> Vec<String> {
@@ -529,6 +546,15 @@ pub fn host_env_refusal(
             .then(|| BackendError::Unsupported {
                 set: set.name.clone(),
                 reason: GO_HOST_ENV_REASON,
+            });
+    }
+    if set.ecosystem == Ecosystem::Uv {
+        return UV_HOST_ENV
+            .iter()
+            .any(|key| lookup(key))
+            .then(|| BackendError::Unsupported {
+                set: set.name.clone(),
+                reason: UV_HOST_ENV_REASON,
             });
     }
     if set.ecosystem != Ecosystem::Maven {
@@ -3356,6 +3382,34 @@ mod tests {
         assert_eq!(host_env_refusal(&set, false, &|_| false), None);
         assert_eq!(
             host_env_refusal(&set, false, &|name| name == "GOFLAGS"),
+            None
+        );
+    }
+
+    #[test]
+    fn uv_host_env_that_changes_resolution_is_refused() {
+        let set = ResolvedSet {
+            name: "pypi".to_owned(),
+            ecosystem: Ecosystem::Uv,
+            dir: ".".to_owned(),
+            manifests: vec!["pyproject.toml".to_owned()],
+            locks: vec!["uv.lock".to_owned()],
+            repository: None,
+        };
+        for key in UV_HOST_ENV {
+            let refusal = host_env_refusal(&set, false, &|name| name == key);
+            assert_eq!(
+                refusal,
+                Some(BackendError::Unsupported {
+                    set: "pypi".to_owned(),
+                    reason: UV_HOST_ENV_REASON,
+                }),
+                "{key}"
+            );
+        }
+        assert_eq!(host_env_refusal(&set, true, &|_| false), None);
+        assert_eq!(
+            host_env_refusal(&set, false, &|name| name == "UV_CACHE_DIR"),
             None
         );
     }

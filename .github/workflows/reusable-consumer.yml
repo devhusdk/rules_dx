@@ -32,12 +32,20 @@ on:
         required: false
         default: true
         type: boolean
+      remote_cache:
+        description: "URL of an REAPI remote cache, for example grpc://cache.example.com:9092. Empty keeps BUILDBUDDY_API_KEY as the only way to enable a cache."
+        required: false
+        default: ""
+        type: string
       invocation_id:
         description: "Names this call's advisory artifact. Empty keeps advisory-snapshots for a single call. Two calls in one parent run need distinct IDs of 1 to 40 letters, digits, underscores or hyphens."
         required: false
         default: ""
         type: string
     secrets:
+      REMOTE_CACHE_HEADER:
+        description: "Header for the remote cache as name=value. Optional; used with remote_cache."
+        required: false
       BUILDBUDDY_API_KEY:
         description: "BuildBuddy API key enabling the shared remote cache. Optional; jobs skip remote-cache configuration when absent."
         required: false
@@ -46,9 +54,10 @@ permissions:
   contents: read
 
 env:
-  # Both stay empty unless the caller passes BUILDBUDDY_API_KEY.
-  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
-  BB_ARGS: ${{ secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  # All stay empty unless the caller sets remote_cache or passes BUILDBUDDY_API_KEY.
+  BAZEL_CONFIG: ${{ (inputs.remote_cache != '' || secrets.BUILDBUDDY_API_KEY != '') && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
+  BB_ARGS: ${{ inputs.remote_cache != '' && format('--remote_cache={0}', inputs.remote_cache) || '' }} ${{ secrets.REMOTE_CACHE_HEADER == '' && secrets.BUILDBUDDY_API_KEY != '' && format('--remote_header=x-buildbuddy-api-key={0}', secrets.BUILDBUDDY_API_KEY) || '' }}
+  REMOTE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
   # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
   BAZELISK_VERSION: "1.29.0"
@@ -103,7 +112,7 @@ jobs:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Validate workflow inputs
         id: validate
@@ -115,7 +124,7 @@ jobs:
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           bazel run "$@" @rules_dx//tools/ci:input_validation_bin
   checks:
     name: checks (${{ matrix.platform }})
@@ -185,7 +194,7 @@ jobs:
           DX_CHECK_LINES: ${{ needs.validate.outputs.check_lines }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           failed=0
           while IFS='|' read -r id dx_args dx_reports passthrough; do
             [ -n "$id" ] || continue
@@ -254,7 +263,7 @@ jobs:
         if: ${{ !cancelled() && contains(needs.validate.outputs.checks, '"id":"build"') }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
       - name: Run coverage with optional threshold
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
@@ -265,7 +274,7 @@ jobs:
         run: |
           set +e
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           scope=//...
           if [ "$DX_AFFECTED" = true ] && [ -z "$DX_MIN_COVERAGE" ] && [ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]; then
             scope=--affected
@@ -457,7 +466,7 @@ jobs:
         id: prepare
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           retrieved_at="$(date -u +%F)"
           echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
           bazel run "$@" @rules_dx//cli/advisory_prep -- \
@@ -512,7 +521,7 @@ jobs:
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           bazel run "$@" @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN -- "$@"
       - name: Restore the advisory snapshots this run prepared
         if: ${{ needs.advisory-snapshots.outputs.status != 'empty' }}
@@ -526,7 +535,7 @@ jobs:
           DX_AUDIT_TODAY: ${{ needs.advisory-snapshots.outputs.retrieved_at }}
         run: |
           # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
           bazel run "$@" @rules_dx//:dx -- security //...
   dx-ci:
     name: dx-ci (aggregate)

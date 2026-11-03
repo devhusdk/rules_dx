@@ -178,6 +178,29 @@ rust_test(
 
 # keep
 rust_library(
+    name = "remote_cache_flags",
+    srcs = ["remote_cache_flags.rs"],
+    crate_name = "remote_cache_flags",
+)
+
+# keep
+rust_binary(
+    name = "remote_cache_flags_bin",
+    srcs = ["remote_cache_flags_main.rs"],
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":remote_cache_flags"],
+)
+
+# keep
+rust_test(
+    name = "remote_cache_flags_test",
+    size = "small",
+    srcs = ["remote_cache_flags_test.rs"],
+    deps = [":remote_cache_flags"],
+)
+
+# keep
+rust_library(
     name = "module_pin",
     srcs = ["module_pin.rs"],
     crate_name = "module_pin",
@@ -593,7 +616,6 @@ rust_test(
         "//examples/julia-app/diagnostics:corpus_starlark",
         "//examples/kotlin-app/cli:corpus_starlark",
         "//examples/kotlin-app/diagnostics:corpus_starlark",
-        "//lua/tests/fixtures/lua-app/diagnostics:corpus_starlark",
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
         "//examples/shared-rust:corpus_starlark",
@@ -608,6 +630,7 @@ rust_test(
         "//haskell:corpus_starlark",
         "//haskell/tests/negative:corpus_starlark",
         "//javascript/tests/fixtures/web_app:corpus_starlark",
+        "//lua/tests/fixtures/lua-app/diagnostics:corpus_starlark",
         "//lua/tests/negative:corpus_starlark",
         "//modules:corpus_starlark",
         "//ocaml/tests/negative:corpus_starlark",

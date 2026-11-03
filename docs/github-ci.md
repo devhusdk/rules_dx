@@ -245,32 +245,61 @@ permissions, so a read-only repository default is fine.
 
 ## Caching
 
-Both callers pass `BUILDBUDDY_API_KEY` and no other secret. Set it to share
-the BuildBuddy remote cache. Codecov is optional.
+Set `BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. For any other
+REAPI cache, set the `remote_cache` input to its URL. Add the
+`REMOTE_CACHE_HEADER` secret (`name=value`) if it needs a header. The input
+and the secret become `--remote_cache` and `--remote_header`. Codecov is
+optional. The docs workflow only reads `BUILDBUDDY_API_KEY`.
+
+```yaml
+# BuildBuddy
+secrets:
+  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+```
+
+```yaml
+# bazel-remote with basic auth: REMOTE_CACHE_HEADER is Authorization=Basic <base64 user:password>
+with:
+  remote_cache: grpcs://cache.example.com:9092
+secrets:
+  REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
+```
+
+```yaml
+# Any other cache with a token header: REMOTE_CACHE_HEADER is x-api-key=<token>
+with:
+  remote_cache: grpcs://cache.example.com
+secrets:
+  REMOTE_CACHE_HEADER: ${{ secrets.REMOTE_CACHE_HEADER }}
+```
 
 Every job restores the Bazel repository cache that Bazel and `dx` use. Each
 platform shares one copy, keyed on `MODULE.bazel` and `MODULE.bazel.lock`.
 On the default branch, each platform's `checks` job saves its copy. With every
 check and `coverage` disabled, nothing saves it. The saved copy holds only the downloads the saving job
 used. Pull requests, forks included, merge queues and other branches only
-restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
+restore it. Without a remote cache, build and test outputs
 are not cached between runs.
 
 CI fails when `MODULE.bazel.lock` is stale. Run `bazel mod deps` and commit the lock.
 
-With that secret set, every Bazel and `dx` call in both workflows runs with
+With a remote cache set, every Bazel and `dx` call in the consumer workflow runs with
 `--config=ci`, plus `--config=ci-pr` on pull requests. Define both configs in
-the repository `.bazelrc` before setting the secret. An undefined config fails
+the repository `.bazelrc` before setting a remote cache. An undefined config fails
 the run: `Config value 'ci' is not defined in any .rc file`.
 
 ```ini
 common:ci --remote_cache=grpcs://remote.buildbuddy.io
 common:ci --remote_cache_compression
 common:ci --remote_timeout=10m
+common:ci --remote_local_fallback
+common:ci --remote_retries=5
+common:ci --experimental_remote_cache_eviction_retries=5
+common:ci --experimental_remote_cache_compression_threshold=100
 common:ci-pr --noremote_upload_local_results
 ```
 
-Without the secret, no config flag is passed and no stanza is needed.
+Without a remote cache, no config flag is passed and no stanza is needed.
 
 ## Failures
 

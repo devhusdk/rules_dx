@@ -19,6 +19,7 @@ struct Starter {
     probes: Option<Probes>,
     format_check: Option<(&'static str, &'static [&'static str])>,
     broken: Option<(&'static str, &'static str)>,
+    unfetched: &'static [&'static str],
 }
 
 /// Targets that build and test only when every variable in `env` is set.
@@ -48,6 +49,7 @@ const PLAIN: Starter = Starter {
     probes: None,
     format_check: None,
     broken: None,
+    unfetched: &[],
 };
 
 const C_PROBES: Probes = Probes {
@@ -82,6 +84,16 @@ const CPP_PROBES: Probes = Probes {
     ],
 };
 
+const OPTIONAL_LANGUAGE_REPOS: &[&str] = &[
+    "rules_d",
+    "rules_elixir",
+    "rules_erlang",
+    "rules_fortran",
+    "rules_haskell",
+    "rules_ocaml",
+    "rules_powershell",
+];
+
 const STARTERS: &[Starter] = &[
     Starter {
         fixture: "mdx",
@@ -94,6 +106,7 @@ const STARTERS: &[Starter] = &[
         run: Some((":demo-app_bin", "hello world")),
         compiler: Some(("c", "clang")),
         probes: Some(C_PROBES),
+        unfetched: OPTIONAL_LANGUAGE_REPOS,
         ..PLAIN
     },
     Starter {
@@ -280,6 +293,26 @@ fn assert_llvm_compiles(root: &Path, ext: &str, compiler: &str) {
     }
 }
 
+fn assert_unfetched(root: &Path, prefixes: &[&str]) {
+    let base = bazel_ok(root, &["info", "output_base"]);
+    let external = Path::new(base.trim()).join("external");
+    let fetched: Vec<String> = std::fs::read_dir(&external)
+        .unwrap_or_else(|error| panic!("read {external:?}: {error}"))
+        .map(|entry| entry.unwrap_or_else(|error| panic!("{error}")))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| {
+            prefixes.iter().any(|prefix| {
+                name.strip_prefix(prefix)
+                    .is_some_and(|rest| rest.starts_with(['+', '~']))
+            })
+        })
+        .collect();
+    assert!(
+        fetched.is_empty(),
+        "a C consumer fetched optional language repos: {fetched:?}"
+    );
+}
+
 fn assert_host_compiler(root: &Path, repo: &str) {
     let out = bazel_ok(
         root,
@@ -341,6 +374,10 @@ fn starter_builds_and_tests_as_a_consumer() {
     }
 
     assert_tests_and_runs(&root, starter);
+
+    if !starter.unfetched.is_empty() {
+        assert_unfetched(&root, starter.unfetched);
+    }
 
     if let Some((ext, compiler)) = starter.compiler {
         assert_llvm_compiles(&root, ext, compiler);

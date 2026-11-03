@@ -19,6 +19,16 @@ def clang_syntax_unit_tests(name):
                 ["tidy", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
             ),
             expect_equal(
+                "clang-tidy takes the config file right after the executable",
+                clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", "q/.clang-tidy").argv[:4],
+                ["tidy", "--config-file=q/.clang-tidy", "a.c", "--"],
+            ),
+            expect_equal(
+                "CUDA clang-tidy takes the config file right after the executable",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-c", "a.cu"], "a.cu", "q/.clang-tidy").argv[:4],
+                ["tidy", "--config-file=q/.clang-tidy", "a.cu", "--"],
+            ),
+            expect_equal(
                 "clang-tidy gets the source then -- then the compile flags",
                 clang_tidy_argv("tidy", [_CLANG, "-DX=1", "-c", "a.c", "-o", "a.o"], "a.c").argv,
                 ["tidy", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],

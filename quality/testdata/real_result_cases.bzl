@@ -17,13 +17,14 @@ _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
 _CC_POLICY = "//quality/testdata/clang_syntax:cc_syntax_policy"
 _OBJC_POLICY = "//quality/testdata/clang_syntax:objc_policy"
+_CC_TIDY_POLICY = "//quality/testdata/clang_syntax:cc_tidy_policy"
 _MACOS_ONLY = ["@platforms//os:macos"]
 
-def _cc_case(tool, capability, name, target, contains, absent):
+def _cc_case(tool, capability, name, target, contains, absent, policy = _CC_POLICY):
     return {
         "name": "real_result_" + tool + "_cc_" + name,
         "target": "//quality/testdata/clang_syntax:" + target,
-        "policy": _CC_POLICY,
+        "policy": policy,
         "tool": tool,
         "capability": capability,
         "class": "c",
@@ -82,6 +83,8 @@ def _go_case(tool, capability, kind, target, contains, absent, policy = _GO_POLI
 REAL_RESULT_CASES = [
     _cc_case("clang_syntax", "typecheck", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["undeclared_name", "Fatal error"]),
     _cc_case("clang_syntax", "typecheck", "dirty", "dirty", ["undeclared identifier 'undeclared_name'"], []),
+    _cc_case("clang_tidy", "lint", "clean", "clean", ["quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
+    _cc_case("clang_tidy", "lint", "dirty", "tidy_dirty", ["readability-else-after-return"], [], _CC_TIDY_POLICY),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     {

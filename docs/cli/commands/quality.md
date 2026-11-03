@@ -374,6 +374,7 @@ until one is bound. Tag the target `no-lint` or `no-format` to skip it.
 | `biome` | yes | `biome.json` | | `biome_config` |
 | `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
 | `checkstyle` | yes | `checkstyle.xml` | | `checkstyle_config` |
+| `clang-tidy` | yes | `.clang-tidy` | | `clang_tidy_config` |
 | `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
 | `graphql-eslint` | yes | `graphql_lint.json` | | `graphql_eslint_config` |
 | `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |

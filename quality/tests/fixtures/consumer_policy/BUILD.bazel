@@ -1,7 +1,7 @@
 load("//api_spec/rules:defs.bzl", "api_spec_library")
 load("//kubernetes/rules:defs.bzl", "kubernetes_schemas")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:native_config.bzl", "eslint_config")
+load("//quality:native_config.bzl", "clang_tidy_config", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality:__pkg__"])
@@ -141,8 +141,14 @@ eslint_config(
     src = "eslint.config.js",
 )
 
+clang_tidy_config(
+    name = "consumer_clang_tidy_config",
+    src = ".clang-tidy",
+)
+
 real_source_target(
     name = "clean_c",
+    aspect_hints = [":consumer_clang_tidy_config"],
     c_srcs = ["clean.c"],
     tags = ["corpus"],
 )

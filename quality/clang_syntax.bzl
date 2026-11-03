@@ -4,6 +4,7 @@ load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//libs/starlark:resources.bzl", "dx_quality_heavy_resources")
+load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load("//quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_source")
 
 ClangSyntaxInfo = provider(
@@ -36,6 +37,7 @@ def clang_syntax_argv(argv, src):
     Args:
       argv: list of string: the compile action command line, compiler first.
       src: string: the source path the action compiles.
+      config: string: the .clang-tidy path, or empty for none.
 
     Returns:
       A struct with `argv` (the rewritten list) and `error` (non-empty when the
@@ -79,13 +81,17 @@ def clang_syntax_argv(argv, src):
         out += ["-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
     return struct(argv = out, error = "")
 
-def clang_tidy_argv(tidy, argv, src):
+def _config_flag(config):
+    return ["--config-file=" + config] if config else []
+
+def clang_tidy_argv(tidy, argv, src, config = ""):
     """Projects a compile command line into a clang-tidy command line.
 
     Args:
       tidy: string: the clang-tidy executable path.
       argv: list of string: the compile action command line, compiler first.
       src: string: the source path the action compiles.
+      config: string: the .clang-tidy path, or empty for none.
 
     Returns:
       A struct with `argv` (clang-tidy, the source, `--`, then the compile flags) and
@@ -103,9 +109,9 @@ def clang_tidy_argv(tidy, argv, src):
             dropped_src = True
             continue
         flags.append(arg)
-    return struct(argv = [tidy, src, "--"] + flags, error = "")
+    return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
-def cuda_tidy_argv(tidy, argv, src):
+def cuda_tidy_argv(tidy, argv, src, config = ""):
     """Projects an nvcc compile command line into a clang-tidy command line (`-x cuda`).
 
     Only the flags clang understands the same way are carried over (include paths,
@@ -116,6 +122,7 @@ def cuda_tidy_argv(tidy, argv, src):
       tidy: string: the clang-tidy executable path.
       argv: list of string: the nvcc compile action command line, nvcc first.
       src: string: the source path the action compiles.
+      config: string: the .clang-tidy path, or empty for none.
 
     Returns:
       A struct with `argv` and `error` (non-empty when the command line cannot be projected).
@@ -149,7 +156,7 @@ def cuda_tidy_argv(tidy, argv, src):
             flags.append(arg.replace("--std=", "-std=", 1))
         elif arg in ["-o", "-MF", "-MT", "-arch", "-code", "-gencode", "-ccbin", "--output-file", "--compiler-bindir"] and i < len(argv):
             i += 1
-    return struct(argv = [tidy, src, "--"] + flags, error = "")
+    return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
 def _first(value):
     return value[0] if type(value) == "list" else value
@@ -198,6 +205,12 @@ def _clang_syntax_impl(target, ctx):
         context = target[CcInfo].compilation_context
         headers = depset(context.direct_private_headers, transitive = [context.headers])
     tidy = ctx.file._clang_tidy
+    tidy_config = ""
+    tidy_closure = depset()
+    for hint in getattr(attrs, "aspect_hints", []):
+        if DxNativeConfigInfo in hint and hint[DxNativeConfigInfo].tool_id == "clang_tidy":
+            tidy_config = hint[DxNativeConfigInfo].config.path
+            tidy_closure = hint[DxNativeConfigInfo].closure
     runner = ctx.file._clang_tidy_run
     argvs = []
     envs = []
@@ -218,7 +231,7 @@ def _clang_syntax_impl(target, ctx):
             if i not in cuda_keep:
                 continue
             src = nvcc_syntax_source(list(argv))
-            tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src)
+            tidy_argv = cuda_tidy_argv(tidy.path, list(argv), src, tidy_config)
             if tidy_argv.error != "":
                 fail("clang_tidy: " + str(target.label) + ": " + tidy_argv.error)
             tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s_%d.log" % (target.label.name, i))
@@ -227,7 +240,7 @@ def _clang_syntax_impl(target, ctx):
                 progress_message = "clang-tidy %{label}: " + src,
                 command = 'bash "$@"',
                 arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
-                inputs = depset([tidy, runner], transitive = [action.inputs, headers]),
+                inputs = depset([tidy, runner], transitive = [action.inputs, headers, tidy_closure]),
                 outputs = [tidy_log],
                 env = action.env,
                 resource_set = dx_quality_heavy_resources,
@@ -242,7 +255,7 @@ def _clang_syntax_impl(target, ctx):
         log = ctx.actions.declare_file("dx_clang_syntax/%s.log" % stem)
         status = ctx.actions.declare_file("dx_clang_syntax/%s.exit" % stem)
         all_inputs = depset(transitive = [action.inputs, headers])
-        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src)
+        tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, tidy_config)
         if tidy_argv.error != "":
             fail("clang_syntax: " + str(target.label) + ": " + tidy_argv.error)
         tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
@@ -265,7 +278,7 @@ def _clang_syntax_impl(target, ctx):
             progress_message = "clang-tidy %{label}: " + src,
             command = 'bash "$@"',
             arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
-            inputs = depset([tidy, runner], transitive = [all_inputs]),
+            inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
             outputs = [tidy_log],
             env = action.env,
             execution_requirements = requirements,

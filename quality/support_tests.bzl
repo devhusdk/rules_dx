@@ -338,6 +338,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "clang_tidy claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "clang_tidy"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                [],
+            ),
+            expect_equal(
                 "clippy and rustc claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["clippy", "rustc"]], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],

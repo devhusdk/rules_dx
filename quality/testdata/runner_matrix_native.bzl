@@ -183,36 +183,6 @@ NATIVE_CASES = [
         "expected_file": ":matrix/matrix_objc_format_config_unsupported.expected.txt",
     },
     {
-        "name": "matrix_c_lint_pass",
-        "generated": {
-            "matrix/clang_tidy_clean.c": "// Seed C lint fixture.\n#include <stdio.h>\n\nint check(int value) {\n  return value;\n}\n",
-        },
-        "capability": "lint",
-        "stages": ["clang_tidy;c;matrix/clang_tidy_clean.c"],
-        "upstream_tools": ["clang_tidy"],
-        "upstream_srcs": [":matrix/matrix_c_lint_pass.upstream.clang_tidy.txt"],
-        "expected_file": ":matrix/matrix_c_lint_pass.expected.txt",
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
-    },
-    {
-        "name": "matrix_c_lint_fail",
-        "generated": {
-            "matrix/clang_tidy_dirty.c": "// Seed C lint fixture.\n#include <stdio.h>\n\nint check(int value) {\n  if (value) {\n    return 1;\n  } else {\n    return 0;\n  }\n}\n",
-        },
-        "capability": "lint",
-        "stages": ["clang_tidy;c;matrix/clang_tidy_dirty.c"],
-        "upstream_tools": ["clang_tidy"],
-        "upstream_srcs": [":matrix/matrix_c_lint_fail.upstream.clang_tidy.txt"],
-        "expected_file": ":matrix/matrix_c_lint_fail.expected.txt",
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-        "windows_arm64": True,
-    },
-    {
         "name": "matrix_cpp_lint_pass",
         "generated": {
             "matrix/cppcheck_clean.c": "// Seed C++ lint fixture.\n\nint check(int value) {\n  return value;\n}\n",

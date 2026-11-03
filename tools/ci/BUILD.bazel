@@ -121,6 +121,29 @@ rust_test(
 
 # keep
 rust_library(
+    name = "junit_summary",
+    srcs = ["junit_summary.rs"],
+    crate_name = "junit_summary",
+)
+
+# keep
+rust_binary(
+    name = "junit_summary_bin",
+    srcs = ["junit_summary_main.rs"],
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":junit_summary"],
+)
+
+# keep
+rust_test(
+    name = "junit_summary_test",
+    size = "small",
+    srcs = ["junit_summary_test.rs"],
+    deps = [":junit_summary"],
+)
+
+# keep
+rust_library(
     name = "docs_scope",
     srcs = ["docs_scope.rs"],
     crate_name = "docs_scope",
@@ -962,6 +985,7 @@ rustfmt_test(
         ":crate_platform_pins_test",
         ":docs_deploy_test",
         ":gitlab_example_test",
+        ":junit_summary_test",
         ":release_assets_test",
         ":release_cells_runners_test",
         ":reusable_callers_test",

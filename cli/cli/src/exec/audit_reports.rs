@@ -660,70 +660,6 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
 }
 
 #[test]
-fn audit_live_names_the_gemfile_lock_each_ruby_finding_came_from() {
-    use dx_plan::args::parse;
-    let harness = Harness::new("audit-ruby-lock-paths");
-    harness.write_source(
-        "third_party/ruby/Gemfile.lock",
-        "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n",
-    );
-    harness.write_source(
-        "examples/adopt-ruby/Gemfile.lock",
-        "GEM\n  remote: https://rubygems.org/\n  specs:\n    rake (13.2.1)\n",
-    );
-    write_advisory(
-        &harness,
-        "rubygems",
-        r#"[{"id":"GHSA-ruby-aaaa","package":"rspec-core","versions":">=3.0.0, <3.13.1","severity":"high","fixed":["3.13.1"],"set":"ruby"},{"id":"GHSA-ruby-bbbb","package":"rake","versions":"13.2.1","severity":"moderate","fixed":[],"set":"ruby"}]"#,
-    );
-    let invocation = parse(&[
-        "security".to_owned(),
-        "//ruby/tests/fixtures/hello:hello".to_owned(),
-        "--report=sarif=vuln.sarif".to_owned(),
-    ])
-    .expect("parse");
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let code = execute(
-        &invocation,
-        harness.env(&AuditRunner::clean(), &mut out, &mut err),
-    );
-    let out_text = String::from_utf8(out).expect("stdout");
-    let err_text = String::from_utf8(err).expect("stderr");
-    assert_eq!(code, 1, "{out_text}{err_text}");
-    let sarif = std::fs::read_to_string(harness.workspace.join("vuln.sarif")).expect("sarif");
-    let value: serde_json::Value = serde_json::from_str(&sarif).expect("sarif JSON");
-    let run = value["runs"]
-        .as_array()
-        .expect("runs")
-        .iter()
-        .find(|run| run["tool"]["driver"]["name"] == serde_json::json!("vuln"))
-        .expect("vuln run");
-    let mut by_package: std::collections::BTreeMap<String, String> = Default::default();
-    for result in run["results"].as_array().expect("results") {
-        let message = result["message"]["text"].as_str().expect("message");
-        by_package.insert(
-            message.split('@').next().expect("package").to_owned(),
-            result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
-                .as_str()
-                .expect("uri")
-                .to_owned(),
-        );
-    }
-    assert_eq!(
-        by_package.get("rspec-core").map(String::as_str),
-        Some("third_party/ruby/Gemfile.lock"),
-        "{by_package:?}"
-    );
-    assert_eq!(
-        by_package.get("rake").map(String::as_str),
-        Some("examples/adopt-ruby/Gemfile.lock"),
-        "{by_package:?}"
-    );
-    assert_eq!(by_package.len(), 2, "{by_package:?}");
-}
-
-#[test]
 fn audit_live_unowned_scope_fails_usage() {
     let harness = Harness::new("audit-unowned");
     let (code, _out, err) = harness.run(&["security", "docs/cli/README.md"]);
@@ -1055,11 +991,6 @@ fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
         .map(|set| set.name())
         .collect();
     for name in &names {
-        if *name == "powershell" {
-            assert!(!dx_audit::backend::is_empty_set(name));
-            assert!(dx_audit::advisory::advisory_family(name).is_none());
-            continue;
-        }
         assert_eq!(
             dx_audit::backend::is_empty_set(name),
             dx_audit::advisory::advisory_family(name)
@@ -1076,6 +1007,7 @@ fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
     let curated: std::collections::BTreeSet<&str> = dx_audit::curator::CURATOR_ADVISORY_SETS
         .iter()
         .copied()
+        .filter(|family| *family != "rubygems")
         .collect();
     let covered_families: std::collections::BTreeSet<&str> = covered
         .iter()
@@ -1120,7 +1052,7 @@ fn audit_errors_stay_typed_with_stable_display() {
             sets: super::audited_set_names().join(", "),
         }
         .to_string(),
-        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget, powershell, ruby"
+        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget"
     );
     let read = AuditError::Read {
         rel: "pnpm-lock.yaml".to_owned(),
@@ -1304,16 +1236,6 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
         ("//csharp/tests/fixtures/hello:hello", vec![SetId::NuGet]),
         ("//scala/greet:greet", vec![SetId::Maven]),
         ("//python/tests/fixtures/hello/hello.py", vec![SetId::Uv]),
-        ("//ruby/tests/fixtures/hello:hello", vec![SetId::Ruby]),
-        ("//examples/adopt-ruby/greet:greet", vec![SetId::Ruby]),
-        (
-            "//examples/adopt-powershell/greet:greet",
-            vec![SetId::PowerShell],
-        ),
-        (
-            "//third_party/powershell:PSGallery.lock.json",
-            vec![SetId::PowerShell],
-        ),
     ] {
         assert_eq!(
             super::resolve_audit_sets(&[scope.to_owned()]).expect(scope),
@@ -1331,9 +1253,7 @@ fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
             "npm-adopt",
             "npm-adopt-polyglot",
             "npm-tools",
-            "nuget",
-            "powershell",
-            "ruby"
+            "nuget"
         ]
     );
     for scope in [

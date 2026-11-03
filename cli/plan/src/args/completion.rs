@@ -615,8 +615,6 @@ mod tests {
                 "npm-adopt-polyglot",
                 "npm-tools",
                 "nuget",
-                "powershell",
-                "ruby",
                 "uv",
                 "uv-adopt",
                 "uv-adopt-polyglot",

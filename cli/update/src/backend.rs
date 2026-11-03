@@ -406,16 +406,6 @@ pub fn plan(
             set: set.name().to_owned(),
             reason: "go pins track Gazelle for the shared go_deps extension; widen explicitly via `dx update go:<module> <version>`",
         }),
-        (SetId::Ruby, SetRequest::Full) => Ok(BackendPlan::Noop),
-        (SetId::Ruby, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name().to_owned(),
-            reason: "ruby pins are exact in third_party/ruby/Gemfile; widen the requirement there and regenerate the lock with `bundle lock`",
-        }),
-        (SetId::PowerShell, SetRequest::Full) => Ok(BackendPlan::Noop),
-        (SetId::PowerShell, SetRequest::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name().to_owned(),
-            reason:                 "powershell pins are exact in third_party/powershell/PSGallery.requirements.psd1; widen the requirement there and hand-regenerate PSGallery.lock.json, because consumer builds never run Install-Module",
-        }),
     };
     if matches!(planned, Ok(BackendPlan::Run { .. })) {
         if offline {
@@ -462,13 +452,7 @@ pub fn check(
             env: Vec::new(),
         });
     }
-    if matches!(
-        (set, request),
-        (
-            SetId::Go | SetId::Ruby | SetId::PowerShell,
-            SetRequest::Full
-        )
-    ) {
+    if matches!((set, request), (SetId::Go, SetRequest::Full)) {
         return Ok(CheckPlan::Pinned);
     }
     match plan(workspace, set, request, offline, false, head) {
@@ -1534,68 +1518,8 @@ mod tests {
     }
 
     #[test]
-    fn ruby_full_is_pinned_noop_success() {
-        assert_eq!(
-            plan(
-                ws(),
-                SetId::Ruby,
-                &SetRequest::Full,
-                false,
-                false,
-                &no_head()
-            )
-            .expect("ruby full"),
-            BackendPlan::Noop
-        );
-        let error = plan(
-            ws(),
-            SetId::Ruby,
-            &SetRequest::Packages(vec!["rspec-core".to_owned()]),
-            false,
-            false,
-            &no_head(),
-        )
-        .expect_err("ruby selective is seed-host only");
-        assert!(
-            matches!(error, BackendError::Unsupported { .. }),
-            "{error:?}"
-        );
-        assert!(error.to_string().contains("bundle lock"), "{error}");
-    }
-
-    #[test]
-    fn powershell_full_is_pinned_noop_success() {
-        assert_eq!(
-            plan(
-                ws(),
-                SetId::PowerShell,
-                &SetRequest::Full,
-                false,
-                false,
-                &no_head()
-            )
-            .expect("powershell full"),
-            BackendPlan::Noop
-        );
-        let error = plan(
-            ws(),
-            SetId::PowerShell,
-            &SetRequest::Packages(vec!["Pester".to_owned()]),
-            false,
-            false,
-            &no_head(),
-        )
-        .expect_err("powershell selective is seed-host only");
-        assert!(
-            matches!(error, BackendError::Unsupported { .. }),
-            "{error:?}"
-        );
-        assert!(error.to_string().contains("Install-Module"), "{error}");
-    }
-
-    #[test]
     fn non_npm_selective_reports_unsupported_never_full() {
-        let rows: [(SetId, &str, &str); 14] = [
+        let rows: [(SetId, &str, &str); 12] = [
             (SetId::Cargo, "anyhow", "use `dx update cargo` for the set"),
             (
                 SetId::Maven,
@@ -1617,8 +1541,6 @@ mod tests {
                 "github.com/google/go-cmp/cmp",
                 "dx update go:<module> <version>",
             ),
-            (SetId::Ruby, "rspec-core", "bundle lock"),
-            (SetId::PowerShell, "Pester", "Install-Module"),
             (
                 SetId::NpmTools,
                 "eslint",
@@ -2234,7 +2156,7 @@ mod tests {
 
     #[test]
     fn pinned_sets_check_without_launching() {
-        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+        for set in [SetId::Go] {
             assert_eq!(
                 check(ws(), set, &SetRequest::Full, false, false, &no_head())
                     .expect("pinned check"),
@@ -2364,7 +2286,7 @@ mod tests {
             matches!(selective, BackendError::OfflineRequired { .. }),
             "{selective:?}"
         );
-        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+        for set in [SetId::Go] {
             assert_eq!(
                 plan(ws(), set, &SetRequest::Full, true, false, &no_head())
                     .expect("pinned noop offline"),
@@ -2388,14 +2310,6 @@ mod tests {
             (
                 SetId::Go,
                 SetRequest::Packages(vec!["example.com/mod".to_owned()]),
-            ),
-            (
-                SetId::Ruby,
-                SetRequest::Packages(vec!["rspec-core".to_owned()]),
-            ),
-            (
-                SetId::PowerShell,
-                SetRequest::Packages(vec!["Pester".to_owned()]),
             ),
             (
                 SetId::NpmTools,
@@ -2456,7 +2370,7 @@ mod tests {
             assert!(error.to_string().contains("frozen_locked"), "{error}");
             assert!(error.to_string().contains(set.name()), "{error}");
         }
-        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+        for set in [SetId::Go] {
             assert_eq!(
                 plan(ws(), set, &SetRequest::Full, false, true, &no_head())
                     .expect("pinned noop frozen"),
@@ -2481,7 +2395,7 @@ mod tests {
 
     #[test]
     fn frozen_check_passes_without_resolution_changes() {
-        for set in [SetId::Go, SetId::Ruby, SetId::PowerShell] {
+        for set in [SetId::Go] {
             assert_eq!(
                 check(ws(), set, &SetRequest::Full, false, true, &no_head())
                     .expect("pinned check frozen"),

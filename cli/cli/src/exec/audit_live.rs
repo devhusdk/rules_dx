@@ -133,7 +133,6 @@ pub(super) fn write_all_lock_families(harness: &Harness) {
     write_maven_lock(harness);
     write_nuget_lock(harness);
     write_go_mod(harness);
-    write_ruby_locks(harness);
     harness.write_source(
         "third_party/powershell/PSGallery.lock.json",
         "{\n  \"modules\": {}\n}\n",
@@ -197,25 +196,6 @@ pub(super) fn write_go_mod(harness: &Harness) {
     );
 }
 
-pub(super) fn write_powershell_locks(harness: &Harness) {
-    harness.write_source(
-        "third_party/powershell/PSGallery.lock.json",
-        "{\n  \"pwsh\": \"7.5.4\",\n  \"modules\": {\n    \"Pester\": {\n      \"version\": \"5.7.1\"\n    },\n    \"PSScriptAnalyzer\": {\n      \"version\": \"1.25.0\"\n    }\n  }\n}\n",
-    );
-}
-
-pub(super) fn write_ruby_locks(harness: &Harness) {
-    for rel in [
-        "third_party/ruby/Gemfile.lock",
-        "examples/adopt-ruby/Gemfile.lock",
-    ] {
-        harness.write_source(
-            rel,
-            "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec (3.13.0)\n      rspec-core (~> 3.13.0)\n    rspec-core (3.13.0)\n      rspec-support (~> 3.13.0)\n    rspec-support (3.13.1)\n",
-        );
-    }
-}
-
 const NPM_LOCK: &str =
     "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
 
@@ -251,7 +231,7 @@ pub(super) fn write_advisory(harness: &Harness, set: &str, json: &str) {
 }
 
 pub(super) fn write_all_empty_advisories(harness: &Harness) {
-    for set in ["cargo", "npm", "maven", "nuget", "go", "rubygems"] {
+    for set in ["cargo", "npm", "maven", "nuget", "go"] {
         write_advisory(harness, set, "[]");
     }
 }
@@ -267,7 +247,7 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     assert!(out.contains("audit security: clean"), "{out}");
     assert!(
         out.contains(
-            "audit security: clean; no advisory coverage for powershell, uv, uv-adopt, \
+            "audit security: clean; no advisory coverage for uv, uv-adopt, \
              uv-adopt-polyglot, uv-tools"
         ),
         "{out}"
@@ -503,8 +483,6 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
         write_maven_lock(harness);
         write_nuget_lock(harness);
         write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{err}");
@@ -525,8 +503,6 @@ pub(super) fn audit_live_npm_git_and_sibling_locks_are_incomplete() {
         write_maven_lock(harness);
         write_nuget_lock(harness);
         write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{err}");
@@ -547,8 +523,6 @@ pub(super) fn audit_live_npm_pnpm_git_resolution_is_incomplete() {
         write_maven_lock(harness);
         write_nuget_lock(harness);
         write_go_mod(harness);
-        write_ruby_locks(harness);
-        write_powershell_locks(harness);
         write_all_empty_advisories(harness);
     });
     assert_eq!(code, 1, "{err}");
@@ -632,113 +606,6 @@ pub(super) fn audit_live_npm_family_locks_are_clean_when_no_advisory_matches() {
         !out.contains("no advisory coverage for npm-adopt"),
         "npm-adopt is covered: {out}"
     );
-}
-
-#[test]
-pub(super) fn audit_live_ruby_scopes_are_assessed_against_the_rubygems_snapshot() {
-    for scope in [
-        "//third_party/ruby:default",
-        "//examples/adopt-ruby/greet:greet",
-        "//ruby/tests/fixtures/hello:hello",
-    ] {
-        let runner = AuditRunner::clean();
-        let (code, _out, err) = run_with(&["security", scope], &runner, &|harness| {
-            write_ruby_locks(harness);
-            write_powershell_locks(harness);
-            write_advisory(
-                harness,
-                "rubygems",
-                r#"[{"id":"GHSA-ruby-test-0001","package":"rspec-core","versions":">=3.0.0, <3.13.1","severity":"high","fixed":["3.13.1"],"set":"ruby"}]"#,
-            );
-        });
-        assert_eq!(code, 1, "{scope} must fail: {err}");
-        assert!(
-            err.contains("1 vulnerability findings"),
-            "{scope} must be assessed: {err}"
-        );
-    }
-}
-
-#[test]
-pub(super) fn audit_live_powershell_is_incomplete_and_never_matched_against_nuget_advisories() {
-    for scope in [
-        "//third_party/powershell:default",
-        "//examples/adopt-powershell/greet:greet",
-    ] {
-        let runner = AuditRunner::clean();
-        let (code, out, err) = run_with(&["security", scope], &runner, &|harness| {
-            harness.write_source(
-                "third_party/powershell/PSGallery.lock.json",
-                "{\n  \"modules\": {\n    \"ExampleModule\": {\n      \"version\": \"1.2.3\"\n    }\n  }\n}\n",
-            );
-            write_advisory(
-                harness,
-                "nuget",
-                r#"[{"id":"GHSA-nuget-test-0001","package":"ExampleModule","versions":"[1.0.0, 2.0.0)","severity":"high","fixed":["2.0.0"],"set":"nuget"}]"#,
-            );
-        });
-        let text = format!("{out}{err}");
-        assert_eq!(code, 1, "{scope} must not be clean: {text}");
-        assert!(
-            text.contains("no advisory backend for PowerShell Gallery modules"),
-            "{scope}: {text}"
-        );
-        assert!(
-            !text.contains("vulnerability findings") && !text.contains("GHSA-nuget-test-0001"),
-            "{scope} must not borrow a NuGet advisory: {text}"
-        );
-    }
-}
-
-#[test]
-pub(super) fn audit_live_powershell_accepted_as_uncovered_stays_visible() {
-    for (expires, code, detail) in [
-        ("2999-01-01", 0, "no advisory coverage for powershell"),
-        (
-            "2000-01-01",
-            1,
-            "uncovered acceptance for powershell expired 2000-01-01",
-        ),
-    ] {
-        let runner = AuditRunner::clean();
-        let (actual, out, err) = run_with(
-            &["security", "//third_party/powershell:default"],
-            &runner,
-            &|harness| {
-                harness.write_source(
-                    "third_party/powershell/PSGallery.lock.json",
-                    "{\n  \"modules\": {\n    \"ExampleModule\": {\n      \"version\": \"1.2.3\"\n    }\n  }\n}\n",
-                );
-                harness.write_source(
-                    "security.toml",
-                    &format!(
-                        "schema_version = 1\n\n[[uncovered]]\nset = \"powershell\"\nreason = \"No Gallery advisory source.\"\nexpires = \"{expires}\"\n"
-                    ),
-                );
-            },
-        );
-        let text = format!("{out}{err}");
-        assert_eq!(actual, code, "{expires}: {text}");
-        assert!(text.contains(detail), "{expires}: {text}");
-    }
-}
-
-#[test]
-pub(super) fn audit_live_powershell_malformed_lock_is_incomplete() {
-    let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(
-        &["security", "//third_party/powershell:default"],
-        &runner,
-        &|harness| {
-            harness.write_source(
-                "third_party/powershell/PSGallery.lock.json",
-                "{\"modules\": []}",
-            );
-        },
-    );
-    let text = format!("{out}{err}");
-    assert_eq!(code, 1, "{text}");
-    assert!(text.contains("PSGallery.lock.json"), "{text}");
 }
 
 #[test]

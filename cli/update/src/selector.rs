@@ -73,8 +73,6 @@ fn is_target_shape(text: &str) -> bool {
 }
 
 const UV_CHARSET: &str = "uv package names use [A-Za-z0-9_.-] only";
-const RUBY_CHARSET: &str = "ruby gem names use [A-Za-z0-9_.-] only";
-const POWERSHELL_CHARSET: &str = "powershell module names use [A-Za-z0-9_.-] only";
 
 fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
     let invalid = |reason: &'static str| SelectorError::InvalidPackage {
@@ -93,10 +91,6 @@ fn validate_package(set: SetId, package: &str) -> Result<(), SelectorError> {
         SetId::Uv | SetId::UvTools | SetId::UvAdopt | SetId::UvAdoptPolyglot => {
             dx_module_bazel::identity::validate_dotted(package, UV_CHARSET)
         }
-        SetId::Ruby => dx_module_bazel::identity::validate_dotted(package, RUBY_CHARSET),
-        SetId::PowerShell => {
-            dx_module_bazel::identity::validate_dotted(package, POWERSHELL_CHARSET)
-        }
     };
     reason.map_err(invalid)
 }
@@ -114,12 +108,6 @@ const OWNING_PREFIXES: &[(&str, &[SetId])] = &[
     ("examples/adopt-csharp", &[SetId::NuGet]),
     ("examples/adopt-fsharp", &[SetId::NuGet]),
     ("examples/adopt-go", &[SetId::Go]),
-    ("third_party/powershell", &[SetId::PowerShell]),
-    ("examples/adopt-powershell", &[SetId::PowerShell]),
-    ("powershell", &[SetId::PowerShell]),
-    ("third_party/ruby", &[SetId::Ruby]),
-    ("examples/adopt-ruby", &[SetId::Ruby]),
-    ("ruby", &[SetId::Ruby]),
     (
         "examples/adopt-polyglot",
         &[SetId::NpmAdoptPolyglot, SetId::UvAdoptPolyglot],
@@ -502,48 +490,6 @@ mod tests {
     }
 
     #[test]
-    fn the_ruby_bundle_owns_its_shared_lock_and_the_adopted_copy() {
-        assert_eq!(owning_sets("//third_party/ruby:default"), vec![SetId::Ruby]);
-        assert_eq!(
-            owning_sets("third_party/ruby/Gemfile.lock"),
-            vec![SetId::Ruby]
-        );
-        assert_eq!(
-            owning_sets("examples/adopt-ruby/greet"),
-            vec![SetId::Ruby],
-            "the adopted Gemfile.lock is the same set"
-        );
-        assert_eq!(owning_sets("//examples/adopt-ruby/..."), vec![SetId::Ruby]);
-        assert_eq!(owning_sets("//ruby/greet"), vec![SetId::Ruby]);
-    }
-
-    #[test]
-    fn the_gallery_hub_owns_its_shared_lock_and_the_adopted_copy() {
-        assert_eq!(
-            owning_sets("//third_party/powershell:default"),
-            vec![SetId::PowerShell]
-        );
-        assert_eq!(
-            owning_sets("third_party/powershell/PSGallery.lock.json"),
-            vec![SetId::PowerShell]
-        );
-        assert_eq!(
-            owning_sets("examples/adopt-powershell/greet"),
-            vec![SetId::PowerShell],
-            "the adopted requirements read the shared hub lock"
-        );
-        assert_eq!(
-            owning_sets("//examples/adopt-powershell/..."),
-            vec![SetId::PowerShell]
-        );
-        assert_eq!(
-            owning_sets("//powershell/greet:greet"),
-            vec![SetId::PowerShell],
-            "the rules package consumes the shared Gallery hub"
-        );
-    }
-
-    #[test]
     fn a_recursive_scope_owns_the_sets_nested_under_it() {
         assert_eq!(
             owning_sets("//quality/..."),
@@ -558,13 +504,7 @@ mod tests {
         assert_eq!(owning_sets("//javascript/..."), vec![SetId::Npm]);
         assert_eq!(
             owning_sets("//third_party/..."),
-            vec![
-                SetId::Go,
-                SetId::Maven,
-                SetId::NuGet,
-                SetId::PowerShell,
-                SetId::Ruby
-            ]
+            vec![SetId::Go, SetId::Maven, SetId::NuGet]
         );
         assert_eq!(
             owning_sets("//tools/docs/..."),
@@ -580,8 +520,6 @@ mod tests {
                 SetId::NpmAdopt,
                 SetId::NpmAdoptPolyglot,
                 SetId::NuGet,
-                SetId::PowerShell,
-                SetId::Ruby,
                 SetId::UvAdopt,
                 SetId::UvAdoptPolyglot,
             ]
@@ -619,7 +557,7 @@ mod tests {
     #[test]
     fn bare_resolves_to_all_sets_full() {
         let resolved = resolve(&[]).expect("bare");
-        assert_eq!(resolved.len(), 14);
+        assert_eq!(resolved.len(), 12);
         for set in SetId::ALL {
             assert_eq!(resolved.get(&set), Some(&SetRequest::Full));
         }
@@ -703,7 +641,7 @@ mod tests {
         let resolved = resolve(&strings(&["//go/tests/fixtures/hello:hello"])).expect("target");
         assert_eq!(resolved.get(&SetId::Go), Some(&SetRequest::Full));
         let resolved = resolve(&strings(&["//..."])).expect("repo");
-        assert_eq!(resolved.len(), 14);
+        assert_eq!(resolved.len(), 12);
     }
 
     #[test]

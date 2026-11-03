@@ -17,12 +17,8 @@ scan. Neither command changes files. Bazel options do not apply.
 
 `dx security` reads the lockfile of each set it owns and matches it against
 `.dx/advisory/<family>.json`. Sets: `cargo`, `go`, `maven`, `npm`, `npm-adopt`,
-`npm-adopt-polyglot`, `npm-tools`, `nuget`, `powershell`, `ruby`. The
-`npm-adopt`, `npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot,
-and the `ruby` set uses the `rubygems` snapshot. The `powershell` set has no
-advisory snapshot. A run that selects it fails with `failed to assess powershell`
-when `PSGallery.lock.json` lists modules, unless `security.toml` accepts it with
-an `[[uncovered]]` entry, and lists it under `no advisory coverage` otherwise.
+`npm-adopt-polyglot`, `npm-tools`, `nuget`. The `npm-adopt`,
+`npm-adopt-polyglot`, and `npm-tools` sets share the `npm` snapshot.
 Sets without a snapshot are listed as `no advisory coverage for <sets>`.
 An advisory range or locked version that dx cannot parse marks the package
 unassessed with `unsupported version syntax`, and the run exits `1`.
@@ -41,7 +37,7 @@ A scope selects sets by path, and a path can select more than one. A `...` scope
 selects the set of the nearest path above it in the table plus every set nested
 under it, so `//quality/...` selects `cargo`, `npm-tools`, and `uv-tools`, and
 `//third_party/...`, a path the table does not name, selects `go`, `maven`,
-`nuget`, `powershell`, and `ruby`. A package under a path in the table selects
+and `nuget`. A package under a path in the table selects
 that path's set, so `//cli/cli` selects `cargo`. Each set then reads its own
 lockfile, so a scope narrows which sets run, never which packages inside a
 lockfile.
@@ -53,8 +49,6 @@ lockfile.
 //examples/adopt-csharp/..., //examples/adopt-fsharp/...                              nuget
 //go/..., //third_party/go/...                                                         go
 //examples/adopt-go/...                                                               go
-//powershell/..., //third_party/powershell/..., //examples/adopt-powershell/...      powershell
-//ruby/..., //third_party/ruby/..., //examples/adopt-ruby/...                        ruby
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
 //examples/adopt-java/..., //examples/adopt-kotlin/..., //examples/adopt-scala/...    maven
 //javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
@@ -74,10 +68,7 @@ audited against the `pypi` snapshot. A path the table does not name, and that
 has no path from the table under it, owns no set.
 
 `dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
-`yarn.lock` for the `npm` set, and the lockfile of every other set. The `ruby`
-set reads `third_party/ruby/Gemfile.lock` and
-`examples/adopt-ruby/Gemfile.lock`. The `powershell` set reads
-`third_party/powershell/PSGallery.lock.json`. Each finding names the lockfile it
+`yarn.lock` for the `npm` set, and the lockfile of every other set. Each finding names the lockfile it
 was read from. `pnpm-lock.yaml` is read at `lockfileVersion` 5.x, 6.0, and 9.0; a
 package key that cannot be resolved fails the command with a lock parse error
 naming the key.

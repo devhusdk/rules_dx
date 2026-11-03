@@ -3,6 +3,7 @@
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
 load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
@@ -45,9 +46,11 @@ _cc_binary_forward = dx_executable_forward_rule(
 
 _LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format"]
 
-def cc_coverage_features(features, collect_code_coverage):
-    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage."""
+def cc_coverage_features(features, collect_code_coverage, compiler = ""):
+    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage and an LLVM or unset compiler."""
     if not collect_code_coverage:
+        return features
+    if compiler and cc_compiler_identity(compiler, "").coverage != "llvm":
         return features
     return features + [f for f in _LLVM_COVERAGE_FEATURES if f not in features]
 
@@ -55,12 +58,13 @@ def _cc_coverage_transition_impl(settings, _attr):
     features = cc_coverage_features(
         settings["//command_line_option:features"],
         settings["//command_line_option:collect_code_coverage"],
+        settings["//command_line_option:compiler"] or "",
     )
     return {"//command_line_option:features": features}
 
 _cc_coverage_transition = transition(
     implementation = _cc_coverage_transition_impl,
-    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage"],
+    inputs = ["//command_line_option:features", "//command_line_option:collect_code_coverage", "//command_line_option:compiler"],
     outputs = ["//command_line_option:features"],
 )
 

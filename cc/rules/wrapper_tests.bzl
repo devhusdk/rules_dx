@@ -22,6 +22,10 @@ def cc_wrapper_contract_tests(name):
             expect_equal("coverage off keeps features", cc_coverage_features(["a"], False), ["a"]),
             expect_equal("coverage on adds llvm maps", cc_coverage_features(["a"], True), ["a", "llvm_coverage_map_format", "-gcc_coverage_map_format"]),
             expect_equal("coverage on is idempotent", cc_coverage_features(["llvm_coverage_map_format"], True), ["llvm_coverage_map_format", "-gcc_coverage_map_format"]),
+            expect_equal("clang keeps llvm maps", cc_coverage_features([], True, "clang"), ["llvm_coverage_map_format", "-gcc_coverage_map_format"]),
+            expect_equal("gcc gets no llvm maps", cc_coverage_features(["a"], True, "gcc"), ["a"]),
+            expect_equal("msvc gets no llvm maps", cc_coverage_features(["a"], True, "msvc-cl"), ["a"]),
+            expect_equal("custom compiler gets no llvm maps", cc_coverage_features(["a"], True, "icx"), ["a"]),
         ],
     )
 

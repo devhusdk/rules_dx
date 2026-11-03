@@ -151,11 +151,6 @@ pub fn render_editor_settings(windows: bool) -> String {
     } else {
         ".dx/setups/current/.venv/bin/python"
     };
-    let clangd = if windows {
-        ".dx/bin/clangd.exe"
-    } else {
-        ".dx/bin/clangd"
-    };
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
     let settings = serde_json::json!({
@@ -187,8 +182,8 @@ pub fn render_editor_settings(windows: bool) -> String {
         "python.defaultInterpreterPath": python,
         "typescript.tsdk": ".dx/ide/typescript/lib",
         "go.toolsManagement.checkForUpdates": "off",
-        "clangd.path": clangd,
-        "clangd.arguments": ["--compile-commands-dir=.dx/setups/current"],
+        "clangd.path": ".dx/ide/cc/clangd",
+        "clangd.arguments": ["--compile-commands-dir=.dx/ide/cc"],
         "java.configuration.updateBuildConfiguration": "manual",
         "kotlin.languageServer.enabled": true,
     });
@@ -530,12 +525,14 @@ mod tests {
             .expect("settings scaffold");
         let parsed: serde_json::Value =
             serde_json::from_str(&settings.content).expect("valid JSON");
-        let clangd = if cfg!(windows) {
-            ".dx/bin/clangd.exe"
-        } else {
-            ".dx/bin/clangd"
-        };
-        assert_eq!(parsed["clangd.path"], serde_json::Value::from(clangd));
+        assert_eq!(
+            parsed["clangd.path"],
+            serde_json::Value::from(".dx/ide/cc/clangd")
+        );
+        assert_eq!(
+            parsed["clangd.arguments"],
+            serde_json::json!(["--compile-commands-dir=.dx/ide/cc"])
+        );
         assert_eq!(
             parsed["java.configuration.updateBuildConfiguration"],
             serde_json::Value::from("manual")
@@ -780,17 +777,9 @@ mod tests {
 
     #[test]
     fn editor_settings_use_host_native_interpreter_and_tool_names() {
-        for (windows, python, clangd) in [
-            (
-                false,
-                ".dx/setups/current/.venv/bin/python",
-                ".dx/bin/clangd",
-            ),
-            (
-                true,
-                ".dx/setups/current/.venv/bin/python.exe",
-                ".dx/bin/clangd.exe",
-            ),
+        for (windows, python) in [
+            (false, ".dx/setups/current/.venv/bin/python"),
+            (true, ".dx/setups/current/.venv/bin/python.exe"),
         ] {
             let settings = render_editor_settings(windows);
             let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
@@ -798,7 +787,6 @@ mod tests {
                 parsed["python.defaultInterpreterPath"],
                 serde_json::Value::from(python)
             );
-            assert_eq!(parsed["clangd.path"], serde_json::Value::from(clangd));
             assert!(settings.ends_with('\n'), "{settings}");
         }
         let unix = render_editor_settings(false);

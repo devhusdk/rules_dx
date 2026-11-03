@@ -1,5 +1,6 @@
 //! Editor support files under `.dx/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
 
+mod cc;
 mod link;
 mod typescript;
 
@@ -16,6 +17,7 @@ pub struct Ctx<'a> {
     pub workspace: &'a Path,
     pub dir: &'a Path,
     pub outputs: &'a [PathBuf],
+    pub runner: &'a dyn Runner,
 }
 
 /// One editor integration: what turns it on, what it needs built, and how it writes.
@@ -29,6 +31,10 @@ pub struct Plugin {
 /// Builds rules_dx labels and returns the absolute paths of their files.
 pub trait Runner {
     fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String>;
+    /// Runs `bazel aquery --output=jsonproto` on an expression and returns the output.
+    fn aquery(&self, expr: &str) -> Result<String, String>;
+    /// The absolute execution root of the workspace.
+    fn execution_root(&self) -> Result<PathBuf, String>;
 }
 
 /// What one refresh did.
@@ -53,7 +59,7 @@ impl Report {
     }
 }
 
-const PLUGINS: &[&Plugin] = &[&typescript::PLUGIN];
+const PLUGINS: &[&Plugin] = &[&typescript::PLUGIN, &cc::PLUGIN];
 
 /// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
 pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, String> {
@@ -111,6 +117,7 @@ fn refresh_with(
                     workspace,
                     dir: &dir,
                     outputs,
+                    runner,
                 })
             }
             Err(error) => Err(error.clone()),
@@ -246,12 +253,21 @@ mod tests {
     struct Fake {
         calls: Cell<usize>,
         lib: PathBuf,
+        aquery: String,
     }
 
     impl Runner for Fake {
         fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
             self.calls.set(self.calls.get() + 1);
-            Ok(vec![self.lib.clone()])
+            Ok(vec![self.lib.clone(), self.lib.join("clangd")])
+        }
+
+        fn aquery(&self, _expr: &str) -> Result<String, String> {
+            Ok(self.aquery.clone())
+        }
+
+        fn execution_root(&self) -> Result<PathBuf, String> {
+            Ok(self.lib.clone())
         }
     }
 
@@ -261,11 +277,56 @@ mod tests {
         Fake {
             calls: Cell::new(0),
             lib,
+            aquery: String::new(),
         }
     }
 
     fn fail(_: &Ctx<'_>) -> Result<(), String> {
         Err("boom".to_owned())
+    }
+
+    const AQUERY: &str = r#"{"targets":[{"id":1,"label":"//:a"}],"actions":[{"mnemonic":"CppCompile","arguments":["clang","-c","a.cc"],"targetId":1}]}"#;
+
+    fn cc_runner(root: &Path) -> Fake {
+        let mut runner = fake(root);
+        std::fs::write(runner.lib.join("clangd"), "").expect("clangd");
+        runner.aquery = AQUERY.to_owned();
+        runner
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn cc_writes_the_database_and_links_clangd_once() {
+        let scratch = dx_test_scratch::scratch("dx-ide-cc-");
+        let root = scratch.path();
+        let runner = cc_runner(root);
+        refresh(root, &runner).expect("no cc");
+        assert!(!root.join(".dx/ide/cc").exists());
+        std::fs::write(root.join("a.cc"), "").expect("cc");
+        let first = refresh(root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        assert!(first.ran);
+        let text = std::fs::read_to_string(root.join(".dx/ide/cc/compile_commands.json"))
+            .expect("database");
+        assert!(text.contains("a.cc"), "{text}");
+        assert!(root.join(".dx/ide/cc/clangd").exists());
+        assert!(!refresh(root, &runner).expect("second").ran);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn an_aquery_failure_fails_only_cc() {
+        let scratch = dx_test_scratch::scratch("dx-ide-cc-fail-");
+        let root = scratch.path();
+        let runner = cc_runner(root);
+        std::fs::write(root.join("a.cc"), "").expect("cc");
+        std::fs::write(root.join("b.ts"), "").expect("ts");
+        let mut runner = runner;
+        runner.aquery = "not json".to_owned();
+        let report = refresh(root, &runner).expect("refresh");
+        assert_eq!(report.failed.len(), 1);
+        assert_eq!(report.failed[0].0, "cc");
+        scratch.close().expect("cleanup");
     }
 
     #[test]
@@ -276,7 +337,9 @@ mod tests {
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "1").expect("pin");
         let runner = fake(root);
-        assert!(refresh(root, &runner).expect("first").ran);
+        let first = refresh(root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        assert!(first.ran);
         assert!(!refresh(root, &runner).expect("second").ran);
         assert_eq!(runner.calls.get(), 1);
         std::fs::write(root.join(".dx/version"), "2").expect("pin");

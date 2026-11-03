@@ -71,6 +71,15 @@ impl dx_ide::Runner for BazelBuild<'_> {
             })
             .collect())
     }
+
+    fn aquery(&self, expr: &str) -> Result<String, String> {
+        let options = ["--output=jsonproto".to_owned()];
+        self.run(&self.argv("aquery", &options, &[expr.to_owned()])?)
+    }
+
+    fn execution_root(&self) -> Result<PathBuf, String> {
+        self.info("execution_root")
+    }
 }
 
 /// Refreshes `.dx/ide/` and returns the warning line when it fails.

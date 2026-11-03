@@ -18,6 +18,12 @@ real_source_target(
     tags = ["corpus"],
 )
 
+alias(
+    name = "clangd",
+    actual = "@llvm//tools:clangd",
+    visibility = ["//visibility:public"],
+)
+
 rust_library(
     name = "cc_context",
     srcs = ["src/lib.rs"],

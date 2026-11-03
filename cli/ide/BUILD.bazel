@@ -8,11 +8,13 @@ dx_rust_crate(
     name = "dx_ide",
     package_name = "cli/dx_ide",
     srcs = [
+        "src/cc.rs",
         "src/lib.rs",
         "src/link.rs",
         "src/typescript.rs",
     ],
     extra_deps = [
+        "//cc/context:cc_context",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
     ],

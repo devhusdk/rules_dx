@@ -360,6 +360,42 @@ Fortran (`fortran`) formats with `ffmt` and lints with `fortitude`, both describ
 
 OCaml (`ocaml`) formats with `topiary`, lints with `zanuda` and typechecks with `ocaml`, which is opt-in, see OCaml typechecking.
 
+## Tool config files
+
+This table lists which config files each tool reads or ignores. Bind a config
+with the `*_config` rule from `@rules_dx//quality:native_config.bzl` and add it
+to the target's `aspect_hints`. A tool marked "required" fails the analysis
+until one is bound. Tag the target `no-lint` or `no-format` to skip it.
+
+| Tool | Config required | Config it reads | Files it ignores | How to bind |
+| --- | --- | --- | --- | --- |
+| `biome` | yes | `biome.json` | | `biome_config` |
+| `buildifier` | yes | `.buildifier.json` | | `buildifier_config` |
+| `checkstyle` | yes | `checkstyle.xml` | | `checkstyle_config` |
+| `eslint` | yes | `eslint.config.mjs` | | `eslint_config` |
+| `graphql-eslint` | yes | `graphql_lint.json` | | `graphql_eslint_config` |
+| `kubeconform` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas` from `@rules_dx//kubernetes/rules:defs.bzl` |
+| `helm` | yes | `kubernetes.kubeconform.json` | | `kubernetes_schemas`, shared with `kubeconform` |
+| `ruff` | yes | `ruff.toml` | | `ruff_config` |
+| `scalafix` | yes | `.scalafix.conf` | | `scalafix_config` |
+| `scalafmt` | yes | `.scalafmt.conf` | | `scalafmt_config` |
+| `sqlfluff` | yes | `.sqlfluff` | | `sqlfluff_config` |
+| `vale` | yes | `.vale.ini` | | `vale_config` |
+| `pmd` | no | `.xml` ruleset, default `rulesets/java/quickstart.xml` | | `pmd_config` |
+| `clang-format` | no | `.clang-format` | | `clang_format_config` |
+| `djlint` | no | `djlint.toml` or `.djlintrc` | Workspace configs | `djlint_config` |
+| `latexindent` | no | YAML settings file | `localSettings.yaml` | `latexindent_config` |
+| `shellcheck` | no | `.shellcheckrc` | Host and parent-directory `.shellcheckrc`, `~/.shellcheckrc`, XDG config | `shellcheck_config` |
+| `stylua` | no | `stylua.toml` | `stylua.toml`, `.stylua.toml` and `.editorconfig` next to the sources | `stylua_config` |
+| `remark` | no | `.json` | `.remarkrc` files and remark plugins | `remark_config` |
+| `prettier` (SQL, XML, Gherkin) | no | `.prettierrc` | `.prettierrc`, `.editorconfig` and other user configs | `prettier_config` |
+| Prettier (Vue, Svelte, Astro) | no | none | `.prettierrc`, `.editorconfig` and other user configs | none |
+| `dfmt` | no | none | `.editorconfig` | none |
+| `dscanner` | no | none | `dscanner.ini` | none |
+| `perltidy` | no | none | `.perltidyrc`, `$PERLTIDY` | none |
+| `perlcritic` | no | none | `.perlcriticrc`, `$PERLCRITIC` | none |
+| OCaml formatting | no | none | `.ocamlformat` | none |
+
 ## Tool overrides
 
 The three commands run every wired tool from its managed executable. Pass
@@ -460,6 +496,8 @@ line and column and stays untouched. Use the wrappers from
 
 ### D formatting
 
+See [Tool config files](#tool-config-files).
+
 `dfmt` uses the pinned dfmt that `d_library`, `d_binary` and `d_test` carry.
 Select `dfmt` in a `d` family. No flag is needed. It runs on Linux x86_64,
 Linux arm64 and macOS arm64.
@@ -487,6 +525,8 @@ untouched. dx runs dfmt with its default style and LF line endings and ignores
 `.editorconfig` files for now.
 
 ### D linting
+
+See [Tool config files](#tool-config-files).
 
 `dscanner` uses the pinned D-Scanner that `d_library`, `d_binary` and `d_test`
 carry. Select `dscanner` in a `d` family. No flag is needed. It runs on Linux
@@ -542,6 +582,8 @@ findings. A failed run, such as an unreadable file, is an error and never reads
 as clean. There is no `--apply` fix.
 
 ### Perl formatting and linting
+
+See [Tool config files](#tool-config-files).
 
 `perltidy` uses the pinned Perl::Tidy 20260826 that `perl_library`,
 `perl_binary` and `perl_test` carry. Select `perltidy` in a `perl` family. No
@@ -1103,6 +1145,8 @@ in `dx lint`. Syntax errors and files `qmllint` cannot open appear in both.
 
 ### Java lint
 
+See [Tool config files](#tool-config-files).
+
 Java lint runs `checkstyle`, `pmd` and `spotbugs`.
 
 `checkstyle` has no default ruleset. Bind a `checkstyle_config` to each Java
@@ -1136,6 +1180,8 @@ java_library(
 ```
 
 ### Scala linting
+
+See [Tool config files](#tool-config-files).
 
 `scalafix` runs from the managed pin. It is not in the default Scala lint set.
 Select it in a `scala` family.
@@ -1313,6 +1359,8 @@ only and runs each F# target twice under `dx typecheck`, at heavy resources.
 Supported on linux_x86_64.
 
 ### Objective-C
+
+See [Tool config files](#tool-config-files).
 
 `clang_format` formats Objective-C from the same managed pin as C and C++.
 Select it in an `objc` family. The family has two classes: `objc` for `.m`
@@ -1822,6 +1870,8 @@ no ffmt build for Windows arm64, which runs the x86_64 build emulated.
 
 ### OCaml formatting
 
+See [Tool config files](#tool-config-files).
+
 `dx format` runs `topiary` on `.ml` and `.mli` sources. It is opt-in: select it
 in an `ocaml` family with `format = ["topiary"]`, and OCaml files are not
 formatted until then.
@@ -1991,6 +2041,8 @@ clean.
 
 ### LaTeX
 
+See [Tool config files](#tool-config-files).
+
 `latexindent` 4.0.3 runs from the managed pin for format. Select it in a
 `latex` family. It runs on Linux x86_64, Linux arm64, macOS arm64 and Windows
 x86_64.
@@ -2077,6 +2129,8 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_pkl=//tools:pkl
 ```
 
 ### Lua
+
+See [Tool config files](#tool-config-files).
 
 `stylua` runs from the managed pin for format. Select it in a `lua` family.
 It runs on Linux x86_64.
@@ -2528,6 +2582,8 @@ or an invalid config fails the run and never counts as clean.
 
 ### Vue
 
+See [Tool config files](#tool-config-files).
+
 `vue_library` from `@rules_dx//vue/rules:defs.bzl` owns `.vue` files. The
 default policy formats them with `prettier` from the managed pin. It runs on
 Linux x86_64.
@@ -2647,6 +2703,8 @@ Tested with `vue` 3.5.42, `vite` 8.3.5, `@vitejs/plugin-vue` 6.0.10, `vue-tsc`
 3.3.13 and `typescript` 6.0.3.
 
 ### GraphQL lint
+
+See [Tool config files](#tool-config-files).
 
 `graphql_eslint` checks GraphQL schemas and operations against the schema. It
 runs `@graphql-eslint/eslint-plugin` 4.4.2 with `graphql` 16.14.2 on the managed
@@ -2842,6 +2900,8 @@ verification with `dx env`.
 
 ### Svelte
 
+See [Tool config files](#tool-config-files).
+
 `svelte_library` from `@rules_dx//svelte/rules:defs.bzl` owns `.svelte` files.
 The default policy formats them with `prettier` and `prettier-plugin-svelte`
 4.1.1 with `svelte` 5.57.0 from the managed pin.
@@ -2968,6 +3028,8 @@ Tested with `svelte` 5.57.0, `vite` 8.3.5, `@sveltejs/vite-plugin-svelte` 7.3.1,
 
 ### Astro
 
+See [Tool config files](#tool-config-files).
+
 `astro_library` from `@rules_dx//astro/rules:defs.bzl` owns `.astro` files. The
 default policy formats them with `prettier` and `prettier-plugin-astro` 1.1.2
 from the managed pin. It runs on Linux x86_64.
@@ -3084,6 +3146,8 @@ bundle them. Tested with `astro` 7.3.8, `@astrojs/check` 0.9.12,
 `@astrojs/preact` 6.0.6 and `typescript` 6.0.3.
 
 ### MDX
+
+See [Tool config files](#tool-config-files).
 
 `mdx_library` from `@rules_dx//mdx/rules:defs.bzl` owns `.mdx` files. The
 default policy formats them with `remark` from the managed pin (remark-stringify
@@ -3240,6 +3304,8 @@ missing package fails the build. It never counts as clean. Tested with `vite`
 
 ### SQL, XML and Gherkin
 
+See [Tool config files](#tool-config-files).
+
 `prettier` runs from the managed pin with the `prettier-plugin-sql`,
 `@prettier/plugin-xml` and `prettier-plugin-gherkin` plugins for format. It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is not supported yet.
 Select it in the `sql`, `xml` and `gherkin` families.
@@ -3304,6 +3370,8 @@ default rules. Rules that compare files, such as `no-dupe-feature-names`, give
 results that depend on which files share a batch, so avoid them.
 
 ### SQL lint and format
+
+See [Tool config files](#tool-config-files).
 
 `sqlfluff` 4.4.0 runs from the managed pin for lint (check only) and format. It runs on
 Linux x86_64 and arm64, macOS arm64 and Windows x86_64. Select it in the `sql`
@@ -4015,6 +4083,8 @@ quality_family(
 
 ### Kubernetes
 
+See [Tool config files](#tool-config-files).
+
 `kubeconform` validates Kubernetes manifests against JSON schemas. It runs from
 a managed v0.8.0 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
 x86_64. Select it in a `kubernetes` family. Plain YAML stays in the `yaml`
@@ -4079,6 +4149,8 @@ manifest. Missing schemas, malformed output and a non-zero exit with no result
 are errors and never count as clean.
 
 ### Helm
+
+See [Tool config files](#tool-config-files).
 
 `helm` lints a Helm chart and validates the manifests it renders. It runs from a
 managed v4.3.1 pin on Linux x86_64, Linux arm64, macOS arm64 and Windows
@@ -4362,6 +4434,8 @@ make_library(
 ```
 
 ### Shell
+
+See [Tool config files](#tool-config-files).
 
 `shfmt` formats and `shellcheck` lints shell sources. Both run in the `shell`
 family.

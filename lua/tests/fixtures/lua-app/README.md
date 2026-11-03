@@ -11,10 +11,10 @@ A Lua unit-stock CLI split into three packages. Every target runs on the Lua
 | `diagnostics` | Syntax error, runtime error, missing dependency and StyLua checks |
 
 ```sh
-bazel build //examples/lua-app/...
-bazel test //examples/lua-app/...
-bazel run //examples/lua-app/cli:units -- report
-bazel run //examples/lua-app/cli:units -- get cable
+bazel build //lua/tests/fixtures/lua-app/...
+bazel test //lua/tests/fixtures/lua-app/...
+bazel run //lua/tests/fixtures/lua-app/cli:units -- report
+bazel run //lua/tests/fixtures/lua-app/cli:units -- get cable
 ```
 
 The report prints one line per unit and a total. `get NAME` prints one unit.

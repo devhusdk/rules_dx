@@ -2,7 +2,7 @@ load("//lua/rules:defs.bzl", "lua_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
-package(default_visibility = ["//examples/lua-app:__subpackages__"])
+package(default_visibility = ["//lua/tests/fixtures/lua-app:__subpackages__"])
 
 [
     lua_binary(
@@ -25,12 +25,12 @@ rust_test(
         "unformatted.lua",
         ":missing_dep",
         ":runtime_error",
-        "//examples/lua-app/catalog:catalog_test.lua",
-        "//examples/lua-app/catalog:init.lua",
-        "//examples/lua-app/catalog:parse.lua",
-        "//examples/lua-app/cli:main.lua",
-        "//examples/lua-app/report:init.lua",
-        "//examples/lua-app/report:report_test.lua",
+        "//lua/tests/fixtures/lua-app/catalog:catalog_test.lua",
+        "//lua/tests/fixtures/lua-app/catalog:init.lua",
+        "//lua/tests/fixtures/lua-app/catalog:parse.lua",
+        "//lua/tests/fixtures/lua-app/cli:main.lua",
+        "//lua/tests/fixtures/lua-app/report:init.lua",
+        "//lua/tests/fixtures/lua-app/report:report_test.lua",
         "@dx_tools//:stylua",
         "@lua//:bin/luac",
     ],
@@ -40,12 +40,12 @@ rust_test(
         "RUNTIME_ERROR": "$(rlocationpath :runtime_error)",
         "STYLUA": "$(rootpath @dx_tools//:stylua)",
         "STYLUA_CLEAN": " ".join([
-            "$(rootpath //examples/lua-app/catalog:catalog_test.lua)",
-            "$(rootpath //examples/lua-app/catalog:init.lua)",
-            "$(rootpath //examples/lua-app/catalog:parse.lua)",
-            "$(rootpath //examples/lua-app/cli:main.lua)",
-            "$(rootpath //examples/lua-app/report:init.lua)",
-            "$(rootpath //examples/lua-app/report:report_test.lua)",
+            "$(rootpath //lua/tests/fixtures/lua-app/catalog:catalog_test.lua)",
+            "$(rootpath //lua/tests/fixtures/lua-app/catalog:init.lua)",
+            "$(rootpath //lua/tests/fixtures/lua-app/catalog:parse.lua)",
+            "$(rootpath //lua/tests/fixtures/lua-app/cli:main.lua)",
+            "$(rootpath //lua/tests/fixtures/lua-app/report:init.lua)",
+            "$(rootpath //lua/tests/fixtures/lua-app/report:report_test.lua)",
         ]),
         "SYNTAX_ERROR": "$(rootpath syntax_error.lua)",
         "UNFORMATTED": "$(rootpath unformatted.lua)",

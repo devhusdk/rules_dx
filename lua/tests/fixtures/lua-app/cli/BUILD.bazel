@@ -2,7 +2,7 @@ load("@rules_dx//lua/rules:defs.bzl", "lua_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-APPS = ["//examples/lua-app:__subpackages__"]
+APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
 
 exports_files(
     [
@@ -15,12 +15,12 @@ exports_files(
 
 lua_binary(
     name = "units",
-    data = ["//examples/lua-app/catalog:units"],
-    env = {"UNITS": "$(rlocationpath //examples/lua-app/catalog:units)"},
+    data = ["//lua/tests/fixtures/lua-app/catalog:units"],
+    env = {"UNITS": "$(rlocationpath //lua/tests/fixtures/lua-app/catalog:units)"},
     main = "main.lua",
     deps = [
-        "//examples/lua-app/catalog",
-        "//examples/lua-app/report",
+        "//lua/tests/fixtures/lua-app/catalog",
+        "//lua/tests/fixtures/lua-app/report",
     ],
 )
 
@@ -30,7 +30,7 @@ sh_test(
     srcs = ["exit_codes.sh"],
     args = ["$(rootpath :units)"],
     data = [":units"],
-    env = {"UNITS": "_main/examples/lua-app/catalog/units.tsv"},
+    env = {"UNITS": "_main/lua/tests/fixtures/lua-app/catalog/units.tsv"},
 )
 
 real_source_target(

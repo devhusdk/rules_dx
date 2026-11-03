@@ -1,30 +1,42 @@
 load("@rules_dx//lua/rules:defs.bzl", "lua_library", "lua_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-APPS = ["//examples/lua-app:__subpackages__"]
+APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
 
 exports_files(
     [
         "BUILD.bazel",
+        "catalog_test.lua",
         "init.lua",
-        "report_test.lua",
+        "parse.lua",
+        "units.tsv",
     ],
     visibility = ["//tools/testing/hermetic:__pkg__"] + APPS,
 )
 
-lua_library(
-    name = "report",
-    srcs = ["init.lua"],
-    strip_import_prefix = "/examples/lua-app",
+filegroup(
+    name = "units",
+    srcs = ["units.tsv"],
     visibility = APPS,
-    deps = ["@lua_app_inspect//:inspect"],
+)
+
+lua_library(
+    name = "catalog",
+    srcs = [
+        "init.lua",
+        "parse.lua",
+    ],
+    strip_import_prefix = "/lua/tests/fixtures/lua-app",
+    visibility = APPS,
 )
 
 lua_test(
-    name = "report_test",
+    name = "catalog_test",
     size = "small",
-    main = "report_test.lua",
-    deps = [":report"],
+    data = ["units.tsv"],
+    env = {"UNITS": "$(rlocationpath units.tsv)"},
+    main = "catalog_test.lua",
+    deps = [":catalog"],
 )
 
 real_source_target(

@@ -163,7 +163,7 @@ const PACKAGES: [&str; 129] = [
     "examples/julia-app/diagnostics",
     "examples/kotlin-app/cli",
     "examples/kotlin-app/diagnostics",
-    "examples/lua-app/diagnostics",
+    "lua/tests/fixtures/lua-app/diagnostics",
     "examples/node-app/cli",
     "examples/node-app/diagnostics",
     "qt/tests/fixtures/qt-rust/ledger",

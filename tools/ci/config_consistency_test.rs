@@ -887,6 +887,9 @@ fn preset_configs_need_no_doc_stanza() {
     assert!(config_needs_doc_stanza("missing", rc, preset).is_err());
 }
 
+/// Configs the starter fixtures define in the generated workspace's own `.bazelrc`.
+const STARTER_CONFIGS: &[&str] = &["android"];
+
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {
     let rc = read_runfiles(".bazelrc");
@@ -895,6 +898,9 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
     let mut passes = 0;
     for (workflow, text) in workflow_values() {
         for config in workflow_bazel_configs(&text) {
+            if STARTER_CONFIGS.contains(&config.as_str()) {
+                continue;
+            }
             let needs_stanza = config_needs_doc_stanza(&config, &rc, &preset)
                 .unwrap_or_else(|err| panic!("{workflow} runs --config={config}; {err}"));
             assert!(

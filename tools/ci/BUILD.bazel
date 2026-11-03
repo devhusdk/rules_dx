@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//python/rules:defs.bzl", "python_library", "python_test")
+load("//python/rules:defs.bzl", "python_test")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test", "rustfmt_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
@@ -39,28 +39,6 @@ filegroup(
 )
 
 # keep
-python_library(
-    name = "workflow_testing",
-    testonly = True,
-    srcs = ["workflow_testing.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
-)
-
-# keep
-python_test(
-    name = "workflow_testing_test",
-    size = "small",
-    srcs = ["workflow_testing_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    dep_group = "hello",
-    deps = [
-        ":workflow_testing",
-        "@pypi//pytest",
-    ],
-)
-
-# keep
 python_test(
     name = "aggregate_scripts_test",
     size = "small",
@@ -75,7 +53,6 @@ python_test(
     ],
     dep_group = "hello",
     deps = [
-        ":workflow_testing",
         "@pypi//pytest",
     ],
 )

@@ -2,10 +2,11 @@
 
 import json
 import os
+import pathlib
 import subprocess
 import sys
 
-from workflow_testing import ROOT, embedded_script
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 AGGREGATE_FIXTURE_DIR = "tools/ci/aggregate_fixtures"
 CI_GATE_FIXTURE_DIR = "tools/ci/ci_gate_fixtures"
@@ -41,6 +42,22 @@ CONSUMER_JOBS = (
     "advisory-snapshots",
 )
 RESULTS = ("success", "failure", "skipped", "cancelled")
+
+
+def embedded_script(workflow, opening, marker):
+    """Returns one heredoc body from a workflow, dedented to its own file text."""
+    lines = (ROOT / workflow).read_text(encoding="utf-8").splitlines()
+    openings = [i for i, line in enumerate(lines) if line.strip() == opening]
+    assert len(openings) == 1, (
+        f"{workflow} runs {len(openings)} {marker} scripts, want 1"
+    )
+    base = len(lines[openings[0]]) - len(lines[openings[0]].lstrip(" "))
+    body = []
+    for line in lines[openings[0] + 1 :]:
+        if line.strip() == marker:
+            return "\n".join(body) + "\n"
+        body.append(line[base:])
+    raise AssertionError(f"{workflow} has no {marker} terminator")
 
 
 def embedded_aggregate():

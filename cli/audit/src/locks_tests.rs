@@ -666,6 +666,14 @@ fn paket_lock_parses_nuget_section_only() {
 }
 
 #[test]
+fn paket_lock_ignores_dependency_lines_in_nuget_and_git() {
+    let text = "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Foo (1.0.0)\n      NETStandard.Library (>= 1.6.1) - restriction: >= net45\n      Bar (>= 2.0)\nGIT\n  remote: https://example.com/x.git\n    Baz (abc123)\n      Qux (>= 1.0)\n";
+    let packages = parse_paket_lock(text).expect("parses");
+    let names: Vec<_> = packages.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(names, ["Baz", "Foo"]);
+}
+
+#[test]
 fn paket_lock_git_section_is_incomplete_never_dropped() {
     let text = "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    FSharp.Core (10.1.201)\nGIT\n  remote: https://github.com/example/lib.git\n    Git.Lib (1.0.0)\nHTTP\n  remote: https://example.com\n    Other (9.9.9)\n";
     let packages = parse_paket_lock(text).expect("parses");

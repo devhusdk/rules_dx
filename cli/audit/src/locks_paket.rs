@@ -32,6 +32,10 @@ pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         {
             continue;
         }
+        let indent = line.len() - line.trim_start().len();
+        if indent > 4 {
+            continue;
+        }
         if let Some((name, version)) = split_paket_line(trimmed) {
             out.push(LockedPackage {
                 is_git: in_git,

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
-use crate::exception::{check_expiry, ExceptionProblem};
+use crate::exception::{check_expiry, line_of, ExceptionProblem};
 use crate::license_expr::Tier;
 
 pub const LICENSE_POLICY_SCHEMA_VERSION: u32 = 1;
@@ -38,6 +38,10 @@ pub enum PolicyProblem {
     InvalidLicensesToml { message: String },
     #[error("license exception invalid: {0}")]
     Exception(#[from] ExceptionProblem),
+    #[error(
+        "license exception for {license} on {package} matches no finding; remove it explicitly"
+    )]
+    ExceptionObsolete { license: String, package: String },
     #[error("license exception missing {field}")]
     ExceptionMissingField { field: &'static str },
     #[error("inventory text for package {package:?} is invalid: {message}")]
@@ -205,6 +209,20 @@ pub struct LicenseException {
     pub versions: String,
     pub reason: String,
     pub expires: String,
+    #[serde(skip)]
+    pub line: usize,
+}
+
+impl LicenseException {
+    pub fn entry_label(&self) -> String {
+        use crate::exception::or_unknown;
+        format!(
+            "{} for {} in {}",
+            or_unknown(&self.license),
+            or_unknown(&self.package),
+            or_unknown(&self.set)
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -257,10 +275,10 @@ pub fn check_applies(
     findings: &[LicenseFinding],
 ) -> Result<(), PolicyProblem> {
     if is_obsolete(exception, findings) {
-        return Err(PolicyProblem::Exception(ExceptionProblem::Obsolete {
-            advisory: exception.license.clone(),
+        return Err(PolicyProblem::ExceptionObsolete {
+            license: exception.license.clone(),
             package: exception.package.clone(),
-        }));
+        });
     }
     Ok(())
 }
@@ -324,7 +342,14 @@ pub fn validate_license_inventory(entry: &LicenseInventory) -> Result<(), Policy
 pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
     let file: LicensesFile =
         toml::from_str(text).map_err(|error| PolicyProblem::InvalidLicensesToml {
-            message: error.to_string(),
+            message: match error.span() {
+                Some(span) => format!(
+                    "invalid TOML at line {}: {}",
+                    line_of(text, span.start),
+                    error.message()
+                ),
+                None => error.to_string(),
+            },
         })?;
     let version = file.schema_version.unwrap_or(LICENSE_POLICY_SCHEMA_VERSION);
     if version != LICENSE_POLICY_SCHEMA_VERSION {
@@ -351,7 +376,17 @@ pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
             })
             .collect(),
         distribution: file.distribution,
-        exceptions: file.exception,
+        exceptions: file
+            .exception
+            .into_iter()
+            .map(|entry| {
+                let line = line_of(text, entry.span().start);
+                LicenseException {
+                    line,
+                    ..entry.into_inner()
+                }
+            })
+            .collect(),
         inventory: file.inventory,
     };
     policy.tables.validate()?;
@@ -374,7 +409,7 @@ struct LicensesFile {
     #[serde(default)]
     distribution: Distribution,
     #[serde(default)]
-    exception: Vec<LicenseException>,
+    exception: Vec<toml::Spanned<LicenseException>>,
     #[serde(default)]
     inventory: Vec<LicenseInventory>,
 }

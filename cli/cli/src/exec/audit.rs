@@ -1268,26 +1268,30 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         .map(|target| target.name())
         .collect();
     let mut accepted_uncovered: Vec<&str> = Vec::new();
+    let mut exception_problems: Vec<String> = Vec::new();
     for acceptance in &policy.uncovered {
         match dx_audit::exception::validate_uncovered(acceptance, today) {
             Ok(()) => accepted_uncovered.push(acceptance.set.as_str()),
-            Err(problem) => {
-                if incomplete.is_none() {
-                    incomplete = Some(format!("invalid security.toml: {problem}"));
-                }
-            }
+            Err(problem) => exception_problems.push(format!(
+                "security.toml:{}: {}: {problem}",
+                acceptance.line,
+                acceptance.entry_label()
+            )),
         }
     }
     let mut live_exceptions: Vec<&dx_audit::exception::RiskException> = Vec::new();
     for exception in &policy.exceptions {
         match dx_audit::exception::validate_exception(exception, today) {
             Ok(()) => live_exceptions.push(exception),
-            Err(problem) => {
-                if incomplete.is_none() {
-                    incomplete = Some(format!("invalid security.toml: {problem}"));
-                }
-            }
+            Err(problem) => exception_problems.push(format!(
+                "security.toml:{}: {}: {problem}",
+                exception.line,
+                exception.entry_label()
+            )),
         }
+    }
+    if !exception_problems.is_empty() {
+        incomplete = Some(exception_problems.join("\n"));
     }
     for target in sets {
         if let AuditTarget::Configured(set) = target {
@@ -1754,7 +1758,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     ) {
                         return exit;
                     }
-                    let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
+                    for line in message.lines() {
+                        let _ = writeln!(err, "dx: {code}: audit {family_name}: {line}");
+                    }
                 }
             }
         }
@@ -1793,7 +1799,9 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
                     .get(family_name)
                     .copied()
                     .unwrap_or(CODE_AUDIT_FAILED);
-                let _ = writeln!(err, "dx: {code}: audit {family_name}: {message}");
+                for line in message.lines() {
+                    let _ = writeln!(err, "dx: {code}: audit {family_name}: {line}");
+                }
             }
         }
     }

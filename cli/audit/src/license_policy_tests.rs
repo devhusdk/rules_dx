@@ -18,6 +18,7 @@ fn tables() -> PolicyTables {
 
 fn exception() -> LicenseException {
     LicenseException {
+        line: 0,
         package: "some-copyleft-lib".to_owned(),
         set: "cargo".to_owned(),
         license: "GPL-3.0-only".to_owned(),
@@ -236,6 +237,7 @@ fn out_of_range_versions_do_not_inherit_acceptance() {
         .expect("identity still applies");
     assert!(!license_exception_covers(&exception(), &out_of_range));
     let bad_scope = LicenseException {
+        line: 0,
         versions: "not a range".to_owned(),
         ..exception()
     };
@@ -250,6 +252,7 @@ fn out_of_range_versions_do_not_inherit_acceptance() {
 #[test]
 fn license_exceptions_narrow_per_set_like_vuln() {
     let cargo_exception = |versions: &str| LicenseException {
+        line: 0,
         package: "serde".to_owned(),
         set: "cargo".to_owned(),
         license: "GPL-3.0-only".to_owned(),
@@ -280,6 +283,7 @@ fn license_exceptions_narrow_per_set_like_vuln() {
         &cargo_finding("1.0.0")
     ));
     let npm_exception = |versions: &str| LicenseException {
+        line: 0,
         package: "react".to_owned(),
         set: "npm".to_owned(),
         license: "GPL-3.0-only".to_owned(),
@@ -310,6 +314,7 @@ fn license_exceptions_narrow_per_set_like_vuln() {
         &npm_finding("2.3.5")
     ));
     let go_exception = LicenseException {
+        line: 0,
         package: "example.com/mod".to_owned(),
         set: "go".to_owned(),
         license: "GPL-3.0-only".to_owned(),
@@ -330,6 +335,7 @@ fn license_exceptions_narrow_per_set_like_vuln() {
     assert!(license_exception_covers(&go_exception, &go_covered));
     assert!(!license_exception_covers(&go_exception, &go_missed));
     let maven_exception = |versions: &str| LicenseException {
+        line: 0,
         package: "junit:junit".to_owned(),
         set: "maven".to_owned(),
         license: "GPL-3.0-only".to_owned(),
@@ -360,6 +366,7 @@ fn license_exceptions_narrow_per_set_like_vuln() {
         &maven_finding("1.2.0")
     ));
     let nuget_exception = |versions: &str| LicenseException {
+        line: 0,
         package: "Newtonsoft.Json".to_owned(),
         set: "nuget".to_owned(),
         license: "GPL-3.0-only".to_owned(),
@@ -456,6 +463,7 @@ fn loader_converts_doc_shape_to_domain_records() {
     assert_eq!(
         policy.exceptions,
         vec![LicenseException {
+            line: 16,
             package: "some-copyleft-lib".to_owned(),
             set: "cargo".to_owned(),
             license: "GPL-3.0-only".to_owned(),
@@ -672,4 +680,44 @@ fn inventory_text_parses_validates_and_implies_present() {
             "{bad:?} must be rejected"
         );
     }
+}
+
+#[test]
+fn bad_license_exceptions_keep_their_lines() {
+    let text = "\
+[[exception]]
+package = \"alpha\"
+set = \"cargo\"
+license = \"MIT\"
+versions = \"*\"
+reason = \"\"
+expires = \"2999-01-01\"
+
+[[exception]]
+package = \"beta\"
+set = \"npm\"
+license = \"ISC\"
+versions = \"*\"
+reason = \"ok\"
+expires = \"2000-01-01\"
+";
+    let policy = load_licenses_toml(text).expect("loads");
+    let found: Vec<(usize, String, bool)> = policy
+        .exceptions
+        .iter()
+        .map(|entry| {
+            (
+                entry.line,
+                entry.entry_label(),
+                validate_license_exception(entry, "2026-01-01").is_err(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        found,
+        vec![
+            (1, "MIT for alpha in cargo".to_owned(), true),
+            (9, "ISC for beta in npm".to_owned(), true),
+        ]
+    );
 }

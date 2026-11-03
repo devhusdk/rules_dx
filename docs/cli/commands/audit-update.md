@@ -91,6 +91,12 @@ An `expires` date on or before the audit date fails the run. An exception that
 matches no current finding in its own set fails the run, so remove it when the
 finding goes away. `versions` uses the range syntax of the `set` ecosystem.
 
+Every bad entry is reported on its own line, as `<file>:<line>: <entry>: <problem>`:
+
+```text
+security.toml:12: GHSA-aaaa-bbbb-cccc on some-package: risk exception expired 2026-01-01 (audit date 2026-11-03); renewal needs review
+```
+
 An `[[uncovered]]` entry accepts a set that has no advisory source. It needs
 `set`, `reason`, and `expires`. The run stays complete and still lists the set
 under `no advisory coverage`. An `expires` date on or before the audit date

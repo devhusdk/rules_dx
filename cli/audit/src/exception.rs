@@ -14,6 +14,18 @@ pub struct RiskException {
     pub versions: String,
     pub reason: String,
     pub expires: String,
+    #[serde(skip)]
+    pub line: usize,
+}
+
+impl RiskException {
+    pub fn entry_label(&self) -> String {
+        format!(
+            "{} on {}",
+            or_unknown(&self.advisory),
+            or_unknown(&self.package)
+        )
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -22,6 +34,30 @@ pub struct UncoveredAcceptance {
     pub set: String,
     pub reason: String,
     pub expires: String,
+    #[serde(skip)]
+    pub line: usize,
+}
+
+impl UncoveredAcceptance {
+    pub fn entry_label(&self) -> String {
+        or_unknown(&self.set).to_owned()
+    }
+}
+
+pub fn or_unknown(value: &str) -> &str {
+    if value.trim().is_empty() {
+        "?"
+    } else {
+        value
+    }
+}
+
+pub fn line_of(text: &str, offset: usize) -> usize {
+    let end = offset.min(text.len());
+    1 + text.as_bytes()[..end]
+        .iter()
+        .filter(|byte| **byte == b'\n')
+        .count()
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -170,15 +206,42 @@ fn is_date_shape(text: &str) -> bool {
 pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
     let file: SecurityFile =
         toml::from_str(text).map_err(|error| SecurityProblem::InvalidToml {
-            message: error.to_string(),
+            message: match error.span() {
+                Some(span) => format!(
+                    "invalid TOML at line {}: {}",
+                    line_of(text, span.start),
+                    error.message()
+                ),
+                None => error.to_string(),
+            },
         })?;
     let version = file.schema_version.unwrap_or(EXCEPTION_SCHEMA_VERSION);
     if version != EXCEPTION_SCHEMA_VERSION {
         return Err(SecurityProblem::UnsupportedSchema { version });
     }
     Ok(SecurityPolicy {
-        exceptions: file.exception,
-        uncovered: file.uncovered,
+        exceptions: file
+            .exception
+            .into_iter()
+            .map(|entry| {
+                let line = line_of(text, entry.span().start);
+                RiskException {
+                    line,
+                    ..entry.into_inner()
+                }
+            })
+            .collect(),
+        uncovered: file
+            .uncovered
+            .into_iter()
+            .map(|entry| {
+                let line = line_of(text, entry.span().start);
+                UncoveredAcceptance {
+                    line,
+                    ..entry.into_inner()
+                }
+            })
+            .collect(),
     })
 }
 
@@ -188,9 +251,9 @@ struct SecurityFile {
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
-    exception: Vec<RiskException>,
+    exception: Vec<toml::Spanned<RiskException>>,
     #[serde(default)]
-    uncovered: Vec<UncoveredAcceptance>,
+    uncovered: Vec<toml::Spanned<UncoveredAcceptance>>,
 }
 
 #[path = "exception_apply.rs"]

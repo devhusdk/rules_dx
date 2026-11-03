@@ -409,11 +409,17 @@ pub(super) fn run_license(
             }
         }
     }
+    let mut exception_problems: Vec<String> = Vec::new();
     for exception in &policy.exceptions {
+        let problem = |error: &dx_audit::license_policy::PolicyProblem| {
+            format!(
+                "licenses.toml:{}: {}: {error}",
+                exception.line,
+                exception.entry_label()
+            )
+        };
         if let Err(error) = dx_audit::license_policy::validate_license_exception(exception, today) {
-            if incomplete.is_none() {
-                incomplete = Some(format!("invalid license exception: {error}"));
-            }
+            exception_problems.push(problem(&error));
             continue;
         }
         if !selected_sets.contains(exception.set.as_str()) {
@@ -429,10 +435,11 @@ pub(super) fn run_license(
             })
             .collect();
         if let Err(error) = dx_audit::license_policy::check_applies(exception, &refs) {
-            if incomplete.is_none() {
-                incomplete = Some(format!("invalid license exception: {error}"));
-            }
+            exception_problems.push(problem(&error));
         }
+    }
+    if !exception_problems.is_empty() {
+        incomplete = Some(exception_problems.join("\n"));
     }
     let has_incomplete = incomplete.is_some();
     let status = if has_incomplete {

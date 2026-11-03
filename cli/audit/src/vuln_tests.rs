@@ -197,6 +197,7 @@ fn advisory(set: &str, id: &str, package: &str, versions: &str) -> Advisory {
 
 fn exception(set: &str, advisory: &str, package: &str, versions: &str) -> RiskException {
     RiskException {
+        line: 0,
         advisory: advisory.to_owned(),
         package: package.to_owned(),
         set: set.to_owned(),
@@ -468,6 +469,7 @@ fn scoped_set_exceptions_exempt_a_base_ecosystem_finding() {
     let (findings, _) = match_packages(&packages, &advisories);
     assert_eq!(findings.len(), 1);
     let scoped = RiskException {
+        line: 0,
         reason: "No fixed release exists.".to_owned(),
         ..exception("npm-adopt", "GHSA-npm-scoped", "braces", "<=3.0.3")
     };
@@ -815,6 +817,7 @@ fn exceptions_exempt_only_matching_versioned_findings() {
 fn exception_problems_fail_and_obsolete_is_reported() {
     let (findings, _) = match_packages(&packages(), &advisories());
     let expired = RiskException {
+        line: 0,
         reason: "Old.".to_owned(),
         expires: "2026-01-01".to_owned(),
         ..exception("cargo", "GHSA-aaaa-bbbb-cccc", "serde", ">=1.0.0, <1.0.150")
@@ -822,6 +825,7 @@ fn exception_problems_fail_and_obsolete_is_reported() {
     let (_, problems) = apply_exceptions(&findings, &[expired], "2026-09-18");
     assert!(!problems.is_empty());
     let obsolete = RiskException {
+        line: 0,
         reason: "Stale.".to_owned(),
         ..exception("cargo", "GHSA-gone", "gone", "*")
     };
@@ -1141,6 +1145,7 @@ fn nuget_exceptions_match_case_insensitively_without_widening() {
         &[nuget_advisory("Newtonsoft.Json")],
     );
     let exception = |package: &str, versions: &str| RiskException {
+        line: 0,
         reason: "No fixed release exists.".to_owned(),
         ..exception("nuget", "GHSA-nuget-case", package, versions)
     };
@@ -1395,6 +1400,7 @@ fn ruby_scoped_exceptions_cover_platform_findings() {
         &ruby_osv(events),
     );
     let exception = |versions: &str| RiskException {
+        line: 0,
         reason: "accepted".to_owned(),
         expires: "2099-01-01".to_owned(),
         ..exception("ruby", "GHSA-ruby-range-0001", "nokogiri", versions)

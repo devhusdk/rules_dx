@@ -2,6 +2,7 @@ use super::*;
 
 fn sample() -> RiskException {
     RiskException {
+        line: 0,
         advisory: "GHSA-aaaa-bbbb-cccc".to_owned(),
         package: "some-copyleft-lib".to_owned(),
         set: "cargo-lock".to_owned(),
@@ -333,7 +334,13 @@ fn security_toml_loads_every_exception_in_file_order() {
     let text = security_toml(&[sample(), second]);
     let policy = load_security_toml(&text).expect("loads");
     assert_eq!(policy.exceptions.len(), 2);
-    assert_eq!(policy.exceptions[0], sample());
+    assert_eq!(
+        policy.exceptions[0],
+        RiskException {
+            line: 1,
+            ..sample()
+        }
+    );
     assert_eq!(policy.exceptions[1].advisory, "GHSA-dddd-eeee-ffff");
 }
 
@@ -375,6 +382,7 @@ fn security_toml_loads_uncovered_acceptances() {
     assert_eq!(
         policy.uncovered,
         vec![UncoveredAcceptance {
+            line: 1,
             set: "powershell".to_owned(),
             reason: "r".to_owned(),
             expires: "2027-01-01".to_owned(),
@@ -391,6 +399,7 @@ fn security_toml_loads_uncovered_acceptances() {
 #[test]
 fn uncovered_acceptances_need_a_reason_and_a_live_expiry() {
     let mut acceptance = UncoveredAcceptance {
+        line: 0,
         set: "powershell".to_owned(),
         reason: "No Gallery advisory source.".to_owned(),
         expires: "2027-01-01".to_owned(),
@@ -415,4 +424,77 @@ fn uncovered_acceptances_need_a_reason_and_a_live_expiry() {
         validate_uncovered(&acceptance, "2026-10-24"),
         Err(ExceptionProblem::MissingUncoveredField { field: "reason" })
     );
+}
+
+#[test]
+fn line_of_counts_newlines_before_offset() {
+    assert_eq!(line_of("a\nb\nc", 0), 1);
+    assert_eq!(line_of("a\nb\nc", 2), 2);
+    assert_eq!(line_of("a\nb\nc", 4), 3);
+    assert_eq!(line_of("a", 99), 1);
+}
+
+#[test]
+fn every_bad_entry_keeps_its_line_and_label() {
+    let text = "\
+[[exception]]
+advisory = \"GHSA-1\"
+package = \"alpha\"
+set = \"cargo\"
+versions = \"*\"
+reason = \"ok\"
+expires = \"2000-01-01\"
+
+[[exception]]
+advisory = \"GHSA-2\"
+package = \"beta\"
+set = \"cargo\"
+versions = \"*\"
+reason = \"ok\"
+expires = \"soon\"
+
+[[exception]]
+advisory = \"GHSA-3\"
+package = \"gamma\"
+set = \"cargo\"
+versions = \"*\"
+reason = \"\"
+expires = \"2999-01-01\"
+";
+    let policy = load_security_toml(text).expect("loads");
+    let found: Vec<(usize, String, bool)> = policy
+        .exceptions
+        .iter()
+        .map(|entry| {
+            (
+                entry.line,
+                entry.entry_label(),
+                validate_exception(entry, "2026-01-01").is_err(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        found,
+        vec![
+            (1, "GHSA-1 on alpha".to_owned(), true),
+            (9, "GHSA-2 on beta".to_owned(), true),
+            (17, "GHSA-3 on gamma".to_owned(), true),
+        ]
+    );
+}
+
+#[test]
+fn syntax_error_reports_its_line() {
+    let error = load_security_toml("schema_version = 1\n[[exception\n").expect_err("bad toml");
+    assert!(
+        error.to_string().contains("invalid TOML at line 2"),
+        "{error}"
+    );
+}
+
+#[test]
+fn empty_fields_show_as_question_mark() {
+    let mut entry = sample();
+    entry.advisory.clear();
+    assert_eq!(entry.entry_label(), format!("? on {}", entry.package));
 }

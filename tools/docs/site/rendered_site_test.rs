@@ -162,8 +162,7 @@ fn the_site_publishes_every_allowed_user_page() {
         "docs/index.html",
         "docs/github-ci.html",
         "examples/index.html",
-        "examples/adopt-rust/index.html",
-        "examples/mixed/hello/index.html",
+        "examples/adopt-polyglot/index.html",
     ] {
         assert!(
             routes.contains(&page.to_string()),
@@ -437,17 +436,16 @@ fn every_page_declares_a_mobile_viewport_and_a_language() {
 }
 
 #[test]
-fn nested_example_pages_render_their_own_route_and_links() {
+fn example_pages_render_their_own_route_and_links() {
     let root = site(USER_SITE);
-    let page = read(&root, "examples/mixed/hello/index.html");
+    let page = read(&root, "examples/adopt-polyglot/index.html");
     assert!(
         page.contains("<h1 id="),
-        "the nested example page must render its own heading"
+        "the example page must render its own heading"
     );
     let examples = read(&root, "examples/index.html");
     for target in [
-        "mixed/hello/",
-        "adopt-rust/",
+        "adopt-polyglot/",
         "consumer-ci/",
         "docs-ci/",
         "gitlab-ci/",

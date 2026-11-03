@@ -1,9 +1,0 @@
-Pet:
-  type: object
-  required:
-    - id
-  properties:
-    id:
-      type: string
-    name:
-      type: string

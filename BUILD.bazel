@@ -130,7 +130,6 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude vue/tests/app_type_error
 # gazelle:exclude mdx/tests/app
 # gazelle:exclude mdx/tests/app_parse_error
-# gazelle:exclude examples/mixed/hello
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude examples/python-service
 # gazelle:exclude examples/c-app
@@ -147,7 +146,6 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude examples/kotlin-app/cli/Main.kt
 # gazelle:exclude examples/kotlin-app/diagnostics
 # gazelle:exclude examples/lua-app
-# gazelle:exclude examples/astro-app
 # gazelle:exclude examples/node-app
 # gazelle:exclude examples/ocaml-app
 # gazelle:exclude examples/perl-app

@@ -18,7 +18,7 @@ const IDENTITY_ROUTES: [&str; 2] = ["index.html", "searchindex.js"];
 const REPRESENTATIVE_ROUTES: [&str; 4] = [
     "docs/cli/commands/docs.html",
     "docs/github-ci.html",
-    "examples/adopt-cpp/index.html",
+    "examples/adopt-polyglot/index.html",
     "404.html",
 ];
 

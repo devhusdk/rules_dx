@@ -76,7 +76,7 @@ def site_unit_tests(name):
                 ],
                 [
                     False,
-                    ["- [Zig App](examples/zig-app/README.md)", "# API Reference", ""],
+                    ["- [Adopt Polyglot](examples/adopt-polyglot/README.md)", "# API Reference", ""],
                 ],
             ),
             expect_equal(

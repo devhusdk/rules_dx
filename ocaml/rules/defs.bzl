@@ -252,6 +252,18 @@ def test_forward_kwargs(kwargs):
             out[key] = kwargs[key]
     return out
 
+def binary_upstream_kwargs(kwargs):
+    """Returns the binary kwargs the upstream executable accepts."""
+    return {key: value for key, value in kwargs.items() if key not in RUN_ENV_ATTRS}
+
+def binary_forward_kwargs(kwargs):
+    """Returns the binary forwarder kwargs, including env and env_inherit, which the forwarder applies itself."""
+    out = dx_binary_forward_kwargs(kwargs)
+    for key in RUN_ENV_ATTRS:
+        if kwargs.get(key) != None:
+            out[key] = kwargs[key]
+    return out
+
 def default_module_name(name, sig):
     """Returns the module_name default: the target name unless sig names a signature target."""
     if sig == None or (type(sig) == "string" and sig.endswith(".mli")):
@@ -288,10 +300,10 @@ def ocaml_library(name, visibility = None, **kwargs):
 def ocaml_binary(name, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_binary rule run on the pinned ocamlrun."""
     kwargs = with_defaults(kwargs)
-    upstream = dx_binary_upstream_kwargs(link_kwargs(kwargs), None)
+    upstream = dx_binary_upstream_kwargs(binary_upstream_kwargs(link_kwargs(kwargs)), None)
     upstream["tags"] = upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", **upstream)
-    _ocaml_forward_binary(name = name, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_binary_forward_kwargs(kwargs))
+    _ocaml_forward_binary(name = name, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **binary_forward_kwargs(kwargs))
 
 def ocaml_test(name, visibility = None, **kwargs):
     """Builds one rules_ocaml bytecode executable and runs it as a test on the pinned ocamlrun."""

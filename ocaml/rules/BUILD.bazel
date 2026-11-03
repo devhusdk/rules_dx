@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
+load(":defs.bzl", "binary_forward_kwargs", "binary_upstream_kwargs", "default_module_name", "launcher_script", "link_kwargs", "owned_sources", "run_environment", "runfiles_path", "test_forward_kwargs", "test_upstream_kwargs", "toolchain_choice", "upstream_tags", "with_defaults")
 load(":providers.bzl", "bin_annot_opts", "cmt_entries")
 
 package(default_visibility = ["//visibility:public"])
@@ -104,6 +104,26 @@ dx_wrapper_contract_tests(
             }),
             {
                 "size": "small",
+                "env": {"K": "1"},
+                "env_inherit": ["HOME"],
+            },
+        ),
+        expect_equal(
+            "env and env_inherit leave the upstream binary of ocaml_binary",
+            binary_upstream_kwargs({
+                "env": {"K": "1"},
+                "env_inherit": ["HOME"],
+                "main": ":m",
+            }),
+            {"main": ":m"},
+        ),
+        expect_equal(
+            "env and env_inherit reach the binary forwarder",
+            binary_forward_kwargs({
+                "env": {"K": "1"},
+                "env_inherit": ["HOME"],
+            }),
+            {
                 "env": {"K": "1"},
                 "env_inherit": ["HOME"],
             },

@@ -59,20 +59,21 @@ filegroup(
 )
 """
 
-_TOOLCHAIN = """dx_fortran_toolchain(
+_IMPL = """dx_fortran_toolchain(
     name = "{cell}_toolchain",
     archiver = "@{repo}//:llvm_ar",
     compiler = "@{repo}//:flang",
     compiler_files = "@{repo}//:compiler_files",
     runtime = "@{runtime}//:flang_rt",
 )
+"""
 
-toolchain(
+_TOOLCHAIN = """toolchain(
     name = "{cell}",
     exec_compatible_with = {constraints},
     target_compatible_with = {constraints},
-    toolchain = ":{cell}_toolchain",
-    toolchain_type = "@rules_fortran//fortran:toolchain_type",
+    toolchain = "//impl:{cell}_toolchain",
+    toolchain_type = "{toolchain_type}",
 )
 
 config_setting(
@@ -118,25 +119,33 @@ _flang_rt = repository_rule(
 )
 
 def hub_build():
-    """Returns the hub BUILD file: one Fortran toolchain per cell and the exec Flang aliases."""
-    content = ['load("@rules_dx//fortran/toolchain:toolchain.bzl", "dx_fortran_toolchain")\n\npackage(default_visibility = ["//visibility:public"])\n']
+    """Returns the hub files: the root toolchains and exec Flang aliases, and impl with the toolchain targets."""
+    impl = ['load("@rules_dx//fortran/toolchain:toolchain.bzl", "dx_fortran_toolchain")\n\npackage(default_visibility = ["//visibility:public"])\n']
+    root = ['package(default_visibility = ["//visibility:public"])\n']
     for cell in sorted(FORTRAN_CELLS.keys()):
-        content.append(_TOOLCHAIN.format(
+        impl.append(_IMPL.format(
             cell = cell,
-            constraints = repr(FORTRAN_CELLS[cell].constraints),
             repo = FLANG_PREFIX + cell,
             runtime = FLANG_RT_NAME,
         ))
+        root.append(_TOOLCHAIN.format(
+            cell = cell,
+            constraints = repr(FORTRAN_CELLS[cell].constraints),
+            toolchain_type = str(Label("//fortran/toolchain/type:toolchain_type")),
+        ))
     for tool in ["compiler_files", "flang"]:
         cases = {":" + cell + "_exec": "@" + FLANG_PREFIX + cell + "//:" + tool for cell in sorted(FORTRAN_CELLS.keys())}
-        content.append(_TOOL.format(name = tool, cases = repr(cases)))
-    return "\n".join(content)
+        root.append(_TOOL.format(name = tool, cases = repr(cases)))
+    return {"BUILD.bazel": "\n".join(root), "impl/BUILD.bazel": "\n".join(impl)}
 
 def _fortran_impl(mctx):
     pinned_archive(
         name = "rules_fortran",
         dropped = DROPPED_PATHS,
-        patches = [Label("//patches/rules_fortran:module_map_key.patch")],
+        patches = [
+            Label("//patches/rules_fortran:module_map_key.patch"),
+            Label("//patches/rules_fortran:toolchain_type_alias.patch"),
+        ],
         sha256 = RULES_FORTRAN_SHA256,
         strip_prefix = "rules_fortran-" + RULES_FORTRAN_COMMIT,
         urls = [RULES_FORTRAN_URL],
@@ -150,7 +159,7 @@ def _fortran_impl(mctx):
             urls = [FORTRAN_CELLS[cell].url],
         )
     _flang_rt(name = FLANG_RT_NAME, build_file = Label("//fortran/toolchain:flang_rt.BUILD.bazel"))
-    hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build()})
+    hub_repo(name = HUB_NAME, files = hub_build())
     return mctx.extension_metadata(reproducible = True)
 
 fortran = module_extension(

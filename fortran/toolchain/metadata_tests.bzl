@@ -3,13 +3,18 @@
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":pins.bzl", "FLANG_RT_PREFIX", "FLANG_RT_SHA256", "FLANG_RT_URL", "FLANG_VERSION", "FORTRAN_CELLS", "RULES_FORTRAN_COMMIT", "RULES_FORTRAN_SHA256", "RULES_FORTRAN_URL")
-load(":repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build")
+load(":repos.bzl", "DROPPED_PATHS", "FLANG_RT_TREES", "flang_major", "flang_rt_build", "hub_build")
 load(":toolchain.bzl", "toolchain_fields")
 
 def _checks():
     linux = FORTRAN_CELLS["linux_x86_64"]
     fields = toolchain_fields("flang", "ar", depset(), "rt")
+    root = hub_build()["BUILD.bazel"]
     return [
+        expect_true("hub root loads nothing", "load(" not in root),
+        expect_true("hub root names no rules_fortran", "@rules_fortran" not in root),
+        expect_contains("hub root uses the rules_dx type", root, "//fortran/toolchain/type:toolchain_type"),
+        expect_contains("hub impl holds the loads", hub_build()["impl/BUILD.bazel"], "load("),
         expect_equal("flang version", FLANG_VERSION, "21.1.8"),
         expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("linux constraints", linux.constraints, ["@platforms//os:linux", "@platforms//cpu:x86_64"]),

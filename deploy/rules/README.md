@@ -37,6 +37,11 @@ credentials needed. It writes, next to the jar and the pom:
 
 Output ends with `signed: yes` or `signed: no`.
 
+A default run checks the pom against `group`, `artifact` and `version` and
+the Central fields, and stages the repository. It does not contact Central.
+Rerunning a published version: the Portal rejects the second upload in its
+validation, after the deployment id is printed. Nothing is checked locally.
+
 Signing env:
 
 - `MAVEN_GPG_KEY`: an ASCII-armored OpenPGP secret key. Ed25519 is
@@ -112,7 +117,12 @@ npm_deploy(
   `registry.npmjs.org`.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run stages the tarball and feed locally. No credentials needed.
+Default run stages the tarball and feed locally. No credentials needed. It
+checks that the files include `package.json`. It does not run `npm` or contact the
+registry.
+
+Rerunning a published version: `npm publish` fails and the run exits 1. Nothing
+is checked before the call.
 
 Setup:
 
@@ -321,6 +331,11 @@ dx deploy --apply //pkg:crates_demo
 
 A live run refuses version `0.0.0` and `CRATES_ALLOW_DIRTY=1`.
 
+A default run checks the staged `Cargo.toml` and runs `cargo package --list`
+when `cargo` is on `PATH`. Without `cargo` it prints a skip line. It never
+uploads. Rerunning a published version: `cargo publish` fails with the
+registry's message and the run exits 1.
+
 # github_deploy
 
 Stages pinned files for a draft GitHub Release and creates the draft.
@@ -387,6 +402,11 @@ This runs `dotnet nuget push --skip-duplicate`. The key goes to `dotnet`
 through the `NUGET_API_KEY` env var, never the command line, so NuGet 7.6+
 (.NET SDK 10.0.300+) is required; older versions are refused. A live run refuses nuspec
 version `0.0.0`.
+
+A default run checks the nuspec id and version against `package_id` and
+`version`. It does not run `dotnet`. Rerunning a published version: the push is
+skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
+<source>` and exits 0.
 
 # oci_deploy
 
@@ -479,8 +499,12 @@ dx deploy --apply //pkg:octopus_demo
 ```
 
 This runs `octo push --package`, then `octo create-release` with a
-`--deployTo` for each `deploy_to`. Deployments are queued, not awaited. A rerun
-after a failed `create-release` fails at push. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
+`--deployTo` for each `deploy_to`. Deployments are queued, not awaited.
+
+A default run checks the package and the spec and runs no `octo` command.
+Rerunning a published version: `octo push` fails because the package exists,
+the run exits 1 and the hint names `FailIfExists`. That includes a rerun after
+a failed `create-release`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
 env, never the command line. A live run refuses version `0.0.0` and the default
 `octopus_url`.
 
@@ -609,6 +633,12 @@ prints:
 ```
 pypi_deploy: uploaded <wheel file> to <repository_url>
 ```
+
+A default run checks the wheel and sdist file names and that their project and
+version match. It does not run `twine`. A live run first runs `twine check
+--strict`. Rerunning a published version: PyPI refuses the file, the run
+prints `pypi_deploy: <file> version <version> is already on <url>; upload a new
+version` and exits 1.
 
 `twine` runs with a cleared environment. Only `REQUESTS_CA_BUNDLE` and the
 keep-list in Common behavior pass through.

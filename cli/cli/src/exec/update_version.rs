@@ -241,6 +241,9 @@ fn check_bump(
         .collect::<Vec<_>>()
         .join(", ");
     if drifted.is_empty() {
+        if planned.iter().all(|(_, _, changed)| !changed) {
+            return emit_update_no_change(invocation, out, request, &planned, verbose);
+        }
         let message = format!(
             "bump {} to {} current in {manifest}",
             request.selector,
@@ -2072,7 +2075,7 @@ dependencies = ["anyio>=4"]
         );
         let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("current"), "{out}");
+        assert!(out.contains("no-change"), "{out}");
     }
 
     const GHA_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -2152,6 +2155,31 @@ dependencies = ["anyio>=4"]
             assert!(
                 harness.seen_env.borrow().is_empty(),
                 "{selector}: no-change refreshes nothing"
+            );
+        }
+    }
+
+    #[test]
+    fn unchanged_version_check_reports_no_change_like_apply() {
+        for (selector, version, path, text) in current_pins() {
+            let harness = Harness::new("bump-no-change-check");
+            seed(&harness, path, &text);
+            let (code, out, err) = harness.run(&["update", selector, version]);
+            assert_eq!(code, 0, "{selector}: {out}{err}");
+            assert!(out.contains("no-change"), "{selector}: {out}");
+            assert!(err.is_empty(), "{selector}: {err}");
+            let (code, out, err) = harness.run(&["update", selector, version, "--output=json"]);
+            assert_eq!(code, 0, "{selector}: {out}{err}");
+            let events = json_events(&out);
+            assert_eq!(
+                event(&events, "notice")["code"],
+                "update_no_change",
+                "{out}"
+            );
+            assert_eq!(events.last().expect("finished")["exit_code"], 0);
+            assert!(
+                harness.seen_env.borrow().is_empty(),
+                "{selector}: check refreshes nothing"
             );
         }
     }

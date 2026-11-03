@@ -127,6 +127,8 @@ export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/ar
 
 `dx license` does not read it.
 
+Put `#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json` at the top of `security.toml` to get editor completion and checks. For `licenses.toml`, use `.../licenses.schema.json` in the same place.
+
 A `.gitleaks.toml` in the workspace root is merged into the config dx hands the
 scan. It is the only user config the scan reads. Each scan that uses it reports
 a warning naming the file, because the config carries no hash pin. A secret

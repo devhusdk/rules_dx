@@ -1,5 +1,5 @@
 {
-  "checksum": "e242250c070a7a5c1d6841b41dbb5794594750d48700da35a08e4b387a886f8b",
+  "checksum": "af4482ef0170ca3fd34ad29c13bf5dcd73b268f1fab30cc760a19899e557c2d3",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -6707,6 +6707,10 @@
             "target": "regex"
           },
           {
+            "id": "schemars 1.2.3",
+            "target": "schemars"
+          },
+          {
             "id": "semver 1.0.27",
             "target": "semver"
           },
@@ -6748,6 +6752,10 @@
           }
         ],
         "deps_dev": [
+          {
+            "id": "jsonschema 0.60.2",
+            "target": "jsonschema"
+          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -8273,6 +8281,35 @@
         }
       ],
       "version": "0.0.0"
+    },
+    "dyn-clone 1.0.20": {
+      "common_attrs": {
+        "edition": "2018"
+      },
+      "library_target_name": "dyn_clone",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "dyn-clone",
+      "package_url": "https://github.com/dtolnay/dyn-clone",
+      "repository": {
+        "Http": {
+          "sha256": "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555",
+          "url": "https://static.crates.io/crates/dyn-clone/1.0.20/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dyn_clone",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.0.20"
     },
     "eax 0.5.0": {
       "common_attrs": {
@@ -20092,6 +20129,110 @@
       ],
       "version": "0.6.0"
     },
+    "schemars 1.2.3": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "derive",
+          "schemars_derive",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "dyn-clone 1.0.20",
+            "target": "dyn_clone"
+          },
+          {
+            "id": "ref-cast 1.0.27",
+            "target": "ref_cast"
+          },
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2021",
+        "proc_macro_deps": [
+          {
+            "id": "schemars_derive 1.2.3",
+            "target": "schemars_derive"
+          }
+        ]
+      },
+      "library_target_name": "schemars",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "schemars",
+      "package_url": "https://github.com/GREsau/schemars",
+      "repository": {
+        "Http": {
+          "sha256": "ab508826f74a77ca9d5aba6ff19b522583ee3eaf28a19384ff3d0e5835fadf6e",
+          "url": "https://static.crates.io/crates/schemars/1.2.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "schemars",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.2.3"
+    },
+    "schemars_derive 1.2.3": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "serde_derive_internals 0.30.0",
+            "target": "serde_derive_internals"
+          },
+          {
+            "id": "syn 3.0.5",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "schemars_derive",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "schemars_derive",
+      "package_url": "https://github.com/GREsau/schemars",
+      "repository": {
+        "Http": {
+          "sha256": "e1c3a92094fa7d61aa124645844facb6b554dfc797136d0f5fd1f890e2bffc69",
+          "url": "https://static.crates.io/crates/schemars_derive/1.2.3/download"
+        }
+      },
+      "targets": [
+        {
+          "ProcMacro": {
+            "crate_name": "schemars_derive",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.2.3"
+    },
     "scopeguard 1.2.0": {
       "common_attrs": {
         "edition": "2015"
@@ -20661,6 +20802,49 @@
         }
       ],
       "version": "1.0.229"
+    },
+    "serde_derive_internals 0.30.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "proc-macro2 1.0.107",
+            "target": "proc_macro2"
+          },
+          {
+            "id": "quote 1.0.47",
+            "target": "quote"
+          },
+          {
+            "id": "syn 3.0.5",
+            "target": "syn"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "serde_derive_internals",
+      "license": "MIT OR Apache-2.0",
+      "license_file": "LICENSE-APACHE",
+      "license_ids": [
+        "Apache-2.0",
+        "MIT"
+      ],
+      "name": "serde_derive_internals",
+      "package_url": "https://github.com/serde-rs/serde",
+      "repository": {
+        "Http": {
+          "sha256": "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd",
+          "url": "https://static.crates.io/crates/serde_derive_internals/0.30.0/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "serde_derive_internals",
+            "crate_root": "lib.rs"
+          }
+        }
+      ],
+      "version": "0.30.0"
     },
     "serde_json 1.0.151": {
       "build_script_attrs": {},
@@ -27845,6 +28029,7 @@
     "rustls 0.23.46",
     "ruzstd 0.9.1",
     "saphyr-parser 0.2.2",
+    "schemars 1.2.3",
     "semver 1.0.27",
     "serde 1.0.229",
     "serde-sarif 0.8.0",

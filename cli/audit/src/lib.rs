@@ -11,6 +11,7 @@
 pub mod advisory;
 pub mod advisory_prep;
 pub mod backend;
+pub mod config_schema;
 pub mod curator;
 pub mod exception;
 pub mod license_expr;

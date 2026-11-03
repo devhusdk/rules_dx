@@ -1,11 +1,12 @@
 use chrono::{Datelike, NaiveDate};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::vuln::VersionScope;
 
 pub const EXCEPTION_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RiskException {
     pub advisory: String,
@@ -28,7 +29,7 @@ impl RiskException {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UncoveredAcceptance {
     pub set: String,
@@ -245,9 +246,9 @@ pub fn load_security_toml(text: &str) -> Result<SecurityPolicy, SecurityProblem>
     })
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SecurityFile {
+pub(crate) struct SecurityFile {
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]

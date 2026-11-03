@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "RiskException": {
+      "additionalProperties": false,
+      "properties": {
+        "advisory": {
+          "type": "string"
+        },
+        "expires": {
+          "type": "string"
+        },
+        "package": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "set": {
+          "type": "string"
+        },
+        "versions": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "advisory",
+        "package",
+        "set",
+        "versions",
+        "reason",
+        "expires"
+      ],
+      "type": "object"
+    },
+    "UncoveredAcceptance": {
+      "additionalProperties": false,
+      "properties": {
+        "expires": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "set": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "set",
+        "reason",
+        "expires"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "exception": {
+      "items": {
+        "$ref": "#/definitions/RiskException"
+      },
+      "type": "array"
+    },
+    "schema_version": {
+      "default": null,
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "uncovered": {
+      "items": {
+        "$ref": "#/definitions/UncoveredAcceptance"
+      },
+      "type": "array"
+    }
+  },
+  "title": "security.toml",
+  "type": "object"
+}

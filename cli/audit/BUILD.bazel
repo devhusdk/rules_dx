@@ -1,12 +1,15 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:crate.bzl", "dx_rust_crate")
+load("//rust/rules:defs.bzl", "rust_binary")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
 
 exports_files([
+    "schema/licenses.schema.json",
+    "schema/security.schema.json",
     "src/lib.rs",
-])
+], visibility = ["//visibility:public"])
 
 dx_rust_crate(
     name = "dx_audit",
@@ -15,6 +18,7 @@ dx_rust_crate(
         "src/advisory.rs",
         "src/advisory_prep.rs",
         "src/backend.rs",
+        "src/config_schema.rs",
         "src/curator.rs",
         "src/exception.rs",
         "src/exception_apply.rs",
@@ -49,7 +53,16 @@ dx_rust_crate(
         "src/vuln_snapshot.rs",
         "src/vuln_types.rs",
     ],
-    dev_deps = ["tempfile"],
+    compile_data = [
+        "schema/licenses.schema.json",
+        "schema/security.schema.json",
+        "//:licenses.toml",
+        "//:security.toml",
+    ],
+    dev_deps = [
+        "jsonschema",
+        "tempfile",
+    ],
     extra_deps = [
         "//cli/digest:dx_digest",
         "//cli/sbom:dx_sbom",
@@ -59,6 +72,7 @@ dx_rust_crate(
     extra_test_deps = ["//cli/sbom/schema:dx_sbom_schema"],
     test_srcs = [
         "src/advisory_prep_tests.rs",
+        "src/config_schema_tests.rs",
         "src/exception_tests.rs",
         "src/license_policy_tests.rs",
         "src/locks_bazel_tests.rs",
@@ -75,6 +89,7 @@ dx_rust_crate(
         "packageurl",
         "pep440_rs",
         "regex",
+        "schemars",
         "semver",
         "serde",
         "serde-sarif",
@@ -86,6 +101,15 @@ dx_rust_crate(
         "yaml_serde",
         "yarn-lock-parser",
     ],
+)
+
+rust_binary(
+    name = "config_schemas",
+    srcs = ["src/bin_config_schemas.rs"],
+    crate_name = "config_schemas",
+    crate_root = "src/bin_config_schemas.rs",
+    edition = "2021",
+    deps = [":dx_audit"],
 )
 
 real_source_target(

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::exception::{check_expiry, line_of, ExceptionProblem};
@@ -21,7 +22,7 @@ pub struct SetAdjustment {
     pub review: BTreeSet<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Distribution {
     #[serde(default)]
@@ -200,7 +201,7 @@ fn pattern_covers(entry: &str, root: &str) -> bool {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LicenseException {
     pub package: String,
@@ -283,7 +284,7 @@ pub fn check_applies(
     Ok(())
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LicenseInventory {
     pub package: String,
@@ -399,9 +400,9 @@ pub fn load_licenses_toml(text: &str) -> Result<LicensePolicy, PolicyProblem> {
     Ok(policy)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct LicensesFile {
+pub(crate) struct LicensesFile {
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
@@ -414,9 +415,9 @@ struct LicensesFile {
     inventory: Vec<LicenseInventory>,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct PolicyFile {
+pub(crate) struct PolicyFile {
     #[serde(default)]
     blocked: Vec<String>,
     #[serde(default)]
@@ -425,9 +426,9 @@ struct PolicyFile {
     sets: BTreeMap<String, SetReview>,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct PolicyLists {
+pub(crate) struct PolicyLists {
     #[serde(default)]
     allow: Vec<String>,
     #[serde(default)]
@@ -436,9 +437,9 @@ struct PolicyLists {
     deny: Vec<String>,
 }
 
-#[derive(Default, Deserialize)]
+#[derive(Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct SetReview {
+pub(crate) struct SetReview {
     #[serde(default)]
     review: Vec<String>,
 }

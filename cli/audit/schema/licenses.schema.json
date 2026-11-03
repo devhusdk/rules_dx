@@ -1,0 +1,181 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "Distribution": {
+      "additionalProperties": false,
+      "properties": {
+        "internal": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "type": "object"
+    },
+    "LicenseException": {
+      "additionalProperties": false,
+      "properties": {
+        "expires": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string"
+        },
+        "package": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "set": {
+          "type": "string"
+        },
+        "versions": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "package",
+        "set",
+        "license",
+        "versions",
+        "reason",
+        "expires"
+      ],
+      "type": "object"
+    },
+    "LicenseInventory": {
+      "additionalProperties": false,
+      "properties": {
+        "license": {
+          "type": "string"
+        },
+        "package": {
+          "type": "string"
+        },
+        "set": {
+          "type": "string"
+        },
+        "text": {
+          "default": null,
+          "description": "Workspace-relative path of the vendored license words; implies\n`text_present` and feeds the `notice` report.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "text_present": {
+          "default": false,
+          "type": "boolean"
+        },
+        "versions": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "package",
+        "set",
+        "license",
+        "versions"
+      ],
+      "type": "object"
+    },
+    "PolicyFile": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "distributed": {
+          "$ref": "#/definitions/PolicyLists"
+        },
+        "sets": {
+          "additionalProperties": {
+            "$ref": "#/definitions/SetReview"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "PolicyLists": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "deny": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "review": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "SetReview": {
+      "additionalProperties": false,
+      "properties": {
+        "review": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "properties": {
+    "distribution": {
+      "$ref": "#/definitions/Distribution"
+    },
+    "exception": {
+      "items": {
+        "$ref": "#/definitions/LicenseException"
+      },
+      "type": "array"
+    },
+    "inventory": {
+      "items": {
+        "$ref": "#/definitions/LicenseInventory"
+      },
+      "type": "array"
+    },
+    "policy": {
+      "$ref": "#/definitions/PolicyFile"
+    },
+    "schema_version": {
+      "default": null,
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "title": "licenses.toml",
+  "type": "object"
+}

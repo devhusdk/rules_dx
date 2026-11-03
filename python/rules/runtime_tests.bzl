@@ -32,7 +32,7 @@ def python_runtime_unit_tests(name):
             expect_equal(
                 "rules_python stays pinned beside aspect",
                 _MOD_RULES_PY,
-                "1.9.0",
+                "2.4.6",
             ),
             expect_equal(
                 "managed interpreter stays 3.12",

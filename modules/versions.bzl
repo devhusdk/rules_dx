@@ -40,7 +40,8 @@ GO_SDK_SDKS = {
     "windows_arm64": ["go1.26.10.windows-arm64.zip", "6831fd8c31091243d5695c8fa3a721c9f4ae2bb36482763e77e57ee01b76489f"],
 }
 
-RULES_PYTHON_VERSION = "1.9.0"
+FLOOR_RULES_PYTHON = "1.9.0"
+RULES_PYTHON_VERSION = "2.4.6"
 ASPECT_RULES_PY_VERSION = "2.0.0-alpha.10"
 PYTHON_VERSION = "3.12"
 
@@ -91,7 +92,7 @@ CONSUMER_BAZEL_DEPS = {
     "rules_cc": struct(floor = RULES_CC_VERSION, tested = RULES_CC_VERSION),
     "llvm": struct(floor = LLVM_VERSION, tested = LLVM_VERSION),
     "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
-    "rules_python": struct(floor = RULES_PYTHON_VERSION, tested = RULES_PYTHON_VERSION),
+    "rules_python": struct(floor = FLOOR_RULES_PYTHON, tested = RULES_PYTHON_VERSION),
     "rules_go": struct(floor = FLOOR_RULES_GO, tested = TESTED_RULES_GO),
     "gazelle": struct(floor = GAZELLE_VERSION, tested = GAZELLE_VERSION),
     "rules_shell": struct(floor = RULES_SHELL_VERSION, tested = RULES_SHELL_VERSION),

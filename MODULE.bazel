@@ -53,11 +53,11 @@ single_version_override(
 bazel_dep(name = "toolchains_llvm", version = "1.12.0", dev_dependency = True)
 bazel_dep(name = "googletest", version = "1.18.0", dev_dependency = True)
 
-# floor: equals tested; not yet searched (#3747)
+# floor: 1.9.0 (#3747)
 bazel_dep(name = "rules_python", version = "1.9.0")
 single_version_override(
     module_name = "rules_python",
-    version = "1.9.0",
+    version = "2.4.6",
 )
 
 # floor: forced by rules_dart 0.8.0 MVS (#1783)

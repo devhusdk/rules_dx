@@ -27,6 +27,17 @@ quality_family(
     typecheck = ["gotype"],
 )
 
+quality_family(
+    name = "go_staticcheck_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "go",
+    lint = ["staticcheck"],
+)
+
 workspace_policy(
     name = "policy",
     families = [":go_family"],
@@ -35,4 +46,9 @@ workspace_policy(
 workspace_policy(
     name = "typecheck_policy",
     families = [":go_typecheck_family"],
+)
+
+workspace_policy(
+    name = "staticcheck_policy",
+    families = [":go_staticcheck_family"],
 )

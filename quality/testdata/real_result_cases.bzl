@@ -11,6 +11,8 @@ _GO_POLICY = "//quality/testdata/go_owned:policy"
 
 _GO_TYPECHECK_POLICY = "//quality/testdata/go_owned:typecheck_policy"
 
+_GO_STATICCHECK_POLICY = "//quality/testdata/go_owned:staticcheck_policy"
+
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
 _CC_POLICY = "//quality/testdata/clang_syntax:cc_syntax_policy"
@@ -108,6 +110,8 @@ REAL_RESULT_CASES = [
     _go_case("govet", "lint", "dirty", "//go/tests/fixtures/govet:dirty", ["non-constant format string"], []),
     _go_case("gotype", "typecheck", "clean", "//go/tests/fixtures/gotype:clean", ["gotype"], ["cannot use"], _GO_TYPECHECK_POLICY),
     _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], [], _GO_TYPECHECK_POLICY),
+    _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"], _GO_STATICCHECK_POLICY),
+    _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "Sprintf doesn't have side effects"], [], _GO_STATICCHECK_POLICY),
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),

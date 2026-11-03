@@ -949,9 +949,37 @@ fn emit_outcomes(
                     outcome.target
                 );
             }
+            if !outcome.superseded && is_failed(&outcome.outcome) {
+                write_failed_line(err, outcome);
+            }
         }
     }
     Ok(counts)
+}
+
+/// Most failing case names one text-mode failure line lists.
+const TEXT_CASE_LIMIT: usize = 3;
+
+/// Prints `dx: failed: <target>: <cases> (log: <path>)` for one failed result.
+fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
+    let failing: Vec<&str> = outcome
+        .cases
+        .iter()
+        .filter(|case| case.outcome == "failed" || case.outcome == "error")
+        .map(|case| case.name.as_str())
+        .collect();
+    let mut line = format!("dx: failed: {}", outcome.target);
+    if !failing.is_empty() {
+        line.push_str(": ");
+        line.push_str(&failing[..failing.len().min(TEXT_CASE_LIMIT)].join(", "));
+        if failing.len() > TEXT_CASE_LIMIT {
+            line.push_str(&format!(" and {} more", failing.len() - TEXT_CASE_LIMIT));
+        }
+    }
+    if let Some(log) = &outcome.log_path {
+        line.push_str(&format!(" (log: {log})"));
+    }
+    let _ = writeln!(err, "{line}");
 }
 
 /// Writes reports to their destinations and announces each one in the run's output mode.
@@ -4815,6 +4843,28 @@ mod tests {
                 .expect("tail")
                 .contains("boom happened"),
             "{out}"
+        );
+    }
+
+    #[test]
+    fn test_text_mode_names_failing_cases_and_log() {
+        let harness = Harness::new("test-failing-text");
+        let files = failing_result_files(&harness, true);
+        let harness = Harness {
+            bazel_code: 3,
+            raw_bep: Some(vec![test_result_full_line(
+                "//a:t", 1, 1, 1, "FAILED", None, None, None, &files,
+            )]),
+            ..harness
+        };
+        let (_, _, err) = harness.run(&["test", "--output=text"]);
+        let line = err
+            .lines()
+            .find(|line| line.starts_with("dx: failed: //a:t: fails, errs"))
+            .unwrap_or_else(|| panic!("{err}"));
+        assert!(
+            line.contains("(log: ") && line.contains("test.log)"),
+            "{line}"
         );
     }
 

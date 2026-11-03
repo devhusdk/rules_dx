@@ -120,6 +120,10 @@ cache), and `no_cases` (passed results whose report had no test cases; part of
 attempts of a retried test still appear as `test_outcome` events with
 `final: false` and are not counted.
 
+In text mode, `dx test` prints one stderr line per failed result:
+`dx: failed: //pkg:test: case_a, case_b, case_c and 2 more (log: <path>/test.log)`.
+It lists up to 3 failing cases, then counts the rest.
+
 A test that Bazel skipped has outcome `skipped`. A test that a tag or size
 filter removed from the run has outcome `filtered`. Neither changes how the
 run ends. When any test was filtered, dx emits one `notice` event with code

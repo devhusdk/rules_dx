@@ -54,7 +54,12 @@ pub(super) fn locate<'a>(
         let path = path.strip_prefix("./").unwrap_or(path);
         files.iter().copied().find(|f| *f == path).map(|f| (f, *at))
     })?;
-    Some((outer, outer_line, 1, format!("{file}:{line_no}:{column}: {message}")))
+    Some((
+        outer,
+        outer_line,
+        1,
+        format!("{file}:{line_no}:{column}: {message}"),
+    ))
 }
 
 /// Splits a trailing `[-Wflag]` off the message into a rule id.

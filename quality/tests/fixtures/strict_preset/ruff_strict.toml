@@ -1,8 +1,0 @@
-# Strict Ruff preset example (opt-in).
-#
-# Copy into the owning package and rerun generation. Strict superset of
-# the loose selection: E covers E4 plus E7 plus E9, F is retained, and
-# W plus I plus N plus UP plus B plus SIM add stable families. Pinned
-# upstream defaults stay authoritative for omitted settings.
-[lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]

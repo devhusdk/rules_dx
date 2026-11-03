@@ -1,3 +1,0 @@
-The following files had formatting differences:
-
-quality/tests/fixtures/file_family_adapters/yamlfmt/Sample.yaml

@@ -1,1 +1,0 @@
-base.html:1:1: H006 test fixture

@@ -1,1 +1,0 @@
-Sample.ps1:4:1: [PSAvoidUsingWriteHost] Avoid Write-Host

@@ -1,9 +1,0 @@
-# Example checked-in Buf native config.
-#
-# Sole-policy example: without a checked-in `buf.yaml` the pinned tool
-# uses the upstream STANDARD lint set; with this file it interprets
-# natively.
-version: v1
-lint:
-  use:
-    - STANDARD

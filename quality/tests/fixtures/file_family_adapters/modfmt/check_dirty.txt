@@ -1,1 +1,0 @@
-quality/tests/fixtures/file_family_adapters/modfmt/go.mod

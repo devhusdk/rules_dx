@@ -562,10 +562,12 @@ pub.from_lock(
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
-# floor: equals tested; not yet searched (#3747)
+# floor: equals tested; patched, consumers are pinned by the dx include (#5006)
 bazel_dep(name = "rules_julia", version = "0.8.0")
 single_version_override(
     module_name = "rules_julia",
+    patch_strip = 1,
+    patches = ["//patches/rules_julia:package_name.patch"],
     version = "0.8.0",
 )
 

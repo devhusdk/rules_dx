@@ -72,16 +72,21 @@ def _julia_kwargs(kwargs):
 
 def julia_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over julia_library."""
-    dx_wrap(name, _julia_library, _julia_library_forward, srcs or [], visibility = visibility, **_julia_kwargs(kwargs))
+    kwargs = _julia_kwargs(kwargs)
+    dx_wrap(name, _julia_library, _julia_library_forward, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, package_name = name), **kwargs)
 
 def julia_binary(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_binary."""
     kwargs = _julia_kwargs(kwargs)
-    upstream = dict(kwargs, main = main) if main != None else kwargs
+    upstream = dict(kwargs, package_name = name)
+    if main != None:
+        upstream["main"] = main
     dx_wrap_binary(name, _julia_binary, _julia_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = julia_quality_srcs(main, srcs), **kwargs)
 
 def julia_test(name, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_test."""
     kwargs = _julia_kwargs(kwargs)
-    upstream = dict(kwargs, main = main) if main != None else kwargs
+    upstream = dict(kwargs, package_name = name)
+    if main != None:
+        upstream["main"] = main
     dx_wrap_test(name, _julia_test, _julia_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = julia_quality_srcs(main, srcs), coverage_collector = JULIA_COVERAGE_COLLECTOR, **kwargs)

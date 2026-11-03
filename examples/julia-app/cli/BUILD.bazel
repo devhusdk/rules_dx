@@ -27,6 +27,7 @@ julia_library(
     name = "Report",
     srcs = ["src/Report.jl"],
     data = ["Project.toml"],
+    precompile = False,
     deps = [
         "//examples/julia-app/archive:Archive",
         "//examples/julia-app/stats:Stats",

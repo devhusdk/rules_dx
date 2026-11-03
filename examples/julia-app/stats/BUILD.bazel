@@ -12,6 +12,7 @@ julia_library(
     name = "Stats",
     srcs = ["src/Stats.jl"],
     data = ["Project.toml"],
+    precompile = False,
     deps = ["@julia_app_deps//:OrderedCollections"],
 )
 

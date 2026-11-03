@@ -37,6 +37,7 @@ dx_rust_crate(
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
         "//patches/protobuf:no_crate_universe.patch",
         "//patches/rules_cuda:dlink_includes.patch",
+        "//patches/rules_julia:package_name.patch",
         "//patches/rules_rust:lld_link.patch",
         "//patches/rules_rust:msvc_stdlib_linkflags.patch",
         "//patches/rules_rust:clippy_metadata_inputs.patch",

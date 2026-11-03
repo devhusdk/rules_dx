@@ -30,6 +30,7 @@ files but leaves the `include()` out and says so on stderr. Without a
 | --- | --- | --- | --- |
 | `rules_rust` | 0.75.0 | `lld_link.patch`, `msvc_stdlib_linkflags.patch`, `clippy_metadata_inputs.patch` | Rust on Windows (lld-link, MSVC stdlib link flags); clippy reads dependency `.rmeta` |
 | `rules_cuda` | 0.3.0 | `dlink_includes.patch` | CUDA device link (`rdc`) in the sandbox |
+| `rules_julia` | 0.8.0 | `package_name.patch` | Julia `package_name` attribute for the wrapper targets |
 | `aspect_rules_py` | 2.0.0-alpha.10 | `windows_venv.patch` | Python venvs on Windows |
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir |
 | `aspect_rules_jest` | 0.26.0 | `windows_v8_coverage.patch` | Jest coverage on Windows (v8 provider) |

@@ -67,6 +67,15 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "rules_julia",
+        version: "0.8.0",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "package_name.patch",
+            content: include_str!("../../../patches/rules_julia/package_name.patch"),
+        }],
+    },
+    Override {
         module: "protobuf",
         version: "36.2",
         patch_strip: 1,

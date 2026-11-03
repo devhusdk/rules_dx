@@ -261,7 +261,7 @@ _TOOLCHAIN = """toolchain(
     exec_compatible_with = {constraints},
     target_compatible_with = {constraints},
     toolchain = "@{repo}//:toolchain-impl",
-    toolchain_type = "@rules_haskell//haskell:toolchain",
+    toolchain_type = "{toolchain_type}",
 )
 """
 
@@ -400,6 +400,7 @@ def hub_files():
             cell = cell,
             constraints = repr(CELLS[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
+            toolchain_type = str(Label("//haskell/toolchain/type:toolchain")),
         ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
             cell,
@@ -420,7 +421,10 @@ def _haskell_impl(mctx):
         name = "rules_haskell",
         dropped = DROPPED_PATHS,
         files = {"BUILD.bazel": _ROOT_BUILD},
-        patches = [Label("//patches/rules_haskell:hermetic_haskell.patch")],
+        patches = [
+            Label("//patches/rules_haskell:hermetic_haskell.patch"),
+            Label("//patches/rules_haskell:toolchain_type_alias.patch"),
+        ],
         sha256 = RULES_HASKELL_SHA256,
         strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,
         urls = [RULES_HASKELL_URL],

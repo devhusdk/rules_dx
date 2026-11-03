@@ -1,6 +1,7 @@
 //! Editor support files under `.dx/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
 
 mod cc;
+mod jdk;
 mod link;
 mod python;
 mod typescript;
@@ -60,7 +61,12 @@ impl Report {
     }
 }
 
-const PLUGINS: &[&Plugin] = &[&python::PLUGIN, &typescript::PLUGIN, &cc::PLUGIN];
+const PLUGINS: &[&Plugin] = &[
+    &python::PLUGIN,
+    &typescript::PLUGIN,
+    &cc::PLUGIN,
+    &jdk::PLUGIN,
+];
 
 /// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
 pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, String> {
@@ -422,6 +428,29 @@ mod tests {
         );
         assert!(!refresh(root, &runner).expect("second").ran);
         assert_eq!(runner.calls.get(), 1);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn jdk_links_the_home_for_java_and_kotlin_and_reruns_as_a_no_op() {
+        let scratch = dx_test_scratch::scratch("dx-ide-jdk-");
+        let root = scratch.path();
+        let mut runner = fake(root);
+        let home = root.join("store").join("jdk");
+        std::fs::create_dir_all(home.join("bin")).expect("bin");
+        std::fs::write(home.join("bin/java"), "").expect("java");
+        runner.lib = home.join("bin/java");
+        refresh(root, &runner).expect("no java");
+        assert!(!root.join(".dx/ide/jdk").exists());
+        std::fs::write(root.join("App.kt"), "").expect("kt");
+        let first = refresh(root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        assert_eq!(
+            std::fs::read_link(root.join(".dx/ide/jdk/home")).expect("link"),
+            home
+        );
+        assert!(!refresh(root, &runner).expect("second").ran);
         scratch.close().expect("cleanup");
     }
 }

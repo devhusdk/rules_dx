@@ -180,6 +180,8 @@ pub fn render_editor_settings() -> String {
         "clangd.path": ".dx/ide/cc/clangd",
         "clangd.arguments": ["--compile-commands-dir=.dx/ide/cc"],
         "java.configuration.updateBuildConfiguration": "manual",
+        "java.jdt.ls.java.home": ".dx/ide/jdk/home",
+        "kotlin.java.home": ".dx/ide/jdk/home",
         "kotlin.languageServer.enabled": true,
     });
     format!("{settings}\n")
@@ -777,6 +779,8 @@ mod tests {
             "go.toolsManagement.checkForUpdates",
             "clangd.arguments",
             "java.configuration.updateBuildConfiguration",
+            "java.jdt.ls.java.home",
+            "kotlin.java.home",
             "kotlin.languageServer.enabled",
         ] {
             assert!(settings.contains(key), "lost {key}");

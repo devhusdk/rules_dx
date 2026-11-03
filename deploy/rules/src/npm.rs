@@ -283,6 +283,22 @@ pub fn npm_verify_pack(
     Ok((name, tag, registry, access, provenance))
 }
 
+/// Refuses a staged tarball whose sha256 differs from the feed's.
+pub fn npm_check_staged(staged_tgz: &Path, feed_path: &Path) -> io::Result<()> {
+    let expected = parse_npm_feed(&std::fs::read_to_string(feed_path)?)?.sha256;
+    let actual = dx_digest::sha256_file_hex(staged_tgz)?;
+    if expected != actual {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "checksum mismatch for {} (expected {expected}, actual {actual})",
+                staged_tgz.display(),
+            ),
+        ));
+    }
+    Ok(())
+}
+
 /// Resolves the npm pack pair from explicit runfiles keys.
 pub fn npm_find_pack_inputs(
     feed_rloc: &str,
@@ -471,6 +487,10 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
             return 1;
         }
         let staged_tgz = outdir.join(&tgz_base);
+        if let Err(error) = npm_check_staged(&staged_tgz, &feed_path) {
+            eprintln!("npm_deploy: {error}");
+            return 1;
+        }
         let Some(npm) = which_on_path("npm") else {
             eprintln!("npm_deploy: 'npm' CLI not found on PATH");
             return 1;
@@ -1347,6 +1367,22 @@ mod tests {
         std::fs::write(&path, script).expect("write npm");
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         path
+    }
+
+    #[test]
+    fn npm_check_staged_refuses_a_changed_tarball() {
+        let scratch = scratch_dir();
+        let tgz = scratch.path().join("a.tgz");
+        std::fs::write(&tgz, b"good").expect("write");
+        let sha = dx_digest::sha256_file_hex(&tgz).expect("sha");
+        let feed = scratch.path().join("feed.json");
+        std::fs::write(&feed, format!(
+                r#"{{"access": "public", "files": [], "name": "n", "provenance": "none", "registry": "r", "sha256": "{sha}", "tag": "t", "tarball": "a.tgz"}}"#
+            )).expect("feed");
+        assert!(npm_check_staged(&tgz, &feed).is_ok());
+        std::fs::write(&tgz, b"bad").expect("write");
+        let error = npm_check_staged(&tgz, &feed).expect_err("mismatch");
+        assert!(error.to_string().contains("checksum mismatch"), "{error}");
     }
 
     #[cfg(unix)]

@@ -285,8 +285,11 @@ fn finish_run(
 ) -> i32 {
     let AppExit { code, signal } = exit;
     if invocation.output != OutputMode::Json {
-        if let (Some(target), Some(signo)) = (failed, signal) {
-            app_signalled_line(err, target, signo);
+        if let Some(target) = failed {
+            match signal {
+                Some(signo) => app_signalled_line(err, target, signo),
+                None => app_exited_line(err, target, code),
+            }
         }
         return code;
     }
@@ -848,6 +851,20 @@ mod tests {
         let (code, _, err) = harness.run(&["run", "//app:bin"]);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("bazel_signalled"), "{err}");
+    }
+
+    #[test]
+    fn run_text_app_exit_names_the_target_and_code() {
+        let mut harness = Harness::new("run-app-exit");
+        harness.app_code = Some(3);
+        let (code, _, err) = harness.run(&["run", "//a:bin"]);
+        assert_eq!(code, 3, "{err}");
+        assert!(err.contains("dx: //a:bin exited 3\n"), "{err}");
+        assert!(!err.contains("terminated by signal"), "{err}");
+        let harness = Harness::new("run-app-ok");
+        let (code, _, err) = harness.run(&["run", "//a:bin"]);
+        assert_eq!(code, 0, "{err}");
+        assert!(!err.contains("dx: //a:bin exited"), "{err}");
     }
 
     #[test]

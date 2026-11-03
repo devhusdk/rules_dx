@@ -958,6 +958,11 @@ pub(crate) fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
     );
 }
 
+/// Writes the text line for an app that exited with `code`.
+pub(crate) fn app_exited_line(err: &mut dyn Write, label: &str, code: i32) {
+    let _ = writeln!(err, "dx: {label} exited {code}");
+}
+
 /// Launches one `bazel run` app; its exit is the app's, and a signalled app exits 128 plus the signal.
 pub(crate) fn run_bazel_app(
     invocation: &Invocation,

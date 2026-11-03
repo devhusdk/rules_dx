@@ -320,6 +320,8 @@ Output: `--output text|json`. `dx run` has no report format. With
 `application_failed`, cause `application`, the app's exit code as `status`,
 and `correlation` `run:<label>`. An app that dies by a signal emits the same
 `error`, with its signal exit code from the list below as `status`.
+With `--output=text`, an app that exits nonzero prints `dx: <label> exited <code>`
+on stderr.
 A failed build emits an `error` with code `bazel_failed` and starts no app.
 
 Exit codes: `0` success, `2` usage or scope errors, `1` no runnable target or

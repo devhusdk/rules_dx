@@ -74,6 +74,8 @@ pub(crate) struct Harness {
     pub(crate) signalled: bool,
     /// The signal a `bazel run` app dies by; the build still exits `bazel_code`.
     pub(crate) app_signal: Option<i32>,
+    /// The exit code of a `bazel run` app; the build still exits `bazel_code`.
+    pub(crate) app_code: Option<i32>,
     pub(crate) skip_bep: bool,
     pub(crate) raw_bep: Option<Vec<String>>,
     pub(crate) unterminated_bep: bool,
@@ -248,6 +250,7 @@ impl Harness {
             io_error: false,
             signalled: false,
             app_signal: None,
+            app_code: None,
             skip_bep: false,
             raw_bep: None,
             unterminated_bep: false,
@@ -443,6 +446,7 @@ impl Harness {
                 code: Some(self.bazel_code),
                 generate_code: self.generate_code,
                 app_signal: self.app_signal,
+                app_code: self.app_code,
                 bep_lines: lines,
                 io_error: self.io_error,
                 skip_bep: self.skip_bep,
@@ -505,6 +509,7 @@ impl Harness {
             },
             generate_code: self.generate_code,
             app_signal: self.app_signal,
+            app_code: self.app_code,
             bep_lines: lines,
             io_error: self.io_error,
             skip_bep: self.skip_bep,
@@ -723,6 +728,7 @@ pub(crate) struct FakeRunner {
     pub(crate) code: Option<i32>,
     pub(crate) generate_code: Option<i32>,
     pub(crate) app_signal: Option<i32>,
+    pub(crate) app_code: Option<i32>,
     pub(crate) bep_lines: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) skip_bep: bool,
@@ -833,9 +839,12 @@ impl Runner for FakeRunner {
                 return Ok(ChildStatus::exited(code));
             }
         }
-        if let Some(signo) = self.app_signal {
-            if bazel_subcommand(argv) == Some("run") {
+        if bazel_subcommand(argv) == Some("run") {
+            if let Some(signo) = self.app_signal {
                 return Ok(ChildStatus::signalled(Some(signo)));
+            }
+            if let Some(code) = self.app_code {
+                return Ok(ChildStatus::exited(code));
             }
         }
         Ok(ChildStatus {

@@ -3,6 +3,8 @@
 load(":real_results.bzl", "real_result_test")
 
 _ZANUDA_POLICY = "//quality/testdata/zanuda_owned:policy"
+_RUST_POLICY = "//quality/testdata/rust_owned:policy"
+
 _DIALYZER = "//erlang/tools:dialyzer"
 
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
@@ -97,6 +99,64 @@ REAL_RESULT_CASES = [
         "contains": ["dialyzer/", "invalid_contract"],
         "absent": [],
     },
+    {
+        "name": "real_result_clippy_clean",
+        "target": "//quality/testdata/rust_owned:clean",
+        "policy": _RUST_POLICY,
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "contains": ["quality/testdata/rust_owned/clean.rs"],
+        "absent": ["len_zero", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "real_result_clippy_dirty",
+        "target": "//quality/testdata/rust_owned:dirty",
+        "policy": _RUST_POLICY,
+        "tool": "clippy",
+        "capability": "lint",
+        "class": "rust",
+        "contains": ["quality/testdata/rust_owned/dirty.rs", "len_zero"],
+        "absent": [],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "real_result_rustc_clean",
+        "target": "//quality/testdata/rust_owned:clean",
+        "policy": _RUST_POLICY,
+        "tool": "rustc",
+        "typecheck_subject": True,
+        "capability": "typecheck",
+        "class": "rust",
+        "contains": ["quality/testdata/rust_owned/clean.rs"],
+        "absent": ["unused variable", "Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "real_result_rustc_dirty",
+        "target": "//quality/testdata/rust_owned:dirty",
+        "policy": _RUST_POLICY,
+        "tool": "rustc",
+        "typecheck_subject": True,
+        "capability": "typecheck",
+        "class": "rust",
+        "contains": ["quality/testdata/rust_owned/dirty.rs", "unused variable"],
+        "absent": [],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
 ]
 
 def real_result_evidence(case):
@@ -121,6 +181,7 @@ def real_result_cases():
             contains = case["contains"],
             absent = case["absent"],
             tool_dialyzer = case.get("tool_dialyzer"),
+            typecheck_subject = case.get("typecheck_subject", False),
             linux_arm64 = case.get("linux_arm64", False),
             macos_arm64 = case.get("macos_arm64", False),
             windows_x86_64 = case.get("windows_x86_64", False),

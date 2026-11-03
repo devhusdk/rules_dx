@@ -2,6 +2,7 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality/testdata:real_aspect_subject.bzl", "real_aspect_subject")
+load("//quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
 load("//quality/testdata:runner_matrix_tests.bzl", "compatible")
 
 def _policy_transition_impl(_settings, attr):
@@ -9,12 +10,21 @@ def _policy_transition_impl(_settings, attr):
     return {
         "//config:tool_dialyzer": str(attr.tool_dialyzer),
         "//config:workspace": attr.policy,
+        "@rules_rust//rust/settings:clippy_output_diagnostics": True,
+        "@rules_rust//rust/settings:extra_rustc_flags": [],
+        "@rules_rust//rust/settings:rustc_output_diagnostics": True,
     }
 
 _policy_transition = transition(
     implementation = _policy_transition_impl,
     inputs = [],
-    outputs = ["//config:tool_dialyzer", "//config:workspace"],
+    outputs = [
+        "//config:tool_dialyzer",
+        "//config:workspace",
+        "@rules_rust//rust/settings:clippy_output_diagnostics",
+        "@rules_rust//rust/settings:extra_rustc_flags",
+        "@rules_rust//rust/settings:rustc_output_diagnostics",
+    ],
 )
 
 def _results_impl(ctx):
@@ -30,9 +40,10 @@ _results = rule(
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, typecheck_subject = False, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
-    real_aspect_subject(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
+    subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
+    subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
         policy = str(native.package_relative_label(policy)),

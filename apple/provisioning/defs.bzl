@@ -151,11 +151,14 @@ def sdk_errors(sdk, deployment):
         return ["apple: sdk '" + sdk + "' is outside " + ", ".join(sdk_names())]
     return version_errors("deployment_target", deployment, _SDK_FLOORS[sdk]) if deployment != "" else []
 
-def license_errors(accept_licenses):
+def license_errors(accept_licenses, target = ""):
     """Returns one error string when the Xcode license stays unaccepted."""
     missing = [name for name in REQUIRED_LICENSES if name not in accept_licenses]
     if len(missing) > 0:
-        return ["apple: accept " + ", ".join(missing) + " before provisioning"]
+        message = "apple: accept " + ", ".join(missing) + " before provisioning; add them to the accept_licenses attribute"
+        if target != "":
+            message += " of " + target
+        return [message]
     return []
 
 def default_selection(route):
@@ -174,11 +177,11 @@ def default_selection(route):
         xcode_version = "",
     )
 
-def provisioning_errors(selection):
+def provisioning_errors(selection, target = ""):
     """Returns one error string per rejected provisioning selection field."""
     errors = list(route_errors(selection.route))
     errors.extend(host_errors(selection.host))
-    errors.extend(license_errors(selection.accept_licenses))
+    errors.extend(license_errors(selection.accept_licenses, target))
     errors.extend(sdk_errors(selection.sdk, selection.deployment))
     errors.extend(version_errors("macos_version", selection.macos_version, MINIMUM_MACOS))
     if selection.api_token != "":
@@ -212,7 +215,7 @@ def _provisioning_selection_impl(ctx):
         route = ctx.attr.route,
         sdk = ctx.attr.sdk,
         xcode_version = ctx.attr.xcode_version,
-    ))
+    ), ctx.label.name)
     if len(failures) > 0:
         fail("; ".join(failures))
     return [AppleToolingInfo(

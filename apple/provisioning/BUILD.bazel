@@ -237,7 +237,7 @@ apple_provisioning(
 
 failure_test(
     name = "missing_license_test",
-    expected_failure_substring = "accept apple-xcode-license",
+    expected_failure_substring = "add them to the accept_licenses attribute of missing_license",
     target = ":missing_license",
 )
 

@@ -141,7 +141,17 @@ def _apple_checks():
     checks.append(expect_equal(
         "missing license fails",
         license_errors([]),
-        ["apple: accept apple-xcode-license before provisioning"],
+        ["apple: accept apple-xcode-license before provisioning; add them to the accept_licenses attribute"],
+    ))
+    checks.append(expect_equal(
+        "missing license names the target",
+        license_errors([], "local_simulator"),
+        ["apple: accept apple-xcode-license before provisioning; add them to the accept_licenses attribute of local_simulator"],
+    ))
+    checks.append(expect_equal(
+        "selection passes its target to the license error",
+        provisioning_errors(_selection(accept_licenses = []), "missing_license"),
+        ["apple: accept apple-xcode-license before provisioning; add them to the accept_licenses attribute of missing_license"],
     ))
     checks.append(expect_equal("clean local selection", provisioning_errors(_selection()), []))
     checks.append(expect_equal(

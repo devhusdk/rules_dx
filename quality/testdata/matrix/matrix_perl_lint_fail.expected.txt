@@ -1,0 +1,11 @@
+producer //quality/testdata:matrix_perl_lint_fail
+capability LINT
+stages 1
+stage perlcritic classes=perl sources=matrix/perlcritic_dirty.pl
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR perlcritic TestingAndDebugging::RequireUseStrict matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before strictures are enabled"
+terminal 1
+terminal ERROR perlcritic TestingAndDebugging::RequireUseStrict matrix/perlcritic_dirty.pl 0 0 fixable=false "Code before strictures are enabled"
+replacements 0

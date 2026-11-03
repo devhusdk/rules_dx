@@ -333,6 +333,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "perl claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["perlcritic", "perltidy"]], RUNNER_MATRIX_CASES),
+                [],
+            ),
+            expect_equal(
                 "ruby claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["rubocop", "standardrb"]], RUNNER_MATRIX_CASES),
                 [],

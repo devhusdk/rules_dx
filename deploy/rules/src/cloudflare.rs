@@ -1,3 +1,4 @@
+use crate::stage::copy_verified;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -324,7 +325,7 @@ fn pages_stage(files: &[PagesFile], staged: &Path) -> Result<(), String> {
             std::fs::create_dir_all(parent)
                 .map_err(|error| format!("cannot stage {}: {error}", file.path))?;
         }
-        std::fs::copy(&file.source, &dest)
+        copy_verified(&file.source, &dest)
             .map_err(|error| format!("cannot stage {}: {error}", file.path))?;
     }
     Ok(())
@@ -845,6 +846,20 @@ printf '%s\n' "{\"type\":\"pages-deploy-detailed\",\"version\":1,\"pages_project
         assert!(out.contains("  url: https://abc.my-site.pages.dev"));
         assert!(out.contains("  files: 3 (21 bytes)"));
         assert!(!out.contains(TOKEN) && !err.contains(TOKEN));
+    }
+
+    #[test]
+    fn pages_stage_copies_and_verifies_each_file() {
+        let dir = site(&[("index.html", "<html></html>"), ("app/app.js", "run();")]);
+        let files = pages_scan_site(dir.path()).expect("scan");
+        let staged = tempfile::TempDir::new().expect("staged");
+        pages_stage(&files, staged.path()).expect("stage");
+        for file in &files {
+            assert_eq!(
+                std::fs::read(staged.path().join(&file.path)).expect("staged"),
+                std::fs::read(&file.source).expect("source"),
+            );
+        }
     }
 
     #[test]

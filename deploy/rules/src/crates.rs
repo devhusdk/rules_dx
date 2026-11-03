@@ -100,6 +100,20 @@ pub(crate) const CRATES_GATE: OwnerGate = OwnerGate {
 /// Extra env names cargo keeps beyond the publish base list.
 const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 
+fn crates_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<(), String> {
+    for (src, rel) in mapped {
+        let dest = staging.join(rel);
+        let staged = dest
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| copy_verified(src, &dest).map(|_| ()));
+        if staged.is_err() {
+            return Err(format!("cannot stage {}", src.display()));
+        }
+    }
+    Ok(())
+}
+
 /// Runs the crates deploy tool.
 pub fn crates_main(
     crate_rlocs: &[String],
@@ -154,16 +168,9 @@ pub fn crates_main(
                 return 1;
             }
         };
-        for (src, rel) in &mapped {
-            let dest = staging.join(rel);
-            let staged = dest
-                .parent()
-                .map_or(Ok(()), std::fs::create_dir_all)
-                .and_then(|()| std::fs::copy(src, &dest).map(|_| ()));
-            if staged.is_err() {
-                eprintln!("crates_deploy: cannot stage {}", src.display());
-                return 1;
-            }
+        if let Err(error) = crates_stage(&mapped, &staging) {
+            eprintln!("crates_deploy: {error}");
+            return 1;
         }
         let manifest = staging.join("Cargo.toml");
         if !manifest.is_file() {
@@ -280,6 +287,23 @@ mod tests {
         assert_eq!(index["files"][0]["name"], "Cargo.toml");
         assert_eq!(index["files"][0]["sha256"], pairs["Cargo.toml"].as_str());
         assert!(crates_build_vendor(&[], &outdir, "crates_demo", "0.0.0").is_err());
+    }
+
+    #[test]
+    fn crates_stage_copies_and_verifies_each_file() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let mapped = crates_package_paths(&files).expect("paths");
+        let staging = scratch.path().join("staging");
+        crates_stage(&mapped, &staging).expect("stage");
+        for (src, rel) in &mapped {
+            assert_eq!(
+                std::fs::read(staging.join(rel)).expect("staged"),
+                std::fs::read(src).expect("source"),
+            );
+        }
+        let missing = vec![(scratch.path().join("missing.rs"), "missing.rs".to_owned())];
+        assert!(crates_stage(&missing, &staging).is_err());
     }
 
     fn nested_crate(root: &Path) -> Vec<std::path::PathBuf> {

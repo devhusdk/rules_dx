@@ -112,16 +112,17 @@ When all slots are taken, or other runs already wait, dx waits and prints one
 line to stderr:
 
 ```text
-dx: waiting for a build slot (held by /path/to/worktree and 5 more, 2 ahead in line)
+dx: waiting for a build slot (held by /path/to/worktree and 5 more, 2 ahead in line); see dx status, or set --build-slots or DX_BUILD_SLOTS
 ```
 
 The line names one current holder, how many other slots are held, and how many
-runs wait ahead. Waiting runs get a slot in the order they started waiting, except that a later
-run may take a slot no run ahead can use right now, such as a slot above the
-ahead run's count or a slot while the ahead run waits for its nested Bazel
-reserve. A
-waiter that exits or is stopped leaves the line. A waiter suspended for over 30
-seconds does not hold up the line until it resumes. If dx cannot use the
+runs wait ahead. It also points to `dx status`, `--build-slots` and
+`DX_BUILD_SLOTS`. Waiting runs get a slot in the order they started waiting,
+except that a later run may take a slot no run ahead can use right now, such as
+a slot above the ahead run's count or a slot while the ahead run waits for its
+nested Bazel reserve. A waiter that exits or is stopped leaves the line. A
+waiter suspended for over 30 seconds does not hold up the line until it
+resumes. If dx cannot use the
 `queue` directory next to the slot files, it waits without a line.
 
 With `--output=json`, dx also writes one `notice` event with code
@@ -154,7 +155,7 @@ slot. On Windows dx stops no servers.
 When dx stopped servers, the wait line ends with the count:
 
 ```text
-dx: waiting for a build slot (held by /path/to/worktree); stopped 2 idle Bazel servers
+dx: waiting for a build slot (held by /path/to/worktree); see dx status, or set --build-slots or DX_BUILD_SLOTS; stopped 2 idle Bazel servers
 ```
 
 The `waiting_for_build_slot` notice event carries the count in

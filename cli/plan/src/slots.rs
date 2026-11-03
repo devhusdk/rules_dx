@@ -1022,7 +1022,9 @@ fn stopped(signo: i32) -> io::Error {
 
 /// The one line printed while waiting.
 pub fn wait_message(holder: &str) -> String {
-    format!("waiting for a build slot (held by {holder})")
+    format!(
+        "waiting for a build slot (held by {holder}); see dx status, or set --build-slots or DX_BUILD_SLOTS"
+    )
 }
 
 /// Reads `MemAvailable` from `/proc/meminfo` text, in bytes.
@@ -2014,10 +2016,10 @@ mod tests {
             let (slot, err, _) = waiter.join().expect("join");
             assert_eq!(slot.index, 0);
             let want = match high {
-                Some(true) => "dx: waiting for a build slot (held by fill; extra slots paused under memory pressure)\n",
-                _ => "dx: waiting for a build slot (held by fill)\n",
+                Some(true) => wait_message("fill; extra slots paused under memory pressure"),
+                _ => wait_message("fill"),
             };
-            assert_eq!(err, want);
+            assert_eq!(err, format!("dx: {want}\n"));
         }
     }
 
@@ -2038,7 +2040,7 @@ mod tests {
         assert_eq!(slot.index, 1);
         assert_eq!(
             err,
-            "dx: waiting for a build slot (held by fill, 1 ahead in line)\n"
+            format!("dx: {}\n", wait_message("fill, 1 ahead in line"))
         );
         drop(fill);
     }
@@ -2069,10 +2071,7 @@ mod tests {
         drop(fill);
         let (slot, err, _) = waiter.join().expect("join");
         assert_eq!(slot.index, 0);
-        assert_eq!(
-            err,
-            "dx: waiting for a build slot (held by fill and 2 more)\n"
-        );
+        assert_eq!(err, format!("dx: {}\n", wait_message("fill and 2 more")));
         drop(extras);
     }
 
@@ -2121,7 +2120,10 @@ mod tests {
         assert_eq!(slot.index, 1);
         assert_eq!(
             err,
-            "dx: waiting for a build slot (held by fill; paused under memory pressure)\n"
+            format!(
+                "dx: {}\n",
+                wait_message("fill; paused under memory pressure")
+            )
         );
         assert!(events.contains("\"reason\":\"pressure\""), "{events}");
         drop(fill);
@@ -3080,7 +3082,7 @@ mod tests {
         assert_eq!(seen, vec!["tree-a".to_owned()]);
         assert_eq!(
             wait_message("tree-a"),
-            "waiting for a build slot (held by tree-a)"
+            "waiting for a build slot (held by tree-a); see dx status, or set --build-slots or DX_BUILD_SLOTS"
         );
     }
 
@@ -3484,7 +3486,7 @@ mod tests {
         drop(consumer);
         let (slot, err, events) = waiter.join().expect("join");
         assert_eq!(slot.index, 0);
-        assert_eq!(err, "dx: waiting for a build slot (held by consumer)\n");
+        assert_eq!(err, format!("dx: {}\n", wait_message("consumer")));
         assert_eq!(
             events.matches("waiting_for_build_slot").count(),
             1,

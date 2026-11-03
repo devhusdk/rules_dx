@@ -73,14 +73,17 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
     }
 }
 
-/// Maps a refused `--output` value to the mode error the command's grammar implies.
+/// Maps a refused `--output`, `--color` or `--fail-on` value to its value error.
 fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<ArgsError> {
     use clap::error::{ContextKind, ContextValue};
     let flag = match error.get(ContextKind::InvalidArg) {
         Some(ContextValue::String(token)) => token.clone(),
         _ => return None,
     };
-    if !flag.starts_with("--output") && !flag.starts_with("-o") {
+    let is_output = flag.starts_with("--output") || flag.starts_with("-o");
+    let is_color = flag.starts_with("--color");
+    let is_fail_on = flag.starts_with("--fail-on");
+    if !is_output && !is_color && !is_fail_on {
         return None;
     }
     let value = match error.get(ContextKind::InvalidValue) {
@@ -89,6 +92,12 @@ fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
     };
     if value.is_empty() {
         return None;
+    }
+    if is_color {
+        return Some(ArgsError::BadColor { value });
+    }
+    if is_fail_on {
+        return Some(ArgsError::BadFailOn { value });
     }
     if matches!(value.as_str(), "text" | "json") {
         let command = args

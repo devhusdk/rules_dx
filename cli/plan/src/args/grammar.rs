@@ -178,7 +178,12 @@ flag_group! {
 flag_group! {
     /// Set color output.
     ColorFlag, {
-        #[arg(long, allow_negative_numbers = true, overrides_with = "color")]
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "color",
+            value_parser = clap::builder::PossibleValuesParser::new(["auto", "always", "never"])
+        )]
         color: Option<String>,
     }
 }
@@ -278,7 +283,12 @@ flag_group! {
 flag_group! {
     /// Fail on this severity.
     FailOnFlag, {
-        #[arg(long, allow_negative_numbers = true, overrides_with = "fail_on")]
+        #[arg(
+            long,
+            allow_negative_numbers = true,
+            overrides_with = "fail_on",
+            value_parser = clap::builder::PossibleValuesParser::new(["info", "warning", "error"])
+        )]
         fail_on: Option<String>,
     }
 }
@@ -309,7 +319,7 @@ flag_group! {
     MinCoverageFlag, {
         #[arg(
             long,
-            value_name = "PERCENT",
+            value_name = "percent",
             allow_negative_numbers = true,
             overrides_with = "min_coverage",
             value_parser = percent
@@ -323,7 +333,7 @@ flag_group! {
     MinChangedLineCoverageFlag, {
         #[arg(
             long,
-            value_name = "PERCENT",
+            value_name = "percent",
             allow_negative_numbers = true,
             overrides_with = "min_changed_line_coverage",
             value_parser = percent
@@ -423,7 +433,7 @@ flag_group! {
 flag_group! {
     /// Install root (default: the per-user dx data directory).
     InstallDirFlag, {
-        #[arg(long = "dir", value_name = "DIR", overrides_with = "install_dir")]
+        #[arg(long = "dir", value_name = "dir", overrides_with = "install_dir")]
         install_dir: Option<OsString>,
     }
 }

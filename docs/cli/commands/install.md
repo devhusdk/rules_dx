@@ -3,7 +3,7 @@
 rules_dx is not released yet. Install starts with the first BCR release.
 
 ```text
-dx install --tag <tag> --archive <path> [--dir DIR] [--apply]
+dx install --tag <tag> --archive <path> [--dir <dir>] [--apply]
 ```
 
 Verifies a downloaded dx release archive and installs it under a per-user
@@ -45,7 +45,7 @@ On Windows, see [Windows](windows.md) for Git, PowerShell, symlinks and long pat
   you already run. Required.
 - `--archive <path>`: the downloaded archive. Required. Relative paths resolve
   from the directory you run `dx install` in.
-- `--dir <DIR>`: the install root. Relative paths resolve from the current
+- `--dir <dir>`: the install root. Relative paths resolve from the current
   directory. Default: `$XDG_DATA_HOME/dx`, else `~/.local/share/dx`; on Windows
   `%LOCALAPPDATA%\dx`.
 - `--apply`: write the install. Without it `dx install` runs every check and
@@ -70,8 +70,8 @@ Checks run in this order and stop at the first failure:
 ## Layout
 
 ```text
-DIR/versions/<tag>/     the extracted release and RECEIPT.json
-DIR/bin/                the entry point to the active version
+<dir>/versions/<tag>/     the extracted release and RECEIPT.json
+<dir>/bin/                the entry point to the active version
 ```
 
 Installing a tag that is already active is a no-op. Installing another tag
@@ -84,7 +84,7 @@ never edits shell rc files.
 
 Text prints one `ok <check>: <detail>` line per passed check, then
 `installed:` (or `would install` without `--apply`) with the outcome (fresh,
-upgrade from X, switch from X, or no change), then `bin: <DIR>/bin`. A failure
+upgrade from X, switch from X, or no change), then `bin: <dir>/bin`. A failure
 prints `fail <check>: <message>`.
 
 JSON prints `command_started`, one `status_event` per check (`ok` or `error`),

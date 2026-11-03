@@ -25,6 +25,8 @@ Options:
 
       --color <COLOR>
           Set color output
+          
+          [possible values: auto, always, never]
 
       --build-slots <auto|n|off>
           Set build slots: auto, a count, or off

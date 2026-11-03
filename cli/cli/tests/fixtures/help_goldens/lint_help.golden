@@ -25,6 +25,8 @@ Options:
 
       --color <COLOR>
           Set color output
+          
+          [possible values: auto, always, never]
 
       --build-slots <auto|n|off>
           Set build slots: auto, a count, or off
@@ -48,6 +50,8 @@ Options:
 
       --fail-on <FAIL_ON>
           Fail on this severity
+          
+          [possible values: info, warning, error]
 
       --baseline <FILE>
           Suppress findings already in this workspace-relative JSON baseline

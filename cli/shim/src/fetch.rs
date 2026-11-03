@@ -68,6 +68,12 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     Ok(dest.to_path_buf())
 }
 
+fn tls_config() -> ureq::tls::TlsConfig {
+    ureq::tls::TlsConfig::builder()
+        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+        .build()
+}
+
 fn agent(url: &str) -> ureq::Agent {
     let https = url.starts_with("https://");
     let proxy = if https {
@@ -77,6 +83,7 @@ fn agent(url: &str) -> ureq::Agent {
     };
     ureq::Agent::config_builder()
         .https_only(https)
+        .tls_config(tls_config())
         .proxy(proxy)
         .timeout_connect(Some(Duration::from_secs(30)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
@@ -198,5 +205,18 @@ impl Drop for PartFile {
     fn drop(&mut self) {
         drop(self.file.take());
         let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tls_config;
+
+    #[test]
+    fn tls_uses_the_os_trust_store() {
+        assert!(matches!(
+            tls_config().root_certs(),
+            ureq::tls::RootCerts::PlatformVerifier
+        ));
     }
 }

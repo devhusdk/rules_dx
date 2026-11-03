@@ -217,7 +217,7 @@ def _toolchain_platforms():
     }
 
 # Records that must name every platform as either supported or unsupported with a reason comment.
-_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gofumpt", "gplint", "hlint", "julia_format", "keep_sorted", "latexindent", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "vale", "zig_fmt"]
+_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gofumpt", "gplint", "modfmt", "hlint", "julia_format", "keep_sorted", "latexindent", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "vale", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""

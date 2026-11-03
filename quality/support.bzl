@@ -638,6 +638,20 @@ GO_GOFUMPT_FORMAT_SUPPORT = {
     "transport": "batched",
 }
 
+GO_MODFMT_FORMAT_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "format",
+    "classes": ["go_module"],
+    "context": "owned",
+    "execution": "direct",
+    "family": "go_module",
+    "fix": "supported",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+    "state": "qualified",
+    "tool": "modfmt",
+    "transport": "batched",
+}
+
 CC_CLANG_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2206,6 +2220,7 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     TERRAFORM_TFLINT_SUPPORT,
     TERRAFORM_TYPECHECK_SUPPORT,
     GO_GOFUMPT_FORMAT_SUPPORT,
+    GO_MODFMT_FORMAT_SUPPORT,
     GO_GOTYPE_TYPECHECK_SUPPORT,
     GO_ERRCHECK_LINT_SUPPORT,
     GO_GOVET_LINT_SUPPORT,

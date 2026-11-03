@@ -546,7 +546,8 @@ mod tests {
             let root = scratch.path().to_path_buf();
             let (code, out, err) = run(&inv, &root);
             assert_eq!(code, 1, "words: {words:?}");
-            assert!(err.contains("read version pin"), "words: {words:?}");
+            assert!(err.contains(".dx/version is missing"), "words: {words:?}");
+            assert!(err.contains("dx init --apply"), "words: {words:?}");
             let stdout = out;
             assert!(!stdout.contains("pin: ok"), "words: {words:?}");
             if words.contains(&"--output=json") {
@@ -569,6 +570,9 @@ mod tests {
                     events[error_index]["code"],
                     serde_json::json!("status_pin_mismatch")
                 );
+                let message = events[error_index]["message"].to_string();
+                assert!(message.contains(".dx/version is missing"), "{message}");
+                assert!(message.contains("dx init --apply"), "{message}");
             }
         }
     }

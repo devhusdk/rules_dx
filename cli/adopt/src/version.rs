@@ -59,8 +59,11 @@ pub fn read_version_pins(root: &Path) -> Result<crate::LauncherPins, AdoptError>
 }
 
 fn read_pin_file(root: &Path) -> Result<String, AdoptError> {
-    std::fs::read_to_string(root.join(".dx/version")).map_err(|e| AdoptError::ReadVersionPin {
-        detail: e.to_string(),
+    std::fs::read_to_string(root.join(".dx/version")).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => AdoptError::MissingVersionPin,
+        _ => AdoptError::ReadVersionPin {
+            detail: format!(".dx/version: {e}"),
+        },
     })
 }
 

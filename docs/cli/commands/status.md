@@ -121,7 +121,7 @@ any failed check adds `status_check_failed`, which names the failed checks.
 An empty `.dx/version` fails the `pin` check.
 
 A missing `.dx/version` stops `dx status` with `status_pin_mismatch`
-(`read version pin: ...`) before any check runs. It prints no check lines.
+(`.dx/version is missing`, with the next step `tools/dx init --apply`) before any check runs. It prints no check lines.
 JSON output has only `command_started`, `error`, and `command_finished`.
 
 ```text

@@ -314,7 +314,9 @@ else
 fi
 [ "$got" = "$want" ] || fail "sha256 mismatch for $url: want '$want', got $got; refusing to run it"
 chmod +x "$tmp"
-mv "$tmp" "$bin"
+if ! mv "$tmp" "$bin" && [ -x "$bin" ]; then
+  rm -f "$tmp"
+fi
 exec "$bin" "$@"
 "##;
 
@@ -1181,6 +1183,25 @@ mod tests {
             let (code, out, err) = fx.run_in(&fx.base.join("repo"), &["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.git_calls(), 0);
+        }
+
+        #[test]
+        fn a_lost_mv_race_runs_the_installed_binary() {
+            let fx = Fixture::new("sh-mv-race", true, None);
+            fx.stub(
+                "mv",
+                "#!/bin/sh\nprintf '#!/bin/sh\\necho raced \"$@\"\\nexit 7\\n' > \"$2\"\nchmod +x \"$2\"\nexit 1\n",
+            );
+            let (code, out, _) = fx.run(&["a"]);
+            assert_eq!((code, out.trim()), (Some(7), "raced a"));
+        }
+
+        #[test]
+        fn a_failed_mv_without_an_installed_binary_fails() {
+            let fx = Fixture::new("sh-mv-fail", true, None);
+            fx.stub("mv", "#!/bin/sh\nexit 1\n");
+            let (code, _, _) = fx.run(&["a"]);
+            assert_ne!(code, Some(0));
         }
 
         #[test]

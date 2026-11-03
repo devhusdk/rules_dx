@@ -934,11 +934,6 @@ uv.project(
     lock = "//quality/tools/python/sqlfluff:uv.lock",
     pyproject = "//quality/tools/python/sqlfluff:pyproject.toml",
 )
-uv.project(
-    hub_name = "dx_pypi",
-    lock = "//tools/ci/tooling:uv.lock",
-    pyproject = "//tools/ci/tooling:pyproject.toml",
-)
 use_repo(uv, pypi = "dx_pypi")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")

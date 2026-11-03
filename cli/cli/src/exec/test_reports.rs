@@ -1,6 +1,7 @@
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::coverage_candidate::{candidate, tracked_orphans, Candidate, Unavailable};
+use super::failure::CODE_NO_TESTS;
 use super::failure_reports::write_failure_reports;
 use dx_bep::{
     collect_test_events, ArtifactReader, OutputLocations, TestEvents, TestResultFile,
@@ -1485,6 +1486,13 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         1
     };
     *results_complete = complete && reports_ok;
+    let no_tests = bazel_code == BAZEL_NO_TESTS && reported.is_empty();
+    if no_tests {
+        let _ = writeln!(err, "dx: {CODE_NO_TESTS}: no test targets match the scope");
+        if let Some(next) = super::guidance::next_action(CODE_NO_TESTS) {
+            let _ = writeln!(err, "{next}");
+        }
+    }
     if invocation.output == OutputMode::Json {
         if bazel_code == BAZEL_TESTS_FAILED && counts.failed > 0 {
             let message = if counts.failed == 1 {
@@ -1498,6 +1506,18 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             if let Err(exit) = emit_built(
                 out,
                 bazel_exit_event(CODE_TESTS_FAILED, &message, bazel_code, "execute"),
+            ) {
+                return kept_child(err, bazel_code, exit);
+            }
+        } else if no_tests {
+            if let Err(exit) = emit_built(
+                out,
+                bazel_exit_event(
+                    CODE_NO_TESTS,
+                    "no test targets match the scope",
+                    bazel_code,
+                    "execute",
+                ),
             ) {
                 return kept_child(err, bazel_code, exit);
             }
@@ -4266,6 +4286,32 @@ mod tests {
         let finished = event(&events, "command_finished");
         assert_eq!(finished["exit_code"], serde_json::json!(4));
         assert_eq!(finished["results_complete"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn test_label_pattern_without_tests_reports_no_tests() {
+        let harness = Harness {
+            bazel_code: 4,
+            ..Harness::new("test-no-tests-pattern")
+        };
+        let (code, out, err) = harness.run(&["test", "--output=json"]);
+        assert_eq!(code, 4, "{out}{err}");
+        let events = json_events(&out);
+        assert!(
+            errors_with_code(&events, "bazel_failed").is_empty(),
+            "{out}"
+        );
+        let found = errors_with_code(&events, "no_tests");
+        assert_eq!(found.len(), 1, "{out}");
+        assert_eq!(found[0]["status"], serde_json::json!(4), "{out}");
+        assert!(
+            err.contains("next: check the target or path scope and run the command again."),
+            "{err}"
+        );
+        assert_eq!(
+            event(&events, "command_finished")["exit_code"],
+            serde_json::json!(4)
+        );
     }
 
     fn failing_run(name: &str, statuses: &[&str]) -> (i32, String, String) {

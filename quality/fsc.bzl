@@ -138,6 +138,7 @@ def _fsc_impl(target, ctx):
         outputs = [log, status, out_tree],
         env = {"DOTNET_CLI_HOME": runtime.dirname},
         resource_set = dx_quality_heavy_resources,
+        toolchain = _TOOLCHAIN,
     )
     return [FscInfo(logs = [log], statuses = [status], tfms = [tfm])]
 

@@ -153,6 +153,7 @@ def _roslyn_impl(target, ctx):
             outputs = [sarif, status, out_tree],
             env = env,
             resource_set = dx_quality_heavy_resources,
+            toolchain = _TOOLCHAIN,
         )
     else:
         ctx.actions.run_shell(
@@ -164,6 +165,7 @@ def _roslyn_impl(target, ctx):
             outputs = [sarif, status, out_tree],
             env = env,
             resource_set = dx_quality_heavy_resources,
+            toolchain = _TOOLCHAIN,
         )
     return [RoslynInfo(sarifs = [sarif], statuses = [status], tfms = [tfm])]
 

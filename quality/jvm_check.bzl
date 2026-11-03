@@ -154,6 +154,7 @@ def _kotlinc_check(target, ctx, attrs):
         ),
         outputs = [log],
         resource_set = dx_quality_heavy_resources,
+        toolchain = None,
     )
     return [JvmCheckInfo(log = log, tool = "kotlinc")]
 
@@ -229,6 +230,7 @@ def _scalac_check(target, ctx, attrs):
         inputs = depset(sources + srcjars, transitive = [classpath, jars.compiler, plugin_jars]),
         outputs = [log],
         resource_set = dx_quality_heavy_resources,
+        toolchain = None,
     )
     return [JvmCheckInfo(log = log, tool = "scalac")]
 
@@ -278,6 +280,7 @@ def _jvm_check_impl(target, ctx):
         ),
         outputs = [log],
         resource_set = dx_quality_heavy_resources,
+        toolchain = None,
     )
     return [JvmCheckInfo(log = log, tool = "javac")]
 

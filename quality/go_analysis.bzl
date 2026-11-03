@@ -132,6 +132,7 @@ def _go_analysis_impl(target, ctx):
             inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs]),
             outputs = [report],
             resource_set = dx_quality_heavy_resources,
+            toolchain = None,
         )
         reports[tool] = report
     return [GoAnalysisInfo(reports = reports), OutputGroupInfo(**{"dx_" + tool: depset([report]) for tool, report in reports.items()})]

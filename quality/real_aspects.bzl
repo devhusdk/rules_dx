@@ -49,7 +49,7 @@ load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//bicep/rules:providers.bzl", "BicepInfo")
 load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
-load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
 
 _REAL_TOOL_TABLE = {
@@ -2165,6 +2165,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         mnemonic = "DxRealQuality" + capability.capitalize(),
         resource_set = real_quality_resource_set(sorted(tool_binaries.keys())),
         progress_message = "Dx real quality " + capability + " %{label}",
+        toolchain = RUST_TOOLCHAIN_TYPE if has_rust_toolchain else None,
     )
 
     return [OutputGroupInfo(dx_results = depset([out]))]

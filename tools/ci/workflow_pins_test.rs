@@ -16,10 +16,10 @@ const PIN_RUN: &str = "bazel run \"$@\" @rules_dx//tools/ci:module_pin_bin";
 const SCRIPTS: [(&str, &[&str]); 3] = [
     ("tools/ci/input_validation.py", &["reusable-consumer.yml"]),
     (
-        "tools/ci/module_pin.py",
+        "tools/ci/module_pin.rs",
         &["reusable-consumer.yml", "reusable-docs.yml"],
     ),
-    ("tools/ci/docs_scope.py", &["reusable-docs.yml"]),
+    ("tools/ci/docs_scope.rs", &["reusable-docs.yml"]),
 ];
 
 const STEP_KEY: &str = "        ";
@@ -299,11 +299,13 @@ fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
             .lines()
             .next()
             .unwrap_or_default()
-            .trim_start_matches("\"\"\"");
+            .trim_start_matches("\"\"\"")
+            .trim_start_matches("//! ");
         assert!(!summary.is_empty(), "{script} has no docstring summary");
         let name = script
             .trim_start_matches("tools/ci/")
-            .trim_end_matches(".py");
+            .trim_end_matches(".py")
+            .trim_end_matches(".rs");
         let target = format!("@rules_dx//tools/ci:{name}_bin");
         for workflow in REUSABLE {
             let text = read_runfiles(&format!(".github/workflows/{workflow}"));

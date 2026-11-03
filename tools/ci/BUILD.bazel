@@ -103,69 +103,64 @@ python_test(
 )
 
 # keep
-python_library(
+rust_library(
     name = "docs_scope",
-    srcs = ["docs_scope.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
+    srcs = ["docs_scope.rs"],
+    crate_name = "docs_scope",
 )
 
 # keep
-python_binary(
+rust_binary(
     name = "docs_scope_bin",
-    main = "docs_scope.py",
+    srcs = ["docs_scope_main.rs"],
     visibility = VIS_TOOLS_PUBLIC,
     deps = [":docs_scope"],
 )
 
 # keep
-python_test(
+rust_test(
     name = "docs_scope_test",
     size = "small",
-    srcs = ["docs_scope_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    data = [
-        "docs_scope.py",
-    ],
-    dep_group = "hello",
+    srcs = ["docs_scope_test.rs"],
+    data = [":docs_scope_bin"],
+    env = {"DX_DOCS_SCOPE_BIN": "$(rootpath :docs_scope_bin)"},
     deps = [
-        ":workflow_testing",
-        "@pypi//pytest",
+        ":docs_scope",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
     ],
 )
 
 # keep
-python_library(
+rust_library(
     name = "module_pin",
-    srcs = ["module_pin.py"],
-    aspect_hints = ["//:ruff_config"],
-    imports = ["."],
+    srcs = ["module_pin.rs"],
+    crate_name = "module_pin",
 )
 
 # keep
-python_binary(
+rust_binary(
     name = "module_pin_bin",
-    main = "module_pin.py",
+    srcs = ["module_pin_main.rs"],
     visibility = VIS_TOOLS_PUBLIC,
     deps = [":module_pin"],
 )
 
 # keep
-python_test(
+rust_test(
     name = "module_pin_test",
     size = "small",
-    srcs = ["module_pin_test.py"],
-    aspect_hints = ["//:ruff_config"],
+    srcs = ["module_pin_test.rs"],
     data = [
-        "module_pin.py",
+        ":module_pin_bin",
         ":module_pin_fixtures",
         "//:MODULE.bazel",
         "//.github:workflows/ci.yml",
     ],
-    dep_group = "hello",
+    env = {"DX_MODULE_PIN": "$(rootpath :module_pin_bin)"},
     deps = [
-        ":workflow_testing",
-        "@pypi//pytest",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
     ],
 )
 
@@ -502,6 +497,12 @@ rust_test(
         "//apple/tests:corpus_starlark",
         "//cc/context:corpus_starlark",
         "//cc/tests:corpus_starlark",
+        "//cc/tests/fixtures/c-app/cli:corpus_starlark",
+        "//cc/tests/fixtures/c-app/diagnostics:corpus_starlark",
+        "//cc/tests/fixtures/c-app/store:corpus_starlark",
+        "//cc/tests/fixtures/cpp-app/app:corpus_starlark",
+        "//cc/tests/fixtures/cpp-app/core:corpus_starlark",
+        "//cc/tests/fixtures/cpp-app/diagnostics:corpus_starlark",
         "//cli/advisory_prep:corpus_starlark",
         "//cli/cli:corpus_starlark",
         "//cli/cli/tests/affected:corpus_starlark",
@@ -538,12 +539,6 @@ rust_test(
         "//env/stubs:corpus_starlark",
         "//erlang/tests/negative:corpus_starlark",
         "//erlang/tests/nif_escript:corpus_starlark",
-        "//cc/tests/fixtures/c-app/cli:corpus_starlark",
-        "//cc/tests/fixtures/c-app/diagnostics:corpus_starlark",
-        "//cc/tests/fixtures/c-app/store:corpus_starlark",
-        "//cc/tests/fixtures/cpp-app/app:corpus_starlark",
-        "//cc/tests/fixtures/cpp-app/core:corpus_starlark",
-        "//cc/tests/fixtures/cpp-app/diagnostics:corpus_starlark",
         "//examples/cuda-app/checks:corpus_starlark",
         "//examples/dart-app/failures:corpus_starlark",
         "//examples/java-app/cli:corpus_starlark",
@@ -853,9 +848,9 @@ rust_test(
     size = "small",
     srcs = ["workflow_pins_test.rs"],
     data = [
-        "docs_scope.py",
+        "docs_scope.rs",
         "input_validation.py",
-        "module_pin.py",
+        "module_pin.rs",
         "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",

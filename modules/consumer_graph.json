@@ -50,7 +50,6 @@
   "rules_nodejs": "6.7.7",
   "rules_perl": "1.5.0",
   "rules_pkg": "1.1.0",
-  "rules_powershell": "0.3.1",
   "rules_proto": "7.1.0",
   "rules_python": "2.4.6",
   "rules_robolectric": "4.14.1.2",

@@ -366,20 +366,6 @@ maven_tools.install(
 )
 use_repo(maven_tools, "dx_dokka", "dx_scalafix")
 
-# floor: equals tested; not yet searched (#3747)
-bazel_dep(name = "rules_powershell", version = "0.3.1")
-single_version_override(
-    module_name = "rules_powershell",
-    version = "0.3.1",
-)
-
-powershell = use_extension("@rules_powershell//powershell:extensions.bzl", "powershell")
-powershell.toolchain(
-    name = "dx_powershell_toolchains",
-    version = "7.5.11",
-)
-use_repo(powershell, "dx_powershell_toolchains")
-
 osx = use_extension("@llvm//extensions:osx.bzl", "osx")
 osx.frameworks(names = [
     "CFNetwork",
@@ -703,6 +689,21 @@ elixir = use_extension("//elixir/toolchain:repos.bzl", "elixir")
 use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
 
 register_toolchains("@dx_elixir_toolchains//:all")
+
+bazel_dep(name = "rules_batch", version = "0.1.1")
+
+powershell = use_extension("//powershell/toolchain:repos.bzl", "powershell")
+use_repo(
+    powershell,
+    "dx_powershell_toolchains",
+    "dx_powershell_toolchains__linux_arm64",
+    "dx_powershell_toolchains__linux_x64",
+    "dx_powershell_toolchains__osx_arm64",
+    "dx_powershell_toolchains__osx_x64",
+    "dx_powershell_toolchains__win_arm64",
+    "dx_powershell_toolchains__win_x64",
+    "rules_powershell",
+)
 
 ocaml = use_extension("//ocaml/toolchain:repos.bzl", "ocaml")
 use_repo(ocaml, "dx_ocaml_toolchains", "rules_ocaml")

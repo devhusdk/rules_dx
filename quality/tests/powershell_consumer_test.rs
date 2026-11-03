@@ -50,7 +50,7 @@ const UNKNOWN_RULE_PSD1: &str = "@{\n    ExcludeRules = @('PSNoSuchRuleAnywhere'
 const CLOSURE_REPOS: [&str; 3] = [
     "--repo=@@rules_dx++psgallery_module+psgallery_pester",
     "--repo=@@rules_dx++psgallery_module+psgallery_psscriptanalyzer",
-    "--repo=@@rules_powershell++powershell+dx_powershell_toolchains__linux_x64",
+    "--repo=@@rules_dx++powershell+dx_powershell_toolchains__linux_x64",
 ];
 
 const MODULE: &str = r#"module(name = "consumer")

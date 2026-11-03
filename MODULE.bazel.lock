@@ -164,8 +164,6 @@
     "https://bcr.bazel.build/modules/rules_perl/1.5.0/source.json": "d7d3504a77bb226609e4258033973b58d8ccc84acde048a08d825da84df5b197",
     "https://bcr.bazel.build/modules/rules_pkg/1.0.1/MODULE.bazel": "5b1df97dbc29623bccdf2b0dcd0f5cb08e2f2c9050aab1092fd39a41e82686ff",
     "https://bcr.bazel.build/modules/rules_pkg/1.0.1/source.json": "bd82e5d7b9ce2d31e380dd9f50c111d678c3bdaca190cb76b0e1c71b05e1ba8a",
-    "https://bcr.bazel.build/modules/rules_powershell/0.3.1/MODULE.bazel": "7b5d1e9af3dfb763d4acfa8640743285e28eee32701ac94154158a3c2a31ea25",
-    "https://bcr.bazel.build/modules/rules_powershell/0.3.1/source.json": "3e9e4e97862b758d1b1c1eaa6fb7e6f4abea423dba0b3db2dfe8ccb2a9008f52",
     "https://bcr.bazel.build/modules/rules_proto/7.1.0/MODULE.bazel": "002d62d9108f75bb807cd56245d45648f38275cb3a99dcd45dfb864c5d74cb96",
     "https://bcr.bazel.build/modules/rules_proto/7.1.0/source.json": "39f89066c12c24097854e8f57ab8558929f9c8d474d34b2c00ac04630ad8940e",
     "https://bcr.bazel.build/modules/rules_python/2.4.6/MODULE.bazel": "edd87d5af3d4cc3c6e233c4450209bad2f4d6124d24c647670ee8062cfdf822e",

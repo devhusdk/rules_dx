@@ -296,7 +296,8 @@ error prints the command list and a `see dx <command> --help` hint.
 
 `--output=json` writes one JSON object per line to stdout. Every object has an
 `event` name and a `schema` with `major` and `minor`. The schema is `3.6`.
-Readers accept any `3.x` and reject other majors. The stream starts with one
+Readers accept any `3.x` and reject other majors. The JSON Schema for every event is
+[`cli/output/schema/events.schema.json`](../../../cli/output/schema/events.schema.json). The stream starts with one
 `command_started` and ends with one `command_finished`. Diagnostics and logs go to
 stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries

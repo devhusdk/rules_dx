@@ -1,5 +1,5 @@
 {
-  "checksum": "6f608e7b1c5426d90c71291c7e1219342e6f9bf21280af402af767a729861444",
+  "checksum": "8db9e41f1008604cbd58301833bcded75b501bfdb4d7655f0fb7fd794f7e4084",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7602,6 +7602,12 @@
           {
             "id": "tracing-subscriber 0.3.23",
             "target": "tracing_subscriber"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "jsonschema 0.60.2",
+            "target": "jsonschema"
           }
         ],
         "edition": "2021"

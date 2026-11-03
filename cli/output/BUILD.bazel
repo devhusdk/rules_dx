@@ -5,6 +5,7 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_ENV_GENERATION_QUALITY")
 package(default_visibility = VIS_CLI_ENV_GENERATION_QUALITY)
 
 exports_files([
+    "schema/events.schema.json",
     "src/clap_errors.rs",
     "src/lib.rs",
 ])
@@ -23,10 +24,13 @@ dx_rust_crate(
         "src/severity.rs",
         "src/validation.rs",
     ],
+    compile_data = ["schema/events.schema.json"],
+    dev_deps = ["jsonschema"],
     extra_deps = [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
     ],
+    test_srcs = ["src/schema_tests.rs"],
     deps = [
         "clap",
         "console",

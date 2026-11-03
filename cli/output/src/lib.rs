@@ -47,3 +47,6 @@ pub use modes::{
 };
 pub use severity::{meets_threshold, Severity, Threshold};
 pub use validation::{check_correlation, check_edits, check_path, parse_digest, Edit, OutputError};
+
+#[cfg(test)]
+mod schema_tests;

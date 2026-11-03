@@ -12,6 +12,16 @@ use super::{operational, summaries_suppressed};
 
 pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
 
+const ESSENTIAL: [&str; 7] = [
+    ".dx/version",
+    ".gitignore",
+    ".bazelignore",
+    "MODULE.bazel",
+    "MODULE.bazel.snippet",
+    "tools/dx",
+    "tools/dx.cmd",
+];
+
 fn invalid_module_code(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -202,9 +212,14 @@ fn check_init(
     let mut missing: Vec<String> = files
         .iter()
         .map(|file| file.path.clone())
-        .filter(|path| !workspace.join(path).exists())
+        .filter(|path| ESSENTIAL.contains(&path.as_str()) && !workspace.join(path).exists())
         .collect();
-    missing.extend(wiring.missing);
+    missing.extend(
+        wiring
+            .missing
+            .into_iter()
+            .filter(|path| ESSENTIAL.contains(&path.as_str())),
+    );
     let missing: Vec<String> = prefixed(&target.prefix, missing).collect();
     let stale: Vec<String> = prefixed(&target.prefix, wiring.stale).collect();
     let other: Vec<String> = prefixed(&target.prefix, wiring.other).collect();
@@ -324,9 +339,8 @@ mod tests {
         assert_eq!(run(&apply, &root).0, 0);
         assert_eq!(run(&check, &root).0, 0);
         std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
-        let (code, _out, err) = run(&check, &root);
-        assert_eq!(code, 1);
-        assert!(err.contains("missing .claude/settings.json"), "{err}");
+        let (code, out, _err) = run(&check, &root);
+        assert_eq!(code, 0, "{out}");
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("empty");
         let (code, _out, err) = run(&check, &root);
         assert_eq!(code, 1);
@@ -751,7 +765,7 @@ mod tests {
         assert_eq!(code, 1, "{err}");
         assert!(
             err.contains("missing nested/Demo App/")
-                && err.contains(" nested/Demo App/MODULE.bazel,"),
+                && err.contains(" nested/Demo App/MODULE.bazel"),
             "{err}"
         );
         assert!(err.contains("dx init nested/Demo App --apply"), "{err}");
@@ -836,9 +850,34 @@ mod tests {
         }
         let check = invocation(&["init"]);
         assert_eq!(run(&check, &root).0, 0);
-        std::fs::remove_file(root.join(".vscode/settings.json")).expect("remove");
-        let (code, _out, err) = run(&check, &root);
-        assert_eq!(code, 1);
-        assert!(err.contains("missing .vscode/settings.json"), "{err}");
+        for path in [
+            ".envrc",
+            ".devcontainer/devcontainer.json",
+            ".vscode/settings.json",
+            ".github/workflows/ci.yml",
+            "AGENTS.md",
+            "CLAUDE.md",
+        ] {
+            std::fs::remove_file(root.join(path)).expect("remove");
+            let (code, out, err) = run(&check, &root);
+            assert_eq!(code, 0, "{path}: {out}{err}");
+        }
+        for path in [
+            ".dx/version",
+            ".gitignore",
+            ".bazelignore",
+            "tools/dx",
+            "tools/dx.cmd",
+        ] {
+            let saved = std::fs::read(root.join(path)).expect("read");
+            std::fs::remove_file(root.join(path)).expect("remove");
+            let (code, _out, err) = run(&check, &root);
+            assert_eq!(code, 1, "{path}");
+            assert!(
+                err.contains(&format!("missing {path}")) || err.contains(path),
+                "{path}: {err}"
+            );
+            std::fs::write(root.join(path), saved).expect("restore");
+        }
     }
 }

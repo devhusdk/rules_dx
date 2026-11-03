@@ -68,9 +68,10 @@ lockfile.
 ```
 
 A scope that owns no set exits `2` and names the audited sets. `//...` and
-`MODULE.bazel` select every set. The four `uv` sets resolve but have no
-snapshot, so they report `no advisory coverage`. A path the table does not name,
-and that has no path from the table under it, owns no set.
+`MODULE.bazel` select every set. The four built-in `uv` sets resolve but have no
+snapshot, so they report `no advisory coverage`. Configured `uv` sets are
+audited against the `pypi` snapshot. A path the table does not name, and that
+has no path from the table under it, owns no set.
 
 `dx security` and `dx license` read `pnpm-lock.yaml`, `package-lock.json`, and
 `yarn.lock` for the `npm` set, and the lockfile of every other set. The `ruby`

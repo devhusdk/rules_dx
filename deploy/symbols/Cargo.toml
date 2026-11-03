@@ -1,0 +1,18 @@
+[package]
+license = "Apache-2.0"
+name = "dx_symbols"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_symbols"
+path = "src/lib.rs"
+
+[[bin]]
+name = "split"
+path = "src/bin_split.rs"
+
+[dependencies]
+object = "0.36"
+serde_json = "1"
+sha2 = "0.10"

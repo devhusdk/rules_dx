@@ -1533,7 +1533,7 @@ dependencies = [
  "quick-xml",
  "rand 0.8.8",
  "rustls",
- "ruzstd",
+ "ruzstd 0.9.1",
  "serde",
  "serde_json",
  "sha1",
@@ -1588,7 +1588,7 @@ dependencies = [
 name = "dx_execlog"
 version = "0.0.0"
 dependencies = [
- "ruzstd",
+ "ruzstd 0.9.1",
  "thiserror 2.0.20",
 ]
 
@@ -1770,6 +1770,15 @@ dependencies = [
  "tempfile",
  "ureq",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "dx_symbols"
+version = "0.0.0"
+dependencies = [
+ "object",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -3339,7 +3348,9 @@ version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
 dependencies = [
+ "flate2",
  "memchr",
+ "ruzstd 0.7.3",
 ]
 
 [[package]]
@@ -4336,11 +4347,20 @@ dependencies = [
 
 [[package]]
 name = "ruzstd"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fad02996bfc73da3e301efe90b1837be9ed8f4a462b6ed410aa35d00381de89f"
+dependencies = [
+ "twox-hash 1.6.3",
+]
+
+[[package]]
+name = "ruzstd"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69e4ce4a039f42bf25920b95667e4d789e98749ab11bbb8d2c2936f788421bb5"
 dependencies = [
- "twox-hash",
+ "twox-hash 2.1.5",
 ]
 
 [[package]]
@@ -5237,6 +5257,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a78e83a30223c757c3947cd144a31014ff04298d8719ae10d03c31c0448c8013"
 dependencies = [
  "cipher",
+]
+
+[[package]]
+name = "twox-hash"
+version = "1.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
+dependencies = [
+ "cfg-if",
+ "static_assertions",
 ]
 
 [[package]]

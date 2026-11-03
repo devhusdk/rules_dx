@@ -1,5 +1,5 @@
 {
-  "checksum": "e2572847386db7c9905073ad288e69dbcdd10493d190277f952a2810d91a1344",
+  "checksum": "2b5ead75baa40235f6c1555af5ee72b3e4a7d08544f2ae7aa54eb5ece44412ee",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8036,6 +8036,41 @@
       ],
       "version": "0.0.0"
     },
+    "dx_symbols 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "object 0.36.7",
+            "target": "object"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "sha2 0.10.9",
+            "target": "sha2"
+          }
+        ],
+        "edition": "2021"
+      },
+      "library_target_name": "dx_symbols",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_symbols",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_symbols",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_test_scratch 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -15267,17 +15302,31 @@
       "build_script_attrs": {},
       "common_attrs": {
         "crate_features": [
+          "archive",
           "coff",
+          "compression",
+          "default",
           "elf",
           "macho",
           "pe",
+          "read",
           "read_core",
-          "std"
+          "std",
+          "unaligned",
+          "xcoff"
         ],
         "deps": [
           {
+            "id": "flate2 1.1.10",
+            "target": "flate2"
+          },
+          {
             "id": "memchr 2.8.3",
             "target": "memchr"
+          },
+          {
+            "id": "ruzstd 0.7.3",
+            "target": "ruzstd"
           }
         ],
         "edition": "2018",
@@ -19853,6 +19902,45 @@
       ],
       "version": "0.3.1"
     },
+    "ruzstd 0.7.3": {
+      "common_attrs": {
+        "crate_features": [
+          "default",
+          "hash",
+          "std"
+        ],
+        "deps": [
+          {
+            "id": "twox-hash 1.6.3",
+            "target": "twox_hash"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "ruzstd",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "ruzstd",
+      "package_url": "https://github.com/KillingSpark/zstd-rs",
+      "repository": {
+        "Http": {
+          "sha256": "fad02996bfc73da3e301efe90b1837be9ed8f4a462b6ed410aa35d00381de89f",
+          "url": "https://static.crates.io/crates/ruzstd/0.7.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ruzstd",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.7.3"
+    },
     "ruzstd 0.9.1": {
       "common_attrs": {
         "crate_features": [
@@ -24088,6 +24176,44 @@
       ],
       "version": "0.7.1"
     },
+    "twox-hash 1.6.3": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "cfg-if 1.0.4",
+            "target": "cfg_if"
+          },
+          {
+            "id": "static_assertions 1.1.0",
+            "target": "static_assertions"
+          }
+        ],
+        "edition": "2018"
+      },
+      "library_target_name": "twox_hash",
+      "license": "MIT",
+      "license_file": "LICENSE.txt",
+      "license_ids": [
+        "MIT"
+      ],
+      "name": "twox-hash",
+      "package_url": "https://github.com/shepmaster/twox-hash",
+      "repository": {
+        "Http": {
+          "sha256": "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675",
+          "url": "https://static.crates.io/crates/twox-hash/1.6.3/download"
+        }
+      },
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "twox_hash",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "1.6.3"
+    },
     "twox-hash 2.1.5": {
       "common_attrs": {
         "crate_features": [
@@ -27627,6 +27753,7 @@
     "dx_setup 0.0.0": "cli/dx_setup",
     "dx_shard_writer 0.0.0": "cli/dx_shard_writer",
     "dx_shim 0.0.0": "cli/dx_shim",
+    "dx_symbols 0.0.0": "deploy/dx_symbols",
     "dx_test_scratch 0.0.0": "cli/dx_test_scratch",
     "dx_testing 0.0.0": "tools/dx_testing",
     "dx_tool_resolve 0.0.0": "cli/dx_tool_resolve",

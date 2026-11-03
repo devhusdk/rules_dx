@@ -20,7 +20,7 @@ on:
         default: false
         type: boolean
       approve:
-        description: "Owner approval for the full dry-run qualification."
+        description: "Owner approval to run the full dry-run qualification. False builds and reports only."
         required: false
         default: false
         type: boolean
@@ -140,6 +140,7 @@ jobs:
           merge-multiple: true
           path: ${{ runner.temp }}/release-coverage
       - name: Qualify exact owned line coverage in every cell
+        if: ${{ inputs.approve }}
         env:
           CELLS_SHA: ${{ needs.cells.outputs.sha }}
         run: |

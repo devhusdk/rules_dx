@@ -655,7 +655,6 @@ rust_test(
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
         "//examples/shared-rust:corpus_starlark",
-        "//zig/tests/fixtures/zig-app/diagnostics:corpus_starlark",
         "//fortran/tests/negative:corpus_starlark",
         "//gazelle/java:corpus_starlark",
         "//gazelle/kotlin:corpus_starlark",
@@ -734,6 +733,7 @@ rust_test(
         "//tools/testing/process_probe:corpus_starlark",
         "//typescript/tests/fixtures/scoped:corpus_starlark",
         "//wasi/testing:corpus_starlark",
+        "//zig/tests/fixtures/zig-app/diagnostics:corpus_starlark",
     ],
     deps = [
         "//tools/testing:dx_testing",

@@ -8,6 +8,7 @@ Bazelisk (see `.bazelversion`), then follow the command and CI guides below.
 
 ## Support
 
+- [Licenses](licenses.md): the licence of every tool rules_dx downloads.
 - [Support matrix](support-matrix.md): the platforms CI tests each language on and its quality tools. An empty cell or `no` is a missing test, tracked as an issue.
 
 ## Commands

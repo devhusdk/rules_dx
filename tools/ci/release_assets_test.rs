@@ -300,15 +300,34 @@ fn the_upload_checks_the_cells_version_and_commit_before_hashing() {
 }
 
 #[test]
-fn the_source_job_refuses_a_tag_the_committed_version_does_not_match() {
+fn the_source_job_refuses_a_tag_the_committed_versions_do_not_match() {
     let text = workflow();
     let source = text.find("\n  source:\n").expect("source job");
-    let gate = text
-        .find("[ \"$committed\" != \"${RELEASE_TAG#v}\" ]")
-        .expect("version gate");
+    let gate = text.find("tag=\"${RELEASE_TAG#v}\"").expect("version gate");
     let driver = text.find("release_driver").expect("driver");
     assert!(source < gate && gate < driver);
     assert!(text.contains("land the version bump first"));
+}
+
+#[test]
+fn the_version_gate_names_all_four_version_files_before_building() {
+    let text = workflow();
+    let gate = text
+        .find("Check the committed versions equal the tag")
+        .expect("version gate step");
+    let archive = text.find("source_archive").expect("source archive");
+    let step = &text[gate..archive];
+    for check in [
+        "check \"cli/prebuilt/pins.bzl DX_VERSION\"",
+        "check \"MODULE.bazel module version\"",
+        "check \"cli/adopt/src/version.rs DX_VERSION\"",
+        "check \"cli/adopt/src/version.rs MODULE_VERSION\"",
+    ] {
+        assert!(
+            step.contains(check),
+            "{WORKFLOW} version gate lacks {check}"
+        );
+    }
 }
 
 const TRUST: &str = "deploy/install/src/trust.rs";

@@ -67,14 +67,20 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
-      - name: Check the committed version equals the tag
+      - name: Check the committed versions equal the tag
         run: |
           set -euo pipefail
-          committed="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
-          if [ "$committed" != "${RELEASE_TAG#v}" ]; then
-            echo "cli/prebuilt/pins.bzl says DX_VERSION $committed but the tag is $RELEASE_TAG; land the version bump first." >&2
-            exit 1
-          fi
+          tag="${RELEASE_TAG#v}"
+          check() {
+            if [ "$2" != "$tag" ]; then
+              echo "$1 says $2 but the tag is $RELEASE_TAG; land the version bump first." >&2
+              exit 1
+            fi
+          }
+          check "cli/prebuilt/pins.bzl DX_VERSION" "$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          check "MODULE.bazel module version" "$(sed -n '/^module(/,/^)/s/^    version = "\(.*\)",$/\1/p' MODULE.bazel)"
+          check "cli/adopt/src/version.rs DX_VERSION" "$(sed -n 's/^pub const DX_VERSION: &str = "\(.*\)";$/\1/p' cli/adopt/src/version.rs)"
+          check "cli/adopt/src/version.rs MODULE_VERSION" "$(sed -n 's/^pub const MODULE_VERSION: &str = "\(.*\)";$/\1/p' cli/adopt/src/version.rs)"
       - name: Check the tag names the candidate commit
         run: |
           set -euo pipefail

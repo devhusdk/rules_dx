@@ -191,6 +191,38 @@ fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default
     }
 }
 
+fn bazel_floor(module: &str) -> String {
+    let list = module
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix("bazel_compatibility = ["))
+        .expect("bazel_compatibility is unset");
+    list.split(']')
+        .next()
+        .expect("bazel_compatibility is unterminated")
+        .trim()
+        .trim_matches('"')
+        .trim_start_matches(">=")
+        .to_owned()
+}
+
+#[test]
+fn bazel_floor_reads_the_compatibility_entry() {
+    assert_eq!(
+        bazel_floor("module(\n    bazel_compatibility = [\">=9.2.0\"],\n)"),
+        "9.2.0"
+    );
+}
+
+#[test]
+fn bazel_compatibility_floor_matches_bazelversion() {
+    assert_eq!(
+        bazel_floor(&read_runfiles("MODULE.bazel")),
+        read_runfiles(".bazelversion").trim(),
+        "MODULE.bazel bazel_compatibility and .bazelversion disagree"
+    );
+}
+
 #[test]
 fn ruff_policy_matches_the_hinted_fixture() {
     let workspace = read_runfiles("ruff.toml");

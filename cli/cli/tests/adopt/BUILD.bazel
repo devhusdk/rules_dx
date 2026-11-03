@@ -1,0 +1,44 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
+
+package(default_testonly = True)
+
+rust_test(
+    name = "adopt_test",
+    size = "small",
+    testonly = True,
+    srcs = ["tests/adopt.rs"],
+    crate_name = "adopt",
+    crate_root = "tests/adopt.rs",
+    data = ["//cli/cli:dx"],
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    },
+    env_inherit = ["PATH"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rustfmt_test(
+    name = "adopt_fmt_test",
+    size = "small",
+    targets = [":adopt_test"],
+)
+
+rust_clippy_test(
+    name = "adopt_clippy_test",
+    size = "small",
+    targets = [":adopt_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)

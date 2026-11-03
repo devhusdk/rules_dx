@@ -65,7 +65,7 @@ pub(crate) fn package_lock_name(path: &str) -> Option<String> {
     Some(last.to_owned())
 }
 
-fn valid_package_name(name: &str) -> bool {
+pub(crate) fn valid_package_name(name: &str) -> bool {
     let unscoped = |part: &str| {
         !part.is_empty()
             && !part.starts_with(['.', '_'])

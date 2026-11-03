@@ -583,6 +583,40 @@ fn yarn_berry_workspace_entries_are_skipped() {
 }
 
 #[test]
+fn yarn_v1_npm_alias_is_reported_under_the_real_package() {
+    let text = "# yarn lockfile v1\n\n\"alias@npm:real@^1.0.0\":\n  version \"1.2.0\"\n  resolved \"https://registry.yarnpkg.com/real/-/real-1.2.0.tgz#abc\"\n\n\"scoped@npm:@scope/real@^1\":\n  version \"1.3.0\"\n  resolved \"https://registry.yarnpkg.com/@scope/real/-/real-1.3.0.tgz#def\"\n";
+    let packages = parse_yarn_lock(text).expect("parses");
+    let real = packages.iter().find(|p| p.name == "real").expect("real");
+    assert_eq!(real.version, "1.2.0");
+    assert_eq!(real.location.as_deref(), Some("alias"));
+    assert!(packages
+        .iter()
+        .any(|p| p.name == "@scope/real" && p.version == "1.3.0"));
+    assert!(!packages
+        .iter()
+        .any(|p| p.name == "alias" || p.name == "scoped"));
+}
+
+#[test]
+fn yarn_berry_npm_alias_is_reported_under_the_real_package() {
+    let text = "__metadata:\n  version: 6\n\n\"alias@npm:real@^1.0.0\":\n  version: 1.2.0\n  resolution: \"real@npm:1.2.0\"\n  languageName: node\n  linkType: hard\n";
+    let packages = parse_yarn_lock(text).expect("parses");
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].name, "real");
+    assert_eq!(packages[0].version, "1.2.0");
+    assert_eq!(packages[0].location.as_deref(), Some("alias"));
+}
+
+#[test]
+fn yarn_stanza_that_fails_to_parse_is_an_error_naming_the_header() {
+    let text =
+        "# yarn lockfile v1\n\nreact@^18.0.0:\n  version \"18.2.0\"\n\n@:\n  version \"1.0.0\"\n";
+    let error = parse_yarn_lock(text).expect_err("rejects");
+    assert!(error.contains("invalid yarn.lock"), "{error}");
+    assert!(error.contains("cannot parse entry @:"), "{error}");
+}
+
+#[test]
 fn npm_private_packages_are_incomplete_never_clean() {
     let pkgs = vec![
         LockedPackage {

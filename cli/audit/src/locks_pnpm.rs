@@ -316,10 +316,26 @@ fn yarn_entry_package(entry: &yarn_lock_parser::Entry) -> Option<LockedPackage> 
         .any(|(_, range)| is_npm_git_reference(range))
         || is_npm_git_reference(version)
         || is_npm_git_reference(resolved);
-    Some(LockedPackage {
+    let alias = entry
+        .descriptors
+        .iter()
+        .find_map(|(_, range)| yarn_alias_target(range))
+        .filter(|real| real != name);
+    let mut package = LockedPackage {
         is_git,
-        ..LockedPackage::new("npm", name, version)
-    })
+        ..LockedPackage::new("npm", alias.as_deref().unwrap_or(name), version)
+    };
+    if alias.is_some() {
+        package.location = Some(name.to_owned());
+    }
+    Some(package)
+}
+
+fn yarn_alias_target(range: &str) -> Option<String> {
+    let spec = range.trim().strip_prefix("npm:")?;
+    let split = spec.char_indices().skip(1).find(|(_, c)| *c == '@')?.0;
+    let real = &spec[..split];
+    super::locks_npm::valid_package_name(real).then(|| real.to_owned())
 }
 
 pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
@@ -329,10 +345,18 @@ pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         if head.trim_end().trim_end_matches(':').trim() == "__metadata" {
             continue;
         }
-        let entry_text = yarn_entry_text(&stanza);
-        let Ok(lock) = parse_str(&entry_text) else {
+        if !stanza.lines().skip(1).any(|line| {
+            yarn_field_value(line).is_some_and(|(key, value)| key == "version" && !value.is_empty())
+        }) {
             continue;
-        };
+        }
+        let entry_text = yarn_entry_text(&stanza);
+        let lock = parse_str(&entry_text).map_err(|error| {
+            format!(
+                "invalid yarn.lock: cannot parse entry {}: {error}",
+                head.trim()
+            )
+        })?;
         for entry in &lock.entries {
             if let Some(package) = yarn_entry_package(entry) {
                 out.push(package);

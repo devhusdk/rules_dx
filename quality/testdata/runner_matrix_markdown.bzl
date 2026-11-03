@@ -131,6 +131,10 @@ MARKDOWN_CASES = [
         "path_tool_names": ["asciidoctor"],
         "path_tool_binaries": ["//quality/tools/javascript/bin:asciidoctor"],
         "expected_file": ":matrix/matrix_vale_asciidoc_lint_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_vale_asciidoc_lint_fail",

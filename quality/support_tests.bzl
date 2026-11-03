@@ -217,7 +217,7 @@ def _toolchain_platforms():
     }
 
 # Records that must name every platform as either supported or unsupported with a reason comment.
-_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "dscanner", "elvis", "erlfmt", "gofumpt", "hlint", "julia_format", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "standardrb", "statix", "zig_fmt"]
+_COMPLETE_TOOLS = ["clang_format", "cppcheck", "credo", "dart", "deadnix", "dfmt", "djlint", "dscanner", "elvis", "erlfmt", "flatc", "gofumpt", "gplint", "hlint", "julia_format", "keep_sorted", "latexindent", "mix_format", "nixfmt", "opa", "ormolu", "psscriptanalyzer", "qmlformat", "qmllint", "regal", "rubocop", "rustfmt", "shellcheck", "standardrb", "statix", "vale", "zig_fmt"]
 
 def _toolchain_checks():
     """Checks toolchain-supplied claims stay inside the toolchain and cover all platforms."""
@@ -343,6 +343,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "keep_sorted, shellcheck, latexindent, flatc, djlint, gplint and vale claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["keep_sorted", "shellcheck", "latexindent", "flatc", "djlint", "gplint", "vale"]], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                [],
+            ),
+            expect_equal(
                 "perl claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["perlcritic", "perltidy"]], RUNNER_MATRIX_CASES),
                 [],
@@ -388,9 +393,9 @@ def support_unit_tests(name):
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]],
             ),
             expect_equal(
-                "gherkin gplint lint record is owned, batched, check-only and linux_x86_64 only",
+                "gherkin gplint lint record is owned, batched, check-only and covers five platforms",
                 [with_platforms(GHERKIN_GPLINT_LINT_SUPPORT)["platforms"], GHERKIN_GPLINT_LINT_SUPPORT["fix"], GHERKIN_GPLINT_LINT_SUPPORT["transport"], GHERKIN_GPLINT_LINT_SUPPORT["context"]],
-                [["linux_x86_64"], "check_only", "batched", "owned"],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "api_spec prettier format record covers four platforms",

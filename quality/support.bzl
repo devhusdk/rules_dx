@@ -14,7 +14,7 @@ TEXT_KEEP_SORTED_SUPPORT = {
     "execution": "direct",
     "family": "text",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "keep_sorted",
     "transport": "batched",
@@ -28,7 +28,7 @@ SHELL_SHELLCHECK_SUPPORT = {
     "execution": "direct",
     "family": "shell",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "shellcheck",
     "transport": "single",
@@ -878,6 +878,7 @@ PROTOBUF_BUF_LINT_SUPPORT = {
     "transport": "batched",
 }
 
+# flatc ships Linux x86_64 only, so it is unsupported on every other platform.
 FLATBUFFERS_FLATC_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -890,9 +891,10 @@ FLATBUFFERS_FLATC_LINT_SUPPORT = {
     "state": "supported",
     "tool": "flatc",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
+# flatc ships Linux x86_64 only, so it is unsupported on every other platform.
 FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
     "artifact": "pinned",
     "capability": "typecheck",
@@ -905,7 +907,7 @@ FLATBUFFERS_FLATC_TYPECHECK_SUPPORT = {
     "state": "supported",
     "tool": "flatc",
     "transport": "batched",
-    "unsupported": ["linux_arm64", "macos_arm64", "windows_x86_64"],
+    "unsupported": ["linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"],
 }
 
 CAPNP_CAPNP_LINT_SUPPORT = {
@@ -1354,7 +1356,7 @@ GHERKIN_GPLINT_LINT_SUPPORT = {
     "execution": "direct",
     "family": "gherkin",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "gplint",
     "transport": "batched",
@@ -1475,7 +1477,7 @@ LATEX_LATEXINDENT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "latex",
     "fix": "supported",
-    "platforms": ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "latexindent",
     "transport": "single",
@@ -1506,7 +1508,7 @@ ASCIIDOC_VALE_LINT_SUPPORT = {
     "execution": "direct",
     "family": "asciidoc",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "vale",
     "transport": "batched",
@@ -1552,7 +1554,7 @@ HTML_TEMPLATE_DJLINT_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "html_template",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "djlint",
     "transport": "single",
@@ -1566,7 +1568,7 @@ HTML_TEMPLATE_DJLINT_LINT_SUPPORT = {
     "execution": "direct",
     "family": "html_template",
     "fix": "check_only",
-    "platforms": ["linux_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "djlint",
     "transport": "single",

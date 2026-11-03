@@ -13,6 +13,10 @@ dx env [--apply] [--shell=direnv] [<label>] [-- bazel-options...]
 declared generated source in one Bazel build. It upgrades nothing. It is
 repository-wide by default.
 
+After you edit a `.capnp`, `.fbs` or OpenAPI spec that a capnproto, flatbuffers
+or api_spec codegen rule reads, run `dx env --apply`. The selected outputs are
+linked under `.dx/setups/current/generated`.
+
 With one exact `//` or `@` label, `dx env` acts on that label plus every
 codegen shard that depends on it. For example, `dx env //proto:api` also
 builds each codegen shard that depends on `//proto:api`. dx finds the shards

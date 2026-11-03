@@ -47,7 +47,7 @@ recovery:
 dx: upgrade_failed: pinned <to> but <step> not refreshed: <error>; recovery: rerun `dx upgrade --to <to> --apply` (idempotent)
 ```
 
-After a move, run `dx init`, `dx env`, and `dx codegen` so the generated
+After a move, run `dx init` and `dx env --apply` so the generated
 `third_party/rules_dx/` overrides match the new pin.
 
 With `--output=json`, dx streams `command_started`, one `status` event named

@@ -544,6 +544,8 @@ pub(crate) fn text_finding(record: &FindingRecord) -> String {
     line.push(']');
     if diagnostic.fixable {
         line.push_str(" (fixable)");
+    } else if let Some(reason) = &diagnostic.unfixable_reason {
+        line.push_str(&format!(" (not fixable: {reason})"));
     }
     if record.count > 1 {
         line.push_str(&format!(" (x{})", record.count));
@@ -1569,6 +1571,30 @@ mod tests {
         record.diagnostic.tool = "vuln".to_owned();
         record.diagnostic.rule = Some("vuln/GHSA-1".to_owned());
         assert!(text_finding(&record).contains("[vuln/GHSA-1]"));
+    }
+
+    #[test]
+    fn text_finding_says_why_a_finding_is_not_fixable() {
+        let cases = [
+            (
+                "unstable",
+                "src/a.py: warning: mapped [lint-tool/rule] (not fixable: unstable)",
+            ),
+            (
+                "no_change",
+                "src/a.py: warning: mapped [lint-tool/rule] (not fixable: no_change)",
+            ),
+            (
+                "persists",
+                "src/a.py: warning: mapped [lint-tool/rule] (not fixable: persists)",
+            ),
+        ];
+        for (reason, line) in cases {
+            let mut record = finding(Some("src/a.py"), None);
+            record.diagnostic.fixable = false;
+            record.diagnostic.unfixable_reason = Some(reason.to_owned());
+            assert_eq!(text_finding(&record), line);
+        }
     }
 
     #[test]

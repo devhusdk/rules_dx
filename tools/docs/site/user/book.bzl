@@ -61,6 +61,11 @@ USER_BOOK = [
         "//docs:cli/commands/audit-update.md",
     ),
     mdbook_page(
+        "Config Reference",
+        "docs/cli/commands/config.md",
+        "//docs:cli/commands/config.md",
+    ),
+    mdbook_page(
         "Env",
         "docs/cli/commands/env.md",
         "//docs:cli/commands/env.md",

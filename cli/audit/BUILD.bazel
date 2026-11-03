@@ -58,6 +58,7 @@ dx_rust_crate(
         "schema/security.schema.json",
         "//:licenses.toml",
         "//:security.toml",
+        "//docs:cli/commands/config.md",
     ],
     dev_deps = [
         "jsonschema",

@@ -8,6 +8,16 @@
     )
 )]
 
+#[cfg(test)]
+macro_rules! key_names {
+    ($ty:path { $($field:ident),+ $(,)? }) => {{
+        let _every_field_is_listed = |value: $ty| {
+            let $ty { $($field: _),+ } = value;
+        };
+        vec![$(stringify!($field)),+]
+    }};
+}
+
 pub mod advisory;
 pub mod advisory_prep;
 pub mod backend;

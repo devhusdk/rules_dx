@@ -73,6 +73,9 @@ was read from. `pnpm-lock.yaml` is read at `lockfileVersion` 5.x, 6.0, and 9.0; 
 package key that cannot be resolved fails the command with a lock parse error
 naming the key.
 
+Every key of `security.toml` and `licenses.toml` is listed in the
+[Config Reference](config.md).
+
 `dx security` reads `security.toml` from the workspace root. Without the file
 no finding is exempted. Each `[[exception]]` needs `advisory`, `package`, `set`,
 `versions`, `reason`, and `expires`. `schema_version` is `1`.

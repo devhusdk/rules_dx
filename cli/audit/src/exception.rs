@@ -259,6 +259,50 @@ pub(crate) struct SecurityFile {
     uncovered: Vec<toml::Spanned<UncoveredAcceptance>>,
 }
 
+#[cfg(test)]
+impl RiskException {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            advisory,
+            package,
+            set,
+            versions,
+            reason,
+            expires,
+            line
+        })
+        .into_iter()
+        .filter(|key| *key != "line")
+        .collect()
+    }
+}
+
+#[cfg(test)]
+impl UncoveredAcceptance {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            set,
+            reason,
+            expires,
+            line
+        })
+        .into_iter()
+        .filter(|key| *key != "line")
+        .collect()
+    }
+}
+
+#[cfg(test)]
+impl SecurityFile {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            schema_version,
+            exception,
+            uncovered
+        })
+    }
+}
+
 #[path = "exception_apply.rs"]
 mod exception_apply;
 #[path = "exception_npm.rs"]

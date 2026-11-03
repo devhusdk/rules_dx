@@ -446,5 +446,86 @@ pub(crate) struct SetReview {
 }
 
 #[cfg(test)]
+impl LicenseException {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            package,
+            set,
+            license,
+            versions,
+            reason,
+            expires,
+            line
+        })
+        .into_iter()
+        .filter(|key| *key != "line")
+        .collect()
+    }
+}
+
+#[cfg(test)]
+impl LicenseInventory {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            package,
+            set,
+            license,
+            versions,
+            text_present,
+            text
+        })
+    }
+}
+
+#[cfg(test)]
+impl Distribution {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self { internal })
+    }
+}
+
+#[cfg(test)]
+impl LicensesFile {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            schema_version,
+            policy,
+            distribution,
+            exception,
+            inventory
+        })
+    }
+}
+
+#[cfg(test)]
+impl PolicyFile {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            blocked,
+            distributed,
+            sets
+        })
+    }
+}
+
+#[cfg(test)]
+impl PolicyLists {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self {
+            allow,
+            review,
+            deny
+        })
+    }
+}
+
+#[cfg(test)]
+impl SetReview {
+    pub(crate) fn key_names() -> Vec<&'static str> {
+        key_names!(Self { review })
+    }
+}
+
+#[cfg(test)]
 #[path = "license_policy_tests.rs"]
 mod license_policy_tests;

@@ -303,6 +303,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "ruby claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["rubocop", "standardrb"]], RUNNER_MATRIX_CASES),
+                [],
+            ),
+            expect_equal(
                 "terraform format record covers five platforms",
                 with_platforms(TERRAFORM_FORMAT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],

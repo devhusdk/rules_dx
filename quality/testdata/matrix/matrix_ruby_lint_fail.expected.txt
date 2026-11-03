@@ -5,7 +5,7 @@ stage rubocop classes=ruby sources=matrix/rubocop_dirty.rb
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING rubocop Style/StringLiterals matrix/rubocop_dirty.rb 23 23 fixable=false "Use double quotes"
+initial WARNING rubocop Style/StringLiterals matrix/rubocop_dirty.rb 5 5 fixable=false "Prefer double-quoted strings."
 terminal 1
-terminal WARNING rubocop Style/StringLiterals matrix/rubocop_dirty.rb 23 23 fixable=false "Use double quotes"
+terminal WARNING rubocop Style/StringLiterals matrix/rubocop_dirty.rb 5 5 fixable=false "Prefer double-quoted strings."
 replacements 0

@@ -1909,6 +1909,7 @@ _FAKE_FORMAT_TOOLS = [
     "fantomas",
     "modfmt",
     "prettier_file_family",
+    "rubocop",
     "standardrb",
 ]
 

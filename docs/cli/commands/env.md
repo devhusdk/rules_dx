@@ -114,6 +114,21 @@ bazel run @rules_dx//:dx -- env --output json
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
 `("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")` and `("openapi", "typescript")`.
 
+The protobuf/rust pair comes from `prost_codegen_shard` in
+`@rules_dx//generation:codegen.bzl`. Point `proto_rs` at a `rust_prost_library`
+and list one entry per generated file. Each entry's `EXEC_PATH` is the file
+name prost writes, such as `result_proto.lib.rs`.
+
+```starlark
+load("@rules_dx//generation:codegen.bzl", "prost_codegen_shard")
+
+prost_codegen_shard(
+    name = "api_codegen",
+    entries = ["gen/api.rs|gen|api|api_proto.lib.rs"],
+    proto_rs = ":api_proto_rs",
+)
+```
+
 The openapi/typescript pair comes from `openapi_typescript_client` in
 `@rules_dx//api_spec/rules:codegen.bzl`, which turns one OpenAPI root of an
 `api_spec_library` into a single self-contained `NAME.ts` with the pinned

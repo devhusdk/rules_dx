@@ -2350,6 +2350,24 @@ the host: it is the bound `bicep_config`, or an empty `{}`. Diagnostics in a
 dependency are not reported on the target that references it. A module from a
 registry (`br:`) is not supported yet: it is reported as an error with a hint.
 
+Restore a registry module at fetch time with the `bicep` extension. Pin the
+`br:` reference and the sha256 of its manifest:
+
+```python
+bicep = use_extension("@rules_dx//bicep:extensions.bzl", "bicep")
+bicep.registry_module(
+    name = "avm_storage",
+    ref = "br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.3",
+    digest = "sha256:<64 lowercase hex>",
+)
+use_repo(bicep, "avm_storage")
+```
+
+`ref` must start with `br:` and end in `:<tag>`. `digest` is `sha256:` plus 64
+lowercase hex characters. The fetch fails and prints both digests when the
+restored manifest does not match. Add `@avm_storage//:module` to the `deps` of a
+`bicep_module`.
+
 `bicep format` exits 0 and echoes a file that does not parse, so `format` cannot
 report a syntax error; `lint` does. Typecheck (`bicep build`) stays disabled
 because `bicep lint` already reports compile errors (BCP diagnostics).

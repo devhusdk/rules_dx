@@ -1,6 +1,7 @@
-load("//bicep/rules:defs.bzl", "bicep_module")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//bicep/rules:defs.bzl", "bicep_module", "bicep_registry_module")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load(":library_tests.bzl", "owns_bicep_class_test", "transitive_context_test")
+load(":library_tests.bzl", "owns_bicep_class_test", "registry_deps_test", "registry_unit_tests", "transitive_context_test")
 
 bicep_module(
     name = "lib",
@@ -48,4 +49,39 @@ failure_test(
     name = "config_in_data_fails",
     expected_failure_substring = "bind it with bicep_config",
     target = ":config_in_data",
+)
+
+registry_unit_tests(name = "registry_unit")
+
+bicep_registry_module(
+    name = "registry_fixture",
+    srcs = [
+        "fixtures/registry/main.json",
+        "fixtures/registry/manifest",
+    ],
+    cache_root = "fixtures/registry",
+    ref = "br:example.invalid/m:1",
+)
+
+bicep_module(
+    name = "registry_app",
+    srcs = ["fixtures/registry_app.bicep"],
+    deps = [":registry_fixture"],
+)
+
+registry_deps_test(
+    name = "registry_deps_test",
+    size = "small",
+    target_under_test = ":registry_app",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
 )

@@ -418,13 +418,9 @@ fn install_with(
             format!("{gh} not found; install GitHub CLI to verify the release"),
         ));
     }
-    host.run(&trust::gh_verify_argv(
-        &gh,
-        &args.archive,
-        &bundle,
-        &args.tag,
-    ))
-    .map_err(|e| run.fail("provenance", e))?;
+    let verify = trust::gh_verify_argv(&gh, &args.archive, &bundle, &args.tag);
+    verify_provenance(&mut |argv| host.run(argv), &gh, &verify)
+        .map_err(|e| run.fail("provenance", e))?;
     run.ok("provenance", trust::PROVENANCE_BUILDER_RELEASE.to_owned());
 
     let root = ManagedRoot::new(dir.clone());
@@ -595,6 +591,50 @@ fn install_with(
         outcome,
         checks: run.checks,
     })
+}
+
+/// Runs `gh attestation verify`; a network or login error gets a login check and one retry.
+fn verify_provenance(
+    run: &mut dyn FnMut(&[String]) -> Result<String, String>,
+    gh: &str,
+    verify: &[String],
+) -> Result<(), String> {
+    let Err(error) = run(verify) else {
+        return Ok(());
+    };
+    if !is_gh_access_error(&error) {
+        return Err(format!(
+            "{error}; next: the archive does not match its release attestation, do not install it"
+        ));
+    }
+    let status = [gh.to_owned(), "auth".to_owned(), "status".to_owned()];
+    if run(&status).is_err() {
+        return Err(format!(
+            "{error}; next: run `gh auth login`, then run dx install again"
+        ));
+    }
+    run(verify).map(|_| ()).map_err(|retry| {
+        format!("{retry}; next: gh is logged in, so check the network and run dx install again")
+    })
+}
+
+fn is_gh_access_error(stderr: &str) -> bool {
+    const HINTS: [&str; 12] = [
+        "auth login",
+        "not logged in",
+        "authentication",
+        "bad credentials",
+        "http 401",
+        "network",
+        "connection",
+        "timed out",
+        "timeout",
+        "no such host",
+        "dial tcp",
+        "could not resolve",
+    ];
+    let lower = stderr.to_ascii_lowercase();
+    HINTS.iter().any(|hint| lower.contains(hint))
 }
 
 fn swap_link(bin_dir: &Path, cell: &Cell, tag: &str) -> Result<(), String> {

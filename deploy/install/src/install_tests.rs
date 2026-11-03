@@ -551,3 +551,52 @@ fn receipt_parse_rejects_other_schemas() {
     assert!(error.contains("dx-install/v1"), "{error}");
     assert!(Receipt::parse("not json").is_err());
 }
+
+fn verify_with(replies: Vec<Result<String, String>>) -> (Result<(), String>, Vec<String>) {
+    let replies = RefCell::new(replies);
+    let calls = RefCell::new(Vec::new());
+    let verify = ["gh", "attestation", "verify"].map(str::to_owned);
+    let result = verify_provenance(
+        &mut |argv| {
+            calls.borrow_mut().push(argv[1].clone());
+            replies.borrow_mut().remove(0)
+        },
+        "gh",
+        &verify,
+    );
+    (result, calls.into_inner())
+}
+
+#[test]
+fn verify_mismatch_keeps_stderr_and_stops() {
+    let (result, calls) = verify_with(vec![Err("gh failed (1): bad signature".to_owned())]);
+    let error = result.expect_err("mismatch");
+    assert!(error.contains("bad signature"), "{error}");
+    assert!(error.contains("do not install it"), "{error}");
+    assert_eq!(calls, ["attestation"]);
+}
+
+#[test]
+fn verify_network_error_retries_after_auth_status() {
+    let stderr = "gh failed (1): dial tcp: lookup api.github.com: no such host";
+    let (result, calls) = verify_with(vec![
+        Err(stderr.to_owned()),
+        Ok(String::new()),
+        Ok(String::new()),
+    ]);
+    result.expect("retry passes");
+    assert_eq!(calls, ["attestation", "auth", "attestation"]);
+}
+
+#[test]
+fn verify_login_error_names_the_next_step() {
+    let stderr = "gh failed (1): To get started, please run: gh auth login";
+    let (result, calls) = verify_with(vec![
+        Err(stderr.to_owned()),
+        Err("gh failed (1): not logged in".to_owned()),
+    ]);
+    let error = result.expect_err("login");
+    assert!(error.contains("gh auth login"), "{error}");
+    assert!(error.contains(stderr), "{error}");
+    assert_eq!(calls, ["attestation", "auth"]);
+}

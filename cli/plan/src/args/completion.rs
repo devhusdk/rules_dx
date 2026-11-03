@@ -219,7 +219,16 @@ impl ValueCompleter for ScopeCompleter {
 
     fn complete_at(&self, _index: usize, current: &OsStr) -> Vec<CompletionCandidate> {
         let current = current.to_string_lossy();
-        let (mut names, allows_labels) = slot_candidates(self.command, &self.prior, &current);
+        let declared = if self.prior.is_empty()
+            && matches!(self.command.meta().first_slot, FirstSlot::UpdateSets)
+        {
+            let selection = self.selection.get_or_init(|| self.request.select());
+            declared_sets(&selection.workspace)
+        } else {
+            Vec::new()
+        };
+        let (mut names, allows_labels) =
+            slot_candidates(self.command, &self.prior, &current, &declared);
         if allows_labels {
             let selection = self.selection.get_or_init(|| self.request.select());
             names.extend(label_hint(&current));
@@ -419,21 +428,33 @@ fn prefixed(names: &[&str], current: &str) -> Vec<String> {
     out
 }
 
-fn update_set_hints(current: &str) -> Vec<String> {
-    let names: Vec<&str> = dx_update::sets::SetId::ALL
+fn declared_sets(workspace: &Path) -> Vec<String> {
+    match dx_adopt::dependency_sets::load(workspace) {
+        Ok(Some(registry)) => registry.names().into_iter().map(String::from).collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn update_set_hints(declared: &[String], current: &str) -> Vec<String> {
+    let names: Vec<&str> = declared
         .iter()
-        .map(|id| id.name())
+        .map(String::as_str)
         .chain(dx_update::bump::UpdateSet::names())
         .collect();
     prefixed(&names, current)
 }
 
-fn slot_candidates(command: Command, prior: &[String], current: &str) -> (Vec<String>, bool) {
+fn slot_candidates(
+    command: Command,
+    prior: &[String],
+    current: &str,
+    declared: &[String],
+) -> (Vec<String>, bool) {
     let meta = command.meta();
     let fixed = if prior.is_empty() {
         match meta.first_slot {
             FirstSlot::None => Vec::new(),
-            FirstSlot::UpdateSets => update_set_hints(current),
+            FirstSlot::UpdateSets => update_set_hints(declared, current),
             FirstSlot::WatchTasks => prefixed(dx_adopt::WATCHABLE_COMMANDS, current),
             FirstSlot::CompletionShells => prefixed(COMPLETION_SHELLS, current),
         }
@@ -599,36 +620,21 @@ mod tests {
     #[test]
     fn fixed_tables_match_their_single_sources() {
         assert_eq!(COMPLETION_SHELLS, &["bash", "zsh", "fish", "powershell"]);
-        let mut sets: Vec<&str> = dx_update::sets::SetId::ALL
-            .iter()
-            .map(|id| id.name())
-            .collect();
-        sets.sort_unstable();
-        assert_eq!(
-            sets,
-            vec![
-                "cargo",
-                "go",
-                "maven",
-                "npm",
-                "npm-adopt",
-                "npm-adopt-polyglot",
-                "npm-tools",
-                "nuget",
-                "uv",
-                "uv-adopt",
-                "uv-adopt-polyglot",
-                "uv-tools",
-            ]
-        );
+    }
+
+    #[test]
+    fn a_workspace_without_hubs_declares_no_sets() {
+        let scratch = workspace_with_package();
+        assert!(declared_sets(scratch.path()).is_empty());
     }
 
     #[test]
     fn slot_candidates_cover_every_command_without_drift() {
         let empty: Vec<String> = Vec::new();
+        let declared = vec![String::from("uv"), String::from("cargo")];
         for command in Command::value_variants() {
-            let (fixed, labels) = slot_candidates(*command, &empty, "");
-            let (filtered, _) = slot_candidates(*command, &empty, "zzz-no-match-zzz");
+            let (fixed, labels) = slot_candidates(*command, &empty, "", &declared);
+            let (filtered, _) = slot_candidates(*command, &empty, "zzz-no-match-zzz", &declared);
             assert!(
                 filtered.is_empty(),
                 "{command:?} must prefix-filter fixed candidates"
@@ -652,9 +658,9 @@ mod tests {
                     assert!(!labels);
                 }
                 Command::Update => {
-                    let mut want: Vec<String> = dx_update::sets::SetId::ALL
+                    let mut want: Vec<String> = declared
                         .iter()
-                        .map(|id| (*id).name().to_owned())
+                        .cloned()
                         .chain(
                             dx_update::bump::UpdateSet::names()
                                 .into_iter()
@@ -684,8 +690,8 @@ mod tests {
                 }
             }
             assert_eq!(
-                slot_candidates(*command, &empty, ""),
-                slot_candidates(*command, &empty, ""),
+                slot_candidates(*command, &empty, "", &declared),
+                slot_candidates(*command, &empty, "", &declared),
                 "{command:?} must be deterministic"
             );
         }
@@ -695,13 +701,13 @@ mod tests {
     fn later_slots_follow_per_command_shapes() {
         let task = vec![String::from("test")];
         assert_eq!(
-            slot_candidates(Command::Watch, &task, ""),
+            slot_candidates(Command::Watch, &task, "", &[]),
             (Vec::new(), true)
         );
         let one = vec![String::from("//a:one")];
         for command in [Command::Env, Command::Completion, Command::Deploy] {
             assert_eq!(
-                slot_candidates(command, &one, ""),
+                slot_candidates(command, &one, "", &[]),
                 (Vec::new(), false),
                 "{command:?} must close after its slot"
             );
@@ -714,7 +720,7 @@ mod tests {
             Command::Update,
         ] {
             assert!(
-                slot_candidates(command, &one, "").1,
+                slot_candidates(command, &one, "", &[]).1,
                 "{command:?} must stay open for more scopes"
             );
         }

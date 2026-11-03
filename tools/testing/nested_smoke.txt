@@ -47,15 +47,9 @@
 //quality/tests:check_continuation_later_clean_consumer_test
 //quality/tests:check_continuation_rejected_consumer_test
 //quality/tests:check_continuation_views_consumer_test
-//quality/tests:cmake_consumer_test
 //quality/tests:kotlinc_consumer_test
-//quality/tests:kubernetes_consumer_test
-//quality/tests:latex_consumer_test
 //quality/tests:ldc_consumer_test
-//quality/tests:lua_consumer_test
 //quality/tests:luals_consumer_test
-//quality/tests:make_consumer_test
-//quality/tests:mdx_consumer_test
 //quality/tests:mix_format_consumer_test
 //quality/tests:nix_consumer_test
 //quality/tests:ocaml_consumer_test

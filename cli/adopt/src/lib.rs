@@ -16,6 +16,7 @@ pub mod git_changes;
 pub mod init_dir;
 pub mod launcher;
 pub mod load_graph;
+pub mod module_pin;
 pub mod overrides;
 pub mod preflight;
 pub mod preset;
@@ -42,6 +43,7 @@ pub use launcher::{
     LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
 };
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
+pub use module_pin::{plan_rules_dx_version, write_module_edit, ModuleEdit};
 pub use overrides::{
     apply_overrides, check_overrides, preflight_overrides, OverridesState, OVERRIDES_INCLUDE,
 };

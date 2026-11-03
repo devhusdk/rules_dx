@@ -14,6 +14,8 @@ pub enum AdoptError {
     ReadModuleFile { detail: String },
     #[error("MODULE.bazel or its includes: {detail}")]
     LoadModuleFile { detail: String },
+    #[error("{path}: {detail}")]
+    ModulePin { path: String, detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
     #[error("invalid .dx/version: {version:?} is not semver")]

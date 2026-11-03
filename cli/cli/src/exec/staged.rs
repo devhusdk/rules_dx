@@ -159,6 +159,9 @@ pub(super) fn run_staged_core(
         Ok(entries) => {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().into_owned();
+                if !run.is_lock(&name) {
+                    continue;
+                }
                 match std::fs::read(entry.path()) {
                     Ok(bytes) => {
                         generated.insert(name, bytes);

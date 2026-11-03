@@ -857,7 +857,7 @@ scopes = ["tools/ps"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
-    const NUGET_SET_DX_TOML: &str = "schema_version = 1\n[[dependency_set]]\nname = \"dotnet\"\necosystem = \"nuget\"\nmanifests = [\"dotnet/paket.dependencies\"]\nlocks = [\"dotnet/paket.lock\", \"dotnet/paket.main.bzl\", \"dotnet/paket.main_extension.bzl\"]\nscopes = [\"dotnet\"]\n";
+    const NUGET_SET_DX_TOML: &str = "schema_version = 1\n[[dependency_set]]\nname = \"dotnet\"\necosystem = \"nuget\"\nmanifests = [\"dotnet/paket.dependencies\"]\nlocks = [\"dotnet/paket.lock\", \"dotnet/paket.main.bzl\"]\nscopes = [\"dotnet\"]\n";
     const PAKET_DEPS: &str =
         "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json 12.0.1\n";
 
@@ -868,7 +868,6 @@ scopes = ["tools/ps"]
         let files = [
             ("dotnet/paket.lock", "NUGET\n"),
             ("dotnet/paket.main.bzl", "main\n"),
-            ("dotnet/paket.main_extension.bzl", "ext\n"),
         ];
         harness.write_source("dotnet/paket.dependencies", PAKET_DEPS);
         for (rel, text) in files {

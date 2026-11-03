@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "framework.bzl",
     "dotnet-tools.json",
+    "extension.bzl",
     "paket.dependencies",
     "paket.lock",
 ])
@@ -14,6 +15,7 @@ real_source_target(
     aspect_hints = ["//:buildifier_config"],
     starlark_srcs = [
         "BUILD.bazel",
+        "extension.bzl",
         "framework.bzl",
     ],
     tags = ["corpus"],

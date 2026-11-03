@@ -1481,36 +1481,32 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
     };
     check_pinned_lock(set, PAKET_LOCK)?;
     let mut folders = BTreeSet::new();
-    let mut groups: BTreeMap<String, (bool, bool)> = BTreeMap::new();
+    let mut groups = 0;
     for lock in &set.locks {
         let (folder, file) = lock.rsplit_once('/').unwrap_or((".", lock));
         if file == PAKET_LOCK {
             continue;
         }
-        let Some(stem) = file
+        let group = file
             .strip_prefix("paket.")
             .and_then(|rest| rest.strip_suffix(".bzl"))
-        else {
-            return Err(unsupported(format!(
-                "lock {lock} is neither paket.lock nor a generated paket.<group>.bzl file"
-            )));
-        };
-        folders.insert(folder.to_owned());
-        let (group, extension) = match stem.strip_suffix("_extension") {
-            Some(group) => (group, true),
-            None => (stem, false),
-        };
+            .ok_or_else(|| {
+                unsupported(format!(
+                    "lock {lock} is neither paket.lock nor a generated paket.<group>.bzl file"
+                ))
+            })?;
         if group.is_empty() {
             return Err(unsupported(format!("lock {lock} names no paket group")));
         }
-        let entry = groups.entry(group.to_owned()).or_default();
-        if extension {
-            entry.1 = true;
-        } else {
-            entry.0 = true;
+        if group.ends_with("_extension") {
+            return Err(unsupported(format!(
+                "lock {lock} is a paket2bazel extension; dx does not manage it, so drop it from locks"
+            )));
         }
+        folders.insert(folder.to_owned());
+        groups += 1;
     }
-    if groups.is_empty() {
+    if groups == 0 {
         return Err(unsupported(
             "locks list no generated paket.<group>.bzl files".to_owned(),
         ));
@@ -1519,13 +1515,6 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
         return Err(unsupported(
             "generated paket .bzl locks must share one folder".to_owned(),
         ));
-    }
-    for (group, (plain, extension)) in &groups {
-        if !(*plain && *extension) {
-            return Err(unsupported(format!(
-                "group {group} needs both paket.{group}.bzl and paket.{group}_extension.bzl in locks"
-            )));
-        }
     }
     let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
         .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
@@ -3279,7 +3268,6 @@ manifests = ["third_party/dotnet/paket.dependencies"]
 locks = [
   "third_party/dotnet/paket.lock",
   "third_party/dotnet/deps/paket.main.bzl",
-  "third_party/dotnet/deps/paket.main_extension.bzl",
 ]
 scopes = ["third_party/dotnet"]
 "#;
@@ -3345,7 +3333,7 @@ scopes = ["third_party/dotnet"]
     }
 
     #[test]
-    fn nuget_layout_accepts_one_folder_of_paired_groups() {
+    fn nuget_layout_accepts_one_folder_of_groups() {
         let (scratch, set) = nuget_workspace(
             NUGET_SETS,
             NUGET_MODULE,
@@ -3366,8 +3354,8 @@ scopes = ["third_party/dotnet"]
             ),
             (
                 NUGET_SETS.replace(
-                    "deps/paket.main_extension.bzl",
-                    "other/paket.main_extension.bzl",
+                    "deps/paket.main.bzl\",",
+                    "deps/paket.main.bzl\", \"third_party/dotnet/other/paket.docs.bzl\",",
                 ),
                 NUGET_MODULE,
                 dependencies,
@@ -3375,12 +3363,12 @@ scopes = ["third_party/dotnet"]
             ),
             (
                 NUGET_SETS.replace(
-                    "  \"third_party/dotnet/deps/paket.main_extension.bzl\",\n",
-                    "",
+                    "deps/paket.main.bzl\",",
+                    "deps/paket.main.bzl\", \"third_party/dotnet/deps/paket.main_extension.bzl\",",
                 ),
                 NUGET_MODULE,
                 dependencies,
-                "needs both",
+                "paket2bazel extension",
             ),
             (
                 NUGET_SETS.to_owned(),

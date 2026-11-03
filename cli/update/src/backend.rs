@@ -98,6 +98,11 @@ impl StagedRun {
         }
     }
 
+    /// Whether a generated file is a lock; paket2bazel's per-group extensions are not.
+    pub fn is_lock(&self, name: &str) -> bool {
+        !(self.tool == StagedTool::Paket2Bazel && name.ends_with("_extension.bzl"))
+    }
+
     /// The directory under `scratch` the inputs are copied into and the outputs are read from.
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
         match self.tool {
@@ -3184,7 +3189,6 @@ mod tests {
             locks: vec![
                 "third_party/dotnet/paket.lock".to_owned(),
                 "third_party/dotnet/deps/paket.main.bzl".to_owned(),
-                "third_party/dotnet/deps/paket.main_extension.bzl".to_owned(),
             ],
             writable: true,
             repository: None,
@@ -3217,7 +3221,6 @@ mod tests {
             ],
             outputs: vec![
                 "third_party/dotnet/deps/paket.main.bzl".to_owned(),
-                "third_party/dotnet/deps/paket.main_extension.bzl".to_owned(),
             ],
         };
         let closure = UvClosure::default();

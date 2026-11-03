@@ -809,8 +809,9 @@ against `.dx/advisory/maven.json`, failing the set with `failed to assess
 
 A `nuget` set regenerates the `paket2bazel` output of rules_dotnet. Its
 `manifests` is one `paket.dependencies`; `locks` lists the `paket.lock` beside it
-and the generated `paket.<group>.bzl` and `paket.<group>_extension.bzl` files, in
-complete pairs and in one folder. The root `MODULE.bazel` must have
+and the generated `paket.<group>.bzl` files, in one folder. dx ignores the
+`paket.<group>_extension.bzl` files `paket2bazel` also writes; a lock that names
+one is `unsupported`. The root `MODULE.bazel` must have
 `bazel_dep(name = "rules_dotnet")` with no `repo_name`, and every `source` in
 `paket.dependencies` must be http(s). Violations are `unsupported`.
 
@@ -822,7 +823,6 @@ manifests = ["third_party/dotnet/paket.dependencies"]
 locks = [
   "third_party/dotnet/paket.lock",
   "third_party/dotnet/deps/paket.main.bzl",
-  "third_party/dotnet/deps/paket.main_extension.bzl",
 ]
 scopes = ["third_party/dotnet"]
 ```

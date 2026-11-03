@@ -22,7 +22,6 @@ manifests = ["third_party/dotnet/paket.dependencies"]
 locks = [
   "third_party/dotnet/paket.lock",
   "third_party/dotnet/deps/paket.main.bzl",
-  "third_party/dotnet/deps/paket.main_extension.bzl",
 ]
 scopes = ["third_party/dotnet"]
 "#;
@@ -72,10 +71,6 @@ fn consumer() -> Case {
     write(&root.join("third_party/dotnet/paket.lock"), LOCK);
     write(
         &root.join("third_party/dotnet/deps/paket.main.bzl"),
-        "stale\n",
-    );
-    write(
-        &root.join("third_party/dotnet/deps/paket.main_extension.bzl"),
         "stale\n",
     );
     root
@@ -149,10 +144,7 @@ fn nuget_set_regenerates_only_its_declared_bzl_files() {
         .collect();
     assert_eq!(
         changed,
-        [
-            Path::new("third_party/dotnet/deps/paket.main.bzl"),
-            Path::new("third_party/dotnet/deps/paket.main_extension.bzl"),
-        ],
+        [Path::new("third_party/dotnet/deps/paket.main.bzl")],
         "{after:?}"
     );
     assert_eq!(

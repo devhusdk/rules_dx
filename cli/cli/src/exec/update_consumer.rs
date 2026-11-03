@@ -2242,7 +2242,6 @@ manifests = ["third_party/dotnet/paket.dependencies"]
 locks = [
   "third_party/dotnet/paket.lock",
   "third_party/dotnet/deps/paket.main.bzl",
-  "third_party/dotnet/deps/paket.main_extension.bzl",
 ]
 scopes = ["third_party/dotnet"]
 
@@ -2253,20 +2252,17 @@ manifests = ["third_party/dotnet_tools/paket.dependencies"]
 locks = [
   "third_party/dotnet_tools/paket.lock",
   "third_party/dotnet_tools/deps/paket.tools.bzl",
-  "third_party/dotnet_tools/deps/paket.tools_extension.bzl",
 ]
 scopes = ["third_party/dotnet_tools"]
 "#;
 
-    const NUGET_FILES: [&str; 8] = [
+    const NUGET_FILES: [&str; 6] = [
         "MODULE.bazel",
         "third_party/dotnet/paket.dependencies",
         "third_party/dotnet/paket.lock",
         "third_party/dotnet/deps/paket.main.bzl",
-        "third_party/dotnet/deps/paket.main_extension.bzl",
         "third_party/dotnet_tools/paket.lock",
         "third_party/dotnet_tools/deps/paket.tools.bzl",
-        "third_party/dotnet_tools/deps/paket.tools_extension.bzl",
     ];
 
     fn nuget_harness(name: &str) -> Harness {
@@ -2283,12 +2279,7 @@ scopes = ["third_party/dotnet_tools"]
             harness.write_source(&format!("third_party/{dir}/paket.lock"), "NUGET\n");
         }
         harness.write_source("third_party/dotnet/deps/paket.main.bzl", "main\n");
-        harness.write_source("third_party/dotnet/deps/paket.main_extension.bzl", "ext\n");
         harness.write_source("third_party/dotnet_tools/deps/paket.tools.bzl", "tools\n");
-        harness.write_source(
-            "third_party/dotnet_tools/deps/paket.tools_extension.bzl",
-            "tools_ext\n",
-        );
         harness
     }
 
@@ -2406,6 +2397,10 @@ scopes = ["third_party/dotnet_tools"]
                 assert_eq!(after[index], before[index], "{rel}");
             }
         }
+        assert!(!harness
+            .workspace
+            .join("third_party/dotnet/deps/paket.main_extension.bzl")
+            .exists());
         assert!(!scratch_out(&runner).exists());
     }
 
@@ -2423,8 +2418,8 @@ scopes = ["third_party/dotnet_tools"]
             ),
             (
                 "missing",
-                vec![("paket.main.bzl", "new\n")],
-                "did not generate declared locks: third_party/dotnet/deps/paket.main_extension.bzl",
+                vec![("paket.main_extension.bzl", "ext\n")],
+                "did not generate declared locks: third_party/dotnet/deps/paket.main.bzl",
             ),
         ] {
             let harness = nuget_harness(&format!("nuget-{name}"));

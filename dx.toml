@@ -197,13 +197,9 @@ manifests = [
 locks = [
     "third_party/dotnet/paket.lock",
     "third_party/dotnet/deps/paket.main.bzl",
-    "third_party/dotnet/deps/paket.main_extension.bzl",
     "third_party/dotnet/deps/paket.docs_csharp.bzl",
-    "third_party/dotnet/deps/paket.docs_csharp_extension.bzl",
     "third_party/dotnet/deps/paket.docs_fsharp.bzl",
-    "third_party/dotnet/deps/paket.docs_fsharp_extension.bzl",
     "third_party/dotnet/deps/paket.fsharplint.bzl",
-    "third_party/dotnet/deps/paket.fsharplint_extension.bzl",
 ]
 scopes = [
     "csharp",

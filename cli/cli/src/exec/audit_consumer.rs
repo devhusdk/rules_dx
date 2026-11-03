@@ -855,7 +855,7 @@ schema_version = 1
 name = "dotnet"
 ecosystem = "nuget"
 manifests = ["dn/paket.dependencies"]
-locks = ["dn/paket.lock", "dn/paket.main.bzl", "dn/paket.main_extension.bzl"]
+locks = ["dn/paket.lock", "dn/paket.main.bzl"]
 scopes = ["dn"]
 "#;
 
@@ -879,7 +879,6 @@ scopes = ["dn"]
             "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    Example.Lib (1.1)\n",
         );
         harness.write_source("dn/paket.main.bzl", "main\n");
-        harness.write_source("dn/paket.main_extension.bzl", "ext\n");
         harness
     }
 

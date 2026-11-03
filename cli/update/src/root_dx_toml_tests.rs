@@ -76,9 +76,6 @@ fn nuget_locks_cover_every_paket_group() {
     let mut want = vec!["third_party/dotnet/paket.lock".to_owned()];
     for group in &groups {
         want.push(format!("third_party/dotnet/deps/paket.{group}.bzl"));
-        want.push(format!(
-            "third_party/dotnet/deps/paket.{group}_extension.bzl"
-        ));
     }
     let mut got = set("nuget").locks;
     got.sort();

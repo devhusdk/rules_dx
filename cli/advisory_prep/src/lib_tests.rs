@@ -620,7 +620,7 @@ fn configured_maven_sets_plan_the_maven_family_once() {
 #[test]
 fn configured_nuget_sets_plan_the_nuget_family_once() {
     let set = |name: &str, dir: &str| {
-        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"nuget\"\nmanifests = [\"{dir}/paket.dependencies\"]\nlocks = [\"{dir}/paket.lock\", \"{dir}/paket.a.bzl\", \"{dir}/paket.a_extension.bzl\"]\nscopes = [\"{dir}\"]\n")
+        format!("[[dependency_set]]\nname = \"{name}\"\necosystem = \"nuget\"\nmanifests = [\"{dir}/paket.dependencies\"]\nlocks = [\"{dir}/paket.lock\", \"{dir}/paket.a.bzl\"]\nscopes = [\"{dir}\"]\n")
     };
     let text = format!(
         "schema_version = 1\n\n{}\n{}",

@@ -54,7 +54,7 @@ dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 use_repo(dotnet, "dotnet_toolchains")
 
-nuget = use_extension("@rules_dx//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
+nuget = use_extension("@rules_dx//third_party/dotnet:extension.bzl", "paket")
 use_repo(nuget, "paket.main")
 "#;
 

@@ -67,7 +67,7 @@ _TOOLCHAIN = """toolchain(
     exec_compatible_with = {constraints},
     target_compatible_with = {constraints},
     toolchain = "@{repo}//:elixir",
-    toolchain_type = "@rules_elixir//:toolchain_type",
+    toolchain_type = "{toolchain_type}",
 )
 """
 
@@ -169,13 +169,17 @@ def hub_build(cells):
         cell = cell,
         constraints = repr(CELLS[cell].exec_compatible_with),
         repo = DIST_NAME,
+        toolchain_type = str(Label("//elixir/toolchain/type:toolchain_type")),
     ) for cell in cells])
 
 def _elixir_impl(mctx):
     pinned_archive(
         name = "rules_elixir",
         dropped = RULES_ELIXIR_DROPPED,
-        patches = [Label("//patches/rules_elixir:hermetic_elixir.patch")],
+        patches = [
+            Label("//patches/rules_elixir:hermetic_elixir.patch"),
+            Label("//patches/rules_elixir:toolchain_type_alias.patch"),
+        ],
         sha256 = RULES_ELIXIR_SHA256,
         strip_prefix = "rules_elixir-" + RULES_ELIXIR_COMMIT,
         urls = [RULES_ELIXIR_URL],

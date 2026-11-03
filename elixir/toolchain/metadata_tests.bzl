@@ -43,6 +43,8 @@ def _checks():
         expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64"]),
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),
         expect_equal("the hub skips other OTP cells", [cell for cell in CELLS if cell not in ELIXIR_CELLS and '"' + cell + '"' in hub], []),
+        expect_false("the hub names no rules_elixir target", "@rules_elixir" in hub),
+        expect_contains("the hub names the rules_dx type", hub, "//elixir/toolchain/type:toolchain_type"),
         expect_false("launcher keeps no bare options", "-ebin $ELIXIR_ERL_OPTIONS" in script),
         expect_equal("windows launchers are dropped", [path for path in DROPPED_PATHS if path.endswith(".bat") or path.endswith(".ps1")], ["bin/elixir.bat", "bin/elixirc.bat", "bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]),
     ] + _credo_checks()

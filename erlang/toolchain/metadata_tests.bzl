@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES")
-load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
+load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
 
 _SOURCE = """#!/bin/sh
 ROOTDIR=%FINAL_ROOTDIR%
@@ -56,6 +56,8 @@ def _checks():
         expect_contains("erts mismatch names expected", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-1.2"),
         expect_contains("erts mismatch names found", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-3.4"),
         expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
+        expect_false("the hub names no rules_erlang target", "@rules_erlang" in hub_build()),
+        expect_contains("the hub names the rules_dx type", hub_build(), "//erlang/toolchain/type:toolchain_type"),
         expect_true("wx is dropped", dropped_application("wx-2.5")),
         expect_false("crypto is kept", dropped_application("crypto-5.6")),
         expect_false("prefix is not enough", dropped_application("wxwidgets-1.0")),

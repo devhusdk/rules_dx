@@ -122,7 +122,7 @@ _TOOLCHAIN = """toolchain(
     exec_compatible_with = {constraints},
     target_compatible_with = {constraints},
     toolchain = "@{repo}//:erlang",
-    toolchain_type = "@rules_erlang//tools:toolchain_type",
+    toolchain_type = "{toolchain_type}",
 )
 """
 
@@ -328,6 +328,7 @@ def hub_build():
             cell = cell,
             constraints = repr(CELLS[cell].exec_compatible_with),
             repo = cell_repository_name(cell),
+            toolchain_type = str(Label("//erlang/toolchain/type:toolchain_type")),
         ))
     content.append(_HUB_NIF.format(
         compatible = repr(nif_compatible_cases(CELLS.keys())),
@@ -343,7 +344,10 @@ def _erlang_impl(mctx):
             "BUILD.bazel": _ROOT_BUILD,
             "private/BUILD.bazel": _PRIVATE_BUILD,
         },
-        patches = [Label("//patches/rules_erlang:hermetic_otp.patch")],
+        patches = [
+            Label("//patches/rules_erlang:hermetic_otp.patch"),
+            Label("//patches/rules_erlang:toolchain_type_alias.patch"),
+        ],
         sha256 = RULES_ERLANG_SHA256,
         strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,
         type = "tar.gz",

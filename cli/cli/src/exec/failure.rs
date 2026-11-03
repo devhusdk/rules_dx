@@ -238,10 +238,47 @@ fn usage_text() -> String {
     }
 }
 
-/// Writes the cancellation line for a stop signal and returns its exit code.
-pub fn cancelled(err: &mut dyn Write, signo: i32) -> i32 {
+/// Writes the cancellation line for a stop signal, closes the JSON stream, and returns its exit code.
+pub fn cancel(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {
     let _ = writeln!(err, "dx: cancelled: stopped by signal {signo}");
-    interrupted_code(signo)
+    let exit = interrupted_code(signo);
+    if output == OutputMode::Json {
+        let failure =
+            Failure::new("cancelled", &format!("stopped by signal {signo}"), exit).without_usage();
+        if let Err(code) = emit_failure_events(out, &failure) {
+            return code;
+        }
+    }
+    exit
+}
+
+fn panic_message(info: &std::panic::PanicHookInfo<'_>) -> String {
+    let payload = info.payload();
+    let text = payload
+        .downcast_ref::<&str>()
+        .map(|text| (*text).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "unknown panic".to_owned());
+    match info.location() {
+        Some(at) => format!("dx panicked at {}:{}: {text}", at.file(), at.line()),
+        None => format!("dx panicked: {text}"),
+    }
+}
+
+fn write_panic_events(out: &mut dyn Write, message: &str) {
+    let failure = Failure::new("internal_error", message, 101).without_usage();
+    let _ = emit_failure_events(out, &failure);
+}
+
+/// Makes a panic on the main thread close the JSON stream with `internal_error`.
+pub fn install_panic_events() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if std::thread::current().name() == Some("main") {
+            write_panic_events(&mut std::io::stdout().lock(), &panic_message(info));
+        }
+        previous(info);
+    }));
 }
 
 /// Writes one failure to stderr and, in JSON mode, to stdout; a stop signal turns it into a cancellation.
@@ -252,7 +289,7 @@ pub fn report_failure(
     failure: &Failure,
 ) -> i32 {
     if let Some(signo) = interrupted() {
-        return cancelled(err, signo);
+        return cancel(output, out, err, signo);
     }
     if failure.shows_usage() || failure.code == CODE_INVALID_ARGUMENTS {
         let _ = writeln!(err, "dx: {}", failure.message);
@@ -283,14 +320,48 @@ pub fn report_failure(
 #[cfg(test)]
 mod tests {
     #[test]
-    fn cancelled_names_the_signal_and_maps_its_code() {
-        let mut err = Vec::new();
-        let code = super::cancelled(&mut err, 15);
+    fn cancel_names_the_signal_and_closes_the_json_stream() {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = super::cancel(OutputMode::Json, &mut out, &mut err, 15);
         assert_eq!(
             String::from_utf8(err).unwrap(),
             "dx: cancelled: stopped by signal 15\n"
         );
         assert_eq!(code, 128 + 15);
+        let events = String::from_utf8(out).unwrap();
+        let kinds: Vec<_> = events
+            .lines()
+            .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+            .collect();
+        assert_eq!(kinds[0]["event"], "error");
+        assert_eq!(kinds[0]["code"], "cancelled");
+        assert_eq!(kinds[1]["event"], "command_finished");
+        assert_eq!(kinds[1]["exit_code"], 143);
+    }
+
+    #[test]
+    fn cancel_in_text_mode_writes_nothing_to_stdout() {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        assert_eq!(
+            super::cancel(OutputMode::Text { quiet: false }, &mut out, &mut err, 2),
+            130
+        );
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn a_panic_writes_internal_error_and_exit_101() {
+        let mut out = Vec::new();
+        super::write_panic_events(&mut out, "dx panicked at x.rs:1: boom");
+        let lines: Vec<serde_json::Value> = String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(lines[0]["event"], "error");
+        assert_eq!(lines[0]["code"], "internal_error");
+        assert_eq!(lines[1]["event"], "command_finished");
+        assert_eq!(lines[1]["exit_code"], 101);
     }
 
     use super::*;

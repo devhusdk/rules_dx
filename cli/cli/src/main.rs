@@ -216,6 +216,9 @@ fn run() -> i32 {
     };
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     dx_cli::exec::set_usage_command(invocation.command);
+    if invocation.output == OutputMode::Json {
+        dx_cli::exec::install_panic_events();
+    }
     dx_output::init_diagnostics_with_color(invocation.verbose, invocation.color);
     tracing::info!(
         command = invocation.command.name(),
@@ -372,7 +375,8 @@ fn run() -> i32 {
     }) {
         Ok(slot) => slot,
         Err(signo) => {
-            return dx_cli::exec::cancelled(&mut err, signo);
+            let _ = out.write_all(&pending);
+            return dx_cli::exec::cancel(invocation.output, &mut out, &mut err, signo);
         }
     };
     let gate = if slot.is_some() { None } else { gate };

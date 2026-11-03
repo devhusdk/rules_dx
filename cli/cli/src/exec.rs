@@ -61,7 +61,7 @@ use dx_plan::args::{Command, Invocation};
 pub use audit::AUDIT_TODAY_ENV;
 pub use bump::COMMIT_JSON_ENV as BUMP_COMMIT_JSON_ENV;
 pub use common::{print_actions, ActionTally, Env};
-pub use failure::{cancelled, set_usage_command};
+pub use failure::{cancel, install_panic_events, set_usage_command};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 pub use worktree::{hook_kind, run_worktree_hook};
 

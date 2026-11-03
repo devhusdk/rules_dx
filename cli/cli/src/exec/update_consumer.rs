@@ -69,7 +69,7 @@ pub(super) fn execute_configured(
             &mut gate,
         ) {
             drop(gate);
-            return crate::exec::cancelled(err, signo);
+            return crate::exec::cancel(invocation.output, out, err, signo);
         }
     }
     gate.phase.release();

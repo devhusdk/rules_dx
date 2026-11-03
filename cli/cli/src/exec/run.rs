@@ -88,7 +88,7 @@ impl Launcher<'_> {
         let json = invocation.output == OutputMode::Json;
         let mut phase = dx_plan::slots::Phase::new(invocation.command);
         if let Err(signo) = phase.need(true, &mut *err, &mut *out) {
-            return Some(super::failure::cancelled(err, signo));
+            return Some(super::failure::cancel(invocation.output, out, err, signo));
         }
         let plan = match plan_run_build(
             targets,

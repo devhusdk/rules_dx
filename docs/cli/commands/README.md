@@ -301,8 +301,9 @@ stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
 the process exit code and `results_complete: false`. If dx cannot build an
 event, it writes `error` with code `invalid_result`, then `command_finished`,
-and exits `1`. `DX_OUTPUT=json` gives the same stream. A stop signal ends the run with no `error` and no
-`command_finished`; dx exits `128` plus the signal number. A closed stdout
+and exits `1`. `DX_OUTPUT=json` gives the same stream. A stop signal writes `error` with code `cancelled` and
+`command_finished`; dx exits `128` plus the signal number. A dx crash writes
+`error` with code `internal_error` and `command_finished`; dx exits `101`. A closed stdout
 exits `141`.
 
 Any command can emit these `notice` events: `waiting_for_build_slot`,

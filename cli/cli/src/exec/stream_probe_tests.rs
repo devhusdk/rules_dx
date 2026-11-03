@@ -1276,13 +1276,26 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
             );
             if words.contains(&"--output=json") {
                 let events = json_events(&out);
-                assert_eq!(finished_exit(&events), None, "{signo} {words:?} {events:?}");
-                assert!(
-                    events
-                        .iter()
-                        .all(|event| event["event"] != "command_finished"),
+                assert_eq!(
+                    finished_exit(&events),
+                    Some(i64::from(128 + signo)),
                     "{signo} {words:?} {events:?}"
                 );
+                let finished = events
+                    .iter()
+                    .filter(|event| event["event"] == "command_finished")
+                    .count();
+                assert_eq!(finished, 1, "{signo} {words:?} {events:?}");
+                let error = events
+                    .iter()
+                    .position(|event| event["event"] == "error" && event["code"] == "cancelled")
+                    .unwrap_or_else(|| panic!("{signo} {words:?} {events:?}"));
+                if let Some(notice) = events
+                    .iter()
+                    .position(|event| event["code"] == "waiting_for_build_slot")
+                {
+                    assert!(notice < error, "{signo} {words:?} {events:?}");
+                }
             }
             assert_eq!(bazel_starts(base), 0, "{signo} {words:?}");
             assert_eq!(

@@ -1,4 +1,7 @@
 use super::*;
+use std::sync::Mutex;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn cli(label: &str, var: &str) -> Cli {
     Cli {
@@ -33,8 +36,14 @@ fn missing_github_env_without_print_or_file_is_a_usage_error() {
     let mut cli = cli("@dx_tools//:gitleaks", "DX_GITLEAKS_BIN");
     cli.print = false;
     cli.env_file = None;
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let saved = std::env::var_os("GITHUB_ENV");
     std::env::remove_var("GITHUB_ENV");
-    let error = run(cli).unwrap_err();
+    let result = run(cli);
+    if let Some(value) = saved {
+        std::env::set_var("GITHUB_ENV", value);
+    }
+    let error = result.unwrap_err();
     match error {
         dx_tool_resolve::ResolveError::Usage { detail } => {
             assert!(detail.contains("GITHUB_ENV"), "{detail}");

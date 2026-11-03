@@ -38,17 +38,17 @@ fn git_home() -> &'static Path {
             .expect("home")
             .keep();
         std::fs::write(home.join(".gitconfig"), "").expect("gitconfig");
-        std::env::set_var("HOME", &home);
-        std::env::set_var("GIT_CONFIG_NOSYSTEM", "1");
-        std::env::set_var("GIT_CONFIG_GLOBAL", home.join(".gitconfig"));
-        std::env::set_var("GIT_CEILING_DIRECTORIES", std::env::temp_dir());
         home
     })
 }
 
 fn git(dir: &Path, args: &[&str]) -> String {
-    git_home();
+    let home = git_home();
     let out = Command::new("git")
+        .env("HOME", home)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
+        .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
         .args([
             "-c",
             "user.name=Candidate Test",
@@ -88,7 +88,6 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
-        git_home();
         let dir = tempfile::Builder::new()
             .prefix("dx-candidate-")
             .tempdir()

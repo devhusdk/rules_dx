@@ -231,6 +231,9 @@ pub fn acquire_shared_from_env(root: &Path, timeout: Duration) -> io::Result<Vec
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     const HEX_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const HEX_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -441,6 +444,16 @@ mod tests {
 
     #[test]
     fn inherit_value_round_trips_through_the_child_entry() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let saved = std::env::var_os(LEASE_ENV_VAR);
+        inherit_value_checks();
+        match saved {
+            Some(value) => std::env::set_var(LEASE_ENV_VAR, value),
+            None => std::env::remove_var(LEASE_ENV_VAR),
+        }
+    }
+
+    fn inherit_value_checks() {
         assert_eq!(inherit_value(&[]), "");
         let rendered = inherit_value(&[
             (GenerationUse::Environment, HEX_A),

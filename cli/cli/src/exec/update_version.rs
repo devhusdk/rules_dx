@@ -951,6 +951,103 @@ dependencies = ["anyio>=4"]
         assert!(harness.seen_env.borrow().is_empty());
     }
 
+    #[test]
+    fn consumer_maven_set_refresh_failure_keeps_the_widen() {
+        let mut harness = Harness::new("bump-consumer-maven-fail");
+        harness.bazel_code = 3;
+        seed_maven_set(&harness);
+        let (code, _, err) = harness.run(&["update", "maven:junit:junit", "4.13.3", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_failed"), "{err}");
+        assert!(read(&harness, "MODULE.bazel").contains("junit:junit:4.13.3"));
+        assert_eq!(read(&harness, "third_party/maven_install.json"), "{}\n");
+    }
+
+    #[test]
+    fn consumer_maven_set_json_reports_widen_then_refresh() {
+        let harness = Harness::new("bump-consumer-maven-json");
+        seed_maven_set(&harness);
+        let (code, out, err) = harness.run(&[
+            "update",
+            "maven:junit:junit",
+            "4.13.3",
+            "--output=json",
+            "--apply",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let notices = events_of_kind(&events, "notice");
+        assert_eq!(notices.len(), 2, "{out}");
+        assert_eq!(notices[0]["code"], serde_json::json!("update_widened"));
+        assert_eq!(notices[1]["code"], serde_json::json!("update_set_success"));
+    }
+
+    const NPM_MODULE: &str = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//web:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"jobs\", pnpm_lock = \"//jobs:pnpm-lock.yaml\")\n";
+    const NPM_PACKAGE: &str =
+        "{\n  \"name\": \"app\",\n  \"dependencies\": {\n    \"left-pad\": \"1.0.0\"\n  }\n}\n";
+    const NPM_LOCK: &str = "lockfileVersion: '9.0'\n";
+
+    fn seed_npm_set(harness: &Harness, web_package: &str) {
+        harness.write_source("MODULE.bazel", NPM_MODULE);
+        harness.write_source("web/package.json", web_package);
+        harness.write_source("jobs/package.json", NPM_PACKAGE);
+        for dir in ["web", "jobs"] {
+            harness.write_source(&format!("{dir}/pnpm-lock.yaml"), NPM_LOCK);
+        }
+    }
+
+    #[test]
+    fn consumer_npm_set_widens_one_package_and_chains_a_selective_refresh() {
+        let harness = Harness::new("bump-consumer-npm");
+        seed_npm_set(&harness, NPM_PACKAGE);
+        let (code, out, err) = harness.run(&["update", "web:left-pad", "1.3.0", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(
+            out.contains("refreshed web:left-pad via `dx update web:left-pad`"),
+            "{out}"
+        );
+        assert_eq!(
+            read(&harness, "web/package.json"),
+            NPM_PACKAGE.replace("1.0.0", "1.3.0")
+        );
+        assert_unchanged(
+            &harness,
+            &[
+                ("jobs/package.json", NPM_PACKAGE),
+                ("jobs/pnpm-lock.yaml", NPM_LOCK),
+            ],
+        );
+        let runs = harness.build_argv.borrow();
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert!(runs[0].iter().any(|arg| arg == "left-pad"), "{:?}", runs[0]);
+    }
+
+    #[test]
+    fn consumer_npm_set_minified_manifest_changes_only_the_dependency() {
+        let harness = Harness::new("bump-consumer-npm-minified");
+        let minified =
+            "{\"name\":\"app\",\"dependencies\":{\"left-pad\":\"1.0.0\",\"zod\":\"3.0.0\"}}";
+        seed_npm_set(&harness, minified);
+        let (code, out, err) = harness.run(&["update", "web:left-pad", "1.3.0", "--apply"]);
+        assert_eq!(code, 0, "{out}{err}");
+        assert_eq!(
+            read(&harness, "web/package.json"),
+            minified.replace("\"left-pad\":\"1.0.0\"", "\"left-pad\":\"1.3.0\"")
+        );
+    }
+
+    #[test]
+    fn consumer_npm_set_refresh_failure_keeps_the_widen() {
+        let mut harness = Harness::new("bump-consumer-npm-fail");
+        harness.bazel_code = 3;
+        seed_npm_set(&harness, NPM_PACKAGE);
+        let (code, _, err) = harness.run(&["update", "web:left-pad", "1.3.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_failed"), "{err}");
+        assert!(read(&harness, "web/package.json").contains("1.3.0"));
+        assert_eq!(read(&harness, "web/pnpm-lock.yaml"), NPM_LOCK);
+    }
+
     const PAKET_DEPS: &str =
         "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json 12.0.1\n";
 

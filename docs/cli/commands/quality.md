@@ -41,16 +41,18 @@ Only library actions start early. To turn pipelining off, set
 A bare `bazel build` with the quality aspect also needs `--@rules_rust//rust/settings:rustc_output_diagnostics=true` for the metadata (rmeta) diagnostics group to exist. `dx` sets it for you.
 
 ```text
-dx lint [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|json] [--diff] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
-dx typecheck [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|json] [--diff] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
-dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--output text|json] [--diff] [--include-edits] [scope...] [-- bazel-options ...]
+dx lint [--here] [--affected] [--apply] [--fail-on info|warning|error] [--baseline <file>] [--output text|json] [--diff] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx typecheck [--here] [--affected] [--apply] [--fail-on info|warning|error] [--baseline <file>] [--output text|json] [--diff] [--include-edits] [--report sarif=<dest>] [scope...] [-- bazel-options ...]
+dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--baseline <file>] [--output text|json] [--diff] [--include-edits] [scope...] [-- bazel-options ...]
 ```
 
-- `--apply`: write validated fixes and refresh the configured baseline.
+- `--apply`: write validated fixes and refresh the `--baseline` file.
   Without it files stay untouched.
   After `--apply`, findings point at files as written. Unwritten files keep
   their checked positions.
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
+- `--baseline <file>`: suppress findings already in this workspace-relative
+  `.json` baseline. See [Baselines](#baselines).
 - `--report sarif=<dest>`: write a SARIF report for `lint` and `typecheck`.
   Repeatable. `dx format` has no report format. A relative destination anchors
   at the workspace root; an absolute one writes as given. Colliding destinations
@@ -4402,19 +4404,17 @@ shellcheck_config(
 
 ## Baselines
 
-Opt in to a baseline to keep known findings while new ones fail. Set the
-file in `dx.toml`:
+Opt in to a baseline to keep known findings while new ones fail. Pass the
+file with `--baseline` to `dx lint`, `dx typecheck`, `dx format`, `dx check`
+or `dx watch`:
 
-```toml
-[quality]
-baseline = "quality/baseline.json"
+```sh
+bazel run @rules_dx//:dx -- lint --baseline quality/baseline.json //...
 ```
 
-`dx.local.toml` can override the selection; CI reads only `dx.toml`.
-
-The path stays inside the workspace and names a `.json` file. Commit the
-file with the selection. A missing file fails checks. Pass `--apply` once to
-write it.
+The path is relative to the workspace, stays inside it, and names a `.json`
+file. Any other path is a usage error. Commit the file. A missing file fails
+checks. Pass `--apply` once to write it.
 
 The file lists known diagnostics with tool, rule, path, message, context,
 and count:

@@ -370,8 +370,6 @@ mod tests {
         assert!(!should_watch_path(Path::new(".git/index")));
         assert!(!should_watch_path(Path::new(".git/refs/heads/main")));
         assert!(should_watch_path(Path::new("")));
-        assert!(should_watch_path(Path::new("dx.local.toml")));
-        assert!(should_watch_path(Path::new("dx.toml")));
         assert!(should_watch_path(Path::new("src/main.rs")));
         assert!(should_watch_path(Path::new("BUILD.bazel")));
         assert!(should_watch_path(Path::new(".github/workflows/ci.yml")));

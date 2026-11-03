@@ -436,7 +436,6 @@ fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
 #[test]
 fn hooks_ignore_bad_defaults_and_bad_input() {
     let (_guard, root, env) = hook_repo("dx-agents-hooks-");
-    write(&root.join("dx.toml"), "[dx]\nfail_on = \"error\"\n");
 
     let dx = env_path("DX_BIN");
     let dx = dx.to_str().expect("utf8");

@@ -111,14 +111,12 @@ pub use invocation::{
     AGENT_QUIET_FLAGS,
 };
 pub use parser::{
-    ci_ignores_env, early_output_flag, early_workspace_flag, freeze_workspace, is_discovery_exempt,
-    is_help_request, json_output_intent, load_startup_defaults, parse, parse_with, parse_with_ci,
-    select_startup_defaults_with_ci, startup_workspace, DefaultsFailure, StartupDefaults,
+    ci_ignores_env, early_output_flag, is_discovery_exempt, json_output_intent, parse, parse_with,
+    parse_with_ci, startup_workspace,
 };
 pub(crate) use profile::filter_profile_configs;
 pub use profile::{resolve_profile, Profile, DX_PROFILE_ENV};
 
-pub use dx_adopt::defaults::FileDefaults;
 pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 
 /// Assert that a parse failure is clap-rendered and names every needle.

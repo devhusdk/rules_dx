@@ -377,7 +377,7 @@ bazel run @rules_dx//:dx -- build //... -- --experimental_disk_cache_gc_max_size
 `hook create`, `hook remove`, `hook stop`, and `hook guard` read one JSON
 object from stdin: the hook input of Claude Code, Codex, Cursor, or Gemini CLI.
 
-Run as exactly `dx worktree hook <kind>`, hooks ignore `dx.toml` and `DX_*`
+Run as exactly `dx worktree hook <kind>`, hooks ignore `DX_*`
 variables and always print text. `create`, `remove`, and `stop` exit `1` on
 any failure, including empty or invalid stdin. When `create`, `remove`, or
 `stop` gets input without its field, the message names the field and the hook

@@ -236,7 +236,7 @@ In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`,
 `--ui_event_filters=-info,-debug` and `--test_summary=none` to Bazel before
 your own Bazel options, so Bazel prints no progress on stderr. Those quiet
 Bazel flags apply only when the output is JSON. For `dx run`, they come
-before the `--bazel-option` values, and args after `--` still go only to the app. `--output`, `DX_OUTPUT` and the `output` setting in `dx.toml` still
+before the `--bazel-option` values, and args after `--` still go only to the app. `--output` and `DX_OUTPUT` still
 win. In CI these variables are ignored.
 
 If Bazel fails and its event file is missing or ends early, dx still returns

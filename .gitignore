@@ -14,7 +14,6 @@ AGENTS.local.md
 .dx/
 
 # dx local-only preferences.
-dx.local.toml
 
 # Release outputs.
 /dist/

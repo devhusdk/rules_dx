@@ -467,12 +467,8 @@ mod tests {
     #[test]
     fn agent_env_test_run_is_short_quiet_and_complete() {
         let env = |name: &str| (name == "CLAUDECODE").then(|| "1".to_owned());
-        let inv = dx_plan::args::parse_with(
-            &dx_testing::cli::strings(&["test", "//..."]),
-            &env,
-            &dx_plan::args::FileDefaults::default(),
-        )
-        .expect("parse");
+        let inv = dx_plan::args::parse_with(&dx_testing::cli::strings(&["test", "//..."]), &env)
+            .expect("parse");
         let harness = Harness::new("agent-done");
         let run = harness.probe_with(&inv, &[Some(0)]);
         for flag in dx_plan::args::AGENT_QUIET_FLAGS {

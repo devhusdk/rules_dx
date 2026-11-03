@@ -526,21 +526,8 @@ impl Harness {
     }
 
     fn parse_words(&self, words: &[&str], ci: bool) -> Result<Invocation, String> {
-        let defaults = dx_plan::args::load_startup_defaults(
-            &dx_process::workspace_start(&self.cwd),
-            &self.cwd,
-            None,
-            None,
-            ci,
-        )
-        .map_err(|failure| format!("dx: {}\n", failure.detail))?;
-        let inv = dx_plan::args::parse_with_ci(
-            &dx_testing::cli::strings(words),
-            &|_| None,
-            &defaults,
-            ci,
-        )
-        .map_err(|error| format!("dx: {error}\n{}\n", dx_plan::args::help::usage_banner()))?;
+        let inv = dx_plan::args::parse_with_ci(&dx_testing::cli::strings(words), &|_| None, ci)
+            .map_err(|error| format!("dx: {error}\n{}\n", dx_plan::args::help::usage_banner()))?;
         dx_plan::args::apply_here(&inv, &self.workspace, &self.cwd)
             .map_err(|detail| format!("dx: {detail}\n"))
     }

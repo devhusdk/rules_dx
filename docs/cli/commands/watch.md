@@ -14,13 +14,13 @@ reach the wrapped command unchanged.
 
 - Wraps only `build`, `test`, `run`, `lint`, `typecheck`, `format`,
   `check`, and `fix`. Other commands fail with `not watchable`.
-- Takes `--output`, `--apply`, `--fail-on`, `--report`,
+- Takes `--output`, `--apply`, `--fail-on`, `--baseline`, `--report`,
   `--include-edits`, `--here`, `--affected`, `--debug`, and `--release`, plus
   the global flags, when the wrapped command takes them.
 - `--here` resolves once from the current directory. `--affected` re-resolves
   each iteration.
 - Local only. Refuses `CI=true`. No daemon, cache, or remote execution.
-- Ignores changes under `.dx/`, `.git/`, and `bazel-*` inside the workspace. Parent directories with those names do not matter. Also ignores the wrapped command's `--report` files and their temp files, matched by path relative to the workspace. Edits to `dx.toml`, `dx.local.toml`, `BUILD` and `MODULE.bazel` files rerun the command.
+- Ignores changes under `.dx/`, `.git/`, and `bazel-*` inside the workspace. Parent directories with those names do not matter. Also ignores the wrapped command's `--report` files and their temp files, matched by path relative to the workspace. Edits to `BUILD` and `MODULE.bazel` files rerun the command.
 
 Except under `run`, changes made while the command runs queue one more
 iteration. Iterations never overlap. A failing command does not stop the watch.

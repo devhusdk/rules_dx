@@ -16,7 +16,7 @@ pub struct BumpRequest {
     pub dep_version: DepVersion,
 }
 
-/// The ecosystem of a configured dx.toml set a bump edits.
+/// The ecosystem of a dependency set a bump edits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfiguredKind {
     Npm,
@@ -47,7 +47,7 @@ impl ConfiguredKind {
     }
 }
 
-/// A configured dx.toml set a bump edits: its name, ecosystem, manifests and hub repository.
+/// A dependency set a bump edits: its name, ecosystem, manifests and hub repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredSet {
     pub name: String,
@@ -564,7 +564,7 @@ pub fn parse_selector(selector: &str) -> Result<(BumpSet, String), BumpError> {
     Ok((set, tail.to_owned()))
 }
 
-/// Parses the `set:module` selector of a configured dx.toml bazel set into its module name.
+/// Parses the `set:module` selector of a bazel dependency set into its module name.
 pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<String, BumpError> {
     if selector.is_empty() {
         return Err(BumpError::Empty);

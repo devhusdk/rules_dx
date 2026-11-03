@@ -49,6 +49,9 @@ Options:
       --fail-on <FAIL_ON>
           Fail on this severity
 
+      --baseline <FILE>
+          Suppress findings already in this workspace-relative JSON baseline
+
       --report <REPORT>
           Write a report file
 

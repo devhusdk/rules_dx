@@ -58,27 +58,7 @@ fn the_shell_callback_follows_the_environment_workspace() {
 }
 
 #[test]
-fn the_shell_callback_follows_the_config_workspace() {
-    let config = read("DX_COMPLETION_CONFIG");
-    assert_quiet("config", &config);
-    let got = candidates(&config);
-    assert!(got.contains(&"//pkg/..."), "config: {config}");
-    assert!(!got.contains(&"//lib/..."), "config: {config}");
-}
-
-#[test]
-fn broken_defaults_and_failed_queries_degrade_quietly() {
-    let broken = read("DX_COMPLETION_BROKEN");
-    assert_quiet("broken", &broken);
-    let labels: Vec<&str> = candidates(&broken)
-        .into_iter()
-        .filter(|value| value.starts_with("//"))
-        .collect();
-    assert_eq!(labels, vec!["//..."], "broken: {broken}");
-    assert!(
-        candidates(&broken).contains(&"--workspace"),
-        "broken: {broken}"
-    );
+fn failed_queries_degrade_quietly() {
     let failed = read("DX_COMPLETION_FAILED_QUERY");
     assert_quiet("failed query", &failed);
     assert!(

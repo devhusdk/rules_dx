@@ -1,7 +1,7 @@
 //! Startup-defaults tests that run the built `dx` binary, so they live in the
 //! launcher layer next to the binary's other process tests.
 
-use dx_adopt::defaults::{BOOL_SPELLINGS, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_WORKSPACE_ENV};
+use dx_adopt::defaults::{BOOL_SPELLINGS, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV};
 
 #[test]
 fn the_dx_process_turns_injected_defaults_on_and_off() {
@@ -10,11 +10,12 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
     std::fs::create_dir(root.join(".dx")).expect("dx");
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
-    let config = root.join("dx.toml");
-    std::fs::write(&config, "[dx]\nquiet = true\nverbose = true\n").expect("defaults");
     let run = |words: &[&str], envs: &[(&str, &str)]| {
         let mut command = assert_cmd::Command::new(dx_binary());
         command.current_dir(&root);
+        command
+            .env(DX_QUIET_ENV, "true")
+            .env(DX_VERBOSE_ENV, "true");
         for (name, value) in envs {
             command.env(name, value);
         }
@@ -26,10 +27,10 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
         )
     };
     let (code, _, err) = run(&["status", "--output=json"], &[]);
-    assert_eq!(code, Some(0), "the config file defaults apply: {err}");
+    assert_eq!(code, Some(0), "the environment defaults apply: {err}");
     assert!(
         err.contains("dx invocation parsed"),
-        "the config file turns verbose on: {err}"
+        "the environment turns verbose on: {err}"
     );
     let (code, out, err) = run(&["completion", "bash"], &[]);
     assert_eq!(code, Some(0), "{err}");
@@ -49,15 +50,6 @@ fn the_dx_process_turns_injected_defaults_on_and_off() {
         "the diagnostic names the variable and the spellings: {err}"
     );
     assert!(err.contains("Usage: dx"), "the usage line follows: {err}");
-    std::fs::write(&config, "[dx]\nqiet = true\n").expect("typo");
-    let (code, out, err) = run(&["status", "--output=json"], &[]);
-    assert_eq!(code, Some(2), "a misspelled key is a usage error: {err}");
-    assert_startup_outcome(&out, "invalid_defaults", 2);
-    assert!(
-        err.contains("dx.toml"),
-        "the diagnostic names the file: {err}"
-    );
-    std::fs::write(&config, "[dx]\nquiet = true\n").expect("valid");
     let (code, out, err) = run(&["status", "--output=json"], &[(DX_QUIET_ENV, "true")]);
     assert_eq!(code, Some(0), "a documented spelling still parses: {err}");
     assert!(out.contains("\"command_finished\""), "{out}");
@@ -124,57 +116,12 @@ fn assert_startup_outcome(out: &str, code: &str, exit: i32) {
     );
 }
 
-fn workspace_with_output(name: &str, output: &str) -> dx_test_scratch::TempDir {
+fn sample_workspace(name: &str) -> dx_test_scratch::TempDir {
     let scratch = dx_test_scratch::scratch(name);
     std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
     std::fs::write(scratch.path().join(".dx/version"), "0.0.0\n").expect("pin");
-    std::fs::write(
-        scratch.path().join("dx.toml"),
-        format!("[dx]\noutput = \"{output}\"\n"),
-    )
-    .expect("defaults");
     scratch
-}
-
-#[test]
-fn unsupported_file_defaults_do_not_break_completion() {
-    let scratch = workspace_with_output("dx-unsupported-defaults-", "json");
-    std::fs::write(
-        scratch.path().join("dx.toml"),
-        "[dx]\noutput = \"json\"\nfail-on = \"error\"\n",
-    )
-    .expect("defaults");
-    let (code, out, err) = run_dx(scratch.path(), &["completion", "bash"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("complete"), "{out}");
-    scratch.close().expect("cleanup");
-}
-
-#[test]
-fn help_works_with_a_malformed_config_but_operations_fail_closed() {
-    let scratch = dx_test_scratch::scratch("dx-startup-malformed-help-");
-    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::create_dir(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(scratch.path().join("dx.toml"), "not toml = [").expect("bad config");
-    let root = scratch.path();
-    let (code, out, _) = run_dx(root, &["--help"], &[]);
-    assert_eq!(code, Some(0), "--help works with a malformed config");
-    assert!(out.contains("Run Bazel workflows"), "{out}");
-    let (code, out, _) = run_dx(root, &["lint", "--help"], &[]);
-    assert_eq!(code, Some(0), "command help works with a malformed config");
-    assert!(out.contains("dx lint"), "{out}");
-    let (code, out, _) = run_dx(root, &["help", "lint"], &[]);
-    assert_eq!(code, Some(0), "the help verb works with a malformed config");
-    assert!(out.contains("dx lint"), "{out}");
-    let (code, out, err) = run_dx(root, &["status"], &[]);
-    assert_eq!(code, Some(2), "an operation still fails closed: {err}");
-    assert!(out.is_empty(), "no events for a usage error: {out}");
-    assert!(
-        err.contains("dx.toml"),
-        "the diagnostic names the file: {err}"
-    );
-    scratch.close().expect("cleanup");
 }
 
 #[test]
@@ -228,185 +175,43 @@ fn startup_argument_failures_report_structured_json() {
 }
 
 #[test]
-fn startup_file_and_workspace_failures_report_structured_json() {
-    let scratch = workspace_with_output("dx-startup-json-file-", "json");
-    let (code, out, err) = run_dx(scratch.path(), &["lint", ":oops"], &[]);
-    assert_eq!(code, Some(2), "{err}");
-    assert_startup_outcome(&out, "invalid_arguments", 2);
+fn startup_workspace_failures_report_structured_json() {
+    let scratch = sample_workspace("dx-startup-json-ws-");
     let missing = scratch
         .path()
         .join("no-such-dir")
         .to_string_lossy()
         .into_owned();
-    let (code, out, err) = run_dx(scratch.path(), &["status", "--workspace", &missing], &[]);
+    let (code, out, err) = run_dx(
+        scratch.path(),
+        &["status", "--output=json", "--workspace", &missing],
+        &[],
+    );
     assert_eq!(code, Some(2), "{err}");
     assert_startup_outcome(&out, "unresolved_workspace", 2);
     assert!(err.contains("cannot resolve workspace"), "{err}");
 }
 
 #[test]
-fn explicit_workspace_uses_the_target_workspace_defaults() {
-    let a = workspace_with_output("dx-startup-ws-a-", "json");
-    let b = workspace_with_output("dx-startup-ws-b-", "text");
-    let b_dir = b.path().to_string_lossy().into_owned();
-    let (code, out, err) = run_dx(a.path(), &["status"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("command_started"),
-        "the start directory is json: {out}"
-    );
-    let (code, out, err) = run_dx(a.path(), &["status", "--workspace", &b_dir], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the flag workspace supplies text defaults: {out}"
-    );
-    let (code, out, err) = run_dx(a.path(), &["status"], &[(DX_WORKSPACE_ENV, &b_dir)]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the environment workspace supplies text defaults: {out}"
-    );
-    let nested = a.path().join("sub/dir");
-    std::fs::create_dir_all(&nested).expect("nested");
-    let (code, out, err) = run_dx(&nested, &["status", "--workspace", &b_dir], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "a nested start still reads the flag workspace: {out}"
-    );
-}
-
-#[test]
-fn ci_ignores_the_environment_workspace_for_defaults() {
-    let a = workspace_with_output("dx-startup-ci-a-", "json");
-    let b = workspace_with_output("dx-startup-ci-b-", "text");
-    let a_dir = a.path().to_string_lossy().into_owned();
-    let ci = (("CI"), "true");
-    let (code, out, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: ") && !out.contains("command_started"),
-        "the ignored environment workspace leaves b's text defaults: {out}"
-    );
-    std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
-    let (code, out, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
-    assert_eq!(
-        code,
-        Some(0),
-        "a malformed ignored workspace is not read: {err}"
-    );
-    assert!(out.contains("toolchain: "), "{out}");
-    let redirect = format!("[dx]\noutput = \"json\"\nworkspace = '{a_dir}'\n");
-    let c = workspace_with_output("dx-startup-ci-c-", "json");
-    std::fs::write(c.path().join("dx.toml"), redirect).expect("redirect");
-    std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
-    let (code, _, err) = run_dx(b.path(), &["status"], &[ci, (DX_WORKSPACE_ENV, &a_dir)]);
-    assert_eq!(code, Some(0), "{err}");
-    let (code, _, err) = run_dx(
-        b.path(),
-        &["status", "--workspace", &a_dir],
-        &[ci, (DX_WORKSPACE_ENV, &a_dir)],
-    );
-    assert_ne!(code, Some(0), "an explicit flag still selects a: {err}");
-    std::fs::write(a.path().join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("json");
-    let (code, out, err) = run_dx(
-        b.path(),
-        &["status", "--workspace", &a_dir],
-        &[ci, (DX_WORKSPACE_ENV, &a_dir)],
-    );
-    assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("command_started"), "the flag selects a: {out}");
-}
-
-#[test]
-fn repeated_workspace_flags_load_the_last_workspace_defaults() {
-    let a = workspace_with_output("dx-startup-last-a-", "json");
-    let b = workspace_with_output("dx-startup-last-b-", "text");
-    let a_dir = a.path().to_string_lossy().into_owned();
-    let b_dir = b.path().to_string_lossy().into_owned();
-    let inline_a = format!("--workspace={a_dir}");
-    let inline_b = format!("--workspace={b_dir}");
-    let cases: Vec<Vec<&str>> = vec![
-        vec!["status", "--workspace", &a_dir, "--workspace", &b_dir],
-        vec!["status", &inline_a, &inline_b],
-        vec!["status", "--workspace", &a_dir, &inline_b],
-        vec![
-            "status",
-            "--output",
-            "text",
-            "--workspace",
-            &a_dir,
-            "--workspace",
-            &b_dir,
-        ],
-    ];
-    for words in cases {
-        let (code, out, err) = run_dx(a.path(), &words, &[]);
-        assert_eq!(code, Some(0), "{words:?}: {err}");
-        assert!(
-            out.contains("toolchain: ") && !out.contains("command_started"),
-            "{words:?}: the last workspace supplies text defaults: {out}"
-        );
-    }
-    let (code, out, err) = run_dx(
-        b.path(),
-        &["status", "--workspace", &b_dir, "--workspace", &a_dir],
-        &[],
-    );
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("command_started"),
-        "the last workspace supplies json defaults: {out}"
-    );
-}
-
-#[test]
-fn overridden_workspace_with_malformed_defaults_does_not_block_the_last() {
-    let a = workspace_with_output("dx-startup-bad-a-", "json");
-    std::fs::write(a.path().join("dx.toml"), "[dx\noutput = \n").expect("malformed");
-    let b = workspace_with_output("dx-startup-bad-b-", "text");
-    let a_dir = a.path().to_string_lossy().into_owned();
-    let b_dir = b.path().to_string_lossy().into_owned();
-    let inline_a = format!("--workspace={a_dir}");
-    let inline_b = format!("--workspace={b_dir}");
-    let cases: Vec<Vec<&str>> = vec![
-        vec!["status", "--workspace", &a_dir, "--workspace", &b_dir],
-        vec!["status", &inline_a, &inline_b],
-    ];
-    for words in cases {
-        let (code, out, err) = run_dx(a.path(), &words, &[]);
-        assert_eq!(code, Some(0), "{words:?}: {err}");
-        assert!(out.contains("toolchain: "), "{words:?}: {out}");
-    }
-    let (code, _, err) = run_dx(
-        b.path(),
-        &["status", "--workspace", &b_dir, "--workspace", &a_dir],
-        &[],
-    );
-    assert_ne!(code, Some(0), "the malformed last workspace fails: {err}");
-}
-
-#[test]
 fn bazel_run_start_selects_the_workspace_root() {
-    let a = workspace_with_output("dx-startup-bwd-a-", "json");
-    let b = workspace_with_output("dx-startup-bwd-b-", "text");
+    let a = dx_test_scratch::scratch("dx-startup-bwd-a-");
+    let b = sample_workspace("dx-startup-bwd-b-");
     let b_dir = b.path().to_string_lossy().into_owned();
-    let (code, out, err) = run_dx(
+    let (code, _, err) = run_dx(
         a.path(),
         &["status"],
         &[("BUILD_WORKSPACE_DIRECTORY", &b_dir)],
     );
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the Bazel start supplies text defaults: {out}"
+    assert_eq!(
+        code,
+        Some(0),
+        "the Bazel start selects the workspace: {err}"
     );
 }
 
 #[test]
 fn bazel_run_here_uses_the_working_directory() {
-    let ws = workspace_with_output("dx-startup-bwd-here-ws-", "json");
+    let ws = sample_workspace("dx-startup-bwd-here-ws-");
     let runfiles = dx_test_scratch::scratch("dx-startup-bwd-here-runfiles-");
     let outside = dx_test_scratch::scratch("dx-startup-bwd-here-outside-");
     let ws_dir = ws.path().to_string_lossy().into_owned();
@@ -457,8 +262,8 @@ fn bazel_run_here_uses_the_working_directory() {
 
 #[test]
 fn bazel_run_relative_workspace_uses_the_working_directory() {
-    let a = workspace_with_output("dx-startup-bwd-rel-a-", "json");
-    let b = workspace_with_output("dx-startup-bwd-rel-b-", "text");
+    let a = dx_test_scratch::scratch("dx-startup-bwd-rel-a-");
+    let b = sample_workspace("dx-startup-bwd-rel-b-");
     let runfiles = dx_test_scratch::scratch("dx-startup-bwd-rel-runfiles-");
     let a_dir = a.path().to_string_lossy().into_owned();
     let b_parent = b
@@ -478,38 +283,22 @@ fn bazel_run_relative_workspace_uses_the_working_directory() {
         ("BUILD_WORKING_DIRECTORY", b_parent.as_str()),
     ];
     let flag = format!("--workspace={b_name}");
-    let (code, out, err) = run_dx(runfiles.path(), &["status", &flag], &bazel_env);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the flag starts from the working directory: {out}"
+    let (code, _, err) = run_dx(runfiles.path(), &["status", &flag], &bazel_env);
+    assert_eq!(
+        code,
+        Some(0),
+        "the flag starts from the working directory: {err}"
     );
     let env = [
         bazel_env[0],
         bazel_env[1],
         ("DX_WORKSPACE", b_name.as_str()),
     ];
-    let (code, out, err) = run_dx(runfiles.path(), &["status"], &env);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the environment starts from the working directory: {out}"
-    );
-    let inner = a.path().join("inner");
-    std::fs::create_dir_all(inner.join(".dx")).expect("inner dx");
-    std::fs::write(inner.join("MODULE.bazel"), SAMPLE_MODULE).expect("inner module");
-    std::fs::write(inner.join(".dx/version"), "0.0.0\n").expect("inner pin");
-    std::fs::write(inner.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("inner defaults");
-    std::fs::write(
-        a.path().join("dx.toml"),
-        "[dx]\noutput = \"json\"\nworkspace = \"inner\"\n",
-    )
-    .expect("redirect");
-    let (code, out, err) = run_dx(runfiles.path(), &["status"], &bazel_env);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the file key starts from the workspace start: {out}"
+    let (code, _, err) = run_dx(runfiles.path(), &["status"], &env);
+    assert_eq!(
+        code,
+        Some(0),
+        "the environment starts from the working directory: {err}"
     );
 }
 
@@ -555,90 +344,8 @@ fn removed_new_exits_2_and_points_at_init() {
 }
 
 #[test]
-fn config_directed_workspace_loads_the_target_defaults_once() {
-    let b = workspace_with_output("dx-startup-redir-b-", "json");
-    let b_dir = b.path().to_string_lossy().into_owned();
-    let a = dx_test_scratch::scratch("dx-startup-redir-a-");
-    std::fs::write(a.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::create_dir(a.path().join(".dx")).expect("dx");
-    std::fs::write(a.path().join(".dx/version"), "0.0.0\n").expect("pin");
-    std::fs::write(
-        a.path().join("dx.toml"),
-        format!("[dx]\nworkspace = '{b_dir}'\n"),
-    )
-    .expect("redirect");
-    let (code, out, err) = run_dx(a.path(), &["status"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("command_started"),
-        "the redirect target supplies json defaults: {out}"
-    );
-    let a_dir = a.path().to_string_lossy().into_owned();
-    std::fs::write(
-        b.path().join("dx.toml"),
-        format!("[dx]\noutput = \"text\"\nworkspace = '{a_dir}'\n"),
-    )
-    .expect("cycle");
-    let (code, out, err) = run_dx(a.path(), &["status"], &[]);
-    assert_eq!(code, Some(0), "a redirect cycle still terminates: {err}");
-    assert!(
-        out.contains("toolchain: "),
-        "the frozen target supplies text defaults: {out}"
-    );
-}
-
-#[test]
-fn relative_config_redirects_resolve_once_against_the_start_directory() {
-    let outer = dx_test_scratch::scratch("dx-startup-once-");
-    let root = outer.path();
-    std::fs::write(root.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("outer");
-    let repo = root.join("repo");
-    std::fs::create_dir(&repo).expect("repo");
-    std::fs::write(repo.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::create_dir(repo.join(".dx")).expect(".dx");
-    std::fs::write(repo.join(".dx/version"), "0.0.0\n").expect("pin");
-    std::fs::write(repo.join("dx.toml"), "[dx]\noutput = \"json\"\n").expect("repo");
-    let sub = repo.join("sub");
-    std::fs::create_dir(&sub).expect("sub");
-    std::fs::write(sub.join("dx.toml"), "[dx]\nworkspace = \"..\"\n").expect("sub");
-    let (code, out, err) = run_dx(&sub, &["status"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("command_started"), "repo json defaults: {out}");
-
-    let repo_dir = repo.to_string_lossy().into_owned();
-    std::fs::write(
-        sub.join("dx.toml"),
-        format!("[dx]\nworkspace = '{repo_dir}'\n"),
-    )
-    .expect("absolute");
-    let (code, out, err) = run_dx(&sub, &["status"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(out.contains("command_started"), "absolute redirect: {out}");
-
-    std::fs::write(sub.join("dx.toml"), "[dx]\noutput = \"text\"\n").expect("text");
-    std::fs::write(repo.join("dx.toml"), "[dx]\nworkspace = \"nested\"\n").expect("hop");
-    let nested = repo.join("nested");
-    std::fs::create_dir(&nested).expect("nested");
-    std::fs::write(nested.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::create_dir(nested.join(".dx")).expect(".dx");
-    std::fs::write(nested.join(".dx/version"), "0.0.0\n").expect("pin");
-    std::fs::write(
-        nested.join("dx.toml"),
-        "[dx]\noutput = \"json\"\nworkspace = \"..\"\n",
-    )
-    .expect("nested");
-    let (code, out, err) = run_dx(&repo, &["status"], &[]);
-    assert_eq!(code, Some(0), "{err}");
-    assert!(
-        out.contains("command_started"),
-        "a relative child redirect loads the child defaults, one hop only: {out}"
-    );
-    outer.close().expect("cleanup");
-}
-
-#[test]
 fn removed_dry_run_is_rejected_from_every_source() {
-    let scratch = workspace_with_output("dx-removed-dry-run-", "text");
+    let scratch = sample_workspace("dx-removed-dry-run-");
     let root = scratch.path();
     for words in [
         vec!["lint", "--dry-run"],
@@ -656,35 +363,12 @@ fn removed_dry_run_is_rejected_from_every_source() {
         assert_eq!(code, Some(2), "DX_DRY_RUN={value}: {err}");
         assert!(err.contains("DX_DRY_RUN was removed"), "{err}");
     }
-    for key in ["dry_run", "dry-run"] {
-        for value in ["true", "false"] {
-            std::fs::write(root.join("dx.toml"), format!("[dx]\n{key} = {value}\n"))
-                .expect("config");
-            let (code, _, err) = run_dx(root, &["lint"], &[]);
-            assert_eq!(code, Some(2), "{key}={value}: {err}");
-            assert!(err.contains("was removed"), "{err}");
-        }
-    }
-    scratch.close().expect("cleanup");
-}
-
-#[test]
-fn log_level_config_keys_are_rejected() {
-    let scratch = workspace_with_output("dx-log-level-config-", "text");
-    let root = scratch.path();
-    for key in ["log_level", "log-level"] {
-        std::fs::write(root.join("dx.toml"), format!("[dx]\n{key} = \"debug\"\n")).expect("config");
-        let (code, out, err) = run_dx(root, &["lint"], &[]);
-        assert_eq!(code, Some(2), "{key}: {err}");
-        assert!(out.is_empty(), "{key}: {out}");
-        assert!(err.contains(key.split('-').next().unwrap()), "{key}: {err}");
-    }
     scratch.close().expect("cleanup");
 }
 
 #[test]
 fn log_level_flag_exits_two_before_running() {
-    let scratch = workspace_with_output("dx-log-level-flag-", "text");
+    let scratch = sample_workspace("dx-log-level-flag-");
     let root = scratch.path();
     for words in [
         vec!["lint", "--log-level=debug"],
@@ -763,7 +447,7 @@ fn no_color_controls_auto_color_and_explicit_modes_win() {
 
 #[test]
 fn bad_build_slots_exit_two_from_the_binary() {
-    let scratch = workspace_with_output("dx-bad-build-slots-", "text");
+    let scratch = sample_workspace("dx-bad-build-slots-");
     let root = scratch.path();
     let (code, out, err) = run_dx(root, &["status", "--build-slots=0"], &[]);
     assert_eq!(code, Some(2), "{err}");
@@ -776,7 +460,7 @@ fn bad_build_slots_exit_two_from_the_binary() {
 
 #[test]
 fn worktree_release_relative_path_uses_the_working_directory() {
-    let ws = workspace_with_output("dx-startup-wt-release-ws-", "json");
+    let ws = sample_workspace("dx-startup-wt-release-ws-");
     let status = std::process::Command::new("git")
         .args(["init", "--quiet"])
         .current_dir(ws.path())

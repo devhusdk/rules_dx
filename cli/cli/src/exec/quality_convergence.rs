@@ -123,7 +123,6 @@ fn severity_and_suppression_cannot_hide_nonconvergence() {
         2,
     );
     let rel = "quality/baseline.json";
-    baselined.write_source("dx.toml", &format!("[quality]\nbaseline = \"{rel}\"\n"));
     let recorded = render_baseline(&BaselineFile {
         entries: vec![BaselineEntry {
             tool: "lint-tool".to_owned(),
@@ -137,7 +136,10 @@ fn severity_and_suppression_cannot_hide_nonconvergence() {
     })
     .expect("render");
     baselined.write_source(rel, &recorded);
-    for words in [["lint", "--output=text"], ["lint", "--apply"]] {
+    for words in [
+        ["lint", "--baseline", rel, "--output=text"],
+        ["lint", "--baseline", rel, "--apply"],
+    ] {
         let (code, out, err) = baselined.run(&words);
         assert_eq!(code, 1, "{words:?}: {out}{err}");
         assert!(
@@ -162,11 +164,7 @@ fn apply_never_records_a_missing_baseline_from_an_unstable_result() {
         Convergence::IterationLimit,
         10,
     );
-    harness.write_source(
-        "dx.toml",
-        "[quality]\nbaseline = \"quality/baseline.json\"\n",
-    );
-    let (code, _, err) = harness.run(&["lint", "--apply"]);
+    let (code, _, err) = harness.run(&["lint", "--baseline", "quality/baseline.json", "--apply"]);
     assert_eq!(code, 1, "{err}");
     assert!(
         err.contains("baseline quality/baseline.json is missing and was not recorded"),

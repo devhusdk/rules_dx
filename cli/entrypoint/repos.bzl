@@ -442,8 +442,6 @@ _COMPLETION_BUILD_BAZEL = '''genrule(
     testonly = True,
     outs = [
         "completion_argv.txt",
-        "completion_broken.txt",
-        "completion_config.txt",
         "completion_env.txt",
         "completion_failed_query.txt",
         "completion_flag.txt",
@@ -506,12 +504,6 @@ complete_words() {
 (cd "$$start" && export CI=true && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
 { native "$$(head -n 1 "$$root/argv.txt")"; echo; tail -n +2 "$$root/argv.txt"; } | sed "s|$$root|ROOT|g" > "$$out/completion_argv.txt"
 (cd "$$start" && export DX_WORKSPACE="$$other" && complete_words "$$out/completion_env.txt" dx build "")
-echo '[dx]' > "$$start/dx.toml"
-echo 'workspace = "'"$$ws"'"' >> "$$start/dx.toml"
-(cd "$$start" && complete_words "$$out/completion_config.txt" dx build "//")
-echo 'not toml = [' > "$$start/dx.toml"
-(cd "$$start" && complete_words "$$out/completion_broken.txt" dx build "")
-rm "$$start/dx.toml"
 (cd "$$start" && export PROCESS_PROBE_SHIM_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")
 """,
     tools = [

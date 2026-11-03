@@ -958,18 +958,12 @@ mod tests {
 
     #[test]
     fn baseline_selection_rides_every_quality_request() {
-        let defaults = crate::args::FileDefaults {
-            baseline: Some("b.json".to_owned()),
-            ..Default::default()
-        };
-        let inv = crate::args::parse_with(&["lint".to_owned()], &|_| None, &defaults)
-            .expect("parse lint");
+        let inv = crate::args::parse(&["lint", "--baseline", "b.json"]).expect("parse lint");
         assert_eq!(
             inv.quality_request().expect("quality").baseline.as_deref(),
             Some("b.json")
         );
-        let fix = crate::args::parse_with(&["check".to_owned()], &|_| None, &defaults)
-            .expect("parse fix");
+        let fix = crate::args::parse(&["check", "--baseline=b.json"]).expect("parse check");
         let umbrella = fix.umbrella_request().expect("umbrella");
         let phase = umbrella
             .phase_quality_request(Command::Lint, Vec::new())

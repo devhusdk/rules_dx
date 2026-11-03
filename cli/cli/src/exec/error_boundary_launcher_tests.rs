@@ -365,32 +365,13 @@ fn input_and_default_failures_end_in_one_error_before_any_bazel_call() {
 }
 
 #[test]
-fn malformed_defaults_keep_the_json_intent_they_name() {
-    let consumer = Consumer::new();
-    fs::write(
-        consumer.workspace().join("dx.toml"),
-        "[dx]\noutput = \"json\"\nlog-level = \"debug\"\n",
-    )
-    .expect("config");
-    for flags in [&[][..], &["-q"][..]] {
-        let outcome = consumer.run(&with_mode(&["build", "//..."], flags), &[], true);
-        assert_terminal_failure(&outcome, "invalid_defaults", "defaults", 2);
-        assert_eq!(outcome.kinds(), ["error", "command_finished"]);
-        assert!(outcome.err.contains("log-level"), "{}", outcome.context());
-        assert!(outcome.bazel.is_empty(), "{}", outcome.context());
-    }
-}
-
-#[test]
 fn text_only_commands_ignore_a_json_output_default() {
     let consumer = Consumer::new();
-    let config = consumer.workspace().join("dx.toml");
-    fs::write(&config, "[dx]\noutput = \"json\"\n").expect("config");
     for (args, usage) in [
         (&["completion"][..], "Usage: dx completion "),
         (&["deploy", "--bogus"][..], "Usage: dx deploy "),
     ] {
-        let outcome = consumer.run(args, &[], false);
+        let outcome = consumer.run(args, &[("DX_OUTPUT", "json")], false);
         assert_eq!(outcome.status.code(), Some(2), "{}", outcome.context());
         assert!(outcome.out.is_empty(), "{}", outcome.context());
         assert!(outcome.err.starts_with("dx: "), "{}", outcome.context());
@@ -411,18 +392,6 @@ fn agent_sessions_keep_text_only_failures_in_text() {
         "{}",
         outcome.context()
     );
-    fs::write(
-        consumer.workspace().join("dx.toml"),
-        "[dx]\nlog-level = \"debug\"\n",
-    )
-    .expect("config");
-    let outcome = consumer.run(&["completion", "bash"], &agent, false);
-    assert_eq!(outcome.status.code(), Some(2), "{}", outcome.context());
-    assert!(outcome.out.is_empty(), "{}", outcome.context());
-    assert!(outcome.err.contains("log-level"), "{}", outcome.context());
-    let outcome = consumer.run(&["lint", "//..."], &agent, true);
-    assert_terminal_failure(&outcome, "invalid_defaults", "defaults", 2);
-    assert!(outcome.bazel.is_empty(), "{}", outcome.context());
 }
 
 #[test]

@@ -31,7 +31,7 @@ pub(crate) struct DepEdit<'a> {
     pub(crate) kept: String,
 }
 
-/// A configured dx.toml set a dependency verb edits.
+/// A dependency set a dependency verb edits.
 pub(crate) struct ConfiguredTarget {
     pub(crate) name: String,
     /// Every manifest of the set; a bazel, uv, npm, maven or nuget set has exactly one.
@@ -41,7 +41,7 @@ pub(crate) struct ConfiguredTarget {
     pub(crate) repository: Option<String>,
 }
 
-/// The single manifest of a configured dx.toml set the selector names, if any.
+/// The single manifest of a dependency set the selector names, if any.
 ///
 /// Bazel sets always qualify; uv, npm, cargo, maven and nuget sets only when `foreign`
 /// is set, and then their kind comes back.

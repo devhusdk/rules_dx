@@ -177,13 +177,7 @@ impl Request {
         let flag = flag
             .and_then(|value| value.into_string().ok())
             .filter(|value| !value.is_empty());
-        let raw = super::parser::startup_workspace(
-            &self.start,
-            &self.base,
-            flag,
-            self.env_workspace.clone(),
-            self.is_ci,
-        );
+        let raw = super::parser::startup_workspace(flag, self.env_workspace.clone(), self.is_ci);
         // A relative workspace is typed relative to the user's directory, not the workspace start.
         let override_dir =
             raw.map(|raw| dx_process::resolve_override_display(Path::new(&raw), &self.base));
@@ -1069,12 +1063,10 @@ mod tests {
     }
 
     #[test]
-    fn the_environment_and_config_select_like_a_run() {
+    fn the_environment_selects_like_a_run() {
         let start = workspace_with_packages(&["alpha"]);
         let env = workspace_with_packages(&["beta"]);
-        let file = workspace_with_packages(&["gamma"]);
         let env_text = env.path().to_string_lossy().into_owned();
-        let file_text = file.path().to_string_lossy().into_owned();
         let bare = ["build", ""];
         assert_eq!(
             select(&bare, start.path(), Some(&env_text), false).workspace,
@@ -1089,64 +1081,15 @@ mod tests {
             select(&bare, start.path(), Some(""), false).workspace,
             real(start.path())
         );
-        std::fs::write(
-            start.path().join("dx.toml"),
-            format!("[dx]\nworkspace = '{file_text}'\n"),
-        )
-        .expect("config");
-        assert_eq!(
-            select(&bare, start.path(), None, false).workspace,
-            real(file.path())
-        );
-        assert_eq!(
-            select(&bare, start.path(), Some(&env_text), false).workspace,
-            real(env.path()),
-            "the environment beats the config"
-        );
-        let flagged = ["build", "--workspace", env_text.as_str(), ""];
-        assert_eq!(
-            select(&flagged, start.path(), None, false).workspace,
-            real(env.path()),
-            "the flag beats the config"
-        );
         let got = complete_in(&["dx", "build", ""], start.path(), None);
         assert!(
-            got.iter().any(|value| value == "//gamma/..."),
-            "config workspace lists gamma: {got:?}"
-        );
-        assert!(
-            !got.iter().any(|value| value == "//alpha/..."),
-            "config workspace hides alpha: {got:?}"
+            got.iter().any(|value| value == "//alpha/..."),
+            "the start workspace lists alpha: {got:?}"
         );
         let got = complete_in(&["dx", "build", ""], start.path(), Some(&env_text));
         assert!(
             got.iter().any(|value| value == "//beta/..."),
             "environment workspace lists beta: {got:?}"
-        );
-    }
-
-    #[test]
-    fn broken_defaults_complete_quietly_from_the_start_workspace() {
-        let start = workspace_with_packages(&["alpha"]);
-        std::fs::write(start.path().join("dx.toml"), "not toml = [").expect("config");
-        assert_eq!(
-            select(&["build", ""], start.path(), None, false).workspace,
-            real(start.path())
-        );
-        let got = complete_in(&["dx", "build", ""], start.path(), None);
-        assert!(
-            got.iter().any(|value| value == "//alpha/..."),
-            "broken defaults still list alpha: {got:?}"
-        );
-        let missing = start.path().join("missing");
-        std::fs::write(
-            start.path().join("dx.toml"),
-            format!("[dx]\nworkspace = '{}'\n", missing.display()),
-        )
-        .expect("config");
-        assert_eq!(
-            select(&["build", ""], start.path(), None, false).workspace,
-            real(start.path())
         );
     }
 

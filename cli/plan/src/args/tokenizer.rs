@@ -296,11 +296,6 @@ fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> 
     .map_err(|error| map_clap_error(args, &error))
 }
 
-/// The workspace value the grammar selects, or none when the words do not parse.
-pub(crate) fn selected_workspace<S: AsRef<OsStr>>(args: &[S]) -> Option<OsString> {
-    selected_identity(args)?.0
-}
-
 /// The workspace and Bazel startup tokens the grammar selects, if the words parse.
 pub(crate) fn selected_identity<S: AsRef<OsStr>>(
     args: &[S],

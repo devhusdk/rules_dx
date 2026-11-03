@@ -231,7 +231,6 @@ mod tests {
     }
 
     fn commit_baseline(harness: &Harness, entries: Vec<BaselineEntry>) {
-        harness.write_source("dx.toml", &format!("[quality]\nbaseline = \"{REL}\"\n"));
         let rendered = render_baseline(&BaselineFile { entries }).expect("render");
         harness.write_source(REL, &rendered);
     }
@@ -257,7 +256,7 @@ mod tests {
             "//test:corpus".to_owned(),
             harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0);
         assert!(out.contains("unused [lint-tool/rule] (baselined)"), "{out}");
         assert!(
@@ -277,7 +276,7 @@ mod tests {
                 vec![],
             ),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(
             out.contains("Baseline quality/baseline.json: 2 total, 1 new, 1 suppressed."),
@@ -302,7 +301,7 @@ mod tests {
             "//test:corpus".to_owned(),
             harness.valid_result(vec![shifted], vec![]),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("(baselined)"), "{out}");
     }
@@ -316,20 +315,20 @@ mod tests {
             "//test:corpus".to_owned(),
             harness.valid_result(vec![], vec![]),
         );
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(
             err.contains("Baseline stale: src/a.py [lint-tool/lint-tool/rule]: unused (run with --apply to refresh)."),
             "{err}"
         );
-        let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}");
         assert!(
             out.contains("Baseline quality/baseline.json refreshed."),
             "{out}"
         );
         assert!(read_baseline(&harness).entries.is_empty());
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{err}");
     }
 
@@ -337,18 +336,17 @@ mod tests {
     fn missing_file_fails_check_but_apply_creates() {
         let mut harness = Harness::new("baseline-missing");
         harness.write_source(PATH, BODY);
-        harness.write_source("dx.toml", &format!("[quality]\nbaseline = \"{REL}\"\n"));
         harness.results.insert(
             "//test:corpus".to_owned(),
             harness.valid_result(vec![], vec![]),
         );
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(
             err.contains("dx: verification_failed: baseline quality/baseline.json is missing"),
             "{err}"
         );
-        let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}");
         assert!(read_baseline(&harness).entries.is_empty());
     }
@@ -361,13 +359,12 @@ mod tests {
         ] {
             let mut harness = Harness::new(name);
             harness.write_source(PATH, BODY);
-            harness.write_source("dx.toml", &format!("[quality]\nbaseline = \"{REL}\"\n"));
             harness.write_source(REL, "{not json");
             harness.results.insert(
                 "//test:corpus".to_owned(),
                 harness.valid_result(vec![], vec![]),
             );
-            let (code, _, err) = harness.run(&["lint", mode, "--output=text"]);
+            let (code, _, err) = harness.run(&["lint", "--baseline", REL, mode, "--output=text"]);
             assert_eq!(code, 1, "{name}");
             assert!(
                 err.contains("verification_failed") && err.contains("malformed baseline"),
@@ -391,7 +388,7 @@ mod tests {
             harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
         );
         harness.fail_target = true;
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(!err.contains("Baseline stale"), "{err}");
     }
@@ -411,7 +408,7 @@ mod tests {
                 vec![],
             ),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=json"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--output=json"]);
         assert_eq!(code, 1);
         let events = json_events(&out);
         let diagnostics: Vec<&serde_json::Value> = events
@@ -445,7 +442,13 @@ mod tests {
             "//test:corpus".to_owned(),
             harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
         );
-        let (code, _, _) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
+        let (code, _, _) = harness.run(&[
+            "lint",
+            "--baseline",
+            REL,
+            "--output=text",
+            "--report=sarif=out.sarif",
+        ]);
         assert_eq!(code, 0);
         let text = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
         let document: serde_json::Value = serde_json::from_str(&text).expect("json");
@@ -480,7 +483,7 @@ mod tests {
                 vec![],
             ),
         );
-        let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}");
         assert!(
             out.contains("Baseline quality/baseline.json refreshed."),
@@ -493,7 +496,7 @@ mod tests {
             .entries
             .iter()
             .any(|entry| entry.message == "brand new"));
-        let (code, out, _) = harness.run(&["lint", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{out}");
     }
 
@@ -501,13 +504,12 @@ mod tests {
     fn rejected_selection_fails_before_analysis() {
         let mut harness = Harness::new("baseline-selection");
         harness.write_source(PATH, BODY);
-        harness.write_source("dx.toml", "[quality]\nbaseline = \"/abs.json\"\n");
         harness.results.insert(
             "//test:corpus".to_owned(),
             harness.valid_result(vec![], vec![]),
         );
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
-        assert_ne!(code, 0);
+        let (code, _, err) = harness.run(&["lint", "--baseline", "/abs.json", "--output=text"]);
+        assert_eq!(code, 2);
         assert!(err.contains("baseline"), "{err}");
     }
 
@@ -526,31 +528,6 @@ mod tests {
     }
 
     #[test]
-    fn ci_ignores_the_local_baseline_selection() {
-        let mut harness = Harness::new("baseline-ci-local");
-        harness.write_source(PATH, BODY);
-        commit_baseline(&harness, vec![recorded("unused", LINE)]);
-        harness.write_source("dx.local.toml", "[quality]\nbaseline = \"local.json\"\n");
-        harness.results.insert(
-            "//test:corpus".to_owned(),
-            harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
-        );
-        let words: &[&str] = &["lint", "--output=text"];
-        let (code, out, _) = harness.run_with_ci(words, true);
-        assert_eq!(code, 0, "{out}");
-        assert!(out.contains("Baseline quality/baseline.json"), "{out}");
-        let (code, out, err) = harness.run_with_ci(words, false);
-        assert_ne!(code, 0);
-        assert!(format!("{out}{err}").contains("local.json"), "{out}{err}");
-        harness.write_source("dx.local.toml", "[broken");
-        let (code, out, _) = harness.run_with_ci(words, true);
-        assert_eq!(code, 0, "{out}");
-        let (code, _, err) = harness.run_with_ci(words, false);
-        assert_eq!(code, 2, "{err}");
-        assert!(err.contains("dx.local.toml"), "{err}");
-    }
-
-    #[test]
     fn threshold_still_applies_to_new_findings_only() {
         let mut harness = Harness::new("baseline-threshold");
         harness.write_source(PATH, BODY);
@@ -559,7 +536,13 @@ mod tests {
             "//test:corpus".to_owned(),
             harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
         );
-        let (code, _, _) = harness.run(&["lint", "--output=text", "--fail-on=error"]);
+        let (code, _, _) = harness.run(&[
+            "lint",
+            "--baseline",
+            REL,
+            "--output=text",
+            "--fail-on=error",
+        ]);
         assert_eq!(code, 0);
         let view = apply_baseline(
             &harness.workspace,
@@ -646,7 +629,7 @@ mod tests {
     #[test]
     fn disjoint_producers_do_not_claim_each_others_files() {
         let harness = two_producers("baseline-disjoint-check");
-        let (code, out, err) = harness.run(&["lint", "--output=text"]);
+        let (code, out, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("src/a.py [A/A/rule]: gone"), "{err}");
         assert!(!err.contains("keep"), "{err}");
@@ -655,7 +638,7 @@ mod tests {
             "{out}"
         );
         let harness = two_producers("baseline-disjoint-json");
-        let (_, out, _) = harness.run(&["lint", "--output=json"]);
+        let (_, out, _) = harness.run(&["lint", "--baseline", REL, "--output=json"]);
         let events = json_events(&out);
         assert_eq!(
             event(&events, "command_finished")["baseline"],
@@ -666,7 +649,8 @@ mod tests {
     #[test]
     fn disjoint_producers_refresh_only_the_proven_pairs() {
         let harness = two_producers("baseline-disjoint-apply");
-        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, err) =
+            harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         let next = read_baseline(&harness);
         let mut kept: Vec<(String, String, String)> = next
@@ -688,14 +672,20 @@ mod tests {
                 ("B".to_owned(), "src/b.py".to_owned(), "held".to_owned()),
             ]
         );
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{err}");
     }
 
     #[test]
     fn disjoint_producers_report_coverage_in_sarif() {
         let harness = two_producers("baseline-disjoint-sarif");
-        let (_, _, _) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
+        let (_, _, _) = harness.run(&[
+            "lint",
+            "--baseline",
+            REL,
+            "--output=text",
+            "--report=sarif=out.sarif",
+        ]);
         let text = std::fs::read_to_string(harness.workspace.join("out.sarif")).expect("sarif");
         let document: serde_json::Value = serde_json::from_str(&text).expect("json");
         assert_eq!(
@@ -787,14 +777,15 @@ mod tests {
     #[test]
     fn pathless_findings_are_scoped_by_the_target_that_produced_them() {
         let harness = pathless_producers("baseline-pathless-check", &["//test:a", "//test:b"]);
-        let (code, out, err) = harness.run(&["lint", "--output=text"]);
+        let (code, out, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!err.contains("Baseline stale"), "{err}");
         assert!(
             out.contains("Baseline quality/baseline.json: 2 total, 0 new, 2 suppressed."),
             "{out}"
         );
-        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, err) =
+            harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
             pathless_kept(&harness),
@@ -809,14 +800,15 @@ mod tests {
     #[test]
     fn a_narrower_run_keeps_the_other_targets_pathless_entries() {
         let harness = pathless_producers("baseline-pathless-narrow", &["//test:b"]);
-        let (code, out, err) = harness.run(&["lint", "--output=text"]);
+        let (code, out, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(!err.contains("Baseline stale"), "{err}");
         assert!(
             out.contains("Baseline quality/baseline.json: 1 total, 0 new, 1 suppressed."),
             "{out}"
         );
-        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, err) =
+            harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(pathless_kept(&harness).len(), 3);
     }
@@ -826,10 +818,11 @@ mod tests {
         let mut harness = pathless_producers("baseline-pathless-stale", &["//test:b"]);
         let clean = pathless_result(&harness, "//test:a", "A", &[]);
         harness.results.insert("//test:a".to_owned(), clean);
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(err.contains("//test:a [A/A/rule]: dup"), "{err}");
-        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, err) =
+            harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert_eq!(
             pathless_kept(&harness),
@@ -842,7 +835,8 @@ mod tests {
 
     fn assert_apply_leaves_baseline(harness: &Harness) {
         let before = std::fs::read(harness.workspace.join(REL)).ok();
-        let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, out, err) =
+            harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_ne!(code, 0, "{out}{err}");
         assert!(!out.contains("refreshed"), "{out}");
         assert_eq!(std::fs::read(harness.workspace.join(REL)).ok(), before);
@@ -853,7 +847,7 @@ mod tests {
         let mut failed = two_producers("baseline-partial-failed");
         failed.failed_labels.push("//test:a".to_owned());
         assert_apply_leaves_baseline(&failed);
-        let (code, out, err) = failed.run(&["lint", "--output=text"]);
+        let (code, out, err) = failed.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(!err.contains("Baseline stale"), "{err}");
         assert!(
@@ -877,7 +871,7 @@ mod tests {
         let mut harness = two_producers("baseline-partial-create");
         std::fs::remove_file(harness.workspace.join(REL)).expect("remove");
         harness.failed_labels.push("//test:a".to_owned());
-        let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 1);
         assert!(err.contains("analysis was incomplete"), "{err}");
         assert!(!harness.workspace.join(REL).exists());
@@ -906,7 +900,7 @@ mod tests {
         let harness = refused_fix("baseline-refused");
         let before = std::fs::read(harness.workspace.join(REL)).expect("bytes");
         let (code, out, err) = harness.run_with_fs(
-            &["lint", "--apply", "--output=text"],
+            &["lint", "--baseline", REL, "--apply", "--output=text"],
             &failing_source(&harness),
         );
         assert_eq!(code, 1, "{out}{err}");
@@ -932,7 +926,7 @@ mod tests {
         );
         let before = std::fs::read(pruned.workspace.join(REL)).expect("bytes");
         let (code, out, err) = pruned.run_with_fs(
-            &["lint", "--apply", "--output=text"],
+            &["lint", "--baseline", REL, "--apply", "--output=text"],
             &failing_source(&pruned),
         );
         assert_eq!(code, 1, "{out}{err}");
@@ -948,7 +942,7 @@ mod tests {
         let harness = refused_fix("baseline-refused-create");
         std::fs::remove_file(harness.workspace.join(REL)).expect("remove");
         let (code, out, err) = harness.run_with_fs(
-            &["lint", "--apply", "--output=text"],
+            &["lint", "--baseline", REL, "--apply", "--output=text"],
             &failing_source(&harness),
         );
         assert_eq!(code, 1, "{out}{err}");
@@ -995,10 +989,10 @@ mod tests {
             harness.valid_result(vec![diagnostic], vec![]),
         );
         let before = std::fs::read(harness.workspace.join(REL)).expect("bytes");
-        let (code, _, err) = harness.run(&["lint", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(!err.contains("Baseline stale"), "{err}");
-        let (code, _, err) = harness.run(&["lint", "--apply", "--output=text"]);
+        let (code, _, err) = harness.run(&["lint", "--baseline", REL, "--apply", "--output=text"]);
         assert_eq!(code, 1);
         assert!(err.contains("source identity is unavailable"), "{err}");
         assert_eq!(
@@ -1019,7 +1013,7 @@ mod tests {
             "//test:corpus".to_owned(),
             harness.valid_result(vec![moved], vec![]),
         );
-        let (code, out, err) = harness.run(&["lint", "--output=text"]);
+        let (code, out, err) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("(baselined)"), "{out}");
     }
@@ -1039,7 +1033,7 @@ mod tests {
                 vec![],
             ),
         );
-        let (code, out, _) = harness.run(&["lint", "--output=text"]);
+        let (code, out, _) = harness.run(&["lint", "--baseline", REL, "--output=text"]);
         assert_eq!(code, 1);
         assert!(
             out.contains("Baseline quality/baseline.json: 2 total, 1 new, 1 suppressed."),

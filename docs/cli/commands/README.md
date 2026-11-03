@@ -50,11 +50,10 @@ worktree and every user session on the machine. The slot count is the machine
 memory, or the cgroup memory limit if lower, divided by 3 GiB. There is always
 at least one and never more than 16.
 
-`--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` and
-`build-slots` in `dx.toml` or `dx.local.toml` set a default, and the flag wins.
-The default is `auto`, the count above. In CI the env var and
-`dx.local.toml` are ignored, like every other default. CI runs still take a
-slot and pass its `--local_resources` share to Bazel.
+`--build-slots auto|<n>|off` sets the count for one run. `DX_BUILD_SLOTS` sets
+a default, and the flag wins. The default is `auto`, the count above. In CI the
+env var is ignored, like every other default. CI runs still take a slot and
+pass its `--local_resources` share to Bazel.
 
 - `auto`: the memory-based count above, with the remote extras below.
 - `<n>`: exactly `n` slots, from 1 to 1024. There is no 16 cap and no remote
@@ -302,9 +301,7 @@ stderr. A failure before the command starts emits `error` and then
 `command_finished` with no `command_started`; that `command_finished` carries
 the process exit code and `results_complete: false`. If dx cannot build an
 event, it writes `error` with code `invalid_result`, then `command_finished`,
-and exits `1`. `DX_OUTPUT=json` and
-`output = "json"` in `dx.toml` give the same stream, also when the rest of
-`dx.toml` is invalid. A stop signal ends the run with no `error` and no
+and exits `1`. `DX_OUTPUT=json` gives the same stream. A stop signal ends the run with no `error` and no
 `command_finished`; dx exits `128` plus the signal number. A closed stdout
 exits `141`.
 
@@ -322,8 +319,7 @@ bazel run @rules_dx//:dx -- lint //... --output=json
 
 When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, or
 `AI_AGENT` is set, the default output is `json` for commands that support it,
-and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win, and
-so does `output` in `dx.toml`. In CI these variables are ignored.
+and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win. In CI these variables are ignored.
 
 Empty optional fields are left out of `test_outcome` and `build_failure` events. A plain
 pass is not an event. `dx test` and `dx coverage` count passed, failed, cached, no_cases, and skipped tests
@@ -458,7 +454,13 @@ default off.
 A `<bool>` is on for `true` and off for `false`, case-insensitive and trimmed.
 Any other non-empty value is a usage error. An empty value is unset.
 A `DX_OUTPUT` or `DX_FAIL_ON` value that a command does not support is ignored
-for that command, as in the config file.
+for that command. An unsupported `DX_OUTPUT` falls back to the command's default
+output: `json` in an agent session for commands with JSON output, else `text`.
+An unsupported `DX_FAIL_ON` falls back to `warning`. The same value as a flag is
+a usage error. An invalid value is always a usage error.
+
+In CI the `DX_` variables are ignored. Flags still win. CI never implies
+`--apply`. dx reads no config file for these defaults.
 
 ## Global Shim
 
@@ -495,54 +497,6 @@ errors (bad `DX_VERSION`, bad `DX_RELEASE_BASE_URL`, unknown `dx shim`
 command), `1` other failures (no `.dx/version`, no binary for the platform,
 download failure, sha256 mismatch, cache not writable). Otherwise the exit code
 or signal is the dx binary's own.
-
-## Config File
-
-`dx.toml` (committed) and `dx.local.toml` (local-only, gitignored) set the
-same defaults. A key
-is the flag name without `--`.
-
-```toml
-[dx]
-workspace = "/path/to/repo"
-quiet = true
-verbose = true
-color = "never"
-output = "json"
-fail-on = "error"
-build-slots = "auto"
-```
-
-Values are TOML, so a boolean key takes `true` or `false`. An empty value is
-unset. Defaults live only under `[dx]` with the hyphenated flag names. A
-top-level default or `fail_on` is a usage error.
-An unknown key is a usage error that names the key and the keys it accepts.
-Other supported sections in the same file stay valid.
-
-Unsupported defaults are ignored per command. An `output` default that a
-command does not support falls back to the command's default output: `json` in
-an agent session for commands with JSON output, else `text`. For example, with
-`output = "json"` `dx completion` prints text. An unsupported
-`fail-on` default falls back to `warning`. The same value as a flag is a usage
-error. An invalid value is always a usage error.
-
-Commit shared
-defaults in `dx.toml` and keep personal overrides in `dx.local.toml`. Local
-beats committed. No other file is read for defaults.
-The nearest file to the working directory wins, and its values sit below the environment. The search
-reads the working directory and each directory above it, so a neighboring or
-nested workspace tree never supplies defaults. Under `bazel run` the search
-starts at the workspace root. In CI the local file and `DX_` variables are
-ignored. Flags still win. CI never implies `--apply`.
-
-The command line wins over the environment, and the environment wins over
-the file. Defaults load from the selected workspace: `--workspace` or
-`DX_WORKSPACE` selects it before the file is read. A `workspace` key in the
-file redirects once to that workspace. A relative `workspace` key resolves
-from the directory of the file that sets it. `-h`, `--help`, `help`, `-V`, and
-`--version` print without reading a broken config. `dx init` and
-`dx completion` run outside a workspace. Deleting `.dx` keeps committed
-behavior. Read-only commands never rewrite config.
 
 ## Supported Surface
 

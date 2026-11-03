@@ -310,7 +310,7 @@ fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
     let mut probe = Probe::start("dx-watch-probe-idle-", &["watch", "build", "//..."], &[]);
     probe.idle(1);
     let workspace = probe.workspace.clone();
-    let steps: [(&str, Box<dyn Fn()>); 5] = [
+    let steps: [(&str, Box<dyn Fn()>); 4] = [
         (
             "edit",
             Box::new(|| fs::write(workspace.join("src/main.rs"), "fn main() { }\n").expect("edit")),
@@ -327,12 +327,8 @@ fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
             Box::new(|| fs::remove_file(workspace.join("src/app.rs")).expect("delete")),
         ),
         (
-            "local config",
-            Box::new(|| fs::write(workspace.join("dx.local.toml"), "[dx]\n").expect("local")),
-        ),
-        (
-            "committed config",
-            Box::new(|| fs::write(workspace.join("dx.toml"), "[dx]\n").expect("committed")),
+            "config",
+            Box::new(|| fs::write(workspace.join(".bazelrc"), "\n").expect("config")),
         ),
     ];
     for (round, (what, step)) in steps.iter().enumerate() {
@@ -342,7 +338,7 @@ fn idle_edits_renames_deletes_and_config_changes_each_rerun() {
         probe.idle(want);
     }
     probe.settle();
-    assert_eq!(probe.count("start "), 6, "{}", probe.log());
+    assert_eq!(probe.count("start "), 5, "{}", probe.log());
     assert_eq!(probe.stop().code(), Some(130));
 }
 

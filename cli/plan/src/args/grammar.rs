@@ -59,6 +59,7 @@ pub(crate) struct Flags {
     pub(crate) path_only: bool,
     pub(crate) report: Vec<ReportRequest>,
     pub(crate) fail_on: Option<String>,
+    pub(crate) baseline: Option<String>,
     pub(crate) build_slots: Option<String>,
     pub(crate) include_edits: bool,
     pub(crate) min_coverage: Option<u32>,
@@ -265,6 +266,19 @@ flag_group! {
     FailOnFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "fail_on")]
         fail_on: Option<String>,
+    }
+}
+
+flag_group! {
+    /// Suppress findings already in this workspace-relative JSON baseline.
+    BaselineFlag, {
+        #[arg(
+            long,
+            value_name = "FILE",
+            overrides_with = "baseline",
+            value_parser = dx_adopt::defaults::check_quality_baseline
+        )]
+        baseline: Option<String>,
     }
 }
 
@@ -804,6 +818,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
+        baseline: BaselineFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -815,6 +830,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
+        baseline: BaselineFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,
@@ -826,6 +842,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
+        baseline: BaselineFlag,
         here: HereFlag,
         affected: AffectedFlag,
     };
@@ -879,6 +896,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         apply: FixApplyFlag,
         fail_on: FailOnFlag,
+        baseline: BaselineFlag,
         explain: ExplainFlag,
         report: ReportFlag,
         here: HereFlag,
@@ -911,6 +929,7 @@ command_args! {
         include_edits: IncludeEditsFlag,
         apply: ApplyFlag,
         fail_on: FailOnFlag,
+        baseline: BaselineFlag,
         report: ReportFlag,
         here: HereFlag,
         affected: AffectedFlag,

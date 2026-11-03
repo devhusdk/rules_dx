@@ -15,10 +15,7 @@ use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
 use dx_cli::exec::common::flush_out;
 use dx_cli::{execute, print_actions, ActionTally, Env};
 use dx_output::OutputMode;
-use dx_plan::args::{
-    early_workspace_flag, is_discovery_exempt, is_help_request, json_output_intent,
-    load_startup_defaults, parse_with_ci, DX_WORKSPACE_ENV,
-};
+use dx_plan::args::{is_discovery_exempt, json_output_intent, parse_with_ci};
 use dx_plan::plan::{create_run_temp_dir, remove_on_stop};
 use dx_plan::resolve::{QueryResult, QueryRunner};
 use dx_process::lifecycle::{self, EnvPolicy, StreamOutput, StreamSpec, StreamStdin};
@@ -180,12 +177,7 @@ fn run() -> i32 {
     }
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
-    let bare_intent = json_output_intent(
-        &args,
-        &env_get,
-        &dx_plan::args::FileDefaults::default(),
-        is_ci,
-    );
+    let bare_intent = json_output_intent(&args, &env_get, is_ci);
     match dx_plan::args::try_complete() {
         Ok(true) => return 0,
         Ok(false) => {}
@@ -199,38 +191,7 @@ fn run() -> i32 {
             );
         }
     }
-    let initial_cwd =
-        dx_process::current_directory().unwrap_or_else(|_| Path::new(".").to_path_buf());
-    let initial_start = dx_process::workspace_start(&initial_cwd);
-    let flag_workspace = early_workspace_flag(&args);
-    let env_workspace = std::env::var(DX_WORKSPACE_ENV)
-        .ok()
-        .filter(|value| !value.is_empty())
-        .filter(|_| !dx_plan::args::ci_ignores_env(DX_WORKSPACE_ENV, is_ci));
-    let file_defaults = match load_startup_defaults(
-        &initial_start,
-        &initial_cwd,
-        flag_workspace,
-        env_workspace,
-        is_ci,
-    ) {
-        Ok(defaults) => defaults,
-        Err(failure) => {
-            if is_help_request(&args) {
-                *failure.partial
-            } else {
-                let json = json_output_intent(&args, &env_get, &failure.partial, is_ci);
-                return startup_failure(
-                    &format!("dx: {}", failure.detail),
-                    "invalid_defaults",
-                    &failure.detail,
-                    pre_exec_code(),
-                    json,
-                );
-            }
-        }
-    };
-    let mut invocation = match parse_with_ci(&args, &env_get, &file_defaults, is_ci) {
+    let mut invocation = match parse_with_ci(&args, &env_get, is_ci) {
         Ok(invocation) => invocation,
         Err(dx_plan::args::ArgsError::Help { text }) => {
             let stdout = io::stdout();
@@ -244,7 +205,7 @@ fn run() -> i32 {
             return 0;
         }
         Err(error) => {
-            let json = json_output_intent(&args, &env_get, &file_defaults, is_ci);
+            let json = json_output_intent(&args, &env_get, is_ci);
             let code = match error {
                 dx_plan::args::ArgsError::BadDefault { .. } => "invalid_defaults",
                 _ => "invalid_arguments",

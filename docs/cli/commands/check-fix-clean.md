@@ -8,7 +8,7 @@ bazel run @rules_dx//:dx -- clean
 ## `dx check`
 
 ```text
-dx check [--here] [--affected] [--apply] [--explain] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--apply] [--explain] [--fail-on info|warning|error] [--baseline <file>] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Before any phase, `dx check` fails when your change adds build
@@ -57,7 +57,7 @@ dx spells them with the name your MODULE.bazel gives rules_dx, for example
 (and the affected tests) writes its own log, and dx joins them into one
 `.dx/explain/<n>.binpb.zst`, keeping the two newest. A `-- bazel-options` entry
 that sets another execution log is refused.
-`--fail-on` applies to `format`,
+`--fail-on` and `--baseline` apply to `format`,
 `lint`, and `typecheck`. `--report sarif=<dest>` merges the `lint` and
 `typecheck` phases into one document. `generate` and `test` take neither. A
 relative destination anchors at the workspace root; an absolute one writes as

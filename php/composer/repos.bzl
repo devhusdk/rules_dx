@@ -7,26 +7,26 @@ _PACKAGE_BZL = str(Label("//php/rules:php.bzl"))
 
 def _package_impl(rctx):
     attrs = rctx.attr
-    kwargs = {"type": attrs.archive_type, "url": attrs.urls}
+    kwargs = {"url": attrs.urls, "output": "_archive"}
     if attrs.sha256:
         kwargs["sha256"] = attrs.sha256
-    probe = rctx.download_and_extract(output = "_probe", **kwargs)
+    download = rctx.download(**kwargs)
     if attrs.unpinned:
-        rctx.delete("_probe")
+        rctx.delete("_archive")
         fail("%s %s\nDownloaded sha256 is %s. Review it and commit to composer.digests.json:\n%s" % (
             attrs.package,
             attrs.unpinned,
-            probe.sha256,
-            pin_entry_json(attrs.package, attrs.reference, probe.sha256),
+            download.sha256,
+            pin_entry_json(attrs.package, attrs.reference, download.sha256),
         ))
+    rctx.extract("_archive", output = "_probe", type = attrs.archive_type)
     top = rctx.path("_probe").readdir()
     strip = ""
     if len(top) == 1 and top[0].is_dir:
         strip = top[0].basename
     rctx.delete("_probe")
-    if strip:
-        kwargs["strip_prefix"] = strip
-    rctx.download_and_extract(**kwargs)
+    rctx.extract("_archive", strip_prefix = strip, type = attrs.archive_type)
+    rctx.delete("_archive")
     rctx.file("REPO.bazel", "")
     rctx.file("manifest.json", attrs.manifest + "\n")
     package = struct(name = attrs.package, version = attrs.version)

@@ -67,6 +67,24 @@ class KubeconformPinTest(unittest.TestCase):
             self.assertIn("/v%s/" % version, platform["url"])
 
 
+class ChecksumsFilePinTest(unittest.TestCase):
+    def _check(self, tool, checksums_path):
+        spec = update.TOOLS[tool]
+        self.assertEqual(len(spec["platforms"]), 5)
+        for platform in spec["platforms"].values():
+            self.assertTrue(platform["checksums_url"].endswith(checksums_path))
+            self.assertIn("/v%s/" % spec["upstream_version"], platform["url"])
+
+    def test_yamlfmt(self):
+        self._check("yamlfmt", "/v0.21.0/checksums.txt")
+
+    def test_jsonnetfmt(self):
+        self._check("jsonnetfmt", "/v0.22.0/checksums.txt")
+
+    def test_jsonnet_lint(self):
+        self._check("jsonnet_lint", "/v0.22.0/checksums.txt")
+
+
 class HelmPinTest(unittest.TestCase):
     def test_every_platform_uses_the_per_asset_checksum_file(self):
         spec = update.TOOLS["helm"]

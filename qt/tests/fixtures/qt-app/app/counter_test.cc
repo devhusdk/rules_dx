@@ -1,4 +1,4 @@
-#include "examples/qt-app/app/counter_test.h"
+#include "qt/tests/fixtures/qt-app/app/counter_test.h"
 
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "examples/qt-app/tally/counter.h"
+#include "qt/tests/fixtures/qt-app/tally/counter.h"
 
 void CounterTest::incrementsByStep() {
   Counter counter;

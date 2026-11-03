@@ -1,4 +1,4 @@
-#include "examples/qt-app/app/panel_test.h"
+#include "qt/tests/fixtures/qt-app/app/panel_test.h"
 
 #include <QImage>
 #include <QLabel>
@@ -6,7 +6,7 @@
 #include <QTest>
 #include <QWidget>
 
-#include "examples/qt-app/tally/counter.h"
+#include "qt/tests/fixtures/qt-app/tally/counter.h"
 #include "ui_panel.h"
 
 void PanelTest::bumpsTheCounter() {

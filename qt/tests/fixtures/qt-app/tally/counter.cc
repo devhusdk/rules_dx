@@ -1,4 +1,4 @@
-#include "examples/qt-app/tally/counter.h"
+#include "qt/tests/fixtures/qt-app/tally/counter.h"
 
 Counter::Counter(QObject *parent) : QObject(parent) {}
 

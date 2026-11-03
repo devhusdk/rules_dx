@@ -12,8 +12,8 @@ qt_qml_module(
     target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Tally",
     visibility = [
-        "//examples/qt-app:__subpackages__",
         "//qt/tests:__pkg__",
+        "//qt/tests/fixtures/qt-app:__subpackages__",
     ],
 )
 

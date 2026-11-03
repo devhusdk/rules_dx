@@ -139,7 +139,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 # gazelle:exclude dart/tests/cross
 # gazelle:exclude dart/tests/runtime
 # gazelle:exclude dart/tests/tags
-# gazelle:exclude examples/qt-app
+# gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude examples/java-app/cli/Main.java
 # gazelle:exclude examples/java-app/diagnostics
 # gazelle:exclude examples/kotlin-app/cli/Main.kt

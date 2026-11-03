@@ -42,7 +42,7 @@ def _unit_checks():
             qt_qrc("/p&q", [("a<b>.txt", "../x/a<b>.txt")]),
             "<RCC>\n  <qresource prefix=\"/p&amp;q\">\n    <file alias=\"a&lt;b&gt;.txt\">../x/a&lt;b&gt;.txt</file>\n  </qresource>\n</RCC>\n",
         ),
-        expect_equal("identifier for main", qt_identifier(Label("//examples/qt-app:tally")), "qt_pexamples_sqt_dapp_ptally"),
+        expect_equal("identifier for main", qt_identifier(Label("//qt/tests/fixtures/qt-app:tally")), "qt_pqt_stests_sfixtures_sqt_dapp_ptally"),
         expect_equal("identifier splits package and name", qt_identifier(Label("//a/b:c")) != qt_identifier(Label("//a:b_c")), True),
         expect_equal("identifier splits dash and underscore", qt_identifier(Label("//qt-app:x")) != qt_identifier(Label("//qt_app:x")), True),
         expect_equal("uri accepted", qt_uri_error("Org.Example_2.Tally"), ""),
@@ -244,7 +244,7 @@ def _module_test_impl(ctx):
     asserts.equals(env, {"c": ["counter.h"], "cpp": ["counter.cc"], "qml": ["Badge.qml", "Main.qml"]}, owned)
     paths = [f.short_path for f in target[DefaultInfo].files.to_list()]
     for want in ["tally_qml/Tally/qmldir", "tally_qml/Tally/tally.qmltypes", "tally_qml/Tally/Main.qml", "tally_qml/Tally/Badge.qml"]:
-        asserts.true(env, "examples/qt-app/tally/" + want in paths, "missing " + want + " in " + str(paths))
+        asserts.true(env, "qt/tests/fixtures/qt-app/tally/" + want in paths, "missing " + want + " in " + str(paths))
     asserts.equals(env, ["tally_metatypes.json"], _basenames(target[QtInfo].metatypes.to_list()))
     asserts.true(env, CcInfo in target, "CcInfo is not forwarded")
     return analysistest.end(env)
@@ -392,7 +392,7 @@ def qt_rules_tests(name):
     )
     _module_test(
         name = name + "_module",
-        target_under_test = "//examples/qt-app/tally",
+        target_under_test = "//qt/tests/fixtures/qt-app/tally",
         target_compatible_with = _LINUX,
     )
     _compile_test(

@@ -8,7 +8,7 @@ qt_cc_binary(
     resource_prefix = "/tally",
     resources = ["banner.txt"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = ["//examples/qt-app/tally"],
+    deps = ["//qt/tests/fixtures/qt-app/tally"],
 )
 
 qt_cc_test(
@@ -21,7 +21,7 @@ qt_cc_test(
         "test",
     ],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = ["//examples/qt-app/tally"],
+    deps = ["//qt/tests/fixtures/qt-app/tally"],
 )
 
 qt_cc_test(
@@ -35,7 +35,7 @@ qt_cc_test(
         "widgets",
     ],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = ["//examples/qt-app/tally"],
+    deps = ["//qt/tests/fixtures/qt-app/tally"],
 )
 
 qt_cc_test(
@@ -45,7 +45,7 @@ qt_cc_test(
     data = ["tst_tally.qml"],
     modules = ["quick_test"],
     target_compatible_with = QT_COMPATIBLE_WITH,
-    deps = ["//examples/qt-app/tally"],
+    deps = ["//qt/tests/fixtures/qt-app/tally"],
 )
 
 real_source_target(

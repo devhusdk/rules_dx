@@ -140,6 +140,51 @@ fn cargo_failure_lines(stderr: &[u8], token: &str) -> Vec<String> {
         .collect()
 }
 
+/// Returns the `[package]` name and version of a manifest; None when a field is not a plain string.
+fn manifest_identity(text: &str) -> (Option<String>, Option<String>) {
+    let (mut name, mut version) = (None, None);
+    let mut in_package = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_package = line == "[package]";
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let value = value.split('#').next().unwrap_or("").trim();
+        let plain = value
+            .strip_prefix('"')
+            .and_then(|rest| rest.strip_suffix('"'))
+            .map(str::to_owned);
+        match (in_package, key.trim()) {
+            (true, "name") => name = plain,
+            (true, "version") => version = plain,
+            _ => {}
+        }
+    }
+    (name, version)
+}
+
+/// Returns a refusal when the staged manifest is not the target crate.
+fn manifest_refusal(text: &str, crate_name: &str, version: &str) -> Option<String> {
+    let (name, found) = manifest_identity(text);
+    let show = |value: &Option<String>| {
+        value
+            .clone()
+            .unwrap_or_else(|| "(not a plain value)".to_owned())
+    };
+    if name.as_deref() == Some(crate_name) && found.as_deref() == Some(version) {
+        return None;
+    }
+    Some(format!(
+        "crates_deploy: staged Cargo.toml is {} {}, target is {crate_name} {version}; refusing",
+        show(&name),
+        show(&found)
+    ))
+}
+
 fn crates_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<(), String> {
     for (src, rel) in mapped {
         let dest = staging.join(rel);
@@ -217,6 +262,12 @@ pub fn crates_main(
             eprintln!("crates_deploy: staged crate is missing Cargo.toml; refusing");
             return 1;
         }
+        let text = std::fs::read_to_string(&manifest).unwrap_or_default();
+        if let Some(error) = manifest_refusal(&text, crate_name, version) {
+            let _ = std::fs::remove_dir_all(&staging);
+            eprintln!("{error}");
+            return 1;
+        }
         let published = cargo_publish(
             Path::new("cargo"),
             &manifest,
@@ -264,6 +315,18 @@ mod tests {
     use super::*;
     use crate::archive::basename;
     use crate::test_support::*;
+
+    #[test]
+    fn manifest_must_match_target() {
+        let ok = "[package]\nname = \"demo\"\nversion = \"1.2.3\" # x\n[dependencies]\nname = \"other\"\n";
+        assert_eq!(manifest_refusal(ok, "demo", "1.2.3"), None);
+        let wrong_name = manifest_refusal(ok, "other", "1.2.3").expect("name refused");
+        assert!(wrong_name.contains("is demo 1.2.3, target is other 1.2.3"));
+        assert!(manifest_refusal(ok, "demo", "2.0.0").is_some());
+        let workspace = "[package]\nname = \"demo\"\nversion.workspace = true\n";
+        assert!(manifest_refusal(workspace, "demo", "1.2.3").is_some());
+        assert!(manifest_refusal("", "demo", "1.2.3").is_some());
+    }
 
     #[test]
     fn crates_vendor_builds_checksums() {

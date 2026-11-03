@@ -18,31 +18,6 @@ DART_DEFERRED_SKIP_TAGS = []
 
 DART_QUALITY_TOOLS = {"dart": Label("//dart/tools:dart")}
 
-CROSS_COMPILE_ERROR = "dart cross-compilation to %s-%s is not supported: dart compile downloads the target snapshotter at action time"
-
-def dart_cross_target_error(target_os, target_arch):
-    """Returns the refusal for a cross-compiling Dart SDK, or an empty string."""
-    if target_os == "" and target_arch == "":
-        return ""
-    return CROSS_COMPILE_ERROR % (target_os or "host", target_arch or "host")
-
-def _dart_native_target_impl(ctx):
-    sdk = ctx.toolchains["@rules_dart//dart:toolchain_type"].dart_sdk_info
-    err = dart_cross_target_error(sdk.target_os, sdk.target_arch)
-    if err != "":
-        fail(err)
-    return [DefaultInfo()]
-
-dart_native_target = rule(
-    implementation = _dart_native_target_impl,
-    doc = "Requires a native Dart SDK for the target platform.",
-    toolchains = ["@rules_dart//dart:toolchain_type"],
-)
-
-_NATIVE_TARGET_ATTR = {
-    "_native_target": attr.label(default = Label("//dart/rules:native_target")),
-}
-
 _dart_library_forward = dx_library_forward_rule(
     provides = [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
     required_providers = [(DartInfo, "DartInfo")],
@@ -63,7 +38,6 @@ _dart_binary_forward = dx_executable_forward_rule(
     what = "dart_binary",
     allow_files = DART_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo, DartCompileInfo]],
-    extra_attrs = _NATIVE_TARGET_ATTR,
     runtime = "besteffort",
 )
 
@@ -76,7 +50,7 @@ _dart_forward_test = dx_executable_forward_rule(
     what = "dart_test",
     allow_files = DART_SOURCE_EXTS,
     upstream_providers = [[DartAnalyzableInfo]],
-    extra_attrs = dict(dx_lcov_merger_attr(), **_NATIVE_TARGET_ATTR),
+    extra_attrs = dx_lcov_merger_attr(),
     runtime = "besteffort",
 )
 

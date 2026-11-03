@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use dx_nested::Case;
 
 const PUB_MODULE: &str = r#"
-bazel_dep(name = "rules_dart", version = "0.8.0")
+bazel_dep(name = "rules_dart", version = "0.8.1")
 
 pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(

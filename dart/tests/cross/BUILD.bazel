@@ -1,20 +1,41 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
-load("//dart/tests:rules_tests.bzl", "dart_cross_refused_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
 platform(
-    name = "linux_riscv64",
+    name = "linux_arm64",
     constraint_values = [
-        "@platforms//cpu:riscv64",
+        "@platforms//cpu:arm64",
         "@platforms//os:linux",
     ],
-    visibility = ["//visibility:public"],
 )
 
-dart_cross_refused_test(
-    name = "cross_sdk_refused_test",
+platform_transition_filegroup(
+    name = "greet_arm64",
+    srcs = ["//dart/tests/runtime:greet_bin"],
     target_compatible_with = DART_COMPATIBLE_WITH,
-    target_under_test = "//dart/rules:native_target",
+    target_platform = ":linux_arm64",
+)
+
+rust_test(
+    name = "cross_arm64_test",
+    size = "small",
+    srcs = ["cross_arm64_test.rs"],
+    data = [":greet_arm64"],
+    env = {"GREET_ARM64": "$(rootpath :greet_arm64)"},
+    target_compatible_with = DART_COMPATIBLE_WITH,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rustfmt_test(
+    name = "cross_arm64_fmt_test",
+    targets = [":cross_arm64_test"],
+)
+
+rust_clippy_test(
+    name = "cross_arm64_clippy_test",
+    targets = [":cross_arm64_test"],
 )
 
 real_source_target(

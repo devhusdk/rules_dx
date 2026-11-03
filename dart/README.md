@@ -1,7 +1,7 @@
 # Dart
 
 Build, run and test Dart with the Dart SDK that
-[rules_dart](https://github.com/aran/rules_dart) 0.8.0 pins to 3.13.5. Nothing
+[rules_dart](https://github.com/aran/rules_dart) 0.8.1 pins to 3.13.7. Nothing
 is installed on the host and nothing is fetched until a target needs it.
 rules_dart registers the toolchains, so there is no toolchain setup beyond the
 version pin in `MODULE.bazel`.
@@ -102,7 +102,7 @@ to a sha256. Make the lock with `dart pub get` on a developer machine, never
 inside an action.
 
 ```python
-bazel_dep(name = "rules_dart", version = "0.8.0")
+bazel_dep(name = "rules_dart", version = "0.8.1")
 
 pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(
@@ -145,12 +145,14 @@ only the analyzer's default warnings are reported and no lint rules are on. An
 | `windows_x86_64` | Not qualified |
 | `windows_arm64` | Unsupported |
 
-rules_dart 0.8.0 ships no Windows arm64 SDK, because its version table has no
+rules_dart 0.8.1 ships no Windows arm64 SDK, because its version table has no
 `windows-arm64` entry. The wrappers mark their targets incompatible there, so a
 build fails instead of resolving a missing toolchain.
 
 ## Cross-compiling
 
-A Dart SDK that cross-compiles is refused at analysis time. `dart compile
---target-os` downloads the target snapshotter while the action runs, which
-breaks hermetic and offline builds. Build on a host that matches the target.
+```
+bazel build --platforms=//:linux_arm64 //app:cli
+```
+
+`exe` and `aot-snapshot` cross-compile. `dart_test` runs on the host.

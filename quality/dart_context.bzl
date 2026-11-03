@@ -2,7 +2,7 @@
 
 Records in, strings and paths out, so other consumers can reuse them. A record is any struct with
 `package_name`, `lib_root` and optionally `language_version` (a rules_dart `DartPackageInfo`).
-The stub pubspec follows rules_dart 0.8.0 `dart/private/project_staging.bzl` `pubspec_stub`, which
+The stub pubspec follows rules_dart 0.8.1 `dart/private/project_staging.bzl` `pubspec_stub`, which
 is private API and so re-implemented here.
 """
 

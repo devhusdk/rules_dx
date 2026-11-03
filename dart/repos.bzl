@@ -7,9 +7,9 @@ def _dart_tools_impl(mctx):
         name = "dx_rules_dart_pub",
         dropped = ["MODULE.bazel"],
         patches = [Label("//patches/rules_dart:hermetic_tar.patch")],
-        sha256 = "f3e9fabde27e3098cc47c393e13f257704d2c184fe7e50d0219542248ea988fb",
-        strip_prefix = "rules_dart-0.8.0",
-        urls = ["https://github.com/aran/rules_dart/releases/download/v0.8.0/rules_dart-v0.8.0.tar.gz"],
+        sha256 = "e7d9271bb10e5ed0a20415a70a120b367a22d8dd7afe7b0368810f1a08f43170",
+        strip_prefix = "rules_dart-0.8.1",
+        urls = ["https://github.com/aran/rules_dart/releases/download/v0.8.1/rules_dart-v0.8.1.tar.gz"],
     )
     return mctx.extension_metadata(reproducible = True)
 

@@ -271,7 +271,7 @@ PLATFORM_NOT_APPLICABLE = {
         "windows_arm64": "NVIDIA ships no CUDA toolkit for Windows arm64",
     },
     "dart": {
-        "windows_arm64": "rules_dart 0.8.0 ships no Windows arm64 SDK",
+        "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK",
     },
     "fortran": {
         "windows_arm64": "flang-releases v21.1.8 ships no Windows arm64 build",

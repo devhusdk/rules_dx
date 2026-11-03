@@ -27,4 +27,4 @@ A `genrule` in `model` runs `gen_schema` as a tool, so Bazel builds the tool for
 
 The targets in `failures` are tagged `manual`. They have a type error, an import of a package that is not in `deps`, and an import of a file that does not exist. Each one fails with a compiler or dependency message.
 
-rules_dart 0.8.0 ships no Windows arm64 SDK, so the targets are incompatible there.
+rules_dart 0.8.1 ships no Windows arm64 SDK, so the targets are incompatible there.

@@ -46,7 +46,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_jvm_external", "7.1"),
     ("bazel_features", "1.51.0"),
     ("rules_zig", "0.17.0"),
-    ("rules_dart", "0.8.0"),
+    ("rules_dart", "0.8.1"),
     ("tar.bzl", "0.10.4"),
     ("yaml.bzl", "0.1.2"),
     ("rules_julia", "0.8.0"),

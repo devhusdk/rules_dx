@@ -1,13 +1,11 @@
 {
-  "name": "rules_dx",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu@sha256:b1e3b08610ae0b2599f57c3a492eebc93d1d26dbaefb4a0bad0caa7149e4ec95",
   "features": {
-    "ghcr.io/devcontainers/features/bazel:1": {}
+    "ghcr.io/devcontainers-community/features/bazel:1.2.2": {}
   },
-  "customizations": {
-    "vscode": {
-      "extensions": ["rust-lang.rust-analyzer","golang.go","llvm-vs-code-extensions.vscode-clangd","redhat.java","fwcd.kotlin","scalameta.metals","ms-dotnettools.csharp","ionide.ionide-fsharp"]
-    }
-  },
-  "postCreateCommand": "bazel run @rules_dx//:dx -- env --apply"
+  "mounts": [
+    "source=dx-bazel-cache,target=/home/vscode/.cache/bazel,type=volume"
+  ],
+  "onCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.cache",
+  "postCreateCommand": "tools/dx env --apply"
 }

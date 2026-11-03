@@ -8,18 +8,17 @@ pub struct ScaffoldFile {
     pub content: String,
 }
 
-pub const DEVCONTAINER_JSON: &str = concat!(    "{\n",
-    "  \"name\": \"rules_dx\",\n",
-    "  \"image\": \"mcr.microsoft.com/devcontainers/base:ubuntu\",\n",
+pub const DEVCONTAINER_JSON: &str = concat!(
+    "{\n",
+    "  \"image\": \"mcr.microsoft.com/devcontainers/base:ubuntu@sha256:b1e3b08610ae0b2599f57c3a492eebc93d1d26dbaefb4a0bad0caa7149e4ec95\",\n",
     "  \"features\": {\n",
-    "    \"ghcr.io/devcontainers/features/bazel:1\": {}\n",
+    "    \"ghcr.io/devcontainers-community/features/bazel:1.2.2\": {}\n",
     "  },\n",
-    "  \"customizations\": {\n",
-    "    \"vscode\": {\n",
-    "      \"extensions\": [\"rust-lang.rust-analyzer\",\"golang.go\",\"llvm-vs-code-extensions.vscode-clangd\",\"redhat.java\",\"fwcd.kotlin\",\"scalameta.metals\",\"ms-dotnettools.csharp\",\"ionide.ionide-fsharp\"]\n",
-    "    }\n",
-    "  },\n",
-    "  \"postCreateCommand\": \"bazel run @rules_dx//:dx -- env --apply\"\n",
+    "  \"mounts\": [\n",
+    "    \"source=dx-bazel-cache,target=/home/vscode/.cache/bazel,type=volume\"\n",
+    "  ],\n",
+    "  \"onCreateCommand\": \"sudo chown -R vscode:vscode /home/vscode/.cache\",\n",
+    "  \"postCreateCommand\": \"tools/dx env --apply\"\n",
     "}\n",
 );
 
@@ -526,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn devcontainer_scaffold_runs_bootstrap_not_full_build() {
+    fn devcontainer_scaffold_is_pinned_and_thin() {
         let files = plan_init_files("demo").expect("init plans");
         let scaffold = files
             .iter()
@@ -535,48 +534,22 @@ mod tests {
         assert_eq!(scaffold.content, DEVCONTAINER_JSON);
         let parsed: serde_json::Value =
             serde_json::from_str(&scaffold.content).expect("valid JSON");
-        assert_eq!(parsed["name"], serde_json::Value::from("rules_dx"));
-        assert_eq!(
-            parsed["image"],
-            serde_json::Value::from("mcr.microsoft.com/devcontainers/base:ubuntu")
-        );
-        assert!(
-            parsed["features"]["ghcr.io/devcontainers/features/bazel:1"].is_object(),
-            "bazel feature must stay"
-        );
-        let extensions = parsed["customizations"]["vscode"]["extensions"]
-            .as_array()
-            .expect("vscode extensions array");
-        assert!(
-            extensions.contains(&serde_json::Value::from("rust-lang.rust-analyzer")),
-            "rust-analyzer extension must stay: {extensions:?}"
-        );
-        let post_create = parsed["postCreateCommand"]
+        let image = parsed["image"].as_str().expect("image string");
+        let (_, digest) = image
+            .split_once("@sha256:")
+            .expect("image pinned by digest");
+        assert_eq!(digest.len(), 64, "{image}");
+        for (feature, _) in parsed["features"].as_object().expect("features") {
+            let (_, version) = feature.rsplit_once(':').expect("feature version");
+            assert_eq!(version.split('.').count(), 3, "exact version: {feature}");
+        }
+        assert!(parsed.get("name").is_none());
+        assert!(parsed["customizations"].is_null());
+        assert!(parsed["mounts"][0]
             .as_str()
-            .expect("postCreateCommand string");
-        assert_eq!(
-            post_create, "bazel run @rules_dx//:dx -- env --apply",
-            "{post_create}"
-        );
-        assert!(!post_create.contains("dx:env"), "{post_create}");
-        assert!(!post_create.contains("setup"), "{post_create}");
-        assert!(
-            !post_create.contains("bazel build //..."),
-            "no full build on create: {post_create}"
-        );
-    }
-
-    #[test]
-    fn devcontainer_scaffold_runs_dx_through_the_public_label() {
-        assert!(
-            DEVCONTAINER_JSON.contains("bazel run @rules_dx//:dx -- env --apply"),
-            "{DEVCONTAINER_JSON}"
-        );
-        assert!(!DEVCONTAINER_JSON.contains("dx:env"), "{DEVCONTAINER_JSON}");
-        assert!(
-            !DEVCONTAINER_JSON.contains("//cli/cli:dx"),
-            "{DEVCONTAINER_JSON}"
-        );
+            .expect("cache mount")
+            .contains("type=volume"));
+        assert_eq!(parsed["postCreateCommand"], "tools/dx env --apply");
     }
 
     #[test]
@@ -625,10 +598,7 @@ mod tests {
             .iter()
             .find(|f| f.path == ".devcontainer/devcontainer.json")
             .expect("devcontainer scaffold");
-        assert!(devcontainer.content.contains("rust-lang.rust-analyzer"));
-        assert!(devcontainer
-            .content
-            .contains("llvm-vs-code-extensions.vscode-clangd"));
+        assert!(!devcontainer.content.contains("extensions"));
     }
 
     #[test]

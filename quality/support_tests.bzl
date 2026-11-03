@@ -408,9 +408,9 @@ def support_unit_tests(name):
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2 + ["supported", "check_only", "single"],
             ),
             expect_equal(
-                "cloudformation cfn_lint lint record is owned, batched, check-only and covers four platforms",
+                "cloudformation cfn_lint lint record is owned, batched, check-only and covers five platforms",
                 [with_platforms(CLOUDFORMATION_CFN_LINT_SUPPORT)["platforms"], CLOUDFORMATION_CFN_LINT_SUPPORT["fix"], CLOUDFORMATION_CFN_LINT_SUPPORT["transport"], CLOUDFORMATION_CFN_LINT_SUPPORT["context"]],
-                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
+                [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "cmake cmakelint lint record is owned, batched, check-only and covers four platforms",

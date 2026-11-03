@@ -1,0 +1,1 @@
+{"schema_version":1,"chart_root":"matrix/helm_clean","values":["matrix/helm_clean/values.yaml"],"release":"rel","namespace":"ns"}

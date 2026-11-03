@@ -47,6 +47,7 @@ DOCKERFILE_HADOLINT_SUPPORT = {
     "transport": "batched",
 }
 
+# ansible-core does not run on Windows, and cryptography has no Windows on Arm wheel.
 ANSIBLE_ANSIBLE_LINT_SUPPORT = {
     "artifact": "pinned",
     "capability": "lint",
@@ -59,7 +60,7 @@ ANSIBLE_ANSIBLE_LINT_SUPPORT = {
     "state": "supported",
     "tool": "ansible_lint",
     "transport": "batched",
-    "unsupported": ["windows_x86_64"],
+    "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
 BICEP_BICEP_FORMAT_SUPPORT = {
@@ -96,7 +97,7 @@ CLOUDFORMATION_CFN_LINT_SUPPORT = {
     "execution": "direct",
     "family": "cloudformation",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "cfn_lint",
     "transport": "batched",
@@ -110,7 +111,7 @@ KUBERNETES_KUBECONFORM_SUPPORT = {
     "execution": "direct",
     "family": "kubernetes",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "kubeconform",
     "transport": "batched",
@@ -124,7 +125,7 @@ HELM_HELM_SUPPORT = {
     "execution": "direct",
     "family": "helm",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "helm",
     "transport": "single",
@@ -165,7 +166,7 @@ CMAKE_GERSEMI_SUPPORT = {
     "execution": "direct",
     "family": "cmake",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "gersemi",
     "transport": "batched",

@@ -224,6 +224,17 @@ fn legacy_staging_dir_does_not_block_atomic_write() {
 }
 
 #[test]
+fn text_apply_names_each_written_file_in_path_order() {
+    let harness = two_file_replacements("text-apply-names");
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 0);
+    assert!(
+        out.contains("Applied: src/a.py\nApplied: src/b.py\nApplied 2 file(s).\n"),
+        "{out}"
+    );
+}
+
+#[test]
 fn diff_missing_source_fails() {
     let mut harness = Harness::new("diff-missing");
     harness.write_source("src/a.py", "x = 1\n");

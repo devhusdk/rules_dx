@@ -240,6 +240,9 @@ pub(crate) fn emit_findings(
             human_line(human, required, &line)?;
         }
         if request.applies() {
+            for (path, _) in applied.iter().filter(|(_, written)| **written) {
+                human_line(human, required, &format!("Applied: {path}"))?;
+            }
             applied_count = applied.values().filter(|applied| **applied).count() as u64;
             not_applied_count = not_applied.len() as u64;
             if applied_count > 0 {

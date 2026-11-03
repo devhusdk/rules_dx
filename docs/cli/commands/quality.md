@@ -49,7 +49,8 @@ dx format [--here] [--affected] [--apply] [--fail-on info|warning|error] [--base
 - `--apply`: write validated fixes and refresh the `--baseline` file.
   Without it files stay untouched.
   After `--apply`, findings point at files as written. Unwritten files keep
-  their checked positions.
+  their checked positions. Text output prints `Applied: <path>` for each
+  written file, in path order, then `Applied N file(s).`
 - `--fail-on info|warning|error`: severity that fails. Default `warning`.
 - `--baseline <file>`: suppress findings already in this workspace-relative
   `.json` baseline. See [Baselines](#baselines).

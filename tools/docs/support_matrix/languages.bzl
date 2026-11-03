@@ -176,7 +176,7 @@ ROWS = [
         "name": "apple",
         "section": "targets",
         "title": "Apple",
-        "workflows": ["apple.yml"],
+        "workflows": ["evidence.yml"],
     },
     {
         "ci_tests": ["//dockerfile/tests:bad_name_fails", "//dockerfile/tests:owns_dockerfile_class_test"],

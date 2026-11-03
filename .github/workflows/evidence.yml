@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target."
+        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests:macos_consumer_test //apple/tests:macos_app_consumer_test //apple/tests:macos_swift_consumer_test."
         required: true
       task:
         description: "One of test or build."
@@ -22,6 +22,11 @@ on:
         description: "Linux only: xcb, wayland or xcb,wayland. Starts Xvfb and a headless Weston and sets DX_QT_DISPLAYS."
         required: false
         default: ""
+      android:
+        description: "linux_x86_64 only: boot an Android emulator and run the device scenarios after the scope task."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -32,6 +37,10 @@ concurrency:
 
 env:
   MSYS2_ARG_CONV_EXCL: "//"
+  DX_ANDROID_API: "34"
+  DX_ANDROID_ABI: "x86_64"
+  DX_ANDROID_BUILD_TOOLS: "35.0.0"
+  DX_ANDROID_NDK: "27.2.12479018"
 
 jobs:
   validate:
@@ -155,6 +164,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Free disk space
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
@@ -172,6 +186,68 @@ jobs:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Record the Apple executor
+        if: ${{ matrix.platform == 'macos_arm64' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          {
+            sw_vers
+            uname -m
+            xcode-select -p
+            xcodebuild -version
+            xcodebuild -showsdks
+            ls -d /Applications/Xcode*.app
+            xcrun simctl list runtimes
+            xcrun swift -version
+            xcrun --sdk macosx --show-sdk-version
+            xcrun --sdk iphonesimulator --show-sdk-version
+            xcrun --sdk iphoneos --show-sdk-version
+          } 2>&1 | tee "$RUNNER_TEMP/evidence/executor.txt"
+      - name: Enable KVM
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          if [ ! -e /dev/kvm ]; then
+            echo "android: /dev/kvm is missing; this runner cannot run a hardware-accelerated emulator" && exit 1
+          fi
+      - name: Install the Android SDK packages
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" --install \
+            "platforms;android-$DX_ANDROID_API" \
+            "build-tools;$DX_ANDROID_BUILD_TOOLS" \
+            "ndk;$DX_ANDROID_NDK" \
+            "platform-tools" \
+            "emulator" \
+            "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI" > /dev/null
+          {
+            echo "ANDROID_SDK_ROOT=$ANDROID_HOME"
+            echo "ANDROID_NDK_REVISION=$DX_ANDROID_NDK"
+            echo "SDKMANAGER=$sdkmanager"
+            echo "EMULATOR=$ANDROID_HOME/emulator/emulator"
+            echo "ANDROID_HOME=$ANDROID_HOME"
+          } >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: Select the NDK toolchains
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          {
+            echo "build --extra_toolchains=@android_ndk_toolchain//:ndk_cc_toolchain_device,@android_ndk_toolchain//:ndk_cc_toolchain_emulator"
+            echo "test --test_env=ANDROID_HOME"
+          } > user.bazelrc
+      - name: Boot the emulator
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force -n dx \
+            -k "system-images;android-$DX_ANDROID_API;google_apis;$DX_ANDROID_ABI"
+          nohup "$EMULATOR" -avd dx -port 5554 -no-window -no-audio -no-boot-anim -no-snapshot \
+            -gpu swiftshader_indirect > "$RUNNER_TEMP/evidence/emulator.log" 2>&1 &
+          adb start-server
       - name: Start virtual displays
         if: ${{ inputs.displays != '' && startsWith(matrix.platform, 'linux') }}
         env:
@@ -220,6 +296,87 @@ jobs:
           else
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout="$DX_TEST_TIMEOUT" "${patterns[@]}" 2>&1 | tee evidence.log
           fi
+      - name: Wait for the emulator to boot
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          timeout 600 adb -s emulator-5554 wait-for-device
+          waited=0
+          until [ "$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+            if [ "$waited" -ge 600 ]; then
+              echo "android: emulator-5554 did not boot within 600 s" && tail -n 50 "$RUNNER_TEMP/evidence/emulator.log" && exit 1
+            fi
+            sleep 5
+            waited=$((waited + 5))
+          done
+          adb -s emulator-5554 shell settings put global window_animation_scale 0
+          adb -s emulator-5554 shell settings put global transition_animation_scale 0
+          adb -s emulator-5554 shell settings put global animator_duration_scale 0
+          adb -s emulator-5554 shell input keyevent KEYCODE_WAKEUP
+          adb -s emulator-5554 shell wm dismiss-keyguard
+      - name: Run the device scenario
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: sh android/tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
+      - name: Run the rust-android fixture on the emulator
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          set -o pipefail
+          checkout="$PWD"
+          evidence="$RUNNER_TEMP/evidence"
+          bazel build --noshow_progress //cli/cli:dx 2>&1 | tail -n 20
+          cp -L bazel-bin/cli/cli/dx "$RUNNER_TEMP/dx"
+          starter() {
+            set -e
+            cd "$RUNNER_TEMP"
+            ./dx init --apply demo-app --workspace "$RUNNER_TEMP"
+            fixture="$checkout/tools/testing/starters/fixtures/rust-android"
+            (cd "$fixture" && find . -type f -name '*.fixture') | while read -r file; do
+              dest="demo-app/${file#./}"
+              dest="${dest%.fixture}"
+              mkdir -p "$(dirname "$dest")"
+              case "$dest" in
+                demo-app/MODULE.bazel | demo-app/.bazelrc) printf '\n' >> "$dest" && cat "$fixture/$file" >> "$dest" ;;
+                *) cp "$fixture/$file" "$dest" ;;
+              esac
+            done
+            cd demo-app
+            printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
+            bazel build --noshow_progress --config=android :demo-app_apk_file
+            bazel build --noshow_progress --config=android :demo-app_release_sign
+            bazel test --noshow_progress --config=android :demo-app_check_test
+            adb -s emulator-5554 logcat -c
+            bazel run --noshow_progress --config=android :demo-app_install
+            bazel run --noshow_progress --config=android :demo-app_start
+            waited=0
+            until adb -s emulator-5554 logcat -d -s DxApp:I | grep -q 'greeting=Hello from Rust on Android!'; do
+              if [ "$waited" -ge 60 ]; then
+                echo "android: the starter greeting is absent from logcat after 60 s" && return 1
+              fi
+              sleep 1
+              waited=$((waited + 1))
+            done
+            adb -s emulator-5554 logcat -d -s DxApp:I | tee "$evidence/logcat-starter.txt"
+          }
+          code=0
+          (starter) > "$evidence/rust-android-starter.log" 2>&1 || code=$?
+          cat "$evidence/rust-android-starter.log"
+          echo "rust-android-starter $code" >> "$evidence/exit-codes.txt"
+          exit "$code"
+      - name: Run shared-rust on the emulator
+        if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
+        run: |
+          set -o pipefail
+          cd "$GITHUB_WORKSPACE"
+          adb -s emulator-5554 logcat -c
+          bazel run --noshow_progress //examples/shared-rust:install
+          bazel run --noshow_progress //examples/shared-rust:start
+          sleep 5
+          adb -s emulator-5554 shell input tap 200 400
+          adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
+          sleep 2
+          adb -s emulator-5554 shell input keyevent KEYCODE_BACK
+          sleep 2
+          adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
+          sh examples/shared-rust/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
       - name: Collect test logs
         if: always()
         run: |

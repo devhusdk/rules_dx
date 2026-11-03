@@ -129,6 +129,14 @@ pub fn workflow_platforms(
         let Some(runs_on) = job["runs-on"].as_str() else {
             return Err(format!("{path}: job {id} has no string runs-on"));
         };
+        if runs_on.contains("matrix.platform") {
+            for platform in runners.values() {
+                if !platforms.contains(platform) {
+                    platforms.push(platform.clone());
+                }
+            }
+            continue;
+        }
         let label = runner_label(runs_on);
         let Some(platform) = runners.get(label) else {
             return Err(format!(
@@ -305,8 +313,19 @@ jobs:
         let runners = runner_platforms("ci.yml", CI).expect("runners");
         let extra = "jobs:\n  apple:\n    runs-on: ${{ inputs.runner || 'macos-15' }}\n";
         assert_eq!(
-            workflow_platforms("apple.yml", extra, &runners).expect("platforms"),
+            workflow_platforms("evidence.yml", extra, &runners).expect("platforms"),
             ["macos_arm64"]
+        );
+    }
+
+    #[test]
+    fn maps_a_matrix_runner_to_every_platform() {
+        let runners = runner_platforms("ci.yml", CI).expect("runners");
+        let extra = "jobs:\n  evidence:\n    runs-on: ${{ fromJSON(needs.validate.outputs.runners)[matrix.platform] }}\n";
+        let platforms = workflow_platforms("evidence.yml", extra, &runners).expect("platforms");
+        assert!(
+            platforms.contains(&"macos_arm64".to_owned()),
+            "{platforms:?}"
         );
     }
 
@@ -314,7 +333,7 @@ jobs:
     fn rejects_an_unknown_runner() {
         let runners = runner_platforms("ci.yml", CI).expect("runners");
         let extra = "jobs:\n  apple:\n    runs-on: macos-26\n";
-        let error = workflow_platforms("apple.yml", extra, &runners).expect_err("unknown");
+        let error = workflow_platforms("evidence.yml", extra, &runners).expect_err("unknown");
         assert!(error.contains("macos-26"), "{error}");
     }
 

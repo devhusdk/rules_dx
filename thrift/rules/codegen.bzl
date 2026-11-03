@@ -6,9 +6,13 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
+load("//libs/starlark:defs.bzl", "display_label")
 load("//libs/starlark:stage.bzl", "stage_closure")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ThriftInfo")
+
+THRIFT_GENERATED_SRCS_GROUP = "thrift_generated_srcs"
 
 ThriftCcAspectInfo = provider(
     doc = "C++ generated and compiled for one thrift_library closure.",
@@ -196,6 +200,7 @@ def _java_library_impl(ctx):
     java_info = java_common.merge([info.java_info for info in aspect_infos] + [ctx.attr._runtime[JavaInfo]])
     return [
         DefaultInfo(files = depset(srcjars)),
+        OutputGroupInfo(thrift_generated_srcs = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
     ]
@@ -257,6 +262,7 @@ def _rust_srcs_impl(ctx):
         )
     return [
         DefaultInfo(files = depset([lib] + generated)),
+        OutputGroupInfo(thrift_generated_srcs = depset([lib] + generated)),
         dx_quality_sources([], [], str(ctx.label)),
     ]
 
@@ -296,3 +302,37 @@ def thrift_rust_library(name, deps, crate_name = None, **kwargs):
         deps = [Label("@dx_thrift//:rust_runtime")],
         **kwargs
     )
+
+def _shard_impl(ctx):
+    library = ctx.attr.library
+    if OutputGroupInfo not in library or THRIFT_GENERATED_SRCS_GROUP not in library[OutputGroupInfo]:
+        fail(
+            "thrift_codegen_shard " + display_label(ctx.label) + ": " +
+            display_label(library.label) + " has no " + THRIFT_GENERATED_SRCS_GROUP +
+            " output group (want a thrift_java_library or NAME_generated of a thrift_rust_library)",
+        )
+    return codegen_bound_shard_providers(
+        ctx,
+        "thrift_codegen_shard",
+        "thrift",
+        display_label(library.label),
+        THRIFT_GENERATED_SRCS_GROUP,
+        library[OutputGroupInfo][THRIFT_GENERATED_SRCS_GROUP].to_list(),
+    )
+
+thrift_codegen_shard = rule(
+    implementation = _shard_impl,
+    doc = "Declares codegen plan entries for the Rust and Java files thrift generates. Every generated file needs one entry with an EXEC_PATH suffix.",
+    attrs = {
+        "entries": attr.string_list(
+            doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
+            mandatory = True,
+        ),
+        "language": attr.string(doc = "rust or java.", mandatory = True),
+        "library": attr.label(
+            doc = "thrift_java_library, or the NAME_generated target of a thrift_rust_library, whose generated files the entries bind.",
+            mandatory = True,
+        ),
+        "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
+    },
+)

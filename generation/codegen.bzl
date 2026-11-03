@@ -43,6 +43,9 @@ DX_CODEGEN_ADMITTED_PAIRS = (
     ("capnp", "cpp"),
     ("capnp", "rust"),
     ("capnp", "java"),
+    ("thrift", "cpp"),
+    ("thrift", "rust"),
+    ("thrift", "java"),
     ("avro", "cpp"),
     ("avro", "java"),
 )

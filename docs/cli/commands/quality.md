@@ -1607,6 +1607,9 @@ qualified there. Code generation for Cap'n Proto is not available yet.
 
 ### Thrift
 
+For C++, Rust and Java code generation from `thrift_library` targets see
+[env](env.md#codegen-pairs).
+
 `thrift` 0.25.0 lints `.thrift` schemas. It is built from the pinned Apache
 release tarball (`@dx_thrift`), not downloaded as a binary, and runs on Linux
 x86_64. Select it in a `thrift` family. The family is opt-in and part of no
@@ -1655,7 +1658,7 @@ executable fails with `set --@rules_dx//config:tool_thrift to a thrift binary`.
 
 `thrift` lint and typecheck are supported on Linux x86_64 only. Linux arm64,
 macOS arm64 and Windows x86_64 are marked unsupported until `thrift` is
-qualified there. Code generation for Thrift is not available yet.
+qualified there.
 
 ### Avro
 

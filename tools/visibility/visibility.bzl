@@ -64,6 +64,7 @@ VIS_CLI_GENERATION = VIS_CLI + [
     "//avro/rules:__pkg__",
     "//capnproto/rules:__pkg__",
     "//flatbuffers/rules:__pkg__",
+    "//thrift/rules:__pkg__",
     "//api_spec/rules:__pkg__",
     "//generation:__pkg__",
 ]

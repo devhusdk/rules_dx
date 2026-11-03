@@ -112,7 +112,7 @@ bazel run @rules_dx//:dx -- env --output json
 ## Codegen pairs
 
 The codegen plan admits the generator/language pairs `("protobuf", "rust")`,
-`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")`, `("avro", "cpp")` and `("openapi", "typescript")`.
+`("flatbuffers", "cpp")`, `("flatbuffers", "rust")`, `("flatbuffers", "java")`, `("capnp", "cpp")`, `("capnp", "rust")`, `("capnp", "java")`, `("thrift", "cpp")`, `("thrift", "rust")`, `("thrift", "java")`, `("avro", "cpp")` and `("openapi", "typescript")`.
 
 The protobuf/rust pair comes from `prost_codegen_shard` in
 `@rules_dx//generation:codegen.bzl`. Point `proto_rs` at a `rust_prost_library`
@@ -220,6 +220,18 @@ same archive. Every schema needs the `$Java.package` annotation from
 `capnpc-java` fails with `no Java package name found`. Bind `capnp_codegen_shard`
 with `language = "java"` to the `capnp_java_library`; each entry's `EXEC_PATH` is
 the srcjar of one direct dep. Both pairs are built for Linux x86_64 only.
+
+The thrift pairs come from `@rules_dx//thrift/rules:codegen.bzl`. Each rule runs
+the pinned `thrift` 0.25.0 once per `thrift_library`, over its declared includes
+only, and builds against the runtime of the same release. `thrift_cc_library`,
+`thrift_java_library` and `thrift_rust_library(name, deps)` take
+`thrift_library` targets as `deps`. `thrift_codegen_shard` binds one plan entry
+with an `EXEC_PATH` suffix to each generated file. Use `language = "rust"` with
+the `NAME_generated` target of a `thrift_rust_library`; the entries list the
+`<stem>.rs` files and `lib.rs`. Use `language = "java"` with a
+`thrift_java_library`; each entry's `EXEC_PATH` is the srcjar of one direct dep.
+C++ output is a directory, so `thrift_codegen_shard` does not bind it yet.
+Thrift codegen is built for Linux x86_64 only.
 
 The avro/cpp pair comes from `avro_cc_library(name, deps, namespace)` in
 `@rules_dx//avro/rules:codegen.bzl`. It runs `avrogencpp` once per `.avsc` in the

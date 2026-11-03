@@ -76,6 +76,16 @@ def codegen_defs_unit_tests(name):
                 [True, True, True, False],
             ),
             expect_equal(
+                "codegen admits the thrift cpp, rust and java pairs and defers other languages",
+                [
+                    codegen_pair_error("thrift", "cpp") == "",
+                    codegen_pair_error("thrift", "rust") == "",
+                    codegen_pair_error("thrift", "java") == "",
+                    codegen_pair_error("thrift", "python") == "",
+                ],
+                [True, True, True, False],
+            ),
+            expect_equal(
                 "codegen admits the avro cpp and java pairs and defers rust",
                 [
                     codegen_pair_error("avro", "cpp") == "",

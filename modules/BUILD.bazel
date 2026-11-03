@@ -64,6 +64,7 @@ rust_test(
         "//lua/toolchain:BUILD.bazel",
         "//python/rules:runtime_tests.bzl",
         "//rust/rules:edition.bzl",
+        "//tools/docs/components:defs.bzl",
     ],
     deps = ["//tools/testing:dx_testing"],
 )

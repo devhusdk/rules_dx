@@ -1,0 +1,35 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/components:defs.bzl", "svelte_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+svelte_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.svelte"]) + ["svelte.config.js"],
+    entry_points = [
+        "src/Card.svelte",
+        "src/Tag.svelte",
+    ],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+
+exports_files(["src/Card.svelte"])
+
+filegroup(
+    name = "project",
+    testonly = True,
+    srcs = glob(["src/*"]) + [
+        "svelte.config.js",
+        "tsconfig.json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

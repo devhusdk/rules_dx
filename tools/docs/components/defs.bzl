@@ -1,10 +1,11 @@
 """Component API reference shards built from the pinned component metadata tools."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("//modules:versions.bzl", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//modules:versions.bzl", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _VUE_COMPONENT_META = Label("//quality/tools/javascript/bin:vue_component_meta")
+_SVELTE_COMPONENT_META = Label("//quality/tools/javascript/bin:svelte_component_meta")
 _META_SCHEMA = "dx-component-meta/1"
 
 def _component_doc_shard_impl(ctx):
@@ -86,5 +87,45 @@ def vue_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, pac
         package = package,
         source_prefix = native.package_name(),
         config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";vue-component-meta=" + VUE_COMPONENT_META_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        **kwargs
+    )
+
+def svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs):
+    """Declares a component metadata run over one Svelte project and its DocIr shard.
+
+    The metadata comes from the pinned `svelte2tsx` and the TypeScript checker, run
+    through an isolated launcher: `svelte.config.js` and other consumer JavaScript never
+    run. Only the consumer's `svelte` package is read from `node_modules`, for its type
+    declarations. Entry points are `.svelte` files using `$props()`. Symbol ids are
+    `svelte:<package>:<Component>` plus `.prop_` and `.slot_` members.
+    """
+    where = "svelte_doc_shard " + native.package_name() + ":" + name
+    if len(entry_points) == 0:
+        fail(where + ": need at least one entry point")
+    if package == "":
+        fail(where + ": package is required")
+    meta = name + ".component_meta.json"
+    arguments = ["--tsconfig", tsconfig, "--out", meta]
+    for entry in entry_points:
+        arguments.extend(["--entry", entry])
+    js_run_binary(
+        name = name + "_meta",
+        srcs = srcs + [tsconfig] + ([package_json] if package_json else []) + deps + [node_modules + "/svelte"],
+        args = arguments,
+        chdir = native.package_name(),
+        mnemonic = "DxSvelteComponentMeta",
+        resource_set = "mem_2g",
+        outs = [meta],
+        tags = kwargs.get("tags", []),
+        tool = _SVELTE_COMPONENT_META,
+        visibility = kwargs.get("visibility"),
+    )
+    component_doc_shard(
+        name = name,
+        meta = ":" + meta,
+        language = "svelte",
+        package = package,
+        source_prefix = native.package_name(),
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";svelte2tsx=" + SVELTE2TSX_VERSION + ";svelte=" + SVELTE_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
         **kwargs
     )

@@ -1,4 +1,4 @@
-//! Checks the Vue fixture shards and the converter's failure handling.
+//! Checks the Vue and Svelte fixture shards and the converter's failure handling.
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -191,5 +191,56 @@ fn the_converter_fails_without_writing_on_bad_metadata() {
             String::from_utf8_lossy(&status.stderr)
         );
         assert!(!out.exists(), "{name} must not write a stub");
+    }
+}
+
+#[test]
+fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
+    let shard = shard("DX_SVELTE_SHARD");
+    validate_shard(&shard).expect("validate_shard passes");
+    assert_eq!(
+        (shard.language.as_str(), shard.package.as_str()),
+        ("svelte", "ui")
+    );
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "svelte:ui:Card",
+            "svelte:ui:Card.prop_onselect",
+            "svelte:ui:Card.prop_rows",
+            "svelte:ui:Card.prop_title",
+            "svelte:ui:Card.slot_children",
+            "svelte:ui:Card.slot_footer",
+            "svelte:ui:Tag",
+            "svelte:ui:Tag.prop_label",
+        ]
+    );
+    let sig = |id: &str| find(&shard, id).signature_text.clone();
+    assert_eq!(sig("svelte:ui:Card.prop_title"), "title: string");
+    assert_eq!(sig("svelte:ui:Card.prop_rows"), "rows?: number = 3");
+    assert_eq!(
+        find(&shard, "svelte:ui:Card.prop_title").doc_markdown,
+        "Heading of the card."
+    );
+    assert_eq!(
+        find(&shard, "svelte:ui:Card.slot_footer").kind,
+        SymbolKind::Slot as i32
+    );
+    let source =
+        std::fs::read_to_string(runfile("DX_SVELTE_CARD_SOURCE")).expect("read Card.svelte");
+    for (id, needle) in [
+        ("svelte:ui:Card.prop_title", "    title: string;"),
+        ("svelte:ui:Card.prop_rows", "    rows?: number;"),
+        ("svelte:ui:Card.prop_onselect", "    onselect?:"),
+        ("svelte:ui:Card.slot_children", "    children: Snippet;"),
+        ("svelte:ui:Card.slot_footer", "    footer?: Snippet"),
+    ] {
+        let reference = find(&shard, id).source.clone().expect("source");
+        assert_eq!(
+            reference.file, "tools/docs/components/fixture/svelte/src/Card.svelte",
+            "{id}"
+        );
+        assert_eq!(reference.line, line_of(&source, needle), "{id}");
     }
 }

@@ -133,10 +133,25 @@ js_binary(
 js_binary(
     name = "vue_component_meta",
     data = [
+        "component_meta_common.mjs",
         "//quality/tools/javascript:node_modules/typescript",
         "//quality/tools/javascript:node_modules/vue-component-meta",
     ],
     entry_point = "vue_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+# Isolated launcher: never loads svelte.config.js or any module outside its node_modules.
+js_binary(
+    name = "svelte_component_meta",
+    data = [
+        "component_meta_common.mjs",
+        "//quality/tools/javascript:node_modules/@jridgewell/trace-mapping",
+        "//quality/tools/javascript:node_modules/svelte",
+        "//quality/tools/javascript:node_modules/svelte2tsx",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "svelte_component_meta.mjs",
     visibility = ["//visibility:public"],
 )
 

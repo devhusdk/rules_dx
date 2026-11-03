@@ -201,7 +201,44 @@ the tsconfig and in every file it extends, refuses to load modules outside its o
 entry point, a missing tsconfig, an entry without a default export and a malformed
 result all fail the build with a nonzero exit and never write a stub shard.
 
-Svelte, Astro and MDX components are not supported yet.
+## Svelte component API reference
+
+`svelte_doc_shard` from `@rules_dx//tools/docs/components:defs.bzl` reads the props and
+snippets of Svelte 5 components with the pinned `svelte2tsx` and the TypeScript
+checker, and produces a docs IR shard with language `svelte`. Pass the shard to
+`docs_site` beside any other shards.
+
+```starlark
+load("@rules_dx//tools/docs/components:defs.bzl", "svelte_doc_shard")
+
+svelte_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.svelte"]),
+    entry_points = ["src/Card.svelte"],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+```
+
+Supported shapes are `.svelte` components with `<script lang="ts">` that read their
+props with `$props()`. Each entry point is one component. Props typed `Snippet` or
+`Snippet<...>` are listed as slots, all other props as props. Defaults come from the
+`$props()` destructuring. Events and exposed members are not listed.
+Symbol ids are `svelte:<package>:<Component>`, and the members are
+`<Component>.prop_<name>` and `.slot_<name>`. Component names are file names without
+the extension and must be unique in a shard.
+
+`node_modules` is the consumer's npm link target. Only its `svelte` package is read,
+for the type declarations. The `tsconfig` may sit at any path in the package and may
+extend files listed in `srcs`.
+
+The rule never reads `svelte.config.js`, refuses to load modules outside its own
+`node_modules`, and never runs other consumer JavaScript. A parse error, a type error
+in an entry point, a component without `$props()` and a malformed result all fail the
+build with a nonzero exit and never write a stub shard.
+
+Astro and MDX components are not supported yet.
 
 ## Go API reference
 

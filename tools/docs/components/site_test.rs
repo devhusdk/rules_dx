@@ -1,7 +1,11 @@
-//! Feeds the Vue fixture shard to the site aggregator.
+//! Feeds the Vue and Svelte fixture shards to the site aggregator.
 
 fn fixture() -> documentation_ir::proto::DocIr {
-    let rel = std::env::var("DX_FIXTURE_SHARD").expect("DX_FIXTURE_SHARD");
+    shard("DX_FIXTURE_SHARD")
+}
+
+fn shard(var: &str) -> documentation_ir::proto::DocIr {
+    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
     let bytes = std::fs::read(dx_testing::resolve_runfiles(&rel)).expect("read the shard");
     documentation_ir::decode_shard(&bytes).expect("decode")
 }
@@ -46,6 +50,26 @@ fn components_render_with_member_groups_and_search_records() {
     );
     assert!(
         rendered.records.contains("Button.vue prop_label"),
+        "{}",
+        rendered.records
+    );
+}
+
+#[test]
+fn svelte_components_render_with_member_groups_and_search_records() {
+    let rendered = dx_site_aggregate::render(&[shard("DX_SVELTE_SHARD")], "").expect("render");
+    let page = &rendered.pages["svelte/ui/Card.md"];
+    assert!(page.starts_with("# `Card.svelte`"), "{page}");
+    for group in ["Props: ", "Slots: "] {
+        assert!(
+            page.contains(&format!("\n{group}")),
+            "{group} missing in {page}"
+        );
+    }
+    let prop = &rendered.pages["svelte/ui/Card.prop_title.md"];
+    assert!(prop.contains("```text\ntitle: string\n```"), "{prop}");
+    assert!(
+        rendered.records.contains("Card.svelte prop_title"),
         "{}",
         rendered.records
     );

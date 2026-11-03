@@ -21,6 +21,8 @@ rust_test(
         "//tools/docs/components/fixture/vue:ui_docs.component_meta.json",
         "//tools/docs/components/fixture/vue:ui_docs_loose",
         "//tools/docs/components/fixture/vue:ui_docs_loose.component_meta.json",
+        "//tools/docs/components/fixture/svelte:src/Card.svelte",
+        "//tools/docs/components/fixture/svelte:ui_docs",
     ],
     env = {
         "DX_COMPONENT_EXTRACT": "$(rootpath //tools/docs/components/extract:component_extract)",
@@ -29,6 +31,8 @@ rust_test(
         "DX_FIXTURE_LOOSE_SHARD": "$(rootpath //tools/docs/components/fixture/vue:ui_docs_loose)",
         "DX_FIXTURE_META": "$(rootpath //tools/docs/components/fixture/vue:ui_docs.component_meta.json)",
         "DX_FIXTURE_SHARD": "$(rootpath //tools/docs/components/fixture/vue:ui_docs)",
+        "DX_SVELTE_CARD_SOURCE": "$(rootpath //tools/docs/components/fixture/svelte:src/Card.svelte)",
+        "DX_SVELTE_SHARD": "$(rootpath //tools/docs/components/fixture/svelte:ui_docs)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
@@ -43,8 +47,14 @@ rust_test(
     name = "site_test",
     size = "small",
     srcs = ["site_test.rs"],
-    data = ["//tools/docs/components/fixture/vue:ui_docs"],
-    env = {"DX_FIXTURE_SHARD": "$(rootpath //tools/docs/components/fixture/vue:ui_docs)"},
+    data = [
+        "//tools/docs/components/fixture/svelte:ui_docs",
+        "//tools/docs/components/fixture/vue:ui_docs",
+    ],
+    env = {
+        "DX_FIXTURE_SHARD": "$(rootpath //tools/docs/components/fixture/vue:ui_docs)",
+        "DX_SVELTE_SHARD": "$(rootpath //tools/docs/components/fixture/svelte:ui_docs)",
+    },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -59,13 +69,17 @@ rust_test(
     size = "small",
     srcs = ["isolation_test.rs"],
     data = [
+        "//quality/tools/javascript/bin:svelte_component_meta",
         "//quality/tools/javascript/bin:vue_component_meta",
         "//tools/docs/components/fixture/bad:project",
         "//tools/docs/components/fixture/hostile:project",
+        "//tools/docs/components/fixture/svelte:project",
     ],
     env = {
         "DX_BAD_FILES": "$(rootpaths //tools/docs/components/fixture/bad:project)",
         "DX_HOSTILE_FILES": "$(rootpaths //tools/docs/components/fixture/hostile:project)",
+        "DX_SVELTE_COMPONENT_META": "$(rootpath //quality/tools/javascript/bin:svelte_component_meta)",
+        "DX_SVELTE_FILES": "$(rootpaths //tools/docs/components/fixture/svelte:project)",
         "DX_VUE_COMPONENT_META": "$(rootpath //quality/tools/javascript/bin:vue_component_meta)",
     },
     tags = ["no-coverage"],

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@graphql-eslint/eslint-plugin": "4.4.2",
+    "@jridgewell/trace-mapping": "0.3.31",
     "@mdx-js/language-service": "0.7.4",
     "@prettier/plugin-php": "0.26.0",
     "@prettier/plugin-xml": "3.4.2",
@@ -37,6 +38,7 @@
     "remark-stringify": "11.0.0",
     "stylelint": "17.14.1",
     "svelte": "5.57.0",
+    "svelte2tsx": "0.7.63",
     "svelte-eslint-parser": "1.10.0",
     "typedoc": "0.28.20",
     "typescript": "5.9.3",

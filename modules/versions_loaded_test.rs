@@ -8,6 +8,7 @@ const LOADERS: &[&str] = &[
     "lua/toolchain/BUILD.bazel",
     "python/rules/runtime_tests.bzl",
     "rust/rules/edition.bzl",
+    "tools/docs/components/defs.bzl",
 ];
 
 /// Top-level `NAME = ...` constants of a .bzl source.

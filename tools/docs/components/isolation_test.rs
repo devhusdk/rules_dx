@@ -1,4 +1,4 @@
-//! Checks that consumer configuration cannot inject plugins into the Vue launcher and that
+//! Checks that consumer configuration cannot inject plugins into the Vue and Svelte launchers and that
 //! every failure path exits nonzero without writing a stub.
 
 use std::path::{Path, PathBuf};
@@ -142,6 +142,46 @@ fn bad_inputs_fail_without_a_stub() {
         assert!(
             !root.join("out.json").exists(),
             "{name}: a stub was written"
+        );
+    }
+}
+
+fn svelte_launcher() -> PathBuf {
+    runfile(&std::env::var("DX_SVELTE_COMPONENT_META").expect("DX_SVELTE_COMPONENT_META"))
+}
+
+#[test]
+fn svelte_bad_inputs_fail_without_a_stub_and_the_config_never_loads() {
+    let scratch = dx_test_scratch::scratch("svelte-bad");
+    let root = scratch.path();
+    stage("DX_BAD_FILES", "fixture/bad/", root);
+    stage("DX_SVELTE_FILES", "fixture/svelte/", root);
+    for (name, entry) in [
+        ("parse error", "src/Broken.svelte"),
+        ("type error", "src/WrongDefault.svelte"),
+    ] {
+        let output = Command::new(svelte_launcher())
+            .env("BAZEL_BINDIR", ".")
+            .current_dir(root)
+            .args([
+                "--tsconfig",
+                "tsconfig.json",
+                "--out",
+                "out.json",
+                "--entry",
+                entry,
+            ])
+            .output()
+            .expect("run the launcher");
+        assert_eq!(output.status.code(), Some(2), "{name}: {}", text(&output));
+        assert!(text(&output).contains(entry), "{name}: {}", text(&output));
+        assert!(
+            !root.join("out.json").exists(),
+            "{name}: a stub was written"
+        );
+        assert!(
+            !root.join("svelte_config_loaded.marker").exists(),
+            "{name}: svelte.config.js ran"
         );
     }
 }

@@ -10,99 +10,11 @@
 // usage: vue_component_meta.mjs --tsconfig FILE --out FILE --entry FILE [--entry FILE]...
 // Exit codes: 0 ok, 1 usage or configuration error, 2 extraction error.
 import fs from "node:fs";
-import Module, { createRequire } from "node:module";
+import { createRequire } from "node:module";
 import path from "node:path";
+import { Failure, byName, clean, installLoadGuard, lineOf, parseArgs, posix, readConfig, relative, run, writeMeta } from "./component_meta_common.mjs";
 
-const SCHEMA = "dx-component-meta/1";
-
-class Failure extends Error {
-  constructor(code, message) {
-    super(message);
-    this.code = code;
-  }
-}
-
-function installLoadGuard() {
-  const here = createRequire(import.meta.url);
-  const resolved = fs.realpathSync(here.resolve("vue-component-meta/package.json"));
-  const marker = `${path.sep}node_modules${path.sep}`;
-  const at = resolved.indexOf(marker);
-  if (at < 0) {
-    throw new Failure(1, `cannot locate the launcher node_modules from ${resolved}`);
-  }
-  const root = resolved.slice(0, at + marker.length - 1);
-  const launcher = fs.realpathSync(new URL(import.meta.url));
-  const original = Module._resolveFilename;
-  Module._resolveFilename = function (request, parent, ...rest) {
-    const filename = original.call(this, request, parent, ...rest);
-    if (path.isAbsolute(filename)) {
-      let real = filename;
-      try {
-        real = fs.realpathSync(filename);
-      } catch {}
-      if (real !== launcher && !real.startsWith(root + path.sep)) {
-        throw new Error(`refusing to load ${filename} from outside the launcher node_modules`);
-      }
-    }
-    return filename;
-  };
-}
-
-function parseArgs(argv) {
-  const out = { entries: [] };
-  for (let i = 0; i < argv.length; i += 2) {
-    const flag = argv[i];
-    const value = argv[i + 1];
-    if (value === undefined || value === "") {
-      throw new Failure(1, `${flag} needs a value`);
-    }
-    if (flag === "--entry") {
-      out.entries.push(value);
-    } else if (flag === "--tsconfig" || flag === "--out") {
-      if (out[flag.slice(2)] !== undefined) {
-        throw new Failure(1, `${flag} given more than once`);
-      }
-      out[flag.slice(2)] = value;
-    } else {
-      throw new Failure(1, `unknown argument '${flag}'`);
-    }
-  }
-  if (!out.tsconfig || !out.out || out.entries.length === 0) {
-    throw new Failure(1, "usage: --tsconfig FILE --out FILE --entry FILE [--entry FILE]...");
-  }
-  return out;
-}
-
-const posix = (p) => p.split(path.sep).join("/");
-
-// Reads the tsconfig and every file it extends, failing on any diagnostic or any
-// `vueCompilerOptions.plugins`. Returns the JSON for createCheckerByJson.
-function readConfig(ts, tsconfigPath) {
-  const text = ts.sys.readFile(tsconfigPath);
-  if (text === undefined) {
-    throw new Failure(1, `cannot read ${tsconfigPath}`);
-  }
-  const read = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
-  if (read.error) {
-    throw new Failure(1, ts.flattenDiagnosticMessageText(read.error.messageText, "\n"));
-  }
-  const files = new Set();
-  const host = {
-    ...ts.sys,
-    readFile(fileName) {
-      if (!fileName.endsWith("/package.json")) {
-        files.add(fileName);
-      }
-      return ts.sys.readFile(fileName);
-    },
-    readDirectory: () => [],
-  };
-  const parsed = ts.parseJsonConfigFileContent(read.config, host, path.dirname(path.resolve(tsconfigPath)), {}, path.resolve(tsconfigPath));
-  const errors = parsed.errors.filter((e) => e.code !== 18003); // no inputs found
-  if (errors.length > 0) {
-    throw new Failure(1, errors.map((e) => ts.flattenDiagnosticMessageText(e.messageText, "\n")).join("\n"));
-  }
-  files.add(path.resolve(tsconfigPath));
+function checkPlugins(ts, files) {
   for (const file of files) {
     const chained = ts.readConfigFile(file, ts.sys.readFile);
     if (chained.error) {
@@ -113,15 +25,6 @@ function readConfig(ts, tsconfigPath) {
       throw new Failure(1, `${file}: vueCompilerOptions.plugins is not supported (plugins run arbitrary JavaScript)`);
     }
   }
-  return read.config;
-}
-
-function relative(file, cwd) {
-  const rel = posix(path.relative(cwd, file));
-  if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel) || rel.split("/").includes("node_modules")) {
-    return "";
-  }
-  return rel;
 }
 
 // Declaration ranges are UTF-16 offsets into the file text; JS strings are UTF-16.
@@ -134,17 +37,7 @@ function locate(declarations, cwd, cache) {
     cache.set(first.file, fs.readFileSync(first.file, "utf8"));
   }
   const content = cache.get(first.file);
-  let line = 1;
-  for (let i = 0; i < first.range[0] && i < content.length; i++) {
-    if (content.charCodeAt(i) === 10) {
-      line++;
-    }
-  }
-  return { file: relative(first.file, cwd), line };
-}
-
-function clean(text) {
-  return String(text ?? "").replace(/\r\n?/g, "\n");
+  return { file: relative(first.file, cwd), line: lineOf(content, first.range[0]) };
 }
 
 function member(item, cwd, cache, extra) {
@@ -160,12 +53,10 @@ function member(item, cwd, cache, extra) {
   };
 }
 
-const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const cwd = process.cwd();
-  installLoadGuard();
+  installLoadGuard("vue-component-meta");
   const ts = (await import("typescript")).default;
   const meta = await import("vue-component-meta");
   const metaVersion = JSON.parse(
@@ -173,7 +64,8 @@ async function main() {
   ).version;
 
   const tsconfigPath = path.resolve(args.tsconfig);
-  const json = readConfig(ts, tsconfigPath);
+  const { json, files } = readConfig(ts, tsconfigPath);
+  checkPlugins(ts, files);
   const checker = meta.createCheckerByJson(posix(path.dirname(tsconfigPath)), json, {
     schema: false,
     printer: { newLine: ts.NewLineKind.LineFeed },
@@ -232,25 +124,7 @@ async function main() {
         .sort(byName),
     });
   }
-  components.sort(byName);
-  const output = {
-    schema: SCHEMA,
-    framework: "vue",
-    tools: { "vue-component-meta": metaVersion, typescript: ts.version },
-    components,
-  };
-  fs.writeFileSync(args.out, JSON.stringify(output, null, 2) + "\n");
+  writeMeta(args.out, "vue", { "vue-component-meta": metaVersion, typescript: ts.version }, components);
 }
 
-try {
-  await main();
-  process.exit(0);
-} catch (error) {
-  if (error instanceof Failure) {
-    console.error(`vue_component_meta: ${error.message}`);
-    process.exit(error.code);
-  }
-  console.error("vue_component_meta: unexpected error");
-  console.error(error);
-  process.exit(2);
-}
+await run("vue_component_meta", main);

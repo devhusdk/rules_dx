@@ -2145,6 +2145,9 @@ bazel run @rules_dx//:dx -- format -- --@rules_dx//config:tool_stylua=//tools:st
 `terraform` family. It runs on Linux x86_64 and arm64, macOS arm64 and Windows x86_64. It never runs `init`, reads state
 or contacts a backend.
 
+The managed `terraform` pin is licensed under BUSL-1.1, which restricts some
+uses. See the [license](https://github.com/hashicorp/terraform/blob/v1.16.1/LICENSE).
+
 ```python
 quality_family(
     name = "terraform_family",

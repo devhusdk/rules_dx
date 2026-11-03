@@ -130,15 +130,19 @@ def _extension_impl(ctx):
         hub[name] = {"repos": repos, "source": source}
     hub_repo(name = "dx_terraform_providers", files = {"BUILD.bazel": hub_build(hub)})
 
-_provider = tag_class(attrs = {
-    "name": attr.string(mandatory = True, doc = "Target name in @dx_terraform_providers."),
-    "sha256": attr.string_dict(mandatory = True, doc = "Target platform to hex sha256 of the official zip."),
-    "source": attr.string(mandatory = True, doc = "Provider source address HOST/NAMESPACE/TYPE."),
-    "urls": attr.string_dict(doc = "Target platform to zip URL; optional for registry.terraform.io/hashicorp."),
-    "version": attr.string(mandatory = True, doc = "Provider version."),
-})
+_provider = tag_class(
+    doc = "Declares a Terraform provider to fetch into @dx_terraform_providers.",
+    attrs = {
+        "name": attr.string(mandatory = True, doc = "Target name in @dx_terraform_providers."),
+        "sha256": attr.string_dict(mandatory = True, doc = "Target platform to hex sha256 of the official zip."),
+        "source": attr.string(mandatory = True, doc = "Provider source address HOST/NAMESPACE/TYPE."),
+        "urls": attr.string_dict(doc = "Target platform to zip URL; optional for registry.terraform.io/hashicorp."),
+        "version": attr.string(mandatory = True, doc = "Provider version."),
+    },
+)
 
 dx_terraform = module_extension(
+    doc = "Builds @dx_terraform_providers with one target per declared provider.",
     implementation = _extension_impl,
     tag_classes = {"provider": _provider},
 )

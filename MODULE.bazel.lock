@@ -3625,7 +3625,7 @@
     },
     "//terraform:extensions.bzl%dx_terraform": {
       "general": {
-        "bzlTransitiveDigest": "16YddRylya+k9INrv4MZv6R8yWe0zirX7REuI0UHGBI=",
+        "bzlTransitiveDigest": "s5CwbrrXOcu09Dw+IXMN6a3xlU/Bf+0x0sjhZnT1vHM=",
         "usagesDigest": "iURhdMEe58I9hRcgI9ncnEed0HDMCyw03zc8Tbvi/s8=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

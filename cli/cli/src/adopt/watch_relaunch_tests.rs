@@ -138,7 +138,6 @@ fn watch_run_builds_then_runs_the_app_again_after_each_change() {
             "launch {n} should be {verb}: {launch}"
         );
     }
-    #[cfg(unix)]
     for old in [2, 4] {
         dx_testing::assert_alive_lock_released(&watch.state.join(format!("alive-{old}")));
     }

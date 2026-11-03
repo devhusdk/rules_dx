@@ -39,7 +39,6 @@
   "rules_cc": "0.2.27",
   "rules_cuda": "0.3.0",
   "rules_dart": "0.8.1",
-  "rules_dotnet": "0.22.2",
   "rules_go": "0.64.2",
   "rules_java": "9.9.0",
   "rules_julia": "0.8.0",

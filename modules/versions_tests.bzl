@@ -89,7 +89,6 @@ def versions_contract_tests(name):
             "//examples:consumer-ci/README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//rust/rules:README.md": "rustfmt_version = \"" + _RUSTFMT_VERSION + "\",\n    versions = [\"" + _RUST_VERSION + "\"],",
             "//:rustfmt.toml": "edition = \"" + _RUST_EDITION + "\"",
-            "//cli/cli/tests/nuget_sets:tests/nuget_sets.rs": "dotnet_version = \"" + _DOTNET_VERSION + "\"",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +
@@ -119,7 +118,6 @@ def versions_contract_tests(name):
                                "name = \"rules_java\", version = \"" + _RULES_JAVA_VERSION + "\"\n" +
                                "name = \"rules_kotlin\", version = \"" + _RULES_KOTLIN_VERSION + "\"\n" +
                                "name = \"rules_scala\", version = \"" + _RULES_SCALA_VERSION + "\"\n" +
-                               "name = \"rules_dotnet\", version = \"" + _RULES_DOTNET_VERSION + "\"\n" +
                                "name = \"bazel_lib\", version = \"" + _BAZEL_LIB_VERSION + "\"\n" +
                                "name = \"rules_jvm_external\", version = \"" + _RULES_JVM_EXTERNAL_VERSION + "\"\n" +
                                "name = \"rules_zig\", version = \"" + _RULES_ZIG_VERSION + "\"\n" +

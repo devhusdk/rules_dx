@@ -248,21 +248,6 @@ dx_terraform.provider(
 )
 use_repo(dx_terraform, "dx_terraform_providers")
 
-# sdk_versions.patch adds .NET SDK 10.0.403 (security); drop on the next rules_dotnet release (upstream #588)
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_dotnet", version = "0.22.2")
-single_version_override(
-    module_name = "rules_dotnet",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_dotnet:reproducible.patch",
-        "//patches/rules_dotnet:fsharp_signature.patch",
-        "//patches/rules_dotnet:nuget_group_prefix.patch",
-        "//patches/rules_dotnet:sdk_versions.patch",
-    ],
-    version = "0.22.2",
-)
-
 # floor: forced by rules_dart 0.8.1 MVS (#1783)
 bazel_dep(name = "bazel_lib", version = "3.7.2")
 single_version_override(
@@ -270,9 +255,42 @@ single_version_override(
     version = "3.7.2",
 )
 
-dotnet = use_extension("@rules_dotnet//dotnet:extensions.bzl", "dotnet")
+dotnet_tools = use_extension("//dotnet:repos.bzl", "dotnet_tools")
+use_repo(dotnet_tools, "rules_dotnet")
+
+dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
-use_repo(dotnet, "dotnet_toolchains")
+dotnet.toolchain(
+    name = "dotnet_apphost",
+    dotnet_version = "10.0.403",
+)
+use_repo(
+    dotnet,
+    "dotnet_apphost_aarch64-apple-darwin",
+    "dotnet_apphost_arm64-pc-windows-msvc",
+    "dotnet_apphost_arm64-unknown-linux-gnu",
+    "dotnet_apphost_x86_64-apple-darwin",
+    "dotnet_apphost_x86_64-pc-windows-msvc",
+    "dotnet_apphost_x86_64-unknown-linux-gnu",
+    "dotnet_toolchains",
+)
+
+register_toolchains("@dotnet_toolchains//:all")
+
+paket2bazel_dependencies_extension = use_extension("//dotnet:extensions.bzl", "paket2bazel_dependencies_extension")
+use_repo(paket2bazel_dependencies_extension, "paket.paket2bazel_dependencies")
+
+rules_dotnet_nuget_packages_extension = use_extension("//dotnet:extensions.bzl", "rules_dotnet_nuget_packages_extension")
+use_repo(rules_dotnet_nuget_packages_extension, "paket.rules_dotnet_nuget_packages")
+
+targeting_packs_extension = use_extension("//dotnet:extensions.bzl", "targeting_packs_extension")
+use_repo(targeting_packs_extension, "dotnet.targeting_packs")
+
+runtime_packs_extension = use_extension("//dotnet:extensions.bzl", "runtime_packs_extension")
+use_repo(runtime_packs_extension, "dotnet.runtime_packs")
+
+apphost_packs_extension = use_extension("//dotnet:extensions.bzl", "apphost_packs_extension")
+use_repo(apphost_packs_extension, "dotnet.apphost_packs")
 
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
 use_repo(

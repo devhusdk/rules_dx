@@ -76,25 +76,6 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
-        module: "rules_dotnet",
-        version: "0.22.2",
-        patch_strip: 1,
-        patches: &[
-            OverridePatch {
-                file: "reproducible.patch",
-                content: include_str!("../../../patches/rules_dotnet/reproducible.patch"),
-            },
-            OverridePatch {
-                file: "fsharp_signature.patch",
-                content: include_str!("../../../patches/rules_dotnet/fsharp_signature.patch"),
-            },
-            OverridePatch {
-                file: "sdk_versions.patch",
-                content: include_str!("../../../patches/rules_dotnet/sdk_versions.patch"),
-            },
-        ],
-    },
-    Override {
         module: "aspect_rules_py",
         version: "2.0.0-alpha.10",
         patch_strip: 1,

@@ -677,8 +677,7 @@ loads the generated `paket.<group>.bzl` files. The set's manifest is the
 `paket.dependencies` in the parent of that folder, and its locks are the
 `paket.lock` beside it plus every `paket.<group>.bzl`. dx ignores the
 `paket.<group>_extension.bzl` files `paket2bazel` also writes. The root
-`MODULE.bazel` must have `bazel_dep(name = "rules_dotnet")` with no `repo_name`,
-and every `source` in `paket.dependencies` must be http(s). Violations are
+Every `source` in `paket.dependencies` must be http(s). Violations are
 `unsupported`.
 
 ```starlark

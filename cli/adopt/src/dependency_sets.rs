@@ -1401,20 +1401,6 @@ fn check_nuget_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
             "generated paket .bzl locks must share one folder".to_owned(),
         ));
     }
-    let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
-        .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
-    let module = dx_module_bazel::ModuleFile::parse(&root)
-        .map_err(|error| unsupported(format!("cannot parse {MODULE_BAZEL}: {error}")))?;
-    let dep = module.bazel_dep("rules_dotnet").map_err(|_| {
-        unsupported(format!(
-            "{MODULE_BAZEL} needs bazel_dep(name = \"rules_dotnet\")"
-        ))
-    })?;
-    if dep.arg("repo_name").is_some() {
-        return Err(unsupported(
-            "the rules_dotnet bazel_dep must not set repo_name".to_owned(),
-        ));
-    }
     for manifest in &set.manifests {
         let text = std::fs::read_to_string(workspace.join(manifest))
             .map_err(|error| unsupported(format!("cannot read {manifest}: {error}")))?;
@@ -3050,7 +3036,7 @@ mod tests {
         .expect("valid")
     }
 
-    const NUGET_MODULE: &str = "bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\n";
+    const NUGET_MODULE: &str = "module(name = \"consumer\")\n";
 
     fn nuget_workspace(
         locks: &[&str],
@@ -3137,7 +3123,7 @@ mod tests {
             main,
             "third_party/dotnet/deps/paket.main_extension.bzl",
         ];
-        let cases: [(&[&str], &str, &str, &str); 6] = [
+        let cases: [(&[&str], &str, &str, &str); 4] = [
             (notes, NUGET_MODULE, dependencies, "neither paket.lock"),
             (other, NUGET_MODULE, dependencies, "share one folder"),
             (
@@ -3145,18 +3131,6 @@ mod tests {
                 NUGET_MODULE,
                 dependencies,
                 "paket2bazel extension",
-            ),
-            (
-                &NUGET_LOCKS,
-                "bazel_dep(name = \"other\", version = \"1\")\n",
-                dependencies,
-                "rules_dotnet",
-            ),
-            (
-                &NUGET_LOCKS,
-                "bazel_dep(name = \"rules_dotnet\", version = \"1\", repo_name = \"dn\")\n",
-                dependencies,
-                "repo_name",
             ),
             (
                 &NUGET_LOCKS,

@@ -12,19 +12,6 @@ const MODULE: &str = r#"module(name = "renamed_jvm_docs_consumer")
 bazel_dep(name = "rules_dx", version = "0.0.0", repo_name = "dxr")
 local_path_override(module_name = "rules_dx", path = "RULES_DX")
 
-# The dotnet toolchain rules_dx registers needs the patched rules_dotnet; overrides of a
-# dependency apply only in the root module.
-single_version_override(
-    module_name = "rules_dotnet",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_dotnet:reproducible.patch",
-        "//patches/rules_dotnet:fsharp_signature.patch",
-        "//patches/rules_dotnet:sdk_versions.patch",
-    ],
-    version = "0.22.2",
-)
-
 bazel_dep(name = "rules_kotlin", version = "RULES_KOTLIN")
 bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "rules_scala", version = "RULES_SCALA")
@@ -156,12 +143,6 @@ const SOURCES: [(&str, &str); 3] = [
     ("scala/dx/consumer/shapes/Shape.scala", SCALA_SHAPE),
 ];
 
-const DOTNET_PATCHES: [&str; 3] = [
-    "reproducible.patch",
-    "fsharp_signature.patch",
-    "sdk_versions.patch",
-];
-
 const OFFLINE: [&str; 3] = [
     "--nofetch",
     "--repository_disable_download",
@@ -197,11 +178,6 @@ fn consumer(name: &str) -> Case {
             .replace("RULES_SCALA", &override_pin(&module, "rules_scala")),
     );
     write(&root.join(".bazelrc"), "common --enable_bzlmod\nbuild --java_runtime_version=remotejdk_21\nbuild --tool_java_runtime_version=remotejdk_21\n");
-    write(&root.join("patches/rules_dotnet/BUILD.bazel"), "");
-    for patch in DOTNET_PATCHES {
-        let from = rules.join("patches/rules_dotnet").join(patch);
-        write(&root.join("patches/rules_dotnet").join(patch), &read(&from));
-    }
     write(&root.join("BUILD.bazel"), ROOT_BUILD);
     write(&root.join("book.toml"), BOOK_TOML);
     write(&root.join("prose.md"), PROSE);

@@ -105,7 +105,6 @@ CONSUMER_BAZEL_DEPS = {
     "rules_android": struct(floor = RULES_ANDROID_VERSION, tested = RULES_ANDROID_VERSION),
     "rules_kotlin": struct(floor = FLOOR_RULES_KOTLIN, tested = TESTED_RULES_KOTLIN),
     "rules_scala": struct(floor = FLOOR_RULES_SCALA, tested = TESTED_RULES_SCALA),
-    "rules_dotnet": struct(floor = RULES_DOTNET_VERSION, tested = RULES_DOTNET_VERSION),
     "bazel_lib": struct(floor = BAZEL_LIB_VERSION, tested = BAZEL_LIB_VERSION),
     "rules_jvm_external": struct(floor = FLOOR_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),

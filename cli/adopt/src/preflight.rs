@@ -41,7 +41,6 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_android", "0.8.0"),
     ("rules_kotlin", "2.4.10"),
     ("rules_scala", "7.3.0"),
-    ("rules_dotnet", "0.22.2"),
     ("bazel_lib", "3.7.2"),
     ("rules_jvm_external", "7.1"),
     ("bazel_features", "1.51.0"),

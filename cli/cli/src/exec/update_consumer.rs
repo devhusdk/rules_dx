@@ -2058,7 +2058,7 @@ source = { registry = "https://pypi.org/simple" }
     fn nuget_harness(name: &str) -> Harness {
         let harness = consumer_harness(
             name,
-            &format!("{UV_MODULE}bazel_dep(name = \"rules_dotnet\", version = \"0.22.2\")\npaket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n"),
+            &format!("{UV_MODULE}paket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n"),
             true,
         );
         for dir in ["dotnet", "dotnet_tools"] {
@@ -2288,13 +2288,16 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_nuget_layout_refusal_never_launches() {
         let harness = nuget_harness("nuget-layout");
-        harness.write_source("MODULE.bazel", "paket = use_extension(\"//third_party/dotnet/deps:paket.main_extension.bzl\", \"main_extension\")\n");
+        harness.write_source(
+            "third_party/dotnet/paket.dependencies",
+            "source ../local-feed\n",
+        );
         for mode in ["--output=text", "--apply"] {
             let runner = ScriptRunner::new(&[]);
             let (code, out, err) = run_with(&["update", mode, "nuget"], &runner, &harness);
             assert_ne!(code, 0, "{out}{err}");
             assert!(runner.launches.borrow().is_empty());
-            assert!(format!("{out}{err}").contains("rules_dotnet"), "{out}{err}");
+            assert!(format!("{out}{err}").contains("not http(s)"), "{out}{err}");
         }
     }
 

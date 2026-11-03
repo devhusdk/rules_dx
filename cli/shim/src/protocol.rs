@@ -71,7 +71,7 @@ pub fn resolve_version(
     }
     let Some(file) = find_version_file(cwd) else {
         return Err(ShimError::failure(format!(
-            "not in a dx workspace (no .dx/version above {}); run 'dx init' from a Bazel workspace with bazel run @rules_dx//:dx -- init --apply, or set DX_VERSION",
+            "not in a dx workspace (no .dx/version above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module",
             cwd.display()
         )));
     };

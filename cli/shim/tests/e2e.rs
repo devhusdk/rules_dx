@@ -229,7 +229,7 @@ fn outside_a_workspace_fails_with_exit_1() {
     assert_eq!(
         stderr(&output),
         format!(
-            "dx: not in a dx workspace (no .dx/version above {}); run 'dx init' from a Bazel workspace with bazel run @rules_dx//:dx -- init --apply, or set DX_VERSION\n",
+            "dx: not in a dx workspace (no .dx/version above {}); run DX_VERSION=<version> dx init --apply in an empty directory, or bazel run @rules_dx//:dx -- init --apply in a Bazel module\n",
             cwd.display()
         )
     );

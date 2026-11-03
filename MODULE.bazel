@@ -277,20 +277,15 @@ use_repo(
 
 register_toolchains("@dotnet_toolchains//:all")
 
-paket2bazel_dependencies_extension = use_extension("//dotnet:extensions.bzl", "paket2bazel_dependencies_extension")
-use_repo(paket2bazel_dependencies_extension, "paket.paket2bazel_dependencies")
-
-rules_dotnet_nuget_packages_extension = use_extension("//dotnet:extensions.bzl", "rules_dotnet_nuget_packages_extension")
-use_repo(rules_dotnet_nuget_packages_extension, "paket.rules_dotnet_nuget_packages")
-
-targeting_packs_extension = use_extension("//dotnet:extensions.bzl", "targeting_packs_extension")
-use_repo(targeting_packs_extension, "dotnet.targeting_packs")
-
-runtime_packs_extension = use_extension("//dotnet:extensions.bzl", "runtime_packs_extension")
-use_repo(runtime_packs_extension, "dotnet.runtime_packs")
-
-apphost_packs_extension = use_extension("//dotnet:extensions.bzl", "apphost_packs_extension")
-use_repo(apphost_packs_extension, "dotnet.apphost_packs")
+dotnet_paket = use_extension("//dotnet:extensions.bzl", "paket")
+use_repo(
+    dotnet_paket,
+    "dotnet.apphost_packs",
+    "dotnet.runtime_packs",
+    "dotnet.targeting_packs",
+    "paket.paket2bazel_dependencies",
+    "paket.rules_dotnet_nuget_packages",
+)
 
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
 use_repo(

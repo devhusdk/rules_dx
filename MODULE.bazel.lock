@@ -226,7 +226,7 @@
   "moduleExtensions": {
     "//android/sdk:repos.bzl%android_sdk": {
       "general": {
-        "bzlTransitiveDigest": "mh6v0JqI9iUcu53MHRpsfFrq2XsolTbzTor5wCnXuOY=",
+        "bzlTransitiveDigest": "UbiCostmIPxI5GaVRg/MTcUYvNnT8x33kqAFj/M6Bk4=",
         "usagesDigest": "pEMsMxSyh5uNZ5+8UDadMwXI8o96uXItInCRNoY4su8=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -3521,7 +3521,7 @@
     },
     "//dotnet:extensions.bzl%dotnet": {
       "general": {
-        "bzlTransitiveDigest": "FVSaQEbpqBmavy7pLpKtOdCydyPa4FNAaA8VhXeRcwY=",
+        "bzlTransitiveDigest": "8kjwyxFhFp1TGAkBTOZ3BB6THb2M6XhIiyyohCUd3Fk=",
         "usagesDigest": "BXREC0LKejTlmD82iDKM7punCJko63UudIsb0LKyCTw=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_dotnet +dotnet_tools+rules_dotnet",

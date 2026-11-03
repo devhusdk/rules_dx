@@ -16,7 +16,19 @@ bazel run @rules_dx//:dx -- test --report junit=reports/junit.xml //...
 bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov //...
 ```
 
-The same recipe works on any CI provider:
+Not included, compared with the GitHub reusable workflow
+(`.github/workflows/reusable-consumer.yml`):
+
+- `--affected` on merge requests. The GitHub input is `affected_on_pr`.
+- Platforms other than Linux x86_64. The GitHub input is `platforms`.
+- Coverage gates. The GitHub inputs are `min_coverage` and
+  `min_changed_line_coverage`.
+- The `security-audit` and `license-audit` checks and the advisory snapshots.
+  The GitHub inputs are `disabled_checks` and `invocation_id`.
+- A fallback cache key. The GitHub workflow has no input for it. It restores
+  from a key prefix when the exact key misses.
+
+To run the same steps on another CI provider:
 
 1. Install Bazelisk as `bazel` and check its SHA-256.
 2. Commit `.bazelversion`.

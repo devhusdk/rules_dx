@@ -1,7 +1,7 @@
 # `dx watch`
 
 ```text
-dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|--app-args ...]
+dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check|fix> [scope ...] [-- bazel-options|app-args ...]
 ```
 
 Reruns one command when files change. Scope is re-resolved each iteration.

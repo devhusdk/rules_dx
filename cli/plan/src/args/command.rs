@@ -441,7 +441,7 @@ pub static COMMANDS: [CommandMeta; 24] = [
         name: "watch",
         scope_policy: "require",
         describe: "watch for changes and rebuild (local only)",
-        usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check> [scope ...] [-- bazel-options|--app-args ...]",
+        usage: "Usage: dx watch [--apply] [--debug|--release] [flags] <build|test|run|lint|typecheck|format|check> [scope ...] [-- bazel-options|app-args ...]",
         scopes: "Scopes: wrapped command plus its scopes, re-resolved each iteration (local only, refuses CI=true; only build|test|run|lint|typecheck|format|check are watchable). Args after `--` reach the wrapped command as its own command-options.",
         is_managed: false,
         is_adoption: true,
@@ -894,6 +894,13 @@ mod tests {
         assert_eq!(Command::Deploy.scope_policy(), "require-label");
         assert_eq!(Command::Clean.scope_policy(), "reject");
         assert_eq!(Command::Update.scope_policy(), "selector-default-all");
+    }
+
+    #[test]
+    fn watch_usage_shows_app_args_after_dashes() {
+        let usage = Command::Watch.meta().usage;
+        assert!(!usage.contains("--app-args"), "{usage}");
+        assert!(usage.contains("-- bazel-options|app-args ..."), "{usage}");
     }
 
     #[test]

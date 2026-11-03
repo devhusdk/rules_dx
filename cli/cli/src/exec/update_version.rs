@@ -754,6 +754,79 @@ dependencies = ["anyio>=4"]
         assert_eq!(read(&harness, "rs/b/Cargo.toml"), CARGO_B);
     }
 
+    #[test]
+    fn consumer_cargo_set_launch_failure_keeps_the_widen() {
+        let mut harness = Harness::new("bump-consumer-cargo-launch-fail");
+        harness.io_error = true;
+        seed_cargo_set(&harness);
+        let (code, _, err) = harness.run(&["update", "crates:serde", "2.0.0", "--apply"]);
+        assert_eq!(code, 1, "{err}");
+        assert!(err.contains("update_failed"), "{err}");
+        assert!(err.contains("widen kept"), "{err}");
+        assert!(read(&harness, "rs/a/Cargo.toml").contains("2.0.0"));
+        assert_eq!(read(&harness, "rs/b/Cargo.toml"), CARGO_B);
+    }
+
+    #[test]
+    fn consumer_cargo_set_signalled_refresh_keeps_the_widen() {
+        let mut harness = Harness::new("bump-consumer-cargo-signalled");
+        harness.signalled = true;
+        seed_cargo_set(&harness);
+        let (code, out, err) = harness.run(&[
+            "update",
+            "crates:serde",
+            "2.0.0",
+            "--output=json",
+            "--apply",
+        ]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("signal"), "{err}");
+        assert!(out.contains("update_widened"), "{out}");
+        assert!(read(&harness, "rs/a/Cargo.toml").contains("2.0.0"));
+    }
+
+    #[test]
+    fn consumer_cargo_set_json_reports_widen_then_refresh() {
+        let harness = Harness::new("bump-consumer-cargo-json");
+        seed_cargo_set(&harness);
+        let (code, out, err) = harness.run(&[
+            "update",
+            "crates:serde",
+            "2.0.0",
+            "--output=json",
+            "--apply",
+        ]);
+        assert_eq!(code, 0, "{out}{err}");
+        let events = json_events(&out);
+        let kinds = event_kinds(&events);
+        assert_eq!(kinds[0], "command_started");
+        assert_eq!(kinds[kinds.len() - 1], "command_finished");
+        let notices = events_of_kind(&events, "notice");
+        assert_eq!(notices.len(), 2, "{out}");
+        assert_eq!(notices[0]["code"], serde_json::json!("update_widened"));
+        assert_eq!(notices[1]["code"], serde_json::json!("update_set_success"));
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn consumer_cargo_set_json_refresh_failure_reports_widen_then_error() {
+        let mut harness = Harness::new("bump-consumer-cargo-json-fail");
+        harness.bazel_code = 2;
+        seed_cargo_set(&harness);
+        let (code, out, err) = harness.run(&[
+            "update",
+            "crates:serde",
+            "2.0.0",
+            "--output=json",
+            "--apply",
+        ]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("update_failed"), "{err}");
+        let kinds_owned = event_kinds(&json_events(&out)).join(",");
+        assert!(kinds_owned.contains("notice"), "{out}");
+        assert!(kinds_owned.contains("error"), "{out}");
+    }
+
     const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    name = \"maven\",\n    artifacts = [\"junit:junit:4.13.2\"],\n    lock_file = \"//third_party:maven_install.json\",\n)\nmaven.install(\n    name = \"other\",\n    artifacts = [\"junit:junit:4.12\"],\n)\nuse_repo(maven, \"maven\", \"other\")\n";
 
     fn seed_maven_set(harness: &Harness) {

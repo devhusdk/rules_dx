@@ -170,6 +170,16 @@ pub(super) fn drift(root: &Path) -> Drift {
     drift.missing.extend(preset.missing);
     drift.stale.extend(preset.stale);
     drift.other.extend(preset.other);
+    let agents = agents_drift(root);
+    drift.missing.extend(agents.missing);
+    drift.stale.extend(agents.stale);
+    drift.other.extend(agents.other);
+    drift
+}
+
+/// The hooks, AGENTS.md block and CLAUDE.md import drift under `root`.
+pub(super) fn agents_drift(root: &Path) -> Drift {
+    let mut drift = Drift::default();
     for (path, missing) in setup::workspace_missing(root) {
         if root.join(path).exists() {
             drift

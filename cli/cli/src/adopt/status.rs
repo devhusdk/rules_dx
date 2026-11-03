@@ -128,23 +128,23 @@ fn capability_line(capability: &CapabilityEvent) -> String {
 }
 
 fn agents_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
-    use super::agents::{workspace_state, State, FILE};
-    let block = workspace_state(workspace);
-    let (mut status, mut detail) = match block {
-        Ok(State::Current) => ("ok", format!("{FILE} has the current dx block")),
-        Ok(State::Stale) => ("warn", format!("{FILE} has an out-of-date dx block")),
-        Ok(State::Missing) => ("warn", format!("{FILE} has no dx block")),
-        Err(error) => ("warn", format!("{FILE} is unreadable: {error}")),
+    let drift = super::wiring::agents_drift(workspace);
+    let mut parts: Vec<String> = Vec::new();
+    if !drift.missing.is_empty() {
+        parts.push(format!("missing {}", drift.missing.join(", ")));
+    }
+    if !drift.stale.is_empty() {
+        parts.push(format!("stale {}", drift.stale.join(", ")));
+    }
+    parts.extend(drift.other);
+    let (status, detail) = if parts.is_empty() {
+        (
+            "ok",
+            format!("{} has the current dx block", super::agents::FILE),
+        )
+    } else {
+        ("warn", parts.join("; "))
     };
-    for (path, missing) in dx_worktree::setup::workspace_missing(workspace) {
-        status = "warn";
-        detail = format!("{detail}; {path} lacks hooks: {}", missing.join("; "));
-    }
-    use super::claude_md::{state, State as Import};
-    if matches!(state(workspace), Ok(Import::Missing | Import::Absent)) {
-        status = "warn";
-        detail = format!("{detail}; CLAUDE.md does not import AGENTS.md");
-    }
     dx_adopt::StatusCheck {
         name: "agents".to_owned(),
         status: status.to_owned(),
@@ -372,7 +372,7 @@ mod tests {
             (check.name.as_str(), check.status.as_str()),
             ("agents", "warn")
         );
-        assert!(check.detail.contains("no dx block"), "{}", check.detail);
+        assert!(check.detail.contains("AGENTS.md"), "{}", check.detail);
         std::fs::write(
             root.join("AGENTS.md"),
             "# Mine\n<!-- dx:begin -->\n- old\n<!-- dx:end -->\n",
@@ -380,11 +380,15 @@ mod tests {
         .expect("stale");
         let check = agents_check(root);
         assert_eq!(check.status, "warn");
-        assert!(check.detail.contains("out-of-date"), "{}", check.detail);
+        assert!(check.detail.contains("stale AGENTS.md"), "{}", check.detail);
         std::fs::write(root.join("AGENTS.md"), super::super::agents::block()).expect("current");
         let check = agents_check(root);
         assert_eq!(check.status, "warn");
-        assert!(check.detail.contains("lacks hooks"), "{}", check.detail);
+        assert!(
+            check.detail.contains("missing .claude/settings.json"),
+            "{}",
+            check.detail
+        );
         std::fs::create_dir_all(root.join(".claude")).expect("dir");
         std::fs::write(
             root.join(".claude/settings.json"),
@@ -394,7 +398,7 @@ mod tests {
         let check = agents_check(root);
         assert_eq!(check.status, "warn");
         assert!(
-            check.detail.contains("CLAUDE.md does not import"),
+            check.detail.contains("CLAUDE.md"),
             "{}",
             check.detail
         );

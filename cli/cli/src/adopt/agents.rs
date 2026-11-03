@@ -63,6 +63,7 @@ fn read(workspace: &Path) -> io::Result<Option<String>> {
 }
 
 /// The block state of the workspace AGENTS.md.
+#[cfg(test)]
 pub(crate) fn workspace_state(workspace: &Path) -> io::Result<State> {
     Ok(read(workspace)?.map_or(State::Missing, |text| state(&text)))
 }

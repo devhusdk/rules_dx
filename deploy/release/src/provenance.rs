@@ -87,7 +87,7 @@ pub fn statement_error(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PROVENANCE_BUILDER_DRY_RUN, PROVENANCE_BUILDER_RELEASE};
+    use crate::PROVENANCE_BUILDER_RELEASE;
 
     const DIGEST: &str = "abc123";
 
@@ -118,11 +118,6 @@ mod tests {
     #[test]
     fn accepts_matching_statement() {
         assert!(check(
-            &good(PROVENANCE_BUILDER_DRY_RUN),
-            PROVENANCE_BUILDER_DRY_RUN
-        )
-        .is_ok());
-        assert!(check(
             &good(PROVENANCE_BUILDER_RELEASE),
             PROVENANCE_BUILDER_RELEASE
         )
@@ -131,34 +126,34 @@ mod tests {
 
     #[test]
     fn accepts_extra_subjects() {
-        let mut statement = good(PROVENANCE_BUILDER_DRY_RUN);
+        let mut statement = good(PROVENANCE_BUILDER_RELEASE);
         statement.subject.insert(0, Subject::default());
-        assert!(check(&statement, PROVENANCE_BUILDER_DRY_RUN).is_ok());
+        assert!(check(&statement, PROVENANCE_BUILDER_RELEASE).is_ok());
     }
 
     #[test]
     fn rejects_wrong_statement_type() {
-        let mut statement = good(PROVENANCE_BUILDER_DRY_RUN);
+        let mut statement = good(PROVENANCE_BUILDER_RELEASE);
         statement.statement_type.push('x');
-        let err = check(&statement, PROVENANCE_BUILDER_DRY_RUN).expect_err("type");
+        let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("type");
         assert!(err.contains("in-toto Statement v1"), "{err}");
     }
 
     #[test]
     fn rejects_wrong_predicate_type() {
-        let mut statement = good(PROVENANCE_BUILDER_DRY_RUN);
+        let mut statement = good(PROVENANCE_BUILDER_RELEASE);
         statement.predicate_type.clear();
-        let err = check(&statement, PROVENANCE_BUILDER_DRY_RUN).expect_err("predicate");
+        let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("predicate");
         assert!(err.contains("SLSA v1 predicate"), "{err}");
     }
 
     #[test]
     fn rejects_wrong_subject() {
         for (name, digest) in [("other.bin", DIGEST), ("a.bin", "000")] {
-            let mut statement = good(PROVENANCE_BUILDER_DRY_RUN);
+            let mut statement = good(PROVENANCE_BUILDER_RELEASE);
             statement.subject[0].name = name.to_owned();
             statement.subject[0].digest.sha256 = digest.to_owned();
-            let err = check(&statement, PROVENANCE_BUILDER_DRY_RUN).expect_err("subject");
+            let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("subject");
             assert!(err.contains("missing subject digest"), "{err}");
         }
     }
@@ -168,8 +163,7 @@ mod tests {
         let prefixed = format!("{PROVENANCE_BUILDER_RELEASE}.evil");
         for (id, want) in [
             (prefixed.as_str(), prefixed.as_str()),
-            ("", PROVENANCE_BUILDER_DRY_RUN),
-            (PROVENANCE_BUILDER_DRY_RUN, PROVENANCE_BUILDER_RELEASE),
+            ("", PROVENANCE_BUILDER_RELEASE),
         ] {
             let err = check(&good(id), want).expect_err("builder");
             assert!(err.contains("builder.id"), "{err}");

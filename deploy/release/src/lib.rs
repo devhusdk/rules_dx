@@ -319,19 +319,15 @@ pub const BCR_WANT_MODULE: &str = "rules_dx";
 pub const SIGNING_TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
 pub const SIGNING_BUNDLE_MEDIA_TYPE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
 pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubusercontent.com";
-pub const PROVENANCE_BUILDER_DRY_RUN: &str = concat!(
-    release_repository!(),
-    "/.github/workflows/publish-dry-run.yml"
-);
 pub const PROVENANCE_BUILDER_RELEASE: &str =
     concat!(release_repository!(), "/.github/workflows/release.yml");
 
 pub fn provenance_builder_error(builder: &str) -> Result<(), String> {
-    if builder == PROVENANCE_BUILDER_DRY_RUN || builder == PROVENANCE_BUILDER_RELEASE {
+    if builder == PROVENANCE_BUILDER_RELEASE {
         return Ok(());
     }
     Err(format!(
-        "provenance: invalid builder '{builder}': want '{PROVENANCE_BUILDER_DRY_RUN}' (dry-run demo only) or '{PROVENANCE_BUILDER_RELEASE}' (owner-approved release)"
+        "provenance: invalid builder '{builder}': want '{PROVENANCE_BUILDER_RELEASE}'"
     ))
 }
 
@@ -1064,7 +1060,7 @@ mod tests {
     #[test]
     fn provenance_bytes_match_python_golden() {
         let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-        let text = render_provenance("artifact.bin", digest, PROVENANCE_BUILDER_DRY_RUN);
+        let text = render_provenance("artifact.bin", digest, PROVENANCE_BUILDER_RELEASE);
         assert!(text.ends_with('\n'));
         let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
         assert_eq!(
@@ -1085,7 +1081,7 @@ mod tests {
         );
         assert_eq!(
             value["predicate"]["runDetails"]["builder"]["id"],
-            serde_json::json!(PROVENANCE_BUILDER_DRY_RUN)
+            serde_json::json!(PROVENANCE_BUILDER_RELEASE)
         );
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(
@@ -1131,11 +1127,11 @@ mod tests {
             render_spdx("artifact.bin", &digest, "dx", "rules_dx")
         );
         let prov_out = scratch.path().join("out.prov.json");
-        write_provenance(&src, &prov_out, PROVENANCE_BUILDER_DRY_RUN).expect("write prov");
+        write_provenance(&src, &prov_out, PROVENANCE_BUILDER_RELEASE).expect("write prov");
         let prov_text = std::fs::read_to_string(&prov_out).expect("read prov");
         assert_eq!(
             prov_text,
-            render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_DRY_RUN)
+            render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE)
         );
         let bcr_out = scratch.path().join("out.source.json");
         write_bcr_source(&bcr_out, "rules_dx", "1.2.3").expect("write bcr");
@@ -1507,10 +1503,6 @@ mod tests {
         assert_eq!(RELEASE_REPOSITORY, "https://github.com/devhusdk/rules_dx");
         assert_eq!(RELEASE_REMOTE, "https://github.com/devhusdk/rules_dx.git");
         assert_eq!(
-            PROVENANCE_BUILDER_DRY_RUN,
-            "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml"
-        );
-        assert_eq!(
             PROVENANCE_BUILDER_RELEASE,
             "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml"
         );
@@ -1524,13 +1516,13 @@ mod tests {
         let spdx = scratch.path().join("artifact.spdx.json");
         write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
-        write_provenance(&artifact, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("prov");
+        write_provenance(&artifact, &prov, PROVENANCE_BUILDER_RELEASE).expect("prov");
         let ok =
-            sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("verify");
+            sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_RELEASE).expect("verify");
         assert!(ok.contains("sbom OK: SPDX-2.3 + SLSA v1 bind"));
         assert!(ok.contains(&digest));
         std::fs::write(&spdx, b"{\"spdxVersion\": \"SPDX-3.0\"}").expect("rewrite");
-        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).is_err());
+        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_RELEASE).is_err());
     }
 
     #[test]
@@ -1541,7 +1533,7 @@ mod tests {
         let spdx_path = scratch.path().join("artifact.spdx.json");
         write_spdx(&artifact, &spdx_path, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
-        write_provenance(&artifact, &prov, PROVENANCE_BUILDER_DRY_RUN).expect("prov");
+        write_provenance(&artifact, &prov, PROVENANCE_BUILDER_RELEASE).expect("prov");
         let value: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&spdx_path).expect("read"))
                 .expect("json");
@@ -1562,7 +1554,7 @@ mod tests {
         ] {
             std::fs::write(&spdx_path, text.as_bytes()).expect("rewrite");
             let result =
-                sbom_verify_files(&artifact, &spdx_path, &others, PROVENANCE_BUILDER_DRY_RUN);
+                sbom_verify_files(&artifact, &spdx_path, &others, PROVENANCE_BUILDER_RELEASE);
             assert_eq!(result.is_ok(), ok, "{label}: {result:?}");
         }
     }
@@ -1592,7 +1584,7 @@ mod tests {
         let spdx = scratch.path().join("artifact.spdx.json");
         write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
         let prov = scratch.path().join("artifact.prov.json");
-        let base = render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_DRY_RUN);
+        let base = render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE);
         let value: serde_json::Value = serde_json::from_str(&base).expect("json");
         let with = |edit: &dyn Fn(&mut serde_json::Value)| {
             let mut copy = value.clone();
@@ -1607,11 +1599,11 @@ mod tests {
             1,
         );
         let cases: Vec<(&str, String, &str, Result<(), &str>)> = vec![
-            ("compact", with(&|_| {}), PROVENANCE_BUILDER_DRY_RUN, Ok(())),
+            ("compact", with(&|_| {}), PROVENANCE_BUILDER_RELEASE, Ok(())),
             (
                 "reordered",
                 reordered_spdx(&value),
-                PROVENANCE_BUILDER_DRY_RUN,
+                PROVENANCE_BUILDER_RELEASE,
                 Ok(()),
             ),
             (
@@ -1636,39 +1628,33 @@ mod tests {
                         digest.clone().into();
                     v["subject"][0]["digest"]["sha256"] = "0".repeat(64).into();
                 }),
-                PROVENANCE_BUILDER_DRY_RUN,
+                PROVENANCE_BUILDER_RELEASE,
                 Err("missing subject digest"),
             ),
             (
                 "other subject name",
                 with(&|v| v["subject"][0]["name"] = "other.bin".into()),
-                PROVENANCE_BUILDER_DRY_RUN,
+                PROVENANCE_BUILDER_RELEASE,
                 Err("missing subject digest"),
-            ),
-            (
-                "dry-run provenance for release check",
-                with(&|_| {}),
-                release,
-                Err("want"),
             ),
             (
                 "missing _type",
                 with(&|v| {
                     v.as_object_mut().expect("object").remove("_type");
                 }),
-                PROVENANCE_BUILDER_DRY_RUN,
+                PROVENANCE_BUILDER_RELEASE,
                 Err("missing in-toto Statement v1"),
             ),
             (
                 "not json",
                 "not json".to_owned(),
-                PROVENANCE_BUILDER_DRY_RUN,
+                PROVENANCE_BUILDER_RELEASE,
                 Err("not an in-toto statement"),
             ),
             (
                 "duplicate _type",
                 duplicate,
-                PROVENANCE_BUILDER_DRY_RUN,
+                PROVENANCE_BUILDER_RELEASE,
                 Err("not an in-toto statement"),
             ),
         ];
@@ -1696,7 +1682,6 @@ mod tests {
 
     #[test]
     fn provenance_builder_allowlist_rejects_forgeries() {
-        assert!(provenance_builder_error(PROVENANCE_BUILDER_DRY_RUN).is_ok());
         assert!(provenance_builder_error(PROVENANCE_BUILDER_RELEASE).is_ok());
         assert!(provenance_builder_error(FORGED_BUILDER_ID).is_err());
         assert!(provenance_builder_error("https://example.com/builder").is_err());
@@ -1718,7 +1703,7 @@ mod tests {
         let prov = scratch.path().join("forged.prov.json");
         let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID);
         std::fs::write(&prov, forged.as_bytes()).expect("write forged");
-        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_DRY_RUN).is_err());
+        assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_RELEASE).is_err());
     }
 
     #[test]
@@ -1902,14 +1887,14 @@ mod tests {
         let spdx_ok = scratch.path().join("ok.spdx.json");
         write_spdx(&artifact, &spdx_ok, "dx", "rules_dx").expect("spdx ok");
         let prov_ok = scratch.path().join("ok.prov.json");
-        write_provenance(&artifact, &prov_ok, PROVENANCE_BUILDER_DRY_RUN).expect("prov ok");
+        write_provenance(&artifact, &prov_ok, PROVENANCE_BUILDER_RELEASE).expect("prov ok");
         let spdx_bad = scratch.path().join("bad.spdx.json");
         std::fs::write(
             &spdx_bad,
             render_spdx("artifact.bin", &zeros, "dx", "rules_dx"),
         )
         .expect("spdx bad");
-        let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_DRY_RUN)
+        let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_RELEASE)
             .expect_err("spdx digest");
         assert!(
             err.to_string().contains("SPDX missing artifact digest"),
@@ -1938,7 +1923,7 @@ mod tests {
         ] {
             let path = scratch.path().join("variant.prov.json");
             std::fs::write(&path, variant).expect("variant");
-            let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_DRY_RUN)
+            let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_RELEASE)
                 .expect_err(want);
             assert!(err.to_string().contains(want), "want {want}, got {err}");
         }

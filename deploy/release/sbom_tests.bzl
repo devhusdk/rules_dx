@@ -1,7 +1,7 @@
 """Unit tests for SBOM + provenance generation."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":sbom.bzl", "SBOM_BUILDER_DRY_RUN", "SBOM_BUILDER_RELEASE", "sbom_builder_error", "sbom_filenames")
+load(":sbom.bzl", "SBOM_BUILDER_RELEASE", "sbom_builder_error", "sbom_filenames")
 
 def sbom_unit_tests(name):
     starlark_test(
@@ -19,11 +19,6 @@ def sbom_unit_tests(name):
                 ("dx_standalone.spdx.json", "dx_standalone.provenance.json"),
             ),
             expect_equal(
-                "sbom_builder_error accepts the dry-run builder",
-                sbom_builder_error(SBOM_BUILDER_DRY_RUN),
-                "",
-            ),
-            expect_equal(
                 "sbom_builder_error accepts the release builder",
                 sbom_builder_error(SBOM_BUILDER_RELEASE),
                 "",
@@ -31,7 +26,7 @@ def sbom_unit_tests(name):
             expect_equal(
                 "sbom_builder_error rejects a forged builder",
                 sbom_builder_error("https://example.com/builder"),
-                "sbom_release: invalid builder 'https://example.com/builder': want '" + SBOM_BUILDER_DRY_RUN + "' (dry-run demo only) or '" + SBOM_BUILDER_RELEASE + "' (owner-approved release)",
+                "sbom_release: invalid builder 'https://example.com/builder': want '" + SBOM_BUILDER_RELEASE + "'",
             ),
         ],
     )

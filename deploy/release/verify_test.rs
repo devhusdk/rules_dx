@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dx_release_tools::{
     bcr_candidate_error, notice_verify_files, sbom_verify_files, write_bcr_source_for_archive,
-    PROVENANCE_BUILDER_DRY_RUN,
+    PROVENANCE_BUILDER_RELEASE,
 };
 
 fn data(name: &str) -> PathBuf {
@@ -53,7 +53,7 @@ fn notice_inputs() -> (PathBuf, PathBuf, Vec<PathBuf>) {
 #[test]
 fn the_sbom_pair_binds_the_archived_artifact() {
     let (artifact, spdx, provenance) = sbom_inputs();
-    let report = sbom_verify_files(&artifact, &spdx, &provenance, PROVENANCE_BUILDER_DRY_RUN)
+    let report = sbom_verify_files(&artifact, &spdx, &provenance, PROVENANCE_BUILDER_RELEASE)
         .unwrap_or_else(|error| panic!("the generated SBOM pair must verify: {error}"));
     let digest = dx_digest::sha256_file_hex(&artifact)
         .unwrap_or_else(|error| panic!("hash the archived artifact: {error}"));
@@ -78,7 +78,7 @@ fn a_swapped_artifact_breaks_the_sbom_binding() {
         std::fs::read(&artifact).unwrap_or_else(|error| panic!("read artifact: {error}"));
     bytes.push(b'\n');
     let swapped = write_bytes(&staged, &name, &bytes);
-    let error = sbom_verify_files(&swapped, &spdx, &provenance, PROVENANCE_BUILDER_DRY_RUN)
+    let error = sbom_verify_files(&swapped, &spdx, &provenance, PROVENANCE_BUILDER_RELEASE)
         .expect_err("a swapped artifact must not pass");
     assert!(
         error.to_string().contains("missing artifact digest"),
@@ -91,16 +91,16 @@ fn a_forged_provenance_builder_fails_closed() {
     let dir = scratch();
     let (artifact, spdx, provenance) = sbom_inputs();
     let text = read(&provenance);
-    let real = "https://github.com/devhusdk/rules_dx/.github/workflows/publish-dry-run.yml";
+    let real = "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml";
     let prefixed = format!("{real}.evil");
     for forgery in ["https://example.test/builder", prefixed.as_str()] {
         let forged_text = text.replace(real, forgery);
         assert_ne!(
             forged_text, text,
-            "the demo provenance names an allowlisted builder"
+            "the provenance names an allowlisted builder"
         );
         let forged = write(dir.path(), "forged.provenance.json", &forged_text);
-        let error = sbom_verify_files(&artifact, &spdx, &forged, PROVENANCE_BUILDER_DRY_RUN)
+        let error = sbom_verify_files(&artifact, &spdx, &forged, PROVENANCE_BUILDER_RELEASE)
             .expect_err("a forged builder must not pass");
         let shown = error.to_string();
         assert!(shown.contains("builder.id"), "got {shown}");
@@ -120,7 +120,7 @@ fn provenance_without_the_slsa_predicate_fails() {
             "https://slsa.dev/provenance",
         ),
     );
-    let error = sbom_verify_files(&artifact, &spdx, &untyped, PROVENANCE_BUILDER_DRY_RUN)
+    let error = sbom_verify_files(&artifact, &spdx, &untyped, PROVENANCE_BUILDER_RELEASE)
         .expect_err("a bare SLSA predicate must not pass");
     assert!(
         error.to_string().contains("missing SLSA v1 predicate"),

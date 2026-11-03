@@ -143,7 +143,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         &inputs.sbom_artifact,
         &inputs.spdx,
         &inputs.provenance,
-        super::PROVENANCE_BUILDER_DRY_RUN,
+        super::PROVENANCE_BUILDER_RELEASE,
     )
     .map_err(|error| format!("publish dry-run: SBOM validation failed: {error}"))?;
     notice_verify_files(
@@ -356,7 +356,7 @@ mod tests {
         let spdx_text = crate::render_spdx("demo.tar.gz", &digest, "dx", "rules_dx");
         let spdx = write_text(dir, "sbom_demo.spdx.json", &spdx_text);
         let prov_text =
-            crate::render_provenance("demo.tar.gz", &digest, crate::PROVENANCE_BUILDER_DRY_RUN);
+            crate::render_provenance("demo.tar.gz", &digest, crate::PROVENANCE_BUILDER_RELEASE);
         let provenance = write_text(dir, "sbom_demo.provenance.json", &prov_text);
         let (notice_manifest, notice_texts) = notice_fixture(dir);
         let joined = crate::join_notice_entries(

@@ -410,6 +410,7 @@ pub(crate) struct LicensesFile {
     #[serde(default)]
     distribution: Distribution,
     #[serde(default)]
+    #[schemars(with = "Vec<LicenseException>")]
     exception: Vec<toml::Spanned<LicenseException>>,
     #[serde(default)]
     inventory: Vec<LicenseInventory>,

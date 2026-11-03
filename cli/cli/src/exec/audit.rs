@@ -258,49 +258,31 @@ impl AuditError {
     }
 }
 
-pub(crate) fn audited_set_names() -> Vec<&'static str> {
-    dx_update::sets::SetId::ALL
-        .iter()
-        .map(|set| set.name())
-        .filter(|name| !dx_audit::backend::is_empty_set(name))
-        .collect()
-}
-
 pub(super) enum AuditTarget<'a> {
-    Builtin(dx_update::sets::SetId),
     Configured(&'a dx_adopt::dependency_sets::ResolvedSet),
 }
 
 impl AuditTarget<'_> {
     pub(super) fn name(&self) -> &str {
         match self {
-            AuditTarget::Builtin(set) => set.name(),
             AuditTarget::Configured(set) => set.name.as_str(),
         }
     }
 
     pub(super) fn lock_covered(&self) -> bool {
         match self {
-            AuditTarget::Builtin(set) => !dx_audit::backend::is_empty_set(set.name()),
             AuditTarget::Configured(_) => true,
         }
     }
 
     fn ecosystem_name(&self) -> &str {
         match self {
-            AuditTarget::Builtin(set) => set.name(),
             AuditTarget::Configured(set) => set.ecosystem.name(),
         }
     }
 
     pub(super) fn advisory_covered(&self) -> bool {
         match self {
-            AuditTarget::Builtin(set) => {
-                !dx_audit::backend::is_empty_set(set.name())
-                    && dx_audit::advisory::advisory_family(set.name())
-                        .and_then(dx_audit::advisory::advisory_source)
-                        .is_some()
-            }
             AuditTarget::Configured(set) => set.ecosystem.advisory_family().is_some(),
         }
     }
@@ -331,29 +313,6 @@ fn resolve_configured_audit_sets(
     for set in &registry.sets {
         if union.contains(&set.name) {
             ordered.push(dx_adopt::dependency_sets::ResolvedSet::of(set));
-        }
-    }
-    Ok(ordered)
-}
-
-fn resolve_audit_sets(scopes: &[String]) -> Result<Vec<dx_update::sets::SetId>, AuditError> {
-    let mut union: BTreeSet<dx_update::sets::SetId> = BTreeSet::new();
-    for scope in scopes {
-        let owners = dx_update::selector::owning_sets(scope);
-        if owners.is_empty() {
-            return Err(AuditError::NoOwningSet {
-                scope: scope.clone(),
-                sets: audited_set_names().join(", "),
-            });
-        }
-        for set in owners {
-            union.insert(set);
-        }
-    }
-    let mut ordered = Vec::new();
-    for set in dx_update::sets::SetId::ALL {
-        if union.contains(&set) {
-            ordered.push(set);
         }
     }
     Ok(ordered)
@@ -479,47 +438,6 @@ fn load_advisories(
 
 const NO_DEPENDENCY_SETS: &str = "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\"//:Cargo.toml\"],\n)";
 
-fn is_consumer_workspace(workspace: &Path) -> bool {
-    std::fs::read_to_string(workspace.join("MODULE.bazel")).is_ok_and(|text| {
-        !text
-            .lines()
-            .any(|line| line.trim_end_matches('\r') == "    name = \"rules_dx\",")
-    })
-}
-
-fn lock_texts_for_set(
-    workspace: &Path,
-    set: dx_update::sets::SetId,
-) -> Result<Vec<(String, String)>, AuditError> {
-    let mut out = Vec::new();
-    let mut missing: Vec<String> = Vec::new();
-    for rel in dx_audit::backend::vuln_locks(set.name()) {
-        match read_workspace_text(workspace, rel) {
-            Ok(text) => out.push(((*rel).to_owned(), text)),
-            Err(AuditError::Read {
-                rel: missing_rel,
-                error,
-            }) if error.kind() == std::io::ErrorKind::NotFound => {
-                if set == dx_update::sets::SetId::Npm {
-                    missing.push(missing_rel);
-                    continue;
-                }
-                return Err(AuditError::LockMissing { rel: missing_rel });
-            }
-            Err(other) => return Err(other),
-        }
-    }
-    if out.is_empty() && set == dx_update::sets::SetId::Npm {
-        return Err(AuditError::LockMissing {
-            rel: missing
-                .first()
-                .cloned()
-                .unwrap_or_else(|| "pnpm-lock.yaml".to_owned()),
-        });
-    }
-    Ok(out)
-}
-
 /// Which lockfile each parsed package was read from.
 #[derive(Clone, Debug)]
 struct LockPaths {
@@ -534,57 +452,6 @@ impl LockPaths {
             None => self.fallback.as_str(),
         }
     }
-}
-
-fn parse_locked_for_set(
-    set: dx_update::sets::SetId,
-    locks: &[(String, String)],
-) -> Result<(Vec<dx_audit::vuln::LockedPackage>, LockPaths), AuditError> {
-    let mut all = Vec::new();
-    let mut by_package: BTreeMap<(String, String), String> = BTreeMap::new();
-    for (rel, text) in locks {
-        let mut packages = match set {
-            dx_update::sets::SetId::Cargo => dx_audit::locks::parse_cargo_lock(text),
-            dx_update::sets::SetId::Npm
-            | dx_update::sets::SetId::NpmTools
-            | dx_update::sets::SetId::NpmAdopt
-            | dx_update::sets::SetId::NpmAdoptPolyglot => match rel.as_str() {
-                "package-lock.json" => dx_audit::locks::parse_package_lock(text),
-                "yarn.lock" => dx_audit::locks::parse_yarn_lock(text),
-                _ => dx_audit::locks::parse_pnpm_lock(text),
-            },
-            dx_update::sets::SetId::Maven => dx_audit::locks::parse_maven_install(text),
-            dx_update::sets::SetId::NuGet => dx_audit::locks::parse_paket_lock(text),
-            dx_update::sets::SetId::Go => dx_audit::locks::go_locked_packages(text),
-            dx_update::sets::SetId::Uv
-            | dx_update::sets::SetId::UvTools
-            | dx_update::sets::SetId::UvAdopt
-            | dx_update::sets::SetId::UvAdoptPolyglot => Ok(Vec::new()),
-        }
-        .map_err(|detail| AuditError::LockParse {
-            rel: rel.clone(),
-            detail,
-        })?;
-        for package in &packages {
-            by_package
-                .entry((package.name.clone(), package.version.clone()))
-                .or_insert_with(|| rel.clone());
-        }
-        all.append(&mut packages);
-    }
-    all.sort_by(|a, b| (&a.set, &a.name, &a.version).cmp(&(&b.set, &b.name, &b.version)));
-    all.dedup_by(|b, a| a.set == b.set && a.name == b.name && a.version == b.version);
-    let fallback = locks
-        .first()
-        .map(|(rel, _)| rel.clone())
-        .unwrap_or_else(|| "unknown lockfile".to_owned());
-    Ok((
-        all,
-        LockPaths {
-            by_package,
-            fallback,
-        },
-    ))
 }
 
 fn parse_locked_for_configured(
@@ -1188,7 +1055,6 @@ fn collect_target(
     }
     let label = target.name().to_owned();
     let (locks, key) = match target {
-        AuditTarget::Builtin(set) => (lock_texts_for_set(workspace, *set), label.clone()),
         AuditTarget::Configured(set) => (
             lock_texts_for_configured(workspace, set),
             set.ecosystem
@@ -1204,7 +1070,6 @@ fn collect_target(
         )
     })?;
     let parsed = match target {
-        AuditTarget::Builtin(set) => parse_locked_for_set(*set, &locks),
         AuditTarget::Configured(set) => parse_locked_for_configured(set, &locks),
     };
     let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, error.to_string()))?;
@@ -1232,7 +1097,6 @@ fn collect_target(
         )
     })?;
     let exception_set = match target {
-        AuditTarget::Builtin(_) => label.clone(),
         AuditTarget::Configured(set) => set.ecosystem.name().to_owned(),
     };
     Ok(Some(Assessable {
@@ -1324,20 +1188,19 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
         incomplete = Some(exception_problems.join("\n"));
     }
     for target in sets {
-        if let AuditTarget::Configured(set) = target {
-            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
-                match bazel_inputs_for_configured(workspace, set) {
-                    Err(error) => {
-                        if incomplete.is_none() {
-                            incomplete = Some(format!("failed to assess {}: {error}", set.name));
-                        }
-                    }
-                    Ok((inventory, lock_rel)) => {
-                        diagnostics.push(bazel_coverage_diagnostic(set, &inventory, &lock_rel));
+        let AuditTarget::Configured(set) = target;
+        if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+            match bazel_inputs_for_configured(workspace, set) {
+                Err(error) => {
+                    if incomplete.is_none() {
+                        incomplete = Some(format!("failed to assess {}: {error}", set.name));
                     }
                 }
-                continue;
+                Ok((inventory, lock_rel)) => {
+                    diagnostics.push(bazel_coverage_diagnostic(set, &inventory, &lock_rel));
+                }
             }
+            continue;
         }
         let assessable =
             match collect_target(workspace, target, &accepted_uncovered, today, offline) {
@@ -1530,33 +1393,17 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(registry) => registry,
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
-    let builtin_sets;
-    let configured_sets;
-    let targets: Vec<AuditTarget> = match &registry {
-        None => {
-            if !effective.is_empty() && is_consumer_workspace(workspace) {
-                return pre_exec(invocation.output, out, err, NO_DEPENDENCY_SETS);
-            }
-            builtin_sets = match resolve_audit_sets(&effective) {
-                Ok(sets) => sets,
-                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-            };
-            builtin_sets
-                .iter()
-                .map(|set| AuditTarget::Builtin(*set))
-                .collect()
-        }
-        Some(registry) => {
-            configured_sets = match resolve_configured_audit_sets(registry, &effective) {
-                Ok(sets) => sets,
-                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
-            };
-            configured_sets
-                .iter()
-                .map(AuditTarget::Configured)
-                .collect()
-        }
+    let Some(registry) = registry else {
+        return pre_exec(invocation.output, out, err, NO_DEPENDENCY_SETS);
     };
+    let configured_sets = match resolve_configured_audit_sets(&registry, &effective) {
+        Ok(sets) => sets,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    let targets: Vec<AuditTarget> = configured_sets
+        .iter()
+        .map(AuditTarget::Configured)
+        .collect();
     let sets = targets;
     if invocation.output == OutputMode::Json {
         if let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default")) {

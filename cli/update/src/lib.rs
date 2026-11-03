@@ -15,8 +15,6 @@ pub mod recovery;
 pub mod report;
 #[cfg(test)]
 mod root_sets_tests;
-pub mod selector;
-pub mod sets;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UpdateRequest {

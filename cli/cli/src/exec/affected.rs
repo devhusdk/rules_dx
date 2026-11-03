@@ -201,7 +201,7 @@ fn tests_of(
 fn audit_owned(workspace: &Path, target: &str) -> bool {
     match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => !dx_adopt::dependency_sets::owning_sets(&registry, target).is_empty(),
-        _ => !dx_update::selector::owning_sets(target).is_empty(),
+        _ => false,
     }
 }
 

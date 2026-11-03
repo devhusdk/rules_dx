@@ -29,8 +29,6 @@ mod managed_env;
 mod managed_prepare;
 mod managed_staging;
 pub(crate) mod notice_codes;
-#[cfg(test)]
-mod package_identity;
 mod pinned_tool;
 pub mod preset_sync;
 mod quality;
@@ -467,6 +465,11 @@ mod tests {
         for argv in [vec!["security"]] {
             let name = format!("exec-deferred-{}", argv[0]);
             let harness = Harness::new(&name);
+            harness.write_source(
+                "MODULE.bazel",
+                "bazel_dep(name = \"rules_jvm_external\", version = \"7.1\")\nmaven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(name = \"maven\", lock_file = \"//third_party/jvm:maven_install.json\")\n",
+            );
+            harness.write_source("third_party/jvm/maven_install.json", r#"{"artifacts": {}}"#);
             harness
                 .query
                 .outputs
@@ -505,6 +508,8 @@ mod tests {
             session: session.map(str::to_owned),
             agent: agent.map(str::to_owned),
             pid: Some(7),
+            pid_start: None,
+            boot_id: None,
             gone,
             stopped_at: None,
             unclaimed,

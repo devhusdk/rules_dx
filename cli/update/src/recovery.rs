@@ -151,19 +151,17 @@ pub fn plan(
 #[cfg(test)]
 mod tests {
     use super::super::outcome::{ReportedOutcome, ReportedStatus, UpdateReport};
-    use super::super::sets::SetId;
     use super::*;
 
     fn builtin_locks() -> BTreeMap<String, Vec<String>> {
-        SetId::ALL
-            .iter()
-            .map(|set| {
-                (
-                    set.name().to_owned(),
-                    set.locks().iter().map(|path| (*path).to_owned()).collect(),
-                )
-            })
-            .collect()
+        BTreeMap::from([
+            (
+                "cargo".to_owned(),
+                vec!["rust/tests/fixtures/hello/Cargo.lock".to_owned()],
+            ),
+            ("maven".to_owned(), vec!["maven_install.json".to_owned()]),
+            ("npm".to_owned(), vec!["pnpm-lock.yaml".to_owned()]),
+        ])
     }
 
     fn report() -> UpdateReport {

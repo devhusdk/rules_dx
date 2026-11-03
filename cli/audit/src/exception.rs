@@ -252,8 +252,10 @@ pub(crate) struct SecurityFile {
     #[serde(default)]
     schema_version: Option<u32>,
     #[serde(default)]
+    #[schemars(with = "Vec<RiskException>")]
     exception: Vec<toml::Spanned<RiskException>>,
     #[serde(default)]
+    #[schemars(with = "Vec<UncoveredAcceptance>")]
     uncovered: Vec<toml::Spanned<UncoveredAcceptance>>,
 }
 

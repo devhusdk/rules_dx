@@ -90,6 +90,44 @@ pub(super) fn run_with(
     run_on(argv, runner, TEST_AUDIT_TODAY, setup)
 }
 
+const HUBS_MODULE: &str = r#"
+bazel_dep(name = "rules_rust", version = "0.75.0")
+bazel_dep(name = "gazelle", version = "0.54.0")
+bazel_dep(name = "rules_jvm_external", version = "7.1")
+bazel_dep(name = "aspect_rules_js", version = "2.0.0")
+bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.10")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "cargo",
+    cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
+    lockfile = "//rust/tests/fixtures/hello:cargo-bazel-lock.json",
+    manifests = ["//rust/tests/fixtures/hello:Cargo.toml"],
+)
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    name = "maven",
+    lock_file = "//third_party/jvm:maven_install.json",
+)
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(name = "npm", pnpm_lock = "//:pnpm-lock.yaml")
+npm.npm_translate_lock(name = "npm-adopt", pnpm_lock = "//examples/adopt-js-ts:pnpm-lock.yaml")
+npm.npm_translate_lock(name = "npm-adopt-polyglot", pnpm_lock = "//examples/adopt-polyglot:pnpm-lock.yaml")
+npm.npm_translate_lock(name = "npm-tools", pnpm_lock = "//quality/tools/javascript:pnpm-lock.yaml")
+
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//third_party/go:go.mod")
+
+paket = use_extension("//third_party/dotnet/deps:paket.main_extension.bzl", "main_extension")
+"#;
+
+/// Declares the hubs the audit tests read their locks through.
+pub(super) fn write_hubs(harness: &Harness) {
+    harness.write_source("MODULE.bazel", HUBS_MODULE);
+}
+
 fn run_on(
     argv: &[&str],
     runner: &AuditRunner,
@@ -112,6 +150,7 @@ fn run_on(
         id
     ));
     harness.audit_today = Some(audit_today.to_owned());
+    write_hubs(&harness);
     setup(&harness);
     harness.execute_with(&invocation, runner)
 }
@@ -152,6 +191,10 @@ pub(super) fn write_cargo_license_set(harness: &Harness) {
 
 pub(super) fn write_cargo_lock(harness: &Harness) {
     harness.write_source(
+        "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+        r#"{"packages": {}}"#,
+    );
+    harness.write_source(
         "rust/tests/fixtures/hello/Cargo.lock",
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
@@ -159,7 +202,7 @@ pub(super) fn write_cargo_lock(harness: &Harness) {
 
 pub(super) fn write_cargo_license_lock(harness: &Harness) {
     harness.write_source(
-        "cargo-bazel-lock.json",
+        "rust/tests/fixtures/hello/cargo-bazel-lock.json",
         r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
     );
 }
@@ -169,6 +212,7 @@ pub(super) fn write_maven_lock(harness: &Harness) {
 }
 
 pub(super) fn write_nuget_lock(harness: &Harness) {
+    harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
     harness.write_source(
         "third_party/dotnet/paket.lock",
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
@@ -245,13 +289,6 @@ pub(super) fn audit_live_clean_runs_gitleaks_and_exits_zero() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running audit security for //..."), "{out}");
     assert!(out.contains("audit security: clean"), "{out}");
-    assert!(
-        out.contains(
-            "audit security: clean; no advisory coverage for uv, uv-adopt, \
-             uv-adopt-polyglot, uv-tools"
-        ),
-        "{out}"
-    );
     assert_eq!(err, "", "{err}");
     assert_eq!(runner.calls.borrow().len(), 1);
     assert_eq!(runner.calls.borrow()[0][0], hermetic_gitleaks());
@@ -272,6 +309,7 @@ fn run_affected_handoff(name: &str, argv: &[&str], runner: &AuditRunner) -> (i32
     invocation.targets = Vec::new();
     invocation.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
     let harness = Harness::new(name);
+    write_hubs(&harness);
     harness.execute_with(&invocation, runner)
 }
 
@@ -377,6 +415,7 @@ fn run_unpinned(
         .is_none());
     let invocation = parse(&strings(&["security"])).expect("parse");
     let harness = Harness::new(name);
+    write_hubs(&harness);
     write_all_lock_families_with_advisories(&harness);
     setup(&harness);
     let (code, out, err) = harness.execute_with(&invocation, runner);
@@ -476,6 +515,10 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         harness.write_source(
+            "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+            r#"{"packages": {}}"#,
+        );
+        harness.write_source(
             "rust/tests/fixtures/hello/Cargo.lock",
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
@@ -488,27 +531,6 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("incomplete"), "{err}");
-}
-
-#[test]
-pub(super) fn audit_live_npm_git_and_sibling_locks_are_incomplete() {
-    let runner = AuditRunner::clean();
-    let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
-        write_cargo_lock(harness);
-        write_npm_locks(harness);
-        harness.write_source(
-            "package-lock.json",
-            r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/git-dep":{"version":"github:user/repo#abc123"}}}"#,
-        );
-        write_maven_lock(harness);
-        write_nuget_lock(harness);
-        write_go_mod(harness);
-        write_all_empty_advisories(harness);
-    });
-    assert_eq!(code, 1, "{err}");
-    assert!(err.contains("audit_failed"), "{err}");
-    assert!(err.contains("incomplete"), "{err}");
-    assert!(err.contains("git-dep"), "{err}");
 }
 
 #[test]
@@ -534,24 +556,20 @@ pub(super) fn audit_live_npm_pnpm_git_resolution_is_incomplete() {
 #[test]
 pub(super) fn audit_live_vendored_mirror_analyzes_offline_like_upstream() {
     let runner = AuditRunner::clean();
-    let (code, _out, err) = run_with(
-        &["security", "//go/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            write_go_mod(harness);
-            let json = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
-            let sha = dx_digest::sha256_hex(json.as_bytes());
-            harness.write_source(".dx/advisory/go.json", json);
-            let meta = serde_json::json!({
-                "set": "go",
-                "url": "file:///opt/dx-offline/advisory/go.json",
-                "sha256": sha,
-                "retrieved_at": TEST_AUDIT_TODAY,
-                "path": ".dx/advisory/go.json",
-            });
-            harness.write_source(".dx/advisory/go.meta.json", &meta.to_string());
-        },
-    );
+    let (code, _out, err) = run_with(&["security", "//third_party/go:go"], &runner, &|harness| {
+        write_go_mod(harness);
+        let json = r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#;
+        let sha = dx_digest::sha256_hex(json.as_bytes());
+        harness.write_source(".dx/advisory/go.json", json);
+        let meta = serde_json::json!({
+            "set": "go",
+            "url": "file:///opt/dx-offline/advisory/go.json",
+            "sha256": sha,
+            "retrieved_at": TEST_AUDIT_TODAY,
+            "path": ".dx/advisory/go.json",
+        });
+        harness.write_source(".dx/advisory/go.meta.json", &meta.to_string());
+    });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("1 vulnerability findings"), "{err}");
@@ -611,18 +629,14 @@ pub(super) fn audit_live_npm_family_locks_are_clean_when_no_advisory_matches() {
 #[test]
 pub(super) fn audit_live_go_advisory_findings_fail_instead_of_empty_clean() {
     let runner = AuditRunner::clean();
-    let (code, _out, err) = run_with(
-        &["security", "//go/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            write_go_mod(harness);
-            write_advisory(
-                harness,
-                "go",
-                r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#,
-            );
-        },
-    );
+    let (code, _out, err) = run_with(&["security", "//third_party/go:go"], &runner, &|harness| {
+        write_go_mod(harness);
+        write_advisory(
+            harness,
+            "go",
+            r#"[{"id":"GHSA-go-test-0001","package":"github.com/google/go-cmp","versions":">=v0.5.0, <v0.7.0","severity":"high","fixed":["v0.7.0"],"set":"go"}]"#,
+        );
+    });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
     assert!(err.contains("1 vulnerability findings"), "{err}");
@@ -651,7 +665,7 @@ fn go_exception(versions: &str, expires: &str) -> String {
 
 fn security_with_go_advisory(security_toml: &str) -> (i32, String, String) {
     run_with(
-        &["security", "//go/tests/fixtures/hello:hello"],
+        &["security", "//third_party/go:go"],
         &AuditRunner::clean(),
         &|harness| {
             write_go_mod(harness);
@@ -866,28 +880,16 @@ pub(super) fn audit_live_license_clean_and_denied() {
 #[test]
 fn audit_live_license_names_uncovered_dependency_sets() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(
-        &["license", "//go/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            write_go_mod(harness);
-            harness.write_source(
+    let (code, out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
+        write_go_mod(harness);
+        harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//go/tests/fixtures/hello:hello\"]\n",
+                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
             );
-        },
-    );
+    });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
     assert!(!out.contains("no advisory coverage"), "{out}");
-
-    let runner = AuditRunner::clean();
-    let (code, _out, err) = run_with(&["license"], &runner, &clean_workspace);
-    assert_eq!(code, 1, "{err}");
-    assert!(
-        err.contains("no advisory coverage for uv, uv-adopt, uv-adopt-polyglot, uv-tools"),
-        "{err}"
-    );
 }
 
 fn write_junit_exception(harness: &Harness) {
@@ -920,20 +922,13 @@ pub(super) fn audit_live_license_exception_expiry_follows_the_pinned_date() {
 #[test]
 pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(
-        &["license", "//javascript/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            harness.write_source(
-                "package-lock.json",
-                r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/react":{"version":"18.2.0","license":"MIT"}}}"#,
-            );
-            harness.write_source(
+    let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
+        harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(
                 "licenses.toml",
                 "[policy.distributed]\nallow = [\"MIT\"]\nreview = [\"EPL-1.0\"]\ndeny = []\n\n[[exception]]\npackage = \"junit:junit\"\nset = \"maven\"\nlicense = \"EPL-1.0\"\nversions = \"4.13.2\"\nreason = \"Test approval.\"\nexpires = \"2999-01-01\"\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
             );
-        },
-    );
+    });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
 }
@@ -941,35 +936,21 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
 #[test]
 pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(
-        &["license", "//javascript/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            harness.write_source(
-                "package-lock.json",
-                r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/react":{"version":"18.2.0","license":"MIT"}}}"#,
-            );
-            harness.write_source(
+    let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
+        harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
+        harness.write_source(
                 "licenses.toml",
                 "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"react\"\nset = \"npm\"\nlicense = \"MIT\"\nversions = \"18.2.0\"\ntext_present = true\n",
             );
-        },
-    );
+    });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
 
     let runner = AuditRunner::clean();
-    let (code, _out, err) = run_with(
-        &["license", "//javascript/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            harness.write_source(
-                "package-lock.json",
-                r#"{"name":"root","lockfileVersion":3,"packages":{"":{"name":"root"},"node_modules/react":{"version":"18.2.0","license":"MIT"}}}"#,
-            );
-            write_mit_licenses(harness);
-        },
-    );
+    let (code, _out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
+        harness.write_source("pnpm-lock.yaml", "packages:\n  react@18.2.0: {}\n");
+        write_mit_licenses(harness);
+    });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
 
@@ -984,9 +965,10 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
 
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(
-        &["license", "//csharp/tests/fixtures/hello:hello"],
+        &["license", "//third_party/dotnet:dotnet"],
         &runner,
         &|harness| {
+            harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
             harness.write_source(
                 "third_party/dotnet/paket.lock",
                 "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    FSharp.Core (10.1.201)\n",
@@ -1001,38 +983,30 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     assert!(out.contains("audit license: clean"), "{out}");
 
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(
-        &["license", "//go/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            harness.write_source(
-                "third_party/go/go.mod",
-                "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
-            );
-            harness.write_source(
+    let (code, out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
+        harness.write_source(
+            "third_party/go/go.mod",
+            "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
+        );
+        harness.write_source(
                 "licenses.toml",
                 "[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\ntext_present = true\n",
             );
-        },
-    );
+    });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
 
     let runner = AuditRunner::clean();
-    let (code, _out, err) = run_with(
-        &["license", "//go/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            harness.write_source(
-                "third_party/go/go.mod",
-                "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
-            );
-            harness.write_source(
+    let (code, _out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
+        harness.write_source(
+            "third_party/go/go.mod",
+            "module example.com/root\n\ngo 1.24.12\n\nrequire example.com/hello v1.0.0\n",
+        );
+        harness.write_source(
                 "licenses.toml",
                 "[policy.distributed]\nallow = [\"BSD-3-Clause\"]\nreview = []\ndeny = []\n\n[[inventory]]\npackage = \"example.com/hello\"\nset = \"go\"\nlicense = \"BSD-3-Clause\"\nversions = \"v1.0.0\"\n",
             );
-        },
-    );
+    });
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("audit_failed"), "{err}");
 }
@@ -1040,17 +1014,13 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
 #[test]
 pub(super) fn audit_live_target_scopes_to_owning_set_only() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(
-        &["license", "//go/tests/fixtures/hello:hello"],
-        &runner,
-        &|harness| {
-            write_go_mod(harness);
-            harness.write_source(
+    let (code, out, err) = run_with(&["license", "//third_party/go:go"], &runner, &|harness| {
+        write_go_mod(harness);
+        harness.write_source(
                 "licenses.toml",
-                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//go/tests/fixtures/hello:hello\"]\n",
+                "[policy.distributed]\nallow = [\"MIT\"]\nreview = []\ndeny = []\n\n[distribution]\ninternal = [\"//third_party/go:go\"]\n",
             );
-        },
-    );
+    });
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
     assert_eq!(runner.calls.borrow().len(), 0);

@@ -76,16 +76,15 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
     ));
 }
 
-fn npm_lock_with(license: &str) -> String {
-    serde_json::json!({
-        "name": "root",
-        "lockfileVersion": 3,
-        "packages": {
-            "": {"name": "root"},
-            "node_modules/demo": {"version": "1.0.0", "license": license}
-        }
-    })
-    .to_string()
+fn write_demo_license(harness: &Harness, license: &str) {
+    harness.write_source(
+        "rust/tests/fixtures/hello/Cargo.lock",
+        "[[package]]\nname = \"demo\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+    );
+    harness.write_source(
+        "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+        &serde_json::json!({"packages": {"demo 1.0.0": {"license": license}}}).to_string(),
+    );
 }
 
 #[test]
@@ -110,10 +109,14 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
         ("Zlib", "license/Zlib"),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//javascript:demo", "--report=sarif=-"],
+            &[
+                "license",
+                "//rust/tests/fixtures/hello:demo",
+                "--report=sarif=-",
+            ],
             &AuditRunner::clean(),
             &|harness| {
-                harness.write_source("package-lock.json", &npm_lock_with(license));
+                write_demo_license(&harness, license);
             },
         );
         if rule.is_empty() {
@@ -133,13 +136,17 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 
 #[test]
 fn an_internal_license_scope_skips_the_review_and_notice_tables() {
-    let policy = "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//javascript:internal\"]\n";
+    let policy = "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//rust/tests/fixtures/hello:internal\"]\n";
     for (license, code) in [("Zlib", 0), ("ISC", 0), ("MIT", 0), ("AGPL-3.0-only", 1)] {
         let (code_seen, out, err) = run_with(
-            &["license", "//javascript:internal", "--report=sarif=-"],
+            &[
+                "license",
+                "//rust/tests/fixtures/hello:internal",
+                "--report=sarif=-",
+            ],
             &AuditRunner::clean(),
             &|harness| {
-                harness.write_source("package-lock.json", &npm_lock_with(license));
+                write_demo_license(&harness, license);
                 harness.write_source("licenses.toml", policy);
             },
         );
@@ -152,10 +159,14 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
         ("AGPL-3.0-only", "license/AGPL-3.0-only"),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//javascript:distributed", "--report=sarif=-"],
+            &[
+                "license",
+                "//rust/tests/fixtures/hello:distributed",
+                "--report=sarif=-",
+            ],
             &AuditRunner::clean(),
             &|harness| {
-                harness.write_source("package-lock.json", &npm_lock_with(license));
+                write_demo_license(&harness, license);
                 harness.write_source("licenses.toml", policy);
             },
         );
@@ -171,13 +182,16 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
 fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
     let policy =
         "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[distribution]\ninternal = [\"//...\"]\n";
-    for scope in ["//javascript/...", "//javascript:app"] {
+    for scope in [
+        "//rust/tests/fixtures/hello:all",
+        "//rust/tests/fixtures/hello:app",
+    ] {
         for (license, code) in [("MIT", 0), ("AGPL-3.0-only", 1)] {
             let (code_seen, out, err) = run_with(
                 &["license", scope, "--report=sarif=-"],
                 &AuditRunner::clean(),
                 &|harness| {
-                    harness.write_source("package-lock.json", &npm_lock_with(license));
+                    write_demo_license(&harness, license);
                     harness.write_source("licenses.toml", policy);
                 },
             );
@@ -239,25 +253,29 @@ fn license_exceptions_only_approve_matching_current_findings() {
         ("AGPL-3.0-only", "", 1),
         ("GPL-3.0-only", "", 1),
         ("MPL-2.0", "", 1),
-        ("GPL-3.0-only", "[[exception]]\npackage = \"demo\"\nset = \"npm\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n", 0),
-        ("GPL-3.0-only", "[[exception]]\npackage = \"other\"\nset = \"npm\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n", 1),
-        ("GPL-3.0-only", "[[exception]]\npackage = \"demo\"\nset = \"npm\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2000-01-01\"\n", 1),
+        ("GPL-3.0-only", "[[exception]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n", 0),
+        ("GPL-3.0-only", "[[exception]]\npackage = \"other\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2999-01-01\"\n", 1),
+        ("GPL-3.0-only", "[[exception]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\nreason = \"reviewed\"\nexpires = \"2000-01-01\"\n", 1),
     ] {
-        let (code, out, err) = run_with(&["license", "//javascript:demo", "--output=json"], &AuditRunner::clean(), &|h| {
-            h.write_source("package-lock.json", &serde_json::json!({"packages":{"node_modules/demo":{"version":"1.0.0","license":license}}}).to_string());
-            h.write_source("licenses.toml", &format!("[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = [\"MPL-2.0\"]\n{exception}\n[[inventory]]\npackage = \"demo\"\nset = \"npm\"\nlicense = \"{license}\"\nversions = \"1.0.0\"\ntext_present = true\n"));
+        let (code, out, err) = run_with(&["license", "//rust/tests/fixtures/hello:demo", "--output=json"], &AuditRunner::clean(), &|h| {
+            write_demo_license(h, license);
+            h.write_source("licenses.toml", &format!("[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = [\"MPL-2.0\"]\n{exception}\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"{license}\"\nversions = \"1.0.0\"\ntext_present = true\n"));
         });
         assert_eq!(code, expected, "{license}: {out}{err}");
     }
     let (code, out, err) = run_with(
-        &["license", "//javascript:demo"],
+        &["license", "//rust/tests/fixtures/hello:demo"],
         &AuditRunner::clean(),
         &|h| {
-            h.write_source("package-lock.json", "{");
+            h.write_source("rust/tests/fixtures/hello/cargo-bazel-lock.json", "{}");
+            h.write_source("rust/tests/fixtures/hello/Cargo.lock", "{");
         },
     );
     assert_eq!(code, 1, "{out}{err}");
-    assert!(err.contains("could not parse package-lock.json"));
+    assert!(
+        err.contains("could not parse rust/tests/fixtures/hello/Cargo.lock"),
+        "{err}"
+    );
 }
 
 #[test]
@@ -536,42 +554,6 @@ fn advisory_loader_rejects_corrupt_snapshots_and_identity_sidecars() {
 }
 
 #[test]
-fn lock_loading_requires_readable_inputs_and_deduplicates_npm_siblings() {
-    use super::AuditError;
-    use dx_update::sets::SetId;
-    let harness = Harness::new("audit-lock-loading");
-    assert!(matches!(
-        super::lock_texts_for_set(&harness.workspace, SetId::Npm),
-        Err(AuditError::LockMissing { .. })
-    ));
-    harness.write_source("pnpm-lock.yaml", "packages:\n  demo@1.0.0: {}\n");
-    harness.write_source(
-        "package-lock.json",
-        r#"{"packages":{"node_modules/demo":{"version":"1.0.0"}}}"#,
-    );
-    harness.write_source("yarn.lock", "demo@^1.0.0:\n  version \"1.0.0\"\n");
-    let texts = super::lock_texts_for_set(&harness.workspace, SetId::Npm).expect("three locks");
-    assert_eq!(texts.len(), 3);
-    let (packages, paths) = super::parse_locked_for_set(SetId::Npm, &texts).expect("deduplicate");
-    assert_eq!(packages.len(), 1);
-    assert_eq!(packages[0].name, "demo");
-    assert_eq!(paths.of("demo", "1.0.0"), "pnpm-lock.yaml");
-    assert_eq!(paths.of("absent", "9.9.9"), "pnpm-lock.yaml");
-    assert!(matches!(
-        super::parse_locked_for_set(
-            SetId::Npm,
-            &[("package-lock.json".to_owned(), "{".to_owned())]
-        ),
-        Err(AuditError::LockParse { .. })
-    ));
-    std::fs::write(harness.workspace.join("package-lock.json"), [0xff]).expect("bad utf8");
-    assert!(matches!(
-        super::lock_texts_for_set(&harness.workspace, SetId::Npm),
-        Err(AuditError::NotUtf8 { .. })
-    ));
-}
-
-#[test]
 fn audit_live_names_the_lockfile_each_finding_came_from() {
     use dx_plan::args::parse;
     fn sarif_paths(
@@ -604,33 +586,24 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
     }
     let advisories = serde_json::json!([
         {"id": "GHSA-aaaa", "package": "pnpmonly", "versions": "1.0.0", "severity": "high", "fixed": ["1.0.1"], "set": "npm"},
-        {"id": "GHSA-bbbb", "package": "jsononly", "versions": "2.0.0", "severity": "high", "fixed": [], "set": "npm"},
-        {"id": "GHSA-cccc", "package": "yarnonly", "versions": "3.0.0", "severity": "high", "fixed": ["3.0.1"], "set": "npm"},
     ])
     .to_string();
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-lock-paths");
+    write_hubs(&harness);
     harness.write_source(
         "pnpm-lock.yaml",
         "lockfileVersion: '9.0'\n\npackages:\n\n  'pnpmonly@1.0.0':\n    resolution: {integrity: sha512-abc}\n",
     );
     harness.write_source(
-        "package-lock.json",
-        r#"{"packages":{"node_modules/jsononly":{"version":"2.0.0","license":"GPL-3.0-only"}}}"#,
-    );
-    harness.write_source("yarn.lock", "yarnonly@^3.0.0:\n  version \"3.0.0\"\n");
-    harness.write_source(
         "licenses.toml",
-        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = []\n[[inventory]]\npackage = \"pnpmonly\"\nset = \"npm\"\nlicense = \"AGPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = false\n[[inventory]]\npackage = \"yarnonly\"\nset = \"npm\"\nlicense = \"AGPL-3.0-only\"\nversions = \"3.0.0\"\ntext_present = false\n",
+        "[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\ndeny = [\"GPL-3.0-only\"]\nreview = []\n[[inventory]]\npackage = \"pnpmonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = false\n[[inventory]]\npackage = \"yarnonly\"\nset = \"cargo\"\nlicense = \"AGPL-3.0-only\"\nversions = \"3.0.0\"\ntext_present = false\n",
     );
     write_advisory(&harness, "npm", &advisories);
-    for (command, report, driver) in [
-        ("security", "vuln.sarif", "vuln"),
-        ("license", "license.sarif", "license"),
-    ] {
+    for (command, report, driver) in [("security", "vuln.sarif", "vuln")] {
         let invocation = parse(&[
             command.to_owned(),
-            "//javascript:demo".to_owned(),
+            "//:demo".to_owned(),
             format!("--report=sarif={report}"),
         ])
         .expect("parse");
@@ -644,16 +617,6 @@ fn audit_live_names_the_lockfile_each_finding_came_from() {
         assert_eq!(
             by_package.get("pnpmonly").map(String::as_str),
             Some("pnpm-lock.yaml"),
-            "{command}: {by_package:?}"
-        );
-        assert_eq!(
-            by_package.get("jsononly").map(String::as_str),
-            Some("package-lock.json"),
-            "{command}: {by_package:?}"
-        );
-        assert_eq!(
-            by_package.get("yarnonly").map(String::as_str),
-            Some("yarn.lock"),
             "{command}: {by_package:?}"
         );
     }
@@ -724,18 +687,14 @@ fn go_vulnerability(harness: &Harness) {
     write_advisory(harness, "go", GO_ADVISORY);
 }
 
-fn denied_npm_license(harness: &Harness) {
-    harness.write_source("package-lock.json", &npm_lock_with("AGPL-3.0-only"));
+fn denied_license(harness: &Harness) {
+    write_demo_license(harness, "AGPL-3.0-only");
 }
 
 #[test]
 fn audit_json_emits_each_vulnerability_and_license_finding() {
     let (code, out, err) = run_with(
-        &[
-            "security",
-            "--output=json",
-            "//go/tests/fixtures/hello:hello",
-        ],
+        &["security", "--output=json", "//third_party/go:go"],
         &AuditRunner::clean(),
         &go_vulnerability,
     );
@@ -766,15 +725,22 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     );
 
     let (code, out, err) = run_with(
-        &["license", "--output=json", "//javascript:demo"],
+        &[
+            "license",
+            "--output=json",
+            "//rust/tests/fixtures/hello:demo",
+        ],
         &AuditRunner::clean(),
-        &denied_npm_license,
+        &denied_license,
     );
     assert_eq!(code, 1, "{out}{err}");
     let events = json_events(&out);
     let license = finding(&events, "license");
     assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
-    assert_eq!(license["path"], serde_json::json!("package-lock.json"));
+    assert_eq!(
+        license["path"],
+        serde_json::json!("rust/tests/fixtures/hello/Cargo.lock")
+    );
     let message = license["message"].as_str().expect("message");
     assert!(
         message.starts_with("demo@1.0.0 license AGPL-3.0-only"),
@@ -793,7 +759,7 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
 #[test]
 fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
     let (code, out, err) = run_with(
-        &["security", "//go/tests/fixtures/hello:hello"],
+        &["security", "//third_party/go:go"],
         &AuditRunner::clean(),
         &go_vulnerability,
     );
@@ -808,9 +774,13 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
     assert!(line.ends_with("[vuln/GHSA-go-test-0001]"), "{line}");
 
     let (code, out, err) = run_with(
-        &["license", "//javascript:demo", "--report=sarif=-"],
+        &[
+            "license",
+            "//rust/tests/fixtures/hello:demo",
+            "--report=sarif=-",
+        ],
         &AuditRunner::clean(),
-        &denied_npm_license,
+        &denied_license,
     );
     assert_eq!(code, 1, "{out}{err}");
     serde_json::from_str::<serde_json::Value>(&out).expect("stdout stays SARIF");
@@ -819,7 +789,9 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
         .find(|line| line.contains("AGPL-3.0-only"))
         .unwrap_or_else(|| panic!("no license line: {err}"));
     assert!(
-        line.starts_with("package-lock.json: error: demo@1.0.0 license AGPL-3.0-only"),
+        line.starts_with(
+            "rust/tests/fixtures/hello/Cargo.lock: error: demo@1.0.0 license AGPL-3.0-only"
+        ),
         "{line}"
     );
 }
@@ -829,6 +801,7 @@ fn audit_reports_sarif_to_file() {
     use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-reports-cargo");
+    write_hubs(&harness);
     write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
@@ -868,6 +841,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-sarif-license-shape");
+    write_hubs(&harness);
     write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
@@ -888,6 +862,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     assert_eq!(names, vec!["license"]);
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-sarif-security-shape");
+    write_hubs(&harness);
     write_all_lock_families_with_advisories(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
@@ -924,6 +899,7 @@ fn audit_sarif_partial_marks_unsuccessful_while_retaining_findings() {
     );
     let runner = AuditRunner::with_sarif(Some(1), &sarif_in);
     let harness = Harness::new("audit-sarif-partial");
+    write_hubs(&harness);
     write_all_lock_families(&harness);
     let invocation =
         parse(&["security".to_owned(), "--report=sarif=out.sarif".to_owned()]).expect("parse");
@@ -985,74 +961,16 @@ fn audit_partial_reports_are_not_authoritative() {
 }
 
 #[test]
-fn audit_set_coverage_is_decided_once_and_matches_the_set_registry() {
-    let names: Vec<&str> = dx_update::sets::SetId::ALL
-        .iter()
-        .map(|set| set.name())
-        .collect();
-    for name in &names {
-        assert_eq!(
-            dx_audit::backend::is_empty_set(name),
-            dx_audit::advisory::advisory_family(name)
-                .and_then(dx_audit::advisory::advisory_source)
-                .is_none(),
-            "{name} needs lock coverage and an advisory source together"
-        );
-    }
-    let covered: std::collections::BTreeSet<&str> = names
-        .iter()
-        .copied()
-        .filter(|name| !dx_audit::backend::is_empty_set(name))
-        .collect();
-    let curated: std::collections::BTreeSet<&str> = dx_audit::curator::CURATOR_ADVISORY_SETS
-        .iter()
-        .copied()
-        .filter(|family| *family != "rubygems")
-        .collect();
-    let covered_families: std::collections::BTreeSet<&str> = covered
-        .iter()
-        .filter_map(|name| dx_audit::advisory::advisory_family(name))
-        .collect();
-    assert_eq!(curated, covered_families);
-    let sibling_format_sets = ["npm"];
-    for set in dx_update::sets::SetId::ALL {
-        let name = set.name();
-        if sibling_format_sets.contains(&name) {
-            continue;
-        }
-        for rel in dx_audit::backend::vuln_locks(name) {
-            assert!(
-                set.locks().contains(rel),
-                "{name} is audited against {rel}, which its updater set does not own"
-            );
-        }
-    }
-    let uncovered = dx_audit::backend::sets_without_coverage(names.iter().copied());
-    assert_eq!(
-        uncovered,
-        names
-            .iter()
-            .copied()
-            .filter(|name| !covered.contains(name))
-            .collect::<Vec<&str>>()
-    );
-    assert!(
-        !uncovered.is_empty(),
-        "every uncovered set must be reported"
-    );
-}
-
-#[test]
 fn audit_errors_stay_typed_with_stable_display() {
     use super::AuditError;
     use std::error::Error as _;
     assert_eq!(
         AuditError::NoOwningSet {
             scope: "examples/adopt-cpp/solo:solo".to_owned(),
-            sets: super::audited_set_names().join(", "),
+            sets: "cargo, go, npm".to_owned(),
         }
         .to_string(),
-        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, maven, npm, npm-adopt, npm-adopt-polyglot, npm-tools, nuget"
+        "no owning dependency set for \"examples/adopt-cpp/solo:solo\"; audited sets: cargo, go, npm"
     );
     let read = AuditError::Read {
         rel: "pnpm-lock.yaml".to_owned(),
@@ -1197,18 +1115,14 @@ fn audit_errors_stay_typed_with_stable_display() {
         security.to_string(),
         "unsupported security.toml schema_version 99 (want 1)"
     );
-    let unowned = super::resolve_audit_sets(&["docs/cli/README.md".to_owned()])
-        .expect_err("unowned scope fails");
-    assert!(matches!(unowned, AuditError::NoOwningSet { .. }));
-    assert!(unowned.to_string().contains("no owning dependency set"));
     let harness = Harness::new("audit-typed-missing");
     let missing = super::load_advisories(&harness.workspace, "cargo", "cargo", "2026-09-22")
         .expect_err("missing snapshot fails");
     assert!(matches!(missing, AuditError::AdvisoryMissing { .. }));
     assert!(missing.to_string().contains("advisory_refresh_failed"));
-    let lock_missing = super::lock_texts_for_set(&harness.workspace, dx_update::sets::SetId::Cargo)
-        .expect_err("missing lock fails");
-    assert!(matches!(lock_missing, AuditError::LockMissing { .. }));
+    let lock_missing = AuditError::LockMissing {
+        rel: "Cargo.lock".to_owned(),
+    };
     assert_eq!(
         missing.code(),
         dx_audit::advisory::CODE_ADVISORY_REFRESH_FAILED
@@ -1226,59 +1140,12 @@ fn audit_errors_stay_typed_with_stable_display() {
 }
 
 #[test]
-fn audit_scopes_resolve_to_the_set_that_owns_the_pinned_dependency() {
-    use super::AuditError;
-    use dx_update::sets::SetId;
-    for (scope, expected) in [
-        ("//examples/adopt-csharp/greet:greet", vec![SetId::NuGet]),
-        ("//examples/adopt-fsharp/solo:solo", vec![SetId::NuGet]),
-        ("//examples/adopt-scala/greet:greet", vec![SetId::Maven]),
-        ("//csharp/tests/fixtures/hello:hello", vec![SetId::NuGet]),
-        ("//scala/greet:greet", vec![SetId::Maven]),
-        ("//python/tests/fixtures/hello/hello.py", vec![SetId::Uv]),
-    ] {
-        assert_eq!(
-            super::resolve_audit_sets(&[scope.to_owned()]).expect(scope),
-            expected,
-            "{scope}"
-        );
-    }
-    assert_eq!(
-        super::audited_set_names(),
-        vec![
-            "cargo",
-            "go",
-            "maven",
-            "npm",
-            "npm-adopt",
-            "npm-adopt-polyglot",
-            "npm-tools",
-            "nuget"
-        ]
-    );
-    for scope in [
-        "//examples/adopt-cpp/solo:solo",
-        "//examples/adopt-cpp/greet:greet",
-    ] {
-        let unowned = super::resolve_audit_sets(&[scope.to_owned()]).expect_err(scope);
-        assert!(
-            matches!(unowned, AuditError::NoOwningSet { .. }),
-            "{scope} has no dependency set"
-        );
-    }
-    assert_eq!(
-        super::resolve_audit_sets(&["//quality/...".to_owned()]).expect("quality tree"),
-        vec![SetId::Cargo, SetId::NpmTools, SetId::UvTools],
-        "a recursive scope must not skip the lockfiles nested under it"
-    );
-}
-
-#[test]
 fn audit_sarif_write_failures_are_fail_closed() {
     use dx_plan::args::parse;
     for (format, path) in [("sarif", "missing-dir/out.sarif")] {
         let runner = AuditRunner::clean();
         let harness = Harness::new(&format!("audit-report-fail-{format}"));
+        write_hubs(&harness);
         write_cargo_license_set(&harness);
         let invocation = parse(&[
             "license".to_owned(),
@@ -1301,6 +1168,7 @@ fn audit_report_write_failure_json_reports_error_event() {
     use dx_plan::args::parse;
     let runner = AuditRunner::clean();
     let harness = Harness::new("audit-report-fail-json");
+    write_hubs(&harness);
     write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),

@@ -323,6 +323,8 @@ mod tests {
             session: Some("s1".to_owned()),
             agent: None,
             pid: Some(7),
+            pid_start: None,
+            boot_id: None,
             gone: false,
             stopped_at: None,
             unclaimed: false,

@@ -69,184 +69,110 @@ pub(super) fn run_license(
         .map(|target| target.name())
         .collect();
     for target in sets {
-        if let AuditTarget::Configured(set) = target {
-            if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
-                match bazel_inputs_for_configured(workspace, set) {
-                    Err(error) => {
-                        if incomplete.is_none() {
-                            incomplete =
-                                Some(format!("failed to assess {}: {error}", target.name()));
+        let AuditTarget::Configured(set) = target;
+        if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Bazel {
+            match bazel_inputs_for_configured(workspace, set) {
+                Err(error) => {
+                    if incomplete.is_none() {
+                        incomplete = Some(format!("failed to assess {}: {error}", target.name()));
+                    }
+                }
+                Ok((inventory, lock_rel)) => {
+                    let inputs = inventory.inputs;
+                    let locked: Vec<dx_audit::vuln::LockedPackage> = inputs
+                        .iter()
+                        .map(dx_audit::locks::BazelInput::locked)
+                        .collect();
+                    let licensed = dx_audit::locks::inventory_licenses(
+                        &locked,
+                        &policy.inventory,
+                        dx_audit::locks::BAZEL_SET,
+                    );
+                    let mut fresh: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
+                    for (probe, entry) in locked.iter().zip(&licensed) {
+                        notice_present.insert(
+                            (entry.set.clone(), entry.name.clone(), entry.version.clone()),
+                            dx_audit::locks::inventory_text_present(probe, &policy.inventory),
+                        );
+                        let key = (entry.name.clone(), entry.version.clone());
+                        if bazel_seen.insert(key.clone()) {
+                            bazel_lock_of.insert(key, lock_rel.clone());
+                            fresh.push(entry.clone());
                         }
                     }
-                    Ok((inventory, lock_rel)) => {
-                        let inputs = inventory.inputs;
-                        let locked: Vec<dx_audit::vuln::LockedPackage> = inputs
-                            .iter()
-                            .map(dx_audit::locks::BazelInput::locked)
-                            .collect();
-                        let licensed = dx_audit::locks::inventory_licenses(
+                    bazel_fallback.get_or_insert(lock_rel);
+                    licensed_all.extend(fresh);
+                }
+            }
+            continue;
+        }
+        if matches!(
+            set.ecosystem,
+            dx_adopt::dependency_sets::Ecosystem::Npm
+                | dx_adopt::dependency_sets::Ecosystem::Ruby
+                | dx_adopt::dependency_sets::Ecosystem::PowerShell
+                | dx_adopt::dependency_sets::Ecosystem::Cargo
+                | dx_adopt::dependency_sets::Ecosystem::Maven
+                | dx_adopt::dependency_sets::Ecosystem::Nuget
+                | dx_adopt::dependency_sets::Ecosystem::Go
+        ) {
+            let ecosystem = set.ecosystem.name();
+            let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
+                parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
+            });
+            match parsed {
+                Err(error) => {
+                    if incomplete.is_none() {
+                        incomplete = Some(format!("failed to assess {}: {error}", target.name()));
+                    }
+                }
+                Ok((locks, (locked, paths))) => {
+                    let licensed = match set.ecosystem {
+                        dx_adopt::dependency_sets::Ecosystem::Npm => {
+                            configured_npm_licenses(&locks, &locked, &policy.inventory)
+                        }
+                        dx_adopt::dependency_sets::Ecosystem::Cargo => {
+                            configured_cargo_licenses(&locks, &locked, &policy.inventory)
+                        }
+                        _ => dx_audit::locks::inventory_licenses(
                             &locked,
                             &policy.inventory,
-                            dx_audit::locks::BAZEL_SET,
+                            ecosystem,
+                        ),
+                    };
+                    let entry = lock_paths.entry(ecosystem.to_owned()).or_insert(LockPaths {
+                        by_package: BTreeMap::new(),
+                        fallback: paths.fallback.clone(),
+                    });
+                    for (key, rel) in paths.by_package {
+                        entry.by_package.entry(key).or_insert(rel);
+                    }
+                    for entry in licensed {
+                        let probe = dx_audit::vuln::LockedPackage::new(
+                            entry.set.clone(),
+                            entry.name.clone(),
+                            entry.version.clone(),
                         );
-                        let mut fresh: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
-                        for (probe, entry) in locked.iter().zip(&licensed) {
-                            notice_present.insert(
-                                (entry.set.clone(), entry.name.clone(), entry.version.clone()),
-                                dx_audit::locks::inventory_text_present(probe, &policy.inventory),
-                            );
-                            let key = (entry.name.clone(), entry.version.clone());
-                            if bazel_seen.insert(key.clone()) {
-                                bazel_lock_of.insert(key, lock_rel.clone());
-                                fresh.push(entry.clone());
-                            }
+                        let key = (entry.set.clone(), entry.name.clone(), entry.version.clone());
+                        if notice_present.contains_key(&key) {
+                            continue;
                         }
-                        bazel_fallback.get_or_insert(lock_rel);
-                        licensed_all.extend(fresh);
+                        notice_present.insert(
+                            key,
+                            dx_audit::locks::inventory_text_present(&probe, &policy.inventory),
+                        );
+                        licensed_all.push(entry);
                     }
-                }
-                continue;
-            }
-            if matches!(
-                set.ecosystem,
-                dx_adopt::dependency_sets::Ecosystem::Npm
-                    | dx_adopt::dependency_sets::Ecosystem::Ruby
-                    | dx_adopt::dependency_sets::Ecosystem::PowerShell
-                    | dx_adopt::dependency_sets::Ecosystem::Cargo
-                    | dx_adopt::dependency_sets::Ecosystem::Maven
-                    | dx_adopt::dependency_sets::Ecosystem::Nuget
-                    | dx_adopt::dependency_sets::Ecosystem::Go
-            ) {
-                let ecosystem = set.ecosystem.name();
-                let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
-                    parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
-                });
-                match parsed {
-                    Err(error) => {
-                        if incomplete.is_none() {
-                            incomplete =
-                                Some(format!("failed to assess {}: {error}", target.name()));
-                        }
-                    }
-                    Ok((locks, (locked, paths))) => {
-                        let licensed = match set.ecosystem {
-                            dx_adopt::dependency_sets::Ecosystem::Npm => {
-                                configured_npm_licenses(&locks, &locked, &policy.inventory)
-                            }
-                            dx_adopt::dependency_sets::Ecosystem::Cargo => {
-                                configured_cargo_licenses(&locks, &locked, &policy.inventory)
-                            }
-                            _ => dx_audit::locks::inventory_licenses(
-                                &locked,
-                                &policy.inventory,
-                                ecosystem,
-                            ),
-                        };
-                        let entry = lock_paths.entry(ecosystem.to_owned()).or_insert(LockPaths {
-                            by_package: BTreeMap::new(),
-                            fallback: paths.fallback.clone(),
-                        });
-                        for (key, rel) in paths.by_package {
-                            entry.by_package.entry(key).or_insert(rel);
-                        }
-                        for entry in licensed {
-                            let probe = dx_audit::vuln::LockedPackage::new(
-                                entry.set.clone(),
-                                entry.name.clone(),
-                                entry.version.clone(),
-                            );
-                            let key =
-                                (entry.set.clone(), entry.name.clone(), entry.version.clone());
-                            if notice_present.contains_key(&key) {
-                                continue;
-                            }
-                            notice_present.insert(
-                                key,
-                                dx_audit::locks::inventory_text_present(&probe, &policy.inventory),
-                            );
-                            licensed_all.push(entry);
-                        }
-                    }
-                }
-                continue;
-            }
-            if let Err(error) = lock_texts_for_configured(workspace, set) {
-                if incomplete.is_none() {
-                    incomplete = Some(format!("failed to assess {}: {error}", target.name()));
                 }
             }
             continue;
         }
-        if !target.lock_covered() {
-            continue;
-        }
-        let AuditTarget::Builtin(set) = target else {
-            continue;
-        };
-        let locks = match lock_texts_for_set(workspace, *set) {
-            Err(error) => {
-                if incomplete.is_none() {
-                    incomplete = Some(format!("failed to assess {}: {error}", set.name()));
-                }
-                continue;
-            }
-            Ok(locks) => locks,
-        };
-        let (locked, paths) = match parse_locked_for_set(*set, &locks) {
-            Err(error) => {
-                if incomplete.is_none() {
-                    incomplete = Some(error.to_string());
-                }
-                continue;
-            }
-            Ok(parsed) => parsed,
-        };
-        lock_paths.insert(set.name().to_owned(), paths);
-        let mut licensed = match *set {
-            dx_update::sets::SetId::Cargo => {
-                let bazel_text =
-                    read_workspace_text(workspace, "cargo-bazel-lock.json").unwrap_or_default();
-                dx_audit::locks::cargo_licenses(&bazel_text, &locked)
-            }
-            dx_update::sets::SetId::Npm => {
-                if let Some((_, package_lock_text)) =
-                    locks.iter().find(|(rel, _)| rel == "package-lock.json")
-                {
-                    dx_audit::locks::npm_licenses(package_lock_text, &locked)
-                } else {
-                    dx_audit::locks::unknown_licenses(&locked, set.name())
-                }
-            }
-            _ => dx_audit::locks::inventory_licenses(&locked, &policy.inventory, set.name()),
-        };
-        if *set == dx_update::sets::SetId::Cargo || *set == dx_update::sets::SetId::Npm {
-            let inventoried =
-                dx_audit::locks::inventory_licenses(&locked, &policy.inventory, set.name());
-            let by_key: std::collections::BTreeMap<(String, String), String> = inventoried
-                .into_iter()
-                .map(|entry| ((entry.name, entry.version), entry.license))
-                .collect();
-            for entry in &mut licensed {
-                if let Some(license) = by_key.get(&(entry.name.clone(), entry.version.clone())) {
-                    if license != "UNKNOWN" {
-                        entry.license = license.clone();
-                    }
-                }
+        if let Err(error) = lock_texts_for_configured(workspace, set) {
+            if incomplete.is_none() {
+                incomplete = Some(format!("failed to assess {}: {error}", target.name()));
             }
         }
-        for entry in &licensed {
-            let probe = dx_audit::vuln::LockedPackage::new(
-                entry.set.clone(),
-                entry.name.clone(),
-                entry.version.clone(),
-            );
-            let present = dx_audit::locks::inventory_text_present(&probe, &policy.inventory);
-            notice_present.insert(
-                (entry.set.clone(), entry.name.clone(), entry.version.clone()),
-                present,
-            );
-        }
-        licensed_all.extend(licensed);
+        continue;
     }
     if let Some(fallback) = bazel_fallback {
         lock_paths.insert(
@@ -391,22 +317,21 @@ pub(super) fn run_license(
     let mut selected_sets: BTreeSet<&str> = BTreeSet::new();
     for target in sets {
         selected_sets.insert(target.name());
-        if let AuditTarget::Configured(set) = target {
-            match set.ecosystem {
-                dx_adopt::dependency_sets::Ecosystem::Bazel => {
-                    selected_sets.insert(dx_audit::locks::BAZEL_SET);
-                }
-                dx_adopt::dependency_sets::Ecosystem::Npm
-                | dx_adopt::dependency_sets::Ecosystem::Ruby
-                | dx_adopt::dependency_sets::Ecosystem::PowerShell
-                | dx_adopt::dependency_sets::Ecosystem::Cargo
-                | dx_adopt::dependency_sets::Ecosystem::Maven
-                | dx_adopt::dependency_sets::Ecosystem::Nuget
-                | dx_adopt::dependency_sets::Ecosystem::Go => {
-                    selected_sets.insert(set.ecosystem.name());
-                }
-                dx_adopt::dependency_sets::Ecosystem::Uv => {}
+        let AuditTarget::Configured(set) = target;
+        match set.ecosystem {
+            dx_adopt::dependency_sets::Ecosystem::Bazel => {
+                selected_sets.insert(dx_audit::locks::BAZEL_SET);
             }
+            dx_adopt::dependency_sets::Ecosystem::Npm
+            | dx_adopt::dependency_sets::Ecosystem::Ruby
+            | dx_adopt::dependency_sets::Ecosystem::PowerShell
+            | dx_adopt::dependency_sets::Ecosystem::Cargo
+            | dx_adopt::dependency_sets::Ecosystem::Maven
+            | dx_adopt::dependency_sets::Ecosystem::Nuget
+            | dx_adopt::dependency_sets::Ecosystem::Go => {
+                selected_sets.insert(set.ecosystem.name());
+            }
+            dx_adopt::dependency_sets::Ecosystem::Uv => {}
         }
     }
     let mut exception_problems: Vec<String> = Vec::new();

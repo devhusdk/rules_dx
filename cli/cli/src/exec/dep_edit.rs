@@ -190,6 +190,18 @@ pub(crate) fn preflight(
             ));
         }
     }
+    if target.needs_update_refresh() && target.configured.is_none() {
+        return Err(operational(
+            invocation,
+            out,
+            err,
+            verb.failure_code,
+            &format!(
+                "cannot refresh {selector}: no dependency set in MODULE.bazel owns it (no {} performed)",
+                verb.noun
+            ),
+        ));
+    }
     if let Some(refusal) = hub_gate_refusal(workspace, target) {
         return Err(operational(
             invocation,
@@ -666,18 +678,7 @@ fn refresh_plan(
     String,
     Result<RefreshPlan, dx_update::backend::BackendError>,
 )> {
-    let Some(configured) = &target.configured else {
-        let (set, request) = refresh_target(target)?;
-        let plan = dx_update::backend::plan(
-            workspace,
-            set,
-            &request,
-            invocation.offline,
-            invocation.frozen,
-            &invocation.bazel_head(),
-        );
-        return Some((set.name().to_owned(), plan.map(RefreshPlan::Backend)));
-    };
+    let configured = target.configured.as_ref()?;
     let name = configured.name.clone();
     let gone = || dx_update::backend::BackendError::Unsupported {
         set: name.clone(),
@@ -747,35 +748,6 @@ fn refresh_plan(
 enum RefreshPlan {
     Backend(dx_update::backend::BackendPlan),
     InDir(dx_update::backend::DirRun),
-}
-
-/// The `dx update` set and request that refresh the locks of `target`'s set.
-pub(crate) fn refresh_target(
-    target: &dx_update::bump::DepTarget,
-) -> Option<(dx_update::sets::SetId, dx_update::selector::SetRequest)> {
-    match target.set {
-        dx_update::bump::UpdateSet::Cargo => Some((
-            dx_update::sets::SetId::Cargo,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_update::bump::UpdateSet::Npm => Some((
-            dx_update::sets::SetId::Npm,
-            dx_update::selector::SetRequest::Packages(vec![target.package.clone()]),
-        )),
-        dx_update::bump::UpdateSet::Go => Some((
-            dx_update::sets::SetId::Go,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_update::bump::UpdateSet::Maven => Some((
-            dx_update::sets::SetId::Maven,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_update::bump::UpdateSet::NuGet => Some((
-            dx_update::sets::SetId::NuGet,
-            dx_update::selector::SetRequest::Full,
-        )),
-        dx_update::bump::UpdateSet::Bazel | dx_update::bump::UpdateSet::GithubActions => None,
-    }
 }
 
 #[cfg(test)]

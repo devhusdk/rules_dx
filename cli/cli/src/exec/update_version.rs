@@ -1164,110 +1164,6 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn file_only_and_noop_bumps_work_offline_with_json_reports() {
-        for (selector, version, path, before, after) in [
-            (
-                "bazel:.bazelversion",
-                "9.3.0",
-                ".bazelversion",
-                "9.2.0\n",
-                "9.3.0\n",
-            ),
-            (
-                "github-actions:actions/checkout",
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                ".github/workflows/ci.yml",
-                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@v1\n",
-                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
-            ),
-            (
-                "go:example.com/demo",
-                "1.3.0",
-                "third_party/go/go.mod",
-                "module example.com/root\nrequire example.com/demo v1.2.0 // was v1.0.0\n",
-                "module example.com/root\nrequire example.com/demo v1.3.0 // was v1.0.0\n",
-            ),
-        ] {
-            let harness = Harness::new("bump-file-offline");
-            seed(&harness, path, before);
-            let (code, out, err) = harness.run(&[
-                "update",
-                selector,
-                version,
-                "--offline",
-                "--output=json",
-                "--apply",
-            ]);
-            assert_eq!(code, 0, "{out}{err}");
-            assert_eq!(
-                std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
-                after
-            );
-            assert!(harness.seen_env.borrow().is_empty());
-            let events: Vec<serde_json::Value> = out
-                .lines()
-                .map(|line| serde_json::from_str(line).expect("event"))
-                .collect();
-            assert_eq!(events[0]["event"], "command_started");
-            assert!(events.iter().any(|event| event["code"] == "update_widened"));
-            assert_eq!(events.last().expect("finished")["exit_code"], 0);
-        }
-    }
-
-    #[test]
-    fn offline_refresh_needed_fails_before_widening() {
-        for (selector, version, path, before) in [
-            (
-                "cargo:demo",
-                "1.2.3",
-                HELLO_CARGO,
-                "[dependencies]\ndemo = \"1\"\n",
-            ),
-            (
-                "npm:demo",
-                "1.2.3",
-                "package.json",
-                "{\n  \"dependencies\": {\n    \"demo\": \"1.0.0\"\n  }\n}\n",
-            ),
-        ] {
-            let harness = Harness::new("bump-offline-refresh");
-            seed(&harness, path, before);
-            let (code, out, err) = harness.run(&[
-                "update",
-                selector,
-                version,
-                "--offline",
-                "--output=json",
-                "--apply",
-            ]);
-            assert_eq!(code, 1, "{selector}: {out}{err}");
-            assert!(
-                err.contains(&format!("dx: {}: ", super::CODE_OFFLINE_REQUIRED)),
-                "{selector}: {err}"
-            );
-            assert!(err.contains("no widen performed"), "{selector}: {err}");
-            assert_eq!(
-                std::fs::read_to_string(harness.workspace.join(path)).expect("manifest"),
-                before,
-                "{selector}: offline must not widen"
-            );
-            assert!(
-                harness.seen_env.borrow().is_empty(),
-                "{selector}: offline launches nothing"
-            );
-            let events = json_events(&out);
-            assert_eq!(
-                event(&events, "error")["code"],
-                super::CODE_OFFLINE_REQUIRED
-            );
-            let finished = events.last().expect("finished");
-            assert_eq!(finished["event"], "command_finished");
-            assert_eq!(finished["exit_code"], 1);
-            assert_eq!(finished["results_complete"], false);
-        }
-    }
-
-    #[test]
     fn frozen_widen_needed_fails_before_any_manifest_write() {
         for (selector, version, path, before) in [
             (
@@ -1325,21 +1221,6 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn signalled_refresh_keeps_widen_and_reports_failure() {
-        let mut harness = Harness::new("bump-signalled");
-        harness.signalled = true;
-        seed(&harness, HELLO_CARGO, "[dependencies]\ndemo = \"1\"\n");
-        let (code, out, err) =
-            harness.run(&["update", "cargo:demo", "2.0.0", "--output=json", "--apply"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("signal"));
-        assert!(out.contains("update_widened"));
-        assert!(std::fs::read_to_string(harness.workspace.join(HELLO_CARGO))
-            .expect("manifest")
-            .contains("2.0.0"));
-    }
-
-    #[test]
     fn dry_run_rejects_bad_selector_and_version() {
         let harness = Harness::new("bump-dryrun-bad-selector");
         let (code, _, err) = harness.run(&["update", "crates", "1.2.3"]);
@@ -1347,98 +1228,6 @@ dependencies = ["anyio>=4"]
         let harness = Harness::new("bump-dryrun-bad-version");
         let (code, _, err) = harness.run(&["update", "cargo:anyhow", "nope!!!"]);
         assert_eq!(code, 2, "{err}");
-    }
-
-    #[test]
-    fn live_widens_one_cargo_requirement_atomically() {
-        let harness = Harness::new("bump-live-cargo");
-        seed(
-            &harness,
-            HELLO_CARGO,
-            "[dependencies]\nanyhow = \"1\"\nserde = \"1\"\n",
-        );
-        let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened cargo:anyhow to 1.2.3"), "{out}");
-        assert!(
-            out.contains("and refreshed cargo via `dx update cargo` automatically"),
-            "{out}"
-        );
-        assert!(err.is_empty(), "{err}");
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "cargo chains one refresh launch"
-        );
-        let widened = std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read");
-        assert!(widened.contains("anyhow = \"1.2.3\""), "{widened}");
-        assert!(widened.contains("serde = \"1\""), "{widened}");
-    }
-
-    #[test]
-    fn live_npm_chains_selective_refresh_automatically() {
-        let harness = Harness::new("bump-live-npm-chain");
-        harness.write_source(
-            "package.json",
-            "{\n  \"dependencies\": {\n    \"jest\": \"30.2.0\",\n    \"vue\": \"3.5.42\"\n  }\n}\n",
-        );
-        let (code, out, err) = harness.run(&["update", "npm:jest", "30.3.0", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened npm:jest to 30.3.0"), "{out}");
-        assert!(
-            out.contains("and refreshed npm:jest via `dx update npm:jest` automatically"),
-            "{out}"
-        );
-        assert!(err.is_empty(), "{err}");
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "npm chains one selective launch"
-        );
-        let widened =
-            std::fs::read_to_string(harness.workspace.join("package.json")).expect("read");
-        assert!(widened.contains("\"jest\": \"30.3.0\""), "{widened}");
-        assert!(widened.contains("\"vue\": \"3.5.42\""), "{widened}");
-    }
-
-    #[test]
-    fn minified_npm_manifest_apply_changes_only_the_dependency() {
-        let harness = Harness::new("bump-npm-minified");
-        harness.write_source(
-            "package.json",
-            "{\"name\":\"demo\",\"dependencies\":{\"lodash\":\"4.17.20\"}}",
-        );
-        let (code, out, err) = harness.run(&["update", "npm:lodash", "4.17.21", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join("package.json")).expect("read"),
-            "{\"name\":\"demo\",\"dependencies\":{\"lodash\":\"4.17.21\"}}"
-        );
-    }
-
-    #[test]
-    fn live_go_chains_noop_without_launch() {
-        let harness = Harness::new("bump-live-go-chain");
-        harness.write_source(
-            "third_party/go/go.mod",
-            "module example.com/mod\n\nrequire example.com/mod v1.2.3\n",
-        );
-        let (code, out, err) = harness.run(&["update", "go:example.com/mod", "1.3.0", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened go:example.com/mod"), "{out}");
-        assert!(
-            out.contains("and refreshed go via `dx update go` automatically"),
-            "{out}"
-        );
-        assert!(out.contains("no-op success"), "{out}");
-        assert!(err.is_empty(), "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "go noop chains without launch"
-        );
-        let widened =
-            std::fs::read_to_string(harness.workspace.join("third_party/go/go.mod")).expect("read");
-        assert!(widened.contains("v1.3.0"), "{widened}");
     }
 
     #[test]
@@ -1461,60 +1250,6 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn live_maven_chains_full_refresh_automatically() {
-        let harness = Harness::new("bump-live-maven-chain");
-        harness.write_source(
-            "MODULE.bazel",
-            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n)\n",
-        );
-        let (code, out, err) = harness.run(&["update", "maven:junit:junit", "4.13.3", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened maven:junit:junit"), "{out}");
-        assert!(
-            out.contains("and refreshed maven via `dx update maven` automatically"),
-            "{out}"
-        );
-        assert!(err.is_empty(), "{err}");
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "maven chains one full launch"
-        );
-        let widened =
-            std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
-        assert!(widened.contains("\"junit:junit:4.13.3\""), "{widened}");
-    }
-
-    #[test]
-    fn live_nuget_chains_full_refresh_automatically() {
-        let harness = Harness::new("bump-live-nuget-chain");
-        harness.write_source(
-            "third_party/dotnet/paket.dependencies",
-            "source https://api.nuget.org/v3/index.json\nnuget FSharp.Core 10.1.201\n",
-        );
-        let (code, out, err) = harness.run(&["update", "nuget:FSharp.Core", "10.1.202", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened nuget:FSharp.Core"), "{out}");
-        assert!(
-            out.contains("and refreshed nuget via `dx update nuget` automatically"),
-            "{out}"
-        );
-        assert!(err.is_empty(), "{err}");
-        assert_eq!(
-            harness.seen_env.borrow().len(),
-            1,
-            "nuget chains one full launch"
-        );
-        let widened = std::fs::read_to_string(
-            harness
-                .workspace
-                .join("third_party/dotnet/paket.dependencies"),
-        )
-        .expect("read");
-        assert!(widened.contains("nuget FSharp.Core 10.1.202"), "{widened}");
-    }
-
-    #[test]
     fn live_bazel_file_only_has_no_refresh_launch() {
         let harness = Harness::new("bump-live-bazel-fileonly");
         harness.write_source(".bazelversion", "9.2.0\n");
@@ -1530,88 +1265,6 @@ dependencies = ["anyio>=4"]
         assert!(
             harness.seen_env.borrow().is_empty(),
             "file-only chains nothing"
-        );
-    }
-
-    #[test]
-    fn live_refresh_failure_keeps_widen_and_reports_update_failed() {
-        let mut harness = Harness::new("bump-live-refresh-fail");
-        harness.bazel_code = 1;
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("update_failed"), "{err}");
-        assert!(err.contains("updater exited 1"), "{err}");
-        assert!(err.contains("widen kept"), "{err}");
-        assert_eq!(harness.seen_env.borrow().len(), 1, "refresh attempted once");
-        let widened = std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read");
-        assert!(widened.contains("anyhow = \"1.2.3\""), "{widened}");
-    }
-
-    #[test]
-    fn live_refresh_launch_failure_keeps_widen() {
-        let mut harness = Harness::new("bump-live-launch-fail");
-        harness.io_error = true;
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("update_failed"), "{err}");
-        assert!(err.contains("failed to launch updater"), "{err}");
-        assert!(err.contains("widen kept"), "{err}");
-        let widened = std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read");
-        assert!(widened.contains("anyhow = \"1.2.3\""), "{widened}");
-    }
-
-    #[test]
-    fn live_json_chained_emits_widened_plus_update_success() {
-        let harness = Harness::new("bump-live-json-chain");
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, out, err) = harness.run(&[
-            "update",
-            "cargo:anyhow",
-            "1.2.3",
-            "--output=json",
-            "--apply",
-        ]);
-        assert_eq!(code, 0, "{out}{err}");
-        let events = json_events(&out);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds[0], "command_started");
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        let notices = events_of_kind(&events, "notice");
-        assert_eq!(notices.len(), 2, "{out}");
-        assert_eq!(notices[0]["code"], serde_json::json!("update_widened"));
-        assert_eq!(notices[1]["code"], serde_json::json!("update_set_success"));
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(0)
-        );
-        assert_eq!(err, "", "{err}");
-    }
-
-    #[test]
-    fn live_json_refresh_failure_emits_widened_plus_error() {
-        let mut harness = Harness::new("bump-live-json-fail");
-        harness.bazel_code = 2;
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, out, err) = harness.run(&[
-            "update",
-            "cargo:anyhow",
-            "1.2.3",
-            "--output=json",
-            "--apply",
-        ]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("update_failed"), "{err}");
-        let events = json_events(&out);
-        let kinds = event_kinds(&events);
-        assert_eq!(kinds[0], "command_started");
-        assert_eq!(kinds[kinds.len() - 1], "command_finished");
-        assert!(kinds.contains(&"notice"), "{out}");
-        assert!(kinds.contains(&"error"), "{out}");
-        assert_eq!(
-            events.last().expect("finished")["exit_code"],
-            serde_json::json!(1)
         );
     }
 
@@ -1741,18 +1394,6 @@ dependencies = ["anyio>=4"]
             assert!(err.contains(needle), "{args:?}: {err}");
             assert_eq!(read(), SPLIT_MODULE, "{args:?} must not write");
         }
-    }
-
-    #[test]
-    fn live_missing_requirement_is_added() {
-        let harness = Harness::new("bump-live-missing");
-        seed(&harness, HELLO_CARGO, "[dependencies]\nserde = \"1\"\n");
-        let (code, _, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 0, "{err}");
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read"),
-            "[dependencies]\nanyhow = \"1.2.3\"\nserde = \"1\"\n"
-        );
     }
 
     #[test]
@@ -2001,83 +1642,6 @@ dependencies = ["anyio>=4"]
         );
     }
 
-    #[test]
-    fn offline_live_resolver_fails_before_widen_without_mutation() {
-        let harness = Harness::new("bump-offline-resolver");
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, _, err) =
-            harness.run(&["update", "cargo:anyhow", "1.2.3", "--offline", "--apply"]);
-        assert_eq!(code, 1, "{err}");
-        assert!(err.contains("offline_required"), "{err}");
-        assert!(err.contains("without network"), "{err}");
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "offline launches nothing"
-        );
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read"),
-            "[dependencies]\nanyhow = \"1\"\n",
-            "offline must not widen"
-        );
-        let fileonly = Harness::new("bump-offline-fileonly");
-        fileonly.write_source(".bazelversion", "9.2.0\n");
-        let (code, out, err) = fileonly.run(&[
-            "update",
-            "bazel:.bazelversion",
-            "9.3.0",
-            "--offline",
-            "--apply",
-        ]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened bazel:.bazelversion"), "{out}");
-        assert!(fileonly.seen_env.borrow().is_empty());
-        let go = Harness::new("bump-offline-go");
-        go.write_source(
-            "third_party/go/go.mod",
-            "module example.com/mod\n\nrequire example.com/mod v1.2.3\n",
-        );
-        let (code, out, err) = go.run(&[
-            "update",
-            "go:example.com/mod",
-            "1.3.0",
-            "--offline",
-            "--apply",
-        ]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("no-op success"), "{out}");
-        assert!(go.seen_env.borrow().is_empty());
-    }
-
-    #[test]
-    fn default_checks_without_writing_and_apply_widens() {
-        let harness = Harness::new("bump-default-check");
-        seed(&harness, HELLO_CARGO, "[dependencies]\nanyhow = \"1\"\n");
-        let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3"]);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains("update_widen_failed"), "{err}");
-        assert!(err.contains("bump drift"), "{err}");
-        assert!(err.contains("--apply"), "{err}");
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read"),
-            "[dependencies]\nanyhow = \"1\"\n",
-            "check must not widen"
-        );
-        assert!(
-            harness.seen_env.borrow().is_empty(),
-            "check launches nothing"
-        );
-        let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("widened cargo:anyhow to 1.2.3"), "{out}");
-        assert_eq!(
-            std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read"),
-            std::fs::read_to_string(harness.workspace.join(HELLO_CARGO)).expect("read"),
-        );
-        let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(out.contains("no-change"), "{out}");
-    }
-
     const GHA_SHA: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
     /// One already-current declaration per bump set: selector, version, manifest, text.
@@ -2264,30 +1828,6 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
-    fn live_cargo_widens_every_manifest_that_declares_the_crate() {
-        let harness = Harness::new("bump-cargo-every-manifest");
-        seed_cargo(&harness, &CARGO_TREE);
-        let (code, out, err) = harness.run(&["update", "cargo:anyhow", "1.2.3", "--apply"]);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(
-            out.contains(
-                "widened cargo:anyhow to 1.2.3 in cli/a/Cargo.toml, rust/tests/fixtures/hello/Cargo.toml"
-            ),
-            "{out}"
-        );
-        assert_eq!(
-            read(&harness, "cli/a/Cargo.toml"),
-            "[dependencies]\nanyhow = \"1.2.3\"\n"
-        );
-        assert_eq!(
-            read(&harness, HELLO_CARGO),
-            "[dev-dependencies]\nanyhow = { version = \"1.2.3\" }\n"
-        );
-        assert_eq!(read(&harness, "cli/b/Cargo.toml"), CARGO_TREE[1].1);
-        assert_eq!(harness.seen_env.borrow().len(), 1, "one refresh launch");
-    }
-
-    #[test]
     fn cargo_check_mode_reports_drift_across_manifests() {
         let harness = Harness::new("bump-cargo-check-manifests");
         seed_cargo(&harness, &CARGO_TREE);
@@ -2303,15 +1843,6 @@ dependencies = ["anyio>=4"]
             assert_eq!(read(&harness, path), text, "check must not write {path}");
         }
         assert!(harness.seen_env.borrow().is_empty());
-    }
-
-    #[test]
-    fn cargo_crate_missing_from_every_manifest_is_added_to_the_default_manifest() {
-        let harness = Harness::new("bump-cargo-missing-everywhere");
-        seed_cargo(&harness, &CARGO_TREE);
-        let (code, _, err) = harness.run(&["update", "cargo:tokio", "1.2.3", "--apply"]);
-        assert_eq!(code, 0, "{err}");
-        assert!(read(&harness, HELLO_CARGO).contains("tokio = \"1.2.3\""));
     }
 
     #[test]

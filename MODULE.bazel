@@ -277,23 +277,18 @@ use_repo(
 
 register_toolchains("@dotnet_toolchains//:all")
 
-dotnet_paket = use_extension("//dotnet:extensions.bzl", "paket")
-use_repo(
-    dotnet_paket,
-    "dotnet.apphost_packs",
-    "dotnet.runtime_packs",
-    "dotnet.targeting_packs",
-    "paket.paket2bazel_dependencies",
-    "paket.rules_dotnet_nuget_packages",
-)
-
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
 use_repo(
     paket,
+    "dotnet.apphost_packs",
+    "dotnet.runtime_packs",
+    "dotnet.targeting_packs",
     "paket.docs_csharp",
     "paket.docs_fsharp",
     "paket.fsharplint",
     "paket.main",
+    "paket.paket2bazel_dependencies",
+    "paket.rules_dotnet_nuget_packages",
 )
 
 # floor: previous tested version; not yet searched (#3747)

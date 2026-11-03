@@ -14,6 +14,7 @@ const MARKERS: &[(&str, &[&str])] = &[
         "id-token",
         &["cosign", "actions/deploy-pages@", "actions/attest@"],
     ),
+    ("issues", &["gh issue "]),
     ("packages", &["docker push"]),
     ("pages", &["actions/deploy-pages@"]),
     ("pull-requests", &["gh pr ", "/issues/", "/pulls"]),

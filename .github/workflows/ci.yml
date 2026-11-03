@@ -828,3 +828,36 @@ jobs:
         run: |
           echo "### ci — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"
+  scheduled-report:
+    name: scheduled-report
+    if: ${{ always() && github.event_name == 'schedule' }}
+    needs: [ci]
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - name: Open, update or close the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CI_RESULT: ${{ needs.ci.result }}
+        run: |
+          title="ci: scheduled run is failing"
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [ "$CI_RESULT" = "success" ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" --comment "Scheduled run is green again: $RUN_URL"
+            fi
+            exit 0
+          fi
+          failed=$(gh run view "$RUN_ID" --json jobs --jq '[.jobs[] | select(.conclusion == "failure") | "- " + .name] | join("\n")')
+          body="Scheduled ci run failed: $RUN_URL"$'\n\n'"Failed jobs:"$'\n'"$failed"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

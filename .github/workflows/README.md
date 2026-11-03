@@ -12,7 +12,7 @@
 
 ## Main health
 
-`ci.yml` also runs on a schedule (`17 3,15 * * *`, UTC) against the default branch head, so main always has a recent full result. Main pushes share one concurrency group (`ci-ci-main`, no cancel): one run keeps running and the newest push replaces only the waiting one. Scheduled runs use per-SHA groups, so a push never replaces them, and publishing stays push-only. A red scheduled run is a signal, not an outage; route its causes to #1371. GitHub may delay or drop scheduled runs under load.
+`ci.yml` also runs on a schedule (`17 3,15 * * *`, UTC) against the default branch head, so main always has a recent full result. Main pushes share one concurrency group (`ci-ci-main`, no cancel): one run keeps running and the newest push replaces only the waiting one. Scheduled runs use per-SHA groups, so a push never replaces them, and publishing stays push-only. A red scheduled run opens or updates one issue titled `ci: scheduled run is failing` (the `scheduled-report` job). The next green scheduled run closes it. GitHub may delay or drop scheduled runs under load.
 
 The platform table is `PLATFORMS` in `tools/ci/input_validation.rs`; `input_validation_test` pins every other copy to it.
 

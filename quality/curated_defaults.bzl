@@ -97,7 +97,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": ["remark"],
         "lint": [],
-        "typecheck": [],
+        "typecheck": ["tsc"],
     },
     "python": {
         "audit": [],

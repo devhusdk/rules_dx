@@ -108,14 +108,14 @@ def curated_defaults_unit_tests(name):
                 ],
             ),
             expect_equal(
-                "mdx curated defaults stay remark format only",
+                "mdx curated defaults are remark format plus tsc typecheck",
                 [CURATED_DEFAULTS["mdx"], FORMAT_FROZEN["mdx"]],
                 [
                     {
                         "audit": [],
                         "format": ["remark"],
                         "lint": [],
-                        "typecheck": [],
+                        "typecheck": ["tsc"],
                     },
                     ["remark"],
                 ],

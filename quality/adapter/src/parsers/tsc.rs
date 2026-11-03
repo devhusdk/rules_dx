@@ -224,6 +224,17 @@ mod tests {
     }
 
     #[test]
+    fn an_mdx_diagnostic_keeps_its_mdx_position() {
+        let line = "app/doc.mdx(3,5): error TS2345: Argument of type 'string' is not assignable.\n";
+        let found = parse_tsc(line.as_bytes(), Some(2), &["app/doc.mdx"]).expect("parsed");
+        assert_eq!(found[0].file, "app/doc.mdx");
+        assert_eq!(
+            found[0].finding.start,
+            TextPosition { line: 3, column: 5 }
+        );
+    }
+
+    #[test]
     fn the_found_summary_is_ignored_and_the_tool_id_is_a_parameter() {
         let text = format!("{}Found 4 errors in 2 files.\n", REAL);
         let found = parse_tsc_format("vue_tsc", text.as_bytes(), Some(2), &FILES).expect("parsed");

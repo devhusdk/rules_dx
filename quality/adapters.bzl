@@ -135,7 +135,7 @@ REAL_ADAPTERS = {
     "thrift": {"lint": ["thrift"], "typecheck": ["thrift"]},
     "topiary": {"format": ["ocaml"]},
     "ty": {"typecheck": ["jupyter", "python", "python_stub"]},
-    "tsc": {"typecheck": ["javascript", "jsx", "tsx", "typescript"]},
+    "tsc": {"typecheck": ["javascript", "jsx", "mdx", "tsx", "typescript"]},
     "typstyle": {"format": ["typst"]},
     "latexindent": {"format": ["latex"]},
     "ldc": {"typecheck": ["d"]},

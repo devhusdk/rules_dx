@@ -32,7 +32,8 @@ def _is_ts_project(attrs):
 
 def _tsc_js_impl(target, ctx):
     """Type-checks a js_library's JavaScript sources with checkJs through a generated tsconfig."""
-    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs")]
+    sources = [f for f in target[JsInfo].sources.to_list() if f.extension in ("js", "jsx", "mjs", "cjs", "mdx")]
+    has_mdx = any([f.extension == "mdx" for f in sources])
     if len(sources) == 0:
         return []
     tsconfig = ctx.actions.declare_file("dx_tsc/%s.tsconfig.json" % target.label.name)
@@ -44,16 +45,19 @@ def _tsc_js_impl(target, ctx):
     if target.label.package == "":
         depth = len(ctx.bin_dir.path.split("/")) + 1
     up = "../" * depth
+    options = {
+        "allowJs": True,
+        "checkJs": True,
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "noEmit": True,
+        "skipLibCheck": True,
+        "target": "ES2022",
+    }
+    if has_mdx:
+        options["jsx"] = "preserve"
     ctx.actions.write(tsconfig, json.encode({
-        "compilerOptions": {
-            "allowJs": True,
-            "checkJs": True,
-            "module": "ESNext",
-            "moduleResolution": "Bundler",
-            "noEmit": True,
-            "skipLibCheck": True,
-            "target": "ES2022",
-        },
+        "compilerOptions": options,
         "files": [up + f.path for f in sources],
     }))
     args = ctx.actions.args()
@@ -63,7 +67,7 @@ def _tsc_js_impl(target, ctx):
         ctx,
         mnemonic = "TscDiagnostics",
         progress_message = "tsc diagnostics (js) %{label}",
-        executable = ctx.executable._tsc,
+        executable = ctx.executable._mdx_tsc if has_mdx else ctx.executable._tsc,
         inputs = depset([tsconfig], transitive = [target[JsInfo].sources]),
         outputs = [stdout, status],
         arguments = [args],
@@ -127,6 +131,11 @@ tsc_aspect = aspect(
     doc = "Runs the project's own tsc with --noEmit over a typescript_project and records stdout and the exit code without failing the build.",
     attr_aspects = ["upstream"],
     attrs = {
+        "_mdx_tsc": attr.label(
+            default = "//quality/tools/javascript/bin:mdx_tsc",
+            executable = True,
+            cfg = "exec",
+        ),
         "_tsc": attr.label(
             default = "@npm_typescript//:tsc",
             executable = True,

@@ -46,6 +46,36 @@ js_test(
 )
 
 js_binary(
+    name = "mdx_tsc",
+    data = [
+        "//quality/tools/javascript:node_modules/@mdx-js/language-service",
+        "//quality/tools/javascript:node_modules/@volar/typescript",
+        "//quality/tools/javascript:node_modules/remark-frontmatter",
+        "//quality/tools/javascript:node_modules/remark-gfm",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "mdx_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_test(
+    name = "mdx_tsc_test",
+    size = "small",
+    data = [
+        "mdx_tsc.mjs",
+        "testdata/mdx/bad.mdx",
+        "testdata/mdx/clean.mdx",
+        "testdata/mdx/lib.ts",
+        "//quality/tools/javascript:node_modules/@mdx-js/language-service",
+        "//quality/tools/javascript:node_modules/@volar/typescript",
+        "//quality/tools/javascript:node_modules/remark-frontmatter",
+        "//quality/tools/javascript:node_modules/remark-gfm",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "mdx_tsc_test.mjs",
+)
+
+js_binary(
     name = "prettier_generated",
     data = [
         "prettier_ignore",

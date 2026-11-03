@@ -212,7 +212,7 @@ workspace_policy(
 | `json` | `prettier` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `ktlint` | `kotlinc` |
 | `markdown` | disabled | `markdown_check`, `vale` | disabled |
-| `mdx` | `remark` | disabled | disabled |
+| `mdx` | `remark` | disabled | `tsc` |
 | `python` | `ruff` | `pydoclint`, `ruff` | `ty` |
 | `rust` | `rustfmt` | `clippy` | `rustc` |
 | `scala` | `scalafmt` | disabled | `scalac` |
@@ -339,7 +339,7 @@ to.
 | `tflint` | lint | terraform |
 | `thrift` | lint, typecheck | thrift |
 | `topiary` | format | ocaml |
-| `tsc` | typecheck | typescript, tsx |
+| `tsc` | typecheck | javascript, jsx, mdx, tsx, typescript |
 | `ty` | typecheck | python, jupyter |
 | `typstyle` | format | typst |
 | `vale` | lint | markdown |
@@ -3086,7 +3086,8 @@ bundle them. Tested with `astro` 7.3.8, `@astrojs/check` 0.9.12,
 `mdx_library` from `@rules_dx//mdx/rules:defs.bzl` owns `.mdx` files. The
 default policy formats them with `remark` from the managed pin (remark-stringify
 11.0.0 with remark-mdx 3.1.1, remark-gfm 4.0.1 and remark-frontmatter 5.0.0). It
-runs on Linux x86_64. MDX has no typecheck.
+runs on Linux x86_64. `tsc` typechecks the imports, `export` statements and
+JSX expressions of `.mdx` files and reports errors at their MDX line and column.
 
 ```sh
 bazel run @rules_dx//:dx -- format //docs/...

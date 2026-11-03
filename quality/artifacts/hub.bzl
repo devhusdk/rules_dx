@@ -227,3 +227,15 @@ def _message_lines(indent, message):
         lines.append(indent + '"' + part + ' " +')
     lines.append(indent + '"' + parts[-1] + '"')
     return lines
+
+def platform_conflict_message(first, second):
+    """Builds the error for dx_tools.platform declared by two modules.
+
+    Args:
+      first: The module that declared it first.
+      second: The module that declared it again.
+
+    Returns:
+      The error string.
+    """
+    return "dx_tools.platform may be declared at most once: declared by %s %s and %s %s" % (first.name, first.version, second.name, second.version)

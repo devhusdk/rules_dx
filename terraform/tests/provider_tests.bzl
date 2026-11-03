@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//terraform:extensions.bzl", "default_url", "provider_errors")
+load("//terraform:extensions.bzl", "default_url", "provider_conflict_message", "provider_errors")
 load("//terraform/rules:providers.bzl", "TerraformModuleInfo", "provider_mirror_root")
 
 _SHA = "a" * 64
@@ -20,6 +20,15 @@ def provider_unit_tests(name):
         expect_equal("url without sha", len(provider_errors(_SRC, "1", {"linux_amd64": _SHA}, {"linux_arm64": "u"})), 1),
         expect_equal("bad source", len(provider_errors("null", "1", {"linux_amd64": _SHA}, {})) > 0, True),
         expect_equal("no sha", len(provider_errors(_SRC, "1", {}, {})), 1),
+        expect_equal(
+            "conflict names modules",
+            provider_conflict_message(
+                "null",
+                struct(module = struct(name = "app", version = "1.0"), source = _SRC, version = "3.2.4"),
+                struct(module = struct(name = "lib", version = "2.1"), source = _SRC, version = "3.2.5"),
+            ),
+            "dx_terraform: conflicting declarations of provider \"null\": app 1.0 declares %s 3.2.4, lib 2.1 declares %s 3.2.5" % (_SRC, _SRC),
+        ),
         expect_equal(
             "default url",
             default_url(_SRC, "3.2.4", "linux_amd64"),

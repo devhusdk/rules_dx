@@ -84,7 +84,9 @@ def test_acquisition_names_no_host_utility():
 
 def test_fixture_covers_every_supported_archive_kind():
     kinds = {attrs["archive_format"] for _, attrs in declarations()}
-    assert kinds == {"none", "gzip", "tar.gz", "tar.xz", "zip"}, f"fixture covers {sorted(kinds)}"
+    assert kinds == {"none", "gzip", "tar.gz", "tar.xz", "zip"}, (
+        f"fixture covers {sorted(kinds)}"
+    )
 
 
 def test_fixture_names_the_success_and_reject_repos():

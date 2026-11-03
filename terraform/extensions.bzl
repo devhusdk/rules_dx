@@ -57,6 +57,30 @@ def provider_errors(source, version, sha256, urls):
             errors.append("%s: url for %s has no sha256" % (source, target))
     return errors
 
+def _module_label(module):
+    return "%s %s" % (module.name, module.version)
+
+def provider_conflict_message(name, first, second):
+    """Builds the error for a provider declared differently by two modules.
+
+    Args:
+      name: Provider name.
+      first: Struct with module, source and version of the first declaration.
+      second: Struct with module, source and version of the conflicting one.
+
+    Returns:
+      The error string.
+    """
+    return "dx_terraform: conflicting declarations of provider %r: %s declares %s %s, %s declares %s %s" % (
+        name,
+        _module_label(first.module),
+        first.source,
+        first.version,
+        _module_label(second.module),
+        second.source,
+        second.version,
+    )
+
 def default_url(source, version, target):
     kind = source.split("/")[-1]
     return "https://releases.hashicorp.com/terraform-provider-{k}/{v}/terraform-provider-{k}_{v}_{t}.zip".format(k = kind, v = version, t = target)
@@ -110,11 +134,13 @@ def _extension_impl(ctx):
             if errors:
                 fail("dx_terraform: " + "; ".join(errors))
             decl = (tag.source, tag.version, tag.sha256, tag.urls)
-            if tag.name in decls and decls[tag.name] != decl:
-                fail("dx_terraform: conflicting declarations of provider %r" % tag.name)
-            decls[tag.name] = decl
+            seen = struct(module = module, source = tag.source, version = tag.version)
+            if tag.name in decls and decls[tag.name][0] != decl:
+                fail(provider_conflict_message(tag.name, decls[tag.name][1], seen))
+            decls[tag.name] = (decl, seen)
     hub = {}
-    for name, (source, version, sha256, urls) in sorted(decls.items()):
+    for name, (decl, _) in sorted(decls.items()):
+        source, version, sha256, urls = decl
         repos = {}
         for target, digest in sorted(sha256.items()):
             repo = "dx_terraform_%s_%s" % (name, target)

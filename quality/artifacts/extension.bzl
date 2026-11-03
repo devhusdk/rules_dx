@@ -20,7 +20,7 @@ load("//quality/artifacts:google_java_format.bzl", _google_java_format = "SOURCE
 load("//quality/artifacts:hadolint.bzl", _hadolint = "ARTIFACTS")
 load("//quality/artifacts:helm.bzl", _helm = "ARTIFACTS")
 load("//quality/artifacts:hlint.bzl", _hlint = "ARTIFACTS")
-load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "hub_build")
+load("//quality/artifacts:hub.bzl", "artifact_map_errors", "artifact_metadata_errors", "hub_build", "platform_conflict_message")
 load("//quality/artifacts:jsonnet_lint.bzl", _jsonnet_lint = "ARTIFACTS")
 load("//quality/artifacts:jsonnetfmt.bzl", _jsonnetfmt = "ARTIFACTS")
 load("//quality/artifacts:keep_sorted.bzl", _keep_sorted = "ARTIFACTS")
@@ -156,10 +156,12 @@ def _source_repo(source):
 
 def _dx_tools_impl(ctx):
     os_linux, os_macos, os_windows, cpu_x86_64, cpu_arm64 = None, None, None, None, None
+    platform_module = None
     for module in ctx.modules:
         for tag in module.tags.platform:
             if os_linux != None:
-                fail("dx_tools.platform may be declared at most once")
+                fail(platform_conflict_message(platform_module, module))
+            platform_module = module
             os_linux = str(tag.os_linux)
             os_macos = str(tag.os_macos)
             os_windows = str(tag.os_windows)

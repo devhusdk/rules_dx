@@ -779,54 +779,9 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
         run: |
-          python3 - <<'DX_GATE_BASE'
-          import os
-          import subprocess
-          import sys
-
-
-          def git(*args, check=True):
-              done = subprocess.run(
-                  ["git", *args], capture_output=True, text=True, check=False
-              )
-              if check and done.returncode != 0:
-                  sys.exit(f"git {' '.join(args)} failed: {done.stderr.strip()}")
-              return done
-
-
-          event = os.environ.get("EVENT_NAME", "")
-          head = git("rev-parse", "HEAD").stdout.strip()
-          first_parent = git("rev-parse", "--verify", "-q", "HEAD^1", check=False)
-          fallback = first_parent.stdout.strip() if first_parent.returncode == 0 else ""
-          candidate = ""
-          if event == "pull_request":
-              candidate = fallback
-          elif event == "merge_group":
-              candidate = os.environ.get("MERGE_GROUP_BASE", "")
-              if not candidate:
-                  sys.exit("gate: merge_group event has no base_sha")
-          elif event == "push":
-              before = os.environ.get("PUSH_BEFORE", "")
-              known = before and set(before) != {"0"}
-              known = known and git("cat-file", "-e", f"{before}^{{commit}}", check=False).returncode == 0
-              candidate = before if known else fallback
-          else:
-              candidate = fallback
-          if not candidate:
-              sys.exit(f"gate: no base commit for event {event!r}")
-          merged = git("merge-base", candidate, head, check=False)
-          base = merged.stdout.strip() if merged.returncode == 0 else candidate
-          if not base:
-              sys.exit("gate: empty base")
-          if base == head:
-              sys.exit(f"gate: base {base} equals HEAD, nothing would be compared")
-          git("update-ref", "refs/remotes/origin/main", base)
-          if git("rev-parse", "--verify", "-q", "refs/remotes/origin/HEAD", check=False).returncode == 0:
-              git("update-ref", "--no-deref", "-d", "refs/remotes/origin/HEAD")
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"GATE_BASE={base}\n")
-          print(f"gate: base {base} head {head}")
-          DX_GATE_BASE
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" @rules_dx//tools/ci:gate_base_bin
       - name: Check the affected targets
         shell: bash
         run: |

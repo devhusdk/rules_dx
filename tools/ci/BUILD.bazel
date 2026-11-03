@@ -255,17 +255,30 @@ rust_test(
     ],
 )
 
-python_test(
+# keep
+rust_library(
+    name = "gate_base",
+    srcs = ["gate_base.rs"],
+    crate_name = "gate_base",
+)
+
+# keep
+rust_binary(
+    name = "gate_base_bin",
+    srcs = ["gate_base_main.rs"],
+    deps = [":gate_base"],
+)
+
+# keep
+rust_test(
     name = "gate_base_test",
     size = "small",
-    srcs = ["gate_base_test.py"],
-    aspect_hints = ["//:ruff_config"],
-    data = ["//.github:workflows/ci.yml"],
-    dep_group = "hello",
-    imports = ["."],
+    srcs = ["gate_base_test.rs"],
+    data = [":gate_base_bin"],
+    env = {"DX_GATE_BASE": "$(rootpath :gate_base_bin)"},
     deps = [
-        ":workflow_testing",
-        "@pypi//pytest",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
     ],
 )
 

@@ -328,6 +328,7 @@ jobs:
             runner: windows-latest
           - platform: windows_arm64
             runner: windows-11-arm
+            no-starter-issue: "#4986"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -362,11 +363,17 @@ jobs:
           REPO_CACHE_PATH: ${{ steps.repo-cache.outputs.path }}
           SHARD: ${{ matrix.shard }}
           SHARDS: "4"
+          NO_STARTER_ISSUE: ${{ matrix.no-starter-issue }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel query "$@" 'attr(tags, starter-consumer, //...)' --output=label | sort > "$RUNNER_TEMP/starter-all"
           awk -v shard="$SHARD" -v shards="$SHARDS" '(NR - 1) % shards == shard' "$RUNNER_TEMP/starter-all" > "$RUNNER_TEMP/starter-targets"
+          if [ ! -s "$RUNNER_TEMP/starter-all" ]; then
+            echo "::error::No starter consumer targets exist."
+            exit 1
+          fi
           if [ ! -s "$RUNNER_TEMP/starter-targets" ]; then
             echo "No starter consumer targets in shard ${SHARD}."
             exit 0
@@ -374,6 +381,23 @@ jobs:
           targets="$(tr '\r\n' '  ' < "$RUNNER_TEMP/starter-targets")"
           # shellcheck disable=SC2086
           bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets
+          testlogs="$(bazel info "$@" bazel-testlogs)"
+          ran=0
+          for label in $targets; do
+            path="${label#//}"
+            if [ -f "${testlogs}/${path/:/\/}/test.xml" ]; then
+              ran=$((ran + 1))
+            fi
+          done
+          echo "Ran ${ran} starter consumer tests on ${PLATFORM}, shard ${SHARD}."
+          if [ "$ran" -eq 0 ]; then
+            if [ -n "$NO_STARTER_ISSUE" ]; then
+              echo "::warning::${PLATFORM} runs no starter consumer tests. Tracked in ${NO_STARTER_ISSUE}."
+              exit 0
+            fi
+            echo "::error::Every starter consumer test was skipped on ${PLATFORM}, shard ${SHARD}."
+            exit 1
+          fi
       - name: Write job summary
         if: always()
         env:

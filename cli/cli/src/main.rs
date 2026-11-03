@@ -382,6 +382,12 @@ fn run() -> i32 {
         .map_or(&runner as &dyn dx_process::Runner, |held| {
             held as &dyn dx_process::Runner
         });
+    dx_cli::exec::preset_sync::sync_preset_layers(
+        &invocation,
+        &workspace,
+        dx_plan::skew::is_skewed(&pin),
+        &mut err,
+    );
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {

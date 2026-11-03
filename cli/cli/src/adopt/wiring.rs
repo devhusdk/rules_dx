@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn drift_names_preset_gaps_and_apply_clears_them() {
+    fn drift_names_the_missing_import_and_apply_clears_it() {
         let scratch = dx_test_scratch::scratch("dx-adopt-wiring-preset-");
         let root = scratch.path();
         let drift = super::drift(root);
@@ -310,24 +310,8 @@ mod tests {
         assert!(super::drift(root).missing.is_empty());
         let layer = root.join(".dx/bazelrc/resources.bazelrc");
         std::fs::remove_file(&layer).expect("rm");
-        let drift = super::drift(root);
-        assert_eq!(
-            drift.missing,
-            vec![".dx/bazelrc/resources.bazelrc".to_owned()]
-        );
-        std::fs::write(
-            root.join(".dx/bazelrc/performance.bazelrc"),
-            format!("{}edited\n", dx_adopt::preset_fragment::HEADER_MARKER),
-        )
-        .expect("edit");
-        let drift = super::drift(root);
-        assert_eq!(
-            drift.stale,
-            vec![".dx/bazelrc/performance.bazelrc".to_owned()]
-        );
-        assert_eq!(init(root).0, 0);
         assert!(super::drift(root).missing.is_empty());
-        assert!(super::drift(root).stale.is_empty());
+        assert_eq!(init(root).0, 0);
         assert!(layer.exists());
     }
 

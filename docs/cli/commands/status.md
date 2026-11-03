@@ -73,7 +73,7 @@ directory cannot be opened.
 - `exec_tools`: reads `.bazelrc` and the preset files it imports. `warn` when
   `--host_compilation_mode=fastbuild` is not set for `build` or `dx_dev`, so exec tools build at opt.
 - `preset`: reads `.bazelrc` and `.dx/bazelrc`. `warn` naming each layer file that
-  is missing, stale or not imported; a commented-out import is an opt-out and `ok`.
+  is missing, stale or not imported (dx rewrites the layers before its next command); a commented-out import is an opt-out and `ok`.
   `not applicable` in rules_dx itself. The hint is `tools/dx init --apply`.
 - `tools`: reads the managed tools `dx env --apply` selected under
   `.dx/setups/current`. `warn` when none is selected. `error` when the

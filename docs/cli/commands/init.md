@@ -58,7 +58,7 @@ stderr.
 The CI caller pins the
 `rules_dx` reusable workflow at a reviewed commit and passes
 `rules_dx_version` matching the snippet. The `.gitignore` lists `target/`, `/bazel-*`, `node_modules/`,
-`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/` and
+`__pycache__/`, `*.pyc`, `.gradle/`, `/build/`, `/.dx/ide/`, `/.dx/bazelrc/` and
 `/.vscode/.rules_rust_analyzer/`. The `.bazelignore` lists `.dx`. When a `.bazelignore` already exists it is left alone, and
 `dx init --apply` prints `dx: .bazelignore lacks .dx; add it so Bazel skips the IDE output base`
 to stderr if it does not list `.dx`. The editor settings point at the managed
@@ -71,7 +71,7 @@ Flags: `--apply`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
-It also flags a missing or stale Bazel preset layer and a missing preset import. It flags a dx-written launcher that differs from the current launcher text
+It also flags a missing preset import. It flags a dx-written launcher that differs from the current launcher text
 and an empty or non-semver `.dx/version`. It flags
 missing `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`,
 an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
@@ -111,8 +111,8 @@ match the running dx.
 | `.dx/version` | dx | Written when missing. Line 1 is the version, then one sha256 line per release binary. `dx upgrade --apply` rewrites it. |
 | `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. |
 | `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
-| `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
-| `.bazelrc` | you | Created when missing. Three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |
+| `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Generated, not committed. Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
+| `.bazelrc` | you | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |
 | `MODULE.bazel` | you | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | you | Written in a fresh directory only. |
 | `MODULE.bazel.snippet` | you | Written when missing. Never rewritten. |
@@ -300,18 +300,19 @@ To adopt `rules_dx` in a repo that already uses upstream rules, see
 
 `dx init --apply` writes the execution preset as three generated layers,
 `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc` and `resources.bazelrc`,
-and puts three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines at the top
+and puts three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines at the top
 of the root `.bazelrc` (created when missing; its other bytes, BOM and line
-endings stay as they are).
+endings stay as they are). The layers are gitignored. Before each command, dx writes
+any imported layer that is missing or out of date, so a fresh clone needs no extra step.
+Plain `bazel` skips layers that do not exist.
 
 - A layer file is created when missing and rewritten when it carries the dx
   header and differs from this dx. A file without the header, or a symlink, is
   left alone with a note.
-- Opt out of a layer by commenting its import out (`# import ...`). Commenting
+- Opt out of a layer by commenting its import out (`# try-import ...`). Commenting
   out all three drops the preset; the files may then be deleted. Imports are added
   only when no line, active or commented, names a `.dx/bazelrc` layer. If some
   are present and one is missing, check mode reports it and apply prints a note.
 - If the root `.bazelrc` repeats lines the preset owns, or is a symlink, apply
   prints a note and adds no imports.
 - In rules_dx itself the preset stays in `tools/bazelrc` and `dx init` does nothing.
-- `dx upgrade` refreshes existing stale layers.

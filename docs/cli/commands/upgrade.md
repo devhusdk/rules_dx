@@ -24,14 +24,12 @@ Scopes: none.
 1. `.dx/version` with `--to` and its sha256 lines.
 2. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
    differs from the current text. It never creates a launcher.
-3. Stale generated `.dx/bazelrc` layers.
-4. The dx block of an existing `AGENTS.md`. It never creates the file.
+3. The dx block of an existing `AGENTS.md`. It never creates the file.
 
 It refuses with `upgrade_failed` and writes nothing when `--to` is not the
 version of this `dx`, when `.dx/version` is missing or empty (run
 `dx init --apply`), or when a launcher could not be refreshed. A pin already
-at `--to` is a rerun: it refreshes the launchers, the preset layers and the
-block.
+at `--to` is a rerun: it refreshes the launchers and the block.
 
 The check prints `upgrade current: <to>` and exits `0` when the pin is
 already `--to`. Otherwise it changes nothing and exits `1`:

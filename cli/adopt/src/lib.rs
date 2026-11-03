@@ -47,7 +47,7 @@ pub use overrides::{
 };
 pub use preflight::{preflight, render_plan_text, Finding, Preflight};
 pub use preset::{
-    inspect_preset, preflight_preset, preset_drift, refresh_preset, write_preset, PresetDrift,
+    inspect_preset, preflight_preset, preset_drift, sync_preset, write_preset, PresetDrift,
     PresetState,
 };
 pub use scaffold::{

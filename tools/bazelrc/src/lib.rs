@@ -256,7 +256,12 @@ pub fn render_all() -> String {
 
 /// The root `.bazelrc` line that imports `layer` from `dir`.
 pub fn import_line(dir: &str, layer: Layer) -> String {
-    format!("import %workspace%/{dir}/{}", layer.file_name())
+    let keyword = if dir == CONSUMER_DIR {
+        "try-import"
+    } else {
+        "import"
+    };
+    format!("{keyword} %workspace%/{dir}/{}", layer.file_name())
 }
 
 /// The comment `prepend_imports` writes above the import block.
@@ -776,12 +781,16 @@ mod tests {
             .collect();
         assert_eq!(
             lines[0],
-            "import %workspace%/.dx/bazelrc/correctness.bazelrc"
+            "try-import %workspace%/.dx/bazelrc/correctness.bazelrc"
+        );
+        assert_eq!(
+            import_line(REPO_DIR, Layer::Correctness),
+            "import %workspace%/tools/bazelrc/correctness.bazelrc"
         );
         let text = format!(
             "{}\r\n#  {}\nbuild --x\n",
             lines[0]
-                .replace("import ", "try-import '")
+                .replace("try-import ", "try-import '")
                 .replace(".bazelrc", ".bazelrc'"),
             lines[1]
         );

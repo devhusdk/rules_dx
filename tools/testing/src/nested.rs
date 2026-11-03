@@ -1850,7 +1850,7 @@ impl Case {
                 format!(".dx/bazelrc/{file}"),
                 &dx_testing::read_text(&rules.join("tools/bazelrc").join(&file)),
             );
-            imports.push_str(&format!("import %workspace%/.dx/bazelrc/{file}\n"));
+            imports.push_str(&format!("try-import %workspace%/.dx/bazelrc/{file}\n"));
         }
         case.write(".bazelrc", &imports);
         case.write(".bazelignore", ".dx\n");

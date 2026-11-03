@@ -33,6 +33,7 @@ pub(crate) mod notice_codes;
 #[cfg(test)]
 mod package_identity;
 mod pinned_tool;
+pub mod preset_sync;
 mod quality;
 mod quality_apply;
 mod quality_baseline;

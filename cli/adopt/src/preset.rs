@@ -250,17 +250,17 @@ pub fn write_preset(
     Ok(())
 }
 
-/// Rewrites stale generated layers that are imported; never creates a file or edits `.bazelrc`.
+/// Writes imported layers that are missing or stale; never edits `.bazelrc` or a custom file.
 ///
-/// Returns the rewritten paths.
-pub fn refresh_preset(root: &Path) -> Result<Vec<String>, AdoptError> {
+/// Returns the written paths.
+pub fn sync_preset(root: &Path) -> Result<Vec<String>, AdoptError> {
     let state = inspect_preset(root)?;
     if !state.applicable {
         return Ok(Vec::new());
     }
     let mut wrote = Vec::new();
     for (layer, import, file) in &state.layers {
-        if *import == ImportState::Active && *file == LayerFile::Stale {
+        if *import == ImportState::Active && matches!(file, LayerFile::Missing | LayerFile::Stale) {
             let rel = layer_rel(*layer);
             write(root, &rel, &render_layer(*layer))?;
             wrote.push(rel);
@@ -291,14 +291,6 @@ pub fn preset_drift(root: &Path) -> PresetDrift {
         return drift;
     }
     drift.other.extend(state.notes());
-    for (layer, is_create) in state.to_write() {
-        let rel = layer_rel(layer);
-        if is_create {
-            drift.missing.push(rel);
-        } else {
-            drift.stale.push(rel);
-        }
-    }
     if state.will_import() {
         if state.rc_exists {
             drift.stale.push(BAZELRC.to_owned());
@@ -381,7 +373,6 @@ mod tests {
         let performance = root.join(layer_rel(Layer::Performance));
         std::fs::write(&performance, format!("{}old\n", dx_preset::HEADER_MARKER)).expect("stale");
         let drift = preset_drift(root);
-        assert_eq!(drift.stale, vec![layer_rel(Layer::Performance)]);
         assert!(drift.other[0].contains("without the dx header"));
         let (wrote, _) = apply(root);
         assert_eq!(wrote, vec![layer_rel(Layer::Performance)]);
@@ -392,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn commented_import_opts_a_layer_out_and_deleted_one_is_drift() {
+    fn commented_import_opts_a_layer_out_and_unlisted_one_is_noted() {
         let scratch = dx_test_scratch::scratch("dx-preset-optout-");
         let root = scratch.path();
         apply(root);
@@ -406,6 +397,8 @@ mod tests {
         .expect("comment");
         assert_eq!(preset_drift(root), PresetDrift::default());
         assert!(apply(root).0.is_empty());
+        assert!(sync_preset(root).expect("sync").is_empty());
+        assert!(!root.join(layer_rel(Layer::Resources)).exists());
         std::fs::write(
             root.join(".bazelrc"),
             rc.replace(&format!("{resources}\n"), ""),
@@ -417,18 +410,25 @@ mod tests {
     }
 
     #[test]
-    fn refresh_never_creates_and_repo_layout_is_skipped() {
-        let scratch = dx_test_scratch::scratch("dx-preset-refresh-");
+    fn sync_rewrites_missing_and_stale_and_repo_layout_is_skipped() {
+        let scratch = dx_test_scratch::scratch("dx-preset-sync-");
         let root = scratch.path();
-        assert!(refresh_preset(root).expect("refresh").is_empty());
+        assert!(sync_preset(root).expect("sync").is_empty());
         assert!(!root.join(CONSUMER_DIR).exists());
         apply(root);
+        assert!(sync_preset(root).expect("sync").is_empty());
         let path = root.join(layer_rel(Layer::Resources));
         std::fs::write(&path, format!("{}old\n", dx_preset::HEADER_MARKER)).expect("stale");
         assert_eq!(
-            refresh_preset(root).expect("refresh"),
+            sync_preset(root).expect("sync"),
             vec![layer_rel(Layer::Resources)]
         );
+        std::fs::remove_file(&path).expect("rm");
+        assert_eq!(
+            sync_preset(root).expect("sync"),
+            vec![layer_rel(Layer::Resources)]
+        );
+        assert!(path.is_file());
         let repo = dx_test_scratch::scratch("dx-preset-repo-");
         let imports: Vec<_> = Layer::ALL
             .iter()

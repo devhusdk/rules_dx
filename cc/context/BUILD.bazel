@@ -31,7 +31,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cc/cc_context",
         normal = True,
-    ),
+    ) + ["@crates//:serde"],
 )
 
 rust_test(
@@ -53,7 +53,7 @@ rust_test(
         package_name = "cc/cc_context",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["@crates//:serde"],
 )
 
 rust_binary(
@@ -166,6 +166,7 @@ rust_test(
     ) + [
         ":cc_context",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 

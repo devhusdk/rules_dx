@@ -110,7 +110,8 @@ fn an_unreadable_response_file_fails_closed() {
 
 #[test]
 fn tokenize_response_rejects_an_unterminated_quote() {
-    let error = tokenize_response("compile.params", "-I \"open").expect_err("unterminated quote");
+    let error = tokenize_response("compile.params", "-I \"open", Quoting::Gnu)
+        .expect_err("unterminated quote");
     assert_eq!(
         error,
         Error::UnterminatedQuote {
@@ -321,4 +322,100 @@ fn a_bundle_carries_the_database_and_the_bound_policy() {
 fn a_malformed_record_fails_closed() {
     let error = AqueryGraph::parse("{").expect_err("malformed");
     assert!(matches!(error, Error::Malformed(_)), "{error}");
+}
+
+fn strings(items: &[&str]) -> Vec<String> {
+    items.iter().map(|item| item.to_string()).collect()
+}
+
+fn windows(text: &str) -> Vec<String> {
+    tokenize_response("x.rsp", text, Quoting::Windows).expect("tokens")
+}
+
+#[test]
+fn windows_quoting_keeps_backslash_paths() {
+    assert_eq!(
+        windows(r"/IC:\inc\dir /Fo:out\a.obj"),
+        strings(&[r"/IC:\inc\dir", r"/Fo:out\a.obj"])
+    );
+}
+
+#[test]
+fn windows_quoting_handles_quotes_and_backslashes() {
+    assert_eq!(
+        windows(r#""C:\Program Files\cl.exe" a"#),
+        strings(&[r"C:\Program Files\cl.exe", "a"])
+    );
+    assert_eq!(windows(r#"a\"b"#), strings(&[r#"a"b"#]));
+    assert_eq!(windows(r#""a\\" b"#), strings(&[r"a\", "b"]));
+    assert_eq!(windows(r#""a""b""#), strings(&[r#"a"b"#]));
+}
+
+#[test]
+fn gnu_quoting_handles_single_quotes() {
+    let tokens = tokenize_response("x.rsp", "'a b' \"c d\" e\\ f", Quoting::Gnu).expect("tokens");
+    assert_eq!(tokens, strings(&["a b", "c d", "e f"]));
+}
+
+#[test]
+fn quoting_follows_the_driver() {
+    assert_eq!(rsp_quoting(&strings(&["C:\\VC\\CL.EXE"])), Quoting::Windows);
+    assert_eq!(rsp_quoting(&strings(&["/x/clang-cl"])), Quoting::Windows);
+    assert_eq!(
+        rsp_quoting(&strings(&["clang", "--driver-mode=cl"])),
+        Quoting::Windows
+    );
+    assert_eq!(
+        rsp_quoting(&strings(&["cl.exe", "--rsp-quoting=posix"])),
+        Quoting::Gnu
+    );
+    assert_eq!(
+        rsp_quoting(&strings(&["gcc", "--rsp-quoting=windows"])),
+        Quoting::Windows
+    );
+    if !cfg!(windows) {
+        assert_eq!(rsp_quoting(&strings(&["/usr/bin/gcc"])), Quoting::Gnu);
+    }
+}
+
+#[test]
+fn response_files_decode_boms_and_nest() {
+    let root = scratch("encodings");
+    let mut utf16 = vec![0xFF, 0xFE];
+    for unit in "/DA=1 @inner.rsp".encode_utf16() {
+        utf16.extend(unit.to_le_bytes());
+    }
+    fs::write(root.join("outer.rsp"), utf16).expect("outer");
+    fs::write(root.join("inner.rsp"), b"\xEF\xBB\xBF/DB=2").expect("inner");
+    let args = strings(&["cl.exe", "@outer.rsp", "/Tcfoo.c"]);
+    let expanded = expand_response_files(&args, &root).expect("expands");
+    assert_eq!(expanded, strings(&["cl.exe", "/DA=1", "/DB=2", "/Tcfoo.c"]));
+    assert_eq!(source_argument("//p:t", &expanded), Ok("foo.c"));
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn a_self_including_response_file_fails() {
+    let root = scratch("cycle");
+    fs::write(root.join("a.rsp"), "@a.rsp").expect("a");
+    let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root).expect_err("cycle");
+    assert_eq!(
+        error,
+        Error::ResponseFileCycle {
+            path: "a.rsp".to_string()
+        }
+    );
+    fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn an_invalid_utf8_response_file_fails() {
+    let root = scratch("badutf8");
+    fs::write(root.join("a.rsp"), b"\xFF\xFF\xFF").expect("a");
+    let error = expand_response_files(&strings(&["gcc", "@a.rsp"]), &root).expect_err("bad");
+    assert!(
+        matches!(error, Error::ResponseFileEncoding { .. }),
+        "{error}"
+    );
+    fs::remove_dir_all(&root).ok();
 }

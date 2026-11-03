@@ -40,6 +40,10 @@ pub enum Error {
     ResponseFile { path: String, reason: String },
     #[error("compilation_db: response file '{path}' ends inside a quoted argument")]
     UnterminatedQuote { path: String },
+    #[error("compilation_db: response file '{path}' includes itself")]
+    ResponseFileCycle { path: String },
+    #[error("compilation_db: response file '{path}' is not valid UTF-8 or UTF-16LE")]
+    ResponseFileEncoding { path: String },
     #[error("compilation_db: source '{input}' has {count} conflicting compile commands")]
     ConflictingSource { input: String, count: usize },
     #[error("compilation_db: required source '{input}' has no compile command")]
@@ -267,72 +271,215 @@ fn source_argument<'a>(target: &str, arguments: &'a [String]) -> Result<&'a str,
             }
             return Ok(source);
         }
+        for prefix in ["/Tc", "/Tp"] {
+            if flag.len() > prefix.len() && flag.starts_with(prefix) {
+                return Ok(&flag[prefix.len()..]);
+            }
+        }
         index += 1;
     }
     Err(missing(""))
 }
 
-/// Expands every clang `@response` argument against the execroot.
-pub fn expand_response_files(arguments: &[String], execroot: &Path) -> Result<Vec<String>, Error> {
-    let mut expanded: Vec<String> = Vec::with_capacity(arguments.len());
-    let mut stack: Vec<String> = arguments.to_vec();
-    stack.reverse();
-    while let Some(argument) = stack.pop() {
-        let path = match argument.strip_prefix('@') {
-            None => {
-                expanded.push(argument);
-                continue;
-            }
-            Some("") => {
-                expanded.push(argument);
-                continue;
-            }
-            Some(path) => path.to_string(),
-        };
-        let response = read_response_file(execroot, &path)?;
-        let mut tokens = tokenize_response(&path, &response)?;
-        tokens.reverse();
-        stack.extend(tokens);
+/// How a driver splits the text of a response file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Quoting {
+    Gnu,
+    Windows,
+}
+
+/// Picks the response-file quoting the action's own driver uses.
+pub fn rsp_quoting(arguments: &[String]) -> Quoting {
+    for argument in arguments {
+        match argument.strip_prefix("--rsp-quoting=") {
+            Some("windows") => return Quoting::Windows,
+            Some("posix") => return Quoting::Gnu,
+            _ => {}
+        }
     }
+    let driver = arguments
+        .first()
+        .and_then(|first| first.rsplit(['/', '\\']).next())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let driver = driver.strip_suffix(".exe").unwrap_or(&driver);
+    if cfg!(windows)
+        || matches!(driver, "cl" | "clang-cl")
+        || arguments.iter().any(|a| a == "--driver-mode=cl")
+    {
+        Quoting::Windows
+    } else {
+        Quoting::Gnu
+    }
+}
+
+/// Expands every `@response` argument against the execroot.
+pub fn expand_response_files(arguments: &[String], execroot: &Path) -> Result<Vec<String>, Error> {
+    let quoting = rsp_quoting(arguments);
+    let mut expanded = Vec::with_capacity(arguments.len());
+    let mut chain = Vec::new();
+    expand_into(arguments, execroot, quoting, &mut chain, &mut expanded)?;
     Ok(expanded)
+}
+
+fn expand_into(
+    arguments: &[String],
+    execroot: &Path,
+    quoting: Quoting,
+    chain: &mut Vec<String>,
+    expanded: &mut Vec<String>,
+) -> Result<(), Error> {
+    for argument in arguments {
+        let path = match argument.strip_prefix('@') {
+            None | Some("") => {
+                expanded.push(argument.clone());
+                continue;
+            }
+            Some(path) => path,
+        };
+        if chain.iter().any(|open| open == path) {
+            return Err(Error::ResponseFileCycle {
+                path: path.to_string(),
+            });
+        }
+        let response = read_response_file(execroot, path)?;
+        let tokens = tokenize_response(path, &response, quoting)?;
+        chain.push(path.to_string());
+        expand_into(&tokens, execroot, quoting, chain, expanded)?;
+        chain.pop();
+    }
+    Ok(())
 }
 
 fn read_response_file(execroot: &Path, path: &str) -> Result<String, Error> {
     let full = execroot.join(path);
-    fs::read_to_string(&full).map_err(|err| Error::ResponseFile {
-        path: full.to_string_lossy().into_owned(),
+    let full_text = full.to_string_lossy().into_owned();
+    let bytes = fs::read(&full).map_err(|err| Error::ResponseFile {
+        path: full_text.clone(),
         reason: err.to_string(),
-    })
+    })?;
+    let encoding = || Error::ResponseFileEncoding {
+        path: full_text.clone(),
+    };
+    if let Some(rest) = bytes.strip_prefix(&[0xFF, 0xFE]) {
+        if rest.len() % 2 != 0 {
+            return Err(encoding());
+        }
+        let units: Vec<u16> = rest
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|pair| u16::from_le_bytes(*pair))
+            .collect();
+        return String::from_utf16(&units).map_err(|_| encoding());
+    }
+    let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
+    String::from_utf8(bytes.to_vec()).map_err(|_| encoding())
 }
 
-/// Splits a clang response file into arguments the way the clang driver does.
-pub fn tokenize_response(path: &str, text: &str) -> Result<Vec<String>, Error> {
+/// Splits a response file into arguments the way the selected driver does.
+pub fn tokenize_response(path: &str, text: &str, quoting: Quoting) -> Result<Vec<String>, Error> {
+    match quoting {
+        Quoting::Gnu => tokenize_gnu(path, text),
+        Quoting::Windows => tokenize_windows(path, text),
+    }
+}
+
+fn tokenize_gnu(path: &str, text: &str) -> Result<Vec<String>, Error> {
     let mut tokens = Vec::new();
     let mut current = String::new();
-    let mut quoted = false;
+    let mut in_token = false;
+    let mut quote: Option<char> = None;
     let mut escaped = false;
     for ch in text.chars() {
         if escaped {
             current.push(ch);
             escaped = false;
-        } else if ch == '\\' {
+        } else if ch == '\\' && quote != Some('\'') {
             escaped = true;
-        } else if ch == '"' {
-            quoted = !quoted;
-        } else if ch.is_whitespace() && !quoted {
-            if !current.is_empty() {
+            in_token = true;
+        } else if let Some(open) = quote {
+            if ch == open {
+                quote = None;
+            } else {
+                current.push(ch);
+            }
+        } else if ch == '"' || ch == '\'' {
+            quote = Some(ch);
+            in_token = true;
+        } else if ch.is_whitespace() {
+            if in_token {
                 tokens.push(std::mem::take(&mut current));
+                in_token = false;
             }
         } else {
             current.push(ch);
+            in_token = true;
         }
     }
-    if quoted || escaped {
+    if quote.is_some() || escaped {
         return Err(Error::UnterminatedQuote {
             path: path.to_string(),
         });
     }
-    if !current.is_empty() {
+    if in_token {
+        tokens.push(current);
+    }
+    Ok(tokens)
+}
+
+fn tokenize_windows(path: &str, text: &str) -> Result<Vec<String>, Error> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_token = false;
+    let mut quoted = false;
+    let mut index = 0;
+    while index < chars.len() {
+        let ch = chars[index];
+        if ch == '\\' {
+            let mut slashes = 0;
+            while chars.get(index) == Some(&'\\') {
+                slashes += 1;
+                index += 1;
+            }
+            in_token = true;
+            if chars.get(index) == Some(&'"') {
+                current.extend(std::iter::repeat_n('\\', slashes / 2));
+                if slashes % 2 == 1 {
+                    current.push('"');
+                    index += 1;
+                }
+            } else {
+                current.extend(std::iter::repeat_n('\\', slashes));
+            }
+            continue;
+        }
+        if ch == '"' {
+            in_token = true;
+            if quoted && chars.get(index + 1) == Some(&'"') {
+                current.push('"');
+                index += 1;
+            } else {
+                quoted = !quoted;
+            }
+        } else if ch.is_whitespace() && !quoted {
+            if in_token {
+                tokens.push(std::mem::take(&mut current));
+                in_token = false;
+            }
+        } else {
+            current.push(ch);
+            in_token = true;
+        }
+        index += 1;
+    }
+    if quoted {
+        return Err(Error::UnterminatedQuote {
+            path: path.to_string(),
+        });
+    }
+    if in_token {
         tokens.push(current);
     }
     Ok(tokens)

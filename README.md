@@ -4,6 +4,8 @@
 build, test, lint, typecheck, format, generate, audit, and release tasks.
 Language toolchains come from Bazel. No separate installs.
 
+Status: rules_dx is not released yet. Install starts with the first BCR release.
+
 ## Install
 
 Bazel via Bazelisk (reads `.bazelversion`).
@@ -22,15 +24,14 @@ bazel run @rules_dx//:dx -- build //...
 bazel run @rules_dx//:dx -- test //...
 ```
 
-In your module, `@rules_dx//:dx` runs the released `dx` binary for the
+In your module, `@rules_dx//:dx` will run the released `dx` binary for the
 target platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
-Release binaries exist for linux x86_64, linux aarch64, macos aarch64,
-windows x86_64 and windows aarch64. A platform whose binary has no pinned
-sha256 builds `dx` from source instead, so a rules_dx version with no pins
-at all (any version taken from git) builds `dx` from source everywhere, with
-the Rust and C toolchains `dx init` sets up. Once some binary is pinned,
-platforms with no release binary fail the build. To pick a binary yourself,
-add this to your root `MODULE.bazel`:
+Release binaries are planned for linux x86_64, linux aarch64, macos aarch64,
+windows x86_64 and windows aarch64. Until a release ships, a version with no
+pinned sha256 builds `dx` from source, with the Rust and C toolchains
+`dx init` sets up. Once some binary is pinned, platforms with no release
+binary fail the build. To pick a binary yourself, add this to your root
+`MODULE.bazel`:
 
 ```starlark
 dx_prebuilt = use_extension("@rules_dx//cli/prebuilt:extension.bzl", "dx_prebuilt")

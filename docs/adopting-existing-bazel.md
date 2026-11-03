@@ -13,6 +13,8 @@ one package at a time.
 
 ## Add rules_dx
 
+rules_dx is not released yet. Install starts with the first BCR release.
+
 Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`. Then
 check what `dx init` would write:
 

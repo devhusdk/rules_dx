@@ -368,7 +368,10 @@ fn check_managed(
                 related_command: Some(invocation.command.name().to_owned()),
                 ..NoticeEvent::info(
                     CODE_MANAGED_DRIFT,
-                    format!("dx {}: {detail}", invocation.command.name()),
+                    format!(
+                        "dx {}: {detail}; run `{hint}` to select it",
+                        invocation.command.name()
+                    ),
                 )
             }),
         ) {
@@ -891,6 +894,39 @@ mod tests {
             None,
             "exact-scope check commits nothing"
         );
+    }
+
+    #[test]
+    fn managed_check_json_stale_drift_names_apply_command() {
+        let harness = Harness::new("managed-json-stale");
+        let (code, _, err) = harness.run(&["env", "--apply"]);
+        assert_eq!(code, 0, "{err}");
+        let foreign = dx_setup::SetupPair {
+            environment: dx_setup::GenerationId::new(&"3".repeat(64)).expect("fixture id"),
+            generated: dx_setup::GenerationId::new(&"4".repeat(64)).expect("fixture id"),
+        };
+        dx_setup::commit_pair(&harness.workspace, &foreign).expect("foreign commit");
+        let (code, out, err) = harness.run(&["env", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let notice = event(&events, "notice");
+        assert_eq!(notice["code"], serde_json::json!("managed_drift"));
+        let message = notice["message"].as_str().expect("message");
+        assert!(message.contains("stale selection"), "{notice}");
+        assert!(message.contains("`dx env --apply`"), "{notice}");
+        assert_eq!(err, "", "{err}");
+    }
+
+    #[test]
+    fn managed_check_json_exact_scope_drift_names_scoped_apply() {
+        let harness = Harness::new("managed-json-exact");
+        harness.query.script_stdout("\n");
+        let (code, out, err) = harness.run(&["env", "//a:one", "--output=json"]);
+        assert_eq!(code, 1, "{out}{err}");
+        let events = json_events(&out);
+        let notice = event(&events, "notice");
+        let message = notice["message"].as_str().expect("message");
+        assert!(message.contains("`dx env --apply //a:one`"), "{notice}");
     }
 }
 

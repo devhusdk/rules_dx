@@ -75,7 +75,8 @@ JSON output writes these events in order:
 - `command_started`, with mode `check` or `default` (`--apply`).
 - `operation`, with phase `collect`. Its `scope` is the label and the
   codegen shards that depend on it. The whole repository has no `scope`.
-- On drift, a `notice` with code `managed_drift`.
+- On drift, a `notice` with code `managed_drift`. Its message names the
+  command that selects the setup, such as `dx env --apply`.
 - With `--apply`, a `selection` with `setup`, `environment` and
   `generated`.
 - When Bazel fails, an `error` with code `bazel_failed` and phase

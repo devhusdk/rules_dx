@@ -35,13 +35,14 @@ pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
 
 /// Whether a path relative to the watch root can trigger a rerun.
 pub fn should_watch_path(relative: &Path) -> bool {
-    for component in relative.components() {
-        let text = component.as_os_str().to_string_lossy();
-        if text == ".dx" || text == ".git" || text.starts_with("bazel-") {
-            return false;
-        }
-    }
-    true
+    let names: Vec<String> = relative
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    let root_ignored = names
+        .first()
+        .is_some_and(|name| name == ".dx" || name.starts_with("bazel-"));
+    !root_ignored && !names.iter().any(|name| name == ".git")
 }
 
 /// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
@@ -373,6 +374,18 @@ mod tests {
         assert!(should_watch_path(Path::new("src/main.rs")));
         assert!(should_watch_path(Path::new("BUILD.bazel")));
         assert!(should_watch_path(Path::new(".github/workflows/ci.yml")));
+    }
+
+    #[test]
+    fn watch_keeps_nested_dirs_named_like_bazel_outputs() {
+        assert!(should_watch_path(Path::new("tools/bazel-rules/a.rs")));
+        assert!(should_watch_path(Path::new(
+            "third_party/bazel-skylib-ext/a.bzl"
+        )));
+        assert!(should_watch_path(Path::new("src/.dx/a.rs")));
+        assert!(!should_watch_path(Path::new("tools/.git/index")));
+        assert!(!should_watch_path(Path::new("bazel-out/x")));
+        assert!(!should_watch_path(Path::new(".dx/current")));
     }
 
     #[test]

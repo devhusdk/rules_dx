@@ -28,7 +28,7 @@ def ocaml_wrapper_contract_tests(name):
             expect_equal("test attributes stay on the forwarder", test_upstream_kwargs({"main": ":m", "size": "small"}), {"main": ":m"}),
             expect_equal("testonly is set by ocaml_test, not passed upstream", test_upstream_kwargs({"main": ":m", "testonly": True}), {"main": ":m"}),
             expect_equal("env and env_inherit leave the upstream binary", test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}), {}),
-            expect_equal("env and env_inherit reach the test forwarder", test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}), {"env": {"K": "1"}, "env_inherit": ["HOME"]}),
+            expect_equal("env and env_inherit reach the test forwarder", test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}), {"size": "small", "env": {"K": "1"}, "env_inherit": ["HOME"]}),
             expect_equal("the forwarder run environment merges upstream and wrapper env", run_environment({"A": "1", "K": "0"}, ["PATH"], {"K": "1"}, ["HOME", "PATH"]), struct(environment = {"A": "1", "K": "1"}, inherited_environment = ["PATH", "HOME"])),
             expect_equal("a .mli sig keeps the target module name", default_module_name("m", "m.mli"), "m"),
             expect_equal("a signature target sets the module name", default_module_name("m", ":m_sig"), None),

@@ -586,6 +586,7 @@ def dx_wrap_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
 def dx_test_forward_kwargs(kwargs):
     """Returns the forwarder kwargs for one test shape."""
     out = dx_forwarded_test_kwargs(kwargs)
+    out.setdefault("size", "small")
     tags = dx_test_resource_tags(kwargs.get("size", None), kwargs.get("tags", None))
     if tags or "tags" in out:
         out["tags"] = tags

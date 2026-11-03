@@ -364,6 +364,7 @@ _FORWARDER_ONLY_KWARGS = ("tags", "timeout", "shard_count", "size", "local", "fl
 def rust_wasm_bindgen_test(name, wasm = None, **kwargs):
     """Wraps upstream rust_wasm_bindgen_test with a managed, platform-qualified browser."""
     forward = dx_forwarded_test_kwargs(kwargs)
+    forward.setdefault("size", "small")
     upstream = {k: v for k, v in kwargs.items() if k not in _FORWARDER_ONLY_KWARGS}
     user_tags = forward.pop("tags", [])
     _rust_wasm_bindgen_test(

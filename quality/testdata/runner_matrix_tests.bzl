@@ -428,6 +428,7 @@ def runner_matrix_suite(name, cases):
             expected_file = case.get("expected_file"),
             runner_failure = case.get("runner_failure", False),
             ambient_files = case.get("ambient_files", {}),
+            size = "small",
             tags = ["no-coverage"] + case.get("tags", []),
             target_compatible_with = _compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False), case.get("windows_arm64", False)),
         )

@@ -84,7 +84,7 @@ def _rego_test_impl(ctx):
         dx_quality_sources(ctx.files.srcs, [("rego", ["rego"])], str(ctx.label)),
     ]
 
-rego_test = rule(
+_rego_test = rule(
     implementation = _rego_test_impl,
     doc = "Runs opa test over Rego files and their library dependencies.",
     test = True,
@@ -97,3 +97,8 @@ rego_test = rule(
         "_windows_os": attr.label(default = "@platforms//os:windows"),
     },
 )
+
+def rego_test(name, **kwargs):
+    """Runs opa test over Rego files and their library dependencies."""
+    kwargs.setdefault("size", "small")
+    _rego_test(name = name, **kwargs)

@@ -503,82 +503,82 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test forward empty stays empty",
                 dx_test_forward_kwargs({}),
-                {},
+                {"size": "small"},
             ),
             expect_equal(
                 "test forward keeps manual",
                 dx_test_forward_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["manual", "cpu:4"]},
+                {"tags": ["manual", "cpu:4"], "size": "small"},
             ),
             expect_equal(
                 "test forward keeps manual-only",
                 dx_test_forward_kwargs({"tags": ["manual"]}),
-                {"tags": ["manual"]},
+                {"tags": ["manual"], "size": "small"},
             ),
             expect_equal(
                 "test forward keeps timeout and flaky",
                 dx_test_forward_kwargs({"timeout": "short", "flaky": True}),
-                {"timeout": "short", "flaky": True},
+                {"timeout": "short", "flaky": True, "size": "small"},
             ),
             expect_equal(
                 "test forward keeps flaky",
                 dx_test_forward_kwargs({"flaky": True}),
-                {"flaky": True},
+                {"flaky": True, "size": "small"},
             ),
             expect_equal(
                 "test forward keeps args",
                 dx_test_forward_kwargs({"args": ["--gtest_filter=Foo.*"]}),
-                {"args": ["--gtest_filter=Foo.*"]},
+                {"args": ["--gtest_filter=Foo.*"], "size": "small"},
             ),
             expect_equal(
                 "test forward keeps data with args",
                 dx_test_forward_kwargs({"args": ["$(rootpath :d)"], "data": [":d"]}),
-                {"args": ["$(rootpath :d)"], "data": [":d"]},
+                {"args": ["$(rootpath :d)"], "data": [":d"], "size": "small"},
             ),
             expect_equal(
                 "test forward drops data without args",
                 dx_test_forward_kwargs({"data": [":d"]}),
-                {},
+                {"size": "small"},
             ),
             expect_equal(
                 "test forward keeps env upstream",
                 dx_test_forward_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
-                {},
+                {"size": "small"},
             ),
             expect_equal(
                 "test forward rides hints",
                 dx_test_forward_kwargs({"aspect_hints": ["//quality:hint"]}),
-                {"aspect_hints": ["//quality:hint"]},
+                {"aspect_hints": ["//quality:hint"], "size": "small"},
             ),
             expect_equal(
                 "test forward rides exec_properties",
                 dx_test_forward_kwargs({"exec_properties": {"Pool": "gpu"}}),
-                {"exec_properties": {"Pool": "gpu"}},
+                {"exec_properties": {"Pool": "gpu"}, "size": "small"},
             ),
             expect_equal(
                 "test forward drops other exec group properties",
                 dx_test_forward_kwargs({"exec_properties": {"cpp_link.Pool": "c"}}),
-                {},
+                {"size": "small"},
             ),
             expect_equal(
                 "test forward keeps test and unprefixed properties",
                 dx_test_forward_kwargs({"exec_properties": {"Pool": "a", "test.Pool": "b", "cpp_link.Pool": "c"}}),
-                {"exec_properties": {"Pool": "a", "test.Pool": "b"}},
+                {"exec_properties": {"Pool": "a", "test.Pool": "b"}, "size": "small"},
             ),
             expect_equal(
                 "test forward rides exec_compatible_with",
                 dx_test_forward_kwargs({"exec_compatible_with": ["@platforms//os:linux"]}),
-                {"exec_compatible_with": ["@platforms//os:linux"]},
+                {"exec_compatible_with": ["@platforms//os:linux"], "size": "small"},
             ),
             expect_equal(
                 "test forward rides exec_group_compatible_with",
                 dx_test_forward_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
-                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}},
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"]}, "size": "small"},
             ),
             expect_equal(
                 "test forward keeps upstream-only exec groups upstream",
                 dx_test_forward_kwargs({"exec_group_compatible_with": {"cpp_link": ["@platforms//cpu:x86_64"]}}),
-                {},
+                {"size": "small"},
             ),
             expect_equal(
                 "test upstream keeps exec groups",
@@ -593,12 +593,12 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test forward rides local",
                 dx_test_forward_kwargs({"local": True}),
-                {"local": True},
+                {"local": True, "size": "small"},
             ),
             expect_equal(
                 "test forward keeps exec placement, drops copts",
                 dx_test_forward_kwargs({"local": True, "exec_properties": {"Pool": "gpu"}, "copts": ["-Werror"]}),
-                {"local": True, "exec_properties": {"Pool": "gpu"}},
+                {"local": True, "exec_properties": {"Pool": "gpu"}, "size": "small"},
             ),
             expect_equal(
                 "test upstream keeps exec placement",
@@ -611,9 +611,19 @@ def wrapper_shape_kwargs_tests(name):
                 {"env": {"K": "1"}, "env_inherit": ["HOME"], "tags": ["manual"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
+                "test forward defaults size to small",
+                dx_test_forward_kwargs({"tags": ["a"]})["size"],
+                "small",
+            ),
+            expect_equal(
+                "test forward keeps an explicit size",
+                dx_test_forward_kwargs({"size": "medium"})["size"],
+                "medium",
+            ),
+            expect_equal(
                 "test forward drops non-test attrs",
                 dx_test_forward_kwargs({"copts": ["-Werror"]}),
-                {},
+                {"size": "small"},
             ),
         ],
     )

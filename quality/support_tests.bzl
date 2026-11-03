@@ -317,6 +317,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "nvcc_syntax claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "nvcc_syntax"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                [],
+            ),
+            expect_equal(
                 "ruby claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] in ["rubocop", "standardrb"]], RUNNER_MATRIX_CASES),
                 [],

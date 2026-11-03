@@ -4,6 +4,22 @@ load(":real_results.bzl", "real_result_test")
 
 _ZANUDA_POLICY = "//quality/testdata/zanuda_owned:policy"
 
+_NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
+
+def _nvcc_case(name, contains, absent):
+    return {
+        "name": "real_result_nvcc_syntax_" + name,
+        "target": "//quality/testdata/nvcc_syntax:" + name,
+        "policy": _NVCC_POLICY,
+        "tool": "nvcc_syntax",
+        "capability": "typecheck",
+        "class": "cuda",
+        "contains": contains,
+        "absent": absent,
+        "linux_arm64": True,
+        "windows_x86_64": True,
+    }
+
 REAL_RESULT_CASES = [
     {
         "name": "real_result_zanuda_clean",
@@ -25,6 +41,9 @@ REAL_RESULT_CASES = [
         "contains": ["quality/testdata/zanuda_owned/dirty.ml", "if_bool", "list_length_comparisons"],
         "absent": [],
     },
+    _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
+    _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
+    _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
 ]
 
 def real_result_evidence(case):

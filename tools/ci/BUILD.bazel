@@ -555,7 +555,6 @@ rust_test(
         "//cli/tool_resolve:corpus_starlark",
         "//csharp/tests/fixtures/roslyn:corpus_starlark",
         "//cuda/tests:corpus_starlark",
-        "//cuda/tests/starter:corpus_starlark",
         "//dart/tests/negative:corpus_starlark",
         "//deploy/install:corpus_starlark",
         "//deploy/offline:corpus_starlark",

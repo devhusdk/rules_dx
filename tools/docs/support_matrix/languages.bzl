@@ -74,7 +74,7 @@ ROWS = [
     {"ci_tests": _hello("astro"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": "Astro"},
     {
         "ci_tests": _hello("cc"),
-        "consumer_tests": ["//cc/tests/consumer:app_consumer_test", "//cc/tests/starter:starter_test"] + _starter_consumers("c", "cpp"),
+        "consumer_tests": ["//cc/tests/consumer:app_consumer_test"] + _starter_consumers("c", "cpp"),
         "name": "cc",
         "section": "languages",
         "title": "C and C++",
@@ -82,7 +82,7 @@ ROWS = [
     {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {
         "ci_tests": ["//cuda/tests:saxpy_device_code_test", "//cuda/tests:saxpy_gpu_test"],
-        "consumer_tests": ["//cuda/tests/starter:starter_test"],
+        "consumer_tests": _starter_consumers("cuda"),
         "name": "cuda",
         "section": "languages",
         "title": "CUDA",
@@ -145,7 +145,7 @@ ROWS = [
             "//android/tests/fixtures/rust_apk:check_unsigned_test",
             "//android/tests/fixtures/rust_apk:sign_test",
         ],
-        "consumer_tests": ["//android/tests/starter:starter_test"],
+        "consumer_tests": _starter_consumers("rust-android"),
         "families": [],
         "name": "android",
         "section": "targets",

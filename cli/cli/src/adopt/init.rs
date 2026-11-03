@@ -799,6 +799,32 @@ mod tests {
     }
 
     #[test]
+    fn init_dir_reapply_keeps_edited_files() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-init-reapply-");
+        let root = scratch.path().to_path_buf();
+        let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
+        assert_eq!(code, 0, "{err}");
+        let module = root.join("demo/MODULE.bazel");
+        let source = root.join("demo/hello.c");
+        let edited_module = format!(
+            "{}# edited\n",
+            std::fs::read_to_string(&module).expect("module")
+        );
+        std::fs::write(&module, &edited_module).expect("edit module");
+        std::fs::write(&source, "/* edited */\n").expect("source");
+        let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(
+            std::fs::read_to_string(&module).expect("module"),
+            edited_module
+        );
+        assert_eq!(
+            std::fs::read_to_string(&source).expect("source"),
+            "/* edited */\n"
+        );
+    }
+
+    #[test]
     fn init_in_a_non_empty_tree_writes_no_module() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-");
         let root = scratch.path().to_path_buf();

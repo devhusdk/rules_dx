@@ -607,6 +607,13 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("rust_test", Constraint::AsWritten),
     ("scala_test", Constraint::AsWritten),
     ("sh_test", Constraint::AsWritten),
+    (
+        "starter_consumer_test",
+        Constraint::DefaultIfUnset(
+            "//tools/testing:nested_bazel.bzl",
+            "NESTED_BAZEL_COMPATIBLE_WITH",
+        ),
+    ),
     ("typescript_test", Constraint::AsWritten),
     ("zig_test", Constraint::AsWritten),
     (
@@ -710,12 +717,14 @@ pub fn test_facts(file: &File, name: &str, loader: &dyn Loader) -> Result<TestFa
         },
     };
     let mut tags = tags;
-    if call.kind == "hermetic_qualification" {
-        // The macro adds these itself (tools/testing/hermetic/defs.bzl).
-        for tag in ["hermetic-consumer", "hermetic-qualification", "manual"] {
-            if !tags.iter().any(|have| have == tag) {
-                tags.push(tag.to_owned());
-            }
+    let added: &[&str] = match call.kind.as_str() {
+        "hermetic_qualification" => &["hermetic-consumer", "hermetic-qualification", "manual"],
+        "starter_consumer_test" => &["manual", "starter-consumer"],
+        _ => &[],
+    };
+    for tag in added {
+        if !tags.iter().any(|have| have == tag) {
+            tags.push((*tag).to_owned());
         }
     }
     Ok(TestFacts {
@@ -930,6 +939,19 @@ mod tests {
     fn macro_default_comes_from_its_constant() {
         let found = facts("nested_bazel_test(name = \"t\")\n", "t").expect("facts");
         assert_eq!(on(&found).len(), 5);
+    }
+
+    #[test]
+    fn starter_consumer_tests_carry_their_tags_and_constraints() {
+        let found = facts("starter_consumer_test(name = \"t\")\n", "t").expect("facts");
+        assert_eq!(found.tags, ["manual", "starter-consumer"]);
+        assert_eq!(on(&found).len(), 5);
+        let found = facts(
+            "starter_consumer_test(\n    name = \"t\",\n    target_compatible_with = select({\n        \"@platforms//os:linux\": [\"@platforms//cpu:x86_64\"],\n        \"@platforms//os:windows\": [\"@platforms//cpu:x86_64\"],\n        \"//conditions:default\": [\"@platforms//:incompatible\"],\n    }),\n)\n",
+            "t",
+        )
+        .expect("facts");
+        assert_eq!(on(&found), ["linux_x86_64", "windows_x86_64"]);
     }
 
     #[test]

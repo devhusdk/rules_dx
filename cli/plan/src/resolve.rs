@@ -16,8 +16,8 @@ pub mod test_map;
 pub mod types;
 
 pub use changed::{
-    collect_range, collect_working_tree, local_override_changes, merge_base, resolve_affected,
-    AffectedSelection, WidenedScope,
+    collect_range, collect_working_tree, local_override_changes, merge_base,
+    missing_base_shallow_error, resolve_affected, shallow_clone, AffectedSelection, WidenedScope,
 };
 pub use classify::first_line;
 pub(crate) use classify::{classify_scopes, owners_in_graph, parse_owners};

@@ -42,7 +42,7 @@ fn git_dir_of(workspace: &Path) -> Option<std::path::PathBuf> {
     Some(workspace.join(gitdir_path))
 }
 
-fn shallow_clone(workspace: &Path) -> bool {
+pub fn shallow_clone(workspace: &Path) -> bool {
     let Some(git_dir) = git_dir_of(workspace) else {
         return false;
     };
@@ -55,8 +55,12 @@ fn shallow_clone(workspace: &Path) -> bool {
     git_dir.join(commondir.trim()).join("shallow").is_file()
 }
 
-fn shallow_error() -> String {
+pub fn shallow_error() -> String {
     "git history is shallow: fetch full history with `git fetch --unshallow` or pass explicit scopes".to_owned()
+}
+
+pub fn missing_base_shallow_error() -> String {
+    "git history is shallow and the base branch is missing: set `fetch-depth: 0` in actions/checkout, run `git fetch origin <base>`, or pass --base".to_owned()
 }
 
 pub fn diff_name_status(

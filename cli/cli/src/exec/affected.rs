@@ -4,9 +4,9 @@ use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
 use dx_output::{command_finished, command_started, FinishedCounts, OutputMode};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{
-    collect_range, collect_working_tree, local_override_changes, merge_base, quote_set,
-    resolve_affected, run_label_query_file, AffectedSelection, QueryRunner, ResolveError,
-    RuleGraph, WidenedScope,
+    collect_range, collect_working_tree, local_override_changes, merge_base,
+    missing_base_shallow_error, quote_set, resolve_affected, run_label_query_file, shallow_clone,
+    AffectedSelection, QueryRunner, ResolveError, RuleGraph, WidenedScope,
 };
 use serde_json::{json, Value};
 use std::io::Write;
@@ -167,6 +167,9 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
         {
             return Ok(candidate.to_owned());
         }
+    }
+    if shallow_clone(workspace) {
+        return Err(PlanError::Git(missing_base_shallow_error()));
     }
     Err(PlanError::Git(
         "cannot find the default branch: expected origin/HEAD, main, or master".to_owned(),
@@ -1105,6 +1108,22 @@ mod tests {
             affected_base(dir.path(), &runner),
             Err(PlanError::Git(_))
         ));
+    }
+
+    #[test]
+    fn missing_default_branch_in_a_shallow_clone_names_the_fix() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        git(dir.path(), &["init", "--quiet", "--initial-branch=dev"]);
+        write(dir.path(), "x", "x");
+        git(dir.path(), &["add", "."]);
+        git(dir.path(), &["commit", "--quiet", "-m", "x"]);
+        write(dir.path(), ".git/shallow", "");
+        let runner = GitRunner::new(&[]);
+        let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner) else {
+            panic!("expected a git error");
+        };
+        assert!(message.contains("shallow"), "{message}");
+        assert!(message.contains("git fetch origin"), "{message}");
     }
 
     #[test]

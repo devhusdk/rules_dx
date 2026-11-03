@@ -34,6 +34,8 @@ msix_tools.license(accept = ["windows-sdk-buildtools"])
 Only the root module's acceptance counts. An unknown license name fails the
 extension.
 
+Accepting the license here does not grant you one. You still need your own from Microsoft.
+
 ## Use
 
 ```python

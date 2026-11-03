@@ -8,6 +8,7 @@ exports_files([
     "deb_closure.bzl",
     "defs.bzl",
     "failure_test.bzl",
+    "license.bzl",
     "packaging.bzl",
     "plan_shard.bzl",
     "repo.bzl",

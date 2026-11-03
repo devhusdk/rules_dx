@@ -114,6 +114,8 @@ The CUDA Toolkit is licensed under the
 Only the root module's tag counts. Without it, every CUDA target fails
 analysis. `cuda-eula` is the only license name.
 
+Accepting the license here does not grant you one. You still need your own from NVIDIA.
+
 ## Rules
 
 ```python

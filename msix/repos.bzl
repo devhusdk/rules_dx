@@ -1,11 +1,12 @@
 """Windows SDK Build Tools acquisition behind an explicit license acceptance."""
 
+load("//libs/starlark:license.bzl", "accepted", "license_tag", "unaccepted")
 load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "LICENSE_URL", "TOOL_ARCHES")
 
 HUB_NAME = "dx_msix_tools"
 
-UNACCEPTED = "dx_msix: the Windows SDK Build Tools license (" + LICENSE_URL + ") is not accepted; add msix_tools.license(accept = [\"" + LICENSE + "\"]) to the root MODULE.bazel"
+UNACCEPTED = unaccepted("dx_msix", "Windows SDK Build Tools license", LICENSE_URL, "msix_tools", LICENSE)
 
 _ACCEPTED_ARCH = """
 msix_toolchain(
@@ -34,21 +35,8 @@ def hub_build(accepted):
             text += _UNACCEPTED_ARCH.format(arch = arch, error = json.encode(UNACCEPTED))
     return text
 
-def license_errors(licenses):
-    """Returns one error per license name that rules_dx does not know."""
-    return ["dx_msix: unknown license '" + name + "'; the only one is '" + LICENSE + "'" for name in licenses if name != LICENSE]
-
 def _extension_impl(mctx):
-    licenses = []
-    for module in mctx.modules:
-        if not module.is_root:
-            continue
-        for tag in module.tags.license:
-            licenses.extend(tag.accept)
-    errors = license_errors(licenses)
-    if errors:
-        fail("; ".join(errors))
-    if LICENSE in licenses:
+    if accepted(mctx, "dx_msix", LICENSE):
         pinned_archive(
             name = HUB_NAME,
             files = {"BUILD.bazel": hub_build(True)},
@@ -60,12 +48,7 @@ def _extension_impl(mctx):
         hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(False)})
     return mctx.extension_metadata(reproducible = True)
 
-_license = tag_class(
-    doc = "Accepts the Windows SDK Build Tools license for this build.",
-    attrs = {
-        "accept": attr.string_list(doc = "License names to accept.", mandatory = True),
-    },
-)
+_license = license_tag("Accepts the Windows SDK Build Tools license for this build.")
 
 msix_tools = module_extension(
     implementation = _extension_impl,

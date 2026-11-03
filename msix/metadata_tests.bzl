@@ -3,7 +3,7 @@
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":defs.bzl", "alias_errors", "application_errors", "compatible_with", "identity_errors", "named_version_errors", "publisher_cn", "publisher_errors", "version_errors")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
-load(":repos.bzl", "UNACCEPTED", "hub_build", "license_errors")
+load(":repos.bzl", "UNACCEPTED", "hub_build")
 
 def _checks():
     accepted = hub_build(True)
@@ -28,8 +28,6 @@ def _checks():
         expect_true("short min version", len(named_version_errors("min_version", "10.0")) == 1),
         expect_contains("bad max version names the attribute", named_version_errors("max_version_tested", "10.0.x.0")[0], "max_version_tested '10.0.x.0'"),
         expect_true("markup in a version", len(named_version_errors("min_version", '1.0.0.0"/><x a="')) == 1),
-        expect_equal("known license", license_errors([LICENSE]), []),
-        expect_true("unknown license", len(license_errors(["other"])) == 1),
         expect_equal("good version", version_errors("1.2.3.0"), []),
         expect_equal("top version", version_errors("65535.0.0.65535"), []),
         expect_true("three-part version", len(version_errors("1.2.3")) == 1),

@@ -12,6 +12,7 @@ load(":aspect_tests.bzl", "aspect_subject_tests")
 load(":cells_tests.bzl", "cells_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
+load(":license_tests.bzl", "license_tests")
 load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":output_group_tests.bzl", "output_group_unit_tests")
@@ -68,6 +69,8 @@ arithmetic_unit_tests(name = "arithmetic_unit")
 arithmetic_load_tests(name = "arithmetic_load")
 
 cells_tests(name = "cells")
+
+license_tests(name = "license")
 
 seven_zip_tests(name = "seven_zip")
 
@@ -160,6 +163,7 @@ test_suite(
         ":config_subject_analysis",
         ":exec_group_forwarder_analysis",
         ":fixture_execution",
+        ":license",
         ":matcher_unit",
         ":matrix_validation",
         ":observations_only_analysis",
@@ -197,6 +201,7 @@ real_source_target(
         "config_tests.bzl",
         "direct_sources.bzl",
         "execution_tests.bzl",
+        "license_tests.bzl",
         "matcher_tests.bzl",
         "matrix_tests.bzl",
         "output_group_tests.bzl",

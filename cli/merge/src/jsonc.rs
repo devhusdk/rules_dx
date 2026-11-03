@@ -52,6 +52,17 @@ pub fn append_missing(text: &str, path: &[&str], value: Value) -> Result<String,
     })
 }
 
+/// The value of JSONC text, with comments and trailing commas dropped.
+pub fn parse(text: &str) -> Result<Value, Error> {
+    let body = text.strip_prefix(BOM).unwrap_or(text);
+    let root = CstRootNode::parse(body, &ParseOptions::default())
+        .map_err(|error| Error::Jsonc(error.to_string()))?;
+    Ok(root
+        .value()
+        .and_then(|node| node.to_serde_value())
+        .unwrap_or(Value::Null))
+}
+
 fn empty_path() -> Error {
     Error::WrongType(String::new())
 }
@@ -113,6 +124,12 @@ mod tests {
     use serde_json::json;
 
     const USER: &str = "{\n  // mine\n  \"editor.tabSize\": 2, /* keep */\n  \"dx.a\": \"old\",\n  \"nest\": {\n    \"x\": 1,\n  },\n}\n";
+
+    #[test]
+    fn parse_ignores_comments_and_trailing_commas() {
+        assert_eq!(parse(USER).unwrap()["nest"], json!({ "x": 1 }));
+        assert_eq!(parse("").unwrap(), Value::Null);
+    }
 
     #[test]
     fn only_the_dx_key_changes() {

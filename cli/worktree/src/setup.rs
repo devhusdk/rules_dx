@@ -94,9 +94,13 @@ pub fn allow_rules() -> Vec<String> {
         .collect()
 }
 
+fn parse(text: &str) -> Value {
+    dx_merge::jsonc::parse(text).unwrap_or(Value::Null)
+}
+
 /// Allow rules an existing settings file lacks; the `:*` spelling counts as present.
 pub fn missing_allow(existing: &str) -> Vec<String> {
-    let parsed: Value = serde_json::from_str(existing).unwrap_or(Value::Null);
+    let parsed = parse(existing);
     let have: Vec<&str> = parsed
         .get("permissions")
         .and_then(|permissions| permissions.get("allow"))
@@ -149,7 +153,7 @@ fn has_command(existing: &Value, event: &str, command: &str) -> bool {
 
 /// Hook entries an existing hooks file lacks, as `event: command` lines.
 pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
-    let parsed: Value = serde_json::from_str(existing).unwrap_or(Value::Null);
+    let parsed = parse(existing);
     entries(file)
         .into_iter()
         .filter(|(event, _, command)| !has_command(&parsed, event, command))
@@ -188,7 +192,7 @@ pub struct Outcome {
     pub missing_allow: Vec<String>,
 }
 
-/// Writes each hooks file that is absent and never overwrites one.
+/// Writes each absent hooks file and adds missing entries to an existing one in place.
 pub fn apply(workspace: &Path) -> io::Result<Outcome> {
     sync(workspace, true)
 }
@@ -196,6 +200,26 @@ pub fn apply(workspace: &Path) -> io::Result<Outcome> {
 /// What [`apply`] would do, without writing; fails where it would fail to read.
 pub fn inspect(workspace: &Path) -> io::Result<Outcome> {
     sync(workspace, false)
+}
+
+fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
+    let parsed = parse(existing);
+    let mut text = existing.to_owned();
+    for (event, matcher, command) in entries(file) {
+        if !has_command(&parsed, event, &command) {
+            text = dx_merge::jsonc::append_missing(
+                &text,
+                &["hooks", event],
+                entry_value(matcher, &command),
+            )?;
+        }
+    }
+    if file.allow {
+        for rule in missing_allow(existing) {
+            text = dx_merge::jsonc::append_missing(&text, &["permissions", "allow"], json!(rule))?;
+        }
+    }
+    Ok(text)
 }
 
 fn sync(workspace: &Path, write: bool) -> io::Result<Outcome> {
@@ -208,10 +232,20 @@ fn sync(workspace: &Path, write: bool) -> io::Result<Outcome> {
         let path = workspace.join(file.path);
         if path.exists() {
             let existing = std::fs::read_to_string(&path)?;
-            if file.allow {
-                outcome.missing_allow = missing_allow(&existing);
-            }
+            let rules = if file.allow {
+                missing_allow(&existing)
+            } else {
+                Vec::new()
+            };
             let missing = missing_entries(file, &existing);
+            if write && (!missing.is_empty() || !rules.is_empty()) {
+                if let Ok(merged) = merge(file, &existing) {
+                    dx_atomic_fs::write_atomic(&path, merged.as_bytes())?;
+                    outcome.wrote.push(file.path.to_owned());
+                    continue;
+                }
+            }
+            outcome.missing_allow.extend(rules);
             if !missing.is_empty() {
                 outcome.missing.push((file.path, missing));
             }
@@ -263,48 +297,83 @@ mod tests {
         assert!(inspect(dir.path()).is_err());
     }
 
+    const USER_SETTINGS: &str = "{\n  // mine\n  \"hooks\": {\n    \"PreToolUse\": [\n      { \"matcher\": \"Bash\", \"hooks\": [{ \"type\": \"command\", \"command\": \"mine\" }] },\n    ],\n  },\n  \"model\": \"opus\", /* keep */\n}\n";
+
     #[test]
-    fn existing_files_are_never_overwritten() {
-        let dir = scratch("dx-worktree-setup-existing-");
+    fn missing_entries_are_added_in_place_and_user_bytes_stay() {
+        let dir = scratch("dx-worktree-setup-merge-");
         std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
-        let own = "{\"hooks\": {}}\n";
-        std::fs::write(dir.path().join(CLAUDE.path), own).expect("settings");
+        std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
         let outcome = apply(dir.path()).expect("apply");
-        assert_eq!(
-            std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read"),
-            own
-        );
-        let (path, missing) = &outcome.missing[0];
-        assert_eq!(*path, CLAUDE.path);
-        assert!(missing.iter().any(|entry| entry.contains("WorktreeCreate")));
-        assert!(missing
-            .iter()
-            .any(|entry| entry.contains("PreToolUse (Bash)")));
+        assert!(outcome.wrote.contains(&CLAUDE.path.to_owned()));
+        assert!(outcome.missing.is_empty() && outcome.missing_allow.is_empty());
+        let text = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
+        assert!(text.contains("// mine"));
+        assert!(text.contains("/* keep */"));
+        assert!(text.contains("\"command\": \"mine\""));
+        assert!(missing_entries(&CLAUDE, &text).is_empty());
+        assert!(missing_allow(&text).is_empty());
+        let parsed = parse(&text);
+        assert_eq!(commands(&parsed, "PreToolUse").len(), 2);
+        assert_eq!(parsed["model"], "opus");
     }
 
     #[test]
-    fn an_existing_gemini_settings_file_is_kept_and_its_missing_guard_reported() {
+    fn inspect_leaves_an_existing_file_and_reports_what_is_missing() {
+        let dir = scratch("dx-worktree-setup-report-");
+        std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
+        std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
+        let outcome = inspect(dir.path()).expect("inspect");
+        let (path, missing) = &outcome.missing[0];
+        assert_eq!(*path, CLAUDE.path);
+        assert!(missing.iter().any(|entry| entry.contains("WorktreeCreate")));
+        assert_eq!(outcome.missing_allow, allow_rules());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read"),
+            USER_SETTINGS
+        );
+    }
+
+    #[test]
+    fn a_second_apply_writes_zero_bytes_to_a_merged_file() {
+        let dir = scratch("dx-worktree-setup-merge-twice-");
+        std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
+        std::fs::write(dir.path().join(CLAUDE.path), USER_SETTINGS).expect("settings");
+        apply(dir.path()).expect("first");
+        let once = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
+        let outcome = apply(dir.path()).expect("second");
+        assert!(!outcome.wrote.contains(&CLAUDE.path.to_owned()));
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read"),
+            once
+        );
+    }
+
+    #[test]
+    fn an_existing_gemini_settings_file_gains_only_its_guard() {
         let dir = scratch("dx-worktree-setup-gemini-");
         std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
         let own = "{\"general\": {\"vimMode\": true}}\n";
         std::fs::write(dir.path().join(GEMINI.path), own).expect("settings");
         let outcome = apply(dir.path()).expect("apply");
+        assert!(outcome.wrote.contains(&GEMINI.path.to_owned()));
+        let text = std::fs::read_to_string(dir.path().join(GEMINI.path)).expect("read");
+        assert_eq!(parse(&text)["general"]["vimMode"], true);
+        assert!(missing_entries(&GEMINI, &text).is_empty());
+        assert!(!text.contains("permissions"));
+    }
+
+    #[test]
+    fn an_unparsable_file_is_left_alone_and_reported() {
+        let dir = scratch("dx-worktree-setup-broken-");
+        std::fs::create_dir_all(dir.path().join(".gemini")).expect("dir");
+        std::fs::write(dir.path().join(GEMINI.path), "{ nope").expect("settings");
+        let outcome = apply(dir.path()).expect("apply");
+        assert_eq!(outcome.missing[0].0, GEMINI.path);
         assert_eq!(
             std::fs::read_to_string(dir.path().join(GEMINI.path)).expect("read"),
-            own
+            "{ nope"
         );
-        assert!(!outcome.wrote.contains(&GEMINI.path.to_owned()));
-        assert_eq!(
-            outcome.missing,
-            vec![(
-                GEMINI.path,
-                vec![
-                    "BeforeTool (run_shell_command): \"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard"
-                        .to_owned()
-                ]
-            )]
-        );
-        assert_eq!(workspace_missing(dir.path()), outcome.missing);
     }
 
     #[test]

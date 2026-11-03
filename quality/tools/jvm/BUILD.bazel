@@ -23,6 +23,17 @@ java_binary(
 )
 
 java_import(
+    name = "avro_tools_import",
+    jars = ["@jvm_avro_tools//file"],
+)
+
+java_binary(
+    name = "avro_tools",
+    main_class = "org.apache.avro.tool.Main",
+    runtime_deps = [":avro_tools_import"],
+)
+
+java_import(
     name = "checkstyle_import",
     jars = ["@jvm_checkstyle//file"],
 )

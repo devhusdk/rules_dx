@@ -137,6 +137,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_avro",
+    build_setting_default = "//quality/tools/jvm:avro_tools",
+)
+
+label_flag(
     name = "tool_terraform",
     build_setting_default = "@dx_tools//:terraform",
 )

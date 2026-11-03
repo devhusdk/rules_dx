@@ -4,6 +4,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file"
 load("//libs/starlark:repo.bzl", "hub_repo")
 load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
 load("//quality/artifacts:actionlint.bzl", _actionlint = "ARTIFACTS")
+load("//quality/artifacts:avro_tools.bzl", _avro_tools = "SOURCE")
 load("//quality/artifacts:bicep.bzl", _bicep = "ARTIFACTS")
 load("//quality/artifacts:biome.bzl", _biome = "ARTIFACTS")
 load("//quality/artifacts:buf.bzl", _buf = "ARTIFACTS")
@@ -101,6 +102,7 @@ _ARTIFACTS = [
 ]
 
 TOOL_SOURCES = [
+    _avro_tools,
     _checkstyle,
     _cppcheck,
     _google_java_format,

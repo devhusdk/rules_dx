@@ -166,6 +166,7 @@ REAL_CLASS_TO_FAMILY = {
     "dockerfile": "dockerfile",
     "make": "make",
     "capnp": "capnp",
+    "avro": "avro",
     "cmake": "cmake",
     "d": "d",
     "dart": "dart",

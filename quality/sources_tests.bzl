@@ -9,6 +9,7 @@ FROZEN_SEMANTIC_FILE_CLASSES = [
     "c",
     "capnp",
     "thrift",
+    "avro",
     "cpp",
     "cuda",
     "csharp",

@@ -1639,6 +1639,7 @@ use_repo(
     "dx_yamlfmt_macos_arm64",
     "dx_yamlfmt_windows_arm64",
     "dx_yamlfmt_windows_x86_64",
+    "jvm_avro_tools",
     "jvm_checkstyle",
     "jvm_google_java_format",
     "jvm_ktfmt",

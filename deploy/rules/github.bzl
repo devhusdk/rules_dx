@@ -78,9 +78,6 @@ def github_deploy(name, artifacts, tag = "v0.0.0-dryrun", profile = "release", t
     tag_error = github_tag_error(tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")
-    if len(artifacts) == 0:
-        fail("github_deploy " + native.package_name() + ":" + name +
-             ": need at least one artifact")
 
     config_target = name + "_config"
     github_config(

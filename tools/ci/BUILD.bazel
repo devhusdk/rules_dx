@@ -815,6 +815,7 @@ rust_test(
     size = "small",
     srcs = ["release_assets_test.rs"],
     data = [
+        "//:RELEASING.md",
         "//:MODULE.bazel",
         "//.github:workflows/pins.yml",
         "//.github:workflows/release.yml",

@@ -136,10 +136,7 @@ rust_binary(
 
 github_deploy(
     name = "github_draft",
-    artifacts = [
-        ":dx",
-        ":man_pages",
-    ],
+    artifacts = [],
 )
 
 rust_binary(

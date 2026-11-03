@@ -228,6 +228,7 @@ js_library(
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
+    "RELEASING.md",
     "clippy.toml",
     ".bazelignore",
     ".bazelrc",

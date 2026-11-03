@@ -290,7 +290,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "No release for $RELEASE_TAG. Run //cli/cli:github_draft, then re-run this workflow with the tag." >&2
+            echo "No release for $RELEASE_TAG. Create the draft first (see RELEASING.md), then re-run this workflow with the tag." >&2
             exit 1
           fi
           existing_names="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name')"
@@ -353,6 +353,12 @@ jobs:
               gh release upload "$RELEASE_TAG" "out/$file"
             fi
           done
+          allowed="$(printf '%s\n' $files "$src" "$src.sha256" source.json)"
+          extra="$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fvx -f <(printf '%s\n' "$allowed") || true)"
+          if [ -n "$extra" ]; then
+            echo "Release $RELEASE_TAG holds assets outside the manifest: $extra. Delete them by hand." >&2
+            exit 1
+          fi
           mkdir -p verify
           gh release download "$RELEASE_TAG" --pattern "$src" --pattern "$src.sha256" --pattern 'dx-*' --dir verify
           (cd verify && sha256sum -c "$src.sha256" && sha256sum -c dx-sha256sums.txt)

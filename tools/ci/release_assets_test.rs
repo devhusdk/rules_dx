@@ -147,6 +147,25 @@ fn the_upload_never_overwrites() {
 }
 
 #[test]
+fn the_upload_fails_on_assets_outside_the_manifest() {
+    let text = workflow();
+    let upload = &text[text.find("\n  upload:\n").expect("upload job")..];
+    let loop_end = upload.find("gh release upload").expect("upload");
+    let check = upload.find("holds assets outside the manifest").expect("extra check");
+    let verify = upload.find("mkdir -p verify").expect("verify step");
+    assert!(loop_end < check && check < verify);
+    assert!(upload.contains("printf '%s\\n' $files \"$src\" \"$src.sha256\" source.json"));
+    assert!(!upload.contains("gh release delete-asset"));
+}
+
+#[test]
+fn the_missing_release_hint_points_to_the_runbook() {
+    assert!(workflow().contains("Create the draft first (see RELEASING.md)"));
+    let runbook = read_runfiles("RELEASING.md");
+    assert!(runbook.contains("GH_RELEASE_LIVE=1 GH_RELEASE_APPROVED=1"));
+}
+
+#[test]
 fn the_checksum_manifest_is_built_checked_and_uploaded() {
     let text = workflow();
     for needle in [

@@ -207,6 +207,21 @@ mod tests {
     }
 
     #[test]
+    fn github_staging_without_artifacts_holds_only_the_manifest() {
+        let scratch = scratch_dir();
+        let outdir = scratch.path().join("out");
+        std::fs::create_dir_all(&outdir).expect("outdir");
+        let staging = github_build_staging(&[], &outdir, "github_draft", "v1").expect("staging");
+        let names: Vec<_> = std::fs::read_dir(&staging)
+            .expect("staging dir")
+            .map(|entry| entry.expect("entry").file_name())
+            .collect();
+        assert_eq!(names, ["would-run.txt"]);
+        let manifest = std::fs::read_to_string(staging.join("would-run.txt")).expect("manifest");
+        assert!(manifest.ends_with("gh release create v1 --draft --verify-tag"));
+    }
+
+    #[test]
     fn github_staging_rejects_duplicate_basename() {
         let scratch = scratch_dir();
         let first = scratch.path().join("a").join("app.tar.gz");

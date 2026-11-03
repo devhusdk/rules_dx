@@ -337,12 +337,12 @@ github_deploy(
 )
 ```
 
-- `artifacts`: required. At least one file. Asset names must be unique.
+- `artifacts`: files to attach. An empty list creates a draft with release notes only. Asset names must be unique.
 - `tag`: defaults to `v0.0.0-dryrun`.
 - `profile`: `debug`, `dev` or `release`. Defaults to `release`.
 - `tags`: Bazel tags for the generated targets. Defaults to `[]`.
 
-Default run stages `<name>-release/` with the assets and a `would-run.txt`
+Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
 holding their sha256 and the `gh release create` command. Nothing is
 published.
 

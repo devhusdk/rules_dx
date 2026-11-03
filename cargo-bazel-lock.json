@@ -1,5 +1,5 @@
 {
-  "checksum": "9fa90b35476f8eb74716a829475f5a26e56d451b8d466d4623326b8403c741f5",
+  "checksum": "f5e670a4881b7cf373f3df156256e48af921152be9ad357c82550cbd69d8b4c5",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9406,7 +9406,7 @@
             "target": "crc32fast"
           },
           {
-            "id": "libz-sys 1.1.29",
+            "id": "libz-sys 1.1.31",
             "target": "libz_sys"
           },
           {
@@ -13307,7 +13307,7 @@
       ],
       "version": "0.3.0"
     },
-    "libz-sys 1.1.29": {
+    "libz-sys 1.1.31": {
       "build_script_attrs": {
         "deps": [
           {
@@ -13342,8 +13342,8 @@
       "package_url": "https://github.com/rust-lang/libz-sys",
       "repository": {
         "Http": {
-          "sha256": "85bc9657773828b90eeb625adff10eeac83cc21bbfd8e23a03eaa8a33c9e28d9",
-          "url": "https://static.crates.io/crates/libz-sys/1.1.29/download"
+          "sha256": "ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2",
+          "url": "https://static.crates.io/crates/libz-sys/1.1.31/download"
         }
       },
       "targets": [
@@ -13360,7 +13360,7 @@
           }
         }
       ],
-      "version": "1.1.29"
+      "version": "1.1.31"
     },
     "line-index 0.1.2": {
       "common_attrs": {
@@ -17266,7 +17266,7 @@
       ],
       "version": "1.11.0"
     },
-    "pulldown-cmark 0.13.4": {
+    "pulldown-cmark 0.13.5": {
       "build_script_attrs": {},
       "common_attrs": {
         "deps": [
@@ -17298,8 +17298,8 @@
       "package_url": "https://github.com/raphlinus/pulldown-cmark",
       "repository": {
         "Http": {
-          "sha256": "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e",
-          "url": "https://static.crates.io/crates/pulldown-cmark/0.13.4/download"
+          "sha256": "278e9268c93b9e498a2da46c34d90ba93a3255eb99009646398f34bc73ab36eb",
+          "url": "https://static.crates.io/crates/pulldown-cmark/0.13.5/download"
         }
       },
       "targets": [
@@ -17316,7 +17316,7 @@
           }
         }
       ],
-      "version": "0.13.4"
+      "version": "0.13.5"
     },
     "python_extract 0.0.0": {
       "common_attrs": {
@@ -17526,7 +17526,7 @@
             "target": "clap"
           },
           {
-            "id": "pulldown-cmark 0.13.4",
+            "id": "pulldown-cmark 0.13.5",
             "target": "pulldown_cmark"
           },
           {
@@ -28019,7 +28019,7 @@
     "pep440_rs 0.7.3",
     "pgp 0.21.0",
     "proc-macro2 1.0.107",
-    "pulldown-cmark 0.13.4",
+    "pulldown-cmark 0.13.5",
     "quick-junit 0.8.0",
     "quick-xml 0.41.0",
     "quote 1.0.47",

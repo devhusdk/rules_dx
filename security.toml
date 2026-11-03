@@ -135,3 +135,51 @@ set = "dx_quality_crates"
 versions = "=1.0.4"
 reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
 expires = "2027-05-03"
+
+[[exception]]
+advisory = "GHSA-3g3m-2fjr-6pw4"
+package = "glob"
+set = "dx_npm"
+versions = "=10.5.0"
+reason = "Pinned to an older major by build and lint tool dependencies; the fix is glob 14.0.2, a newer major they do not accept. Not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-3g3m-2fjr-6pw4"
+package = "glob"
+set = "dx_npm"
+versions = "=13.0.6"
+reason = "Pinned to an older major by build and lint tool dependencies; the fix is glob 14.0.2, a newer major they do not accept. Not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-g3hv-75wg-m249"
+package = "minimatch"
+set = "dx_npm"
+versions = "=3.1.5"
+reason = "Pinned to an older major by build and lint tool dependencies; the fix is minimatch 11.0.1, a newer major they do not accept. Not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-g3hv-75wg-m249"
+package = "minimatch"
+set = "dx_npm"
+versions = "=5.1.9"
+reason = "Pinned to an older major by build and lint tool dependencies; the fix is minimatch 11.0.1, a newer major they do not accept. Not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-g3hv-75wg-m249"
+package = "minimatch"
+set = "dx_npm"
+versions = "=9.0.9"
+reason = "Pinned to an older major by build and lint tool dependencies; the fix is minimatch 11.0.1, a newer major they do not accept. Not shipped."
+expires = "2027-01-28"
+
+[[exception]]
+advisory = "GHSA-g3hv-75wg-m249"
+package = "minimatch"
+set = "dx_npm"
+versions = "=10.2.6"
+reason = "Pinned to an older major by build and lint tool dependencies; the fix is minimatch 11.0.1, a newer major they do not accept. Not shipped."
+expires = "2027-01-28"

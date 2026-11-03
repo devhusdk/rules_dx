@@ -92,7 +92,7 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "e97ab7b550d08e047c35edc5f50c7d242227842f";
+pub const CONSUMER_WORKFLOW_PIN: &str = "04bb90c9221b324fe86a16bee0a4e5dadb3adaf7";
 
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
 
@@ -721,6 +721,14 @@ mod tests {
         let caller = render_consumer_caller();
         assert!(!caller.contains("platforms:"), "{caller}");
         assert!(!caller.contains("disabled_checks:"), "{caller}");
+    }
+
+    #[test]
+    fn generated_caller_pin_is_newer_than_the_one_without_affected_on_pr() {
+        assert_ne!(
+            CONSUMER_WORKFLOW_PIN,
+            "e97ab7b550d08e047c35edc5f50c7d242227842f"
+        );
     }
 
     #[test]

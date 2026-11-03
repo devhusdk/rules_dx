@@ -37,6 +37,7 @@ exports_files([
     "sbom_tests.bzl",
     "signing.bzl",
     "signing_tests.bzl",
+    "src/bin_bump_version.rs",
     "src/bin_publish_dry_run_check.rs",
     "src/bin_release_cell.rs",
     "src/bin_release_deploy_tool.rs",
@@ -225,6 +226,7 @@ rust_test(
 
 # Release binaries that have a bin_test.
 _TESTED_RELEASE_BINS = [
+    "bump_version",
     "publish_dry_run_check",
     "release_cell",
     "release_driver",
@@ -321,6 +323,22 @@ rust_binary(
     ) + [":dx_release_tools"],
 )
 
+rust_binary(
+    name = "bump_version",
+    srcs = ["src/bin_bump_version.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "bump_version",
+    crate_root = "src/bin_bump_version.rs",
+    edition = "2021",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
 rust_test(
     name = "publish_dry_run_check_bin_test",
     size = "small",
@@ -378,6 +396,22 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":source_archive",
+    deps = all_crate_deps(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "bump_version_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "deploy/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bump_version",
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,

@@ -278,8 +278,11 @@ platform shares one copy, keyed on `MODULE.bazel` and `MODULE.bazel.lock`.
 On the default branch, each platform's `checks` job saves its copy. With every
 check and `coverage` disabled, nothing saves it. The saved copy holds only the downloads the saving job
 used. Pull requests, forks included, merge queues and other branches only
-restore it. Without a remote cache, build and test outputs
-are not cached between runs.
+restore it.
+
+Without a remote cache, each `checks` cell keeps a Bazel disk cache. It is
+keyed on the check and the platform. The default branch saves it. Pull
+requests only restore it. With a remote cache set, no disk cache is kept.
 
 CI fails when `MODULE.bazel.lock` is stale. Run `bazel mod deps` and commit the lock.
 

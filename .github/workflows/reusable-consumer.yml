@@ -172,6 +172,7 @@ jobs:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
           bazelisk-cache: true
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ inputs.remote_cache == '' && secrets.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', matrix.check.id, matrix.platform) || 'false' }}
       - name: Locate the Bazel repository cache
         id: repo-cache
         shell: bash

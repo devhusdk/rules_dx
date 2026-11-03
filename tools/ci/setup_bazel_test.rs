@@ -262,6 +262,9 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
             let setup = setups[0];
             let with = &steps[setup]["with"];
             for input in ["repository-cache", "disk-cache"] {
+                if input == "disk-cache" && job == "checks" {
+                    continue;
+                }
                 assert!(
                     with.get(input).is_none(),
                     "{name} job {job} step {setup} sets setup-bazel {input}"

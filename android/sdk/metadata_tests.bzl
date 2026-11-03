@@ -206,7 +206,9 @@ def _android_checks():
     checks.append(expect_equal(
         "missing license fails",
         request_errors(_request(accept_licenses = [])),
-        ["android_sdk: accept android-sdk-license before acquisition"],
+        [
+            'android_sdk: accept android-sdk-license before acquisition; add android_sdk.configure(accept_licenses = ["android-sdk-license"]) to the root MODULE.bazel',
+        ],
     ))
     checks.append(expect_equal(
         "plain http mirror fails",

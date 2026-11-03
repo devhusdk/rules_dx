@@ -282,7 +282,11 @@ def request_errors(request):
         return errors
     missing = [name for name in REQUIRED_LICENSES if name not in request.accept_licenses]
     if len(missing) > 0:
-        errors.append("android_sdk: accept " + ", ".join(missing) + " before acquisition")
+        quoted = ['"' + name + '"' for name in missing]
+        errors.append(
+            "android_sdk: accept " + ", ".join(missing) + " before acquisition; " +
+            "add android_sdk.configure(accept_licenses = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
+        )
     if request.mirror != "" and not request.mirror.startswith("https://"):
         errors.append("android_sdk: mirror '" + request.mirror + "' must use https")
     return errors

@@ -5,7 +5,7 @@ use dx_nested::Case;
 const PUB_MODULE: &str = r#"
 bazel_dep(name = "rules_dart", version = "0.8.0")
 
-pub = use_extension("@rules_dart//dart/pub:extensions.bzl", "pub")
+pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(
     name = "app_deps",
     lock = "//:pubspec.lock",

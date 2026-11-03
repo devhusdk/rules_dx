@@ -498,16 +498,31 @@ zig.toolchain(zig_version = "0.16.0")
 bazel_dep(name = "rules_dart", version = "0.8.0")
 single_version_override(
     module_name = "rules_dart",
-    patch_strip = 1,
-    patches = ["//patches/rules_dart:hermetic_tar.patch"],
     version = "0.8.0",
 )
 
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
 dart.toolchain(dart_version = "3.13.5")
 
+bazel_dep(name = "tar.bzl", version = "0.10.4")
+bazel_dep(name = "yaml.bzl", version = "0.1.2")
+
+bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
+use_repo(
+    bsd_tar_toolchains,
+    "bsd_tar_toolchains_darwin_amd64",
+    "bsd_tar_toolchains_darwin_arm64",
+    "bsd_tar_toolchains_linux_amd64",
+    "bsd_tar_toolchains_linux_arm64",
+    "bsd_tar_toolchains_windows_amd64",
+    "bsd_tar_toolchains_windows_arm64",
+)
+
+dart_tools = use_extension("//dart:repos.bzl", "dart_tools")
+use_repo(dart_tools, "dx_rules_dart_pub")
+
 pub = use_extension(
-    "@rules_dart//dart/pub:extensions.bzl",
+    "//dart:extensions.bzl",
     "pub",
     dev_dependency = True,
 )
@@ -517,9 +532,7 @@ pub.from_lock(
     on_version_conflict = "upgrade",
 )
 
-# pub.dev pads some archives (here `nested`) with bytes after the gzip stream,
-# which Bazel's own extractor rejects. Fetching one guards the pinned bsdtar in
-# //patches/rules_dart:hermetic_tar.patch.
+# Fetching a padded archive guards the pinned bsdtar in //dart:repos.bzl.
 pub.from_lock(
     name = "dx_dart_padded_archive",
     lock = "//dart/tests:padded_archive.pubspec.lock",

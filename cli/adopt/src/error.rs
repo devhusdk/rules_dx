@@ -14,8 +14,8 @@ pub enum AdoptError {
     LoadModuleFile { detail: String },
     #[error("refuses empty version")]
     EmptyVersion,
-    #[error("launcher version is not semver: {version:?}")]
-    LauncherVersion { version: String },
+    #[error("invalid .dx/version: {version:?} is not semver")]
+    InvalidVersionPin { version: String },
     #[error("launcher sha256 pins: {detail}")]
     LauncherPins { detail: String },
     #[error("create .dx: {detail}")]

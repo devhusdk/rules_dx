@@ -71,7 +71,7 @@ Flags: `--apply`.
 Scopes: optional single directory, created by `--apply` when missing.
 
 Output: text only. Check mode looks for every file init writes.
-It also flags a missing or stale Bazel preset layer and a missing preset import. It flags a dx-written launcher whose version differs from `.dx/version`
+It also flags a missing or stale Bazel preset layer and a missing preset import. It flags a dx-written launcher that differs from the current launcher text
 and an empty or non-semver `.dx/version`. It flags
 missing `.claude/settings.json`, `AGENTS.md` and `CLAUDE.md`,
 an `AGENTS.md` without the current dx block, a hooks file that lacks dx hooks
@@ -108,8 +108,8 @@ match the running dx.
 
 | Path | Owner | What `dx init --apply` updates |
 | --- | --- | --- |
-| `.dx/version` | dx | Written when missing. `dx upgrade --apply` rewrites it. |
-| `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when `VERSION` differs from `.dx/version`. A launcher dx did not write is kept. |
+| `.dx/version` | dx | Written when missing. Line 1 is the version, then one sha256 line per release binary. `dx upgrade --apply` rewrites it. |
+| `tools/dx`, `tools/dx.cmd` | dx | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. |
 | `third_party/rules_dx/` | dx | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `performance.bazelrc`, `resources.bazelrc` | dx | Written when missing. Rewritten when they carry the dx header and differ. A file without the header is kept. |
 | `.bazelrc` | you | Created when missing. Three `import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists. Other lines stay. |
@@ -223,7 +223,7 @@ when they exist.
 
 `tools/dx` (sh) and `tools/dx.cmd` run dx without Bazel. They read `.dx/version`,
 download the matching standalone binary from the GitHub release into
-`<cache>/bin/<version>/`, check it against the sha256 pinned in the launcher for
+`<cache>/bin/<version>/`, check it against the sha256 pinned in `.dx/version` for
 that platform, and run it. The launcher never downloads a hash file, so a
 swapped release asset and its `.sha256` cannot pass. A cached binary is only
 run. No Bazel server starts.
@@ -242,34 +242,43 @@ arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx 
 command to use instead when the download fails or the platform has no binary.
 A binary that does not match its pinned sha256 is deleted and never run.
 
-Each launcher carries one `SHA256_<OS>_<ARCH>` line per binary it can fetch
-(five in `tools/dx`, the two Windows ones in `tools/dx.cmd`). Until dx ships
-release pins, `dx init` writes them empty. With an empty pin the launcher does
-not download: it exits `1` with the `bazel run @rules_dx//:dx -- ...` command.
-A binary already in the cache still runs.
+The launchers are the same for every dx version. `.dx/version` holds the
+version on line 1, then one `<sha256>  dx-<os>-<arch>` line per release binary:
+
+```text
+1.2.3
+<sha256>  dx-linux-x86_64
+<sha256>  dx-macos-arm64
+```
+
+The version may only use `0-9`, `A-Z`, `a-z`, `.`, `+` and `-`, and may not
+start with `.`. Until dx ships release pins, `dx init` writes no hash lines.
+Without a line for the platform the launcher does not download: it exits `1`
+with the `bazel run @rules_dx//:dx -- ...` command. A binary already in the
+cache still runs.
 
 Run from another checkout of the same git repo (a `dx worktree` slot or a
 `git worktree`), the launcher first runs that checkout's own `tools/dx`, so that
 checkout's `.dx/version` pin applies. `worktree hook` commands never hand off.
 Separate clones, other repos, and machines without `git` are not handed off.
-Existing launchers gain this on their next version bump.
+Existing launchers gain this on their next upgrade.
 
-When `.dx/version` differs from the launcher's version, the launcher exits `1`
+When `.dx/version` is missing or has an invalid version, the launcher exits `1`
 and prints:
 
 ```text
-dx: tools/dx is pinned to dx <v> but .dx/version is '<pin>'; refresh it: bazel run @rules_dx//:dx -- init --apply
+dx: .dx/version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply
+dx: .dx/version has an invalid version '<v>'; refresh it: bazel run @rules_dx//:dx -- init --apply
 ```
 
-`dx init --apply` writes a missing launcher and rewrites one whose `VERSION`
-line differs from `.dx/version`. With no `.dx/version` it uses the running dx
-version. dx treats a launcher as its own when it starts with the template's
-first three lines (`#!/bin/sh`, `set -eu`, `VERSION="<v>"`, or `@echo off`,
-`setlocal`, `set "VERSION=<v>"`). Any other launcher is yours and is never
+`dx init --apply` writes a missing launcher and rewrites a dx launcher that
+differs from the current text. dx treats a launcher as its own when it starts
+with the template's first three lines (`#!/bin/sh`, `set -eu`,
+`DX_PINS=.dx/version`, or `@echo off`, `setlocal`, `set "DX_PINS=.dx\version"`),
+or the older `VERSION=` form. Any other launcher is yours and is never
 touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
-When a launcher would change and `.dx/version` is not semver, init fails with
-`init_failed` before writing any file. `dx upgrade --apply` refreshes existing launchers the
-same way.
+When `.dx/version` is not semver, `dx init --apply` fails with `init_failed`
+before writing any file. `dx upgrade --apply` refreshes existing launchers the same way.
 
 ## Git hooks
 

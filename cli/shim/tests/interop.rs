@@ -24,12 +24,7 @@ fn workspace() -> tempfile::TempDir {
     std::fs::create_dir_all(dir.path().join(".dx")).expect("mkdir");
     std::fs::create_dir_all(dir.path().join("tools")).expect("mkdir");
     std::fs::write(dir.path().join(".dx/version"), format!("{VERSION}\n")).expect("pin");
-    std::fs::write(
-        dir.path().join("tools/dx"),
-        dx_adopt::render_launcher_sh(VERSION, &dx_adopt::LauncherPins::unreleased())
-            .expect("render launcher"),
-    )
-    .expect("launcher");
+    std::fs::write(dir.path().join("tools/dx"), dx_adopt::render_launcher_sh()).expect("launcher");
     dir
 }
 

@@ -403,7 +403,16 @@ mod tests {
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
-        std::fs::write(root.join(".dx/version"), "4.5.6\n").expect("pin");
+        std::fs::write(
+            root.join("tools/dx"),
+            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+        )
+        .expect("legacy sh");
+        std::fs::write(
+            root.join("tools/dx.cmd"),
+            "@echo off\r\nsetlocal\r\nset \"VERSION=1.2.3\"\r\n",
+        )
+        .expect("legacy cmd");
         let (code, _out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 1);
         assert!(

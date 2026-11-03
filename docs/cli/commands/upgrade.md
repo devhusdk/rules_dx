@@ -21,9 +21,9 @@ Scopes: none.
 
 `--apply` writes, in order:
 
-1. `.dx/version` with `--to`.
-2. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) whose
-   version differs. It never creates a launcher.
+1. `.dx/version` with `--to` and its sha256 lines.
+2. Each existing dx-written launcher (`tools/dx`, `tools/dx.cmd`) that
+   differs from the current text. It never creates a launcher.
 3. Stale generated `.dx/bazelrc` layers.
 4. The dx block of an existing `AGENTS.md`. It never creates the file.
 

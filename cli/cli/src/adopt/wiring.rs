@@ -8,11 +8,13 @@ use dx_worktree::setup;
 
 use super::{agents, claude_md, operational, summaries_suppressed};
 
-/// The dx version a project's launcher pins, from `.dx/version` or this build.
-pub(super) fn launcher_pin(root: &Path) -> String {
+fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
     match dx_adopt::read_version_pin(root) {
-        Ok(pin) if !pin.is_empty() => pin,
-        _ => dx_adopt::DX_VERSION.to_owned(),
+        Ok(pin) if !pin.is_empty() && !dx_adopt::pin_is_valid(&pin) => Err(adopt_message(
+            prefix,
+            &dx_adopt::AdoptError::InvalidVersionPin { version: pin },
+        )),
+        _ => Ok(()),
     }
 }
 
@@ -41,8 +43,8 @@ pub(super) fn preflight(root: &Path, prefix: &str, extra: &[&str]) -> Result<(),
     destinations.extend([agents::FILE, claude_md::FILE]);
     dx_adopt::preflight_destinations(root, &destinations)
         .map_err(|error| adopt_message(prefix, &error))?;
-    dx_adopt::plan_launcher_files(root, &launcher_pin(root), true)
-        .map_err(|error| adopt_message(prefix, &error))?;
+    check_pin(root, prefix)?;
+    dx_adopt::plan_launcher_files(root, true).map_err(|error| adopt_message(prefix, &error))?;
     dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
     dx_adopt::preflight_preset(root).map_err(|error| adopt_message(prefix, &error))?;
     let io = |error: std::io::Error| error.to_string();
@@ -61,8 +63,9 @@ pub(super) fn apply(
     applied: &mut Applied,
     notes: &mut Vec<String>,
 ) -> Result<(), String> {
+    check_pin(root, prefix)?;
     let mut launchers = Applied::default();
-    let written = dx_adopt::write_launcher_files(root, &launcher_pin(root), &mut launchers);
+    let written = dx_adopt::write_launcher_files(root, &mut launchers);
     let prefixed = |paths: Vec<String>| paths.into_iter().map(|path| format!("{prefix}{path}"));
     applied.wrote.extend(prefixed(launchers.wrote));
     applied.refused.extend(prefixed(launchers.refused));
@@ -162,11 +165,7 @@ pub(super) fn drift(root: &Path) -> Drift {
             drift.missing.push(rel.to_owned());
         }
     }
-    drift.stale.extend(
-        dx_adopt::stale_launchers(root, &launcher_pin(root))
-            .into_iter()
-            .map(|(rel, _)| rel),
-    );
+    drift.stale.extend(dx_adopt::stale_launchers(root));
     let preset = dx_adopt::preset_drift(root);
     drift.missing.extend(preset.missing);
     drift.stale.extend(preset.stale);
@@ -238,8 +237,8 @@ mod tests {
             "{out}"
         );
         assert_eq!(
-            dx_adopt::launcher_version(root, "tools/dx").as_deref(),
-            Some(dx_adopt::DX_VERSION)
+            dx_adopt::launcher_state(root, "tools/dx"),
+            Some(dx_adopt::LauncherState::Current)
         );
         let (code, out, err) = init(root);
         assert_eq!(code, 0);
@@ -247,8 +246,7 @@ mod tests {
         assert!(err.contains("tools/dx (absent-only, left untouched)"));
         std::fs::write(
             root.join("tools/dx"),
-            dx_adopt::render_launcher_sh("1.2.3", &dx_adopt::LauncherPins::unreleased())
-                .expect("render"),
+            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
         )
         .expect("stale");
         std::fs::write(root.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
@@ -259,8 +257,8 @@ mod tests {
         assert_eq!(out, "wrote tools/dx\n");
         assert!(err.contains("tools/dx.cmd (absent-only, left untouched)"));
         assert_eq!(
-            dx_adopt::launcher_version(root, "tools/dx").as_deref(),
-            Some("4.5.6")
+            dx_adopt::launcher_state(root, "tools/dx"),
+            Some(dx_adopt::LauncherState::Current)
         );
         assert_eq!(
             std::fs::read_to_string(root.join("tools/dx.cmd")).expect("cmd"),

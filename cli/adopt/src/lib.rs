@@ -37,8 +37,8 @@ pub use init_dir::{
     FRESH_BAZEL_VERSION,
 };
 pub use launcher::{
-    launcher_version, plan_launcher_files, refresh_launcher_files, release_pins,
-    render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files, LauncherPins,
+    launcher_state, plan_launcher_files, refresh_launcher_files, release_pins, render_launcher_cmd,
+    render_launcher_sh, stale_launchers, write_launcher_files, LauncherPins, LauncherState,
     LAUNCHER_CMD_REL, LAUNCHER_SH_REL, RELEASE_ASSETS,
 };
 pub use load_graph::{bzl_impact, module_inputs, repo_impact, BzlImpact};
@@ -58,7 +58,7 @@ pub use status::{observed_status_checks, render_status_text, StatusCheck};
 pub use upgrade::{upgrade_recovery_message, upgrade_retry_command, UpgradeIntent};
 pub use version::{
     local_path_overrides, module_dependency_status, pin_fix_hint, pin_is_valid, pin_rewrite_hint,
-    read_module_dependency, read_version_pin, render_module_dependency, version_pin_matches_module,
-    write_version_pin, DX_VERSION, MODULE_VERSION,
+    read_module_dependency, read_version_pin, read_version_pins, render_module_dependency,
+    version_pin_matches_module, write_version_pin, write_version_pins, DX_VERSION, MODULE_VERSION,
 };
 pub use watch::{plan_watch, WATCHABLE_COMMANDS};

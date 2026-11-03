@@ -16,7 +16,7 @@ pub const RELEASE_ASSETS: [&str; 5] = [
     "dx-windows-arm64",
 ];
 
-/// The sha256 of each release asset, baked into the rendered launchers.
+/// The sha256 of each release asset, stored in `.dx/version`.
 /// An empty pin means "no verified hash": the launcher refuses to download.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LauncherPins {
@@ -71,6 +71,41 @@ impl LauncherPins {
         }
         Ok(pins)
     }
+
+    /// Parses the pin lines of `.dx/version`: `<hash>  <asset>`, any asset may be absent.
+    pub fn from_pin_lines<'a>(lines: impl Iterator<Item = &'a str>) -> Result<Self, AdoptError> {
+        let mut pins = Self::default();
+        for line in lines {
+            let line = line.trim_end_matches('\r');
+            if line.trim().is_empty() {
+                continue;
+            }
+            let Some((hash, asset)) = line.split_once("  ") else {
+                return Err(pins_error(format!("bad pin line {line:?}")));
+            };
+            let Some(i) = RELEASE_ASSETS.iter().position(|known| *known == asset) else {
+                return Err(pins_error(format!("unknown asset {asset:?}")));
+            };
+            if hash.is_empty() || !valid_pin(hash) {
+                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
+            }
+            if !pins.sha256[i].is_empty() {
+                return Err(pins_error(format!("{asset} is listed twice")));
+            }
+            pins.sha256[i] = hash.to_owned();
+        }
+        Ok(pins)
+    }
+
+    /// One `<hash>  <asset>` line per non-empty pin, in `RELEASE_ASSETS` order.
+    pub fn to_lines(&self) -> String {
+        RELEASE_ASSETS
+            .iter()
+            .zip(&self.sha256)
+            .filter(|(_, pin)| !pin.is_empty())
+            .map(|(asset, pin)| format!("{pin}  {asset}\n"))
+            .collect()
+    }
 }
 
 /// The sha256 pins for dx `version`'s release assets.
@@ -96,28 +131,13 @@ fn valid_pin(pin: &str) -> bool {
         || (pin.len() == 64 && pin.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
 }
 
-fn pin_var(asset: &str) -> String {
-    format!(
-        "SHA256_{}",
-        asset
-            .trim_start_matches("dx-")
-            .replace('-', "_")
-            .to_uppercase()
-    )
-}
-
 fn pins_error(detail: String) -> AdoptError {
     AdoptError::LauncherPins { detail }
 }
 
 const LAUNCHER_SH: &str = r##"#!/bin/sh
 set -eu
-VERSION="@VERSION@"
-SHA256_LINUX_X86_64="@SHA256_LINUX_X86_64@"
-SHA256_LINUX_ARM64="@SHA256_LINUX_ARM64@"
-SHA256_MACOS_ARM64="@SHA256_MACOS_ARM64@"
-SHA256_WINDOWS_X86_64="@SHA256_WINDOWS_X86_64@"
-SHA256_WINDOWS_ARM64="@SHA256_WINDOWS_ARM64@"
+DX_PINS=.dx/version
 args="$*"
 fail() {
   echo "dx: $1" >&2
@@ -170,11 +190,13 @@ if [ "${1:-}" != worktree ] || [ "${2:-}" != hook ]; then
     fi
   fi
 fi
-pin=
-[ -f "$root/.dx/version" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply"
-IFS= read -r pin < "$root/.dx/version" || true
-pin=$(printf %s "$pin" | tr -d '\r ')
-[ "$pin" = "$VERSION" ] || fail "tools/dx is pinned to dx $VERSION but .dx/version is '$pin'; refresh it: bazel run @rules_dx//:dx -- init --apply"
+pins="$root/$DX_PINS"
+[ -f "$pins" ] || fail "$DX_PINS is missing; refresh it: bazel run @rules_dx//:dx -- init --apply"
+IFS= read -r VERSION < "$pins" || true
+VERSION=$(printf %s "$VERSION" | tr -d '\r ')
+case "$VERSION" in
+  "" | .* | *[!0-9A-Za-z.+-]*) fail "$DX_PINS has an invalid version '$VERSION'; refresh it: bazel run @rules_dx//:dx -- init --apply" ;;
+esac
 [ -n "$os" ] || fail "no dx binary for $(uname -s)"
 case "$(uname -m)" in
   x86_64 | amd64) arch=x86_64 ;;
@@ -190,11 +212,7 @@ if [ "$os-$arch" = macos-x86_64 ]; then
   done
 fi
 case "$os-$arch" in
-  linux-x86_64) want=$SHA256_LINUX_X86_64 ;;
-  linux-arm64) want=$SHA256_LINUX_ARM64 ;;
-  macos-arm64) want=$SHA256_MACOS_ARM64 ;;
-  windows-x86_64) want=$SHA256_WINDOWS_X86_64 ;;
-  windows-arm64) want=$SHA256_WINDOWS_ARM64 ;;
+  linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
   *) fail "no dx binary for $os $arch" ;;
 esac
 if [ -n "${DX_CACHE_DIR:-}" ]; then
@@ -216,7 +234,20 @@ bin="$dir/dx-$os-$arch$exe"
 if [ -x "$bin" ]; then
   exec "$bin" "$@"
 fi
-[ -n "$want" ] || fail "tools/dx has no pinned sha256 for dx-$os-$arch; rerun dx init --apply"
+cr=$(printf '\r')
+want=
+first=1
+while IFS= read -r line || [ -n "$line" ]; do
+  if [ -n "$first" ]; then
+    first=
+    continue
+  fi
+  line=${line%"$cr"}
+  case "$line" in
+    *"  dx-$os-$arch") want=${line%%  *} ;;
+  esac
+done < "$pins"
+[ -n "$want" ] || fail "$DX_PINS has no sha256 for dx-$os-$arch; rerun dx init --apply"
 url="https://github.com/devhusdk/rules_dx/releases/download/v$VERSION/dx-$os-$arch"
 mkdir -p "$dir"
 tmp="$dir/.dx-$os-$arch.$$"
@@ -246,13 +277,9 @@ exec "$bin" "$@"
 
 const LAUNCHER_CMD: &str = r##"@echo off
 setlocal
-set "VERSION=@VERSION@"
-set "SHA256_WINDOWS_X86_64=@SHA256_WINDOWS_X86_64@"
-set "SHA256_WINDOWS_ARM64=@SHA256_WINDOWS_ARM64@"
+set "DX_PINS=.dx\version"
 set "ARCH=x86_64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
-set "WANT="
-if "%ARCH%"=="arm64" (set "WANT=%SHA256_WINDOWS_ARM64%") else set "WANT=%SHA256_WINDOWS_X86_64%"
 set "DX_HERE="
 if /i "%~1"=="worktree" if /i "%~2"=="hook" goto dxdone
 set "DX_HERE=%CD%"
@@ -283,14 +310,15 @@ if /i not "%DX_GA%"=="%DX_GB%" goto dxdone
 call "%DX_HERE%\tools\dx.cmd" %*
 exit /b %errorlevel%
 :dxdone
-set "PIN="
-if not exist "%~dp0..\.dx\version" (
-  echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is missing; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
+if not exist "%~dp0..\%DX_PINS%" (
+  echo dx: %DX_PINS% is missing; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
   goto bazel
 )
-set /p PIN=<"%~dp0..\.dx\version"
-if not "%PIN%"=="%VERSION%" (
-  echo dx: tools\dx.cmd is pinned to dx %VERSION% but .dx\version is '%PIN%'; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
+set "VERSION="
+set /p VERSION=<"%~dp0..\%DX_PINS%"
+set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
+if errorlevel 1 (
+  echo dx: %DX_PINS% has an invalid version; refresh it: bazel run @rules_dx//:dx -- init --apply 1>&2
   goto bazel
 )
 set "DX_CACHE=%USERPROFILE%\.cache\dx"
@@ -299,8 +327,10 @@ if defined DX_CACHE_DIR set "DX_CACHE=%DX_CACHE_DIR%"
 set "DIR=%DX_CACHE%\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
+set "WANT="
+for /f "usebackq skip=1 tokens=1,2" %%A in ("%~dp0..\%DX_PINS%") do if "%%B"=="dx-windows-%ARCH%" set "WANT=%%A"
 if not defined WANT (
-  echo dx: tools\dx.cmd has no pinned sha256 for dx-windows-%ARCH%; rerun dx init --apply 1>&2
+  echo dx: %DX_PINS% has no sha256 for dx-windows-%ARCH%; rerun dx init --apply 1>&2
   goto bazel
 )
 set "DX_URL=https://github.com/devhusdk/rules_dx/releases/download/v%VERSION%/dx-windows-%ARCH%"
@@ -342,42 +372,12 @@ echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- %* 1>&2
 exit /b 1
 "##;
 
-pub fn render_launcher_sh(version: &str, pins: &LauncherPins) -> Result<String, AdoptError> {
-    render(LAUNCHER_SH, version, pins, &RELEASE_ASSETS)
+pub fn render_launcher_sh() -> String {
+    LAUNCHER_SH.to_owned()
 }
 
-pub fn render_launcher_cmd(version: &str, pins: &LauncherPins) -> Result<String, AdoptError> {
-    Ok(render(
-        LAUNCHER_CMD,
-        version,
-        pins,
-        &["dx-windows-x86_64", "dx-windows-arm64"],
-    )?
-    .replace('\n', "\r\n"))
-}
-
-fn render(
-    template: &str,
-    version: &str,
-    pins: &LauncherPins,
-    assets: &[&str],
-) -> Result<String, AdoptError> {
-    let mut text = template.replace("@VERSION@", version);
-    for asset in assets {
-        let pin = pins.get(asset).unwrap_or_default();
-        if !valid_pin(pin) {
-            return Err(pins_error(format!(
-                "{asset} pin is not 64 lowercase hex: {pin:?}"
-            )));
-        }
-        text = text.replace(&format!("@{}@", pin_var(asset)), pin);
-    }
-    if text.contains("@SHA256_") {
-        return Err(pins_error(
-            "launcher template has an unfilled sha256 pin".to_owned(),
-        ));
-    }
-    Ok(text)
+pub fn render_launcher_cmd() -> String {
+    LAUNCHER_CMD.replace('\n', "\r\n")
 }
 
 fn write_launcher(
@@ -410,96 +410,92 @@ fn write_launcher(
 }
 
 /// Writes absent or stale launchers, recording each in `applied` as it lands.
-pub fn write_launcher_files(
-    root: &Path,
-    version: &str,
-    applied: &mut Applied,
-) -> Result<(), AdoptError> {
-    sync(root, version, true, true, applied)
+pub fn write_launcher_files(root: &Path, applied: &mut Applied) -> Result<(), AdoptError> {
+    sync(root, true, true, applied)
 }
 
-pub fn refresh_launcher_files(root: &Path, version: &str) -> Result<Vec<String>, AdoptError> {
+pub fn refresh_launcher_files(root: &Path) -> Result<Vec<String>, AdoptError> {
     let mut applied = Applied::default();
-    sync(root, version, false, true, &mut applied)?;
+    sync(root, false, true, &mut applied)?;
     Ok(applied.wrote)
 }
 
-pub fn plan_launcher_files(
-    root: &Path,
-    version: &str,
-    create_missing: bool,
-) -> Result<Vec<String>, AdoptError> {
+pub fn plan_launcher_files(root: &Path, create_missing: bool) -> Result<Vec<String>, AdoptError> {
     let mut applied = Applied::default();
-    sync(root, version, create_missing, false, &mut applied)?;
+    sync(root, create_missing, false, &mut applied)?;
     Ok(applied.wrote)
 }
 
-pub fn launcher_version(root: &Path, rel: &str) -> Option<String> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LauncherState {
+    Current,
+    Stale,
+}
+
+fn static_launcher(rel: &str) -> String {
+    if rel == LAUNCHER_SH_REL {
+        render_launcher_sh()
+    } else {
+        render_launcher_cmd()
+    }
+}
+
+/// `None` when the file is absent or custom; dx-owned files are `Current` or `Stale`.
+pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
-    let prefix = match (lines.next()?, lines.next()?) {
-        ("#!/bin/sh", "set -eu") => "VERSION=\"",
-        ("@echo off", "setlocal") => "set \"VERSION=",
+    let (first, second, marker, legacy) = match rel {
+        LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/version", "VERSION=\""),
+        LAUNCHER_CMD_REL => (
+            "@echo off",
+            "setlocal",
+            "set \"DX_PINS=.dx\\version\"",
+            "set \"VERSION=",
+        ),
         _ => return None,
     };
-    lines
-        .next()?
-        .strip_prefix(prefix)?
-        .strip_suffix('"')
-        .map(str::to_owned)
+    if lines.next()? != first || lines.next()? != second {
+        return None;
+    }
+    let third = lines.next()?;
+    if third != marker && !third.starts_with(legacy) {
+        return None;
+    }
+    if text == static_launcher(rel) {
+        Some(LauncherState::Current)
+    } else {
+        Some(LauncherState::Stale)
+    }
 }
 
-pub fn stale_launchers(root: &Path, version: &str) -> Vec<(String, String)> {
+pub fn stale_launchers(root: &Path) -> Vec<String> {
     [LAUNCHER_SH_REL, LAUNCHER_CMD_REL]
         .into_iter()
-        .filter_map(|rel| {
-            launcher_version(root, rel)
-                .filter(|found| found != version)
-                .map(|found| (rel.to_owned(), found))
-        })
+        .filter(|rel| launcher_state(root, rel) == Some(LauncherState::Stale))
+        .map(str::to_owned)
         .collect()
 }
 
 fn sync(
     root: &Path,
-    version: &str,
     create_missing: bool,
     apply: bool,
     applied: &mut Applied,
 ) -> Result<(), AdoptError> {
-    let mut plan = Vec::new();
     for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
         let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
         let write = if dest.exists() {
-            launcher_version(root, rel).is_some_and(|found| found != version)
+            launcher_state(root, rel) == Some(LauncherState::Stale)
         } else {
             create_missing
         };
-        plan.push((rel, write));
-    }
-    if plan.iter().any(|(_, write)| *write) && semver::Version::parse(version).is_err() {
-        return Err(AdoptError::LauncherVersion {
-            version: version.to_owned(),
-        });
-    }
-    let pins = if apply && plan.iter().any(|(_, write)| *write) {
-        release_pins(version)?
-    } else {
-        LauncherPins::unreleased()
-    };
-    for (rel, write) in plan {
         if !write {
             applied.refused.push(rel.to_owned());
             continue;
         }
         if apply {
-            let (content, executable) = if rel == LAUNCHER_SH_REL {
-                (render_launcher_sh(version, &pins)?, true)
-            } else {
-                (render_launcher_cmd(version, &pins)?, false)
-            };
-            write_launcher(root, rel, &content, executable)?;
+            write_launcher(root, rel, &static_launcher(rel), rel == LAUNCHER_SH_REL)?;
         }
         applied.wrote.push(rel.to_owned());
     }
@@ -509,6 +505,7 @@ fn sync(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::write_version_pins;
 
     fn pinned(sha: &str) -> LauncherPins {
         LauncherPins {
@@ -516,12 +513,16 @@ mod tests {
         }
     }
 
-    fn sh(version: &str) -> String {
-        render_launcher_sh(version, &LauncherPins::unreleased()).expect("render sh")
+    fn sh() -> String {
+        render_launcher_sh()
     }
 
-    fn cmd(version: &str) -> String {
-        render_launcher_cmd(version, &LauncherPins::unreleased()).expect("render cmd")
+    fn cmd() -> String {
+        render_launcher_cmd()
+    }
+
+    fn legacy_sh(version: &str) -> String {
+        format!("#!/bin/sh\nset -eu\nVERSION=\"{version}\"\nexit 0\n")
     }
 
     const MANIFEST: &str =
@@ -534,8 +535,8 @@ mod tests {
 
     #[test]
     fn consumer_launchers_carry_no_self_build() {
-        let sh = sh("1.2.3");
-        let cmd = cmd("1.2.3");
+        let sh = sh();
+        let cmd = cmd();
         for script in [&sh, &cmd] {
             for gone in [
                 "bazel-bin",
@@ -558,65 +559,99 @@ mod tests {
         let msys = sh
             .find("\n    export MSYS2_ARG_CONV_EXCL\n")
             .expect("msys export");
-        let pin = sh.find("\nIFS= read -r pin").expect("pin check");
+        let pin = sh.find("\nIFS= read -r VERSION").expect("pin check");
         let handoff = sh.find("exec \"$here/tools/dx\"").expect("handoff");
         assert!(os < msys && msys < handoff && handoff < pin);
     }
     #[test]
-    fn launcher_pins_version_and_hashes() {
-        let pins = LauncherPins::from_sha256sums(MANIFEST).expect("manifest");
-        let sh = render_launcher_sh("1.2.3", &pins).expect("sh");
+    fn launchers_are_static_and_read_the_pins_file() {
+        let sh = sh();
         assert!(sh.starts_with("#!/bin/sh\n"));
-        assert!(sh.contains("VERSION=\"1.2.3\""));
-        assert!(!sh.contains("@VERSION@"));
-        for (n, asset) in RELEASE_ASSETS.iter().enumerate() {
-            let line = format!(
-                "{}=\"{}\"\n",
-                pin_var(asset),
-                (n + 1).to_string().repeat(64)
-            );
-            assert_eq!(sh.matches(&line).count(), 1, "{line}");
-        }
-        assert_eq!(sh.lines().filter(|l| l.starts_with("SHA256_")).count(), 5);
-        let cmd = render_launcher_cmd("1.2.3", &pins).expect("cmd");
-        assert!(cmd.contains("set \"VERSION=1.2.3\"\r\n"));
-        assert!(cmd.contains(&format!(
-            "set \"SHA256_WINDOWS_X86_64={}\"\r\n",
-            "4".repeat(64)
-        )));
-        assert!(cmd.contains(&format!(
-            "set \"SHA256_WINDOWS_ARM64={}\"\r\n",
-            "5".repeat(64)
-        )));
-        assert_eq!(
-            cmd.lines()
-                .filter(|l| l.starts_with("set \"SHA256_"))
-                .count(),
-            2
-        );
-        assert!(!cmd.contains("@VERSION@"));
+        assert_eq!(sh.lines().nth(2), Some("DX_PINS=.dx/version"));
+        let cmd = cmd();
+        assert_eq!(cmd.lines().nth(2), Some("set \"DX_PINS=.dx\\version\""));
         assert!(!cmd.replace("\r\n", "").contains('\n'));
         for script in [&sh, &cmd] {
-            for gone in ["@SHA256_", ".sha256\"", "'.sha256'", ".sha\""] {
+            for gone in ["@VERSION@", "@SHA256_", "VERSION=\"1", "SHA256_"] {
                 assert!(!script.contains(gone), "{gone}");
             }
         }
     }
 
     #[test]
-    fn launcher_version_still_reads_line_three() {
-        let dir = dx_test_scratch::scratch("dx-launcher-line3-");
-        let pins = pinned(&"a".repeat(64));
-        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        let sh = render_launcher_sh("1.2.3", &pins).expect("sh");
-        let cmd = render_launcher_cmd("1.2.3", &pins).expect("cmd");
-        assert_eq!(sh.lines().nth(2), Some("VERSION=\"1.2.3\""));
-        assert_eq!(cmd.lines().nth(2), Some("set \"VERSION=1.2.3\""));
-        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh).expect("sh");
-        std::fs::write(dir.path().join(LAUNCHER_CMD_REL), cmd).expect("cmd");
-        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
-            assert_eq!(launcher_version(dir.path(), rel).as_deref(), Some("1.2.3"));
+    fn launcher_bytes_do_not_depend_on_the_dx_version() {
+        let dir = dx_test_scratch::scratch("dx-launcher-static-");
+        let mut seen = Vec::new();
+        for version in ["1.2.3", "2.0.0-rc.1"] {
+            write_version_pins(dir.path(), version, &pinned(&"a".repeat(64))).expect("pin");
+            write_launcher_files(dir.path(), &mut Applied::default()).expect("launchers");
+            seen.push((
+                std::fs::read(dir.path().join(LAUNCHER_SH_REL)).expect("sh"),
+                std::fs::read(dir.path().join(LAUNCHER_CMD_REL)).expect("cmd"),
+            ));
         }
+        assert_eq!(seen[0], seen[1]);
+        assert_eq!(seen[0].0, sh().into_bytes());
+        assert_eq!(seen[0].1, cmd().into_bytes());
+    }
+
+    #[test]
+    fn launcher_state_reads_line_three() {
+        let dir = dx_test_scratch::scratch("dx-launcher-line3-");
+        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
+        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh()).expect("sh");
+        std::fs::write(dir.path().join(LAUNCHER_CMD_REL), cmd()).expect("cmd");
+        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
+            assert_eq!(
+                launcher_state(dir.path(), rel),
+                Some(LauncherState::Current)
+            );
+        }
+    }
+
+    #[test]
+    fn pin_lines_round_trip_and_allow_missing_assets() {
+        let all = LauncherPins::from_sha256sums(MANIFEST).expect("manifest");
+        assert_eq!(all.to_lines(), MANIFEST);
+        assert_eq!(LauncherPins::from_pin_lines(MANIFEST.lines()), Ok(all));
+        let some = LauncherPins::from_pin_lines(MANIFEST.lines().take(2)).expect("some");
+        assert_eq!(some.get("dx-linux-arm64"), Some("2".repeat(64).as_str()));
+        assert_eq!(some.get("dx-macos-arm64"), Some(""));
+        assert_eq!(
+            LauncherPins::from_pin_lines(std::iter::empty()),
+            Ok(LauncherPins::unreleased())
+        );
+        assert_eq!(LauncherPins::unreleased().to_lines(), "");
+        let crlf = format!("{}\r", MANIFEST.lines().next().expect("line"));
+        assert_eq!(
+            LauncherPins::from_pin_lines(std::iter::once(crlf.as_str()))
+                .expect("crlf")
+                .get("dx-linux-x86_64"),
+            Some("1".repeat(64).as_str())
+        );
+    }
+
+    #[test]
+    fn pin_lines_reject_bad_lines() {
+        let a = "a".repeat(64);
+        for bad in [
+            format!("{a} dx-linux-x86_64"),
+            format!("{a}  dx-macos-x86_64"),
+            format!("{}  dx-linux-x86_64", "A".repeat(64)),
+            format!("{}  dx-linux-x86_64", "a".repeat(63)),
+            "  dx-linux-x86_64".to_owned(),
+            "dx-linux-x86_64".to_owned(),
+        ] {
+            assert!(
+                matches!(
+                    LauncherPins::from_pin_lines(std::iter::once(bad.as_str())),
+                    Err(AdoptError::LauncherPins { .. })
+                ),
+                "{bad:?}"
+            );
+        }
+        let twice = format!("{a}  dx-linux-x86_64\n{a}  dx-linux-x86_64");
+        assert!(LauncherPins::from_pin_lines(twice.lines()).is_err());
     }
 
     #[test]
@@ -675,38 +710,17 @@ mod tests {
     }
 
     #[test]
-    fn render_refuses_an_invalid_pin() {
-        for pin in [
-            "A".repeat(64),
-            "a".repeat(63),
-            "\"; rm -rf /; \"".to_owned(),
-        ] {
-            let pins = pinned(&pin);
-            assert!(matches!(
-                render_launcher_sh("1.2.3", &pins),
-                Err(AdoptError::LauncherPins { .. })
-            ));
-            assert!(matches!(
-                render_launcher_cmd("1.2.3", &pins),
-                Err(AdoptError::LauncherPins { .. })
-            ));
-        }
-    }
-
-    #[test]
     fn release_pins_of_unreleased_is_empty() {
         let pins = release_pins(crate::DX_VERSION).expect("pins");
         assert_eq!(pins, LauncherPins::unreleased());
         for asset in RELEASE_ASSETS {
             assert_eq!(pins.get(asset), Some(""));
         }
-        let sh = sh("1.2.3");
-        assert!(sh.contains("SHA256_LINUX_X86_64=\"\"\n"));
     }
 
     #[test]
     fn launchers_share_the_shim_cache_root() {
-        let sh = sh("1.2.3");
+        let sh = sh();
         let dx = sh.find("cache=\"$DX_CACHE_DIR\"").expect("DX_CACHE_DIR");
         let xdg = sh
             .find("cache=\"$XDG_CACHE_HOME/dx\"")
@@ -714,7 +728,7 @@ mod tests {
         let home = sh.find("cache=\"$HOME/.cache/dx\"").expect("HOME");
         assert!(dx < xdg && xdg < home);
         assert!(sh.contains("dir=\"$cache/bin/$VERSION\""));
-        let cmd = cmd("1.2.3");
+        let cmd = cmd();
         let home = cmd
             .find("set \"DX_CACHE=%USERPROFILE%\\.cache\\dx\"\r\n")
             .expect("USERPROFILE");
@@ -731,23 +745,28 @@ mod tests {
     #[test]
     fn write_replaces_absent_or_stale_launchers_only() {
         let dir = dx_test_scratch::scratch("dx-launcher-write-");
-        let first = crate::scaffold::entries(|a| write_launcher_files(dir.path(), "1.2.3", a))
-            .expect("writes");
+        let first =
+            crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("writes");
         assert_eq!(first, vec!["tools/dx", "tools/dx.cmd"]);
-        let current = crate::scaffold::entries(|a| write_launcher_files(dir.path(), "1.2.3", a))
-            .expect("current");
+        let current =
+            crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("current");
         assert_eq!(current, vec!["refused:tools/dx", "refused:tools/dx.cmd"]);
         std::fs::write(dir.path().join(LAUNCHER_SH_REL), "custom\n").expect("edit");
-        let second = crate::scaffold::entries(|a| write_launcher_files(dir.path(), "1.3.0", a))
-            .expect("syncs");
+        std::fs::write(
+            dir.path().join(LAUNCHER_CMD_REL),
+            "@echo off\r\nsetlocal\r\nset \"VERSION=1.2.3\"\r\n",
+        )
+        .expect("legacy");
+        let second =
+            crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("syncs");
         assert_eq!(second, vec!["tools/dx.cmd", "refused:tools/dx"]);
         assert_eq!(
             std::fs::read_to_string(dir.path().join(LAUNCHER_SH_REL)).expect("read"),
             "custom\n"
         );
         assert_eq!(
-            launcher_version(dir.path(), LAUNCHER_CMD_REL).as_deref(),
-            Some("1.3.0")
+            launcher_state(dir.path(), LAUNCHER_CMD_REL),
+            Some(LauncherState::Current)
         );
         #[cfg(unix)]
         {
@@ -761,25 +780,24 @@ mod tests {
     }
 
     #[test]
-    fn refresh_only_rewrites_existing_stale_launchers() {
+    fn a_legacy_launcher_is_stale_then_rewritten() {
         let dir = dx_test_scratch::scratch("dx-launcher-refresh-");
-        assert!(refresh_launcher_files(dir.path(), "1.2.3")
-            .expect("none")
-            .is_empty());
+        assert!(refresh_launcher_files(dir.path()).expect("none").is_empty());
         assert!(!dir.path().join(LAUNCHER_SH_REL).exists());
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh("1.2.3")).expect("seed");
-        assert!(refresh_launcher_files(dir.path(), "1.2.3")
-            .expect("current")
-            .is_empty());
+        std::fs::write(dir.path().join(LAUNCHER_SH_REL), legacy_sh("1.2.3")).expect("seed");
         assert_eq!(
-            stale_launchers(dir.path(), "1.3.0"),
-            vec![("tools/dx".to_owned(), "1.2.3".to_owned())]
+            launcher_state(dir.path(), LAUNCHER_SH_REL),
+            Some(LauncherState::Stale)
         );
-        let wrote = refresh_launcher_files(dir.path(), "1.3.0").expect("refresh");
+        assert_eq!(stale_launchers(dir.path()), vec!["tools/dx"]);
+        let wrote = refresh_launcher_files(dir.path()).expect("refresh");
         assert_eq!(wrote, vec!["tools/dx"]);
         assert!(!dir.path().join(LAUNCHER_CMD_REL).exists());
-        assert!(stale_launchers(dir.path(), "1.3.0").is_empty());
+        assert!(stale_launchers(dir.path()).is_empty());
+        assert!(refresh_launcher_files(dir.path())
+            .expect("current")
+            .is_empty());
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -792,19 +810,9 @@ mod tests {
     }
 
     #[test]
-    fn launcher_version_reads_both_templates() {
-        let dir = dx_test_scratch::scratch("dx-launcher-version-");
+    fn custom_launchers_are_not_dx_owned() {
+        let dir = dx_test_scratch::scratch("dx-launcher-custom-");
         std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
-        std::fs::write(dir.path().join(LAUNCHER_SH_REL), sh("1.2.3")).expect("sh");
-        std::fs::write(dir.path().join(LAUNCHER_CMD_REL), cmd("2.0.0-rc.1")).expect("cmd");
-        assert_eq!(
-            launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
-            Some("1.2.3")
-        );
-        assert_eq!(
-            launcher_version(dir.path(), LAUNCHER_CMD_REL).as_deref(),
-            Some("2.0.0-rc.1")
-        );
         std::fs::write(
             dir.path().join(LAUNCHER_SH_REL),
             "#!/bin/sh\nset -eu\nroot=$(pwd)\nexec bazel run //:dx -- \"$@\"\n",
@@ -815,57 +823,29 @@ mod tests {
             "@echo off\r\nsetlocal\r\nbazel run //:dx -- %*\r\n",
         )
         .expect("self-build cmd");
-        assert_eq!(launcher_version(dir.path(), LAUNCHER_SH_REL), None);
-        assert_eq!(launcher_version(dir.path(), LAUNCHER_CMD_REL), None);
-        assert!(stale_launchers(dir.path(), "9.9.9").is_empty());
-        assert_eq!(launcher_version(dir.path(), "tools/missing"), None);
+        assert_eq!(launcher_state(dir.path(), LAUNCHER_SH_REL), None);
+        assert_eq!(launcher_state(dir.path(), LAUNCHER_CMD_REL), None);
+        assert!(stale_launchers(dir.path()).is_empty());
+        assert_eq!(launcher_state(dir.path(), "tools/missing"), None);
         std::fs::write(
             dir.path().join(LAUNCHER_SH_REL),
             "#!/bin/sh\nVERSION=\"$(cat .dx/version)\"\nexec dx \"$@\"\n",
         )
         .expect("custom with VERSION");
-        assert_eq!(launcher_version(dir.path(), LAUNCHER_SH_REL), None);
-    }
-
-    #[test]
-    fn a_non_semver_version_writes_nothing() {
-        let dir = dx_test_scratch::scratch("dx-launcher-semver-");
-        for bad in ["1\"; x", "../1", ""] {
-            let refused = AdoptError::LauncherVersion {
-                version: bad.to_owned(),
-            };
-            assert_eq!(
-                write_launcher_files(dir.path(), bad, &mut Applied::default()),
-                Err(refused.clone())
-            );
-            assert_eq!(plan_launcher_files(dir.path(), bad, true), Err(refused));
-            assert_eq!(refresh_launcher_files(dir.path(), bad), Ok(Vec::new()));
-        }
-        assert!(!dir.path().join("tools").exists());
-        write_launcher_files(dir.path(), "1.2.3", &mut Applied::default()).expect("seed");
-        assert!(refresh_launcher_files(dir.path(), "v1").is_err());
-        assert_eq!(
-            launcher_version(dir.path(), LAUNCHER_SH_REL).as_deref(),
-            Some("1.2.3")
-        );
-        for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
-            std::fs::write(dir.path().join(rel), "custom\n").expect("custom");
-        }
-        assert_eq!(
-            crate::scaffold::entries(|a| write_launcher_files(dir.path(), "v1", a))
-                .expect("custom kept"),
-            vec!["refused:tools/dx", "refused:tools/dx.cmd"]
-        );
+        assert_eq!(launcher_state(dir.path(), LAUNCHER_SH_REL), None);
+        assert!(refresh_launcher_files(dir.path())
+            .expect("custom kept")
+            .is_empty());
     }
 
     #[test]
     fn plan_reports_writes_without_writing() {
         let dir = dx_test_scratch::scratch("dx-launcher-plan-");
         assert_eq!(
-            plan_launcher_files(dir.path(), "1.2.3", true).expect("plan"),
+            plan_launcher_files(dir.path(), true).expect("plan"),
             vec!["tools/dx", "tools/dx.cmd"]
         );
-        assert!(plan_launcher_files(dir.path(), "1.2.3", false)
+        assert!(plan_launcher_files(dir.path(), false)
             .expect("plan")
             .is_empty());
         assert!(!dir.path().join("tools").exists());
@@ -921,7 +901,6 @@ mod tests {
                 let dir = dx_test_scratch::scratch(name);
                 let root = dir.path().join("repo");
                 std::fs::create_dir_all(root.join(".dx")).expect("dx dir");
-                std::fs::write(root.join(".dx/version"), "1.2.3\n").expect("pin");
                 std::fs::create_dir_all(dir.path().join("stub")).expect("stub dir");
                 std::fs::create_dir_all(dir.path().join("home")).expect("home");
                 let tools = dir.path().join("tools");
@@ -939,6 +918,12 @@ mod tests {
                 let sha = sha_of(&payload);
                 std::fs::write(dir.path().join("sidecar"), format!("{sha}  dx\n")).expect("sha");
                 let pin = pinned_sha.map_or(sha, str::to_owned);
+                let pins = if pin.is_empty() {
+                    LauncherPins::unreleased()
+                } else {
+                    pinned(&pin)
+                };
+                write_version_pins(&root, "1.2.3", &pins).expect("pins");
                 let curl = dir.path().join("stub/curl");
                 let body = if curl_ok {
                     "#!/bin/sh\necho call >> \"$STUB_LOG\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = -o ]; then out=\"$2\"; fi\n  url=\"$1\"\n  shift\ndone\ncase \"$url\" in\n  *.sha256) cp \"$STUB_SIDECAR\" \"$out\" ;;\n  *) cp \"$STUB_PAYLOAD\" \"$out\" ;;\nesac\n"
@@ -948,15 +933,7 @@ mod tests {
                 std::fs::write(&curl, body).expect("curl");
                 std::fs::set_permissions(&curl, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
-                write_launcher_files(&root, "1.2.3", &mut Applied::default()).expect("launcher");
-                let launcher = root.join(LAUNCHER_SH_REL);
-                std::fs::write(
-                    &launcher,
-                    render_launcher_sh("1.2.3", &pinned(&pin)).expect("render"),
-                )
-                .expect("pinned launcher");
-                std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755))
-                    .expect("chmod");
+                write_launcher_files(&root, &mut Applied::default()).expect("launcher");
                 let fx = Self {
                     base: dir.path().to_path_buf(),
                     _guard: Box::new(dir),
@@ -1008,6 +985,10 @@ mod tests {
                 std::fs::write(&path, body).expect("stub");
                 std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
                     .expect("chmod");
+            }
+
+            fn set_pin(&self, text: &str) {
+                std::fs::write(self.base.join("repo/.dx/version"), text).expect("pin");
             }
 
             fn rewrite_launcher(&self, from: &str, to: &str) {
@@ -1125,7 +1106,7 @@ mod tests {
             let original = fx.base.join("original");
             std::fs::write(&original, "#!/bin/sh\necho original\n").expect("original");
             let pin = sha_of(&original);
-            fx.rewrite_launcher(&sha_of(&fx.base.join("payload")), &pin);
+            fx.set_pin(&format!("1.2.3\n{pin}  dx-linux-x86_64\n"));
             let (code, out, err) = fx.run(&["version"]);
             assert_eq!(code, Some(1), "{out}{err}");
             assert!(out.is_empty(), "{out}");
@@ -1142,7 +1123,7 @@ mod tests {
             assert_eq!(code, Some(1), "{out}{err}");
             assert!(out.is_empty(), "{out}");
             assert!(
-                err.contains("no pinned sha256 for dx-linux-x86_64"),
+                err.contains(".dx/version has no sha256 for dx-linux-x86_64"),
                 "{err}"
             );
             assert!(
@@ -1306,10 +1287,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn assert_clean_missing_pin(fx: &Fixture, err: &str, code: Option<i32>) {
             assert_eq!(code, Some(1), "{err}");
             assert_eq!(err.lines().count(), 2, "{err}");
-            assert!(
-                err.contains("pinned to dx 1.2.3 but .dx/version is missing"),
-                "{err}"
-            );
+            assert!(err.contains(".dx/version is missing"), "{err}");
             assert!(err.contains("init --apply"), "{err}");
             assert!(err.contains("bazel run @rules_dx//:dx -- version"), "{err}");
             for noise in [
@@ -1333,13 +1311,13 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn an_empty_pin_is_refused() {
+        fn an_empty_version_is_refused() {
             let fx = Fixture::new("dx-launcher-emptypin-", true, None);
-            std::fs::write(fx.base.join("repo/.dx/version"), "").expect("pin");
+            fx.set_pin("");
             let (code, _out, err) = fx.run(&["version"]);
             assert_eq!(code, Some(1), "{err}");
             assert!(
-                err.contains("pinned to dx 1.2.3 but .dx/version is ''"),
+                err.contains(".dx/version has an invalid version ''"),
                 "{err}"
             );
             assert!(!err.contains("parameter not set"), "{err}");
@@ -1347,17 +1325,29 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         }
 
         #[test]
-        fn a_pin_that_differs_from_the_launcher_is_refused() {
-            let fx = Fixture::new("dx-launcher-pin-", true, None);
-            std::fs::write(fx.base.join("repo/.dx/version"), "2.0.0\n").expect("pin");
-            let (code, _out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1));
-            assert!(
-                err.contains("pinned to dx 1.2.3 but .dx/version is '2.0.0'"),
-                "{err}"
-            );
-            assert!(err.contains("init --apply"), "{err}");
-            assert_eq!(fx.downloads(), 0);
+        fn an_unsafe_version_is_refused() {
+            for bad in ["1.2.3&x", "../1", "..", "1/2", "$(id)", "1.2.3;x"] {
+                let fx = Fixture::new("dx-launcher-badversion-", true, None);
+                fx.set_pin(&format!("{bad}\n{}  dx-linux-x86_64\n", "a".repeat(64)));
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(code, Some(1), "{bad}: {out}{err}");
+                assert!(
+                    err.contains(".dx/version has an invalid version"),
+                    "{bad}: {err}"
+                );
+                assert_eq!(fx.downloads(), 0, "{bad}");
+                assert!(fx.cached().is_empty(), "{bad}");
+            }
+        }
+
+        #[test]
+        fn the_version_and_hash_come_from_the_pin_file() {
+            let fx = Fixture::new("dx-launcher-pinfile-", true, None);
+            let pin = sha_of(&fx.base.join("payload"));
+            fx.set_pin(&format!("1.2.3\r\n{pin}  dx-linux-x86_64\r\n"));
+            let (code, out, err) = fx.run(&["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
         }
     }
 
@@ -1401,7 +1391,6 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 let base = dir.path().to_path_buf();
                 let root = base.join("repo");
                 std::fs::create_dir_all(root.join(".dx")).expect("dx dir");
-                std::fs::write(root.join(".dx/version"), "1.2.3\r\n").expect("pin");
                 std::fs::create_dir_all(base.join("stub")).expect("stub dir");
                 std::fs::create_dir_all(base.join("home")).expect("home");
                 std::fs::create_dir_all(base.join("calls")).expect("calls dir");
@@ -1422,17 +1411,22 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     format!("{guid}{download}"),
                 )
                 .expect("stub");
-                write_launcher_files(&root, "1.2.3", &mut Applied::default()).expect("launcher");
-                std::fs::write(
-                    root.join(LAUNCHER_CMD_REL),
-                    render_launcher_cmd("1.2.3", &pinned(&want.to_ascii_lowercase()))
-                        .expect("render"),
-                )
-                .expect("pinned launcher");
+                let want = want.to_ascii_lowercase();
+                let pins = if want.is_empty() {
+                    LauncherPins::unreleased()
+                } else {
+                    pinned(&want)
+                };
+                write_version_pins(&root, "1.2.3", &pins).expect("pins");
+                write_launcher_files(&root, &mut Applied::default()).expect("launcher");
                 Self {
                     base,
                     _guard: Box::new(dir),
                 }
+            }
+
+            fn set_pin(&self, text: &str) {
+                std::fs::write(self.base.join("repo/.dx/version"), text).expect("pin");
             }
 
             fn command(&self, args: &[&str]) -> Command {
@@ -1536,7 +1530,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             let fx = Fixture::new("dx-launcher-cmd-nosha-", true, Some(""));
             let (code, out, err) = fx.run(&["check"]);
             assert_eq!(code, Some(1), "{out}{err}");
-            assert!(err.contains("no pinned sha256"), "{err}");
+            assert!(err.contains(".dx\\version has no sha256"), "{err}");
             assert!(!err.contains("sha256 mismatch"), "{err}");
             assert!(err.contains("bazel run @rules_dx//:dx -- check"), "{err}");
             assert_eq!(fx.downloads(), 0);
@@ -1621,26 +1615,27 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             std::fs::remove_file(fx.base.join("repo/.dx/version")).expect("remove pin");
             let (code, _out, err) = fx.run(&["version"]);
             assert_eq!(code, Some(1));
-            assert!(
-                err.contains("pinned to dx 1.2.3 but .dx\\version is missing"),
-                "{err}"
-            );
+            assert!(err.contains(".dx\\version is missing"), "{err}");
             assert!(!err.contains("cannot find the file"), "{err}");
             assert_eq!(fx.downloads(), 0);
         }
 
         #[test]
-        fn a_pin_that_differs_from_the_launcher_is_refused() {
-            let fx = Fixture::new("dx-launcher-cmd-pin-", true, None);
-            std::fs::write(fx.base.join("repo/.dx/version"), "2.0.0\r\n").expect("pin");
-            let (code, _out, err) = fx.run(&["version"]);
-            assert_eq!(code, Some(1));
-            assert!(
-                err.contains("pinned to dx 1.2.3 but .dx\\version is '2.0.0'"),
-                "{err}"
-            );
-            assert!(err.contains("init --apply"), "{err}");
-            assert_eq!(fx.downloads(), 0);
+        fn an_unsafe_version_is_refused() {
+            for bad in ["1.2.3&x", "../1", "..", "1/2", "1.2.3;x", ""] {
+                let fx = Fixture::new("dx-launcher-cmd-badversion-", true, None);
+                fx.set_pin(&format!(
+                    "{bad}\r\n{}  dx-windows-x86_64\r\n",
+                    "a".repeat(64)
+                ));
+                let (code, out, err) = fx.run(&["version"]);
+                assert_eq!(code, Some(1), "{bad}: {out}{err}");
+                assert!(
+                    err.contains(".dx\\version has an invalid version"),
+                    "{bad}: {err}"
+                );
+                assert_eq!(fx.downloads(), 0, "{bad}");
+            }
         }
     }
 }

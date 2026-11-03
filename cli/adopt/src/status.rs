@@ -397,29 +397,29 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
 }
 
 fn launcher_check(root: &Path, pinned: &str) -> Option<StatusCheck> {
-    let found: Vec<(&str, String)> = [super::LAUNCHER_SH_REL, super::LAUNCHER_CMD_REL]
+    let found: Vec<&str> = [super::LAUNCHER_SH_REL, super::LAUNCHER_CMD_REL]
         .into_iter()
-        .filter_map(|rel| super::launcher_version(root, rel).map(|version| (rel, version)))
+        .filter(|rel| super::launcher_state(root, rel).is_some())
         .collect();
     if found.is_empty() {
         return None;
     }
-    let stale: Vec<String> = found
-        .iter()
-        .filter(|(_, version)| version != pinned)
-        .map(|(rel, version)| format!("{rel} pins dx {version}, .dx/version is {pinned}"))
-        .collect();
+    let stale = super::stale_launchers(root);
     let hint = "bazel run @rules_dx//:dx -- init --apply";
     Some(if stale.is_empty() {
-        let names: Vec<&str> = found.iter().map(|(rel, _)| *rel).collect();
         check(
             "launcher",
             "ok",
-            format!("{} pin dx {pinned}", names.join(", ")),
+            format!("{} read dx {pinned} from .dx/version", found.join(", ")),
             hint,
         )
     } else {
-        check("launcher", "error", stale.join("; "), hint)
+        check(
+            "launcher",
+            "error",
+            format!("{} differ from the current launcher", stale.join(", ")),
+            hint,
+        )
     })
 }
 
@@ -861,15 +861,23 @@ mod tests {
                 .expect("checks")
         };
         assert_eq!(last("1.2.3").name, "pin");
-        super::super::write_launcher_files(dir, "1.2.3", &mut crate::scaffold::Applied::default())
+        super::super::write_launcher_files(dir, &mut crate::scaffold::Applied::default())
             .expect("launchers");
         let ok = last("1.2.3");
         assert_eq!((ok.name.as_str(), ok.status.as_str()), ("launcher", "ok"));
-        assert_eq!(ok.detail, "tools/dx, tools/dx.cmd pin dx 1.2.3");
+        assert_eq!(
+            ok.detail,
+            "tools/dx, tools/dx.cmd read dx 1.2.3 from .dx/version"
+        );
         std::fs::write(dir.join("tools/dx.cmd"), "@echo off\r\nmine\r\n").expect("custom");
-        let stale = last("4.5.6");
+        std::fs::write(
+            dir.join("tools/dx"),
+            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+        )
+        .expect("stale");
+        let stale = last("1.2.3");
         assert_eq!(stale.status, "error");
-        assert_eq!(stale.detail, "tools/dx pins dx 1.2.3, .dx/version is 4.5.6");
+        assert_eq!(stale.detail, "tools/dx differ from the current launcher");
         assert_eq!(stale.hint, "bazel run @rules_dx//:dx -- init --apply");
     }
 

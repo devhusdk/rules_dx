@@ -447,17 +447,20 @@ mod tests {
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
         std::fs::write(root.join(".dx/version"), "0.0.0\n").expect("pin");
         write_module(&root);
-        dx_adopt::write_launcher_files(&root, "0.0.0", &mut dx_adopt::Applied::default())
+        dx_adopt::write_launcher_files(&root, &mut dx_adopt::Applied::default())
             .expect("launchers");
         let (code, out, _err) = run(&inv, &root);
         assert_eq!(code, 0, "{out}");
         assert!(out.contains("launcher: ok"), "{out}");
-        dx_adopt::write_launcher_files(&root, "1.2.3", &mut dx_adopt::Applied::default())
-            .expect("stale");
+        std::fs::write(
+            root.join("tools/dx"),
+            "#!/bin/sh\nset -eu\nVERSION=\"1.2.3\"\n",
+        )
+        .expect("stale");
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 1, "{out}");
         assert!(
-            out.contains("launcher: error (tools/dx pins dx 1.2.3"),
+            out.contains("launcher: error (tools/dx differ from the current launcher"),
             "{out}"
         );
         assert!(err.contains("status_check_failed"), "{err}");

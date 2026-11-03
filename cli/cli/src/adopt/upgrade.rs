@@ -110,7 +110,7 @@ pub(crate) fn execute_upgrade(
         let message = format!("pin {pin} can move to {to} (run `{retry}`)");
         return fail(invocation, out, err, CODE_STATUS_PIN_MISMATCH, &message);
     }
-    if let Err(error) = dx_adopt::plan_launcher_files(workspace, to, false) {
+    if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
         return refuse(out, err, &error.to_string());
     }
     let recovery = dx_adopt::upgrade_recovery_message(to, &intent);
@@ -123,7 +123,7 @@ pub(crate) fn execute_upgrade(
             return refuse(out, err, &error.to_string());
         }
     }
-    let mut wrote = match dx_adopt::refresh_launcher_files(workspace, to) {
+    let mut wrote = match dx_adopt::refresh_launcher_files(workspace) {
         Ok(wrote) => wrote,
         Err(error) => return landed(out, err, &format!("launchers not refreshed: {error}")),
     };
@@ -178,6 +178,12 @@ mod tests {
         (scratch, root)
     }
 
+    fn legacy_launcher(root: &Path, version: &str) {
+        std::fs::create_dir_all(root.join("tools")).expect("tools");
+        let text = format!("#!/bin/sh\nset -eu\nVERSION=\"{version}\"\n");
+        std::fs::write(root.join("tools/dx"), text).expect("legacy launcher");
+    }
+
     fn read_pin(root: &Path) -> String {
         dx_adopt::read_version_pin(root).expect("pin")
     }
@@ -211,9 +217,7 @@ mod tests {
         let (_scratch, root) = pinned("dx-adopt-upgrade-hint-", OLD);
         assert!(is_skewed(&read_pin(&root)));
         std::fs::write(root.join("AGENTS.md"), STALE_AGENTS).expect("agents");
-        dx_adopt::write_launcher_files(&root, OLD, &mut dx_adopt::Applied::default())
-            .expect("launchers");
-        std::fs::remove_file(root.join("tools/dx.cmd")).expect("drop cmd");
+        legacy_launcher(&root, OLD);
         let hint = dx_adopt::pin_fix_hint(OLD, module());
         let words: Vec<&str> = hint.split_whitespace().skip(1).collect();
         assert_eq!(words[0], "upgrade", "{hint}");
@@ -234,8 +238,8 @@ mod tests {
         assert_ne!(agents, STALE_AGENTS);
         assert!(agents.starts_with("# Mine\n") && agents.ends_with("Tail.\n"));
         assert_eq!(
-            dx_adopt::launcher_version(&root, "tools/dx").as_deref(),
-            Some(module())
+            dx_adopt::launcher_state(&root, "tools/dx"),
+            Some(dx_adopt::LauncherState::Current)
         );
         assert!(
             !root.join("tools/dx.cmd").exists(),
@@ -280,7 +284,7 @@ mod tests {
     #[test]
     fn upgrade_moves_a_newer_pin_back() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-down-", "9.9.9");
-        dx_adopt::write_launcher_files(&root, "9.9.9", &mut dx_adopt::Applied::default())
+        dx_adopt::write_launcher_files(&root, &mut dx_adopt::Applied::default())
             .expect("launchers");
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
@@ -289,10 +293,23 @@ mod tests {
             "{out}"
         );
         assert_eq!(read_pin(&root), module());
-        assert_eq!(
-            dx_adopt::launcher_version(&root, "tools/dx").as_deref(),
-            Some(module())
-        );
+    }
+
+    #[test]
+    fn upgrade_changes_only_the_pin_file_once_launchers_are_static() {
+        let (_scratch, root) = pinned("dx-adopt-upgrade-static-", OLD);
+        dx_adopt::write_launcher_files(&root, &mut dx_adopt::Applied::default())
+            .expect("launchers");
+        let before = snapshot(&root);
+        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(!out.contains("wrote tools/dx"), "{out}");
+        let changed: Vec<PathBuf> = snapshot(&root)
+            .into_iter()
+            .filter(|entry| !before.contains(entry))
+            .map(|(path, _)| path)
+            .collect();
+        assert_eq!(changed, vec![root.join(".dx/version")]);
     }
 
     #[test]

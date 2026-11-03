@@ -49,15 +49,30 @@ pub fn version_pin_matches_module(dx_version: &str, module_version: &str) -> boo
 }
 
 pub fn read_version_pin(root: &Path) -> Result<String, AdoptError> {
-    let raw = std::fs::read_to_string(root.join(".dx/version")).map_err(|e| {
-        AdoptError::ReadVersionPin {
-            detail: e.to_string(),
-        }
-    })?;
-    Ok(raw.trim().to_owned())
+    let raw = read_pin_file(root)?;
+    Ok(raw.lines().next().unwrap_or_default().trim().to_owned())
+}
+
+pub fn read_version_pins(root: &Path) -> Result<crate::LauncherPins, AdoptError> {
+    let raw = read_pin_file(root)?;
+    crate::LauncherPins::from_pin_lines(raw.lines().skip(1))
+}
+
+fn read_pin_file(root: &Path) -> Result<String, AdoptError> {
+    std::fs::read_to_string(root.join(".dx/version")).map_err(|e| AdoptError::ReadVersionPin {
+        detail: e.to_string(),
+    })
 }
 
 pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
+    write_version_pins(root, version, &crate::release_pins(version)?)
+}
+
+pub fn write_version_pins(
+    root: &Path,
+    version: &str,
+    pins: &crate::LauncherPins,
+) -> Result<(), AdoptError> {
     if version.is_empty() {
         return Err(AdoptError::EmptyVersion);
     }
@@ -65,11 +80,12 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
     std::fs::create_dir_all(&dir).map_err(|e| AdoptError::CreateDxDir {
         detail: e.to_string(),
     })?;
-    dx_atomic_fs::write_atomic(&dir.join("version"), format!("{version}\n").as_bytes()).map_err(
-        |e| AdoptError::WriteVersionPin {
+    let text = format!("{version}\n{}", pins.to_lines());
+    dx_atomic_fs::write_atomic(&dir.join("version"), text.as_bytes()).map_err(|e| {
+        AdoptError::WriteVersionPin {
             detail: e.to_string(),
-        },
-    )?;
+        }
+    })?;
     Ok(())
 }
 

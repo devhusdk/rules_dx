@@ -180,6 +180,33 @@ pub(crate) fn scrubbed_command(
     cmd
 }
 
+/// Removes the token and control characters from tool output.
+pub(crate) fn pages_redact(text: &str, token: &str) -> String {
+    let cleaned: String = text
+        .chars()
+        .filter(|c| *c == '\n' || !c.is_control())
+        .collect();
+    if token.is_empty() {
+        cleaned
+    } else {
+        cleaned.replace(token, "[redacted]")
+    }
+}
+
+/// Prints a publisher's captured stdout and stderr with the secret removed.
+pub(crate) fn print_redacted(out: &std::process::Output, secret: &str) {
+    let (stdout, stderr) = redacted_streams(out, secret);
+    print!("{stdout}");
+    eprint!("{stderr}");
+}
+
+fn redacted_streams(out: &std::process::Output, secret: &str) -> (String, String) {
+    (
+        pages_redact(&String::from_utf8_lossy(&out.stdout), secret),
+        pages_redact(&String::from_utf8_lossy(&out.stderr), secret),
+    )
+}
+
 /// Returns the DX_PROFILE the launcher runs under, `<unset>` when unset.
 pub fn deploy_profile() -> String {
     std::env::var("DX_PROFILE").unwrap_or_else(|_| "<unset>".to_owned())
@@ -291,6 +318,18 @@ mod tests {
         for value in ["1.0.0", "v1.0.0", "0.0.1", "0.0.0-rc1"] {
             assert!(placeholder_refusal("demo", value).is_none());
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn publisher_output_never_shows_the_secret() {
+        let out = std::process::Command::new("sh")
+            .args(["-c", "echo key-sekret; echo err key-sekret >&2"])
+            .output()
+            .expect("run sh");
+        let (stdout, stderr) = redacted_streams(&out, "key-sekret");
+        assert_eq!(stdout, "[redacted]\n");
+        assert_eq!(stderr, "err [redacted]\n");
     }
 
     #[test]

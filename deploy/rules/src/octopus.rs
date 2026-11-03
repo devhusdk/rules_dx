@@ -2,7 +2,8 @@
 
 use crate::archive::*;
 use crate::run::{
-    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    deploy_profile, env_or_empty, print_redacted, scrubbed_command, DeployRun, OwnerGate,
+    PUBLISH_CHILD_ENV_KEEP,
 };
 use crate::stage::*;
 use std::ffi::OsString;
@@ -151,10 +152,14 @@ fn octo_run(octo: &Path, args: &[OsString], api_key: &str, step: &str) -> bool {
         &[("OCTOPUS_CLI_API_KEY", api_key)],
     );
     cmd.args(args);
-    match cmd.status() {
-        Ok(status) if status.success() => true,
-        Ok(status) => {
-            eprintln!("octopus_deploy: octo {step} failed with {status}");
+    match cmd.output() {
+        Ok(out) if out.status.success() => {
+            print_redacted(&out, api_key);
+            true
+        }
+        Ok(out) => {
+            print_redacted(&out, api_key);
+            eprintln!("octopus_deploy: octo {step} failed with {}", out.status);
             false
         }
         Err(error) => {

@@ -2,8 +2,8 @@
 
 use crate::archive::*;
 use crate::run::{
-    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, DOTNET_CHILD_ENV_EXTRA,
-    PUBLISH_CHILD_ENV_KEEP,
+    deploy_profile, env_or_empty, print_redacted, scrubbed_command, DeployRun, OwnerGate,
+    DOTNET_CHILD_ENV_EXTRA, PUBLISH_CHILD_ENV_KEEP,
 };
 use crate::stage::*;
 use std::io;
@@ -323,17 +323,15 @@ pub fn nuget_live_push(
         .arg("--skip-duplicate");
     match cmd.output() {
         Ok(out) if out.status.success() => {
+            print_redacted(&out, token);
             let stdout = String::from_utf8_lossy(&out.stdout);
             let stderr = String::from_utf8_lossy(&out.stderr);
-            print!("{stdout}");
-            eprint!("{stderr}");
             let duplicate = is_duplicate_notice(&stdout) || is_duplicate_notice(&stderr);
             println!("{}", push_result(duplicate, id, version, source));
             0
         }
         Ok(out) => {
-            print!("{}", String::from_utf8_lossy(&out.stdout));
-            eprint!("{}", String::from_utf8_lossy(&out.stderr));
+            print_redacted(&out, token);
             eprintln!("nuget_deploy: dotnet failed with {}", out.status);
             1
         }

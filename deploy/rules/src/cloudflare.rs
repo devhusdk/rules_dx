@@ -1,4 +1,4 @@
-use crate::run::OwnerGate;
+use crate::run::{pages_redact, OwnerGate};
 use crate::stage::copy_verified;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -237,19 +237,6 @@ pub fn pages_wrangler_args(staged: &Path, project: &str, branch: &str) -> Vec<Os
         branch.into(),
         "--commit-dirty=true".into(),
     ]
-}
-
-/// Removes the token and control characters from tool output.
-pub fn pages_redact(text: &str, token: &str) -> String {
-    let cleaned: String = text
-        .chars()
-        .filter(|c| *c == '\n' || !c.is_control())
-        .collect();
-    if token.is_empty() {
-        cleaned
-    } else {
-        cleaned.replace(token, "[redacted]")
-    }
 }
 
 /// Reads the deployment Wrangler wrote to its output file.

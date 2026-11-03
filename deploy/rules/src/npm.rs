@@ -2,7 +2,8 @@
 
 use crate::archive::*;
 use crate::run::{
-    deploy_profile, env_or_empty, scrubbed_command, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP,
+    deploy_profile, env_or_empty, print_redacted, scrubbed_command, DeployRun, OwnerGate,
+    PUBLISH_CHILD_ENV_KEEP,
 };
 use crate::stage::*;
 use std::io;
@@ -378,17 +379,23 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
             return 1;
         }
     };
-    let status = scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
+    let output = scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
         .args(args)
         .arg("--userconfig")
         .arg(&npmrc)
-        .status();
+        .output();
     if let Some(dir) = npmrc.parent() {
         let _ = std::fs::remove_dir_all(dir);
     }
-    match status {
-        Ok(status) if status.success() => 0,
-        Ok(status) => status.code().unwrap_or(1),
+    match output {
+        Ok(out) => {
+            print_redacted(&out, token);
+            if out.status.success() {
+                0
+            } else {
+                out.status.code().unwrap_or(1)
+            }
+        }
         Err(error) => {
             eprintln!("npm_deploy: {error}");
             1

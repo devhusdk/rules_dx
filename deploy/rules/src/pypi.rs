@@ -129,12 +129,7 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
 const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
 
 fn pypi_scrub(text: &[u8], token: &str) -> String {
-    let text = String::from_utf8_lossy(text).into_owned();
-    if token.is_empty() {
-        text
-    } else {
-        text.replace(token, "***")
-    }
+    crate::run::pages_redact(&String::from_utf8_lossy(text), token)
 }
 
 fn pypi_duplicate_note(output: &str, base: &str, version: &str, url: &str) -> Option<String> {
@@ -476,6 +471,6 @@ mod tests {
             Some("pypi_deploy: pkg.whl version 1.0 is already on https://u; upload a new version")
         );
         assert!(pypi_duplicate_note("boom", "pkg.whl", "1.0", "https://u").is_none());
-        assert_eq!(pypi_scrub(b"a tok b", "tok"), "a *** b");
+        assert_eq!(pypi_scrub(b"a tok b", "tok"), "a [redacted] b");
     }
 }

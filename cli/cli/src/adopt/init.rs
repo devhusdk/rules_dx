@@ -81,8 +81,11 @@ impl Target {
         &self,
         invocation: &Invocation,
     ) -> Result<Vec<dx_adopt::scaffold::ScaffoldFile>, dx_adopt::AdoptError> {
-        let mut files =
-            dx_adopt::plan_init_files_triples(&self.module, &invocation.init_rust_target_triples)?;
+        let mut files = dx_adopt::plan_init_files_at(
+            &self.root,
+            &self.module,
+            &invocation.init_rust_target_triples,
+        )?;
         if self.fresh {
             files.extend(dx_adopt::plan_fresh_files(&self.module));
         }

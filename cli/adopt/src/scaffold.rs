@@ -255,12 +255,14 @@ pub fn plan_init_files_for_host(
     plan_init_files_with(module_name, windows, false)
 }
 
-/// Like `plan_init_files`, with extra Rust target triples in the module snippet.
-pub fn plan_init_files_triples(
+/// Plans the init files for `root`, adding the CUDA stanza when it has CUDA sources.
+pub fn plan_init_files_at(
+    root: &Path,
     module_name: &str,
     triples: &[String],
 ) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_full(module_name, cfg!(windows), false, triples)
+    let cuda = root.is_dir() && crate::load_graph::workspace_has_cuda_sources(root)?;
+    plan_init_files_full(module_name, cfg!(windows), cuda, triples)
 }
 
 /// Plans every init file.
@@ -448,10 +450,9 @@ pub fn apply_init_triples(
     triples: &[String],
     applied: &mut Applied,
 ) -> Result<(), AdoptError> {
-    let cuda = crate::load_graph::workspace_has_cuda_sources(root)?;
     apply_scaffold(
         root,
-        &plan_init_files_full(module_name, cfg!(windows), cuda, triples)?,
+        &plan_init_files_at(root, module_name, triples)?,
         applied,
     )
 }
@@ -476,12 +477,12 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_init, entries, plan_init_files, plan_init_files_for_host, plan_init_files_with,
-        render_consumer_caller, render_editor_settings, CONSUMER_LLVM_VERSION,
-        CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION, CONSUMER_RUSTFMT_VERSION,
-        CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION, CONSUMER_WORKFLOW_OWNER,
-        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
-        DX_VERSION,
+        apply_init, entries, plan_init_files, plan_init_files_at, plan_init_files_for_host,
+        plan_init_files_with, render_consumer_caller, render_editor_settings, ScaffoldFile,
+        CONSUMER_LLVM_VERSION, CONSUMER_RULES_CC_VERSION, CONSUMER_RULES_RUST_VERSION,
+        CONSUMER_RUSTFMT_VERSION, CONSUMER_RUST_EDITION, CONSUMER_RUST_VERSION,
+        CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN,
+        CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -1041,6 +1042,24 @@ mod tests {
         let stanza_at = staged.find("# CUDA:").expect("stanza");
         assert!(stanza_at > staged.find("include(").expect("include"));
         assert!(stanza_at < staged.find("register_toolchains(\"@llvm").expect("llvm"));
+    }
+
+    #[test]
+    fn plan_at_root_adds_the_stanza_for_cuda_workspaces() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-plan-cuda-");
+        let root = scratch.path();
+        let snippet = |files: Vec<ScaffoldFile>| {
+            files
+                .into_iter()
+                .find(|file| file.path == "MODULE.bazel.snippet")
+                .expect("snippet")
+                .content
+        };
+        let plain = snippet(plan_init_files_at(root, "demo", &[]).expect("plans"));
+        assert!(!plain.contains("rules_cuda"));
+        std::fs::write(root.join("k.cu"), "").expect("cu");
+        let cuda = snippet(plan_init_files_at(root, "demo", &[]).expect("plans"));
+        assert!(cuda.contains("bazel_dep(name = \"rules_cuda\""), "{cuda}");
     }
 
     #[test]

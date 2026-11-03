@@ -101,7 +101,7 @@ jobs:
           RULES_DX_PIN: ${{ inputs.rules_dx_version }}
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:module_pin_bin
       - name: Validate workflow inputs
         id: validate
@@ -113,7 +113,7 @@ jobs:
           DX_INVOCATION_ID: ${{ inputs.invocation_id }}
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//tools/ci:input_validation_bin
   checks:
     name: ${{ matrix.check.id }} (${{ matrix.platform }})
@@ -182,7 +182,7 @@ jobs:
           DX_PASSTHROUGH: ${{ matrix.check.passthrough }}
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           reports="${RUNNER_TEMP:-/tmp}/dx-reports/$DX_CHECK"
           mkdir -p "$reports"
           read -ra args <<< "$DX_ARGS"
@@ -207,7 +207,7 @@ jobs:
         if: ${{ matrix.check.id == 'build' }}
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
       - name: Record the runner image
         if: always()
@@ -281,7 +281,7 @@ jobs:
         id: prepare
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           retrieved_at="$(date -u +%F)"
           echo "retrieved_at=$retrieved_at" >> "$GITHUB_OUTPUT"
           bazel run "$@" @rules_dx//cli/advisory_prep -- \
@@ -336,7 +336,7 @@ jobs:
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN -- "$@"
       - name: Restore the advisory snapshots this run prepared
         if: ${{ needs.advisory-snapshots.outputs.status != 'empty' }}
@@ -350,7 +350,7 @@ jobs:
           DX_AUDIT_TODAY: ${{ needs.advisory-snapshots.outputs.retrieved_at }}
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- security //...
   coverage:
     needs: [validate]
@@ -422,7 +422,7 @@ jobs:
         run: |
           set +e
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           reports="${RUNNER_TEMP:-/tmp}/dx-reports/coverage"
           mkdir -p "$reports"
           extra=(--report "failures=$reports/failures.json" --report "results=$reports/results.json")

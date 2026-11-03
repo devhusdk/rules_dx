@@ -33,6 +33,7 @@ touch Bazel are:
   after the `rules_dx` dep.
 - `third_party/rules_dx/` holds the overrides. dx owns it. Do not edit it.
 - `MODULE.bazel.lock` changes. Commit it.
+- CI fails when `MODULE.bazel.lock` is stale. Run `bazel mod deps` and commit the lock.
 - `.bazelignore` lists `.dx`.
 - `.bazelrc` is not written. Your own flags stay.
 

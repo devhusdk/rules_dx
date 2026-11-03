@@ -250,6 +250,8 @@ used. Pull requests, forks included, merge queues and other branches only
 restore it. Without `BUILDBUDDY_API_KEY`, build and test outputs
 are not cached between runs.
 
+CI fails when `MODULE.bazel.lock` is stale. Run `bazel mod deps` and commit the lock.
+
 With that secret set, every Bazel and `dx` call in both workflows runs with
 `--config=ci`, plus `--config=ci-pr` on pull requests. Define both configs in
 the repository `.bazelrc` before setting the secret. An undefined config fails

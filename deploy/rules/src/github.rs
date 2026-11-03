@@ -41,6 +41,18 @@ fn github_asset_bases(srcs: &[&std::path::PathBuf]) -> io::Result<Vec<String>> {
     Ok(bases)
 }
 
+/// Formats one `basename sha256` line per asset.
+fn github_asset_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> io::Result<Vec<String>> {
+    let mut lines = Vec::new();
+    for (src, base) in sorted.iter().zip(bases) {
+        lines.push(format!(
+            "  asset: {base} sha256:{}",
+            dx_digest::sha256_file_hex(src)?
+        ));
+    }
+    Ok(lines)
+}
+
 /// Builds one GitHub release staging dir.
 pub fn github_build_staging(
     asset_srcs: &[std::path::PathBuf],
@@ -127,6 +139,13 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
             eprintln!("github_deploy: 'gh' CLI not found on PATH");
             return 1;
         }
+        let asset_lines = match github_asset_lines(&sorted, &bases) {
+            Ok(lines) => lines,
+            Err(error) => {
+                eprintln!("github_deploy: {error}");
+                return 1;
+            }
+        };
         let mut cmd = scrubbed_command(
             Path::new("gh"),
             &[PUBLISH_CHILD_ENV_KEEP, GH_CHILD_ENV_EXTRA],
@@ -151,6 +170,9 @@ pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &
         match cmd.status() {
             Ok(status) if status.success() => {
                 println!("github_deploy: published draft {tag}");
+                for line in asset_lines {
+                    println!("{line}");
+                }
                 return 0;
             }
             Ok(status) => {
@@ -247,5 +269,72 @@ mod tests {
             "{message}"
         );
         assert!(!outdir.join("github_dup-release").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn github_live_run_calls_gh_with_tag_and_absolute_assets() {
+        use std::os::unix::fs::PermissionsExt as _;
+        if env_test_in_child("github::tests::github_live_run_calls_gh_with_tag_and_absolute_assets")
+        {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        std::fs::write(runfiles.join("b.tar.gz"), b"bee").expect("write b");
+        std::fs::write(runfiles.join("a.tar.gz"), b"ay").expect("write a");
+        let bin = scratch.path().join("bin");
+        std::fs::create_dir_all(&bin).expect("bin");
+        let log = scratch.path().join("gh.log");
+        let gh = bin.join("gh");
+        std::fs::write(
+            &gh,
+            format!(
+                "#!/bin/sh\nfor a in \"$@\"; do echo \"$a\" >> {}; done\n",
+                log.display()
+            ),
+        )
+        .expect("write gh");
+        std::fs::set_permissions(&gh, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let outdir = scratch.path().join("out");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let rlocs = ["b.tar.gz".to_owned(), "a.tar.gz".to_owned()];
+        let code = with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("PATH", Some(bin.to_string_lossy().as_ref())),
+                ("GH_RELEASE_LIVE", Some("1")),
+                ("GH_RELEASE_APPROVED", Some("1")),
+            ],
+            || github_main(&rlocs, "demo", "v1.2.3", &argv),
+        );
+        assert_eq!(code, 0);
+        let logged = std::fs::read_to_string(&log).expect("gh log");
+        let args: Vec<&str> = logged.lines().collect();
+        let a = runfiles.join("a.tar.gz").display().to_string();
+        let b = runfiles.join("b.tar.gz").display().to_string();
+        let want = [
+            "release",
+            "create",
+            "v1.2.3",
+            &b,
+            &a,
+            "--draft",
+            "--verify-tag",
+        ];
+        assert_eq!(args, want);
+    }
+
+    #[test]
+    fn github_asset_lines_name_each_asset_with_its_sha256() {
+        let scratch = scratch_dir();
+        let a = scratch.path().join("a.tar.gz");
+        std::fs::write(&a, b"ay").expect("write a");
+        let lines = github_asset_lines(&[&a], &["a.tar.gz".to_owned()]).expect("lines");
+        let digest = dx_digest::sha256_file_hex(&a).expect("digest");
+        assert_eq!(lines, [format!("  asset: a.tar.gz sha256:{digest}")]);
     }
 }

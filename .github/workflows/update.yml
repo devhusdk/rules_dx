@@ -110,24 +110,24 @@ jobs:
           echo ""
           echo "Declared requirements (manifest scan, no fetch):"
           if [[ -f MODULE.bazel ]]; then
-            grep -E -e 'maven\.install|artifacts' MODULE.bazel | head -n 20 || true
-            grep -E -o -e '"[^"]+:[^"]+:[^"]+"' MODULE.bazel | head -n 20 || true
+            grep -E -e 'maven\.install|artifacts' MODULE.bazel || true
+            grep -E -o -e '"[^"]+:[^"]+:[^"]+"' MODULE.bazel || true
           fi
           if [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
             echo "--- rust/tests/fixtures/hello/Cargo.toml ---"
-            grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml | head -n 20 || true
+            grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml || true
           fi
           if [[ -f package.json ]]; then
             echo "--- package.json ---"
-            grep -E -e '"[^"]+" *: *"[^"]+"' package.json | head -n 20 || true
+            grep -E -e '"[^"]+" *: *"[^"]+"' package.json || true
           fi
           if [[ -f third_party/go/go.mod ]]; then
             echo "--- third_party/go/go.mod ---"
-            grep -E -e '^require |^\s+[a-zA-Z0-9./_-]+ v' third_party/go/go.mod | head -n 20 || true
+            grep -E -e '^require |^\s+[a-zA-Z0-9./_-]+ v' third_party/go/go.mod || true
           fi
           if [[ -f third_party/dotnet/paket.dependencies ]]; then
             echo "--- third_party/dotnet/paket.dependencies ---"
-            grep -E -e '^nuget ' third_party/dotnet/paket.dependencies | head -n 20 || true
+            grep -E -e '^nuget ' third_party/dotnet/paket.dependencies || true
           fi
           if [[ -f .bazelversion ]]; then
             echo "--- .bazelversion ---"
@@ -135,21 +135,29 @@ jobs:
           fi
           echo ""
           echo "Upstream outdated enumeration (best-effort, never custom HTTP; offline prints declared only):"
-          if command -v cargo >/dev/null 2>&1 && [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
+          if command -v cargo >/dev/null 2>&1 && [[ -f MODULE.bazel ]]; then
             echo "--- crates.io (cargo) ---"
-            while IFS= read -r line; do
-              crate="$(echo "$line" | sed -E 's/^([A-Za-z0-9_-]+) *=.*/\1/; s/^[[:space:]]+//')"
-              if [[ -n "$crate" ]]; then
-                latest="$(cargo search "$crate" --limit 1 2>/dev/null | head -n 1 || true)"
-                if [[ -n "$latest" ]]; then echo "dx_crates:$crate $latest" | tee -a "$outdated"; else echo "dx_crates:$crate (declared only; crates.io unreachable)"; fi
-              fi
-            done < <(grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml || true)
+            hubs="$(awk '
+              /^crate\.from_cargo\(/ { inside = 1; next }
+              inside && /^\)/ { inside = 0 }
+              inside && /cargo_lockfile *=/ { lock = $0; gsub(/.*"\/\/|:Cargo\.lock".*/, "", lock); gsub(/^:/, "", lock); lock = lock "/Cargo.lock"; sub(/^\//, "", lock) }
+              inside && /Cargo\.toml"/ { m = $0; gsub(/.*"\/\/|:Cargo\.toml".*/, "", m); print lock "\t" m "/Cargo.toml" }
+            ' MODULE.bazel)"
+            while IFS=$'\t' read -r lock manifest; do
+              [[ -f "$manifest" && -f "$lock" ]] || continue
+              while IFS= read -r crate; do
+                locked="$(awk -v c="$crate" '$1 == "name" && $3 == "\"" c "\"" { found = 1; next } found && $1 == "version" { gsub(/"/, "", $3); print $3; exit }' "$lock")"
+                [[ -n "$locked" ]] || continue
+                latest="$(cargo search "$crate" --limit 1 2>/dev/null | sed -nE "s/^$crate = \"([^\"]+)\".*/\1/p" || true)"
+                if [[ -z "$latest" ]]; then echo "cargo:$crate (declared only; crates.io unreachable)"; elif [[ "$latest" != "$locked" ]]; then echo "cargo:$crate $latest" | tee -a "$outdated"; fi
+              done < <(awk '/^\[/ { dep = ($0 ~ /dependencies\]$/) } dep && /^[A-Za-z0-9_-]+ *=/ { sub(/ *=.*/, ""); print }' "$manifest")
+            done < <(sort -u <<< "$hubs")
           else
             echo "(cargo client unavailable: Cargo outdated deferred to crates.io on next run)"
           fi
           if command -v npm >/dev/null 2>&1 && [[ -f package.json ]]; then
             echo "--- npm registry (npm view) ---"
-            for pkg in $(grep -E -o -e '"[A-Za-z0-9_.-]+" *:' package.json 2>/dev/null | tr -d '": ' | head -n 10 || true); do
+            for pkg in $(grep -E -o -e '"[A-Za-z0-9_.-]+" *:' package.json 2>/dev/null | tr -d '": ' || true); do
               if [[ -n "$pkg" && "$pkg" != "name" && "$pkg" != "version" && "$pkg" != "dependencies" && "$pkg" != "devDependencies" ]]; then
                 latest="$(npm view "$pkg" version 2>/dev/null || true)"
                 if [[ -n "$latest" ]]; then echo "dx_npm:$pkg $latest" | tee -a "$outdated"; else echo "dx_npm:$pkg (declared only; npm registry unreachable)"; fi
@@ -165,13 +173,13 @@ jobs:
                 latest="$(go list -m -versions "$mod" 2>/dev/null | tr ' ' '\n' | grep -E -e '^v[0-9]' | grep -E -v -e '-' | tail -n 1 || true)"
                 if [[ -n "$latest" ]]; then echo "go:$mod $latest" | tee -a "$outdated"; else echo "go:$mod (declared only; Go proxy unreachable)"; fi
               fi
-            done < <(grep -E -o -e '[a-zA-Z0-9./_-]+\.[a-zA-Z]+/[a-zA-Z0-9./_~-]+' third_party/go/go.mod 2>/dev/null | head -n 10 || true)
+            done < <(grep -E -o -e '[a-zA-Z0-9./_-]+\.[a-zA-Z]+/[a-zA-Z0-9./_~-]+' third_party/go/go.mod 2>/dev/null || true)
           else
             echo "(go client unavailable: Go outdated deferred to Go proxy on next run)"
           fi
           if command -v gh >/dev/null 2>&1; then
             echo "--- GitHub releases (gh) ---"
-            grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 10 || echo "(no pinned actions found)"
+            grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null || echo "(no pinned actions found)"
             while IFS= read -r pin; do
               repo="$(echo "$pin" | sed -E 's/.*uses: *([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)@.*/\1/')"
               tag="$(echo "$pin" | sed -E 's/.*@([A-Za-z0-9_.-]+).*/\1/')"
@@ -180,7 +188,7 @@ jobs:
                 if out="$(gh api "repos/$repo/commits/$tag" --jq .sha)"; then sha="$out"; fi
                 if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "github-actions:$repo $tag" | tee -a "$outdated"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
               fi
-            done < <(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 5 || true)
+            done < <(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null || true)
           else
             echo "(gh client unavailable: GitHub Actions outdated deferred to GitHub releases on next run)"
           fi

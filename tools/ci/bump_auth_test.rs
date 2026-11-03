@@ -411,3 +411,23 @@ fn discovery_writes_the_outdated_list_to_the_job_summary() {
         );
     }
 }
+
+#[test]
+fn discovery_lists_are_not_truncated() {
+    let steps = steps(WORKFLOW, "widen-one");
+    let discovery = steps
+        .iter()
+        .find(|step| name_of(step) == DISCOVERY)
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry a {DISCOVERY:?} step"));
+    let run = run_of(discovery);
+    for limit in ["head -n 5", "head -n 10", "head -n 20"] {
+        assert!(
+            !run.contains(limit),
+            "{DISCOVERY:?} must not cut a list with {limit:?}"
+        );
+    }
+    assert!(
+        run.contains("crate.from_cargo") || run.contains("from_cargo"),
+        "{DISCOVERY:?} must read the cargo manifests from MODULE.bazel"
+    );
+}

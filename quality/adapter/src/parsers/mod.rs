@@ -59,6 +59,7 @@ pub mod markdown;
 pub mod mbake;
 pub mod mix_format;
 pub mod modfmt;
+pub mod msvc_syntax;
 pub mod nixfmt;
 pub mod notebook_outputs;
 pub mod nvcc_syntax;
@@ -179,6 +180,7 @@ pub use mix_format::parse_mix_format;
 pub use modfmt::parse_modfmt;
 pub use nixfmt::parse_nixfmt;
 pub use notebook_outputs::parse_notebook_outputs;
+pub use msvc_syntax::parse_msvc_syntax;
 pub use nvcc_syntax::parse_nvcc_syntax;
 pub use ocaml_compile::parse_ocaml_compile;
 pub use opa::{parse_opa_check, parse_opa_fmt};
@@ -1990,6 +1992,14 @@ mod tests {
         super::nixfmt::parse_nixfmt(input, input, code, files)
     }
 
+    fn fuzz_msvc_syntax(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::msvc_syntax::parse_msvc_syntax(input, code, files)
+    }
+
     fn fuzz_nvcc_syntax(
         input: &[u8],
         code: Option<i32>,
@@ -2858,6 +2868,7 @@ mod tests {
         ("mix_format", fuzz_mix_format),
         ("modfmt", fuzz_modfmt),
         ("nixfmt", fuzz_nixfmt),
+        ("msvc_syntax", fuzz_msvc_syntax),
         ("nvcc_syntax", fuzz_nvcc_syntax),
         ("ormolu", fuzz_ormolu),
         ("bicep_lint", fuzz_bicep_lint),
@@ -2988,6 +2999,7 @@ mod tests {
         ("mix_format", include_str!("mix_format.rs")),
         ("modfmt", include_str!("modfmt.rs")),
         ("nixfmt", include_str!("nixfmt.rs")),
+        ("msvc_syntax", include_str!("msvc_syntax.rs")),
         ("nvcc_syntax", include_str!("nvcc_syntax.rs")),
         ("ormolu", include_str!("ormolu.rs")),
         ("bicep", include_str!("bicep.rs")),

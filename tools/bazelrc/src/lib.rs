@@ -318,6 +318,37 @@ pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
     out
 }
 
+/// Rewrites each active `import` of a layer under `dir` to `try-import`, or returns `None` when there is none.
+///
+/// Every other byte of `text` stays as it is.
+pub fn migrate_layer_imports(text: &str, dir: &str) -> Option<String> {
+    let layers: Vec<String> = Layer::ALL
+        .iter()
+        .map(|layer| format!("{dir}/{}", layer.file_name()))
+        .collect();
+    let mut out = String::with_capacity(text.len() + 16);
+    let mut changed = false;
+    for raw in text.split_inclusive('\n') {
+        let body = raw.trim_start_matches('\u{feff}');
+        let indent = body.len() - body.trim_start().len();
+        let rest = &body[indent..];
+        let is_legacy = rest.strip_prefix("import").is_some_and(|after| {
+            after.starts_with([' ', '\t'])
+                && workspace_import(rest.trim()).is_some_and(|rel| layers.contains(&rel))
+        });
+        if is_legacy {
+            let at = raw.len() - rest.len();
+            out.push_str(&raw[..at]);
+            out.push_str("try-");
+            out.push_str(rest);
+            changed = true;
+        } else {
+            out.push_str(raw);
+        }
+    }
+    changed.then_some(out)
+}
+
 /// How a root `.bazelrc` refers to one layer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportState {
@@ -591,6 +622,15 @@ mod tests {
             .lines()
             .filter(|line| !line.is_empty() && !line.starts_with('#'))
             .collect()
+    }
+
+    #[test]
+    fn migrate_layer_imports_changes_only_layer_import_lines() {
+        let text = "\u{feff}import %workspace%/.dx/bazelrc/correctness.bazelrc\r\n  import \"%workspace%/.dx/bazelrc/resources.bazelrc\"\r\n# import %workspace%/.dx/bazelrc/performance.bazelrc\r\nimport %workspace%/mine.bazelrc\r\nbuild --x";
+        let want = "\u{feff}try-import %workspace%/.dx/bazelrc/correctness.bazelrc\r\n  try-import \"%workspace%/.dx/bazelrc/resources.bazelrc\"\r\n# import %workspace%/.dx/bazelrc/performance.bazelrc\r\nimport %workspace%/mine.bazelrc\r\nbuild --x";
+        let out = migrate_layer_imports(text, CONSUMER_DIR).expect("changed");
+        assert_eq!(out, want);
+        assert_eq!(migrate_layer_imports(&out, CONSUMER_DIR), None);
     }
 
     #[test]

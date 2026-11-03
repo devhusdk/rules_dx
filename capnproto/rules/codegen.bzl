@@ -21,6 +21,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
 load("//libs/starlark:defs.bzl", "display_label")
+load("//libs/starlark:stage.bzl", "stage_closure")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "CapnpInfo")
 
@@ -59,33 +60,6 @@ _PRIVATE_ATTRS = {
     ),
 }
 
-def capnp_stage_closure(ctx, prefix, info):
-    """Symlinks the declared import closure under a private root.
-
-    Args:
-      ctx: the rule or aspect context.
-      prefix: package-relative directory to stage under; must be unique per target.
-      info: the CapnpInfo of the library.
-
-    Returns:
-      A struct(root, files, staged): root is the exec path of the staging root, files
-      the staged symlinks, and staged maps each import path to its symlink.
-    """
-    staged = {}
-    sources = {}
-    for entry in info.transitive_imports.to_list():
-        if entry.path in sources:
-            if sources[entry.path] != entry.file:
-                fail("capnp codegen: two different files claim the import path " + entry.path + ": " + sources[entry.path].path + " and " + entry.file.path)
-            continue
-        sources[entry.path] = entry.file
-        link = ctx.actions.declare_file(prefix + "/" + entry.path)
-        ctx.actions.symlink(output = link, target_file = entry.file)
-        staged[entry.path] = link
-    pkg = ctx.label.package
-    root = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + prefix
-    return struct(root = root, files = staged.values(), staged = staged)
-
 CapnpCcAspectInfo = provider(
     doc = "C++ generated and compiled for one capnp_library closure.",
     fields = {
@@ -98,7 +72,7 @@ def _cc_aspect_impl(target, ctx):
     info = target[CapnpInfo]
     name = target.label.name
     pkg = target.label.package
-    stage = capnp_stage_closure(ctx, "_capnp_cc_stage/" + name, info)
+    stage = stage_closure(ctx, "_capnp_cc_stage/" + name, info.transitive_imports.to_list(), "capnp")
     out_subdir = "_capnp_cc"
     out_root = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + out_subdir
     headers = []
@@ -232,7 +206,7 @@ def _java_aspect_impl(target, ctx):
     runtime = ctx.attr._runtime[JavaInfo]
     if not info.direct_srcs:
         return [CapnpJavaAspectInfo(java_info = java_common.merge(dep_infos + [runtime]), srcjar = None)]
-    stage = capnp_stage_closure(ctx, "_capnp_java_stage/" + name, info)
+    stage = stage_closure(ctx, "_capnp_java_stage/" + name, info.transitive_imports.to_list(), "capnp")
     tree = ctx.actions.declare_directory("_capnp_java/" + name + "_src")
     args = ctx.actions.args()
     args.add("compile")
@@ -358,7 +332,7 @@ def _rust_srcs_impl(ctx):
         dirname = src.short_path.rpartition("/")[0]
         generated.append(ctx.actions.declare_file(out_subdir + "/" + (dirname + "/" if dirname else "") + modules[src.short_path] + ".rs"))
     lib = ctx.actions.declare_file(out_subdir + "/lib.rs")
-    stage = capnp_stage_closure(ctx, "_capnp_rs_stage/" + ctx.label.name, info)
+    stage = stage_closure(ctx, "_capnp_rs_stage/" + ctx.label.name, info.transitive_imports.to_list(), "capnp")
     pkg = ctx.label.package
     out_dir = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + out_subdir
     args = ctx.actions.args()

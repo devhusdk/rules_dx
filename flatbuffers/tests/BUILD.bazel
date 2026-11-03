@@ -1,10 +1,11 @@
 load("//cc/rules:defs.bzl", "cc_test")
 load("//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_java_library", "flatbuffers_rust_library")
+load("//flatbuffers/rules:defs.bzl", "flatbuffers_library")
 load("//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")
 load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java/rules:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":failure_tests.bzl", "flatbuffers_codegen_failure_test")
+load(":failure_tests.bzl", "flatbuffers_codegen_failure_test", "flatbuffers_stage_args_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -284,6 +285,53 @@ flatbuffers_codegen_failure_test(
     name = "non_admitted_pair_test",
     message = "unsupported codegen pair ('flatbuffers', 'python')",
     target_under_test = ":python_shard",
+)
+
+flatbuffers_library(
+    name = "external_fbs",
+    srcs = ["@dx_flatbuffers//reflection:reflection_fbs_schema"],
+    tags = ["manual"],
+)
+
+flatbuffers_cc_library(
+    name = "external_cc",
+    tags = ["manual"],
+    deps = [":external_fbs"],
+)
+
+flatbuffers_java_library(
+    name = "external_java",
+    tags = ["manual"],
+    deps = [":external_fbs"],
+)
+
+flatbuffers_rust_library(
+    name = "external_rs",
+    library = ":external_fbs",
+    tags = ["manual"],
+)
+
+flatbuffers_codegen_failure_test(
+    name = "external_cc_test",
+    message = "is in another Bazel repository",
+    target_under_test = ":external_cc",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "external_java_test",
+    message = "is in another Bazel repository",
+    target_under_test = ":external_java",
+)
+
+flatbuffers_codegen_failure_test(
+    name = "external_rs_test",
+    message = "is in another Bazel repository",
+    target_under_test = ":external_rs_generated",
+)
+
+flatbuffers_stage_args_test(
+    name = "stage_args_test",
+    target_under_test = ":shapes_rs_generated",
 )
 
 real_source_target(

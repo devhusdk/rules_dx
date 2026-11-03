@@ -1,8 +1,7 @@
 """FlatBuffers C++, Rust and Java code generation (flatc from the pinned source archive).
 
 flatc and every runtime come from the one archive pinned in //flatbuffers:pins.bzl,
-so the compiler and the runtimes cannot drift. Actions read only the declared
-schema closure of FlatBuffersInfo.
+so the compiler and the runtimes cannot drift. Actions read only the staged closure.
 
 C++ is generated per flatbuffers_library by an aspect. Rust is generated as one
 crate per root schema (flatc --rust --gen-all), because flatc's Rust output uses
@@ -20,6 +19,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//generation:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
 load("//libs/starlark:defs.bzl", "display_label")
+load("//libs/starlark:stage.bzl", "stage_closure")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
 
@@ -40,11 +40,15 @@ _PRIVATE_ATTRS = {
     ),
 }
 
-def _flatc_args(language_flags, gen_object_api, out_dir, src):
-    args = ["-I", "."] + language_flags
+def _flatc_args(language_flags, gen_object_api, out_dir, include_root, src_paths):
+    args = ["-I", include_root] + language_flags
     if gen_object_api:
         args.append("--gen-object-api")
-    return args + ["-o", out_dir, src.path]
+    return args + ["-o", out_dir] + src_paths
+
+def _stage(ctx, prefix, info):
+    entries = [struct(path = f.short_path, file = f) for f in info.transitive_srcs.to_list()]
+    return stage_closure(ctx, prefix, entries, "flatbuffers")
 
 FlatBuffersCcAspectInfo = provider(
     doc = "C++ headers generated for one flatbuffers_library closure.",
@@ -62,14 +66,15 @@ def _cc_aspect_impl(target, ctx):
     # flatbuffers_library reached by cc libraries with different gen_object_api
     # values would otherwise declare the same path from conflicting actions.
     subdir = "_fbs_obj" if ctx.attr.gen_object_api else "_fbs"
+    stage = _stage(ctx, subdir + "_stage/" + target.label.name, info)
     for src in info.direct_srcs:
         out = ctx.actions.declare_file(subdir + "/" + src.short_path[:-len("." + src.extension)] + "_generated.h")
         ctx.actions.run(
             executable = ctx.executable._flatc,
             toolchain = None,
-            inputs = info.transitive_srcs,
+            inputs = stage.files,
             outputs = [out],
-            arguments = _flatc_args(["--cpp", "--keep-prefix"], ctx.attr.gen_object_api, out.dirname, src),
+            arguments = _flatc_args(["--cpp", "--keep-prefix"], ctx.attr.gen_object_api, out.dirname, stage.root, [stage.staged[src.short_path].path]),
             mnemonic = "FlatcCpp",
             progress_message = "flatc --cpp " + src.short_path,
         )
@@ -138,13 +143,14 @@ def _zip_entry(f):
 def _java_aspect_impl(target, ctx):
     info = target[FlatBuffersInfo]
     name = target.label.name
+    stage = _stage(ctx, "_fbs_java_stage/" + name, info)
     tree = ctx.actions.declare_directory("_fbs_java/" + name + "_src")
     ctx.actions.run(
         executable = ctx.executable._flatc,
         toolchain = None,
-        inputs = info.transitive_srcs,
+        inputs = stage.files,
         outputs = [tree],
-        arguments = ["--java", "-I", ".", "-o", tree.path] + [src.path for src in info.direct_srcs],
+        arguments = _flatc_args(["--java"], False, tree.path, stage.root, [stage.staged[src.short_path].path for src in info.direct_srcs]),
         mnemonic = "FlatcJava",
         progress_message = "flatc --java " + str(target.label),
     )
@@ -217,13 +223,14 @@ def _rust_srcs_impl(ctx):
     info = ctx.attr.library[FlatBuffersInfo]
     root = resolve_root("flatbuffers_rust_library", ctx.label, ctx.attr.library, ctx.file.root)
     base = root.basename[:-len("." + root.extension)]
+    stage = _stage(ctx, ctx.label.name + "_fbs_stage", info)
     generated = ctx.actions.declare_file(ctx.label.name + "_fbs_rs/" + base + "_generated.rs")
     ctx.actions.run(
         executable = ctx.executable._flatc,
         toolchain = None,
-        inputs = info.transitive_srcs,
+        inputs = stage.files,
         outputs = [generated],
-        arguments = _flatc_args(["--rust", "--gen-all"], False, generated.dirname, root),
+        arguments = _flatc_args(["--rust", "--gen-all"], False, generated.dirname, stage.root, [stage.staged[root.short_path].path]),
         mnemonic = "FlatcRust",
         progress_message = "flatc --rust " + root.short_path,
     )

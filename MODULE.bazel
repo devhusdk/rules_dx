@@ -527,6 +527,19 @@ single_version_override(
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
 dart.toolchain(dart_version = "3.13.7")
 
+# floor: equals tested; probe only (#5029)
+bazel_dep(name = "rules_flutter", version = "0.0.8", dev_dependency = True)
+
+flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
+flutter.toolchain(flutter_version = "3.47.8")
+flutter.pub(
+    name = "dx_flutter_probe_deps",
+    lock = "//flutter/tests/probe:pubspec.lock",
+)
+use_repo(flutter, "dx_flutter_probe_deps", "flutter_toolchains", "flutter_web_sdk")
+
+register_toolchains("@flutter_toolchains//:all", dev_dependency = True)
+
 bazel_dep(name = "tar.bzl", version = "0.10.4")
 bazel_dep(name = "yaml.bzl", version = "0.1.2")
 

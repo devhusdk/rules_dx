@@ -1,0 +1,52 @@
+# gazelle:ignore
+
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_flutter//flutter:defs.bzl", "flutter_application", "flutter_test")
+load("@rules_flutter//flutter:web.bzl", "flutter_web_app")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+_DEPS = ["@dx_flutter_probe_deps//:flutter"]
+
+flutter_application(
+    name = "app",
+    package_name = "dx_flutter_probe",
+    srcs = glob(["lib/**/*.dart"]),
+    main = "lib/main.dart",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = _DEPS,
+)
+
+flutter_web_app(
+    name = "web",
+    package_name = "dx_flutter_probe",
+    main = "lib/main.dart",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = _DEPS,
+)
+
+build_test(
+    name = "web_build_test",
+    size = "small",
+    target_compatible_with = ["@platforms//os:linux"],
+    targets = [":web"],
+)
+
+flutter_test(
+    name = "widget_test",
+    package_name = "dx_flutter_probe",
+    size = "small",
+    srcs = glob(["lib/**/*.dart"]),
+    main = "test/widget_test.dart",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = _DEPS + ["@dx_flutter_probe_deps//:flutter_test"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

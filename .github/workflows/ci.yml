@@ -411,15 +411,23 @@ jobs:
           fi
           targets="$(tr '\r\n' '  ' < "$RUNNER_TEMP/starter-targets")"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "--test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE=${REPO_CACHE_PATH}" "$@" $targets && test_status=0 || test_status=$?
           testlogs="$(bazel info "$@" bazel-testlogs)"
           ran=0
+          : > "$RUNNER_TEMP/starter-ran"
+          : > "$RUNNER_TEMP/starter-skipped"
           for label in $targets; do
             path="${label#//}"
             if [ -f "${testlogs}/${path/:/\/}/test.xml" ]; then
               ran=$((ran + 1))
+              echo "$label" >> "$RUNNER_TEMP/starter-ran"
+            else
+              echo "$label" >> "$RUNNER_TEMP/starter-skipped"
             fi
           done
+          if [ "$test_status" -ne 0 ]; then
+            exit "$test_status"
+          fi
           echo "Ran ${ran} starter consumer tests on ${PLATFORM}, shard ${SHARD}."
           if [ "$ran" -eq 0 ]; then
             if [ -n "$NO_STARTER_ISSUE" ]; then
@@ -437,9 +445,17 @@ jobs:
           SHARD: ${{ matrix.shard }}
         run: |
           echo "### starter-consumer (${PLATFORM}, shard ${SHARD}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ran the tests tagged starter-consumer: each runs dx init, adds a hello-world fixture and tests it against this checkout." >> "$GITHUB_STEP_SUMMARY"
-          if [ -f "$RUNNER_TEMP/starter-targets" ]; then
-            sed 's/^/- /' "$RUNNER_TEMP/starter-targets" >> "$GITHUB_STEP_SUMMARY"
+          echo "The tests tagged starter-consumer: each runs dx init, adds a hello-world fixture and tests it against this checkout." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/starter-ran" ]; then
+            echo "#### Ran" >> "$GITHUB_STEP_SUMMARY"
+            tr -d '\r' < "$RUNNER_TEMP/starter-ran" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
+            if [ -s "$RUNNER_TEMP/starter-skipped" ]; then
+              echo "#### Skipped (incompatible with this platform)" >> "$GITHUB_STEP_SUMMARY"
+              tr -d '\r' < "$RUNNER_TEMP/starter-skipped" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          elif [ -f "$RUNNER_TEMP/starter-targets" ]; then
+            echo "#### Targets" >> "$GITHUB_STEP_SUMMARY"
+            tr -d '\r' < "$RUNNER_TEMP/starter-targets" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
           fi
   python-docs-consumer:
     name: python-docs-consumer (${{ matrix.platform }})

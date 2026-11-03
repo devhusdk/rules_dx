@@ -1,4 +1,4 @@
-use super::clang_syntax::{diagnostic, include_entry};
+use super::clang_syntax::{diagnostic, include_entry, locate, split_rule};
 use super::{finding, lines, require_findings, FileFinding, ParseError};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
@@ -108,25 +108,13 @@ pub fn parse_nvcc_syntax(
         let Some(severity) = severity else {
             continue;
         };
-        let file = file.strip_prefix("./").unwrap_or(file);
-        let (file, line_no, prefix) = if files.contains(&file) {
-            (file, line_no, String::new())
-        } else if let Some((outer, at)) = included_from.iter().find_map(|(path, at)| {
-            let path = path.strip_prefix("./").unwrap_or(path);
-            files.contains(&path).then_some((path, *at))
-        }) {
-            (outer, at, format!("{file}:{line_no}:{column}: "))
-        } else {
+        let Some((file, line_no, _, message)) =
+            locate(file, line_no, column, message, &included_from, files)
+        else {
             continue;
         };
-        let (message, rule) = match message.rfind(" [") {
-            Some(start) if message.ends_with(']') => (
-                message[..start].trim_end().to_owned(),
-                message[start + 2..message.len() - 1].to_owned(),
-            ),
-            _ => (message.trim().to_owned(), String::new()),
-        };
-        push(file, line_no, rule, format!("{prefix}{message}"), severity);
+        let (message, rule) = split_rule(&message);
+        push(file, line_no, rule, message, severity);
     }
     require_findings(TOOL, &findings, code)?;
     Ok(findings)

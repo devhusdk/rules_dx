@@ -36,6 +36,38 @@ pub(super) fn include_entry(line: &str) -> Option<(&str, u64)> {
     Some((path, line_no.parse().ok()?))
 }
 
+/// Maps a diagnostic to a checked file. A header outside the set is reported at the
+/// include site that pulled it in, with its own location in the message.
+pub(super) fn locate<'a>(
+    file: &'a str,
+    line_no: u64,
+    column: u64,
+    message: &str,
+    included_from: &[(&'a str, u64)],
+    files: &[&'a str],
+) -> Option<(&'a str, u64, u64, String)> {
+    let file = file.strip_prefix("./").unwrap_or(file);
+    if let Some(owned) = files.iter().copied().find(|f| *f == file) {
+        return Some((owned, line_no, column, message.to_owned()));
+    }
+    let (outer, outer_line) = included_from.iter().find_map(|(path, at)| {
+        let path = path.strip_prefix("./").unwrap_or(path);
+        files.iter().copied().find(|f| *f == path).map(|f| (f, *at))
+    })?;
+    Some((outer, outer_line, 1, format!("{file}:{line_no}:{column}: {message}")))
+}
+
+/// Splits a trailing `[-Wflag]` off the message into a rule id.
+pub(super) fn split_rule(message: &str) -> (String, String) {
+    match message.rfind(" [") {
+        Some(start) if message.ends_with(']') => (
+            message[..start].trim_end().to_owned(),
+            message[start + 2..message.len() - 1].to_owned(),
+        ),
+        _ => (message.trim().to_owned(), String::new()),
+    }
+}
+
 /// Parses `clang -fsyntax-only` (or GCC) text diagnostics. Notes, include stacks and
 /// the trailing "N errors generated." summary carry no finding; a failing exit with
 /// no located diagnostic is an error.
@@ -59,30 +91,12 @@ pub fn parse_clang_syntax(
         let Some(severity) = severity else {
             continue;
         };
-        let file = file.strip_prefix("./").unwrap_or(file);
-        let mut message_prefix = String::new();
-        let (file, line_no, column) = if files.contains(&file) {
-            (file, line_no, column)
-        } else if let Some((outer, outer_line)) = included_from.iter().find_map(|(path, at)| {
-            let path = path.strip_prefix("./").unwrap_or(path);
-            files.contains(&path).then_some((path, *at))
-        }) {
-            // A diagnostic in a header outside the checked set is reported at the
-            // include site in the translation unit that pulled it in.
-            message_prefix = format!("{file}:{line_no}:{column}: ");
-            (outer, outer_line, 1)
-        } else {
-            // Neither the file nor any includer belongs to this target.
+        let Some((file, line_no, column, message)) =
+            locate(file, line_no, column, message, &included_from, files)
+        else {
             continue;
         };
-        let (message, rule_id) = match message.rfind(" [") {
-            Some(start) if message.ends_with(']') => (
-                message[..start].trim_end().to_owned(),
-                message[start + 2..message.len() - 1].to_owned(),
-            ),
-            _ => (message.trim().to_owned(), String::new()),
-        };
-        let message = format!("{message_prefix}{message}");
+        let (message, rule_id) = split_rule(&message);
         findings.push(finding(
             TOOL,
             file,

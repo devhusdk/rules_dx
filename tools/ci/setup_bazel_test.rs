@@ -119,11 +119,7 @@ const SAVERS: &[(&str, &str, &str)] = &[
         "checks",
         "needs.validate.outputs.cache_saver == matrix.check.id",
     ),
-    (
-        ".github/workflows/ci.yml",
-        "preflight",
-        "matrix.platform == 'windows_arm64'",
-    ),
+    (".github/workflows/ci.yml", "preflight", ""),
 ];
 /// Runner labels whose `runner.os` and `runner.arch` we can resolve statically.
 fn runner_platform(label: &str) -> Option<&'static str> {
@@ -156,10 +152,6 @@ fn job_platforms(body: &serde_json::Value) -> Option<Vec<&'static str>> {
         .collect()
 }
 
-/// Restore-only platforms with no donor job. Their `restore-keys` prefix can
-/// never match a saved cache until a saver exists for that platform (#3284),
-/// so each entry is a cold-start gap. Remove an entry once a donor covers it.
-const UNCOVERED: &[&str] = &["Linux-X64", "Linux-ARM64", "macOS-ARM64", "Windows-X64"];
 const VALIDATE_SOURCE: &str = "tools/ci/input_validation.py";
 const VALIDATE_RUNNERS: &str = "fromJSON(needs.validate.outputs.runners)";
 
@@ -217,17 +209,6 @@ fn restore_job_platforms(
 const STAMP: &str = "Stamp the restored Bazel repository cache";
 const PRUNE: &str = "Prune the Bazel repository cache to this run's downloads";
 const STAMP_FILE: &str = "$RUNNER_TEMP/dx-repo-cache.stamp";
-
-/// The platform a saver guard pins through `matrix.platform == '<name>'`.
-fn steps_guard_platform(guard: &str) -> Option<&'static str> {
-    match guard
-        .strip_prefix("matrix.platform == ")?
-        .trim_matches('\'')
-    {
-        "windows_arm64" => Some("Windows-ARM64"),
-        _ => None,
-    }
-}
 
 fn steps_named(steps: &[serde_json::Value], name: &str) -> Vec<usize> {
     (0..steps.len())
@@ -369,12 +350,11 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
             };
             savers_seen.push((name.clone(), job.clone()));
             if let Some(platforms) = job_platforms(body) {
-                let guard_platform = steps_guard_platform(guard);
-                donor_platforms.extend(
-                    platforms
-                        .into_iter()
-                        .filter(|p| guard_platform.is_none_or(|g| g == *p)),
+                assert!(
+                    guard.is_empty(),
+                    "{name} job {job} must save on every platform"
                 );
+                donor_platforms.extend(platforms);
             }
             assert_eq!(
                 (saves.len(), stamps.len(), prunes.len()),
@@ -397,9 +377,14 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
                 save,
                 "{name} job {job} step {prune} must directly precede the save step"
             );
+            let guard = if guard.is_empty() {
+                String::new()
+            } else {
+                format!(" && {guard}")
+            };
             let condition = |first: &str| {
                 format!(
-                    "{first} && github.ref == format('refs/heads/{{0}}', github.event.repository.default_branch) && {guard} && steps.{restore_id}.outputs.cache-hit != 'true' && steps.{id}.outputs.path != ''"
+                    "{first} && github.ref == format('refs/heads/{{0}}', github.event.repository.default_branch){guard} && steps.{restore_id}.outputs.cache-hit != 'true' && steps.{id}.outputs.path != ''"
                 )
             };
             for (index, first) in [
@@ -457,24 +442,32 @@ fn every_setup_bazel_job_caches_the_repository_cache_dx_uses() {
             "{file} job {job} is a listed repository cache saver but does not exist"
         );
     }
-    assert!(
-        donor_platforms.contains(&"Windows-ARM64"),
-        "the ci.yml preflight saver must resolve to Windows-ARM64, got {donor_platforms:?}"
-    );
     for (file, job, platform) in &restore_only_platforms {
-        let donated = donor_platforms.contains(platform);
         assert!(
-            donated != UNCOVERED.contains(platform),
-            "{file} job {job} runs on {platform}: {}",
-            if donated {
-                "a donor covers it, so drop it from UNCOVERED"
-            } else {
-                "no saver job runs on that OS and arch, so its restore-keys prefix never hits; add a donor or list it in UNCOVERED"
-            }
+            donor_platforms.contains(platform),
+            "{file} job {job} runs on {platform}: no saver job runs on that OS and arch, so its restore-keys prefix never hits"
         );
     }
     assert!(
         prune_runs.windows(2).all(|pair| pair[0] == pair[1]),
         "every saver must prune the repository cache with the same script"
+    );
+}
+
+#[test]
+fn repo_cache_prune_job_has_only_actions_write_and_no_bazel() {
+    let documents = setup_bazel_documents();
+    let (_, ci) = documents
+        .iter()
+        .find(|(name, _)| name == ".github/workflows/ci.yml")
+        .expect("ci.yml");
+    let job = &ci["jobs"]["repo-cache-prune"];
+    assert_eq!(job["needs"], serde_json::json!(["preflight"]));
+    assert_eq!(job["permissions"], serde_json::json!({"actions": "write"}));
+    let steps = job["steps"].as_array().expect("steps");
+    assert!(
+        steps_using(steps, LOCAL_ACTION).is_empty()
+            && steps_using(steps, UPSTREAM_ACTION.trim_end_matches('@')).is_empty(),
+        "repo-cache-prune must not run Bazel"
     );
 }

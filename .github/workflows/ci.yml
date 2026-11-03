@@ -492,7 +492,7 @@ jobs:
           key: dx-repo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: dx-repo-${{ runner.os }}-${{ runner.arch }}-
       - name: Stamp the restored Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         run: touch "$RUNNER_TEMP/dx-repo-cache.stamp"
       - name: Build the bootstrap closure
@@ -531,7 +531,7 @@ jobs:
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
       - name: Prune the Bazel repository cache to this run's downloads
-        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         shell: bash
         env:
           DX_REPO_CACHE: ${{ steps.repo-cache.outputs.path }}/content_addressable
@@ -553,11 +553,35 @@ jobs:
           size="$(du -sh "$DX_REPO_CACHE" | cut -f1)"
           echo "dx-ci: pruned $pruned unused repository cache entries; the saved cache holds $size." | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Save the Bazel repository cache
-        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && matrix.platform == 'windows_arm64' && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.repo-cache-restore.outputs.cache-hit != 'true' && steps.repo-cache.outputs.path != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.repo-cache.outputs.path }}/content_addressable
           key: ${{ steps.repo-cache-restore.outputs.cache-primary-key }}
+  repo-cache-prune:
+    name: repo-cache-prune (keep newest repository cache per platform)
+    needs: [preflight]
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Delete older repository caches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for p in Linux-X64 Linux-ARM64 macOS-ARM64 Windows-X64 Windows-ARM64; do
+            for id in $(gh cache list --key "dx-repo-$p-" --ref refs/heads/main --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id'); do
+              gh cache delete "$id"
+            done
+          done
+          {
+            echo "### Remaining repository caches"
+            gh cache list --key "dx-repo-" --ref refs/heads/main --limit 100 --json key,sizeInBytes --jq '.[] | "\(.key) \(.sizeInBytes)"'
+          } >> "$GITHUB_STEP_SUMMARY"
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     timeout-minutes: 15

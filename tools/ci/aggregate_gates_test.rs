@@ -188,7 +188,7 @@ fn every_aggregate_job_needs_every_other_job() {
         let (id, job) = aggregates[0];
         let needs = job_needs(workflow, id, job);
         for (other, _) in &all {
-            if other == id {
+            if other == id || (workflow == CI_WORKFLOW && other == "repo-cache-prune") {
                 continue;
             }
             assert!(

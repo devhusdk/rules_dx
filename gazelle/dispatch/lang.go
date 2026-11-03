@@ -282,7 +282,9 @@ func (l *dispatchLang) GenerateRules(args language.GenerateArgs) language.Genera
 		l.fail(common.InPackage(args.Rel), "%s", msg)
 	}
 	if args.Config != nil {
-		l.snapshot.RecordDir(args.Dir, args.Config.ValidBuildFileNames)
+		if err := l.snapshot.RecordDir(args.Dir, args.Config.ValidBuildFileNames); err != nil {
+			l.fail(common.InPackage(args.Rel), "%v", err)
+		}
 	}
 	if l.manifest != nil {
 		l.manifest.Record(args, language.GenerateResult{})

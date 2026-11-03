@@ -3,6 +3,7 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -18,8 +19,12 @@ func TestBuildSnapshotRestore(t *testing.T) {
 		}
 	}
 	var s BuildSnapshot
-	s.RecordDir(dir, []string{"same", "mod", "gone", "made"})
-	s.Record(mod)
+	if err := s.RecordDir(dir, []string{"same", "mod", "gone", "made"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Record(mod); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := os.WriteFile(mod, []byte("changed"), 0o644); err != nil {
 		t.Fatal(err)
@@ -53,5 +58,48 @@ func TestBuildSnapshotRestore(t *testing.T) {
 	}
 	if _, err := os.Stat(made); err != nil {
 		t.Fatalf("reset snapshot must not touch files: %v", err)
+	}
+}
+
+func TestBuildSnapshotRecordErrors(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permissions are not enforced for root")
+	}
+	dir := t.TempDir()
+	locked := filepath.Join(dir, "locked")
+	if err := os.Mkdir(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	unreadable := filepath.Join(dir, "unreadable")
+	if err := os.WriteFile(unreadable, []byte("keep"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	hidden := filepath.Join(locked, "BUILD")
+	if err := os.WriteFile(hidden, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	var s BuildSnapshot
+	for _, p := range []string{unreadable, hidden} {
+		err := s.Record(p)
+		if err == nil || !strings.Contains(err.Error(), p) {
+			t.Fatalf("Record(%s) = %v, want error naming the file", p, err)
+		}
+	}
+	if err := s.RecordDir(dir, []string{"unreadable"}); err == nil {
+		t.Fatal("RecordDir must return the error")
+	}
+	if err := s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(hidden); err != nil || string(got) != "keep" {
+		t.Fatalf("file removed or changed: %q, %v", got, err)
 	}
 }

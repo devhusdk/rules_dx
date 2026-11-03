@@ -30,33 +30,42 @@ func (s *BuildSnapshot) Reset() {
 }
 
 // Record stores the current state of path once; later calls for the same path
-// keep the first state.
-func (s *BuildSnapshot) Record(path string) {
+// keep the first state. It fails if the file cannot be inspected or read.
+func (s *BuildSnapshot) Record(path string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.files == nil {
 		s.files = map[string]snapshotEntry{}
 	}
 	if _, ok := s.files[path]; ok {
-		return
+		return nil
 	}
 	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
+	if errors.Is(err, os.ErrNotExist) || (err == nil && info.IsDir()) {
 		s.files[path] = snapshotEntry{}
-		return
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("snapshot %s: %w", path, err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return
+		return fmt.Errorf("snapshot %s: %w", path, err)
 	}
 	s.files[path] = snapshotEntry{data: data, exists: true, mode: info.Mode().Perm()}
+	return nil
 }
 
-// RecordDir records every candidate BUILD file name in dir.
-func (s *BuildSnapshot) RecordDir(dir string, names []string) {
+// RecordDir records every candidate BUILD file name in dir and returns every
+// error joined.
+func (s *BuildSnapshot) RecordDir(dir string, names []string) error {
+	var errs []error
 	for _, name := range names {
-		s.Record(filepath.Join(dir, name))
+		if err := s.Record(filepath.Join(dir, name)); err != nil {
+			errs = append(errs, err)
+		}
 	}
+	return errors.Join(errs...)
 }
 
 // Restore rewrites changed files and removes files that did not exist when

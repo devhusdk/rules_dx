@@ -9,6 +9,7 @@ dx_rust_crate(
     package_name = "cli/dx_ide",
     srcs = [
         "src/cc.rs",
+        "src/go.rs",
         "src/jdk.rs",
         "src/lib.rs",
         "src/link.rs",

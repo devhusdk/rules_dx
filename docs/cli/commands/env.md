@@ -1,6 +1,6 @@
 # `dx env`
 
-`dx env --apply` also refreshes the editor files in `.dx/ide/`, for example the TypeScript `lib` link and, for C and C++ trees, `cc/compile_commands.json` and the `cc/clangd` link. A failed refresh prints one `ide_refresh_failed` warning and never changes the exit code.
+`dx env --apply` also refreshes the editor files in `.dx/ide/`, for example the TypeScript `lib` link and, for C and C++ trees, `cc/compile_commands.json` and the `cc/clangd` link. For Go trees it writes `go/gopackagesdriver`, a wrapper around the rules_go packages driver. Point `go.toolsEnvVars.GOPACKAGESDRIVER` at it. A failed refresh prints one `ide_refresh_failed` warning and never changes the exit code.
 
 ```sh
 bazel run @rules_dx//:dx -- env

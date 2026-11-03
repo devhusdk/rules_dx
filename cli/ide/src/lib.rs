@@ -1,6 +1,7 @@
 //! Editor support files under `.dx/ide/`, refreshed from `dx env --apply` and `dx upgrade`.
 
 mod cc;
+mod go;
 mod jdk;
 mod link;
 mod python;
@@ -66,6 +67,7 @@ const PLUGINS: &[&Plugin] = &[
     &typescript::PLUGIN,
     &cc::PLUGIN,
     &jdk::PLUGIN,
+    &go::PLUGIN,
 ];
 
 /// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
@@ -451,6 +453,28 @@ mod tests {
             home
         );
         assert!(!refresh(root, &runner).expect("second").ran);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn go_writes_an_executable_driver_wrapper_and_a_rerun_is_a_no_op() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = dx_test_scratch::scratch("dx-ide-go-");
+        let root = scratch.path();
+        std::fs::write(root.join("main.go"), "").expect("go");
+        let mut runner = fake(root);
+        runner.lib = root.join("store").join("gopackagesdriver");
+        let first = refresh(root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        let path = root.join(".dx/ide/go/gopackagesdriver");
+        let text = std::fs::read_to_string(&path).expect("wrapper");
+        assert!(text.contains("BUILD_WORKSPACE_DIRECTORY="), "{text}");
+        assert!(text.contains("store/gopackagesdriver"), "{text}");
+        let mode = std::fs::metadata(&path).expect("meta").permissions().mode();
+        assert_eq!(mode & 0o111, 0o111);
+        assert!(!refresh(root, &runner).expect("second").ran);
+        assert_eq!(runner.calls.get(), 1);
         scratch.close().expect("cleanup");
     }
 }

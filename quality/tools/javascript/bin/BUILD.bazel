@@ -141,6 +141,19 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+# Isolated launcher: compiles and parses MDX, never runs it or loads any module outside its node_modules.
+js_binary(
+    name = "mdx_component_meta",
+    data = [
+        "component_meta_common.mjs",
+        "//quality/tools/javascript:node_modules/@mdx-js/mdx",
+        "//quality/tools/javascript:node_modules/remark-frontmatter",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "mdx_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
 # Isolated launcher: never loads svelte.config.js or any module outside its node_modules.
 js_binary(
     name = "svelte_component_meta",

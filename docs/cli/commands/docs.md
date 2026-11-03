@@ -275,7 +275,39 @@ The rule never reads `astro.config.*`, refuses to load modules outside its own
 error in an entry point and a malformed result all fail the build with a nonzero exit
 and never write a stub shard.
 
-MDX components are not supported yet.
+## MDX component API reference
+
+`mdx_doc_shard` from `@rules_dx//tools/docs/components:defs.bzl` reads `.mdx` files
+with the pinned `@mdx-js/mdx` and the TypeScript checker, and produces a docs IR shard
+with language `mdx`. Pass the shard to `docs_site` beside any other shards.
+
+```starlark
+load("@rules_dx//tools/docs/components:defs.bzl", "mdx_doc_shard")
+
+mdx_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.mdx"]),
+    entry_points = ["src/Intro.mdx"],
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+```
+
+Each entry point is one component. Supported shapes are ESM exports and `props.<name>`
+reads in MDX expressions. Named exports are listed as exposed members with their
+types and JSDoc. The JSDoc must sit inside the ESM block, which starts with an
+`import` or `export` line. Each `props.<name>` read is listed as a prop of type
+`unknown`. Prose and frontmatter are not API. Events and slots are not listed.
+Symbol ids are `mdx:<package>:<Name>`, and the members are `<Name>.prop_<name>` and
+`.exposed_<name>`. Names are file names without the extension and must be unique in a
+shard.
+
+Put type packages that exports import in `deps`. The `tsconfig` may sit at any path in
+the package.
+
+The rule compiles and parses the files and never runs them, so imports are only
+type-checked. A syntax error, a type error in the ESM exports and a malformed result
+fail the build with a nonzero exit and never write a stub shard.
 
 ## Go API reference
 

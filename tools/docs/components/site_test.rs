@@ -1,4 +1,4 @@
-//! Feeds the Vue, Svelte and Astro fixture shards to the site aggregator.
+//! Feeds the Vue, Svelte, Astro and MDX fixture shards to the site aggregator.
 
 fn fixture() -> documentation_ir::proto::DocIr {
     shard("DX_FIXTURE_SHARD")
@@ -92,5 +92,17 @@ fn astro_components_render_with_member_groups_and_search_records() {
         rendered.records.contains("Hero.astro prop_title"),
         "{}",
         rendered.records
+    );
+}
+
+#[test]
+fn mdx_components_render() {
+    let rendered = dx_site_aggregate::render(&[shard("DX_MDX_SHARD")], "").expect("render");
+    let page = &rendered.pages["mdx/ui/Intro.md"];
+    assert!(page.starts_with("# `Intro.mdx`"), "{page}");
+    assert!(
+        rendered.pages.contains_key("mdx/ui/Intro.prop_title.md"),
+        "{}",
+        rendered.summary
     );
 }

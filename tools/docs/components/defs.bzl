@@ -1,10 +1,11 @@
 """Component API reference shards built from the pinned component metadata tools."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _VUE_COMPONENT_META = Label("//quality/tools/javascript/bin:vue_component_meta")
+_MDX_COMPONENT_META = Label("//quality/tools/javascript/bin:mdx_component_meta")
 _SVELTE_COMPONENT_META = Label("//quality/tools/javascript/bin:svelte_component_meta")
 _ASTRO_COMPONENT_META = Label("//quality/tools/javascript/bin:astro_component_meta")
 _META_SCHEMA = "dx-component-meta/1"
@@ -168,5 +169,44 @@ def astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, p
         package = package,
         source_prefix = native.package_name(),
         config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";astro-compiler=" + ASTRO_COMPILER_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        **kwargs
+    )
+
+def mdx_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], **kwargs):
+    """Declares a component metadata run over one MDX project and its DocIr shard.
+
+    MDX files are compiled and parsed with the pinned `@mdx-js/mdx`, never run. ESM
+    exports are typed by the TypeScript checker. Props are the `props.<name>` reads in
+    expressions. Symbol ids are `mdx:<package>:<Name>` plus `.prop_` and `.exposed_`
+    members. Put type packages the exports import in `deps`.
+    """
+    where = "mdx_doc_shard " + native.package_name() + ":" + name
+    if len(entry_points) == 0:
+        fail(where + ": need at least one entry point")
+    if package == "":
+        fail(where + ": package is required")
+    meta = name + ".component_meta.json"
+    arguments = ["--tsconfig", tsconfig, "--out", meta]
+    for entry in entry_points:
+        arguments.extend(["--entry", entry])
+    js_run_binary(
+        name = name + "_meta",
+        srcs = srcs + [tsconfig] + deps,
+        args = arguments,
+        chdir = native.package_name(),
+        mnemonic = "DxMdxComponentMeta",
+        resource_set = "mem_2g",
+        outs = [meta],
+        tags = kwargs.get("tags", []),
+        tool = _MDX_COMPONENT_META,
+        visibility = kwargs.get("visibility"),
+    )
+    component_doc_shard(
+        name = name,
+        meta = ":" + meta,
+        language = "mdx",
+        package = package,
+        source_prefix = native.package_name(),
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";mdx=" + MDX_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
         **kwargs
     )

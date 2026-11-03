@@ -1,4 +1,4 @@
-//! Checks the Vue, Svelte and Astro fixture shards and the converter's failure handling.
+//! Checks the Vue, Svelte, Astro and MDX fixture shards and the converter's failure handling.
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -290,5 +290,58 @@ fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
             "{id}"
         );
         assert_eq!(reference.line, line_of(&source, needle), "{id}");
+    }
+}
+
+#[test]
+fn the_mdx_shard_has_exact_symbols_signatures_docs_and_lines() {
+    let shard = shard("DX_MDX_SHARD");
+    validate_shard(&shard).expect("validate_shard passes");
+    assert_eq!(
+        (shard.language.as_str(), shard.package.as_str()),
+        ("mdx", "ui")
+    );
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "mdx:ui:Intro",
+            "mdx:ui:Intro.exposed_greet",
+            "mdx:ui:Intro.exposed_limit",
+            "mdx:ui:Intro.prop_size",
+            "mdx:ui:Intro.prop_title",
+            "mdx:ui:Outro",
+            "mdx:ui:Outro.exposed_farewell",
+        ]
+    );
+    let sig = |id: &str| find(&shard, id).signature_text.clone();
+    assert_eq!(sig("mdx:ui:Intro.exposed_limit"), "limit: number");
+    assert_eq!(
+        sig("mdx:ui:Intro.exposed_greet"),
+        "greet: (name: string) => string"
+    );
+    assert_eq!(
+        find(&shard, "mdx:ui:Intro.exposed_greet").doc_markdown,
+        "Greets someone.\n\n**@param** name Who to greet.\n\n**@returns**"
+    );
+    let source = std::fs::read_to_string(runfile("DX_MDX_INTRO_SOURCE")).expect("read Intro.mdx");
+    for (id, needle) in [
+        ("mdx:ui:Intro.exposed_limit", "export const limit"),
+        ("mdx:ui:Intro.exposed_greet", "export function greet"),
+        ("mdx:ui:Intro.prop_title", "props.title"),
+        ("mdx:ui:Intro.prop_size", "props.size"),
+    ] {
+        let reference = find(&shard, id).source.clone().expect("source");
+        assert_eq!(
+            reference.file, "tools/docs/components/fixture/mdx/src/Intro.mdx",
+            "{id}"
+        );
+        assert_eq!(reference.line, line_of(&source, needle), "{id}");
+    }
+    for key in ["author", "Welcome", "prose"] {
+        assert!(
+            shard.symbols.iter().all(|s| !s.id.contains(key)),
+            "{key} became a symbol"
+        );
     }
 }

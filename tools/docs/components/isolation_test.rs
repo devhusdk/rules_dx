@@ -225,3 +225,49 @@ fn astro_bad_inputs_fail_without_a_stub_and_the_config_never_loads() {
         );
     }
 }
+
+fn mdx_launcher() -> PathBuf {
+    runfile(&std::env::var("DX_MDX_COMPONENT_META").expect("DX_MDX_COMPONENT_META"))
+}
+
+#[test]
+fn mdx_bad_inputs_fail_without_a_stub_and_imports_never_run() {
+    let scratch = dx_test_scratch::scratch("mdx-bad");
+    let root = scratch.path();
+    stage("DX_BAD_FILES", "fixture/bad/", root);
+    stage("DX_MDX_FILES", "fixture/mdx/", root);
+    for (name, entry) in [
+        ("syntax error", "src/Broken.mdx"),
+        ("type error", "src/TypeError.mdx"),
+        ("side effect import", "src/Intro.mdx"),
+    ] {
+        let output = Command::new(mdx_launcher())
+            .env("BAZEL_BINDIR", ".")
+            .current_dir(root)
+            .args([
+                "--tsconfig",
+                "tsconfig.json",
+                "--out",
+                "out.json",
+                "--entry",
+                entry,
+            ])
+            .output()
+            .expect("run the launcher");
+        if name == "side effect import" {
+            assert_eq!(output.status.code(), Some(0), "{}", text(&output));
+            std::fs::remove_file(root.join("out.json")).expect("out.json");
+        } else {
+            assert_eq!(output.status.code(), Some(2), "{name}: {}", text(&output));
+            assert!(text(&output).contains(entry), "{name}: {}", text(&output));
+            assert!(
+                !root.join("out.json").exists(),
+                "{name}: a stub was written"
+            );
+        }
+        assert!(
+            !root.join("mdx_side_effect.marker").exists(),
+            "{name}: an import ran"
+        );
+    }
+}

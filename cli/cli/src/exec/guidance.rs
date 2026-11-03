@@ -110,6 +110,15 @@ pub(crate) fn next_action(code: &str) -> Option<&'static str> {
         "invalid_bep" | "unreadable_bep" | "collection_failed" | "invalid_result" => {
             "next: results are incomplete; run the command again."
         }
+        "no_capability" => {
+            "next: pick a target that has a dx environment or codegen and run the command again."
+        }
+        "clean_failed" => {
+            "next: check that the workspace and .dx are readable and writable and run the command again."
+        }
+        "managed_commit_failed" => {
+            "next: run `dx env --apply` again; if it still fails, check that .dx is writable."
+        }
         _ => return None,
     })
 }
@@ -312,6 +321,9 @@ mod tests {
             "report_failed",
             "invalid_bep",
             "disk_full",
+            "no_capability",
+            "clean_failed",
+            "managed_commit_failed",
         ] {
             let text = next_action(code).expect(code);
             assert!(text.starts_with("next: "), "{text}");

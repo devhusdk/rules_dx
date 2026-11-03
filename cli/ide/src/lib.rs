@@ -2,6 +2,7 @@
 
 mod cc;
 mod link;
+mod python;
 mod typescript;
 
 use std::collections::BTreeMap;
@@ -59,7 +60,7 @@ impl Report {
     }
 }
 
-const PLUGINS: &[&Plugin] = &[&typescript::PLUGIN, &cc::PLUGIN];
+const PLUGINS: &[&Plugin] = &[&python::PLUGIN, &typescript::PLUGIN, &cc::PLUGIN];
 
 /// Refreshes `.dx/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
 pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, String> {
@@ -397,6 +398,30 @@ mod tests {
             std::fs::read_link(root.join(".dx/ide/typescript/lib")).expect("link"),
             runner.lib.join("lib")
         );
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn python_links_the_interpreter_and_a_rerun_is_a_no_op() {
+        let scratch = dx_test_scratch::scratch("dx-ide-py-");
+        let root = scratch.path();
+        std::fs::write(root.join("main.py"), "").expect("py");
+        let interpreter = root.join("store").join("python3");
+        std::fs::create_dir_all(root.join("store")).expect("store");
+        std::fs::write(&interpreter, "").expect("interpreter");
+        let runner = Fake {
+            calls: Cell::new(0),
+            lib: interpreter.clone(),
+            aquery: String::new(),
+        };
+        assert!(refresh(root, &runner).expect("first").ran);
+        assert_eq!(
+            std::fs::read_link(root.join(".dx/ide/python/python")).expect("link"),
+            interpreter
+        );
+        assert!(!refresh(root, &runner).expect("second").ran);
+        assert_eq!(runner.calls.get(), 1);
         scratch.close().expect("cleanup");
     }
 }

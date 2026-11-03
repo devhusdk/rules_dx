@@ -145,12 +145,7 @@ pub fn render_consumer_caller_for(branch: &str) -> String {
     )
 }
 
-pub fn render_editor_settings(windows: bool) -> String {
-    let python = if windows {
-        ".dx/setups/current/.venv/bin/python.exe"
-    } else {
-        ".dx/setups/current/.venv/bin/python"
-    };
+pub fn render_editor_settings() -> String {
     let base = format!("--output_base=${{workspaceFolder}}/{IDE_OUTPUT_BASE}");
     let excludes = serde_json::json!({"**/bazel-*/**": true, "**/.dx/ide/**": true});
     let settings = serde_json::json!({
@@ -179,7 +174,7 @@ pub fn render_editor_settings(windows: bool) -> String {
         ],
         "files.watcherExclude": excludes,
         "search.exclude": excludes,
-        "python.defaultInterpreterPath": python,
+        "python.defaultInterpreterPath": ".dx/ide/python/python",
         "typescript.tsdk": ".dx/ide/typescript/lib",
         "go.toolsManagement.checkForUpdates": "off",
         "clangd.path": ".dx/ide/cc/clangd",
@@ -201,7 +196,7 @@ pub fn bazelignore_covers_dx(text: &str) -> bool {
 }
 
 pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_for_host(module_name, cfg!(windows))
+    plan_init_files_full(module_name, DEFAULT_BRANCH_FALLBACK)
 }
 
 /// Plans the init files for `root`, with the repo's default branch in the caller workflow.
@@ -211,21 +206,10 @@ pub fn plan_init_files_at(root: &Path, module_name: &str) -> Result<Vec<Scaffold
     } else {
         DEFAULT_BRANCH_FALLBACK.to_owned()
     };
-    plan_init_files_full(module_name, cfg!(windows), &branch)
+    plan_init_files_full(module_name, &branch)
 }
 
-pub fn plan_init_files_for_host(
-    module_name: &str,
-    windows: bool,
-) -> Result<Vec<ScaffoldFile>, AdoptError> {
-    plan_init_files_full(module_name, windows, DEFAULT_BRANCH_FALLBACK)
-}
-
-fn plan_init_files_full(
-    module_name: &str,
-    windows: bool,
-    branch: &str,
-) -> Result<Vec<ScaffoldFile>, AdoptError> {
+fn plan_init_files_full(module_name: &str, branch: &str) -> Result<Vec<ScaffoldFile>, AdoptError> {
     let module = validate_init_module(module_name)?;
     let consumer_setup = render_consumer_module_setup();
     let setup = with_overrides_include(&consumer_setup)?;
@@ -252,7 +236,7 @@ fn plan_init_files_full(
         },
         ScaffoldFile {
             path: ".vscode/settings.json".to_owned(),
-            content: render_editor_settings(windows),
+            content: render_editor_settings(),
         },
         ScaffoldFile {
             path: ".vscode/extensions.json".to_owned(),
@@ -403,10 +387,9 @@ pub(crate) fn entries(
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_init, entries, plan_init_files, plan_init_files_for_host, render_consumer_caller,
-        render_consumer_caller_for, render_editor_settings, CONSUMER_WORKFLOW_OWNER,
-        CONSUMER_WORKFLOW_PATH, CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON,
-        DX_VERSION,
+        apply_init, entries, plan_init_files, render_consumer_caller, render_consumer_caller_for,
+        render_editor_settings, CONSUMER_WORKFLOW_OWNER, CONSUMER_WORKFLOW_PATH,
+        CONSUMER_WORKFLOW_PIN, CONSUMER_WORKFLOW_REPO, DEVCONTAINER_JSON, DX_VERSION,
     };
     use crate::version::consumer_setup::parse_consumer_setup;
 
@@ -518,7 +501,7 @@ mod tests {
 
     #[test]
     fn init_scaffold_covers_admitted_editors() {
-        let files = plan_init_files_for_host("demo", false).expect("init plans");
+        let files = plan_init_files("demo").expect("init plans");
         let settings = files
             .iter()
             .find(|f| f.path == ".vscode/settings.json")
@@ -776,22 +759,18 @@ mod tests {
     }
 
     #[test]
-    fn editor_settings_use_host_native_interpreter_and_tool_names() {
-        for (windows, python) in [
-            (false, ".dx/setups/current/.venv/bin/python"),
-            (true, ".dx/setups/current/.venv/bin/python.exe"),
-        ] {
-            let settings = render_editor_settings(windows);
-            let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
-            assert_eq!(
-                parsed["python.defaultInterpreterPath"],
-                serde_json::Value::from(python)
-            );
-            assert!(settings.ends_with('\n'), "{settings}");
-        }
-        let unix = render_editor_settings(false);
-        let win = render_editor_settings(true);
-        assert_ne!(unix, win);
+    fn editor_settings_use_plugin_paths() {
+        let settings = render_editor_settings();
+        let parsed: serde_json::Value = serde_json::from_str(&settings).expect("valid JSON");
+        assert_eq!(
+            parsed["python.defaultInterpreterPath"],
+            serde_json::Value::from(".dx/ide/python/python")
+        );
+        assert_eq!(
+            parsed["clangd.path"],
+            serde_json::Value::from(".dx/ide/cc/clangd")
+        );
+        assert!(settings.ends_with('\n'), "{settings}");
         for key in [
             "rust-analyzer.workspace.discoverConfig",
             "typescript.tsdk",
@@ -800,7 +779,7 @@ mod tests {
             "java.configuration.updateBuildConfiguration",
             "kotlin.languageServer.enabled",
         ] {
-            assert!(unix.contains(key) && win.contains(key), "lost {key}");
+            assert!(settings.contains(key), "lost {key}");
         }
     }
 
@@ -826,37 +805,25 @@ mod tests {
             "--saved-file",
             "$saved_file"
         ]);
-        let unix: serde_json::Value =
-            serde_json::from_str(&render_editor_settings(false)).expect("unix json");
-        let win: serde_json::Value =
-            serde_json::from_str(&render_editor_settings(true)).expect("windows json");
-        for parsed in [&unix, &win] {
-            let discover = &parsed["rust-analyzer.workspace.discoverConfig"];
-            assert_eq!(discover["command"], discover_argv);
-            assert_eq!(discover["progressLabel"], "rules_rust");
-            assert_eq!(
-                discover["filesToWatch"],
-                serde_json::json!([
-                    "BUILD",
-                    "BUILD.bazel",
-                    "MODULE.bazel",
-                    "WORKSPACE",
-                    "WORKSPACE.bazel"
-                ])
-            );
-            assert_eq!(parsed["rust-analyzer.check.overrideCommand"], check_argv);
-            assert_eq!(parsed["files.watcherExclude"], excludes);
-            assert_eq!(parsed["search.exclude"], excludes);
-            assert!(parsed.get("rust-analyzer.check.command").is_none());
-        }
-        for key in [
-            "rust-analyzer.workspace.discoverConfig",
-            "rust-analyzer.check.overrideCommand",
-            "files.watcherExclude",
-            "search.exclude",
-        ] {
-            assert_eq!(unix[key], win[key], "{key}");
-        }
+        let parsed: serde_json::Value =
+            serde_json::from_str(&render_editor_settings()).expect("json");
+        let discover = &parsed["rust-analyzer.workspace.discoverConfig"];
+        assert_eq!(discover["command"], discover_argv);
+        assert_eq!(discover["progressLabel"], "rules_rust");
+        assert_eq!(
+            discover["filesToWatch"],
+            serde_json::json!([
+                "BUILD",
+                "BUILD.bazel",
+                "MODULE.bazel",
+                "WORKSPACE",
+                "WORKSPACE.bazel"
+            ])
+        );
+        assert_eq!(parsed["rust-analyzer.check.overrideCommand"], check_argv);
+        assert_eq!(parsed["files.watcherExclude"], excludes);
+        assert_eq!(parsed["search.exclude"], excludes);
+        assert!(parsed.get("rust-analyzer.check.command").is_none());
     }
 
     #[test]
@@ -880,26 +847,13 @@ mod tests {
     }
 
     #[test]
-    fn init_scaffold_matches_on_both_hosts_except_native_names() {
-        let unix = plan_init_files_for_host("demo", false).expect("unix plans");
-        let win = plan_init_files_for_host("demo", true).expect("windows plans");
-        assert_eq!(unix.len(), win.len());
-        for (left, right) in unix.iter().zip(win.iter()) {
-            assert_eq!(left.path, right.path);
-            if left.path == ".vscode/settings.json" {
-                assert_eq!(left.content, render_editor_settings(false));
-                assert_eq!(right.content, render_editor_settings(true));
-            } else {
-                assert_eq!(left.content, right.content, "{}", left.path);
-            }
-        }
-        let host = plan_init_files("demo").expect("host plans");
-        let expected = plan_init_files_for_host("demo", cfg!(windows)).expect("host plans");
-        assert_eq!(
-            host.iter().map(|f| &f.path).collect::<Vec<_>>(),
-            expected.iter().map(|f| &f.path).collect::<Vec<_>>()
-        );
-        assert_eq!(host, expected);
+    fn init_scaffold_editor_settings_come_from_render() {
+        let files = plan_init_files("demo").expect("init plans");
+        let settings = files
+            .iter()
+            .find(|file| file.path == ".vscode/settings.json")
+            .expect("settings file");
+        assert_eq!(settings.content, render_editor_settings());
     }
 
     #[test]

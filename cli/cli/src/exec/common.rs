@@ -156,6 +156,14 @@ pub(crate) fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Resu
 }
 
 /// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
+pub(crate) fn bazel_failure_code(bazel_code: i32) -> &'static str {
+    if bazel_code == crate::bazel_restart::RESTART_EXIT {
+        CODE_SERVER_CRASHED
+    } else {
+        CODE_BAZEL_FAILED
+    }
+}
+
 pub(crate) fn emit_bazel_exit(
     out: &mut dyn Write,
     code: &str,

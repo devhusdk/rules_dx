@@ -365,7 +365,7 @@ fn emit_build_completion(
     if bazel_code != 0 {
         emit_bazel_exit(
             out,
-            CODE_BAZEL_FAILED,
+            bazel_failure_code(bazel_code),
             &format!(
                 "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
                 invocation.command.name(),
@@ -422,6 +422,19 @@ mod tests {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let phase = super::execute_workflow_phase(&inv, harness.env(&runner, &mut out, &mut err));
         assert_eq!(phase, (0, true, false));
+    }
+
+    #[test]
+    fn build_server_crash_reports_server_crashed() {
+        let harness = Harness {
+            bazel_code: 37,
+            ..Harness::new("build-crash")
+        };
+        let (code, out, _) = harness.run(&["build", "--output=json"]);
+        assert_eq!(code, 37, "{out}");
+        assert!(out.contains("\"code\":\"server_crashed\""), "{out}");
+        assert!(out.contains("\"cause\":\"host\""), "{out}");
+        assert!(!out.contains("bazel_failed"), "{out}");
     }
 
     #[test]

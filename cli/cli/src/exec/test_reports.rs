@@ -1523,7 +1523,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             }
         } else if bazel_code != 0 {
             if let Err(exit) = emit_built(out, bazel_exit_event(
-                CODE_BAZEL_FAILED,
+                bazel_failure_code(bazel_code),
                 &format!(
                     "Bazel {} failed with exit {bazel_code} (see stderr diagnostics; run `dx status` for toolchain/pin)",
                     invocation.command.name(),
@@ -4551,6 +4551,38 @@ mod tests {
         assert_eq!(
             event(&events, "command_finished")["tests"],
             serde_json::json!({"passed": 1, "failed": 0, "cached": 0, "no_cases": 0, "skipped": 0})
+        );
+    }
+
+    #[test]
+    fn test_server_crash_reports_server_crashed() {
+        let harness = Harness::new("test-server-crash");
+        let uri = write_bep_artifact(&harness, "0.xml", MINIMAL_TEST_XML.as_bytes());
+        let line = test_result_full_line(
+            "//a:t0",
+            1,
+            1,
+            1,
+            "PASSED",
+            None,
+            None,
+            None,
+            &[(String::from("test.xml"), uri)],
+        );
+        let harness = Harness {
+            bazel_code: 37,
+            raw_bep: Some(vec![line]),
+            ..harness
+        };
+        let (code, out, _) = harness.run(&["test", "--output=json", "//a:t0"]);
+        assert_eq!(code, 37, "{out}");
+        let events = json_events(&out);
+        let crashed = errors_with_code(&events, "server_crashed");
+        assert_eq!(crashed.len(), 1, "{out}");
+        assert_eq!(crashed[0]["cause"], serde_json::json!("host"), "{out}");
+        assert!(
+            errors_with_code(&events, "bazel_failed").is_empty(),
+            "{out}"
         );
     }
 

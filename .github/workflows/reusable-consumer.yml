@@ -305,6 +305,16 @@ jobs:
           rc=${PIPESTATUS[0]}
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
+      - name: Save the coverage event
+        if: ${{ always() && needs.validate.outputs.min_coverage != '' && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
+        env:
+          DX_EVENT_MIN_COVERAGE: ${{ needs.validate.outputs.min_coverage }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS ${REMOTE_HEADER:+"--remote_header=$REMOTE_HEADER"}
+          reports="${RUNNER_TEMP:-/tmp}/dx-reports/coverage"
+          mkdir -p "$reports"
+          bazel run "$@" @rules_dx//:dx -- coverage --output=json --min-coverage "$DX_EVENT_MIN_COVERAGE" //... -- "$@" > "$reports/coverage.ndjson" || true
       - name: Upload the coverage reports
         if: ${{ always() && !contains(format(',{0},', needs.validate.outputs.disabled), ',coverage,') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

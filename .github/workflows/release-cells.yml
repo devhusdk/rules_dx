@@ -119,6 +119,22 @@ jobs:
             --checkout "$GITHUB_WORKSPACE" \
             --out "$out/$CELL.json" || status=$?
           exit "$status"
+      - name: Qualify exact owned line coverage
+        env:
+          CELL: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          mkdir -p coverage-files
+          status=0
+          bazel run --config=dx_release //cli/cli:dx -- coverage --output=json --min-coverage 100 //... > "coverage-files/coverage-$CELL.ndjson" || status=$?
+          exit "$status"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ always() }}
+        with:
+          name: release-coverage-${{ matrix.name }}
+          path: coverage-files/*
+          if-no-files-found: warn
+          retention-days: 7
       - name: Collect the cell files
         if: ${{ always() }}
         shell: bash

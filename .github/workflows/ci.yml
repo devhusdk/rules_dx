@@ -42,6 +42,36 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+  coverage-cells:
+    name: coverage-cells (one exact coverage report from every native cell)
+    needs: [dogfood]
+    if: ${{ !cancelled() }}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: dx-reports-coverage-*
+          path: ${{ runner.temp }}/coverage-reports
+      - name: Check every cell reported exactly once
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          mkdir -p "$RUNNER_TEMP/coverage-reports"
+          files=()
+          while IFS= read -r file; do
+            files+=("$file")
+          done < <(find "$RUNNER_TEMP/coverage-reports" -name coverage.ndjson | sort)
+          bazel run "$@" //tools/ci:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
   docs:
     name: docs (self-call reusable docs workflow)
     uses: ./.github/workflows/reusable-docs.yml
@@ -831,6 +861,7 @@ jobs:
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}
     needs:
       [
+        coverage-cells,
         dogfood,
         docs,
         devcontainer-check,
@@ -858,7 +889,7 @@ jobs:
           import os
           import sys
 
-          required = ["dogfood", "docs", "devcontainer-check", "gate", "hermetic", "hermetic-arm64", "msix-install", "network", "preflight", "python-docs-consumer", "starter-consumer", "workflow-check"]
+          required = ["coverage-cells", "dogfood", "docs", "devcontainer-check", "gate", "hermetic", "hermetic-arm64", "msix-install", "network", "preflight", "python-docs-consumer", "starter-consumer", "workflow-check"]
           needs = json.loads(os.environ.get("NEEDS") or "{}")
           failing = sorted(
               name

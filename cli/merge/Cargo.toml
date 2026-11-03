@@ -1,0 +1,13 @@
+[package]
+name = "dx_merge"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "dx_merge"
+path = "src/lib.rs"
+
+[dependencies]
+jsonc-parser = { version = "0.34", features = ["cst", "serde_json"] }
+serde_json = "1"
+thiserror = "2"

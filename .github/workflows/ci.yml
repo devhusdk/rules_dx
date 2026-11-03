@@ -481,6 +481,51 @@ jobs:
         run: |
           echo "### python-docs-consumer (${PLATFORM}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Ran //python/tests/consumer:docs_consumer_test: a renamed-repo consumer builds a Python API site with dx docs on this platform." >> "$GITHUB_STEP_SUMMARY"
+  msix-install:
+    name: msix-install (windows_x86_64)
+    timeout-minutes: 60
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check for msix changes
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^(msix/|examples/msix-app/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: ./.github/actions/setup-bazel
+        if: steps.changes.outputs.run == 'true'
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Install and launch the signed package
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --test_output=errors "$@" //msix/tests:install_test
+      - name: Write job summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RAN: ${{ steps.changes.outputs.run }}
+        run: |
+          echo "### msix-install (windows_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran //msix/tests:install_test: ${RAN}. It installs the signed and unsigned packages and launches the app." >> "$GITHUB_STEP_SUMMARY"
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30
@@ -792,6 +837,7 @@ jobs:
         gate,
         hermetic,
         hermetic-arm64,
+        msix-install,
         network,
         preflight,
         python-docs-consumer,
@@ -812,7 +858,7 @@ jobs:
           import os
           import sys
 
-          required = ["dogfood", "docs", "devcontainer-check", "gate", "hermetic", "hermetic-arm64", "network", "preflight", "python-docs-consumer", "starter-consumer", "workflow-check"]
+          required = ["dogfood", "docs", "devcontainer-check", "gate", "hermetic", "hermetic-arm64", "msix-install", "network", "preflight", "python-docs-consumer", "starter-consumer", "workflow-check"]
           needs = json.loads(os.environ.get("NEEDS") or "{}")
           failing = sorted(
               name

@@ -60,6 +60,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "gate",
         "hermetic",
         "hermetic-arm64",
+        "msix-install",
         "network",
         "preflight",
         "python-docs-consumer",

@@ -168,7 +168,7 @@ const PACKAGES: [&str; 129] = [
     "examples/node-app/diagnostics",
     "qt/tests/fixtures/qt-rust/ledger",
     "examples/shared-rust",
-    "examples/zig-app/diagnostics",
+    "zig/tests/fixtures/zig-app/diagnostics",
     "fortran/tests/negative",
     "gazelle/java",
     "gazelle/kotlin",

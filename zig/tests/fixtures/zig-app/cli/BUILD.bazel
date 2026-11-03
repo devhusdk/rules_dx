@@ -2,7 +2,7 @@ load("@rules_dx//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//examples/zig-app:__subpackages__"])
+package(default_visibility = ["//zig/tests/fixtures/zig-app:__subpackages__"])
 
 exports_files(
     [
@@ -19,8 +19,8 @@ zig_library(
     name = "report",
     main = "report.zig",
     deps = [
-        "//examples/zig-app/catalog",
-        "//examples/zig-app/digest",
+        "//zig/tests/fixtures/zig-app/catalog",
+        "//zig/tests/fixtures/zig-app/digest",
     ],
 )
 
@@ -30,8 +30,8 @@ zig_test(
     main = "report_test.zig",
     deps = [
         ":report",
-        "//examples/zig-app/catalog",
-        "//examples/zig-app/digest",
+        "//zig/tests/fixtures/zig-app/catalog",
+        "//zig/tests/fixtures/zig-app/digest",
     ],
 )
 
@@ -40,7 +40,7 @@ zig_binary(
     main = "main.zig",
     deps = [
         ":report",
-        "//examples/zig-app/catalog",
+        "//zig/tests/fixtures/zig-app/catalog",
     ],
 )
 

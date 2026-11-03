@@ -152,7 +152,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude examples/perl-app
 # gazelle:exclude qt/tests/fixtures/qt-rust
 # gazelle:exclude qt/tests/fixtures/qt-tasks
-# gazelle:exclude examples/zig-app
+# gazelle:exclude zig/tests/fixtures/zig-app
 # gazelle:exclude examples/julia-app
 # gazelle:exclude examples/msix-app
 # gazelle:exclude examples/cuda-app

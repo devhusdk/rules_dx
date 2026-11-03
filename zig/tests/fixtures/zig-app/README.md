@@ -10,10 +10,10 @@ A multi-package Zig app. It has a `manifest` CLI, a catalog module with a genera
 | `diagnostics` | Compiler and `zig fmt` failures |
 
 ```sh
-bazel build //examples/zig-app/...
-bazel test //examples/zig-app/...
-bazel run //examples/zig-app/cli:manifest
-bazel run //examples/zig-app/cli:manifest -- get cable
+bazel build //zig/tests/fixtures/zig-app/...
+bazel test //zig/tests/fixtures/zig-app/...
+bazel run //zig/tests/fixtures/zig-app/cli:manifest
+bazel run //zig/tests/fixtures/zig-app/cli:manifest -- get cable
 ```
 
 `manifest` prints each item, the total, the schema version and an XXH64 digest of the item lines. `get NAME` prints one item.

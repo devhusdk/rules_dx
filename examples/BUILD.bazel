@@ -155,11 +155,11 @@ _EXAMPLE_STARLARK = [
     "//qt/tests/fixtures/qt-tasks/catalog:corpus_starlark",
     "//qt/tests/fixtures/qt-tasks/store:corpus_starlark",
     "//examples/shared-rust:corpus_starlark",
-    "//examples/zig-app:corpus_starlark",
-    "//examples/zig-app/catalog:corpus_starlark",
-    "//examples/zig-app/cli:corpus_starlark",
-    "//examples/zig-app/diagnostics:corpus_starlark",
-    "//examples/zig-app/digest:corpus_starlark",
+    "//zig/tests/fixtures/zig-app:corpus_starlark",
+    "//zig/tests/fixtures/zig-app/catalog:corpus_starlark",
+    "//zig/tests/fixtures/zig-app/cli:corpus_starlark",
+    "//zig/tests/fixtures/zig-app/diagnostics:corpus_starlark",
+    "//zig/tests/fixtures/zig-app/digest:corpus_starlark",
 ]
 
 # subpackages() only reports the outermost packages, so nested packages stay a
@@ -219,7 +219,7 @@ real_source_target(
         "//qt/tests/fixtures/qt-rust:README.md",
         "//qt/tests/fixtures/qt-tasks:README.md",
         "//examples/shared-rust:README.md",
-        "//examples/zig-app:README.md",
+        "//zig/tests/fixtures/zig-app:README.md",
     ],
     markdown_srcs = [
         "README.md",

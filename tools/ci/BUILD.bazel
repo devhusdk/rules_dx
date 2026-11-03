@@ -642,7 +642,7 @@ rust_test(
         "//examples/node-app/cli:corpus_starlark",
         "//examples/node-app/diagnostics:corpus_starlark",
         "//examples/shared-rust:corpus_starlark",
-        "//examples/zig-app/diagnostics:corpus_starlark",
+        "//zig/tests/fixtures/zig-app/diagnostics:corpus_starlark",
         "//fortran/tests/negative:corpus_starlark",
         "//gazelle/java:corpus_starlark",
         "//gazelle/kotlin:corpus_starlark",

@@ -1,7 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test", "rustfmt_test")
 
-package(default_visibility = ["//examples/zig-app:__subpackages__"])
+package(default_visibility = ["//zig/tests/fixtures/zig-app:__subpackages__"])
 
 rust_test(
     name = "diagnostics_test",
@@ -13,13 +13,13 @@ rust_test(
         "type_error.zig",
         "unformatted.zig",
         "unused_error.zig",
-        "//examples/zig-app/catalog:catalog.zig",
-        "//examples/zig-app/catalog:catalog_test.zig",
-        "//examples/zig-app/cli:main.zig",
-        "//examples/zig-app/cli:report.zig",
-        "//examples/zig-app/cli:report_test.zig",
-        "//examples/zig-app/digest:digest.zig",
-        "//examples/zig-app/digest:digest_test.zig",
+        "//zig/tests/fixtures/zig-app/catalog:catalog.zig",
+        "//zig/tests/fixtures/zig-app/catalog:catalog_test.zig",
+        "//zig/tests/fixtures/zig-app/cli:main.zig",
+        "//zig/tests/fixtures/zig-app/cli:report.zig",
+        "//zig/tests/fixtures/zig-app/cli:report_test.zig",
+        "//zig/tests/fixtures/zig-app/digest:digest.zig",
+        "//zig/tests/fixtures/zig-app/digest:digest_test.zig",
         "//zig/tools:zig",
         "//zig/tools:zig_lib_marker",
     ],
@@ -27,13 +27,13 @@ rust_test(
         "DX_CLEAN": "$(rootpath clean.zig)",
         "DX_FORMAT_SRCS": " ".join([
             "$(rootpath clean.zig)",
-            "$(rootpath //examples/zig-app/catalog:catalog.zig)",
-            "$(rootpath //examples/zig-app/catalog:catalog_test.zig)",
-            "$(rootpath //examples/zig-app/cli:main.zig)",
-            "$(rootpath //examples/zig-app/cli:report.zig)",
-            "$(rootpath //examples/zig-app/cli:report_test.zig)",
-            "$(rootpath //examples/zig-app/digest:digest.zig)",
-            "$(rootpath //examples/zig-app/digest:digest_test.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/catalog:catalog.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/catalog:catalog_test.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/cli:main.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/cli:report.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/cli:report_test.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/digest:digest.zig)",
+            "$(rootpath //zig/tests/fixtures/zig-app/digest:digest_test.zig)",
         ]),
         "DX_SYNTAX": "$(rootpath syntax_error.zig)",
         "DX_TYPE": "$(rootpath type_error.zig)",

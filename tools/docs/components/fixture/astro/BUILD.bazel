@@ -1,0 +1,35 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/components:defs.bzl", "astro_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+astro_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.astro"]) + ["astro.config.mjs"],
+    entry_points = [
+        "src/Hero.astro",
+        "src/Note.astro",
+    ],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+
+exports_files(["src/Hero.astro"])
+
+filegroup(
+    name = "project",
+    testonly = True,
+    srcs = glob(["src/*"]) + [
+        "astro.config.mjs",
+        "tsconfig.json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

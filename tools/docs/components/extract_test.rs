@@ -1,4 +1,4 @@
-//! Checks the Vue and Svelte fixture shards and the converter's failure handling.
+//! Checks the Vue, Svelte and Astro fixture shards and the converter's failure handling.
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -239,6 +239,54 @@ fn the_svelte_shard_has_exact_symbols_signatures_docs_and_lines() {
         let reference = find(&shard, id).source.clone().expect("source");
         assert_eq!(
             reference.file, "tools/docs/components/fixture/svelte/src/Card.svelte",
+            "{id}"
+        );
+        assert_eq!(reference.line, line_of(&source, needle), "{id}");
+    }
+}
+
+#[test]
+fn the_astro_shard_has_exact_symbols_signatures_docs_and_lines() {
+    let shard = shard("DX_ASTRO_SHARD");
+    validate_shard(&shard).expect("validate_shard passes");
+    assert_eq!(
+        (shard.language.as_str(), shard.package.as_str()),
+        ("astro", "ui")
+    );
+    let ids: Vec<&str> = shard.symbols.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "astro:ui:Hero",
+            "astro:ui:Hero.prop_links",
+            "astro:ui:Hero.prop_title",
+            "astro:ui:Hero.slot_default",
+            "astro:ui:Hero.slot_footer",
+            "astro:ui:Note",
+            "astro:ui:Note.prop_text",
+        ]
+    );
+    let sig = |id: &str| find(&shard, id).signature_text.clone();
+    assert_eq!(sig("astro:ui:Hero.prop_title"), "title: string");
+    assert_eq!(sig("astro:ui:Hero.prop_links"), "links?: number = 3");
+    assert_eq!(
+        find(&shard, "astro:ui:Hero.prop_title").doc_markdown,
+        "Heading of the hero."
+    );
+    assert_eq!(
+        find(&shard, "astro:ui:Hero.slot_footer").kind,
+        SymbolKind::Slot as i32
+    );
+    let source = std::fs::read_to_string(runfile("DX_ASTRO_HERO_SOURCE")).expect("read Hero.astro");
+    for (id, needle) in [
+        ("astro:ui:Hero.prop_title", "  title: string;"),
+        ("astro:ui:Hero.prop_links", "  links?: number;"),
+        ("astro:ui:Hero.slot_default", "<slot />"),
+        ("astro:ui:Hero.slot_footer", "<slot name=\"footer\" />"),
+    ] {
+        let reference = find(&shard, id).source.clone().expect("source");
+        assert_eq!(
+            reference.file, "tools/docs/components/fixture/astro/src/Hero.astro",
             "{id}"
         );
         assert_eq!(reference.line, line_of(&source, needle), "{id}");

@@ -1,4 +1,4 @@
-//! Feeds the Vue and Svelte fixture shards to the site aggregator.
+//! Feeds the Vue, Svelte and Astro fixture shards to the site aggregator.
 
 fn fixture() -> documentation_ir::proto::DocIr {
     shard("DX_FIXTURE_SHARD")
@@ -70,6 +70,26 @@ fn svelte_components_render_with_member_groups_and_search_records() {
     assert!(prop.contains("```text\ntitle: string\n```"), "{prop}");
     assert!(
         rendered.records.contains("Card.svelte prop_title"),
+        "{}",
+        rendered.records
+    );
+}
+
+#[test]
+fn astro_components_render_with_member_groups_and_search_records() {
+    let rendered = dx_site_aggregate::render(&[shard("DX_ASTRO_SHARD")], "").expect("render");
+    let page = &rendered.pages["astro/ui/Hero.md"];
+    assert!(page.starts_with("# `Hero.astro`"), "{page}");
+    for group in ["Props: ", "Slots: "] {
+        assert!(
+            page.contains(&format!("\n{group}")),
+            "{group} missing in {page}"
+        );
+    }
+    let prop = &rendered.pages["astro/ui/Hero.prop_title.md"];
+    assert!(prop.contains("```text\ntitle: string\n```"), "{prop}");
+    assert!(
+        rendered.records.contains("Hero.astro prop_title"),
         "{}",
         rendered.records
     );

@@ -238,7 +238,44 @@ The rule never reads `svelte.config.js`, refuses to load modules outside its own
 in an entry point, a component without `$props()` and a malformed result all fail the
 build with a nonzero exit and never write a stub shard.
 
-Astro and MDX components are not supported yet.
+## Astro component API reference
+
+`astro_doc_shard` from `@rules_dx//tools/docs/components:defs.bzl` reads the props and
+slots of Astro components with the pinned `@astrojs/compiler` and the TypeScript
+checker, and produces a docs IR shard with language `astro`. Pass the shard to
+`docs_site` beside any other shards.
+
+```starlark
+load("@rules_dx//tools/docs/components:defs.bzl", "astro_doc_shard")
+
+astro_doc_shard(
+    name = "ui_docs",
+    srcs = glob(["src/*.astro"]),
+    entry_points = ["src/Hero.astro"],
+    node_modules = "//:node_modules",
+    package = "ui",
+    tsconfig = "tsconfig.json",
+)
+```
+
+Each entry point is one `.astro` component. Props come from `interface Props` or
+`type Props` in the frontmatter. Defaults come from the `const { ... } = Astro.props`
+destructuring. Each `<slot>` is listed as a slot, named by its `name` attribute or
+`default`. Events and exposed members are not listed.
+Symbol ids are `astro:<package>:<Component>`, and the members are
+`<Component>.prop_<name>` and `.slot_<name>`. Component names are file names without
+the extension and must be unique in a shard.
+
+`node_modules` is the consumer's npm link target. Only its `astro` package is read,
+for the type declarations. The `tsconfig` may sit at any path in the package and may
+extend files listed in `srcs`.
+
+The rule never reads `astro.config.*`, refuses to load modules outside its own
+`node_modules`, and never runs other consumer JavaScript. A compiler error, a type
+error in an entry point and a malformed result all fail the build with a nonzero exit
+and never write a stub shard.
+
+MDX components are not supported yet.
 
 ## Go API reference
 

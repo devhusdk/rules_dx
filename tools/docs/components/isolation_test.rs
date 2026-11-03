@@ -1,4 +1,4 @@
-//! Checks that consumer configuration cannot inject plugins into the Vue and Svelte launchers and that
+//! Checks that consumer configuration cannot inject plugins into the Vue, Svelte and Astro launchers and that
 //! every failure path exits nonzero without writing a stub.
 
 use std::path::{Path, PathBuf};
@@ -182,6 +182,46 @@ fn svelte_bad_inputs_fail_without_a_stub_and_the_config_never_loads() {
         assert!(
             !root.join("svelte_config_loaded.marker").exists(),
             "{name}: svelte.config.js ran"
+        );
+    }
+}
+
+fn astro_launcher() -> PathBuf {
+    runfile(&std::env::var("DX_ASTRO_COMPONENT_META").expect("DX_ASTRO_COMPONENT_META"))
+}
+
+#[test]
+fn astro_bad_inputs_fail_without_a_stub_and_the_config_never_loads() {
+    let scratch = dx_test_scratch::scratch("astro-bad");
+    let root = scratch.path();
+    stage("DX_BAD_FILES", "fixture/bad/", root);
+    stage("DX_ASTRO_FILES", "fixture/astro/", root);
+    for (name, entry) in [
+        ("parse error", "src/AstroBroken.astro"),
+        ("type error", "src/AstroTypeError.astro"),
+    ] {
+        let output = Command::new(astro_launcher())
+            .env("BAZEL_BINDIR", ".")
+            .current_dir(root)
+            .args([
+                "--tsconfig",
+                "tsconfig.json",
+                "--out",
+                "out.json",
+                "--entry",
+                entry,
+            ])
+            .output()
+            .expect("run the launcher");
+        assert_eq!(output.status.code(), Some(2), "{name}: {}", text(&output));
+        assert!(text(&output).contains(entry), "{name}: {}", text(&output));
+        assert!(
+            !root.join("out.json").exists(),
+            "{name}: a stub was written"
+        );
+        assert!(
+            !root.join("astro_config_loaded.marker").exists(),
+            "{name}: astro.config.mjs ran"
         );
     }
 }

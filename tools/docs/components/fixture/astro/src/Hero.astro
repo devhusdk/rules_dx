@@ -1,0 +1,18 @@
+---
+/** The props of a hero. */
+interface Props {
+  /** Heading of the hero. */
+  title: string;
+  /** Number of visible links. */
+  links?: number;
+}
+
+const { title, links = 3 } = Astro.props;
+---
+
+<section>
+  <h1>{title}</h1>
+  <p>{links}</p>
+  <slot />
+  <slot name="footer" />
+</section>

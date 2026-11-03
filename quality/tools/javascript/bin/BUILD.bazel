@@ -155,6 +155,19 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+# Isolated launcher: never loads astro.config.* or any module outside its node_modules.
+js_binary(
+    name = "astro_component_meta",
+    data = [
+        "component_meta_common.mjs",
+        "//quality/tools/javascript:node_modules/@astrojs/compiler",
+        "//quality/tools/javascript:node_modules/@jridgewell/trace-mapping",
+        "//quality/tools/javascript:node_modules/typescript",
+    ],
+    entry_point = "astro_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
 # The stock CLI, only for the isolation test's control build.
 typedoc_bin.typedoc_binary(
     name = "typedoc_stock",

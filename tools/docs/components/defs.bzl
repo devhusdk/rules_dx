@@ -1,11 +1,12 @@
 """Component API reference shards built from the pinned component metadata tools."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("//modules:versions.bzl", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 _VUE_COMPONENT_META = Label("//quality/tools/javascript/bin:vue_component_meta")
 _SVELTE_COMPONENT_META = Label("//quality/tools/javascript/bin:svelte_component_meta")
+_ASTRO_COMPONENT_META = Label("//quality/tools/javascript/bin:astro_component_meta")
 _META_SCHEMA = "dx-component-meta/1"
 
 def _component_doc_shard_impl(ctx):
@@ -127,5 +128,45 @@ def svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, 
         package = package,
         source_prefix = native.package_name(),
         config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";svelte2tsx=" + SVELTE2TSX_VERSION + ";svelte=" + SVELTE_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
+        **kwargs
+    )
+
+def astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs):
+    """Declares a component metadata run over one Astro project and its DocIr shard.
+
+    The metadata comes from the pinned `@astrojs/compiler` and the TypeScript checker,
+    run through an isolated launcher: `astro.config.*` and other consumer JavaScript never
+    run. Only the consumer's `astro` package is read from `node_modules`, for its type
+    declarations. Entry points are `.astro` files. Symbol ids are
+    `astro:<package>:<Component>` plus `.prop_` and `.slot_` members.
+    """
+    where = "astro_doc_shard " + native.package_name() + ":" + name
+    if len(entry_points) == 0:
+        fail(where + ": need at least one entry point")
+    if package == "":
+        fail(where + ": package is required")
+    meta = name + ".component_meta.json"
+    arguments = ["--tsconfig", tsconfig, "--out", meta]
+    for entry in entry_points:
+        arguments.extend(["--entry", entry])
+    js_run_binary(
+        name = name + "_meta",
+        srcs = srcs + [tsconfig] + ([package_json] if package_json else []) + deps + [node_modules + "/astro"],
+        args = arguments,
+        chdir = native.package_name(),
+        mnemonic = "DxAstroComponentMeta",
+        resource_set = "mem_2g",
+        outs = [meta],
+        tags = kwargs.get("tags", []),
+        tool = _ASTRO_COMPONENT_META,
+        visibility = kwargs.get("visibility"),
+    )
+    component_doc_shard(
+        name = name,
+        meta = ":" + meta,
+        language = "astro",
+        package = package,
+        source_prefix = native.package_name(),
+        config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";meta-json=" + _META_SCHEMA + ";astro-compiler=" + ASTRO_COMPILER_VERSION + ";typescript=" + TYPESCRIPT_VERSION,
         **kwargs
     )

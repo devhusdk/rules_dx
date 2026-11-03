@@ -371,11 +371,37 @@ fn rc_import_paths(content: &str) -> Vec<String> {
     out
 }
 
-/// Files the root `.bazelrc` reaches through workspace imports.
-fn workspace_rc_files(workspace: &Path) -> BTreeSet<String> {
+/// Rc files the workspace `.bazelrc` and `BAZELRC` or `--bazelrc` name, with their workspace imports.
+fn workspace_rc_files(workspace: &Path, startup_options: &[String]) -> BTreeSet<String> {
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut visited: BTreeSet<String> = BTreeSet::from([".bazelrc".to_owned()]);
     let mut stack = vec![".bazelrc".to_owned()];
+    let env_get = |name: &str| std::env::var(name).ok();
+    for path in dx_process::rc::explicit_rc_files(&env_get, startup_options) {
+        let relative = path.strip_prefix(workspace).unwrap_or(&path);
+        if relative.is_absolute() {
+            continue;
+        }
+        let parts: Vec<String> = relative
+            .components()
+            .filter_map(|c| match c {
+                std::path::Component::Normal(p) => Some(p.to_string_lossy().into_owned()),
+                _ => None,
+            })
+            .collect();
+        if parts.is_empty()
+            || relative
+                .components()
+                .any(|c| c == std::path::Component::ParentDir)
+        {
+            continue;
+        }
+        let name = parts.join("/");
+        seen.insert(name.clone());
+        if visited.insert(name.clone()) {
+            stack.push(name);
+        }
+    }
     while let Some(current) = stack.pop() {
         let Ok(content) = std::fs::read_to_string(workspace.join(&current)) else {
             continue;
@@ -394,7 +420,13 @@ fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
     let name = file_name_of(path);
     matches!(
         name,
-        "MODULE.bazel" | "MODULE.bazel.lock" | "WORKSPACE" | "WORKSPACE.bazel" | ".bazelversion"
+        "MODULE.bazel"
+            | "MODULE.bazel.lock"
+            | "WORKSPACE"
+            | "WORKSPACE.bazel"
+            | ".bazelversion"
+            | ".bazeliskrc"
+            | ".bazelignore"
     ) || name.starts_with(".bazelrc")
         || (name.ends_with(".MODULE.bazel") && !name.starts_with('.'))
         || rc_files.contains(path)
@@ -838,7 +870,7 @@ pub fn resolve_affected(
     let mut module_paths: Vec<String> = Vec::new();
     let mut cache = PackageCache::default();
     let (hubs, inputs) = module_inputs_of(workspace);
-    let rc_files = workspace_rc_files(workspace);
+    let rc_files = workspace_rc_files(workspace, startup_options);
     for change in changes {
         let mut paths = vec![change.path.clone()];
         if let Some(from) = &change.from {
@@ -1476,6 +1508,11 @@ mod tests {
             "deps/go.MODULE.bazel",
             "Cargo.lock",
             ".bazelrc",
+            ".bazelrc.user",
+            ".bazeliskrc",
+            ".bazelignore",
+            ".bazelversion",
+            "WORKSPACE.bazel",
         ] {
             let scratch = dx_test_scratch::scratch("dx-changed-workspace-");
             let workspace = scratch.path().to_path_buf();
@@ -1498,6 +1535,28 @@ mod tests {
                 "{changed}"
             );
         }
+    }
+
+    #[test]
+    fn explicit_rc_files_widen_to_repository_without_query() {
+        let scratch = dx_test_scratch::scratch("dx-changed-explicit-rc-");
+        let workspace = scratch.path().to_path_buf();
+        write(&workspace, "pkg/BUILD.bazel", "");
+        write(&workspace, "tools/ci.bazelrc", "x\n");
+        let selection = resolve_affected(
+            &[change("tools/ci.bazelrc", dx_adopt::ChangeKind::Modified)],
+            &workspace,
+            &crate::resolve::NeverQuery,
+            &["--bazelrc=tools/ci.bazelrc".to_owned()],
+            &[],
+            None,
+        )
+        .expect("explicit rc widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "workspace input tools/ci.bazelrc"
+        );
     }
 
     #[test]

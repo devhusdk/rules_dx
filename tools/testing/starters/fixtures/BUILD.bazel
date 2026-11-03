@@ -63,6 +63,12 @@ filegroup(
 )
 
 filegroup(
+    name = "fsharp",
+    srcs = glob(["fsharp/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "go",
     srcs = glob(["go/**"]),
     visibility = ["//visibility:public"],

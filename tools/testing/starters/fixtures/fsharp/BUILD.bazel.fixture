@@ -1,0 +1,25 @@
+load("@rules_dx//fsharp/rules:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
+
+fsharp_library(
+    name = "demo-app",
+    srcs = ["Library.fs"],
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_binary(
+    name = "demo-app_bin",
+    srcs = ["Program.fs"],
+    deps = [
+        ":demo-app",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_test(
+    name = "demo-app_test",
+    srcs = ["HelloTest.fs"],
+    deps = [
+        ":demo-app",
+        "@paket.main//fsharp.core",
+    ],
+)

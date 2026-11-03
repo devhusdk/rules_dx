@@ -1,0 +1,11 @@
+module HelloTest
+
+[<EntryPoint>]
+let main _ =
+    let got = Hello.greet "world"
+    if got <> "hello world" then
+        printfn "FAIL: got '%s'" got
+        1
+    else
+        printfn "PASS"
+        0

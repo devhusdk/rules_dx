@@ -56,6 +56,10 @@ starter_consumer_test(
 )
 
 starter_consumer_test(
+    name = "fsharp",
+)
+
+starter_consumer_test(
     name = "go",
 )
 

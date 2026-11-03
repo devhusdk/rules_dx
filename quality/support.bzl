@@ -1,6 +1,7 @@
 """Explicit tool support records."""
 
-load("//quality/artifacts:hub.bzl", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
+load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 
 SUPPORT_SCHEMA_VERSION = 1
@@ -41,7 +42,6 @@ DOCKERFILE_HADOLINT_SUPPORT = {
     "execution": "direct",
     "family": "dockerfile",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "hadolint",
     "transport": "batched",
@@ -70,7 +70,6 @@ BICEP_BICEP_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "bicep",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "bicep",
     "transport": "single",
@@ -84,7 +83,6 @@ BICEP_BICEP_LINT_SUPPORT = {
     "execution": "direct",
     "family": "bicep",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "bicep",
     "transport": "single",
@@ -140,7 +138,6 @@ MAKE_CHECKMAKE_SUPPORT = {
     "execution": "direct",
     "family": "make",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "checkmake",
     "transport": "batched",
@@ -210,7 +207,6 @@ SCALA_SCALAFMT_SUPPORT = {
     "execution": "direct",
     "family": "scala",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "scalafmt",
     "transport": "batched",
@@ -480,7 +476,6 @@ YAML_YAMLFMT_SUPPORT = {
     "execution": "direct",
     "family": "yaml",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "yamlfmt",
     "transport": "batched",
@@ -522,7 +517,6 @@ NIX_NIXFMT_SUPPORT = {
     "execution": "direct",
     "family": "nix",
     "fix": "supported",
-    "platforms": ["linux_x86_64"],
     "state": "supported",
     "tool": "nixfmt",
     "transport": "batched",
@@ -594,7 +588,6 @@ TERRAFORM_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "terraform",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "terraform",
     "transport": "single",
@@ -608,7 +601,6 @@ TERRAFORM_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "terraform",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "terraform",
     "transport": "single",
@@ -622,7 +614,6 @@ TERRAFORM_TFLINT_SUPPORT = {
     "execution": "direct",
     "family": "terraform",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "tflint",
     "transport": "batched",
@@ -1020,7 +1011,6 @@ JAVASCRIPT_BIOME_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "javascript",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "biome",
     "transport": "batched",
@@ -1034,7 +1024,6 @@ JAVASCRIPT_BIOME_LINT_SUPPORT = {
     "execution": "direct",
     "family": "javascript",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "biome",
     "transport": "batched",
@@ -1132,7 +1121,6 @@ TYPESCRIPT_BIOME_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "typescript",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "biome",
     "transport": "batched",
@@ -1146,7 +1134,6 @@ TYPESCRIPT_BIOME_LINT_SUPPORT = {
     "execution": "direct",
     "family": "typescript",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "biome",
     "transport": "batched",
@@ -1388,7 +1375,6 @@ CUE_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "cue",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "cue",
     "transport": "batched",
@@ -1402,7 +1388,6 @@ CUE_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "cue",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "cue",
     "transport": "batched",
@@ -1416,7 +1401,6 @@ JSONNET_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "jsonnet",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "jsonnetfmt",
     "transport": "batched",
@@ -1458,7 +1442,6 @@ JSONNET_LINT_SUPPORT = {
     "execution": "direct",
     "family": "jsonnet",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "jsonnet_lint",
     "transport": "batched",
@@ -1472,7 +1455,6 @@ TYPST_TYPSTYLE_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "typst",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "typstyle",
     "transport": "batched",
@@ -1593,7 +1575,6 @@ HASKELL_HLINT_LINT_SUPPORT = {
     "execution": "direct",
     "family": "haskell",
     "fix": "check_only",
-    "platforms": ["linux_x86_64", "windows_arm64", "windows_x86_64"],
     "state": "supported",
     "tool": "hlint",
     "transport": "batched",
@@ -1611,7 +1592,6 @@ HASKELL_ORMOLU_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "haskell",
     "fix": "supported",
-    "platforms": ["linux_x86_64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ormolu",
     "transport": "single",
@@ -1626,7 +1606,6 @@ PKL_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "pkl",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "pkl",
     "transport": "batched",
@@ -1640,7 +1619,6 @@ PKL_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "pkl",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "pkl",
     "transport": "single",
@@ -1668,7 +1646,6 @@ LUA_STYLUA_SUPPORT = {
     "execution": "direct",
     "family": "lua",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "stylua",
     "transport": "batched",
@@ -1682,7 +1659,6 @@ JUPYTER_RUFF_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "jupyter",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ruff",
     "transport": "batched",
@@ -1696,7 +1672,6 @@ JUPYTER_RUFF_LINT_SUPPORT = {
     "execution": "direct",
     "family": "jupyter",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ruff",
     "transport": "batched",
@@ -1752,7 +1727,6 @@ PYTHON_RUFF_FORMAT_SUPPORT = {
     "execution": "direct",
     "family": "python",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ruff",
     "transport": "batched",
@@ -1766,7 +1740,6 @@ PYTHON_RUFF_LINT_SUPPORT = {
     "execution": "direct",
     "family": "python",
     "fix": "supported",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ruff",
     "transport": "batched",
@@ -1780,7 +1753,6 @@ PYTHON_TY_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "python",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ty",
     "transport": "batched",
@@ -1794,7 +1766,6 @@ JUPYTER_TY_TYPECHECK_SUPPORT = {
     "execution": "direct",
     "family": "jupyter",
     "fix": "check_only",
-    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
     "state": "qualified",
     "tool": "ty",
     "transport": "batched",
@@ -2088,7 +2059,31 @@ QML_QMLFORMAT_FORMAT_SUPPORT = {
     "unsupported": ["windows_arm64", "windows_x86_64"],
 }
 
-SUPPORT_RECORDS = [
+SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
+
+def _pinned_platforms():
+    """Maps each tool to the platforms of its pinned artifacts."""
+    pinned = {}
+    for artifact in TOOL_ARTIFACTS:
+        pinned.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
+    return pinned
+
+_PINNED_PLATFORMS = _pinned_platforms()
+
+def with_platforms(record):
+    """Fills in the platforms of a record from the tool artifact table."""
+    if "platforms" in record:
+        return record
+    tool = record["tool"]
+    pinned = _PINNED_PLATFORMS.get(tool, [])
+    platforms = [p for p in pinned if p in SUPPORT_PLATFORMS]
+    for platform, source in PLATFORM_FALLBACKS.items():
+        if source in pinned and platform not in platforms and tool in EMULATED_TOOLS.get(platform, []):
+            platforms.append(platform)
+    unsupported = record.get("unsupported", [])
+    return dict(record, platforms = sorted([p for p in platforms if p not in unsupported]))
+
+SUPPORT_RECORDS = [with_platforms(r) for r in [
     CAPNP_CAPNP_LINT_SUPPORT,
     CAPNP_CAPNP_TYPECHECK_SUPPORT,
     FLATBUFFERS_FLATC_LINT_SUPPORT,
@@ -2233,7 +2228,7 @@ SUPPORT_RECORDS = [
     QML_QMLLINT_LINT_SUPPORT,
     QML_QMLLINT_TYPECHECK_SUPPORT,
     QML_QMLFORMAT_FORMAT_SUPPORT,
-]
+]]
 
 def _is_canonical_token(text):
     """Reports whether a token uses the canonical alphabet."""
@@ -2243,11 +2238,6 @@ def _is_canonical_token(text):
         if c not in "abcdefghijklmnopqrstuvwxyz0123456789_":
             return False
     return True
-
-# Every platform a support record may name: the qualified execution set plus the selectable
-# fallback platforms (hub.bzl). A sixth platform is one edit there.
-# A fallback platform claim still needs a matrix case flagged for it; fallbacks supply artifacts only.
-SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
 
 def _is_unbuilt(record):
     """Reports whether a record names a tool with no pinned build on any platform.

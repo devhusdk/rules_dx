@@ -6,51 +6,51 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 load("@rules_go//go:def.bzl", "GoArchive")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("@rules_powershell//powershell:defs.bzl", _PwshInfo = "PwshInfo")
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_aspect", _rust_common = "rust_common")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
+load("//bicep/rules:providers.bzl", "BicepInfo")
+load("//capnproto/rules:defs.bzl", "CapnpInfo")
+load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
+load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
 load("//fsharp/rules:symbols.bzl", "fsharp_compile_defines")
 load("//helm/rules:providers.bzl", "HelmChartInfo")
-load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
 load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
+load("//lua/private:providers.bzl", "LuaInfo")
+load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
+load("//php/rules:php.bzl", "staged_path")
+load("//php/rules:providers.bzl", "PhpInfo")
 load(
     "//quality:adapters.bzl",
     "REAL_ADAPTERS",
     "REAL_CLASS_TO_FAMILY",
 )
+load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
+load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
 load("//quality:dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_external_root", "dart_package_entries", "dart_pubspec_stubs")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "native_config_scratch_rel", "missing_required_config_error")
+load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
+load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
+load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
+load("//quality:native_config.bzl", "DxNativeConfigInfo", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel")
+load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
 load("//quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "drop_pipeline_tool", "filter_pipeline_by_tools", "generated_source_paths", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
-load("//quality:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
-load("//quality:nvcc_syntax.bzl", "NvccSyntaxInfo", "nvcc_syntax_aspect")
-load("//quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "CompileCheckInfo", "compile_check_aspect")
-load("//quality:fsc.bzl", "FscInfo", "FscUnsupportedInfo", "fsc_aspect")
 load("//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
-load("//quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
-load("//quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
-load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
-load("//dart/rules:providers.bzl", "DartAnalyzableInfo", "DartInfo")
-load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
-load("//capnproto/rules:defs.bzl", "CapnpInfo")
-load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
-load("//thrift/rules:defs.bzl", "ThriftInfo")
-load("//lua/private:providers.bzl", "LuaInfo")
-load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
-load("//php/rules:php.bzl", "staged_path")
-load("//php/rules:providers.bzl", "PhpInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
 load("//quality:support.bzl", "support_unpinned_tools")
-load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
-load("//bicep/rules:providers.bzl", "BicepInfo")
+load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
 load("//rego/rules:providers.bzl", "RegoInfo")
 load("//rust/rules:edition.bzl", "RUST_EDITION")
 load("//rust/toolchains:bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 load("//sql/rules:providers.bzl", "SqlDialectInfo")
+load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
+load("//thrift/rules:defs.bzl", "ThriftInfo")
 
 _REAL_TOOL_TABLE = {
     "biome": {
@@ -1236,6 +1236,7 @@ def _helm_context(target, ctx, what):
         }),
     )
     return context
+
 _DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
 _DART_OPTIONS_REL = "analysis_options.yaml"
 
@@ -1476,6 +1477,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
             tool_target = getattr(ctx.attr, "_dialyzer")
             if DialyzerToolInfo not in tool_target:
                 fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer")
+
             # The tool's PLTs come first; a language's own follow, without repeating one.
             seen_plts = {}
             for plt in tool_target[DialyzerToolInfo].plts + target[BeamInfo].plts:

@@ -9,10 +9,9 @@ load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
-load("//quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
 load(":real_aspects.bzl", "real_wired_capabilities")
-load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "BICEP_BICEP_FORMAT_SUPPORT", "BICEP_BICEP_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CC_CPPCHECK_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "PYTHON_FLAKE8_LINT_SUPPORT", "PYTHON_PYDOCLINT_LINT_SUPPORT", "PYTHON_PYLINT_LINT_SUPPORT", "PYTHON_RUFF_FORMAT_SUPPORT", "PYTHON_RUFF_LINT_SUPPORT", "PYTHON_TY_TYPECHECK_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "TERRAFORM_TYPECHECK_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools")
+load(":support.bzl", "ANSIBLE_PRETTIER_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "BICEP_BICEP_FORMAT_SUPPORT", "BICEP_BICEP_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CC_CPPCHECK_LINT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_PRETTIER_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "PYTHON_FLAKE8_LINT_SUPPORT", "PYTHON_PYDOCLINT_LINT_SUPPORT", "PYTHON_PYLINT_LINT_SUPPORT", "PYTHON_RUFF_FORMAT_SUPPORT", "PYTHON_RUFF_LINT_SUPPORT", "PYTHON_TY_TYPECHECK_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_PRETTIER_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "TERRAFORM_TYPECHECK_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools", "with_platforms")
 
 def _without(wired, tool, capability):
     """Returns a copy of the wired map with one tool capability removed."""
@@ -289,7 +288,7 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "clang_format, cppcheck and rustfmt records cover five platforms",
-                [r["platforms"] for r in [CC_CLANG_FORMAT_SUPPORT, CUDA_CLANG_FORMAT_SUPPORT, OBJC_CLANG_FORMAT_SUPPORT, CC_CPPCHECK_LINT_SUPPORT, RUST_RUSTFMT_FORMAT_SUPPORT]],
+                [with_platforms(r)["platforms"] for r in [CC_CLANG_FORMAT_SUPPORT, CUDA_CLANG_FORMAT_SUPPORT, OBJC_CLANG_FORMAT_SUPPORT, CC_CPPCHECK_LINT_SUPPORT, RUST_RUSTFMT_FORMAT_SUPPORT]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 5,
             ),
             expect_equal(
@@ -299,87 +298,87 @@ def support_unit_tests(name):
             ),
             expect_equal(
                 "terraform format record covers four platforms",
-                TERRAFORM_FORMAT_SUPPORT["platforms"],
+                with_platforms(TERRAFORM_FORMAT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "terraform typecheck record covers the format platforms",
-                TERRAFORM_TYPECHECK_SUPPORT["platforms"],
-                TERRAFORM_FORMAT_SUPPORT["platforms"],
+                with_platforms(TERRAFORM_TYPECHECK_SUPPORT)["platforms"],
+                with_platforms(TERRAFORM_FORMAT_SUPPORT)["platforms"],
             ),
             expect_equal(
                 "jupyter ruff records cover five platforms",
-                [JUPYTER_RUFF_FORMAT_SUPPORT["platforms"], JUPYTER_RUFF_LINT_SUPPORT["platforms"]],
+                [with_platforms(JUPYTER_RUFF_FORMAT_SUPPORT)["platforms"], with_platforms(JUPYTER_RUFF_LINT_SUPPORT)["platforms"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]],
             ),
             expect_equal(
                 "python records cover five platforms",
-                [r["platforms"] for r in [PYTHON_FLAKE8_LINT_SUPPORT, PYTHON_PYDOCLINT_LINT_SUPPORT, PYTHON_PYLINT_LINT_SUPPORT, PYTHON_RUFF_FORMAT_SUPPORT, PYTHON_RUFF_LINT_SUPPORT, PYTHON_TY_TYPECHECK_SUPPORT]],
+                [with_platforms(r)["platforms"] for r in [PYTHON_FLAKE8_LINT_SUPPORT, PYTHON_PYDOCLINT_LINT_SUPPORT, PYTHON_PYLINT_LINT_SUPPORT, PYTHON_RUFF_FORMAT_SUPPORT, PYTHON_RUFF_LINT_SUPPORT, PYTHON_TY_TYPECHECK_SUPPORT]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 6,
             ),
             expect_equal(
                 "jupyter notebook_outputs lint record covers four platforms",
-                JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT["platforms"],
+                with_platforms(JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "sql xml and gherkin prettier records cover four platforms",
-                [SQL_PRETTIER_FORMAT_SUPPORT["platforms"], XML_PRETTIER_FORMAT_SUPPORT["platforms"], GHERKIN_PRETTIER_FORMAT_SUPPORT["platforms"]],
+                [with_platforms(SQL_PRETTIER_FORMAT_SUPPORT)["platforms"], with_platforms(XML_PRETTIER_FORMAT_SUPPORT)["platforms"], with_platforms(GHERKIN_PRETTIER_FORMAT_SUPPORT)["platforms"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"], ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]],
             ),
             expect_equal(
                 "gherkin gplint lint record is owned, batched, check-only and linux_x86_64 only",
-                [GHERKIN_GPLINT_LINT_SUPPORT["platforms"], GHERKIN_GPLINT_LINT_SUPPORT["fix"], GHERKIN_GPLINT_LINT_SUPPORT["transport"], GHERKIN_GPLINT_LINT_SUPPORT["context"]],
+                [with_platforms(GHERKIN_GPLINT_LINT_SUPPORT)["platforms"], GHERKIN_GPLINT_LINT_SUPPORT["fix"], GHERKIN_GPLINT_LINT_SUPPORT["transport"], GHERKIN_GPLINT_LINT_SUPPORT["context"]],
                 [["linux_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "api_spec prettier format record covers four platforms",
-                API_SPEC_PRETTIER_FORMAT_SUPPORT["platforms"],
+                with_platforms(API_SPEC_PRETTIER_FORMAT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
                 "ansible and kubernetes prettier records cover four platforms",
-                [ANSIBLE_PRETTIER_FORMAT_SUPPORT["platforms"], KUBERNETES_PRETTIER_FORMAT_SUPPORT["platforms"]],
+                [with_platforms(ANSIBLE_PRETTIER_FORMAT_SUPPORT)["platforms"], with_platforms(KUBERNETES_PRETTIER_FORMAT_SUPPORT)["platforms"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2,
             ),
             expect_equal(
                 "bicep records are owned, single-file and cover five platforms; only format fixes",
-                [BICEP_BICEP_FORMAT_SUPPORT["platforms"], BICEP_BICEP_LINT_SUPPORT["platforms"], BICEP_BICEP_FORMAT_SUPPORT["fix"], BICEP_BICEP_LINT_SUPPORT["fix"], BICEP_BICEP_FORMAT_SUPPORT["transport"]],
+                [with_platforms(BICEP_BICEP_FORMAT_SUPPORT)["platforms"], with_platforms(BICEP_BICEP_LINT_SUPPORT)["platforms"], BICEP_BICEP_FORMAT_SUPPORT["fix"], BICEP_BICEP_LINT_SUPPORT["fix"], BICEP_BICEP_FORMAT_SUPPORT["transport"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2 + ["supported", "check_only", "single"],
             ),
             expect_equal(
                 "cloudformation cfn_lint lint record is owned, batched, check-only and covers four platforms",
-                [CLOUDFORMATION_CFN_LINT_SUPPORT["platforms"], CLOUDFORMATION_CFN_LINT_SUPPORT["fix"], CLOUDFORMATION_CFN_LINT_SUPPORT["transport"], CLOUDFORMATION_CFN_LINT_SUPPORT["context"]],
+                [with_platforms(CLOUDFORMATION_CFN_LINT_SUPPORT)["platforms"], CLOUDFORMATION_CFN_LINT_SUPPORT["fix"], CLOUDFORMATION_CFN_LINT_SUPPORT["transport"], CLOUDFORMATION_CFN_LINT_SUPPORT["context"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "cmake cmakelint lint record is owned, batched, check-only and covers four platforms",
-                [CMAKE_CMAKELINT_SUPPORT["platforms"], CMAKE_CMAKELINT_SUPPORT["fix"], CMAKE_CMAKELINT_SUPPORT["transport"], CMAKE_CMAKELINT_SUPPORT["context"]],
+                [with_platforms(CMAKE_CMAKELINT_SUPPORT)["platforms"], CMAKE_CMAKELINT_SUPPORT["fix"], CMAKE_CMAKELINT_SUPPORT["transport"], CMAKE_CMAKELINT_SUPPORT["context"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "make mbake format record is owned, batched, fixable and proven on linux_x86_64",
-                [MAKE_MBAKE_SUPPORT["platforms"], MAKE_MBAKE_SUPPORT["fix"], MAKE_MBAKE_SUPPORT["transport"], MAKE_MBAKE_SUPPORT["context"]],
+                [with_platforms(MAKE_MBAKE_SUPPORT)["platforms"], MAKE_MBAKE_SUPPORT["fix"], MAKE_MBAKE_SUPPORT["transport"], MAKE_MBAKE_SUPPORT["context"]],
                 [["linux_x86_64"], "supported", "batched", "owned"],
             ),
             expect_equal(
                 "sql sqlfluff format record is owned, batched, fixable and covers four platforms",
-                [SQL_SQLFLUFF_FORMAT_SUPPORT["platforms"], SQL_SQLFLUFF_FORMAT_SUPPORT["fix"], SQL_SQLFLUFF_FORMAT_SUPPORT["transport"], SQL_SQLFLUFF_FORMAT_SUPPORT["context"]],
+                [with_platforms(SQL_SQLFLUFF_FORMAT_SUPPORT)["platforms"], SQL_SQLFLUFF_FORMAT_SUPPORT["fix"], SQL_SQLFLUFF_FORMAT_SUPPORT["transport"], SQL_SQLFLUFF_FORMAT_SUPPORT["context"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "supported", "batched", "owned"],
             ),
             expect_equal(
                 "sql sqlfluff lint record is owned, batched, check-only and covers four platforms",
-                [SQL_SQLFLUFF_LINT_SUPPORT["platforms"], SQL_SQLFLUFF_LINT_SUPPORT["fix"], SQL_SQLFLUFF_LINT_SUPPORT["transport"], SQL_SQLFLUFF_LINT_SUPPORT["context"]],
+                [with_platforms(SQL_SQLFLUFF_LINT_SUPPORT)["platforms"], SQL_SQLFLUFF_LINT_SUPPORT["fix"], SQL_SQLFLUFF_LINT_SUPPORT["transport"], SQL_SQLFLUFF_LINT_SUPPORT["context"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"], "check_only", "batched", "owned"],
             ),
             expect_equal(
                 "dockerfile and php prettier records cover four platforms",
-                [DOCKERFILE_PRETTIER_FORMAT_SUPPORT["platforms"], PHP_PRETTIER_FORMAT_SUPPORT["platforms"]],
+                [with_platforms(DOCKERFILE_PRETTIER_FORMAT_SUPPORT)["platforms"], with_platforms(PHP_PRETTIER_FORMAT_SUPPORT)["platforms"]],
                 [["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]] * 2,
             ),
             expect_equal(
                 "api_spec redocly lint record covers four platforms",
-                API_SPEC_REDOCLY_LINT_SUPPORT["platforms"],
+                with_platforms(API_SPEC_REDOCLY_LINT_SUPPORT)["platforms"],
                 ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
             expect_equal(
@@ -397,7 +396,6 @@ def support_unit_tests(name):
                 support_record_gap_error({"artifact": "pinned", "capability": "lint", "state": "qualified", "tool": "keep_sorted"}, {}),
                 "support: keep_sorted lint is qualified but has no wired aspect (not silently clean)",
             ),
-
             expect_equal(
                 "an unbuilt known record may have no platforms",
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["latex"], "context": "owned", "execution": "direct", "family": "latex", "fix": "check_only", "platforms": [], "state": "known", "tool": "chktex", "transport": "single", "unsupported": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}),

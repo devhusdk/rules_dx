@@ -98,6 +98,25 @@ index a5fab3d..b2a113a 100644
          "//haskell/experimental:all_files",
          "//haskell/platforms:all_files",
      ],
+diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
+index 03ccd67..0305a0e 100644
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -271,10 +271,10 @@ def _prepare_cabal_inputs(
+         # assume `otool` and `install_name_tool` are available at the same location as `ar`
+         ar_bindir = paths.dirname(cc.tools.ar)
+ 
+-        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "otool"))
+-        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
+-        extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
+-        extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
++        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "llvm-otool"))
++        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"))
++        extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "llvm-otool"))
++        extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"))
+ 
+     ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
+     if dynamic_file:
 diff --git a/haskell/cc.bzl b/haskell/cc.bzl
 index 9469d11..2b82a5d 100644
 --- a/haskell/cc.bzl
@@ -202,6 +221,36 @@ index 7eb5aee..701a4b5 100644
      ],
      fragments = ["cpp"],
  )
+diff --git a/haskell/experimental/private/module.bzl b/haskell/experimental/private/module.bzl
+index e94f2bd..a3487e1 100644
+--- a/haskell/experimental/private/module.bzl
++++ b/haskell/experimental/private/module.bzl
+@@ -298,8 +298,8 @@ def _build_haskell_module(
+         # assume `otool` and `install_name_tool` are available at the same location as `ar`
+         ar_bindir = paths.dirname(cc.tools.ar)
+ 
+-        args.add(paths.join(ar_bindir, "otool"), format = "-pgmotool=%s")
+-        args.add(paths.join(ar_bindir, "install_name_tool"), format = "-pgminstall_name_tool=%s")
++        args.add(paths.join(ar_bindir, "llvm-otool"), format = "-pgmotool=%s")
++        args.add(paths.join(ar_bindir, "llvm-install-name-tool"), format = "-pgminstall_name_tool=%s")
+ 
+     if plugin_infos and not enable_th:
+         # For #1681. These suppresses bogus warnings about missing libraries which
+diff --git a/haskell/private/actions/compile.bzl b/haskell/private/actions/compile.bzl
+index 385f1ba..37e26aa 100644
+--- a/haskell/private/actions/compile.bzl
++++ b/haskell/private/actions/compile.bzl
+@@ -128,8 +128,8 @@ def _compilation_defaults(
+         ar_bindir = paths.dirname(cc.tools.ar)
+ 
+         compile_flags += [
+-            "-pgmotool=" + paths.join(ar_bindir, "otool"),
+-            "-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"),
++            "-pgmotool=" + paths.join(ar_bindir, "llvm-otool"),
++            "-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"),
+         ]
+ 
+     package_ids = []
 diff --git a/haskell/private/actions/info.bzl b/haskell/private/actions/info.bzl
 index 66d079f..19ad674 100644
 --- a/haskell/private/actions/info.bzl
@@ -244,9 +293,20 @@ index 66d079f..19ad674 100644
  def _filter_package_env(flags):
      # Strips out -package-env from the command-line flags.  Consumers of these output
 diff --git a/haskell/private/actions/link.bzl b/haskell/private/actions/link.bzl
-index 0fa4fd9..b2c62f5 100644
+index 0fa4fd9..a7086dd 100644
 --- a/haskell/private/actions/link.bzl
 +++ b/haskell/private/actions/link.bzl
+@@ -138,8 +138,8 @@ def link_binary(
+         # assume `otool` and `install_name_tool` are available at the same location as `ar`
+         ar_bindir = paths.dirname(cc.tools.ar)
+ 
+-        args.add(paths.join(ar_bindir, "otool"), format = "-pgmotool=%s")
+-        args.add(paths.join(ar_bindir, "install_name_tool"), format = "-pgminstall_name_tool=%s")
++        args.add(paths.join(ar_bindir, "llvm-otool"), format = "-pgmotool=%s")
++        args.add(paths.join(ar_bindir, "llvm-install-name-tool"), format = "-pgminstall_name_tool=%s")
+ 
+     args.add_all(hs.toolchain.ghcopts)
+     args.add_all(compiler_flags)
 @@ -356,7 +356,7 @@ def link_library_static(hs, cc, _posix, _dep_info, object_files, my_pkg_id, with
          )
      else:
@@ -256,6 +316,17 @@ index 0fa4fd9..b2c62f5 100644
              outputs = [static_library],
              mnemonic = "HaskellLinkStaticLibrary",
              executable = cc.tools.ar,
+@@ -391,8 +391,8 @@ def link_library_dynamic(hs, cc, posix, dep_info, extra_srcs, object_files, my_p
+         # assume `otool` and `install_name_tool` are available at the same location as `ar`
+         ar_bindir = paths.dirname(cc.tools.ar)
+ 
+-        args.add(paths.join(ar_bindir, "otool"), format = "-pgmotool=%s")
+-        args.add(paths.join(ar_bindir, "install_name_tool"), format = "-pgminstall_name_tool=%s")
++        args.add(paths.join(ar_bindir, "llvm-otool"), format = "-pgmotool=%s")
++        args.add(paths.join(ar_bindir, "llvm-install-name-tool"), format = "-pgminstall_name_tool=%s")
+ 
+     args.add_all(hs.toolchain.ghcopts)
+     args.add_all(compiler_flags)
 diff --git a/haskell/private/cc_libraries.bzl b/haskell/private/cc_libraries.bzl
 index f98b9e5..49db94d 100644
 --- a/haskell/private/cc_libraries.bzl
@@ -296,9 +367,22 @@ index f98b9e5..49db94d 100644
      doc = """Extend LibraryToLink of C dependencies for GHC compatibility
  
 diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
-index be9fceb..5b6841a 100644
+index be9fceb..860e665 100644
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
+@@ -83,10 +83,10 @@ WORKSPACE = "{:workspace:}"
+ CC = os.environ.get("CC_WRAPPER_CC_PATH", "{:cc:}")
+ PLATFORM = os.environ.get("CC_WRAPPER_PLATFORM", "{:platform:}")
+ CPU = os.environ.get("CC_WRAPPER_CPU", "{:cpu:}")
+-INSTALL_NAME_TOOL = "{:bindir:}/install_name_tool"
++INSTALL_NAME_TOOL = "{:bindir:}/llvm-install-name-tool"
+ CODESIGN = "{:bindir:}/codesign"
+ CODESIGN_ALLOCATE = "{:bindir:}/codesign_allocate"
+-OTOOL = "{:bindir:}/otool"
++OTOOL = "{:bindir:}/llvm-otool"
+ 
+ 
+ def main():
 @@ -1033,7 +1033,10 @@ def find_cc():
                  r = bazel_runfiles.CreateManifestBased(manifest_path)
              elif exe_path is not None and os.path.isfile(exe_path):
@@ -424,7 +508,7 @@ index 3933b73..be805ad 100644
      fragments = ["cpp"],
      doc = "Build an executable script that outputs flags for ide integration",
 diff --git a/haskell/toolchain.bzl b/haskell/toolchain.bzl
-index 2e10f82..84707ce 100644
+index 2e10f82..4f1f750 100644
 --- a/haskell/toolchain.bzl
 +++ b/haskell/toolchain.bzl
 @@ -3,13 +3,7 @@

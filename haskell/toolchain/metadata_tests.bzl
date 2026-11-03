@@ -81,6 +81,8 @@ def _checks():
         expect_false("settings name no host path", "\"/" in settings),
         expect_contains("the C compiler comes from the cc toolchain", settings, "(\"C compiler command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("merge objects comes from the cc toolchain", settings, "(\"Merge objects command\", \"" + NO_HOST_TOOL + "\")"),
+        expect_contains("otool comes from the cc toolchain", settings, "(\"otool command\", \"" + NO_HOST_TOOL + "\")"),
+        expect_contains("install_name_tool comes from the cc toolchain", settings, "(\"install_name_tool command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("host link flags are dropped", settings, "(\"C compiler link flags\", \"\")"),
         expect_contains("bundled programs stay relative", settings, "(\"unlit command\", \"$topdir/../bin/unlit\")"),
     ]

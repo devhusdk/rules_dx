@@ -348,6 +348,14 @@ _REAL_TOOL_TABLE = {
         "resources": "light",
         "shard": "go",
     },
+    "modfmt": {
+        "attr": attr.label(default = "//config:tool_modfmt", allow_files = True, cfg = "exec", executable = True),
+        "capabilities": ["format"],
+        "fallback": " to a modfmt binary",
+        "kind": "setting",
+        "resources": "light",
+        "shard": "go",
+    },
     "google_java_format": {
         "attr": attr.label(default = "//quality/tools/jvm:google_java_format", cfg = "exec", executable = True),
         "capabilities": ["format"],

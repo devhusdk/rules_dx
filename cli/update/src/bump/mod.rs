@@ -6,8 +6,8 @@ pub mod version;
 
 pub use add::{AddError, AddRequest};
 pub use request::{
-    cargo_manifests, BumpError, BumpPlanOutcome, BumpRequest, ConfiguredKind, ConfiguredSet,
-    DepTarget, DepVersion,
+    cargo_manifests, BumpError, BumpPlanOutcome, ConfiguredKind, ConfiguredSet, DepTarget,
+    DepVersion, UpdateRequest,
 };
-pub use sets::BumpSet;
+pub use sets::UpdateSet;
 pub use version::{compare, is_stable, VersionError, WidenVersion};

@@ -22,7 +22,7 @@ pub(super) struct Io<'a> {
 pub(super) fn add_missing(
     invocation: &Invocation,
     io: Io<'_>,
-    bump: &dx_update::bump::BumpRequest,
+    bump: &dx_update::bump::UpdateRequest,
     missing: &str,
 ) -> i32 {
     let Io {
@@ -32,7 +32,7 @@ pub(super) fn add_missing(
         out,
         err,
     } = io;
-    let unsupported = bump.set == dx_update::bump::BumpSet::GithubActions
+    let unsupported = bump.set == dx_update::bump::UpdateSet::GithubActions
         || bump
             .configured_kind()
             .is_some_and(|kind| kind == dx_update::bump::ConfiguredKind::Uv);
@@ -128,5 +128,5 @@ fn plan_insert(
 }
 
 #[cfg(test)]
-#[path = "bump_add_tests.rs"]
+#[path = "update_version_add_tests.rs"]
 mod tests;

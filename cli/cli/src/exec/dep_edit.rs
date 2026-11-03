@@ -754,27 +754,27 @@ pub(crate) fn refresh_target(
     target: &dx_update::bump::DepTarget,
 ) -> Option<(dx_update::sets::SetId, dx_update::selector::SetRequest)> {
     match target.set {
-        dx_update::bump::BumpSet::Cargo => Some((
+        dx_update::bump::UpdateSet::Cargo => Some((
             dx_update::sets::SetId::Cargo,
             dx_update::selector::SetRequest::Full,
         )),
-        dx_update::bump::BumpSet::Npm => Some((
+        dx_update::bump::UpdateSet::Npm => Some((
             dx_update::sets::SetId::Npm,
             dx_update::selector::SetRequest::Packages(vec![target.package.clone()]),
         )),
-        dx_update::bump::BumpSet::Go => Some((
+        dx_update::bump::UpdateSet::Go => Some((
             dx_update::sets::SetId::Go,
             dx_update::selector::SetRequest::Full,
         )),
-        dx_update::bump::BumpSet::Maven => Some((
+        dx_update::bump::UpdateSet::Maven => Some((
             dx_update::sets::SetId::Maven,
             dx_update::selector::SetRequest::Full,
         )),
-        dx_update::bump::BumpSet::NuGet => Some((
+        dx_update::bump::UpdateSet::NuGet => Some((
             dx_update::sets::SetId::NuGet,
             dx_update::selector::SetRequest::Full,
         )),
-        dx_update::bump::BumpSet::Bazel | dx_update::bump::BumpSet::GithubActions => None,
+        dx_update::bump::UpdateSet::Bazel | dx_update::bump::UpdateSet::GithubActions => None,
     }
 }
 
@@ -815,7 +815,7 @@ mod tests {
 
     fn target() -> dx_update::bump::DepTarget {
         dx_update::bump::DepTarget {
-            set: dx_update::bump::BumpSet::Cargo,
+            set: dx_update::bump::UpdateSet::Cargo,
             package: "anyhow".to_owned(),
             manifest: None,
             configured: None,

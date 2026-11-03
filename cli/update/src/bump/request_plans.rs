@@ -676,7 +676,7 @@ pub(super) fn is_target_shape(text: &str) -> bool {
         return true;
     }
     if text.contains('/')
-        && BumpSet::parse(text.split_once(':').map_or("", |(head, _)| head)).is_none()
+        && UpdateSet::parse(text.split_once(':').map_or("", |(head, _)| head)).is_none()
     {
         return true;
     }
@@ -690,26 +690,26 @@ pub(super) fn is_target_shape(text: &str) -> bool {
 const BAZEL_CHARSET: &str = "bazel modules use [A-Za-z0-9_.-] only (or .bazelversion)";
 const GITHUB_ACTIONS_CHARSET: &str = "github-actions owner/repo use [A-Za-z0-9_.-] only";
 
-pub(super) fn validate_package(set: BumpSet, package: &str) -> Result<(), BumpError> {
+pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), BumpError> {
     let invalid = |reason: &'static str| BumpError::InvalidPackage {
         set: set.name(),
         package: package.to_owned(),
         reason,
     };
     let reason = match set {
-        BumpSet::Bazel => {
+        UpdateSet::Bazel => {
             if package == ".bazelversion" {
                 Ok(())
             } else {
                 dx_module_bazel::identity::validate_dotted(package, BAZEL_CHARSET)
             }
         }
-        BumpSet::Cargo => dx_module_bazel::identity::validate_cargo(package),
-        BumpSet::Npm => dx_module_bazel::identity::validate_npm(package),
-        BumpSet::Go => dx_module_bazel::identity::validate_go(package),
-        BumpSet::Maven => dx_module_bazel::identity::validate_maven(package),
-        BumpSet::NuGet => dx_module_bazel::identity::validate_nuget(package),
-        BumpSet::GithubActions => match package.split_once('/') {
+        UpdateSet::Cargo => dx_module_bazel::identity::validate_cargo(package),
+        UpdateSet::Npm => dx_module_bazel::identity::validate_npm(package),
+        UpdateSet::Go => dx_module_bazel::identity::validate_go(package),
+        UpdateSet::Maven => dx_module_bazel::identity::validate_maven(package),
+        UpdateSet::NuGet => dx_module_bazel::identity::validate_nuget(package),
+        UpdateSet::GithubActions => match package.split_once('/') {
             None => Err("github-actions identities are owner/repo"),
             Some((owner, repo)) => {
                 if owner.is_empty()

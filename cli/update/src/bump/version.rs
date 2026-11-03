@@ -1,4 +1,4 @@
-use super::sets::BumpSet;
+use super::sets::UpdateSet;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WidenVersion {
@@ -39,19 +39,19 @@ pub fn compare(left: &semver::Version, right: &semver::Version) -> std::cmp::Ord
     left.cmp(right)
 }
 
-pub fn parse(set: BumpSet, text: &str) -> Result<WidenVersion, VersionError> {
+pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return Err(VersionError::Empty);
     }
     match set {
-        BumpSet::Bazel
-        | BumpSet::Cargo
-        | BumpSet::Npm
-        | BumpSet::Go
-        | BumpSet::Maven
-        | BumpSet::NuGet => parse_semver(set.name(), trimmed),
-        BumpSet::GithubActions => parse_git(set.name(), trimmed),
+        UpdateSet::Bazel
+        | UpdateSet::Cargo
+        | UpdateSet::Npm
+        | UpdateSet::Go
+        | UpdateSet::Maven
+        | UpdateSet::NuGet => parse_semver(set.name(), trimmed),
+        UpdateSet::GithubActions => parse_git(set.name(), trimmed),
     }
 }
 
@@ -111,12 +111,12 @@ mod tests {
     #[test]
     fn semver_sets_require_exact_stable_shapes() {
         for set in [
-            BumpSet::Bazel,
-            BumpSet::Cargo,
-            BumpSet::Npm,
-            BumpSet::Go,
-            BumpSet::Maven,
-            BumpSet::NuGet,
+            UpdateSet::Bazel,
+            UpdateSet::Cargo,
+            UpdateSet::Npm,
+            UpdateSet::Go,
+            UpdateSet::Maven,
+            UpdateSet::NuGet,
         ] {
             let parsed = parse(set, "1.2.3").expect("semver");
             assert_eq!(parsed.display(), "1.2.3");
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn prerelease_parses_but_follows_upstream() {
-        let parsed = parse(BumpSet::Cargo, "1.2.3-alpha.1").expect("prerelease parses");
+        let parsed = parse(UpdateSet::Cargo, "1.2.3-alpha.1").expect("prerelease parses");
         match parsed {
             WidenVersion::Semver(version) => {
                 assert!(!is_stable(&version));
@@ -153,30 +153,32 @@ mod tests {
     #[test]
     fn github_actions_accepts_tags_and_commits() {
         assert_eq!(
-            parse(BumpSet::GithubActions, "v4").expect("tag").display(),
+            parse(UpdateSet::GithubActions, "v4")
+                .expect("tag")
+                .display(),
             "v4"
         );
         assert_eq!(
-            parse(BumpSet::GithubActions, "v4.1.0")
+            parse(UpdateSet::GithubActions, "v4.1.0")
                 .expect("tag")
                 .display(),
             "v4.1.0"
         );
         let sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";
         assert_eq!(
-            parse(BumpSet::GithubActions, sha).expect("sha"),
+            parse(UpdateSet::GithubActions, sha).expect("sha"),
             WidenVersion::GitCommit(sha.to_owned())
         );
         assert!(matches!(
-            parse(BumpSet::GithubActions, ""),
+            parse(UpdateSet::GithubActions, ""),
             Err(VersionError::Empty)
         ));
         assert!(matches!(
-            parse(BumpSet::GithubActions, "bad tag"),
+            parse(UpdateSet::GithubActions, "bad tag"),
             Err(VersionError::InvalidGit { .. })
         ));
         assert!(matches!(
-            parse(BumpSet::GithubActions, "owner/repo"),
+            parse(UpdateSet::GithubActions, "owner/repo"),
             Err(VersionError::InvalidGit { .. })
         ));
     }
@@ -187,7 +189,7 @@ mod tests {
         let upper40 = "3D3C42E5AAC5BA805825DA76410C181273BA90B1";
         for sha in [lower40, upper40] {
             assert_eq!(
-                parse(BumpSet::GithubActions, sha).expect("40-char sha"),
+                parse(UpdateSet::GithubActions, sha).expect("40-char sha"),
                 WidenVersion::GitCommit(sha.to_owned()),
                 "40-char sha {sha:?} must stay a commit",
             );
@@ -196,13 +198,13 @@ mod tests {
         let upper64 = "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08";
         for sha in [lower64, upper64] {
             assert_eq!(
-                parse(BumpSet::GithubActions, sha).expect("64-char sha"),
+                parse(UpdateSet::GithubActions, sha).expect("64-char sha"),
                 WidenVersion::GitCommit(sha.to_owned()),
                 "64-char sha {sha:?} must stay a commit",
             );
         }
         for bad in ["v4", "3d3c42e5", &"z".repeat(40), &"z".repeat(64)] {
-            let parsed = parse(BumpSet::GithubActions, bad).expect("non-sha shape");
+            let parsed = parse(UpdateSet::GithubActions, bad).expect("non-sha shape");
             assert!(
                 matches!(parsed, WidenVersion::GitTag(_)),
                 "{bad:?} must not parse as a commit"

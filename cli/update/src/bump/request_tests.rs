@@ -9,7 +9,7 @@ fn maven_module(artifacts: &str) -> String {
 
 #[test]
 fn cargo_table_variants_preserve_comments_and_reject_nonregistry_shapes() {
-    let bump = BumpRequest::parse("cargo:demo", "2.0.0").expect("request");
+    let bump = UpdateRequest::parse("cargo:demo", "2.0.0").expect("request");
     for table in [
         "workspace.dependencies",
         "target.'cfg(unix)'.dependencies",
@@ -63,13 +63,13 @@ fn cargo_table_variants_preserve_comments_and_reject_nonregistry_shapes() {
 fn hand_built_requests_reject_wrong_version_kinds() {
     let tag = WidenVersion::GitTag("v2".to_owned());
     for set in [
-        BumpSet::Bazel,
-        BumpSet::Npm,
-        BumpSet::Go,
-        BumpSet::Maven,
-        BumpSet::NuGet,
+        UpdateSet::Bazel,
+        UpdateSet::Npm,
+        UpdateSet::Go,
+        UpdateSet::Maven,
+        UpdateSet::NuGet,
     ] {
-        let request = BumpRequest {
+        let request = UpdateRequest {
             set,
             package: "demo".to_owned(),
             version: tag.clone(),
@@ -98,9 +98,9 @@ fn hand_built_requests_reject_wrong_version_kinds() {
 #[test]
 fn package_validation_rejects_invalid_ecosystem_identities() {
     for (set, packages) in [
-        (BumpSet::Bazel, vec!["bad!", ""]),
+        (UpdateSet::Bazel, vec!["bad!", ""]),
         (
-            BumpSet::Npm,
+            UpdateSet::Npm,
             vec![
                 "",
                 "a:b",
@@ -114,11 +114,11 @@ fn package_validation_rejects_invalid_ecosystem_identities() {
             ],
         ),
         (
-            BumpSet::Go,
+            UpdateSet::Go,
             vec!["", "a:b", "a b", "/a", "a/", "a//b", "a!b"],
         ),
         (
-            BumpSet::GithubActions,
+            UpdateSet::GithubActions,
             vec![
                 "owner",
                 "/repo",
@@ -130,8 +130,8 @@ fn package_validation_rejects_invalid_ecosystem_identities() {
                 "owner/bad!",
             ],
         ),
-        (BumpSet::Maven, vec!["bad!:artifact", "group:bad!"]),
-        (BumpSet::NuGet, vec!["bad!", ""]),
+        (UpdateSet::Maven, vec!["bad!:artifact", "group:bad!"]),
+        (UpdateSet::NuGet, vec!["bad!", ""]),
     ] {
         for package in packages {
             assert!(
@@ -184,7 +184,7 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
             "nuget Demo\n",
         ),
     ] {
-        let bump = BumpRequest::parse(selector, "2.0.0").expect("request");
+        let bump = UpdateRequest::parse(selector, "2.0.0").expect("request");
         let (duplicate, malformed) = if duplicate == "SKIP" {
             (
                 maven_module("\"org.example:demo:1.0.0\",\n\"org.example:demo:1.1.0\",\n"),
@@ -198,7 +198,7 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
         assert!(matches!(bump.plan_edit(duplicate), Err(BumpError::Ambiguous { count: 2, .. })), "{selector}");
         assert!(matches!(bump.plan_edit(malformed), Err(BumpError::UnsupportedManifest { .. })), "{selector}");
     }
-    let bump = BumpRequest::parse("npm:demo", "2.0.0").expect("npm");
+    let bump = UpdateRequest::parse("npm:demo", "2.0.0").expect("npm");
     assert!(matches!(
         bump.plan_edit("not json"),
         Err(BumpError::UnsupportedManifest { .. })
@@ -207,7 +207,7 @@ fn widen_rejects_missing_ambiguous_and_malformed_requirements() {
         bump.plan_edit("{\"other\": \"demo\"}"),
         Err(BumpError::NotFound { .. })
     ));
-    let bump = BumpRequest::parse("bazel:.bazelversion", "2.0.0").expect("bazel");
+    let bump = UpdateRequest::parse("bazel:.bazelversion", "2.0.0").expect("bazel");
     assert!(matches!(
         bump.plan_edit(" \n"),
         Err(BumpError::UnsupportedManifest { .. })
@@ -221,7 +221,7 @@ fn widen_preserves_comments_crlf_and_package_boundaries() {
         ("nuget:Demo", "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 1.2.3  # pinned\r\n", "# nuget Demo 9.0.0\r\n// keep\r\nnuget Demo.Other 1.0.0\r\n  nuget Demo 2.0.0  # pinned\r\n"),
         ("nuget:Demo", "nuget Demo 1.2.3", "nuget Demo 2.0.0"),
     ] {
-        let bump = BumpRequest::parse(selector, "2.0.0").expect("request");
+        let bump = UpdateRequest::parse(selector, "2.0.0").expect("request");
         assert_eq!(bump.plan_edit(input).expect("edit"), expected);
     }
 }
@@ -231,7 +231,7 @@ fn steps(lines: &str) -> String {
 }
 
 fn widen(source: &str) -> Result<String, BumpError> {
-    BumpRequest::parse("github-actions:actions/checkout", &"a".repeat(40))
+    UpdateRequest::parse("github-actions:actions/checkout", &"a".repeat(40))
         .expect("request")
         .plan_edit(source)
 }
@@ -239,7 +239,7 @@ fn widen(source: &str) -> Result<String, BumpError> {
 #[test]
 fn workflow_widen_requires_one_nonempty_pin() {
     let sha = "a".repeat(40);
-    let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("request");
+    let bump = UpdateRequest::parse("github-actions:actions/checkout", &sha).expect("request");
     assert_eq!(bump.target_manifest(), ".github/workflows");
     assert!(matches!(
         bump.plan_edit("steps: []\n"),
@@ -313,7 +313,7 @@ fn workflow_widen_keeps_quotes_comments_and_formatting() {
 #[test]
 fn workflow_widen_selects_job_level_reusable_workflows() {
     let sha = "a".repeat(40);
-    let bump = BumpRequest::parse("github-actions:org/repo", &sha).expect("request");
+    let bump = UpdateRequest::parse("github-actions:org/repo", &sha).expect("request");
     let source = "jobs:\n  call:\n    uses: org/repo/.github/workflows/ci.yml@v1 # v1\n    with:\n      a: 1\n";
     assert_eq!(
         bump.plan_edit(source).expect("edit"),
@@ -396,8 +396,8 @@ fn only_yaml_and_yml_are_workflow_files() {
 
 #[test]
 fn parses_single_requirement_shapes() {
-    let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
-    assert_eq!(bump.set, BumpSet::Cargo);
+    let bump = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    assert_eq!(bump.set, UpdateSet::Cargo);
     assert_eq!(bump.package, "anyhow");
     assert_eq!(
         bump.target_manifest(),
@@ -405,38 +405,38 @@ fn parses_single_requirement_shapes() {
     );
     assert!(bump.needs_update_refresh());
 
-    let bump = BumpRequest::parse("npm:react", "1.2.3").expect("npm");
+    let bump = UpdateRequest::parse("npm:react", "1.2.3").expect("npm");
     assert_eq!(bump.target_manifest(), "package.json");
 
-    let bump = BumpRequest::parse("npm:@astrojs/compiler", "1.2.3").expect("scoped");
+    let bump = UpdateRequest::parse("npm:@astrojs/compiler", "1.2.3").expect("scoped");
     assert_eq!(bump.package, "@astrojs/compiler");
 
-    let bump = BumpRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel module");
+    let bump = UpdateRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel module");
     assert_eq!(bump.target_manifest(), "MODULE.bazel");
     assert!(!bump.needs_update_refresh());
 
-    let bump = BumpRequest::parse("bazel:.bazelversion", "9.2.0").expect("bazelversion");
+    let bump = UpdateRequest::parse("bazel:.bazelversion", "9.2.0").expect("bazelversion");
     assert_eq!(bump.target_manifest(), ".bazelversion");
 
-    let bump = BumpRequest::parse("github-actions:actions/checkout", "v4").expect("gha");
-    assert_eq!(bump.set, BumpSet::GithubActions);
+    let bump = UpdateRequest::parse("github-actions:actions/checkout", "v4").expect("gha");
+    assert_eq!(bump.set, UpdateSet::GithubActions);
     assert!(!bump.needs_update_refresh());
 
-    let bump = BumpRequest::parse("go:example.com/mod", "1.2.3").expect("go");
+    let bump = UpdateRequest::parse("go:example.com/mod", "1.2.3").expect("go");
     assert_eq!(bump.target_manifest(), "third_party/go/go.mod");
 
-    let bump = BumpRequest::parse("maven:junit:junit", "4.13.2").expect("maven");
-    assert_eq!(bump.set, BumpSet::Maven);
+    let bump = UpdateRequest::parse("maven:junit:junit", "4.13.2").expect("maven");
+    assert_eq!(bump.set, UpdateSet::Maven);
     assert_eq!(bump.package, "junit:junit");
     assert_eq!(bump.target_manifest(), "MODULE.bazel");
     assert!(bump.needs_update_refresh());
 
-    let bump = BumpRequest::parse("maven:org.junit.jupiter:junit-jupiter-api", "6.1.3")
+    let bump = UpdateRequest::parse("maven:org.junit.jupiter:junit-jupiter-api", "6.1.3")
         .expect("maven jupiter");
     assert_eq!(bump.package, "org.junit.jupiter:junit-jupiter-api");
 
-    let bump = BumpRequest::parse("nuget:FSharp.Core", "10.1.201").expect("nuget");
-    assert_eq!(bump.set, BumpSet::NuGet);
+    let bump = UpdateRequest::parse("nuget:FSharp.Core", "10.1.201").expect("nuget");
+    assert_eq!(bump.set, UpdateSet::NuGet);
     assert_eq!(
         bump.target_manifest(),
         "third_party/dotnet/paket.dependencies"
@@ -446,70 +446,70 @@ fn parses_single_requirement_shapes() {
 
 #[test]
 fn removed_aliases_fail_closed() {
-    assert!(BumpRequest::parse("gomod:example.com/mod", "1.2.3").is_err());
-    assert!(BumpRequest::parse("gha:actions/checkout", "v4").is_err());
+    assert!(UpdateRequest::parse("gomod:example.com/mod", "1.2.3").is_err());
+    assert!(UpdateRequest::parse("gha:actions/checkout", "v4").is_err());
 }
 
 #[test]
 fn bare_sets_targets_and_unknown_fail_closed() {
     assert!(matches!(
-        BumpRequest::parse("cargo", "1.2.3"),
+        UpdateRequest::parse("cargo", "1.2.3"),
         Err(BumpError::BareSet { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("//rust/tests/fixtures/hello:hello", "1.2.3"),
+        UpdateRequest::parse("//rust/tests/fixtures/hello:hello", "1.2.3"),
         Err(BumpError::NotAPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("rust/tests/fixtures/hello/Cargo.toml", "1.2.3"),
+        UpdateRequest::parse("rust/tests/fixtures/hello/Cargo.toml", "1.2.3"),
         Err(BumpError::NotAPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("crates", "1.2.3"),
+        UpdateRequest::parse("crates", "1.2.3"),
         Err(BumpError::UnknownSelector { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("cargo:", "1.2.3"),
+        UpdateRequest::parse("cargo:", "1.2.3"),
         Err(BumpError::InvalidPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("", "1.2.3"),
+        UpdateRequest::parse("", "1.2.3"),
         Err(BumpError::Empty)
     ));
     assert!(matches!(
-        BumpRequest::parse("cargo:anyhow", ""),
+        UpdateRequest::parse("cargo:anyhow", ""),
         Err(BumpError::Empty)
     ));
     assert!(matches!(
-        BumpRequest::parse("cargo:bad name", "1.2.3"),
+        UpdateRequest::parse("cargo:bad name", "1.2.3"),
         Err(BumpError::InvalidPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("maven", "1.2.3"),
+        UpdateRequest::parse("maven", "1.2.3"),
         Err(BumpError::BareSet { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("nuget", "10.1.201"),
+        UpdateRequest::parse("nuget", "10.1.201"),
         Err(BumpError::BareSet { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("maven:junit", "1.2.3"),
+        UpdateRequest::parse("maven:junit", "1.2.3"),
         Err(BumpError::InvalidPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("maven::artifact", "1.2.3"),
+        UpdateRequest::parse("maven::artifact", "1.2.3"),
         Err(BumpError::InvalidPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("maven:junit:junit:extra", "1.2.3"),
+        UpdateRequest::parse("maven:junit:junit:extra", "1.2.3"),
         Err(BumpError::InvalidPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("nuget:", "10.1.201"),
+        UpdateRequest::parse("nuget:", "10.1.201"),
         Err(BumpError::InvalidPackage { .. })
     ));
     assert!(matches!(
-        BumpRequest::parse("cargo:anyhow:extra", "1.2.3"),
+        UpdateRequest::parse("cargo:anyhow:extra", "1.2.3"),
         Err(BumpError::InvalidPackage { .. })
     ));
 }
@@ -517,64 +517,64 @@ fn bare_sets_targets_and_unknown_fail_closed() {
 #[test]
 fn invalid_versions_fail_without_widen() {
     assert!(matches!(
-        BumpRequest::parse("cargo:anyhow", "not-a-version!!!"),
+        UpdateRequest::parse("cargo:anyhow", "not-a-version!!!"),
         Err(BumpError::Version(_))
     ));
     assert!(matches!(
-        BumpRequest::parse("github-actions:actions/checkout", "bad tag"),
+        UpdateRequest::parse("github-actions:actions/checkout", "bad tag"),
         Err(BumpError::Version(_))
     ));
     assert!(matches!(
-        BumpRequest::parse("maven:junit:junit", "not-a-version!!!"),
+        UpdateRequest::parse("maven:junit:junit", "not-a-version!!!"),
         Err(BumpError::Version(_))
     ));
     assert!(matches!(
-        BumpRequest::parse("nuget:FSharp.Core", "not-a-version!!!"),
+        UpdateRequest::parse("nuget:FSharp.Core", "not-a-version!!!"),
         Err(BumpError::Version(_))
     ));
 }
 
 #[test]
 fn summary_names_selector_version_and_next_step() {
-    let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let bump = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     let summary = bump.summary();
     assert!(summary.contains("cargo:anyhow"), "{summary}");
     assert!(summary.contains("1.2.3"), "{summary}");
     assert!(summary.contains("dx update cargo"), "{summary}");
     assert!(summary.contains("automatically"), "{summary}");
-    let bump = BumpRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel");
+    let bump = UpdateRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel");
     assert!(bump.summary().contains("flag-diff"), "{summary}");
-    let bump = BumpRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
+    let bump = UpdateRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
     assert!(bump.summary().contains("dx update maven"), "{summary}");
     assert!(bump.summary().contains("automatically"), "{summary}");
-    let bump = BumpRequest::parse("nuget:FSharp.Core", "10.1.202").expect("nuget");
+    let bump = UpdateRequest::parse("nuget:FSharp.Core", "10.1.202").expect("nuget");
     assert!(bump.summary().contains("dx update nuget"), "{summary}");
 }
 
 #[test]
 fn refresh_selector_chains_automatically_per_set() {
-    let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let bump = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     assert_eq!(bump.refresh_selector(), "cargo");
     assert!(bump.needs_update_refresh());
-    let bump = BumpRequest::parse("npm:jest", "30.3.0").expect("npm");
+    let bump = UpdateRequest::parse("npm:jest", "30.3.0").expect("npm");
     assert_eq!(bump.refresh_selector(), "npm:jest");
     assert!(bump.needs_update_refresh());
-    let bump = BumpRequest::parse("npm:@astrojs/compiler", "1.2.3").expect("scoped");
+    let bump = UpdateRequest::parse("npm:@astrojs/compiler", "1.2.3").expect("scoped");
     assert_eq!(bump.refresh_selector(), "npm:@astrojs/compiler");
-    let bump = BumpRequest::parse("go:example.com/mod", "1.2.3").expect("go");
+    let bump = UpdateRequest::parse("go:example.com/mod", "1.2.3").expect("go");
     assert_eq!(bump.refresh_selector(), "go");
     assert!(bump.needs_update_refresh());
-    let bump = BumpRequest::parse("maven:junit:junit", "4.13.2").expect("maven");
+    let bump = UpdateRequest::parse("maven:junit:junit", "4.13.2").expect("maven");
     assert_eq!(bump.refresh_selector(), "maven");
     assert!(bump.needs_update_refresh());
-    let bump = BumpRequest::parse("nuget:FSharp.Core", "10.1.201").expect("nuget");
+    let bump = UpdateRequest::parse("nuget:FSharp.Core", "10.1.201").expect("nuget");
     assert_eq!(bump.refresh_selector(), "nuget");
     assert!(bump.needs_update_refresh());
-    let bump = BumpRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel");
+    let bump = UpdateRequest::parse("bazel:rules_rust", "0.74.0").expect("bazel");
     assert_eq!(bump.refresh_selector(), "");
     assert!(!bump.needs_update_refresh());
     let sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";
-    let bump = BumpRequest::parse("github-actions:actions/checkout", sha).expect("gha");
+    let bump = UpdateRequest::parse("github-actions:actions/checkout", sha).expect("gha");
     assert_eq!(bump.refresh_selector(), "");
     assert!(!bump.needs_update_refresh());
 }
@@ -593,11 +593,11 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
             "3d3d42e5aac5ba805825da76410c181273ba90b1",
         ),
     ];
-    assert_eq!(cases.len(), BumpSet::ALL.len(), "one case per set");
+    assert_eq!(cases.len(), UpdateSet::ALL.len(), "one case per set");
     for (selector, version) in cases {
-        let bump = BumpRequest::parse(selector, version).expect("parse");
+        let bump = UpdateRequest::parse(selector, version).expect("parse");
         let name = bump.set.name();
-        let expected = if bump.set == BumpSet::Npm {
+        let expected = if bump.set == UpdateSet::Npm {
             format!("{name}:{}", bump.package)
         } else if bump.needs_update_refresh() {
             name.to_owned()
@@ -610,7 +610,7 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
 
 #[test]
 fn edits_rewrite_exactly_one_requirement() {
-    let bump = BumpRequest::parse("bazel:.bazelversion", "9.3.0").expect("bazelversion");
+    let bump = UpdateRequest::parse("bazel:.bazelversion", "9.3.0").expect("bazelversion");
     assert_eq!(bump.plan_edit("9.2.0\n").expect("edit"), "9.3.0\n");
     assert_eq!(bump.plan_edit("9.2.0").expect("edit"), "9.3.0");
     assert!(matches!(
@@ -620,7 +620,7 @@ fn edits_rewrite_exactly_one_requirement() {
 
     let module = "bazel_dep(name = \"rules_rust\", version = \"0.74.0\")\n\
                   bazel_dep(name = \"gazelle\", version = \"0.54.0\")\n";
-    let bump = BumpRequest::parse("bazel:rules_rust", "0.75.0").expect("module");
+    let bump = UpdateRequest::parse("bazel:rules_rust", "0.75.0").expect("module");
     let widened = bump.plan_edit(module).expect("edit");
     assert!(
         widened.contains("name = \"rules_rust\", version = \"0.75.0\""),
@@ -636,14 +636,14 @@ fn edits_rewrite_exactly_one_requirement() {
     ));
 
     let cargo = "[dependencies]\nanyhow = \"1\"\nserde = \"1\"\n";
-    let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let bump = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     let widened = bump.plan_edit(cargo).expect("edit");
     assert!(widened.contains("anyhow = \"1.2.3\""), "{widened}");
     assert!(widened.contains("serde = \"1\""), "{widened}");
 
     let npm =
         "{\n  \"devDependencies\": {\n    \"jest\": \"30.2.0\",\n    \"vue\": \"3.5.42\"\n  }\n}\n";
-    let bump = BumpRequest::parse("npm:jest", "30.3.0").expect("npm");
+    let bump = UpdateRequest::parse("npm:jest", "30.3.0").expect("npm");
     let widened = bump.plan_edit(npm).expect("edit");
     assert!(widened.contains("\"jest\": \"30.3.0\""), "{widened}");
     assert!(widened.contains("\"vue\": \"3.5.42\""), "{widened}");
@@ -653,14 +653,14 @@ fn edits_rewrite_exactly_one_requirement() {
     ));
 
     let gomod = "module example.com/root\n\nrequire example.com/mod v1.2.3\n";
-    let bump = BumpRequest::parse("go:example.com/mod", "1.3.0").expect("go");
+    let bump = UpdateRequest::parse("go:example.com/mod", "1.3.0").expect("go");
     let widened = bump.plan_edit(gomod).expect("edit");
     assert!(widened.contains("example.com/mod v1.3.0"), "{widened}");
 
     let module = maven_module(
         "        \"junit:junit:4.13.2\",\n        \"org.junit.jupiter:junit-jupiter-api:6.1.3\",\n",
     );
-    let bump = BumpRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
+    let bump = UpdateRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
     let widened = bump.plan_edit(&module).expect("edit");
     assert!(widened.contains("\"junit:junit:4.13.3\""), "{widened}");
     assert!(
@@ -673,7 +673,7 @@ fn edits_rewrite_exactly_one_requirement() {
     ));
 
     let paket = "source https://api.nuget.org/v3/index.json\nframework: net10.0\n\nnuget FSharp.Core 10.1.201\nnuget xunit.v3 4.0.0\n";
-    let bump = BumpRequest::parse("nuget:FSharp.Core", "10.1.202").expect("nuget");
+    let bump = UpdateRequest::parse("nuget:FSharp.Core", "10.1.202").expect("nuget");
     let widened = bump.plan_edit(paket).expect("edit");
     assert!(widened.contains("nuget FSharp.Core 10.1.202"), "{widened}");
     assert!(widened.contains("nuget xunit.v3 4.0.0"), "{widened}");
@@ -684,7 +684,7 @@ fn edits_rewrite_exactly_one_requirement() {
 }
 
 fn paket_edit(line: &str) -> Result<String, BumpError> {
-    let bump = BumpRequest::parse("nuget:Newtonsoft.Json", "13.0.3").expect("nuget");
+    let bump = UpdateRequest::parse("nuget:Newtonsoft.Json", "13.0.3").expect("nuget");
     bump.plan_edit(&format!(
         "source https://api.nuget.org/v3/index.json\n{line}\nnuget Other.Pkg >= 1.0.0\n"
     ))
@@ -737,7 +737,7 @@ fn paket_requirements_are_replaced_as_structured_syntax() {
 
 #[test]
 fn paket_edits_touch_only_the_selected_group_declaration() {
-    let bump = BumpRequest::parse("nuget:Newtonsoft.Json", "13.0.3").expect("nuget");
+    let bump = UpdateRequest::parse("nuget:Newtonsoft.Json", "13.0.3").expect("nuget");
     let paket =
         "group Build\n  nuget Newtonsoft.Json >= 12.0.0\n\ngroup Main\n  nuget Other.Pkg ~> 1.0\n";
     assert_eq!(
@@ -772,7 +772,7 @@ fn paket_malformed_requirements_fail_without_edits() {
 #[test]
 fn maven_and_nuget_edits_fail_closed_on_ambiguous_and_prefixes() {
     let module = maven_module("        \"junit:junit:4.13.2\",\n        \"junit:junit:4.13.2\",\n");
-    let bump = BumpRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
+    let bump = UpdateRequest::parse("maven:junit:junit", "4.13.3").expect("maven");
     assert!(matches!(
         bump.plan_edit(&module),
         Err(BumpError::Ambiguous { count: 2, .. })
@@ -783,13 +783,13 @@ fn maven_and_nuget_edits_fail_closed_on_ambiguous_and_prefixes() {
         Err(BumpError::NotFound { .. })
     ));
     let paket = "nuget FSharp.Core 10.1.201\nnuget FSharp.Core 10.1.201\n";
-    let bump = BumpRequest::parse("nuget:FSharp.Core", "10.1.202").expect("nuget");
+    let bump = UpdateRequest::parse("nuget:FSharp.Core", "10.1.202").expect("nuget");
     assert!(matches!(
         bump.plan_edit(paket),
         Err(BumpError::Ambiguous { count: 2, .. })
     ));
     let paket = "nuget xunit.v3.assert 4.0.0\n";
-    let bump = BumpRequest::parse("nuget:xunit.v3", "4.0.1").expect("nuget prefix");
+    let bump = UpdateRequest::parse("nuget:xunit.v3", "4.0.1").expect("nuget prefix");
     assert!(matches!(
         bump.plan_edit(paket),
         Err(BumpError::NotFound { .. })
@@ -798,7 +798,7 @@ fn maven_and_nuget_edits_fail_closed_on_ambiguous_and_prefixes() {
 
 #[test]
 fn cargo_toml_preserves_format_and_fails_closed() {
-    let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let bump = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
 
     let cargo = "[dependencies]\nanyhow = { version = \"1\", features = [\"derive\"] } # keep\nserde = \"1\"\n";
     let widened = bump.plan_edit(cargo).expect("inline");
@@ -861,7 +861,7 @@ fn cargo_toml_preserves_format_and_fails_closed() {
 fn github_actions_needs_sha_for_tags() {
     let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let workflow = steps(&format!("      - uses: actions/checkout@{old} # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n", old = "3d3c42e5aac5ba805825da76410c181273ba90b1"));
-    let bump = BumpRequest::parse("github-actions:actions/checkout", sha).expect("sha");
+    let bump = UpdateRequest::parse("github-actions:actions/checkout", sha).expect("sha");
     let widened = bump.plan_edit(&workflow).expect("edit");
     assert!(
         widened.contains(&format!("actions/checkout@{sha}")),
@@ -869,7 +869,7 @@ fn github_actions_needs_sha_for_tags() {
     );
     assert!(widened.contains("actions/cache@bbbb"), "{widened}");
 
-    let tag = BumpRequest::parse("github-actions:actions/checkout", "v5").expect("tag");
+    let tag = UpdateRequest::parse("github-actions:actions/checkout", "v5").expect("tag");
     assert!(matches!(
         tag.plan_edit(&workflow),
         Err(BumpError::NeedsSha { .. })
@@ -878,7 +878,7 @@ fn github_actions_needs_sha_for_tags() {
 
 #[test]
 fn cargo_boundary_prefers_exact_table_key() {
-    let bump = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let bump = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     let cargo = "[dependencies]\nmy-anyhow = \"1\"\n";
     assert!(matches!(
         bump.plan_edit(cargo),
@@ -892,7 +892,7 @@ fn cargo_boundary_prefers_exact_table_key() {
 
 #[test]
 fn module_bazel_edits_one_literal_version_token() {
-    let bump = BumpRequest::parse("bazel:rules_rust", "0.75.0").expect("module");
+    let bump = UpdateRequest::parse("bazel:rules_rust", "0.75.0").expect("module");
     for (before, after) in [
         (
             "bazel_dep(name = \"rules_rust\",version=\"0.74.0\")\n",
@@ -955,7 +955,7 @@ fn module_bazel_edits_one_literal_version_token() {
 
 #[test]
 fn npm_layouts_change_only_the_selected_requirement() {
-    let bump = BumpRequest::parse("npm:lodash", "4.17.21").expect("npm");
+    let bump = UpdateRequest::parse("npm:lodash", "4.17.21").expect("npm");
     for (before, after) in [
         (
             r#"{"name":"demo","dependencies":{"lodash":"4.17.20"}}"#,
@@ -976,7 +976,7 @@ fn npm_layouts_change_only_the_selected_requirement() {
 
 #[test]
 fn npm_rejects_ambiguous_malformed_and_unselected_shapes() {
-    let bump = BumpRequest::parse("npm:lodash", "4.17.21").expect("npm");
+    let bump = UpdateRequest::parse("npm:lodash", "4.17.21").expect("npm");
     for source in [
         r#"{"dependencies":{"lodash":"1","lodash":"2"}}"#,
         r#"{"dependencies":{"lodash":"1"},"devDependencies":{"lodash":"2"}}"#,
@@ -1090,7 +1090,7 @@ fn commit_response_resolves_sha_or_fails_closed() {
 #[test]
 fn plan_outcome_distinguishes_changed_from_unchanged() {
     let sha = "a".repeat(40);
-    let bump = BumpRequest::parse("github-actions:actions/checkout", &sha).expect("request");
+    let bump = UpdateRequest::parse("github-actions:actions/checkout", &sha).expect("request");
     assert!(matches!(
         bump.plan_edit_outcome(bump.target_manifest(), &steps("      - uses: actions/checkout@v1\n")).expect("changed"),
         BumpPlanOutcome::Changed(widened) if widened.contains(&sha)
@@ -1103,7 +1103,7 @@ fn plan_outcome_distinguishes_changed_from_unchanged() {
         .expect("unchanged"),
         BumpPlanOutcome::Unchanged
     ));
-    let cargo = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let cargo = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     assert!(matches!(
         cargo
             .plan_edit_outcome(cargo.target_manifest(), "[dependencies]\nanyhow = \"1\"\n")
@@ -1123,7 +1123,7 @@ fn plan_outcome_distinguishes_changed_from_unchanged() {
 
 #[test]
 fn maven_bump_keeps_packaging_and_classifier() {
-    let bump = BumpRequest::parse("maven:g:a", "2.0.0").expect("maven");
+    let bump = UpdateRequest::parse("maven:g:a", "2.0.0").expect("maven");
     for (old, new) in [
         ("g:a:1.0.0", "g:a:2.0.0"),
         ("g:a:jar:1.0.0", "g:a:jar:2.0.0"),
@@ -1149,7 +1149,7 @@ fn maven_bump_keeps_packaging_and_classifier() {
 
 #[test]
 fn maven_bump_rejects_malformed_dynamic_and_ambiguous_without_output() {
-    let bump = BumpRequest::parse("maven:g:a", "2.0.0").expect("maven");
+    let bump = UpdateRequest::parse("maven:g:a", "2.0.0").expect("maven");
     for artifacts in [
         "\"g:a\"",
         "\"g:a:\"",
@@ -1194,7 +1194,7 @@ fn maven_bump_rejects_malformed_dynamic_and_ambiguous_without_output() {
 
 #[test]
 fn go_bump_edits_the_requirement_not_the_comment() {
-    let bump = BumpRequest::parse("go:example.com/pkg", "1.2.0").expect("go");
+    let bump = UpdateRequest::parse("go:example.com/pkg", "1.2.0").expect("go");
     let input = "module example.com/app\nrequire example.com/pkg v1.0.0 // pinned after v0.9.0\n";
     assert_eq!(
         bump.plan_edit(input).expect("edit"),
@@ -1204,7 +1204,7 @@ fn go_bump_edits_the_requirement_not_the_comment() {
 
 #[test]
 fn go_bump_ignores_replace_and_exclude_and_rejects_malformed_files() {
-    let bump = BumpRequest::parse("go:example.com/pkg", "1.2.0").expect("go");
+    let bump = UpdateRequest::parse("go:example.com/pkg", "1.2.0").expect("go");
     let input = "module example.com/app\nreplace example.com/pkg => example.com/fork v1.0.0\nexclude example.com/pkg v1.1.0\n";
     assert!(matches!(
         bump.plan_edit(input),
@@ -1223,14 +1223,14 @@ fn go_bump_ignores_replace_and_exclude_and_rejects_malformed_files() {
 
 #[test]
 fn configured_bazel_set_targets_its_own_module_bazel() {
-    let bump = BumpRequest::parse_configured(
+    let bump = UpdateRequest::parse_configured(
         "bazel-modules",
         "tools/MODULE.bazel",
         "bazel-modules:rules_cc",
         "0.3.0",
     )
     .expect("configured");
-    assert_eq!(bump.set, BumpSet::Bazel);
+    assert_eq!(bump.set, UpdateSet::Bazel);
     assert_eq!(bump.package, "rules_cc");
     assert_eq!(bump.selector, "bazel-modules:rules_cc");
     assert_eq!(bump.target_manifest(), "tools/MODULE.bazel");
@@ -1243,7 +1243,7 @@ fn configured_bazel_set_targets_its_own_module_bazel() {
         "{summary}"
     );
     assert!(!summary.contains("dx update"), "{summary}");
-    let builtin = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
+    let builtin = UpdateRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
     assert!(!builtin.needs_update_refresh());
     let module = "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\n";
     assert_eq!(
@@ -1256,7 +1256,7 @@ fn configured_bazel_set_targets_its_own_module_bazel() {
 #[test]
 fn configured_bazel_set_rejects_bare_bazelversion_and_bad_names() {
     let parse = |selector: &str, version: &str| {
-        BumpRequest::parse_configured("bazel-modules", "tools/MODULE.bazel", selector, version)
+        UpdateRequest::parse_configured("bazel-modules", "tools/MODULE.bazel", selector, version)
     };
     assert_eq!(parse("", "1.0.0"), Err(BumpError::Empty));
     assert_eq!(parse("bazel-modules:rules_cc", ""), Err(BumpError::Empty));
@@ -1347,7 +1347,7 @@ fn cargo_manifests_fail_closed_on_unclear_hubs() {
 
 #[test]
 fn cargo_errors_name_the_manifest_planned() {
-    let cargo = BumpRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
+    let cargo = UpdateRequest::parse("cargo:anyhow", "1.2.3").expect("cargo");
     assert_eq!(
         cargo.plan_edit_outcome("cli/x/Cargo.toml", "[dependencies]\nserde = \"1\"\n"),
         Err(BumpError::NotFound {
@@ -1373,8 +1373,8 @@ fn cargo_errors_name_the_manifest_planned() {
 
 const SPLIT_DEP: &str = "# floor: equals tested\nbazel_dep(name = \"rules_cc\", version = \"0.2.0\")\nsingle_version_override(\n    module_name = \"rules_cc\",\n    patches = [\"//patches/rules_cc:fix.patch\"],\n    version = \"0.2.5\",\n)\n";
 
-fn floor(selector: &str, version: &str, reason: &str) -> BumpRequest {
-    BumpRequest::parse(selector, version)
+fn floor(selector: &str, version: &str, reason: &str) -> UpdateRequest {
+    UpdateRequest::parse(selector, version)
         .expect("request")
         .with_dep_version(DepVersion::from_flags(true, Some(reason)).expect("flags"))
         .expect("floor target")
@@ -1382,7 +1382,7 @@ fn floor(selector: &str, version: &str, reason: &str) -> BumpRequest {
 
 #[test]
 fn a_tested_bump_edits_only_the_override() {
-    let bump = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("bazel");
+    let bump = UpdateRequest::parse("bazel:rules_cc", "0.3.0").expect("bazel");
     let widened = bump.plan_edit(SPLIT_DEP).expect("tested");
     assert_eq!(
         widened,
@@ -1434,7 +1434,7 @@ fn floor_and_reason_flags_come_together() {
         assert!(error.is_usage());
     }
     for selector in ["cargo:anyhow", "bazel:.bazelversion", "maven:g:a"] {
-        let request = BumpRequest::parse(selector, "2.0.0").expect("request");
+        let request = UpdateRequest::parse(selector, "2.0.0").expect("request");
         assert!(
             matches!(
                 request.with_dep_version(DepVersion::Floor {
@@ -1465,7 +1465,7 @@ fn a_floor_above_tested_is_refused() {
 
 #[test]
 fn a_tested_version_below_the_floor_is_refused() {
-    let error = BumpRequest::parse("bazel:rules_cc", "0.1.9")
+    let error = UpdateRequest::parse("bazel:rules_cc", "0.1.9")
         .expect("bazel")
         .plan_edit(SPLIT_DEP)
         .expect_err("refused");
@@ -1483,7 +1483,7 @@ fn a_tested_version_below_the_floor_is_refused() {
 #[test]
 fn without_an_override_the_default_edits_the_bazel_dep() {
     let module = "bazel_dep(name = \"rules_cc\", version = \"0.2.0\")\nsingle_version_override(module_name = \"rules_cc\", patches = [])\n";
-    let bump = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("bazel");
+    let bump = UpdateRequest::parse("bazel:rules_cc", "0.3.0").expect("bazel");
     assert_eq!(
         bump.plan_edit(module).expect("dep"),
         module.replace("0.2.0", "0.3.0")
@@ -1504,14 +1504,14 @@ fn without_an_override_the_default_edits_the_bazel_dep() {
 
 #[test]
 fn a_configured_set_targets_the_override_the_same_way() {
-    let configured = BumpRequest::parse_configured(
+    let configured = UpdateRequest::parse_configured(
         "bazel-modules",
         "tools/MODULE.bazel",
         "bazel-modules:rules_cc",
         "0.3.0",
     )
     .expect("configured");
-    let builtin = BumpRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
+    let builtin = UpdateRequest::parse("bazel:rules_cc", "0.3.0").expect("builtin");
     assert_eq!(
         configured.plan_edit(SPLIT_DEP),
         builtin.plan_edit(SPLIT_DEP)
@@ -1530,7 +1530,7 @@ fn a_configured_set_targets_the_override_the_same_way() {
 #[test]
 fn a_maven_bump_never_touches_floors_or_overrides() {
     let module = format!("{SPLIT_DEP}{}", maven_module("        \"g:a:1.0.0\",\n"));
-    let bump = BumpRequest::parse("maven:g:a", "2.0.0").expect("maven");
+    let bump = UpdateRequest::parse("maven:g:a", "2.0.0").expect("maven");
     let widened = bump.plan_edit(&module).expect("maven");
     assert!(widened.starts_with(SPLIT_DEP), "{widened}");
     assert_eq!(widened, module.replace("g:a:1.0.0", "g:a:2.0.0"));
@@ -1542,9 +1542,9 @@ fn configured(
     repository: Option<&str>,
     selector: &str,
     version: &str,
-) -> Result<BumpRequest, BumpError> {
+) -> Result<UpdateRequest, BumpError> {
     let manifests: Vec<String> = manifests.iter().map(|m| (*m).to_owned()).collect();
-    BumpRequest::parse_configured_set(kind, "set", &manifests, repository, selector, version)
+    UpdateRequest::parse_configured_set(kind, "set", &manifests, repository, selector, version)
 }
 
 #[test]
@@ -1557,7 +1557,7 @@ fn configured_cargo_maven_and_nuget_parse_their_own_grammar() {
         "2.0.0",
     )
     .expect("cargo");
-    assert_eq!(cargo.set, BumpSet::Cargo);
+    assert_eq!(cargo.set, UpdateSet::Cargo);
     assert_eq!(cargo.configured_manifests().expect("manifests").len(), 2);
     assert_eq!(cargo.target().refresh_selector(), "set");
     assert!(cargo.needs_update_refresh());

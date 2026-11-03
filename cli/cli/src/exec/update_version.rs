@@ -1,6 +1,6 @@
-use super::bump_add;
 use super::common::*;
 use super::dep_edit;
+use super::update_version_add;
 use dx_output::{
     command_finished, command_started, notice_event, FinishedCounts, NoticeEvent, OutputMode,
 };
@@ -8,7 +8,7 @@ use dx_plan::args::Invocation;
 use dx_plan::reports::plan_reports;
 pub use dx_update::bump::gha::COMMIT_JSON_ENV;
 
-pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
+pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(invocation.edits_version(), "bump dispatch guards commands");
     let Env {
         workspace,
@@ -39,7 +39,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match configured_request(invocation, out, err, workspace) {
         Ok(Some(request)) => request,
         Ok(None) => {
-            match dx_update::bump::BumpRequest::parse(
+            match dx_update::bump::UpdateRequest::parse(
                 &invocation.targets[0],
                 &invocation.targets[1],
             ) {
@@ -72,7 +72,7 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
     if !invocation.applies() {
         return check_bump(
             invocation,
-            bump_add::Io {
+            update_version_add::Io {
                 workspace,
                 runner,
                 query_runner,
@@ -98,14 +98,14 @@ pub(crate) fn execute_bump(invocation: &Invocation, env: Env<'_>) -> i32 {
             return pre_exec(invocation.output, out, err, &message);
         }
         Err(WidenFailure::Missing(message)) => {
-            let io = bump_add::Io {
+            let io = update_version_add::Io {
                 workspace,
                 runner,
                 query_runner,
                 out,
                 err,
             };
-            return bump_add::add_missing(invocation, io, &request, &message);
+            return update_version_add::add_missing(invocation, io, &request, &message);
         }
         Err(WidenFailure::Failed(message)) => {
             return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
@@ -170,13 +170,13 @@ fn configured_request(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     workspace: &std::path::Path,
-) -> Result<Option<dx_update::bump::BumpRequest>, i32> {
+) -> Result<Option<dx_update::bump::UpdateRequest>, i32> {
     let Some(configured) =
         dep_edit::configured_set(&BUMP_VERB, invocation, out, err, workspace, true)?
     else {
         return Ok(None);
     };
-    dx_update::bump::BumpRequest::parse_configured_set(
+    dx_update::bump::UpdateRequest::parse_configured_set(
         configured.kind,
         &configured.name,
         &configured.manifests,
@@ -190,11 +190,11 @@ fn configured_request(
 
 fn check_bump(
     invocation: &Invocation,
-    io: bump_add::Io<'_>,
-    request: &dx_update::bump::BumpRequest,
+    io: update_version_add::Io<'_>,
+    request: &dx_update::bump::UpdateRequest,
     verbose: bool,
 ) -> i32 {
-    let bump_add::Io {
+    let update_version_add::Io {
         workspace,
         runner,
         query_runner,
@@ -212,14 +212,14 @@ fn check_bump(
             return pre_exec(invocation.output, out, err, &message);
         }
         Err(WidenFailure::Missing(message)) => {
-            let io = bump_add::Io {
+            let io = update_version_add::Io {
                 workspace,
                 runner,
                 query_runner,
                 out,
                 err,
             };
-            return bump_add::add_missing(invocation, io, request, &message);
+            return update_version_add::add_missing(invocation, io, request, &message);
         }
         Err(WidenFailure::Failed(message)) => {
             return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
@@ -289,15 +289,15 @@ fn check_bump(
 }
 
 fn widen_targets(
-    request: &dx_update::bump::BumpRequest,
+    request: &dx_update::bump::UpdateRequest,
     workspace: &std::path::Path,
 ) -> Result<Vec<String>, String> {
     if let Some(manifests) = request.configured_manifests() {
         return Ok(manifests.to_vec());
     }
     match request.set {
-        dx_update::bump::BumpSet::GithubActions => {}
-        dx_update::bump::BumpSet::Cargo => {
+        dx_update::bump::UpdateSet::GithubActions => {}
+        dx_update::bump::UpdateSet::Cargo => {
             let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).map_err(|_| {
                 format!(
                     "failed to widen {}: cannot read MODULE.bazel",
@@ -342,7 +342,7 @@ impl From<String> for WidenFailure {
 }
 
 fn plan_widens(
-    request: &dx_update::bump::BumpRequest,
+    request: &dx_update::bump::UpdateRequest,
     workspace: &std::path::Path,
 ) -> Result<Vec<(String, String, bool)>, WidenFailure> {
     let mut planned = Vec::new();
@@ -397,12 +397,12 @@ fn plan_widens(
     }
     if planned.is_empty() {
         let manifest = if let Some(name) = request.configured_name() {
-            if request.set == dx_update::bump::BumpSet::Cargo {
+            if request.set == dx_update::bump::UpdateSet::Cargo {
                 format!("any manifest of set {name}")
             } else {
                 request.target_manifest().to_owned()
             }
-        } else if request.set == dx_update::bump::BumpSet::Cargo {
+        } else if request.set == dx_update::bump::UpdateSet::Cargo {
             format!(
                 "any of the {} manifests of the crate.from_cargo hub in MODULE.bazel",
                 targets.len()
@@ -423,11 +423,11 @@ fn plan_widens(
 }
 
 fn resolve_gha_tag_request(
-    request: &dx_update::bump::BumpRequest,
+    request: &dx_update::bump::UpdateRequest,
     commit_json: Option<&str>,
-) -> Result<dx_update::bump::BumpRequest, String> {
+) -> Result<dx_update::bump::UpdateRequest, String> {
     let is_gha_tag = matches!(&request.version, dx_update::bump::WidenVersion::GitTag(_))
-        && request.set == dx_update::bump::BumpSet::GithubActions;
+        && request.set == dx_update::bump::UpdateSet::GithubActions;
     if !is_gha_tag {
         return Ok(request.clone());
     }
@@ -442,14 +442,14 @@ fn resolve_gha_tag_request(
     })?;
     let sha = dx_update::bump::gha::resolve_sha_from_commit_response(&text)
         .map_err(|error| format!("failed to widen {}: {error}", request.selector))?;
-    dx_update::bump::BumpRequest::parse(&request.selector, &sha)
+    dx_update::bump::UpdateRequest::parse(&request.selector, &sha)
         .map_err(|error| format!("failed to widen {}: {error}", request.selector))
 }
 
 fn emit_update_no_change(
     invocation: &Invocation,
     out: &mut dyn std::io::Write,
-    request: &dx_update::bump::BumpRequest,
+    request: &dx_update::bump::UpdateRequest,
     planned: &[(String, String, bool)],
     verbose: bool,
 ) -> i32 {

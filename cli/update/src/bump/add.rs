@@ -1,7 +1,7 @@
 //! Declares a requirement `dx update` found missing.
 
-use super::request::{BumpError, BumpRequest, DepTarget};
-use super::sets::BumpSet;
+use super::request::{BumpError, DepTarget, UpdateRequest};
+use super::sets::UpdateSet;
 use super::version::WidenVersion;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -43,7 +43,7 @@ const GITHUB_ACTIONS_HINT: &str =
 
 impl AddRequest {
     /// The insert request for the package a bump request names.
-    pub fn from_bump(bump: &BumpRequest) -> AddRequest {
+    pub fn from_bump(bump: &UpdateRequest) -> AddRequest {
         AddRequest {
             target: bump.target(),
             version: bump.version.clone(),
@@ -52,7 +52,7 @@ impl AddRequest {
         }
     }
 
-    pub fn set(&self) -> BumpSet {
+    pub fn set(&self) -> UpdateSet {
         self.target.set
     }
 
@@ -73,8 +73,8 @@ impl AddRequest {
     }
 
     /// The `dx update` request for the same package and version.
-    pub fn as_bump(&self) -> BumpRequest {
-        BumpRequest::for_target(
+    pub fn as_bump(&self) -> UpdateRequest {
+        UpdateRequest::for_target(
             &self.target,
             self.version.clone(),
             &self.selector,
@@ -110,10 +110,10 @@ impl AddRequest {
         };
         let package = self.package();
         match self.set() {
-            BumpSet::Bazel => dx_module_bazel::ModuleFile::parse(content)
+            UpdateSet::Bazel => dx_module_bazel::ModuleFile::parse(content)
                 .and_then(|module| module.insert_bazel_dep(package, &version))
                 .map_err(|error| unsupported(error.to_string())),
-            BumpSet::Maven => dx_module_bazel::ModuleFile::parse(content)
+            UpdateSet::Maven => dx_module_bazel::ModuleFile::parse(content)
                 .and_then(|module| {
                     let coordinate = format!("{package}:{version}");
                     match self
@@ -129,21 +129,21 @@ impl AddRequest {
                     }
                 })
                 .map_err(|error| unsupported(error.to_string())),
-            BumpSet::Go => dx_gomod::insert_require(content, package, &format!("v{version}"))
+            UpdateSet::Go => dx_gomod::insert_require(content, package, &format!("v{version}"))
                 .map_err(|error| match error {
                     dx_gomod::GoEditError::Invalid(reason) => unsupported(reason),
                     other => unsupported(format!("{other:?}")),
                 }),
-            BumpSet::Cargo => {
+            UpdateSet::Cargo => {
                 plans::insert_cargo_dependency(content, package, &version).map_err(unsupported)
             }
-            BumpSet::Npm => {
+            UpdateSet::Npm => {
                 plans::insert_npm_dependency(content, package, &version).map_err(unsupported)
             }
-            BumpSet::NuGet => {
+            UpdateSet::NuGet => {
                 plans::insert_paket_dependency(content, package, &version).map_err(unsupported)
             }
-            BumpSet::GithubActions => Err(AddError::UnsupportedSet {
+            UpdateSet::GithubActions => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: GITHUB_ACTIONS_HINT,
             }),

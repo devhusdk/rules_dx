@@ -1,10 +1,10 @@
 use super::gha::WORKFLOW_DIR;
-use super::sets::BumpSet;
+use super::sets::UpdateSet;
 use super::version::{self, VersionError, WidenVersion};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BumpRequest {
-    pub set: BumpSet,
+pub struct UpdateRequest {
+    pub set: UpdateSet,
     pub package: String,
     pub version: WidenVersion,
     pub selector: String,
@@ -35,14 +35,14 @@ pub enum ConfiguredKind {
 
 impl ConfiguredKind {
     /// The selector and version grammar of this ecosystem.
-    pub fn grammar(self) -> BumpSet {
+    pub fn grammar(self) -> UpdateSet {
         match self {
-            ConfiguredKind::Cargo => BumpSet::Cargo,
-            ConfiguredKind::Maven => BumpSet::Maven,
-            ConfiguredKind::Nuget => BumpSet::NuGet,
-            ConfiguredKind::Go => BumpSet::Go,
-            ConfiguredKind::Npm => BumpSet::Npm,
-            ConfiguredKind::Uv | ConfiguredKind::Bazel => BumpSet::Bazel,
+            ConfiguredKind::Cargo => UpdateSet::Cargo,
+            ConfiguredKind::Maven => UpdateSet::Maven,
+            ConfiguredKind::Nuget => UpdateSet::NuGet,
+            ConfiguredKind::Go => UpdateSet::Go,
+            ConfiguredKind::Npm => UpdateSet::Npm,
+            ConfiguredKind::Uv | ConfiguredKind::Bazel => UpdateSet::Bazel,
         }
     }
 }
@@ -104,7 +104,7 @@ pub enum BumpPlanOutcome {
 pub enum BumpError {
     #[error("empty bump selector or version; expected `dx update <set:package> <version>`")]
     Empty,
-    #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. cargo:anyhow, maven:junit:junit)", BumpSet::pipe_list())]
+    #[error("unknown bump selector {selector:?}; expected {} as `set:package` (e.g. cargo:anyhow, maven:junit:junit)", UpdateSet::pipe_list())]
     UnknownSelector { selector: String },
     #[error("invalid package {package:?} for set {set}: {reason}")]
     InvalidPackage {
@@ -170,7 +170,7 @@ impl BumpError {
 /// One declared dependency a manifest edit targets: its set, package and manifest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DepTarget {
-    pub set: BumpSet,
+    pub set: UpdateSet,
     pub package: String,
     pub manifest: Option<String>,
     /// The configured npm, uv or bazel set the dependency belongs to, if any.
@@ -240,43 +240,43 @@ fn configured_refresh_selector(
     })
 }
 
-fn refresh_selector(set: BumpSet, package: &str) -> String {
+fn refresh_selector(set: UpdateSet, package: &str) -> String {
     match set {
-        BumpSet::Npm => format!("{}:{}", set.name(), package),
-        BumpSet::Bazel | BumpSet::GithubActions => String::new(),
+        UpdateSet::Npm => format!("{}:{}", set.name(), package),
+        UpdateSet::Bazel | UpdateSet::GithubActions => String::new(),
         set => set.name().to_owned(),
     }
 }
 
-fn target_manifest<'a>(set: BumpSet, package: &str, manifest: Option<&'a str>) -> &'a str {
+fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>) -> &'a str {
     if let Some(manifest) = manifest {
         return manifest;
     }
     match set {
-        BumpSet::Bazel => {
+        UpdateSet::Bazel => {
             if package == ".bazelversion" {
                 ".bazelversion"
             } else {
                 "MODULE.bazel"
             }
         }
-        BumpSet::Cargo => "rust/tests/fixtures/hello/Cargo.toml",
-        BumpSet::GithubActions => WORKFLOW_DIR,
-        BumpSet::Go => "third_party/go/go.mod",
-        BumpSet::Maven => "MODULE.bazel",
-        BumpSet::Npm => "package.json",
-        BumpSet::NuGet => "third_party/dotnet/paket.dependencies",
+        UpdateSet::Cargo => "rust/tests/fixtures/hello/Cargo.toml",
+        UpdateSet::GithubActions => WORKFLOW_DIR,
+        UpdateSet::Go => "third_party/go/go.mod",
+        UpdateSet::Maven => "MODULE.bazel",
+        UpdateSet::Npm => "package.json",
+        UpdateSet::NuGet => "third_party/dotnet/paket.dependencies",
     }
 }
 
-impl BumpRequest {
-    pub fn parse(selector: &str, version: &str) -> Result<BumpRequest, BumpError> {
+impl UpdateRequest {
+    pub fn parse(selector: &str, version: &str) -> Result<UpdateRequest, BumpError> {
         if selector.is_empty() || version.is_empty() {
             return Err(BumpError::Empty);
         }
         let (set, package) = parse_selector(selector)?;
         let parsed = version::parse(set, version)?;
-        Ok(BumpRequest {
+        Ok(UpdateRequest {
             set,
             package,
             version: parsed,
@@ -293,7 +293,7 @@ impl BumpRequest {
         manifest: &str,
         selector: &str,
         version: &str,
-    ) -> Result<BumpRequest, BumpError> {
+    ) -> Result<UpdateRequest, BumpError> {
         Self::parse_configured_as(ConfiguredKind::Bazel, set_name, manifest, selector, version)
     }
 
@@ -304,7 +304,7 @@ impl BumpRequest {
         manifest: &str,
         selector: &str,
         version: &str,
-    ) -> Result<BumpRequest, BumpError> {
+    ) -> Result<UpdateRequest, BumpError> {
         Self::parse_configured_set(
             kind,
             set_name,
@@ -323,7 +323,7 @@ impl BumpRequest {
         repository: Option<&str>,
         selector: &str,
         version: &str,
-    ) -> Result<BumpRequest, BumpError> {
+    ) -> Result<UpdateRequest, BumpError> {
         if selector.is_empty() || version.is_empty() {
             return Err(BumpError::Empty);
         }
@@ -338,7 +338,7 @@ impl BumpRequest {
         };
         let set = kind.grammar();
         let parsed = version::parse(set, version)?;
-        Ok(BumpRequest {
+        Ok(UpdateRequest {
             set,
             package,
             version: parsed,
@@ -398,8 +398,8 @@ impl BumpRequest {
         version: WidenVersion,
         selector: &str,
         raw_version: &str,
-    ) -> BumpRequest {
-        BumpRequest {
+    ) -> UpdateRequest {
+        UpdateRequest {
             set: target.set,
             package: target.package.clone(),
             version,
@@ -412,9 +412,9 @@ impl BumpRequest {
     }
 
     /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel bazel_dep.
-    pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<BumpRequest, BumpError> {
+    pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<UpdateRequest, BumpError> {
         if dep_version != DepVersion::Tested
-            && (self.set != BumpSet::Bazel
+            && (self.set != UpdateSet::Bazel
                 || (self.configured.is_some() && !self.target().is_configured_bazel())
                 || self.package == ".bazelversion")
         {
@@ -443,14 +443,14 @@ impl BumpRequest {
             .filter(|set| set.kind == ConfiguredKind::Cargo)
         {
             format!("every manifest of set {} that declares the crate", set.name)
-        } else if self.set == BumpSet::Cargo && self.manifest.is_none() {
+        } else if self.set == UpdateSet::Cargo && self.manifest.is_none() {
             "every manifest of the crate.from_cargo hub in MODULE.bazel".to_owned()
         } else {
             self.target_manifest().to_owned()
         };
         let what = match (&self.dep_version, self.set, self.package.as_str()) {
             (DepVersion::Floor { .. }, _, _) => " floor",
-            (DepVersion::Tested, BumpSet::Bazel, package)
+            (DepVersion::Tested, UpdateSet::Bazel, package)
                 if package != ".bazelversion"
                     && (self.configured.is_none() || self.target().is_configured_bazel()) =>
             {
@@ -475,17 +475,17 @@ impl BumpRequest {
             return plan_pyproject_toml(content, &self.package, &self.version);
         }
         match self.set {
-            BumpSet::Bazel => {
+            UpdateSet::Bazel => {
                 if self.package == ".bazelversion" {
                     plan_bazelversion(content, &self.version)
                 } else {
                     plan_module_bazel(content, &self.package, &self.version, &self.dep_version)
                 }
             }
-            BumpSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
-            BumpSet::Npm => plan_package_json(content, &self.package, &self.version),
-            BumpSet::Go => plan_go_mod(manifest, content, &self.package, &self.version),
-            BumpSet::Maven => plan_maven_module_bazel(
+            UpdateSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
+            UpdateSet::Npm => plan_package_json(content, &self.package, &self.version),
+            UpdateSet::Go => plan_go_mod(manifest, content, &self.package, &self.version),
+            UpdateSet::Maven => plan_maven_module_bazel(
                 manifest,
                 content,
                 &self.package,
@@ -494,10 +494,10 @@ impl BumpRequest {
                     .as_ref()
                     .and_then(|set| set.repository.as_deref()),
             ),
-            BumpSet::NuGet => {
+            UpdateSet::NuGet => {
                 plan_paket_dependencies(manifest, content, &self.package, &self.version)
             }
-            BumpSet::GithubActions => plan_github_workflow(content, &self.package, &self.version),
+            UpdateSet::GithubActions => plan_github_workflow(content, &self.package, &self.version),
         }
     }
 
@@ -516,7 +516,7 @@ impl BumpRequest {
 }
 
 /// Parses a `set:package` selector into its set and package identity.
-pub fn parse_selector(selector: &str) -> Result<(BumpSet, String), BumpError> {
+pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), BumpError> {
     if selector.is_empty() {
         return Err(BumpError::Empty);
     }
@@ -525,7 +525,7 @@ pub fn parse_selector(selector: &str) -> Result<(BumpSet, String), BumpError> {
             target: selector.to_owned(),
         });
     }
-    if let Some(set) = BumpSet::parse(selector) {
+    if let Some(set) = UpdateSet::parse(selector) {
         return Err(BumpError::BareSet {
             set: set.name().to_owned(),
         });
@@ -538,7 +538,7 @@ pub fn parse_selector(selector: &str) -> Result<(BumpSet, String), BumpError> {
             });
         }
     };
-    let set = match BumpSet::parse(head) {
+    let set = match UpdateSet::parse(head) {
         Some(set) => set,
         None => {
             return Err(BumpError::UnknownSelector {
@@ -553,7 +553,7 @@ pub fn parse_selector(selector: &str) -> Result<(BumpSet, String), BumpError> {
             reason: "package identity is empty",
         });
     }
-    if set != BumpSet::Maven && tail.contains(':') {
+    if set != UpdateSet::Maven && tail.contains(':') {
         return Err(BumpError::InvalidPackage {
             set: set.name(),
             package: tail.to_owned(),
@@ -575,7 +575,7 @@ pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<Strin
         });
     };
     let invalid = |reason: &'static str| BumpError::InvalidPackage {
-        set: BumpSet::Bazel.name(),
+        set: UpdateSet::Bazel.name(),
         package: tail.to_owned(),
         reason,
     };
@@ -590,7 +590,7 @@ pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<Strin
             "configured bazel sets widen MODULE.bazel bazel_dep pins only",
         ));
     }
-    validate_package(BumpSet::Bazel, tail)?;
+    validate_package(UpdateSet::Bazel, tail)?;
     Ok(tail.to_owned())
 }
 

@@ -1,8 +1,6 @@
 mod affected;
 mod audit;
 mod build_failures;
-mod bump;
-mod bump_add;
 mod changed_coverage;
 mod clean;
 pub mod common;
@@ -53,16 +51,18 @@ mod test_reports;
 pub(crate) mod test_support;
 mod umbrella;
 mod update;
+mod update_version;
+mod update_version_add;
 mod workflow;
 mod worktree;
 
 use dx_plan::args::{Command, Invocation};
 
 pub use audit::AUDIT_TODAY_ENV;
-pub use bump::COMMIT_JSON_ENV as BUMP_COMMIT_JSON_ENV;
 pub use common::{print_actions, ActionTally, Env};
 pub use failure::{cancel, install_panic_events, set_usage_command};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
+pub use update_version::COMMIT_JSON_ENV as BUMP_COMMIT_JSON_ENV;
 pub use worktree::{hook_kind, run_worktree_hook};
 
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
@@ -256,7 +256,9 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Env if invocation.shell.is_some() => managed::execute_env_shell(env),
         Command::Env => managed::execute_managed(invocation, env),
         Command::Security | Command::License => audit::execute_audit(invocation, env),
-        Command::Update if invocation.edits_version() => bump::execute_bump(invocation, env),
+        Command::Update if invocation.edits_version() => {
+            update_version::execute_update_version(invocation, env)
+        }
         Command::Update => update::execute_update(invocation, env),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {

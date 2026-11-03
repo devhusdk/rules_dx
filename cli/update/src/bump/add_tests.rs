@@ -2,7 +2,7 @@ use super::*;
 use crate::bump::request::{BumpPlanOutcome, ConfiguredKind};
 
 fn request(selector: &str, version: &str) -> AddRequest {
-    AddRequest::from_bump(&BumpRequest::parse(selector, version).expect("bump request"))
+    AddRequest::from_bump(&UpdateRequest::parse(selector, version).expect("bump request"))
 }
 
 fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError> {
@@ -11,13 +11,13 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
 
 /// A widen reads what an add wrote: the same version is current, a higher one widens.
 fn assert_bump_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
-    let same = BumpRequest::parse(selector, version).expect("bump request");
+    let same = UpdateRequest::parse(selector, version).expect("bump request");
     assert_eq!(
         same.plan_edit_outcome(same.target_manifest(), written),
         Ok(BumpPlanOutcome::Unchanged),
         "{selector} at {version}"
     );
-    let next = BumpRequest::parse(selector, higher).expect("bump request");
+    let next = UpdateRequest::parse(selector, higher).expect("bump request");
     assert!(
         matches!(
             next.plan_edit_outcome(next.target_manifest(), written),
@@ -68,7 +68,7 @@ fn bazel_inserts_after_the_last_dep() {
 #[test]
 fn configured_bazel_sets_insert_into_their_manifest() {
     let request = AddRequest::from_bump(
-        &BumpRequest::parse_configured("tools", "tools/MODULE.bazel", "tools:demo", "1.2.3")
+        &UpdateRequest::parse_configured("tools", "tools/MODULE.bazel", "tools:demo", "1.2.3")
             .expect("request"),
     );
     assert_eq!(request.target_manifest(), "tools/MODULE.bazel");
@@ -281,7 +281,7 @@ fn configured(
     repository: Option<&str>,
     selector: &str,
 ) -> Result<AddRequest, BumpError> {
-    BumpRequest::parse_configured_set(
+    UpdateRequest::parse_configured_set(
         kind,
         "tools",
         &["apps/tools/manifest".to_owned()],

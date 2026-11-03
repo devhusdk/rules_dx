@@ -1,4 +1,4 @@
-use dx_update::bump::{BumpError, BumpRequest, BumpSet};
+use dx_update::bump::{BumpError, UpdateRequest, UpdateSet};
 use dx_update::selector::{parse_selector, SelectorError};
 use dx_update::sets::SetId;
 
@@ -51,13 +51,13 @@ fn update_refusal(set: &str, package: &str) -> Option<&'static str> {
 }
 
 fn bump_refusal(set: &str, package: &str) -> Option<&'static str> {
-    match BumpRequest::parse(&format!("{set}:{package}"), VERSION) {
+    match UpdateRequest::parse(&format!("{set}:{package}"), VERSION) {
         Err(BumpError::InvalidPackage { reason, .. }) => Some(reason),
         _ => None,
     }
 }
 
-/// `BumpRequest::parse` refuses an empty or colon-bearing identity before the shared check.
+/// `UpdateRequest::parse` refuses an empty or colon-bearing identity before the shared check.
 fn bump_precheck(set: &str, package: &str) -> bool {
     package.is_empty() || (set != "maven" && package.contains(':'))
 }
@@ -65,7 +65,7 @@ fn bump_precheck(set: &str, package: &str) -> bool {
 #[test]
 fn update_and_bump_refuse_a_shared_identity_the_same_way() {
     let mut shared = 0;
-    for set in BumpSet::ALL {
+    for set in UpdateSet::ALL {
         let name = set.name();
         if SetId::parse(name).is_none() {
             continue;

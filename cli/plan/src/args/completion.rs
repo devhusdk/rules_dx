@@ -423,7 +423,7 @@ fn update_set_hints(current: &str) -> Vec<String> {
     let names: Vec<&str> = dx_update::sets::SetId::ALL
         .iter()
         .map(|id| id.name())
-        .chain(dx_update::bump::BumpSet::names())
+        .chain(dx_update::bump::UpdateSet::names())
         .collect();
     prefixed(&names, current)
 }
@@ -658,7 +658,7 @@ mod tests {
                         .iter()
                         .map(|id| (*id).name().to_owned())
                         .chain(
-                            dx_update::bump::BumpSet::names()
+                            dx_update::bump::UpdateSet::names()
                                 .into_iter()
                                 .map(String::from),
                         )

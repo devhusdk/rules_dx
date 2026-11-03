@@ -7,7 +7,7 @@ pub fn cargo_manifests(module_bazel: &str) -> Result<Vec<String>, BumpError> {
         manifest: "MODULE.bazel".to_owned(),
         reason,
     };
-    let lock = BumpSet::Cargo.locks()[0];
+    let lock = UpdateSet::Cargo.locks()[0];
     let module = dx_module_bazel::ModuleFile::parse(module_bazel)
         .map_err(|error| unsupported(error.to_string()))?;
     let hubs = module

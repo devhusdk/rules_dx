@@ -2,6 +2,7 @@ package common
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -73,5 +74,18 @@ func TestSortErrorsUnknownBeforeRoot(t *testing.T) {
 	}
 	if got := SortErrors(in); !reflect.DeepEqual(got, want) {
 		t.Fatalf("SortErrors = %+v, want %+v", got, want)
+	}
+}
+
+func TestReportPrefixesKnownPackages(t *testing.T) {
+	got := Report([]GenerationError{
+		{Message: "run failed"},
+		{Package: InPackage(""), Message: "root bad"},
+		{Package: InPackage("a/b"), Message: "rust: malformed"},
+		{Package: InPackage("a/b"), Message: "go: //a/b:x: bad"},
+	})
+	want := []string{"run failed", "//: root bad", "//a/b: rust: malformed", "go: //a/b:x: bad"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("Report = %q, want %q", got, want)
 	}
 }

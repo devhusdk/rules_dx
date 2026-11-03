@@ -2,6 +2,7 @@ package common
 
 import (
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -89,6 +90,20 @@ func SortErrors(entries []GenerationError) []GenerationError {
 		return nil
 	}
 	return out
+}
+
+// Report returns each entry's message, prefixed with its package label when the package is known and the message does not already name it.
+func Report(entries []GenerationError) []string {
+	msgs := make([]string, 0, len(entries))
+	for _, e := range entries {
+		label := "//" + e.Package.Rel + ":"
+		if !e.Package.Known || strings.Contains(e.Message, label) {
+			msgs = append(msgs, e.Message)
+			continue
+		}
+		msgs = append(msgs, label+" "+e.Message)
+	}
+	return msgs
 }
 
 // Messages returns the Message of each entry, in order.

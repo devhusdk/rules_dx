@@ -266,7 +266,7 @@ func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 
 // reportFailure is the single failure exit for a generation run.
 func reportFailure(all []common.GenerationError) {
-	fmt.Fprintln(stderr, "Generation failed:\n"+strings.Join(common.Messages(all), "\n"))
+	fmt.Fprintln(stderr, "Generation failed:\n"+strings.Join(common.Report(all), "\n"))
 	exitProcess(1)
 }
 

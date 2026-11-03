@@ -561,7 +561,7 @@ func TestNativeValeStylesInvalidPaths(t *testing.T) {
 	if !ok {
 		t.Fatal("missing vale tool definition")
 	}
-	if got := valeStylesData(root, root, "", vale); got != nil {
+	if got, _ := valeStylesData(root, root, "", vale); got != nil {
 		t.Errorf("missing config data = %v, want nil", got)
 	}
 
@@ -572,7 +572,7 @@ func TestNativeValeStylesInvalidPaths(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
 			writeFixture(t, dir, ".vale.ini", "StylesPath = "+styles+"\n")
-			if got := valeStylesData(root, dir, "", vale); got != nil {
+			if got, _ := valeStylesData(root, dir, "", vale); got != nil {
 				t.Errorf("invalid StylesPath data = %v, want nil", got)
 			}
 		})
@@ -582,7 +582,7 @@ func TestNativeValeStylesInvalidPaths(t *testing.T) {
 	outside := filepath.Join(root, "outside")
 	writeFixture(t, dir, ".vale.ini", "StylesPath = ../outside\n")
 	writeFixture(t, outside, "rule.yml", "extends: existence\n")
-	if got := valeStylesData(root, dir, "site", vale); got != nil {
+	if got, _ := valeStylesData(root, dir, "site", vale); got != nil {
 		t.Errorf("escaping StylesPath data = %v, want nil", got)
 	}
 }
@@ -719,5 +719,23 @@ func TestCorpusDirectiveRejectsMalformed(t *testing.T) {
 		if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "malformed # gazelle:dx_corpus: want true or false") {
 			t.Fatalf("%q: errors = %v", value, l.errors)
 		}
+	}
+}
+
+func TestCorpusWalkErrorNamesDirectory(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "gone")
+	plan := planCorpus(language.GenerateArgs{Config: config.New(), Dir: missing, Rel: "pkg"}, true)
+	if len(plan.errs) != 1 || !strings.Contains(plan.errs[0].Error(), missing) {
+		t.Fatalf("errs = %v, want one naming %s", plan.errs, missing)
+	}
+}
+
+func TestValeStylesWalkErrorNamesDirectory(t *testing.T) {
+	root := t.TempDir()
+	vale, _ := nativeToolByID("vale")
+	writeFixture(t, root, ".vale.ini", "StylesPath = nope\n")
+	_, errs := valeStylesData(root, root, "", vale)
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), filepath.Join(root, "nope")) {
+		t.Fatalf("errs = %v, want one naming the styles directory", errs)
 	}
 }

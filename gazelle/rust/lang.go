@@ -262,6 +262,9 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		l.fail(common.InPackage(args.Rel), "%v", err)
 		return language.GenerateResult{}
 	}
+	for _, e := range plan.errs {
+		l.fail(common.InPackage(args.Rel), "%v", e)
+	}
 	files, err := sourceFiles(args.Dir, args.Rel)
 	if err != nil {
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
@@ -396,6 +399,9 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 	corpus := &corpusPlan{}
 	if corpusEnabled(args.Config) {
 		corpus = planCorpus(args, hasOtherGen)
+		for _, e := range corpus.errs {
+			l.fail(common.InPackage(args.Rel), "%v", e)
+		}
 	}
 	result.Gen = append(result.Gen, corpus.gen...)
 	for range corpus.gen {

@@ -133,6 +133,7 @@ type nativePlan struct {
 	generated map[string]bool
 	stubbed   map[string]bool
 	existing  map[string]*rule.Rule
+	errs      []error
 }
 
 func planNativeConfig(c *config.Config, args language.GenerateArgs) (*nativePlan, error) {
@@ -177,7 +178,9 @@ func planNativeConfig(c *config.Config, args language.GenerateArgs) (*nativePlan
 		}
 		r := rule.NewRule(tool.kind, name)
 		r.SetAttr("src", tool.file)
-		if data := valeStylesData(args.Config.RepoRoot, args.Dir, args.Rel, tool); len(data) > 0 {
+		data, errs := valeStylesData(args.Config.RepoRoot, args.Dir, args.Rel, tool)
+		plan.errs = append(plan.errs, errs...)
+		if len(data) > 0 {
 			r.SetAttr("data", data)
 		}
 		r.SetAttr("visibility", []string{nativeVisibility(args.Rel)})
@@ -292,13 +295,13 @@ func hintCanonicalName(rel, entry string) string {
 	return entry
 }
 
-func valeStylesData(repoRoot, dir, rel string, tool nativeTool) []string {
+func valeStylesData(repoRoot, dir, rel string, tool nativeTool) ([]string, []error) {
 	if tool.id != "vale" {
-		return nil
+		return nil, nil
 	}
 	content, err := os.ReadFile(filepath.Join(dir, tool.file))
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	styles := "styles"
 	for _, line := range strings.Split(string(content), "\n") {
@@ -313,12 +316,17 @@ func valeStylesData(repoRoot, dir, rel string, tool nativeTool) []string {
 		styles = strings.Trim(strings.TrimSpace(value), `"'`)
 	}
 	if styles == "" || path.IsAbs(styles) || filepath.IsAbs(styles) {
-		return nil
+		return nil, nil
 	}
 	var data []string
+	var errs []error
 	root := filepath.Join(dir, filepath.FromSlash(styles))
 	_ = filepath.WalkDir(root, func(name string, entry os.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
+		if err != nil {
+			errs = append(errs, fmt.Errorf("rust: cannot read Vale StylesPath directory %s: %w", name, err))
+			return nil
+		}
+		if entry.IsDir() {
 			return nil
 		}
 		local, relErr := filepath.Rel(dir, name)
@@ -340,5 +348,5 @@ func valeStylesData(repoRoot, dir, rel string, tool nativeTool) []string {
 		return nil
 	})
 	sort.Strings(data)
-	return data
+	return data, errs
 }

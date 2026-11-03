@@ -93,6 +93,7 @@ func corpusLoads(rulesRepo string) rule.LoadInfo {
 type corpusPlan struct {
 	gen   []*rule.Rule
 	empty []*rule.Rule
+	errs  []error
 }
 
 func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
@@ -163,6 +164,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	root := args.Dir
 	_ = filepath.WalkDir(root, func(name string, entry os.DirEntry, err error) error {
 		if err != nil {
+			plan.errs = append(plan.errs, fmt.Errorf("rust: cannot read corpus directory %s: %w", name, err))
 			return nil
 		}
 		if entry.IsDir() {

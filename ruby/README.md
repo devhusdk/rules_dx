@@ -129,7 +129,4 @@ neither and `bazel test` never fetches them. A bundle that has its own
 `simplecov` wins: its SimpleCov then runs with the pinned simplecov-lcov.
 Records name each file as `SF:./<path>`.
 
-A test without a bundle and Windows hosts need the rules_ruby overrides dx
-ships (`patches/rules_ruby/coverage.patch`); run `dx init --apply` to include
-them. Without them, Windows still exits 1 under coverage. Tag a test
-`no-coverage` to skip it under coverage.
+Tag a test `no-coverage` to skip it under coverage.

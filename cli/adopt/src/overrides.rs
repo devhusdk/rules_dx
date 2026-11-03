@@ -95,21 +95,6 @@ pub const OVERRIDES: &[Override] = &[
         ],
     },
     Override {
-        module: "rules_ruby",
-        version: "0.29.0",
-        patch_strip: 1,
-        patches: &[
-            OverridePatch {
-                file: "reproducible.patch",
-                content: include_str!("../../../patches/rules_ruby/reproducible.patch"),
-            },
-            OverridePatch {
-                file: "coverage.patch",
-                content: include_str!("../../../patches/rules_ruby/coverage.patch"),
-            },
-        ],
-    },
-    Override {
         module: "rules_dart",
         version: "0.8.0",
         patch_strip: 1,

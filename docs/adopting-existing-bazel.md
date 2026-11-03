@@ -43,7 +43,7 @@ touch Bazel are:
 
 The overrides pin these modules for your whole graph. If your repo needs
 another version of one of them, you must move to the pinned one:
-`rules_rust`, `rules_android`, `rules_dotnet`, `rules_ruby`, `aspect_rules_py`,
+`rules_rust`, `rules_android`, `rules_dotnet`, `aspect_rules_py`,
 `aspect_rules_ts`, `aspect_rules_jest`. The versions are in
 `patches/README.md` in the rules_dx repository.
 

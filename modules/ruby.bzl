@@ -1,8 +1,7 @@
 """Pinned Ruby foundation."""
 
-load(":versions.bzl", _RUBY_VERSION = "RUBY_VERSION", _RULES_RUBY_VERSION = "RULES_RUBY_VERSION")
+load(":versions.bzl", _RUBY_VERSION = "RUBY_VERSION")
 
-RULES_RUBY_VERSION = _RULES_RUBY_VERSION
 RUBY_VERSION = _RUBY_VERSION
 
 GEM_CHECKSUMS = {

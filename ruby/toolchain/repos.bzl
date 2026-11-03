@@ -1,6 +1,7 @@
 """Hermetic Sorbet acquisition: the pinned sorbet-static gem of the host, unpacked."""
 
-load(":pins.bzl", "SORBET_BINARY", "SORBET_CELLS", "sorbet_url")
+load("//libs/starlark:repo.bzl", "pinned_archive")
+load(":pins.bzl", "RULES_RUBY_SHA256", "RULES_RUBY_URL", "RULES_RUBY_VERSION", "SORBET_BINARY", "SORBET_CELLS", "sorbet_url")
 
 _BUILD = """package(default_visibility = ["//visibility:public"])
 
@@ -61,8 +62,18 @@ _sorbet = repository_rule(
 
 def _ruby_tools_impl(_mctx):
     _sorbet(name = "dx_sorbet")
-
+    pinned_archive(
+        name = "rules_ruby",
+        dropped = ["MODULE.bazel"],
+        patches = [
+            Label("//patches/rules_ruby:reproducible.patch"),
+            Label("//patches/rules_ruby:coverage.patch"),
+        ],
+        sha256 = RULES_RUBY_SHA256,
+        strip_prefix = "rules_ruby-" + RULES_RUBY_VERSION,
+        urls = [RULES_RUBY_URL],
+    )
 ruby_tools = module_extension(
     implementation = _ruby_tools_impl,
-    doc = "Creates the pinned Sorbet repository.",
+    doc = "Creates the pinned Sorbet repository and the patched rules_ruby.",
 )

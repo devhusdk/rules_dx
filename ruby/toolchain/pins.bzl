@@ -1,5 +1,9 @@
 """Pinned Sorbet (sorbet-static) gems for the Ruby type check."""
 
+RULES_RUBY_VERSION = "0.29.0"
+RULES_RUBY_URL = "https://github.com/bazel-contrib/rules_ruby/releases/download/v" + RULES_RUBY_VERSION + "/rules_ruby-v" + RULES_RUBY_VERSION + ".tar.gz"
+RULES_RUBY_SHA256 = "c92c2102ead9f051b7bb19ed7075cc5c4617cdd20b313b5b2f598f9f45b3e315"
+
 SORBET_VERSION = "0.6.13599"
 
 # Keyed by "<os>_<arch>" as the repository rule derives it from the host. The macOS gem is a

@@ -73,7 +73,6 @@ DOTNET_VERSION = "10.0.403"
 RULES_POWERSHELL_VERSION = "0.3.1"
 PWSH_VERSION = "7.5.11"
 
-RULES_RUBY_VERSION = "0.29.0"
 RUBY_VERSION = "3.4.12"
 
 RULES_ZIG_VERSION = "0.17.0"
@@ -111,7 +110,6 @@ CONSUMER_BAZEL_DEPS = {
     "bazel_lib": struct(floor = BAZEL_LIB_VERSION, tested = BAZEL_LIB_VERSION),
     "rules_jvm_external": struct(floor = FLOOR_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
     "rules_powershell": struct(floor = RULES_POWERSHELL_VERSION, tested = RULES_POWERSHELL_VERSION),
-    "rules_ruby": struct(floor = RULES_RUBY_VERSION, tested = RULES_RUBY_VERSION),
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),
     "rules_julia": struct(floor = RULES_JULIA_VERSION, tested = RULES_JULIA_VERSION),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),

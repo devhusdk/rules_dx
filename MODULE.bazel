@@ -439,24 +439,14 @@ register_toolchains("//tools/platforms:protoc_windows_arm64")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
-bazel_dep(name = "rules_ruby", version = "0.29.0")
-single_version_override(
-    module_name = "rules_ruby",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_ruby:reproducible.patch",
-        "//patches/rules_ruby:coverage.patch",
-    ],
-    version = "0.29.0",
-)
+bazel_dep(name = "bazel_features", version = "1.51.0")
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
 ruby_coverage = use_extension("//ruby/coverage:repos.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_coverage_gems")
 
 ruby_tools = use_extension("//ruby/toolchain:repos.bzl", "ruby_tools")
-use_repo(ruby_tools, "dx_sorbet")
+use_repo(ruby_tools, "dx_sorbet", "rules_ruby")
 
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
 ruby.toolchain(

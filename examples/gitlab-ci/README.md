@@ -4,7 +4,9 @@
 cp .gitlab-ci.yml <your-repo>/.gitlab-ci.yml
 ```
 
-Starter pipeline for GitLab. It runs four jobs on Linux runners: `check`,
+Starter pipeline for GitLab. It includes the rules_dx template
+`ci/gitlab/dx.gitlab-ci.yml` at a pinned commit. To update, change the commit
+in the `include:` URL. The template runs four jobs on Linux runners: `check`,
 `build`, `test` and `coverage`. Each job runs one `dx` line:
 
 ```sh
@@ -89,5 +91,6 @@ it.
 
 ## Image and runner
 
-The pipeline uses `buildpack-deps:noble-scm@sha256:59d4f4d8581d741bb2c31f4bfd00a557ca94d182d082c81bd56d32afbad8dfc9`
-on the `saas-linux-small-amd64` runner.
+The template sets a digest-pinned `buildpack-deps:noble-scm` image. Jobs run
+on the default GitLab runner. Override `default:` in your `.gitlab-ci.yml` to
+change it.

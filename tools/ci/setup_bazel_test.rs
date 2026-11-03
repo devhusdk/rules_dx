@@ -42,12 +42,12 @@ fn setup_bazel_workflows() -> Vec<(String, String)> {
 }
 
 #[test]
-fn reusable_workflows_and_the_gitlab_example_match_the_bazelisk_pin() {
+fn reusable_workflows_and_the_gitlab_template_match_the_bazelisk_pin() {
     let version = format!("BAZELISK_VERSION: \"{}\"", pin("BAZELISK_VERSION"));
     for name in [
         ".github/workflows/reusable-consumer.yml",
         ".github/workflows/reusable-docs.yml",
-        "examples/gitlab-ci/.gitlab-ci.yml",
+        "ci/gitlab/dx.gitlab-ci.yml",
     ] {
         assert!(
             read_runfiles(name).contains(&version),
@@ -56,8 +56,8 @@ fn reusable_workflows_and_the_gitlab_example_match_the_bazelisk_pin() {
     }
     let sha = format!("BAZELISK_SHA256: {}", pin("BAZELISK_SHA256_LINUX_AMD64"));
     assert!(
-        read_runfiles("examples/gitlab-ci/.gitlab-ci.yml").contains(&sha),
-        "the GitLab example must declare {sha} from {PIN_ENV}"
+        read_runfiles("ci/gitlab/dx.gitlab-ci.yml").contains(&sha),
+        "the GitLab template must declare {sha} from {PIN_ENV}"
     );
 }
 

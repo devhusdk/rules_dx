@@ -399,7 +399,7 @@ rust_test(
     data = [
         ":input_validation.py",
         "//.github:workflows",
-        "//examples:gitlab-ci/.gitlab-ci.yml",
+        "//ci/gitlab:dx.gitlab-ci.yml",
         "//tools/bazelisk:pin.env",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
@@ -815,7 +815,10 @@ rust_test(
     name = "gitlab_example_test",
     size = "small",
     srcs = ["gitlab_example_test.rs"],
-    data = ["//examples:gitlab-ci/.gitlab-ci.yml"],
+    data = [
+        "//ci/gitlab:dx.gitlab-ci.yml",
+        "//examples:gitlab-ci/.gitlab-ci.yml",
+    ],
     deps = [
         "//tools/testing:dx_testing",
         "@crates//:yaml_serde",

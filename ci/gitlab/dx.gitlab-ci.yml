@@ -1,0 +1,81 @@
+default:
+  image: buildpack-deps:noble-scm@sha256:59d4f4d8581d741bb2c31f4bfd00a557ca94d182d082c81bd56d32afbad8dfc9
+  interruptible: true
+
+variables:
+  XDG_CACHE_HOME: $CI_PROJECT_DIR/.cache
+  BAZELISK_VERSION: "1.29.0"
+  BAZELISK_SHA256: 5a408715e932c0250d28bd84555f12edbf70117de42f9181691c736eacc4a992
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+.dx:
+  before_script:
+    - curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o /tmp/bazelisk "https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-amd64"
+    - echo "${BAZELISK_SHA256}  /tmp/bazelisk" | sha256sum -c -
+    - install -m755 /tmp/bazelisk /usr/local/bin/bazel
+    - mkdir -p reports .cache
+    - if [ -n "${DX_REMOTE_BAZELRC:-}" ]; then cp "$DX_REMOTE_BAZELRC" .cache/remote.bazelrc; fi
+  cache:
+    key:
+      prefix: $CI_JOB_NAME
+      files:
+        - MODULE.bazel.lock
+        - .bazelversion
+    paths:
+      - .cache/bazel/*/cache/repos/v1/content_addressable/
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - reports/
+
+.dx_finish:
+  script:
+    - if [ ! -s "$DX_REPORT" ]; then echo "missing report $DX_REPORT"; [ "$status" -ne 0 ] || status=1; fi
+    - if [ -n "$(git status --porcelain --untracked-files=all)" ]; then git status --porcelain --untracked-files=all; [ "$status" -ne 0 ] || status=1; fi
+    - exit "$status"
+
+check:
+  extends: .dx
+  variables:
+    DX_REPORT: reports/dx.sarif
+  script:
+    - status=0
+    - bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif //... || status=$?
+    - !reference [.dx_finish, script]
+
+build:
+  extends: .dx
+  variables:
+    DX_REPORT: reports/failures.json
+  script:
+    - status=0
+    - bazel run @rules_dx//:dx -- build --report failures=reports/failures.json //... || status=$?
+    - !reference [.dx_finish, script]
+
+test:
+  extends: .dx
+  variables:
+    DX_REPORT: reports/junit.xml
+  script:
+    - status=0
+    - bazel run @rules_dx//:dx -- test --report junit=reports/junit.xml //... || status=$?
+    - !reference [.dx_finish, script]
+  artifacts:
+    reports:
+      junit: reports/junit.xml
+
+coverage:
+  extends: .dx
+  variables:
+    DX_REPORT: reports/coverage.lcov
+  script:
+    - status=0
+    - bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov //... || status=$?
+    - !reference [.dx_finish, script]

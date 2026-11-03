@@ -23,8 +23,8 @@ ocaml_module(
     name = "main",
     struct = "main.ml",
     deps = [
-        "//examples/ocaml-app/checksum",
-        "//examples/ocaml-app/ledger",
+        "//ocaml/tests/fixtures/ocaml-app/checksum",
+        "//ocaml/tests/fixtures/ocaml-app/ledger",
     ],
 )
 

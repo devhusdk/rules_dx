@@ -25,7 +25,7 @@ ocaml_module(
     sig = ":ledger_sig",
     struct = "ledger.ml",
     deps = [
-        "//examples/ocaml-app/lexer:tokens",
+        "//ocaml/tests/fixtures/ocaml-app/lexer:tokens",
         "@ocaml_app_astring//:astring",
     ],
 )

@@ -16,7 +16,7 @@ exports_files(
 # The same algorithm in plain OCaml, for the bytecode cell.
 ocaml_module(
     name = "portable",
-    sig = "//examples/ocaml-app/checksum:checksum_sig",
+    sig = "//ocaml/tests/fixtures/ocaml-app/checksum:checksum_sig",
     struct = "checksum.ml",
 )
 

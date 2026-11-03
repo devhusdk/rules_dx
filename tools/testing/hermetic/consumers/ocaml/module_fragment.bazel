@@ -5,7 +5,7 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 
 http_archive(
     name = "ocaml_app_astring",
-    build_file = "//examples/ocaml-app:astring.BUILD.bazel",
+    build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
     sha256 = "63e22783e06d17db027367e82fc08954c55f81a7db40fb7057a73713c16f3523",
     strip_prefix = "astring-0.8.5",
     urls = ["https://github.com/dbuenzli/astring/archive/refs/tags/v0.8.5.tar.gz"],

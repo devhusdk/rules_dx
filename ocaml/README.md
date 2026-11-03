@@ -121,7 +121,7 @@ actions are unchanged.
 
 ## Example
 
-See [examples/ocaml-app](../examples/ocaml-app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocamllex lexer and a C stub that only the native cell builds.
+See [ocaml-app](tests/fixtures/ocaml-app/README.md) for a multi-package app with a pinned `Astring` dependency, an ocamllex lexer and a C stub that only the native cell builds.
 
 ## Formatting and linting
 

@@ -16,8 +16,8 @@ a checksum of the report, and reports bad input with distinct exit codes.
 ## Run it
 
 ```sh
-bazel test //examples/ocaml-app/...
-bazel run //examples/ocaml-app/cli:stockctl -- examples/ocaml-app/cli/good.txt
+bazel test //ocaml/tests/fixtures/ocaml-app/...
+bazel run //ocaml/tests/fixtures/ocaml-app/cli:stockctl -- ocaml/tests/fixtures/ocaml-app/cli/good.txt
 ```
 
 The default cell compiles to bytecode and runs on the pinned `ocamlrun`.
@@ -27,7 +27,7 @@ The same flag picks the checksum module: the native cell links the C stub in
 bytecode cell links no C code. Both must pass the same test vectors.
 
 ```sh
-bazel test //examples/ocaml-app/... --@rules_dx//ocaml/toolchain:emitter=sys
+bazel test //ocaml/tests/fixtures/ocaml-app/... --@rules_dx//ocaml/toolchain:emitter=sys
 ```
 
 ## Exit codes
@@ -38,7 +38,7 @@ bazel test //examples/ocaml-app/... --@rules_dx//ocaml/toolchain:emitter=sys
 | 2 | A malformed line, or a wrong command line |
 | 4 | A line holds more than 1000 units |
 
-`//examples/ocaml-app/cli:exit_codes_test` checks each code.
+`//ocaml/tests/fixtures/ocaml-app/cli:exit_codes_test` checks each code.
 
 ## Pinned dependency
 
@@ -52,8 +52,8 @@ only.
 
 | Target | Message |
 | --- | --- |
-| `//examples/ocaml-app/cli:report_without_astring` | `Unbound module Astring` |
-| `//examples/ocaml-app/diagnostics:syntax_error` | `Syntax error` |
+| `//ocaml/tests/fixtures/ocaml-app/cli:report_without_astring` | `Unbound module Astring` |
+| `//ocaml/tests/fixtures/ocaml-app/diagnostics:syntax_error` | `Syntax error` |
 
 Both are `manual`, so a wildcard build skips them.
 

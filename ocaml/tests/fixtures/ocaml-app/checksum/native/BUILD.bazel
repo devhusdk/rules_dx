@@ -26,7 +26,7 @@ cc_library(
 ocaml_module(
     name = "native",
     cc_deps = {":checksum_c": "static"},
-    sig = "//examples/ocaml-app/checksum:checksum_sig",
+    sig = "//ocaml/tests/fixtures/ocaml-app/checksum:checksum_sig",
     struct = "checksum.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH + select({
         "@rules_dx//ocaml/toolchain:emitter_sys": [],

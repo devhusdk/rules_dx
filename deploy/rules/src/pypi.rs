@@ -63,13 +63,8 @@ pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), String> {
     Ok((pypi_normalize_name(name), version.to_owned()))
 }
 
-/// Builds one PyPI wheelhouse.
-pub fn pypi_build_wheelhouse(
-    wheel_src: &Path,
-    sdist_src: Option<&Path>,
-    outdir: &Path,
-    dist_name: &str,
-) -> io::Result<std::path::PathBuf> {
+/// Checks the wheel and sdist name the same project and version.
+fn pypi_check_pair(wheel_src: &Path, sdist_src: Option<&Path>) -> io::Result<(String, String)> {
     let invalid = |message: String| io::Error::new(io::ErrorKind::InvalidData, message);
     let (project, version) = pypi_artifact_identity(&basename(wheel_src)?).map_err(invalid)?;
     if let Some(sdist) = sdist_src {
@@ -83,6 +78,17 @@ pub fn pypi_build_wheelhouse(
             )));
         }
     }
+    Ok((project, version))
+}
+
+/// Builds one PyPI wheelhouse.
+pub fn pypi_build_wheelhouse(
+    wheel_src: &Path,
+    sdist_src: Option<&Path>,
+    outdir: &Path,
+    dist_name: &str,
+) -> io::Result<std::path::PathBuf> {
+    let (project, _) = pypi_check_pair(wheel_src, sdist_src)?;
     let house = outdir.join(dist_name.to_owned() + "-wheelhouse");
     std::fs::create_dir_all(&house)?;
     let mut entries: Vec<(String, String)> = Vec::new();
@@ -122,6 +128,127 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
 /// Extra env names twine keeps beyond the publish base list.
 const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
 
+fn pypi_scrub(text: &[u8], token: &str) -> String {
+    let text = String::from_utf8_lossy(text).into_owned();
+    if token.is_empty() {
+        text
+    } else {
+        text.replace(token, "***")
+    }
+}
+
+fn pypi_duplicate_note(output: &str, base: &str, version: &str, url: &str) -> Option<String> {
+    output
+        .to_ascii_lowercase()
+        .contains("already exists")
+        .then(|| {
+            format!(
+                "pypi_deploy: {base} version {version} is already on {url}; upload a new version"
+            )
+        })
+}
+
+/// Checks and uploads verified copies of the wheel and sdist with twine.
+fn pypi_upload(
+    twine: &Path,
+    wheel: &Path,
+    sdist: Option<&Path>,
+    stage: &Path,
+    repository_url: &str,
+    token: &str,
+) -> i32 {
+    let (_, version) = match pypi_check_pair(wheel, sdist) {
+        Ok(identity) => identity,
+        Err(error) => {
+            eprintln!("pypi_deploy: {error}");
+            return 1;
+        }
+    };
+    let code = pypi_upload_staged(twine, wheel, sdist, stage, repository_url, token, &version);
+    let _ = std::fs::remove_dir_all(stage);
+    code
+}
+
+fn pypi_upload_staged(
+    twine: &Path,
+    wheel: &Path,
+    sdist: Option<&Path>,
+    stage: &Path,
+    repository_url: &str,
+    token: &str,
+    version: &str,
+) -> i32 {
+    let mut files = Vec::new();
+    for src in std::iter::once(wheel).chain(sdist) {
+        let copied = basename(src).and_then(|base| {
+            std::fs::create_dir_all(stage)?;
+            let dest = stage.join(base);
+            copy_verified(src, &dest)?;
+            Ok(dest)
+        });
+        match copied {
+            Ok(dest) => files.push(dest),
+            Err(error) => {
+                eprintln!("pypi_deploy: {error}");
+                return 1;
+            }
+        }
+    }
+    let command = |verb: &str| {
+        let mut cmd = scrubbed_command(
+            twine,
+            &[PUBLISH_CHILD_ENV_KEEP, TWINE_CHILD_ENV_EXTRA],
+            &[("TWINE_USERNAME", "__token__"), ("TWINE_PASSWORD", token)],
+        );
+        cmd.arg(verb);
+        cmd
+    };
+    let mut check = command("check");
+    check.arg("--strict").args(&files);
+    match check.output() {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => {
+            eprint!("{}", pypi_scrub(&out.stdout, token));
+            eprint!("{}", pypi_scrub(&out.stderr, token));
+            eprintln!("pypi_deploy: twine check failed with {}", out.status);
+            return 1;
+        }
+        Err(error) => {
+            eprintln!("pypi_deploy: {error}");
+            return 1;
+        }
+    }
+    let mut upload = command("upload");
+    upload
+        .arg("--non-interactive")
+        .arg("--repository-url")
+        .arg(repository_url)
+        .args(&files);
+    let out = match upload.output() {
+        Ok(out) => out,
+        Err(error) => {
+            eprintln!("pypi_deploy: {error}");
+            return 1;
+        }
+    };
+    let stdout = pypi_scrub(&out.stdout, token);
+    let stderr = pypi_scrub(&out.stderr, token);
+    print!("{stdout}");
+    eprint!("{stderr}");
+    let base = wheel.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    if out.status.success() {
+        println!("pypi_deploy: uploaded {base} to {repository_url}");
+        return 0;
+    }
+    if let Some(note) =
+        pypi_duplicate_note(&format!("{stdout}{stderr}"), base, version, repository_url)
+    {
+        eprintln!("{note}");
+    }
+    eprintln!("pypi_deploy: twine failed with {}", out.status);
+    1
+}
+
 /// Runs the PyPI deploy tool.
 pub fn pypi_main(
     wheel_rloc: &str,
@@ -152,40 +279,14 @@ pub fn pypi_main(
                 return 1;
             }
         };
-        let mut files = vec![wheel.clone()];
-        if let Some(sdist) = &sdist {
-            files.push(sdist.clone());
-        }
-        let mut cmd = scrubbed_command(
+        return pypi_upload(
             Path::new("twine"),
-            &[PUBLISH_CHILD_ENV_KEEP, TWINE_CHILD_ENV_EXTRA],
-            &[
-                ("TWINE_USERNAME", "__token__"),
-                ("TWINE_PASSWORD", secrets.get("PYPI_API_TOKEN")),
-            ],
+            &wheel,
+            sdist.as_deref(),
+            &outdir.join(dist_name.to_owned() + "-upload"),
+            repository_url,
+            secrets.get("PYPI_API_TOKEN"),
         );
-        cmd.arg("upload")
-            .arg("--non-interactive")
-            .arg("--repository-url")
-            .arg(repository_url);
-        for file in &files {
-            cmd.arg(file);
-        }
-        match cmd.status() {
-            Ok(status) if status.success() => {
-                let base = wheel.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                println!("pypi_deploy: uploaded {base} to {repository_url}");
-                return 0;
-            }
-            Ok(status) => {
-                eprintln!("pypi_deploy: twine failed with {status}");
-                return 1;
-            }
-            Err(error) => {
-                eprintln!("pypi_deploy: {error}");
-                return 1;
-            }
-        }
     }
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
         Ok(house) => {
@@ -291,5 +392,90 @@ mod tests {
         let newer = scratch.path().join("my_pkg_name-2.0.tar.gz");
         std::fs::write(&newer, b"n").expect("newer");
         assert!(pypi_build_wheelhouse(&wheel, Some(&newer), &outdir, "publish").is_err());
+    }
+
+    #[cfg(unix)]
+    fn fake_twine(dir: &Path, body: &str) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let path = dir.join("twine");
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("twine");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        path
+    }
+
+    #[cfg(unix)]
+    fn upload_fixture(dir: &Path, sdist_name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let wheel = dir.join("pkg-1.0-py3-none-any.whl");
+        std::fs::write(&wheel, b"w").expect("wheel");
+        let sdist = dir.join(sdist_name);
+        std::fs::write(&sdist, b"s").expect("sdist");
+        (wheel, sdist)
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn pypi_live_upload_refuses_mismatch_and_uploads_copies() {
+        let scratch = scratch_dir();
+        let dir = scratch.path();
+        let argv = dir.join("argv");
+        let twine = fake_twine(dir, &format!("echo \"$@\" >> {}", argv.display()));
+        let stage = dir.join("stage");
+        let (wheel, bad) = upload_fixture(dir, "pkg-2.0.tar.gz");
+        assert_eq!(
+            pypi_upload(&twine, &wheel, Some(&bad), &stage, "https://u", "tok"),
+            1
+        );
+        assert!(!argv.exists());
+        let good = dir.join("pkg-1.0.tar.gz");
+        std::fs::write(&good, b"s").expect("sdist");
+        assert_eq!(
+            pypi_upload(&twine, &wheel, Some(&good), &stage, "https://u", "tok"),
+            0
+        );
+        let lines = std::fs::read_to_string(&argv).expect("argv");
+        let lines: Vec<&str> = lines.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].starts_with("check --strict "), "{}", lines[0]);
+        assert!(
+            lines[1].starts_with("upload --non-interactive "),
+            "{}",
+            lines[1]
+        );
+        for line in &lines {
+            assert!(line.contains(&stage.display().to_string()), "{line}");
+            assert!(!line.contains(&wheel.display().to_string()), "{line}");
+        }
+        assert!(!stage.exists());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn pypi_live_upload_stops_on_failed_check() {
+        let scratch = scratch_dir();
+        let dir = scratch.path();
+        let marker = dir.join("uploaded");
+        let body = format!("[ \"$1\" = check ] && exit 1\ntouch {}", marker.display());
+        let twine = fake_twine(dir, &body);
+        let (wheel, sdist) = upload_fixture(dir, "pkg-1.0.tar.gz");
+        let stage = dir.join("stage");
+        let code = pypi_upload(&twine, &wheel, Some(&sdist), &stage, "https://u", "tok");
+        assert_eq!(code, 1);
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn pypi_duplicate_version_is_named() {
+        let note = pypi_duplicate_note(
+            "HTTPError: File Already Exists",
+            "pkg.whl",
+            "1.0",
+            "https://u",
+        );
+        assert_eq!(
+            note.as_deref(),
+            Some("pypi_deploy: pkg.whl version 1.0 is already on https://u; upload a new version")
+        );
+        assert!(pypi_duplicate_note("boom", "pkg.whl", "1.0", "https://u").is_none());
+        assert_eq!(pypi_scrub(b"a tok b", "tok"), "a *** b");
     }
 }

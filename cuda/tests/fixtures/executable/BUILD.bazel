@@ -1,0 +1,58 @@
+load("//cuda/rules:defs.bzl", "CUDA_TARGET", "cuda_binary", "cuda_test")
+
+package(default_visibility = ["//cuda/tests:__subpackages__"])
+
+_ARCHS = [
+    "sm_89",
+    "sm_120",
+]
+
+cuda_binary(
+    name = "binary",
+    srcs = [
+        "add.cu",
+        "main.cc",
+    ],
+    hdrs = ["add.h"],
+    archs = _ARCHS,
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_binary(
+    name = "rdc_binary",
+    srcs = [
+        "add.cu",
+        "rdc_main.cc",
+    ],
+    hdrs = ["add.h"],
+    archs = _ARCHS,
+    rdc = True,
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//cuda/tests/fixtures/rdc:axpy"],
+)
+
+cuda_test(
+    name = "test",
+    size = "small",
+    srcs = [
+        "add.cu",
+        "main.cc",
+    ],
+    hdrs = ["add.h"],
+    archs = _ARCHS,
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_test(
+    name = "rdc_test",
+    size = "small",
+    srcs = [
+        "add.cu",
+        "rdc_main.cc",
+    ],
+    hdrs = ["add.h"],
+    archs = _ARCHS,
+    rdc = True,
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//cuda/tests/fixtures/rdc:axpy"],
+)

@@ -1439,7 +1439,7 @@ def _real_resolved_stages(target, ctx, capability, what):
             fail(what + ": " + err)
     return (resolved, direct_files, path_to_file)
 
-def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain):
+def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain, shard_name):
     what = "real_aspect (" + str(target.label) + ")"
     (resolved, direct_files, path_to_file) = _real_resolved_stages(target, ctx, capability, what)
     if len(resolved) == 0:
@@ -2162,6 +2162,7 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
     args = ctx.actions.args()
     args.add("--request", request_file.path)
     args.add("--output", out.path)
+    args.add("--shard", shard_name)
 
     ctx.actions.run(
         executable = ctx.executable._runner,
@@ -2172,17 +2173,17 @@ def _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix,
         execution_requirements = dx_stage_execution_requirements(stage_tools, capability),
         mnemonic = "DxRealQuality" + capability.capitalize(),
         resource_set = real_quality_resource_set(sorted(tool_binaries.keys())),
-        progress_message = "Dx real quality " + capability + " %{label}",
+        progress_message = "Dx real quality " + capability + " (" + shard_name + ") %{label}",
         toolchain = RUST_TOOLCHAIN_TYPE if has_rust_toolchain else None,
     )
 
     return [OutputGroupInfo(dx_results = depset([out]))]
 
-def _make_real_impl(capability, allowed_tools, output_suffix, has_rust_toolchain):
+def _make_real_impl(capability, allowed_tools, output_suffix, has_rust_toolchain, shard_name):
     """Makes one shard impl over the shared real pipeline action."""
 
     def _impl(target, ctx):
-        return _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain)
+        return _real_pipeline_action(target, ctx, capability, allowed_tools, output_suffix, has_rust_toolchain, shard_name)
 
     return _impl
 
@@ -2817,7 +2818,7 @@ def _make_real_aspect(shard_name):
     """Builds one shard aspect from the shard table."""
     shard = _REAL_SHARDS[shard_name]
     return aspect(
-        implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"]),
+        implementation = _make_real_impl(shard["capability"], shard["tools"], shard["suffix"], shard["has_rust"], shard_name),
         doc = shard["doc"],
         attr_aspects = ["aspect_hints"],
         attrs = shard["attrs"],

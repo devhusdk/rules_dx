@@ -617,7 +617,6 @@ impl RealBackend {
                         tool_id,
                         parsers::parse_fsharplint(&out.stdout, out.code, &strs),
                     )
-                    .map_err(|err| with_stderr(err, &out.stderr))
                 }
             }
             "google_java_format" => {

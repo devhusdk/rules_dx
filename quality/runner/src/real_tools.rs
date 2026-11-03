@@ -43,6 +43,8 @@ fn unusable_scratch_parent_fails_the_action() {
         scratch_parent: PathBuf::from("/nonexistent-dx-scratch-parent"),
         spawn: roundtrip_rustfmt,
         argv_limit: quality_adapter::commands::windows_argv_limit,
+        shard: String::new(),
+        last_stderr: Default::default(),
     };
     let err = backend
         .diagnose("rustfmt", "format", &single("src/main.rs", "x\n"))
@@ -3140,6 +3142,8 @@ fn assert_keeps_without_scratch(tool_id: &str, tool: RealTool, capability: &str)
         scratch_parent: parent.path().to_path_buf(),
         spawn: never_spawns,
         argv_limit: quality_adapter::commands::windows_argv_limit,
+        shard: String::new(),
+        last_stderr: Default::default(),
     };
     let spec = stage(tool_id, &["any"], &["a.txt", "b.txt"]);
     let current = BTreeMap::from([

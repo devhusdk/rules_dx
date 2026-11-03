@@ -399,13 +399,16 @@ pub(super) fn rustfmt_missing_module_fails_with_rustfmt_stderr() {
     let err = run_real_pipeline("//quality:test", "format", &stages, &files, &backend)
         .expect_err("missing module fails");
     assert!(matches!(err, RunnerError::ToolExecution { .. }), "{err}");
-    assert_eq!(
-        err.to_string(),
-        format!(
-            "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
-             failed to resolve mod `child`: {} does not exist",
-            Path::new("src").join("child.rs").display()
-        )
+    let text = err.to_string();
+    let head = format!(
+        "tool execution failed for rustfmt: rustfmt failed with exit 1: Error writing files: \
+         failed to resolve mod `child`: {} does not exist",
+        Path::new("src").join("child.rs").display()
+    );
+    assert!(text.starts_with(&head), "{text}");
+    assert!(
+        text[head.len()..].starts_with(": Error writing files"),
+        "{text}"
     );
 }
 

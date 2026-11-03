@@ -99,6 +99,8 @@ pub(super) fn backend_for(tool_id: &str, tool: RealTool, spawn: Spawn) -> RealBa
         scratch_parent: std::env::temp_dir(),
         spawn,
         argv_limit: quality_adapter::commands::windows_argv_limit,
+        shard: String::new(),
+        last_stderr: Default::default(),
     }
 }
 

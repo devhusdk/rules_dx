@@ -129,7 +129,7 @@ fn real_tool(
     })
 }
 
-fn run_request(request_path: &str, output: &str) -> Result<(), RunnerError> {
+fn run_request(request_path: &str, output: &str, shard: Option<&str>) -> Result<(), RunnerError> {
     let bytes = std::fs::read(request_path).map_err(|error| RunnerError::UnreadableRequest {
         path: request_path.to_owned(),
         detail: error.to_string(),
@@ -151,7 +151,7 @@ fn run_request(request_path: &str, output: &str) -> Result<(), RunnerError> {
         .scratch_parent
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    let backend = RealBackend::new(tools, scratch_parent);
+    let backend = RealBackend::new(tools, scratch_parent).with_shard(shard.unwrap_or_default());
     let result = quality_runner::real::run_real_pipeline_with_resolve(
         &request.producer,
         &request.capability,
@@ -235,6 +235,8 @@ struct Cli {
     request: String,
     #[arg(long, allow_hyphen_values = true, overrides_with = "output")]
     output: String,
+    #[arg(long, allow_hyphen_values = true, overrides_with = "shard")]
+    shard: Option<String>,
 }
 
 fn main() {
@@ -250,7 +252,7 @@ fn main() {
 fn run() -> Result<(), RunnerError> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = parse_args(&args)?;
-    run_request(&cli.request, &cli.output)
+    run_request(&cli.request, &cli.output, cli.shard.as_deref())
 }
 // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
@@ -263,11 +265,22 @@ mod tests {
     }
 
     #[test]
-    fn cli_takes_only_request_and_output() {
+    fn cli_takes_request_output_and_shard() {
         let cli =
             parse_args(&owned(&["--request", "r.json", "--output", "o.pb"])).expect("valid flags");
         assert_eq!(cli.request, "r.json");
         assert_eq!(cli.output, "o.pb");
+        assert_eq!(cli.shard, None);
+        let cli = parse_args(&owned(&[
+            "--request",
+            "r.json",
+            "--output",
+            "o.pb",
+            "--shard",
+            "py",
+        ]))
+        .expect("valid flags");
+        assert_eq!(cli.shard.as_deref(), Some("py"));
         for argv in [
             vec!["--producer", "x"],
             vec!["--capability", "lint"],
@@ -295,6 +308,7 @@ mod tests {
         match run_request(
             &missing.display().to_string(),
             &missing.display().to_string(),
+            None,
         )
         .expect_err("missing request")
         {
@@ -313,6 +327,7 @@ mod tests {
         match run_request(
             &malformed.display().to_string(),
             &dir.path().join("out.pb").display().to_string(),
+            None,
         )
         .expect_err("malformed request")
         {

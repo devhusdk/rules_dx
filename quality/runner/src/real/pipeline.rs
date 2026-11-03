@@ -109,6 +109,21 @@ pub fn run_real_pipeline_with_resolve(
     resolve: &[FileInput],
     backend: &RealBackend,
 ) -> Result<QualityResult, RunnerError> {
+    run_stages(
+        producer, capability, stages, files, siblings, resolve, backend,
+    )
+    .map_err(|err| backend.located(err))
+}
+
+fn run_stages(
+    producer: &str,
+    capability: &str,
+    stages: &[StageSpec],
+    files: &[FileInput],
+    siblings: &[FileInput],
+    resolve: &[FileInput],
+    backend: &RealBackend,
+) -> Result<QualityResult, RunnerError> {
     let (capability_value, initial) =
         validate_request(producer, capability, stages, files, |tool| {
             backend.supports(tool)

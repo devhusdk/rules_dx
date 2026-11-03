@@ -367,6 +367,8 @@ pub struct RealBackend {
     scratch_parent: PathBuf,
     spawn: SpawnFn,
     argv_limit: fn(&OsStr) -> Option<usize>,
+    shard: String,
+    last_stderr: std::cell::RefCell<Vec<u8>>,
 }
 
 pub fn real_spawn(
@@ -541,18 +543,26 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
     })
 }
 
-/// Adds the last lines of a tool's stderr to its output error.
+/// Adds the last lines of a tool's stderr to its failure.
 fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
     let text = String::from_utf8_lossy(stderr);
     let lines: Vec<&str> = text.trim().lines().collect();
     let tail = lines[lines.len().saturating_sub(20)..].join("\n");
+    let already = matches!(&err,
+        RunnerError::ToolOutput { detail, .. } | RunnerError::ToolExecution { detail, .. }
+        if detail.contains(&tail));
+    if tail.is_empty() || already {
+        return err;
+    }
     match err {
-        RunnerError::ToolOutput { tool_id, detail } if !tail.is_empty() => {
-            RunnerError::ToolOutput {
-                tool_id,
-                detail: format!("{detail}: {tail}"),
-            }
-        }
+        RunnerError::ToolOutput { tool_id, detail } => RunnerError::ToolOutput {
+            tool_id,
+            detail: format!("{detail}: {tail}"),
+        },
+        RunnerError::ToolExecution { tool_id, detail } => RunnerError::ToolExecution {
+            tool_id,
+            detail: format!("{detail}: {tail}"),
+        },
         other => other,
     }
 }
@@ -625,7 +635,48 @@ impl RealBackend {
             scratch_parent,
             spawn: real_spawn,
             argv_limit: commands::native_argv_limit,
+            shard: String::new(),
+            last_stderr: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Names the shard that runs this backend, for error messages.
+    #[must_use]
+    pub fn with_shard(mut self, shard: &str) -> Self {
+        self.shard = shard.to_owned();
+        self
+    }
+
+    /// Adds the shard, the tool's config and the stderr tail to a tool failure.
+    pub fn located(&self, err: RunnerError) -> RunnerError {
+        let (RunnerError::ToolExecution { tool_id, detail }
+        | RunnerError::ToolOutput { tool_id, detail }) = &err
+        else {
+            return err;
+        };
+        let mut place = Vec::new();
+        if !self.shard.is_empty() {
+            place.push(format!("shard {}", self.shard));
+        }
+        if let Some(config) = self
+            .tools
+            .get(tool_id)
+            .and_then(|tool| tool.config_rel.as_ref())
+        {
+            place.push(format!("config {config}"));
+        }
+        let mut detail = detail.clone();
+        if !place.is_empty() {
+            detail = format!("{detail} ({})", place.join(", "));
+        }
+        let err = match err {
+            RunnerError::ToolExecution { tool_id, .. } => {
+                RunnerError::ToolExecution { tool_id, detail }
+            }
+            RunnerError::ToolOutput { tool_id, .. } => RunnerError::ToolOutput { tool_id, detail },
+            other => other,
+        };
+        with_stderr(err, &self.last_stderr.borrow())
     }
 
     pub fn supports(&self, tool_id: &str) -> bool {
@@ -815,7 +866,11 @@ impl RealBackend {
                 ));
             }
         }
-        (self.spawn)(&argv, &cwd, &env).map_err(|err| execution(tool_id, format!("spawn: {err}")))
+        self.last_stderr.borrow_mut().clear();
+        let out = (self.spawn)(&argv, &cwd, &env)
+            .map_err(|err| execution(tool_id, format!("spawn: {err}")))?;
+        self.last_stderr.borrow_mut().clone_from(&out.stderr);
+        Ok(out)
     }
 }
 
@@ -953,6 +1008,33 @@ mod tests {
         )
         .expect_err("json fails");
         assert!(matches!(err, RunnerError::ToolOutput { .. }), "{err}");
+    }
+
+    #[test]
+    fn a_tool_failure_names_the_shard_the_config_and_the_stderr_tail() {
+        let tool = super::RealTool {
+            config_rel: Some("conf/ruff.toml".to_owned()),
+            ..super::real_fixtures::plain_tool()
+        };
+        let backend = super::RealBackend::new(
+            std::collections::BTreeMap::from([("ruff".to_owned(), tool)]),
+            PathBuf::from("/scratch"),
+        )
+        .with_shard("py");
+        *backend.last_stderr.borrow_mut() = b"first\nboom\n".to_vec();
+        let execution = backend.located(super::execution("ruff", "spawn: gone".to_owned()));
+        assert_eq!(
+            execution.to_string(),
+            "tool execution failed for ruff: spawn: gone (shard py, config conf/ruff.toml): first\nboom"
+        );
+        let output = backend.located(RunnerError::ToolOutput {
+            tool_id: "ruff".to_owned(),
+            detail: "exit 2".to_owned(),
+        });
+        assert_eq!(
+            output.to_string(),
+            "invalid tool output for ruff: exit 2 (shard py, config conf/ruff.toml): first\nboom"
+        );
     }
 
     #[test]

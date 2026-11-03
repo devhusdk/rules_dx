@@ -1,0 +1,47 @@
+# gazelle:ignore
+
+load("//dart/rules:defs.bzl", "dart_js_binary", "dart_wasm_binary")
+load("//javascript/rules:defs.bzl", "javascript_js_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+dart_js_binary(
+    name = "hello_js",
+    main = "main.dart",
+)
+
+dart_wasm_binary(
+    name = "hello_wasm",
+    main = "main.dart",
+)
+
+javascript_js_test(
+    name = "js_run_test",
+    size = "small",
+    srcs = ["js_test.mjs"],
+    args = ["$(rootpath :hello_js)"],
+    aspect_hints = ["//:biome_config"],
+    data = [":hello_js"],
+    entry_point = "js_test.mjs",
+    package_json = "//:package_json",
+)
+
+javascript_js_test(
+    name = "wasm_run_test",
+    size = "small",
+    srcs = ["wasm_test.mjs"],
+    args = ["$(rootpaths :hello_wasm)"],
+    aspect_hints = ["//:biome_config"],
+    data = [":hello_wasm"],
+    entry_point = "wasm_test.mjs",
+    package_json = "//:package_json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    aspect_hints = ["//:buildifier_config"],
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

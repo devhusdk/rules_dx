@@ -42,6 +42,8 @@ dart_test(
 | `dart_binary` | A compiled executable that runs with `bazel run` |
 | `dart_test` | Runs one test file with the package:test runner |
 | `dart_codegen` | Runs a generator script over one `.dart` file and makes the output files |
+| `dart_js_binary` | Compiles a Dart web app to a `.js` file |
+| `dart_wasm_binary` | Compiles a Dart web app to `.wasm` plus its `.mjs` loader and `.support.js` |
 
 - The generated upstream target is `manual`, so `//...` builds only the
   public wrapper.
@@ -53,7 +55,6 @@ dart_test(
   unchanged.
 - `dart_codegen` is the upstream rule, unchanged. Its outputs can be `srcs` of a
   `dart_library`.
-- The web binaries are not wrapped yet.
 
 ## Gazelle
 

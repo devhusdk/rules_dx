@@ -109,6 +109,7 @@ def _validation(ctx, srcs):
         args.add(src)
         ctx.actions.run(
             executable = luac,
+            toolchain = LUA_TOOLCHAIN_TYPE,
             arguments = [args],
             inputs = [src],
             outputs = [out],

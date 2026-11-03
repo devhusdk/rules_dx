@@ -190,6 +190,7 @@ def _msix_impl(ctx):
         arguments = ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", ctx.file._pack.path, request.path],
         inputs = depset(inputs + [request, ctx.file._pack, toolchain.makeappx], transitive = [toolchain.files]),
         tools = pwsh.all_files,
+        toolchain = TOOLCHAIN_TYPE,
         outputs = [package, identity],
         mnemonic = "DxMsix",
         progress_message = "Packaging MSIX " + str(ctx.label),

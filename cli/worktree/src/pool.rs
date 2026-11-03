@@ -389,9 +389,9 @@ impl Pool {
             };
             let base = cache_base.join(&candidate);
             let marker = base.join(".dx").join("repo");
-            let claimed = std::fs::read_to_string(&marker).ok();
+            let claimed = std::fs::read(&marker).ok();
             match claimed {
-                Some(text) if Path::new(text.trim()) == main => {
+                Some(bytes) if marker_matches(&bytes, &main) => {
                     return Ok(Some(Pool {
                         main,
                         base,
@@ -402,7 +402,7 @@ impl Pool {
                 None if !create => return Ok(None),
                 None => {
                     std::fs::create_dir_all(base.join(".dx")).map_err(WorktreeError::io)?;
-                    dx_atomic_fs::write_atomic(&marker, main.to_string_lossy().as_bytes())
+                    dx_atomic_fs::write_atomic(&marker, &marker_bytes(&main))
                         .map_err(WorktreeError::io)?;
                     return Ok(Some(Pool {
                         main,
@@ -600,9 +600,41 @@ pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     None
 }
 
+#[cfg(unix)]
+fn marker_bytes(main: &Path) -> Vec<u8> {
+    std::os::unix::ffi::OsStrExt::as_bytes(main.as_os_str()).to_vec()
+}
+
+#[cfg(not(unix))]
+fn marker_bytes(main: &Path) -> Vec<u8> {
+    main.to_string_lossy().into_owned().into_bytes()
+}
+
+fn marker_matches(bytes: &[u8], main: &Path) -> bool {
+    let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+    bytes.strip_suffix(b"\r").unwrap_or(bytes) == marker_bytes(main).as_slice()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn the_marker_round_trips_a_non_utf8_path() {
+        use std::os::unix::ffi::OsStrExt;
+        let main = Path::new(std::ffi::OsStr::from_bytes(b"/work/repo-\xff"));
+        assert!(marker_matches(&marker_bytes(main), main));
+        assert!(marker_matches(b"/work/repo-\xff\n", main));
+        assert!(!marker_matches(b"/work/repo-\xef\xbf\xbd", main));
+    }
+
+    #[test]
+    fn the_marker_reads_utf8_paths() {
+        let main = Path::new("/work/repo");
+        assert!(marker_matches(b"/work/repo\n", main));
+        assert!(!marker_matches(b"/work/other", main));
+    }
 
     #[test]
     fn the_recorded_process_skips_shells() {

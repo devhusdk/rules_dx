@@ -15,16 +15,16 @@ A multi-package Julia report CLI built on the dx wrappers from
 ## Run
 
 ```sh
-bazel run //examples/julia-app/cli:readings
-bazel test //examples/julia-app/...
-bazel test //examples/julia-app/... --//examples/julia-app/cli:digits=4
+bazel run //julia/tests/fixtures/julia-app/cli:readings
+bazel test //julia/tests/fixtures/julia-app/...
+bazel test //julia/tests/fixtures/julia-app/... --//julia/tests/fixtures/julia-app/cli:digits=4
 ```
 
 ## Dependencies
 
 `third_party/Project.toml` lists the two packages. `Manifest.toml` pins the
 resolved versions and `Manifest.bazel.json` carries the hashes and artifact
-URLs that Bazel fetches. `bazel run //examples/julia-app/third_party:resolve`
+URLs that Bazel fetches. `bazel run //julia/tests/fixtures/julia-app/third_party:resolve`
 regenerates both after a change, and `resolve_test` fails when they drift.
 Nothing is fetched while the module graph is evaluated.
 

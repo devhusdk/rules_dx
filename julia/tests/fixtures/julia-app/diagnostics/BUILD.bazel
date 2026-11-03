@@ -2,18 +2,18 @@ load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_clippy_test", "rust_test", "rustfmt_test")
 
-package(default_visibility = ["//examples/julia-app:__subpackages__"])
+package(default_visibility = ["//julia/tests/fixtures/julia-app:__subpackages__"])
 
 _FORMATTED = [
     "clean.jl",
-    "//examples/julia-app/archive:archive_test.jl",
-    "//examples/julia-app/archive:src/Archive.jl",
-    "//examples/julia-app/cli:cli_test.jl",
-    "//examples/julia-app/cli:main.jl",
-    "//examples/julia-app/cli:report_test.jl",
-    "//examples/julia-app/cli:src/Report.jl",
-    "//examples/julia-app/stats:src/Stats.jl",
-    "//examples/julia-app/stats:stats_test.jl",
+    "//julia/tests/fixtures/julia-app/archive:archive_test.jl",
+    "//julia/tests/fixtures/julia-app/archive:src/Archive.jl",
+    "//julia/tests/fixtures/julia-app/cli:cli_test.jl",
+    "//julia/tests/fixtures/julia-app/cli:main.jl",
+    "//julia/tests/fixtures/julia-app/cli:report_test.jl",
+    "//julia/tests/fixtures/julia-app/cli:src/Report.jl",
+    "//julia/tests/fixtures/julia-app/stats:src/Stats.jl",
+    "//julia/tests/fixtures/julia-app/stats:stats_test.jl",
 ]
 
 rust_test(

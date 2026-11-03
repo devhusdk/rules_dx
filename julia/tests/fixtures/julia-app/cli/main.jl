@@ -4,7 +4,7 @@ using Report
 function main(args)
     digits = parse(Int, get(ENV, "JULIA_APP_DIGITS", "2"))
     path = if isempty(args)
-        Runfiles.rlocation("_main/examples/julia-app/data/readings.csv")
+        Runfiles.rlocation("_main/julia/tests/fixtures/julia-app/data/readings.csv")
     else
         args[1]
     end

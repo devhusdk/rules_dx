@@ -648,7 +648,7 @@ rust_test(
         "//examples/dart-app/failures:corpus_starlark",
         "//examples/java-app/cli:corpus_starlark",
         "//examples/java-app/diagnostics:corpus_starlark",
-        "//examples/julia-app/diagnostics:corpus_starlark",
+        "//julia/tests/fixtures/julia-app/diagnostics:corpus_starlark",
         "//examples/kotlin-app/cli:corpus_starlark",
         "//examples/kotlin-app/diagnostics:corpus_starlark",
         "//examples/node-app/cli:corpus_starlark",

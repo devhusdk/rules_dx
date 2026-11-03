@@ -29,15 +29,15 @@ julia_library(
     data = ["Project.toml"],
     precompile = False,
     deps = [
-        "//examples/julia-app/archive:Archive",
-        "//examples/julia-app/stats:Stats",
+        "//julia/tests/fixtures/julia-app/archive:Archive",
+        "//julia/tests/fixtures/julia-app/stats:Stats",
     ],
 )
 
 julia_binary(
     name = "readings",
     srcs = ["main.jl"],
-    data = ["//examples/julia-app/data:readings_csv"],
+    data = ["//julia/tests/fixtures/julia-app/data:readings_csv"],
     env = select({
         ":four_digits": {"JULIA_APP_DIGITS": "4"},
         "//conditions:default": {"JULIA_APP_DIGITS": "2"},

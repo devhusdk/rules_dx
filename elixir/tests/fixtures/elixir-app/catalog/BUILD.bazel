@@ -5,28 +5,43 @@ exports_files(
     glob([
         "lib/**",
         "test/*",
-    ]) + ["BUILD.bazel"],
+    ]) + [
+        "BUILD.bazel",
+        "units.txt",
+    ],
     visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
-APPS = ["//examples/elixir-app:__subpackages__"]
+APPS = ["//elixir/tests/fixtures/elixir-app:__subpackages__"]
+
+genrule(
+    name = "units",
+    srcs = ["units.txt"],
+    outs = ["units.ex"],
+    cmd = """
+entries=""
+while read -r unit size; do
+  entries="$$entries, {\\"$$unit\\", $$size}"
+done < $<
+printf 'defmodule Catalog.Units do\\n  @moduledoc false\\n\\n  def all, do: [%s]\\nend\\n' "$${entries#, }" > $@
+""",
+)
 
 elixir_app(
-    app_description = "Supervised stock ledger.",
-    app_env = "[{max_units, 60}]",
-    app_module = "Stock.Application",
-    app_name = "stock",
+    srcs = glob(["lib/**/*.ex"]) + [":units"],
+    app_description = "Item parsing and JSON ledgers.",
+    app_name = "catalog",
     app_version = "1.0.0",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
     visibility = APPS,
-    deps = ["//examples/elixir-app/catalog:erlang_app"],
+    deps = ["@elixir_app_jason//:erlang_app"],
 )
 
 ex_unit_test(
-    name = "ledger_test",
+    name = "catalog_test",
     size = "small",
     srcs = [
-        "test/ledger_test.exs",
+        "test/catalog_test.exs",
         "test/test_helper.exs",
     ],
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,

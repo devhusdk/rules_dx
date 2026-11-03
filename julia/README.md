@@ -5,7 +5,7 @@ Nothing needs to be installed.
 
 ## Start
 
-Run `dx init --apply demo-app` and add sources; see `examples/julia-app`. Name
+Run `dx init --apply demo-app` and add sources; see `tests/fixtures/julia-app`. Name
 each library after its module and keep the source in `src/<label>.jl`: that is the layout rules_julia needs
 to precompile. The wrappers name the upstream target `<name>_upstream`, so
 until #4606 is fixed libraries still compile on first load and a syntax error
@@ -33,7 +33,7 @@ julia_test(
 ```
 
 The wrappers forward to `rules_julia` and add the `julia` quality class.
-[`examples/julia-app`](../examples/julia-app/README.md) is a multi-package app
+[`julia-app`](tests/fixtures/julia-app/README.md) is a multi-package app
 with a lockfile hub, a `Bzip2_jll` binary dependency, runfiles data and a
 diagnostics package.
 

@@ -14,7 +14,7 @@ elixir_app(
     app_name = "stockctl",
     app_version = "1.0.0",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-    deps = ["//examples/elixir-app/stock:erlang_app"],
+    deps = ["//elixir/tests/fixtures/elixir-app/stock:erlang_app"],
 )
 
 escript_archive(

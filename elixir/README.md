@@ -13,7 +13,7 @@ cd demo
 ```
 
 Add sources, then run `bazel run @rules_dx//:dx -- generate`. The language is
-wired when its sources appear. See `examples/elixir-app` for a working app.
+wired when its sources appear. See `tests/fixtures/elixir-app` for a working app.
 
 ## Rules
 

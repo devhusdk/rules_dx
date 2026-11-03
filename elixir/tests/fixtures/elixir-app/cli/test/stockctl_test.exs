@@ -29,6 +29,6 @@ defmodule StockctlTest do
 
   defp stockctl(args) do
     root = Path.join(System.fetch_env!("TEST_SRCDIR"), System.fetch_env!("TEST_WORKSPACE"))
-    System.cmd(Path.join(root, "examples/elixir-app/cli/stockctl"), args, stderr_to_stdout: true)
+    System.cmd(Path.join(root, "elixir/tests/fixtures/elixir-app/cli/stockctl"), args, stderr_to_stdout: true)
   end
 end

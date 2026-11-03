@@ -140,7 +140,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude examples/python-service
 # gazelle:exclude cc/tests/fixtures/c-app
 # gazelle:exclude cc/tests/fixtures/cpp-app
-# gazelle:exclude examples/elixir-app
+# gazelle:exclude elixir/tests/fixtures/elixir-app
 # gazelle:exclude examples/erlang-app
 # gazelle:exclude haskell/tests/fixtures/haskell-app
 # gazelle:exclude dart/tests/cross
@@ -158,7 +158,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude qt/tests/fixtures/qt-rust
 # gazelle:exclude qt/tests/fixtures/qt-tasks
 # gazelle:exclude zig/tests/fixtures/zig-app
-# gazelle:exclude examples/julia-app
+# gazelle:exclude julia/tests/fixtures/julia-app
 # gazelle:exclude examples/msix-app
 # gazelle:exclude examples/cuda-app
 # gazelle:exclude examples/dart-app

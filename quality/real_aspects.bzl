@@ -2318,7 +2318,7 @@ _REAL_SHARD_SPECS = {
     },
     "real_go_lint": {
         "capability": "lint",
-        "doc": "Additive Go lint family aspect (delegated dx_govet and dx_errcheck over rules_go packages).",
+        "doc": "Additive Go lint family aspect (delegated dx_govet, dx_errcheck and dx_staticcheck over rules_go packages).",
         "requires": [go_analysis_aspect],
         "shard": "go",
         "suffix": "-go",

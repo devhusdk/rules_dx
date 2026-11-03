@@ -79,3 +79,59 @@ set = "dx_pypi-python"
 versions = "=4.0.8"
 reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix is pylint 4.0.9."
 expires = "2027-01-28"
+
+[[exception]]
+advisory = "RUSTSEC-2021-0145"
+package = "atty"
+set = "dx_quality_crates"
+versions = "=0.2.14"
+reason = "Unaligned read; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
+advisory = "RUSTSEC-2024-0375"
+package = "atty"
+set = "dx_quality_crates"
+versions = "=0.2.14"
+reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
+advisory = "RUSTSEC-2024-0449"
+package = "unsafe-libyaml"
+set = "dx_quality_crates"
+versions = "=0.2.11"
+reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
+advisory = "RUSTSEC-2022-0104"
+package = "structopt"
+set = "dx_quality_crates"
+versions = "=0.3.26"
+reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
+advisory = "RUSTSEC-2021-0139"
+package = "ansi_term"
+set = "dx_quality_crates"
+versions = "=0.12.1"
+reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
+advisory = "RUSTSEC-2024-0436"
+package = "paste"
+set = "dx_quality_crates"
+versions = "=1.0.15"
+reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"
+
+[[exception]]
+advisory = "RUSTSEC-2024-0370"
+package = "proc-macro-error"
+set = "dx_quality_crates"
+versions = "=1.0.4"
+reason = "Unmaintained; pulled by selene 0.32.0, which has no release without it. Build-time lint tool, not shipped."
+expires = "2027-05-03"

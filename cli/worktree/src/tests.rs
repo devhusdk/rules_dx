@@ -658,6 +658,7 @@ fn re_adding_a_held_branch_renews_a_dead_holder_pid() {
     host.live(10);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.kill(10);
+    host.advance(ops::STOP_GRACE_SECS);
     host.live(11);
     let again = ops::add(&pool, &host, &who("s1", 11), &existing("feature/a")).expect("re-add");
     assert!(again.reused);
@@ -700,6 +701,7 @@ fn another_session_cannot_renew() {
     host.live(10);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.kill(10);
+    host.advance(ops::STOP_GRACE_SECS);
     host.live(20);
     let other = ops::add(&pool, &host, &who("s2", 20), &existing("feature/a"));
     let renewed = other

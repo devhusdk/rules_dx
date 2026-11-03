@@ -400,7 +400,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     let warm = PathBuf::from(again.stdout.trim());
     assert!(warm == slot || warm == sub_path, "{warm:?} is a new slot");
 
-    let status = run_with(launcher, &["--version"], &root, &env, "");
+    let status = run_with(launcher, &["status"], &root, &env, "");
     assert!(
         status.stdout.contains("agents: ok"),
         "{}{}",

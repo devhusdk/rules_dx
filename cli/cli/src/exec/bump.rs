@@ -433,7 +433,7 @@ fn resolve_gha_tag_request(
     let Some(path) = commit_json else {
         return Ok(request.clone());
     };
-    let text = std::fs::read_to_string(&path).map_err(|_| {
+    let text = std::fs::read_to_string(path).map_err(|_| {
         format!(
             "failed to widen {}: cannot read {path} (nothing widened; unknown tags fail closed, never invent a SHA)",
             request.selector

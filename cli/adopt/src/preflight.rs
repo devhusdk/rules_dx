@@ -23,6 +23,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_rust", "0.75.0"),
     ("rules_rust_wasm_bindgen", "0.75.0"),
     ("rules_cc", "0.2.27"),
+    ("libxml2", "2.15.3"),
     ("llvm", "0.8.25"),
     ("rules_cuda", "0.3.0"),
     ("rules_python", "1.9.0"),
@@ -54,7 +55,6 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("aspect_rules_js", "3.5.2"),
     ("aspect_rules_ts", "3.10.1"),
     ("aspect_rules_jest", "0.26.0"),
-    ("rules_nodejs", "6.7.7"),
 ];
 
 /// Every module a fresh dx consumer resolves to, with its version (`modules/consumer_graph.json`).
@@ -729,7 +729,7 @@ mod tests {
     fn older_dep_is_raised_and_newer_is_not() {
         let dir = scratch(&[(
             "MODULE.bazel",
-            "bazel_dep(name = \"rules_rust\", version = \"0.60.0\")\nbazel_dep(name = \"rules_cc\", version = \"99.0.0\")\nbazel_dep(name = \"protobuf\", version = \"34.0.bcr.2\")\n",
+            "bazel_dep(name = \"rules_rust\", version = \"0.60.0\")\nbazel_dep(name = \"rules_cc\", version = \"99.0.0\")\nbazel_dep(name = \"lua\", version = \"5.4.6.bcr.2\")\n",
         )]);
         let plan = preflight(dir.path(), &snippet());
         assert_eq!(plan.findings.len(), 1, "{plan:?}");

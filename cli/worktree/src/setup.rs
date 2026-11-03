@@ -334,7 +334,7 @@ mod tests {
         apply(dir.path()).expect("apply");
         let settings = std::fs::read_to_string(dir.path().join(SETTINGS)).expect("settings");
         assert!(missing_allow(&settings).is_empty());
-        assert_eq!(allow_rules().len(), 7);
+        assert_eq!(allow_rules().len(), 6);
         for file in [&CODEX, &GEMINI] {
             let text = std::fs::read_to_string(dir.path().join(file.path)).expect("file");
             assert!(!text.contains("permissions"), "{}", file.path);

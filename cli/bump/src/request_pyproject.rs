@@ -92,6 +92,9 @@ fn scan_array(
     Ok(found)
 }
 
+/// A requirement array path and the widened entries to write into it.
+type ArrayEdit = (Vec<String>, Vec<(usize, String)>);
+
 pub(crate) fn plan_pyproject_toml(
     content: &str,
     package: &str,
@@ -126,7 +129,7 @@ pub(crate) fn plan_pyproject_toml(
         }
     }
     let mut hits = Vec::new();
-    let mut edits: Vec<(Vec<String>, Vec<(usize, String)>)> = Vec::new();
+    let mut edits: Vec<ArrayEdit> = Vec::new();
     for path in paths {
         let mut item = Some(doc.as_item());
         for key in &path {

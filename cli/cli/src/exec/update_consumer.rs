@@ -46,8 +46,7 @@ pub(super) fn execute_configured(
             return exit;
         }
     }
-    let mut attempted: Vec<dx_update::outcome::SetOutcome> = Vec::new();
-    let mut details: BTreeMap<String, SetDetail> = BTreeMap::new();
+    let mut outcomes = Outcomes::default();
     let mut gate = SlotGate {
         err: &mut *err,
         events: &mut *out,
@@ -61,8 +60,7 @@ pub(super) fn execute_configured(
     let mut tools = UvTools::new(runner, &bazel, invocation.offline);
     for target in &resolved {
         if let Err(signo) = run_configured_target(
-            &mut attempted,
-            &mut details,
+            &mut outcomes,
             target,
             runner,
             &mut tools,
@@ -89,8 +87,8 @@ pub(super) fn execute_configured(
         out,
         err,
         selected,
-        attempted,
-        details,
+        attempted: outcomes.attempted,
+        details: outcomes.details,
         verbose,
         mode,
         locks,
@@ -111,9 +109,15 @@ pub(super) fn uv_closure(
     UvTools::new(runner, &bazel, invocation.offline).closure()
 }
 
+/// What each set run reports back.
+#[derive(Default)]
+struct Outcomes {
+    attempted: Vec<dx_update::outcome::SetOutcome>,
+    details: BTreeMap<String, SetDetail>,
+}
+
 fn run_configured_target(
-    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, SetDetail>,
+    outcomes: &mut Outcomes,
     target: &ResolvedTarget,
     runner: &dyn dx_process::Runner,
     tools: &mut UvTools<'_>,
@@ -121,6 +125,7 @@ fn run_configured_target(
     invocation: &Invocation,
     gate: &mut SlotGate<'_>,
 ) -> Result<(), i32> {
+    let Outcomes { attempted, details } = &mut *outcomes;
     let mode = RunMode::of(invocation);
     let set = &target.set;
     let verb = mode.verb();
@@ -269,9 +274,7 @@ fn run_configured_target(
             return Ok(());
         }
         Ok(dx_update::backend::CheckPlan::Staged(run)) => {
-            return run_staged(
-                attempted, details, target, &run, runner, workspace, mode, gate,
-            );
+            return run_staged(outcomes, target, &run, runner, workspace, mode, gate);
         }
         Ok(dx_update::backend::CheckPlan::Run { argv, env }) => (argv, env),
     };
@@ -356,8 +359,7 @@ fn launch(
 /// Runs a generator on copies of the set's inputs and compares what it wrote with the
 /// declared locks. Check reports drift; apply writes only the declared files that differ.
 fn run_staged(
-    attempted: &mut Vec<dx_update::outcome::SetOutcome>,
-    details: &mut BTreeMap<String, SetDetail>,
+    outcomes: &mut Outcomes,
     target: &ResolvedTarget,
     run: &dx_update::backend::StagedRun,
     runner: &dyn dx_process::Runner,
@@ -366,6 +368,7 @@ fn run_staged(
     gate: &mut SlotGate<'_>,
 ) -> Result<(), i32> {
     use dx_update::outcome::SetStatus;
+    let Outcomes { attempted, details } = outcomes;
     let set = &target.set;
     let verb = mode.verb();
     let mut launch_tool = |argv: &[String], env: &[(String, String)]| {

@@ -63,6 +63,15 @@ pub const OVERRIDES: &[Override] = &[
         }],
     },
     Override {
+        module: "protobuf",
+        version: "36.2",
+        patch_strip: 1,
+        patches: &[OverridePatch {
+            file: "no_crate_universe.patch",
+            content: include_str!("../../../patches/protobuf/no_crate_universe.patch"),
+        }],
+    },
+    Override {
         module: "rules_dotnet",
         version: "0.22.2",
         patch_strip: 1,

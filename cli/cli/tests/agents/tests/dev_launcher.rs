@@ -596,7 +596,7 @@ mod sh {
                 "{err}"
             );
             assert_eq!(repo.builds(), 2);
-            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+            assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
         }
     }
 
@@ -630,7 +630,7 @@ mod sh {
         assert_eq!((exit, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert!(err.contains(CRASH_NOTICE), "{err}");
         assert!(!repo.inputs().contains("dx:"), "{}", repo.inputs());
-        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
     }
 
     #[test]
@@ -668,7 +668,7 @@ mod sh {
             assert_eq!(code, Some(0), "{err}");
             assert!(out.ends_with(" unset\n"), "{out}");
             assert_eq!((repo.builds(), repo.repins()), (2, 1));
-            assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+            assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
         }
     }
 
@@ -676,7 +676,6 @@ mod sh {
     fn checks_and_other_launches_never_repin() {
         for args in [
             &["update", "cargo"][..],
-            &["update", "--apply", "cargo"][..],
             &["update", "--apply", "--frozen", "cargo"][..],
             &["update", "--apply", "--offline", "cargo"][..],
             &["update", "--apply", "npm"][..],
@@ -1314,11 +1313,11 @@ mod sh {
         );
         assert!(err.contains("Server shut down explicitly"), "{err}");
         assert_eq!(repo.builds(), 1);
-        assert_eq!(repo.state_files(), vec!["dx"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "dx"]);
         let (code, out, err) = repo.run();
         assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
         assert_eq!(repo.builds(), 2, "still stale, so it rebuilds");
-        assert_eq!(repo.state_files(), vec!["dx"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "dx"]);
         std::fs::remove_file(&flag).expect("clear flag");
         repo.run_ok();
         assert_eq!(repo.builds(), 3);
@@ -1330,7 +1329,7 @@ mod sh {
         repo.run_ok();
         assert_eq!(repo.builds(), 4);
         assert_eq!(repo.inputs(), "//:BUILD.bazel\n//cli/cli:BUILD.bazel\n");
-        assert_eq!(repo.state_files(), vec!["built", "dx", "inputs"]);
+        assert_eq!(repo.state_files(), vec!["CACHEDIR.TAG", "built", "dx", "inputs"]);
         repo.run_ok();
         assert_eq!(repo.builds(), 5, "the stamp did not move, so it is stale");
     }

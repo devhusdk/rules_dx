@@ -35,6 +35,7 @@ dx_rust_crate(
         "//patches/aspect_rules_jest:windows_v8_coverage.patch",
         "//patches/aspect_rules_py:windows_venv.patch",
         "//patches/aspect_rules_ts:typecheck_root_dir.patch",
+        "//patches/protobuf:no_crate_universe.patch",
         "//patches/rules_cuda:dlink_includes.patch",
         "//patches/rules_dart:hermetic_tar.patch",
         "//patches/rules_dotnet:reproducible.patch",

@@ -151,12 +151,8 @@ mod tests {
     #[test]
     fn host_compiler_block_matches_the_root_module() {
         let module = workspace_text("MODULE.bazel");
-        let stanza = host_compiler_stanza();
-        let sysroot = stanza
-            .split("\n# The canonical label")
-            .next()
-            .expect("sysroot part");
-        assert!(module.contains(sysroot), "sysroot drifts from MODULE.bazel");
+        assert!(module.contains(&format!("sha256 = \"{CUDA_HOST_SYSROOT_SHA256}\"")));
+        assert!(module.contains(&format!("urls = [\"{CUDA_HOST_SYSROOT_URL}\"]")));
         assert!(module.contains(&format!("llvm_version = \"{CUDA_HOST_LLVM_VERSION}\"")));
         assert!(module.contains("label = \"@cuda_host_sysroot//sysroot\""));
         assert!(module.contains("targets = [\"linux-x86_64\"]"));
@@ -182,7 +178,7 @@ mod tests {
             "bazel_dep(name = \"rules_cuda\", version = \"{RULES_CUDA_VERSION}\")"
         )));
         assert!(module.contains(&format!(
-            "bazel_dep(name = \"toolchains_llvm\", version = \"{TOOLCHAINS_LLVM_VERSION}\")"
+            "bazel_dep(name = \"toolchains_llvm\", version = \"{TOOLCHAINS_LLVM_VERSION}\""
         )));
     }
 

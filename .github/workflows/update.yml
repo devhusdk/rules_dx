@@ -82,13 +82,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          outdated="$RUNNER_TEMP/outdated.txt"
+          : > "$outdated"
           echo "Scheduled discovery (issue #639): enumerating outdated via upstream registry clients (stable only, never custom HTTP)."
           echo "Discovery policy: stable only; prerelease follows upstream resolver/project config, never a private policy; transitives stay resolver-governed."
           echo "Registry clients: BCR / crates.io / npm registry / Go proxy / Maven Central / NuGet / GitHub releases (planned in dx_update::discovery; manual selector only rejected)."
           echo ""
           echo "Declared requirements (manifest scan, no fetch):"
           if [[ -f MODULE.bazel ]]; then
-            grep -E -e 'bazel_dep\(|maven\.install|artifacts' MODULE.bazel | head -n 20 || true
+            grep -E -e 'maven\.install|artifacts' MODULE.bazel | head -n 20 || true
             grep -E -o -e '"[^"]+:[^"]+:[^"]+"' MODULE.bazel | head -n 20 || true
           fi
           if [[ -f rust/tests/fixtures/hello/Cargo.toml ]]; then
@@ -119,7 +121,7 @@ jobs:
               crate="$(echo "$line" | sed -E 's/^([A-Za-z0-9_-]+) *=.*/\1/; s/^[[:space:]]+//')"
               if [[ -n "$crate" ]]; then
                 latest="$(cargo search "$crate" --limit 1 2>/dev/null | head -n 1 || true)"
-                if [[ -n "$latest" ]]; then echo "dx_crates:$crate $latest"; else echo "dx_crates:$crate (declared only; crates.io unreachable)"; fi
+                if [[ -n "$latest" ]]; then echo "dx_crates:$crate $latest" | tee -a "$outdated"; else echo "dx_crates:$crate (declared only; crates.io unreachable)"; fi
               fi
             done < <(grep -E -e '^[a-zA-Z0-9_-]+ *= *"' rust/tests/fixtures/hello/Cargo.toml || true)
           else
@@ -130,7 +132,7 @@ jobs:
             for pkg in $(grep -E -o -e '"[A-Za-z0-9_.-]+" *:' package.json 2>/dev/null | tr -d '": ' | head -n 10 || true); do
               if [[ -n "$pkg" && "$pkg" != "name" && "$pkg" != "version" && "$pkg" != "dependencies" && "$pkg" != "devDependencies" ]]; then
                 latest="$(npm view "$pkg" version 2>/dev/null || true)"
-                if [[ -n "$latest" ]]; then echo "dx_npm:$pkg $latest (stable only)"; else echo "dx_npm:$pkg (declared only; npm registry unreachable)"; fi
+                if [[ -n "$latest" ]]; then echo "dx_npm:$pkg $latest" | tee -a "$outdated"; else echo "dx_npm:$pkg (declared only; npm registry unreachable)"; fi
               fi
             done
           else
@@ -141,7 +143,7 @@ jobs:
             while IFS= read -r mod; do
               if [[ -n "$mod" ]]; then
                 latest="$(go list -m -versions "$mod" 2>/dev/null | tr ' ' '\n' | grep -E -e '^v[0-9]' | grep -E -v -e '-' | tail -n 1 || true)"
-                if [[ -n "$latest" ]]; then echo "go:$mod $latest (stable only)"; else echo "go:$mod (declared only; Go proxy unreachable)"; fi
+                if [[ -n "$latest" ]]; then echo "go:$mod $latest" | tee -a "$outdated"; else echo "go:$mod (declared only; Go proxy unreachable)"; fi
               fi
             done < <(grep -E -o -e '[a-zA-Z0-9./_-]+\.[a-zA-Z]+/[a-zA-Z0-9./_~-]+' third_party/go/go.mod 2>/dev/null | head -n 10 || true)
           else
@@ -156,17 +158,38 @@ jobs:
               if [[ -n "$repo" && -n "$tag" ]]; then
                 sha=""
                 if out="$(gh api "repos/$repo/commits/$tag" --jq .sha)"; then sha="$out"; fi
-                if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "github-actions:$repo $tag -> $sha (auto via gh api, never invent)"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
+                if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "github-actions:$repo $tag" | tee -a "$outdated"; else echo "github-actions:$repo $tag (declared only; GitHub releases unreachable; unknown tags fail closed, never invent a SHA)"; fi
               fi
             done < <(grep -E -h -o -e 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/*.yml 2>/dev/null | head -n 5 || true)
           else
             echo "(gh client unavailable: GitHub Actions outdated deferred to GitHub releases on next run)"
           fi
-          echo "--- BCR / Maven Central / NuGet ---"
-          echo "(BCR, Maven Central, and NuGet enumerate through their upstream clients on runs with those backends; this run lists declared MODULE.bazel plus paket.dependencies above without custom HTTP.)"
+          echo "--- BCR ---"
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          if bazel run "$@" --noshow_progress //tools/ci:bcr_outdated_bin -- "$PWD/MODULE.bazel" >> "$outdated" 2> "$RUNNER_TEMP/bcr_errors.txt"; then
+            :
+          else
+            {
+              echo "### BCR lookup failed"
+              echo '```'
+              cat "$RUNNER_TEMP/bcr_errors.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo ""
           echo "Next step: dispatch this workflow with selector plus version for the first outdated candidate above (one dep per run, never batch; e.g. dx_crates:anyhow 1.2.3). Manual selector only is rejected as the sole discovery route: scheduled runs must enumerate above."
           echo "This run plans the loop without widening."
+          {
+            echo "### Outdated dependencies"
+            if [[ -s "$outdated" ]]; then
+              echo '```'
+              cat "$outdated"
+              echo '```'
+            else
+              echo "none outdated"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Widen one requirement plus resolver-owned refresh
         if: inputs.selector != '' && inputs.version != ''
         env:

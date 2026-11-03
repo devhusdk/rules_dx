@@ -388,3 +388,26 @@ fn discovery_reads_pins_by_line_and_validates_the_sha() {
         "{WORKFLOW} {DISCOVERY:?} must not treat a failed gh api as a SHA"
     );
 }
+
+#[test]
+fn discovery_writes_the_outdated_list_to_the_job_summary() {
+    let steps = steps(WORKFLOW, "widen-one");
+    let discovery = steps
+        .iter()
+        .find(|step| name_of(step) == DISCOVERY)
+        .unwrap_or_else(|| panic!("{WORKFLOW} must carry a {DISCOVERY:?} step"));
+    let run = run_of(discovery);
+    for needle in [
+        "$RUNNER_TEMP/outdated.txt",
+        "//tools/ci:bcr_outdated_bin",
+        "BCR lookup failed",
+        "Outdated dependencies",
+        "none outdated",
+        "$GITHUB_STEP_SUMMARY",
+    ] {
+        assert!(
+            run.contains(needle),
+            "{DISCOVERY:?} must contain {needle:?}"
+        );
+    }
+}

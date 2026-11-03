@@ -815,8 +815,8 @@ rust_test(
     size = "small",
     srcs = ["release_assets_test.rs"],
     data = [
-        "//:RELEASING.md",
         "//:MODULE.bazel",
+        "//:RELEASING.md",
         "//.github:workflows/pins.yml",
         "//.github:workflows/release.yml",
         "//cli/adopt:src/launcher.rs",
@@ -912,6 +912,7 @@ rustfmt_test(
         ":advisory_snapshots_test",
         ":aggregate_gates_test",
         ":artifact_writes_test",
+        ":bcr_outdated_test",
         ":bump_auth_test",
         ":ci_workflow",
         ":ci_workflow_test",
@@ -960,5 +961,39 @@ rust_test(
         ":coverage_cells",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_library(
+    name = "bcr_outdated",
+    srcs = ["bcr_outdated.rs"],
+    crate_name = "bcr_outdated",
+    deps = [
+        "//libs/module_bazel:dx_module_bazel",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_binary(
+    name = "bcr_outdated_bin",
+    srcs = ["bcr_outdated_main.rs"],
+    deps = [
+        ":bcr_outdated",
+        "//deploy/rules:dx_deploy_tools",
+        "//libs/module_bazel:dx_module_bazel",
+        "@crates//:ureq",
+    ],
+)
+
+# keep
+rust_test(
+    name = "bcr_outdated_test",
+    size = "small",
+    srcs = ["bcr_outdated_test.rs"],
+    deps = [
+        ":bcr_outdated",
+        "//libs/module_bazel:dx_module_bazel",
     ],
 )

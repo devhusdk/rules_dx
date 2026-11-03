@@ -3,6 +3,7 @@
 load(":real_results.bzl", "real_result_test")
 
 _ZANUDA_POLICY = "//quality/testdata/zanuda_owned:policy"
+_DIALYZER = "//erlang/tools:dialyzer"
 
 _NVCC_POLICY = "//quality/testdata/nvcc_syntax:policy"
 
@@ -44,6 +45,58 @@ REAL_RESULT_CASES = [
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
+    {
+        "name": "real_result_dialyzer_erlang_clean",
+        "target": "//erlang/tests/runtime:erlang_app",
+        "policy": "//quality/testdata/dialyzer:erlang_policy",
+        "tool": "dialyzer",
+        "capability": "typecheck",
+        "class": "erlang",
+        "tool_dialyzer": _DIALYZER,
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "contains": [],
+        "absent": ["invalid_contract"],
+    },
+    {
+        "name": "real_result_dialyzer_erlang_dirty",
+        "target": "//quality/testdata/dialyzer:erlang_dirty",
+        "policy": "//quality/testdata/dialyzer:erlang_policy",
+        "tool": "dialyzer",
+        "capability": "typecheck",
+        "class": "erlang",
+        "tool_dialyzer": _DIALYZER,
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "contains": ["dialyzer/", "invalid_contract"],
+        "absent": [],
+    },
+    {
+        "name": "real_result_dialyzer_elixir_clean",
+        "target": "//elixir/tests/runtime:erlang_app",
+        "policy": "//quality/testdata/dialyzer:elixir_policy",
+        "tool": "dialyzer",
+        "capability": "typecheck",
+        "class": "elixir",
+        "tool_dialyzer": _DIALYZER,
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "contains": [],
+        "absent": ["invalid_contract"],
+    },
+    {
+        "name": "real_result_dialyzer_elixir_dirty",
+        "target": "//quality/testdata/dialyzer:elixir_dirty",
+        "policy": "//quality/testdata/dialyzer:elixir_policy",
+        "tool": "dialyzer",
+        "capability": "typecheck",
+        "class": "elixir",
+        "tool_dialyzer": _DIALYZER,
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "contains": ["dialyzer/", "invalid_contract"],
+        "absent": [],
+    },
 ]
 
 def real_result_evidence(case):
@@ -67,6 +120,7 @@ def real_result_cases():
             policy = case["policy"],
             contains = case["contains"],
             absent = case["absent"],
+            tool_dialyzer = case.get("tool_dialyzer"),
             linux_arm64 = case.get("linux_arm64", False),
             macos_arm64 = case.get("macos_arm64", False),
             windows_x86_64 = case.get("windows_x86_64", False),

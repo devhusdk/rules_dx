@@ -204,6 +204,7 @@ def _canonical(cells):
 def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),
+        "dialyzer": _canonical(ERLANG_CELLS.keys()),
         "dfmt": _canonical([c for c in LDC_CELLS.keys() if c not in LDC_UNPROVEN_CELLS]),
         "dart": sorted(RULES_DART_PLATFORMS.keys()),
         "dscanner": _canonical([c for c in LDC_CELLS.keys() if c not in LDC_UNPROVEN_CELLS]),
@@ -319,6 +320,11 @@ def support_unit_tests(name):
             expect_equal(
                 "nvcc_syntax claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "nvcc_syntax"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                [],
+            ),
+            expect_equal(
+                "dialyzer claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "dialyzer"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],
             ),
             expect_equal(

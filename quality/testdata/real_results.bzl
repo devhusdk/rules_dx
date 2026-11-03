@@ -6,12 +6,15 @@ load("//quality/testdata:runner_matrix_tests.bzl", "compatible")
 
 def _policy_transition_impl(_settings, attr):
     """Selects the workspace policy named by the policy attr."""
-    return {"//config:workspace": attr.policy}
+    return {
+        "//config:tool_dialyzer": str(attr.tool_dialyzer),
+        "//config:workspace": attr.policy,
+    }
 
 _policy_transition = transition(
     implementation = _policy_transition_impl,
     inputs = [],
-    outputs = ["//config:workspace"],
+    outputs = ["//config:tool_dialyzer", "//config:workspace"],
 )
 
 def _results_impl(ctx):
@@ -22,16 +25,18 @@ _results = rule(
     implementation = _results_impl,
     attrs = {
         "policy": attr.string(mandatory = True),
+        "tool_dialyzer": attr.label(default = "//config:no_dialyzer"),
         "subject": attr.label(mandatory = True, cfg = _policy_transition),
     },
 )
 
-def real_result_test(name, target, policy, contains = [], absent = [], **flags):
+def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
     real_aspect_subject(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
         policy = str(native.package_relative_label(policy)),
+        tool_dialyzer = tool_dialyzer or "//config:no_dialyzer",
         subject = name + "_subject",
         tags = ["manual"],
         testonly = True,

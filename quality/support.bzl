@@ -1881,6 +1881,40 @@ ERLANG_ELVIS_LINT_SUPPORT = {
 
 # windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
 # windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
+ERLANG_DIALYZER_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["erlang"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "erlang",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "dialyzer",
+    "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
+# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
+ELIXIR_DIALYZER_TYPECHECK_SUPPORT = {
+    "artifact": "pinned",
+    "capability": "typecheck",
+    "classes": ["elixir"],
+    "context": "target_coupled",
+    "execution": "direct",
+    "family": "elixir",
+    "fix": "check_only",
+    "platforms": ["linux_arm64", "linux_x86_64", "macos_arm64"],
+    "state": "supported",
+    "tool": "dialyzer",
+    "transport": "batched",
+    "unsupported": ["windows_arm64", "windows_x86_64"],
+}
+
+# windows_arm64: no OTP Windows cell in erlang/toolchain/pins.bzl
+# windows_x86_64: no OTP Windows cell in erlang/toolchain/pins.bzl
 ERLANG_ERLFMT_FORMAT_SUPPORT = {
     "artifact": "pinned",
     "capability": "format",
@@ -2219,6 +2253,8 @@ SUPPORT_RECORDS = [with_platforms(r) for r in [
     D_DSCANNER_LINT_SUPPORT,
     ELIXIR_CREDO_LINT_SUPPORT,
     ELIXIR_MIX_FORMAT_FORMAT_SUPPORT,
+    ERLANG_DIALYZER_TYPECHECK_SUPPORT,
+    ELIXIR_DIALYZER_TYPECHECK_SUPPORT,
     ERLANG_ELVIS_LINT_SUPPORT,
     ERLANG_ERLFMT_FORMAT_SUPPORT,
     JULIA_JULIA_FORMAT_FORMAT_SUPPORT,

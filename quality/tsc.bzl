@@ -71,7 +71,6 @@ def _tsc_js_impl(target, ctx):
             "JS_BINARY__STDOUT_OUTPUT_FILE": _bin_relative(ctx, stdout),
             "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
         },
-        use_default_shell_env = True,
         resource_set = dx_quality_heavy_resources,
     )
     return [TscInfo(stdout = stdout, status = status)]
@@ -119,7 +118,6 @@ def _tsc_impl(target, ctx):
             "JS_BINARY__STDOUT_OUTPUT_FILE": _bin_relative(ctx, stdout),
             "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
         },
-        use_default_shell_env = True,
         resource_set = dx_quality_heavy_resources,
     )
     return [TscInfo(stdout = stdout, status = status)]

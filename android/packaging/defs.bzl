@@ -818,6 +818,7 @@ def _apk_set_impl(ctx):
     out_dir = ctx.actions.declare_directory(ctx.label.name + "_apks")
     apks = ctx.actions.declare_file(ctx.label.name + ".apks")
     bundletool = ctx.attr._bundletool[DefaultInfo].files_to_run
+    java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
     ctx.actions.run(
         executable = ctx.executable._build_apk_set,
         arguments = [
@@ -828,13 +829,13 @@ def _apk_set_impl(ctx):
             apks.path,
             out_dir.path,
         ],
-        inputs = [aabs[0], specs[0], ctx.file._keystore],
+        inputs = depset([aabs[0], specs[0], ctx.file._keystore], transitive = [ctx.attr._java_runtime[DefaultInfo].files]),
         outputs = [apks, out_dir],
         tools = [bundletool],
+        env = {"JAVA_HOME": java.java_home},
         mnemonic = "DxApkSet",
         resource_set = dx_quality_heavy_resources,
         progress_message = "Building APK set %{label}",
-        use_default_shell_env = True,
     )
     return [
         DefaultInfo(files = depset([out_dir])),
@@ -856,6 +857,7 @@ android_apk_set = rule(
             cfg = "exec",
         ),
         "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec", doc = "Pinned bundletool."),
+        "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
         "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True, doc = "Public rules_android debug keystore; debug installs only."),
     },
 )

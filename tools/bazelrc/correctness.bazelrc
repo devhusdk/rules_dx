@@ -35,6 +35,9 @@ common --nolegacy_external_runfiles
 # On Windows, build runfiles trees only for actions that run.
 build:windows --nobuild_runfile_links
 
+# Give actions a fixed PATH instead of the host shell env.
+common --incompatible_strict_action_env
+
 # On Windows, give tests a runfiles directory instead of only a manifest.
 build:windows --enable_runfiles
 

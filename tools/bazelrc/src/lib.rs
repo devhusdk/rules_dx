@@ -100,7 +100,7 @@ const BUILD_PROFILES: [Flag; 7] = [
     ),
 ];
 
-const RUNFILES_FLAGS: [Flag; 2] = [
+const RUNFILES_FLAGS: [Flag; 3] = [
     (
         "common --nolegacy_external_runfiles",
         "Keep external repositories out of the main runfiles directory.",
@@ -108,6 +108,10 @@ const RUNFILES_FLAGS: [Flag; 2] = [
     (
         "build:windows --nobuild_runfile_links",
         "On Windows, build runfiles trees only for actions that run.",
+    ),
+    (
+        "common --incompatible_strict_action_env",
+        "Give actions a fixed PATH instead of the host shell env.",
     ),
 ];
 
@@ -737,8 +741,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 32);
-        assert_eq!(rendered_flag_lines(&render_all()).len(), 32);
+        assert_eq!(total, 33);
+        assert_eq!(rendered_flag_lines(&render_all()).len(), 33);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -832,7 +836,7 @@ mod tests {
         assert!(flags.contains("build:dx_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
         assert!(flags.contains("common --nolegacy_external_runfiles"));
-        assert_eq!(flags.len(), 32);
+        assert_eq!(flags.len(), 33);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

@@ -29,11 +29,41 @@ fn today_utc_from(pinned: Option<String>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{today_utc_from, QueryBazel, AUDIT_TODAY_ENV};
+    use super::{parse_locked_for_configured, today_utc_from, QueryBazel, AUDIT_TODAY_ENV};
+    use dx_adopt::dependency_sets::{Ecosystem, ResolvedSet};
     use dx_plan::resolve::{QueryResult, QueryRunner};
     use dx_tool_resolve::Bazel as _;
     use std::cell::RefCell;
     use std::path::Path;
+
+    fn unreadable_lock_error(ecosystem: Ecosystem, lock: &str) -> String {
+        let set = ResolvedSet {
+            name: "deps".to_owned(),
+            ecosystem,
+            dir: String::new(),
+            manifests: Vec::new(),
+            locks: vec![lock.to_owned()],
+            repository: None,
+        };
+        let locks = vec![(lock.to_owned(), "{}".to_owned())];
+        parse_locked_for_configured(&set, &locks)
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn set_without_a_readable_lock_fails() {
+        let cargo = unreadable_lock_error(Ecosystem::Cargo, "cargo-bazel-lock.json");
+        assert!(
+            cargo.contains("deps") && cargo.contains("Cargo.lock"),
+            "{cargo}"
+        );
+        let nuget = unreadable_lock_error(Ecosystem::Nuget, "other.lock");
+        assert!(nuget.contains("paket.lock"), "{nuget}");
+        let maven = unreadable_lock_error(Ecosystem::Maven, "pins.txt");
+        assert!(maven.contains(".json"), "{maven}");
+    }
 
     struct Recorder(RefCell<Vec<Vec<String>>>);
 
@@ -171,6 +201,8 @@ pub(crate) enum AuditError {
     LockMissing { rel: String },
     #[error("could not parse {rel}: {detail}")]
     LockParse { rel: String, detail: String },
+    #[error("dependency set {set} has no lock dx can read; expected {expected}")]
+    LockUnsupported { set: String, expected: &'static str },
     #[error("invalid licenses.toml: {error}")]
     LicenseInvalid {
         #[source]
@@ -205,6 +237,7 @@ impl AuditError {
             | AuditError::NotUtf8 { .. }
             | AuditError::LockMissing { .. }
             | AuditError::LockParse { .. }
+            | AuditError::LockUnsupported { .. }
             | AuditError::LicenseInvalid { .. }
             | AuditError::SecurityInvalid(_) => CODE_AUDIT_FAILED,
         }
@@ -529,6 +562,30 @@ fn parse_locked_for_configured(
     set: &dx_adopt::dependency_sets::ResolvedSet,
     locks: &[(String, String)],
 ) -> Result<(Vec<dx_audit::vuln::LockedPackage>, LockPaths), AuditError> {
+    let expected = match set.ecosystem {
+        dx_adopt::dependency_sets::Ecosystem::Maven => Some(("a maven .json lock", None)),
+        dx_adopt::dependency_sets::Ecosystem::Nuget => Some((
+            dx_adopt::dependency_sets::PAKET_LOCK,
+            Some(dx_adopt::dependency_sets::PAKET_LOCK),
+        )),
+        dx_adopt::dependency_sets::Ecosystem::Cargo => Some((
+            dx_adopt::dependency_sets::CARGO_LOCK,
+            Some(dx_adopt::dependency_sets::CARGO_LOCK),
+        )),
+        _ => None,
+    };
+    if let Some((label, exact)) = expected {
+        let parsed = locks.iter().any(|(rel, _)| {
+            let name = rel.rsplit('/').next().unwrap_or(rel);
+            exact.map_or_else(|| name.ends_with(".json"), |want| name == want)
+        });
+        if !parsed {
+            return Err(AuditError::LockUnsupported {
+                set: set.name.clone(),
+                expected: label,
+            });
+        }
+    }
     let mut all = Vec::new();
     let mut by_package: BTreeMap<(String, String), String> = BTreeMap::new();
     for (rel, text) in locks {

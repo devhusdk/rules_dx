@@ -14,7 +14,8 @@ jobs:
       docs_scope: "//..."
       site: "//docs:site"
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    secrets: inherit
+    secrets:
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
     permissions:
       contents: read
       pages: write

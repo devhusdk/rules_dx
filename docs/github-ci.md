@@ -237,9 +237,8 @@ permissions, so a read-only repository default is fine.
 
 ## Caching
 
-Both callers forward repository secrets with `secrets: inherit`. Set
-`BUILDBUDDY_API_KEY` to share the BuildBuddy remote cache. Codecov is
-optional.
+Both callers pass `BUILDBUDDY_API_KEY` and no other secret. Set it to share
+the BuildBuddy remote cache. Codecov is optional.
 
 Every job restores the Bazel repository cache that Bazel and `dx` use. Each
 platform shares one copy, keyed on `MODULE.bazel` and `MODULE.bazel.lock`.

@@ -136,7 +136,7 @@ pub fn render_consumer_caller() -> String {
 
 pub fn render_consumer_caller_for(branch: &str) -> String {
     format!(
-        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n    secrets: inherit\n    permissions:\n      contents: read\n      pull-requests: write\n",
+        "name: ci\non:\n  pull_request: {{}}\n  merge_group:\n    types: [checks_requested]\n  push:\n    branches: [{branch}]\n  workflow_dispatch: {{}}\njobs:\n  dx:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      rules_dx_version: \"{version}\"\n    secrets:\n      BUILDBUDDY_API_KEY: ${{{{ secrets.BUILDBUDDY_API_KEY }}}}\n    permissions:\n      contents: read\n      pull-requests: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = CONSUMER_WORKFLOW_PATH,
@@ -743,7 +743,7 @@ mod tests {
         );
         for required in [
             "merge_group:\n    types: [checks_requested]",
-            "secrets: inherit",
+            "secrets:\n      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}",
             "permissions:",
             "contents: read",
             "pull-requests: write",
@@ -758,7 +758,11 @@ mod tests {
             "caller grants checks: {caller}"
         );
         assert!(!caller.contains("<reviewed-commit>"), "{caller}");
-        for removed in ["scheduling_mode", "code_scanning_opt_in"] {
+        for removed in [
+            "scheduling_mode",
+            "code_scanning_opt_in",
+            "secrets: inherit",
+        ] {
             assert!(
                 !caller.contains(removed),
                 "caller passes {removed}: {caller}"

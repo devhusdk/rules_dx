@@ -100,6 +100,46 @@ pub(crate) const CRATES_GATE: OwnerGate = OwnerGate {
 /// Extra env names cargo keeps beyond the publish base list.
 const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 
+/// Most cargo stderr lines shown when a publish fails.
+const CARGO_FAILURE_LINES: usize = 40;
+
+/// Runs `cargo publish`; a failure carries cargo's last stderr lines.
+fn cargo_publish(program: &Path, manifest: &Path, token: &str) -> Result<(), String> {
+    let mut cmd = scrubbed_command(
+        program,
+        &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
+        &[("CARGO_REGISTRY_TOKEN", token)],
+    );
+    cmd.arg("publish").arg("--manifest-path").arg(manifest);
+    let output = cmd
+        .output()
+        .map_err(|error| format!("crates_deploy: {error}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let mut message = format!("crates_deploy: cargo publish failed with {}", output.status);
+    for line in cargo_failure_lines(&output.stderr, token) {
+        message.push_str("\ncargo: ");
+        message.push_str(&line);
+    }
+    Err(message)
+}
+
+/// Returns the last stderr lines with the token value removed.
+fn cargo_failure_lines(stderr: &[u8], token: &str) -> Vec<String> {
+    let text = String::from_utf8_lossy(stderr);
+    let text = if token.is_empty() {
+        text.into_owned()
+    } else {
+        text.replace(token, "[redacted]")
+    };
+    let lines: Vec<&str> = text.lines().collect();
+    lines[lines.len().saturating_sub(CARGO_FAILURE_LINES)..]
+        .iter()
+        .map(|line| (*line).to_owned())
+        .collect()
+}
+
 fn crates_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<(), String> {
     for (src, rel) in mapped {
         let dest = staging.join(rel);
@@ -177,25 +217,19 @@ pub fn crates_main(
             eprintln!("crates_deploy: staged crate is missing Cargo.toml; refusing");
             return 1;
         }
-        let mut cmd = scrubbed_command(
+        let published = cargo_publish(
             Path::new("cargo"),
-            &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
-            &[("CARGO_REGISTRY_TOKEN", secrets.get("CARGO_REGISTRY_TOKEN"))],
+            &manifest,
+            secrets.get("CARGO_REGISTRY_TOKEN"),
         );
-        cmd.arg("publish").arg("--manifest-path").arg(&manifest);
-        let output = cmd.output();
         let _ = std::fs::remove_dir_all(&staging);
-        match output {
-            Ok(output) if output.status.success() => {
+        match published {
+            Ok(()) => {
                 println!("crates_deploy: published {crate_name} {version}");
                 return 0;
             }
-            Ok(output) => {
-                eprintln!("crates_deploy: cargo publish failed with {}", output.status);
-                return 1;
-            }
-            Err(error) => {
-                eprintln!("crates_deploy: {error}");
+            Err(message) => {
+                eprintln!("{message}");
                 return 1;
             }
         }
@@ -404,6 +438,41 @@ mod tests {
             error.to_string().contains("ambiguous package root"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn cargo_failure_lines_keep_last_lines_and_hide_token() {
+        let stderr: String = (1..=50).map(|n| format!("line {n} s3cret\n")).collect();
+        let lines = cargo_failure_lines(stderr.as_bytes(), "s3cret");
+        assert_eq!(lines.len(), 40);
+        assert_eq!(lines[0], "line 11 [redacted]");
+        assert_eq!(lines[39], "line 50 [redacted]");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cargo_publish_shows_cargo_reason() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let scratch = scratch_dir();
+        let fake = scratch.path().join("cargo");
+        std::fs::write(
+            &fake,
+            "#!/bin/sh\necho 'error: crate version 0.0.0 is already uploaded' >&2\necho \"token $CARGO_REGISTRY_TOKEN\" >&2\nexit 101\n",
+        )
+        .expect("write fake cargo");
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let message = cargo_publish(&fake, &scratch.path().join("Cargo.toml"), "s3cret")
+            .expect_err("publish fails");
+        assert!(
+            message.contains("cargo publish failed with exit status: 101"),
+            "{message}"
+        );
+        assert!(
+            message.contains("\ncargo: error: crate version 0.0.0 is already uploaded"),
+            "{message}"
+        );
+        assert!(message.contains("\ncargo: token [redacted]"), "{message}");
+        assert!(!message.contains("s3cret"), "{message}");
     }
 
     #[test]

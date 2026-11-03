@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use super::{
-    as_text, check_output_size, code_name, known, unformatted_at, FileFinding, ParseError,
+    as_text, check_output_size, code_name, known, rewrite_format, FileFinding, ParseError,
 };
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
@@ -171,16 +171,7 @@ pub fn parse_buf_format(
         };
         return Err(ParseError::Shape { tool: TOOL, detail });
     }
-    if stdout == input {
-        return Ok(Vec::new());
-    }
-    Ok(vec![unformatted_at(
-        TOOL,
-        file,
-        1,
-        1,
-        ColumnEncoding::Scalars,
-    )])
+    rewrite_format(TOOL, stdout, code, input, file, ColumnEncoding::Scalars)
 }
 
 #[cfg(test)]

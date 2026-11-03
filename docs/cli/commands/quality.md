@@ -271,6 +271,7 @@ to.
 | `flake8` | lint | python |
 | `flang` | typecheck | fortran |
 | `flatc` | lint, typecheck | flatbuffers |
+| `ghc` | typecheck | haskell |
 | `fortitude` | lint | fortran |
 | `fsc` | typecheck | fsharp |
 | `fsharplint` | lint | fsharp |
@@ -1001,6 +1002,20 @@ x86_64 only and never fix, so `--apply` changes nothing. Fortran modules that a
 source takes from another source of the same target come from the real build:
 a type error in the providing source fails `bazel build` instead of showing as
 a finding.
+
+### Haskell typechecking
+
+`ghc` is opt-in: select it with `typecheck = ["ghc"]` on a `haskell` family. It
+replays the `ghc` compile action that `haskell_library` and `haskell_binary`
+configured, so the flags, packages and include paths match the real build. The
+replay adds `-fno-code` and sends every output directory to a scratch
+directory, so it produces no object files or interfaces in the build outputs.
+An error or warning is reported at its line and column in the target's own
+sources, with the GHC code as the rule, for example `GHC-83865`. An error in
+another file, or a failed run with no error in the target's sources, fails the
+run instead of passing it. `-Werror` is honoured. `ghc` never fixes, so
+`--apply` changes nothing. It runs on linux_amd64, linux_arm64 and macos_arm64.
+Profiling actions and the persistent worker are not replayed.
 
 ### OCaml typechecking
 

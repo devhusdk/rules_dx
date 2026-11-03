@@ -49,6 +49,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "fsc",
     "fsharplint",
     "gersemi",
+    "ghc",
     "gofumpt",
     "gotype",
     "google_java_format",

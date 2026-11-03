@@ -138,6 +138,7 @@ REAL_ADAPTERS = {
     "tsc": {"typecheck": ["javascript", "jsx", "mdx", "tsx", "typescript"]},
     "typstyle": {"format": ["typst"]},
     "latexindent": {"format": ["latex"]},
+    "ghc": {"typecheck": ["haskell"]},
     "ldc": {"typecheck": ["d"]},
     "chktex": {"lint": ["latex"]},
     "vale": {"lint": ["asciidoc", "markdown", "rst"]},

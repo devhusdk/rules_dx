@@ -185,6 +185,7 @@ pub(super) fn real_tools_pin_the_dispatched_set() {
             "fsc",
             "fsharplint",
             "gersemi",
+            "ghc",
             "gofumpt",
             "gotype",
             "google_java_format",

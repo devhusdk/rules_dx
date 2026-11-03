@@ -35,6 +35,7 @@ pub mod fortitude;
 pub mod fsc;
 pub mod fsharplint;
 pub mod gersemi;
+pub mod ghc;
 mod gnu_diagnostics;
 pub mod go_analysis;
 pub mod gofumpt;
@@ -155,6 +156,7 @@ pub use fortitude::parse_fortitude;
 pub use fsc::parse_fsc;
 pub use fsharplint::parse_fsharplint;
 pub use gersemi::parse_gersemi;
+pub use ghc::parse_ghc;
 pub use go_analysis::{parse_go_analysis, parse_gotype};
 pub use gofumpt::parse_gofumpt;
 pub use google_java_format::parse_google_java_format;
@@ -2232,6 +2234,14 @@ mod tests {
         super::flang::parse_flang(input, code, files)
     }
 
+    fn fuzz_ghc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::ghc::parse_ghc(input, code, files)
+    }
+
     fn fuzz_ldc(
         input: &[u8],
         code: Option<i32>,
@@ -2825,6 +2835,7 @@ mod tests {
         ("djlint_format", fuzz_djlint_format),
         ("dialyzer", fuzz_dialyzer),
         ("flang", fuzz_flang),
+        ("ghc", fuzz_ghc),
         ("ldc", fuzz_ldc),
         ("elvis", fuzz_elvis),
         ("erlfmt", fuzz_erlfmt),
@@ -2959,6 +2970,7 @@ mod tests {
         ("djlint", include_str!("djlint.rs")),
         ("dialyzer", include_str!("dialyzer.rs")),
         ("flang", include_str!("flang.rs")),
+        ("ghc", include_str!("ghc.rs")),
         ("ldc", include_str!("ldc.rs")),
         ("elvis", include_str!("elvis.rs")),
         ("erlfmt", include_str!("erlfmt.rs")),

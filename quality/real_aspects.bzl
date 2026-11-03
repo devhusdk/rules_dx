@@ -311,6 +311,12 @@ _REAL_TOOL_TABLE = {
         "resources": "heavy",
         "shard": "fortran",
     },
+    "ghc": {
+        "capabilities": ["typecheck"],
+        "kind": "upstream",
+        "resources": "heavy",
+        "shard": "haskell",
+    },
     "ldc": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
@@ -2720,6 +2726,13 @@ _REAL_SHARD_SPECS = {
         "shard": "haskell",
         "suffix": "-haskell",
     },
+    "real_haskell_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Haskell typecheck family aspect (ghc -fno-code replay of the compile action).",
+        "requires": [compile_check_aspect],
+        "shard": "haskell",
+        "suffix": "-haskell",
+    },
     "real_haskell_lint": {
         "capability": "lint",
         "doc": "Additive Haskell lint family aspect (hlint).",
@@ -3027,6 +3040,7 @@ real_cmake_format_aspect = _make_real_aspect("real_cmake_format")
 real_cmake_lint_aspect = _make_real_aspect("real_cmake_lint")
 real_haskell_format_aspect = _make_real_aspect("real_haskell_format")
 real_haskell_lint_aspect = _make_real_aspect("real_haskell_lint")
+real_haskell_typecheck_aspect = _make_real_aspect("real_haskell_typecheck")
 
 real_cue_typecheck_aspect = _make_real_aspect("real_cue_typecheck")
 

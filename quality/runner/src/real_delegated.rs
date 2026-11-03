@@ -1669,12 +1669,18 @@ fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool
 
 const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
 
-const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 4] = [
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 5] = [
     (
         "flang",
         "src/a.f90",
         "src/a.f90:3:7: error: No explicit type declared for 'y'\nerror: Semantic errors in src/a.f90\n",
         "src/gen.f90:3:7: error: No explicit type declared for 'y'\n",
+    ),
+    (
+        "ghc",
+        "src/A.hs",
+        "{\"version\":\"1.1\",\"span\":{\"file\":\"src/A.hs\",\"start\":{\"line\":4,\"column\":9},\"end\":{\"line\":4,\"column\":10}},\"severity\":\"Error\",\"code\":88464,\"message\":[\"Variable not in scope: y\"]}\n",
+        "{\"version\":\"1.1\",\"span\":{\"file\":\"src/Gen.hs\",\"start\":{\"line\":4,\"column\":9},\"end\":{\"line\":4,\"column\":10}},\"severity\":\"Error\",\"code\":88464,\"message\":[\"Variable not in scope: y\"]}\n",
     ),
     (
         "ldc",

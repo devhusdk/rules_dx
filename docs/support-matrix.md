@@ -76,7 +76,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs. A tool
 | Fortran | `fortitude` | `ffmt` | `flang` |
 | F# | `fsharplint` | `fantomas` | `fsc` |
 | Go | `errcheck`, `govet`, `staticcheck` | `gofumpt` | `gotype` |
-| Haskell | `hlint` | `ormolu` | no |
+| Haskell | `hlint` | `ormolu` | `ghc` |
 | Java | `checkstyle`, `pmd`, `spotbugs` | `google_java_format` | `javac` |
 | JavaScript | `biome`, `eslint` | `biome`, `prettier` | `tsc` |
 | Julia | no | `julia_format` | `jet` |

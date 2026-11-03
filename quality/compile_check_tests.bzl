@@ -2,10 +2,11 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":compile_check.bzl", "COMPILE_CHECK_TOOLS", "flang_check_argv", "ldc_check_argv", "ocaml_aliases", "ocaml_check_argv", "zig_check_argv", "zig_replayable")
+load(":compile_check.bzl", "COMPILE_CHECK_TOOLS", "flang_check_argv", "ghc_check_argv", "ldc_check_argv", "ocaml_aliases", "ocaml_check_argv", "zig_check_argv", "zig_replayable")
 
 _FLANG = "external/flang/bin/flang"
 _LDC = "external/ldc/bin/ldmd2"
+_GHC = "bazel-out/bin/haskell/ghc_wrapper"
 _ZIG = "external/zig/zig"
 _OCAMLC = "external/ocaml/bin/ocamlc.opt"
 _OCAMLOPT = "external/ocaml/bin/ocamlopt.opt"
@@ -23,9 +24,9 @@ def compile_check_unit_tests(name):
                 [(tool, True) for tool in COMPILE_CHECK_TOOLS],
             ),
             expect_equal(
-                "the replayed compile tools include flang, ldc, ocaml and zig",
+                "the replayed compile tools include flang, ghc, ldc, ocaml and zig",
                 COMPILE_CHECK_TOOLS,
-                ["flang", "ldc", "ocaml", "zig"],
+                ["flang", "ghc", "ldc", "ocaml", "zig"],
             ),
             expect_equal(
                 "flang -c becomes -fsyntax-only, -o is dropped and modules go to scratch",
@@ -50,6 +51,33 @@ def compile_check_unit_tests(name):
             expect_equal(
                 "flang params files are rejected",
                 flang_check_argv([_FLANG, "@a.params", "-c", "a.f90"], "tmp").error != "",
+                True,
+            ),
+            expect_equal(
+                "ghc keeps the wrapper argv and appends check-only flags to the extra args file",
+                ghc_check_argv([_GHC, "flags", "extra"], "tmp").options,
+                ["--append", "2", "tmp/extra_args", "--line", "-fno-code", "--line", "-fdiagnostics-as-json"] +
+                ["--line", "-odir", "--line", "tmp", "--line", "-hidir", "--line", "tmp", "--line", "-stubdir", "--line", "tmp"] +
+                ["--line", "-hiedir", "--line", "tmp", "--line", "-dumpdir", "--line", "tmp"],
+            ),
+            expect_equal(
+                "ghc leaves the argv unchanged",
+                ghc_check_argv([_GHC, "flags", "extra"], "tmp").argv,
+                [_GHC, "flags", "extra"],
+            ),
+            expect_equal(
+                "ghc persistent worker is rejected",
+                ghc_check_argv([_GHC, "flags", "@extra"], "tmp").error != "",
+                True,
+            ),
+            expect_equal(
+                "ghc with the wrong argument count is rejected",
+                [ghc_check_argv([_GHC, "flags"], "tmp").error != "", ghc_check_argv([_GHC, "a", "b", "c"], "tmp").error != ""],
+                [True, True],
+            ),
+            expect_equal(
+                "ghc without a scratch directory is rejected",
+                ghc_check_argv([_GHC, "flags", "extra"], "").error != "",
                 True,
             ),
             expect_equal(

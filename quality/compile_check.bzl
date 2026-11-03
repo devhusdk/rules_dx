@@ -1,4 +1,4 @@
-"""Replays the compile actions of a Fortran, D, OCaml or Zig target in a check-only form.
+"""Replays the compile actions of a Fortran, D, Haskell, OCaml or Zig target in a check-only form.
 
 The aspect reads the real upstream compile action (flags, include paths, module
 directories, compiler), rewrites its command line so nothing is produced, and runs it in
@@ -14,7 +14,7 @@ CompileCheckInfo = provider(
         "diagnostics": "list of File: compiler stderr, one per replayed compile action.",
         "sources": "list of string: the first source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
-        "tool": "string: the quality tool id the logs belong to (flang, ldc, ocaml or zig).",
+        "tool": "string: the quality tool id the logs belong to (flang, ghc, ldc, ocaml or zig).",
     },
 )
 
@@ -141,6 +141,36 @@ def zig_check_argv(argv, scratch):
         out.append("-fno-emit-bin")
     return struct(argv = out, error = "", source = source)
 
+_GHC_FLAGS = ["-fno-code", "-fdiagnostics-as-json"]
+
+_GHC_DIRS = ["-odir", "-hidir", "-stubdir", "-hiedir", "-dumpdir"]
+
+def ghc_check_argv(argv, scratch):
+    """Rewrites a rules_haskell ghc_wrapper command line into a check-only replay.
+
+    The wrapper reads its flags from a params file. The replay copies the extra-args
+    file into scratch with the check-only flags added at the end, where ghc takes the last flag.
+
+    Args:
+      argv: list of string: the wrapper, the compile flags file and the extra args file.
+      scratch: string: a directory the replay may write to.
+
+    Returns:
+      A struct with `argv`, `options` (the compile_check_exec.sh options), `error` and an empty `source`.
+    """
+    if len(argv) != 3:
+        return _fail("expected the ghc wrapper with two flag files, found %d arguments" % len(argv))
+    if argv[2].startswith("@"):
+        return _fail("the persistent worker is not supported (found " + argv[2] + ")")
+    if scratch == "":
+        return _fail("the Haskell replay needs a scratch directory")
+    options = ["--append", "2", scratch + "/extra_args"]
+    for flag in _GHC_FLAGS:
+        options += ["--line", flag]
+    for flag in _GHC_DIRS:
+        options += ["--line", flag, "--line", scratch]
+    return struct(argv = argv, options = options, error = "", source = "")
+
 _OCAML_DROP = ["-bin-annot", "-annot", "-c"]
 
 _OCAML_FLAGS = ["-stop-after", "typing", "-error-style", "short", "-color", "never"]
@@ -262,6 +292,8 @@ _SPECS = {
     "CompileOcamlSignature": struct(tool = "ocaml", rewrite = ocaml_check_argv, scratch = True),
     "Dcompile": struct(tool = "ldc", rewrite = ldc_check_argv, scratch = False),
     "FortranCompile": struct(tool = "flang", rewrite = flang_check_argv, scratch = True),
+    "HaskellBuildBinary": struct(tool = "ghc", rewrite = ghc_check_argv, scratch = True),
+    "HaskellBuildLibrary": struct(tool = "ghc", rewrite = ghc_check_argv, scratch = True),
     "ZigBuildExe": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
     "ZigBuildLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
     "ZigBuildSharedLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
@@ -321,7 +353,13 @@ def _compile_check_impl(target, ctx):
         log = ctx.actions.declare_file("dx_compile_check/%s.log" % stem)
         status = ctx.actions.declare_file("dx_compile_check/%s.exit" % stem)
         steps = getattr(rewritten, "steps", None) or [rewritten.argv]
-        command = [log.path, status.path]
+        command = [log.path, status.path] + getattr(rewritten, "options", [])
+        source = rewritten.source
+        if spec.tool == "ghc":
+            srcs = [f.path for f in ctx.rule.files.srcs if f.path.endswith((".hs", ".lhs"))]
+            if len(srcs) == 0:
+                fail("compile_check: " + str(target.label) + ": no .hs or .lhs source")
+            source = srcs[0]
         if spec.tool == "ocaml":
             files = ctx.rule.files
             owned = [f.path for f in getattr(files, "struct", []) + getattr(files, "sig", []) + getattr(files, "src", []) if f.path.endswith(".ml") or f.path.endswith(".mli")]
@@ -334,7 +372,7 @@ def _compile_check_impl(target, ctx):
             command += steps[n]
         ctx.actions.run(
             mnemonic = "CompileCheck",
-            progress_message = "Check %{label}: " + rewritten.source,
+            progress_message = "Check %{label}: " + source,
             executable = ctx.executable._compile_check_exec,
             arguments = command,
             inputs = action.inputs,
@@ -345,12 +383,12 @@ def _compile_check_impl(target, ctx):
         )
         diagnostics.append(log)
         statuses.append(status)
-        sources.append(rewritten.source)
+        sources.append(source)
     return _forwarded(CompileCheckInfo(diagnostics = diagnostics, sources = sources, statuses = statuses, tool = tool))
 
 compile_check_aspect = aspect(
     implementation = _compile_check_impl,
-    doc = "Replays the Fortran, D, OCaml and Zig compile actions of a target without producing outputs.",
+    doc = "Replays the Fortran, D, Haskell, OCaml and Zig compile actions of a target without producing outputs.",
     attr_aspects = ["upstream", "deps"],
     attrs = {
         "_compile_check_exec": attr.label(

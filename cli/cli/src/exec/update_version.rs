@@ -739,6 +739,71 @@ dependencies = ["anyio>=4"]
     }
 
     #[test]
+    fn consumer_cargo_set_offline_json_fails_before_widening() {
+        let harness = Harness::new("bump-consumer-cargo-offline-json");
+        seed_cargo_set(&harness);
+        let (code, out, err) = harness.run(&[
+            "update",
+            "crates:serde",
+            "2.0.0",
+            "--offline",
+            "--output=json",
+            "--apply",
+        ]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("no widen performed"), "{err}");
+        assert_eq!(read(&harness, "rs/a/Cargo.toml"), CARGO_A);
+        assert!(harness.seen_env.borrow().is_empty());
+        let events = json_events(&out);
+        let errors = events_of_kind(&events, "error");
+        assert_eq!(errors[0]["code"], serde_json::json!("offline_required"));
+        let finished = events.last().expect("finished");
+        assert_eq!(finished["exit_code"], 1);
+        assert_eq!(finished["results_complete"], false);
+    }
+
+    #[test]
+    fn file_only_bumps_work_offline_with_json_reports() {
+        for (selector, version, path, before, after) in [
+            (
+                "bazel:.bazelversion",
+                "9.3.0",
+                ".bazelversion",
+                "9.2.0\n",
+                "9.3.0\n",
+            ),
+            (
+                "github-actions:actions/checkout",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                ".github/workflows/ci.yml",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@v1\n",
+                "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+            ),
+        ] {
+            let harness = Harness::new("bump-file-offline");
+            harness.write_source(path, before);
+            let (code, out, err) = harness.run(&[
+                "update",
+                selector,
+                version,
+                "--offline",
+                "--output=json",
+                "--apply",
+            ]);
+            assert_eq!(code, 0, "{selector}: {out}{err}");
+            assert_eq!(read(&harness, path), after);
+            assert!(harness.seen_env.borrow().is_empty());
+            let events = json_events(&out);
+            let notices = events_of_kind(&events, "notice");
+            assert!(
+                notices.iter().any(|n| n["code"] == "update_widened"),
+                "{out}"
+            );
+            assert_eq!(events.last().expect("finished")["exit_code"], 0);
+        }
+    }
+
+    #[test]
     fn consumer_cargo_set_refresh_failure_keeps_the_widen_and_check_reports_drift() {
         let mut harness = Harness::new("bump-consumer-cargo-fail");
         harness.bazel_code = 3;

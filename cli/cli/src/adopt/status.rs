@@ -413,7 +413,7 @@ mod tests {
         assert!(
             check
                 .detail
-                .contains(".codex/hooks.json lacks hooks: PreToolUse (Bash)"),
+                .contains(".codex/hooks.json (lacks hooks: PreToolUse (Bash)"),
             "{}",
             check.detail
         );

@@ -183,8 +183,8 @@ pub(super) fn agents_drift(root: &Path) -> Drift {
     for (path, missing) in setup::workspace_missing(root) {
         if root.join(path).exists() {
             drift
-                .other
-                .push(format!("{path} lacks hooks: {}", missing.join("; ")));
+                .stale
+                .push(format!("{path} (lacks hooks: {})", missing.join("; ")));
         } else {
             drift.missing.push(path.to_owned());
         }
@@ -200,9 +200,11 @@ pub(super) fn agents_drift(root: &Path) -> Drift {
     match claude_md::state(root) {
         Ok(claude_md::State::Imported | claude_md::State::Linked) => {}
         Ok(claude_md::State::Missing) => {
-            drift
-                .other
-                .push(format!("{} lacks @{}", claude_md::FILE, agents::FILE))
+            drift.stale.push(format!(
+                "{} (lacks @{})",
+                claude_md::FILE,
+                agents::FILE
+            ))
         }
         Ok(claude_md::State::Absent) => drift.missing.push(claude_md::FILE.to_owned()),
         Err(error) => drift.other.push(format!("{}: {error}", claude_md::FILE)),
@@ -449,18 +451,19 @@ mod tests {
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
         let drift = super::drift(root);
-        assert_eq!(drift.stale, vec!["AGENTS.md".to_owned()]);
+        assert_eq!(drift.stale.len(), 3, "{drift:?}");
+        assert!(drift.stale.contains(&"AGENTS.md".to_owned()), "{drift:?}");
         assert!(
             drift
-                .other
+                .stale
                 .iter()
-                .any(|o| o.starts_with(".claude/settings.json lacks hooks: ")),
+                .any(|o| o.starts_with(".claude/settings.json (lacks hooks: ")),
             "{drift:?}"
         );
         assert!(
             drift
-                .other
-                .contains(&"CLAUDE.md lacks @AGENTS.md".to_owned()),
+                .stale
+                .contains(&"CLAUDE.md (lacks @AGENTS.md)".to_owned()),
             "{drift:?}"
         );
         std::fs::write(root.join("AGENTS.md"), "<!-- dx:begin -->\n").expect("orphan");

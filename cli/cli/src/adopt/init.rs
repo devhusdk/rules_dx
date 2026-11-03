@@ -336,7 +336,7 @@ mod tests {
         std::fs::write(root.join(".claude/settings.json"), "{}\n").expect("empty");
         let (code, _out, err) = run(&check, &root);
         assert_eq!(code, 1);
-        assert!(err.contains(".claude/settings.json lacks hooks: "), "{err}");
+        assert!(err.contains("stale .claude/settings.json (lacks hooks: "), "{err}");
         assert_eq!(run(&apply, &root).0, 0);
         std::fs::remove_file(root.join(".claude/settings.json")).expect("remove");
         assert_eq!(run(&apply, &root).0, 0);
@@ -349,7 +349,7 @@ mod tests {
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("no import");
         let (code, _out, err) = run(&check, &root);
         assert_eq!(code, 1);
-        assert!(err.contains("CLAUDE.md lacks @AGENTS.md"), "{err}");
+        assert!(err.contains("stale CLAUDE.md (lacks @AGENTS.md)"), "{err}");
         assert_eq!(run(&apply, &root).0, 0);
         let (code, out, _err) = run(&check, &root);
         assert_eq!(code, 0, "{out}");

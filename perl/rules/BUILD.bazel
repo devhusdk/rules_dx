@@ -1,17 +1,53 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS", "perl_quality_srcs")
 load(":platforms.bzl", "RULES_PERL_PLATFORMS")
-load(":wrapper_tests.bzl", "perl_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
     "platforms.bzl",
-    "wrapper_tests.bzl",
 ])
 
-perl_wrapper_contract_tests(name = "wrapper_contract_tests")
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    file_classes = ["perl"],
+    extra_checks = [
+        expect_equal(
+            "wrappers carry perlcritic and perltidy",
+            sorted(PERL_QUALITY_TOOLS.keys()),
+            ["perlcritic", "perltidy"],
+        ),
+        expect_equal(
+            "one perl class owns scripts, modules and tests",
+            PERL_SOURCE_SPECS,
+            [("perl", ["pl", "pm", "t"])],
+        ),
+        expect_equal(
+            "wrappers accept only Perl sources",
+            PERL_SOURCE_EXTS,
+            [".pl", ".pm", ".t"],
+        ),
+        expect_equal(
+            "main leads the owned sources",
+            perl_quality_srcs("main.pl", ["Util.pm"]),
+            ["main.pl", "Util.pm"],
+        ),
+        expect_equal(
+            "main listed in srcs is owned once",
+            perl_quality_srcs("main.pl", ["main.pl", "Util.pm"]),
+            ["main.pl", "Util.pm"],
+        ),
+        expect_equal(
+            "no main and no srcs owns nothing",
+            perl_quality_srcs(None, None),
+            [],
+        ),
+    ],
+)
 
 [
     config_setting(
@@ -36,7 +72,6 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "platforms.bzl",
-        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )
